@@ -25,3 +25,5 @@ speed 1.0. Bundled audio provenance is retained in course-narration.json.
 Original Checkmate code and owner-authored course materials: GPL-3.0-or-later.
 Full license: Checkmate-COPYING.txt.
 No Apple Chess 3D meshes, textures or renderer are shipped.
+
+Native MCP: Swift MCP SDK 0.12.1 and EventSource (MIT); SwiftNIO, Swift System, Swift Log, Swift Atomics and Swift Collections (Apache-2.0 with Swift runtime exception). See Licenses/ for full texts and Package.resolved in the source release for pinned revisions.

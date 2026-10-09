@@ -1,0 +1,94 @@
+{
+  "analyze_position": {
+    "description": "Get bounded Stockfish analysis of a practice position. Scores are from White\u2019s perspective, not win probabilities. Follow the coaching mode; guided play is ongoing permission for hints.",
+    "readOnly": true
+  },
+  "analyze_review": {
+    "description": "Start bounded full-strength history-aware offline analysis, returning a job ID. Quality estimates may remain provisional.",
+    "readOnly": false
+  },
+  "cancel_review_analysis": {
+    "description": "Cancel one review job; navigation and the imported game remain available.",
+    "readOnly": false
+  },
+  "clear_annotations": {
+    "description": "Clear this companion\u2019s annotations for the current position; authored lesson annotations remain.",
+    "readOnly": false
+  },
+  "clear_review_preview": {
+    "description": "Return to the exact original review cursor, preserving the original document.",
+    "readOnly": false
+  },
+  "control_demonstration": {
+    "description": "Play, pause, seek, or close the current demonstration. Use its current demonstrationId and real positionId. seek requires ply and optionally line (zero-based). Other actions omit line/ply. Learner pause and dismissal take precedence: never restart without invitation. Closing restores the real board; no move can be committed through this tool.",
+    "readOnly": false
+  },
+  "demonstrate_line": {
+    "description": "Start a reversible visual demonstration from the current real practice position. Supply up to 3 labeled lines of at most 12 legal UCI moves, each optionally with explanation, arrows and highlights. All moves are validated atomically. Defaults paused; autoplay is optional. Does not commit moves, overwrite a learner preview, or work in quizzes. Return includes demonstrationId as demonstration.id and validated SAN/FEN frames. These are possible lines, not verified best/forced variations.",
+    "readOnly": false
+  },
+  "get_legal_moves": {
+    "description": "List legal practice-game moves for the observed revision. Unavailable in quizzes and partial teaching positions.",
+    "readOnly": true
+  },
+  "get_review": {
+    "description": "Read the displayed review identity and page the complete validated move tree, facts and metadata. For offset>0 include pageIdentity=documentHash. Earlier history is unavailable for FEN imports.",
+    "readOnly": true
+  },
+  "get_review_analysis": {
+    "description": "Read a matching selected-node job's pending/ready/cancelled/failed status and versioned evidence.",
+    "readOnly": true
+  },
+  "get_session": {
+    "description": "Read the current board, role, revision and supported capabilities. Start here. No hidden quiz answers or future lesson text.",
+    "readOnly": true
+  },
+  "get_turn_brief": {
+    "description": "Read the latest practice turn, verified attacks/material, automatically prepared guidance and the learner\u2019s hypothetical test move. Real state and preview are separate. Use after Black replies; guided mode is ongoing permission for suggestions.",
+    "readOnly": true
+  },
+  "inspect_piece": {
+    "description": "Choose target=display to inspect the shown preview/demonstration frame; default game inspects the real game. Read display.identity from get_session before describing the shown board. Inspect either side\u2019s piece: attacked/defended squares and legal destinations for the side to move, or explicitly hypothetical movement out of turn. Never moves a piece.",
+    "readOnly": true
+  },
+  "list_review_games": {
+    "description": "Page locally saved immutable review records. No arbitrary file access.",
+    "readOnly": true
+  },
+  "open_review": {
+    "description": "Open a saved record, current-game snapshot, or bounded pasted PGN/FEN for read-only review. Does not play moves or start voice. When a review is already open, include its expectedReviewRevision to authorize replacement.",
+    "readOnly": false
+  },
+  "play_move": {
+    "description": "As Opponent only, ask Checkmate to choose and play one legal Black move at its configured strength. Never moves White. Reuse requestId when retrying an uncertain result.",
+    "readOnly": false
+  },
+  "preview_move": {
+    "description": "Analyze a legal White candidate without playing it. Returns verified move facts, remaining attacks, approximate engine comparison and hypothetical continuation frames. Never commits or changes the visible board. Use to substantiate tactical explanations.",
+    "readOnly": true
+  },
+  "preview_review_line": {
+    "description": "Validate a reversible imagined UCI line atomically, then display its initial frame. Both sides can move in the local branch.",
+    "readOnly": false
+  },
+  "select_review_position": {
+    "description": "Select a validated original node. Requires the exact current document, node and review revision; never edits the imported tree.",
+    "readOnly": false
+  },
+  "show_annotation": {
+    "description": "Temporarily highlight squares or draw arrows on the current board. During a demonstration also provide its demonstrationId, line and ply to target the exact displayed frame. Does not answer a quiz, play a move, or advance a lesson.",
+    "readOnly": false
+  },
+  "show_preview": {
+    "description": "Display a frame of the learner\u2019s existing Try a move analysis on the board. Candidate and recommended continuations are hypothetical; this never commits a move. Requires a ready user-selected preview and current position. Explain the displayed reply, then return to ply 1; the learner chooses Play this move or Return to game.",
+    "readOnly": false
+  },
+  "start_practice_from_review": {
+    "description": "Request the app's concrete confirmation, side and profile selection before creating a separate practice fork. Cannot silently replace an active game.",
+    "readOnly": false
+  },
+  "wait_for_change": {
+    "description": "Wait up to 20 seconds for a board, lesson or connection change. Returns changed=false on timeout. Does not start voice or wake an idle conversation. Stop when the user stops; never busy-poll.",
+    "readOnly": true
+  }
+}

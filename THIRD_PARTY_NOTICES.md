@@ -20,6 +20,8 @@ scaling, positioning and an Icon Composer graphite background.
 Cedar lesson recordings: AI-generated OpenAI speech. The bundled
 course-narration.json records the model, voice, input and final asset hashes.
 
-Optional MCP tooling: @modelcontextprotocol/sdk (MIT), zod (MIT), and development
-dependencies carry their upstream licenses in their installed packages. They are
-not bundled in the native macOS application.
+The bundled native MCP companion uses the official Swift MCP SDK 0.12.1 (MIT)
+and its Swift dependencies: EventSource (MIT), SwiftNIO, Swift System, Swift Log,
+Swift Atomics and Swift Collections (Apache-2.0 with Swift runtime exception).
+Exact resolved revisions are in native/Package.resolved. Full license texts
+are bundled under native/Sources/CheckmateCore/Resources/Licenses/.

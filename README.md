@@ -11,11 +11,10 @@ brew install --cask xiaolai/tap/checkmate
 Requires Apple Silicon and macOS 27. [Native development](native/README.md),
 [release packaging](native/RELEASE.md), [changelog](native/CHANGELOG.md).
 
-The application needs no Node or web runtime. The optional external MCP adapter
-uses Node 22+ and pnpm; build it with `pnpm companion:build`, then run
-`node packages/companion-mcp/dist/packages/companion-mcp/src/cli.js`. Its chess-specific tools connect to
-the running native app's private local broker. The companion skill is under
-`companion/skills/checkmate-companion/`.
+To use Codex as a chess companion, choose **Set up Codex** in Settings →
+Connections, then enable chess MCP connections and start a new Codex task with
+`$checkmate-companion`.
+The companion connects privately to Checkmate on this Mac.
 
 Original code and owner-authored course materials: GPL-3.0-or-later. Third-party
 licenses retain their own terms; see [notices](THIRD_PARTY_NOTICES.md). Matching

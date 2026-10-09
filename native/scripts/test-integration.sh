@@ -8,7 +8,7 @@ CHECKMATE_AUTOMATION=1 build/CheckmateAutomation.app/Contents/MacOS/CheckmateNat
 checkmate_pid=$!
 trap 'kill "$checkmate_pid" 2>/dev/null || true' EXIT
 for ((i=0;i<30;i++)); do [[ -f "$checkmate_data/companion/connection.json" ]] && break; sleep 1; done
-node scripts/test-integration.mjs "$checkmate_data/companion/connection.json" > "$checkmate_evidence/broker-coach.json"
+python3 scripts/test-integration.py build/CheckmateAutomation.app/Contents/MacOS/CheckmateMCP "$checkmate_data/companion/connection.json" > "$checkmate_evidence/broker-coach.json"
 kill "$checkmate_pid";wait "$checkmate_pid" || true
 for phase in preview opponent; do
  checkmate_data=$(mktemp -d /tmp/checkmate-integration-state.XXXXXX)
@@ -16,7 +16,7 @@ for phase in preview opponent; do
  CHECKMATE_AUTOMATION=1 build/CheckmateAutomation.app/Contents/MacOS/CheckmateNative --automation --data-dir "$checkmate_data" "${flags[@]}" > "$checkmate_evidence/broker-$phase.log" 2>&1 &
  checkmate_pid=$!
  for ((i=0;i<30;i++));do [[ -f "$checkmate_data/companion/connection.json" ]] && break;sleep 1;done
- node scripts/test-integration.mjs "$checkmate_data/companion/connection.json" "$phase" > "$checkmate_evidence/broker-$phase.json"
+ python3 scripts/test-integration.py build/CheckmateAutomation.app/Contents/MacOS/CheckmateMCP "$checkmate_data/companion/connection.json" "$phase" > "$checkmate_evidence/broker-$phase.json"
  kill "$checkmate_pid";wait "$checkmate_pid" || true
 done
 python3 - "$checkmate_evidence" <<'PY'

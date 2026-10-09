@@ -9,12 +9,27 @@ private struct SettingsForm:View {
     @ObservedObject var session:GameSession
     @ObservedObject var voice:VoiceCoach
     @ObservedObject var companion:CompanionBroker
+    @State private var companionSetupStatus = ""
+    @State private var companionSetupRunning = false
     @ObservedObject var voiceAudio:VoiceAudio
     func binding<T>(_ key:WritableKeyPath<AppSettings,T>)->Binding<T> {Binding(get:{session.state.settings[keyPath:key]},set:{var s=session.state.settings;s[keyPath:key]=$0;session.updateSettings(s)})}
+    private func setUpCodex() {
+        guard let codex=CompanionInstallation.installedCodex(),let directory=Bundle.main.executableURL?.deletingLastPathComponent() else {companionSetupStatus="Install Codex on this Mac first.";return}
+        let executable=directory.appendingPathComponent("CheckmateMCP")
+        companionSetupRunning=true
+        Task {
+            do {
+                let skill=try Data(contentsOf:NativeResources.url("companion-skill.md"))
+                try await Task.detached {try CompanionInstallation.register(executable:executable,codex:codex,skill:skill)}.value
+                companionSetupStatus="Ready. Enable chess MCP connections, then start a new Codex task using $checkmate-companion."
+            } catch {companionSetupStatus=error.localizedDescription}
+            companionSetupRunning=false
+        }
+    }
     var body:some View {Form {
         switch selection.category ?? .board {
         case .connections:
-            Section("Codex companion"){Text(companion.status);Toggle("Allow chess MCP connections",isOn:Binding(get:{companion.enabled},set:{on in if on{do{try companion.enable(role:session.state.settings.companionRole)}catch{companion.disable()}}else{companion.disable()}})).disabled(voice.connected);Picker("Companion role",selection:binding(\.companionRole)){Text("Coach").tag("coach");Text("Opponent (Black)").tag("opponent")}.disabled(companion.enabled);if companion.connected{Button("Disconnect companion"){companion.release()}};if let error=companion.error{Text(error).foregroundStyle(.secondary)}}
+            Section("Codex companion"){Button(companionSetupRunning ? "Setting up…" : "Set up Codex"){setUpCodex()}.disabled(companionSetupRunning);if !companionSetupStatus.isEmpty{Text(companionSetupStatus).foregroundStyle(.secondary)};Text(companion.status);Toggle("Allow chess MCP connections",isOn:Binding(get:{companion.enabled},set:{on in if on{do{try companion.enable(role:session.state.settings.companionRole)}catch{companion.disable()}}else{companion.disable()}})).disabled(voice.connected);Picker("Companion role",selection:binding(\.companionRole)){Text("Coach").tag("coach");Text("Opponent (Black)").tag("opponent")}.disabled(companion.enabled);if companion.connected{Button("Disconnect companion"){companion.release()}};if let error=companion.error{Text(error).foregroundStyle(.secondary)}}
             Section {Text("The connection stays local to this Mac. Live voice and external MCP coaching use separate, exclusive sessions.").foregroundStyle(.secondary)}
         case .voice:
             Section("Connection"){Text(voice.status);Text(voice.availability).foregroundStyle(.secondary);HStack{Button("Check availability"){voice.checkAvailability()};Button(voice.connected ? "Disconnect":"Connect"){if voice.connected{voice.disconnect()}else{voice.connect()}}.disabled(companion.enabled)};Toggle("Connect automatically in Practice",isOn:binding(\.voiceAutoConnect))}

@@ -18,7 +18,7 @@ open build/CheckmateNative.app
 native tests, packaged UI scenarios, the existing MCP adapter against the native
 broker, a temporary WebKit legacy-store exporter test, and resource checks.
 The WebKit helper is a test executable, never part of the application. Its export is reimported by the deterministic migration test. The aggregate includes 483 sampled layout frames, constrained/fullscreen checks, lifecycle/restart tests, 1000 command transitions and 20 connection cycles. Automation does not enable VoiceOver or change accessibility preferences.
-UI/integration gates require the MCP adapter built with `pnpm companion:build` from the repository root. Normal offline play needs neither Node nor Homebrew installed.
+The build bundles the native MCP adapter. UI/integration gates use its actual stdio protocol; neither the application nor its companion requires Node.
 
 ## Piece inspection
 
@@ -84,3 +84,9 @@ Review accepts PGN collections and standard-chess FEN positions from native Open
 Custom opponent skill0–20 and the engine's discovered Elo range are independent of full-strength review analysis. Engine Elo is an estimate, not a promised human rating. Experimental features remain separately gated by `CHECKMATE_REVIEW_QUALITY_LABELS=1`, `CHECKMATE_REVIEW_VOICE_ENABLED=1` and `CHECKMATE_BEGINNER_OPPONENT_ENABLED=1`.
 
 Review documents/cursors are stored separately from existing progress. Before downgrading, export each original PGN/FEN and any imagined lines you wish to retain, and copy the native data directory shown in Settings. Older builds do not understand review storage; do not delete it to force compatibility. Newer saved schemas are rejected without destroying their files. This downgrade procedure is documented but has not been validated through an actual older-build round trip.
+
+The installed app bundles `Contents/MacOS/CheckmateMCP`. Settings → Connections →
+Set up Codex registers that executable and installs the companion skill if absent.
+It preserves an existing customized skill. Restart the host MCP connection after
+moving the app to a different installation path. Developers can supply an isolated
+`--connection-file` to the executable; production uses the app's private discovery.

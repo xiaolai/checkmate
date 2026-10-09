@@ -66,6 +66,12 @@ for dependency in libraries.splitlines()[1:]:
     path = dependency.strip().split(' (', 1)[0]
     if not path.startswith(('/usr/lib/', '/System/Library/')):
         raise RuntimeError(f'Non-system engine dependency: {path}')
+helper = app / 'Contents/MacOS/CheckmateMCP'
+if not helper.is_file():
+    raise RuntimeError('Native companion missing')
+for line in subprocess.check_output(['otool', '-L', str(helper)], text=True).splitlines()[1:]:
+    if not line.strip().split(' (', 1)[0].startswith(('/usr/lib/', '/System/Library/')):
+        raise RuntimeError('Non-system companion runtime dependency')
 executable = app / 'Contents/MacOS/CheckmateNative'
 links = subprocess.check_output(['otool', '-L', str(executable)], text=True)
 if not ('WebKit' not in links):

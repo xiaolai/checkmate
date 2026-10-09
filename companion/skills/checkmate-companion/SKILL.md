@@ -9,7 +9,7 @@ Use the Checkmate MCP tools to read the actual board. Begin with `get_session`; 
 
 ## Connection
 
-Use the host’s registered Checkmate tools and keep that MCP process alive throughout the game. Do not write temporary Python clients or terminate the connection after each read; disconnect clears its annotations and revokes control. If tools are absent from this task, explain that a fresh task/reload is needed. `pnpm companion:diagnose` in the Checkmate checkout is a fixed read-only diagnostic, not the normal gameplay path. Never silently substitute a screenshot for an MCP board reading.
+Use the host’s registered Checkmate tools and keep that MCP process alive throughout the game. Do not write temporary Python clients or terminate the connection after each read; disconnect clears its annotations and revokes control. If tools are absent from this task, explain that a fresh task/reload is needed. Never silently substitute a screenshot for an MCP board reading.
 
 ## Conversation
 

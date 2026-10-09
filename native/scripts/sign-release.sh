@@ -16,6 +16,7 @@ sign() {
         sleep "$attempt"
     done
 }
+sign "$app/Contents/MacOS/CheckmateMCP"
 sign "$engine"
 # Signing changes the binary bytes; retain both hashes in the shipped provenance.
 python3 - "$engine" <<'PY'
