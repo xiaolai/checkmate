@@ -34,7 +34,7 @@ verify)
     xcrun stapler validate "$mount/Checkmate.app"
     verdict=$(spctl -a -vvv -t exec "$mount/Checkmate.app" 2>&1) || { echo "$verdict" >&2;exit 1; }
     [[ "$verdict" == *'source=Notarized Developer ID'* ]] || { echo "$verdict" >&2;exit 1; }
-    python3 -O scripts/check-package.py "$mount/Checkmate.app"
+    python3 -O scripts/check-package.py "$mount/Checkmate.app" --release
     shasum -a 256 "$dmg"
     ;;
 *) echo 'Usage: finish-release.sh image|verify' >&2;exit 1;;

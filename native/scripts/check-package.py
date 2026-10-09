@@ -71,4 +71,11 @@ links = subprocess.check_output(['otool', '-L', str(executable)], text=True)
 if not ('WebKit' not in links):
     raise RuntimeError('Package verification failed')
 subprocess.run(['codesign', '--verify', '--deep', '--strict', str(app)], check=True, capture_output=True)
+if '--release' in sys.argv:
+    entitlements = plistlib.loads(subprocess.check_output(['codesign', '-d', '--entitlements', ':-', str(app)], stderr=subprocess.DEVNULL))
+    if entitlements.get('com.apple.security.device.audio-input') is not True or entitlements.get('com.apple.security.get-task-allow'):
+        raise RuntimeError('Release must allow audio input and exclude debugger access')
+    signature = subprocess.run(['codesign', '-d', '--verbose=4', str(app)], capture_output=True, text=True, check=True).stderr
+    if '(runtime)' not in signature or 'Timestamp=' not in signature:
+        raise RuntimeError('Release must use hardened runtime and a secure timestamp')
 print(json.dumps({'passed': True, 'iconFormat': 'Icon Composer', 'lessons': 40, 'audioFiles': 947, 'narrationVoice': 'cedar', 'audioHashesVerified': True, 'puzzles': 87, 'webRuntime': False, 'engineHasSystemDependenciesOnly': True}))

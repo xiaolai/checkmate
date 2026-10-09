@@ -11,7 +11,8 @@ Neither signing nor notarization executes application code; credentials are neve
 hardened runtime and a secure timestamp, notarized and stapled before the DMG is
 created. The DMG is signed, notarized and stapled separately. Verification mounts
 the final image read-only and checks the shipped app's signature, ticket, resources
-and Gatekeeper assessment. No app is launched or audio played by packaging.
+and Gatekeeper assessment. Hardened-runtime signing includes the audio-input
+entitlement required by the voice coach, without debugger access. No app is launched or audio played by packaging.
 
 Synchronize the source to the build machine, run the silent native test suite,
 then run from this checkout:
