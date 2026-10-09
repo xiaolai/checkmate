@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "audio": {"format": "m4af", "codec": "aac", "bitrate": 64000, "jobs": 4},
+  "timing": {
+    "frameRate": 30,
+    "movementStart": 0.25,
+    "movementInterval": 0.95,
+    "pieceDuration": 0.7,
+    "removalDelay": 0.75,
+    "minimumCountSpacing": 0.2,
+    "postNarrationGap": 0.5
+  }
+}

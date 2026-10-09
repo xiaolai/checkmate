@@ -1,0 +1,17 @@
+[Event "Rated Bullet game"]
+[Site "https://lichess.org/a2020dlv"]
+[White "LEGENDARY_ERFAN"]
+[Black "cheesedout"]
+[Result "0-1"]
+[UTCDate "2013.01.01"]
+[UTCTime "00:12:41"]
+[WhiteElo "1188"]
+[BlackElo "1820"]
+[WhiteRatingDiff "-6"]
+[BlackRatingDiff "+1"]
+[ECO "C00"]
+[Opening "Queen's Pawn Game: Franco-Sicilian Defense"]
+[TimeControl "60+0"]
+[Termination "Normal"]
+
+1. e4 c5 2. d4 e6 3. dxc5 Bxc5 4. e5 Nc6 5. Bc4 Nxe5 6. b3 Qb6 7. Nf3 Bxf2+ 8. Kf1 Nxc4 9. bxc4 Bc5 10. Nc3 d5 11. g3 dxc4 12. Bb2 Nf6 13. Qe2 O-O 14. Ne4 Ng4 15. Neg5 Ne3+ 16. Qxe3 Bxe3 17. Ne5 Bxg5 18. Re1 f6 19. Nxc4 Qb5 20. Re4 f5 21. Rf4 Bxf4 22. gxf4 Qxc4+ 23. Kg2 Qxc2+ 24. Kg3 Qxb2 25. Kh4 Bd7 26. Kg5 Bc6 27. Kh4 Bxh1 28. Kg5 Qxh2 29. a4 h6+ 30. Kg6 Qg3+ 31. Kh5 Qg4# 0-1

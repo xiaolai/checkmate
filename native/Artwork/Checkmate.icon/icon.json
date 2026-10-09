@@ -1,0 +1,31 @@
+{
+  "fill": {
+    "automatic-gradient": "srgb:0.24000,0.24000,0.24000,1.00000"
+  },
+  "groups": [
+    {
+      "name": "Knight",
+      "translucency": {
+        "enabled": false,
+        "value": 0.5
+      },
+      "specular": false,
+      "shadow": {
+        "kind": "none",
+        "opacity": 0.5
+      },
+      "layers": [
+        {
+          "name": "Knight",
+          "image-name": "Knight.svg",
+          "glass": false
+        }
+      ]
+    }
+  ],
+  "supported-platforms": {
+    "squares": [
+      "macOS"
+    ]
+  }
+}

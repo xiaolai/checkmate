@@ -1,0 +1,17 @@
+[Event "Rated Classical game"]
+[Site "https://lichess.org/szom2tog"]
+[White "Kozakmamay007"]
+[Black "VanillaShamanilla"]
+[Result "1-0"]
+[UTCDate "2012.12.31"]
+[UTCTime "23:03:15"]
+[WhiteElo "1643"]
+[BlackElo "1747"]
+[WhiteRatingDiff "+13"]
+[BlackRatingDiff "-94"]
+[ECO "C50"]
+[Opening "Four Knights Game: Italian Variation"]
+[TimeControl "420+17"]
+[Termination "Normal"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Nf6 4. Nc3 Bc5 5. a3 Bxf2+ 6. Kxf2 Nd4 7. d3 Ng4+ 8. Kf1 Qf6 9. h3 d5 10. Nxd5 Qe6 11. Nxc7+ 1-0

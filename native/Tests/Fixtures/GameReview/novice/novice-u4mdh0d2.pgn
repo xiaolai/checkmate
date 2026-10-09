@@ -1,0 +1,17 @@
+[Event "Rated Blitz game"]
+[Site "https://lichess.org/u4mdh0d2"]
+[White "GEZ"]
+[Black "MARCO0019"]
+[Result "1-0"]
+[UTCDate "2013.01.01"]
+[UTCTime "00:21:24"]
+[WhiteElo "1420"]
+[BlackElo "1167"]
+[WhiteRatingDiff "+5"]
+[BlackRatingDiff "-39"]
+[ECO "C50"]
+[Opening "Four Knights Game: Italian Variation"]
+[TimeControl "300+1"]
+[Termination "Normal"]
+
+1. e4 e5 2. Bc4 Bc5 3. Nc3 Nc6 4. Nf3 Nf6 5. d4 exd4 6. Nd5 a5 7. Bf4 Nxe4 8. Ne5 Nd6 9. Nxc6 dxc6 10. Nxc7+ Qxc7 11. Qf3 h6 12. h4 Qd8 13. Bxd6 Qxd6 14. Qxf7+ Kd8 15. Qxg7 Qc7 16. Qxh8+ Kd7 17. Qg7+ Kd8 18. Qxh6 Bf5 19. Qg5+ Be7 20. Qxf5 a4 21. h5 a3 22. bxa3 Rxa3 23. h6 Rc3 24. Be6 Rxc2 25. h7 Qa5+ 26. Kf1 c5 27. h8=Q+ Kc7 28. Qc8+ Kb6 29. Qxc2 c4 30. Rb1+ Ka7 31. Qxb7# 1-0

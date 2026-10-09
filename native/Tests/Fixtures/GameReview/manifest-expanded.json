@@ -1,0 +1,647 @@
+{
+  "schemaVersion": 2,
+  "baselineManifest": "manifest.json",
+  "entries": [
+    {
+      "id": "expanded-variation-deep",
+      "kind": "game",
+      "path": "expanded/variation-deep.pgn",
+      "sha256": "2a7a51a512a853e0c246f39491c8c0527b1219482d75f65d2179070467573666",
+      "expectedImport": "accept",
+      "source": "Repository-authored rule fixture",
+      "license": "Repository license",
+      "parentId": "synthetic-variation-deep",
+      "split": "held-out",
+      "tags": [
+        "variation-deep",
+        "synthetic"
+      ],
+      "oracle": "Rules legality and explicit importer policy; no engine tactical label inferred"
+    },
+    {
+      "id": "expanded-variation-comments",
+      "kind": "game",
+      "path": "expanded/variation-comments.pgn",
+      "sha256": "4dcaf8410c2fc9222c633c4758ad029b82bb9faa117dc545dc936a4e5b0ed4f4",
+      "expectedImport": "accept",
+      "source": "Repository-authored rule fixture",
+      "license": "Repository license",
+      "parentId": "synthetic-variation-comments",
+      "split": "held-out",
+      "tags": [
+        "variation-comments",
+        "synthetic"
+      ],
+      "oracle": "Rules legality and explicit importer policy; no engine tactical label inferred"
+    },
+    {
+      "id": "expanded-escaped-tags",
+      "kind": "game",
+      "path": "expanded/escaped-tags.pgn",
+      "sha256": "f0b0431282d7b361984dbf7aa80f33e8a812c9f80462bcdf657cdcdfb3c9f60c",
+      "expectedImport": "accept",
+      "source": "Repository-authored rule fixture",
+      "license": "Repository license",
+      "parentId": "synthetic-escaped-tags",
+      "split": "held-out",
+      "tags": [
+        "escaped-tags",
+        "synthetic"
+      ],
+      "oracle": "Rules legality and explicit importer policy; no engine tactical label inferred"
+    },
+    {
+      "id": "expanded-nag-symbols",
+      "kind": "game",
+      "path": "expanded/nag-symbols.pgn",
+      "sha256": "6b1051f0b3e7ca533d06a0c1fd43e8f4b0224df58404d3f93bb4260589f3205e",
+      "expectedImport": "accept",
+      "source": "Repository-authored rule fixture",
+      "license": "Repository license",
+      "parentId": "synthetic-nag-symbols",
+      "split": "held-out",
+      "tags": [
+        "nag-symbols",
+        "synthetic"
+      ],
+      "oracle": "Rules legality and explicit importer policy; no engine tactical label inferred"
+    },
+    {
+      "id": "expanded-draw-offer",
+      "kind": "game",
+      "path": "expanded/draw-offer.pgn",
+      "sha256": "c984d1930c60d774432952e327afa3a9791bb7d3b0d64768003b31e92d6f48d0",
+      "expectedImport": "accept",
+      "source": "Repository-authored rule fixture",
+      "license": "Repository license",
+      "parentId": "synthetic-draw-offer",
+      "split": "held-out",
+      "tags": [
+        "draw-offer",
+        "synthetic"
+      ],
+      "oracle": "Rules legality and explicit importer policy; no engine tactical label inferred"
+    },
+    {
+      "id": "expanded-clock-loss",
+      "kind": "game",
+      "path": "expanded/clock-loss.pgn",
+      "sha256": "5c122df75a4c9913ef2c6706ff3c4cb18bfa3da7a82991c78888a600546df58e",
+      "expectedImport": "accept",
+      "source": "Repository-authored rule fixture",
+      "license": "Repository license",
+      "parentId": "synthetic-clock-loss",
+      "split": "held-out",
+      "tags": [
+        "clock-loss",
+        "synthetic"
+      ],
+      "oracle": "Rules legality and explicit importer policy; no engine tactical label inferred"
+    },
+    {
+      "id": "expanded-chess960-reject",
+      "kind": "game",
+      "path": "expanded/chess960-reject.pgn",
+      "sha256": "f322e935537a62dcee4d3f02bfb2f2cee5aac194718c321cab1d6f6715fbcbf2",
+      "expectedImport": "reject",
+      "source": "Repository-authored rule fixture",
+      "license": "Repository license",
+      "parentId": "synthetic-chess960-reject",
+      "split": "held-out",
+      "tags": [
+        "chess960-reject",
+        "synthetic"
+      ],
+      "oracle": "Rules legality and explicit importer policy; no engine tactical label inferred"
+    },
+    {
+      "id": "expanded-bad-rav",
+      "kind": "game",
+      "path": "expanded/bad-rav.pgn",
+      "sha256": "26500c5899d78ef62e102256600c0c8b9a78259b72b8fb00a675978250b581b5",
+      "expectedImport": "reject",
+      "source": "Repository-authored rule fixture",
+      "license": "Repository license",
+      "parentId": "synthetic-bad-rav",
+      "split": "held-out",
+      "tags": [
+        "bad-rav",
+        "synthetic"
+      ],
+      "oracle": "Rules legality and explicit importer policy; no engine tactical label inferred"
+    },
+    {
+      "id": "expanded-extra-close",
+      "kind": "game",
+      "path": "expanded/extra-close.pgn",
+      "sha256": "f09d36a76d276743f301338cca41655f759fbecebbf5cb0d78452cbcc34a78a3",
+      "expectedImport": "reject",
+      "source": "Repository-authored rule fixture",
+      "license": "Repository license",
+      "parentId": "synthetic-extra-close",
+      "split": "held-out",
+      "tags": [
+        "extra-close",
+        "synthetic"
+      ],
+      "oracle": "Rules legality and explicit importer policy; no engine tactical label inferred"
+    },
+    {
+      "id": "expanded-bad-nag",
+      "kind": "game",
+      "path": "expanded/bad-nag.pgn",
+      "sha256": "e0593b95e7ae7cb966907a0b7b1800f6f7dedeef71cc84eb06558d754c3e3e04",
+      "expectedImport": "reject",
+      "source": "Repository-authored rule fixture",
+      "license": "Repository license",
+      "parentId": "synthetic-bad-nag",
+      "split": "held-out",
+      "tags": [
+        "bad-nag",
+        "synthetic"
+      ],
+      "oracle": "Rules legality and explicit importer policy; no engine tactical label inferred"
+    },
+    {
+      "id": "expanded-duplicate-header",
+      "kind": "game",
+      "path": "expanded/duplicate-header.pgn",
+      "sha256": "8009cd617adfeeca11589e9db9a71e4113df6c58eaf1fb7ad7e9ddf89741f4f0",
+      "expectedImport": "reject",
+      "source": "Repository-authored rule fixture",
+      "license": "Repository license",
+      "parentId": "synthetic-duplicate-header",
+      "split": "held-out",
+      "tags": [
+        "duplicate-header",
+        "synthetic"
+      ],
+      "oracle": "Rules legality and explicit importer policy; no engine tactical label inferred"
+    },
+    {
+      "id": "expanded-missing-marker",
+      "kind": "game",
+      "path": "expanded/missing-marker.pgn",
+      "sha256": "32fe66cf001eb80fd0e2f63793362d48f7e034517e2ce2c7a0c9cc592ad2bbd4",
+      "expectedImport": "reject",
+      "source": "Repository-authored rule fixture",
+      "license": "Repository license",
+      "parentId": "synthetic-missing-marker",
+      "split": "held-out",
+      "tags": [
+        "missing-marker",
+        "synthetic"
+      ],
+      "oracle": "Rules legality and explicit importer policy; no engine tactical label inferred"
+    },
+    {
+      "id": "expanded-setup-missing",
+      "kind": "game",
+      "path": "expanded/setup-missing.pgn",
+      "sha256": "13cd6fed07ac0e8dbfd92d545f748c19da24ec9b277cb473d222dc97c0af7b86",
+      "expectedImport": "reject",
+      "source": "Repository-authored rule fixture",
+      "license": "Repository license",
+      "parentId": "synthetic-setup-missing",
+      "split": "held-out",
+      "tags": [
+        "setup-missing",
+        "synthetic"
+      ],
+      "oracle": "Rules legality and explicit importer policy; no engine tactical label inferred"
+    },
+    {
+      "id": "expanded-fen-missing-setup",
+      "kind": "game",
+      "path": "expanded/fen-missing-setup.pgn",
+      "sha256": "bdd79831743620c64b8691e5bcb467e05876a58d149cb97c83e7d9c10d6644fe",
+      "expectedImport": "reject",
+      "source": "Repository-authored rule fixture",
+      "license": "Repository license",
+      "parentId": "synthetic-fen-missing-setup",
+      "split": "held-out",
+      "tags": [
+        "fen-missing-setup",
+        "synthetic"
+      ],
+      "oracle": "Rules legality and explicit importer policy; no engine tactical label inferred"
+    },
+    {
+      "id": "expanded-bad-castling",
+      "kind": "position",
+      "path": "expanded/bad-castling.fen",
+      "sha256": "aab9ed4e54efa59106c94769bba015774d72f463fba41f74677df2ddcd768b42",
+      "expectedImport": "reject",
+      "source": "Repository-authored rule fixture",
+      "license": "Repository license",
+      "parentId": "synthetic-bad-castling",
+      "split": "held-out",
+      "tags": [
+        "bad-castling",
+        "synthetic"
+      ],
+      "oracle": "Rules legality and explicit importer policy; no engine tactical label inferred"
+    },
+    {
+      "id": "expanded-adjacent-kings",
+      "kind": "position",
+      "path": "expanded/adjacent-kings.fen",
+      "sha256": "ce0dfeed534c104a0d05e4d073f23a634f4aeab48e53171b1d5e731c05e0681d",
+      "expectedImport": "reject",
+      "source": "Repository-authored rule fixture",
+      "license": "Repository license",
+      "parentId": "synthetic-adjacent-kings",
+      "split": "held-out",
+      "tags": [
+        "adjacent-kings",
+        "synthetic"
+      ],
+      "oracle": "Rules legality and explicit importer policy; no engine tactical label inferred"
+    },
+    {
+      "id": "expanded-bad-ep",
+      "kind": "position",
+      "path": "expanded/bad-ep.fen",
+      "sha256": "c7191ef7fed08d550827af6ef8298567ef9360f3bada61b573a71bae358509b3",
+      "expectedImport": "reject",
+      "source": "Repository-authored rule fixture",
+      "license": "Repository license",
+      "parentId": "synthetic-bad-ep",
+      "split": "held-out",
+      "tags": [
+        "bad-ep",
+        "synthetic"
+      ],
+      "oracle": "Rules legality and explicit importer policy; no engine tactical label inferred"
+    },
+    {
+      "id": "expanded-fivefold",
+      "kind": "game",
+      "path": "expanded/fivefold.pgn",
+      "sha256": "e02248f27ee2957317f4b2fd815b317590c92cee47311678cbd704240708408e",
+      "expectedImport": "accept",
+      "source": "Repository-authored rule fixture",
+      "license": "Repository license",
+      "parentId": "synthetic-fivefold",
+      "split": "held-out",
+      "tags": [
+        "fivefold",
+        "synthetic"
+      ],
+      "oracle": "Rules legality and explicit importer policy; no engine tactical label inferred"
+    },
+    {
+      "id": "expanded-75-move",
+      "kind": "position",
+      "path": "expanded/75-move.fen",
+      "sha256": "df7e0836f9b3793109ec1e1addda027f924d4024cd634706c106f3797d3aa791",
+      "expectedImport": "accept",
+      "source": "Repository-authored rule fixture",
+      "license": "Repository license",
+      "parentId": "synthetic-75-move",
+      "split": "held-out",
+      "tags": [
+        "75-move",
+        "synthetic"
+      ],
+      "oracle": "Rules legality and explicit importer policy; no engine tactical label inferred"
+    },
+    {
+      "id": "expanded-opposition",
+      "kind": "position",
+      "path": "expanded/opposition.fen",
+      "sha256": "b74ec5eb774d883916e909735c62ecbfaabf276a4aded8c1a7ee52d3daa2050c",
+      "expectedImport": "accept",
+      "source": "Repository-authored rule fixture",
+      "license": "Repository license",
+      "parentId": "synthetic-opposition",
+      "split": "held-out",
+      "tags": [
+        "opposition",
+        "synthetic"
+      ],
+      "oracle": "Rules legality and explicit importer policy; no engine tactical label inferred"
+    },
+    {
+      "id": "expanded-zugzwang",
+      "kind": "position",
+      "path": "expanded/zugzwang.fen",
+      "sha256": "c1edb5dd10f6cc5225033ccb193c77c1fa0b81d8fb577df0dec2d6712582628c",
+      "expectedImport": "accept",
+      "source": "Repository-authored rule fixture",
+      "license": "Repository license",
+      "parentId": "synthetic-zugzwang",
+      "split": "held-out",
+      "tags": [
+        "zugzwang",
+        "synthetic"
+      ],
+      "oracle": "Rules legality and explicit importer policy; no engine tactical label inferred"
+    },
+    {
+      "id": "expanded-underpromotion",
+      "kind": "position",
+      "path": "expanded/underpromotion.fen",
+      "sha256": "3c46a89150c66b1af45b4a888fadee4f38113a3f93d8d77aeebc0954a8cc49e4",
+      "expectedImport": "accept",
+      "source": "Repository-authored rule fixture",
+      "license": "Repository license",
+      "parentId": "synthetic-underpromotion",
+      "split": "held-out",
+      "tags": [
+        "underpromotion",
+        "synthetic"
+      ],
+      "oracle": "Rules legality and explicit importer policy; no engine tactical label inferred"
+    },
+    {
+      "id": "expanded-quiet-defense",
+      "kind": "position",
+      "path": "expanded/quiet-defense.fen",
+      "sha256": "567f989a3ae6490791e954864e295a22ef63ffa0c0ab78840b30931dc471058a",
+      "expectedImport": "accept",
+      "source": "Repository-authored rule fixture",
+      "license": "Repository license",
+      "parentId": "synthetic-quiet-defense",
+      "split": "tuning",
+      "tags": [
+        "quiet-defense",
+        "synthetic"
+      ],
+      "oracle": "Rules legality and explicit importer policy; no engine tactical label inferred"
+    },
+    {
+      "id": "expanded-greek-gift",
+      "kind": "position",
+      "path": "expanded/greek-gift.fen",
+      "sha256": "18356e8ff0db922dc6e7858a9bf60367c15f754bd284505f53039135304b44e3",
+      "expectedImport": "accept",
+      "source": "Repository-authored rule fixture",
+      "license": "Repository license",
+      "parentId": "synthetic-greek-gift",
+      "split": "tuning",
+      "tags": [
+        "greek-gift",
+        "synthetic"
+      ],
+      "oracle": "Rules legality and explicit importer policy; no engine tactical label inferred"
+    },
+    {
+      "id": "expanded-novice-style-fools",
+      "kind": "game",
+      "path": "expanded/novice-style-fools.pgn",
+      "sha256": "44dca838b04618868a1d472ac2f99c0fb20b570a3258987d1e991763984dc106",
+      "expectedImport": "accept",
+      "source": "Repository-authored rule fixture",
+      "license": "Repository license",
+      "parentId": "synthetic-novice-style-fools",
+      "split": "tuning",
+      "tags": [
+        "novice-style-fools",
+        "synthetic"
+      ],
+      "oracle": "Rules legality and explicit importer policy; no engine tactical label inferred"
+    },
+    {
+      "id": "expanded-novice-style-scholars",
+      "kind": "game",
+      "path": "expanded/novice-style-scholars.pgn",
+      "sha256": "090c154d527095e6680a53d04a149b16b12cc09ff263be51a131531ab643387f",
+      "expectedImport": "accept",
+      "source": "Repository-authored rule fixture",
+      "license": "Repository license",
+      "parentId": "synthetic-novice-style-scholars",
+      "split": "tuning",
+      "tags": [
+        "novice-style-scholars",
+        "synthetic"
+      ],
+      "oracle": "Rules legality and explicit importer policy; no engine tactical label inferred"
+    },
+    {
+      "id": "expanded-castling-line",
+      "kind": "game",
+      "path": "expanded/castling-line.pgn",
+      "sha256": "edd3fd9f65769a3450dfc6eaa59263f99cee247e9c03f1bbbc584abea0feddd8",
+      "expectedImport": "accept",
+      "source": "Repository-authored rule fixture",
+      "license": "Repository license",
+      "parentId": "synthetic-castling-line",
+      "split": "tuning",
+      "tags": [
+        "castling-line",
+        "synthetic"
+      ],
+      "oracle": "Rules legality and explicit importer policy; no engine tactical label inferred"
+    },
+    {
+      "id": "expanded-ep-line",
+      "kind": "game",
+      "path": "expanded/ep-line.pgn",
+      "sha256": "7f7f7cb94dc7bcf87410b67909bdd94bef3baed4a7b38e750b1507444f81fdcb",
+      "expectedImport": "accept",
+      "source": "Repository-authored rule fixture",
+      "license": "Repository license",
+      "parentId": "synthetic-ep-line",
+      "split": "tuning",
+      "tags": [
+        "ep-line",
+        "synthetic"
+      ],
+      "oracle": "Rules legality and explicit importer policy; no engine tactical label inferred"
+    },
+    {
+      "id": "expanded-black-win",
+      "kind": "game",
+      "path": "expanded/black-win.pgn",
+      "sha256": "005a3f984698cd169e076ffc845b967cf2714714ac6af2eb58d4f15172242901",
+      "expectedImport": "accept",
+      "source": "Repository-authored rule fixture",
+      "license": "Repository license",
+      "parentId": "synthetic-black-win",
+      "split": "tuning",
+      "tags": [
+        "black-win",
+        "synthetic"
+      ],
+      "oracle": "Rules legality and explicit importer policy; no engine tactical label inferred"
+    },
+    {
+      "id": "expanded-unknown-termination",
+      "kind": "game",
+      "path": "expanded/unknown-termination.pgn",
+      "sha256": "ea5e07de89fd227938ec5320c9c16ce8f0f4d5e805b843865a25637aa7a88685",
+      "expectedImport": "accept",
+      "source": "Repository-authored rule fixture",
+      "license": "Repository license",
+      "parentId": "synthetic-unknown-termination",
+      "split": "tuning",
+      "tags": [
+        "unknown-termination",
+        "synthetic"
+      ],
+      "oracle": "Rules legality and explicit importer policy; no engine tactical label inferred"
+    },
+    {
+      "id": "expanded-unicode-comments",
+      "kind": "game",
+      "path": "expanded/unicode-comments.pgn",
+      "sha256": "9ecb07b99c9493e01c5cbd813f1a265820b0ffd60fb23fe4433a10055e4e941f",
+      "expectedImport": "accept",
+      "source": "Repository-authored rule fixture",
+      "license": "Repository license",
+      "parentId": "synthetic-unicode-comments",
+      "split": "tuning",
+      "tags": [
+        "unicode-comments",
+        "synthetic"
+      ],
+      "oracle": "Rules legality and explicit importer policy; no engine tactical label inferred"
+    },
+    {
+      "id": "expanded-zero-white-win",
+      "kind": "game",
+      "path": "expanded/zero-white-win.pgn",
+      "sha256": "82b1667bf98d73286c7d868b40dfcaf3f5ed700bf1fd94f00f5cf4813f79b4c2",
+      "expectedImport": "accept",
+      "source": "Repository-authored rule fixture",
+      "license": "Repository license",
+      "parentId": "synthetic-zero-white-win",
+      "split": "tuning",
+      "tags": [
+        "zero-white-win",
+        "synthetic"
+      ],
+      "oracle": "Rules legality and explicit importer policy; no engine tactical label inferred"
+    },
+    {
+      "id": "expanded-zero-black-win",
+      "kind": "game",
+      "path": "expanded/zero-black-win.pgn",
+      "sha256": "5833808a07aa3787c3075bd38a5b67e3ddfc62575e1f2dc5b088d33b5154300d",
+      "expectedImport": "accept",
+      "source": "Repository-authored rule fixture",
+      "license": "Repository license",
+      "parentId": "synthetic-zero-black-win",
+      "split": "tuning",
+      "tags": [
+        "zero-black-win",
+        "synthetic"
+      ],
+      "oracle": "Rules legality and explicit importer policy; no engine tactical label inferred"
+    },
+    {
+      "id": "expanded-zero-draw",
+      "kind": "game",
+      "path": "expanded/zero-draw.pgn",
+      "sha256": "593f36e563d42aa94be88d86d6363e8ee1f7d3513f35ba3852ce1d8e0f3ad242",
+      "expectedImport": "accept",
+      "source": "Repository-authored rule fixture",
+      "license": "Repository license",
+      "parentId": "synthetic-zero-draw",
+      "split": "tuning",
+      "tags": [
+        "zero-draw",
+        "synthetic"
+      ],
+      "oracle": "Rules legality and explicit importer policy; no engine tactical label inferred"
+    },
+    {
+      "id": "expanded-nul-token",
+      "kind": "game",
+      "path": "expanded/nul-token.pgn",
+      "sha256": "873d6828069e7b9e6a27190c7b9c4371161f5a5df15e8321c5f53592f23ee3e9",
+      "expectedImport": "reject",
+      "source": "Repository-authored rule fixture",
+      "license": "Repository license",
+      "parentId": "synthetic-nul-token",
+      "split": "tuning",
+      "tags": [
+        "nul-token",
+        "synthetic"
+      ],
+      "oracle": "Rules legality and explicit importer policy; no engine tactical label inferred"
+    },
+    {
+      "id": "expanded-garbage",
+      "kind": "game",
+      "path": "expanded/garbage.pgn",
+      "sha256": "4d97c3342b5f34638047cae9c76b9d47a403b7dfa837c3725700c62e5c118055",
+      "expectedImport": "reject",
+      "source": "Repository-authored rule fixture",
+      "license": "Repository license",
+      "parentId": "synthetic-garbage",
+      "split": "tuning",
+      "tags": [
+        "garbage",
+        "synthetic"
+      ],
+      "oracle": "Rules legality and explicit importer policy; no engine tactical label inferred"
+    },
+    {
+      "id": "expanded-corrupt-comment",
+      "kind": "game",
+      "path": "expanded/corrupt-comment.pgn",
+      "sha256": "9f0b91b0c2057ce06a39508dab55d9a57e19f6db9bf848d5467b1bf7bb7ff295",
+      "expectedImport": "reject",
+      "source": "Repository-authored rule fixture",
+      "license": "Repository license",
+      "parentId": "synthetic-corrupt-comment",
+      "split": "tuning",
+      "tags": [
+        "corrupt-comment",
+        "synthetic"
+      ],
+      "oracle": "Rules legality and explicit importer policy; no engine tactical label inferred"
+    },
+    {
+      "id": "expanded-ambiguous-san",
+      "kind": "game",
+      "path": "expanded/ambiguous-san.pgn",
+      "sha256": "4c9417cf734077468aedb06f1e14e8e73aa7b533cc847eb3e55742fbd776afad",
+      "expectedImport": "reject",
+      "source": "Repository-authored rule fixture",
+      "license": "Repository license",
+      "parentId": "synthetic-ambiguous-san",
+      "split": "tuning",
+      "tags": [
+        "ambiguous-san",
+        "synthetic"
+      ],
+      "oracle": "Rules legality and explicit importer policy; no engine tactical label inferred"
+    },
+    {
+      "id": "expanded-valid-disambiguation",
+      "kind": "game",
+      "path": "expanded/valid-disambiguation.pgn",
+      "sha256": "fd5d5bf9e5f8b9ab0ea020063eae3502781c9a2e2bb31dbcf1f420bfe4ec35d8",
+      "expectedImport": "accept",
+      "source": "Repository-authored rule fixture",
+      "license": "Repository license",
+      "parentId": "synthetic-valid-disambiguation",
+      "split": "tuning",
+      "tags": [
+        "valid-disambiguation",
+        "synthetic"
+      ],
+      "oracle": "Rules legality and explicit importer policy; no engine tactical label inferred"
+    },
+    {
+      "id": "expanded-mate-result-independent",
+      "kind": "game",
+      "path": "expanded/mate-result-independent.pgn",
+      "sha256": "4437b1b4ed36fee4f2ee773bb092d28d459a9a926bc7a603091d5408ad6586ac",
+      "expectedImport": "accept",
+      "source": "Repository-authored rule fixture",
+      "license": "Repository license",
+      "parentId": "synthetic-mate-result-independent",
+      "split": "tuning",
+      "tags": [
+        "mate-result-independent",
+        "synthetic"
+      ],
+      "oracle": "Rules legality and explicit importer policy; no engine tactical label inferred"
+    }
+  ],
+  "engineGoldStatus": "Pending independently recorded strong-engine stability; synthetic themes are targets, not gold."
+}

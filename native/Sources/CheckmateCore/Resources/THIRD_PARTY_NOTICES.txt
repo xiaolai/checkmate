@@ -1,0 +1,27 @@
+Checkmate Native
+
+chess.js 1.4.0, copyright Jeff Hlywa, BSD-2-Clause.
+Full license: chess-LICENSE in this resource directory.
+
+Stockfish 19, GPL-3.0-only. Unmodified upstream source, rebuilt on build-host.
+Full license: Stockfish-COPYING.txt.
+Official source: https://github.com/official-stockfish/Stockfish/tree/sf_19
+Corresponding source archive and reproducible recipe: native/ThirdParty/Stockfish/.
+Source/network/binary checksums: stockfish-build.json.
+The official default nn-1a298aa575a0.nnue network is packaged separately;
+NNUE_EMBEDDING_OFF changes packaging only, not evaluation or search.
+The child process disables macOS's freed large-allocation cache to bound RSS.
+No Homebrew library dependency: libSystem and libc++ from macOS only.
+Distribution retains corresponding source/build/network materials and GPL notices.
+
+Dock icon: user-supplied horse artwork, CC0 listing at
+https://www.svgrepo.com/svg/201803/horse-chess
+Provenance retained in native/Artwork/Upstream/.
+
+Course: native-owned British-English rewrite of the owner's chess-kids-video
+snapshot, 40 lessons/947 beats. Board actions and answer keys are preserved.
+Lesson narration: AI-generated OpenAI Cedar, gpt-4o-mini-tts-2025-12-15,
+speed 1.0. Bundled audio provenance is retained in course-narration.json.
+Original Checkmate code and owner-authored course materials: GPL-3.0-or-later.
+Full license: Checkmate-COPYING.txt.
+No Apple Chess 3D meshes, textures or renderer are shipped.

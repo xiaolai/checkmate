@@ -1,0 +1,12 @@
+{
+  "name": "checkmate-native-tooling",
+  "version": "0.3.0",
+  "private": true,
+  "license": "GPL-3.0-or-later",
+  "packageManager": "pnpm@10.33.0",
+  "scripts": {
+    "companion:build": "pnpm --filter @checkmate/companion-mcp build",
+    "companion:test": "pnpm --filter @checkmate/companion-mcp test",
+    "companion:diagnose": "pnpm companion:build && node packages/companion-mcp/dist/packages/companion-mcp/src/diagnose.js"
+  }
+}

@@ -1,0 +1,748 @@
+{
+  "schemaVersion": 1,
+  "created": "2026-10-09",
+  "engineGoldStatus": "Not generated; themes and coaching quality are review targets, not engine-certified labels.",
+  "entries": [
+    {
+      "id": "public-01",
+      "kind": "game",
+      "path": "games/public-01.pgn",
+      "sha256": "16947adc1eda3b473a868a814154ae0d80af554388021b749367d5278dec963f",
+      "tags": [
+        "public",
+        "finished",
+        "full-game"
+      ],
+      "expectedImport": "accept",
+      "source": "https://lichess.org/j1dkb5dw",
+      "license": "CC0-1.0",
+      "archive": "https://database.lichess.org/standard/lichess_db_standard_rated_2013-01.pgn.zst",
+      "coachingRubric": [
+        "Explain only verified board facts; do not infer resignation or intent from result alone.",
+        "Select 2-3 actionable beginner takeaways; all lines must replay legally."
+      ]
+    },
+    {
+      "id": "public-02",
+      "kind": "game",
+      "path": "games/public-02.pgn",
+      "sha256": "515271eb97527a9fe66d77f05a5d026e0a0847099692bb6e5f96a917b6421931",
+      "tags": [
+        "public",
+        "finished",
+        "full-game"
+      ],
+      "expectedImport": "accept",
+      "source": "https://lichess.org/a9tcp02g",
+      "license": "CC0-1.0",
+      "archive": "https://database.lichess.org/standard/lichess_db_standard_rated_2013-01.pgn.zst",
+      "coachingRubric": [
+        "Explain only verified board facts; do not infer resignation or intent from result alone.",
+        "Select 2-3 actionable beginner takeaways; all lines must replay legally."
+      ]
+    },
+    {
+      "id": "public-03",
+      "kind": "game",
+      "path": "games/public-03.pgn",
+      "sha256": "7729acd426080577f7b8e62c551c6f71b76f695f4a753f81b0b3b618cb55b31e",
+      "tags": [
+        "public",
+        "finished",
+        "full-game"
+      ],
+      "expectedImport": "accept",
+      "source": "https://lichess.org/szom2tog",
+      "license": "CC0-1.0",
+      "archive": "https://database.lichess.org/standard/lichess_db_standard_rated_2013-01.pgn.zst",
+      "coachingRubric": [
+        "Explain only verified board facts; do not infer resignation or intent from result alone.",
+        "Select 2-3 actionable beginner takeaways; all lines must replay legally."
+      ]
+    },
+    {
+      "id": "public-04",
+      "kind": "game",
+      "path": "games/public-04.pgn",
+      "sha256": "b8ca28a7ce03322ddb9d14160a7f4252ebef90bd3f2b07c85f081768fffa36a6",
+      "tags": [
+        "public",
+        "finished",
+        "full-game"
+      ],
+      "expectedImport": "accept",
+      "source": "https://lichess.org/rklpc7mk",
+      "license": "CC0-1.0",
+      "archive": "https://database.lichess.org/standard/lichess_db_standard_rated_2013-01.pgn.zst",
+      "coachingRubric": [
+        "Explain only verified board facts; do not infer resignation or intent from result alone.",
+        "Select 2-3 actionable beginner takeaways; all lines must replay legally."
+      ]
+    },
+    {
+      "id": "public-05",
+      "kind": "game",
+      "path": "games/public-05.pgn",
+      "sha256": "aed9c64504d9269b0b5bdb47dd1b66c43aabc91b1b6f6e1efbe826044af6654c",
+      "tags": [
+        "public",
+        "finished",
+        "full-game"
+      ],
+      "expectedImport": "accept",
+      "source": "https://lichess.org/1xb3os63",
+      "license": "CC0-1.0",
+      "archive": "https://database.lichess.org/standard/lichess_db_standard_rated_2013-01.pgn.zst",
+      "coachingRubric": [
+        "Explain only verified board facts; do not infer resignation or intent from result alone.",
+        "Select 2-3 actionable beginner takeaways; all lines must replay legally."
+      ]
+    },
+    {
+      "id": "public-06",
+      "kind": "game",
+      "path": "games/public-06.pgn",
+      "sha256": "e46d19081b2cb6d7141417904376d8ffa10e7158274d659c0c47e69ac843d661",
+      "tags": [
+        "public",
+        "finished",
+        "full-game"
+      ],
+      "expectedImport": "accept",
+      "source": "https://lichess.org/fl7asfa0",
+      "license": "CC0-1.0",
+      "archive": "https://database.lichess.org/standard/lichess_db_standard_rated_2013-01.pgn.zst",
+      "coachingRubric": [
+        "Explain only verified board facts; do not infer resignation or intent from result alone.",
+        "Select 2-3 actionable beginner takeaways; all lines must replay legally."
+      ]
+    },
+    {
+      "id": "public-07",
+      "kind": "game",
+      "path": "games/public-07.pgn",
+      "sha256": "ffdb2627557b292c7970034fc8f1cef5c30932baeceae07c2827089fe763bb42",
+      "tags": [
+        "public",
+        "finished",
+        "full-game"
+      ],
+      "expectedImport": "accept",
+      "source": "https://lichess.org/vb3w3rmn",
+      "license": "CC0-1.0",
+      "archive": "https://database.lichess.org/standard/lichess_db_standard_rated_2013-01.pgn.zst",
+      "coachingRubric": [
+        "Explain only verified board facts; do not infer resignation or intent from result alone.",
+        "Select 2-3 actionable beginner takeaways; all lines must replay legally."
+      ]
+    },
+    {
+      "id": "public-08",
+      "kind": "game",
+      "path": "games/public-08.pgn",
+      "sha256": "626ba5b686dc46434a44c72e2e240def8524244e965d9e8e4cb7f180592a56da",
+      "tags": [
+        "public",
+        "finished",
+        "full-game"
+      ],
+      "expectedImport": "accept",
+      "source": "https://lichess.org/ckfufm8a",
+      "license": "CC0-1.0",
+      "archive": "https://database.lichess.org/standard/lichess_db_standard_rated_2013-01.pgn.zst",
+      "coachingRubric": [
+        "Explain only verified board facts; do not infer resignation or intent from result alone.",
+        "Select 2-3 actionable beginner takeaways; all lines must replay legally."
+      ]
+    },
+    {
+      "id": "public-09",
+      "kind": "game",
+      "path": "games/public-09.pgn",
+      "sha256": "66eb6cb4b558e8245eedab2ca6833923d3e7d0adb63acbebc6ff5b216014a938",
+      "tags": [
+        "public",
+        "finished",
+        "full-game"
+      ],
+      "expectedImport": "accept",
+      "source": "https://lichess.org/c4s8ru73",
+      "license": "CC0-1.0",
+      "archive": "https://database.lichess.org/standard/lichess_db_standard_rated_2013-01.pgn.zst",
+      "coachingRubric": [
+        "Explain only verified board facts; do not infer resignation or intent from result alone.",
+        "Select 2-3 actionable beginner takeaways; all lines must replay legally."
+      ]
+    },
+    {
+      "id": "public-tactical",
+      "kind": "game",
+      "path": "games/public-tactical.pgn",
+      "sha256": "7d945b408d7643dfb001f693f177bd49a0f530bb3310a587928157203a3f0dfc",
+      "tags": [
+        "public",
+        "finished",
+        "tactical"
+      ],
+      "expectedImport": "accept",
+      "source": "https://lichess.org/vsfFkG0s",
+      "license": "CC0-1.0",
+      "archive": "https://database.lichess.org/",
+      "coachingRubric": [
+        "Inspect ply 62: source puzzle records discovered attack; engine revalidation required."
+      ]
+    },
+    {
+      "id": "mate-white",
+      "kind": "position",
+      "path": "positions/mate-white.fen",
+      "sha256": "e63265a5dc8084bf49da827e6adcd92b195f446d88f9d405a0d165f398bd9d6b",
+      "tags": [
+        "terminal",
+        "checkmate"
+      ],
+      "expectedImport": "accept",
+      "source": "Authored Checkmate test fixture",
+      "license": "Repository license",
+      "expectedFacts": {
+        "checkmate": true
+      },
+      "reachability": "not certified; synthetic legal-continuation test only"
+    },
+    {
+      "id": "mate-black",
+      "kind": "position",
+      "path": "positions/mate-black.fen",
+      "sha256": "b590f38805bbc67c2afc41616c1bdc05d3d7e15e4946d168a114f7b68342e8b4",
+      "tags": [
+        "terminal",
+        "checkmate"
+      ],
+      "expectedImport": "accept",
+      "source": "Authored Checkmate test fixture",
+      "license": "Repository license",
+      "expectedFacts": {
+        "checkmate": true
+      },
+      "reachability": "not certified; synthetic legal-continuation test only"
+    },
+    {
+      "id": "stalemate",
+      "kind": "position",
+      "path": "positions/stalemate.fen",
+      "sha256": "0f53a6803497364bce3c0ba028cf1073a832caecd3139a045b8f90c8a2873b10",
+      "tags": [
+        "terminal",
+        "stalemate"
+      ],
+      "expectedImport": "accept",
+      "source": "Authored Checkmate test fixture",
+      "license": "Repository license",
+      "expectedFacts": {
+        "stalemate": true
+      },
+      "reachability": "not certified; synthetic legal-continuation test only"
+    },
+    {
+      "id": "insufficient",
+      "kind": "position",
+      "path": "positions/insufficient.fen",
+      "sha256": "7d3c50a84517299e2bb06174c2e86a3078c7f90154b2b144954df4a03dd5b862",
+      "tags": [
+        "terminal",
+        "insufficient"
+      ],
+      "expectedImport": "accept",
+      "source": "Authored Checkmate test fixture",
+      "license": "Repository license",
+      "expectedFacts": {
+        "insufficient": true
+      },
+      "reachability": "not certified; synthetic legal-continuation test only"
+    },
+    {
+      "id": "promotion",
+      "kind": "position",
+      "path": "positions/promotion.fen",
+      "sha256": "75fc8f456fcdb8fbd701f32188c80f9f8309b0aa7436e0f647f9aa59b91cbd19",
+      "tags": [
+        "promotion",
+        "underpromotion"
+      ],
+      "expectedImport": "accept",
+      "source": "Authored Checkmate test fixture",
+      "license": "Repository license",
+      "expectedFacts": {},
+      "reachability": "not certified; synthetic legal-continuation test only"
+    },
+    {
+      "id": "en-passant",
+      "kind": "position",
+      "path": "positions/en-passant.fen",
+      "sha256": "82f52ddd2df8a36a3d1b125214471dba18ca58ba976cc07fe85f2886fb8d07dc",
+      "tags": [
+        "en-passant"
+      ],
+      "expectedImport": "accept",
+      "source": "Authored Checkmate test fixture",
+      "license": "Repository license",
+      "expectedFacts": {},
+      "reachability": "not certified; synthetic legal-continuation test only"
+    },
+    {
+      "id": "castling",
+      "kind": "position",
+      "path": "positions/castling.fen",
+      "sha256": "035323c92fab58fc6b9b9765a5df2529cc81aa81026639504f645d208add5f2e",
+      "tags": [
+        "castling"
+      ],
+      "expectedImport": "accept",
+      "source": "Authored Checkmate test fixture",
+      "license": "Repository license",
+      "expectedFacts": {},
+      "reachability": "not certified; synthetic legal-continuation test only"
+    },
+    {
+      "id": "fifty-move",
+      "kind": "position",
+      "path": "positions/fifty-move.fen",
+      "sha256": "7a477765814fe636d1d8157b0d68be79798003cca9700ba821d8955244254c0a",
+      "tags": [
+        "fifty-move",
+        "claim-policy"
+      ],
+      "expectedImport": "accept",
+      "source": "Authored Checkmate test fixture",
+      "license": "Repository license",
+      "expectedFacts": {},
+      "reachability": "not certified; synthetic legal-continuation test only"
+    },
+    {
+      "id": "a6-intent",
+      "kind": "position",
+      "path": "positions/a6-intent.fen",
+      "sha256": "15d63070cf2a7ed37fb4a54385f54200da875aede595ea3a11ed43975408c429",
+      "tags": [
+        "explanation-regression",
+        "quiet-move"
+      ],
+      "expectedImport": "accept",
+      "source": "Authored Checkmate test fixture",
+      "license": "Repository license",
+      "expectedFacts": {},
+      "reachability": "not certified; synthetic legal-continuation test only"
+    },
+    {
+      "id": "pin",
+      "kind": "position",
+      "path": "positions/pin.fen",
+      "sha256": "982088e187bd98e90fff988b7e357773989a3d4b38554c56a949f857a86b2773",
+      "tags": [
+        "pin",
+        "legal-vs-geometric"
+      ],
+      "expectedImport": "accept",
+      "source": "Authored Checkmate test fixture",
+      "license": "Repository license",
+      "expectedFacts": {},
+      "reachability": "not certified; synthetic legal-continuation test only"
+    },
+    {
+      "id": "black-start",
+      "kind": "position",
+      "path": "positions/black-start.fen",
+      "sha256": "a2047391fc1957611050c078d73c956916ce6202c725d07d10b43782c778093d",
+      "tags": [
+        "black-to-move",
+        "custom-start"
+      ],
+      "expectedImport": "accept",
+      "source": "Authored Checkmate test fixture",
+      "license": "Repository license",
+      "expectedFacts": {},
+      "reachability": "not certified; synthetic legal-continuation test only"
+    },
+    {
+      "id": "missing-king",
+      "kind": "position",
+      "path": "positions/missing-king.fen",
+      "sha256": "d663a96cce1c8098e0bc13bf54034bf0357f5d212215d5b2c8c995e96765b926",
+      "tags": [
+        "invalid-fen"
+      ],
+      "expectedImport": "reject",
+      "source": "Authored Checkmate test fixture",
+      "license": "Repository license",
+      "expectedFacts": {},
+      "reachability": "not certified; synthetic legal-continuation test only"
+    },
+    {
+      "id": "malformed",
+      "kind": "position",
+      "path": "positions/malformed.fen",
+      "sha256": "dfac411bade83e873b05b2466adddc99f46f8bf2c4fea189ec1b9bdb9ec68ebe",
+      "tags": [
+        "invalid-fen"
+      ],
+      "expectedImport": "reject",
+      "source": "Authored Checkmate test fixture",
+      "license": "Repository license",
+      "expectedFacts": {},
+      "reachability": "not certified; synthetic legal-continuation test only"
+    },
+    {
+      "id": "empty",
+      "kind": "import",
+      "path": "imports/empty.pgn",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tags": [
+        "empty"
+      ],
+      "expectedImport": "reject",
+      "source": "Authored Checkmate test fixture",
+      "license": "Repository license"
+    },
+    {
+      "id": "illegal-san",
+      "kind": "import",
+      "path": "imports/illegal-san.pgn",
+      "sha256": "63ee5c7fb55224f12c6974d35b216a1da82aec09df9ed909f402971619f5f220",
+      "tags": [
+        "illegal-san"
+      ],
+      "expectedImport": "reject",
+      "source": "Authored Checkmate test fixture",
+      "license": "Repository license"
+    },
+    {
+      "id": "result-conflict",
+      "kind": "import",
+      "path": "imports/result-conflict.pgn",
+      "sha256": "9a591ab7eeb4fa216072b37f0afcb5ee8bb81f23a05a9d36fd3e9b264b6cda62",
+      "tags": [
+        "result-conflict"
+      ],
+      "expectedImport": "reject",
+      "source": "Authored Checkmate test fixture",
+      "license": "Repository license"
+    },
+    {
+      "id": "unknown-variant",
+      "kind": "import",
+      "path": "imports/unknown-variant.pgn",
+      "sha256": "a42768f1f622ae59a021947f5ea59dc347eac4cc2040d68944f94e9666eaf6fc",
+      "tags": [
+        "unsupported-variant"
+      ],
+      "expectedImport": "reject",
+      "source": "Authored Checkmate test fixture",
+      "license": "Repository license"
+    },
+    {
+      "id": "zero-moves",
+      "kind": "import",
+      "path": "imports/zero-moves.pgn",
+      "sha256": "edb7413e0c2f7346c34c8497d5f2dd2050ea64c7642849b6893a097cd873a1b6",
+      "tags": [
+        "zero-moves"
+      ],
+      "expectedImport": "accept",
+      "source": "Authored Checkmate test fixture",
+      "license": "Repository license"
+    },
+    {
+      "id": "repetition",
+      "kind": "import",
+      "path": "imports/repetition.pgn",
+      "sha256": "0dcbb8e75575b2d7587d6ae49dad2dedf47b0279891e2b076ff1120da7ef8720",
+      "tags": [
+        "repetition",
+        "history-sensitive"
+      ],
+      "expectedImport": "accept",
+      "source": "Authored Checkmate test fixture",
+      "license": "Repository license"
+    },
+    {
+      "id": "black-custom",
+      "kind": "import",
+      "path": "imports/black-custom.pgn",
+      "sha256": "99458cfb101f1e34925e939ae47485194cfce5ade397cdca3e0787c7a7b06d91",
+      "tags": [
+        "custom-start",
+        "black-move-number"
+      ],
+      "expectedImport": "accept",
+      "source": "Authored Checkmate test fixture",
+      "license": "Repository license"
+    },
+    {
+      "id": "annotated",
+      "kind": "import",
+      "path": "imports/annotated.pgn",
+      "sha256": "4941906a705e900678eb05ccd5e9faca682ab1060d10fa8c66b892857af11211",
+      "tags": [
+        "unicode",
+        "comments",
+        "nag",
+        "nested-rav"
+      ],
+      "expectedImport": "accept",
+      "source": "Authored Checkmate test fixture",
+      "license": "Repository license"
+    },
+    {
+      "id": "bom-crlf",
+      "kind": "import",
+      "path": "imports/bom-crlf.pgn",
+      "sha256": "9cd989e3e84d1888ff86e00aca8311cb4265c01801fd0990cf3f70c980883872",
+      "tags": [
+        "bom",
+        "crlf"
+      ],
+      "expectedImport": "accept",
+      "source": "Authored Checkmate test fixture",
+      "license": "Repository license"
+    },
+    {
+      "id": "resigned",
+      "kind": "import",
+      "path": "imports/resigned.pgn",
+      "sha256": "ddea0b719b814fde09c247f7a35abbeb805cec8e71b414241aa5786230f6ae40",
+      "tags": [
+        "finished-with-legal-moves",
+        "resignation"
+      ],
+      "expectedImport": "accept",
+      "source": "Authored Checkmate test fixture",
+      "license": "Repository license"
+    },
+    {
+      "id": "aborted",
+      "kind": "import",
+      "path": "imports/aborted.pgn",
+      "sha256": "f0a2c6e392c5dfcae6f37bade131287dbdd6813b4f1495f13a21299093062789",
+      "tags": [
+        "unfinished",
+        "termination"
+      ],
+      "expectedImport": "accept",
+      "source": "Authored Checkmate test fixture",
+      "license": "Repository license"
+    },
+    {
+      "id": "multi-game",
+      "kind": "import",
+      "path": "imports/multi-game.pgn",
+      "sha256": "b02f2fa0e15fbcba294f5aa8eae83bf1fd92b38dae82e7d1a9afcdb5affeb520",
+      "tags": [
+        "multi-game"
+      ],
+      "expectedImport": "accept",
+      "source": "https://database.lichess.org/",
+      "license": "CC0-1.0",
+      "expectedGameCount": 2
+    },
+    {
+      "id": "public-01-unfinished",
+      "kind": "game",
+      "path": "games/public-01-unfinished.pgn",
+      "sha256": "fa2566eadc7b5b25d2607f0e80d146c8d21c509510346af81d49f2247380a6e0",
+      "tags": [
+        "unfinished",
+        "derived",
+        "white-or-black-turn"
+      ],
+      "expectedImport": "accept",
+      "parentId": "public-01",
+      "prefixPlies": 9,
+      "source": "https://lichess.org/j1dkb5dw",
+      "license": "CC0-1.0",
+      "coachingRubric": [
+        "Give current threats and practical plans without inventing a final result.",
+        "Do not auto-play the next opponent move during review."
+      ]
+    },
+    {
+      "id": "public-02-unfinished",
+      "kind": "game",
+      "path": "games/public-02-unfinished.pgn",
+      "sha256": "f8a7264a5a866e69739757c85f543326f05619d2475fb18056e55740a6a92a77",
+      "tags": [
+        "unfinished",
+        "derived",
+        "white-or-black-turn"
+      ],
+      "expectedImport": "accept",
+      "parentId": "public-02",
+      "prefixPlies": 17,
+      "source": "https://lichess.org/a9tcp02g",
+      "license": "CC0-1.0",
+      "coachingRubric": [
+        "Give current threats and practical plans without inventing a final result.",
+        "Do not auto-play the next opponent move during review."
+      ]
+    },
+    {
+      "id": "public-03-unfinished",
+      "kind": "game",
+      "path": "games/public-03-unfinished.pgn",
+      "sha256": "c70f6c760952742d8dfd50910bae5fbd450045aeebd1bd42444cc4beec71442d",
+      "tags": [
+        "unfinished",
+        "derived",
+        "white-or-black-turn"
+      ],
+      "expectedImport": "accept",
+      "parentId": "public-03",
+      "prefixPlies": 10,
+      "source": "https://lichess.org/szom2tog",
+      "license": "CC0-1.0",
+      "coachingRubric": [
+        "Give current threats and practical plans without inventing a final result.",
+        "Do not auto-play the next opponent move during review."
+      ]
+    },
+    {
+      "id": "public-04-unfinished",
+      "kind": "game",
+      "path": "games/public-04-unfinished.pgn",
+      "sha256": "196585572b669e9509b98f9ba90860331dfd75710cf5ffd4fbbd618166f19728",
+      "tags": [
+        "unfinished",
+        "derived",
+        "white-or-black-turn"
+      ],
+      "expectedImport": "accept",
+      "parentId": "public-04",
+      "prefixPlies": 47,
+      "source": "https://lichess.org/rklpc7mk",
+      "license": "CC0-1.0",
+      "coachingRubric": [
+        "Give current threats and practical plans without inventing a final result.",
+        "Do not auto-play the next opponent move during review."
+      ]
+    },
+    {
+      "id": "public-05-unfinished",
+      "kind": "game",
+      "path": "games/public-05-unfinished.pgn",
+      "sha256": "8bac7561a522279becd9f8739ce41ac3a45b84d260143ce04f229c73dd08abb8",
+      "tags": [
+        "unfinished",
+        "derived",
+        "white-or-black-turn"
+      ],
+      "expectedImport": "accept",
+      "parentId": "public-05",
+      "prefixPlies": 23,
+      "source": "https://lichess.org/1xb3os63",
+      "license": "CC0-1.0",
+      "coachingRubric": [
+        "Give current threats and practical plans without inventing a final result.",
+        "Do not auto-play the next opponent move during review."
+      ]
+    },
+    {
+      "id": "public-06-unfinished",
+      "kind": "game",
+      "path": "games/public-06-unfinished.pgn",
+      "sha256": "c3dbcaa1c22c7798bcb9df11e13a40e5ff8d791a918d79a728d6d0e99649e125",
+      "tags": [
+        "unfinished",
+        "derived",
+        "white-or-black-turn"
+      ],
+      "expectedImport": "accept",
+      "parentId": "public-06",
+      "prefixPlies": 19,
+      "source": "https://lichess.org/fl7asfa0",
+      "license": "CC0-1.0",
+      "coachingRubric": [
+        "Give current threats and practical plans without inventing a final result.",
+        "Do not auto-play the next opponent move during review."
+      ]
+    },
+    {
+      "id": "public-07-unfinished",
+      "kind": "game",
+      "path": "games/public-07-unfinished.pgn",
+      "sha256": "1d6df3cf4e21e679b0286e9ee8a9c81b36569be7e195a84da9810557138fba80",
+      "tags": [
+        "unfinished",
+        "derived",
+        "white-or-black-turn"
+      ],
+      "expectedImport": "accept",
+      "parentId": "public-07",
+      "prefixPlies": 58,
+      "source": "https://lichess.org/vb3w3rmn",
+      "license": "CC0-1.0",
+      "coachingRubric": [
+        "Give current threats and practical plans without inventing a final result.",
+        "Do not auto-play the next opponent move during review."
+      ]
+    },
+    {
+      "id": "public-08-unfinished",
+      "kind": "game",
+      "path": "games/public-08-unfinished.pgn",
+      "sha256": "dd57383398cc3f38dad826985894f68708bb1a7170a82f14803d47c9c5a69d3b",
+      "tags": [
+        "unfinished",
+        "derived",
+        "white-or-black-turn"
+      ],
+      "expectedImport": "accept",
+      "parentId": "public-08",
+      "prefixPlies": 54,
+      "source": "https://lichess.org/ckfufm8a",
+      "license": "CC0-1.0",
+      "coachingRubric": [
+        "Give current threats and practical plans without inventing a final result.",
+        "Do not auto-play the next opponent move during review."
+      ]
+    },
+    {
+      "id": "public-09-unfinished",
+      "kind": "game",
+      "path": "games/public-09-unfinished.pgn",
+      "sha256": "178c14169250f35a5b67153922d31b7895e8a86d426743327bf3f290a988f609",
+      "tags": [
+        "unfinished",
+        "derived",
+        "white-or-black-turn"
+      ],
+      "expectedImport": "accept",
+      "parentId": "public-09",
+      "prefixPlies": 38,
+      "source": "https://lichess.org/c4s8ru73",
+      "license": "CC0-1.0",
+      "coachingRubric": [
+        "Give current threats and practical plans without inventing a final result.",
+        "Do not auto-play the next opponent move during review."
+      ]
+    },
+    {
+      "id": "public-tactical-unfinished",
+      "kind": "game",
+      "path": "games/public-tactical-unfinished.pgn",
+      "sha256": "757b2db7a11fb21eafdfad737077d95538b7f7e79a6b9b4ec11fe4dcfde13040",
+      "tags": [
+        "unfinished",
+        "derived",
+        "white-or-black-turn"
+      ],
+      "expectedImport": "accept",
+      "parentId": "public-tactical",
+      "prefixPlies": 62,
+      "source": "https://lichess.org/vsfFkG0s",
+      "license": "CC0-1.0",
+      "coachingRubric": [
+        "Give current threats and practical plans without inventing a final result.",
+        "Do not auto-play the next opponent move during review."
+      ]
+    }
+  ]
+}

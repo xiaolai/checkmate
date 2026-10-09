@@ -1,0 +1,15 @@
+{
+  "version": 19,
+  "sourceTag": "sf_19",
+  "sourceURL": "https://github.com/official-stockfish/Stockfish/archive/refs/tags/sf_19.tar.gz",
+  "sourceSHA256": "519b653d0d1ffb96531d982ccbe5c6a19425e8388e0e3c2f70f34b424ab32d76",
+  "binarySHA256": "8f78e738ef553ff2bdc4e87eda60bcba32716ee92c11a41a6827a9827d85df9e",
+  "networkFile": "nn-1a298aa575a0.nnue",
+  "networkSHA256": "1a298aa575a085434d29027978dc36867fe9c5bcea9376654b7a8eba1e52dfc2",
+  "build": "CXXFLAGS=-DNNUE_EMBEDDING_OFF make -j4 build ARCH=apple-silicon COMP=clang",
+  "algorithmChanges": false,
+  "networkChanged": false,
+  "engineEnvironment": {
+    "MallocLargeCache": "0"
+  }
+}

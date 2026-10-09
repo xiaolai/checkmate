@@ -1,0 +1,17 @@
+[Event "Rated Bullet game"]
+[Site "https://lichess.org/kvzi11t1"]
+[White "schutzstaffel"]
+[Black "LEGENDARY_ERFAN"]
+[Result "1-0"]
+[UTCDate "2013.01.01"]
+[UTCTime "00:23:50"]
+[WhiteElo "1915"]
+[BlackElo "1142"]
+[WhiteRatingDiff "+1"]
+[BlackRatingDiff "-2"]
+[ECO "C50"]
+[Opening "Italian Game"]
+[TimeControl "60+0"]
+[Termination "Normal"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bc4 d5 4. exd5 Nb4 5. c3 Nxd5 6. Nxe5 Nf4 7. Bxf7+ Ke7 8. d4 Nd3+ 9. Qxd3 Nf6 10. Bg5 Qd7 11. O-O Qg4 12. Bxf6+ Kxf6 13. Nxg4+ Kxf7 14. Qc4+ Ke8 15. Re1+ Kd8 16. Qf7 Bd6 17. Ne5 Bd7 18. Qxd7# 1-0

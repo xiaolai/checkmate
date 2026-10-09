@@ -1,0 +1,28 @@
+node_modules/
+dist/
+.DS_Store
+work/
+
+# Native build products and local verification artifacts
+native/.build/
+native/build/
+native/evidence/
+.swiftpm/
+.env
+.env.*
+*.log
+
+# Staged paid narration takes, provenance and audition indexes
+native/recordings/
+native/Tools/__pycache__/
+
+# Generated Python caches and raw agent session evidence
+__pycache__/
+dev-docs/audits/game-review-20261009/*run.jsonl
+dev-docs/audits/game-review-20261009/*prompt*.md
+dev-docs/audits/game-review-20261009/*invocation.json
+dev-docs/audits/game-review-20261009/*baseline.json
+
+# Private development plans, audit sessions and acceptance evidence
+dev-docs/
+native/.fixtures/

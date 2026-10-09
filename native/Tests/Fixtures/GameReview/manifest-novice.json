@@ -1,0 +1,210 @@
+{
+  "schemaVersion": 1,
+  "entries": [
+    {
+      "id": "novice-7rzcutsf",
+      "kind": "game",
+      "path": "novice/novice-7rzcutsf.pgn",
+      "sha256": "3f4728ea136e3e3b614096f063cc78ea6867e3e61700b4074dfde18310e2bce0",
+      "source": "https://lichess.org/7rzcutsf",
+      "archive": "https://database.lichess.org/standard/lichess_db_standard_rated_2013-01.pgn.zst",
+      "license": "CC0-1.0",
+      "expectedImport": "accept",
+      "parentId": "novice-7rzcutsf",
+      "split": "held-out",
+      "tags": [
+        "public",
+        "novice-recorded-rating-under1200"
+      ],
+      "ratingCaveat": "Recorded Lichess ratings do not establish FIDE rating or current novice ability."
+    },
+    {
+      "id": "novice-7hvhc1t7",
+      "kind": "game",
+      "path": "novice/novice-7hvhc1t7.pgn",
+      "sha256": "312d326901424c67d17688f8d52df04324dc29537cedbb6525121812ec9f1f46",
+      "source": "https://lichess.org/7hvhc1t7",
+      "archive": "https://database.lichess.org/standard/lichess_db_standard_rated_2013-01.pgn.zst",
+      "license": "CC0-1.0",
+      "expectedImport": "accept",
+      "parentId": "novice-7hvhc1t7",
+      "split": "held-out",
+      "tags": [
+        "public",
+        "novice-recorded-rating-under1200"
+      ],
+      "ratingCaveat": "Recorded Lichess ratings do not establish FIDE rating or current novice ability."
+    },
+    {
+      "id": "novice-8dqmtc5l",
+      "kind": "game",
+      "path": "novice/novice-8dqmtc5l.pgn",
+      "sha256": "d272e5eeee86fa6fcce1d4f63ffcc3ed094227dca27106a4a82cce7577a0a5d7",
+      "source": "https://lichess.org/8dqmtc5l",
+      "archive": "https://database.lichess.org/standard/lichess_db_standard_rated_2013-01.pgn.zst",
+      "license": "CC0-1.0",
+      "expectedImport": "accept",
+      "parentId": "novice-8dqmtc5l",
+      "split": "held-out",
+      "tags": [
+        "public",
+        "novice-recorded-rating-under1200"
+      ],
+      "ratingCaveat": "Recorded Lichess ratings do not establish FIDE rating or current novice ability.",
+      "notationNote": "Official archive includes unambiguous legal overspecified SAN Qe4e6; preserve source while canonicalizing validated move identity."
+    },
+    {
+      "id": "novice-5ug0gm2j",
+      "kind": "game",
+      "path": "novice/novice-5ug0gm2j.pgn",
+      "sha256": "76934d9f18329a048fa6292612fbd07ec80cb2bae4c036e0a41997f955e1f184",
+      "source": "https://lichess.org/5ug0gm2j",
+      "archive": "https://database.lichess.org/standard/lichess_db_standard_rated_2013-01.pgn.zst",
+      "license": "CC0-1.0",
+      "expectedImport": "accept",
+      "parentId": "novice-5ug0gm2j",
+      "split": "held-out",
+      "tags": [
+        "public",
+        "novice-recorded-rating-under1200"
+      ],
+      "ratingCaveat": "Recorded Lichess ratings do not establish FIDE rating or current novice ability."
+    },
+    {
+      "id": "novice-pxz7x2cg",
+      "kind": "game",
+      "path": "novice/novice-pxz7x2cg.pgn",
+      "sha256": "571f7d67b940087c3257b06d0e42557e81c7fcd0d0871ca4c8f068f2427873c7",
+      "source": "https://lichess.org/pxz7x2cg",
+      "archive": "https://database.lichess.org/standard/lichess_db_standard_rated_2013-01.pgn.zst",
+      "license": "CC0-1.0",
+      "expectedImport": "accept",
+      "parentId": "novice-pxz7x2cg",
+      "split": "held-out",
+      "tags": [
+        "public",
+        "novice-recorded-rating-under1200"
+      ],
+      "ratingCaveat": "Recorded Lichess ratings do not establish FIDE rating or current novice ability."
+    },
+    {
+      "id": "novice-a2020dlv",
+      "kind": "game",
+      "path": "novice/novice-a2020dlv.pgn",
+      "sha256": "4ca7f070c1d9f9a0c682568c303205999e4d07644f6124b420f8db8b423a78fb",
+      "source": "https://lichess.org/a2020dlv",
+      "archive": "https://database.lichess.org/standard/lichess_db_standard_rated_2013-01.pgn.zst",
+      "license": "CC0-1.0",
+      "expectedImport": "accept",
+      "parentId": "novice-a2020dlv",
+      "split": "held-out",
+      "tags": [
+        "public",
+        "novice-recorded-rating-under1200"
+      ],
+      "ratingCaveat": "Recorded Lichess ratings do not establish FIDE rating or current novice ability."
+    },
+    {
+      "id": "novice-iyjifeem",
+      "kind": "game",
+      "path": "novice/novice-iyjifeem.pgn",
+      "sha256": "72da152f11897567152f585c42e2b22410596a13055286510f869eca70cfce1b",
+      "source": "https://lichess.org/iyjifeem",
+      "archive": "https://database.lichess.org/standard/lichess_db_standard_rated_2013-01.pgn.zst",
+      "license": "CC0-1.0",
+      "expectedImport": "accept",
+      "parentId": "novice-iyjifeem",
+      "split": "held-out",
+      "tags": [
+        "public",
+        "novice-recorded-rating-under1200"
+      ],
+      "ratingCaveat": "Recorded Lichess ratings do not establish FIDE rating or current novice ability."
+    },
+    {
+      "id": "novice-2sj5euej",
+      "kind": "game",
+      "path": "novice/novice-2sj5euej.pgn",
+      "sha256": "08ad254e91c87c960c6bbe116d19b0d77e0746cdebba5559dba4808d4a2f0252",
+      "source": "https://lichess.org/2sj5euej",
+      "archive": "https://database.lichess.org/standard/lichess_db_standard_rated_2013-01.pgn.zst",
+      "license": "CC0-1.0",
+      "expectedImport": "accept",
+      "parentId": "novice-2sj5euej",
+      "split": "held-out",
+      "tags": [
+        "public",
+        "novice-recorded-rating-under1200"
+      ],
+      "ratingCaveat": "Recorded Lichess ratings do not establish FIDE rating or current novice ability."
+    },
+    {
+      "id": "novice-dmm8yyr7",
+      "kind": "game",
+      "path": "novice/novice-dmm8yyr7.pgn",
+      "sha256": "2ca04fa5f142bf357d59e407ec9b47fe806a8bf1aedb210e7cb980b55d1bd8b8",
+      "source": "https://lichess.org/dmm8yyr7",
+      "archive": "https://database.lichess.org/standard/lichess_db_standard_rated_2013-01.pgn.zst",
+      "license": "CC0-1.0",
+      "expectedImport": "accept",
+      "parentId": "novice-dmm8yyr7",
+      "split": "held-out",
+      "tags": [
+        "public",
+        "novice-recorded-rating-under1200"
+      ],
+      "ratingCaveat": "Recorded Lichess ratings do not establish FIDE rating or current novice ability."
+    },
+    {
+      "id": "novice-u4mdh0d2",
+      "kind": "game",
+      "path": "novice/novice-u4mdh0d2.pgn",
+      "sha256": "fa10a1337474d4aa679a6c0144484ce8045bfc3a4c7042e75ee04b1de896c17a",
+      "source": "https://lichess.org/u4mdh0d2",
+      "archive": "https://database.lichess.org/standard/lichess_db_standard_rated_2013-01.pgn.zst",
+      "license": "CC0-1.0",
+      "expectedImport": "accept",
+      "parentId": "novice-u4mdh0d2",
+      "split": "held-out",
+      "tags": [
+        "public",
+        "novice-recorded-rating-under1200"
+      ],
+      "ratingCaveat": "Recorded Lichess ratings do not establish FIDE rating or current novice ability."
+    },
+    {
+      "id": "novice-hca0mb9v",
+      "kind": "game",
+      "path": "novice/novice-hca0mb9v.pgn",
+      "sha256": "357684c2a2be81584ac3732a6399a6ec5045909cc8a30bc87c0a730f4b699d9a",
+      "source": "https://lichess.org/hca0mb9v",
+      "archive": "https://database.lichess.org/standard/lichess_db_standard_rated_2013-01.pgn.zst",
+      "license": "CC0-1.0",
+      "expectedImport": "accept",
+      "parentId": "novice-hca0mb9v",
+      "split": "held-out",
+      "tags": [
+        "public",
+        "novice-recorded-rating-under1200"
+      ],
+      "ratingCaveat": "Recorded Lichess ratings do not establish FIDE rating or current novice ability."
+    },
+    {
+      "id": "novice-kvzi11t1",
+      "kind": "game",
+      "path": "novice/novice-kvzi11t1.pgn",
+      "sha256": "8adcdab17c83e17ca7ddb45e40fefbb3f41cb8ed3255f8680cbb3cc2ff2323ff",
+      "source": "https://lichess.org/kvzi11t1",
+      "archive": "https://database.lichess.org/standard/lichess_db_standard_rated_2013-01.pgn.zst",
+      "license": "CC0-1.0",
+      "expectedImport": "accept",
+      "parentId": "novice-kvzi11t1",
+      "split": "held-out",
+      "tags": [
+        "public",
+        "novice-recorded-rating-under1200"
+      ],
+      "ratingCaveat": "Recorded Lichess ratings do not establish FIDE rating or current novice ability."
+    }
+  ]
+}

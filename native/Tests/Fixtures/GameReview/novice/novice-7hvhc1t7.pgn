@@ -1,0 +1,17 @@
+[Event "Rated Blitz game"]
+[Site "https://lichess.org/7hvhc1t7"]
+[White "migsan"]
+[Black "MARC0"]
+[Result "1-0"]
+[UTCDate "2012.12.31"]
+[UTCTime "23:23:14"]
+[WhiteElo "1162"]
+[BlackElo "1244"]
+[WhiteRatingDiff "+17"]
+[BlackRatingDiff "-21"]
+[ECO "A00"]
+[Opening "Van't Kruijs Opening"]
+[TimeControl "420+0"]
+[Termination "Normal"]
+
+1. e3 d5 2. b3 e5 3. Bb2 Qg5 4. g3 Nf6 5. Bh3 Nc6 6. Qf3 Bb4 7. c3 O-O 8. Ne2 Bg4 9. Qg2 Bxe2 10. Kxe2 Bxc3 11. Bxc3 d4 12. Ba5 Rae8 13. Bxc7 dxe3 14. dxe3 Qxe3+ 15. Kxe3 Nd4 16. Qxb7 Nc2+ 17. Kf3 Nxa1 18. Bd6 e4+ 19. Kg2 Nc2 20. Bxf8 Kxf8 21. Rc1 Ne3+ 22. Kg1 Kg8 23. Qxa7 h6 24. Qxe3 Ng4 25. Bxg4 g6 26. Rc7 f5 27. Qa7 h5 28. Rg7+ Kf8 29. Rf7+ Kg8 30. Rg7+ Kf8 31. Be2 f4 32. Bc4 e3 33. Rf7+ Kg8 34. Qc5 exf2+ 35. Kxf2 Kh8 36. Qc7 fxg3+ 37. Kxg3 Kg8 38. Rg7+ Kf8 39. Rg8# 1-0

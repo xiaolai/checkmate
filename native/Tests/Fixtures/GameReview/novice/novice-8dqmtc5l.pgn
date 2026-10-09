@@ -1,0 +1,17 @@
+[Event "Rated Blitz game"]
+[Site "https://lichess.org/8dqmtc5l"]
+[White "migsan"]
+[Black "MARC0"]
+[Result "1-0"]
+[UTCDate "2012.12.31"]
+[UTCTime "23:28:48"]
+[WhiteElo "1179"]
+[BlackElo "1223"]
+[WhiteRatingDiff "+15"]
+[BlackRatingDiff "-18"]
+[ECO "A00"]
+[Opening "Van't Kruijs Opening"]
+[TimeControl "420+0"]
+[Termination "Normal"]
+
+1. e3 d5 2. b3 e5 3. Bb2 Nf6 4. g3 Nc6 5. Bg2 Bf5 6. Na3 Bd6 7. Nb5 O-O 8. c4 dxc4 9. bxc4 a6 10. Nc3 Bc5 11. Nf3 Bd3 12. Ng5 e4 13. Nd5 h6 14. Nh3 Kh8 15. Bc3 Bb4 16. Bxb4 a5 17. Bxf8 Qxf8 18. Nxc7 Qb4 19. Nxa8 Qxc4 20. Rc1 Ng4 21. Rxc4 Bxc4 22. Nc7 Nce5 23. Ne8 Nd3+ 24. Kf1 Nb2+ 25. Kg1 Nxd1 26. Bxe4 Ndxf2 27. Bf5 Bd5 28. Nd6 Bxh1 29. Nxf7+ Kg8 30. Be6 Nxh3+ 31. Kxh1 Nhf2+ 32. Kg2 Kf8 33. Kf3 h5 34. Kf4 Nd3+ 35. Kg5 Nc5 36. Kxh5 Nxe6 37. Kxg4 Kxf7 38. d4 Ke7 39. d5 Nc5 40. Kf4 Nd3+ 41. Ke4 Nc1 42. Ke5 Kd7 43. d6 Nxa2 44. h4 Nc3 45. g4 Ne2 46. g5 a4 47. h5 a3 48. h6 gxh6 49. gxh6 a2 50. h7 a1=Q+ 51. Kf5 Qe5+ 52. Kg6 Qg7+ 53. Kxg7 Nf4 54. h8=Q Kxd6 55. Qh4 b6 56. Qxf4+ Kc6 57. Qb4 b5 58. e4 Kd7 59. e5 Kd8 60. Qe4 b4 61. Qxb4 Ke8 62. e6 Kd8 63. Qe4 Ke8 64. e7 Kd7 65. e8=Q+ Kc7 66. Qe4e6 Kb7 67. Qe8e7+ Kb8 68. Qg8# 1-0
