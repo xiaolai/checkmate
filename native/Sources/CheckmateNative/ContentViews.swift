@@ -72,7 +72,7 @@ struct DetailContent:View {
                 }
                 if let e=learning.exercise {
                     if e.kind=="choice" {ForEach(e.choices ?? [],id:\.self){choice in Button(choice){learning.choose(choice)}.disabled(learning.passed)}}
-                    if e.kind=="squares" {Button("Check my answer"){learning.checkAnswer()}.disabled(learning.picked.isEmpty || learning.passed);if e.allowNone==true{Button("No squares"){learning.noSquares()}.disabled(learning.passed)}}
+                    if e.kind=="squares" {if e.answers?.count != 1{Button("Check my answer"){learning.checkAnswer()}.disabled(learning.picked.isEmpty || learning.passed)};if e.allowNone==true{Button("No squares"){learning.noSquares()}.disabled(learning.passed)}}
                     if e.kind=="path"{Button("Restart path"){learning.restartPath()}}
                     Button(learning.activePuzzle==nil ? "Show the explanation":"Reveal answer"){learning.reveal()}.disabled(learning.passed)
                 }

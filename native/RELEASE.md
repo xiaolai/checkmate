@@ -1,7 +1,7 @@
 # Checkmate releases
 
 `Version.env` owns the native version and monotonically increasing build number.
-Version 0.3.0 is build 5.
+Version 0.3.1 is build 6.
 Builds require Apple Silicon and macOS 27. Development and release builds use
 separate application identifiers and data directories.
 

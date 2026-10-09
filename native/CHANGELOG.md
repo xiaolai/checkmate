@@ -1,3 +1,14 @@
+# Checkmate 0.3.1
+
+Single-square lesson questions now check the answer immediately when the learner
+clicks the board. Finding the white king in Introduction continues directly into
+the explanation and narration, without a separate confirmation button. Wrong
+clicks show feedback, and revisiting a previously answered question still responds.
+All 16 single-square lesson questions use this behavior. Questions asking for
+multiple squares keep their confirmation button; puzzles retain their explanation.
+The native UI regression now sends a real mouse click instead of confirming the
+answer programmatically.
+
 # Checkmate 0.3.0
 
 Native macOS 27 chess practice with offline Stockfish 19, 40 lessons, 83 quizzes,

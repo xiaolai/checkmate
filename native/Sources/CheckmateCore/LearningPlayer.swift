@@ -60,9 +60,18 @@ public enum LessonTiming {public static let correctAnswerFeedback:Duration = .mi
     public func clearSelection(){picked=[];publish()}
     public func noSquares(){guard !passed else{return};picked=[];pause();answer(exercise?.matches([])==true)}
     public func restartPath(){guard !passed else{return};path=[];picked=[];feedback="";if let p=activePuzzle {frame.board=p.board}else{rebuild()};publish()}
-    public func click(_ sq:String){guard ChessRules.validSquare(sq),mini || !passed else{return};if mini {clickMini(sq);return};pause()
+    public func click(_ sq:String){guard ChessRules.validSquare(sq) else{return}
+        // A restored completion unlocks playback, but the narrated click prompt
+        // must still respond when a learner revisits this question.
+        if !mini,passed {
+            guard answerTask==nil,activePuzzle==nil,let e=exercise,e.kind=="squares",e.answers?.count==1,e.matches([sq]) else{return}
+            pause();picked=[sq];feedback="Correct. Well done.";publish();continueAfterAnswer();return
+        }
+        if mini {clickMini(sq);return};pause()
         guard let e=exercise,!passed else{return}
-        switch e.kind {case "squares":if let i=picked.firstIndex(of:sq){picked.remove(at:i)}else{picked.append(sq)}
+        switch e.kind {case "squares":
+            if e.answers?.count==1 {picked=[sq];answer(e.matches(picked))}
+            else if let i=picked.firstIndex(of:sq){picked.remove(at:i)}else{picked.append(sq)}
         case "move":if let from=picked.first {if from==sq{picked=[];return};let correct=e.matches([from,sq]);if correct,activePuzzle != nil,var board=frame.board{try? CourseLibrary.apply(&board,moves:[[from,sq]]);frame.board=board};picked=[];answer(correct)}else if frame.board?[sq] != nil {picked=[sq]}
         case "path":if var board=frame.board,let from=board.first(where:{$0.value=="wk"})?.key {if from==sq{return};if CourseLibrary.safeKingStep(board,from:from,to:sq){try? CourseLibrary.apply(&board,moves:[[from,sq]]);frame.board=board;path.append(sq);if sq==e.to{answer(true)}else{feedback="Safe step. Keep going!"}}else{feedback="That square is not a safe neighboring square. Try another step.";if activePuzzle != nil{answer(false)}}}
         default:break};publish()
