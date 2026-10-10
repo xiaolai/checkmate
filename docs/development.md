@@ -43,7 +43,9 @@ Automation supplies `--data-dir` and uses a separate bundle identifier.
 The native MCP discovery file lives in that data directory's `companion` folder.
 The existing adapter accepts its path through `BrokerClient`; registered production
 MCP discovery remains separate from development connections. Connections are local,
-private and exclusive. Enabling live voice requires disconnecting external MCP.
+private and exclusive. The MCP broker may wait in standby while live voice is connected;
+it rejects external claims until voice disconnects. A connected external MCP client
+prevents voice from taking control.
 
 Live voice uses AVAudioEngine and URLSession WebSocket with ephemeral credentials
 minted from the existing account flow. Settings distinguishes local sign-in from
@@ -99,3 +101,19 @@ verification checks all three slices and their deployment versions, as well as
 modern and legacy icons. Run `bash scripts/test-intel.sh` on build-host for silent Intel
 unit, UI, and MCP acceptance under Rosetta. These tests do not substitute for a
 physical Intel Mac or macOS 14 runtime acceptance.
+
+## Automatic startup connections
+
+After the main window opens, Checkmate makes one bounded Codex voice availability check.
+Successful authorization is reused for voice connection, without a second credential request.
+`voiceAutoConnect` controls startup voice and `companionAutoStart` controls the private MCP broker.
+Both default on for missing preferences; explicitly saved voice opt-outs remain off.
+The voice option no longer reconnects on every visit to Practice. Settings provides manual
+connection controls independently of startup preferences.
+
+Automatic MCP starts only when Codex is installed. It publishes the existing private discovery
+file without editing Codex configuration or spawning a host task. Set up Codex remains explicit.
+Voice authorization failure does not prevent local MCP availability. If both are enabled,
+the broker waits in standby while voice owns the session. A learner action, navigation, hide,
+shutdown or preference change during the check cannot be overwritten by its late completion.
+There are no background retries. Automation skips startup checks, network access, and audio.

@@ -5,6 +5,10 @@ public struct VoiceHistory:Identifiable {public let id:String,role:String,text:S
 @MainActor public final class VoiceCoach:ObservableObject {
     @Published public private(set) var status="Disconnected"
     @Published public private(set) var availability="Not checked"
+    @Published public private(set) var checkingAvailability=false
+    private var availabilityTask:Task<String?,Never>?
+    private var availabilityEpoch=UUID()
+    public var connectionGeneration:UUID{epoch}
     @Published public private(set) var connected=false
     @Published public private(set) var connecting=false
     @Published public private(set) var microphone=false
@@ -31,15 +35,33 @@ public struct VoiceHistory:Identifiable {public let id:String,role:String,text:S
         audio.onPlaybackEnd={[weak self] in guard let self=self else{return};self.gate.playbackEnded();self.session.setVoiceFocus([],identity:self.display);self.settled()}
         observation=session.objectWillChange.sink{[weak self] in DispatchQueue.main.async{self?.changed()}}
     }
-    public func checkAvailability(){availability="Checking…";Task{do{_ = try await gateway.authorize();availability="Account authorized for a voice session"}catch{availability="Unavailable: sign in to Codex on this Mac, and check voice access and connectivity."}}}
-    public func connect(){guard socket==nil,!connecting else{return};disconnect();connecting=true;let generation=epoch;status="Authorizing voice…";connectTask=Task {do{lease=try session.openVoice();let secret=try await gateway.authorize();guard generation==epoch,!Task.isCancelled else{return};var request=URLRequest(url:URL(string:"wss://api.openai.com/v1/realtime?model=gpt-realtime")!);request.setValue("Bearer \(secret)",forHTTPHeaderField:"Authorization");request.timeoutInterval=20;let config=URLSessionConfiguration.ephemeral;transport=URLSession(configuration:config,delegate:gateway,delegateQueue:nil);let ws=transport!.webSocketTask(with:request);socket=ws;ws.maximumMessageSize=2*1024*1024;ws.resume();status="Connecting voice…";activeVoice=session.state.settings.coachVoice
+    @discardableResult public func checkAvailability(requireCodex:Bool=false)->Task<String?,Never> {
+        availabilityTask?.cancel();let generation=UUID();availabilityEpoch=generation
+        availability="Checking…";checkingAvailability=true
+        let task=Task<String?,Never> { [weak self] in
+            guard let self else{return nil}
+            defer{if availabilityEpoch==generation{checkingAvailability=false;availabilityTask=nil}}
+            guard !NativePolicy.silent else{availability="Live availability checks are disabled during automation.";return nil}
+            if requireCodex,CompanionInstallation.installedCodex()==nil{availability="Install Codex on this Mac to enable automatic connections.";return nil}
+            do {
+                let secret=try await gateway.authorize()
+                guard !Task.isCancelled,availabilityEpoch==generation else{return nil}
+                availability="Account authorized for a voice session";return secret
+            } catch {
+                guard !Task.isCancelled,availabilityEpoch==generation else{return nil}
+                availability="Unavailable: sign in to Codex on this Mac, and check voice access and connectivity.";return nil
+            }
+        }
+        availabilityTask=task;return task
+    }
+    public func connect(authorizedSecret:String?=nil){guard !NativePolicy.silent,socket==nil,!connecting else{return};disconnect();do{lease=try session.openVoice()}catch{status="Voice coaching requires Practice or enabled review voice, with no external MCP companion connected.";return};connecting=true;let generation=epoch;status=authorizedSecret==nil ? "Authorizing voice…":"Connecting voice…";connectTask=Task {do{let secret:String;if let authorizedSecret{secret=authorizedSecret}else{secret=try await gateway.authorize()};guard generation==epoch,!Task.isCancelled else{return};var request=URLRequest(url:URL(string:"wss://api.openai.com/v1/realtime?model=gpt-realtime")!);request.setValue("Bearer \(secret)",forHTTPHeaderField:"Authorization");request.timeoutInterval=20;let config=URLSessionConfiguration.ephemeral;transport=URLSession(configuration:config,delegate:gateway,delegateQueue:nil);let ws=transport!.webSocketTask(with:request);socket=ws;ws.maximumMessageSize=2*1024*1024;ws.resume();status="Connecting voice…";activeVoice=session.state.settings.coachVoice
         receiveTask=Task{do{while !Task.isCancelled,generation==epoch {let message=try await ws.receive();let data:Data;switch message{case .data(let d):data=d;case .string(let s):data=Data(s.utf8);@unknown default:continue};guard let event=try JSONSerialization.jsonObject(with:data) as? [String:Any] else{throw CheckmateError.invalid("Malformed voice event")};receive(event)}}catch{if generation==epoch{fail("Voice connection ended. Reconnect to continue.")}}}
         configure();armTimeout();if session.state.settings.voiceMicrophone{try await startInput(session.state.settings.voiceInputDevice)};guard generation==epoch,!Task.isCancelled else{return};syncMic();if ready,gate.ready,calls.isEmpty,!awaitingCancellation{status=microphone ? "Your turn — listening":"Ready — microphone off"}
     }catch{if error is CancellationError{return};if generation==epoch{fail("Could not connect voice. Check account access, network and microphone permissions.")}}}}
     private var instructions:String {baseInstructions+"\nResponse language: \(AppSettings.languages[session.state.settings.voiceLanguage] ?? "English"). Keep this language until Settings changes."}
     private func configure(){appliedSettings=session.state.settings;send(VoiceSessionConfiguration.event(instructions:instructions,voice:activeVoice,tools:definitions))}
     public func settingsChanged(){let next=session.state.settings,previous=appliedSettings;appliedSettings=next;audio.volume=Float(next.voiceVolume);guard connected else{return};if next.voiceLanguage != previous.voiceLanguage{send(["type":"session.update","session":["type":"realtime","instructions":instructions]])};if next.voiceMicrophone != previous.voiceMicrophone || next.voiceInputDevice != previous.voiceInputDevice{microphoneUpdate?.cancel();let generation=epoch;microphoneUpdate=Task{do{try Task.checkCancellation();if next.voiceMicrophone{try await startInput(next.voiceInputDevice)}else{audio.stopCapture()};guard generation==epoch,!Task.isCancelled else{return};syncMic();if ready,gate.ready,calls.isEmpty,!awaitingCancellation{status=microphone ? "Your turn — listening":"Ready — microphone off"}}catch{guard generation==epoch,!Task.isCancelled,!(error is CancellationError) else{return};fail("Microphone unavailable. Select an available device or turn off Microphone.")}}};if next.coachingMode != "guided"{session.holdVoice(false)}}
-    public func disconnect(){NativeLog.voice.debug("Disconnecting voice and releasing audio resources");microphoneTest?.cancel();microphoneTest=nil;microphoneUpdate?.cancel();microphoneUpdate=nil;epoch=UUID();connectTask?.cancel();connectTask=nil;receiveTask?.cancel();receiveTask=nil;timeout?.cancel();timeout=nil;for task in calls.values{task.cancel()};calls.removeAll();socket?.cancel(with:.normalClosure,reason:nil);socket=nil;transport?.invalidateAndCancel();transport=nil;audio.stop();ready=false;connected=false;connecting=false;microphone=false;gate.reset();awaitingCancellation=false;queued=nil;segments=[];segment=nil;continuation=false;ignored=[];responseID="";tools.reset();if session.voiceLease != nil{session.closeVoice()};status="Disconnected"}
+    public func disconnect(){availabilityTask?.cancel();availabilityTask=nil;availabilityEpoch=UUID();if checkingAvailability{availability="Not checked"};checkingAvailability=false;NativeLog.voice.debug("Disconnecting voice and releasing audio resources");microphoneTest?.cancel();microphoneTest=nil;microphoneUpdate?.cancel();microphoneUpdate=nil;epoch=UUID();connectTask?.cancel();connectTask=nil;receiveTask?.cancel();receiveTask=nil;timeout?.cancel();timeout=nil;for task in calls.values{task.cancel()};calls.removeAll();socket?.cancel(with:.normalClosure,reason:nil);socket=nil;transport?.invalidateAndCancel();transport=nil;audio.stop();ready=false;connected=false;connecting=false;microphone=false;gate.reset();awaitingCancellation=false;queued=nil;segments=[];segment=nil;continuation=false;ignored=[];responseID="";tools.reset();if session.voiceLease != nil{session.closeVoice()};status="Disconnected"}
     private func fail(_ message:String){disconnect();status=message}
     var automationOutbound:(([String:Any])->Void)?
     private func send(_ event:[String:Any]){if NativePolicy.silent{automationOutbound?(event)};guard let socket=socket,let data=try? JSONSerialization.data(withJSONObject:event),let text=String(data:data,encoding:.utf8) else{return};let generation=epoch;Task{do{try await socket.send(.string(text))}catch{if self.epoch==generation{self.fail("Could not send voice data. Reconnect to continue.")}}}}

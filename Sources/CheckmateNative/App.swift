@@ -9,7 +9,7 @@ import CheckmateCore
             let root=StateStore.defaultDirectory();try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true,attributes:[.posixPermissions:0o700]);lockDescriptor=Darwin.open(root.appendingPathComponent("instance.lock").path,O_CREAT|O_RDWR,0o600)
             guard lockDescriptor>=0,flock(lockDescriptor,LOCK_EX|LOCK_NB)==0 else{for app in NSRunningApplication.runningApplications(withBundleIdentifier:Bundle.main.bundleIdentifier ?? ""){if app.processIdentifier != ProcessInfo.processInfo.processIdentifier{app.activate(options:[.activateAllWindows])}};NSApp.terminate(nil);return}
             NativeLog.lifecycle.info("Opening native application");let model=try NativeModel();self.model=model;let window=GameWindow(model:model);game=window;installMenus(window:window,model:model);window.showWindow(nil);NSApp.activate(ignoringOtherApps:true)
-            if model.session.state.settings.voiceAutoConnect && !NativePolicy.silent{model.voice.connect()}
+            model.startConnections()
             if CommandLine.arguments.contains("--companion-test"){try model.companion.enable(role:"coach");if NativePolicy.silent,CommandLine.arguments.contains("--preview-fixture"){try model.session.beginPreview();Task{try? await model.session.testMove(from:"e2",to:"e4")}}}
             if NativePolicy.silent,CommandLine.arguments.contains("--opponent-fixture"){try model.companion.enable(role:"opponent");try model.session.playWhite(from:"e2",to:"e4")}
             if NativePolicy.silent,let i=CommandLine.arguments.firstIndex(of:"--review-batch-scenario"),i+1<CommandLine.arguments.count{runReviewBatchScenario(directory:CommandLine.arguments[i+1])}

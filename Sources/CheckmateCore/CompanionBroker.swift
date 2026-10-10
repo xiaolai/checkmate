@@ -11,25 +11,37 @@ import Combine
     private var listener:NWListener?,authorizationNonce="",port:UInt16=0,owner:String?,lease:String?,touched=Date(),heartbeat:Timer?
     private let leaseTimeout:TimeInterval,heartbeatInterval:TimeInterval,requestTimeout:TimeInterval
     private var generation=UUID()
+    public var connectionGeneration:UUID{generation}
+    private var reservesSession=false,configuredRole="coach"
+    private var observation:AnyCancellable?
     private var connectionRequests:[ObjectIdentifier:String]=[:],requestOwners:[String:ObjectIdentifier]=[:]
     private var deadlines:[String:Task<Void,Never>]=[:]
     private var pending:[String:Task<Void,Never>]=[:],connections:[UUID:NWConnection]=[:]
-    public init(session:GameSession,directory:URL,leaseTimeout:TimeInterval=35,heartbeatInterval:TimeInterval=1,requestTimeout:TimeInterval=25) throws {self.requestTimeout=requestTimeout;self.leaseTimeout=leaseTimeout;self.heartbeatInterval=heartbeatInterval;self.session=session;self.directory=directory;tools=try CompanionTools(session:session)}
+    public init(session:GameSession,directory:URL,leaseTimeout:TimeInterval=35,heartbeatInterval:TimeInterval=1,requestTimeout:TimeInterval=25) throws {self.requestTimeout=requestTimeout;self.leaseTimeout=leaseTimeout;self.heartbeatInterval=heartbeatInterval;self.session=session;self.directory=directory;tools=try CompanionTools(session:session);observation=session.objectWillChange.sink{[weak self] _ in DispatchQueue.main.async{self?.updateWaitingStatus()}}}
     public var activeRequestCount:Int{pending.count}
     public var activeConnectionCount:Int{connections.count}
-    public func enable(role:String) throws {
-        NativeLog.companion.debug("Starting private loopback broker");disable();error=nil;let epoch=UUID();generation=epoch;guard session.voiceLease==nil else{throw ProtocolFailure("SESSION_IN_USE")}
+    public func enable(role:String,standby:Bool=false) throws {
+        do {
+        NativeLog.companion.debug("Starting private loopback broker");disable();error=nil;let epoch=UUID();generation=epoch;guard standby || session.voiceLease==nil else{throw ProtocolFailure("SESSION_IN_USE")};configuredRole=role;reservesSession = !standby
         let parameters=NWParameters.tcp;parameters.requiredLocalEndpoint = .hostPort(host:"127.0.0.1",port:.any)
         let listener=try NWListener(using:parameters,on:.any);self.listener=listener
         var bytes=[UInt8](repeating:0,count:32);guard SecRandomCopyBytes(kSecRandomDefault,bytes.count,&bytes)==errSecSuccess else{throw ProtocolFailure("INTERNAL_ERROR")};authorizationNonce=bytes.map{String(format:"%02x",$0)}.joined()
-        enabled=true;status="Starting companion…";session.setConnection(enabled:true,role:role)
-        listener.stateUpdateHandler={[weak self] state in Task{@MainActor in guard let self=self,self.generation==epoch else{return};switch state {case .ready:guard let port=listener.port else{return};self.port=port.rawValue;do{try self.writeDiscovery();self.status="Waiting for a Codex connection"}catch{self.error="Could not publish the private connection file.";self.disable()};case .failed:self.error="The companion could not open a local connection.";self.disable();default:break}}}
+        enabled=true;status="Starting companion…";if reservesSession{session.setConnection(enabled:true,role:role)}
+        listener.stateUpdateHandler={[weak self] state in Task{@MainActor in guard let self=self,self.generation==epoch else{return};switch state {case .ready:guard let port=listener.port else{return};self.port=port.rawValue;do{try self.writeDiscovery();self.updateWaitingStatus()}catch{self.error="Could not publish the private connection file.";self.disable()};case .failed:self.error="The companion could not open a local connection.";self.disable();default:break}}}
         listener.newConnectionHandler={[weak self] connection in Task{@MainActor in guard let self=self,self.generation==epoch else{connection.cancel();return};self.accept(connection)}};listener.start(queue:.main)
         heartbeat=Timer.scheduledTimer(withTimeInterval:heartbeatInterval,repeats:true){[weak self] _ in Task{@MainActor in guard let self=self,self.owner != nil,Date().timeIntervalSince(self.touched)>self.leaseTimeout else{return};self.release()}}
+        } catch {
+            disable();self.error="The companion could not start. Check local connectivity and try enabling MCP again."
+            throw error
+        }
     }
     public func disable(){NativeLog.companion.debug("Disabling broker and cancelling pending requests");generation=UUID();enabled=false;heartbeat?.invalidate();heartbeat=nil;listener?.stateUpdateHandler=nil;listener?.newConnectionHandler=nil;listener?.cancel();listener=nil;release();for c in connections.values{c.cancel()};connections.removeAll();try? FileManager.default.removeItem(at:directory.appendingPathComponent("connection.json"));authorizationNonce="";port=0;session.setConnection(enabled:false,role:session.companionRole);status="Disconnected"}
-    public func release(){for deadline in deadlines.values{deadline.cancel()};deadlines.removeAll();for task in pending.values{task.cancel()};pending.removeAll();requestOwners.removeAll();tools.reset();owner=nil;lease=nil;connected=false;session.setConnection(enabled:enabled,role:session.companionRole);if enabled{status="Waiting for a Codex connection"}}
-    public func suspend(_ value:Bool){guard enabled else{return};session.setConnection(enabled:enabled,role:session.companionRole,lease:lease,suspended:value);status=value ? "Suspended — show Checkmate to continue":connected ? "Connected":"Waiting for a Codex connection"}
+    public func release(){for deadline in deadlines.values{deadline.cancel()};deadlines.removeAll();for task in pending.values{task.cancel()};pending.removeAll();requestOwners.removeAll();tools.reset();owner=nil;lease=nil;connected=false;if session.companionEnabled || session.companionLease != nil || reservesSession{session.setConnection(enabled:enabled && reservesSession,role:configuredRole)};updateWaitingStatus()}
+    public func suspend(_ value:Bool){guard enabled else{return};session.setConnection(enabled:enabled && (reservesSession || connected),role:configuredRole,lease:lease,suspended:value);status=value ? "Suspended — show Checkmate to continue":connected ? "Connected":"Waiting for a Codex connection"}
+    private func updateWaitingStatus(){
+        guard enabled,!connected,port>0,!session.suspended else{return}
+        status=session.voiceLease==nil ? "Waiting for a Codex connection":"MCP ready — disconnect voice to connect Codex"
+    }
     private func writeDiscovery() throws {
         let fm=FileManager.default
         if fm.fileExists(atPath:directory.path){let attrs=try fm.attributesOfItem(atPath:directory.path);guard attrs[.type] as? FileAttributeType == .typeDirectory else{throw ProtocolFailure("NOT_AUTHORIZED")}}
@@ -56,8 +68,8 @@ import Combine
         }}}
     private func authenticate(_ h:[String:String],claim:Bool) throws -> String {
         guard enabled else{throw ProtocolFailure("DISABLED")};guard h["origin"]==nil,h["host"]=="127.0.0.1:\(port)",h["authorization"]=="Bearer \(authorizationNonce)" else{throw ProtocolFailure("NOT_AUTHORIZED")}
-        guard !session.suspended else{throw ProtocolFailure("APP_SUSPENDED")};guard let client=h["x-checkmate-client"],UUID(uuidString:client) != nil else{throw ProtocolFailure("INVALID_ARGUMENT")}
-        if let owner=owner{guard owner==client else{throw ProtocolFailure("SESSION_IN_USE")}}else if claim{owner=client;lease=UUID().uuidString;connected=true;status="Connected";session.setConnection(enabled:true,role:session.companionRole,lease:lease)}else{throw ProtocolFailure("NOT_CONNECTED")};touched=Date();return lease!
+        guard !session.suspended else{throw ProtocolFailure("APP_SUSPENDED")};guard session.voiceLease==nil else{throw ProtocolFailure("SESSION_IN_USE")};guard let client=h["x-checkmate-client"],UUID(uuidString:client) != nil else{throw ProtocolFailure("INVALID_ARGUMENT")}
+        if let owner=owner{guard owner==client else{throw ProtocolFailure("SESSION_IN_USE")}}else if claim{owner=client;lease=UUID().uuidString;connected=true;status="Connected";session.setConnection(enabled:true,role:configuredRole,lease:lease)}else{throw ProtocolFailure("NOT_CONNECTED")};touched=Date();return lease!
     }
     private func handle(_ c:NWConnection,path:String,headers:[String:String],body:Data){do {
         guard let a=(try? JSONSerialization.jsonObject(with:body)) as? [String:Any] else{throw ProtocolFailure("INVALID_ARGUMENT")};let lease=try authenticate(headers,claim:path=="/rpc")

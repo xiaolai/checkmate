@@ -2,8 +2,9 @@ import Foundation
 import CryptoKit
 import CoreFoundation
 public struct AppSettings:Codable,Equatable {
-    public var coachVoice="cedar",voiceLanguage="en",voiceAutoConnect=false,voiceMicrophone=true,voiceInputDevice="",voiceAssistMoves=false,voiceVolume=1.0
+    public var coachVoice="cedar",voiceLanguage="en",voiceAutoConnect=true,voiceMicrophone=true,voiceInputDevice="",voiceAssistMoves=false,voiceVolume=1.0
     public var boardTheme="wood",narration=true,volume=1.0,autoAdvance=true,pieceDuration=700,moveSounds=true,effectsVolume=0.5,coachingMode="guided",skill=0,companionRole="coach"
+    public var companionAutoStart=true
     public var opponentMode="skill",opponentElo=1320,miniOpponentProfile="standard",practiceSide="w"
     public var opponentPreset="custom",opponentRandomSeed=""
     public static let languages=["en":"English","zh":"Mandarin Chinese","es":"Spanish","fr":"French","de":"German","ja":"Japanese","ko":"Korean","pt":"Portuguese","it":"Italian","ar":"Arabic","hi":"Hindi"]
@@ -17,7 +18,7 @@ public struct AppSettings:Codable,Equatable {
         func level(_ k:String,_ fallback:Double)->Double {guard let v=raw[k] as? NSNumber,CFGetTypeID(v) != CFBooleanGetTypeID(),v.doubleValue.isFinite else{return fallback};return max(0,min(1,v.doubleValue))}
         coachVoice=choice("coachVoice",Self.voices,"cedar");voiceLanguage=choice("voiceLanguage",Array(Self.languages.keys),"en")
         boardTheme=choice("boardTheme",Array(Self.themes.keys),"wood");coachingMode=choice("coachingMode",["guided","on_request","quiet"],"guided");companionRole=choice("companionRole",["coach","opponent"],"coach")
-        voiceAutoConnect=flag("voiceAutoConnect",false);voiceMicrophone=flag("voiceMicrophone",true);voiceAssistMoves=flag("voiceAssistMoves",false)
+        voiceAutoConnect=flag("voiceAutoConnect",true);companionAutoStart=flag("companionAutoStart",true);voiceMicrophone=flag("voiceMicrophone",true);voiceAssistMoves=flag("voiceAssistMoves",false)
         voiceInputDevice=String((raw["voiceInputDevice"] as? String ?? "").prefix(256));voiceVolume=level("voiceVolume",1)
         narration=flag("narration",true);volume=level("volume",1);autoAdvance=flag("autoAdvance",true);moveSounds=flag("moveSounds",true);effectsVolume=level("effectsVolume",0.5)
         pieceDuration=[0,300,500,700].contains(integer("pieceDuration",-1)) ? integer("pieceDuration",700):700

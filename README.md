@@ -11,10 +11,13 @@ brew install --cask xiaolai/tap/checkmate
 Requires macOS 14 or later. One universal app supports Apple Silicon and Intel Macs. [Development](docs/development.md),
 [release packaging](docs/releases.md), [changelog](CHANGELOG.md).
 
-To use Codex as a chess companion, choose **Set up Codex** in Settings →
-Connections, then enable chess MCP connections and start a new Codex task with
-`$checkmate-companion`.
-The companion connects privately to Checkmate on this Mac.
+At launch, Checkmate checks Codex availability and can connect the voice coach
+and start its private chess MCP broker automatically. Control these separately
+in Settings → Voice Coach and Settings → Connections. Existing voice opt-outs
+are preserved. While voice is connected, external MCP waits for control.
+
+For an external Codex companion, choose **Set up Codex** once in Settings →
+Connections, then start a new Codex task with `$checkmate-companion`.
 
 Original code and owner-authored course materials: GPL-3.0-or-later. Third-party
 licenses retain their own terms; see [notices](THIRD_PARTY_NOTICES.md). Matching

@@ -24,6 +24,7 @@ import CheckmateCore
     private var reviewSaveTask:Task<Void,Never>?
     private static let progressSaveFailure="Your progress could not be saved. Export it before quitting."
     private var shuttingDown=false
+    private var connectionStartup:ConnectionStartup?
     var onReview:(()->Void)?
     @Published var storageError:String?
     var onImport:(()->Void)?
@@ -62,7 +63,28 @@ import CheckmateCore
         session.$explicitResumeRequired.removeDuplicates().dropFirst().receive(on:RunLoop.main).sink{[weak self] held in guard let self=self else{return};self.objectWillChange.send();if !held,self.storageError==Self.failedRestorePausedMessage{self.storageError=Self.failedRestoreMessage}}.store(in:&observations)
         session.$state.map(\.settings).removeDuplicates().dropFirst().receive(on:RunLoop.main).sink {[weak self] _ in self?.learning.settingsChanged();self?.voice.settingsChanged()}.store(in:&observations)
     }
-    func practice(){reviewOpenGeneration+=1;cancelReviewImport();if review.active{returnToGame()};learning.pause();audio.stop();session.resumePractice();if session.state.settings.voiceAutoConnect && !NativePolicy.silent && !companion.enabled{voice.connect()}}
+    func startConnections(){
+        guard connectionStartup==nil,!NativePolicy.silent else{return}
+        let activity=activityGeneration,voiceGeneration=voice.connectionGeneration,brokerGeneration=companion.connectionGeneration
+        connectionStartup=ConnectionStartup(
+            settings:{[weak self] in self?.session.state.settings ?? AppSettings()},
+            check:{[weak self] in guard let self else{return nil};return await voice.checkAvailability(requireCodex:true).value},
+            connectVoice:{[weak self] authorization in
+                guard let self,activityGeneration==activity,voice.connectionGeneration==voiceGeneration,session.mode == .practice,!review.active,!session.suspended else{return}
+                voice.connect(authorizedSecret:authorization)
+            },
+            startMCP:{[weak self] in
+                guard let self,CompanionInstallation.installedCodex() != nil else{return}
+                do{try companion.enable(role:session.state.settings.companionRole,standby:true)}
+                catch{companion.disable()}
+            },
+            stillCurrent:{[weak self] in
+                guard let self else{return false}
+                return !shuttingDown && !NSApp.isHidden && companion.connectionGeneration==brokerGeneration && !session.suspended
+            })
+        connectionStartup?.start()
+    }
+    func practice(){reviewOpenGeneration+=1;cancelReviewImport();if review.active{returnToGame()};learning.pause();audio.stop();session.resumePractice()}
     func lesson(_ index:Int){leaveReviewForActivity();voice.disconnect();audio.stop();learning.openLesson(index:index)}
     func puzzles(){leaveReviewForActivity();voice.disconnect();audio.stop();learning.showPuzzleLibrary()}
     func installImport(_ state:ApplicationState)throws -> URL {
@@ -176,7 +198,7 @@ import CheckmateCore
     static func exportName(_ document:GameDocument,ideas:Bool)->String {document.historyAvailable || ideas ? "review.pgn":"review.fen"}
     func showBackups(){NSWorkspace.shared.activateFileViewerSelecting([store.directory])}
     func exportState(){let panel=NSSavePanel();panel.nameFieldStringValue="checkmate-state.json";panel.begin {response in guard response == .OK,let url=panel.url else{return};do{try self.store.save(self.session.state);try self.store.export(to:url)}catch{self.storageError="The export could not be written."}}}
-    func shutdown(){reviewTools.reset();reviewOpenGeneration+=1;cancelReviewImport();saveReview(immediate:true);shuttingDown=true;cancelReviewImport();reviewSaveTask?.cancel();review.cancel();saveTask?.cancel();soundTasks.values.forEach{$0.cancel()};session.prepareShutdown();voice.disconnect();companion.disable();learning.shutdown();audio.stopAll();session.cancelWork();try? store.save(session.state)}
+    func shutdown(){connectionStartup?.cancel();reviewTools.reset();reviewOpenGeneration+=1;cancelReviewImport();saveReview(immediate:true);shuttingDown=true;cancelReviewImport();reviewSaveTask?.cancel();review.cancel();saveTask?.cancel();soundTasks.values.forEach{$0.cancel()};session.prepareShutdown();voice.disconnect();companion.disable();learning.shutdown();audio.stopAll();session.cancelWork();try? store.save(session.state)}
 }
 /// Keeps the Save panel's suggested extension consistent with the chosen export contents.
 @MainActor final class ExportNaming:NSObject {
