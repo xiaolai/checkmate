@@ -32,7 +32,7 @@ public enum ReviewRecordSource {
     }
     public func call(_ name:String,args:[String:Any])async throws -> Any {
         if name=="list_review_games" {let store=store;let records=try await Task.detached{try store.list()}.value;let (offset,limit)=try page(args,count:records.count);return ["schemaVersion":1,"games":records.dropFirst(offset).prefix(limit).map{jsonObject($0)},"nextOffset":offset+limit<records.count ? offset+limit as Any:NSNull()]}
-        if name=="open_review" {guard ReviewRolloutPolicy.reviewEnabled else{throw ProtocolFailure("FEATURE_DISABLED")};
+        if name=="open_review" {
             let expected=review.revision,activity=activityGeneration();guard !review.active || args["expectedReviewRevision"] as? Int==expected else{throw ProtocolFailure("STALE_REVIEW")}
             func current()->Bool {review.revision==expected && activityGeneration()==activity}
             let document:GameDocument;var saved:SavedReview?

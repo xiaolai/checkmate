@@ -1,5 +1,22 @@
 import SwiftUI
 import CheckmateCore
+struct ReviewWorkspaceContent:View {
+    @ObservedObject var model:NativeModel
+    var body:some View {VStack(spacing:Metrics.sectionGap){
+        Image(systemName:"doc.text.magnifyingglass").font(.largeTitle).foregroundStyle(.secondary)
+        Text("Game review").font(.largeTitle.bold())
+        Text("Choose a game or position to explore.").foregroundStyle(.secondary)
+        VStack(spacing:Metrics.smallGap){
+            Button("Open PGN…"){model.openPGN()}
+            Button("Paste PGN or FEN"){model.pasteReview()}
+            Divider()
+            Button("Review Current Game"){model.reviewCurrent()}.disabled(model.session.rules.history.isEmpty)
+            if !model.session.state.practice.previousGame.isEmpty{Button("Review Previous Game"){model.reviewCurrent(previous:true)}}
+        }.fixedSize(horizontal:true,vertical:false)
+        if model.session.rules.history.isEmpty{Text("Play a move to review your current game.").font(.caption).foregroundStyle(.secondary)}
+        if !model.reviews.isEmpty{Text("Saved reviews are in the sidebar.").font(.caption).foregroundStyle(.secondary)}
+    }.padding(Metrics.padding).frame(maxWidth:.infinity,maxHeight:.infinity)}
+}
 struct ReviewDetailContent:View {
     @ObservedObject var review:ReviewController
     @ObservedObject var model:NativeModel
@@ -9,6 +26,12 @@ struct ReviewDetailContent:View {
     init(review:ReviewController,model:NativeModel){self.review=review;self.model=model;analyzer=model.reviewAnalyzer;voice=model.voice}
     var body:some View {VStack(alignment:.leading,spacing:Metrics.sectionGap){
         if let d=review.document {
+            HStack{
+                Button("Choose Game…"){model.showReviewWorkspace()}
+                Spacer()
+                if model.reviewDraft{Button("Save Review"){model.saveCurrentReview()}}
+                else{Menu("Review actions"){Button("Delete Saved Review…",role:.destructive){model.requestDeleteReview(d.id)}.disabled(model.deletingReviewID != nil)}.accessibilityIdentifier("review-document-actions")}
+            }
             Text(review.branch==nil ? "Review · Original":"Test my idea · Imagined").font(.caption).foregroundStyle(.secondary)
             Text(review.explanation?.title ?? d.title).font(.title2.bold())
             Text(review.explanation?.summary ?? "")
@@ -40,7 +63,7 @@ struct ReviewDetailContent:View {
             // Availability follows the displayed position, including an imagined line from the parent.
             Divider();HStack{Button("Practise here"){model.practiceFromReview()}.disabled(!review.practiceForkAvailable);Button("Export PGN…"){model.exportReview()}}
             Button("Return to game"){model.returnToGame()}
-            if voice.connected{Text("Voice connected · only selected verified facts are shared").font(.caption);Button("Narrate verified facts"){voice.narrateReview()};Button("Disconnect voice"){voice.disconnect()}}else{Button("Connect optional voice"){voice.connect()}.disabled(!ReviewRolloutPolicy.reviewVoiceEnabled)}
+            if voice.connected{Text("Voice connected · only selected verified facts are shared").font(.caption);Button("Narrate verified facts"){voice.narrateReview()};Button("Disconnect voice"){voice.disconnect()}}else if ReviewRolloutPolicy.reviewVoiceEnabled{Button("Connect optional voice"){voice.connect()}}
         }
     }.sheet(isPresented:$model.practiceForkRequested){ReviewPracticeSheet(model:model)}}
     private func scopedMoments(_ d:GameDocument)->[ReviewMoment]{analyzer.batchDocument==d.id ? analyzer.moments.filter{d.nodes.indices.contains($0.id)}:[]}
@@ -60,18 +83,45 @@ struct ReviewTransport:View {
 
 struct OpponentSettingsContent:View {
     @ObservedObject var session:GameSession
+    private var displayedPreset:String {session.state.settings.opponentPreset=="first_steps" && !ReviewRolloutPolicy.beginnerOpponentEnabled ? "custom":session.state.settings.opponentPreset}
+    private var displayedMode:String {
+        if !ReviewRolloutPolicy.beginnerOpponentEnabled && (session.state.settings.opponentPreset=="first_steps" || session.state.settings.opponentMode=="beginner") {return "skill"}
+        return session.state.settings.opponentMode
+    }
+    private var mode:Binding<String>{Binding(get:{displayedMode},set:{value in var settings=session.state.settings;settings.opponentMode=value;settings.opponentPreset="custom";session.updateSettings(settings)})}
     func binding<T>(_ key:WritableKeyPath<AppSettings,T>)->Binding<T> {Binding(get:{session.state.settings[keyPath:key]},set:{var settings=session.state.settings;settings[keyPath:key]=$0;settings.opponentPreset="custom";session.updateSettings(settings)})}
-    var preset:Binding<String>{Binding(get:{session.state.settings.opponentPreset},set:{value in var settings=session.state.settings;settings.opponentPreset=value;session.updateSettings(settings)})}
-    var body:some View {VStack(alignment:.leading){
-        Picker("Practice opponent",selection:preset){Text("First steps · preview").tag("first_steps").disabled(!ReviewRolloutPolicy.beginnerOpponentEnabled);Text("Gentle").tag("gentle");Text("Club").tag("club");Text("Custom").tag("custom")}
-        if session.state.settings.opponentPreset=="custom"{
-            Picker("Strength control",selection:binding(\.opponentMode)){Text("Stockfish skill").tag("skill");Text("Estimated engine Elo").tag("elo");Text("Beginner policy · preview").tag("beginner").disabled(!ReviewRolloutPolicy.beginnerOpponentEnabled)}
-            if session.state.settings.opponentMode=="skill"{Picker("Skill",selection:binding(\.skill)){ForEach(0...20,id:\.self){Text("Level \($0)").tag($0)}}}
-            if session.state.settings.opponentMode=="elo",let engine=session.engine as? NativeEngine{EngineEloControl(engine:engine,value:binding(\.opponentElo))}
+    var preset:Binding<String>{Binding(get:{displayedPreset},set:{value in var settings=session.state.settings;settings.opponentPreset=value;session.updateSettings(settings)})}
+    var body:some View {VStack(alignment:.leading,spacing:Metrics.smallGap){
+        Grid(alignment:.leading,horizontalSpacing:Metrics.smallGap,verticalSpacing:Metrics.smallGap){
+            GridRow {
+                Text("Opponent")
+                Picker("Opponent",selection:preset){
+                    if ReviewRolloutPolicy.beginnerOpponentEnabled{Text("First steps").tag("first_steps")}
+                    Text("Gentle").tag("gentle");Text("Club").tag("club");Text("Custom").tag("custom")
+                }.labelsHidden().frame(maxWidth:.infinity)
+            }
+            if displayedPreset=="custom"{
+                GridRow {
+                    Text("Strength")
+                    Picker("Strength control",selection:mode){
+                        Text("Stockfish skill").tag("skill");Text("Estimated engine Elo").tag("elo")
+                        if ReviewRolloutPolicy.beginnerOpponentEnabled{Text("Beginner").tag("beginner")}
+                    }.labelsHidden().frame(maxWidth:.infinity)
+                }
+                if displayedMode=="skill"{
+                    GridRow {
+                        Text("Skill")
+                        Picker("Skill",selection:binding(\.skill)){ForEach(0...20,id:\.self){Text("Level \($0)").tag($0)}}
+                            .labelsHidden().frame(maxWidth:.infinity)
+                    }
+                }
+                if displayedMode=="elo",let engine=session.engine as? NativeEngine{
+                    EngineEloControl(engine:engine,value:binding(\.opponentElo)).gridCellColumns(2)
+                }
+            }
         }
-        if !ReviewRolloutPolicy.beginnerOpponentEnabled{Text("First steps is a preview awaiting novice acceptance. Custom skill and estimated Elo remain available.").font(.caption).foregroundStyle(.secondary)}
-        Text("Engine estimates are not measured human ratings. Review analysis uses full strength.").font(.caption).foregroundStyle(.secondary)
-        if session.state.settings.opponentMode=="beginner"{Text("First steps gives more opportunities to practise. You can always use hints or take back a move.").font(.caption).foregroundStyle(.secondary)}
+        if displayedPreset=="custom",displayedMode=="elo"{Text("An engine estimate, not a tournament rating.").font(.caption).foregroundStyle(.secondary)}
+        if displayedPreset=="first_steps" || (displayedPreset=="custom" && displayedMode=="beginner"){Text("First steps gives more opportunities to practise. You can always use hints or take back a move.").font(.caption).foregroundStyle(.secondary)}
     }}
 }
 struct EngineEloControl:View {
@@ -89,7 +139,7 @@ struct ReviewPracticeSheet:View {
         Text("Practise from this position").font(.headline)
         Text("Your current practice is backed up and becomes Previous game, replacing that shortcut’s older game. The imported record stays unchanged.")
         Picker("Play as",selection:$side){Text("White").tag("w");Text("Black").tag("b")}
-        Picker("Opponent",selection:$preset){Text("First steps · preview").tag("first_steps").disabled(!ReviewRolloutPolicy.beginnerOpponentEnabled);Text("Gentle").tag("gentle");Text("Club").tag("club");Text("Keep custom settings").tag("custom")}
+        Picker("Opponent",selection:$preset){if ReviewRolloutPolicy.beginnerOpponentEnabled{Text("First steps").tag("first_steps")};Text("Gentle").tag("gentle");Text("Club").tag("club");Text("Keep custom settings").tag("custom")}
         Button("Save this position for later"){model.saveReview();model.practiceForkRequested=false}
         HStack{Spacer();Button("Cancel"){model.practiceForkRequested=false}.keyboardShortcut(.cancelAction);Button("Start practice"){model.confirmPracticeFork(side:side,preset:preset)}.keyboardShortcut(.defaultAction)}
     }.padding(Metrics.padding).frame(minWidth:Metrics.right)}

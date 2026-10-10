@@ -1,7 +1,6 @@
 import Foundation
-/// Pilot rollout: facts-only review is available; unvalidated labels, voice and beginner policy require explicit opt-in.
+/// Standard game review is available by default; experimental labels, review voice and beginner policy require explicit opt-in.
 public enum ReviewRolloutPolicy {
-    public static var reviewEnabled:Bool {let env=ProcessInfo.processInfo.environment;return env["CHECKMATE_REVIEW_DISABLED"] != "1" && (env["CHECKMATE_REVIEW_ENABLED"] == "1" || env["CHECKMATE_AUTOMATION"] == "1")}
     public static var reviewQualityLabels:Bool {ProcessInfo.processInfo.environment["CHECKMATE_REVIEW_QUALITY_LABELS"] == "1"}
     public static var reviewVoiceEnabled:Bool {ProcessInfo.processInfo.environment["CHECKMATE_REVIEW_VOICE_ENABLED"] == "1"}
     public static var beginnerOpponentEnabled:Bool {ProcessInfo.processInfo.environment["CHECKMATE_BEGINNER_OPPONENT_ENABLED"] == "1"}

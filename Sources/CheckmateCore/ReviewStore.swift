@@ -95,7 +95,26 @@ public final class ReviewStore {
     private func quarantine(_ url:URL,id:UUID)throws {let quarantine=directory.appendingPathComponent("Quarantine");try FileManager.default.createDirectory(at:quarantine,withIntermediateDirectories:true);try FileManager.default.moveItem(at:url,to:quarantine.appendingPathComponent(UUID().uuidString+"-"+url.lastPathComponent));validated[id]=nil;persisted[id]=nil}
     private func writeIndex()throws {guard !futureSchema(directory.appendingPathComponent("index.json")) else{return};let data=try JSONEncoder().encode(Index(schemaVersion:1,entries:index ?? [],stamps:Dictionary(uniqueKeysWithValues:(index ?? []).map{($0.id.uuidString,stamp($0.id))})));try atomicWriter(data,directory.appendingPathComponent("index.json"))}
     public func export(_ id:UUID)throws -> Data {try load(id).document.original}
-    public func delete(_ id:UUID)throws {lock.lock();defer{lock.unlock()};_ = try list();guard !futureSchema(documentURL(id)) else{throw CheckmateError.unavailable("This review requires a newer Checkmate version; its file is preserved.")};try FileManager.default.removeItem(at:documentURL(id));validated[id]=nil;persisted[id]=nil;branchCache[id]=nil;try? FileManager.default.removeItem(at:cursorURL(id));index?.removeAll{$0.id==id};try writeIndex()}
+    public func delete(_ id:UUID)throws {
+        lock.lock();defer{lock.unlock()};_ = try list()
+        guard !futureSchema(documentURL(id)) else{throw CheckmateError.unavailable("This review requires a newer Checkmate version; its file is preserved.")}
+        let files=FileManager.default,previousIndex=index
+        let sources=[documentURL(id),cursorURL(id)]
+        var moved:[(URL,URL)]=[]
+        do {
+            for source in sources where files.fileExists(atPath:source.path) {
+                let backup=directory.appendingPathComponent(".delete-"+UUID().uuidString)
+                try files.moveItem(at:source,to:backup);moved.append((source,backup))
+            }
+            index?.removeAll{$0.id==id};try writeIndex()
+        } catch {
+            index=previousIndex
+            for (source,backup) in moved.reversed(){try files.moveItem(at:backup,to:source)}
+            throw error
+        }
+        validated[id]=nil;persisted[id]=nil;branchCache[id]=nil;stamps[id]=nil
+        for (_,backup) in moved{try? files.removeItem(at:backup)}
+    }
 }
 
 /// One serial writer orders background autosaves and synchronous close/quit flushes.
@@ -104,9 +123,10 @@ public final class ReviewSaveCoordinator {
     private let queue=DispatchQueue(label:"checkmate.review-save"),lock=NSLock()
     private let store:ReviewStore
     private var latest:Request?,draining=false
+    private var deleted:Set<UUID>=[]
     public init(store:ReviewStore){self.store=store}
     public func save(_ document:GameDocument,cursor:Int,branches:[ReviewBranch],completion:@escaping(Result<[ReviewIndexEntry],Error>)->Void){
-        lock.lock();latest=Request(document:document,cursor:cursor,branches:branches,completion:completion);let start = !draining;draining=true;lock.unlock()
+        lock.lock();guard !deleted.contains(document.id) else{lock.unlock();completion(.failure(CheckmateError.cancelled));return};latest=Request(document:document,cursor:cursor,branches:branches,completion:completion);let start = !draining;draining=true;lock.unlock()
         guard start else{return};queue.async{while true{self.lock.lock();guard let request=self.latest else{self.draining=false;self.lock.unlock();return};self.latest=nil;self.lock.unlock()
             do{try self.store.save(request.document,cursor:request.cursor,branches:request.branches);request.completion(.success(try self.store.list()))}catch{request.completion(.failure(error))}
         }}
@@ -117,7 +137,14 @@ public final class ReviewSaveCoordinator {
         let finished=DispatchSemaphore(value:0),result=FlushResult()
         // async plus acknowledgement keeps validation and disk I/O off the main
         // thread even when close/termination must wait for durable completion.
-        queue.async{do{try self.store.save(document,cursor:cursor,branches:branches);result.value = .success(try self.store.list())}catch{result.value = .failure(error)};finished.signal()}
+        queue.async{do{self.lock.lock();let blocked=self.deleted.contains(document.id);self.lock.unlock();guard !blocked else{throw CheckmateError.cancelled};try self.store.save(document,cursor:cursor,branches:branches);result.value = .success(try self.store.list())}catch{result.value = .failure(error)};finished.signal()}
         finished.wait();return try result.value!.get()
     }
+    /// Order deletion after any in-flight save and reject late autosaves for this record.
+    public func delete(_ id:UUID)throws->[ReviewIndexEntry]{
+        lock.lock();deleted.insert(id);if latest?.document.id==id{latest=nil};lock.unlock()
+        do{return try queue.sync{try store.delete(id);return try store.list()}}
+        catch{lock.lock();deleted.remove(id);lock.unlock();throw error}
+    }
+
 }

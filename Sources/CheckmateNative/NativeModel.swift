@@ -8,6 +8,10 @@ import CheckmateCore
     let review=ReviewController()
     let reviewStore:ReviewStore,reviewAnalyzer:ReviewAnalyzer
     @Published var reviews:[ReviewIndexEntry]=[]
+    @Published private(set) var reviewWorkspace=false
+    @Published private(set) var reviewDraft=false
+    @Published private(set) var deletingReviewID:UUID?
+    private var reviewLibraryGeneration=0
     @Published var importingReview=false
     @Published var practiceForkRequested=false
     private var reviewImportTask:Task<Void,Never>?
@@ -57,7 +61,7 @@ import CheckmateCore
         learning.onMiniMove=session.onMove
         learning.onMiniReset={[weak self] in self?.soundTasks.values.forEach{$0.cancel()};self?.soundTasks=[:]}
         session.onUndo={[weak self] in guard let self=self else{return};self.soundTasks.values.forEach{$0.cancel()};self.soundTasks=[:];self.audio.move(nil,settings:self.session.state.settings,undo:true)}
-        let reviewStore=reviewStore;Task{do{reviews=try await Task.detached{try reviewStore.list()}.value}catch{storageError="Saved reviews could not be loaded. Your current practice is unchanged."}}
+        let reviewStore=reviewStore;Task{do{let entries=try await Task.detached{try reviewStore.list()}.value;guard reviewLibraryGeneration==0 else{return};reviews=entries}catch{storageError="Saved reviews could not be loaded. Your current practice is unchanged."}}
         review.onEvent={[weak self] in self?.session.signalEvent();self?.saveReview()}
         // The banner observes this model; forward gate changes, and drop the paused sentence once the held game resumed or changed.
         session.$explicitResumeRequired.removeDuplicates().dropFirst().receive(on:RunLoop.main).sink{[weak self] held in guard let self=self else{return};self.objectWillChange.send();if !held,self.storageError==Self.failedRestorePausedMessage{self.storageError=Self.failedRestoreMessage}}.store(in:&observations)
@@ -84,7 +88,7 @@ import CheckmateCore
             })
         connectionStartup?.start()
     }
-    func practice(){reviewOpenGeneration+=1;cancelReviewImport();if review.active{returnToGame()};learning.pause();audio.stop();session.resumePractice()}
+    func practice(){reviewOpenGeneration+=1;cancelReviewImport();if review.active || reviewWorkspace{returnToGame()};learning.pause();audio.stop();session.resumePractice()}
     func lesson(_ index:Int){leaveReviewForActivity();voice.disconnect();audio.stop();learning.openLesson(index:index)}
     func puzzles(){leaveReviewForActivity();voice.disconnect();audio.stop();learning.showPuzzleLibrary()}
     func installImport(_ state:ApplicationState)throws -> URL {
@@ -118,12 +122,23 @@ import CheckmateCore
             }catch {self.storageError=userFacingMessage(error,fallback:"The progress file could not be imported. Your current progress is unchanged.")}
         }
     }
-    func leaveReviewForActivity(){reviewOpenGeneration+=1;cancelReviewImport();reviewAnalyzer.reset();guard review.active else{return};let saved=saveReview(immediate:true);review.close(practice:session,resumePractice:false);session.cancelWork();forgetFlushedReview(saved)}
-    func returnToGame(){reviewOpenGeneration+=1;cancelReviewImport();reviewAnalyzer.reset();let saved=saveReview(immediate:true);review.close(practice:session);forgetFlushedReview(saved)}
+    func leaveReviewForActivity(){reviewWorkspace=false;reviewOpenGeneration+=1;cancelReviewImport();reviewAnalyzer.reset();guard review.active else{if session.reviewSuspended{session.returnFromReview(resumeReply:false)};return};let saved=saveReview(immediate:true);review.close(practice:session,resumePractice:false);reviewDraft=false;session.cancelWork();forgetFlushedReview(saved)}
+    func returnToGame(){reviewWorkspace=false;reviewOpenGeneration+=1;cancelReviewImport();reviewAnalyzer.reset();let saved=saveReview(immediate:true);review.close(practice:session);reviewDraft=false;forgetFlushedReview(saved)}
+    func showReviewWorkspace(){
+        reviewOpenGeneration+=1;cancelReviewImport();reviewAnalyzer.reset()
+        let saved=saveReview(immediate:true)
+        if review.active{review.close(practice:session,resumePractice:false);forgetFlushedReview(saved)}
+        reviewDraft=false;reviewWorkspace=true;learning.pause();voice.disconnect();audio.stopAll()
+        session.suspendForReview()
+    }
+    func saveCurrentReview(){
+        guard review.active else{return};reviewDraft=false;saveReview(immediate:true)
+    }
     /// A review durably flushed on close is not re-saved by later debounces or quit; a failed flush stays pending for retry.
     private func forgetFlushedReview(_ saved:Bool){guard saved,!review.active else{return};reviewSaveTask?.cancel();reviewSaveTask=nil;pendingReviewSnapshot=nil}
     @discardableResult func saveReview(immediate:Bool=false)->Bool{
-        guard !restoringReview else{return false}
+        guard !restoringReview,review.document?.id != deletingReviewID || deletingReviewID==nil else{return false}
+        if reviewDraft{return true}
         if let document=review.document{pendingReviewSnapshot=ReviewSnapshot(document:document,cursor:review.nodeID,branches:review.branchesForSaving)}
         guard let snapshot=pendingReviewSnapshot else{return true}
         reviewSaveTask?.cancel();reviewSaveGeneration+=1;let generation=reviewSaveGeneration
@@ -140,10 +155,9 @@ import CheckmateCore
         }
         return true
     }
-    func openReview(_ document:GameDocument,saved:SavedReview?=nil){
+    func openReview(_ document:GameDocument,saved:SavedReview?=nil,draft:Bool=false){
         reviewOpenGeneration+=1;cancelReviewImport()
-        guard ReviewRolloutPolicy.reviewEnabled else{storageError="Game review is disabled by the current rollout policy.";return}
-        saveReview(immediate:true);learning.pause();voice.disconnect();audio.stopAll();restoringReview=true
+        saveReview(immediate:true);learning.pause();voice.disconnect();audio.stopAll();restoringReview=true;reviewWorkspace=false;reviewDraft=draft
         review.open(document,practice:session);reviewAnalyzer.reset()
         do{if let saved=saved{try review.restoreSaved(cursor:saved.cursor,branches:saved.branches)}}
         // A failed restore returns the exact prior owner but never resumes play by itself (plan rule 4): a suspended
@@ -163,13 +177,42 @@ import CheckmateCore
             openReview(saved.document,saved:saved)
         }catch{guard !shuttingDown,reviewOpenGeneration==generation else{return};storageError="The saved review could not be opened; its file is preserved."}}
     }
-    func reviewCurrent(previous:Bool=false){do{let data=previous ? try ReviewRecordSource.data(previousGame:session.state.practice.previousGame):try ReviewRecordSource.data(session.rules);openReview(try PGNImporter.parse(data,provenance:previous ? "Previous game":"Current game")[0])}catch{storageError=userFacingMessage(error,fallback:"This game could not be opened for review. Your practice is unchanged.")}}
-    func importReviewData(_ data:Data){reviewOpenGeneration+=1;cancelReviewImport();cancelReviewImport();let token=ReviewImportCancellation();reviewImportCancellation=token;importingReview=true;let delay=NativePolicy.silent ? min(2000,max(0,automationReviewImportDelayMs)):0;reviewImportTask=Task{do{if delay>0{try await Task.sleep(for:.milliseconds(delay))};let documents=try await withTaskCancellationHandler(operation:{try await Task.detached{try PGNImporter.parse(data,cancelled:{token.cancelled || Task.isCancelled})}.value},onCancel:{token.cancel()});guard !Task.isCancelled else{return};importingReview=false;guard !documents.isEmpty else{throw CheckmateError.invalid("No games found in this record.")};if documents.count==1{openReview(documents[0])}else{let alert=NSAlert();alert.messageText="Choose a game to review";let picker=NSPopUpButton(frame:NSRect(x:0,y:0,width:440,height:28));picker.setAccessibilityLabel("Game to review");for (recordIndex,d) in documents.enumerated(){let label="\(recordIndex+1). \(d.header("White") ?? "White") – \(d.header("Black") ?? "Black") · \(d.result) · \(d.header("Date") ?? "Unknown date")";picker.addItem(withTitle:String(label.prefix(256)))};alert.accessoryView=picker;alert.addButton(withTitle:"Review");alert.addButton(withTitle:"Cancel")
+    func requestDeleteReview(_ id:UUID){
+        guard deletingReviewID==nil,let record=reviews.first(where:{$0.id==id}) else{return}
+        let alert=NSAlert();alert.messageText="Delete “\(record.title)”?"
+        alert.informativeText="This removes the saved review and its imagined lines. Your current game and the original imported file are kept."
+        let delete=alert.addButton(withTitle:"Delete");delete.keyEquivalent=""
+        let cancel=alert.addButton(withTitle:"Cancel");cancel.keyEquivalent="\r"
+        alert.window.defaultButtonCell=cancel.cell as? NSButtonCell
+        if let window=NSApp.mainWindow{alert.beginSheetModal(for:window){[weak self] response in if response == .alertFirstButtonReturn{self?.deleteReview(id)}}}
+        else if alert.runModal() == .alertFirstButtonReturn{deleteReview(id)}
+    }
+    private func deleteReview(_ id:UUID){
+        guard deletingReviewID==nil else{return}
+        deletingReviewID=id;reviewLibraryGeneration+=1;reviewOpenGeneration+=1
+        reviewSaveGeneration+=1;reviewSaveTask?.cancel()
+        let writer=reviewSaves
+        Task {
+            do {
+                let entries=try await Task.detached{try writer.delete(id)}.value
+                if pendingReviewSnapshot?.document.id==id{pendingReviewSnapshot=nil}
+                if review.document?.id==id{reviewAnalyzer.reset();review.close(practice:session);reviewDraft=false;reviewWorkspace=false}
+                reviews=entries;deletingReviewID=nil
+                if review.active{saveReview()}
+            } catch {
+                deletingReviewID=nil
+                storageError="The review could not be deleted. Its saved record is preserved; try again."
+                if review.active{saveReview()}
+            }
+        }
+    }
+    func reviewCurrent(previous:Bool=false){do{let data=previous ? try ReviewRecordSource.data(previousGame:session.state.practice.previousGame):try ReviewRecordSource.data(session.rules);openReview(try PGNImporter.parse(data,provenance:previous ? "Previous game":"Current game")[0],draft:true)}catch{storageError=userFacingMessage(error,fallback:"This game could not be opened for review. Your practice is unchanged.")}}
+    func importReviewData(_ data:Data){reviewOpenGeneration+=1;cancelReviewImport();cancelReviewImport();let token=ReviewImportCancellation();reviewImportCancellation=token;importingReview=true;let delay=NativePolicy.silent ? min(2000,max(0,automationReviewImportDelayMs)):0;reviewImportTask=Task{do{if delay>0{try await Task.sleep(for:.milliseconds(delay))};let documents=try await withTaskCancellationHandler(operation:{try await Task.detached{try PGNImporter.parse(data,cancelled:{token.cancelled || Task.isCancelled})}.value},onCancel:{token.cancel()});guard !Task.isCancelled else{return};importingReview=false;guard !documents.isEmpty else{throw CheckmateError.invalid("No games found in this record.")};if documents.count==1{openReview(documents[0],draft:true)}else{let alert=NSAlert();alert.messageText="Choose a game to review";let picker=NSPopUpButton(frame:NSRect(x:0,y:0,width:440,height:28));picker.setAccessibilityLabel("Game to review");for (recordIndex,d) in documents.enumerated(){let label="\(recordIndex+1). \(d.header("White") ?? "White") – \(d.header("Black") ?? "Black") · \(d.result) · \(d.header("Date") ?? "Unknown date")";picker.addItem(withTitle:String(label.prefix(256)))};alert.accessoryView=picker;alert.addButton(withTitle:"Review");alert.addButton(withTitle:"Cancel")
                 // Main-actor work (MCP, saved loads, timers) can run during the modal loop; a choice made
                 // after another activity was selected must not replace it.
                 let chooserGeneration=reviewOpenGeneration;let response=alert.runModal()
                 guard !Task.isCancelled,reviewOpenGeneration==chooserGeneration else{return}
-                if response == .alertFirstButtonReturn{openReview(documents[picker.indexOfSelectedItem])}}}catch{guard !Task.isCancelled else{return};importingReview=false;storageError=userFacingMessage(error,fallback:"This record could not be imported. Your current game and reviews are unchanged.")}}}
+                if response == .alertFirstButtonReturn{openReview(documents[picker.indexOfSelectedItem],draft:true)}}}catch{guard !Task.isCancelled else{return};importingReview=false;storageError=userFacingMessage(error,fallback:"This record could not be imported. Your current game and reviews are unchanged.")}}}
     func cancelReviewImport(){reviewImportCancellation?.cancel();reviewImportCancellation=nil;reviewImportTask?.cancel();reviewImportTask=nil;importingReview=false}
     func openPGN(){let panel=NSOpenPanel();panel.allowsOtherFileTypes=true;panel.allowsMultipleSelection=false;panel.begin{response in guard response == .OK,let url=panel.url else{return};do{let size=try url.resourceValues(forKeys:[.fileSizeKey]).fileSize ?? 0;guard size<=ReviewPolicy.maximumBytes else{throw CheckmateError.invalid("File exceeds 16 MiB.")};self.importReviewData(try Data(contentsOf:url))}catch{self.storageError=userFacingMessage(error,fallback:"The selected file could not be read. Your current game and reviews are unchanged.")}}}
     func pasteReview(){guard let text=NSPasteboard.general.string(forType:.string) else{storageError="Copy PGN or FEN text first.";return};importReviewData(Data(text.utf8))}
@@ -192,7 +235,7 @@ import CheckmateCore
             guard !rules.over else{throw CheckmateError.invalid("This position is terminal and cannot start practice.")}
             try GameSession.validatePracticeFork(rules,side:side);_ = try store.preserveBeforeImport(session.state);let saved=saveReview(immediate:true);review.close(practice:session,resumePractice:false);session.cancelWork();forgetFlushedReview(saved)
             var settings=session.state.settings;settings.opponentPreset=preset;session.updateSettings(settings,restartOpponent:false)
-            try session.installPracticeFork(rules,side:side);practiceForkRequested=false
+            try session.installPracticeFork(rules,side:side);reviewWorkspace=false;reviewDraft=false;practiceForkRequested=false
         }catch{storageError=userFacingMessage(error,fallback:"Practice could not start from this position. The review is unchanged.")}
     }
     static func exportName(_ document:GameDocument,ideas:Bool)->String {document.historyAvailable || ideas ? "review.pgn":"review.fen"}

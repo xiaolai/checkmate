@@ -21,10 +21,20 @@ func walk(_ e:AXUIElement,_ depth:Int=0){
  let label=get(e,kAXTitleUIElementAttribute)
  let labelElement=label.map{$0 as! AXUIElement}
  let linkedNames=labelElement.map{[get($0,kAXTitleAttribute) as? String,get($0,kAXDescriptionAttribute) as? String,get($0,kAXValueAttribute) as? String]} ?? []
- let names=([get(e,kAXTitleAttribute) as? String,get(e,kAXDescriptionAttribute) as? String,get(e,kAXValueAttribute) as? String]+linkedNames).compactMap{$0}.filter{!$0.isEmpty}
+ let names=([get(e,kAXTitleAttribute) as? String,get(e,kAXDescriptionAttribute) as? String,get(e,kAXValueAttribute) as? String,get(e,kAXIdentifierAttribute) as? String]+linkedNames).compactMap{$0}.filter{!$0.isEmpty}
  if action=="list" && !names.isEmpty {print("\(role): \(names.joined(separator:" | "))")}
+ if action=="select" && names.contains(target) {
+  var row=e
+  for _ in 0..<12 {
+   if get(row,kAXRoleAttribute) as? String=="AXRow" {
+    let result=AXUIElementSetAttributeValue(row,kAXSelectedAttribute as CFString,kCFBooleanTrue)
+    print("select \(target): \(result.rawValue)");found=result == .success;return
+   }
+   guard let parent=get(row,kAXParentAttribute) else{break};row=parent as! AXUIElement
+  }
+ }
  if action=="focus" && names.contains(target){let result=AXUIElementSetAttributeValue(e,kAXFocusedAttribute as CFString,kCFBooleanTrue);print("focus \(target): \(result.rawValue)");found=result == .success;return}
- if action=="press" && names.contains(target) && ["AXButton","AXCheckBox","AXSwitch","AXPopUpButton","AXMenuItem","AXRadioButton"].contains(role) {let result=AXUIElementPerformAction(e,kAXPressAction as CFString);print("press \(target): \(result.rawValue)");found=result == .success;return}
+ if action=="press" && names.contains(target) && ["AXButton","AXCheckBox","AXSwitch","AXPopUpButton","AXMenuButton","AXMenuItem","AXRadioButton"].contains(role) {let result=AXUIElementPerformAction(e,kAXPressAction as CFString);print("press \(target): \(result.rawValue)");found=result == .success;return}
  for c in get(e,kAXChildrenAttribute) as? [AXUIElement] ?? [] {walk(c,depth+1)}
 }
 if action=="fullscreen" {guard let first=getWindows().first else{exit(1)};let current=get(first,"AXFullScreen") as? Bool ?? false;exit(AXUIElementSetAttributeValue(first,"AXFullScreen" as CFString,current ? kCFBooleanFalse:kCFBooleanTrue) == .success ? 0:1)}
@@ -42,4 +52,4 @@ if action=="close-main" || action=="close-settings" {
  fputs("Requested window not found\n",stderr);exit(1)
 }
 if windowName.isEmpty {walk(app)} else {for w in get(app,kAXWindowsAttribute) as? [AXUIElement] ?? [] {if get(w,kAXTitleAttribute) as? String==windowName {walk(w)}}}
-if ["press","focus"].contains(action) && !found {fputs("Control not found: \(target)\n",stderr);exit(1)}
+if ["press","focus","select"].contains(action) && !found {fputs("Control not found: \(target)\n",stderr);exit(1)}

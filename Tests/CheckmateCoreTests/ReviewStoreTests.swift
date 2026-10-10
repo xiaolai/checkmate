@@ -159,4 +159,46 @@ final class ReviewStoreTests:XCTestCase {
         _ = try ReviewSaveCoordinator(store:store).flush(d,cursor:1,branches:[])
         XCTAssertEqual(try ReviewStore(directory:directory).load(d.id).cursor,1)
     }
+    func testDeleteRemovesRecordAndCursorButKeepsOtherReviews()throws {
+        let directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer{try? FileManager.default.removeItem(at:directory)}
+        let store=ReviewStore(directory:directory),first=try PGNImporter.parse(Data("1. e4 *".utf8))[0],second=try PGNImporter.parse(Data("1. d4 *".utf8))[0]
+        try store.save(first,cursor:1,branches:[]);try store.save(second,cursor:1,branches:[])
+        try store.delete(first.id)
+        XCTAssertFalse(FileManager.default.fileExists(atPath:store.documentURL(first.id).path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath:directory.appendingPathComponent(first.id.uuidString+".cursor.json").path))
+        XCTAssertEqual(try ReviewStore(directory:directory).list().map(\.id),[second.id])
+    }
+    func testDeleteRollsBackWhenIndexWriteFails()throws {
+        let directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer{try? FileManager.default.removeItem(at:directory)}
+        var fail=false
+        let store=ReviewStore(directory:directory,atomicWriter:{data,url in
+            if fail && url.lastPathComponent=="index.json"{throw CocoaError(.fileWriteNoPermission)}
+            try data.write(to:url,options:.atomic)
+        }),document=try PGNImporter.parse(Data("1. e4 *".utf8))[0]
+        try store.save(document,cursor:1,branches:[])
+        let original=try Data(contentsOf:store.documentURL(document.id))
+        fail=true;XCTAssertThrowsError(try store.delete(document.id));fail=false
+        XCTAssertEqual(try Data(contentsOf:store.documentURL(document.id)),original)
+        XCTAssertEqual(try ReviewStore(directory:directory).load(document.id).cursor,1)
+        XCTAssertEqual(try store.list().map(\.id),[document.id])
+    }
+    func testCoordinatorDeletionCannotBeRecreatedByLateAutosave()throws {
+        let directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer{try? FileManager.default.removeItem(at:directory)}
+        let store=ReviewStore(directory:directory),writer=ReviewSaveCoordinator(store:store)
+        let document=try PGNImporter.parse(Data("1. e4 e5 *".utf8))[0]
+        _ = try writer.flush(document,cursor:0,branches:[])
+        for cursor in 0...2{writer.save(document,cursor:cursor,branches:[]){_ in}}
+        XCTAssertTrue(try writer.delete(document.id).isEmpty)
+        let rejected=expectation(description:"Late autosave rejected")
+        writer.save(document,cursor:2,branches:[]){result in
+            if case .success=result{XCTFail("Deleted review was recreated")};rejected.fulfill()
+        }
+        wait(for:[rejected],timeout:2)
+        XCTAssertThrowsError(try writer.flush(document,cursor:2,branches:[]))
+        XCTAssertTrue(try ReviewStore(directory:directory).list().isEmpty)
+    }
+
 }

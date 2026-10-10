@@ -6,6 +6,7 @@ export CHECKMATE_EVIDENCE_DIR=${CHECKMATE_EVIDENCE_DIR:-$(mktemp -d /tmp/checkma
 mkdir -p "$CHECKMATE_EVIDENCE_DIR"
 bash scripts/test-ui.sh
 python3 scripts/test-startup-settings.py
+python3 scripts/test-sidebar.py
 bash scripts/test-fullscreen.sh
 bash scripts/test-layout.sh
 python3 scripts/test-lifecycle.py

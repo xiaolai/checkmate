@@ -21,7 +21,14 @@ public struct ReviewPositionStatus:Codable,Equatable {
 }
 public struct GameDocument:Codable,Equatable,Identifiable {
     public let schemaVersion:Int,id:UUID,contentHash:String,importedAt:Date,provenance:String,original:Data,headers:[PGNHeader],startingFEN:String,result:String,termination:String?,historyAvailable:Bool,nodes:[GameNode]
-    public var title:String {let white=header("White") ?? "White",black=header("Black") ?? "Black";return String(String.UnicodeScalarView((header("Event") ?? "\(white) – \(black)").unicodeScalars.prefix(ReviewPolicy.maximumTitleScalars)))}
+    public var title:String {
+        func known(_ name:String)->String? {guard let value=header(name)?.trimmingCharacters(in:.whitespacesAndNewlines),!value.isEmpty,value != "?" else{return nil};return value}
+        let fallback:String
+        if provenance=="Current game" || provenance=="Previous game"{fallback=provenance}
+        else if known("White") != nil || known("Black") != nil{fallback="\(known("White") ?? "White") – \(known("Black") ?? "Black")"}
+        else{fallback=historyAvailable ? "Imported game":"Imported position"}
+        return String(String.UnicodeScalarView((known("Event") ?? fallback).unicodeScalars.prefix(ReviewPolicy.maximumTitleScalars)))
+    }
     public func header(_ name:String)->String? {headers.first{$0.name==name}?.value}
     public var mainline:[Int] {var result:[Int]=[],node=0;while let next=nodes[node].children.first{result.append(next);node=next};return result}
     public func history(to id:Int)throws -> [String] {guard nodes.indices.contains(id) else{throw CheckmateError.invalid("Unknown review node.")};var route:[String]=[],cursor=id;while let parent=nodes[cursor].parent{guard let uci=nodes[cursor].uci else{throw CheckmateError.invalid("Missing move.")};route.append(uci);cursor=parent};return route.reversed()}

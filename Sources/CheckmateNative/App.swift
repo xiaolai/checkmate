@@ -1,7 +1,7 @@
 import AppKit
 import Darwin
 import CheckmateCore
-@MainActor final class AppDelegate:NSObject,NSApplicationDelegate {
+@MainActor final class AppDelegate:NSObject,NSApplicationDelegate,NSMenuItemValidation {
     var model:NativeModel?,game:GameWindow?,lockDescriptor:Int32 = -1
     func applicationDidFinishLaunching(_ notification:Notification){
         if let i=CommandLine.arguments.firstIndex(of:"--package-check"),i+1<CommandLine.arguments.count {let destination=CommandLine.arguments[i+1];Task{do{let rules=try ChessRules(),course=try CourseLibrary();let analysis=try await NativeEngine().analyze(fen:rules.fen,skill:0,budget:100,multiPv:1);guard let move=analysis.bestMove else{throw CheckmateError.unavailable("No packaged engine move")};_ = try rules.move(uci:move);let result:[String:Any]=["passed":true,"resourceRoot":NativeResources.root.path,"lessons":course.lessons.count,"engineMove":move];try JSONSerialization.data(withJSONObject:result,options:.prettyPrinted).write(to:URL(fileURLWithPath:destination));NSApp.terminate(nil)}catch{NSApp.terminate(nil)}};return}
@@ -224,7 +224,7 @@ import CheckmateCore
             try await Task.sleep(for:.milliseconds(650))
             let savedLoadImportPassed=model.review.document?.header("Event")=="Latest import"
             if !savedLoadImportPassed{failures.append("Stale saved load replaced a direct import")}
-            let latestDocument=model.review.document!;model.saveReview(immediate:true);model.returnToGame();model.session.cancelWork()
+            let latestDocument=model.review.document!;model.saveCurrentReview();model.returnToGame();model.session.cancelWork()
             model.openSavedReview(docs[0].id);model.automationReviewLoadDelayMs=0;model.openSavedReview(latestDocument.id)
             try await Task.sleep(for:.milliseconds(650))
             let savedLoadLatestPassed=model.review.document?.id==latestDocument.id
@@ -329,7 +329,7 @@ import CheckmateCore
     func installMenus(window:GameWindow,model:NativeModel){let menu=NSMenu(),appItem=NSMenuItem();menu.addItem(appItem);let app=NSMenu();appItem.submenu=app
         app.addItem(withTitle:"About Checkmate",action:#selector(NSApplication.orderFrontStandardAboutPanel(_:)),keyEquivalent:"")
         let settings=NSMenuItem(title:"Settings…",action:#selector(GameWindow.showSettings),keyEquivalent:",");settings.target=window;app.addItem(settings);app.addItem(.separator());app.addItem(withTitle:"Hide Checkmate",action:#selector(NSApplication.hide(_:)),keyEquivalent:"h");let hideOthers=app.addItem(withTitle:"Hide Others",action:#selector(NSApplication.hideOtherApplications(_:)),keyEquivalent:"h");hideOthers.keyEquivalentModifierMask=[.command,.option];app.addItem(withTitle:"Show All",action:#selector(NSApplication.unhideAllApplications(_:)),keyEquivalent:"");app.addItem(.separator());app.addItem(withTitle:"Quit Checkmate",action:#selector(NSApplication.terminate(_:)),keyEquivalent:"q")
-        let fileItem=NSMenuItem(title:"File",action:nil,keyEquivalent:""),fileMenu=NSMenu(title:"File");fileItem.submenu=fileMenu;menu.addItem(fileItem);for (title,action,key) in [("Open PGN…",#selector(openPGN),"o"),("Paste PGN or FEN",#selector(pasteReview),""),("Review Current Game",#selector(reviewCurrent),""),("Review Previous Game",#selector(reviewPrevious),"")]{let item=NSMenuItem(title:title,action:action,keyEquivalent:key);item.target=self;fileMenu.addItem(item)}
+        let fileItem=NSMenuItem(title:"File",action:nil,keyEquivalent:""),fileMenu=NSMenu(title:"File");fileItem.submenu=fileMenu;menu.addItem(fileItem);for (title,action,key) in [("Open PGN…",#selector(openPGN),"o"),("Paste PGN or FEN",#selector(pasteReview),""),("Save Review",#selector(saveCurrentReview),"s"),("Review Current Game",#selector(reviewCurrent),""),("Review Previous Game",#selector(reviewPrevious),"")]{let item=NSMenuItem(title:title,action:action,keyEquivalent:key);item.target=self;fileMenu.addItem(item)}
         let gameItem=NSMenuItem(title:"Game",action:nil,keyEquivalent:""),gameMenu=NSMenu(title:"Game");gameItem.submenu=gameMenu;menu.addItem(gameItem)
         for (name,action,key) in [("New Game…",#selector(GameWindow.newGame),"n"),("Take Back Move",#selector(GameWindow.undo),""),("Restore Previous Game",#selector(GameWindow.restorePrevious),"")] {let item=NSMenuItem(title:name,action:action,keyEquivalent:key);item.target=window;gameMenu.addItem(item)}
         gameMenu.addItem(.separator())
@@ -342,6 +342,8 @@ import CheckmateCore
         let windowItem=NSMenuItem(title:"Window",action:nil,keyEquivalent:""),windows=NSMenu(title:"Window");windowItem.submenu=windows;menu.addItem(windowItem);windows.addItem(withTitle:"Minimize",action:#selector(NSWindow.performMiniaturize(_:)),keyEquivalent:"m");windows.addItem(withTitle:"Zoom",action:#selector(NSWindow.performZoom(_:)),keyEquivalent:"");windows.addItem(withTitle:"Bring All to Front",action:#selector(NSApplication.arrangeInFront(_:)),keyEquivalent:"");NSApp.windowsMenu=windows
         NSApp.mainMenu=menu
     }
+    func validateMenuItem(_ item:NSMenuItem)->Bool {if item.action == #selector(saveCurrentReview){return model?.review.active==true && model?.deletingReviewID==nil};return true}
+    @objc func saveCurrentReview(){model?.saveCurrentReview()}
     @objc func openPGN(){model?.openPGN()}
     @objc func pasteReview(){model?.pasteReview()}
     @objc func reviewCurrent(){model?.reviewCurrent()}
@@ -362,6 +364,16 @@ import CheckmateCore
             for _ in 0..<12{game.toggleLeft();game.toggleRight();try? await Task.sleep(nanoseconds:40_000_000)};try? await Task.sleep(nanoseconds:2_000_000_000)
             if abs(game.window!.frame.width-initial.width)>1{failures.append("Drawer endpoints drift")}
             try? await game.capture(directory+"/practice.png")
+            let practiceBeforeWorkspace=model.session.rules.fen,libraryBeforeWorkspace=model.reviews.count
+            model.showReviewWorkspace();if !game.desiredLeft{game.toggleLeft()};try? await Task.sleep(for:.milliseconds(900))
+            if model.review.active || model.reviews.count != libraryBeforeWorkspace || model.session.rules.fen != practiceBeforeWorkspace{failures.append("Review workspace created a record or changed practice")}
+            try? await game.capture(directory+"/review-workspace.png")
+            model.practice();model.reviewCurrent()
+            if !model.reviewDraft || model.reviews.count != libraryBeforeWorkspace{failures.append("Opening current game saved without intent")}
+            let saveShortcut=NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:.command,timestamp:0,windowNumber:game.window!.windowNumber,context:nil,characters:"s",charactersIgnoringModifiers:"s",isARepeat:false,keyCode:1)!
+            if NSApp.mainMenu?.performKeyEquivalent(with:saveShortcut) != true || model.reviewDraft || model.reviews.count != libraryBeforeWorkspace+1{failures.append("Command-S did not explicitly save the review")}
+            model.practice();game.window?.makeKeyAndOrderFront(nil);NSApp.activate(ignoringOtherApps:true);try? await Task.sleep(for:.milliseconds(200))
+            if game.window?.isKeyWindow != true{failures.append("Overlay scenario could not activate the board window")}
             try? model.session.select("g1");game.window?.makeFirstResponder(game.board);game.refresh()
             model.session.annotate(arrows:[["g1","f3"],["d2","d4"]],highlights:[]);try? await Task.sleep(for:.milliseconds(100));try? await game.capture(directory+"/board-overlays-low.png")
             if !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion && !game.board.breathing{failures.append("Selected piece did not start breathing")}

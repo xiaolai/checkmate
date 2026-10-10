@@ -4,17 +4,32 @@ struct SidebarContent:View {
     @ObservedObject var session:GameSession
     @ObservedObject var learning:LearningPlayer
     @ObservedObject var model:NativeModel
-    // The open saved review's own row is selected; an unsaved review has no row.
-    private var selected:String {model.review.active ? model.review.document.map{"review:"+$0.id.uuidString} ?? "review":session.mode == .practice ? "practice":session.mode == .puzzles ? "puzzles":"lesson:\(learning.lessonIndex)"}
-    var body:some View {List(selection:Binding<String?>(get:{selected},set:{value in guard let value=value else{return};if value=="review"{model.pasteReview()}else if value.hasPrefix("review:"),let id=UUID(uuidString:String(value.dropFirst(7))){model.openSavedReview(id)}else if value=="practice"{model.practice()}else if value=="puzzles"{model.puzzles()}else if let i=Int(value.replacingOccurrences(of:"lesson:",with:"")){model.lesson(i)}})){
+    private var selected:String {
+        if model.reviewWorkspace{return "review"}
+        if model.review.active {
+            if let document=model.review.document,model.reviews.contains(where:{$0.id==document.id}) {return "review:"+document.id.uuidString}
+            return "review"
+        }
+        return session.mode == .practice ? "practice":session.mode == .puzzles ? "puzzles":"lesson:\(learning.lessonIndex)"
+    }
+    private func navigate(_ value:String?) {
+        guard let value=value else{return}
+        if value=="review" {model.showReviewWorkspace()}
+        else if value.hasPrefix("review:"),let id=UUID(uuidString:String(value.dropFirst(7))) {model.openSavedReview(id)}
+        else if value=="practice" {model.practice()}
+        else if value=="puzzles" {model.puzzles()}
+        else if let i=Int(value.replacingOccurrences(of:"lesson:",with:"")) {model.lesson(i)}
+    }
+    var body:some View {List(selection:Binding<String?>(get:{selected},set:navigate)){
         Section {
             Label("Practice a game",systemImage:"flag.checkered").tag("practice")
             Label("Quick puzzles",systemImage:"lightbulb").tag("puzzles")
-            Button("Review current game"){model.reviewCurrent()}
-            Button("Open PGN…"){model.openPGN()}
-            Button("Paste PGN or FEN"){model.pasteReview()}
+            Label("Review game",systemImage:"doc.text.magnifyingglass").tag("review")
         }
-        Section("Saved reviews"){ForEach(model.reviews){record in Label(record.title,systemImage:"doc.text").tag("review:"+record.id.uuidString)}}
+        if !model.reviews.isEmpty {
+            Section("Saved reviews"){ForEach(model.reviews){record in Label(record.title=="?" ? "Untitled game":record.title,systemImage:"doc.text").tag("review:"+record.id.uuidString)
+                .contextMenu{Button("Delete Saved Review…",role:.destructive){model.requestDeleteReview(record.id)}.disabled(model.deletingReviewID != nil)}}}
+        }
         Section("Learn & explore") {ForEach(Array(learning.library.lessons.enumerated()),id:\.element.id){i,l in Label {Text(l.title)} icon:{Image(systemName:session.state.course.completed.contains(l.id) ? "checkmark.circle.fill":"book")}.tag("lesson:\(i)")}}
     }.listStyle(.sidebar).scrollContentBackground(.hidden).overlay(alignment:.bottom){if model.importingReview{VStack{ProgressView("Importing review…");Button("Cancel import"){model.cancelReviewImport()}}.padding().background(.regularMaterial)}}}
 }
@@ -26,7 +41,12 @@ struct DetailContent:View {
     @ObservedObject var relationships:RelationshipController
     let inspect:(RelationshipMode)->Void
     var body:some View {ScrollView {VStack(alignment:.leading,spacing:Metrics.sectionGap) {
-        if model.review.active{ReviewDetailContent(review:model.review,model:model)}else {
+        if model.reviewWorkspace {
+            Text("PGN game records").font(.headline)
+            Text("Open a finished or unfinished game, including its recorded moves and variations.")
+            Text("FEN positions").font(.headline)
+            Text("Explore a single board position. Earlier moves and repetition history are not included.").foregroundStyle(.secondary)
+        } else if model.review.active{ReviewDetailContent(review:model.review,model:model)}else {
         if let label=relationships.selectedLabel{RelationshipContent(relationships:relationships,label:label,inspect:inspect);Divider()}
         if session.mode == .practice {
             if relationships.report==nil {

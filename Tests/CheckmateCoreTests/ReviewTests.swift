@@ -1,6 +1,12 @@
 import XCTest
 @testable import CheckmateCore
 final class GameDocumentTests:XCTestCase {
+    func testUnknownPGNMetadataUsesReadableTitles()throws {
+        let data=Data("[Event \"?\"]\n[White \"?\"]\n[Black \"?\"]\n1. e4 *".utf8)
+        XCTAssertEqual(try PGNImporter.parse(data,provenance:"Current game")[0].title,"Current game")
+        XCTAssertEqual(try PGNImporter.parse(data)[0].title,"Imported game")
+        XCTAssertEqual(try PGNImporter.parse(Data("[Event \" \" ]\n[White \"Alice\"]\n[Black \"Bob\"]\n1. d4 *".utf8))[0].title,"Alice – Bob")
+    }
     func testTreeAndOriginalRoundTrip()throws {
         let source="[Event \"Tree\"]\n[Result \"*\"]\n\n{before} 1. e4 {after} $1 (1. d4 d5 (1... Nf6)) e5 *"
         let document=try PGNImporter.parse(Data(source.utf8))[0]
