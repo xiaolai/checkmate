@@ -1,4 +1,7 @@
 import Foundation
+// Dispatch predates Sendable; the request timeout crosses into NWConnection callbacks only to be
+// cancelled, and DispatchWorkItem.cancel() is thread-safe.
+@preconcurrency import Dispatch
 import Network
 import Security
 import Combine

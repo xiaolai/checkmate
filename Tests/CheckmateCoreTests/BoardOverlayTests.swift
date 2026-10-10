@@ -54,7 +54,7 @@ final class BoardOverlayTests:XCTestCase {
             let route=try XCTUnwrap(BoardArrow(from:"d4",to:target,board:board))
             XCTAssertEqual(route.shaft.elementCount,4)
             var points=[NSPoint](repeating:.zero,count:3)
-            XCTAssertEqual(route.shaft.element(at:2,associatedPoints:&points),.curveTo)
+            XCTAssertEqual(route.shaft.element(at:2,associatedPoints:&points),.cubicCurveTo)
         }
         XCTAssertEqual(try XCTUnwrap(BoardArrow(from:"d4",to:"d5",board:board)).shaft.elementCount,2)
         XCTAssertNil(BoardArrow(from:"d4",to:"d4",board:board));XCTAssertNil(BoardArrow(from:"a0",to:"d4",board:board))

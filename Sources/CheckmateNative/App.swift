@@ -186,7 +186,7 @@ import CheckmateCore
             let accessibleSquares=game.board.accessibilityChildren()?.compactMap{$0 as? NSAccessibilityElement} ?? []
             if accessibleSquares.count != 64 || game.board.accessibilityLabel() != "Chessboard"{failures.append("Board accessibility tree incomplete")}
             game.window?.makeFirstResponder(game.board)
-            func key(_ code:UInt16){if let event=NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:[],timestamp:ProcessInfo.processInfo.systemUptime,windowNumber:game.window!.windowNumber,context:nil,characters:"",charactersIgnoringModifiers:"",isARepeat:false,keyCode:code){NSApp.sendEvent(event)}}
+            @MainActor func key(_ code:UInt16){if let event=NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:[],timestamp:ProcessInfo.processInfo.systemUptime,windowNumber:game.window!.windowNumber,context:nil,characters:"",charactersIgnoringModifiers:"",isARepeat:false,keyCode:code){NSApp.sendEvent(event)}}
             model.session.setVoiceFocus(["h4"],identity:model.session.displayIdentity);game.refresh();if !game.board.highlights.contains(where:{$0.sq=="h4" && $0.kind=="focus"}){failures.append("Verified review speech focus was not rendered")};model.session.setVoiceFocus([],identity:model.session.displayIdentity)
             model.review.annotate(arrows:[["e2","e4"]],highlights:[Highlight(sq:"e4",kind:"focus")],ttl:5000);game.refresh();let annotationRendered=game.board.arrows.contains(["e2","e4"]) && game.board.highlights.contains(where:{$0.sq=="e4" && $0.kind=="focus"});if !annotationRendered{failures.append("Scoped review annotation was not rendered")}
             key(124);let annotationCleared=model.review.arrows.isEmpty && model.review.highlights.isEmpty;if !annotationCleared{failures.append("Review annotation survived navigation")};let rightArrowVerified=model.review.nodeID==docs[0].mainline.first;if !rightArrowVerified{failures.append("Right arrow failed review navigation")};key(123);let leftArrowVerified=model.review.nodeID==0;if !leftArrowVerified{failures.append("Left arrow failed review navigation")}
@@ -204,7 +204,7 @@ import CheckmateCore
             if !reviewVoicePassed{failures.append("Review voice status/newest-first transcript not rendered")}
 
             try model.review.beginBranch();game.refresh()
-            func click(_ square:String)async {let rect=game.board.squareRect(square),point=game.board.convert(NSPoint(x:rect.midX,y:rect.midY),to:nil);for type in [NSEvent.EventType.leftMouseDown,.leftMouseUp]{if let event=NSEvent.mouseEvent(with:type,location:point,modifierFlags:[],timestamp:ProcessInfo.processInfo.systemUptime,windowNumber:game.window!.windowNumber,context:nil,eventNumber:0,clickCount:1,pressure:type == .leftMouseDown ? 1:0){NSApp.sendEvent(event)};try? await Task.sleep(for:.milliseconds(80))}}
+            @MainActor func click(_ square:String)async {let rect=game.board.squareRect(square),point=game.board.convert(NSPoint(x:rect.midX,y:rect.midY),to:nil);for type in [NSEvent.EventType.leftMouseDown,.leftMouseUp]{if let event=NSEvent.mouseEvent(with:type,location:point,modifierFlags:[],timestamp:ProcessInfo.processInfo.systemUptime,windowNumber:game.window!.windowNumber,context:nil,eventNumber:0,clickCount:1,pressure:type == .leftMouseDown ? 1:0){NSApp.sendEvent(event)};try? await Task.sleep(for:.milliseconds(80))}}
             await click("e2");await click("e4");let mouseBranchVerified=model.review.board["e4"]=="wp";if !mouseBranchVerified{failures.append("Actual mouse branch move failed")};try? await game.capture(directory+"/imagined-mouse.png");key(126);key(126);key(126);key(49);key(125);key(125);key(49);let keyboardBranchVerified=model.review.board["e5"]=="bp" && model.review.branch?.moves.count==2;if !keyboardBranchVerified{failures.append("Actual keyboard imagined move failed")};try? await game.capture(directory+"/imagined-keyboard.png");model.review.clearBranch();if model.review.nodeID != 0 || model.review.document!.contentHash != originalHash{failures.append("Branch changed original cursor/hash")}
             if model.session.rules.fen != practice || model.session.state.practice.pgn != pgn{failures.append("Review modified suspended practice")}
             try model.review.select(docs[0].mainline.last!);model.saveReview();try? await game.capture(directory+"/last-position.png")
@@ -300,7 +300,7 @@ import CheckmateCore
             let board=model.learning.frame.board ?? [:]
             let passed=board["h5"]=="wp" && board["g2"]==nil && board["g4"]==nil && board["h7"]==nil && model.learning.miniTurn=="b"
             try? await game.capture(directory+"/pawn-duel.png")
-            func click(_ square:String)async {
+            @MainActor func click(_ square:String)async {
                 let rect=game.board.squareRect(square),point=game.board.convert(NSPoint(x:rect.midX,y:rect.midY),to:nil)
                 for type in [NSEvent.EventType.leftMouseDown,.leftMouseUp] {
                     if let event=NSEvent.mouseEvent(with:type,location:point,modifierFlags:[],timestamp:ProcessInfo.processInfo.systemUptime,windowNumber:game.window!.windowNumber,context:nil,eventNumber:0,clickCount:1,pressure:type == .leftMouseDown ? 1:0){NSApp.sendEvent(event)}
@@ -380,7 +380,7 @@ import CheckmateCore
             try? await Task.sleep(for:.milliseconds(1300));try? await game.capture(directory+"/board-overlays-high.png")
             game.board.isHidden=true;if game.board.breathing{failures.append("Hidden board kept its breathing timer")};game.board.isHidden=false
             game.board.selected=nil;if game.board.breathing{failures.append("Cleared selection kept its breathing timer")}
-            func inspectionKey(_ character:String,_ code:UInt16){game.board.keyDown(with:NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:[],timestamp:0,windowNumber:game.window!.windowNumber,context:nil,characters:character,charactersIgnoringModifiers:character,isARepeat:false,keyCode:code)!)}
+            @MainActor func inspectionKey(_ character:String,_ code:UInt16){game.board.keyDown(with:NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:[],timestamp:0,windowNumber:game.window!.windowNumber,context:nil,characters:character,charactersIgnoringModifiers:character,isARepeat:false,keyCode:code)!)}
             game.refresh();inspectionKey("p",35);if game.relationships.report?.mode != .protected{failures.append("P did not show protection")}
             try? await Task.sleep(for:.milliseconds(850));try? await game.capture(directory+"/protected-start.png")
             let unchanged=model.session.rules.fen;game.select("h3");if model.session.rules.fen != unchanged{failures.append("Inspection click played a move")}
