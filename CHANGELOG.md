@@ -1,3 +1,25 @@
+# Checkmate 0.3.6
+
+Clicks now do what they show. Buttons, toggles and disclosures in the game
+details drawer were drawn but almost unclickable; they respond across their
+whole area. A board click no longer fails when the pointer moves slightly while
+pressing, and pieces can be dragged to their destination; an illegal drop
+returns the piece.
+
+Moves that cannot be played now look different: dots for the opponent's pieces,
+or shown while Stockfish is thinking, are hollow, and your selected piece stays
+selected through Stockfish's reply. Undo no longer leaves Stockfish waiting
+forever, Restore Previous Game swaps your two games (with the side you played)
+instead of discarding the current one, and engine, puzzle and voice messages
+open the details drawer instead of staying hidden.
+
+Lessons and review: Next puzzle works under the Unsolved filter, switching
+pieces in a move puzzle is no longer graded as a wrong answer, the puzzle
+library ends a mini-game, and a move on a reviewed game opens Test my idea.
+A slow engine start no longer reports that Stockfish could not respond.
+
+Requires macOS 14+ with universal Apple Silicon and Intel binaries.
+
 # Checkmate 0.3.5
 
 The knight lesson now demonstrates a jump from g1 to f3 over its own unmoved
