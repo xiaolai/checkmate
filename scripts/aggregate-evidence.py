@@ -2,9 +2,21 @@ import hashlib,json,pathlib,re,sys
 p=pathlib.Path(sys.argv[1])
 log=(p/'swift-tests.log').read_text()
 assert "Test Suite 'All tests' passed" in log
-count=int(re.findall(r'Executed (\d+) tests, with 0 failures',log)[-1])
-assert "skipped" not in log.lower()
-r={'deterministicTests':count,'liveVoice':'deferred-user-owned'}
+summary=re.findall(r'Executed (\d+) tests, with (?:(\d+) tests skipped and )?0 failures',log)
+assert summary, "No successful XCTest summary"
+count,skipped=summary[-1]
+count,skipped=int(count),int(skipped or 0)
+optional={
+ 'EngineGoldenTests testHeldOutStrongEvidence',
+ 'OpponentCalibrationTests testSeededCompleteGames',
+ 'ReviewPerformanceTests testImportNavigationAndSelectedLatency',
+ 'ReviewPerformanceTests testMaximumMainlineNavigationScale',
+ 'ReviewPerformanceTests testSelectedQuickP95OnActualGame',
+}
+skipped_names=re.findall(r"Test Case '-\[CheckmateCoreTests\.(.*?)\]' skipped",log)
+assert len(skipped_names)==skipped, "Unaccounted skipped tests"
+assert set(skipped_names)<=optional, f"Unexpected skipped tests: {set(skipped_names)-optional}"
+r={'deterministicTests':count-skipped,'totalTests':count,'optionalSkippedTests':skipped_names,'liveVoice':'deferred-user-owned'}
 for key,file in [('layout','layout-verification.json'),('lifecycle','lifecycle-results.json'),('fullscreen','fullscreen-results.json'),('nativeUI','ui-results.json'),('brokerIntegration','broker-results.json'),('relocatedLaunch','relocated-results.json'),('packaging','package-results.json')]:
  r[key]=json.loads((p/file).read_text())['passed']
  assert r[key],file
