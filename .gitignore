@@ -24,3 +24,7 @@ __pycache__/
 .DS_Store
 xcuserdata/
 *.xcuserstate
+
+# Local agent instructions
+AGENT.md
+AGENTS.md
