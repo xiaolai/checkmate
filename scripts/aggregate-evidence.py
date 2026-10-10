@@ -18,7 +18,7 @@ skipped_names=re.findall(r"Test Case '-\[CheckmateCoreTests\.(.*?)\]' skipped",l
 assert len(skipped_names)==skipped, "Unaccounted skipped tests"
 assert set(skipped_names)<=optional, f"Unexpected skipped tests: {set(skipped_names)-optional}"
 r={'deterministicTests':count-skipped,'totalTests':count,'optionalSkippedTests':skipped_names,'liveVoice':'deferred-user-owned'}
-for key,file in [('layout','layout-verification.json'),('lifecycle','lifecycle-results.json'),('fullscreen','fullscreen-results.json'),('nativeUI','ui-results.json'),('brokerIntegration','broker-results.json'),('relocatedLaunch','relocated-results.json'),('packaging','package-results.json')]:
+for key,file in [('layout','layout-verification.json'),('lifecycle','lifecycle-results.json'),('fullscreen','fullscreen-results.json'),('nativeUI','ui-results.json'),('pointer','pointer-results.json'),('brokerIntegration','broker-results.json'),('relocatedLaunch','relocated-results.json'),('packaging','package-results.json')]:
  r[key]=json.loads((p/file).read_text())['passed']
  assert r[key],file
 files=[pathlib.Path('Package.swift'),pathlib.Path('build.sh')]
