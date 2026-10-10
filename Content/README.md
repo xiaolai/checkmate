@@ -12,8 +12,8 @@ The schema-2 editorial source has no audio files or generated timing metadata. I
 Regenerate exports after editing the source:
 
 ```sh
-python3 native/Tools/prepare-lesson-scripts.py
-python3 native/Tools/prepare-lesson-scripts.py --check
+python3 Tools/prepare-lesson-scripts.py
+python3 Tools/prepare-lesson-scripts.py --check
 ```
 
 The check compares every board action, original quiz mechanic, answer/alternative, puzzle board and ID with the pinned runtime resource. It also checks that exported recording inputs match the edited source. The pinned baseline hash is a provenance check: publishing changes the runtime without changing this baseline. Review parity before rebasing the original baseline.
@@ -36,7 +36,7 @@ python3 Tools/record-lessons.py --lesson intro --generate    # explicit lesson s
 python3 Tools/record-lessons.py --all --jobs 4 --generate    # full set, after audition review
 ```
 
-Generated audio, provenance sidecars and indexes live in ignored `native/recordings/cedar/`. Each request hashes all speech parameters, including the spoken text and delivery instructions. Finished, integrity-checked takes are reused; a changed parameter gets a different filename. Keep the recordings, because regeneration is not an exact reproduction. HTTP rate limits/transient server errors receive bounded retries; ambiguous network failures stop without blind retries. Incomplete or corrupt recording pairs require inspection before regeneration.
+Generated audio, provenance sidecars and indexes live in ignored `recordings/cedar/`. Each request hashes all speech parameters, including the spoken text and delivery instructions. Finished, integrity-checked takes are reused; a changed parameter gets a different filename. Keep the recordings, because regeneration is not an exact reproduction. HTTP rate limits/transient server errors receive bounded retries; ambiguous network failures stop without blind retries. Incomplete or corrupt recording pairs require inspection before regeneration.
 
 `audition.html` groups sample takes by segment and speed, with explicit playback controls and no autoplay. Its audio is AI-generated. API success and WAV validation establish valid output, not correct pronunciation or pleasing delivery: listening review is still required. Xiaolai approved speed 1.0 on 2026-10-09 after comparing the audition set with 0.95. Full-course recording uses that pinned profile. Up to four requests may run concurrently, and the batch stops scheduling new requests after a failure while retaining completed takes.
 

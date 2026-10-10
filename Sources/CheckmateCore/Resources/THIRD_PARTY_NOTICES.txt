@@ -6,7 +6,7 @@ Full license: chess-LICENSE in this resource directory.
 Stockfish 19, GPL-3.0-only. Unmodified upstream source, rebuilt on build-host.
 Full license: Stockfish-COPYING.txt.
 Official source: https://github.com/official-stockfish/Stockfish/tree/sf_19
-Corresponding source archive and reproducible recipe: native/ThirdParty/Stockfish/.
+Corresponding source archive and reproducible recipe: ThirdParty/Stockfish/.
 Source/network/binary checksums: stockfish-build.json.
 The official default nn-1a298aa575a0.nnue network is packaged separately;
 NNUE_EMBEDDING_OFF changes packaging only, not evaluation or search.
@@ -16,7 +16,7 @@ Distribution retains corresponding source/build/network materials and GPL notice
 
 Dock icon: user-supplied horse artwork, CC0 listing at
 https://www.svgrepo.com/svg/201803/horse-chess
-Provenance retained in native/Artwork/Upstream/.
+Provenance retained in Artwork/Upstream/.
 
 Course: native-owned British-English rewrite of the owner's chess-kids-video
 snapshot, 40 lessons/947 beats. Board actions and answer keys are preserved.

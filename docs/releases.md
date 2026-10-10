@@ -20,11 +20,11 @@ Synchronize the source to the build machine, run the silent native test suite,
 then run from this checkout:
 
 ```sh
-CHECKMATE_RELEASE_HOST=build-host CHECKMATE_RELEASE_ROOT=/absolute/path/to/native bash native/scripts/release.sh
+CHECKMATE_RELEASE_HOST=build-host CHECKMATE_RELEASE_ROOT=/absolute/path/to/checkmate bash scripts/release.sh
 ```
 
 The script refuses to continue without working signing/notarization prerequisites.
-Both hosts receive `native/build/release/Checkmate-<version>.dmg`; only the final
+Both hosts receive `build/release/Checkmate-<version>.dmg`; only the final
 stapled DMG is distributable. Keep its SHA256 and matching source archive together.
 The Stockfish source archive, build recipe, network and licenses are in this
 repository. Signing changes Stockfish's bytes: the packaged build manifest retains

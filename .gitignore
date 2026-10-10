@@ -1,29 +1,26 @@
-node_modules/
-dist/
-.DS_Store
-work/
+# SwiftPM build caches (including Intel and review scratch builds)
+/.build*/
+/.swiftpm/
 
-# Native build products and local verification artifacts
-native/.build/
-native/.build-intel/
-native/build/
-native/evidence/
-.swiftpm/
-.env
-.env.*
+# Generated application bundles, packages and verification evidence
+/build/
+/evidence/
+*.dSYM/
 *.log
 
-# Staged paid narration takes, provenance and audition indexes
-native/recordings/
-native/Tools/__pycache__/
+# Paid narration masters and private development records
+/recordings/
+/dev-docs/
 
-# Generated Python caches and raw agent session evidence
+# Local credentials and environment configuration
+.env
+.env.*
+
+# Python caches
 __pycache__/
-dev-docs/audits/game-review-20261009/*run.jsonl
-dev-docs/audits/game-review-20261009/*prompt*.md
-dev-docs/audits/game-review-20261009/*invocation.json
-dev-docs/audits/game-review-20261009/*baseline.json
+*.py[cod]
 
-# Private development plans, audit sessions and acceptance evidence
-dev-docs/
-native/.fixtures/
+# macOS and Xcode user state
+.DS_Store
+xcuserdata/
+*.xcuserstate

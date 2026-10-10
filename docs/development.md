@@ -1,4 +1,4 @@
-# Checkmate native
+# Checkmate development
 
 macOS 14+ AppKit/SwiftUI application for Apple Silicon and Intel. Practice with bundled Stockfish, 40 lessons,
 83 quizzes, 87 puzzles, reversible candidate previews and demonstrations, native
@@ -7,7 +7,7 @@ JavaScript UI runtime. JavaScriptCore runs the existing chess.js rules only.
 
 ## Build and run
 
-All development execution stays on build-host. From its native checkout:
+All development execution stays on build-host. From the repository root:
 
 ```sh
 bash build.sh
@@ -41,8 +41,8 @@ Protection is not a guarantee of safety or a favorable exchange.
 Development data lives in `~/Library/Application Support/ai.xiaolai.checkmate.native-development`.
 Automation supplies `--data-dir` and uses a separate bundle identifier.
 The native MCP discovery file lives in that data directory's `companion` folder.
-The existing adapter accepts its path through `BrokerClient`; normal registered
-legacy MCP discovery remains untouched during migration. Connections are local,
+The existing adapter accepts its path through `BrokerClient`; registered production
+MCP discovery remains separate from development connections. Connections are local,
 private and exclusive. Enabling live voice requires disconnecting external MCP.
 
 Live voice uses AVAudioEngine and URLSession WebSocket with ephemeral credentials
@@ -62,7 +62,7 @@ idempotent by archive hash. The confirmation lists recovered, adjusted and skipp
 state write also retains an atomic previous backup. Unsupported/corrupt files are
 preserved; opening a bad state never overwrites it.
 
-Development builds remain isolated; signed release packaging is documented in [RELEASE.md](RELEASE.md). See bundled
+Development builds remain isolated; signed release packaging is documented in [release packaging](releases.md). See bundled
 THIRD_PARTY_NOTICES.txt for engine, rules, artwork and content provenance.
 
 ## App icon
@@ -71,7 +71,7 @@ THIRD_PARTY_NOTICES.txt for engine, rules, artwork and content provenance.
 
 ## Rewritten lesson scripts
 
-All 40 lessons now use the native-owned British-English rewrite and 947 bundled OpenAI Cedar recordings at speed 1.0. [Content/lesson-scripts.en-GB.md](Content/lesson-scripts.en-GB.md) is the script book; [Content/README.md](Content/README.md) documents recording, verification and publication. Text, compressed audio, transcript titles, quiz projections and timing are published together, preserving actions, answer keys and saved progress. Playback is offline.
+All 40 lessons now use the native-owned British-English rewrite and 947 bundled OpenAI Cedar recordings at speed 1.0. [Content/lesson-scripts.en-GB.md](../Content/lesson-scripts.en-GB.md) is the script book; [Content/README.md](../Content/README.md) documents recording, verification and publication. Text, compressed audio, transcript titles, quiz projections and timing are published together, preserving actions, answer keys and saved progress. Playback is offline.
 
 Lesson mini-games default to human White versus computer Black: Pawn Duel, Rook Sweep, Rooks and Pawns, Bishop Sweep, Bishops and Pawns, Queen Against Pawns, and Knight Capture. Their opponent uses a bounded variant-aware search, without standard-chess king/check rules. The inspector offers a two-player option. Games are saved separately and Undo takes back a complete human/computer turn. Knight Corners is a solo ordered-corner challenge.
 

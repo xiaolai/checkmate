@@ -3,7 +3,6 @@
 The source archive is the unmodified official `sf_19` tag. Check `Resources/stockfish-build.json` for its SHA256 and the binary/network hashes. Compile only on build-host:
 
 ```sh
-cd native
 bash Tools/build-stockfish.sh
 ```
 
