@@ -1,8 +1,8 @@
 # Checkmate releases
 
 `Version.env` owns the native version and monotonically increasing build number.
-Version 0.3.3 is build 8.
-Version 0.3.3 targets macOS 14+ with universal Apple Silicon and Intel binaries.
+Version 0.3.4 is build 9.
+Version 0.3.4 targets macOS 14+ with universal Apple Silicon and Intel binaries.
 Build tooling runs on build-host with Xcode 27; this is separate from the runtime target.
 Development and release builds use
 separate application identifiers and data directories.
@@ -32,7 +32,7 @@ the original hash as `unsignedBinarySHA256` and records the signed hash used by
 runtime integrity checks. The checkout's engine remains unmodified.
 
 Release notes must distinguish automated verification from human acceptance.
-Review, quality labels, review voice and the beginner opponent remain opt-in until
+Standard game review is available. Experimental quality labels, review voice and the beginner opponent remain opt-in until
 human review, novice play and live audio/microphone checks have been completed.
 Do not mark those criteria passed merely because the release has been packaged.
 

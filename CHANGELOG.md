@@ -1,3 +1,30 @@
+# Checkmate 0.3.4
+
+Lessons now play continuously without embedded quizzes. The 83 question segments
+and their answer controls have been removed, leaving 864 offline Cedar recordings
+across all 40 lessons. Explanations and board illustrations are retained. Saved
+positions resume at the same explanation, or immediately after a removed question;
+clicking the lesson board no longer interrupts narration. The 87 separate Quick
+puzzles and lesson mini-games remain available.
+
+Game review opens a workspace with visible Open PGN, Paste PGN or FEN, and Review
+Current Game actions. Imported and current-game reviews remain drafts until Save
+Review or Command-S; saved reviews can be deleted with confirmation. Standard
+review no longer requires an internal rollout flag. Unknown player names receive
+readable titles.
+
+At startup, Checkmate can check Codex availability, connect the voice coach and
+start its private MCP broker. Independent settings control both startup behaviors;
+voice opt-outs and control ownership are respected.
+
+Fullscreen drawer toggles now retain the correct board width, including when
+both panes are open.
+
+Requires macOS 14+; the app, bundled MCP helper and Stockfish engine include Apple
+Silicon and Intel binaries. Automated verification and distribution checks are
+reported with the GitHub release. Physical Intel, older macOS, novice usability
+and live voice acceptance are not inferred from build or automated test results.
+
 # Checkmate 0.3.3
 
 The minimum macOS version is now 14. One universal app includes native Apple
