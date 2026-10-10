@@ -2,10 +2,11 @@ import hashlib,json,pathlib,re,sys
 p=pathlib.Path(sys.argv[1])
 log=(p/'swift-tests.log').read_text()
 assert "Test Suite 'All tests' passed" in log
-summary=re.findall(r'Executed (\d+) tests, with (?:(\d+) tests skipped and )?0 failures',log)
-assert summary, "No successful XCTest summary"
-count,skipped=summary[-1]
-count,skipped=int(count),int(skipped or 0)
+summaries=re.findall(r"Test Suite '([^']+\.xctest)' passed[^\n]*\n\s*Executed (\d+) tests, with (?:(\d+) tests skipped and )?0 failures",log)
+assert {name for name,_,_ in summaries}=={'CheckmateCoreTests.xctest','CheckmateMCPTests.xctest'}, 'Missing XCTest bundle result'
+assert len(summaries)==2, 'Duplicate XCTest bundle result'
+count=sum(int(total) for _,total,_ in summaries)
+skipped=sum(int(skips or 0) for _,_,skips in summaries)
 optional={
  'EngineGoldenTests testHeldOutStrongEvidence',
  'OpponentCalibrationTests testSeededCompleteGames',
