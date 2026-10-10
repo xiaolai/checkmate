@@ -1,10 +1,11 @@
 import XCTest
 @testable import CheckmateCore
 @MainActor final class UCIWorkerTests:XCTestCase {
-    private func executable(stall:Bool=false,delay:Double=0)throws -> (URL,URL){let directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);try FileManager.default.createDirectory(at:directory,withIntermediateDirectories:true);let path=directory.appendingPathComponent("fake.py");let code="""
+    private func executable(stall:Bool=false,delay:Double=0,startupDelay:Double=0)throws -> (URL,URL){let directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);try FileManager.default.createDirectory(at:directory,withIntermediateDirectories:true);let path=directory.appendingPathComponent("fake.py");let code="""
 #!/usr/bin/python3
 import sys,time,os
 with open(os.path.join(os.path.dirname(__file__),'launches'),'a') as f:f.write('launch\\n')
+time.sleep(\(startupDelay))
 for raw in sys.stdin:
  s=raw.strip()
  if s=='uci':
@@ -42,6 +43,12 @@ for raw in sys.stdin:
         _ = try await engine.analyzeHistory(startFEN:fen,moves:[],profile:.skill(20),budget:100,multiPv:1)
         do{_ = try await engine.analyzeHistory(startFEN:fen,moves:["e2e4","invalid"],profile:.skill(20),budget:100,multiPv:1);XCTFail("Invalid history accepted")}catch{}
         _ = try await engine.analyzeHistory(startFEN:fen,moves:["d2d4"],profile:.skill(20),budget:100,multiPv:1,searchMoves:["d7d5"])
+    }
+    /// A cold start (network load, first-run security scan, a slow Mac) is not charged to the search deadline.
+    func testSlowStartupDoesNotFailAShortSearch()async throws {
+        let (path,directory)=try executable(startupDelay:2.5);defer{try? FileManager.default.removeItem(at:directory)}
+        let result=try await NativeEngine(executable:path).analyze(fen:try ChessRules().fen,skill:20,budget:100,multiPv:1)
+        XCTAssertEqual(result.bestMove,"e2e4")
     }
     func testRuntimePolicyMatchesBundledBuildManifest()throws {
         let manifest=try JSONSerialization.jsonObject(with:Data(contentsOf:NativeResources.url("stockfish-build.json"))) as! [String:Any]

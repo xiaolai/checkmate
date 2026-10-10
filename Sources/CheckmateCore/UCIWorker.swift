@@ -15,8 +15,14 @@ final class UCIWorker:@unchecked Sendable {
     func metadata()->EngineCapabilities {serial.lock();defer{serial.unlock()};return capabilities}
     func prepare()throws -> EngineCapabilities {
         serial.lock();defer{serial.unlock()};lifecycle.lock();let epoch=generation;lifecycle.unlock()
-        let timeout=DispatchWorkItem{[weak self] in self?.cancel(expected:epoch)};DispatchQueue.global().asyncAfter(deadline:.now()+3,execute:timeout);defer{timeout.cancel()}
-        do{try start(epoch:epoch);return capabilities}catch{cancel(expected:epoch);throw error}
+        try startWithinAllowance(epoch:epoch);return capabilities
+    }
+    /// Launch and the UCI handshake (a cold start loads the network) get their own allowance, so a slow start
+    /// is never charged to a search's deadline.
+    private static let startupAllowance:TimeInterval=10
+    private func startWithinAllowance(epoch:Int)throws {
+        let timeout=DispatchWorkItem{[weak self] in self?.cancel(expected:epoch)};DispatchQueue.global().asyncAfter(deadline:.now()+Self.startupAllowance,execute:timeout);defer{timeout.cancel()}
+        do{try start(epoch:epoch)}catch{cancel(expected:epoch);throw error}
     }
     private func send(_ command:String)throws {guard let input=input else{throw CheckmateError.unavailable("Engine pipe unavailable.")};try input.write(contentsOf:Data((command+"\n").utf8))}
     private func line()throws -> String {while true{if let end=pending.firstIndex(of:"\n"){let line=String(pending[..<end]).trimmingCharacters(in:.whitespacesAndNewlines);pending.removeSubrange(...end);return line};guard let data=output?.availableData,!data.isEmpty else{throw CheckmateError.unavailable("Engine stopped responding.")};pending+=String(decoding:data,as:UTF8.self);guard pending.count<2*1024*1024 else{throw CheckmateError.unavailable("Engine output limit exceeded.")}}}
@@ -32,9 +38,10 @@ final class UCIWorker:@unchecked Sendable {
     func search(startFEN:String,moves:[String],finalFEN:String,profile:OpponentProfile,budget:Int,multiPv:Int,searchMoves:[String],epoch:Int)throws -> EngineAnalysis {
         serial.lock();defer{serial.unlock()}
         guard isCurrent(epoch) else{throw CheckmateError.cancelled}
+        try startWithinAllowance(epoch:epoch)
         let timeout=DispatchWorkItem{[weak self] in self?.cancel(expected:epoch)};DispatchQueue.global().asyncAfter(deadline:.now()+Double(budget)/1000+2,execute:timeout);defer{timeout.cancel()}
         do {
-            try start(epoch:epoch);guard isCurrent(epoch) else{throw CheckmateError.cancelled};try send("ucinewgame")
+            guard isCurrent(epoch) else{throw CheckmateError.cancelled};try send("ucinewgame")
             var options=AnalysisPolicy.options;for (key,value) in profile.options{options[key]=value};options["MultiPV"]=String(multiPv)
             if profile.mode=="elo"{guard let range=capabilities.eloRange else{throw CheckmateError.unavailable("Engine Elo mode unavailable.")};options["UCI_Elo"]=String(max(range.lowerBound,min(range.upperBound,profile.value)))}
             if profile.mode=="skill"{options["Skill Level"]=String(max(capabilities.skillRange.lowerBound,min(capabilities.skillRange.upperBound,profile.value)))}
