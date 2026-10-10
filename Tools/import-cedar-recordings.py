@@ -51,6 +51,16 @@ def short_label(text):
     return prefix[:prefix.rfind(' ')] + '…' if ' ' in prefix else prefix + '…'
 
 
+def reusable_asset(cache, master, encoding):
+    """Reuse only the exact recording and encoding, even across asset sets."""
+    if cache.get('audioEncoding') != encoding:
+        return None
+    candidate = next((a for a in cache.get('assets', []) if a['id'] == master['id']), None)
+    if candidate and candidate['requestSHA256'] == master['requestSHA256'] and candidate['masterSHA256'] == master['audioSHA256'] and candidate['textSHA256'] == master['textSHA256']:
+        return candidate
+    return None
+
+
 def build_course(baseline, content, assets, timing, version):
     result = copy.deepcopy(baseline)
     result['lessons'] = copy.deepcopy(content['lessons'])
@@ -61,10 +71,11 @@ def build_course(baseline, content, assets, timing, version):
     result['voices'] = []
     result['stepTitles'] = []
     result['frames'] = []
+    prep = module('prepare', 'prepare-lesson-scripts.py')
     for li, lesson in enumerate(content['lessons']):
         voices = []
         source_steps = [int(b['id'].rsplit(':', 1)[1]) for b in lesson['beats']]
-        result['frames'].append([copy.deepcopy(baseline['frames'][li][i]) for i in source_steps])
+        result['frames'].append([prep.reference_frame(baseline, content, li, beat) for beat in lesson['beats']])
         for step, beat in enumerate(lesson['beats']):
             asset = assets[beat['id']]
             voices.append({'file': asset['file'], 'seconds': asset['seconds'],
@@ -112,7 +123,6 @@ def main():
     destination = RESOURCES / relative
     manifest_file = RESOURCES / 'course-narration.json'
     cache = json.loads(manifest_file.read_text()) if manifest_file.exists() else {}
-    cached_assets = {row['id']: row for row in cache.get('assets', [])} if cache.get('assetSetSHA256') == identity else {}
     ROOT.joinpath('build').mkdir(exist_ok=True)
     probe = ROOT / 'build/audio-probe'
     subprocess.run(['xcrun', 'swiftc', str(ROOT / 'Tools/audio-probe.swift'), '-o', str(probe)], check=True)
@@ -123,8 +133,8 @@ def main():
             file = Path(lesson) / (f'{int(step):02d}.m4a')
             output = stage / file
             output.parent.mkdir(parents=True, exist_ok=True)
-            cached = cached_assets.get(master['id'])
-            existing = destination / file
+            cached = reusable_asset(cache, master, config['audio'])
+            existing = RESOURCES / cached['file'] if cached else destination / file
             if cached and existing.exists() and recorder.digest(existing.read_bytes()) == cached['audioSHA256']:
                 shutil.copyfile(existing, output)
             else:
@@ -157,7 +167,8 @@ def main():
             projections[li] = [projections[li][int(b['id'].rsplit(':', 1)[1])] for b in lesson['beats']]
             for step, projection in enumerate(projections[li]):
                 projection['step'] = step
-        provenance = dict(version, schemaVersion=1, assets=list(assets.values()))
+                projection['pieces'] = runtime['frames'][li][step]['start'].get('board')
+        provenance = dict(version, schemaVersion=1, audioEncoding=config['audio'], assets=list(assets.values()))
         # Preserve the old resource set once, before replacing active references.
         backup = ROOT / 'build/course-before-cedar'
         if not backup.exists():

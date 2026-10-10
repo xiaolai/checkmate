@@ -30,6 +30,17 @@ class TimingTests(unittest.TestCase):
         self.assertGreaterEqual(duration,6.123+2+self.timing['postNarrationGap'])
         self.assertLess(duration-(6.123+2+self.timing['postNarrationGap']),1/self.timing['frameRate'])
 
+    def testEncodingCacheRejectsChangedTextMasterOrSettings(self):
+        master={'id':'knight:16','requestSHA256':'request','audioSHA256':'master','textSHA256':'text'}
+        asset={'id':'knight:16','requestSHA256':'request','masterSHA256':'master','textSHA256':'text','file':'previous/16.m4a'}
+        encoding={'codec':'aac','bitrate':64000}
+        cache={'audioEncoding':encoding,'assets':[asset]}
+        self.assertEqual(publisher.reusable_asset(cache,master,encoding),asset)
+        self.assertIsNone(publisher.reusable_asset(cache,master,dict(encoding,bitrate=32000)))
+        for field in ['requestSHA256','audioSHA256','textSHA256']:
+            self.assertIsNone(publisher.reusable_asset(cache,dict(master,**{field:'changed'}),encoding))
+        self.assertIsNone(publisher.reusable_asset({'assets':[asset]},master,encoding))
+
     def testPublishedCourseKeepsBeatIdsAndBoardFixtures(self):
         baseline=json.loads((HERE.parent / 'Content/course-baseline.json').read_text())
         content=json.loads((HERE.parent / 'Content/course-scripts.en-GB.json').read_text())
@@ -42,7 +53,8 @@ class TimingTests(unittest.TestCase):
         for li, lesson in enumerate(content['lessons']):
             for step, beat in enumerate(lesson['beats']):
                 original_step=int(beat['id'].rsplit(':',1)[1])
-                start=baseline['frames'][li][original_step]['start']
+                prep=publisher.module('prepare', 'prepare-lesson-scripts.py')
+                start=prep.reference_frame(baseline,content,li,beat)['start']
                 published=runtime['lessons'][li]['beats'][step]
                 self.assertEqual(published['id'],beat['id'])
                 self.assertEqual(published['say'],beat['say'])
@@ -51,6 +63,27 @@ class TimingTests(unittest.TestCase):
                 self.assertEqual(published.get('moves'),beat.get('moves'))
                 self.assertNotIn('quiz',published)
         self.assertEqual(sum(len(rows) for rows in runtime['voices']),864)
+
+    def testCorrectedKnightDemonstrationKeepsPawnsAndRejectsUnreviewedActions(self):
+        import copy
+        root=HERE.parent
+        prep=publisher.module('prepare', 'prepare-lesson-scripts.py')
+        baseline=json.loads((root/'Content/course-baseline.json').read_text())
+        content=json.loads((root/'Content/course-scripts.en-GB.json').read_text())
+        li=next(i for i,l in enumerate(content['lessons']) if l['id']=='knight')
+        beat=next(b for b in content['lessons'][li]['beats'] if b['id']=='knight:16')
+        frame=prep.reference_frame(baseline,content,li,beat)
+        self.assertEqual(len(frame['start']['board']),32)
+        self.assertEqual(frame['end']['board']['f3'],'wn')
+        self.assertNotIn('g1',frame['end']['board'])
+        for file in 'abcdefgh':
+            self.assertEqual(frame['end']['board'][file+'2'],'wp')
+            self.assertEqual(frame['end']['board'][file+'7'],'bp')
+        mutated=copy.deepcopy(content)
+        target=next(b for b in mutated['lessons'][li]['beats'] if b['id']=='knight:16')
+        target['moves']=[['g1','e2']]
+        with self.assertRaisesRegex(AssertionError,'Unreviewed illustration'):
+            prep.validate(mutated,baseline)
 
     def testRebuildReproducesPublishedContinuousCourse(self):
         root=HERE.parent

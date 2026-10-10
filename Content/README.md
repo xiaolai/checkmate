@@ -9,6 +9,8 @@ The complete British-English rewrite is published in the native app with OpenAI 
 
 The schema-2 editorial source has no audio files or generated timing metadata. Its `published` state records publication, but it is not directly loaded by the app. `course-baseline.json` and `projections-baseline.json` are immutable original snapshots used to check action and answer parity. The generated runtime is `Sources/CheckmateCore/Resources/course.json`, with compressed-asset provenance in `course-narration.json`.
 
+The [2026-10-10 lesson audit](lesson-audit-20261010.md) covers every lesson and takeaway. `lesson-illustrations.json` records reviewed changes to original board actions; all other action fixtures and standalone puzzle answers remain pinned to the immutable baseline. The corrected knight illustrations show a jump from the complete starting position with friendly pawns unchanged.
+
 Regenerate exports after editing the source:
 
 ```sh
@@ -16,7 +18,7 @@ python3 Tools/prepare-lesson-scripts.py
 python3 Tools/prepare-lesson-scripts.py --check
 ```
 
-The check verifies that all original embedded quizzes are retired, retained editorial board actions match their original segments, and standalone puzzle mechanics, boards and IDs are unchanged. It also checks that exported recording inputs match the edited source. The pinned baseline hash is a provenance check: publishing changes the runtime without changing this baseline. Review parity before rebasing the original baseline.
+The check verifies that all original embedded quizzes are retired, retained editorial board actions match their original segments or explicitly reviewed illustration corrections, and standalone puzzle mechanics, boards and IDs are unchanged. It also checks that exported recording inputs match the edited source. The pinned baseline hash is a provenance check: publishing changes the runtime without changing this baseline. Review parity before rebasing the original baseline.
 
 For recording, send each JSONL unit's `text` to the chosen engine and retain its `id` and input hash with the output. This export is engine-neutral; the separate Cedar profile selects the recording engine and voice. Audition coordinates, the file letters, castling, en passant and Paul Morphy before generating the full set.
 
