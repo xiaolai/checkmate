@@ -50,7 +50,12 @@ public extension NarrationService {var playbackTime:Double? {nil}}
     public func replay(){pause();seconds=0;play()}
     public func tick(wallDelta:Double){if let time=audio?.playbackTime,session.state.settings.narration{advance(by:max(0,time-seconds))}else{advance(by:wallDelta)}}
     public func advance(by delta:Double) {guard playing else{return};seconds=min(duration,seconds+max(0,delta));rebuild();if seconds>=duration {pause();if step<current.beats.count-1 {if session.state.settings.autoAdvance {seek(step:step+1);play()}}else{complete(continuePlayback:session.state.settings.autoAdvance)};publish()}}
-    public func next(){guard !mini else{return};if activePuzzle != nil {let filtered=filteredPuzzles;if let id=activePuzzle?.id,let i=filtered.firstIndex(where:{$0.id==id}),!filtered.isEmpty {openPuzzle(id:filtered[(i+1)%filtered.count].id)};return};if step<current.beats.count-1{seek(step:step+1)}else{complete()}}
+    public func next(){guard !mini else{return};if let id=activePuzzle?.id {
+            let filtered=filteredPuzzles;guard !filtered.isEmpty else{showPuzzleLibrary();return}
+            if let i=filtered.firstIndex(where:{$0.id==id}){openPuzzle(id:filtered[(i+1)%filtered.count].id);return}
+            let order=library.puzzles.map(\.id),current=order.firstIndex(of:id) ?? -1
+            openPuzzle(id:(filtered.first{(order.firstIndex(of:$0.id) ?? 0)>current} ?? filtered[0]).id);return
+        };if step<current.beats.count-1{seek(step:step+1)}else{complete()}}
     public func complete(continuePlayback:Bool=false){
         pause()
         if !session.state.course.completed.contains(current.id){session.state.course.completed.append(current.id)}
@@ -64,7 +69,7 @@ public extension NarrationService {var playbackTime:Double? {nil}}
         }
     }
     public func openPuzzle(id:String) {guard let puzzle=library.puzzles.first(where:{$0.id==id}) else{return};pause();activePuzzle=puzzle;mini=false;picked=[];path=[];feedback="";passed=false;mistake=false;frame=CourseFrame(board:puzzle.board,hl:puzzle.highlights);publish()}
-    public func showPuzzleLibrary(){pause();activePuzzle=nil;frame=CourseFrame();session.setLesson(LessonProjection(mode:"quick_puzzle",pieces:nil,title:"Quick puzzles",lessonId:"puzzle-library",step:0,prompt:nil,choices:nil,playing:false,narrationActive:false,moving:false,turn:nil,winner:nil,rules:nil))}
+    public func showPuzzleLibrary(){pause();activePuzzle=nil;mini=false;picked=[];feedback="";frame=CourseFrame();session.setLesson(LessonProjection(mode:"quick_puzzle",pieces:nil,title:"Quick puzzles",lessonId:"puzzle-library",step:0,prompt:nil,choices:nil,playing:false,narrationActive:false,moving:false,turn:nil,winner:nil,rules:nil))}
     public func checkAnswer(){guard let e=exercise else{return};answer(e.matches(picked))}
     public func choose(_ choice:String){guard activePuzzle != nil,!passed else{return};pause();answer(exercise?.matches([choice])==true)}
     public func clearSelection(){picked=[];publish()}
@@ -76,7 +81,7 @@ public extension NarrationService {var playbackTime:Double? {nil}}
         switch e.kind {case "squares":
             if e.answers?.count==1 {picked=[sq];answer(e.matches(picked))}
             else if let i=picked.firstIndex(of:sq){picked.remove(at:i)}else{picked.append(sq)}
-        case "move":if let from=picked.first {if from==sq{picked=[];return};let correct=e.matches([from,sq]);if correct,activePuzzle != nil,var board=frame.board{try? CourseLibrary.apply(&board,moves:[[from,sq]]);frame.board=board};picked=[];answer(correct)}else if frame.board?[sq] != nil {picked=[sq]}
+        case "move":let mover=e.from.flatMap{frame.board?[$0]?.first};if let from=picked.first {if from==sq{picked=[];return};if let mover,frame.board?[sq]?.first==mover{picked=[sq];break};let correct=e.matches([from,sq]);if correct,activePuzzle != nil,var board=frame.board{try? CourseLibrary.apply(&board,moves:[[from,sq]]);frame.board=board};picked=[];answer(correct)}else if let piece=frame.board?[sq],mover.map({piece.first==$0}) ?? true {picked=[sq]}
         case "path":if var board=frame.board,let from=board.first(where:{$0.value=="wk"})?.key {if from==sq{return};if CourseLibrary.safeKingStep(board,from:from,to:sq){try? CourseLibrary.apply(&board,moves:[[from,sq]]);frame.board=board;path.append(sq);if sq==e.to{answer(true)}else{feedback="Safe step. Keep going!"}}else{feedback="That square is not a safe neighboring square. Try another step.";if activePuzzle != nil{answer(false)}}}
         default:break};publish()
     }
@@ -91,6 +96,8 @@ public extension NarrationService {var playbackTime:Double? {nil}}
         miniGame = !restart ? session.state.miniGames?[kind.rawValue] ?? MiniGameState(kind:kind,computer:computer):MiniGameState(kind:kind,computer:computer)
         syncMini();scheduleMiniOpponent()
     }
+    /// Re-queues the computer's mini-game reply that leaving for another activity cancelled.
+    public func resumeMiniOpponent(){scheduleMiniOpponent()}
     public func restartMini(){startMini(miniKind,restart:true,computer:miniGame?.computer ?? true)}
     public func setMiniComputer(_ enabled:Bool){cancelMiniOpponent();miniGame?.computer=enabled && !miniKind.solo;picked=[];syncMini();scheduleMiniOpponent()}
     public func undoMini(){onMiniReset?();cancelMiniOpponent();miniGame?.undo();picked=[];feedback="";syncMini();scheduleMiniOpponent()}
