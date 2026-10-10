@@ -1,3 +1,22 @@
+# Checkmate 0.3.5
+
+The knight lesson now demonstrates a jump from g1 to f3 over its own unmoved
+pawns, with the full starting position visible. It explains that knights jump
+over either team's pieces but cannot land on their own pieces.
+
+All 40 lessons were audited. The update corrects move notation and the bishop
+practice game's pawn-survival condition, clarifies movement, castling, promotion
+and en passant, and restores context in explanations left after quiz removal.
+Practice instructions match the available computer, shared-device and solo modes.
+
+There are 63 revised Cedar recordings at speed 1.0. The other 801 recordings
+retain their original audio bytes. Stable segment IDs and saved progress are
+preserved. Independent rules checks cover all 340 authored moves and 20
+mate/stalemate examples; human listening and child comprehension are separate
+acceptance checks.
+
+Requires macOS 14+ with universal Apple Silicon and Intel binaries.
+
 # Checkmate 0.3.4
 
 Lessons now play continuously without embedded quizzes. The 83 question segments
