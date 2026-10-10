@@ -89,7 +89,7 @@ private func publicJSON(_ raw:Any)->Any {
     public var humanSide:String {state.settings.practiceSide}
     public var opponentSide:String {humanSide=="w" ? "b":"w"}
     public static func validatePracticeFork(_ fork:ChessRules,side:String)throws {guard ["w","b"].contains(side),!fork.over else{throw CheckmateError.invalid("Terminal position cannot start practice.")}}
-    public func installPracticeFork(_ fork:ChessRules,side:String)throws {try Self.validatePracticeFork(fork,side:side);cancelWork();if !rules.history.isEmpty{state.practice.previousGame=rules.pgn};try rules.restore(fork.pgn);state.settings.practiceSide=side;state.settings.opponentRandomSeed="";state.practice.beginnerSevereStreak=0;reviewSuspended=false;pausedOpponent=false;mode = .practice;lesson=nil;changedPosition();message="You play \(side=="w" ? "White":"Black").";reply()}
+    public func installPracticeFork(_ fork:ChessRules,side:String)throws {try Self.validatePracticeFork(fork,side:side);cancelWork();if holdsGame{state.practice.previousGame=rules.pgn;state.practice.previousSide=humanSide};try rules.restore(fork.pgn);state.settings.practiceSide=side;state.settings.opponentRandomSeed="";state.practice.beginnerSevereStreak=0;reviewSuspended=false;pausedOpponent=false;mode = .practice;lesson=nil;changedPosition();message="You play \(side=="w" ? "White":"Black").";reply()}
     public var positionId:String {sessionId+":"+String(position)}
     public var displayFen:String? {if let review=reviewController,review.active{return review.displayFEN};guard mode == .practice else{return nil};if !presentationHidden,let d=demonstration{return d.lines[d.line].frames[d.ply].fen};if !presentationHidden,let p=preview{return p.displayFen};return rules.fen}
     public var displayIdentity:String {
@@ -110,28 +110,38 @@ private func publicJSON(_ raw:Any)->Any {
     public func emit(semantic:Bool=true,save:Bool=false){if semantic{revision+=1;cursor+=1};objectWillChange.send();if save {state.practice.pgn=rules.pgn;state.practice.fen=rules.fen;onPersist?(state)};let ids=Array(eventWaiters.keys);for id in ids{finishWait(id)};onEvent?()}
     public func signalEvent(){cursor+=1;emit(semantic:false)}
     public func cancelWork(){if coaching.status=="thinking"{coaching.status="idle";signalEvent()};generation+=1;work?.cancel();work=nil;busy=false;busyReason=nil}
-    private func changedPosition(){cancelWork();explicitResumeRequired=false;position+=1;clearPresentation();clearAnnotations();selected=nil;inspection=nil;coaching=Coaching();coaching.summary=turnSummary();emit(save:true)}
+    private func changedPosition(){cancelWork();explicitResumeRequired=false;position+=1;clearPresentation();clearAnnotations();selected=nil;inspection=nil;error=nil;coaching=Coaching();coaching.summary=turnSummary();emit(save:true)}
+    /// `legalNow` is true only when a click on a dot plays: the learner's own piece, on the learner's turn, on the
+    /// live board. The opponent's moves, moves while Stockfish thinks and imagined boards show as possibilities.
+    private func learnerInspection(_ sq:String,on board:ChessRules,live:Bool)->PieceInspection? {
+        guard let i=try? board.inspect(sq) else{return nil}
+        let playable=live && i.legalNow && i.color==humanSide && !rules.over
+        guard playable != i.legalNow else{return i}
+        let note = !live ? "This board shows imagined moves. Dots show where this piece could go there.":i.color != humanSide ? "Dots show the opponent’s possible moves. You play \(humanSide=="w" ? "White":"Black").":i.note
+        return PieceInspection(square:i.square,piece:i.piece,color:i.color,attacks:i.attacks,destinations:i.destinations,legalNow:false,note:note)
+    }
     public func select(_ sq:String) throws {
         guard mode == .practice else{return};guard ChessRules.validSquare(sq) else{return};if rules.over{try inspectPiece(sq);return}
-        if !presentationHidden,(demonstration != nil || preview?.candidate != nil) {let display=try ChessRules(fen:displayFen);selected=sq;inspection=try? display.inspect(sq);emit(semantic:false);return}
-        if busy && busyReason=="opponent" {selected=sq;inspection=try? rules.inspect(sq);emit(semantic:false);return}
+        if !presentationHidden,(demonstration != nil || preview?.candidate != nil) {let display=try ChessRules(fen:displayFen);selected=sq;inspection=learnerInspection(sq,on:display,live:false);emit(semantic:false);return}
         if let from=selected,inspection?.legalNow==true,destinations.contains(sq) {
             if !presentationHidden,preview != nil {cancelWork();work=Task{try? await self.testMove(from:from,to:sq)}}else{try playWhite(from:from,to:sq)};return
         }
-        selected=sq;inspection=try? rules.inspect(sq);if let i=inspection {message=i.note};emit(semantic:false)
+        // A possible move of the learner's own piece waits for the learner's turn instead of selecting another square.
+        if selected != nil,rules.turn==opponentSide,let i=inspection,!i.legalNow,i.color==humanSide,destinations.contains(sq) {message="Wait for the opponent’s move, then play this move.";emit(semantic:false);return}
+        selected=sq;inspection=learnerInspection(sq,on:rules,live:true);if let i=inspection {message=i.note};emit(semantic:false)
     }
     /// Selects for explanation only; never plays a move or changes a preview.
     public func inspectPiece(_ sq:String) throws {
         guard mode == .practice,ChessRules.validSquare(sq) else{return}
         let display=try ChessRules(fen:displayFen)
-        selected=sq;inspection=try? display.inspect(sq);emit(semantic:false)
+        selected=sq;inspection=learnerInspection(sq,on:display,live:displayView=="game");emit(semantic:false)
     }
     public func clearSelection(){selected=nil;inspection=nil;emit(semantic:false)}
     public func playWhite(from:String,to:String,promotion:String="q") throws {
         guard !reviewSuspended,mode == .practice,rules.turn==humanSide,busyReason != "opponent",!rules.over,(presentationHidden || preview==nil && demonstration==nil) else{throw CheckmateError.invalid("ROLE_FORBIDDEN")}
         let move=try rules.move(from,to,promotion);changedPosition();onMove?(move);reply()
     }
-    public func commitBlack(_ uci:String) throws -> MoveRecord {guard !reviewSuspended,!explicitResumeRequired,rules.turn==opponentSide else{throw CheckmateError.stale};let m=try rules.move(uci:uci);changedPosition();onMove?(m);message=turnSummary();scheduleGuidance();return m}
+    public func commitBlack(_ uci:String) throws -> MoveRecord {guard !reviewSuspended,!explicitResumeRequired,rules.turn==opponentSide else{throw CheckmateError.stale};let kept=selected;let m=try rules.move(uci:uci);changedPosition();if let kept,rules.piece(kept)?.color==humanSide{selected=kept;inspection=learnerInspection(kept,on:rules,live:true)};onMove?(m);message=turnSummary();scheduleGuidance();return m}
     public func reply(){guard !shuttingDown,!reviewSuspended,!explicitResumeRequired,mode == .practice,rules.turn==opponentSide,!rules.over,!busy,!voiceHold,!pausedOpponent,!suspended,(presentationHidden || (preview==nil && demonstration==nil)),(!companionEnabled || companionRole != "opponent"),let engine=engine else{return}
         if state.settings.opponentRandomSeed.isEmpty{state.settings.opponentRandomSeed=String(UInt64.random(in:1...UInt64.max),radix:16);emit(semantic:false,save:true)}
         let seed=UInt64(reviewHash(Data((state.settings.opponentRandomSeed+rules.fen).utf8)).prefix(16),radix:16) ?? 1
@@ -139,10 +149,19 @@ private func publicJSON(_ raw:Any)->Any {
         work=Task {[weak self] in guard let self=self else{return};do{let result:EngineAnalysis
             if let native=engine as? NativeEngine {let profile=OpponentProfile.settings(self.state.settings);if profile.mode=="beginner"{result=try await BeginnerOpponent.choose(rules:self.rules,engine:native,seed:seed,severeStreak:self.state.practice.beginnerSevereStreak)}else{let start=self.rules.records.first?.before ?? fen;result=try await native.analyzeHistory(startFEN:start,moves:self.rules.records.map(\.uci),profile:profile,budget:500,multiPv:1)}}else{let profile=OpponentProfile.settings(self.state.settings);result=try await engine.analyze(fen:fen,skill:profile.mode=="skill" ? profile.value:self.state.settings.skill,budget:500,multiPv:1)};try Task.checkCancellation();guard self.generation==epoch,self.rules.fen==fen else{return};self.busy=false;self.busyReason=nil;if let move=result.bestMove {if OpponentProfile.settings(self.state.settings).mode=="beginner"{self.state.practice.beginnerSevereStreak=BeginnerOpponent.nextSevereStreak(result,mover:self.rules.turn,current:self.state.practice.beginnerSevereStreak)}else{self.state.practice.beginnerSevereStreak=0};_ = try self.commitBlack(move)}}catch{if self.generation==epoch {self.busy=false;self.busyReason=nil;self.error="Stockfish could not respond. Retry, undo, or start a new game.";self.emit(semantic:false)}}}
     }
-    public func retryEngine(){error=nil;reply()}
-    public func undo(){guard !reviewSuspended,mode == .practice else{return};cancelWork();state.practice.beginnerSevereStreak=0;rules.undo();if rules.turn==opponentSide{rules.undo()};changedPosition();message="Move taken back.";onUndo?()}
-    public func newGame(){guard !reviewSuspended,mode == .practice else{return};if !rules.history.isEmpty{state.practice.previousGame=rules.pgn};rules.reset();state.settings.practiceSide="w";state.settings.opponentRandomSeed="";state.practice.beginnerSevereStreak=0;pausedOpponent=false;error=nil;changedPosition();message="You play White. Start by making room for your pieces."}
-    public func restorePrevious() throws {guard !reviewSuspended,mode == .practice else{return};pausedOpponent=false;guard !state.practice.previousGame.isEmpty else{return};try rules.restore(state.practice.previousGame);changedPosition();reply()}
+    public func retryEngine(){error=nil;if rules.turn==humanSide{hint()}else{reply()}}
+    public func undo(){guard !reviewSuspended,mode == .practice else{return};cancelWork();state.practice.beginnerSevereStreak=0;rules.undo();if rules.turn==opponentSide{rules.undo()};changedPosition();message="Move taken back.";onUndo?();reply()}
+    private static let standardStart="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+    private var holdsGame:Bool {!rules.history.isEmpty || rules.fen != Self.standardStart}
+    public func newGame(){guard !reviewSuspended,mode == .practice else{return};if holdsGame{state.practice.previousGame=rules.pgn;state.practice.previousSide=humanSide};rules.reset();state.settings.practiceSide="w";state.settings.opponentRandomSeed="";state.practice.beginnerSevereStreak=0;pausedOpponent=false;error=nil;changedPosition();message="You play White. Start by making room for your pieces."}
+    /// Swaps the current and previous games, each with the side the learner played, so neither is lost.
+    public func restorePrevious() throws {
+        guard !reviewSuspended,mode == .practice,!state.practice.previousGame.isEmpty else{return}
+        let previous=state.practice.previousGame,previousSide=state.practice.previousSide,current=holdsGame ? rules.pgn:"",currentSide=humanSide
+        try rules.restore(previous)
+        state.practice.previousGame=current;state.practice.previousSide=currentSide;state.settings.practiceSide=previousSide;state.settings.opponentRandomSeed="";state.practice.beginnerSevereStreak=0;pausedOpponent=false
+        changedPosition();message="You play \(previousSide=="w" ? "White":"Black").";reply()
+    }
     public func continueWithStockfish(){pausedOpponent=false;emit();reply()}
     public func installImportedState(_ imported:ApplicationState)throws {try StateStore.validate(imported);let validated=try ChessRules();if !imported.practice.pgn.isEmpty{try validated.restore(imported.practice.pgn)};cancelWork();try rules.restore(validated.pgn);state=imported;companionRole=imported.settings.companionRole;pausedOpponent=false;mode = .practice;lesson=nil;changedPosition();reply()}
     public func resumePractice(){mode = .practice;lesson=nil;changedPosition();reply()}
@@ -154,20 +173,20 @@ private func publicJSON(_ raw:Any)->Any {
     public func setVoiceFocus(_ sq:[String],identity:String){guard identity==displayIdentity else{return};voiceFocus=sq.filter(ChessRules.validSquare);emit(semantic:false)}
     public func clearAnnotations(){overlayTask?.cancel();overlayTask=nil;highlights=[];arrows=[];voiceFocus=[];overlayRevision+=1}
     public func annotate(arrows:[[String]],highlights:[Highlight],ttl:Int=15000){clearAnnotations();self.arrows=arrows;self.highlights=highlights;emit(semantic:false);let epoch=overlayRevision;overlayTask=Task{try? await Task.sleep(nanoseconds:UInt64(ttl)*1_000_000);guard !Task.isCancelled,self.overlayRevision==epoch else{return};self.clearAnnotations();self.emit(semantic:false)}}
-    private func clearPresentation(){demoTask?.cancel();demoTask=nil;preview=nil;demonstration=nil;presentationHidden=false}
+    private func clearPresentation(){demoTask?.cancel();demoTask=nil;if preview != nil || demonstration != nil{selected=nil;inspection=nil};preview=nil;demonstration=nil;presentationHidden=false}
     public func closePresentation(){cancelWork();clearPresentation();clearAnnotations();emit();reply()}
-    public func selectPresentation(_ show:Bool){presentationHidden = !show;if !show{pauseDemo()};clearAnnotations();emit(semantic:false);if !show{reply()}}
+    public func selectPresentation(_ show:Bool){if presentationHidden==show{selected=nil;inspection=nil};presentationHidden = !show;if !show{pauseDemo()};clearAnnotations();emit(semantic:false);if !show{reply()}}
     public func demonstrate(title:String,introduction:String,lines:[DemoLineInput],autoplay:Bool=false) throws {
         guard mode == .practice,preview==nil,demonstration==nil else{throw CheckmateError.invalid("PRESENTATION_ACTIVE")}
         guard !title.isEmpty,title.count<=80,lines.count>0,lines.count<=3,lines.allSatisfy({!$0.label.isEmpty && $0.label.count<=60 && !$0.moves.isEmpty && $0.moves.count<=12}) else{throw CheckmateError.invalid("INVALID_ARGUMENT")}
         let built=try lines.map {line -> DemoLine in let g=try rules.copy();var frames=[DemoFrame(fen:g.fen,san:nil,uci:nil,explanation:introduction,arrows:[],highlights:[],captured:nil,check:g.check,checkmate:g.checkmate)]
             for step in line.moves {guard !g.over else{throw CheckmateError.invalid("INVALID_MOVE")};let m=try g.move(uci:step.uci);frames.append(DemoFrame(fen:g.fen,san:m.san,uci:m.uci,explanation:step.explanation,arrows:step.arrows.isEmpty ? [[m.from,m.to]]:step.arrows,highlights:step.highlights,captured:m.captured,check:g.check,checkmate:g.checkmate))};return DemoLine(label:line.label,frames:frames)}
-        cancelWork();clearAnnotations();presentationHidden=false;demonstration=Demonstration(id:UUID().uuidString,title:title,introduction:introduction,lines:built,line:0,ply:0,playing:false);emit();if autoplay{playDemo()}
+        cancelWork();clearAnnotations();selected=nil;inspection=nil;presentationHidden=false;demonstration=Demonstration(id:UUID().uuidString,title:title,introduction:introduction,lines:built,line:0,ply:0,playing:false);emit();if autoplay{playDemo()}
     }
     public func seekDemo(line:Int,ply:Int) throws {guard var d=demonstration,d.lines.indices.contains(line),d.lines[line].frames.indices.contains(ply) else{throw CheckmateError.invalid("INVALID_ARGUMENT")};demoTask?.cancel();d.line=line;d.ply=ply;d.playing=false;demonstration=d;clearAnnotations();emit(semantic:false);cursor+=1}
     public func pauseDemo(){demoTask?.cancel();if demonstration != nil {demonstration!.playing=false;emit(semantic:false)}}
     public func playDemo(){guard demonstration != nil,!presentationHidden else{return};if demonstration!.ply==demonstration!.lines[demonstration!.line].frames.count-1{demonstration!.ply=0};demonstration!.playing=true;demoTask?.cancel();demoTask=Task{while !Task.isCancelled,self.demonstration?.playing==true {try? await Task.sleep(nanoseconds:1_500_000_000);guard !Task.isCancelled,var d=self.demonstration else{return};d.ply=min(d.ply+1,d.lines[d.line].frames.count-1);d.playing=d.ply<d.lines[d.line].frames.count-1;self.demonstration=d;self.clearAnnotations();self.cursor+=1;self.emit(semantic:false)}}}
-    public func beginPreview() throws {guard mode == .practice,rules.turn==humanSide,!rules.over,demonstration==nil else{throw CheckmateError.invalid("ROLE_FORBIDDEN")};cancelWork();preview=Preview(id:UUID().uuidString,basePosition:position,status:"choosing",candidate:nil,evaluation:nil,displayFen:rules.fen,ply:0,line:"candidate",error:nil);presentationHidden=false;emit()}
+    public func beginPreview() throws {guard mode == .practice,rules.turn==humanSide,!rules.over,demonstration==nil else{throw CheckmateError.invalid("ROLE_FORBIDDEN")};cancelWork();selected=nil;inspection=nil;preview=Preview(id:UUID().uuidString,basePosition:position,status:"choosing",candidate:nil,evaluation:nil,displayFen:rules.fen,ply:0,line:"candidate",error:nil);presentationHidden=false;emit()}
     public func testMove(from:String,to:String,promotion:String="q") async throws {
         guard preview != nil,preview!.basePosition==position else{throw CheckmateError.stale}
         let facts=try moveFacts(rules,uci:from+to+(promotion=="q" && !rules.moves(from).contains(where:{$0.to==to && $0.promotion != nil}) ? "":promotion)),epoch=position

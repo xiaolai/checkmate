@@ -39,9 +39,11 @@ public enum JSONValue:Codable,Equatable {
 }
 public struct PracticeState:Codable {
     public var pgn="",fen="",previousGame="",beginnerSevereStreak=0
+    /// The side the learner played in `previousGame`; saves before it was recorded were White games.
+    public var previousSide="w"
     public init(){}
-    private enum CodingKeys:String,CodingKey {case pgn,fen,previousGame,beginnerSevereStreak}
-    public init(from decoder:Decoder)throws {let c=try decoder.container(keyedBy:CodingKeys.self);pgn=try c.decodeIfPresent(String.self,forKey:.pgn) ?? "";fen=try c.decodeIfPresent(String.self,forKey:.fen) ?? "";previousGame=try c.decodeIfPresent(String.self,forKey:.previousGame) ?? "";beginnerSevereStreak=max(0,min(BeginnerPolicy.maximumConsecutiveSevereErrors,try c.decodeIfPresent(Int.self,forKey:.beginnerSevereStreak) ?? 0))}
+    private enum CodingKeys:String,CodingKey {case pgn,fen,previousGame,beginnerSevereStreak,previousSide}
+    public init(from decoder:Decoder)throws {let c=try decoder.container(keyedBy:CodingKeys.self);pgn=try c.decodeIfPresent(String.self,forKey:.pgn) ?? "";fen=try c.decodeIfPresent(String.self,forKey:.fen) ?? "";previousGame=try c.decodeIfPresent(String.self,forKey:.previousGame) ?? "";previousSide=(try? c.decodeIfPresent(String.self,forKey:.previousSide)).flatMap{["w","b"].contains($0) ? $0:nil} ?? "w";beginnerSevereStreak=max(0,min(BeginnerPolicy.maximumConsecutiveSevereErrors,try c.decodeIfPresent(Int.self,forKey:.beginnerSevereStreak) ?? 0))}
 }
 public struct CourseProgress:Codable {public var lessonID="intro",step=0,segmentID:String?,completed:[String]=[],answered:[String]=[];public init(){}}
 public struct PuzzleProgress:Codable,Equatable {public var solved=false,review=false,attempts=0;public init(){};public mutating func record(correct:Bool,revealed:Bool=false){solved = solved || correct && !revealed;review = !correct || revealed;attempts+=1}}

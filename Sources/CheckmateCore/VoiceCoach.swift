@@ -80,7 +80,7 @@ public struct VoiceHistory:Identifiable {public let id:String,role:String,text:S
     private func settled(){guard ready,gate.ready,calls.isEmpty,!awaitingCancellation else{return};timeout?.cancel();session.setVoiceFocus([],identity:session.displayIdentity)
         if !segments.isEmpty {continuation=false;guard display==session.displayIdentity else{segments=[];queued=("Prepare a new explanation for the changed display.",false);settled();return};segment=segments.removeFirst();request(segment!.text,user:userTurn,script:true);return};segment=nil
         if continuation{continuation=false;request("Continue after the tool results and call speak_explanation when ready.",user:userTurn);return}
-        if let next=queued{queued=nil;request(next.0,user:next.1);return};syncMic();status=microphone ? "Your turn — listening":session.state.settings.voiceMicrophone ? "Ready — microphone unavailable":"Ready — microphone off";session.holdVoice(false);if session.rules.turn=="w",session.state.settings.coachingMode=="guided"{session.holdVoice(true)}
+        if let next=queued{queued=nil;request(next.0,user:next.1);return};syncMic();status=microphone ? "Your turn — listening":session.state.settings.voiceMicrophone ? "Ready — microphone unavailable":"Ready — microphone off";session.holdVoice(false);if session.rules.turn==session.humanSide,session.state.settings.coachingMode=="guided"{session.holdVoice(true)}
     }
     /// Transcript context names what was displayed: the review position during review, otherwise the practice move.
     private var historyContext:String {

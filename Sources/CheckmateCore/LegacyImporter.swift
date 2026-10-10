@@ -59,7 +59,7 @@ public enum LegacyImporter {
             guard let raw=value(key) else{continue};guard let text=raw as? String else{report.ignored.append(label);continue}
             let rules=key=="spikeFEN" ? try ChessRules(fen:text):try ChessRules()
             if key != "spikeFEN"{try rules.restore(text)}
-            if key=="checkmate-previous-game"{next.practice.previousGame=text}else{next.practice.pgn=rules.pgn;next.practice.fen=rules.fen}
+            if key=="checkmate-previous-game"{next.practice.previousGame=text;next.practice.previousSide="w"}else{next.practice.pgn=rules.pgn;next.practice.fen=rules.fen}
             report.recovered.append(label)
         }
         if let raw=value("checkmate-settings-v1") {if let settings=raw as? [String:Any]{next.settings=AppSettings(raw:settings);try settingsReport(settings,normalized:next.settings,report:&report)}else{report.ignored.append("Settings")}}
