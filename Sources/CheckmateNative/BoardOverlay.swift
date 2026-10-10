@@ -25,7 +25,7 @@ enum BoardOverlay {
     static let endpointInset:CGFloat=0.42,headLength:CGFloat=0.11
     static let headWingRatio:CGFloat=0.55
     static let cornerRadius:CGFloat=0.20
-    static let coverageOpacity:CGFloat=0.5,destinationOpacity:CGFloat=0.75
+    static let coverageOpacity:CGFloat=0.5,destinationOpacity:CGFloat=0.75,dragOriginOpacity:CGFloat=0.3
     static let pieceOutlineWidth:CGFloat = -1.5
     static func breath(at elapsed:TimeInterval)->CGFloat {
         CGFloat((1-cos(2 * .pi * elapsed/breathPeriod))/2)

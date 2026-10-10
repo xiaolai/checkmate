@@ -134,13 +134,15 @@ struct EngineEloControl:View {
 struct ReviewPracticeSheet:View {
     @ObservedObject var model:NativeModel
     @State private var side="w"
-    @State private var preset="custom"
+    @State private var preset:String
+    // Starts at the learner's current opponent rather than silently switching to custom settings.
+    init(model:NativeModel){self.model=model;let current=model.session.state.settings.opponentPreset;_preset=State(initialValue:current=="first_steps" && !ReviewRolloutPolicy.beginnerOpponentEnabled ? "custom":current)}
     var body:some View {VStack(alignment:.leading,spacing:Metrics.sectionGap){
         Text("Practise from this position").font(.headline)
         Text("Your current practice is backed up and becomes Previous game, replacing that shortcut’s older game. The imported record stays unchanged.")
         Picker("Play as",selection:$side){Text("White").tag("w");Text("Black").tag("b")}
         Picker("Opponent",selection:$preset){if ReviewRolloutPolicy.beginnerOpponentEnabled{Text("First steps").tag("first_steps")};Text("Gentle").tag("gentle");Text("Club").tag("club");Text("Keep custom settings").tag("custom")}
-        Button("Save this position for later"){model.saveReview();model.practiceForkRequested=false}
+        Button("Save this position for later"){model.saveCurrentReview();model.practiceForkRequested=false}
         HStack{Spacer();Button("Cancel"){model.practiceForkRequested=false}.keyboardShortcut(.cancelAction);Button("Start practice"){model.confirmPracticeFork(side:side,preset:preset)}.keyboardShortcut(.defaultAction)}
     }.padding(Metrics.padding).frame(minWidth:Metrics.right)}
 }

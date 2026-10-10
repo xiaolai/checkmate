@@ -15,4 +15,17 @@ func symbolButton(_ symbol:String,_ label:String,_ target:AnyObject,_ action:Sel
 }
 func textLabel(_ text:String,_ size:CGFloat=13,_ weight:NSFont.Weight = .regular)->NSTextField {let l=NSTextField(labelWithString:text);l.font = .systemFont(ofSize:size,weight:weight);l.lineBreakMode = .byWordWrapping;return l}
 final class BackgroundView:NSView {override func draw(_ rect:NSRect){NativeColors.windowBackground.setFill();rect.fill()};override func viewDidChangeEffectiveAppearance(){super.viewDidChangeEffectiveAppearance();needsDisplay=true}}
+/// Hosts scrolling SwiftUI drawer content below the toolbar of a full-height split item. Left to SwiftUI, the
+/// toolbar inset is applied twice there, so its hit-testing containers cover most of every button and toggle
+/// they draw. AppKit's safe-area guide owns the inset instead and SwiftUI sees none.
+final class ToolbarInsetHostingController<Content:View>:NSViewController {
+    let hosting:NSHostingView<Content>
+    init(rootView:Content){hosting=NSHostingView(rootView:rootView);super.init(nibName:nil,bundle:nil)}
+    required init?(coder:NSCoder){fatalError()}
+    override func loadView(){
+        let container=NSView();hosting.safeAreaRegions=[];hosting.sizingOptions=[];hosting.translatesAutoresizingMaskIntoConstraints=false;container.addSubview(hosting)
+        NSLayoutConstraint.activate([hosting.topAnchor.constraint(equalTo:container.safeAreaLayoutGuide.topAnchor),hosting.leadingAnchor.constraint(equalTo:container.leadingAnchor),hosting.trailingAnchor.constraint(equalTo:container.trailingAnchor),hosting.bottomAnchor.constraint(equalTo:container.bottomAnchor)])
+        view=container
+    }
+}
 struct NativeIcon:View {let symbol:String,label:String,action:()->Void;var body:some View {Button(action:action){Image(systemName:symbol)}.help(label).accessibilityLabel(label).buttonStyle(.bordered)}}

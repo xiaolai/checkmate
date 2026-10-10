@@ -30,6 +30,8 @@ import CheckmateCore
     private var shuttingDown=false
     private var connectionStartup:ConnectionStartup?
     var onReview:(()->Void)?
+    /// True for a move the learner dropped in place: it does not animate, so its sound does not wait for one.
+    var movePlacedDirectly:((MoveRecord)->Bool)?
     @Published var storageError:String?
     var onImport:(()->Void)?
     private var saveTask:Task<Void,Never>?
@@ -57,7 +59,7 @@ import CheckmateCore
         reviewTools.activityGeneration={[weak self] in self?.reviewOpenGeneration ?? -1}
         session.onPersist={[weak self] state in guard let self=self else{return};self.saveTask?.cancel();self.saveTask=Task{try? await Task.sleep(nanoseconds:250_000_000);guard !Task.isCancelled else{return};do{try self.store.save(state);if self.storageError==Self.progressSaveFailure{self.storageError=nil}}catch{NativeLog.storage.error("State save failed; export remains available");self.storageError=Self.progressSaveFailure}}}
         learning.onIllustration={[weak self] piece,capture in guard let self=self else{return};self.audio.illustration(piece:piece,capture:capture,settings:self.session.state.settings)}
-        session.onMove={[weak self] move in guard let self=self else{return};let settings=self.session.state.settings;let delay=NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? 0:settings.pieceDuration;let id=UUID();self.soundTasks[id]=Task{defer{self.soundTasks.removeValue(forKey:id)};try? await Task.sleep(nanoseconds:UInt64(delay)*1_000_000);guard !Task.isCancelled else{return};self.audio.move(move,settings:settings)}}
+        session.onMove={[weak self] move in guard let self=self else{return};let settings=self.session.state.settings;let delay=NSWorkspace.shared.accessibilityDisplayShouldReduceMotion || self.movePlacedDirectly?(move)==true ? 0:settings.pieceDuration;let id=UUID();self.soundTasks[id]=Task{defer{self.soundTasks.removeValue(forKey:id)};try? await Task.sleep(nanoseconds:UInt64(delay)*1_000_000);guard !Task.isCancelled else{return};self.audio.move(move,settings:settings)}}
         learning.onMiniMove=session.onMove
         learning.onMiniReset={[weak self] in self?.soundTasks.values.forEach{$0.cancel()};self?.soundTasks=[:]}
         session.onUndo={[weak self] in guard let self=self else{return};self.soundTasks.values.forEach{$0.cancel()};self.soundTasks=[:];self.audio.move(nil,settings:self.session.state.settings,undo:true)}
@@ -123,7 +125,7 @@ import CheckmateCore
         }
     }
     func leaveReviewForActivity(){reviewWorkspace=false;reviewOpenGeneration+=1;cancelReviewImport();reviewAnalyzer.reset();guard review.active else{if session.reviewSuspended{session.returnFromReview(resumeReply:false)};return};let saved=saveReview(immediate:true);review.close(practice:session,resumePractice:false);reviewDraft=false;session.cancelWork();forgetFlushedReview(saved)}
-    func returnToGame(){reviewWorkspace=false;reviewOpenGeneration+=1;cancelReviewImport();reviewAnalyzer.reset();let saved=saveReview(immediate:true);review.close(practice:session);reviewDraft=false;forgetFlushedReview(saved)}
+    func returnToGame(){reviewWorkspace=false;reviewOpenGeneration+=1;cancelReviewImport();reviewAnalyzer.reset();let saved=saveReview(immediate:true);review.close(practice:session);reviewDraft=false;forgetFlushedReview(saved);learning.resumeMiniOpponent()}
     func showReviewWorkspace(){
         reviewOpenGeneration+=1;cancelReviewImport();reviewAnalyzer.reset()
         let saved=saveReview(immediate:true)
@@ -147,8 +149,8 @@ import CheckmateCore
             catch{storageError=Self.reviewSaveFailure;return false}
         }
         guard !shuttingDown else{return false}
-        reviewSaveTask=Task{try? await Task.sleep(for:.milliseconds(250));guard !Task.isCancelled,!shuttingDown else{return}
-            reviewSaves.save(snapshot.document,cursor:snapshot.cursor,branches:snapshot.branches){[weak self] result in Task{@MainActor in
+        reviewSaveTask=Task{[weak self] in try? await Task.sleep(for:.milliseconds(250));guard let self,!Task.isCancelled,!self.shuttingDown else{return}
+            self.reviewSaves.save(snapshot.document,cursor:snapshot.cursor,branches:snapshot.branches){[weak self] result in Task{@MainActor in
                 guard let self=self,!self.shuttingDown,self.reviewSaveGeneration==generation else{return}
                 switch result{case .success(let entries):self.reviews=entries;if self.storageError==Self.reviewSaveFailure{self.storageError=nil};case .failure:self.storageError=Self.reviewSaveFailure}
             }}
@@ -162,7 +164,7 @@ import CheckmateCore
         do{if let saved=saved{try review.restoreSaved(cursor:saved.cursor,branches:saved.branches)}}
         // A failed restore returns the exact prior owner but never resumes play by itself (plan rule 4): a suspended
         // practice reply waits for the explicit "Return to game" action shown with the error.
-        catch{let waiting=review.abandonFailedEntry(practice:session);restoringReview=false
+        catch{let waiting=review.abandonFailedEntry(practice:session);restoringReview=false;learning.resumeMiniOpponent()
             storageError=waiting ? Self.failedRestorePausedMessage:Self.failedRestoreMessage;return}
         restoringReview=false;saveReview();onReview?()
     }
@@ -196,7 +198,7 @@ import CheckmateCore
             do {
                 let entries=try await Task.detached{try writer.delete(id)}.value
                 if pendingReviewSnapshot?.document.id==id{pendingReviewSnapshot=nil}
-                if review.document?.id==id{reviewAnalyzer.reset();review.close(practice:session);reviewDraft=false;reviewWorkspace=false}
+                if review.document?.id==id{reviewAnalyzer.reset();review.close(practice:session);reviewDraft=false;reviewWorkspace=false;learning.resumeMiniOpponent()}
                 reviews=entries;deletingReviewID=nil
                 if review.active{saveReview()}
             } catch {

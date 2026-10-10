@@ -40,6 +40,7 @@ struct DetailContent:View {
     @ObservedObject var voice:VoiceCoach
     @ObservedObject var relationships:RelationshipController
     let inspect:(RelationshipMode)->Void
+    @State private var lessonGoalsShown=false
     var body:some View {ScrollView {VStack(alignment:.leading,spacing:Metrics.sectionGap) {
         if model.reviewWorkspace {
             Text("PGN game records").font(.headline)
@@ -54,6 +55,7 @@ struct DetailContent:View {
                 Text(d.title).font(.title2.bold());Text("Imagined moves").foregroundStyle(.secondary)
                 Picker("Line",selection:Binding(get:{d.line},set:{try? session.seekDemo(line:$0,ply:0)})){ForEach(d.lines.indices,id:\.self){i in Text(d.lines[i].label).tag(i)}}
                 Text(d.lines[d.line].frames[d.ply].explanation)
+                if session.rules.turn==session.opponentSide{Text("Stockfish waits while this demonstration is shown. Choose Game above or close it to continue.").font(.caption).foregroundStyle(.secondary)}
                 Text("\(d.ply) / \(d.lines[d.line].frames.count-1)").foregroundStyle(.secondary)
             } else if !session.presentationHidden,let p=session.preview {
                 Text("Try a move").font(.title2.bold());Text("This does not change your game.").foregroundStyle(.secondary)
@@ -68,7 +70,7 @@ struct DetailContent:View {
                 Text("Moves").font(.headline);Text(session.rules.history.isEmpty ? "Your story starts with one move.":session.rules.history.enumerated().map{($0.offset%2==0 ? "\($0.offset/2+1). ":"")+$0.element}.joined(separator:"  ")).textSelection(.enabled)
             }
             }
-            if voice.connected || !voice.history.isEmpty {Divider();Text("Voice coach").font(.headline);Text(voice.status).foregroundStyle(.secondary);if voice.connected{HStack{Button("Recheck"){voice.recheck()};Button("Stop speaking"){voice.stopTurn()}}};ForEach(Array(voice.history.reversed())){entry in VStack(alignment:.leading){Text(entry.role=="learner" ? "You":"Coach").font(.caption).foregroundStyle(.secondary);Text(entry.text).textSelection(.enabled)}}}
+            if voice.connected || voice.connecting || !voice.history.isEmpty || voice.status != "Disconnected" {Divider();Text("Voice coach").font(.headline);Text(voice.status).foregroundStyle(.secondary);if voice.connected{HStack{Button("Recheck"){voice.recheck()};Button("Stop speaking"){voice.stopTurn()}}};ForEach(Array(voice.history.reversed())){entry in VStack(alignment:.leading){Text(entry.role=="learner" ? "You":"Coach").font(.caption).foregroundStyle(.secondary);Text(entry.text).textSelection(.enabled)}}}
             if let error=session.error {Text(error).foregroundStyle(Color(nsColor:NativeColors.error));Button("Retry Stockfish"){session.retryEngine()}}
         } else if relationships.report==nil {
             if learning.mini {
@@ -98,7 +100,8 @@ struct DetailContent:View {
                 }
                 if !learning.feedback.isEmpty{Text(learning.feedback).foregroundStyle(.secondary)}
                 if session.mode == .lesson {
-                    DisclosureGroup("In this lesson"){ForEach(learning.current.teaches ?? [],id:\.self){Text($0)}}
+                    // The title toggles too; by default only the chevron does.
+                    DisclosureGroup(isExpanded:$lessonGoalsShown){ForEach(learning.current.teaches ?? [],id:\.self){Text($0)}} label:{Text("In this lesson").contentShape(Rectangle()).onTapGesture{lessonGoalsShown.toggle()}}
                     ForEach(MiniGameKind.available(lessonID:learning.current.id),id:\.self){kind in Button("Play \(kind.title)"){learning.startMini(kind)}}
                     if session.state.course.completed.contains(learning.current.id),learning.lessonIndex<learning.library.lessons.count-1 {Button("Continue to \(learning.library.lessons[learning.lessonIndex+1].title)"){model.lesson(learning.lessonIndex+1);learning.play()}}
                 } else {Button("Next puzzle"){learning.next()}.disabled(!learning.passed)}
@@ -135,6 +138,8 @@ struct TransportContent:View {
     @ObservedObject var voice:VoiceCoach
     @ObservedObject var review:ReviewController
     let newGame:()->Void,showDetails:()->Void
+    /// Hands Black back to Stockfish after the companion opponent disconnected.
+    var continueWithStockfish:()->Void={}
     /// Explicit resume for a reply held after a failed review entry; always reachable with both drawers closed.
     var resumeGame:()->Void={}
     var body:some View {HStack(spacing:Metrics.smallGap) {
@@ -147,14 +152,16 @@ struct TransportContent:View {
             } else if !session.presentationHidden,let p=session.preview {
                 NativeIcon(symbol:"arrow.left",label:"Previous preview move"){try? session.previewAt(ply:max(0,p.ply-1),line:p.line)}.disabled(p.evaluation==nil)
                 NativeIcon(symbol:"arrow.right",label:"Next preview move"){let count=p.line=="candidate" ? p.evaluation?.candidateFrames.count:p.evaluation?.recommendedFrames.count;try? session.previewAt(ply:min((count ?? 1)-1,p.ply+1),line:p.line)}.disabled(p.evaluation==nil)
+                if p.candidate != nil{NativeIcon(symbol:"arrow.uturn.backward",label:"Try another move"){try? session.beginPreview()}.disabled(session.rules.turn != session.humanSide || session.rules.over)}
                 NativeIcon(symbol:"xmark",label:"Return to game"){session.closePresentation()}
             } else {
                 TurnIndicator(side:session.rules.turn,label:session.rules.status)
                 if session.explicitResumeRequired {NativeIcon(symbol:"play.fill",label:"Resume game",action:resumeGame)}
+                else if session.pausedOpponent {NativeIcon(symbol:"play.fill",label:"Continue with Stockfish",action:continueWithStockfish)}
                 NativeIcon(symbol:"arrow.counterclockwise",label:"New game",action:newGame)
                 NativeIcon(symbol:"arrow.uturn.backward",label:"Undo"){session.undo()}.disabled(session.rules.history.isEmpty)
-                NativeIcon(symbol:"flask",label:"Try a move"){try? session.beginPreview()}.disabled(session.rules.turn != session.humanSide || session.rules.over || session.busyReason == "opponent")
-                NativeIcon(symbol:"lightbulb",label:"Hint"){session.hint()}.disabled(session.busy || session.rules.turn != session.humanSide)
+                NativeIcon(symbol:"flask",label:"Try a move"){try? session.beginPreview()}.disabled(session.rules.turn != session.humanSide || session.rules.over || session.busyReason == "opponent" || session.demonstration != nil)
+                NativeIcon(symbol:"lightbulb",label:"Hint"){session.hint()}.disabled(session.busy || session.rules.turn != session.humanSide || session.rules.over)
                 if session.busy {ProgressView().controlSize(.small).help("Stockfish is thinking")}
             }
             if voice.connecting {
