@@ -1,3 +1,14 @@
+# Checkmate 0.3.2
+
+Entering a lesson opens the right sidebar for the transcript and learning tools.
+Manually closing it keeps it closed while navigating that lesson. With Continue
+Automatically enabled, finishing a lesson starts the next lesson at its first
+transcript; the last lesson stops normally. Quizzes still wait for a correct
+answer. The manual Continue to the next lesson button now starts playback.
+
+Regression coverage checks all 40 lesson boundaries, disabled automatic playback,
+the end of the course, and sidebar behavior through native UI interactions.
+
 # Checkmate 0.3.1
 
 Single-square lesson questions now check the answer immediately when the learner

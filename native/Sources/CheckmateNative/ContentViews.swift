@@ -80,7 +80,7 @@ struct DetailContent:View {
                 if session.mode == .lesson {
                     DisclosureGroup("In this lesson"){ForEach(learning.current.teaches ?? [],id:\.self){Text($0)}}
                     ForEach(MiniGameKind.available(lessonID:learning.current.id),id:\.self){kind in Button("Play \(kind.title)"){learning.startMini(kind)}}
-                    if session.state.course.completed.contains(learning.current.id),learning.lessonIndex<learning.library.lessons.count-1 {Button("Continue to \(learning.library.lessons[learning.lessonIndex+1].title)"){model.lesson(learning.lessonIndex+1)}}
+                    if session.state.course.completed.contains(learning.current.id),learning.lessonIndex<learning.library.lessons.count-1 {Button("Continue to \(learning.library.lessons[learning.lessonIndex+1].title)"){model.lesson(learning.lessonIndex+1);learning.play()}}
                 } else {Button("Next puzzle"){learning.next()}.disabled(!learning.passed)}
             } else {Text("Quick puzzles").font(.title2.bold());Text("Choose an exercise from the library.")}
         }

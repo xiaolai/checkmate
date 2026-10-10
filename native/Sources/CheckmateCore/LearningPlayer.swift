@@ -7,6 +7,7 @@ public enum LessonTiming {public static let correctAnswerFeedback:Duration = .mi
     public let library:CourseLibrary
     public let session:GameSession
     public weak var audio:NarrationService?
+    public var onLessonOpened:(()->Void)?
     public var onMiniReset:(()->Void)?
     public var onMiniMove:((MoveRecord)->Void)?
     @Published public private(set) var miniGame:MiniGameState?
@@ -44,15 +45,26 @@ public enum LessonTiming {public static let correctAnswerFeedback:Duration = .mi
     public var winner:String? {mini ? miniGame?.winner:nil}
     public var destinations:[String] {mini && !miniThinking ? picked.first.map{miniGame?.destinations(from:$0) ?? []} ?? []:[]}
     public var filteredPuzzles:[Puzzle] {library.puzzles.filter {p in (topic=="All topics" || topic==p.topic)&&(level=="All levels" || level==p.level)&&(filter=="All" || (filter=="To review" ? session.state.puzzles[p.id]?.review==true:session.state.puzzles[p.id]?.solved != true))&&(query.isEmpty || (p.title+" "+p.exercise.prompt).localizedCaseInsensitiveContains(query))}}
-    public func openLesson(index:Int) {guard library.lessons.indices.contains(index) else{return};pause();activePuzzle=nil;lessonIndex=index;step=current.id==session.state.course.lessonID ? min(max(0,session.state.course.step),current.beats.count-1):0;seek(step:step)}
+    public func openLesson(index:Int) {guard library.lessons.indices.contains(index) else{return};pause();activePuzzle=nil;lessonIndex=index;step=current.id==session.state.course.lessonID ? min(max(0,session.state.course.step),current.beats.count-1):0;seek(step:step);onLessonOpened?()}
     public func seek(step:Int) {NativeLog.course.debug("Seeking authored transcript");guard current.beats.indices.contains(step) else{return};pause();answerTask?.cancel();self.step=step;seconds=0;lastMotionKey="";picked=[];path=[];feedback="";mini=false;passed=session.state.course.answered.contains(key);session.state.course.lessonID=current.id;session.state.course.step=step;rebuild();session.emit(semantic:false,save:true)}
     public func play() {guard !mini,activePuzzle==nil else{return};if seconds>=duration{seconds=0};playing=true;lastTick=Date();audio?.play(file:library.voices[lessonIndex][step].file,seconds:seconds,settings:session.state.settings);timer?.invalidate();timer=Timer.scheduledTimer(withTimeInterval:0.04,repeats:true){[weak self] _ in Task{@MainActor in guard let self=self,let last=self.lastTick else{return};let now=Date();self.lastTick=now;self.tick(wallDelta:now.timeIntervalSince(last))}};rebuild()}
     public func pause(){if mini{onMiniReset?()};cancelMiniOpponent();answerTask?.cancel();answerTask=nil;timer?.invalidate();timer=nil;lastTick=nil;playing=false;audio?.pause();if session.mode != .practice{publish()}}
     public func replay(){pause();seconds=0;play()}
     public func tick(wallDelta:Double){if let time=audio?.playbackTime,session.state.settings.narration{advance(by:max(0,time-seconds))}else{advance(by:wallDelta)}}
-    public func advance(by delta:Double) {guard playing else{return};seconds=min(duration,seconds+max(0,delta));rebuild();if seconds>=duration {pause();if exercise==nil || passed {if step<current.beats.count-1 {if session.state.settings.autoAdvance {seek(step:step+1);play()}}else{complete()}};publish()}}
+    public func advance(by delta:Double) {guard playing else{return};seconds=min(duration,seconds+max(0,delta));rebuild();if seconds>=duration {pause();if exercise==nil || passed {if step<current.beats.count-1 {if session.state.settings.autoAdvance {seek(step:step+1);play()}}else{complete(continuePlayback:session.state.settings.autoAdvance)}};publish()}}
     public func next(){guard !mini else{return};if activePuzzle != nil {let filtered=filteredPuzzles;if let id=activePuzzle?.id,let i=filtered.firstIndex(where:{$0.id==id}),!filtered.isEmpty {openPuzzle(id:filtered[(i+1)%filtered.count].id)};return};guard exercise==nil || passed else{return};if step<current.beats.count-1{seek(step:step+1)}else{complete()}}
-    public func complete(){pause();if !session.state.course.completed.contains(current.id){session.state.course.completed.append(current.id)};feedback="Lesson explored! You can replay it whenever you like.";session.emit(semantic:false,save:true)}
+    public func complete(continuePlayback:Bool=false){
+        pause()
+        if !session.state.course.completed.contains(current.id){session.state.course.completed.append(current.id)}
+        feedback="Lesson explored! You can replay it whenever you like."
+        session.emit(semantic:false,save:true)
+        // Only uninterrupted playback crosses a lesson boundary. Manual navigation
+        // remains paused, and the final lesson never loops back to the beginning.
+        if continuePlayback,lessonIndex+1<library.lessons.count {
+            openLesson(index:lessonIndex+1)
+            play()
+        }
+    }
     public func openPuzzle(id:String) {guard let puzzle=library.puzzles.first(where:{$0.id==id}) else{return};pause();answerTask?.cancel();activePuzzle=puzzle;mini=false;picked=[];path=[];feedback="";passed=false;mistake=false;frame=CourseFrame(board:puzzle.board,hl:puzzle.highlights);publish()}
     public func showPuzzleLibrary(){pause();activePuzzle=nil;frame=CourseFrame();session.setLesson(LessonProjection(mode:"quick_puzzle",pieces:nil,title:"Quick puzzles",lessonId:"puzzle-library",step:0,prompt:nil,choices:nil,playing:false,narrationActive:false,moving:false,turn:nil,winner:nil,rules:nil))}
     public func checkAnswer(){guard let e=exercise else{return};answer(e.matches(picked))}
@@ -88,7 +100,7 @@ public enum LessonTiming {public static let correctAnswerFeedback:Duration = .mi
             do{try await Task.sleep(for:delay)}catch{return}
             guard let self=self,!Task.isCancelled,self.key==answeredKey,self.passed,self.activePuzzle==nil,!self.mini,self.session.mode == .lesson else{return}
             self.answerTask=nil
-            if self.step<self.current.beats.count-1 {self.seek(step:self.step+1);self.play()}else{self.complete()}
+            if self.step<self.current.beats.count-1 {self.seek(step:self.step+1);self.play()}else{self.complete(continuePlayback:self.session.state.settings.autoAdvance)}
         }
     }
     public func reveal(){if let p=activePuzzle{feedback=solution(p.exercise);answer(false,revealed:true)}else{pause();feedback="Let’s look at the explanation together.";if step<current.beats.count-1{seek(step:step+1)}else{complete()}}}

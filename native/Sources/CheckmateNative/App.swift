@@ -382,7 +382,14 @@ import CheckmateCore
             try? await Task.sleep(for:.milliseconds(200));try? await game.capture(directory+"/attacked.png")
             inspectionKey("",53);if game.relationships.mode != nil{failures.append("Escape did not dismiss relationships")};if model.session.selected != "d7"{failures.append("Escape unexpectedly cleared selected piece")}
             model.session.rules.reset();model.session.clearSelection();game.refresh()
-            model.lesson(0);model.learning.seek(step:0);game.showDetails();try? await Task.sleep(for:.milliseconds(850));try? await game.capture(directory+"/lesson-welcome.png");model.learning.seek(step:17);game.showDetails();try? await Task.sleep(nanoseconds:850_000_000);try? await game.capture(directory+"/quiz.png")
+            if game.desiredRight{game.toggleRight();try? await Task.sleep(for:.milliseconds(850))}
+            let lessonBoardWidth=game.main.view.frame.width
+            model.lesson(0);model.learning.seek(step:0);try? await Task.sleep(for:.milliseconds(850))
+            if !game.desiredRight || game.inspectorItem.isCollapsed{failures.append("Entering a lesson did not open details")}
+            if abs(game.main.view.frame.width-lessonBoardWidth)>1{failures.append("Lesson details changed board width")}
+            game.toggleRight();try? await Task.sleep(for:.milliseconds(850));model.learning.seek(step:1);try? await Task.sleep(for:.milliseconds(100))
+            if game.desiredRight{failures.append("Transcript navigation reopened manually closed lesson details")}
+            model.lesson(0);model.learning.seek(step:0);try? await Task.sleep(for:.milliseconds(850));try? await game.capture(directory+"/lesson-welcome.png");model.learning.seek(step:17);game.showDetails();try? await Task.sleep(nanoseconds:850_000_000);try? await game.capture(directory+"/quiz.png")
             let kingRect=game.board.squareRect("e1"),kingPoint=game.board.convert(NSPoint(x:kingRect.midX,y:kingRect.midY),to:nil)
             for type in [NSEvent.EventType.leftMouseDown,.leftMouseUp]{if let event=NSEvent.mouseEvent(with:type,location:kingPoint,modifierFlags:[],timestamp:ProcessInfo.processInfo.systemUptime,windowNumber:game.window!.windowNumber,context:nil,eventNumber:0,clickCount:1,pressure:type == .leftMouseDown ? 1:0){NSApp.sendEvent(event)};try? await Task.sleep(for:.milliseconds(80))}
             if !model.learning.passed{failures.append("White king mouse click did not answer the quiz")};try? await Task.sleep(for:.milliseconds(750));if model.learning.step != 18 || !model.learning.playing {failures.append("Correct quiz did not continue playback")};try? await game.capture(directory+"/quiz-continued.png")

@@ -41,7 +41,7 @@ private struct SettingsForm:View {
         case .sound:
             Section("Move sounds"){Toggle("Piece and move sounds",isOn:binding(\.moveSounds));Slider(value:binding(\.effectsVolume),in:0...1){Text("Effects volume")}.disabled(!session.state.settings.moveSounds)}
         case .lessons:
-            Section {Toggle("Narration",isOn:binding(\.narration));Slider(value:binding(\.volume),in:0...1){Text("Narration volume")}.disabled(!session.state.settings.narration);Toggle("Continue automatically",isOn:binding(\.autoAdvance))} header:{Text("Lesson playback")} footer:{Text("Lesson narration uses OpenAI Cedar and is AI-generated. Continue automatically controls playback after narration. Quizzes wait for an answer, then resume after a correct answer.")}
+            Section {Toggle("Narration",isOn:binding(\.narration));Slider(value:binding(\.volume),in:0...1){Text("Narration volume")}.disabled(!session.state.settings.narration);Toggle("Continue automatically",isOn:binding(\.autoAdvance))} header:{Text("Lesson playback")} footer:{Text("Lesson narration uses OpenAI Cedar and is AI-generated. Continue automatically plays the next transcript and starts the next lesson when this one ends. Quizzes wait for an answer, then resume after a correct answer.")}
         case .practice:
             Section("Opponent"){OpponentSettingsContent(session:session)}
             Section("Guidance"){Picker("Practice guidance",selection:binding(\.coachingMode)){Text("Guided game").tag("guided");Text("On request").tag("on_request");Text("Quiet").tag("quiet")}}
