@@ -27,6 +27,8 @@ final class BoardTitleView:NSView {
     var sidebarItem:NSSplitViewItem!,boardItem:NSSplitViewItem!,inspectorItem:NSSplitViewItem!,controls:NSHostingView<TransportContent>!,welcome:NSHostingView<WelcomeContent>!,puzzles:NSHostingView<PuzzleLibraryContent>!
     private var playbackLineView:NSView?
     private var reviewWorkspaceView:NSHostingView<ReviewWorkspaceContent>!
+    var leftExtent:CGFloat {Metrics.left+split.splitView.dividerThickness}
+    var rightExtent:CGFloat {Metrics.right+split.splitView.dividerThickness}
     var availableFrameOverride:NSRect?
     private var fullscreen=false,fullscreenTransition=false
     private var normalCoreFrame:NSRect?
@@ -43,7 +45,7 @@ final class BoardTitleView:NSView {
         let w=BoardWindow(contentRect:NSRect(x:0,y:0,width:Metrics.core,height:Metrics.core),styleMask:[.titled,.closable,.miniaturizable,.resizable,.fullSizeContentView],backing:.buffered,defer:false)
         super.init(window:w);w.title="Checkmate";w.isMovableByWindowBackground=true;w.titleVisibility = .hidden;w.titlebarSeparatorStyle = .none;w.titlebarAppearsTransparent=true;w.isReleasedWhenClosed=false;w.isRestorable=false;w.delegate=self;w.autorecalculatesKeyViewLoop=true;w.identifier=NSUserInterfaceItemIdentifier("main");w.collectionBehavior=[.fullScreenPrimary]
         main.view=BackgroundView();navigation=NSHostingController(rootView:SidebarContent(session:model.session,learning:model.learning,model:model));inspector=NSHostingController(rootView:DetailContent(session:model.session,learning:model.learning,model:model,voice:model.voice,relationships:relationships,inspect:{[weak self] mode in self?.toggleRelationship(mode)}))
-        split.splitView=ContentSplitView();split.splitView.autoresizingMask=[.width,.height];split.splitView.isVertical=true;split.splitView.dividerStyle = .thin
+        _ = split.view;split.splitView.autoresizingMask=[.width,.height];split.splitView.isVertical=true;split.splitView.dividerStyle = .thin
         sidebarItem=NSSplitViewItem(sidebarWithViewController:navigation);boardItem=NSSplitViewItem(viewController:main);inspectorItem=NSSplitViewItem(inspectorWithViewController:inspector)
         for (item,width) in [(sidebarItem!,Metrics.left),(inspectorItem!,Metrics.right)] {item.minimumThickness=width;item.maximumThickness=width;item.automaticMaximumThickness=width;item.preferredThicknessFraction=NSSplitViewItem.unspecifiedDimension;item.holdingPriority = .defaultHigh;item.canCollapse=true;item.canCollapseFromWindowResize=false;item.allowsFullHeightLayout=true;item.collapseBehavior = .preferResizingSplitViewWithFixedSiblings;item.titlebarSeparatorStyle = .none;item.isCollapsed=true}
         boardItem.minimumThickness=Metrics.minimum;boardItem.titlebarSeparatorStyle = .none;split.addSplitViewItem(sidebarItem);split.addSplitViewItem(boardItem);split.addSplitViewItem(inspectorItem);w.contentViewController=split
@@ -100,7 +102,7 @@ final class BoardTitleView:NSView {
         guard changeLeft || changeRight else{return};animating=true
         let width=fixedBoardWidth ?? main.view.widthAnchor.constraint(equalToConstant:main.view.frame.width);fixedBoardWidth=width
         let available=availableFrameOverride ?? window.screen?.visibleFrame ?? window.frame
-        let core=coreFrame ?? window.frame,left=desiredLeft ? Metrics.left:0,right=desiredRight ? Metrics.right:0
+        let core=coreFrame ?? window.frame,left=desiredLeft ? leftExtent:0,right=desiredRight ? rightExtent:0
         var target=NSRect(x:core.minX-left,y:core.minY,width:core.width+left+right,height:core.height)
         fittedLayout=fullscreen || !available.contains(target)
         if !fullscreen {
@@ -114,11 +116,13 @@ final class BoardTitleView:NSView {
         inspectorItem.collapseBehavior=sidebarItem.collapseBehavior
         sidebarItem.preferredThicknessFraction=outward ? NSSplitViewItem.unspecifiedDimension:Metrics.left/targetWidth
         inspectorItem.preferredThicknessFraction=outward ? NSSplitViewItem.unspecifiedDimension:Metrics.right/targetWidth
-        width.isActive = !fullscreen
+        // Keep the center explicit in fullscreen too: AppKit otherwise restores
+        // its sidebar autosave size and squeezes the board to its minimum.
+        width.isActive = true
         if !fullscreen,let native=window as? BoardWindow{native.drawerViewport=available;native.drawerOrigins=min(window.frame.minX,target.minX)...max(window.frame.minX,target.minX)}
         NSAnimationContext.runAnimationGroup{context in
             context.allowsImplicitAnimation=true;context.duration=NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? 0:Metrics.animation;context.timingFunction=CAMediaTimingFunction(name:.easeInEaseOut)
-            if !self.fullscreen{width.constant=targetCore;}
+            width.constant=targetCore
             if changeLeft{sidebarItem.animator().isCollapsed = !desiredLeft}
             if changeRight{inspectorItem.animator().isCollapsed = !desiredRight}
         } completionHandler:{[weak self] in guard let self=self else{return};self.window?.contentView?.layoutSubtreeIfNeeded();self.titleView.syncCenter();(self.window as? BoardWindow)?.drawerOrigins=nil;(self.window as? BoardWindow)?.drawerViewport=nil;self.animating=false;self.animateDrawers()}
@@ -178,19 +182,19 @@ final class BoardTitleView:NSView {
     @objc func undo(){guard !model.review.active,!model.reviewWorkspace else{return};board.cancelAnimation();if model.learning.mini,model.session.mode == .lesson{model.learning.undoMini()}else{model.session.undo()}}
     @objc func restorePrevious(){guard !model.review.active,!model.reviewWorkspace else{return};try? model.session.restorePrevious()}
     func showError(_ message:String){let alert=NSAlert();alert.messageText=message;alert.beginSheetModal(for:window!)}
-    func windowWillResize(_ sender:NSWindow,to frameSize:NSSize)->NSSize {if sender.inLiveResize && !animating && !fullscreen && !fullscreenTransition{fixedBoardWidth?.constant=max(Metrics.minimum,frameSize.width-(sidebarItem.isCollapsed ? 0:Metrics.left)-(inspectorItem.isCollapsed ? 0:Metrics.right))};return sender.inLiveResize && sidebarItem.isCollapsed && inspectorItem.isCollapsed && !fullscreen && !fullscreenTransition && !animating ? NSSize(width:frameSize.width,height:frameSize.width):frameSize}
+    func windowWillResize(_ sender:NSWindow,to frameSize:NSSize)->NSSize {if sender.inLiveResize && !animating && !fullscreen && !fullscreenTransition{fixedBoardWidth?.constant=max(Metrics.minimum,frameSize.width-(sidebarItem.isCollapsed ? 0:leftExtent)-(inspectorItem.isCollapsed ? 0:rightExtent))};return sender.inLiveResize && sidebarItem.isCollapsed && inspectorItem.isCollapsed && !fullscreen && !fullscreenTransition && !animating ? NSSize(width:frameSize.width,height:frameSize.width):frameSize}
     func window(_ window:NSWindow,willUseFullScreenContentSize proposedSize:NSSize)->NSSize {window.screen?.frame.size ?? proposedSize}
-    func windowWillEnterFullScreen(_ notification:Notification){(window as? BoardWindow)?.drawerOrigins=nil;(window as? BoardWindow)?.drawerViewport=nil;if NativePolicy.silent{print("fullscreen: will enter")};guard let window=window else{return};fullscreenTransition=true;fullscreen=true;normalCoreFrame=coreFrame;fixedBoardWidth?.isActive=false;if let screen=window.screen{fullscreenWidth=split.view.widthAnchor.constraint(equalToConstant:screen.frame.width);fullscreenWidth?.isActive=true;sidebarItem.preferredThicknessFraction=Metrics.left/screen.frame.width;inspectorItem.preferredThicknessFraction=Metrics.right/screen.frame.width};sidebarItem.collapseBehavior = .preferResizingSiblingsWithFixedSplitView;inspectorItem.collapseBehavior = .preferResizingSiblingsWithFixedSplitView}
+    func windowWillEnterFullScreen(_ notification:Notification){(window as? BoardWindow)?.drawerOrigins=nil;(window as? BoardWindow)?.drawerViewport=nil;if NativePolicy.silent{print("fullscreen: will enter")};guard let window=window else{return};fullscreenTransition=true;fullscreen=true;normalCoreFrame=coreFrame;fixedBoardWidth?.isActive=false;if let screen=window.screen{fixedBoardWidth?.constant=screen.frame.width-(sidebarItem.isCollapsed ? 0:leftExtent)-(inspectorItem.isCollapsed ? 0:rightExtent);fixedBoardWidth?.isActive=true;fullscreenWidth=split.view.widthAnchor.constraint(equalToConstant:screen.frame.width);fullscreenWidth?.isActive=true;sidebarItem.preferredThicknessFraction=Metrics.left/screen.frame.width;inspectorItem.preferredThicknessFraction=Metrics.right/screen.frame.width};sidebarItem.collapseBehavior = .preferResizingSiblingsWithFixedSplitView;inspectorItem.collapseBehavior = .preferResizingSiblingsWithFixedSplitView}
     func windowDidEnterFullScreen(_ notification:Notification){if NativePolicy.silent{print("fullscreen: did enter")};fullscreenTransition=false;if let window=window,let screen=window.screen{window.setFrame(screen.frame,display:true)};split.view.autoresizingMask=[.width,.height];if fullscreen,let parent=split.view.superview{split.view.frame=parent.bounds};titleView.syncCenter();DispatchQueue.main.async{[weak self] in self?.titleView.syncCenter()};animateDrawers()}
     func windowDidFailToEnterFullScreen(_ window:NSWindow){fullscreenTransition=false;windowDidExitFullScreen(Notification(name:NSWindow.didExitFullScreenNotification,object:window))}
-    func windowDidFailToExitFullScreen(_ window:NSWindow){fullscreenTransition=false;fullscreen=true;fixedBoardWidth?.isActive=false;sidebarItem.collapseBehavior = .preferResizingSiblingsWithFixedSplitView;inspectorItem.collapseBehavior=sidebarItem.collapseBehavior;animateDrawers()}
+    func windowDidFailToExitFullScreen(_ window:NSWindow){fullscreenTransition=false;fullscreen=true;fixedBoardWidth?.isActive=true;sidebarItem.collapseBehavior = .preferResizingSiblingsWithFixedSplitView;inspectorItem.collapseBehavior=sidebarItem.collapseBehavior;animateDrawers()}
     func windowWillExitFullScreen(_ notification:Notification){if NativePolicy.silent{print("fullscreen: will exit")};fullscreenTransition=true;fullscreenWidth?.isActive=false;fullscreenWidth=nil;fixedBoardWidth?.isActive=false}
     func windowDidExitFullScreen(_ notification:Notification){
         fullscreenWidth?.isActive=false;fullscreenWidth=nil;fullscreen=false;fullscreenTransition=false
         sidebarItem.collapseBehavior = .preferResizingSplitViewWithFixedSiblings;inspectorItem.collapseBehavior=sidebarItem.collapseBehavior
         if let core=normalCoreFrame,let window=window {
             coreFrame=core
-            let left=sidebarItem.isCollapsed ? 0:Metrics.left,right=inspectorItem.isCollapsed ? 0:Metrics.right
+            let left=sidebarItem.isCollapsed ? 0:leftExtent,right=inspectorItem.isCollapsed ? 0:rightExtent
             let proposed=NSRect(x:core.minX-left,y:core.minY,width:core.width+left+right,height:core.height)
             let restored=WindowGeometry.restored([Double(proposed.minX),Double(proposed.minY),Double(proposed.width),Double(proposed.height)],screens:NSScreen.screens.map(\.visibleFrame))
             fittedLayout = abs(restored.width-proposed.width)>1 || abs(restored.height-proposed.height)>1
@@ -201,9 +205,9 @@ final class BoardTitleView:NSView {
         titleView.syncCenter();DispatchQueue.main.async{[weak self] in self?.titleView.syncCenter()};animateDrawers()
     }
 
-    private func rememberFrame(){guard !animating,!fullscreenTransition,let window=window,!window.styleMask.contains(.fullScreen) else{return};let frame=window.frame;if !fittedLayout{coreFrame?.origin=NSPoint(x:frame.minX+(sidebarItem.isCollapsed ? 0:Metrics.left),y:frame.minY)};let preferred=coreFrame ?? frame;model.session.state.window.frame=[Double(preferred.minX),Double(preferred.minY),Double(preferred.width),Double(preferred.height)];model.session.emit(semantic:false,save:true)}
+    private func rememberFrame(){guard !animating,!fullscreenTransition,let window=window,!window.styleMask.contains(.fullScreen) else{return};let frame=window.frame;if !fittedLayout{coreFrame?.origin=NSPoint(x:frame.minX+(sidebarItem.isCollapsed ? 0:leftExtent),y:frame.minY)};let preferred=coreFrame ?? frame;model.session.state.window.frame=[Double(preferred.minX),Double(preferred.minY),Double(preferred.width),Double(preferred.height)];model.session.emit(semantic:false,save:true)}
     func windowDidMove(_ notification:Notification){rememberFrame()}
-    func windowDidEndLiveResize(_ notification:Notification){if let window=window{coreFrame=NSRect(x:window.frame.minX+(sidebarItem.isCollapsed ? 0:Metrics.left),y:window.frame.minY,width:main.view.frame.width,height:window.frame.height)};fittedLayout=false;rememberFrame()}
+    func windowDidEndLiveResize(_ notification:Notification){if let window=window{coreFrame=NSRect(x:window.frame.minX+(sidebarItem.isCollapsed ? 0:leftExtent),y:window.frame.minY,width:main.view.frame.width,height:window.frame.height)};fittedLayout=false;rememberFrame()}
     func windowDidResize(_ notification:Notification){if fullscreen,let parent=split.view.superview{split.view.frame=parent.bounds};titleView.syncCenter();DispatchQueue.main.async{[weak self] in self?.titleView.syncCenter()}}
     func windowWillClose(_ notification:Notification){NSApp.terminate(nil)}
     func snapshot(_ path:String){Task{try? await capture(path)}}
