@@ -205,7 +205,9 @@ final class BoardTitleView:NSView {
     }
     static func captureWindow(_ window:NSWindow?,path:String) async throws {
         guard let id=window?.windowNumber else{return}
-        let content=try await SCShareableContent.currentProcess
+        let content:SCShareableContent
+        if #available(macOS 14.4,*) {content=try await SCShareableContent.currentProcess}
+        else {content=try await SCShareableContent.excludingDesktopWindows(false,onScreenWindowsOnly:false)}
         guard let own=content.windows.first(where:{$0.windowID==CGWindowID(id)}) else{return}
         let config=SCStreamConfiguration();config.width=Int(own.frame.width*2);config.height=Int(own.frame.height*2);config.showsCursor=false;config.ignoreShadowsSingleWindow=true
         let image=try await SCScreenshotManager.captureImage(contentFilter:SCContentFilter(desktopIndependentWindow:own),configuration:config)

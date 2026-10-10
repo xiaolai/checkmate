@@ -1,3 +1,16 @@
+# Checkmate 0.3.3
+
+The minimum macOS version is now 14. One universal app includes native Apple
+Silicon and Intel slices in the application, MCP helper, and Stockfish engine.
+Older macOS versions receive a generated icon fallback; newer versions retain
+the layered Icon Composer artwork. A screenshot API introduced in macOS 14.4
+now has an availability-checked fallback for macOS 14.0–14.3.
+
+Automated verification on build-host: 249 tests per architecture, five optional skips
+and zero failures each, native UI checks, and 19 MCP integration checks per
+architecture. Intel execution was tested under Rosetta. Physical Intel and
+macOS 14/15 runtime acceptance remain unverified.
+
 # Checkmate 0.3.2
 
 Entering a lesson opens the right sidebar for the transcript and learning tools.

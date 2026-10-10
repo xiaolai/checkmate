@@ -1,6 +1,6 @@
 # Checkmate
 
-Native macOS 27 chess practice and learning, built with AppKit and SwiftUI.
+Native macOS chess practice and learning, built with AppKit and SwiftUI.
 Offline Stockfish 19, 40 lessons, 83 quizzes, 87 puzzles and 947 Cedar recordings.
 Lesson mini-games include computer opponents. Game review is an opt-in pilot.
 
@@ -8,7 +8,7 @@ Lesson mini-games include computer opponents. Game review is an opt-in pilot.
 brew install --cask xiaolai/tap/checkmate
 ```
 
-Requires Apple Silicon and macOS 27. [Native development](native/README.md),
+Requires macOS 14 or later. One universal app supports Apple Silicon and Intel Macs. [Native development](native/README.md),
 [release packaging](native/RELEASE.md), [changelog](native/CHANGELOG.md).
 
 To use Codex as a chess companion, choose **Set up Codex** in Settings →

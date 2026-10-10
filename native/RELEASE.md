@@ -1,8 +1,10 @@
 # Checkmate releases
 
 `Version.env` owns the native version and monotonically increasing build number.
-Version 0.3.2 is build 7.
-Builds require Apple Silicon and macOS 27. Development and release builds use
+Version 0.3.3 is build 8.
+Version 0.3.3 targets macOS 14+ with universal Apple Silicon and Intel binaries.
+Build tooling runs on build-host with Xcode 27; this is separate from the runtime target.
+Development and release builds use
 separate application identifiers and data directories.
 
 Build and artifact verification run on build-host. The coordinating Mac signs the copied
@@ -38,3 +40,7 @@ Git publication requires a configured remote. Never push unrelated tags or skip
 hooks. Run Jev's `secret-scan` before commit/publication and `commit-message` on the
 proposed message. Exclude raw agent sessions, build evidence, Python caches and
 uncompressed recording masters from source history.
+
+Compatibility acceptance distinguishes compilation and Rosetta execution on build-host
+from physical Intel and macOS 14 runtime tests. Do not claim older-system runtime
+acceptance solely from a lower deployment target or successful cross-compilation.

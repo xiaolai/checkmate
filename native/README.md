@@ -1,6 +1,6 @@
 # Checkmate native
 
-macOS 27 AppKit/SwiftUI application. Practice with bundled Stockfish, 40 lessons,
+macOS 14+ AppKit/SwiftUI application for Apple Silicon and Intel. Practice with bundled Stockfish, 40 lessons,
 83 quizzes, 87 puzzles, reversible candidate previews and demonstrations, native
 settings, local MCP companion and native live voice transport. No web view or
 JavaScript UI runtime. JavaScriptCore runs the existing chess.js rules only.
@@ -67,7 +67,7 @@ THIRD_PARTY_NOTICES.txt for engine, rules, artwork and content provenance.
 
 ## App icon
 
-`Artwork/Checkmate.icon` is the macOS Icon Composer document. Its full-bleed graphite background is rendered by the system; `Assets/Knight.svg` preserves the existing grayscale artwork with a larger, centered silhouette. `build.sh` requires Xcode 27 and compiles it using `actool` into `Assets.car`, registering the compiled `CFBundleIconName`. The package checker requires an actual `IconImageStack`, rather than accepting a flattened bitmap. Apple-rendered preview and package/relocated launch evidence are in `evidence/icon-20261008/`.
+`Artwork/Checkmate.icon` is the macOS Icon Composer document. Its full-bleed graphite background is rendered by the system; `Assets/Knight.svg` preserves the existing grayscale artwork with a larger, centered silhouette. `build.sh` requires Xcode 27 and compiles it using `actool` into `Assets.car`, registering the compiled `CFBundleIconName`. The package checker requires both an actual `IconImageStack` for newer macOS and the generated `.icns` fallback for macOS 14/15. Apple-rendered preview and package/relocated launch evidence are in `evidence/icon-20261008/`.
 
 ## Rewritten lesson scripts
 
@@ -90,3 +90,12 @@ Set up Codex registers that executable and installs the companion skill if absen
 It preserves an existing customized skill. Restart the host MCP connection after
 moving the app to a different installation path. Developers can supply an isolated
 `--connection-file` to the executable; production uses the app's private discovery.
+
+## Compatibility checks
+
+`Version.env` owns the macOS runtime floor. Builds contain arm64 and x86_64 slices
+in the application, native MCP companion, and unchanged Stockfish engine. Package
+verification checks all three slices and their deployment versions, as well as
+modern and legacy icons. Run `bash scripts/test-intel.sh` on build-host for silent Intel
+unit, UI, and MCP acceptance under Rosetta. These tests do not substitute for a
+physical Intel Mac or macOS 14 runtime acceptance.

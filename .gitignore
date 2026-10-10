@@ -5,6 +5,7 @@ work/
 
 # Native build products and local verification artifacts
 native/.build/
+native/.build-intel/
 native/build/
 native/evidence/
 .swiftpm/

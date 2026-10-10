@@ -14,7 +14,7 @@ public enum CompanionServer {
             return Tool(name: name, description: description, inputSchema: schema,
                         annotations: .init(readOnlyHint: info["readOnly"] as? Bool, destructiveHint: false, openWorldHint: false))
         }
-        let server = Server(name: "checkmate-companion", version: "0.3.2",
+        let server = Server(name: "checkmate-companion", version: "0.3.3",
                             instructions: try String(contentsOf: NativeResources.url("mcp-instructions.txt"), encoding: .utf8),
                             capabilities: .init(tools: .init(listChanged: false)))
         await server.withMethodHandler(ListTools.self) { _ in .init(tools: tools) }

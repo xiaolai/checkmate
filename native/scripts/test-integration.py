@@ -4,7 +4,10 @@ import json,os,pathlib,selectors,subprocess,sys,time,uuid,urllib.request
 
 class Client:
     def __init__(self, executable, discovery):
-        self.process=subprocess.Popen([str(pathlib.Path(executable).resolve()),'--connection-file',str(pathlib.Path(discovery).resolve())],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE,cwd='/tmp',env=dict(os.environ,PATH='/usr/bin:/bin:/usr/sbin:/sbin'))
+        execution_arch=os.environ.get('CHECKMATE_EXECUTION_ARCH')
+        assert execution_arch in (None,'arm64','x86_64'), 'Invalid execution architecture'
+        launcher=['/usr/bin/arch','-'+execution_arch] if execution_arch else []
+        self.process=subprocess.Popen(launcher+[str(pathlib.Path(executable).resolve()),'--connection-file',str(pathlib.Path(discovery).resolve())],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE,cwd='/tmp',env=dict(os.environ,PATH='/usr/bin:/bin:/usr/sbin:/sbin'))
         self.sequence=0
         self.selector=selectors.DefaultSelector();self.selector.register(self.process.stdout,selectors.EVENT_READ)
         self.buffer=b'';self.pending={}
