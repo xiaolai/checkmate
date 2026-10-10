@@ -48,6 +48,8 @@ notarize() {  # $1: the file to submit — a .zip of the app, or the .dmg
 
 ssh "$host" "cd '$root' && bash scripts/prepare-release.sh"
 scp "$host:$root/build/release/Checkmate-$CHECKMATE_VERSION.zip" build/release/
+# Extract into a clean generated bundle; ditto merges with existing files.
+rm -rf build/release/Checkmate.app
 ditto -x -k "build/release/Checkmate-$CHECKMATE_VERSION.zip" build/release/
 bash scripts/sign-release.sh build/release/Checkmate.app
 ditto -c -k --keepParent build/release/Checkmate.app "build/release/Checkmate-$CHECKMATE_VERSION.zip"
