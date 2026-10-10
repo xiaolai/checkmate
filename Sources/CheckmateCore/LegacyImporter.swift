@@ -28,9 +28,11 @@ public enum LegacyImporter {
     private static func normalizeNativeLearning(_ value:inout ApplicationState,course:CourseLibrary,report:inout ImportReport){
         if !course.lessons.contains(where:{$0.id==value.course.lessonID}){value.course.lessonID=course.lessons[0].id;report.adjusted.append("Current lesson")}
         let lesson=course.lessons.first{$0.id==value.course.lessonID}!
-        if !lesson.beats.indices.contains(value.course.step){value.course.step=0;report.adjusted.append("Lesson transcript")}
+        let step=course.resumeStep(in:lesson,progress:value.course)
+        if step != value.course.step{report.adjusted.append("Lesson transcript")}
+        value.course.step=step;value.course.segmentID=lesson.beats[step].id
         value.course.completed=value.course.completed.filter{id in let valid=course.lessons.contains{$0.id==id};if !valid{report.ignored.append("Invalid completed lesson")};return valid}
-        value.course.answered=value.course.answered.filter{id in let valid=course.exercises[id] != nil;if !valid{report.ignored.append("Invalid answered exercise")};return valid}
+        value.course.answered=value.course.answered.filter{id in let valid=course.knownAnswerID(id);if !valid{report.ignored.append("Invalid answered exercise")};return valid}
         let known=Set(course.puzzles.map(\.id));value.puzzles=value.puzzles.filter{id,_ in if !known.contains(id){report.ignored.append("Puzzle progress: "+name(id));return false};return true}
         for id in value.puzzles.keys where value.puzzles[id]!.attempts<0{value.puzzles[id]!.attempts=0;report.adjusted.append("Puzzle attempts: "+name(id))}
     }
@@ -69,7 +71,8 @@ public enum LegacyImporter {
                 let index=integer(p["lesson"]).flatMap{course.lessons.indices.contains($0) ? $0:nil} ?? 0,lesson=course.lessons[index]
                 next.course.lessonID=lesson.id
                 if integer(p["lesson"]) != index{report.adjusted.append("Current lesson")}else{report.recovered.append("Current lesson")}
-                next.course.step=integer(p["step"]).flatMap{lesson.beats.indices.contains($0) ? $0:nil} ?? 0
+                var oldProgress=CourseProgress();oldProgress.step=integer(p["step"]) ?? 0
+                next.course.step=course.resumeStep(in:lesson,progress:oldProgress);next.course.segmentID=lesson.beats[next.course.step].id
                 if integer(p["step"]) != next.course.step{report.adjusted.append("Lesson transcript")}else{report.recovered.append("Lesson transcript")}
                 func entries(_ key:String,_ accepts:(String)->Bool)->[String] {
                     guard let values=p[key] as? [Any] else{if p[key] != nil{report.ignored.append("Course "+key)};return []}
@@ -78,7 +81,7 @@ public enum LegacyImporter {
                     return Array(Set(accepted)).sorted()
                 }
                 next.course.completed=entries("completed"){id in course.lessons.contains{$0.id==id}}
-                next.course.answered=entries("answered"){course.exercises[$0] != nil}
+                next.course.answered=entries("answered"){course.knownAnswerID($0)}
             }else{report.ignored.append("Course progress")}
         }
         if let raw=value("checkmate-puzzles-v1") {

@@ -90,11 +90,11 @@ struct DetailContent:View {
                     if let prompt=learning.exercise?.prompt {Text(prompt).font(.title2.bold())}
                     Text(learning.activePuzzle?.context ?? learning.beat.say).textSelection(.enabled)
                 }
-                if let e=learning.exercise {
+                if let e=learning.activePuzzle?.exercise {
                     if e.kind=="choice" {ForEach(e.choices ?? [],id:\.self){choice in Button(choice){learning.choose(choice)}.disabled(learning.passed)}}
                     if e.kind=="squares" {if e.answers?.count != 1{Button("Check my answer"){learning.checkAnswer()}.disabled(learning.picked.isEmpty || learning.passed)};if e.allowNone==true{Button("No squares"){learning.noSquares()}.disabled(learning.passed)}}
                     if e.kind=="path"{Button("Restart path"){learning.restartPath()}}
-                    Button(learning.activePuzzle==nil ? "Show the explanation":"Reveal answer"){learning.reveal()}.disabled(learning.passed)
+                    Button("Reveal answer"){learning.reveal()}.disabled(learning.passed)
                 }
                 if !learning.feedback.isEmpty{Text(learning.feedback).foregroundStyle(.secondary)}
                 if session.mode == .lesson {
@@ -183,7 +183,7 @@ struct TransportContent:View {
             NativeIcon(symbol:"arrow.left",label:"Previous transcript"){learning.seek(step:learning.step-1)}.disabled(learning.step==0)
             NativeIcon(symbol:learning.playing ? "pause.fill":"play.fill",label:learning.playing ? "Pause":"Play"){learning.playing ? learning.pause():learning.play()}
             NativeIcon(symbol:"arrow.counterclockwise",label:"Replay transcript"){learning.replay()}
-            NativeIcon(symbol:"arrow.right",label:"Next transcript"){learning.next()}.disabled(learning.exercise != nil && !learning.passed)
+            NativeIcon(symbol:"arrow.right",label:"Next transcript"){learning.next()}
         } else if learning.activePuzzle != nil {
             NativeIcon(symbol:"square.grid.2x2",label:"Puzzle library"){learning.showPuzzleLibrary()}
             NativeIcon(symbol:"book",label:"Show puzzle question",action:showDetails)

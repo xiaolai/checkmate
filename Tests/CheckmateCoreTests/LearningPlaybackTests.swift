@@ -1,12 +1,12 @@
 import XCTest
 @testable import CheckmateCore
 final class LearningPlaybackTests:XCTestCase {
-    @MainActor func testUnansweredQuizDoesNotAdvanceAndSeekIsDeterministic() throws {
+    @MainActor func testLessonAdvancesWithoutAnswerAndSeekIsDeterministic() throws {
         let s=try GameSession(engine:nil),p=try LearningPlayer(session:s)
-        p.openLesson(index:0);p.seek(step:17);p.play();p.advance(by:100)
-        XCTAssertEqual(p.step,17);XCTAssertFalse(p.playing);XCTAssertFalse(p.passed)
-        p.click("e1");p.checkAnswer();XCTAssertTrue(p.passed)
+        p.openLesson(index:0);p.seek(step:p.current.beats.firstIndex{$0.id=="intro:18"}!);p.play();p.advance(by:p.duration)
+        XCTAssertEqual(p.key,"intro:20");XCTAssertTrue(p.playing);XCTAssertNil(p.exercise)
         p.seek(step:0);let first=p.frame;p.advance(by:1);p.seek(step:0);XCTAssertEqual(p.frame,first)
+        p.shutdown()
     }
     @MainActor func testPuzzleRevealDoesNotMarkSolved() throws {
         let s=try GameSession(engine:nil),p=try LearningPlayer(session:s)

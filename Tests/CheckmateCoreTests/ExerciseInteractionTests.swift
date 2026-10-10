@@ -13,14 +13,6 @@ final class ExerciseInteractionTests:XCTestCase {
         default:XCTFail("Unknown exercise kind \(e.kind)")
         }
     }
-    @MainActor func testAll83AuthoredQuizzesThroughPlayer()async throws {
-        let library=try CourseLibrary()
-        for (key,e) in library.exercises {let session=try GameSession(engine:nil),player=try LearningPlayer(session:session,answerFeedbackDelay:.zero);let parts=key.split(separator:":");let index=try XCTUnwrap(library.lessons.firstIndex{$0.id==String(parts[0])});let quizStep=Int(parts[1])!;player.openLesson(index:index);player.seek(step:quizStep);try solve(e,player);XCTAssertTrue(player.passed,key)
-            for _ in 0..<100{if player.step != quizStep || session.state.course.completed.contains(player.current.id){break};try await Task.sleep(for:.milliseconds(1))}
-            XCTAssertTrue(session.state.course.answered.contains(key),key)
-            if quizStep<player.current.beats.count-1{XCTAssertEqual(player.step,quizStep+1,key);XCTAssertTrue(player.playing,key)}else{XCTAssertTrue(session.state.course.completed.contains(player.current.id),key);XCTAssertFalse(player.playing,key)}
-            player.shutdown()}
-    }
     @MainActor func testAll87PuzzlesThroughPlayer()throws {
         let library=try CourseLibrary()
         for puzzle in library.puzzles {let session=try GameSession(engine:nil),player=try LearningPlayer(session:session);player.openPuzzle(id:puzzle.id);try solve(puzzle.exercise,player);XCTAssertTrue(player.passed,puzzle.id);XCTAssertTrue(session.state.puzzles[puzzle.id]?.solved==true,puzzle.id)}

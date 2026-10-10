@@ -19,7 +19,7 @@ final class CedarNarrationTests:XCTestCase {
                 count+=1
             }
         }
-        XCTAssertEqual(count,947)
+        XCTAssertEqual(count,864)
     }
 
     @MainActor func testPlaybackUsesCedarAssetAndKeepsSavedTranscriptPosition() throws {

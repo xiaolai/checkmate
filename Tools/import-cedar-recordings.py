@@ -55,19 +55,34 @@ def build_course(baseline, content, assets, timing, version):
     result = copy.deepcopy(baseline)
     result['lessons'] = copy.deepcopy(content['lessons'])
     result['exercises'] = content['exercises']
+    result['retiredExerciseIDs'] = content['retiredExerciseIDs']
     result['puzzles'] = content['puzzles']
     result['timing'] = timing
     result['voices'] = []
     result['stepTitles'] = []
+    result['frames'] = []
     for li, lesson in enumerate(content['lessons']):
         voices = []
+        source_steps = [int(b['id'].rsplit(':', 1)[1]) for b in lesson['beats']]
+        result['frames'].append([copy.deepcopy(baseline['frames'][li][i]) for i in source_steps])
         for step, beat in enumerate(lesson['beats']):
             asset = assets[beat['id']]
             voices.append({'file': asset['file'], 'seconds': asset['seconds'],
                            'duration': step_duration(beat, asset['seconds'], timing)})
+            # Every retained segment starts from its authored illustration, even
+            # when the removed question supplied the previous board setup.
+            start = result['frames'][li][step]['start']
+            runtime_beat = result['lessons'][li]['beats'][step]
+            runtime_beat.update(set=start.get('board'), hl=start.get('hl', []),
+                                arrows=start.get('arrows', []), big=start.get('big', ''))
+            for endpoint in ('start', 'end'):
+                if 'quiz' in result['frames'][li][step][endpoint].get('big', '').lower():
+                    result['frames'][li][step][endpoint]['big'] = ''
+            if 'quiz' in runtime_beat['big'].lower():
+                runtime_beat['big'] = ''
         result['voices'].append(voices)
         # Preserve the four curated navigation sequences; refresh later labels.
-        titles = baseline['stepTitles'][li] if li < 4 else [short_label(lesson['title'] if step == 0 else beat.get('big') or beat['say']) for step, beat in enumerate(lesson['beats'])]
+        titles = [baseline['stepTitles'][li][i] for i in source_steps] if li < 4 else [short_label(lesson['title'] if step == 0 else beat.get('big') or beat['say']) for step, beat in enumerate(lesson['beats'])]
         result['stepTitles'].append(titles)
     result['narration'] = version
     return result
@@ -139,9 +154,9 @@ def main():
         runtime = build_course(baseline, content, assets, config['timing'], version)
         projections = json.loads((ROOT / 'Content/projections-baseline.json').read_text())
         for li, lesson in enumerate(content['lessons']):
-            for step, beat in enumerate(lesson['beats']):
-                if 'prompt' in projections[li][step]:
-                    projections[li][step]['prompt'] = content['exercises'][beat['id']]['prompt']
+            projections[li] = [projections[li][int(b['id'].rsplit(':', 1)[1])] for b in lesson['beats']]
+            for step, projection in enumerate(projections[li]):
+                projection['step'] = step
         provenance = dict(version, schemaVersion=1, assets=list(assets.values()))
         # Preserve the old resource set once, before replacing active references.
         backup = ROOT / 'build/course-before-cedar'
@@ -162,6 +177,19 @@ def main():
         recorder.atomic_write(manifest_file, encoded(provenance))
         recorder.atomic_write(RESOURCES / 'projections.json', encoded(projections))
         recorder.atomic_write(RESOURCES / 'course.json', encoded(runtime))
+        # A newly selected recording set replaces the previous bundled set.
+        # Keep its assets in the ignored publication backup before removing
+        # unreferenced clips from the distributable resources.
+        previous_sets = {Path(*Path(a['file']).parts[:2]) for a in cache.get('assets', [])}
+        for previous in previous_sets:
+            if previous.parent != Path('course') or not previous.name.startswith('cedar-') or previous == relative:
+                continue
+            old = RESOURCES / previous
+            if old.exists():
+                archived = backup / previous
+                if not archived.exists():
+                    shutil.copytree(old, archived)
+                shutil.rmtree(old)
         # Old takes are backed up and no longer referenced by the native course.
         legacy = RESOURCES / 'course/voice'
         if legacy.exists():

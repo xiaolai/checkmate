@@ -1,7 +1,7 @@
 # Checkmate development
 
 macOS 14+ AppKit/SwiftUI application for Apple Silicon and Intel. Practice with bundled Stockfish, 40 lessons,
-83 quizzes, 87 puzzles, reversible candidate previews and demonstrations, native
+87 puzzles, reversible candidate previews and demonstrations, native
 settings, local MCP companion and native live voice transport. No web view or
 JavaScript UI runtime. JavaScriptCore runs the existing chess.js rules only.
 
@@ -73,17 +73,19 @@ THIRD_PARTY_NOTICES.txt for engine, rules, artwork and content provenance.
 
 ## Rewritten lesson scripts
 
-All 40 lessons now use the native-owned British-English rewrite and 947 bundled OpenAI Cedar recordings at speed 1.0. [Content/lesson-scripts.en-GB.md](../Content/lesson-scripts.en-GB.md) is the script book; [Content/README.md](../Content/README.md) documents recording, verification and publication. Text, compressed audio, transcript titles, quiz projections and timing are published together, preserving actions, answer keys and saved progress. Playback is offline.
+All 40 lessons now use the native-owned British-English rewrite and 864 bundled OpenAI Cedar recordings at speed 1.0. [Content/lesson-scripts.en-GB.md](../Content/lesson-scripts.en-GB.md) is the script book; [Content/README.md](../Content/README.md) documents recording, verification and publication. Text, compressed audio, transcript titles, lesson projections and timing are published together, preserving actions, answer keys and saved progress. Playback is offline.
 
 Lesson mini-games default to human White versus computer Black: Pawn Duel, Rook Sweep, Rooks and Pawns, Bishop Sweep, Bishops and Pawns, Queen Against Pawns, and Knight Capture. Their opponent uses a bounded variant-aware search, without standard-chess king/check rules. The inspector offers a two-player option. Games are saved separately and Undo takes back a complete human/computer turn. Knight Corners is a solo ordered-corner challenge.
 
-## Game review development pilot
+## Game review
 
-Enable review with `CHECKMATE_REVIEW_ENABLED=1` when launching the native app. `CHECKMATE_REVIEW_DISABLED=1` overrides it; isolated silent automation enables review automatically. Review is not enabled by default until the human acceptance checks is complete.
+Standard game review is available in normal builds without environment variables. The former `CHECKMATE_REVIEW_ENABLED` and `CHECKMATE_REVIEW_DISABLED` flags are no longer used. Automated checks do not substitute for the outstanding human review and novice-play acceptance checks.
 
 Review accepts PGN collections and standard-chess FEN positions from native Open, paste or drop, or the current/previous game. Imported records remain immutable. Recorded variations and imagined lines are separate; “Practise here” starts a separate full-history game after choosing a side and profile and preserving the prior game. FEN-only review cannot recover earlier moves or repetition history.
 
 Custom opponent skill0–20 and the engine's discovered Elo range are independent of full-strength review analysis. Engine Elo is an estimate, not a promised human rating. Experimental features remain separately gated by `CHECKMATE_REVIEW_QUALITY_LABELS=1`, `CHECKMATE_REVIEW_VOICE_ENABLED=1` and `CHECKMATE_BEGINNER_OPPONENT_ENABLED=1`.
+
+The sidebar Review game destination opens a workspace with visible Open PGN, Paste PGN/FEN and current-game actions; it does not create a document. Native imports and current-game reviews remain drafts until Save Review (Command-S). Saved reviews subsequently autosave cursor and imagined lines. MCP-created reviews keep their existing persistence contract.
 
 Review documents/cursors are stored separately from existing progress. Before downgrading, export each original PGN/FEN and any imagined lines you wish to retain, and copy the native data directory shown in Settings. Older builds do not understand review storage; do not delete it to force compatibility. Newer saved schemas are rejected without destroying their files. This downgrade procedure is documented but has not been validated through an actual older-build round trip.
 

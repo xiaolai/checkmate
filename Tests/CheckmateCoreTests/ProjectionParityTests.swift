@@ -5,7 +5,7 @@ final class ProjectionParityTests:XCTestCase {
         let expected=try JSONSerialization.jsonObject(with:Data(contentsOf:NativeResources.url("projections.json"))) as! [[[String:Any]]]
         let s=try GameSession(engine:nil),p=try LearningPlayer(session:s);var count=0
         for (li,lesson) in expected.enumerated(){p.openLesson(index:li);for (step,want) in lesson.enumerated(){p.seek(step:step);let got=s.publicState()["state"] as! [String:Any];XCTAssertTrue(NSDictionary(dictionary:got).isEqual(to:want),"Projection mismatch \(li):\(step) actual=\(got) expected=\(want)");count+=1}}
-        XCTAssertEqual(count,947)
+        XCTAssertEqual(count,864)
     }
     @MainActor func testPublicNullableFieldsAndLessonEventIdentity()throws {let s=try GameSession(engine:nil);let publicValue=s.publicState();let coaching=publicValue["coaching"] as! [String:Any];XCTAssertTrue(coaching["analysis"] is NSNull);XCTAssertTrue(coaching["recommendation"] is NSNull)
         let p=try LearningPlayer(session:s);p.openLesson(index:0);let original=s.positionId,cursor=s.cursor,revision=s.revision;var v=s.lesson!;s.setLesson(v);XCTAssertEqual(s.cursor,cursor);XCTAssertEqual(s.revision,revision);v.playing=true;s.setLesson(v);XCTAssertEqual(s.positionId,original);XCTAssertGreaterThan(s.revision,revision);v.moving=true;s.setLesson(v);XCTAssertNotEqual(s.positionId,original)

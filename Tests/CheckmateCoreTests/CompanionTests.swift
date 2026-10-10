@@ -13,7 +13,7 @@ final class CompanionTests:XCTestCase {
     @MainActor func testProjectionCannotLeakFutureAnswers() throws {
         let s=try GameSession(engine:nil),p=try LearningPlayer(session:s);p.openLesson(index:0);p.seek(step:19)
         let data=try JSONSerialization.data(withJSONObject:s.publicState());let text=String(decoding:data,as:UTF8.self)
-        XCTAssertFalse(text.contains("\"answer\""));XCTAssertFalse(text.contains("\"beats\""));XCTAssertTrue(text.contains("\"choices\""))
+        XCTAssertFalse(text.contains("\"answer\""));XCTAssertFalse(text.contains("\"beats\""));XCTAssertFalse(text.contains("\"choices\""))
     }
     func testSchemaDefaultsAndStrictBounds() throws {
         let schemas=try ToolSchemas();let a=try schemas.parse("analyze_position",args:["sessionId":"s","revision":0]);XCTAssertEqual(a["movetimeMs"] as? Int,350)

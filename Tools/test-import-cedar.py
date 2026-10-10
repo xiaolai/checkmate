@@ -35,11 +35,32 @@ class TimingTests(unittest.TestCase):
         content=json.loads((HERE.parent / 'Content/course-scripts.en-GB.json').read_text())
         assets={beat['id']:{'file':'new/'+beat['id']+'.m4a','seconds':4} for lesson in content['lessons'] for beat in lesson['beats']}
         runtime=publisher.build_course(baseline,content,assets,self.timing,{'voice':'cedar'})
-        self.assertEqual(runtime['frames'],baseline['frames'])
         self.assertEqual(runtime['sounds'],baseline['sounds'])
         self.assertEqual(runtime['exercises'],content['exercises'])
-        self.assertEqual(runtime['lessons'],content['lessons'])
-        self.assertEqual(sum(len(rows) for rows in runtime['voices']),947)
+        self.assertFalse(runtime['exercises'])
+        self.assertEqual(runtime['puzzles'],content['puzzles'])
+        for li, lesson in enumerate(content['lessons']):
+            for step, beat in enumerate(lesson['beats']):
+                original_step=int(beat['id'].rsplit(':',1)[1])
+                start=baseline['frames'][li][original_step]['start']
+                published=runtime['lessons'][li]['beats'][step]
+                self.assertEqual(published['id'],beat['id'])
+                self.assertEqual(published['say'],beat['say'])
+                self.assertEqual(published['set'],start.get('board'))
+                self.assertEqual(published['hl'],start.get('hl',[]))
+                self.assertEqual(published.get('moves'),beat.get('moves'))
+                self.assertNotIn('quiz',published)
+        self.assertEqual(sum(len(rows) for rows in runtime['voices']),864)
+
+    def testRebuildReproducesPublishedContinuousCourse(self):
+        root=HERE.parent
+        baseline=json.loads((root/'Content/course-baseline.json').read_text())
+        content=json.loads((root/'Content/course-scripts.en-GB.json').read_text())
+        current=json.loads((root/'Sources/CheckmateCore/Resources/course.json').read_text())
+        manifest=json.loads((root/'Sources/CheckmateCore/Resources/course-narration.json').read_text())
+        assets={a['id']:a for a in manifest['assets']}
+        rebuilt=publisher.build_course(baseline,content,assets,self.timing,current['narration'])
+        self.assertEqual(rebuilt,current)
 
 
 if __name__ == '__main__':

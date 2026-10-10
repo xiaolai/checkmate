@@ -248,20 +248,6 @@
       "peak": 0.5178088545799255
     },
     {
-      "id": "intro:17",
-      "file": "course/cedar-94389fbdbc76/intro/17.m4a",
-      "seconds": 3.95,
-      "textSHA256": "3080b1fe436e43d76de5d265c40730e641a78efd7eda8f83662c967d98924d18",
-      "requestSHA256": "457996c15cc9094bd4d2209df3d94c9af2d2571ce11920da7fd11b1853eb542d",
-      "masterSHA256": "6adad5737ac043c174406212751111b57ba37d686514d04cee4c58f36e0a92ad",
-      "audioSHA256": "bd9a8295e39834a44a304bef10be60c248b2acc9381d9a4f54b168bbe771952b",
-      "bytes": 37104,
-      "decodedFrames": 94800,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.5562560558319092
-    },
-    {
       "id": "intro:18",
       "file": "course/cedar-94389fbdbc76/intro/18.m4a",
       "seconds": 5.45,
@@ -274,20 +260,6 @@
       "sampleRate": 24000,
       "channels": 1,
       "peak": 0.5340168476104736
-    },
-    {
-      "id": "intro:19",
-      "file": "course/cedar-94389fbdbc76/intro/19.m4a",
-      "seconds": 5.75,
-      "textSHA256": "43051aa442314adf8709e1527fea96d52c509182206c59d6ad0a45e020dbd9e8",
-      "requestSHA256": "e96f239f4784e82b5b9b4c526bd171a74f991bb63022ace2a8a9ca0130289996",
-      "masterSHA256": "ba6ce91c4fcb31016b3c23354776fb37ea1dcf7a8b53af8d4f0eeb268b963344",
-      "audioSHA256": "2013c9a81df90b4bd4071dd06cc6538c55881b81c8240eb74cfb89fca7d0dd0f",
-      "bytes": 52137,
-      "decodedFrames": 138000,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.48049551248550415
     },
     {
       "id": "intro:20",
@@ -570,20 +542,6 @@
       "peak": 0.5929521918296814
     },
     {
-      "id": "board:18",
-      "file": "course/cedar-94389fbdbc76/board/18.m4a",
-      "seconds": 5.45,
-      "textSHA256": "fe37641900721f7328a5fca06fcca94ce84dedef107f4a726629db3c84e6b5e7",
-      "requestSHA256": "663e9c6b6d4f40dd31acfe9faa85e8f506ad8dbeb6454f0a4743771fa8ee2707",
-      "masterSHA256": "162dca8560f2fbb155e21e0a266903b2d88ac02eaf82ee6a5f938bc1f76cf830",
-      "audioSHA256": "438869a78b68e2e218dde934eac1628ddb3d1e97a1eb8f43fccddb6e55b76ad5",
-      "bytes": 49009,
-      "decodedFrames": 130800,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.5177273154258728
-    },
-    {
       "id": "board:19",
       "file": "course/cedar-94389fbdbc76/board/19.m4a",
       "seconds": 4,
@@ -596,20 +554,6 @@
       "sampleRate": 24000,
       "channels": 1,
       "peak": 0.7162401676177979
-    },
-    {
-      "id": "board:20",
-      "file": "course/cedar-94389fbdbc76/board/20.m4a",
-      "seconds": 5.7,
-      "textSHA256": "66caceb6966114db47fd969af3ef90141f88f30fce5d91296afce488abcfc59e",
-      "requestSHA256": "253bbde8778495ef73e37032aa9050c3cd281ca0765ef16937d84df4d9ca8f8d",
-      "masterSHA256": "2c5a537c672566183d253d267d7e54714332e4c1452703e193148742f95483f5",
-      "audioSHA256": "374daa42af25b5019591507e4f5fc34715b64f12410807ff394c33340c1bcf5a",
-      "bytes": 50566,
-      "decodedFrames": 136800,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.6032395362854004
     },
     {
       "id": "board:21",
@@ -976,20 +920,6 @@
       "peak": 0.49931418895721436
     },
     {
-      "id": "pawn:22",
-      "file": "course/cedar-94389fbdbc76/pawn/22.m4a",
-      "seconds": 6,
-      "textSHA256": "e83d8c2565a65d64f64b592801d763eb076248da3ad56ff91b139e4b45ea210b",
-      "requestSHA256": "4a513f30c790338c95224928599b0792e7281733dd2bacad6b0f5a0d59a8d87b",
-      "masterSHA256": "4fbdac06836490d364018c73559e81de10e91e60c8ebba27b30f3057f3bb5e3d",
-      "audioSHA256": "1260aa27aaa9d4ea01fc13941afffe3b4bf622df876698088b9cfb931371bfbc",
-      "bytes": 53667,
-      "decodedFrames": 144000,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.7146396040916443
-    },
-    {
       "id": "pawn:23",
       "file": "course/cedar-94389fbdbc76/pawn/23.m4a",
       "seconds": 5,
@@ -1002,20 +932,6 @@
       "sampleRate": 24000,
       "channels": 1,
       "peak": 0.43996569514274597
-    },
-    {
-      "id": "pawn:24",
-      "file": "course/cedar-94389fbdbc76/pawn/24.m4a",
-      "seconds": 4.9,
-      "textSHA256": "2fd9ea5f050c5e6dd4a967e315d43ece1814931dac8211311f93b41c2e3fc764",
-      "requestSHA256": "331800afddb8c6cb42428901e93bce7d748cf372e117e9808abc08e681bd62ac",
-      "masterSHA256": "a884e5f385ebb7ec53a054dae9d7928e4a14400deaa700502729fd7b225c297b",
-      "audioSHA256": "4b2f439d3f46b2eafbb96ef94554d1dbcdfa142f2f99f6b8a93ff4c5de0542b2",
-      "bytes": 43427,
-      "decodedFrames": 117600,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.6086409091949463
     },
     {
       "id": "pawn:25",
@@ -1326,20 +1242,6 @@
       "peak": 0.5794578790664673
     },
     {
-      "id": "pawn-duel:19",
-      "file": "course/cedar-94389fbdbc76/pawn-duel/19.m4a",
-      "seconds": 4.45,
-      "textSHA256": "dc6f21f9c1ad830b4a72dd4e6e58522ee2977a8106418934702bf7ecd06453dc",
-      "requestSHA256": "740381c25b06e3db3fac786489d9d84ad7511a3f87f5024397d44a5eeeab9b3d",
-      "masterSHA256": "845572b9d687826160666009cf1e6edca9d06cb5909c15d20d0ec82704c3201f",
-      "audioSHA256": "b48f154c58e373ee88fdf6d95dfea7ccd90b8f38c6b8bc4683219c629571f596",
-      "bytes": 42086,
-      "decodedFrames": 106800,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.6843401789665222
-    },
-    {
       "id": "pawn-duel:20",
       "file": "course/cedar-94389fbdbc76/pawn-duel/20.m4a",
       "seconds": 4.7,
@@ -1366,20 +1268,6 @@
       "sampleRate": 24000,
       "channels": 1,
       "peak": 0.5454943776130676
-    },
-    {
-      "id": "pawn-duel:22",
-      "file": "course/cedar-94389fbdbc76/pawn-duel/22.m4a",
-      "seconds": 6.3,
-      "textSHA256": "cf172a42ac6b40bb290b2b77ab8671e1efe97872dabd2a7b7f9b0a6e383f0f23",
-      "requestSHA256": "571ddba37413f451debde6bee30cc56721f40b103fe86f8e4ab7d63dc0c2f60e",
-      "masterSHA256": "a86fad44549a38cbefb14867f5fb08b62c7f5d2800069ce70088b5b37a9bf7a1",
-      "audioSHA256": "d043a0b32191cd064b9d7816f5561deb5e644db866d5db05ffa747302ae0de46",
-      "bytes": 55163,
-      "decodedFrames": 151200,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.5128880143165588
     },
     {
       "id": "pawn-duel:23",
@@ -1634,20 +1522,6 @@
       "peak": 0.477735698223114
     },
     {
-      "id": "rook:14",
-      "file": "course/cedar-94389fbdbc76/rook/14.m4a",
-      "seconds": 4.45,
-      "textSHA256": "ff9b115c7e013e6db05c3624c5ded7f81053f2815f1c130a9ccea57281139c01",
-      "requestSHA256": "aebe34c775c3d7d9b404b3cfb8fb0b90f550791dc7b9e91cd2fd8514e03bc19b",
-      "masterSHA256": "e36b99f1b738c6f8e79140cff7f7dc811bfb6a2f646ed2f52fa5d631464b98bc",
-      "audioSHA256": "3f0486bdba5c4095a0063b1b0848de342fdd1c08d73837cd6f62f3174b6ef750",
-      "bytes": 40250,
-      "decodedFrames": 106800,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.45567524433135986
-    },
-    {
       "id": "rook:15",
       "file": "course/cedar-94389fbdbc76/rook/15.m4a",
       "seconds": 5.85,
@@ -1674,20 +1548,6 @@
       "sampleRate": 24000,
       "channels": 1,
       "peak": 0.49615874886512756
-    },
-    {
-      "id": "rook:17",
-      "file": "course/cedar-94389fbdbc76/rook/17.m4a",
-      "seconds": 6.15,
-      "textSHA256": "fd38f5d3b2bc2fe5fd506df807cab801ffb8732654f1c17cdd5485c1317fa82b",
-      "requestSHA256": "1d852e40b8c92716d16e101a40e103407b9492c03486353f699b31cf949e3bab",
-      "masterSHA256": "08d09b240f8cabed5b6c3003794e609ebc298e3149a1701870e931271a5b5461",
-      "audioSHA256": "d01c14be63993ee562c1f670ffa0cebdc7e2514acf1e8fd93d4e59736afb998d",
-      "bytes": 55275,
-      "decodedFrames": 147600,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.5734268426895142
     },
     {
       "id": "rook:18",
@@ -2026,20 +1886,6 @@
       "peak": 0.6099775433540344
     },
     {
-      "id": "rook-practice:22",
-      "file": "course/cedar-94389fbdbc76/rook-practice/22.m4a",
-      "seconds": 4.7,
-      "textSHA256": "e7ab3d5bb2cf212f8f668362e828dff1fa227c69522f50012bd6b9cd732f8283",
-      "requestSHA256": "168c38f195a8cb065b5bbfb78ab59826f5ac85602d1121696fe9b24d044f572f",
-      "masterSHA256": "205a95c1fe82bc96effa7583f1337303e7b40bd25abf57ebed71769c8576b23c",
-      "audioSHA256": "224e4fd8614733f1a574ae2eaa9b61dc3884f8a20fb5cfdd7bcf46052a8e59fe",
-      "bytes": 37297,
-      "decodedFrames": 112800,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.5655899047851562
-    },
-    {
       "id": "rook-practice:23",
       "file": "course/cedar-94389fbdbc76/rook-practice/23.m4a",
       "seconds": 4.9,
@@ -2052,20 +1898,6 @@
       "sampleRate": 24000,
       "channels": 1,
       "peak": 0.6297475695610046
-    },
-    {
-      "id": "rook-practice:24",
-      "file": "course/cedar-94389fbdbc76/rook-practice/24.m4a",
-      "seconds": 9.05,
-      "textSHA256": "f861220633bbcf85dc525681d1c5dcb4996c6a870c23a30a1b8d5af5e2816b69",
-      "requestSHA256": "aa2519f63a0550f6982730c57efa4510169721923d4d949e28632711b99878b4",
-      "masterSHA256": "86c338a9ca06028933139eebb1bcc78883719c48791923fc5c41b03014c87e67",
-      "audioSHA256": "0715259cc4302a6371164be29732ef545b83a05a63732346eaee914ea5b76a2c",
-      "bytes": 78584,
-      "decodedFrames": 217200,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.6038740277290344
     },
     {
       "id": "rook-practice:25",
@@ -2348,20 +2180,6 @@
       "peak": 0.6408658027648926
     },
     {
-      "id": "bishop:18",
-      "file": "course/cedar-94389fbdbc76/bishop/18.m4a",
-      "seconds": 3.7,
-      "textSHA256": "6a00177b2a315e9e2d05d6ac3af9d71bff8bdc5af0e54c40c1525f76d7acb071",
-      "requestSHA256": "146ea08042a6d3699eba478b16737fe6fda8e8e6561c18e98552b7008050df99",
-      "masterSHA256": "ed4acf69a9ee9bf0c2da5cdb69c16796c754f62812603b49e73a39fb7a483094",
-      "audioSHA256": "bfd5b8603a8106184197c2a2dd88f97f52d2e725cfde5d074d607095b9716e7d",
-      "bytes": 35991,
-      "decodedFrames": 88800,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.6004307270050049
-    },
-    {
       "id": "bishop:19",
       "file": "course/cedar-94389fbdbc76/bishop/19.m4a",
       "seconds": 4.5,
@@ -2388,20 +2206,6 @@
       "sampleRate": 24000,
       "channels": 1,
       "peak": 0.5949569940567017
-    },
-    {
-      "id": "bishop:21",
-      "file": "course/cedar-94389fbdbc76/bishop/21.m4a",
-      "seconds": 5.1,
-      "textSHA256": "c8c88291eebe779c6f93f958d91b439278e58aa4d4bff456964d3a883ad9856b",
-      "requestSHA256": "16399c142e9dc1f3b3d97993408b7094e1474d487de2695ef16c6f38a85f8994",
-      "masterSHA256": "521bb1ccaf169e074fbd2c90c49aee8c782fbd7132a5af8becd9a6844bc9f86a",
-      "audioSHA256": "36c59e0ea5e9687f784cc8a1350c4aa8a722ffba2fcbead56adf958e29339d37",
-      "bytes": 44985,
-      "decodedFrames": 122400,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.48060208559036255
     },
     {
       "id": "bishop:22",
@@ -2600,20 +2404,6 @@
       "peak": 0.5966624617576599
     },
     {
-      "id": "bishop-practice:12",
-      "file": "course/cedar-94389fbdbc76/bishop-practice/12.m4a",
-      "seconds": 4.8,
-      "textSHA256": "4e60eb28a775f53558810902e75de2c55aaa56650b2d46ceac4432fae5b9a051",
-      "requestSHA256": "5039ddb5a385aa96d822922269cf1558e59b8988a7d292ed919da97f85d867cc",
-      "masterSHA256": "850dec4c94fcc953399eda2b1c48b59572d11c388b4add87fb00e4c97c58e239",
-      "audioSHA256": "46847d73c91e5ee86362d397ad45a5a93211991067ec4e107b8e9b0a0ae8af48",
-      "bytes": 44937,
-      "decodedFrames": 115200,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.5351542234420776
-    },
-    {
       "id": "bishop-practice:13",
       "file": "course/cedar-94389fbdbc76/bishop-practice/13.m4a",
       "seconds": 5.05,
@@ -2752,20 +2542,6 @@
       "sampleRate": 24000,
       "channels": 1,
       "peak": 0.8318346738815308
-    },
-    {
-      "id": "bishop-practice:23",
-      "file": "course/cedar-94389fbdbc76/bishop-practice/23.m4a",
-      "seconds": 3.35,
-      "textSHA256": "d6f368fee7462a66d7dd94037f905a3f27e0e43275857d4a10ea438278a5a9be",
-      "requestSHA256": "27abad06eeada478832d53b369533bc4566eab192ac4592141f57b9154b8afa4",
-      "masterSHA256": "33efc8fe46ff640a2c6ea1c1a93222d9782a984cd8db9d17533d0b7507ad394f",
-      "audioSHA256": "f5abee4fd5b61d91020587a6d20a69ca7dd0bf62415c16b5e163ea754cb5c63c",
-      "bytes": 33226,
-      "decodedFrames": 80400,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.5729426145553589
     },
     {
       "id": "bishop-practice:24",
@@ -3006,20 +2782,6 @@
       "peak": 0.5235131978988647
     },
     {
-      "id": "queen:14",
-      "file": "course/cedar-94389fbdbc76/queen/14.m4a",
-      "seconds": 4.65,
-      "textSHA256": "519361d74ef7810330d3b8b0b92396b366262926d2fd8c52cdfbb0fcb3f458ec",
-      "requestSHA256": "57c363f74ac03623ddaebd3e9a776e1409eb18950970f8d5a628f479f934a7c4",
-      "masterSHA256": "566f16eaedcd6d38559a1dc69f4544a0cded79d63f5c2c76be56d28528eee08d",
-      "audioSHA256": "e879b4e144cac67ab31c14a16b87b18f4762c4549a3071cc91b06ca0c7a4b7d1",
-      "bytes": 43318,
-      "decodedFrames": 111600,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.5832231640815735
-    },
-    {
       "id": "queen:15",
       "file": "course/cedar-94389fbdbc76/queen/15.m4a",
       "seconds": 7.3,
@@ -3032,20 +2794,6 @@
       "sampleRate": 24000,
       "channels": 1,
       "peak": 0.5475179553031921
-    },
-    {
-      "id": "queen:16",
-      "file": "course/cedar-94389fbdbc76/queen/16.m4a",
-      "seconds": 4.2,
-      "textSHA256": "0b8f1b9144011f3b518797ee7ca9aca1ce6a8b99c42056f71627a74de1c9327b",
-      "requestSHA256": "38de4a49ff6f656b8ff345f100c4b467d43a99348e76ee23c610866a0eb0320d",
-      "masterSHA256": "fd734536e1094077c728c78ea8e1621d60b6b10aac80b5dd1ecf202ef112bfd6",
-      "audioSHA256": "f638329f6ab29c2ab839f46740d6f68b441c49c0b76e0eafda71f7ed91ee2d37",
-      "bytes": 39713,
-      "decodedFrames": 100800,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.683104932308197
     },
     {
       "id": "queen:17",
@@ -3300,20 +3048,6 @@
       "peak": 0.5381902456283569
     },
     {
-      "id": "queen-practice:15",
-      "file": "course/cedar-94389fbdbc76/queen-practice/15.m4a",
-      "seconds": 5.25,
-      "textSHA256": "e77a1963f1e33fc5c27d2e8f5a2c578d670f50d1cfca4eb09d0987116bf33990",
-      "requestSHA256": "969f5d12f12c2ec033ac5ed57b0c3315c22c1cff13ca0cbb8a54485b5ea45863",
-      "masterSHA256": "c390281a38f1afc8b996974dd2ee34015bc729a01cdae5bb15a9410d6c8c0a84",
-      "audioSHA256": "c30a93a0788a7ecdec8dae67425b33e5f6e644d2d98d8ae032a321af45217474",
-      "bytes": 45765,
-      "decodedFrames": 126000,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.7173234820365906
-    },
-    {
       "id": "queen-practice:16",
       "file": "course/cedar-94389fbdbc76/queen-practice/16.m4a",
       "seconds": 4.7,
@@ -3354,20 +3088,6 @@
       "sampleRate": 24000,
       "channels": 1,
       "peak": 0.5678995847702026
-    },
-    {
-      "id": "queen-practice:19",
-      "file": "course/cedar-94389fbdbc76/queen-practice/19.m4a",
-      "seconds": 4.8,
-      "textSHA256": "fe2dd3857dfd04bbdfc41a671b8fdc707bde75ab4b37f0c082c64fb01b2fe6ae",
-      "requestSHA256": "18ee1369a32aa1a9e7716550316938a0050ebf1deec0c6d41be6d2696c510ee0",
-      "masterSHA256": "4086f2a3886b2e675b01c35017dde025b71caf08d8bde80eca3fe3a870038b09",
-      "audioSHA256": "9f1ed9d887b746d6e3a9cb7b42a16a5c4edff505e8522cc35440f49500f5a0d1",
-      "bytes": 45162,
-      "decodedFrames": 115200,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.6284008026123047
     },
     {
       "id": "queen-practice:20",
@@ -3678,20 +3398,6 @@
       "peak": 0.6128132939338684
     },
     {
-      "id": "knight:19",
-      "file": "course/cedar-94389fbdbc76/knight/19.m4a",
-      "seconds": 4.9,
-      "textSHA256": "3bf4478fefe649992d40c710006ed84a53c3d1b3aec15c9b5d99393a8b79d9e8",
-      "requestSHA256": "ace51aec0ae981ee11c94cd8b8cfbe0d21ffe814fc6cb797b1697963b74ec72e",
-      "masterSHA256": "4b1c63821e51f713ea13b3ceedeab4f44a2d4c2a8fb37f4b23f570e60179d78f",
-      "audioSHA256": "b977325d2abc17972da0b78f471b698d4cc8cbc99efaf6567d186110be6d23b1",
-      "bytes": 43362,
-      "decodedFrames": 117600,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.49498456716537476
-    },
-    {
       "id": "knight:20",
       "file": "course/cedar-94389fbdbc76/knight/20.m4a",
       "seconds": 4.7,
@@ -3718,20 +3424,6 @@
       "sampleRate": 24000,
       "channels": 1,
       "peak": 0.6391652822494507
-    },
-    {
-      "id": "knight:22",
-      "file": "course/cedar-94389fbdbc76/knight/22.m4a",
-      "seconds": 4.3,
-      "textSHA256": "22f8f0328ec89f2d0fbec24c72b17b356aff9910a4c7a01857f739db264e2e1c",
-      "requestSHA256": "09767da358d0590124369baa137ddc3f452179cfbbfa9296641e61f762943dea",
-      "masterSHA256": "c289c6e445642e376ea1bbcb7e32a7ebc438ac06a5073f79e4926a8b9d9f8ef0",
-      "audioSHA256": "ff4b8f0c109bd0f5815c09cb0c089d1bc151fdfc48ee8742a047a823f8a0911c",
-      "bytes": 39547,
-      "decodedFrames": 103200,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.6203122138977051
     },
     {
       "id": "knight:23",
@@ -3844,20 +3536,6 @@
       "sampleRate": 24000,
       "channels": 1,
       "peak": 0.5896689891815186
-    },
-    {
-      "id": "knight-practice:6",
-      "file": "course/cedar-94389fbdbc76/knight-practice/06.m4a",
-      "seconds": 4.7,
-      "textSHA256": "7785eb48398413b3fecd2e89d740c558ff6a24b16ec9b8de655bf453cf2ee780",
-      "requestSHA256": "5d96f382868c2c539806093a3eba813c29ab700b4150ff946e8548ba371e2685",
-      "masterSHA256": "eaad71df4472430bf42d9c2d9b9ada4e613381ea013bea7db615ec292b99efdd",
-      "audioSHA256": "8c062bb90bd60a92840246c222bd708b0758942d86f6f0ad30ea38560cf23aff",
-      "bytes": 43738,
-      "decodedFrames": 112800,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.6016140580177307
     },
     {
       "id": "knight-practice:7",
@@ -4056,20 +3734,6 @@
       "peak": 0.5464012026786804
     },
     {
-      "id": "knight-practice:21",
-      "file": "course/cedar-94389fbdbc76/knight-practice/21.m4a",
-      "seconds": 4.4,
-      "textSHA256": "85119a9979ad65d7dc49086e3a555b5f4bc3a28dd4ac625e39a2828a9aa49609",
-      "requestSHA256": "c79e28d8e38932594270323a171983a757a00392c94afe20143561154c71e3ea",
-      "masterSHA256": "36325bd5941e4e2afe947280c4b1a2b3ac9d3418dfd8832e9250102c23daa03f",
-      "audioSHA256": "a9a78445604bcc55c5c0be79867e3d7c873de2eb0a8a5a8e8a5e86302bae9314",
-      "bytes": 41149,
-      "decodedFrames": 105600,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.6514171957969666
-    },
-    {
       "id": "knight-practice:22",
       "file": "course/cedar-94389fbdbc76/knight-practice/22.m4a",
       "seconds": 3.75,
@@ -4252,20 +3916,6 @@
       "peak": 0.4556483328342438
     },
     {
-      "id": "king:11",
-      "file": "course/cedar-94389fbdbc76/king/11.m4a",
-      "seconds": 3.65,
-      "textSHA256": "aa1d509ece400b6ed9e7dcae6b9fab107bd0684109f6418324c41fe373401ede",
-      "requestSHA256": "c0105e48cb4446611b93c6a64a9de39f2f2f9d1e658a8afe094941c83a1b2368",
-      "masterSHA256": "41a7c4701245300cbe47f7cbcbc52a876e394c8ff283014bdf5b66b6d1cac047",
-      "audioSHA256": "cb715fe2a57f4f86961d89ced9b2068e4c13ecf50c51bf603fb1e0185cb5d379",
-      "bytes": 35095,
-      "decodedFrames": 87600,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.492355078458786
-    },
-    {
       "id": "king:12",
       "file": "course/cedar-94389fbdbc76/king/12.m4a",
       "seconds": 3.1,
@@ -4336,20 +3986,6 @@
       "peak": 0.5091979503631592
     },
     {
-      "id": "king:17",
-      "file": "course/cedar-94389fbdbc76/king/17.m4a",
-      "seconds": 4.75,
-      "textSHA256": "00a0c344e0d782f9c45a9fa9e94074a8f72a61fcd94858fdeabcc71beeb9585b",
-      "requestSHA256": "b18f9a7da9144ead58f9737d9ffc76bc0a7badc90a4112c482cffd204cd645d7",
-      "masterSHA256": "83d6011c9b31f3820e5dd6cdb573ddae9271e03420011e2902416789624318da",
-      "audioSHA256": "ee22b53a55fed5666d803da6bb4d98ca70532120a1aa57c5707a83f84f68e222",
-      "bytes": 41061,
-      "decodedFrames": 114000,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.5242810845375061
-    },
-    {
       "id": "king:18",
       "file": "course/cedar-94389fbdbc76/king/18.m4a",
       "seconds": 5.2,
@@ -4362,20 +3998,6 @@
       "sampleRate": 24000,
       "channels": 1,
       "peak": 0.5689228773117065
-    },
-    {
-      "id": "king:19",
-      "file": "course/cedar-94389fbdbc76/king/19.m4a",
-      "seconds": 5.75,
-      "textSHA256": "3cb089940b68fc3843c9dd52219eeb7aff41f351366b545e5460422ad482f590",
-      "requestSHA256": "26fb58c212aba665a42b87ac7c3f4b87c08ba715a51d03b840cb720a83b5b20b",
-      "masterSHA256": "38e23f75f6a5b9df3680479fb9c8249fad56a99a9158d4d8d9aee21d9cbeef1f",
-      "audioSHA256": "d4ed67933620b79823ed28a8f7f31180b4560edf500fab3f4c81274226599279",
-      "bytes": 51606,
-      "decodedFrames": 138000,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.487926185131073
     },
     {
       "id": "king:20",
@@ -4602,20 +4224,6 @@
       "peak": 0.4182325303554535
     },
     {
-      "id": "safe-squares:14",
-      "file": "course/cedar-94389fbdbc76/safe-squares/14.m4a",
-      "seconds": 5.5,
-      "textSHA256": "3d5fbbf72132c1bf2fef2c74ddc4e7834672073d5ea7f3e229561d93eda9b4ba",
-      "requestSHA256": "454dd8c0ffc8f5d4184195be412ebd9199ad2c76d8ae059be1a431006e49e023",
-      "masterSHA256": "804da523ec576f5797ea6c906e863501b13cf8ef81fbef7d5fa1f13b8b3b52a0",
-      "audioSHA256": "f77a8d0f2d8400972393d7a58dd71919ce86c078bf3fcc2a5164e0bca350c9fc",
-      "bytes": 49835,
-      "decodedFrames": 132000,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.6309414505958557
-    },
-    {
       "id": "safe-squares:15",
       "file": "course/cedar-94389fbdbc76/safe-squares/15.m4a",
       "seconds": 3.3,
@@ -4656,20 +4264,6 @@
       "sampleRate": 24000,
       "channels": 1,
       "peak": 0.5672739744186401
-    },
-    {
-      "id": "safe-squares:18",
-      "file": "course/cedar-94389fbdbc76/safe-squares/18.m4a",
-      "seconds": 4.8,
-      "textSHA256": "47c4bccf02d1a70529a6be8552d3863c2fc69ef0635b8cdd9dfced90f0233085",
-      "requestSHA256": "74b1fd4fc9af82204b089850e7ad43d22f2b3baa9bfe57fbb2f9c0a7061df942",
-      "masterSHA256": "e1e4129d599d9b2b2bb13621d37465c3df7e1eb152b58be162de2d23f1209393",
-      "audioSHA256": "4025b43fa3d3c037bdf1599d99a5431433c0eff998ed1ddb25f5adfde8712b1d",
-      "bytes": 43310,
-      "decodedFrames": 115200,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.4936826825141907
     },
     {
       "id": "safe-squares:19",
@@ -4866,20 +4460,6 @@
       "sampleRate": 24000,
       "channels": 1,
       "peak": 0.683519721031189
-    },
-    {
-      "id": "check-and-checkmate:8",
-      "file": "course/cedar-94389fbdbc76/check-and-checkmate/08.m4a",
-      "seconds": 7.45,
-      "textSHA256": "cf89c51b601db89a31a2c475cb7e8cfa248236f2c09a2514eca88745d9e0da10",
-      "requestSHA256": "b85eaa7c473f6b8222759976c56b7c637dbec23659b95b731cfafef4b2e49c9b",
-      "masterSHA256": "8f749ce757a46d6dffde26aa70e93b1b26ee2e566c9f3d391b8a6dcbf2a1d71b",
-      "audioSHA256": "3eab1e1117dde49aff68468990f5ba5e72b4e90bf2c27bcd5831c2cac1dd89e3",
-      "bytes": 65608,
-      "decodedFrames": 178800,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.5634439587593079
     },
     {
       "id": "check-and-checkmate:9",
@@ -5120,20 +4700,6 @@
       "peak": 0.7201962471008301
     },
     {
-      "id": "check-and-checkmate:26",
-      "file": "course/cedar-94389fbdbc76/check-and-checkmate/26.m4a",
-      "seconds": 5.1,
-      "textSHA256": "5801aea5241bf8ecbec3942f9ae4afe48fdb427c73802c2f4cf23cc737f840c8",
-      "requestSHA256": "1faadd402319d1d7c3efacbadadd6afc2905ebf4713fd7edac8c178ff7933dd6",
-      "masterSHA256": "62b9c3690624d63093894cb1c8fbef7ef52fbbe91198e4c079eab8936f5464e5",
-      "audioSHA256": "427149b9b8977cc082042f4b748abd1a3ccae4cfb0be8447f7cef19751fa385a",
-      "bytes": 46090,
-      "decodedFrames": 122400,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.5708151459693909
-    },
-    {
       "id": "check-and-checkmate:27",
       "file": "course/cedar-94389fbdbc76/check-and-checkmate/27.m4a",
       "seconds": 5.6,
@@ -5146,20 +4712,6 @@
       "sampleRate": 24000,
       "channels": 1,
       "peak": 0.6723172664642334
-    },
-    {
-      "id": "check-and-checkmate:28",
-      "file": "course/cedar-94389fbdbc76/check-and-checkmate/28.m4a",
-      "seconds": 6.6,
-      "textSHA256": "b965b8653b342018f3c63819f25291c729ebe28b948cfb7491a8a7f9174eba71",
-      "requestSHA256": "7001f93e1b2834e632ed349d3ca4739027fd7adcc9b3d7c24e74c96e644b6fa4",
-      "masterSHA256": "25d131b0221560588653b4d1fd22ae97dcfc8d9fa218381c70b29ab7511e0bb4",
-      "audioSHA256": "4be9f4f4c9ca319506ce3f783830fd95fc443242c4a5891741c252ddebf40d6f",
-      "bytes": 57486,
-      "decodedFrames": 158400,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.7370448112487793
     },
     {
       "id": "check-and-checkmate:29",
@@ -5456,20 +5008,6 @@
       "peak": 0.5252195596694946
     },
     {
-      "id": "castling:18",
-      "file": "course/cedar-94389fbdbc76/castling/18.m4a",
-      "seconds": 3.75,
-      "textSHA256": "75737658aaad1f8058f3a12e394de420febdbaf67b4139d8844bf8a937dcdb9d",
-      "requestSHA256": "937a8726e15bb357757a60d8b1442bac6431815c2e802a55bf9e8888ce268b01",
-      "masterSHA256": "9123533ebe1f1225990d439f0e8c75867f3e440abd3e899aa46a6771bacd605f",
-      "audioSHA256": "c47a554a7a9c34a2099c75771e7c319f5e53483caa034067bccd452f965a7804",
-      "bytes": 35596,
-      "decodedFrames": 90000,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.6177451014518738
-    },
-    {
       "id": "castling:19",
       "file": "course/cedar-94389fbdbc76/castling/19.m4a",
       "seconds": 3.2,
@@ -5496,20 +5034,6 @@
       "sampleRate": 24000,
       "channels": 1,
       "peak": 0.47869905829429626
-    },
-    {
-      "id": "castling:21",
-      "file": "course/cedar-94389fbdbc76/castling/21.m4a",
-      "seconds": 3.25,
-      "textSHA256": "f0223b7690eb250c4abfff3410de1c11f85451b982fdf17b2dbb6be3ab5fe923",
-      "requestSHA256": "4193d45c4e47b9c75daeb79642a75cec1d0e06c9614f87a22253080e7d4ef85f",
-      "masterSHA256": "216ef44748d7064ea4385dd680ea8035f84c52d218ea24b29aceef0c0e8e4279",
-      "audioSHA256": "d8ec855e994badf4dd142ea902c912c4756fd4a313a6c0cc5b76cdc100521d10",
-      "bytes": 28194,
-      "decodedFrames": 78000,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.5838499665260315
     },
     {
       "id": "castling:22",
@@ -5778,20 +5302,6 @@
       "peak": 0.5324124693870544
     },
     {
-      "id": "setting-up:15",
-      "file": "course/cedar-94389fbdbc76/setting-up/15.m4a",
-      "seconds": 4.05,
-      "textSHA256": "fbd021d237d3e799d50bb5d7bc2ea9e4c1663d1c257bc76074f7a767db4e9dfc",
-      "requestSHA256": "9e05cdda8c9a0b8caced9070ecc3f325c1a4263024c5b6a269419155826499b3",
-      "masterSHA256": "4a9956676c4fc282489f3b6da8efebfc00593b643da2511b80dda7b6c7ef3c9d",
-      "audioSHA256": "32c383a7c5310499e7450f06c12bc418a4d3ebaf5d951eb37ee30eb3ebad38ed",
-      "bytes": 37853,
-      "decodedFrames": 97200,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.6202321648597717
-    },
-    {
       "id": "setting-up:16",
       "file": "course/cedar-94389fbdbc76/setting-up/16.m4a",
       "seconds": 3.55,
@@ -5818,20 +5328,6 @@
       "sampleRate": 24000,
       "channels": 1,
       "peak": 0.6412407159805298
-    },
-    {
-      "id": "setting-up:18",
-      "file": "course/cedar-94389fbdbc76/setting-up/18.m4a",
-      "seconds": 4.6,
-      "textSHA256": "253f37219f47416ec045081a22a248700679e7dd325c74bda5a162c1319e4b32",
-      "requestSHA256": "a42d8e50e12d24b581ce2f40e6dc1e2c9cd380583faa8669957505e6954d1629",
-      "masterSHA256": "f7e89cfc915f269b2271c3bc23bd108b8e26ad7e4c919648c321ebf5dd84ac34",
-      "audioSHA256": "b87a2e168e55e932a72e5b520b0e36943208e941770afed910ad8d815cf660ce",
-      "bytes": 42384,
-      "decodedFrames": 110400,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.5580741763114929
     },
     {
       "id": "setting-up:19",
@@ -6058,20 +5554,6 @@
       "peak": 0.48224639892578125
     },
     {
-      "id": "castling:14",
-      "file": "course/cedar-94389fbdbc76/castling/14.m4a",
-      "seconds": 3.3,
-      "textSHA256": "f1b7cdaa479c8590d2229ae3b8ab203a61b6985536f82767e08a4bf9e02a8388",
-      "requestSHA256": "6a9849f0e3b8df3c4c605a4acb550c059fab4f96949e46fec4faacda74d4e6be",
-      "masterSHA256": "b6043e8ea50faa2c06eee4404761d9ee8096b65b1be27263f3c43031bee650b1",
-      "audioSHA256": "46cfd5889e218c1722d31e8854d1c36308c66c08d9738a2eb2a42bcacaa93f84",
-      "bytes": 32687,
-      "decodedFrames": 79200,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.540635347366333
-    },
-    {
       "id": "castling:15",
       "file": "course/cedar-94389fbdbc76/castling/15.m4a",
       "seconds": 5.05,
@@ -6084,20 +5566,6 @@
       "sampleRate": 24000,
       "channels": 1,
       "peak": 0.5719795227050781
-    },
-    {
-      "id": "castling:16",
-      "file": "course/cedar-94389fbdbc76/castling/16.m4a",
-      "seconds": 4.5,
-      "textSHA256": "c7f2c54518c5f050abd1f02f73532042a61acb673adf1367cc357e70175403e9",
-      "requestSHA256": "0d7a19566f112d5a5f155809e77005e040b7731192420d3c3306704e8dcf585e",
-      "masterSHA256": "98db740027c1f3cd95341d9111a8f939af5b364f5573209e0b02941fdced73e7",
-      "audioSHA256": "c9111dfffd883d58bee64c73809b6a9cdbefc7f9533ee313743f9afb702e807a",
-      "bytes": 37225,
-      "decodedFrames": 108000,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.5018903017044067
     },
     {
       "id": "castling:17",
@@ -6324,20 +5792,6 @@
       "peak": 0.667212188243866
     },
     {
-      "id": "castling-rules:14",
-      "file": "course/cedar-94389fbdbc76/castling-rules/14.m4a",
-      "seconds": 5.5,
-      "textSHA256": "38349037672f7e38f634f85b6a9a3f7074a22588f05091af5ae74ab947b368b3",
-      "requestSHA256": "22782a0539513209b1d0d638e302f95b33576d3d061e2fc6d16a1eed03020473",
-      "masterSHA256": "9c2068576604b7b9657d50a4da549282664fdc19dc24aff2b9855efc1e1d87eb",
-      "audioSHA256": "7cf6afbb9a7a8eeea845d0c83938613ef692f000169cd4bc2de910073ae565b1",
-      "bytes": 49512,
-      "decodedFrames": 132000,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.4972200393676758
-    },
-    {
       "id": "castling-rules:15",
       "file": "course/cedar-94389fbdbc76/castling-rules/15.m4a",
       "seconds": 4.65,
@@ -6350,20 +5804,6 @@
       "sampleRate": 24000,
       "channels": 1,
       "peak": 0.43662577867507935
-    },
-    {
-      "id": "castling-rules:16",
-      "file": "course/cedar-94389fbdbc76/castling-rules/16.m4a",
-      "seconds": 5.2,
-      "textSHA256": "f0223b7690eb250c4abfff3410de1c11f85451b982fdf17b2dbb6be3ab5fe923",
-      "requestSHA256": "4193d45c4e47b9c75daeb79642a75cec1d0e06c9614f87a22253080e7d4ef85f",
-      "masterSHA256": "6898c301fc2534b49c5e0f597618c98812b2537bdf90f9d29c5645103d5a79ed",
-      "audioSHA256": "fe1930b9a32860b05196088dbbeb24558ceaac0ac075d0277304c76e165dcd14",
-      "bytes": 47930,
-      "decodedFrames": 124800,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.6834598779678345
     },
     {
       "id": "castling-rules:17",
@@ -6644,20 +6084,6 @@
       "sampleRate": 24000,
       "channels": 1,
       "peak": 0.5949054956436157
-    },
-    {
-      "id": "promotion-en-passant:17",
-      "file": "course/cedar-94389fbdbc76/promotion-en-passant/17.m4a",
-      "seconds": 3.85,
-      "textSHA256": "01c0eb49193b7138b8e245efa1612c3169877cf75fdd8d40ef17499c7fd47da2",
-      "requestSHA256": "ea6096fec36b655eb8b472d30c25a96003b545e42e792cbd937ccf4a35751ac9",
-      "masterSHA256": "c157d50bfe4dc4ec32f08540db5232cbfd7d5a7d4fc4be872103e9dd7771ade8",
-      "audioSHA256": "9c8db59325e53709ada332330b7a2df69e677495067af2f6fa71a329fe287f63",
-      "bytes": 36458,
-      "decodedFrames": 92400,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.5658512115478516
     },
     {
       "id": "promotion-en-passant:18",
@@ -7038,20 +6464,6 @@
       "peak": 0.5400483012199402
     },
     {
-      "id": "piece-values:17",
-      "file": "course/cedar-94389fbdbc76/piece-values/17.m4a",
-      "seconds": 6.65,
-      "textSHA256": "551f52543ccb6a388728f3e3c6ae37de32a2e98f277d2aa91f56241f7c353dee",
-      "requestSHA256": "1da1c787c2b429e95aae69ab90cf37ad3c41a547c26028cd1eebf8b78f1a63ec",
-      "masterSHA256": "966c9508d9a008a63a87486200cf663a56c80d03e5463afb8bfb38d136d40aa9",
-      "audioSHA256": "a540f63b1b955baf381b17bd1e3e4017557129ade38d3cb25ff7ddf674a0cbc0",
-      "bytes": 58439,
-      "decodedFrames": 159600,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.5847808122634888
-    },
-    {
       "id": "piece-values:18",
       "file": "course/cedar-94389fbdbc76/piece-values/18.m4a",
       "seconds": 5.55,
@@ -7064,20 +6476,6 @@
       "sampleRate": 24000,
       "channels": 1,
       "peak": 0.48967161774635315
-    },
-    {
-      "id": "piece-values:19",
-      "file": "course/cedar-94389fbdbc76/piece-values/19.m4a",
-      "seconds": 6.05,
-      "textSHA256": "e89da69bec9c2267e02f5213200c32fd07c4b04a5948c42fa451018406703289",
-      "requestSHA256": "49ba93115cb014ba454a39d7c635d324e5f6732b09812c043701ecdf3d8d1ef6",
-      "masterSHA256": "d78d81dc5f8c68b11cbe504473efa5aad2b4081c94b12cfcaae85e3e70c0afbc",
-      "audioSHA256": "7eb1b942c72af5730960bcd9a5661643c4fb6a580f60dc86bc3bc68b64dc0795",
-      "bytes": 53821,
-      "decodedFrames": 145200,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.556982159614563
     },
     {
       "id": "piece-values:20",
@@ -7500,20 +6898,6 @@
       "peak": 0.7864987850189209
     },
     {
-      "id": "rulesReview:28",
-      "file": "course/cedar-94389fbdbc76/rulesReview/28.m4a",
-      "seconds": 3.45,
-      "textSHA256": "f58a70f883f13abd8e2704950c6f6f913c0d71b6ff38e9a9b4eeae7d3f18e050",
-      "requestSHA256": "73a9c796a7431ed768a5530becf8412ad6e3c9f3be5b2b2ce8bccdfac1c42def",
-      "masterSHA256": "67f69edce932a7a06c0a8f5fbaedb386331a3eb0c8b6ca515cff74d7dcefbe1d",
-      "audioSHA256": "5a59c696a12739009f2a7393c9e3ef86e86caa15fb9b6515b1abfdb9713ae406",
-      "bytes": 34229,
-      "decodedFrames": 82800,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.4786999523639679
-    },
-    {
       "id": "rulesReview:29",
       "file": "course/cedar-94389fbdbc76/rulesReview/29.m4a",
       "seconds": 3.9,
@@ -7526,20 +6910,6 @@
       "sampleRate": 24000,
       "channels": 1,
       "peak": 0.42608630657196045
-    },
-    {
-      "id": "rulesReview:30",
-      "file": "course/cedar-94389fbdbc76/rulesReview/30.m4a",
-      "seconds": 4.25,
-      "textSHA256": "a77d2ca7ae9c54484e02d04cfea8daddb80d15bde31c9a851e7b8253ebbf4392",
-      "requestSHA256": "4f469f6cd2ac3c0e71c000f72a2fe5b0066497dfb7bb714f44ac5d50866f4f66",
-      "masterSHA256": "49d5dc0be4b620228e24887390597743b656a52fd20c0d32124a5eaa39d71700",
-      "audioSHA256": "db3a272d62545878b3d23279cc4d5ec4cf5278b8efd8e9895b407bdd76f84b98",
-      "bytes": 40487,
-      "decodedFrames": 102000,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.545632004737854
     },
     {
       "id": "rulesReview:31",
@@ -7766,20 +7136,6 @@
       "peak": 0.6326203346252441
     },
     {
-      "id": "etiquette:14",
-      "file": "course/cedar-94389fbdbc76/etiquette/14.m4a",
-      "seconds": 7.1,
-      "textSHA256": "b397201694aa995738d7c6f92d4ae515024cec10c2e903f3b61a52bf94219679",
-      "requestSHA256": "166ce53bebd0108b5ae737da1bb2b06f5d272f83cbd6727aa0e3a1a3076b3a15",
-      "masterSHA256": "e7ecd2410eaf0609ee44924b6d5171082f70b5fbb164a3415f9070a10c1f0cd0",
-      "audioSHA256": "cbaedb22a6dc6ce88284df86f00bf38392a38c6da22b738160f5211db2102637",
-      "bytes": 62733,
-      "decodedFrames": 170400,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.4788486957550049
-    },
-    {
       "id": "etiquette:15",
       "file": "course/cedar-94389fbdbc76/etiquette/15.m4a",
       "seconds": 3.75,
@@ -7792,20 +7148,6 @@
       "sampleRate": 24000,
       "channels": 1,
       "peak": 0.7339101433753967
-    },
-    {
-      "id": "etiquette:16",
-      "file": "course/cedar-94389fbdbc76/etiquette/16.m4a",
-      "seconds": 5.3,
-      "textSHA256": "5c572d5b271542f5cf18092784db0d2bb6c0c2243035d7ce289f11baeb433643",
-      "requestSHA256": "928888dc782df00f1bff159b76c4091dc17a26be28cc752f60b6517601bef7a6",
-      "masterSHA256": "4cef3730a931a25c35bdd9a6013773c4c6b041e9b713e71aee99e085ff4f045e",
-      "audioSHA256": "bf87d1e14d15f050f501d845d43e5bffe097a43ad1e87e7366d95ef532e6abff",
-      "bytes": 47531,
-      "decodedFrames": 127200,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.4219536781311035
     },
     {
       "id": "etiquette:17",
@@ -8074,20 +7416,6 @@
       "peak": 0.635181188583374
     },
     {
-      "id": "draws:17",
-      "file": "course/cedar-94389fbdbc76/draws/17.m4a",
-      "seconds": 7.4,
-      "textSHA256": "1c2f06958dde2f6228cc8ed4a5be2a5ea6ae469a380ec43b4b998144471e007e",
-      "requestSHA256": "d9d627488378078f0cbd6813edc8bbd50ec5c0a4a90146196c6ab8577b08ca8f",
-      "masterSHA256": "7485b69e9c2302b10d471d01ff4ea0950d77bf6132a204b5bf94c477c6d15e80",
-      "audioSHA256": "bfd0eac20d8790206a47859f2f136d76e1cca7f73a3fcb0f4b465d74ec12e563",
-      "bytes": 65091,
-      "decodedFrames": 177600,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.5531525611877441
-    },
-    {
       "id": "draws:18",
       "file": "course/cedar-94389fbdbc76/draws/18.m4a",
       "seconds": 5.1,
@@ -8100,20 +7428,6 @@
       "sampleRate": 24000,
       "channels": 1,
       "peak": 0.5192825794219971
-    },
-    {
-      "id": "draws:19",
-      "file": "course/cedar-94389fbdbc76/draws/19.m4a",
-      "seconds": 3.85,
-      "textSHA256": "8e027fb29c98365e9ab79da7a40fca96ded44ad975ce61305fceda8f68e38ecb",
-      "requestSHA256": "1ce2d115ff31cab7a8c64f87ebf168423b06a23315826bec0f6a61d16c7248da",
-      "masterSHA256": "07e7f3958a81b9e84865c2e48824d3572f11e4d737bd6ec0ee01593a3ccfb68b",
-      "audioSHA256": "7a62964b03dfaf059ddd422ad74a21dc5fb1abde1ba2c761685a6580ade9460f",
-      "bytes": 37005,
-      "decodedFrames": 92400,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.49472686648368835
     },
     {
       "id": "draws:20",
@@ -8256,20 +7570,6 @@
       "peak": 0.5460302829742432
     },
     {
-      "id": "tournaments:8",
-      "file": "course/cedar-94389fbdbc76/tournaments/08.m4a",
-      "seconds": 4,
-      "textSHA256": "87849757dc93e74837dd8d6c5f7522f0d2bdc84420c98d2730a8715c354e7b35",
-      "requestSHA256": "3526d6bc642851635e8b691420ed225924db415447f884e414a76b6eeb3d9946",
-      "masterSHA256": "cc59ef64a32e0796dda97248a7f5415b1e1f7823234c56283b44ade75dda4a30",
-      "audioSHA256": "38a354094f3d6b8ebd7f3cd793551f577cd12fb571618bccf09fadd972e6607e",
-      "bytes": 38522,
-      "decodedFrames": 96000,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.5287554264068604
-    },
-    {
       "id": "tournaments:9",
       "file": "course/cedar-94389fbdbc76/tournaments/09.m4a",
       "seconds": 6.55,
@@ -8296,20 +7596,6 @@
       "sampleRate": 24000,
       "channels": 1,
       "peak": 0.5832863450050354
-    },
-    {
-      "id": "tournaments:11",
-      "file": "course/cedar-94389fbdbc76/tournaments/11.m4a",
-      "seconds": 6.75,
-      "textSHA256": "dcef82e709540db3622a06e8382cdd534ecfc52a0cf9371e01feb5a4ac6c9a20",
-      "requestSHA256": "5459d118cd112cb0ccc973500b3eed4ea24423b95dd298580e3c84bbdb95c9c0",
-      "masterSHA256": "2802b36e025a48feadfc1206347ccc042cd515eea7cafbf944562b2c21320f71",
-      "audioSHA256": "305ad4785754ab41179f3a6bbdb978c576d2d9d8a5f62e5be2474a374eb181fb",
-      "bytes": 58462,
-      "decodedFrames": 162000,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.6085207462310791
     },
     {
       "id": "tournaments:12",
@@ -8494,20 +7780,6 @@
       "peak": 0.5553751587867737
     },
     {
-      "id": "notation:9",
-      "file": "course/cedar-94389fbdbc76/notation/09.m4a",
-      "seconds": 4.3,
-      "textSHA256": "77106c940ee0e7dea5f09f8aca4d320dbe44b2c1117a6373105d46b3d81821b0",
-      "requestSHA256": "392a1c18c2c33b3ff44bf05147047e509f1ceaf7d70555f7ccbce7175bf7094c",
-      "masterSHA256": "efcaf95758464575ad061f91d04c067157baf1636b66ee2cd48fa4cfe43f2393",
-      "audioSHA256": "b4e56ce82bb3f8428f77b7893cc44d780275b603db6fc58409378a545469c990",
-      "bytes": 37068,
-      "decodedFrames": 103200,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.5784343481063843
-    },
-    {
       "id": "notation:10",
       "file": "course/cedar-94389fbdbc76/notation/10.m4a",
       "seconds": 5,
@@ -8632,20 +7904,6 @@
       "sampleRate": 24000,
       "channels": 1,
       "peak": 0.6823117733001709
-    },
-    {
-      "id": "notation:19",
-      "file": "course/cedar-94389fbdbc76/notation/19.m4a",
-      "seconds": 4.3,
-      "textSHA256": "335ca06984c1fa04abae86aa1b8443a238409846593d84eff7f841b70a240a4c",
-      "requestSHA256": "9e4757a69a57121e2015a489543d165d4c0f0cad3919c6a507cecce56843651e",
-      "masterSHA256": "2dbe7f2c5c915208e7475840887cae3408397e2e2cdc639ef65fb8dada66687d",
-      "audioSHA256": "1dcb182fc349d64279ca18fb96942ad73f145a87190a7452db79ae0a1ccb74ea",
-      "bytes": 40174,
-      "decodedFrames": 103200,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.4643114507198334
     },
     {
       "id": "notation:20",
@@ -8830,20 +8088,6 @@
       "peak": 0.471235990524292
     },
     {
-      "id": "opening:9",
-      "file": "course/cedar-94389fbdbc76/opening/09.m4a",
-      "seconds": 3.35,
-      "textSHA256": "3c52328b422f19b1ea2e1438022f4c661aee8490793bf366ce51aa02659572d7",
-      "requestSHA256": "1127f1425727918aa2e0636d7cd6df7c07ac04c64e30e824f4b2248853af92d2",
-      "masterSHA256": "1d55691e287f56eb08a431161ee01aea53dc2a728ed1ec5d99295ad17a4d28bb",
-      "audioSHA256": "20c4b137b90fa5479f956a29927e8f00c5abe409753cdb14506f74e9566a7256",
-      "bytes": 32927,
-      "decodedFrames": 80400,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.5134304761886597
-    },
-    {
       "id": "opening:10",
       "file": "course/cedar-94389fbdbc76/opening/10.m4a",
       "seconds": 4.35,
@@ -8968,20 +8212,6 @@
       "sampleRate": 24000,
       "channels": 1,
       "peak": 0.5207746028900146
-    },
-    {
-      "id": "opening:19",
-      "file": "course/cedar-94389fbdbc76/opening/19.m4a",
-      "seconds": 5.05,
-      "textSHA256": "1af268a29c6a1ebec0a02cdcbfa0060c3534e7704834614614df857e942faa2b",
-      "requestSHA256": "f5e37b977e1cfe4a516ad5e5e7c3f60195993d597e9a99f522c6b6f35811cd6d",
-      "masterSHA256": "5e12f4b79d75d56831a8eb4066774cc12cb64f4280a62d2407ad1111f87f7871",
-      "audioSHA256": "fc5e1104da445e0f732d8ac209862bc4d58ded09e5e5216ae331e7a0ca72d8a9",
-      "bytes": 43665,
-      "decodedFrames": 121200,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.5085985660552979
     },
     {
       "id": "opening:20",
@@ -9278,20 +8508,6 @@
       "peak": 0.8046668171882629
     },
     {
-      "id": "counting-material:18",
-      "file": "course/cedar-94389fbdbc76/counting-material/18.m4a",
-      "seconds": 5.65,
-      "textSHA256": "a923170b7ce46be775e81b3ec960bfd5edd7c274306d8fefe0de69a0cec6b4be",
-      "requestSHA256": "93ba76a6fdb5fe4016af07718715cafafeb8f4ea2c3227ef18b19d77b94ffef9",
-      "masterSHA256": "09dd9c233e00d419593ecdb1c5ce52542083fbeb2adf98e0e9c49ab70840ae57",
-      "audioSHA256": "39e7fac7f16ca7816919f3d908c85e3c49f5e31f34592ec7bf4c95966e96013c",
-      "bytes": 51566,
-      "decodedFrames": 135600,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.5933225154876709
-    },
-    {
       "id": "counting-material:19",
       "file": "course/cedar-94389fbdbc76/counting-material/19.m4a",
       "seconds": 3.35,
@@ -9332,20 +8548,6 @@
       "sampleRate": 24000,
       "channels": 1,
       "peak": 0.6356602311134338
-    },
-    {
-      "id": "counting-material:22",
-      "file": "course/cedar-94389fbdbc76/counting-material/22.m4a",
-      "seconds": 5.4,
-      "textSHA256": "1e732aaf86ed027f4f97e49a973d0d0d04b31a618e38e55177ba521668b5bc01",
-      "requestSHA256": "3fc620acb602aa81bdfd240305137d73f957906e2fdf5d2b44c6f87c32641ad2",
-      "masterSHA256": "9f15e0c734cd335b3941893bdce44397bc355112256b6ddeb8df1dfa86d97344",
-      "audioSHA256": "d2261edf377581459eb51a5f90b755836a84a49db79696d388b55229c4a8c7db",
-      "bytes": 48012,
-      "decodedFrames": 129600,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.653153121471405
     },
     {
       "id": "counting-material:23",
@@ -9614,20 +8816,6 @@
       "peak": 0.46106237173080444
     },
     {
-      "id": "scholars-mate:15",
-      "file": "course/cedar-94389fbdbc76/scholars-mate/15.m4a",
-      "seconds": 4.95,
-      "textSHA256": "6093d8bb1aac724ad9c14d55d7949537911a358b3352019f77a4ec1aae526f2e",
-      "requestSHA256": "93e15122fba0d6feeacf31d059b006b920550e7562954d8e1e6082029abd4274",
-      "masterSHA256": "ceeb28835ed6659e61d47f36ac372922807f51fd5e808bcd9bbce7cf5bf309cc",
-      "audioSHA256": "0d33037ce343ff575097c0bcb863c032cbd587a745cde150f3f2a9e97f5249e9",
-      "bytes": 44668,
-      "decodedFrames": 118800,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.5597993731498718
-    },
-    {
       "id": "scholars-mate:16",
       "file": "course/cedar-94389fbdbc76/scholars-mate/16.m4a",
       "seconds": 4.6,
@@ -9696,20 +8884,6 @@
       "sampleRate": 24000,
       "channels": 1,
       "peak": 0.5272679328918457
-    },
-    {
-      "id": "scholars-mate:21",
-      "file": "course/cedar-94389fbdbc76/scholars-mate/21.m4a",
-      "seconds": 7.6,
-      "textSHA256": "8d0f12686b3436468d88e14b4c82e3557981a61fe73bb1db515cf0ef7d558d78",
-      "requestSHA256": "e9585bcbc1e3f5f6fc323476a04c268b4431fdca44f03b2e6eedbc58eaea093a",
-      "masterSHA256": "a42c1baca79be9844f39cd51196ab167c287907114be1a18286b75e7326f3329",
-      "audioSHA256": "e568ab68c187b198b29ddacf1ce350a3f4f2872564b2599ae14351e394372310",
-      "bytes": 66357,
-      "decodedFrames": 182400,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.538418173789978
     },
     {
       "id": "scholars-mate:22",
@@ -10034,20 +9208,6 @@
       "peak": 0.6429135203361511
     },
     {
-      "id": "fork:19",
-      "file": "course/cedar-94389fbdbc76/fork/19.m4a",
-      "seconds": 4.55,
-      "textSHA256": "1d07eda97d80719d8cf4f1a521472e93c0a87c10f0c0dca7df52ad77de9d3aea",
-      "requestSHA256": "32db18974995545a632b203e8b62f45eb27575f31c338bacf35f395cf5685fe3",
-      "masterSHA256": "0b4b39280fe0216d7419f619402ce5e6f3e21d39e87c7478b9ef1635d73b078b",
-      "audioSHA256": "7041d286b26202aa44b1ff2a97780f7feaa970b519b770645b442096cf49d688",
-      "bytes": 42955,
-      "decodedFrames": 109200,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.610427975654602
-    },
-    {
       "id": "fork:20",
       "file": "course/cedar-94389fbdbc76/fork/20.m4a",
       "seconds": 2.85,
@@ -10074,20 +9234,6 @@
       "sampleRate": 24000,
       "channels": 1,
       "peak": 0.5780661106109619
-    },
-    {
-      "id": "fork:22",
-      "file": "course/cedar-94389fbdbc76/fork/22.m4a",
-      "seconds": 4.3,
-      "textSHA256": "ea76ee03460d6844c4a4d00eda9b6714be5d0a8c306d66c2b0f4472b2213118d",
-      "requestSHA256": "663acd6f6f9a8330e51adae7646e1caaca63ad35354d2c223cda859f2e36204e",
-      "masterSHA256": "4b1cab860aa92d6a3ee4ac42c4a43127ab4659079acf6d927f608c07aab6492b",
-      "audioSHA256": "09d2876f6c9a6d2067c7468be599611531c663e3c1df0359d252b9e58164c897",
-      "bytes": 34365,
-      "decodedFrames": 103200,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.5028775930404663
     },
     {
       "id": "fork:23",
@@ -10370,20 +9516,6 @@
       "peak": 0.6013507843017578
     },
     {
-      "id": "pin:18",
-      "file": "course/cedar-94389fbdbc76/pin/18.m4a",
-      "seconds": 3.85,
-      "textSHA256": "f42fe368581328044e00fc152c0cbee115e09f1056889207b3a31e2ca82caf6c",
-      "requestSHA256": "a368767f96587c009e1c728ef1dadd80db5cb7ace50bfeb6466ac9f7ef1ad323",
-      "masterSHA256": "b69d21d3cbc3f6b1fb888f94ba72695fc54335f4e3d7cf61c31d007d27079fbd",
-      "audioSHA256": "d6b2e0dbf3fdd04594cfb0827f99859debbe47e51e8fe5700d10f6d8a98c7374",
-      "bytes": 36362,
-      "decodedFrames": 92400,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.6868298649787903
-    },
-    {
       "id": "pin:19",
       "file": "course/cedar-94389fbdbc76/pin/19.m4a",
       "seconds": 3.3,
@@ -10396,20 +9528,6 @@
       "sampleRate": 24000,
       "channels": 1,
       "peak": 0.5691558122634888
-    },
-    {
-      "id": "pin:20",
-      "file": "course/cedar-94389fbdbc76/pin/20.m4a",
-      "seconds": 7,
-      "textSHA256": "f0983344b44a6a2d883b199ae331b3a726e64d2b64b84888f7c3cd7ac65b94b3",
-      "requestSHA256": "3904c250643cb5d26b726e7254a0da96fc872c9b48ed72bfd40771ea912c57e0",
-      "masterSHA256": "c2343cddd3333c2dd18844b9b1b5d36f0a823d1ad26b1fed89e26f6aed85a6b2",
-      "audioSHA256": "a3fcb1196f80462e8f0992d0d852bb454f0e6d67664a3ab782fb8e770e6aee72",
-      "bytes": 60722,
-      "decodedFrames": 168000,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.4515562951564789
     },
     {
       "id": "pin:21",
@@ -10650,20 +9768,6 @@
       "peak": 0.5843616127967834
     },
     {
-      "id": "skewer:15",
-      "file": "course/cedar-94389fbdbc76/skewer/15.m4a",
-      "seconds": 4.9,
-      "textSHA256": "d5b0dfc0daeac109ca53cd453e4006d3c231123464fe490a4715145423ea8226",
-      "requestSHA256": "671a79d63b41f69528abc59d150b5c3f981dd43f87b03da78de1a105232820c7",
-      "masterSHA256": "9fea7ea7267416dfd381c8646e4dae39912c9b9d9e4e23647d336e582cf28ec9",
-      "audioSHA256": "a5e52cca81fd1e9b24410ccc4c721f994e9993e9a79bbb85625469b993928efc",
-      "bytes": 44809,
-      "decodedFrames": 117600,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.6047661900520325
-    },
-    {
       "id": "skewer:16",
       "file": "course/cedar-94389fbdbc76/skewer/16.m4a",
       "seconds": 3.6,
@@ -10690,20 +9794,6 @@
       "sampleRate": 24000,
       "channels": 1,
       "peak": 0.60478675365448
-    },
-    {
-      "id": "skewer:18",
-      "file": "course/cedar-94389fbdbc76/skewer/18.m4a",
-      "seconds": 6.25,
-      "textSHA256": "bf62e558e7ccd58588b0ed215d7a71388d2003de010d256ed2b373d567b88674",
-      "requestSHA256": "70330e194a3de3183163762ab7b6b35342a5e1ce72a5cac03493f431534cf0c4",
-      "masterSHA256": "28ccebcd85f4a47ed6ca5f7aaed1be8e49558eeb33f8aca8c493b8ac7ccea719",
-      "audioSHA256": "aff968775d360582f507b5c99c78b2abd2cb10355a86bbcc9baacd4742edaba4",
-      "bytes": 55592,
-      "decodedFrames": 150000,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.5381788611412048
     },
     {
       "id": "skewer:19",
@@ -10944,20 +10034,6 @@
       "peak": 0.4794839322566986
     },
     {
-      "id": "discovered-attack:15",
-      "file": "course/cedar-94389fbdbc76/discovered-attack/15.m4a",
-      "seconds": 5.6,
-      "textSHA256": "aea76b6fbf36cafe78385f558a2b98e002940b4f8c193753d86ac1115dfe210b",
-      "requestSHA256": "4e722be78fe5b59b518e2ed9b79ff8b166cc2848bbb30c08068c541372283086",
-      "masterSHA256": "5e892bcfd3d357d8de7308fe34725a06ffb0a4fbae03099e4debde618afbbbc6",
-      "audioSHA256": "79327a06190dc9337f42f13aba6d36efc6932aaaf14eccec52437e4a3cfa27b2",
-      "bytes": 50391,
-      "decodedFrames": 134400,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.5691258311271667
-    },
-    {
       "id": "discovered-attack:16",
       "file": "course/cedar-94389fbdbc76/discovered-attack/16.m4a",
       "seconds": 4.75,
@@ -10970,20 +10046,6 @@
       "sampleRate": 24000,
       "channels": 1,
       "peak": 0.6259316205978394
-    },
-    {
-      "id": "discovered-attack:17",
-      "file": "course/cedar-94389fbdbc76/discovered-attack/17.m4a",
-      "seconds": 4.75,
-      "textSHA256": "4890edf08e8801141e99d550e808ccb1322fa3bf81297a2d8568af1b01cf7de8",
-      "requestSHA256": "e158db09a04cb9e85805c8492910c1c829b9c74ac441b7ae80194819322686df",
-      "masterSHA256": "3b098347b1fc85363b7dbdc8d2b8b9725d6b6100d3de754bde663edafa0b3545",
-      "audioSHA256": "30d533401304dd518e84441dea33bf1aeef3b8305f5f154073b0a3b1672ae74d",
-      "bytes": 43770,
-      "decodedFrames": 114000,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.6394299864768982
     },
     {
       "id": "discovered-attack:18",
@@ -11238,20 +10300,6 @@
       "peak": 0.4322551488876343
     },
     {
-      "id": "removing-the-defender:15",
-      "file": "course/cedar-94389fbdbc76/removing-the-defender/15.m4a",
-      "seconds": 5.25,
-      "textSHA256": "7ec40a4fe9a0d745d5dc125b55d6be066aa85df3b710cca426d154d5cf65985e",
-      "requestSHA256": "72f3eca799d2b2d13d2df83f64517db6c072684e98f314192afdd3dc92ed8674",
-      "masterSHA256": "542852ecb7bb85151f2acefa6c1d99e883c38691bc12a921d705cb0205db392d",
-      "audioSHA256": "fcf12ab1b974dc7e7fa65da7d4a4d11d4ca3a30b3f0b7493aa4230933ea51960",
-      "bytes": 48288,
-      "decodedFrames": 126000,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.692293107509613
-    },
-    {
       "id": "removing-the-defender:16",
       "file": "course/cedar-94389fbdbc76/removing-the-defender/16.m4a",
       "seconds": 3.65,
@@ -11264,20 +10312,6 @@
       "sampleRate": 24000,
       "channels": 1,
       "peak": 0.616409420967102
-    },
-    {
-      "id": "removing-the-defender:17",
-      "file": "course/cedar-94389fbdbc76/removing-the-defender/17.m4a",
-      "seconds": 4.4,
-      "textSHA256": "cc4e0c21f7397e4a6ad96302c546296f21aaa08f8596100debf750deaef31f87",
-      "requestSHA256": "cc32a12cdb0c7743e28e3ed7f9814972af967db132cb638bd5bdda532658af86",
-      "masterSHA256": "5fb0739019f2c6517e6c96f38cad04d82ceb703c05bdf93dad209766c019c393",
-      "audioSHA256": "28edab2837cddb34174af9ff9537533c8d9bbdb6a281f2bd1a04cb45e780b4e7",
-      "bytes": 38167,
-      "decodedFrames": 105600,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.6560836434364319
     },
     {
       "id": "removing-the-defender:18",
@@ -11504,20 +10538,6 @@
       "peak": 0.593650758266449
     },
     {
-      "id": "two-rook-mate:13",
-      "file": "course/cedar-94389fbdbc76/two-rook-mate/13.m4a",
-      "seconds": 2.9,
-      "textSHA256": "0d92fecb7cfb5374678649b458abec38b59dfb798abd8f75d0f4f68c8d12db9c",
-      "requestSHA256": "8173c4a5e5f20ac71387902020a8aa3d9f54ac396e9333351406386ca44d8756",
-      "masterSHA256": "1ad5b2caeb3c3a621b59206e105750bade65afa7e24640e45eb63ad060807c9b",
-      "audioSHA256": "74d6dd3480fa788691881264e637f42b7e3df0d68af60f3a082224f5140644a7",
-      "bytes": 29439,
-      "decodedFrames": 69600,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.5647923350334167
-    },
-    {
       "id": "two-rook-mate:14",
       "file": "course/cedar-94389fbdbc76/two-rook-mate/14.m4a",
       "seconds": 6.25,
@@ -11530,20 +10550,6 @@
       "sampleRate": 24000,
       "channels": 1,
       "peak": 0.6205486059188843
-    },
-    {
-      "id": "two-rook-mate:15",
-      "file": "course/cedar-94389fbdbc76/two-rook-mate/15.m4a",
-      "seconds": 4.7,
-      "textSHA256": "ec6108620e11b0264e2b0500eb78d4fb248639c8ed56ac719deeac63829b4654",
-      "requestSHA256": "3ea40b2013528a9c49a0610a2356c6686c1e1c3186bab2d21c6c9e13c2c6bd28",
-      "masterSHA256": "f99f5281c970a42a8c8ae706c4fc6d4a50fba1ae8ee2e5c83ac886acc3c7eee3",
-      "audioSHA256": "8e9e3479d6aed9f852837925b0f0c9580f66999907f181009fea706d8ea93f8b",
-      "bytes": 42835,
-      "decodedFrames": 112800,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.49829602241516113
     },
     {
       "id": "two-rook-mate:16",
@@ -11714,20 +10720,6 @@
       "peak": 0.6486088037490845
     },
     {
-      "id": "queen-mate:10",
-      "file": "course/cedar-94389fbdbc76/queen-mate/10.m4a",
-      "seconds": 5.15,
-      "textSHA256": "2e5a0a5ab860324848847d6700001c52b7d12d24df548916bbd4b04f7977078e",
-      "requestSHA256": "f7d30a7ffd7991f550fbef4f5bc9344eaef9e3eee2495829ed42159d6727ad2d",
-      "masterSHA256": "76f7aca2a958943c5c86fbd555deb68d6748981482331eb28a9aeeccfe0be6be",
-      "audioSHA256": "54e2cb3f491f4e4bdc182340976912ec9dfd3acf846fa3da9bfd90f5fb6df413",
-      "bytes": 46168,
-      "decodedFrames": 123600,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.517556369304657
-    },
-    {
       "id": "queen-mate:11",
       "file": "course/cedar-94389fbdbc76/queen-mate/11.m4a",
       "seconds": 5.15,
@@ -11824,20 +10816,6 @@
       "sampleRate": 24000,
       "channels": 1,
       "peak": 0.5848949551582336
-    },
-    {
-      "id": "queen-mate:18",
-      "file": "course/cedar-94389fbdbc76/queen-mate/18.m4a",
-      "seconds": 4.05,
-      "textSHA256": "a94a4a13ac9a87de5decacf154dd24334f18bd0771e0ce1cee6c0fd470146964",
-      "requestSHA256": "5ec510918f7a61999d8cefe9a5a57271a77a83b1f16092ac446a6dfb80d73bda",
-      "masterSHA256": "a08248bf8724cebc7a25ebf98b9101ec9535207d6b8211901dc06b267a7e4ec3",
-      "audioSHA256": "0f621817d94d3217ed4b56fbfc954ab409d7e097bb4963d0646033a1d983deef",
-      "bytes": 37365,
-      "decodedFrames": 97200,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.6595433950424194
     },
     {
       "id": "queen-mate:19",
@@ -12246,20 +11224,6 @@
       "peak": 0.7056310772895813
     },
     {
-      "id": "rook-mate:23",
-      "file": "course/cedar-94389fbdbc76/rook-mate/23.m4a",
-      "seconds": 2.75,
-      "textSHA256": "9d92479105ef49cc14afa720f3261778c415c953dd1819db3f3fcd9e2ed2adde",
-      "requestSHA256": "7973092c17ceaedabde234772ec446feb32a48dd026aefa40d1ab491bda73d50",
-      "masterSHA256": "854aa49535cca126b9b0ec1708a0ed77e617971adc04908823b58413c719ce33",
-      "audioSHA256": "54574ddcd716bac26980e34802cd97c597c6014fe34434756a41a1b3a6d541d3",
-      "bytes": 27633,
-      "decodedFrames": 66000,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.5455962419509888
-    },
-    {
       "id": "rook-mate:24",
       "file": "course/cedar-94389fbdbc76/rook-mate/24.m4a",
       "seconds": 7.9,
@@ -12330,20 +11294,6 @@
       "peak": 0.6318599581718445
     },
     {
-      "id": "puzzles-material:3",
-      "file": "course/cedar-94389fbdbc76/puzzles-material/03.m4a",
-      "seconds": 5.1,
-      "textSHA256": "bf5770dafce91257878bd40edbdb15851e40fac3e95733278713599f25b651ce",
-      "requestSHA256": "88e3700808e9b3229f3bb19a6f1747c7754a2a434b602a23f55ad962afd4eaad",
-      "masterSHA256": "f33710e4a83aa146467f7418e34f982fc65bbde06c064e785b8d89c495c12a33",
-      "audioSHA256": "68b5dbdc249d9dfcad7006bca700261c34be95d932d338e2f2e5d49a5a2b4df8",
-      "bytes": 46129,
-      "decodedFrames": 122400,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.6354398131370544
-    },
-    {
       "id": "puzzles-material:4",
       "file": "course/cedar-94389fbdbc76/puzzles-material/04.m4a",
       "seconds": 3.2,
@@ -12384,20 +11334,6 @@
       "sampleRate": 24000,
       "channels": 1,
       "peak": 0.6777307391166687
-    },
-    {
-      "id": "puzzles-material:7",
-      "file": "course/cedar-94389fbdbc76/puzzles-material/07.m4a",
-      "seconds": 3.65,
-      "textSHA256": "8a0a81837543c45fdcfa8f30f3857ec3d9b579a126af99e639f4839bf281b8c9",
-      "requestSHA256": "34db08384a1024ae8ea7c6556057283680fa91f15c9136ab39131c49dec4551d",
-      "masterSHA256": "17630a6aeabd7bbfc2a8fab3c2e34206c4c27a1b65d9df6394ca3b2eed56cc56",
-      "audioSHA256": "b13f7d25d40d4f65171d2f1ffec07303c0591e36a6113749e67afa09a66338bb",
-      "bytes": 34911,
-      "decodedFrames": 87600,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.597644567489624
     },
     {
       "id": "puzzles-material:8",
@@ -12456,20 +11392,6 @@
       "peak": 0.676272451877594
     },
     {
-      "id": "puzzles-material:12",
-      "file": "course/cedar-94389fbdbc76/puzzles-material/12.m4a",
-      "seconds": 3.95,
-      "textSHA256": "b856358f11e60d3fdcbb7dcc0a507d9e411a8fb1b3683fe997bb32fcc6e83ccc",
-      "requestSHA256": "30664857ab52385892d09d660bbfd85ae9a4c26b30b719b09b8e01b7109c1c4b",
-      "masterSHA256": "5ad6a3001a842e7754e5e8057268f443786db01fec5775097e9105792bc305b8",
-      "audioSHA256": "83f2c7652275eccc30935d065cd846455437bdf06f7fa8e7bbb957e6dd3a7b8a",
-      "bytes": 38771,
-      "decodedFrames": 94800,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.48879775404930115
-    },
-    {
       "id": "puzzles-material:13",
       "file": "course/cedar-94389fbdbc76/puzzles-material/13.m4a",
       "seconds": 4.05,
@@ -12510,20 +11432,6 @@
       "sampleRate": 24000,
       "channels": 1,
       "peak": 0.5878758430480957
-    },
-    {
-      "id": "puzzles-material:16",
-      "file": "course/cedar-94389fbdbc76/puzzles-material/16.m4a",
-      "seconds": 5.7,
-      "textSHA256": "ea8334e36bd250a210b068e4d789b43e094a43ae8e9239ba55824925f47fe5c8",
-      "requestSHA256": "b5ccea66a247ce0cdcf1cbda86bdbb70801b8bd369888d22abf65cf688e048ad",
-      "masterSHA256": "edb404052289ab1b04648d839817646e570863bd590916c467fe49533bd549e9",
-      "audioSHA256": "c7ac8378dbde0c5c1a44300d3dd97417691c9765b6f121a6f76523279e1d62c5",
-      "bytes": 50725,
-      "decodedFrames": 136800,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.5177427530288696
     },
     {
       "id": "puzzles-material:17",
@@ -12652,20 +11560,6 @@
       "peak": 0.725951611995697
     },
     {
-      "id": "puzzles-mate:2",
-      "file": "course/cedar-94389fbdbc76/puzzles-mate/02.m4a",
-      "seconds": 4.85,
-      "textSHA256": "9bacf9a65d128496a709a962a1fae4a798beb0db28d96038d27699357fd66ad8",
-      "requestSHA256": "662a7f7765a56bbcc1baa9745fba47662ddaa1f094797588ad0103febc9576b1",
-      "masterSHA256": "03d9fd8a899f579ab2b46ab23c4705b2d7900dbeeed98f9eb82f5798894e07c6",
-      "audioSHA256": "ece40f5721e45b33c053fffefe7c78a455cc4923945915cd07533e43e376f37b",
-      "bytes": 44014,
-      "decodedFrames": 116400,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.5135923624038696
-    },
-    {
       "id": "puzzles-mate:3",
       "file": "course/cedar-94389fbdbc76/puzzles-mate/03.m4a",
       "seconds": 4.6,
@@ -12722,20 +11616,6 @@
       "peak": 0.5654860138893127
     },
     {
-      "id": "puzzles-mate:7",
-      "file": "course/cedar-94389fbdbc76/puzzles-mate/07.m4a",
-      "seconds": 4,
-      "textSHA256": "f15816d21757967c2b0c0e57608bcc30ae4e6edbbfe28a0848f1d86ca82ea285",
-      "requestSHA256": "334f77786e3c00e8679f090c16d2b4490c9ee056f594bd01b99b346266780a54",
-      "masterSHA256": "3476f9bd0b41f1f5c10f7539585b7ff0b263fd945a4ff4d4ff23b005c6f6e45d",
-      "audioSHA256": "87b881117372e50e1ae572949977ddf7b870629c9e8e82ff2078a1c5662e0657",
-      "bytes": 37309,
-      "decodedFrames": 96000,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.5102697610855103
-    },
-    {
       "id": "puzzles-mate:8",
       "file": "course/cedar-94389fbdbc76/puzzles-mate/08.m4a",
       "seconds": 3.4,
@@ -12778,20 +11658,6 @@
       "peak": 0.6529639363288879
     },
     {
-      "id": "puzzles-mate:11",
-      "file": "course/cedar-94389fbdbc76/puzzles-mate/11.m4a",
-      "seconds": 3.65,
-      "textSHA256": "f43e94de8d886998dc39274a5a5ddf3964865fe83fc148739f9a66d988bf69dc",
-      "requestSHA256": "b57bf9b9cbcdce0d2824df2f4ae95a3ac0a0ce14bb5af821c1b69d46b09c4b2f",
-      "masterSHA256": "be78d1a96983d3570d5208374d0f6cb110ac6ea8cc8540ac8fe8a6f257ff6ab0",
-      "audioSHA256": "8ca3b2fcb43a847f16cadcecf85622b4c14f1a5fd36fe17300b3e84e121c25c2",
-      "bytes": 34943,
-      "decodedFrames": 87600,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.5253421664237976
-    },
-    {
       "id": "puzzles-mate:12",
       "file": "course/cedar-94389fbdbc76/puzzles-mate/12.m4a",
       "seconds": 3.9,
@@ -12832,20 +11698,6 @@
       "sampleRate": 24000,
       "channels": 1,
       "peak": 0.6054584980010986
-    },
-    {
-      "id": "puzzles-mate:15",
-      "file": "course/cedar-94389fbdbc76/puzzles-mate/15.m4a",
-      "seconds": 3.5,
-      "textSHA256": "943b31b73f1762a049ddb347ca70f365480dc0b8089ab52e563b3a5b21bd00e8",
-      "requestSHA256": "2a32dfd207eb6ce8f6448c2c9619ebbfa327d16db20a374b252cb36314f1c488",
-      "masterSHA256": "8d40d8914a7d9a5cda09fb88a09badc2865be55b3f0e18afb296e81bf2f72a32",
-      "audioSHA256": "28c7e9e35afc1acdee28283a012d2e678cf242bcb2432864af828b467bb312cb",
-      "bytes": 34165,
-      "decodedFrames": 84000,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.5007805824279785
     },
     {
       "id": "puzzles-mate:16",
@@ -13184,20 +12036,6 @@
       "peak": 0.6594041585922241
     },
     {
-      "id": "famous-game:21",
-      "file": "course/cedar-94389fbdbc76/famous-game/21.m4a",
-      "seconds": 4.75,
-      "textSHA256": "120d2015503d494ecaca18b3471a9a8fb1bcc99583a2eaaac9840ed1f5269a97",
-      "requestSHA256": "1c118d72f38bc3b72e65b6e9e1dfce56d61b6b29f3a7c231e553dec2f47a4f9d",
-      "masterSHA256": "89b6d1ef6017d2177c0b81d75696a33a1f0e99c113b8d3256702c74fd6bfbaae",
-      "audioSHA256": "b4eba39a47f53b23ab2d8c9e06ccec2c8e8503b894d01970928f722fff1a5a01",
-      "bytes": 43657,
-      "decodedFrames": 114000,
-      "sampleRate": 24000,
-      "channels": 1,
-      "peak": 0.5223875045776367
-    },
-    {
       "id": "famous-game:22",
       "file": "course/cedar-94389fbdbc76/famous-game/22.m4a",
       "seconds": 4.1,
@@ -13267,5 +12105,93 @@
       "channels": 1,
       "peak": 0.6206702589988708
     }
-  ]
+  ],
+  "selection": {
+    "retiredLessonQuestionIDs": [
+      "board:18",
+      "board:20",
+      "bishop:18",
+      "bishop:21",
+      "rook-mate:23",
+      "bishop-practice:12",
+      "bishop-practice:23",
+      "check-and-checkmate:26",
+      "check-and-checkmate:28",
+      "check-and-checkmate:8",
+      "notation:19",
+      "notation:9",
+      "counting-material:18",
+      "counting-material:22",
+      "scholars-mate:15",
+      "scholars-mate:21",
+      "discovered-attack:15",
+      "discovered-attack:17",
+      "etiquette:14",
+      "etiquette:16",
+      "fork:19",
+      "fork:22",
+      "opening:19",
+      "opening:9",
+      "knight-practice:21",
+      "knight-practice:6",
+      "intro:17",
+      "intro:19",
+      "castling:18",
+      "castling:21",
+      "king:11",
+      "king:17",
+      "king:19",
+      "queen-mate:10",
+      "queen-mate:18",
+      "knight:19",
+      "knight:22",
+      "famous-game:21",
+      "safe-squares:14",
+      "safe-squares:18",
+      "promotion-en-passant:17",
+      "pawn-duel:19",
+      "pawn-duel:22",
+      "pawn:22",
+      "pawn:24",
+      "pin:18",
+      "pin:20",
+      "rulesReview:28",
+      "rulesReview:30",
+      "puzzles-mate:11",
+      "puzzles-mate:15",
+      "puzzles-mate:2",
+      "puzzles-mate:7",
+      "puzzles-material:12",
+      "puzzles-material:16",
+      "puzzles-material:3",
+      "puzzles-material:7",
+      "queen:14",
+      "queen:16",
+      "queen-practice:15",
+      "queen-practice:19",
+      "rook-practice:22",
+      "rook-practice:24",
+      "removing-the-defender:15",
+      "removing-the-defender:17",
+      "rook:14",
+      "rook:17",
+      "piece-values:17",
+      "piece-values:19",
+      "setting-up:15",
+      "setting-up:18",
+      "skewer:15",
+      "skewer:18",
+      "tournaments:11",
+      "tournaments:8",
+      "two-rook-mate:13",
+      "two-rook-mate:15",
+      "draws:17",
+      "draws:19",
+      "castling-rules:14",
+      "castling-rules:16",
+      "castling:14",
+      "castling:16"
+    ],
+    "description": "Continuous narrated lessons; original recording provenance and stable segment IDs retained."
+  }
 }

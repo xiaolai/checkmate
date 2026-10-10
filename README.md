@@ -1,8 +1,8 @@
 # Checkmate
 
 Native macOS chess practice and learning, built with AppKit and SwiftUI.
-Offline Stockfish 19, 40 lessons, 83 quizzes, 87 puzzles and 947 Cedar recordings.
-Lesson mini-games include computer opponents. Game review is an opt-in pilot.
+Offline Stockfish 19, 40 lessons, 87 puzzles and 864 Cedar recordings.
+Lesson mini-games include computer opponents. Game review supports finished and unfinished games, PGN files and FEN positions.
 
 ```sh
 brew install --cask xiaolai/tap/checkmate

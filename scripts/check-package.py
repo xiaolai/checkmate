@@ -36,7 +36,9 @@ if not (course['narration']['voice'] == 'cedar' and course['narration']['speed']
 narration = json.loads((resources / course['narration']['manifest']).read_text())
 if not narration['assetSetSHA256'] == course['narration']['assetSetSHA256']:
     raise RuntimeError('Package verification failed')
-if not len(narration['assets']) == 947:
+if course['exercises'] or any('quiz' in beat for lesson in course['lessons'] for beat in lesson['beats']):
+    raise RuntimeError('Embedded lesson quizzes must not be bundled')
+if not len(narration['assets']) == 864:
     raise RuntimeError('Package verification failed')
 assets = {row['file']: row for row in narration['assets']}
 for li, lesson in enumerate(course['voices']):
@@ -99,4 +101,4 @@ if '--release' in sys.argv:
     signature = subprocess.run(['codesign', '-d', '--verbose=4', str(app)], capture_output=True, text=True, check=True).stderr
     if '(runtime)' not in signature or 'Timestamp=' not in signature:
         raise RuntimeError('Release must use hardened runtime and a secure timestamp')
-print(json.dumps({'passed': True, 'iconFormat': 'Icon Composer with legacy fallback', 'architectures': ['arm64', 'x86_64'], 'minimumMacOS': settings['CHECKMATE_MINIMUM_MACOS'], 'lessons': 40, 'audioFiles': 947, 'narrationVoice': 'cedar', 'audioHashesVerified': True, 'puzzles': 87, 'webRuntime': False, 'engineHasSystemDependenciesOnly': True}))
+print(json.dumps({'passed': True, 'iconFormat': 'Icon Composer with legacy fallback', 'architectures': ['arm64', 'x86_64'], 'minimumMacOS': settings['CHECKMATE_MINIMUM_MACOS'], 'lessons': 40, 'audioFiles': 864, 'narrationVoice': 'cedar', 'audioHashesVerified': True, 'puzzles': 87, 'webRuntime': False, 'engineHasSystemDependenciesOnly': True}))

@@ -2,7 +2,6 @@ import Foundation
 import Combine
 @MainActor public protocol NarrationService:AnyObject {func play(file:String,seconds:Double,settings:AppSettings);func pause();func stop();var playbackTime:Double? {get}}
 public extension NarrationService {var playbackTime:Double? {nil}}
-public enum LessonTiming {public static let correctAnswerFeedback:Duration = .milliseconds(600)}
 @MainActor public final class LearningPlayer:ObservableObject {
     public let library:CourseLibrary
     public let session:GameSession
@@ -17,7 +16,6 @@ public enum LessonTiming {public static let correctAnswerFeedback:Duration = .mi
     public var miniStatus:String {if let winner=winner{return miniKind.solo ? "Route complete!":miniGame?.computer==true ? (winner=="w" ? "You win!":"Computer wins. Try again!"):(winner=="w" ? "White wins!":"Black wins!")};if miniKind.solo{return "Next corner: \(MiniGameRules.corners[miniGame?.snapshot.cornerIndex ?? 0])"};return miniGame?.computer==true ? (miniTurn=="w" ? "Your turn · White":"Computer’s turn · Black"):(miniTurn=="w" ? "White to move":"Black to move")}
     public var onIllustration:((String,Bool)->Void)?
     private var lastMotionKey=""
-    private let answerFeedbackDelay:Duration
     @Published public private(set) var lessonIndex=0
     @Published public private(set) var step=0
     @Published public private(set) var seconds=0.0
@@ -33,26 +31,26 @@ public enum LessonTiming {public static let correctAnswerFeedback:Duration = .mi
 @Published public var topic="All topics" {didSet{saveFilters()}}
 @Published public var level="All levels" {didSet{saveFilters()}}
 @Published public var filter="All" {didSet{saveFilters()}}
-    private var timer:Timer?,lastTick:Date?,path:[String]=[],mistake=false,answerTask:Task<Void,Never>?
-    public init(session:GameSession,answerFeedbackDelay:Duration=LessonTiming.correctAnswerFeedback) throws {self.answerFeedbackDelay=answerFeedbackDelay;self.session=session;library=try CourseLibrary();lessonIndex=library.lessons.firstIndex{$0.id==session.state.course.lessonID} ?? 0;step=min(max(0,session.state.course.step),library.lessons[lessonIndex].beats.count-1);if let filters=session.state.puzzleFilters {query=filters["query"] ?? "";topic=filters["topic"] ?? "All topics";level=filters["level"] ?? "All levels";filter=filters["status"] ?? "All"}}
+    private var timer:Timer?,lastTick:Date?,path:[String]=[],mistake=false
+    public init(session:GameSession) throws {self.session=session;library=try CourseLibrary();lessonIndex=library.lessons.firstIndex{$0.id==session.state.course.lessonID} ?? 0;step=library.resumeStep(in:library.lessons[lessonIndex],progress:session.state.course);if let filters=session.state.puzzleFilters {query=filters["query"] ?? "";topic=filters["topic"] ?? "All topics";level=filters["level"] ?? "All levels";filter=filters["status"] ?? "All"}}
     public func reloadFilters(){let filters=session.state.puzzleFilters ?? [:];query=filters["query"] ?? "";topic=filters["topic"] ?? "All topics";level=filters["level"] ?? "All levels";filter=filters["status"] ?? "All"}
     private func saveFilters(){session.state.puzzleFilters=["query":query,"topic":topic,"level":level,"status":filter];session.emit(semantic:false,save:true)}
     public var current:CourseLesson {library.lessons[lessonIndex]}
     public var beat:CourseBeat {current.beats[step]}
-    public var key:String {current.id+":"+String(step)}
-    public var exercise:Exercise? {activePuzzle?.exercise ?? library.exercises[key]}
+    public var key:String {beat.id ?? current.id+":"+String(step)}
+    public var exercise:Exercise? {activePuzzle?.exercise}
     public var duration:Double {library.voices[lessonIndex][step].duration}
     public var winner:String? {mini ? miniGame?.winner:nil}
     public var destinations:[String] {mini && !miniThinking ? picked.first.map{miniGame?.destinations(from:$0) ?? []} ?? []:[]}
     public var filteredPuzzles:[Puzzle] {library.puzzles.filter {p in (topic=="All topics" || topic==p.topic)&&(level=="All levels" || level==p.level)&&(filter=="All" || (filter=="To review" ? session.state.puzzles[p.id]?.review==true:session.state.puzzles[p.id]?.solved != true))&&(query.isEmpty || (p.title+" "+p.exercise.prompt).localizedCaseInsensitiveContains(query))}}
-    public func openLesson(index:Int) {guard library.lessons.indices.contains(index) else{return};pause();activePuzzle=nil;lessonIndex=index;step=current.id==session.state.course.lessonID ? min(max(0,session.state.course.step),current.beats.count-1):0;seek(step:step);onLessonOpened?()}
-    public func seek(step:Int) {NativeLog.course.debug("Seeking authored transcript");guard current.beats.indices.contains(step) else{return};pause();answerTask?.cancel();self.step=step;seconds=0;lastMotionKey="";picked=[];path=[];feedback="";mini=false;passed=session.state.course.answered.contains(key);session.state.course.lessonID=current.id;session.state.course.step=step;rebuild();session.emit(semantic:false,save:true)}
+    public func openLesson(index:Int) {guard library.lessons.indices.contains(index) else{return};pause();activePuzzle=nil;lessonIndex=index;step=current.id==session.state.course.lessonID ? library.resumeStep(in:current,progress:session.state.course):0;seek(step:step);onLessonOpened?()}
+    public func seek(step:Int) {NativeLog.course.debug("Seeking authored transcript");guard current.beats.indices.contains(step) else{return};pause();self.step=step;seconds=0;lastMotionKey="";picked=[];path=[];feedback="";mini=false;passed=false;session.state.course.lessonID=current.id;session.state.course.step=step;session.state.course.segmentID=key;rebuild();session.emit(semantic:false,save:true)}
     public func play() {guard !mini,activePuzzle==nil else{return};if seconds>=duration{seconds=0};playing=true;lastTick=Date();audio?.play(file:library.voices[lessonIndex][step].file,seconds:seconds,settings:session.state.settings);timer?.invalidate();timer=Timer.scheduledTimer(withTimeInterval:0.04,repeats:true){[weak self] _ in Task{@MainActor in guard let self=self,let last=self.lastTick else{return};let now=Date();self.lastTick=now;self.tick(wallDelta:now.timeIntervalSince(last))}};rebuild()}
-    public func pause(){if mini{onMiniReset?()};cancelMiniOpponent();answerTask?.cancel();answerTask=nil;timer?.invalidate();timer=nil;lastTick=nil;playing=false;audio?.pause();if session.mode != .practice{publish()}}
+    public func pause(){if mini{onMiniReset?()};cancelMiniOpponent();timer?.invalidate();timer=nil;lastTick=nil;playing=false;audio?.pause();if session.mode != .practice{publish()}}
     public func replay(){pause();seconds=0;play()}
     public func tick(wallDelta:Double){if let time=audio?.playbackTime,session.state.settings.narration{advance(by:max(0,time-seconds))}else{advance(by:wallDelta)}}
-    public func advance(by delta:Double) {guard playing else{return};seconds=min(duration,seconds+max(0,delta));rebuild();if seconds>=duration {pause();if exercise==nil || passed {if step<current.beats.count-1 {if session.state.settings.autoAdvance {seek(step:step+1);play()}}else{complete(continuePlayback:session.state.settings.autoAdvance)}};publish()}}
-    public func next(){guard !mini else{return};if activePuzzle != nil {let filtered=filteredPuzzles;if let id=activePuzzle?.id,let i=filtered.firstIndex(where:{$0.id==id}),!filtered.isEmpty {openPuzzle(id:filtered[(i+1)%filtered.count].id)};return};guard exercise==nil || passed else{return};if step<current.beats.count-1{seek(step:step+1)}else{complete()}}
+    public func advance(by delta:Double) {guard playing else{return};seconds=min(duration,seconds+max(0,delta));rebuild();if seconds>=duration {pause();if step<current.beats.count-1 {if session.state.settings.autoAdvance {seek(step:step+1);play()}}else{complete(continuePlayback:session.state.settings.autoAdvance)};publish()}}
+    public func next(){guard !mini else{return};if activePuzzle != nil {let filtered=filteredPuzzles;if let id=activePuzzle?.id,let i=filtered.firstIndex(where:{$0.id==id}),!filtered.isEmpty {openPuzzle(id:filtered[(i+1)%filtered.count].id)};return};if step<current.beats.count-1{seek(step:step+1)}else{complete()}}
     public func complete(continuePlayback:Bool=false){
         pause()
         if !session.state.course.completed.contains(current.id){session.state.course.completed.append(current.id)}
@@ -65,21 +63,15 @@ public enum LessonTiming {public static let correctAnswerFeedback:Duration = .mi
             play()
         }
     }
-    public func openPuzzle(id:String) {guard let puzzle=library.puzzles.first(where:{$0.id==id}) else{return};pause();answerTask?.cancel();activePuzzle=puzzle;mini=false;picked=[];path=[];feedback="";passed=false;mistake=false;frame=CourseFrame(board:puzzle.board,hl:puzzle.highlights);publish()}
+    public func openPuzzle(id:String) {guard let puzzle=library.puzzles.first(where:{$0.id==id}) else{return};pause();activePuzzle=puzzle;mini=false;picked=[];path=[];feedback="";passed=false;mistake=false;frame=CourseFrame(board:puzzle.board,hl:puzzle.highlights);publish()}
     public func showPuzzleLibrary(){pause();activePuzzle=nil;frame=CourseFrame();session.setLesson(LessonProjection(mode:"quick_puzzle",pieces:nil,title:"Quick puzzles",lessonId:"puzzle-library",step:0,prompt:nil,choices:nil,playing:false,narrationActive:false,moving:false,turn:nil,winner:nil,rules:nil))}
     public func checkAnswer(){guard let e=exercise else{return};answer(e.matches(picked))}
-    public func choose(_ choice:String){guard !passed else{return};pause();answer(exercise?.matches([choice])==true)}
+    public func choose(_ choice:String){guard activePuzzle != nil,!passed else{return};pause();answer(exercise?.matches([choice])==true)}
     public func clearSelection(){picked=[];publish()}
-    public func noSquares(){guard !passed else{return};picked=[];pause();answer(exercise?.matches([])==true)}
-    public func restartPath(){guard !passed else{return};path=[];picked=[];feedback="";if let p=activePuzzle {frame.board=p.board}else{rebuild()};publish()}
+    public func noSquares(){guard activePuzzle != nil,!passed else{return};picked=[];pause();answer(exercise?.matches([])==true)}
+    public func restartPath(){guard activePuzzle != nil,!passed else{return};path=[];picked=[];feedback="";if let p=activePuzzle {frame.board=p.board}else{rebuild()};publish()}
     public func click(_ sq:String){guard ChessRules.validSquare(sq) else{return}
-        // A restored completion unlocks playback, but the narrated click prompt
-        // must still respond when a learner revisits this question.
-        if !mini,passed {
-            guard answerTask==nil,activePuzzle==nil,let e=exercise,e.kind=="squares",e.answers?.count==1,e.matches([sq]) else{return}
-            pause();picked=[sq];feedback="Correct. Well done.";publish();continueAfterAnswer();return
-        }
-        if mini {clickMini(sq);return};pause()
+        if mini {clickMini(sq);return};guard activePuzzle != nil else{return};pause()
         guard let e=exercise,!passed else{return}
         switch e.kind {case "squares":
             if e.answers?.count==1 {picked=[sq];answer(e.matches(picked))}
@@ -88,22 +80,10 @@ public enum LessonTiming {public static let correctAnswerFeedback:Duration = .mi
         case "path":if var board=frame.board,let from=board.first(where:{$0.value=="wk"})?.key {if from==sq{return};if CourseLibrary.safeKingStep(board,from:from,to:sq){try? CourseLibrary.apply(&board,moves:[[from,sq]]);frame.board=board;path.append(sq);if sq==e.to{answer(true)}else{feedback="Safe step. Keep going!"}}else{feedback="That square is not a safe neighboring square. Try another step.";if activePuzzle != nil{answer(false)}}}
         default:break};publish()
     }
-    private func answer(_ correct:Bool,revealed:Bool=false){guard exercise != nil,!passed else{return};pause()
-        if let p=activePuzzle {var record=session.state.puzzles[p.id] ?? PuzzleProgress();record.record(correct:correct,revealed:revealed || mistake);session.state.puzzles[p.id]=record;if !correct{mistake=true};passed=correct || revealed;feedback=passed ? (revealed ? solution(p.exercise)+" ":"Correct. ")+p.explanation:"Not quite. Look again and try another answer.";session.emit(semantic:false,save:true)}
-        else {passed=correct;feedback=correct ? "Correct. Well done.":"Take another look. You can try again.";if correct,!session.state.course.answered.contains(key){session.state.course.answered.append(key);session.emit(semantic:false,save:true)}}
-        publish()
-        if correct,activePuzzle==nil {continueAfterAnswer()}
+    private func answer(_ correct:Bool,revealed:Bool=false){guard let p=activePuzzle,!passed else{return};pause()
+        var record=session.state.puzzles[p.id] ?? PuzzleProgress();record.record(correct:correct,revealed:revealed || mistake);session.state.puzzles[p.id]=record;if !correct{mistake=true};passed=correct || revealed;feedback=passed ? (revealed ? solution(p.exercise)+" ":"Correct. ")+p.explanation:"Not quite. Look again and try another answer.";session.emit(semantic:false,save:true);publish()
     }
-    private func continueAfterAnswer(){
-        let answeredKey=key,delay=answerFeedbackDelay
-        answerTask=Task{[weak self] in
-            do{try await Task.sleep(for:delay)}catch{return}
-            guard let self=self,!Task.isCancelled,self.key==answeredKey,self.passed,self.activePuzzle==nil,!self.mini,self.session.mode == .lesson else{return}
-            self.answerTask=nil
-            if self.step<self.current.beats.count-1 {self.seek(step:self.step+1);self.play()}else{self.complete(continuePlayback:self.session.state.settings.autoAdvance)}
-        }
-    }
-    public func reveal(){if let p=activePuzzle{feedback=solution(p.exercise);answer(false,revealed:true)}else{pause();feedback="Let’s look at the explanation together.";if step<current.beats.count-1{seek(step:step+1)}else{complete()}}}
+    public func reveal(){guard activePuzzle != nil else{return};answer(false,revealed:true)}
     private func solution(_ e:Exercise)->String {switch e.kind {case "choice":return e.answer ?? "";case "squares":return (e.answers ?? []).isEmpty ? "No squares":(e.answers ?? []).joined(separator:", ");case "move":return "\(e.from ?? "") → \(e.to ?? "")";default:return "Walk safely from \(e.from ?? "") to \(e.to ?? "")."}}
     public func startPawnDuel(computer:Bool=true){startMini(.pawnDuel,restart:true,computer:computer)}
     public func startMini(_ kind:MiniGameKind,restart:Bool=false,computer:Bool=true){
@@ -152,6 +132,6 @@ public enum LessonTiming {public static let correctAnswerFeedback:Duration = .mi
     }
     public func settingsChanged(){if mini,session.mode == .lesson{cancelMiniOpponent();scheduleMiniOpponent();return};guard session.mode == .lesson,activePuzzle==nil,!mini else{return};if playing{audio?.play(file:library.voices[lessonIndex][step].file,seconds:seconds,settings:session.state.settings)};rebuild()}
     private func rebuild(){do{frame=try library.frame(lesson:lessonIndex,step:step,seconds:seconds,duration:Double(session.state.settings.pieceDuration)/1000)}catch{feedback="The lesson illustration could not load."};if playing,let motion=frame.motion,let piece=frame.board?[motion.from]{let key=current.id+":"+String(step)+":"+motion.from+motion.to;if key != lastMotionKey{lastMotionKey=key;onIllustration?(String(piece.suffix(1)),frame.board?[motion.to] != nil)}};publish()}
-    private func publish(){let e=mini ? nil:exercise;session.setLesson(LessonProjection(mode:mini ? (miniKind == .pawnDuel ? "pawn_duel":"mini_game"):activePuzzle != nil ? "quick_puzzle":e != nil ? "quiz":"lesson",pieces:frame.board,title:mini ? miniKind.title:activePuzzle?.title ?? current.title,lessonId:activePuzzle?.id ?? current.id,step:activePuzzle != nil ? 0:step,prompt:e?.prompt,choices:e?.kind=="choice" ? e?.choices:nil,playing:playing,narrationActive:playing && session.state.settings.narration && seconds<library.voices[lessonIndex][step].seconds && !NativePolicy.silent,moving:frame.motion != nil,turn:mini ? miniTurn:nil,winner:winner,rules:mini && miniKind != .pawnDuel ? [miniKind.rules]:mini ? ["Reach the far rank with a pawn, capture every opposing pawn, or leave the opponent without a move.","Pawns move forward and capture diagonally. A pawn on its starting rank may advance two empty squares.","No en passant. Pawns stay pawns at the far rank."]:nil))}
-    public func shutdown(){pause();answerTask?.cancel();audio?.stop()}
+    private func publish(){let e=mini ? nil:exercise;session.setLesson(LessonProjection(mode:mini ? (miniKind == .pawnDuel ? "pawn_duel":"mini_game"):activePuzzle != nil ? "quick_puzzle":"lesson",pieces:frame.board,title:mini ? miniKind.title:activePuzzle?.title ?? current.title,lessonId:activePuzzle?.id ?? current.id,step:activePuzzle != nil ? 0:step,prompt:e?.prompt,choices:e?.kind=="choice" ? e?.choices:nil,playing:playing,narrationActive:playing && session.state.settings.narration && seconds<library.voices[lessonIndex][step].seconds && !NativePolicy.silent,moving:frame.motion != nil,turn:mini ? miniTurn:nil,winner:winner,rules:mini && miniKind != .pawnDuel ? [miniKind.rules]:mini ? ["Reach the far rank with a pawn, capture every opposing pawn, or leave the opponent without a move.","Pawns move forward and capture diagonally. A pawn on its starting rank may advance two empty squares.","No en passant. Pawns stay pawns at the far rank."]:nil))}
+    public func shutdown(){pause();audio?.stop()}
 }

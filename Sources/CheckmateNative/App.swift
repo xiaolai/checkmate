@@ -401,10 +401,15 @@ import CheckmateCore
             if abs(game.main.view.frame.width-lessonBoardWidth)>1{failures.append("Lesson details changed board width")}
             game.toggleRight();try? await Task.sleep(for:.milliseconds(850));model.learning.seek(step:1);try? await Task.sleep(for:.milliseconds(100))
             if game.desiredRight{failures.append("Transcript navigation reopened manually closed lesson details")}
-            model.lesson(0);model.learning.seek(step:0);try? await Task.sleep(for:.milliseconds(850));try? await game.capture(directory+"/lesson-welcome.png");model.learning.seek(step:17);game.showDetails();try? await Task.sleep(nanoseconds:850_000_000);try? await game.capture(directory+"/quiz.png")
+            model.lesson(0);model.learning.seek(step:0);try? await Task.sleep(for:.milliseconds(850));try? await game.capture(directory+"/lesson-welcome.png")
+            let explanation=model.learning.current.beats.firstIndex{$0.id=="intro:18"}!
+            model.learning.seek(step:explanation);model.learning.play();game.showDetails();try? await Task.sleep(for:.milliseconds(850));try? await game.capture(directory+"/lesson-explanation.png")
             let kingRect=game.board.squareRect("e1"),kingPoint=game.board.convert(NSPoint(x:kingRect.midX,y:kingRect.midY),to:nil)
             for type in [NSEvent.EventType.leftMouseDown,.leftMouseUp]{if let event=NSEvent.mouseEvent(with:type,location:kingPoint,modifierFlags:[],timestamp:ProcessInfo.processInfo.systemUptime,windowNumber:game.window!.windowNumber,context:nil,eventNumber:0,clickCount:1,pressure:type == .leftMouseDown ? 1:0){NSApp.sendEvent(event)};try? await Task.sleep(for:.milliseconds(80))}
-            if !model.learning.passed{failures.append("White king mouse click did not answer the quiz")};try? await Task.sleep(for:.milliseconds(750));if model.learning.step != 18 || !model.learning.playing {failures.append("Correct quiz did not continue playback")};try? await game.capture(directory+"/quiz-continued.png")
+            if !model.learning.playing || !model.learning.picked.isEmpty{failures.append("Lesson board click interrupted narration or created an answer")}
+            model.learning.advance(by:model.learning.duration)
+            if model.learning.key != "intro:20" || !model.learning.playing{failures.append("Lesson did not continue past retired questions")}
+            try? await game.capture(directory+"/lesson-continued.png")
             model.puzzles();try? await Task.sleep(nanoseconds:200_000_000);try? await game.capture(directory+"/puzzles.png");model.learning.openPuzzle(id:"rook");model.learning.click("d2");model.learning.click("d5");if !model.learning.passed{failures.append("Puzzle capture failed")}
             model.practice();try? model.session.demonstrate(title:"Central pawns",introduction:"Imagine making room for your pieces.",lines:[DemoLineInput(label:"Opening",moves:[DemoStepInput(uci:"e2e4"),DemoStepInput(uci:"e7e5")])]);try? model.session.seekDemo(line:0,ply:2);try? await Task.sleep(nanoseconds:200_000_000);try? await game.capture(directory+"/demonstration.png");model.session.closePresentation();game.showSettings();try? await Task.sleep(nanoseconds:200_000_000);try? await GameWindow.captureWindow(game.settings?.window,path:directory+"/settings-board.png")
             game.settings?.selectCategory("Voice Coach");try? await Task.sleep(nanoseconds:200_000_000);try? await GameWindow.captureWindow(game.settings?.window,path:directory+"/settings-voice.png")

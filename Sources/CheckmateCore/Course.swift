@@ -10,9 +10,9 @@ public struct CourseFrame:Codable,Equatable {
 public struct ReferenceFrame:Codable {public let start:CourseFrame,end:CourseFrame}
 public struct CourseVoice:Codable {public let file:String,seconds:Double,duration:Double}
 public struct CourseBeat:Decodable {
-    public let say:String,speak:String?,set:Position?,hasSet:Bool,moves:[[String]],remove:[String],arrows:[[String]]?,hl:[Highlight]?,count:[String],big:String?,miniGame:Bool,pause:Double?,hasQuiz:Bool
-    enum CodingKeys:String,CodingKey {case say,speak,set,moves,remove,arrows,hl,count,big,miniGame,pause,quiz}
-    public init(from d:Decoder) throws {let c=try d.container(keyedBy:CodingKeys.self);say=try c.decode(String.self,forKey:.say);speak=try c.decodeIfPresent(String.self,forKey:.speak);hasSet=c.contains(.set);set=try c.decodeIfPresent(Position.self,forKey:.set);moves=try c.decodeIfPresent([[String]].self,forKey:.moves) ?? [];remove=try c.decodeIfPresent([String].self,forKey:.remove) ?? [];arrows=try c.decodeIfPresent([[String]].self,forKey:.arrows);hl=try c.decodeIfPresent([Highlight].self,forKey:.hl);count=try c.decodeIfPresent([String].self,forKey:.count) ?? [];big=try c.decodeIfPresent(String.self,forKey:.big);miniGame=try c.decodeIfPresent(Bool.self,forKey:.miniGame) ?? false;pause=try c.decodeIfPresent(Double.self,forKey:.pause);hasQuiz=c.contains(.quiz)}
+    public let id:String?,say:String,speak:String?,set:Position?,hasSet:Bool,moves:[[String]],remove:[String],arrows:[[String]]?,hl:[Highlight]?,count:[String],big:String?,miniGame:Bool,pause:Double?
+    enum CodingKeys:String,CodingKey {case id,say,speak,set,moves,remove,arrows,hl,count,big,miniGame,pause}
+    public init(from d:Decoder) throws {let c=try d.container(keyedBy:CodingKeys.self);id=try c.decodeIfPresent(String.self,forKey:.id);say=try c.decode(String.self,forKey:.say);speak=try c.decodeIfPresent(String.self,forKey:.speak);hasSet=c.contains(.set);set=try c.decodeIfPresent(Position.self,forKey:.set);moves=try c.decodeIfPresent([[String]].self,forKey:.moves) ?? [];remove=try c.decodeIfPresent([String].self,forKey:.remove) ?? [];arrows=try c.decodeIfPresent([[String]].self,forKey:.arrows);hl=try c.decodeIfPresent([Highlight].self,forKey:.hl);count=try c.decodeIfPresent([String].self,forKey:.count) ?? [];big=try c.decodeIfPresent(String.self,forKey:.big);miniGame=try c.decodeIfPresent(Bool.self,forKey:.miniGame) ?? false;pause=try c.decodeIfPresent(Double.self,forKey:.pause)}
 }
 public struct CourseLesson:Decodable {public let id:String,title:String,teaches:[String]?,mascot:String?,beats:[CourseBeat]}
 public struct Exercise:Codable {
@@ -29,9 +29,18 @@ public struct CourseTiming:Codable,Equatable {
 public struct CourseLibrary:Decodable {
     public let schemaVersion:Int,lessons:[CourseLesson],voices:[[CourseVoice]],exercises:[String:Exercise],puzzles:[Puzzle],stepTitles:[[String]],referenceFrames:[[ReferenceFrame]],sounds:[String:[Tone]]
     public let timing:CourseTiming?
+    public let retiredExerciseIDs:[String]?
     public var lessonTiming:CourseTiming {timing ?? .standard}
-    enum CodingKeys:String,CodingKey {case schemaVersion,lessons,voices,exercises,puzzles,stepTitles,sounds,timing;case referenceFrames="frames"}
+    enum CodingKeys:String,CodingKey {case schemaVersion,lessons,voices,exercises,puzzles,stepTitles,sounds,timing,retiredExerciseIDs;case referenceFrames="frames"}
     public init() throws {self=try JSONDecoder().decode(Self.self,from:Data(contentsOf:NativeResources.url("course.json")))}
+    /// Older saves used the original transcript index. Stable recording IDs let
+    /// them resume at the same explanation, or after a retired question.
+    public func resumeStep(in lesson:CourseLesson,progress:CourseProgress)->Int {
+        if let id=progress.segmentID,let step=lesson.beats.firstIndex(where:{$0.id==id}){return step}
+        let original=progress.segmentID.flatMap{Int($0.split(separator:":").last ?? "")} ?? max(0,progress.step)
+        return lesson.beats.firstIndex{(Int($0.id?.split(separator:":").last ?? "") ?? 0)>=original} ?? lesson.beats.count-1
+    }
+    public func knownAnswerID(_ id:String)->Bool {exercises[id] != nil || retiredExerciseIDs?.contains(id)==true}
     public func frame(lesson:Int,step:Int,seconds:Double,duration:Double=CourseTiming.standard.pieceDuration) throws -> CourseFrame {
         guard lessons.indices.contains(lesson),lessons[lesson].beats.indices.contains(step) else{throw CheckmateError.invalid("Invalid lesson step.")}
         var state=CourseFrame()
