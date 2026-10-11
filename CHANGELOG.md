@@ -1,3 +1,36 @@
+# Checkmate 0.4.0
+
+Lessons in your language. Settings → Lessons can translate a lesson and
+record its narration through your Codex sign-in, then play it offline;
+a lesson plays in English until all its recordings are complete.
+Translation and recording run only when you choose them, can be
+cancelled or resumed, and Settings → Usage reports what each one used.
+The voice coach's reasoning effort is now a setting, and it uses the
+newest compatible voice model your account offers.
+
+The course was reworked so every spoken instruction matches the board
+or activity it describes. Lessons with a practice position offer "Try it
+against the computer", Continue opens the next lesson from its start,
+and mini-games explain their draw rules. Settings has an About pane with
+the version, content counts, privacy notes and license.
+
+Reliability: a draft review asks before its imagined lines are lost, a
+failed review save is kept and retried, and quitting warns about reviews
+that could not be saved. Imports validate and back up before replacing
+anything, and progress written by a newer version keeps the fields this
+version does not know. Practice, lessons, puzzles and reviews now switch
+through one path, so leaving a review always returns to the right place.
+The board stays square on any screen and drawer width. Connections from
+Codex retry safely, and disconnecting cancels work in progress.
+
+Automated acceptance covered every gate on build-host, including real pointer
+clicks. Live voice, translation and recording were checked silently
+during development; human review, novice play and live microphone checks
+are still outstanding, and the experimental review quality labels, review
+voice and beginner opponent remain opt-in.
+
+Requires macOS 14+ with universal Apple Silicon and Intel binaries.
+
 # Checkmate 0.3.6
 
 Clicks now do what they show. Buttons, toggles and disclosures in the game
