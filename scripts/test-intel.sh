@@ -26,6 +26,6 @@ def executed(suite):
     counts=re.findall(r"Executed (\d+) tests, with (?:\d+ tests skipped and )?0 failures",(p/f"{suite}.log").read_text())
     assert counts,f"{suite} did not report a passing run";return int(counts[-1])
 ui=json.loads((p/'ui'/'ui-results.json').read_text());mcp=json.loads((p/'mcp'/'broker-results.json').read_text())
-result={'passed':ui['passed'] is True and mcp['passed'] is True,'coreTests':executed('CheckmateCoreTests'),'mcpTests':executed('CheckmateMCPTests'),'ui':ui['passed'] is True,'mcp':mcp['passed'] is True}
+result={'passed':ui['passed'] is True and mcp['passed'] is True,'domainTests':executed('CheckmateDomainTests'),'coreTests':executed('CheckmateCoreTests'),'nativeTests':executed('CheckmateNativeTests'),'mcpTests':executed('CheckmateMCPTests'),'ui':ui['passed'] is True,'mcp':mcp['passed'] is True}
 (p/'intel-results.json').write_text(json.dumps(result,indent=2));print(json.dumps(result));assert result['passed'],result
 PY

@@ -13,7 +13,7 @@ TMPDIR="$swiftpm_tmp" swift build --build-tests > "$evidence/swift-build-tests.l
 bin=$(TMPDIR="$swiftpm_tmp" swift build --show-bin-path)
 runner=$(xcrun --find xctest)
 : > "$evidence/swift-tests.log"
-for suite in CheckmateCoreTests CheckmateMCPTests; do
+for suite in CheckmateDomainTests CheckmateCoreTests CheckmateNativeTests CheckmateMCPTests; do
   CHECKMATE_LEGACY_EXPORT="$evidence/legacy-export.json" CHECKMATE_AUTOMATION=1 "$runner" "$bin/$suite.xctest" >> "$evidence/swift-tests.log" 2>&1
 done
 python3 -I Tools/test-lesson-action-alignment.py
