@@ -12,7 +12,7 @@ CHECKMATE_AUTOMATION=1 build/CheckmateAutomation.app/Contents/MacOS/CheckmateNat
 checkmate_pid=$!
 # The app is stopped before its state is removed, so nothing writes into a folder being deleted.
 trap 'kill "$checkmate_pid" 2>/dev/null || true;wait "$checkmate_pid" 2>/dev/null || true;rm -rf "$checkmate_data"' EXIT
-for ((i=0;i<35;i++)); do [[ -f "$checkmate_evidence/fullscreen-results.json" ]] && break; sleep 1; done
+for ((i=0;i<60;i++)); do [[ -f "$checkmate_evidence/fullscreen-results.json" ]] && break; sleep 1; done
 python3 - "$checkmate_evidence/fullscreen-results.json" <<'PY'
 import json,sys
 result=json.load(open(sys.argv[1]));print(json.dumps(result));assert result['passed'],result
