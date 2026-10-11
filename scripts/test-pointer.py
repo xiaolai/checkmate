@@ -98,8 +98,23 @@ try:
     pointer("click", "In this lesson")
     wait(lambda: pointer("value", "In this lesson") != before, "The lesson disclosure did not respond to a click")
 
+    # About opens from the app menu as a Settings pane, and its links receive clicks.
+    # Automation records each open request instead of launching a browser or Finder.
+    opened = state / "opened-urls.txt"
+    requested = lambda text: opened.exists() and text in opened.read_text()
+    pointer("menu", "Checkmate", "About Checkmate")
+    wait(lambda: "Copyright © 2026" in listing(), "About Checkmate did not open the About pane")
+    pointer("click", "License")
+    wait(lambda: requested("Checkmate-COPYING.txt"), "The License link did not respond to a click")
+    pointer("click", "Show in Finder")
+    wait(lambda: requested(state.resolve().as_uri()) or requested(state.as_uri()), "Show in Finder did not respond to a click")
+    pointer("click", "Sound")
+    wait(lambda: "Piece and move sounds" in listing(), "The Sound settings row did not respond to a click")
+    pointer("click", "About")
+    wait(lambda: "Copyright © 2026" in listing(), "The About settings row did not respond to a click")
+
     result = {"passed": True, "clickWithDrift": True, "clickedMove": True, "draggedMove": True, "illegalDropSnapsBack": True,
-              "drawerToggles": True, "drawerMenu": True, "lessonDisclosure": True, "silent": True}
+              "drawerToggles": True, "drawerMenu": True, "lessonDisclosure": True, "aboutPane": True, "silent": True}
     (evidence / "pointer-results.json").write_text(json.dumps(result, indent=2))
     print(json.dumps(result))
 except Exception:
