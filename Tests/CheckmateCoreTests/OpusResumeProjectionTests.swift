@@ -1,10 +1,19 @@
+import CheckmateTestSupport
 import XCTest
-@testable import CheckmateCore
+import CheckmateCore
+@testable import CheckmateDomain
+@testable import CheckmateSupport
+@testable import CheckmateRules
+@testable import CheckmateEngine
+@testable import CheckmateContent
+@testable import CheckmateApplication
+@testable import CheckmateMacPlatform
+
 
 /// M9 resume-gate projection: the failed-entry hold blocks `reply()`/`commitBlack()`, so `get_session` must
 /// report it as `controller.paused=true` with a readable `pauseReason` (priority over other reasons) until an
 /// explicit Return to game or a deliberate replacement. Existing reasons and controller fields are unchanged.
-@MainActor private final class HeldEngine:EngineService {
+@MainActor private final class HeldEngine:TestEngineService {
     var continuations:[CheckedContinuation<EngineAnalysis,Error>]=[]
     var skills:[Int]=[]
     func analyze(fen:String,skill:Int,budget:Int,multiPv:Int)async throws -> EngineAnalysis {skills.append(skill);return try await withCheckedThrowingContinuation{continuations.append($0)}}

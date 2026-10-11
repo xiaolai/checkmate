@@ -1,5 +1,13 @@
 import XCTest
-@testable import CheckmateCore
+import CheckmateCore
+@testable import CheckmateDomain
+@testable import CheckmateSupport
+@testable import CheckmateRules
+@testable import CheckmateEngine
+@testable import CheckmateContent
+@testable import CheckmateApplication
+@testable import CheckmateMacPlatform
+
 @MainActor final class EngineGoldenTests:XCTestCase {
     func testHeldOutStrongEvidence()async throws {
         guard let corpus=ProcessInfo.processInfo.environment["CHECKMATE_REVIEW_CORPUS"],let destination=ProcessInfo.processInfo.environment["CHECKMATE_ENGINE_GOLD"] else{throw XCTSkip("Explicit build-host strong held-out evidence generation gate.")}

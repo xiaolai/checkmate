@@ -1,11 +1,20 @@
+import CheckmateTestSupport
 import XCTest
-@testable import CheckmateCore
+import CheckmateCore
+@testable import CheckmateDomain
+@testable import CheckmateSupport
+@testable import CheckmateRules
+@testable import CheckmateEngine
+@testable import CheckmateContent
+@testable import CheckmateApplication
+@testable import CheckmateMacPlatform
+
 
 /// Audit round findings for the companion and voice coach: a BUSY refusal is retryable with the same requestId (#10),
 /// and a microphone start queued before disconnect never opens capture afterwards (#11).
 @MainActor final class VoiceCompanionRetryTests:XCTestCase {
     /// An engine whose first search waits until the test releases it.
-    @MainActor final class HeldEngine:EngineService {
+    @MainActor final class HeldEngine:TestEngineService {
         var hold=false,waiting:CheckedContinuation<Void,Never>?
         func analyze(fen:String,skill:Int,budget:Int,multiPv:Int)async throws -> EngineAnalysis {if hold{hold=false;await withCheckedContinuation{waiting=$0}};return EngineAnalysis(bestMove:try ChessRules(fen:fen).moves().first?.uci)}
         func release(){waiting?.resume();waiting=nil}

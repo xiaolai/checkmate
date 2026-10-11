@@ -1,5 +1,13 @@
 import XCTest
-@testable import CheckmateCore
+import CheckmateCore
+@testable import CheckmateDomain
+@testable import CheckmateSupport
+@testable import CheckmateRules
+@testable import CheckmateEngine
+@testable import CheckmateContent
+@testable import CheckmateApplication
+@testable import CheckmateMacPlatform
+
 final class VoiceTests:XCTestCase {
     func testGenerationDoesNotEndPlayback(){var gate=VoiceTurnGate();gate.begin();XCTAssertFalse(gate.ready);gate.generated(hasAudio:true);XCTAssertFalse(gate.ready);gate.playbackEnded();XCTAssertTrue(gate.ready);gate.begin();gate.playbackEnded();XCTAssertFalse(gate.ready);gate.generated(hasAudio:true);XCTAssertTrue(gate.ready)}
     func testCredentialParsingAndRejections()throws {XCTAssertEqual(try VoiceGateway.accessToken(Data(#"{"tokens":{"access_token":"sample"}}"#.utf8)),"sample");XCTAssertThrowsError(try VoiceGateway.accessToken(Data(#"{"api_key":"no"}"#.utf8)));XCTAssertThrowsError(try VoiceGateway.clientSecret(Data(#"{"value":""}"#.utf8)));XCTAssertEqual(try VoiceGateway.clientSecret(Data(#"{"value":"ephemeral"}"#.utf8)),"ephemeral")}

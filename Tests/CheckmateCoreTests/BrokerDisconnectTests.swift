@@ -1,6 +1,14 @@
 import XCTest
 import Network
-@testable import CheckmateCore
+import CheckmateCore
+@testable import CheckmateDomain
+@testable import CheckmateSupport
+@testable import CheckmateRules
+@testable import CheckmateEngine
+@testable import CheckmateContent
+@testable import CheckmateApplication
+@testable import CheckmateMacPlatform
+
 @MainActor final class BrokerDisconnectTests:XCTestCase {
     private func fixture(timeout:Double=25)async throws -> (GameSession,CompanionBroker,[String:Any],String) {
         let s=try GameSession(engine:nil),dir=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString),b=try CompanionBroker(session:s,directory:dir,requestTimeout:timeout)

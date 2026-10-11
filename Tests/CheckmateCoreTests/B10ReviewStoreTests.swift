@@ -1,5 +1,13 @@
 import XCTest
-@testable import CheckmateCore
+import CheckmateCore
+@testable import CheckmateDomain
+@testable import CheckmateSupport
+@testable import CheckmateRules
+@testable import CheckmateEngine
+@testable import CheckmateContent
+@testable import CheckmateApplication
+@testable import CheckmateMacPlatform
+
 
 /// B10 review findings RV2-6, RV2-8 and RV2-9: saved reviews survive a changed reader, the same game reopens its
 /// record, and imported comment text reaches an agent bounded and labeled as data.

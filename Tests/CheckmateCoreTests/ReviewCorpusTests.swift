@@ -1,5 +1,13 @@
 import XCTest
-@testable import CheckmateCore
+import CheckmateCore
+@testable import CheckmateDomain
+@testable import CheckmateSupport
+@testable import CheckmateRules
+@testable import CheckmateEngine
+@testable import CheckmateContent
+@testable import CheckmateApplication
+@testable import CheckmateMacPlatform
+
 final class ReviewCorpusTests:XCTestCase {
     func testAllManifestTargets()throws {
         let root=ProcessInfo.processInfo.environment["CHECKMATE_REVIEW_CORPUS"].map{URL(fileURLWithPath:$0)} ?? URL(fileURLWithPath:#filePath).deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("Fixtures/GameReview");var count=0,heldOut=0;var parentSplits:[String:String]=[:]

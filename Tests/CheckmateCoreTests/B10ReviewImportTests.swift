@@ -1,5 +1,13 @@
 import XCTest
-@testable import CheckmateCore
+import CheckmateCore
+@testable import CheckmateDomain
+@testable import CheckmateSupport
+@testable import CheckmateRules
+@testable import CheckmateEngine
+@testable import CheckmateContent
+@testable import CheckmateApplication
+@testable import CheckmateMacPlatform
+
 
 /// B10 review findings RV2-4, RV2-6, RV2-7 and RV2-2a: import limits that cost little, games that read back from their
 /// own text, exports that re-import as written, and a re-parse skipped only for what the importer itself built.

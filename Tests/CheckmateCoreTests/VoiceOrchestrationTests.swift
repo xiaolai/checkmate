@@ -1,5 +1,13 @@
 import XCTest
-@testable import CheckmateCore
+import CheckmateCore
+@testable import CheckmateDomain
+@testable import CheckmateSupport
+@testable import CheckmateRules
+@testable import CheckmateEngine
+@testable import CheckmateContent
+@testable import CheckmateApplication
+@testable import CheckmateMacPlatform
+
 final class VoiceOrchestrationTests:XCTestCase {
     @MainActor func testQuietAndOnRequestNeverSpeakWithoutUserInput()throws {for mode in ["quiet","on_request"]{let s=try GameSession(engine:nil);s.state.settings.coachingMode=mode;let v=try VoiceCoach(session:s);var events:[[String:Any]]=[];v.automationOutbound={events.append($0)};_ = try s.openVoice();v.receive(["type":"session.updated"]);XCTAssertFalse(events.contains{$0["type"] as? String=="response.create"});let start=Date();v.receive(["type":"input_audio_buffer.committed"]);XCTAssertLessThan(Date().timeIntervalSince(start),0.1);XCTAssertEqual(events.filter{$0["type"] as? String=="response.create"}.count,1);v.disconnect();XCTAssertFalse(s.voiceHold);XCTAssertNil(s.voiceLease)}}
     @MainActor func testGuidedBlackMoveTriggersOneFreshExplanation()async throws {let s=try GameSession(engine:nil);s.state.settings.coachingMode="guided";let v=try VoiceCoach(session:s);var events:[[String:Any]]=[];v.automationOutbound={events.append($0)};_ = try s.openVoice();v.receive(["type":"session.updated"]);XCTAssertEqual(events.filter{$0["type"] as? String=="response.create"}.count,1);v.receive(["type":"response.done","response":["status":"completed"]]);try s.playWhite(from:"e2",to:"e4");try await Task.sleep(nanoseconds:20_000_000);v.receive(["type":"response.done","response":["status":"completed"]]);_ = try s.commitBlack("e7e5");try await Task.sleep(nanoseconds:20_000_000);let count=events.filter{$0["type"] as? String=="response.create"}.count;XCTAssertEqual(count,3);s.emit(semantic:false);try await Task.sleep(nanoseconds:20_000_000);XCTAssertEqual(events.filter{$0["type"] as? String=="response.create"}.count,count);v.disconnect()}

@@ -1,5 +1,14 @@
+import CheckmateTestSupport
 import XCTest
-@testable import CheckmateCore
+import CheckmateCore
+@testable import CheckmateDomain
+@testable import CheckmateSupport
+@testable import CheckmateRules
+@testable import CheckmateEngine
+@testable import CheckmateContent
+@testable import CheckmateApplication
+@testable import CheckmateMacPlatform
+
 @MainActor final class LearningLocalizationPlaybackTests:XCTestCase {
  func testPackSelectionNeverChangesPracticeOrMiniGame()async throws {let dir=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);defer{try? FileManager.default.removeItem(at:dir)};let session=try GameSession(engine:nil),player=try LearningPlayer(session:session),store=try LessonPackStore(directory:dir);let mode=session.mode,fen=session.rules.fen;player.packs=store;XCTAssertEqual(session.mode,mode);XCTAssertEqual(session.rules.fen,fen);session.state.settings.lessonLanguage="fr";player.settingsChanged();try await Task.sleep(for:.milliseconds(100));XCTAssertEqual(session.mode,mode);XCTAssertEqual(session.rules.fen,fen);player.startMini(.pawnDuel);let mini=player.miniGame;player.reloadLocalizedPacks();try await Task.sleep(for:.milliseconds(100));XCTAssertEqual(player.miniGame,mini);XCTAssertTrue(player.mini);player.shutdown()}
  func testShortAndLongClipsKeepAllAuthoredActions()async throws {

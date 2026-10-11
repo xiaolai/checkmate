@@ -49,13 +49,13 @@ for gate in spec['gates']:
 every = {gate['name'] for gate in spec['gates']}
 cases = [
     ([], set()),
-    (['Sources/CheckmateCore/MiniGames.swift'], {'ui', 'pawn-duel', 'lesson-remediation', 'unit', 'package'}),
+    (['Sources/CheckmateDomain/MiniGames.swift'], every),
     (['Tools/pointer-helper.swift'], {'pointer', 'lesson-remediation', 'board-clicks'}),
-    (['Tests/CheckmateCoreTests/BoardClickTests.swift'], {'unit'}),
-    (['Sources/CheckmateNative/ReviewViews.swift'], {'ui', 'layout', 'review-ui', 'pointer', 'unit', 'package'}),
-    (['Sources/CheckmateMCPKit/BrokerClient.swift'], {'integration', 'unit', 'package'}),
+    (['Tests/CheckmateNativeTests/BoardClickTests.swift'], {'architecture', 'unit'}),
+    (['Sources/CheckmateNative/ReviewViews.swift'], {'architecture', 'ui', 'layout', 'review-ui', 'pointer', 'unit', 'package'}),
+    (['Sources/CheckmateMCPKit/BrokerClient.swift'], {'architecture', 'integration', 'unit', 'package'}),
     (['build.sh'], every),
-    (['Sources/CheckmateCore/GameSession.swift'], every),
+    (['Sources/CheckmateApplication/GameSession.swift'], every),
     (['scripts/release.sh'], set()),
 ]
 for edited, expected in cases:

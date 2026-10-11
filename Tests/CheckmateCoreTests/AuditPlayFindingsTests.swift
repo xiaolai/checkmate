@@ -1,5 +1,13 @@
 import XCTest
-@testable import CheckmateCore
+import CheckmateCore
+@testable import CheckmateDomain
+@testable import CheckmateSupport
+@testable import CheckmateRules
+@testable import CheckmateEngine
+@testable import CheckmateContent
+@testable import CheckmateApplication
+@testable import CheckmateMacPlatform
+
 /// Audit regressions for headerless import recovery, the companion's published side, and saved-archive limits.
 @MainActor final class AuditPlayFindingsTests:XCTestCase {
     private func report(_ text:String)throws -> (documents:[GameDocument],skipped:[ReviewImportError]) {try PGNImporter.parseReport(Data(text.utf8))}

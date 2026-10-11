@@ -6,16 +6,27 @@ let minimumMacOS = releaseSettings.split(separator: "\n").first { $0.hasPrefix("
 let package = Package(
     name: "Checkmate",
     platforms: [.macOS(String(minimumMacOS))],
-    products: [.executable(name: "CheckmateMCP", targets: ["CheckmateMCP"]), .executable(name: "CheckmateNative", targets: ["CheckmateNative"]), .executable(name: "CheckmateAcceptance", targets: ["CheckmateAcceptance"])],
+    products: [.library(name: "CheckmateDomain", targets: ["CheckmateDomain"]), .library(name: "CheckmateApplication", targets: ["CheckmateApplication"]), .executable(name: "CheckmateMCP", targets: ["CheckmateMCP"]), .executable(name: "CheckmateNative", targets: ["CheckmateNative"]), .executable(name: "CheckmateAcceptance", targets: ["CheckmateAcceptance"])],
     dependencies: [.package(url: "https://github.com/modelcontextprotocol/swift-sdk.git", exact: "0.12.1")],
     targets: [
         .target(name: "CheckmateMCPKit", dependencies: ["CheckmateCore", .product(name: "MCP", package: "swift-sdk")]),
         .executableTarget(name: "CheckmateMCP", dependencies: ["CheckmateMCPKit"]),
         .testTarget(name: "CheckmateMCPTests", dependencies: ["CheckmateMCPKit"]),
-        .target(name: "CheckmateCore", resources: [.copy("Resources")]),
+        .target(name: "CheckmateAssets", dependencies: [], path: "Sources/CheckmateCore", resources: [.copy("Resources")]),
+        .target(name: "CheckmateDomain", dependencies: ["CheckmateAssets"]),
+        .target(name: "CheckmateSupport", dependencies: ["CheckmateDomain", "CheckmateAssets"]),
+        .target(name: "CheckmateRules", dependencies: ["CheckmateDomain", "CheckmateAssets", "CheckmateSupport"]),
+        .target(name: "CheckmateEngine", dependencies: ["CheckmateDomain", "CheckmateRules", "CheckmateSupport", "CheckmateAssets"]),
+        .target(name: "CheckmateContent", dependencies: ["CheckmateDomain", "CheckmateSupport", "CheckmateAssets"]),
+        .target(name: "CheckmateApplication", dependencies: ["CheckmateDomain", "CheckmateRules", "CheckmateContent", "CheckmateSupport", "CheckmateAssets"]),
+        .target(name: "CheckmateMacPlatform", dependencies: ["CheckmateDomain", "CheckmateRules", "CheckmateEngine", "CheckmateContent", "CheckmateApplication", "CheckmateSupport", "CheckmateAssets"]),
+        .target(name: "CheckmateCore", dependencies: ["CheckmateDomain", "CheckmateRules", "CheckmateEngine", "CheckmateContent", "CheckmateApplication", "CheckmateMacPlatform", "CheckmateSupport", "CheckmateAssets"], path: "Sources/CheckmateComposition"),
         .executableTarget(name: "CheckmateNative", dependencies: ["CheckmateCore"]),
         .executableTarget(name: "CheckmateAcceptance", dependencies: ["CheckmateCore"], path: "Tools/Acceptance"),
-        .testTarget(name: "CheckmateCoreTests", dependencies: ["CheckmateCore", "CheckmateNative"])
+        .testTarget(name: "CheckmateCoreTests", dependencies: ["CheckmateTestSupport", "CheckmateCore", "CheckmateDomain", "CheckmateSupport", "CheckmateRules", "CheckmateEngine", "CheckmateContent", "CheckmateApplication", "CheckmateMacPlatform"]),
+        .testTarget(name: "CheckmateNativeTests", dependencies: ["CheckmateTestSupport", "CheckmateCore", "CheckmateNative", "CheckmateDomain", "CheckmateSupport", "CheckmateRules", "CheckmateEngine", "CheckmateContent", "CheckmateApplication", "CheckmateMacPlatform"]),
+        .target(name: "CheckmateTestSupport", dependencies: ["CheckmateDomain", "CheckmateRules", "CheckmateEngine"], path: "Tests/CheckmateTestSupport"),
+        .testTarget(name: "CheckmateDomainTests", dependencies: ["CheckmateDomain"])
     ],
     swiftLanguageModes: [.v5]
 )

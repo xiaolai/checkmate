@@ -1,5 +1,13 @@
 import XCTest
-@testable import CheckmateCore
+import CheckmateCore
+@testable import CheckmateDomain
+@testable import CheckmateSupport
+@testable import CheckmateRules
+@testable import CheckmateEngine
+@testable import CheckmateContent
+@testable import CheckmateApplication
+@testable import CheckmateMacPlatform
+
 final class CompanionTests:XCTestCase {
     @MainActor func testRoleRevisionAndRequestDeduplication() async throws {
         let s=try GameSession(engine:nil),tools=try CompanionTools(session:s);s.setConnection(enabled:true,role:"coach",lease:"fixture")

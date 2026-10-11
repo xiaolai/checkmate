@@ -1,5 +1,13 @@
 import XCTest
-@testable import CheckmateCore
+import CheckmateCore
+@testable import CheckmateDomain
+@testable import CheckmateSupport
+@testable import CheckmateRules
+@testable import CheckmateEngine
+@testable import CheckmateContent
+@testable import CheckmateApplication
+@testable import CheckmateMacPlatform
+
 final class OpponentPolicyTests:XCTestCase {
     func testMigrationAndModes(){let old=AppSettings(raw:["skill":17]);XCTAssertEqual(old.opponentMode,"skill");XCTAssertEqual(old.skill,17);XCTAssertEqual(OpponentProfile.skill(17).options["UCI_LimitStrength"],"false");XCTAssertEqual(OpponentProfile.elo(1500).options["UCI_LimitStrength"],"true");XCTAssertEqual(AnalysisPolicy.options["Skill Level"],"20")}
     func testQualityAbstains(){XCTAssertEqual(MoveQuality.compare(best:AnalysisScore(kind:"mate",value:3),played:AnalysisScore(kind:"cp",value:300),mover:"b",stable:true),"mate-outcome-changed");XCTAssertEqual(MoveQuality.compare(best:AnalysisScore(kind:"mate",value:3),played:AnalysisScore(kind:"cp",value:300),mover:"b",stable:false),"provisional");XCTAssertEqual(MoveQuality.compare(best:AnalysisScore(kind:"cp",value:10),played:AnalysisScore(kind:"cp",value:20),mover:"b",stable:true),"near-best")}

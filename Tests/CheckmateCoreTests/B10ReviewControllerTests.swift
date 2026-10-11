@@ -1,6 +1,14 @@
 import XCTest
 import Combine
-@testable import CheckmateCore
+import CheckmateCore
+@testable import CheckmateDomain
+@testable import CheckmateSupport
+@testable import CheckmateRules
+@testable import CheckmateEngine
+@testable import CheckmateContent
+@testable import CheckmateApplication
+@testable import CheckmateMacPlatform
+
 
 /// B10 review findings RV-9, RV-10, RV-11, RV-13 and RV2-2c: whole-game analysis that neither restarts nor reports an
 /// empty result, cleanup of a deleted review's analysis, a fork target that names the exact position, route-aware

@@ -1,6 +1,14 @@
 import XCTest
 import Foundation
-@testable import CheckmateCore
+import CheckmateCore
+@testable import CheckmateDomain
+@testable import CheckmateSupport
+@testable import CheckmateRules
+@testable import CheckmateEngine
+@testable import CheckmateContent
+@testable import CheckmateApplication
+@testable import CheckmateMacPlatform
+
 
 /// Audit #9, #10, #25, #26: a development build's skill is separate from the released one, removal deletes only the
 /// files Checkmate wrote, and removal reports whether the skill was removed, absent or kept.

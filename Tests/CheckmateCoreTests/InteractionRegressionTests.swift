@@ -1,7 +1,16 @@
+import CheckmateTestSupport
 import XCTest
-@testable import CheckmateCore
+import CheckmateCore
+@testable import CheckmateDomain
+@testable import CheckmateSupport
+@testable import CheckmateRules
+@testable import CheckmateEngine
+@testable import CheckmateContent
+@testable import CheckmateApplication
+@testable import CheckmateMacPlatform
+
 /// Replies with the first legal move and counts requests, so tests can see whether the opponent was asked to move.
-@MainActor private final class CountingEngine:EngineService {
+@MainActor private final class CountingEngine:TestEngineService {
     var requests=0
     func analyze(fen:String,skill:Int,budget:Int,multiPv:Int) async throws->EngineAnalysis {requests+=1;let rules=try ChessRules(fen:fen);return EngineAnalysis(bestMove:rules.moves().first?.uci)}
 }

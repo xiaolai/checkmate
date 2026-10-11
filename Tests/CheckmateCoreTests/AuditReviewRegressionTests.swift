@@ -1,5 +1,14 @@
+import CheckmateTestSupport
 import XCTest
-@testable import CheckmateCore
+import CheckmateCore
+@testable import CheckmateDomain
+@testable import CheckmateSupport
+@testable import CheckmateRules
+@testable import CheckmateEngine
+@testable import CheckmateContent
+@testable import CheckmateApplication
+@testable import CheckmateMacPlatform
+
 
 final class AuditPGNRegressionTests:XCTestCase {
     func testCRLFSemicolonCommentDoesNotConsumeNextMove()throws {
@@ -29,7 +38,7 @@ final class AuditPGNRegressionTests:XCTestCase {
     }
 }
 
-@MainActor private final class PendingReviewEngine:EngineService {
+@MainActor private final class PendingReviewEngine:TestEngineService {
     var continuations:[CheckedContinuation<EngineAnalysis,Error>]=[]
     var calls=0
     func analyze(fen:String,skill:Int,budget:Int,multiPv:Int)async throws -> EngineAnalysis {

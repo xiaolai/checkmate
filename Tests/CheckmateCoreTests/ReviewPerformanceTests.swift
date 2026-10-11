@@ -1,5 +1,13 @@
 import XCTest
-@testable import CheckmateCore
+import CheckmateCore
+@testable import CheckmateDomain
+@testable import CheckmateSupport
+@testable import CheckmateRules
+@testable import CheckmateEngine
+@testable import CheckmateContent
+@testable import CheckmateApplication
+@testable import CheckmateMacPlatform
+
 @MainActor final class ReviewPerformanceTests:XCTestCase {
     func testImportNavigationAndSelectedLatency()async throws {
         guard let path=ProcessInfo.processInfo.environment["CHECKMATE_REVIEW_PERFORMANCE"] else{throw XCTSkip("Explicit isolated build-host performance measurement gate.")}

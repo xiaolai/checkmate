@@ -1,5 +1,13 @@
 import XCTest
-@testable import CheckmateCore
+import CheckmateCore
+@testable import CheckmateDomain
+@testable import CheckmateSupport
+@testable import CheckmateRules
+@testable import CheckmateEngine
+@testable import CheckmateContent
+@testable import CheckmateApplication
+@testable import CheckmateMacPlatform
+
 final class CompletionTests:XCTestCase {
     func testNonFiniteAndOddPCM(){XCTAssertEqual(VoicePCM.decode(VoicePCM.encode([.nan,.infinity,-.infinity])),[0,0,0]);XCTAssertEqual(VoicePCM.decode(Data()),[]);XCTAssertEqual(VoicePCM.decode(Data([0])),[])}
     @MainActor func testThousandTransitionsAndDispatchBudget()throws {

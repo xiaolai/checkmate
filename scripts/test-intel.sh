@@ -12,7 +12,7 @@ TMPDIR="$checkmate_swiftpm_tmp" swift build --build-tests --arch x86_64 --scratc
 checkmate_bin=$(TMPDIR="$checkmate_swiftpm_tmp" swift build --show-bin-path --arch x86_64 --scratch-path "$checkmate_scratch")
 checkmate_runner=$(xcrun --find xctest)
 lipo -verify_arch x86_64 "$checkmate_runner"
-for checkmate_suite in CheckmateCoreTests CheckmateMCPTests; do
+for checkmate_suite in CheckmateDomainTests CheckmateCoreTests CheckmateNativeTests CheckmateMCPTests; do
  CHECKMATE_AUTOMATION=1 /usr/bin/arch -x86_64 "$checkmate_runner" "$checkmate_bin/$checkmate_suite.xctest" > "$checkmate_evidence/$checkmate_suite.log" 2>&1
 done
 CHECKMATE_EXECUTION_ARCH=x86_64 CHECKMATE_EVIDENCE_DIR="$checkmate_evidence/ui" bash scripts/test-ui.sh

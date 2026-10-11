@@ -18,7 +18,10 @@ rm -rf "build/$checkmate_app.app"
 mkdir -p "$checkmate_target/MacOS" "$checkmate_target/Resources"
 cp "$checkmate_bin/CheckmateNative" "$checkmate_target/MacOS/CheckmateNative"
 cp "$checkmate_bin/CheckmateMCP" "$checkmate_target/MacOS/CheckmateMCP"
-for resource in "$checkmate_bin"/*.bundle; do cp -R "$resource" "$checkmate_target/Resources/"; done
+# SwiftPM can retain bundles of removed/renamed targets in its cache. Copy only current ownership.
+checkmate_resources="$checkmate_bin/Checkmate_CheckmateAssets.bundle"
+[[ -d "$checkmate_resources" ]] || { echo 'CheckmateAssets resource bundle missing' >&2; exit 1; }
+cp -R "$checkmate_resources" "$checkmate_target/Resources/"
 cat > "$checkmate_target/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict><key>CFBundlePackageType</key><string>APPL</string><key>CFBundleInfoDictionaryVersion</key><string>6.0</string><key>CFBundleExecutable</key><string>CheckmateNative</string><key>CFBundleIdentifier</key><string>$checkmate_bundle_id</string><key>CFBundleName</key><string>Checkmate</string><key>CFBundleVersion</key><string>$CHECKMATE_BUILD_NUMBER</string><key>CFBundleShortVersionString</key><string>$CHECKMATE_VERSION</string><key>NSHighResolutionCapable</key><true/><key>LSMinimumSystemVersion</key><string>$CHECKMATE_MINIMUM_MACOS</string><key>NSMicrophoneUsageDescription</key><string>Listen to your questions during chess practice.</string><key>CFBundleDocumentTypes</key><array><dict><key>CFBundleTypeName</key><string>PGN chess game</string><key>CFBundleTypeRole</key><string>Viewer</string><key>LSHandlerRank</key><string>Alternate</string><key>CFBundleTypeExtensions</key><array><string>pgn</string></array></dict></array></dict></plist>
 PLIST

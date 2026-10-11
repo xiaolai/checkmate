@@ -1,11 +1,20 @@
+import CheckmateTestSupport
 import XCTest
-@testable import CheckmateCore
+import CheckmateCore
+@testable import CheckmateDomain
+@testable import CheckmateSupport
+@testable import CheckmateRules
+@testable import CheckmateEngine
+@testable import CheckmateContent
+@testable import CheckmateApplication
+@testable import CheckmateMacPlatform
+
 
 /// The learner can play Black: New Game, scoring, check wording, move numbers, Take Back and the companion
 /// opponent all follow the learner's side instead of assuming White.
 @MainActor final class LearnerSideTests:XCTestCase {
     /// Scores are White's: the best root line keeps Black slightly better (-50); every other reply leaves White +300.
-    final class PerspectiveEngine:EngineService {
+    final class PerspectiveEngine:TestEngineService {
         let root:String;init(root:String){self.root=root}
         func analyze(fen:String,skill:Int,budget:Int,multiPv:Int)async throws -> EngineAnalysis {
             let rules=try ChessRules(fen:fen),move=try XCTUnwrap(fen==root ? "d7d5":rules.moves().first?.uci)

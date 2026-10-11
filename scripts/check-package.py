@@ -45,6 +45,8 @@ bundles = list((app / 'Contents/Resources').glob('*.bundle'))
 if not len(bundles) == 1:
     raise RuntimeError('Expected exactly one resource bundle')
 bundle = bundles[0]
+if bundle.name != 'Checkmate_CheckmateAssets.bundle':
+    raise RuntimeError('Resource bundle belongs to a retired target')
 resources = bundle / 'Contents/Resources/Resources'
 if not resources.is_dir():
     resources = bundle / 'Resources'

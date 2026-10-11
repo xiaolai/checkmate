@@ -1,5 +1,13 @@
 import XCTest
-@testable import CheckmateCore
+import CheckmateCore
+@testable import CheckmateDomain
+@testable import CheckmateSupport
+@testable import CheckmateRules
+@testable import CheckmateEngine
+@testable import CheckmateContent
+@testable import CheckmateApplication
+@testable import CheckmateMacPlatform
+
 final class PGNImportTests:XCTestCase {
     func testBOMCRLFRAVAndEscapes()throws {let data=Data("\u{feff}[Event \"Café \\\"quoted\\\"\"]\r\n1. e4 $1 (1. d4 d5) e5 *\r\n".utf8),doc=try PGNImporter.parse(data)[0];XCTAssertEqual(doc.original,data);XCTAssertEqual(doc.headers[0].value,"Café \"quoted\"");XCTAssertEqual(doc.mainline.count,2);try doc.validate()}
     func testByteLimitAndCancellation()throws {XCTAssertThrowsError(try PGNImporter.parse(Data(repeating:32,count:ReviewPolicy.maximumBytes+1)));XCTAssertThrowsError(try PGNImporter.parse(Data("1. e4 *".utf8),cancelled:{true}))}
