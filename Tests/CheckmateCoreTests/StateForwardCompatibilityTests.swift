@@ -1,5 +1,13 @@
 import XCTest
-@testable import CheckmateCore
+import CheckmateCore
+@testable import CheckmateDomain
+@testable import CheckmateSupport
+@testable import CheckmateRules
+@testable import CheckmateEngine
+@testable import CheckmateContent
+@testable import CheckmateApplication
+@testable import CheckmateMacPlatform
+
 
 /// PL2-11: a state file written by a newer build keeps the fields this build does not know through a load and a save,
 /// so a downgrade followed by a re-upgrade loses nothing; fields this build writes stay this build's to change.

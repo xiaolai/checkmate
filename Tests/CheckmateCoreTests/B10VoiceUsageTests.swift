@@ -1,5 +1,13 @@
 import XCTest
-@testable import CheckmateCore
+import CheckmateCore
+@testable import CheckmateDomain
+@testable import CheckmateSupport
+@testable import CheckmateRules
+@testable import CheckmateEngine
+@testable import CheckmateContent
+@testable import CheckmateApplication
+@testable import CheckmateMacPlatform
+
 
 /// B10 low findings for the usage ledger (ST-7, ST-8, ST2-2) and the progress import report (ST-3).
 @MainActor final class B10VoiceUsageTests:XCTestCase {

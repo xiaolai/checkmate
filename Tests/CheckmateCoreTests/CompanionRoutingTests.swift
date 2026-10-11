@@ -1,6 +1,15 @@
+import CheckmateTestSupport
 import XCTest
-@testable import CheckmateCore
-@MainActor private final class RoutingEngine:EngineService {
+import CheckmateCore
+@testable import CheckmateDomain
+@testable import CheckmateSupport
+@testable import CheckmateRules
+@testable import CheckmateEngine
+@testable import CheckmateContent
+@testable import CheckmateApplication
+@testable import CheckmateMacPlatform
+
+@MainActor private final class RoutingEngine:TestEngineService {
     func analyze(fen:String,skill:Int,budget:Int,multiPv:Int)async throws -> EngineAnalysis {
         EngineAnalysis(bestMove:fen.contains(" w ") ? "e2e4":"e7e5")
     }

@@ -11,12 +11,29 @@
   "Sources/CheckmateNative/Helpers.swift",
   "Sources/CheckmateNative/ColorTokens.swift",
   "Sources/CheckmateCore/Foundation.swift",
-  "Sources/CheckmateCore/Persistence.swift",
-  "Sources/CheckmateCore/GameSession.swift",
-  "Sources/CheckmateCore/ChessRules.swift",
-  "Sources/CheckmateCore/Resources/chess.js"
+  "Sources/CheckmateApplication/Persistence.swift",
+  "Sources/CheckmateApplication/GameSession.swift",
+  "Sources/CheckmateRules/ChessRules.swift",
+  "Sources/CheckmateCore/Resources/chess.js",
+  "Sources/CheckmateDomain/*",
+  "Sources/CheckmateSupport/*",
+  "Sources/CheckmateRules/*",
+  "Sources/CheckmateComposition/*",
+  "Sources/CheckmateCore/Assets.swift"
  ],
  "gates": [
+  {
+   "name": "architecture",
+   "run": "python3 scripts/test-module-boundaries.py > \"$CHECKMATE_EVIDENCE_DIR/module-boundaries-results.json\"",
+   "result": "module-boundaries-results.json",
+   "key": "architecture",
+   "inputs": [
+    "Package.swift",
+    "Sources/*",
+    "Tests/*",
+    "scripts/test-module-boundaries.py"
+   ]
+  },
   {
    "name": "ui",
    "builds": true,
@@ -26,7 +43,11 @@
    "inputs": [
     "scripts/test-ui.sh",
     "Sources/CheckmateNative/*",
-    "Sources/CheckmateCore/*"
+    "Sources/CheckmateCore/*",
+    "Sources/CheckmateApplication/*",
+    "Sources/CheckmateMacPlatform/*",
+    "Sources/CheckmateEngine/*",
+    "Sources/CheckmateContent/*"
    ]
   },
   {
@@ -40,10 +61,10 @@
     "Tools/ax-helper.swift",
     "Sources/CheckmateNative/SettingsWindow.swift",
     "Sources/CheckmateNative/MainWindow.swift",
-    "Sources/CheckmateCore/ConnectionStartup.swift",
-    "Sources/CheckmateCore/CompanionInstallation.swift",
-    "Sources/CheckmateCore/CompanionBroker.swift",
-    "Sources/CheckmateCore/VoiceCoach.swift",
+    "Sources/CheckmateApplication/ConnectionStartup.swift",
+    "Sources/CheckmateContent/CompanionInstallation.swift",
+    "Sources/CheckmateMacPlatform/CompanionBroker.swift",
+    "Sources/CheckmateMacPlatform/VoiceCoach.swift",
     "companion/*"
    ]
   },
@@ -58,9 +79,9 @@
     "Tools/ax-helper.swift",
     "Sources/CheckmateNative/ContentViews.swift",
     "Sources/CheckmateNative/MainWindow.swift",
-    "Sources/CheckmateCore/Course.swift",
-    "Sources/CheckmateCore/LearningPlayer.swift",
-    "Sources/CheckmateCore/ReviewStore.swift",
+    "Sources/CheckmateDomain/Course.swift",
+    "Sources/CheckmateApplication/LearningPlayer.swift",
+    "Sources/CheckmateApplication/ReviewStore.swift",
     "Sources/CheckmateCore/Resources/course.json",
     "companion/*"
    ]
@@ -86,9 +107,9 @@
    "inputs": [
     "scripts/test-pointer.py",
     "Sources/CheckmateNative/ReviewViews.swift",
-    "Sources/CheckmateCore/ReviewStore.swift",
-    "Sources/CheckmateCore/ReviewController.swift",
-    "Sources/CheckmateCore/PGNImporter.swift",
+    "Sources/CheckmateApplication/ReviewStore.swift",
+    "Sources/CheckmateApplication/ReviewController.swift",
+    "Sources/CheckmateApplication/PGNImporter.swift",
     "Tools/ax-helper.swift",
     "Tools/pointer-helper.swift",
     "Sources/CheckmateNative/BoardView.swift",
@@ -100,14 +121,15 @@
     "Sources/CheckmateNative/LessonSettingsPane.swift",
     "Sources/CheckmateNative/UsageSettingsPane.swift",
     "Sources/CheckmateNative/LessonAutomationFixture.swift",
-    "Sources/CheckmateCore/LearningPlayer.swift",
-    "Sources/CheckmateCore/Course.swift",
-    "Sources/CheckmateCore/Lesson*.swift",
-    "Sources/CheckmateCore/CodexTranslation.swift",
-    "Sources/CheckmateCore/Usage.swift",
-    "Sources/CheckmateCore/VoiceGateway.swift",
-    "Sources/CheckmateCore/VoiceModelSelection.swift",
-    "Sources/CheckmateCore/Audio.swift",
+    "Sources/CheckmateApplication/LearningPlayer.swift",
+    "Sources/CheckmateDomain/Course.swift",
+    "Sources/CheckmateContent/Lesson*.swift",
+    "Sources/CheckmateDomain/Lesson*.swift",
+    "Sources/CheckmateContent/CodexTranslation.swift",
+    "Sources/CheckmateContent/Usage.swift",
+    "Sources/CheckmateContent/VoiceGateway.swift",
+    "Sources/CheckmateContent/VoiceModelSelection.swift",
+    "Sources/CheckmateMacPlatform/Audio.swift",
     "Sources/CheckmateCore/Resources/course*.json",
     "Sources/CheckmateCore/Resources/*COPYING*",
     "Sources/CheckmateCore/Resources/THIRD_PARTY_NOTICES.txt",
@@ -134,11 +156,12 @@
     "Sources/CheckmateNative/BoardOverlay.swift",
     "Sources/CheckmateNative/MainWindow.swift",
     "Sources/CheckmateNative/ContentViews.swift",
-    "Sources/CheckmateCore/LearningPlayer.swift",
-    "Sources/CheckmateCore/Course.swift",
-    "Sources/CheckmateCore/Lesson*.swift",
-    "Sources/CheckmateCore/MiniGames.swift",
-    "Sources/CheckmateCore/Activity.swift",
+    "Sources/CheckmateApplication/LearningPlayer.swift",
+    "Sources/CheckmateDomain/Course.swift",
+    "Sources/CheckmateContent/Lesson*.swift",
+    "Sources/CheckmateDomain/Lesson*.swift",
+    "Sources/CheckmateDomain/MiniGames.swift",
+    "Sources/CheckmateDomain/Activity.swift",
     "Sources/CheckmateCore/Resources/course*.json",
     "Sources/CheckmateCore/Resources/projections.json"
    ]
@@ -158,8 +181,8 @@
     "Sources/CheckmateNative/BoardOverlay.swift",
     "Sources/CheckmateNative/MainWindow.swift",
     "Sources/CheckmateNative/ContentViews.swift",
-    "Sources/CheckmateCore/WindowGeometry.swift",
-    "Sources/CheckmateCore/PieceRelationships.swift",
+    "Sources/CheckmateMacPlatform/WindowGeometry.swift",
+    "Sources/CheckmateDomain/PieceRelationships.swift",
     "Sources/CheckmateNative/Relationship*.swift"
    ]
   },
@@ -171,9 +194,9 @@
    "key": "miniGames",
    "inputs": [
     "scripts/test-pawn-duel.sh",
-    "Sources/CheckmateCore/MiniGames.swift",
-    "Sources/CheckmateCore/LearningPlayer.swift",
-    "Sources/CheckmateCore/Course.swift",
+    "Sources/CheckmateDomain/MiniGames.swift",
+    "Sources/CheckmateApplication/LearningPlayer.swift",
+    "Sources/CheckmateDomain/Course.swift",
     "Sources/CheckmateCore/Resources/course*.json",
     "Sources/CheckmateCore/Resources/course/*",
     "Sources/CheckmateNative/BoardView.swift",
@@ -192,7 +215,7 @@
     "Sources/CheckmateNative/MainWindow.swift",
     "Sources/CheckmateNative/ContentViews.swift",
     "Sources/CheckmateNative/BoardView.swift",
-    "Sources/CheckmateCore/WindowGeometry.swift"
+    "Sources/CheckmateMacPlatform/WindowGeometry.swift"
    ]
   },
   {
@@ -211,7 +234,7 @@
     "Sources/CheckmateNative/BoardOverlay.swift",
     "Sources/CheckmateNative/ReviewViews.swift",
     "Sources/CheckmateNative/Relationship*.swift",
-    "Sources/CheckmateCore/WindowGeometry.swift"
+    "Sources/CheckmateMacPlatform/WindowGeometry.swift"
    ]
   },
   {
@@ -225,10 +248,10 @@
     "Tools/ax-helper.swift",
     "Sources/CheckmateNative/MainWindow.swift",
     "Sources/CheckmateNative/SettingsWindow.swift",
-    "Sources/CheckmateCore/ConnectionStartup.swift",
-    "Sources/CheckmateCore/WindowGeometry.swift",
-    "Sources/CheckmateCore/Engine.swift",
-    "Sources/CheckmateCore/UCIWorker.swift"
+    "Sources/CheckmateApplication/ConnectionStartup.swift",
+    "Sources/CheckmateMacPlatform/WindowGeometry.swift",
+    "Sources/CheckmateEngine/Engine.swift",
+    "Sources/CheckmateEngine/UCIWorker.swift"
    ]
   },
   {
@@ -242,13 +265,15 @@
     "scripts/test-integration.py",
     "Sources/CheckmateMCP/*",
     "Sources/CheckmateMCPKit/*",
-    "Sources/CheckmateCore/Companion*.swift",
-    "Sources/CheckmateCore/ConnectionStartup.swift",
-    "Sources/CheckmateCore/ReviewTools.swift",
-    "Sources/CheckmateCore/Engine.swift",
-    "Sources/CheckmateCore/UCIWorker.swift",
-    "Sources/CheckmateCore/OpponentPolicy.swift",
-    "Sources/CheckmateCore/BeginnerOpponent.swift",
+    "Sources/CheckmateApplication/Companion*.swift",
+    "Sources/CheckmateMacPlatform/Companion*.swift",
+    "Sources/CheckmateContent/Companion*.swift",
+    "Sources/CheckmateApplication/ConnectionStartup.swift",
+    "Sources/CheckmateApplication/ReviewTools.swift",
+    "Sources/CheckmateEngine/Engine.swift",
+    "Sources/CheckmateEngine/UCIWorker.swift",
+    "Sources/CheckmateDomain/OpponentPolicy.swift",
+    "Sources/CheckmateApplication/BeginnerOpponent.swift",
     "Sources/CheckmateCore/Resources/*.json",
     "Sources/CheckmateCore/Resources/*.txt",
     "Sources/CheckmateCore/Resources/companion-skill.md",
@@ -270,12 +295,12 @@
     "Sources/CheckmateNative/ContentViews.swift",
     "Sources/CheckmateNative/MainWindow.swift",
     "Sources/CheckmateNative/BoardView.swift",
-    "Sources/CheckmateCore/Review*.swift",
-    "Sources/CheckmateCore/PGNImporter.swift",
-    "Sources/CheckmateCore/GameDocument.swift",
-    "Sources/CheckmateCore/Engine.swift",
-    "Sources/CheckmateCore/UCIWorker.swift",
-    "Sources/CheckmateCore/VoiceCoach.swift"
+    "Sources/CheckmateApplication/Review*.swift",
+    "Sources/CheckmateApplication/PGNImporter.swift",
+    "Sources/CheckmateApplication/GameDocument.swift",
+    "Sources/CheckmateEngine/Engine.swift",
+    "Sources/CheckmateEngine/UCIWorker.swift",
+    "Sources/CheckmateMacPlatform/VoiceCoach.swift"
    ]
   },
   {
@@ -302,10 +327,10 @@
    "prebuilt": true,
    "inputs": [
     "scripts/test-relocated-package.sh",
-    "Sources/CheckmateCore/Engine.swift",
-    "Sources/CheckmateCore/UCIWorker.swift",
+    "Sources/CheckmateEngine/Engine.swift",
+    "Sources/CheckmateEngine/UCIWorker.swift",
     "Sources/CheckmateCore/Resources/*",
-    "Sources/CheckmateCore/CompanionInstallation.swift",
+    "Sources/CheckmateContent/CompanionInstallation.swift",
     "Sources/CheckmateMCP/*"
    ]
   },

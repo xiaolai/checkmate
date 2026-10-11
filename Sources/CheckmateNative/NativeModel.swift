@@ -321,16 +321,7 @@ import CheckmateCore
     // MARK: Activity transitions (B8.2)
     /// A request to go somewhere else. Each case carries what its entry needs, so the commands that all end in practice
     /// (Practice a game, Return to game, an import, a practice fork) keep their own meaning.
-    enum Navigation {
-        case practice,returnToGame,lesson(Int,resume:Bool=true),puzzles,reviewWorkspace
-        /// A lesson's own practice position, played as White in a separate game.
-        case lessonPractice(fen:String)
-        case review(GameDocument,saved:SavedReview?,draft:Bool)
-        case importProgress(ApplicationState,backup:(URL)->Void)
-        case practiceFork(side:String,preset:String)
-    }
-    /// What a staged entry needs once the current activity has been left.
-    private enum Staged {case none,lessonPractice(ChessRules),review(GameDocument,restore:(cursor:Int,branches:[ReviewBranch])?),importProgress(ApplicationState),practiceFork(ChessRules)}
+    typealias Navigation=WorkspaceNavigation
     /// The one transition function: every navigation in the app runs these steps in this order.
     /// 1. The learner's say: leaving a draft with ideas asks first; a request withdrawn meanwhile (`stillWanted`) or a
     ///    Practise-here sheet whose position changed stops here, before anything changes.
@@ -353,34 +344,26 @@ import CheckmateCore
         // The draft question is modal and main-actor work (an agent's review call) runs during it: check the position again.
         if case .practiceFork=next,!practiceForkStillCurrent(){draftDiscardApproved=nil;return false}
         // 2. Staging.
-        let staged:Staged
-        switch next {
-        case .review(let document,let saved,_):
-            // A record whose last save failed reopens as it was left, never as its older file; that state is saved again on entry.
-            let pending=pendingReviewSnapshots[document.id],shown=pending?.document ?? document
-            let restore=pending.map{(cursor:$0.cursor,branches:$0.branches)} ?? saved.map{(cursor:$0.cursor,branches:$0.branches)}
-            guard restore.map({shown.nodes.indices.contains($0.cursor)}) ?? true else{
-                // A failed restore changes nothing, and never resumes play by itself (plan rule 4): a practice reply
-                // waiting here is held for the explicit Return to game shown with the error.
-                draftDiscardApproved=nil;let waiting=reviewing ? false:session.requireExplicitResume()
-                storageError=waiting ? Self.failedRestorePausedMessage:Self.failedRestoreMessage;return false}
-            staged = .review(shown,restore:restore)
-        case .importProgress(let state,_):try StateStore.validate(state);staged = .importProgress(state)
-        case .practiceFork(let side,_):
-            do{let rules=try review.practiceForkRules()
-                guard !rules.over else{throw CheckmateError.invalid("This position is terminal and cannot start practice.")}
-                try GameSession.validatePracticeFork(rules,side:side);try ChessRules().restore(rules.pgn);staged = .practiceFork(rules)}
-            catch{practiceForkRequested=false;draftDiscardApproved=nil;storageError=userFacingMessage(error,fallback:"Practice could not start from this position. The review is unchanged.");return false}
-        case .lessonPractice(let fen):
-            do{let rules=try ChessRules(fen:fen);try GameSession.validatePracticeFork(rules,side:"w");staged = .lessonPractice(rules)}
-            catch{draftDiscardApproved=nil;storageError=userFacingMessage(error,fallback:"This practice position could not be opened.");return false}
-        default:staged = .none
+        let coordinator=WorkspaceTransitionCoordinator(session:session,learning:learning,review:review)
+        let staged:PreparedWorkspaceTransition
+        do {
+            let pending:ReviewSnapshot?={if case .review(let document,_,_)=next{return pendingReviewSnapshots[document.id]};return nil}()
+            staged=try coordinator.prepare(next,pendingReview:pending.map{(document:$0.document,cursor:$0.cursor,branches:$0.branches)})
+        } catch WorkspaceEntryError.invalidRestore {
+            draftDiscardApproved=nil;let waiting=reviewing ? false:session.requireExplicitResume()
+            storageError=waiting ? Self.failedRestorePausedMessage:Self.failedRestoreMessage;return false
+        } catch {
+            switch next {
+            case .practiceFork:practiceForkRequested=false;draftDiscardApproved=nil;storageError=userFacingMessage(error,fallback:"Practice could not start from this position. The review is unchanged.");return false
+            case .lessonPractice:draftDiscardApproved=nil;storageError=userFacingMessage(error,fallback:"This practice position could not be opened.");return false
+            default:throw error
+            }
         }
         // The backup that an import or a fork keeps is the last staged step: it is written only for an entry that will happen.
-        switch (next,staged) {
+        switch next {
         // The imported state is written here too: a write that fails leaves playback, connections and the activity alone.
-        case (.importProgress(_,let backup),.importProgress(let state)):backup(try store.preserveBeforeImport(session.state));try store.save(state)
-        case (.practiceFork,.practiceFork):do{_ = try store.preserveBeforeImport(session.state)}catch{practiceForkRequested=false;draftDiscardApproved=nil;storageError=userFacingMessage(error,fallback:"Practice could not start from this position. The review is unchanged.");return false}
+        case .importProgress(_,let backup):if let state=staged.importedState{backup(try store.preserveBeforeImport(session.state));try store.save(state)}
+        case .practiceFork:do{_ = try store.preserveBeforeImport(session.state)}catch{practiceForkRequested=false;draftDiscardApproved=nil;storageError=userFacingMessage(error,fallback:"Practice could not start from this position. The review is unchanged.");return false}
         default:break
         }
         // 3. Exit.
@@ -399,31 +382,17 @@ import CheckmateCore
         case .importProgress:saveTask?.cancel();voice.disconnect();usage.flushForShutdown();companion.disable();learning.pause();audio.stopAll()
         case .practiceFork:session.cancelWork()
         }
-        // 4. Entry.
-        switch (next,staged) {
-        case (.practice,_):
-            if reviewing{session.enter(.at(.practice),resume:place == .practice)}else if place == .practice{session.resumeHeldReply()}else{session.enter(.at(.practice))}
-        // Outside a review, Return to game is still the explicit resume of a held practice reply (a failed restore).
-        case (.returnToGame,_):if reviewing{session.enter(.at(place),resume:true)}else if place == .practice{session.resumeHeldReply()};learning.resumeMiniOpponent()
-        case (.lesson(let index,let resume),_):if reviewing{session.enter(.at(place));session.cancelWork()};learning.openLesson(index:index,resume:resume)
-        case (.puzzles,_):if reviewing{session.enter(.at(place));session.cancelWork()};learning.showPuzzleLibrary()
-        case (.reviewWorkspace,_):session.enter(.reviewing(ReviewVisit(document:nil,draft:false,returnTo:place)))
-        case (.review(let document,_,let draft),.review(let shown,let restore)):
-            restoringReview=true;review.load(shown);session.enter(.reviewing(ReviewVisit(document:document.id,draft:draft,returnTo:place)));draftDiscardApproved=nil
-            if let restore{try? review.restoreSaved(cursor:restore.cursor,branches:restore.branches)}
-            restoringReview=false;saveReview();onReview?()
-        case (.importProgress,.importProgress(let state)):
-            do{try session.installImportedState(state)}catch{if session.activity.review != nil{session.enter(.at(place))};throw error}
-            learning.reloadFilters();onImport?()
-        case (.practiceFork(let side,let preset),.practiceFork(let rules)):
-            let previous=session.state.settings;var settings=previous;settings.opponentPreset=preset;session.updateSettings(settings,restartOpponent:false)
-            do{try session.installPracticeFork(rules,side:side)}catch{
-                session.updateSettings(previous,restartOpponent:false);if session.activity.review != nil{session.enter(.at(place))}
-                storageError=userFacingMessage(error,fallback:"Practice could not start from this position. The review was closed; your game is unchanged.");return false}
-        case (.lessonPractice,.lessonPractice(let rules)):
-            do{try session.installPracticeFork(rules,side:"w")}catch{
-                if session.activity.review != nil{session.enter(.at(place))};storageError=userFacingMessage(error,fallback:"This practice position could not be opened.");return false}
-        default:break
+        // 4. Application entry; the host owns save notifications and native lifecycle effects.
+        if case .review=next{restoringReview=true}
+        do {
+            try coordinator.enter(prepared:staged,from:place,wasReviewing:reviewing,beforeReviewRestore:{self.draftDiscardApproved=nil},afterReviewRestore:{self.restoringReview=false;self.saveReview();self.onReview?()})
+            if case .importProgress=next{onImport?()}
+        } catch {
+            switch next {
+            case .practiceFork:storageError=userFacingMessage(error,fallback:"Practice could not start from this position. The review was closed; your game is unchanged.");return false
+            case .lessonPractice:storageError=userFacingMessage(error,fallback:"This practice position could not be opened.");return false
+            default:throw error
+            }
         }
         return true
     }

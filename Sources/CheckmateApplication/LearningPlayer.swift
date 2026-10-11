@@ -1,0 +1,229 @@
+import CheckmateDomain
+import CheckmateRules
+import CheckmateContent
+import CheckmateSupport
+import CheckmateAssets
+import Foundation
+import Combine
+@MainActor public final class LearningPlayer:ObservableObject {
+    public let library:CourseLibrary
+    public let session:GameSession
+    public weak var audio:NarrationService?
+    public var packs:LessonPackStore? {didSet{reloadLocalizedPacks()}}
+    private var localizedPacks:[Int:LessonPack]=[:],localizedURLs:[String:URL]=[:]
+    private var loadedSelection=""
+    @Published public private(set) var localizationLoading=false
+    public var fallbackMessage:String? {guard session.state.settings.lessonLanguage != "en" else{return nil};if localizationLoading{return "Checking this lesson’s offline recordings…"};return localizedPacks[lessonIndex]==nil ? "This lesson is playing in English because its selected language recording is incomplete or unavailable.":nil}
+    public var subtitle:String {localizedPacks[lessonIndex]?.translation.beats[step].say ?? beat.say}
+    public var teaches:[String] {localizedPacks[lessonIndex]?.translation.teaches ?? current.teaches ?? []}
+    public func localizedTitle(index:Int)->String {localizedPacks[index]?.translation.title ?? library.lessons[index].title}
+    public func localizedStepTitle(index:Int,step:Int)->String {localizedPacks[index]?.translation.beats[step].stepTitle ?? library.stepTitles[index][step]}
+    private var packReloadTask:Task<Void,Never>?,packGeneration=UUID()
+    private var authoredLessonActive:Bool {session.mode == .lesson && !mini && activePuzzle==nil && session.lesson?.mode=="lesson"}
+    private func playbackIdentity(_ pack:LessonPack?)->String {guard let pack else{return "English"};return pack.sourceFingerprint+"|"+pack.locale+"|"+pack.voice+"|"+pack.clips.sorted{$0.beatID<$1.beatID}.map{$0.beatID+":"+$0.audioHash}.joined(separator:"|")}
+    public func reloadLocalizedPacks(){let settings=session.state.settings,selection=settings.lessonLanguage+"|"+settings.lessonVoice,selectionChanged=selection != loadedSelection;let active=authoredLessonActive;if selectionChanged && active{pause();seconds=0};packReloadTask?.cancel();packGeneration=UUID();let generation=packGeneration;if selectionChanged{localizedPacks=[:];localizedURLs=[:]}else{dropPacksWithMissingRecordings(active:active)};loadedSelection=selection;guard settings.lessonLanguage != "en",let packs else{localizationLoading=false;if selectionChanged && active{rebuild()};return};let library=self.library
+        // A rescan for the same selection (a job ended, a recording was removed) must not end a pending selection
+        // change's loading early: only the scan that completes clears it.
+        localizationLoading=selectionChanged || localizationLoading;if selectionChanged && active{rebuild()};packReloadTask=Task{[weak self] in
+        let worker=Task.detached{()->([Int:LessonPack],[String:URL]) in var found:[Int:LessonPack]=[:],urls:[String:URL]=[:];for index in library.lessons.indices {if Task.isCancelled{break};let source=LessonTranslation.source(library:library,index:index);if let (pack,files)=try? packs.validatedPack(source:source,locale:settings.lessonLanguage,voice:settings.lessonVoice){found[index]=pack;urls.merge(files){_,new in new}}};return (found,urls)}
+        let result=await withTaskCancellationHandler(operation:{await worker.value},onCancel:{worker.cancel()})
+        guard let self,!Task.isCancelled,self.packGeneration==generation else{return};let currentChanged=self.playbackIdentity(self.localizedPacks[self.lessonIndex]) != self.playbackIdentity(result.0[self.lessonIndex]);if currentChanged && self.authoredLessonActive{self.pause();self.seconds=0};self.objectWillChange.send();self.localizedPacks=result.0;self.localizedURLs=result.1;self.localizationLoading=false;if currentChanged && self.authoredLessonActive{self.rebuild()}
+    }}
+    /// Remove, Discard or a removed clip deletes recordings before the background rescan finishes. A lesson whose loaded
+    /// pack lost a file falls back to English at once, so Play never reaches a deleted recording.
+    private func dropPacksWithMissingRecordings(active:Bool){
+        let missing=Set(localizedURLs.filter{!FileManager.default.fileExists(atPath:$0.value.path)}.keys);guard !missing.isEmpty else{return}
+        let stale=localizedPacks.filter{entry in entry.value.clips.contains{missing.contains($0.beatID)}}.map{$0.key},current=stale.contains(lessonIndex)
+        if current && active{pause();seconds=0};objectWillChange.send()
+        for index in stale{for clip in localizedPacks.removeValue(forKey:index)?.clips ?? []{localizedURLs[clip.beatID]=nil}}
+        if current && active{rebuild()}
+    }
+    private var narrationSeconds:Double {localizedPacks[lessonIndex]?.clips.first(where:{$0.beatID==key})?.seconds ?? library.voices[lessonIndex][step].seconds}
+    /// The narration settings the playing clip was started with; only a change that needs a restart restarts it.
+    private var narrationApplied=(on:false,volume:0.0)
+    private func playNarration(){let settings=session.state.settings;narrationApplied=(settings.narration,settings.volume);if let url=localizedURLs[key],localizedPacks[lessonIndex] != nil{audio?.play(localURL:url,seconds:seconds,settings:settings)}else{audio?.play(file:library.voices[lessonIndex][step].file,seconds:seconds,settings:settings)};if let failure=audio?.narrationFailure{feedback=failure}}
+    public var onLessonOpened:(()->Void)?
+    public var onMiniReset:(()->Void)?
+    public var onMiniMove:((MoveRecord)->Void)?
+    @Published public private(set) var miniGame:MiniGameState?
+    @Published public private(set) var miniThinking=false
+    private var miniTask:Task<Void,Never>?,miniGeneration=UUID()
+    public var miniKind:MiniGameKind {miniGame?.kind ?? .pawnDuel}
+    public var miniStatus:String {if let reason=miniGame?.drawReason{return "Draw. "+reason};if let winner=winner{return miniKind.solo ? "Route complete!":miniGame?.computer==true ? (winner=="w" ? "You win!":"Computer wins. Try again!"):(winner=="w" ? "White wins!":"Black wins!")};if miniKind.solo{return "Next corner: \(MiniGameRules.corners[miniGame?.snapshot.cornerIndex ?? 0])"};return miniGame?.computer==true ? (miniTurn=="w" ? "Your turn · White":"Computer’s turn · Black"):(miniTurn=="w" ? "White to move":"Black to move")}
+    public var onIllustration:((String,Bool)->Void)?
+    private var soundedMoves=Set<Int>()
+    @Published public private(set) var awaitingPractice=false
+    public var practiceAvailable:Bool {!MiniGameKind.available(lessonID:current.id).isEmpty || LessonPractice.forLesson(current.id) != nil}
+    /// The lesson shown, or the last one shown while elsewhere (the sidebar and Settings follow it).
+    public var lessonIndex:Int {session.activity.place.lessonIndex ?? lastLessonIndex}
+    private var lastLessonIndex=0
+    @Published public private(set) var step=0
+    @Published public private(set) var seconds=0.0
+    @Published public private(set) var playing=false
+    @Published public private(set) var frame=CourseFrame()
+    @Published public private(set) var picked:[String]=[]
+    @Published public private(set) var feedback=""
+    @Published public private(set) var passed=false
+    /// The puzzle and the mini-game shown are part of the session's activity, not separate flags (B8.2).
+    public var activePuzzle:Puzzle? {if case .puzzle(let id)=session.activity.place{return puzzles[id]};return nil}
+    public var mini:Bool {if case .miniGame=session.activity.place{return true};return false}
+    private let puzzles:[String:Puzzle]
+    private var activityObservation:AnyCancellable?
+    /// Moves the learning surface to `place`. Under an open review the review keeps the board and returns there.
+    private func go(_ place:Place){if let index=place.lessonIndex{lastLessonIndex=index};if var visit=session.activity.review{visit.returnTo=place;session.enter(.reviewing(visit))}else{session.enter(.at(place))}}
+    @Published public private(set) var miniTurn="w"
+    @Published public var query="" {didSet{saveFilters()}}
+@Published public var topic="All topics" {didSet{saveFilters()}}
+@Published public var level="All levels" {didSet{saveFilters()}}
+@Published public var filter="All" {didSet{saveFilters()}}
+    private var timer:Timer?,lastTick:Date?,path:[String]=[],mistake=false
+    public init(session:GameSession) throws {self.session=session;library=try CourseLibrary();puzzles=Dictionary(library.puzzles.map{($0.id,$0)},uniquingKeysWith:{first,_ in first})
+        // A saved lesson this course no longer has opens the first lesson at its start, never at a step derived from the
+        // unknown lesson's transcript position.
+        if let index=library.lessons.firstIndex(where:{$0.id==session.state.course.lessonID}){lastLessonIndex=index;step=library.resumeStep(in:library.lessons[index],progress:session.state.course)}else{lastLessonIndex=0;step=0};if let filters=session.state.puzzleFilters {query=filters["query"] ?? "";topic=filters["topic"] ?? "All topics";level=filters["level"] ?? "All levels";filter=filters["status"] ?? "All"}
+        activityObservation=session.$activity.removeDuplicates().sink{[weak self] _ in self?.objectWillChange.send()}}
+    public func reloadFilters(){let filters=session.state.puzzleFilters ?? [:];query=filters["query"] ?? "";topic=filters["topic"] ?? "All topics";level=filters["level"] ?? "All levels";filter=filters["status"] ?? "All"}
+    private func saveFilters(){session.state.puzzleFilters=["query":query,"topic":topic,"level":level,"status":filter];session.emit(semantic:false,save:true)}
+    public var current:CourseLesson {library.lessons[lessonIndex]}
+    public var beat:CourseBeat {current.beats[step]}
+    public var key:String {beat.id ?? current.id+":"+String(step)}
+    public var exercise:Exercise? {activePuzzle?.exercise}
+    public var duration:Double {library.playbackDuration(lesson:lessonIndex,step:step,narrationSeconds:narrationSeconds,pieceDuration:Double(session.state.settings.pieceDuration)/1000,useCues:localizedPacks[lessonIndex]==nil)}
+    public var winner:String? {mini ? miniGame?.winner:nil}
+    public var destinations:[String] {mini && !miniThinking ? picked.first.map{miniGame?.destinations(from:$0) ?? []} ?? []:[]}
+    public var filteredPuzzles:[Puzzle] {library.puzzles.filter {p in (topic=="All topics" || topic==p.topic)&&(level=="All levels" || level==p.level)&&(filter=="All" || (filter=="To review" ? session.state.puzzles[p.id]?.review==true:session.state.puzzles[p.id]?.solved != true))&&(query.isEmpty || (p.title+" "+p.exercise.prompt).localizedCaseInsensitiveContains(query))}}
+    public func openLesson(index:Int,resume:Bool=true) {guard library.lessons.indices.contains(index) else{return};pause();go(.lesson(index:index));let lesson=current;step=lesson.id==session.state.course.lessonID ? library.resumeStep(in:lesson,progress:session.state.course):session.state.course.positions?[lesson.id].flatMap{id in lesson.beats.firstIndex{$0.id==id}} ?? 0;seek(step:resume ? step:0);onLessonOpened?()}
+    public func seek(step:Int) {NativeLog.course.debug("Seeking authored transcript");guard current.beats.indices.contains(step) else{return};pause();if mini{go(.lesson(index:lessonIndex))};self.step=step;seconds=0;soundedMoves=[];awaitingPractice=false;picked=[];path=[];feedback="";passed=false;session.state.course.lessonID=current.id;session.state.course.step=step;session.state.course.segmentID=key;session.state.course.positions=(session.state.course.positions ?? [:]).merging([current.id:key]){_,new in new};rebuild();session.emit(semantic:false,save:true)}
+    public func play() {guard !mini,activePuzzle==nil else{return};guard !localizationLoading else{feedback="Checking offline lesson recordings. Try Play again shortly.";return};if seconds>=duration{seconds=0;soundedMoves=[]};awaitingPractice=false;playing=true;lastTick=Date();playNarration();timer?.invalidate();timer=Timer.scheduledTimer(withTimeInterval:0.04,repeats:true){[weak self] _ in Task{@MainActor in guard let self=self,let last=self.lastTick else{return};let now=Date();self.lastTick=now;self.tick(wallDelta:now.timeIntervalSince(last))}};rebuild()}
+    public func pause(){if mini{onMiniReset?()};cancelMiniOpponent();pauseNarration()}
+    /// Stops lesson narration only. A mini-game's pending computer reply is not narration and keeps coming (LE-5).
+    public func pauseNarration(){timer?.invalidate();timer=nil;lastTick=nil;playing=false;audio?.pause();if session.mode != .practice{publish()}}
+    public func replay(){pause();seconds=0;soundedMoves=[];play()}
+    public func tick(wallDelta:Double){if let time=audio?.playbackTime,session.state.settings.narration{advance(by:max(0,time-seconds))}else{advance(by:wallDelta)}}
+    public func advance(by delta:Double) {guard playing else{return};seconds=min(duration,seconds+max(0,delta));rebuild();if seconds>=duration {pause();if step<current.beats.count-1 {if session.state.settings.autoAdvance {seek(step:step+1);play()}}else{complete(continuePlayback:session.state.settings.autoAdvance)};publish()}}
+    public func next(){guard !mini else{return};if let id=activePuzzle?.id {
+            let filtered=filteredPuzzles;guard !filtered.isEmpty else{showPuzzleLibrary();return}
+            if let i=filtered.firstIndex(where:{$0.id==id}){openPuzzle(id:filtered[(i+1)%filtered.count].id);return}
+            let order=library.puzzles.map(\.id),current=order.firstIndex(of:id) ?? -1
+            openPuzzle(id:(filtered.first{(order.firstIndex(of:$0.id) ?? 0)>current} ?? filtered[0]).id);return
+        };if step<current.beats.count-1{seek(step:step+1)}else{complete()}}
+    public func complete(continuePlayback:Bool=false){
+        pause()
+        if !session.state.course.completed.contains(current.id){session.state.course.completed.append(current.id)}
+        feedback="Lesson explored! You can replay it whenever you like."
+        session.emit(semantic:false,save:true)
+        // Only uninterrupted playback crosses a lesson boundary. Manual navigation
+        // remains paused, and the final lesson never loops back to the beginning.
+        if continuePlayback,lessonIndex+1<library.lessons.count {
+            if session.state.settings.pauseForPractice,practiceAvailable{awaitingPractice=true;feedback="Try it on the board, or continue to the next lesson.";publish();return}
+            openLesson(index:lessonIndex+1,resume:false)
+            play()
+        }
+    }
+    public func openPuzzle(id:String) {guard let puzzle=library.puzzles.first(where:{$0.id==id}) else{return};pause();go(.puzzle(id:puzzle.id));picked=[];path=[];feedback="";passed=false;mistake=false;frame=CourseFrame(board:puzzle.board,hl:puzzle.highlights);publish()}
+    public func showPuzzleLibrary(){pause();go(.puzzleLibrary);picked=[];feedback="";frame=CourseFrame();publish()}
+    public func checkAnswer(){guard let e=exercise else{return};answer(e.matches(picked))}
+    public func choose(_ choice:String){guard activePuzzle != nil,!passed else{return};pause();answer(exercise?.matches([choice])==true)}
+    public func clearSelection(){picked=[];publish()}
+    public func noSquares(){guard activePuzzle != nil,!passed else{return};picked=[];pause();answer(exercise?.matches([])==true)}
+    public func restartPath(){guard activePuzzle != nil,!passed else{return};path=[];picked=[];feedback="";if let p=activePuzzle {frame.board=p.board}else{rebuild()};publish()}
+    public func click(_ sq:String){guard ChessRules.validSquare(sq) else{return}
+        if mini {clickMini(sq);return};guard activePuzzle != nil else{return};pause()
+        guard let e=exercise,!passed else{return}
+        switch e.kind {case "squares":
+            if e.answers?.count==1 {picked=[sq];answer(e.matches(picked))}
+            else if let i=picked.firstIndex(of:sq){picked.remove(at:i)}else{picked.append(sq)}
+        case "move":let mover=e.from.flatMap{frame.board?[$0]?.first};if let from=picked.first {if from==sq{picked=[];return};if let mover,frame.board?[sq]?.first==mover{picked=[sq];break};let correct=e.matches([from,sq]);if correct,activePuzzle != nil,var board=frame.board{try? CourseLibrary.apply(&board,moves:[[from,sq]]);frame.board=board};picked=[];answer(correct)}else if let piece=frame.board?[sq],mover.map({piece.first==$0}) ?? true {picked=[sq]}
+        // A square that is not a king step is a misclick, not a mistake; an unsafe neighbour is a mistake whose own
+        // guidance stays visible instead of the generic "Not quite".
+        case "path":if var board=frame.board,let from=board.first(where:{$0.value=="wk"})?.key {if from==sq{return};if CourseLibrary.safeKingStep(board,from:from,to:sq){try? CourseLibrary.apply(&board,moves:[[from,sq]]);frame.board=board;path.append(sq);if sq==e.to{answer(true)}else{feedback="Safe step. Keep going!"}}else if !CourseLibrary.attacks(board,from:from,to:sq){feedback="Choose a square next to the king."}else{answer(false,hint:"That square is not a safe neighboring square. Try another step.")}}
+        default:break};publish()
+    }
+    private func answer(_ correct:Bool,revealed:Bool=false,hint:String?=nil){guard let p=activePuzzle,!passed else{return};pause()
+        var record=session.state.puzzles[p.id] ?? PuzzleProgress();record.record(correct:correct,revealed:revealed || mistake);session.state.puzzles[p.id]=record;if !correct{mistake=true};passed=correct || revealed;feedback=passed ? (revealed ? solution(p.exercise)+" ":"Correct. ")+p.explanation:hint ?? "Not quite. Look again and try another answer.";session.emit(semantic:false,save:true);publish()
+    }
+    public func reveal(){guard activePuzzle != nil else{return};answer(false,revealed:true)}
+    private func solution(_ e:Exercise)->String {switch e.kind {case "choice":return e.answer ?? "";case "squares":return (e.answers ?? []).isEmpty ? "No squares":(e.answers ?? []).joined(separator:", ");case "move":return "\(e.from ?? "") → \(e.to ?? "")";default:return "Walk safely from \(e.from ?? "") to \(e.to ?? "")."}}
+    public func startPawnDuel(computer:Bool=true){startMini(.pawnDuel,restart:true,computer:computer)}
+    public func startMini(_ kind:MiniGameKind,restart:Bool=false,computer:Bool=true){
+        pause();miniGame = !restart ? session.state.miniGames?[kind.rawValue] ?? MiniGameState(kind:kind,computer:computer):MiniGameState(kind:kind,computer:computer)
+        go(.miniGame(lessonIndex:lessonIndex,kind:kind));picked=[];feedback=""
+        syncMini();scheduleMiniOpponent()
+    }
+    /// After a review closes: delivers the activity state held back while the review owned the board, and re-queues the
+    /// computer's mini-game reply that leaving for the review cancelled.
+    public func resumeMiniOpponent(){if publishDeferred,!session.reviewSuspended,session.mode != .practice{publish()};scheduleMiniOpponent()}
+    public func restartMini(){startMini(miniKind,restart:true,computer:miniGame?.computer ?? true)}
+    public func setMiniComputer(_ enabled:Bool){cancelMiniOpponent();miniGame?.computer=enabled && !miniKind.solo;picked=[];syncMini();scheduleMiniOpponent()}
+    public func undoMini(){onMiniReset?();cancelMiniOpponent();miniGame?.undo();picked=[];feedback="";syncMini();scheduleMiniOpponent()}
+    public func leaveMini(){onMiniReset?();cancelMiniOpponent();go(.lesson(index:lessonIndex));picked=[];feedback="";rebuild()}
+    private func clickMini(_ square:String){
+        guard let game=miniGame,!game.isFinished,!miniThinking,!(game.computer && game.turn=="b") else{return}
+        if let from=picked.first,game.destinations(from:from).contains(square){applyMini(MiniGameMove(from:from,to:square));scheduleMiniOpponent();return}
+        picked=game.board[square]?.hasPrefix(game.turn)==true && game.kind.canMove(game.board[square]!) ? (picked==[square] ? []:[square]):[]
+        feedback=picked.isEmpty ? "Select one of your movable pieces.":"";publish()
+    }
+    private func applyMini(_ move:MiniGameMove){
+        guard var game=miniGame,let piece=game.board[move.from] else{return}
+        let captured=game.board[move.to],color=game.turn
+        guard game.play(move) else{return};miniGame=game;picked=[];feedback="";syncMini()
+        onMiniMove?(MoveRecord(color:color,from:move.from,to:move.to,piece:String(piece.suffix(1)),flags:captured==nil ? "n":"c",san:move.from+"–"+move.to,before:"",after:"",captured:captured.map{String($0.suffix(1))},promotion:nil))
+    }
+    private func syncMini(){
+        guard let game=miniGame else{return};miniTurn=game.turn
+        let highlights=game.snapshot.lastMove.map{[Highlight(sq:$0.from,kind:"last"),Highlight(sq:$0.to,kind:"last")]} ?? []
+        frame=CourseFrame(board:game.board,hl:highlights,counts:game.kind.solo ? Array(MiniGameRules.corners.dropFirst(game.snapshot.cornerIndex)):nil)
+        if session.state.miniGames==nil{session.state.miniGames=[:]};session.state.miniGames?[game.kind.rawValue]=game
+        publish();session.emit(semantic:false,save:true)
+    }
+    private func cancelMiniOpponent(){miniGeneration=UUID();miniTask?.cancel();miniTask=nil;miniThinking=false}
+    /// The opponent profile the pending reply is searching with.
+    private var miniProfile=""
+    /// A review keeps `session.mode` at `.lesson` but owns the board: no computer reply is queued or played behind it.
+    private func scheduleMiniOpponent(){
+        guard mini,session.mode == .lesson,!session.reviewSuspended,let game=miniGame,game.computer,game.turn=="b",!game.isFinished else{return}
+        cancelMiniOpponent();miniThinking=true;picked=[];let generation=miniGeneration
+        let delay=MiniGameOpponent.replyDelay+Duration.milliseconds(Int64(session.state.settings.pieceDuration))
+        let profile=session.state.settings.miniOpponentProfile;miniProfile=profile
+        let worker=Task.detached(priority:.userInitiated){MiniGameOpponent.choose(in:game,profile:profile,seed:(UInt64(game.opponentSeed ?? "1",radix:16) ?? 1) &+ UInt64(game.history.count+1))}
+        miniTask=Task{[weak self] in
+            await withTaskCancellationHandler(operation:{
+                let started=ContinuousClock.now,move=await worker.value
+                do{try await Task.sleep(for:max(.zero,delay-started.duration(to:.now)))}catch{return}
+                guard let self=self,!Task.isCancelled,self.miniGeneration==generation else{return}
+                // The current reply is over either way; one that can no longer apply (a review opened) is re-queued on return.
+                self.miniTask=nil;self.miniThinking=false
+                guard self.mini,self.session.mode == .lesson,!self.session.reviewSuspended,self.miniGame==game,let move=move else{return}
+                self.applyMini(move)
+            },onCancel:{worker.cancel()})
+        }
+    }
+    /// A language or voice change reloads narration packs, but a mini-game's pending computer reply must still be
+    /// rescheduled with the current opponent profile: the reload must never swallow it.
+    /// Other settings (a volume drag sends dozens) leave a reply in flight alone: it restarts only for a new profile, or
+    /// when a pause cancelled it. Likewise narration restarts only when switched on or off or (un)muted; a volume change
+    /// adjusts the playing clip.
+    public func settingsChanged(){let settings=session.state.settings,selectionChanged=loadedSelection != settings.lessonLanguage+"|"+settings.lessonVoice;if selectionChanged{reloadLocalizedPacks()};if mini,session.mode == .lesson{if !session.reviewSuspended,!miniThinking || miniProfile != settings.miniOpponentProfile{cancelMiniOpponent();scheduleMiniOpponent()};return};guard !selectionChanged,session.mode == .lesson,activePuzzle==nil,!mini else{return}
+        if playing{if settings.narration != narrationApplied.on || (settings.volume>0) != (narrationApplied.volume>0){playNarration()}else if settings.volume != narrationApplied.volume{narrationApplied.volume=settings.volume;audio?.setNarrationVolume(settings.volume)}};rebuild()}
+    private func rebuild(){
+        do{frame=try library.frame(lesson:lessonIndex,step:step,seconds:seconds,duration:Double(session.state.settings.pieceDuration)/1000,narrationSeconds:narrationSeconds,useCues:localizedPacks[lessonIndex]==nil)}catch{feedback="The lesson illustration could not load."}
+        if playing {
+            var board=library.referenceFrames[lessonIndex][step].start.board ?? [:]
+            let times=library.moveTimes(lesson:lessonIndex,step:step,narrationSeconds:narrationSeconds,pieceDuration:Double(session.state.settings.pieceDuration)/1000,useCues:localizedPacks[lessonIndex]==nil)
+            for (i,move) in beat.moves.enumerated(){
+                if seconds>=times[i],!soundedMoves.contains(i),let piece=board[move[0]] {
+                    soundedMoves.insert(i);onIllustration?(String(piece.suffix(1)),board[move[1]] != nil)
+                }
+                try? CourseLibrary.apply(&board,moves:[move])
+            }
+        }
+        publish()
+    }
+
+    /// Set when a publish was held back because a review owns the board; `resumeMiniOpponent` delivers it on return.
+    private var publishDeferred=false
+    private func publish(){guard session.mode != .practice else{return};guard !session.reviewSuspended else{publishDeferred=true;return};publishDeferred=false
+        // The library has no board or lesson of its own: whatever paused, it stays the library.
+        if session.activity.place == .puzzleLibrary{session.setLesson(LessonProjection(mode:"quick_puzzle",pieces:nil,title:"Quick puzzles",lessonId:"puzzle-library",step:0,prompt:nil,choices:nil,playing:false,narrationActive:false,moving:false,turn:nil,winner:nil,rules:nil));return};let e=mini ? nil:exercise;session.setLesson(LessonProjection(mode:mini ? (miniKind == .pawnDuel ? "pawn_duel":"mini_game"):activePuzzle != nil ? "quick_puzzle":"lesson",pieces:frame.board,title:mini ? miniKind.title:activePuzzle?.title ?? current.title,lessonId:activePuzzle?.id ?? current.id,step:activePuzzle != nil ? 0:step,prompt:e?.prompt,choices:e?.kind=="choice" ? e?.choices:nil,playing:playing,narrationActive:playing && session.state.settings.narration && seconds<narrationSeconds && !NativePolicy.silent,moving:frame.motion != nil,turn:mini ? miniTurn:nil,winner:winner,rules:mini && miniKind != .pawnDuel ? [miniKind.rules]:mini ? ["Reach the far rank with a pawn, capture every opposing pawn, or leave the opponent without a move.","Pawns move forward and capture diagonally. A pawn on its starting rank may advance two empty squares.","No en passant. Pawns stay pawns at the far rank. "+MiniGameState.drawRules]:nil,drawReason:mini ? miniGame?.drawReason:nil))}
+    public func shutdown(){packReloadTask?.cancel();packGeneration=UUID();pause();audio?.stop()}
+}

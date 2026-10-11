@@ -1,9 +1,18 @@
+import CheckmateTestSupport
 import XCTest
-@testable import CheckmateCore
+import CheckmateCore
+@testable import CheckmateDomain
+@testable import CheckmateSupport
+@testable import CheckmateRules
+@testable import CheckmateEngine
+@testable import CheckmateContent
+@testable import CheckmateApplication
+@testable import CheckmateMacPlatform
+
 
 /// A companion opponent must play at the strength the learner configured, exactly as Stockfish's own reply does.
 @MainActor final class CompanionOpponentStrengthTests:XCTestCase {
-    final class SkillRecordingEngine:EngineService {
+    final class SkillRecordingEngine:TestEngineService {
         var skills:[Int]=[]
         func analyze(fen:String,skill:Int,budget:Int,multiPv:Int)async throws -> EngineAnalysis {skills.append(skill);return EngineAnalysis(bestMove:try ChessRules(fen:fen).moves().first?.uci)}
     }

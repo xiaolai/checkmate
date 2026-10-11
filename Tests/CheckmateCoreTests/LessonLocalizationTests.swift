@@ -1,5 +1,14 @@
+import CheckmateTestSupport
 import XCTest
-@testable import CheckmateCore
+import CheckmateCore
+@testable import CheckmateDomain
+@testable import CheckmateSupport
+@testable import CheckmateRules
+@testable import CheckmateEngine
+@testable import CheckmateContent
+@testable import CheckmateApplication
+@testable import CheckmateMacPlatform
+
 final class LessonLocalizationTests:XCTestCase {
  func testExactIDsAndCoordinates() throws {
   let library=try CourseLibrary(), source=LessonTranslation.source(library:library,index:0)

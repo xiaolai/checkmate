@@ -1,5 +1,13 @@
 import XCTest
-@testable import CheckmateCore
+import CheckmateCore
+@testable import CheckmateDomain
+@testable import CheckmateSupport
+@testable import CheckmateRules
+@testable import CheckmateEngine
+@testable import CheckmateContent
+@testable import CheckmateApplication
+@testable import CheckmateMacPlatform
+
 final class RulesTests:XCTestCase {
     func testHistorySurvivesPGNRestoreAndUndo() throws {
         let rules=try ChessRules();try rules.move("e2","e4");try rules.move("e7","e5")

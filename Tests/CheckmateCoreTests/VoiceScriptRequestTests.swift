@@ -1,5 +1,13 @@
 import XCTest
-@testable import CheckmateCore
+import CheckmateCore
+@testable import CheckmateDomain
+@testable import CheckmateSupport
+@testable import CheckmateRules
+@testable import CheckmateEngine
+@testable import CheckmateContent
+@testable import CheckmateApplication
+@testable import CheckmateMacPlatform
+
 final class VoiceScriptRequestTests:XCTestCase {
     func testScriptUsesIsolatedNoContextResponseAndKeepsScopeMetadata()throws {
         let event=VoiceScriptRequest.event(text:"Black moved the pawn to a6.",language:"English",metadata:["checkmate_turn":"12"]),response=event["response"] as! [String:Any]

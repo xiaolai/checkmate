@@ -1,6 +1,15 @@
+import CheckmateTestSupport
 import XCTest
 import CryptoKit
-@testable import CheckmateCore
+import CheckmateCore
+@testable import CheckmateDomain
+@testable import CheckmateSupport
+@testable import CheckmateRules
+@testable import CheckmateEngine
+@testable import CheckmateContent
+@testable import CheckmateApplication
+@testable import CheckmateMacPlatform
+
 
 /// Gap coverage for voice and MCP sessions: microphone problems and route changes (VC-11, VC-3, VC2-7), disconnect
 /// hygiene and the watchdog (VC-4, VC-14), the opponent's wait event (VC2-5), the companion engine gate (VC2-4), the
@@ -134,7 +143,7 @@ import CryptoKit
     }
 
     // VC2-4: one companion engine request at a time, and never while Stockfish chooses the opponent's move.
-    @MainActor final class CountingEngine:EngineService {
+    @MainActor final class CountingEngine:TestEngineService {
         var active=0,peak=0,calls=0,gated=false,waiting:[CheckedContinuation<Void,Never>]=[]
         func analyze(fen:String,skill:Int,budget:Int,multiPv:Int)async throws -> EngineAnalysis {
             calls+=1;active+=1;peak=max(peak,active);defer{active-=1}

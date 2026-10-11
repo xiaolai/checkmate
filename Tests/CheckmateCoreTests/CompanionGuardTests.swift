@@ -1,11 +1,20 @@
+import CheckmateTestSupport
 import XCTest
 import Foundation
-@testable import CheckmateCore
+import CheckmateCore
+@testable import CheckmateDomain
+@testable import CheckmateSupport
+@testable import CheckmateRules
+@testable import CheckmateEngine
+@testable import CheckmateContent
+@testable import CheckmateApplication
+@testable import CheckmateMacPlatform
+
 
 /// Audit fix: a companion opponent's move shares the one-request engine gate, `opponent_turn` never wakes on a finished
 /// game, and registering an already-current skill records its hash so a later update still recognises Checkmate's copy.
 @MainActor final class CompanionGuardTests:XCTestCase {
-    @MainActor final class GatedEngine:EngineService {
+    @MainActor final class GatedEngine:TestEngineService {
         var calls=0,active=0,peak=0,waiting:[CheckedContinuation<Void,Never>]=[]
         func analyze(fen:String,skill:Int,budget:Int,multiPv:Int)async throws -> EngineAnalysis {
             calls+=1;active+=1;peak=max(peak,active);defer{active-=1};await withCheckedContinuation{waiting.append($0)}

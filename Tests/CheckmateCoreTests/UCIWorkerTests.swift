@@ -1,5 +1,13 @@
 import XCTest
-@testable import CheckmateCore
+import CheckmateCore
+@testable import CheckmateDomain
+@testable import CheckmateSupport
+@testable import CheckmateRules
+@testable import CheckmateEngine
+@testable import CheckmateContent
+@testable import CheckmateApplication
+@testable import CheckmateMacPlatform
+
 @MainActor final class UCIWorkerTests:XCTestCase {
     private func executable(stall:Bool=false,delay:Double=0,startupDelay:Double=0)throws -> (URL,URL){let directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);try FileManager.default.createDirectory(at:directory,withIntermediateDirectories:true);let path=directory.appendingPathComponent("fake.py");let code="""
 #!/usr/bin/python3

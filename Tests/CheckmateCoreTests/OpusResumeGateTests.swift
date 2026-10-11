@@ -1,9 +1,18 @@
+import CheckmateTestSupport
 import XCTest
-@testable import CheckmateCore
+import CheckmateCore
+@testable import CheckmateDomain
+@testable import CheckmateSupport
+@testable import CheckmateRules
+@testable import CheckmateEngine
+@testable import CheckmateContent
+@testable import CheckmateApplication
+@testable import CheckmateMacPlatform
+
 
 /// M9 resume gate: a practice reply suspended by a failed review entry resumes only on an explicit Return to game
 /// (plan rule 4), whatever other reply entry point fires meanwhile.
-@MainActor private final class PendingEngine:EngineService {
+@MainActor private final class PendingEngine:TestEngineService {
     var continuations:[CheckedContinuation<EngineAnalysis,Error>]=[]
     var skills:[Int]=[]
     func analyze(fen:String,skill:Int,budget:Int,multiPv:Int)async throws -> EngineAnalysis {skills.append(skill);return try await withCheckedThrowingContinuation{continuations.append($0)}}

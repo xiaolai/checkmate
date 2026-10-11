@@ -1,5 +1,14 @@
+import CheckmateTestSupport
 import XCTest
-@testable import CheckmateCore
+import CheckmateCore
+@testable import CheckmateDomain
+@testable import CheckmateSupport
+@testable import CheckmateRules
+@testable import CheckmateEngine
+@testable import CheckmateContent
+@testable import CheckmateApplication
+@testable import CheckmateMacPlatform
+
 final class EngineTests:XCTestCase {
     @MainActor func testBundledEngineProducesLegalWhiteAndBlackLines() async throws {
         let engine=NativeEngine(),rules=try ChessRules()
@@ -8,4 +17,4 @@ final class EngineTests:XCTestCase {
     @MainActor func testCancelledSearchDoesNotReturnMove() async throws {let engine=NativeEngine();let task=Task{try await engine.analyze(fen:ChessRules().fen,skill:20,budget:1000,multiPv:3)};try await Task.sleep(nanoseconds:30_000_000);task.cancel();do{_ = try await task.value;XCTFail("Cancelled engine returned a result")}catch{}}
     @MainActor func testLateReplyCannotChangeNewGame() async throws {let engine=DelayedEngine(),s=try GameSession(engine:engine);try s.playWhite(from:"e2",to:"e4");try await Task.sleep(nanoseconds:10_000_000);s.newGame();try await Task.sleep(nanoseconds:100_000_000);XCTAssertEqual(s.rules.history,[]);XCTAssertFalse(s.busy)}
 }
-@MainActor private final class DelayedEngine:EngineService {func analyze(fen:String,skill:Int,budget:Int,multiPv:Int) async throws->EngineAnalysis{try? await Task.sleep(nanoseconds:60_000_000);return EngineAnalysis(bestMove:"e7e5")}}
+@MainActor private final class DelayedEngine:TestEngineService {func analyze(fen:String,skill:Int,budget:Int,multiPv:Int) async throws->EngineAnalysis{try? await Task.sleep(nanoseconds:60_000_000);return EngineAnalysis(bestMove:"e7e5")}}

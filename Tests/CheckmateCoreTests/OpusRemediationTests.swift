@@ -1,8 +1,17 @@
+import CheckmateTestSupport
 import XCTest
-@testable import CheckmateCore
+import CheckmateCore
+@testable import CheckmateDomain
+@testable import CheckmateSupport
+@testable import CheckmateRules
+@testable import CheckmateEngine
+@testable import CheckmateContent
+@testable import CheckmateApplication
+@testable import CheckmateMacPlatform
+
 
 /// Regressions for the 2026-10-09 post-acceptance audit (Opus remediation).
-@MainActor private final class RecordingPendingEngine:EngineService {
+@MainActor private final class RecordingPendingEngine:TestEngineService {
     var continuations:[CheckedContinuation<EngineAnalysis,Error>]=[]
     var skills:[Int]=[]
     func analyze(fen:String,skill:Int,budget:Int,multiPv:Int)async throws -> EngineAnalysis {skills.append(skill);return try await withCheckedThrowingContinuation{continuations.append($0)}}

@@ -5,6 +5,13 @@ macOS 14+ AppKit/SwiftUI application for Apple Silicon and Intel. Practice with 
 settings, local MCP companion and native live voice transport. No web view or
 JavaScript UI runtime. JavaScriptCore runs the existing chess.js rules only.
 
+## Module boundaries
+
+See [architecture.md](architecture.md) for target ownership, service contracts and the remaining Windows work.
+`CheckmateCore` is a compatibility facade. New shared code imports its owning module; application workflows
+cannot depend on the Stockfish implementation or macOS services. Domain, application/service integration,
+native UI and MCP tests have separate test targets. The architecture gate rejects dependency regressions.
+
 ## Build and run
 
 All development execution stays on build-host. From the repository root:
@@ -14,7 +21,7 @@ bash build.sh
 open build/CheckmateNative.app
 ```
 
-`CHECKMATE_AUTOMATION=1 swift test` tests the core silently. `bash scripts/acceptance.sh` runs silent isolated
+`CHECKMATE_AUTOMATION=1 swift test` runs all four test suites silently. `bash scripts/acceptance.sh` runs silent isolated
 native tests, packaged UI scenarios, the existing MCP adapter against the native
 broker, a temporary WebKit legacy-store exporter test, and resource checks.
 The WebKit helper is a test executable, never part of the application. Its export is reimported by the deterministic migration test. The aggregate includes 483 sampled layout frames, constrained/fullscreen checks, lifecycle/restart tests, 1000 command transitions and 20 connection cycles. Automation does not enable VoiceOver or change accessibility preferences.

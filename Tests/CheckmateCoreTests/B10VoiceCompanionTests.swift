@@ -1,13 +1,22 @@
+import CheckmateTestSupport
 import XCTest
 import Network
-@testable import CheckmateCore
+import CheckmateCore
+@testable import CheckmateDomain
+@testable import CheckmateSupport
+@testable import CheckmateRules
+@testable import CheckmateEngine
+@testable import CheckmateContent
+@testable import CheckmateApplication
+@testable import CheckmateMacPlatform
+
 
 /// B10 low findings for the MCP companion: retried cancellations (VC2-8), imported PGN text (VC2-9), pre-auth slot
 /// exhaustion (VC2-10), review consent (VC2-11), heartbeat retries (VC2-13), sleep-safe leases (TX-7), the launch
 /// location of Set up Codex (VC-9/IR-8) and the skill's error guide.
 @MainActor final class B10VoiceCompanionTests:XCTestCase {
     /// An engine whose first search waits until the test releases it.
-    @MainActor final class GatedEngine:EngineService {
+    @MainActor final class GatedEngine:TestEngineService {
         var hold=false,waiting:CheckedContinuation<Void,Never>?
         func analyze(fen:String,skill:Int,budget:Int,multiPv:Int)async throws -> EngineAnalysis {if hold{hold=false;await withCheckedContinuation{waiting=$0}};return EngineAnalysis(bestMove:try ChessRules(fen:fen).moves().first?.uci)}
         func release(){waiting?.resume();waiting=nil}
@@ -112,7 +121,7 @@ import Network
         // Voice-coach-only failures and an MCP start-up failure never reach a companion as a tool result.
         let notToolResults:Set<String>=["UNGROUNDED_REVIEW_SPEECH","FEATURE_DISABLED","MISSING_BUNDLE_VERSION"]
         let pattern=try NSRegularExpression(pattern:#"(?:ProtocolFailure|CheckmateError\.(?:invalid|unavailable))\("([A-Z][A-Z_]+)""#);var codes=Set<String>()
-        for folder in ["Sources/CheckmateCore","Sources/CheckmateMCPKit"] {
+        for folder in ["Sources/CheckmateDomain","Sources/CheckmateSupport","Sources/CheckmateRules","Sources/CheckmateEngine","Sources/CheckmateContent","Sources/CheckmateApplication","Sources/CheckmateMacPlatform","Sources/CheckmateMCPKit"] {
             for name in try FileManager.default.contentsOfDirectory(atPath:root.appendingPathComponent(folder).path) where name.hasSuffix(".swift") {
                 let text=try String(contentsOf:root.appendingPathComponent(folder).appendingPathComponent(name),encoding:.utf8)
                 for match in pattern.matches(in:text,range:NSRange(text.startIndex...,in:text)){codes.insert(String(text[Range(match.range(at:1),in:text)!]))}

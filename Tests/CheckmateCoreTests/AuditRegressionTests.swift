@@ -1,5 +1,13 @@
 import XCTest
-@testable import CheckmateCore
+import CheckmateCore
+@testable import CheckmateDomain
+@testable import CheckmateSupport
+@testable import CheckmateRules
+@testable import CheckmateEngine
+@testable import CheckmateContent
+@testable import CheckmateApplication
+@testable import CheckmateMacPlatform
+
 final class AuditRegressionTests:XCTestCase {
     func testNativeArchiveNormalizesUnknownLearningRecords()throws {var input=ApplicationState();input.course.lessonID="missing";input.course.step = -1;input.course.completed=["intro","missing"];input.course.answered=["missing:0"];var record=PuzzleProgress();record.attempts = -2;input.puzzles=["rook":record,"missing":record];var output=ApplicationState();let report=try LegacyImporter.apply(JSONEncoder().encode(input),to:&output,course:CourseLibrary());XCTAssertEqual(output.course.lessonID,"intro");XCTAssertEqual(output.course.step,0);XCTAssertEqual(output.course.completed,["intro"]);XCTAssertTrue(output.course.answered.isEmpty);XCTAssertNil(output.puzzles["missing"]);XCTAssertEqual(output.puzzles["rook"]?.attempts,0);XCTAssertFalse(report.adjusted.isEmpty);XCTAssertFalse(report.ignored.isEmpty);try StateStore.validate(output);XCTAssertThrowsError(try StateStore.validate(input))}
     @MainActor func testLessonEscapeAndNegativeSavedStep()throws {let s=try GameSession(engine:nil),p=try LearningPlayer(session:s);s.state.course.step = -1;p.openLesson(index:0);XCTAssertEqual(p.step,0);p.openPuzzle(id:"rook");p.click("d2");XCTAssertEqual(p.picked,["d2"]);p.clearSelection();XCTAssertTrue(p.picked.isEmpty)}

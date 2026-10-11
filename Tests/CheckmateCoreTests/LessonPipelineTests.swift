@@ -1,5 +1,14 @@
+import CheckmateTestSupport
 import XCTest
-@testable import CheckmateCore
+import CheckmateCore
+@testable import CheckmateDomain
+@testable import CheckmateSupport
+@testable import CheckmateRules
+@testable import CheckmateEngine
+@testable import CheckmateContent
+@testable import CheckmateApplication
+@testable import CheckmateMacPlatform
+
 private actor FakeTranslator:LessonTranslationProvider {
  var calls=0
  func translate(source:LessonTranslation,locale:String,onUsage:@escaping @Sendable(String,String,UsageTokens?)->Void)async throws->TranslationResult {calls+=1;var text=source;text.title="French title: "+source.title;text.teaches=source.teaches.map{"French goal: "+$0};text.beats=source.beats.map{var beat=$0;beat.stepTitle="French step: "+beat.stepTitle;beat.say="French subtitle: "+beat.say;beat.speak="French speech: "+beat.speak;return beat};onUsage("turn","fake",UsageTokens(total:5));return TranslationResult(text:text,model:"fake",turnID:"turn",tokens:UsageTokens(total:5))}
