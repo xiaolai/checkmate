@@ -1,0 +1,599 @@
+{
+  "schemaVersion": 1,
+  "cues": {
+    "pawn:5": {
+      "textSHA256": "735e5f0ed51fb22cc4384f9eb0f0962812ccf22d9dccd82767cb973eb8f09166",
+      "masterSHA256": "9921b42212354f313cf5c92f2bb283b21def2ab0dff9faec6d2a0134c4386ffa",
+      "fractions": [
+        0.297095,
+        0.541079,
+        0.788382
+      ],
+      "method": "whisper-1-authored-phrase"
+    },
+    "pawn:11": {
+      "textSHA256": "337a726043b5dca9713c4335bb19304c7bcc9d04f20418ecdb4cf7aa5f63a7a6",
+      "masterSHA256": "216d6001fc8d57cab08a9a9304b23a101eda4077c29730d56fbefe9c671a6756",
+      "fractions": [
+        0.479339,
+        0.743802
+      ],
+      "method": "whisper-1-authored-phrase"
+    },
+    "pawn-duel:3": {
+      "textSHA256": "9c01a86c2f6290e0f875fa610c4e90b4b9b84c391a0fd1e397ee7b6cea7c475b",
+      "masterSHA256": "bfa28a3a225806e5c40236ec2afcf75d7506c7adaee9605929411896a4f99a52",
+      "fractions": [
+        0.38125,
+        0.689583
+      ],
+      "method": "whisper-1-authored-phrase"
+    },
+    "pawn-duel:9": {
+      "textSHA256": "b6a04a3767d4aa28da640d064a1e1a9b8ef0de7f5a6fc75607af705118816306",
+      "masterSHA256": "05a5391c150b1ad8c8b958476ab1b374a36ca9e5b679e5f84ab8ab814d2ba97d",
+      "fractions": [
+        0.341304,
+        0.706522
+      ],
+      "method": "whisper-1-authored-phrase"
+    },
+    "pawn-duel:24": {
+      "textSHA256": "86a703733e037688f5efa82d08b95103571961977ce5baf60188d8c883ee2cb4",
+      "masterSHA256": "85d87f62b47e94df324685c5c927b42e998dd22867779bade8dd79268bdb1d98",
+      "fractions": [
+        0.148243,
+        0.351438,
+        0.5623
+      ],
+      "method": "whisper-1-authored-phrase"
+    },
+    "rook:5": {
+      "textSHA256": "b1673f785b67528bc7ada847abf2ef554ad019d48b98f4bc0a86e75f0fa84004",
+      "masterSHA256": "799686b2b0f6c26c54bf84dabf84a2b7c2e9162c84b0c1879484db843c03cd50",
+      "fractions": [
+        0.352866,
+        0.636943,
+        0.824204
+      ],
+      "method": "whisper-1-authored-phrase"
+    },
+    "rook:8": {
+      "textSHA256": "1873edf5f5eb24dcbf5c5a2ac767726b952312d75a1f2846b8f4d39cb4c6b55c",
+      "masterSHA256": "8c37a20ac14988c8a1620314925af2c3ccd5f22655449f3d1437119ae5a5c853",
+      "fractions": [
+        0.38894,
+        0.720737
+      ],
+      "method": "whisper-1-authored-phrase"
+    },
+    "bishop:5": {
+      "textSHA256": "e788770bd41ae265486a8375038d05779e43b5f6ab7bcf0b2f5e803542efdd90",
+      "masterSHA256": "f0dcb23124a8ae2c74f6a933a2e4d4365eb09fd885d3f2ab8b68d148e7a966b3",
+      "fractions": [
+        0.387692,
+        0.72
+      ],
+      "method": "whisper-1-authored-phrase"
+    },
+    "bishop:10": {
+      "textSHA256": "bcf64a99e50df6784703aa6dcd28b2b0536410224beef36e919a609943c120b5",
+      "masterSHA256": "799931666dd6f4ede44f2cc0c35a47c7f22f966a671745af6527fc2bdcfcceae",
+      "fractions": [
+        0.486411,
+        0.745645
+      ],
+      "method": "whisper-1-authored-phrase"
+    },
+    "bishop-practice:2": {
+      "textSHA256": "d26b94ac20b86dd3a7c69a1058d72a9e922b6c0ff0d0cbe23ac0e0828924c024",
+      "masterSHA256": "0b753551649f7d23d152a8c8a99baab58a895481cffa504694787a71ef49efc9",
+      "fractions": [
+        0.346809,
+        0.691489
+      ],
+      "method": "whisper-1-authored-phrase"
+    },
+    "queen:6": {
+      "textSHA256": "696c891d579b31546d1da0a41535523ccafa9c7693855b8b4cd9df2f1288bb98",
+      "masterSHA256": "2fb152a0204669585e99955b5cce077bb08cdf9d5e814799645f97fafd3cdb79",
+      "fractions": [
+        0.265098,
+        0.522353,
+        0.770196
+      ],
+      "method": "whisper-1-authored-phrase"
+    },
+    "knight:13": {
+      "textSHA256": "d3810be8e8766bbc9f8b9bf753578836ba5fc3757614af3455851bd06fd998ae",
+      "masterSHA256": "816159858a53531bd57cb4f68b5c43d4c6a71b66f2b5727c3b806e4ea759e5bf",
+      "fractions": [
+        0.409365,
+        0.608696,
+        0.804013
+      ],
+      "method": "whisper-1-authored-phrase"
+    },
+    "knight-practice:19": {
+      "textSHA256": "73835b8bbfe14644736f6f5422e0ab57173e3b73a5d0b2e721320bd818a7645c",
+      "masterSHA256": "b2adaccb0510a885e2c148006f29cd255c4930ea0296c8e8f3ca01cb3b99823b",
+      "fractions": [
+        0.290716,
+        0.428647,
+        0.580371,
+        0.723607,
+        0.868965
+      ],
+      "method": "whisper-1-authored-phrase"
+    },
+    "king:5": {
+      "textSHA256": "e1cf683260d63cd0387e6a6029aca738d63599343aa787dc87d845fa939b5443",
+      "masterSHA256": "5b748c1f64030eb091d8ba6db3ba53672153bd7576c7a412c0c5e4b5d5a4e268",
+      "fractions": [
+        0.271373,
+        0.531765,
+        0.779608
+      ],
+      "method": "whisper-1-authored-phrase"
+    },
+    "safe-squares:10": {
+      "textSHA256": "7d1afd4c151a88eea1eb3c42af818df2891b177d29ee61c295c093c23b5cc86b",
+      "masterSHA256": "98124ede9f9bb1e801f631330eba24ab3596bd270c6decd07f828978d4b603c4",
+      "fractions": [
+        0.303734,
+        0.552697,
+        0.793361
+      ],
+      "method": "whisper-1-authored-phrase"
+    },
+    "safe-squares:12": {
+      "textSHA256": "2efa13b65f3c5c0feced24a56e99f2ff0dfdc1c1e3a96c247aa2da32a474e516",
+      "masterSHA256": "16434ac2605d2077ad37408477b4cd418d42b3ca7e666c4ea8d95f126b624dfd",
+      "fractions": [
+        0.457627,
+        0.740678
+      ],
+      "method": "whisper-1-authored-phrase"
+    },
+    "safe-squares:13": {
+      "textSHA256": "beca55169be369a601793214759c6371ab7c37ed6845d0a0bc3896bc9f43f1ef",
+      "masterSHA256": "0650c9440af98c2bbedd8801b4f20b69a28459878c357ce16ddfda7be7cdf17a",
+      "fractions": [
+        0.364532,
+        0.715271
+      ],
+      "method": "whisper-1-authored-phrase"
+    },
+    "safe-squares:20": {
+      "textSHA256": "c71708db362b6dada18ae652c4e70c14bd9dfb1e09cf7538c525c11c6b99aeca",
+      "masterSHA256": "a9d468cc6875b5926c9c9d9caff175eb236db253ccabda64577279298d0ca6e6",
+      "fractions": [
+        0.423784,
+        0.75027
+      ],
+      "method": "whisper-1-authored-phrase"
+    },
+    "safe-squares:21": {
+      "textSHA256": "edd16566d88600e5361e180ea78d3e731cf059df88036a7587632a25e3543843",
+      "masterSHA256": "f5342e1250da0ecaca95401b79b0f139ecb63e9cc43c5dffcc868b5b7558aa49",
+      "fractions": [
+        0.383929,
+        0.721429
+      ],
+      "method": "whisper-1-authored-phrase"
+    },
+    "safe-squares:22": {
+      "textSHA256": "7000cc453ad84981506c04bcbb6a682103c3354afcf50256575be0aa56128126",
+      "masterSHA256": "7233d9ccd925164b6d13751b5bfed0aeadf49754b3706f1fc5b1babeec6255b3",
+      "fractions": [
+        0.341667,
+        0.679167
+      ],
+      "method": "whisper-1-authored-phrase"
+    },
+    "castling:7": {
+      "textSHA256": "fc2208e799e73b431c596490fbc20a9c693bbaa90982ee6862b62ddf8e2c5a6b",
+      "masterSHA256": "98dff45f21c573bd20abc110d0b4bd62d2ee771b7f9a3fd3dbdb5878effbba5a",
+      "fractions": [
+        0.553731,
+        0.795522
+      ],
+      "method": "whisper-1-authored-phrase"
+    },
+    "castling:11": {
+      "textSHA256": "43f0eb03422bdd6927129007572ee11c89a72aff5ed8357c2f056ca34f544111",
+      "masterSHA256": "09d85e283c605d96df492170f6b09d6fbe1a47592521eabee643b5db7fa1ebab",
+      "fractions": [
+        0.351913,
+        0.679781
+      ],
+      "method": "whisper-1-authored-phrase"
+    },
+    "castling:14": {
+      "textSHA256": "e4c6800563494c9cbb51f57ed39c28237d36dab450c7cc6607ffe8cd691fbc6a",
+      "masterSHA256": "20c752bb4402ccc4999554a899fbba1ba756a5a17d2cbfe7c5c2bf2e56a2dfd4",
+      "fractions": [
+        0.470175,
+        0.740351
+      ],
+      "method": "whisper-1-authored-phrase"
+    },
+    "castling:20": {
+      "textSHA256": "46e0355e1850f6e6c888706469ff11faeeb4d4c3737b3d7a1b325c15dd8389a6",
+      "masterSHA256": "133056af8403f7611329025dfcda56ef47f113ecf8789954738a9ced90aa1ceb",
+      "fractions": [
+        0.283495,
+        0.695146
+      ],
+      "method": "whisper-1-authored-phrase"
+    },
+    "castling:24": {
+      "textSHA256": "f02f04709e724efc99eec2914537fdbf2bb126bdc185e0b7c7bc72a503d68c7e",
+      "masterSHA256": "c46b8b0fae48bcfa131f54ae986f93e46c327d2f60dda76ed38e9a286857243a",
+      "fractions": [
+        0.34186,
+        0.688372
+      ],
+      "method": "whisper-1-authored-phrase"
+    },
+    "castling:3": {
+      "textSHA256": "ffebf858249dc98887ca60332ddb9e611d4948de49b353f6b1be1faac2915199",
+      "masterSHA256": "aa0c37c635f503f381bc1b2888ef8c7ca0e13489a07010e3439e5ba0ba299fd4",
+      "fractions": [
+        0.198658,
+        0.394631,
+        0.601342,
+        0.810738
+      ],
+      "method": "whisper-1-authored-phrase"
+    },
+    "castling:4": {
+      "textSHA256": "1e0637283f5a9e40d7fba532b276570e39333b68a395064d77863a55875cce4b",
+      "masterSHA256": "82a54e16b7c54bb7687e869c7e7d877b48ff006e2a9206f43b00e48b18f56f4d",
+      "fractions": [
+        0.435556,
+        0.739556
+      ],
+      "method": "whisper-1-authored-phrase"
+    },
+    "castling:5": {
+      "textSHA256": "2848ecd61ad705e2785ed745aa873ed11ceb282167698ad5cd1d62559918ad8a",
+      "masterSHA256": "d38f7b22a6bbaceed707a33badd04aa07f8cbe1b3570e8f39afce349caca7c2d",
+      "fractions": [
+        0.41547,
+        0.702762
+      ],
+      "method": "whisper-1-authored-phrase"
+    },
+    "castling:13": {
+      "textSHA256": "d67d5b88ddc2c29d0a83b39c8dd6f6ad38fa1ee8c8cd10a675dd3d5ee5d1997b",
+      "masterSHA256": "c56b40cb598fd0af93dbecf3073adc5a8af4f00dad5bf216f397ea0eb06f96e2",
+      "fractions": [
+        0.363077,
+        0.693333
+      ],
+      "method": "whisper-1-authored-phrase"
+    },
+    "castling-rules:18": {
+      "textSHA256": "0fd788898d2f44ee48f7dd227501ba9b72acd45ed5e81b952adc2e53d6c55071",
+      "masterSHA256": "7e78c686e50ef065b77969be0ea8f81c3cf0855dab8404aa3fd9e3949ef302f8",
+      "fractions": [
+        0.184416,
+        0.612987
+      ],
+      "method": "whisper-1-authored-phrase"
+    },
+    "promotion-en-passant:2": {
+      "textSHA256": "a7183bad9568ca08e36fd6765c77aae7b2c186722abaa509f93d90684c499350",
+      "masterSHA256": "4e34e5feb6de3169055d0eb7630506af7682d869d7904103c97df06f55050bdc",
+      "fractions": [
+        0.344509,
+        0.686705
+      ],
+      "method": "whisper-1-authored-phrase"
+    },
+    "promotion-en-passant:12": {
+      "textSHA256": "7f355fbc447da4b32d9b80e68de928d37a0c885c0002aa2b40b88039d5bdce0c",
+      "masterSHA256": "34c7551f9081308f47fe2bace603f68a4c8355db661be9a5c7ad2c16fe4c50d9",
+      "fractions": [
+        0.382609,
+        0.726956
+      ],
+      "method": "whisper-1-authored-phrase"
+    },
+    "rulesReview:25": {
+      "textSHA256": "2def3ca54edc5b4b732f27dd04d3a381a73571ff04a776ce703772025a1df06c",
+      "masterSHA256": "fcd07afff23007368e558c39bbfadbe7cdffd4e348a4a52d04034732bb90a2ed",
+      "fractions": [
+        0.545882,
+        0.790588
+      ],
+      "method": "whisper-1-authored-phrase"
+    },
+    "opening:7": {
+      "textSHA256": "13ecac8dede01fed587a3f8aa3e27594f0a5badfdd71a97e4fe6705f6b144997",
+      "masterSHA256": "b78f05fe2a0ed09f2504109f2329f385c066328ac61bce332970d334d42e8ada",
+      "fractions": [
+        0.332984,
+        0.672251
+      ],
+      "method": "whisper-1-authored-phrase"
+    },
+    "opening:8": {
+      "textSHA256": "0f8483a2b13601faf6178fb3ec863d1081bd9e48b400693359e0d0b19cb005ae",
+      "masterSHA256": "9b34c88b0efc4181940e4043e68a4b2ad132312870eb44801b438c8078488d02",
+      "fractions": [
+        0.337968,
+        0.690909
+      ],
+      "method": "whisper-1-authored-phrase"
+    },
+    "opening:13": {
+      "textSHA256": "8431c8a32ce8273f4490618cfa74a7e40d1ef744d5a497cdfcbde013f4a04744",
+      "masterSHA256": "628567f21088b24e37ab0605caec707de28a5030927f0c4a17f2ef5c0c8c25c0",
+      "fractions": [
+        0.49378,
+        0.755981
+      ],
+      "method": "whisper-1-authored-phrase"
+    },
+    "opening:16": {
+      "textSHA256": "83af1f900b3dc38f540f6f555e46ac65f9426e5d6b0774c4bc6c2821f0fe8461",
+      "masterSHA256": "67e1a2aec78f710ce18160fa99b086f3d393bb64a360deb85e8a740fbd3150c0",
+      "fractions": [
+        0.385492,
+        0.731606
+      ],
+      "method": "whisper-1-authored-phrase"
+    },
+    "scholars-mate:5": {
+      "textSHA256": "63436519c17a141dd21398a23e5a72ad8f170dc0575ea80dc514081ed1d22620",
+      "masterSHA256": "58b3f842904796253216e4c94479b644f03fbbe5cb058644f64c694b92e3bc77",
+      "fractions": [
+        0.310559,
+        0.655901
+      ],
+      "method": "whisper-1-authored-phrase"
+    },
+    "scholars-mate:13": {
+      "textSHA256": "48a196043c774d9b72b5cd6fc941b3c616f1836000ac1f589942b0974afc0ab8",
+      "masterSHA256": "43519ba07131636b5bcd0ee48c57e935d61180e9fab88f4a5dde03b9010ecc77",
+      "fractions": [
+        0.137396,
+        0.305817,
+        0.487535,
+        0.66482,
+        0.833241
+      ],
+      "method": "whisper-1-authored-phrase"
+    },
+    "scholars-mate:20": {
+      "textSHA256": "52529b1d663e35c3c8d6189286ca2efebb0bc06cd2256126836cdab95964c113",
+      "masterSHA256": "6cc0502ce28a8ecc2dae3e9c7936b78ee3c3e3dfc8a914899424845dd2c750bd",
+      "fractions": [
+        0.280755,
+        0.528302,
+        0.77434
+      ],
+      "method": "whisper-1-authored-phrase"
+    },
+    "fork:15": {
+      "textSHA256": "8faf389e352e0fdb900371c8cc4f70a85adefdde17e0fe1eb450ef4148090ce7",
+      "masterSHA256": "b95e6afbac60959a285b5b796cb073f793abe1943f06b969b5160ce081066c75",
+      "fractions": [
+        0.428708,
+        0.727273
+      ],
+      "method": "whisper-1-authored-phrase"
+    },
+    "fork:21": {
+      "textSHA256": "ddce8a1dd9103c347fec37aa9f0b71f85c768305cecaddb65551bd3efb4b2025",
+      "masterSHA256": "7aa66a0c34bf799215bb5c608ab6290ac6e7470bde5b75e5874ae3095c4b94d4",
+      "fractions": [
+        0.38191,
+        0.711558
+      ],
+      "method": "whisper-1-authored-phrase"
+    },
+    "pin:16": {
+      "textSHA256": "8c5e3e228d1c9cc81f5ae36db6522647c6914bc4de1d8d0e3f88ca93569b9e1b",
+      "masterSHA256": "adbf7cd1c9e2faad4e88d2cecca9a931d4ff393454f027dedf2c47b4d90b11d5",
+      "fractions": [
+        0.454,
+        0.742
+      ],
+      "method": "whisper-1-authored-phrase"
+    },
+    "pin:17": {
+      "textSHA256": "72d501cd85e3fa33a73cb2c3837a229dd5eb56ff16bb164d4d793b1a3d5ee2eb",
+      "masterSHA256": "b02191c08f8a790f82d08514f543a871da8d144dcdc0f1bd47cf705ce9d598ae",
+      "fractions": [
+        0.514685,
+        0.769231
+      ],
+      "method": "whisper-1-authored-phrase"
+    },
+    "skewer:17": {
+      "textSHA256": "f5d6be7f93ad74d03e4c8819d6e1b562ef0fc44bccfe9b919d042ecb1c6bf311",
+      "masterSHA256": "e1a19e49f66a73cd72490a8948f113344c594855b7937e616e447deb612ff683",
+      "fractions": [
+        0.427826,
+        0.754783
+      ],
+      "method": "whisper-1-authored-phrase"
+    },
+    "discovered-attack:8": {
+      "textSHA256": "f728988f7d38653f4fa89768e1ae92b5078b2e3aaeb5540e3ee544fced8eb1c0",
+      "masterSHA256": "16904a7f95682763982b90de19632543665b189b9de10033cc62a7c5370fff7a",
+      "fractions": [
+        0.353704,
+        0.72037
+      ],
+      "method": "whisper-1-authored-phrase"
+    },
+    "removing-the-defender:19": {
+      "textSHA256": "a1c27b2d27290ea01f09f932caba99d7535269508a9331678152cf0f930ade7f",
+      "masterSHA256": "3e8e7a4c2187a4196d96b92e68474d3d63694cc93c166f2e1a6f18fb5225fb2a",
+      "fractions": [
+        0.40197,
+        0.70936
+      ],
+      "method": "whisper-1-authored-phrase"
+    },
+    "queen-mate:7": {
+      "textSHA256": "da8f25deca606608ef99172b59b6e72954c55bfa63a72dc9368262c3c1de24e4",
+      "masterSHA256": "997bc611773a0dfeba6f90c53ad738c44e107e715484264d0006bceaa9727b5d",
+      "fractions": [
+        0.431336,
+        0.726267
+      ],
+      "method": "whisper-1-authored-phrase"
+    },
+    "queen-mate:8": {
+      "textSHA256": "ea99d81c1580a9a44bfc35786602db7c5353efbc3fbfca0f785782b73a040a10",
+      "masterSHA256": "33d1a59347752b15ec72e7a58e18fd942b98ebcc8aae78d383ac73f8f2af7a05",
+      "fractions": [
+        0.379888,
+        0.701676
+      ],
+      "method": "whisper-1-authored-phrase"
+    },
+    "queen-mate:9": {
+      "textSHA256": "db775f6acd12bd6f9e5e6b8d33705b0c92f3394c1b65f78f78c7448126a216ad",
+      "masterSHA256": "4a355dbf2b1dd88558f90862b80d6d25ca06193314f1c9634dc21b5381c73081",
+      "fractions": [
+        0.476494,
+        0.752191
+      ],
+      "method": "whisper-1-authored-phrase"
+    },
+    "queen-mate:15": {
+      "textSHA256": "17e9736d0ac1065ec887fd8d339cddfbf34c1b2d56e617dac74da6d5468ae138",
+      "masterSHA256": "b5799035bb48b1c203c26d587bf8d69b23797b447b8ebcc1af145281872df0ae",
+      "fractions": [
+        0.286331,
+        0.464748,
+        0.66187,
+        0.840288
+      ],
+      "method": "whisper-1-authored-phrase"
+    },
+    "queen-mate:16": {
+      "textSHA256": "c7d249c836f177978a8cc655c77c11d66cc10ff499f45ed4e1ae3b4ea8fd7a86",
+      "masterSHA256": "fdccefdd4685338ee61a770b20b77e21f999dbe4558240657850a35d3d7c0a1d",
+      "fractions": [
+        0.256131,
+        0.407629,
+        0.590736,
+        0.695368,
+        0.815259,
+        0.924251
+      ],
+      "method": "whisper-1-authored-phrase"
+    },
+    "puzzles-material:11": {
+      "textSHA256": "fd019340ba767855db910826c3ce6877e31c9df39fb943f2e9c0ac8e54ab52f5",
+      "masterSHA256": "f926256f827d0b47b5872883b815b379da58fe644480d47291467320407403ab",
+      "fractions": [
+        0.409434,
+        0.732075
+      ],
+      "method": "whisper-1-authored-phrase"
+    },
+    "puzzles-material:22": {
+      "textSHA256": "81259d77a99b9ad7f162ac7fb550ad4b8802cb15decfe0c6493858342532808f",
+      "masterSHA256": "165308c70371533c9f49a7b20a97c06102c13db12daa78e3676b6b7c1e6890ac",
+      "fractions": [
+        0.488333,
+        0.76
+      ],
+      "method": "whisper-1-authored-phrase"
+    },
+    "famous-game:3": {
+      "textSHA256": "89424f26c2612f03bfdf49cb97f725be84a73940f40a1205145da756f5d4ad78",
+      "masterSHA256": "49663e63e8766572dacf02d29f221200002951ca7b0789278f3a4da4b3459722",
+      "fractions": [
+        0.339181,
+        0.498246,
+        0.669006,
+        0.849123
+      ],
+      "method": "whisper-1-authored-phrase"
+    },
+    "famous-game:4": {
+      "textSHA256": "31660b73c12991b218a48f6d3544f3c02315898e7faeb53a86b2267390df9c15",
+      "masterSHA256": "e41c86cae5dd1f9d891f8b32b7179c2b78e5644f1ba81baec70d378c3ef7c664",
+      "fractions": [
+        0.461803,
+        0.741631
+      ],
+      "method": "whisper-1-authored-phrase"
+    },
+    "famous-game:5": {
+      "textSHA256": "72c404c40f471b26f9adb1f665de4dd026e1b2f883b476db7c0fdb3c6a2c21bf",
+      "masterSHA256": "aa2b6639b172c1cd303199ab396a7b7345daf36539bc63b63c893b3b03b3063e",
+      "fractions": [
+        0.286817,
+        0.468167,
+        0.659807,
+        0.833441
+      ],
+      "method": "whisper-1-authored-phrase"
+    },
+    "famous-game:7": {
+      "textSHA256": "04c963ed975e5275b7a3ec03d77548a35ce627a631360970b9ece1fc72be604d",
+      "masterSHA256": "ff99dd5f624872d34578b5f565c6686529f39789bc302d659df11d74be817c41",
+      "fractions": [
+        0.417062,
+        0.709005
+      ],
+      "method": "whisper-1-authored-phrase"
+    },
+    "famous-game:9": {
+      "textSHA256": "9913644015b8868984afbdfdb879a58eb320b2fac80587cefd1429560ae55ac4",
+      "masterSHA256": "3d6c68c41cfe0e0ee92d2b28c1b367f1fb78e6702e77e471b25c2ec54b74e563",
+      "fractions": [
+        0.420809,
+        0.611561,
+        0.803468
+      ],
+      "method": "whisper-1-authored-phrase"
+    },
+    "famous-game:12": {
+      "textSHA256": "7d6023e3fc4663869e242e89f26913299115181c2c342e61bae10f9711bfa566",
+      "masterSHA256": "475ddb8d1f982687f500f3c79818a6f5e876074fe05882d0c0685f41df4f4286",
+      "fractions": [
+        0.458407,
+        0.746903
+      ],
+      "method": "whisper-1-authored-phrase"
+    },
+    "famous-game:15": {
+      "textSHA256": "c78bb88b316a622b1a88ecb9581a40e173d1d0c107827345aa4e84716654e1c9",
+      "masterSHA256": "16c5f2a8dde53af6e08cefdf991d3732e3688ec1541c788325a7268d26ea5c71",
+      "fractions": [
+        0.528395,
+        0.77037
+      ],
+      "method": "whisper-1-authored-phrase"
+    },
+    "famous-game:17": {
+      "textSHA256": "a2d39b16cfe94fb4f006aea516bac18c21ecc3988821962990003060590450f9",
+      "masterSHA256": "a67e899b4e1abeb36d587bc257cd3ad695edc9820339e7fc4f1dd628ed6dd6e2",
+      "fractions": [
+        0.515702,
+        0.780165
+      ],
+      "method": "whisper-1-authored-phrase"
+    },
+    "famous-game:18": {
+      "textSHA256": "8307d4ddf949b85e9a0016d1328de159dc34a365348f9e938d8cc9736e7a67ea",
+      "masterSHA256": "b6064ee99e05e0bcf07fc3eb395fd658a036687e3e09e11d29816f9c709207a3",
+      "fractions": [
+        0.515349,
+        0.744186
+      ],
+      "method": "whisper-1-authored-phrase"
+    }
+  }
+}

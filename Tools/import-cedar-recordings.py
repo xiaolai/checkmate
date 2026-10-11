@@ -35,7 +35,11 @@ def encoded(value):
 
 def step_duration(beat, audio_seconds, timing):
     count = len(beat.get('moves', []))
-    animation = timing['movementStart'] + (count - 1) * timing['movementInterval'] + timing['pieceDuration'] if count else 0
+    fractions=beat.get('moveCues', [(0.05 if count==1 else (i+0.15)/count) for i in range(count)])
+    previous=-timing['pieceDuration']
+    for fraction in fractions:
+        previous=max(timing['movementStart'],fraction*audio_seconds,previous+timing['pieceDuration'])
+    animation=previous+timing['pieceDuration'] if count else 0
     if beat.get('remove'):
         animation += timing['removalDelay']
     counts = max(0, len(beat.get('count', [])) - 1) * timing['minimumCountSpacing']
@@ -78,8 +82,16 @@ def build_course(baseline, content, assets, timing, version):
         result['frames'].append([prep.reference_frame(baseline, content, li, beat) for beat in lesson['beats']])
         for step, beat in enumerate(lesson['beats']):
             asset = assets[beat['id']]
+            cue_file=ROOT / 'Content/lesson-action-cues.json'
+            cues=json.loads(cue_file.read_text()).get('cues',{}).get(beat['id']) if cue_file.exists() else None
+            if cues:
+                assert cues['textSHA256']==asset['textSHA256'], 'Stale action cue text: '+beat['id']
+                assert cues['masterSHA256']==asset['masterSHA256'], 'Stale action cue recording: '+beat['id']
+                assert len(cues['fractions'])==len(beat.get('moves',[])) and all(isinstance(x,(float,int)) and math.isfinite(x) and 0<=x<=1 for x in cues['fractions']) and cues['fractions']==sorted(cues['fractions']), 'Invalid action cue timing: '+beat['id']
+                result['lessons'][li]['beats'][step]['moveCues']=cues['fractions']
+            timed_beat=result['lessons'][li]['beats'][step]
             voices.append({'file': asset['file'], 'seconds': asset['seconds'],
-                           'duration': step_duration(beat, asset['seconds'], timing)})
+                           'duration': step_duration(timed_beat, asset['seconds'], timing)})
             # Every retained segment starts from its authored illustration, even
             # when the removed question supplied the previous board setup.
             start = result['frames'][li][step]['start']
@@ -93,7 +105,7 @@ def build_course(baseline, content, assets, timing, version):
                 runtime_beat['big'] = ''
         result['voices'].append(voices)
         # Preserve the four curated navigation sequences; refresh later labels.
-        titles = [baseline['stepTitles'][li][i] for i in source_steps] if li < 4 else [short_label(lesson['title'] if step == 0 else beat.get('big') or beat['say']) for step, beat in enumerate(lesson['beats'])]
+        titles = [baseline['stepTitles'][li][i] if i<len(baseline['stepTitles'][li]) else short_label(lesson['beats'][step]['say']) for step,i in enumerate(source_steps)] if li < 4 else [short_label(lesson['title'] if step == 0 else beat.get('big') or beat['say']) for step, beat in enumerate(lesson['beats'])]
         result['stepTitles'].append(titles)
     result['narration'] = version
     return result
@@ -164,7 +176,7 @@ def main():
         runtime = build_course(baseline, content, assets, config['timing'], version)
         projections = json.loads((ROOT / 'Content/projections-baseline.json').read_text())
         for li, lesson in enumerate(content['lessons']):
-            projections[li] = [projections[li][int(b['id'].rsplit(':', 1)[1])] for b in lesson['beats']]
+            projections[li] = [copy.deepcopy(projections[li][int(b['id'].rsplit(':', 1)[1])]) if int(b['id'].rsplit(':',1)[1])<len(projections[li]) else {'mode':'lesson','lessonId':lesson['id'],'title':lesson['title'],'playing':False,'narrationActive':False,'moving':False} for b in lesson['beats']]
             for step, projection in enumerate(projections[li]):
                 projection['step'] = step
                 projection['pieces'] = runtime['frames'][li][step]['start'].get('board')

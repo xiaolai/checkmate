@@ -32,9 +32,11 @@ public extension NarrationService {func play(localURL:URL,seconds:Double,setting
     @Published public private(set) var miniThinking=false
     private var miniTask:Task<Void,Never>?,miniGeneration=UUID()
     public var miniKind:MiniGameKind {miniGame?.kind ?? .pawnDuel}
-    public var miniStatus:String {if let winner=winner{return miniKind.solo ? "Route complete!":miniGame?.computer==true ? (winner=="w" ? "You win!":"Computer wins. Try again!"):(winner=="w" ? "White wins!":"Black wins!")};if miniKind.solo{return "Next corner: \(MiniGameRules.corners[miniGame?.snapshot.cornerIndex ?? 0])"};return miniGame?.computer==true ? (miniTurn=="w" ? "Your turn · White":"Computer’s turn · Black"):(miniTurn=="w" ? "White to move":"Black to move")}
+    public var miniStatus:String {if let reason=miniGame?.drawReason{return "Draw. "+reason};if let winner=winner{return miniKind.solo ? "Route complete!":miniGame?.computer==true ? (winner=="w" ? "You win!":"Computer wins. Try again!"):(winner=="w" ? "White wins!":"Black wins!")};if miniKind.solo{return "Next corner: \(MiniGameRules.corners[miniGame?.snapshot.cornerIndex ?? 0])"};return miniGame?.computer==true ? (miniTurn=="w" ? "Your turn · White":"Computer’s turn · Black"):(miniTurn=="w" ? "White to move":"Black to move")}
     public var onIllustration:((String,Bool)->Void)?
-    private var lastMotionKey=""
+    private var soundedMoves=Set<Int>()
+    @Published public private(set) var awaitingPractice=false
+    public var practiceAvailable:Bool {!MiniGameKind.available(lessonID:current.id).isEmpty || LessonPractice.forLesson(current.id) != nil}
     @Published public private(set) var lessonIndex=0
     @Published public private(set) var step=0
     @Published public private(set) var seconds=0.0
@@ -58,15 +60,15 @@ public extension NarrationService {func play(localURL:URL,seconds:Double,setting
     public var beat:CourseBeat {current.beats[step]}
     public var key:String {beat.id ?? current.id+":"+String(step)}
     public var exercise:Exercise? {activePuzzle?.exercise}
-    public var duration:Double {guard localizedPacks[lessonIndex] != nil else{return library.voices[lessonIndex][step].duration};let t=library.lessonTiming,movement=beat.moves.isEmpty ? 0:t.movementStart+Double(beat.moves.count-1)*t.movementInterval+max(t.pieceDuration,Double(session.state.settings.pieceDuration)/1000),removal=beat.remove.isEmpty ? movement:movement+t.removalDelay,count=Double(max(0,beat.count.count-1))*max(t.minimumCountSpacing,narrationSeconds/Double(max(1,beat.count.count)));return max(narrationSeconds,max(removal,count))+max(0,beat.pause ?? 0)+t.postNarrationGap}
+    public var duration:Double {library.playbackDuration(lesson:lessonIndex,step:step,narrationSeconds:narrationSeconds,pieceDuration:Double(session.state.settings.pieceDuration)/1000,useCues:localizedPacks[lessonIndex]==nil)}
     public var winner:String? {mini ? miniGame?.winner:nil}
     public var destinations:[String] {mini && !miniThinking ? picked.first.map{miniGame?.destinations(from:$0) ?? []} ?? []:[]}
     public var filteredPuzzles:[Puzzle] {library.puzzles.filter {p in (topic=="All topics" || topic==p.topic)&&(level=="All levels" || level==p.level)&&(filter=="All" || (filter=="To review" ? session.state.puzzles[p.id]?.review==true:session.state.puzzles[p.id]?.solved != true))&&(query.isEmpty || (p.title+" "+p.exercise.prompt).localizedCaseInsensitiveContains(query))}}
-    public func openLesson(index:Int) {guard library.lessons.indices.contains(index) else{return};pause();activePuzzle=nil;lessonIndex=index;step=current.id==session.state.course.lessonID ? library.resumeStep(in:current,progress:session.state.course):0;seek(step:step);onLessonOpened?()}
-    public func seek(step:Int) {NativeLog.course.debug("Seeking authored transcript");guard current.beats.indices.contains(step) else{return};pause();self.step=step;seconds=0;lastMotionKey="";picked=[];path=[];feedback="";mini=false;passed=false;session.state.course.lessonID=current.id;session.state.course.step=step;session.state.course.segmentID=key;rebuild();session.emit(semantic:false,save:true)}
-    public func play() {guard !mini,activePuzzle==nil else{return};guard !localizationLoading else{feedback="Checking offline lesson recordings. Try Play again shortly.";return};if seconds>=duration{seconds=0};playing=true;lastTick=Date();playNarration();timer?.invalidate();timer=Timer.scheduledTimer(withTimeInterval:0.04,repeats:true){[weak self] _ in Task{@MainActor in guard let self=self,let last=self.lastTick else{return};let now=Date();self.lastTick=now;self.tick(wallDelta:now.timeIntervalSince(last))}};rebuild()}
+    public func openLesson(index:Int,resume:Bool=true) {guard library.lessons.indices.contains(index) else{return};pause();activePuzzle=nil;lessonIndex=index;let lesson=current;step=lesson.id==session.state.course.lessonID ? library.resumeStep(in:lesson,progress:session.state.course):session.state.course.positions?[lesson.id].flatMap{id in lesson.beats.firstIndex{$0.id==id}} ?? 0;seek(step:resume ? step:0);onLessonOpened?()}
+    public func seek(step:Int) {NativeLog.course.debug("Seeking authored transcript");guard current.beats.indices.contains(step) else{return};pause();self.step=step;seconds=0;soundedMoves=[];awaitingPractice=false;picked=[];path=[];feedback="";mini=false;passed=false;session.state.course.lessonID=current.id;session.state.course.step=step;session.state.course.segmentID=key;session.state.course.positions=(session.state.course.positions ?? [:]).merging([current.id:key]){_,new in new};rebuild();session.emit(semantic:false,save:true)}
+    public func play() {guard !mini,activePuzzle==nil else{return};guard !localizationLoading else{feedback="Checking offline lesson recordings. Try Play again shortly.";return};if seconds>=duration{seconds=0;soundedMoves=[]};awaitingPractice=false;playing=true;lastTick=Date();playNarration();timer?.invalidate();timer=Timer.scheduledTimer(withTimeInterval:0.04,repeats:true){[weak self] _ in Task{@MainActor in guard let self=self,let last=self.lastTick else{return};let now=Date();self.lastTick=now;self.tick(wallDelta:now.timeIntervalSince(last))}};rebuild()}
     public func pause(){if mini{onMiniReset?()};cancelMiniOpponent();timer?.invalidate();timer=nil;lastTick=nil;playing=false;audio?.pause();if session.mode != .practice{publish()}}
-    public func replay(){pause();seconds=0;play()}
+    public func replay(){pause();seconds=0;soundedMoves=[];play()}
     public func tick(wallDelta:Double){if let time=audio?.playbackTime,session.state.settings.narration{advance(by:max(0,time-seconds))}else{advance(by:wallDelta)}}
     public func advance(by delta:Double) {guard playing else{return};seconds=min(duration,seconds+max(0,delta));rebuild();if seconds>=duration {pause();if step<current.beats.count-1 {if session.state.settings.autoAdvance {seek(step:step+1);play()}}else{complete(continuePlayback:session.state.settings.autoAdvance)};publish()}}
     public func next(){guard !mini else{return};if let id=activePuzzle?.id {
@@ -83,7 +85,8 @@ public extension NarrationService {func play(localURL:URL,seconds:Double,setting
         // Only uninterrupted playback crosses a lesson boundary. Manual navigation
         // remains paused, and the final lesson never loops back to the beginning.
         if continuePlayback,lessonIndex+1<library.lessons.count {
-            openLesson(index:lessonIndex+1)
+            if session.state.settings.pauseForPractice,practiceAvailable{awaitingPractice=true;feedback="Try it on the board, or continue to the next lesson.";publish();return}
+            openLesson(index:lessonIndex+1,resume:false)
             play()
         }
     }
@@ -122,7 +125,7 @@ public extension NarrationService {func play(localURL:URL,seconds:Double,setting
     public func undoMini(){onMiniReset?();cancelMiniOpponent();miniGame?.undo();picked=[];feedback="";syncMini();scheduleMiniOpponent()}
     public func leaveMini(){onMiniReset?();cancelMiniOpponent();mini=false;picked=[];feedback="";rebuild()}
     private func clickMini(_ square:String){
-        guard let game=miniGame,game.winner==nil,!miniThinking,!(game.computer && game.turn=="b") else{return}
+        guard let game=miniGame,!game.isFinished,!miniThinking,!(game.computer && game.turn=="b") else{return}
         if let from=picked.first,game.destinations(from:from).contains(square){applyMini(MiniGameMove(from:from,to:square));scheduleMiniOpponent();return}
         picked=game.board[square]?.hasPrefix(game.turn)==true && game.kind.canMove(game.board[square]!) ? (picked==[square] ? []:[square]):[]
         feedback=picked.isEmpty ? "Select one of your movable pieces.":"";publish()
@@ -142,7 +145,7 @@ public extension NarrationService {func play(localURL:URL,seconds:Double,setting
     }
     private func cancelMiniOpponent(){miniGeneration=UUID();miniTask?.cancel();miniTask=nil;miniThinking=false}
     private func scheduleMiniOpponent(){
-        guard mini,session.mode == .lesson,let game=miniGame,game.computer,game.turn=="b",game.winner==nil else{return}
+        guard mini,session.mode == .lesson,let game=miniGame,game.computer,game.turn=="b",!game.isFinished else{return}
         cancelMiniOpponent();miniThinking=true;picked=[];let generation=miniGeneration
         let delay=MiniGameOpponent.replyDelay+Duration.milliseconds(Int64(session.state.settings.pieceDuration))
         let profile=session.state.settings.miniOpponentProfile
@@ -157,7 +160,21 @@ public extension NarrationService {func play(localURL:URL,seconds:Double,setting
         }
     }
     public func settingsChanged(){if loadedSelection != session.state.settings.lessonLanguage+"|"+session.state.settings.lessonVoice{reloadLocalizedPacks();return};if mini,session.mode == .lesson{cancelMiniOpponent();scheduleMiniOpponent();return};guard session.mode == .lesson,activePuzzle==nil,!mini else{return};if playing{playNarration()};rebuild()}
-    private func rebuild(){do{frame=try library.frame(lesson:lessonIndex,step:step,seconds:seconds,duration:Double(session.state.settings.pieceDuration)/1000,narrationSeconds:localizedPacks[lessonIndex] == nil ? nil:narrationSeconds)}catch{feedback="The lesson illustration could not load."};if playing,let motion=frame.motion,let piece=frame.board?[motion.from]{let key=current.id+":"+String(step)+":"+motion.from+motion.to;if key != lastMotionKey{lastMotionKey=key;onIllustration?(String(piece.suffix(1)),frame.board?[motion.to] != nil)}};publish()}
-    private func publish(){let e=mini ? nil:exercise;session.setLesson(LessonProjection(mode:mini ? (miniKind == .pawnDuel ? "pawn_duel":"mini_game"):activePuzzle != nil ? "quick_puzzle":"lesson",pieces:frame.board,title:mini ? miniKind.title:activePuzzle?.title ?? current.title,lessonId:activePuzzle?.id ?? current.id,step:activePuzzle != nil ? 0:step,prompt:e?.prompt,choices:e?.kind=="choice" ? e?.choices:nil,playing:playing,narrationActive:playing && session.state.settings.narration && seconds<narrationSeconds && !NativePolicy.silent,moving:frame.motion != nil,turn:mini ? miniTurn:nil,winner:winner,rules:mini && miniKind != .pawnDuel ? [miniKind.rules]:mini ? ["Reach the far rank with a pawn, capture every opposing pawn, or leave the opponent without a move.","Pawns move forward and capture diagonally. A pawn on its starting rank may advance two empty squares.","No en passant. Pawns stay pawns at the far rank."]:nil))}
+    private func rebuild(){
+        do{frame=try library.frame(lesson:lessonIndex,step:step,seconds:seconds,duration:Double(session.state.settings.pieceDuration)/1000,narrationSeconds:narrationSeconds,useCues:localizedPacks[lessonIndex]==nil)}catch{feedback="The lesson illustration could not load."}
+        if playing {
+            var board=library.referenceFrames[lessonIndex][step].start.board ?? [:]
+            let times=library.moveTimes(lesson:lessonIndex,step:step,narrationSeconds:narrationSeconds,pieceDuration:Double(session.state.settings.pieceDuration)/1000,useCues:localizedPacks[lessonIndex]==nil)
+            for (i,move) in beat.moves.enumerated(){
+                if seconds>=times[i],!soundedMoves.contains(i),let piece=board[move[0]] {
+                    soundedMoves.insert(i);onIllustration?(String(piece.suffix(1)),board[move[1]] != nil)
+                }
+                try? CourseLibrary.apply(&board,moves:[move])
+            }
+        }
+        publish()
+    }
+
+    private func publish(){let e=mini ? nil:exercise;session.setLesson(LessonProjection(mode:mini ? (miniKind == .pawnDuel ? "pawn_duel":"mini_game"):activePuzzle != nil ? "quick_puzzle":"lesson",pieces:frame.board,title:mini ? miniKind.title:activePuzzle?.title ?? current.title,lessonId:activePuzzle?.id ?? current.id,step:activePuzzle != nil ? 0:step,prompt:e?.prompt,choices:e?.kind=="choice" ? e?.choices:nil,playing:playing,narrationActive:playing && session.state.settings.narration && seconds<narrationSeconds && !NativePolicy.silent,moving:frame.motion != nil,turn:mini ? miniTurn:nil,winner:winner,rules:mini && miniKind != .pawnDuel ? [miniKind.rules]:mini ? ["Reach the far rank with a pawn, capture every opposing pawn, or leave the opponent without a move.","Pawns move forward and capture diagonally. A pawn on its starting rank may advance two empty squares.","No en passant. Pawns stay pawns at the far rank. "+MiniGameState.drawRules]:nil,drawReason:mini ? miniGame?.drawReason:nil))}
     public func shutdown(){packReloadTask?.cancel();packGeneration=UUID();pause();audio?.stop()}
 }

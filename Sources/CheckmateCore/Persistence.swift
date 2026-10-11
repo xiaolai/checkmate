@@ -5,6 +5,7 @@ public struct AppSettings:Codable,Equatable {
     public var coachReasoningEffort="minimal"
     public var coachVoice="cedar",voiceLanguage="en",voiceAutoConnect=true,voiceMicrophone=true,voiceInputDevice="",voiceAssistMoves=false,voiceVolume=1.0
     public var boardTheme="wood",narration=true,volume=1.0,autoAdvance=true,pieceDuration=700,moveSounds=true,effectsVolume=0.5,coachingMode="guided",skill=0,companionRole="coach"
+    public var pauseForPractice=true
     public var lessonLanguage="en",lessonVoice="cedar"
     public var companionAutoStart=true
     public var opponentMode="skill",opponentElo=1320,miniOpponentProfile="standard",practiceSide="w"
@@ -27,7 +28,7 @@ public struct AppSettings:Codable,Equatable {
         boardTheme=choice("boardTheme",Array(Self.themes.keys),"wood");coachingMode=choice("coachingMode",["guided","on_request","quiet"],"guided");companionRole=choice("companionRole",["coach","opponent"],"coach")
         voiceAutoConnect=flag("voiceAutoConnect",true);companionAutoStart=flag("companionAutoStart",true);voiceMicrophone=flag("voiceMicrophone",true);voiceAssistMoves=flag("voiceAssistMoves",false)
         voiceInputDevice=String((raw["voiceInputDevice"] as? String ?? "").prefix(256));voiceVolume=level("voiceVolume",1)
-        narration=flag("narration",true);volume=level("volume",1);autoAdvance=flag("autoAdvance",true);moveSounds=flag("moveSounds",true);effectsVolume=level("effectsVolume",0.5)
+        pauseForPractice=flag("pauseForPractice",true);narration=flag("narration",true);volume=level("volume",1);autoAdvance=flag("autoAdvance",true);moveSounds=flag("moveSounds",true);effectsVolume=level("effectsVolume",0.5)
         pieceDuration=[0,300,500,700].contains(integer("pieceDuration",-1)) ? integer("pieceDuration",700):700
         skill=max(0,min(20,integer("skill",0)))
         opponentPreset=choice("opponentPreset",["first_steps","gentle","club","custom"],"custom");let seed=raw["opponentRandomSeed"] as? String ?? "";opponentRandomSeed=UInt64(seed,radix:16) != nil ? seed:""
@@ -52,7 +53,7 @@ public struct PracticeState:Codable {
     private enum CodingKeys:String,CodingKey {case pgn,fen,previousGame,beginnerSevereStreak,previousSide}
     public init(from decoder:Decoder)throws {let c=try decoder.container(keyedBy:CodingKeys.self);pgn=try c.decodeIfPresent(String.self,forKey:.pgn) ?? "";fen=try c.decodeIfPresent(String.self,forKey:.fen) ?? "";previousGame=try c.decodeIfPresent(String.self,forKey:.previousGame) ?? "";previousSide=(try? c.decodeIfPresent(String.self,forKey:.previousSide)).flatMap{["w","b"].contains($0) ? $0:nil} ?? "w";beginnerSevereStreak=max(0,min(BeginnerPolicy.maximumConsecutiveSevereErrors,try c.decodeIfPresent(Int.self,forKey:.beginnerSevereStreak) ?? 0))}
 }
-public struct CourseProgress:Codable {public var lessonID="intro",step=0,segmentID:String?,completed:[String]=[],answered:[String]=[];public init(){}}
+public struct CourseProgress:Codable {public var lessonID="intro",step=0,segmentID:String?,positions:[String:String]?,completed:[String]=[],answered:[String]=[];public init(){}}
 public struct PuzzleProgress:Codable,Equatable {public var solved=false,review=false,attempts=0;public init(){};public mutating func record(correct:Bool,revealed:Bool=false){solved = solved || correct && !revealed;review = !correct || revealed;attempts+=1}}
 public struct WindowState:Codable {public var left=false,right=false,settingsCategory="board";public var frame:[Double]?;public init(){}}
 public struct ApplicationState:Codable {

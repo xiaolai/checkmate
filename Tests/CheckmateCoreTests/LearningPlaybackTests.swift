@@ -80,7 +80,7 @@ extension LearningPlaybackTests {
 extension LearningPlaybackTests {
     @MainActor func testEveryLessonBoundaryContinuesFromFirstTranscript() throws {
         let session=try GameSession(engine:nil),player=try LearningPlayer(session:session)
-        session.state.settings.autoAdvance=true
+        session.state.settings.autoAdvance=true;session.state.settings.pauseForPractice=false
         for index in player.library.lessons.indices {
             player.openLesson(index:index)
             let finalStep=player.current.beats.count-1

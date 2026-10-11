@@ -13,7 +13,7 @@ final class ContinuousLessonTests:XCTestCase {
                 player.advance(by:player.duration);count+=1
             }
         }
-        XCTAssertEqual(count,864);XCTAssertEqual(session.state.course.completed.count,40)
+        XCTAssertEqual(count,878);XCTAssertEqual(session.state.course.completed.count,40)
         XCTAssertFalse(player.playing);player.shutdown()
     }
     @MainActor func testBoardClickCannotInterruptLessonNarration() throws {

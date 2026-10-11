@@ -10,9 +10,9 @@ public struct CourseFrame:Codable,Equatable {
 public struct ReferenceFrame:Codable {public let start:CourseFrame,end:CourseFrame}
 public struct CourseVoice:Codable {public let file:String,seconds:Double,duration:Double}
 public struct CourseBeat:Decodable {
-    public let id:String?,say:String,speak:String?,set:Position?,hasSet:Bool,moves:[[String]],remove:[String],arrows:[[String]]?,hl:[Highlight]?,count:[String],big:String?,miniGame:Bool,pause:Double?
-    enum CodingKeys:String,CodingKey {case id,say,speak,set,moves,remove,arrows,hl,count,big,miniGame,pause}
-    public init(from d:Decoder) throws {let c=try d.container(keyedBy:CodingKeys.self);id=try c.decodeIfPresent(String.self,forKey:.id);say=try c.decode(String.self,forKey:.say);speak=try c.decodeIfPresent(String.self,forKey:.speak);hasSet=c.contains(.set);set=try c.decodeIfPresent(Position.self,forKey:.set);moves=try c.decodeIfPresent([[String]].self,forKey:.moves) ?? [];remove=try c.decodeIfPresent([String].self,forKey:.remove) ?? [];arrows=try c.decodeIfPresent([[String]].self,forKey:.arrows);hl=try c.decodeIfPresent([Highlight].self,forKey:.hl);count=try c.decodeIfPresent([String].self,forKey:.count) ?? [];big=try c.decodeIfPresent(String.self,forKey:.big);miniGame=try c.decodeIfPresent(Bool.self,forKey:.miniGame) ?? false;pause=try c.decodeIfPresent(Double.self,forKey:.pause)}
+    public let id:String?,say:String,speak:String?,set:Position?,hasSet:Bool,moves:[[String]],remove:[String],arrows:[[String]]?,hl:[Highlight]?,count:[String],big:String?,miniGame:Bool,pause:Double?,moveCues:[Double]?
+    enum CodingKeys:String,CodingKey {case id,say,speak,set,moves,remove,arrows,hl,count,big,miniGame,pause,moveCues}
+    public init(from d:Decoder) throws {let c=try d.container(keyedBy:CodingKeys.self);id=try c.decodeIfPresent(String.self,forKey:.id);say=try c.decode(String.self,forKey:.say);speak=try c.decodeIfPresent(String.self,forKey:.speak);hasSet=c.contains(.set);set=try c.decodeIfPresent(Position.self,forKey:.set);moves=try c.decodeIfPresent([[String]].self,forKey:.moves) ?? [];remove=try c.decodeIfPresent([String].self,forKey:.remove) ?? [];arrows=try c.decodeIfPresent([[String]].self,forKey:.arrows);hl=try c.decodeIfPresent([Highlight].self,forKey:.hl);count=try c.decodeIfPresent([String].self,forKey:.count) ?? [];big=try c.decodeIfPresent(String.self,forKey:.big);miniGame=try c.decodeIfPresent(Bool.self,forKey:.miniGame) ?? false;pause=try c.decodeIfPresent(Double.self,forKey:.pause);moveCues=try c.decodeIfPresent([Double].self,forKey:.moveCues);if let cues=moveCues {guard cues.count==moves.count,cues.allSatisfy({$0.isFinite && (0...1).contains($0)}),zip(cues,cues.dropFirst()).allSatisfy({$0.0 <= $0.1}) else{throw CheckmateError.invalid("Invalid authored movement cues.")}}}
 }
 public struct CourseLesson:Decodable {public let id:String,title:String,teaches:[String]?,mascot:String?,beats:[CourseBeat]}
 public struct Exercise:Codable {
@@ -41,7 +41,25 @@ public struct CourseLibrary:Decodable {
         return lesson.beats.firstIndex{(Int($0.id?.split(separator:":").last ?? "") ?? 0)>=original} ?? lesson.beats.count-1
     }
     public func knownAnswerID(_ id:String)->Bool {exercises[id] != nil || retiredExerciseIDs?.contains(id)==true}
-    public func frame(lesson:Int,step:Int,seconds:Double,duration:Double=CourseTiming.standard.pieceDuration,narrationSeconds:Double?=nil) throws -> CourseFrame {
+    /// Cue fractions are relative to narration duration, so longer translated clips never race at English speed.
+    /// Explicit cues are measured against the bundled recording; recordings without them use paced illustration.
+    public func moveTimes(lesson:Int,step:Int,narrationSeconds:Double,pieceDuration:Double,useCues:Bool=true)->[Double] {
+        let beat=lessons[lesson].beats[step],n=beat.moves.count
+        let fractions=(useCues ? beat.moveCues:nil) ?? (0..<n).map{n==1 ? 0.05:(Double($0)+0.15)/Double(n)}
+        var previous = -pieceDuration
+        return fractions.map {fraction in
+            let at=max(lessonTiming.movementStart,max(fraction*narrationSeconds,previous+pieceDuration))
+            previous=at;return at
+        }
+    }
+    public func playbackDuration(lesson:Int,step:Int,narrationSeconds:Double,pieceDuration:Double,useCues:Bool=true)->Double {
+        let beat=lessons[lesson].beats[step],t=lessonTiming
+        let last=moveTimes(lesson:lesson,step:step,narrationSeconds:narrationSeconds,pieceDuration:pieceDuration,useCues:useCues).last
+        let movement=(last.map{$0+pieceDuration} ?? 0)+(beat.remove.isEmpty ? 0:t.removalDelay)
+        let count=Double(max(0,beat.count.count-1))*max(t.minimumCountSpacing,narrationSeconds/Double(max(1,beat.count.count)))
+        return max(narrationSeconds,max(movement,count))+max(0,beat.pause ?? 0)+t.postNarrationGap
+    }
+    public func frame(lesson:Int,step:Int,seconds:Double,duration:Double=CourseTiming.standard.pieceDuration,narrationSeconds:Double?=nil,useCues:Bool=true) throws -> CourseFrame {
         guard lessons.indices.contains(lesson),lessons[lesson].beats.indices.contains(step) else{throw CheckmateError.invalid("Invalid lesson step.")}
         var state=CourseFrame()
         for i in 0...step {
@@ -52,10 +70,10 @@ public struct CourseLibrary:Decodable {
         let beat=lessons[lesson].beats[step],timing=lessonTiming
         if var board=state.board {
             for (i,m) in beat.moves.enumerated() {
-                let elapsed=seconds-timing.movementStart-Double(i)*timing.movementInterval,t=duration==0 ? (elapsed>=0 ? 1.0:0.0):max(0,min(1,elapsed/duration))
+                let elapsed=seconds-moveTimes(lesson:lesson,step:step,narrationSeconds:narrationSeconds ?? voices[lesson][step].seconds,pieceDuration:duration,useCues:useCues)[i],t=duration==0 ? (elapsed>=0 ? 1.0:0.0):max(0,min(1,elapsed/duration))
                 if t>=1 {try Self.apply(&board,moves:[m])}else if t>0 {state.motion=PieceMotion(from:m[0],to:m[1],t:t);break}
             }
-            let end=beat.moves.isEmpty ? 0:timing.movementStart+Double(beat.moves.count-1)*timing.movementInterval+timing.pieceDuration
+            let end=moveTimes(lesson:lesson,step:step,narrationSeconds:narrationSeconds ?? voices[lesson][step].seconds,pieceDuration:duration,useCues:useCues).last.map{$0+duration} ?? 0
             if seconds>=end+timing.removalDelay {try Self.apply(&board,moves:[],remove:beat.remove)}
             state.board=board
         }

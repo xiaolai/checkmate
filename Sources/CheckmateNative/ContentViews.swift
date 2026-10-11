@@ -80,11 +80,23 @@ struct DetailContent:View {
                     Picker("Difficulty",selection:Binding(get:{session.state.settings.miniOpponentProfile},set:{var settings=session.state.settings;settings.miniOpponentProfile=$0;session.updateSettings(settings)})){Text("Beginner").tag("beginner");Text("Standard").tag("standard");Text("Challenging").tag("challenging")}
                     Text(learning.miniGame?.computer==true ? "You play White. Select a piece, then its destination. The computer plays Black.":"Take turns moving White and Black on this device.")
                 }
+                if learning.miniGame?.isFinished==true {Button {learning.restartMini()} label:{Label("Play again",systemImage:"arrow.counterclockwise")}.accessibilityIdentifier("mini-play-again")}
                 Text(learning.miniKind.rules).foregroundStyle(.secondary)
                 if !learning.feedback.isEmpty{Text(learning.feedback)}
             }
             else if learning.activePuzzle != nil || session.mode == .lesson {
                 if session.mode == .lesson {
+                    if learning.practiceAvailable {
+                        ForEach(MiniGameKind.available(lessonID:learning.current.id),id:\.self){kind in
+                            Button {learning.startMini(kind)} label:{Label("Play \(kind.title)",systemImage:"play.fill")}
+                                .controlSize(.large).accessibilityIdentifier("lesson-play-"+kind.rawValue)
+                        }
+                        if let preset=LessonPractice.forLesson(learning.current.id) {
+                            Button {model.practiceLesson()} label:{Label("Try it against the computer",systemImage:"play.fill")}
+                                .controlSize(.large).accessibilityIdentifier("lesson-practice-position")
+                            Text(preset.goal).foregroundStyle(.secondary)
+                        }
+                    }
                     Picker("Transcript",selection:Binding(get:{learning.step},set:{learning.seek(step:$0)})){ForEach(learning.current.beats.indices,id:\.self){i in Text("\(i+1). \(learning.localizedStepTitle(index:learning.lessonIndex,step:i))").tag(i)}}
                         .labelsHidden()
                     if let fallback=learning.fallbackMessage{Text(fallback).font(.caption).foregroundStyle(.secondary)}
@@ -103,13 +115,12 @@ struct DetailContent:View {
                 if session.mode == .lesson {
                     // The title toggles too; by default only the chevron does.
                     DisclosureGroup(isExpanded:$lessonGoalsShown){ForEach(learning.teaches,id:\.self){Text($0)}} label:{Text("In this lesson").contentShape(Rectangle()).onTapGesture{lessonGoalsShown.toggle()}}
-                    ForEach(MiniGameKind.available(lessonID:learning.current.id),id:\.self){kind in Button("Play \(kind.title)"){learning.startMini(kind)}}
-                    if session.state.course.completed.contains(learning.current.id),learning.lessonIndex<learning.library.lessons.count-1 {Button("Continue to \(learning.localizedTitle(index:learning.lessonIndex+1))"){model.lesson(learning.lessonIndex+1);learning.play()}}
+                    if session.state.course.completed.contains(learning.current.id),learning.lessonIndex<learning.library.lessons.count-1 {Button("Continue to \(learning.localizedTitle(index:learning.lessonIndex+1))"){model.continueLesson()}}
                 } else {Button("Next puzzle"){learning.next()}.disabled(!learning.passed)}
             } else {Text("Quick puzzles").font(.title2.bold());Text("Choose an exercise from the library.")}
         }
     }
-    }.frame(maxWidth:.infinity,alignment:.leading).padding(Metrics.sectionGap)}}
+    }.frame(maxWidth:.infinity,alignment:.leading).padding(Metrics.sectionGap)}.id(session.mode == .lesson ? learning.current.id+(learning.mini ? ":"+learning.miniKind.rawValue:""):session.mode.rawValue)}
 }
 /// Import, storage, export and practice-fork failures, rendered over the board area so they
 /// are visible whichever drawers are open. Dismiss clears the message.

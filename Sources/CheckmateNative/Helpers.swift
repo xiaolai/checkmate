@@ -2,7 +2,20 @@ import AppKit
 import SwiftUI
 import QuartzCore
 import CheckmateCore
+/// NSHostingView can hit-test its SwiftUI subtree even while AppKit hides it.
+/// Hidden title cards/libraries must never intercept the playable board underneath.
+final class VisibleHostingView<Content:View>:NSHostingView<Content> {
+    override func hitTest(_ point:NSPoint)->NSView? {
+        guard !isHiddenOrHasHiddenAncestor else{return nil}
+        return super.hitTest(point)
+    }
+    override func accessibilityChildren()->[Any]? {
+        guard !isHiddenOrHasHiddenAncestor else{return []}
+        return super.accessibilityChildren()
+    }
+}
 struct Metrics {
+    static let promotionIconSize:CGFloat=24
     static let playbackLineHeight:CGFloat=2,turnIndicatorSize:CGFloat=12,turnIndicatorOutline:CGFloat=1
     static let core:CGFloat=780,minimum:CGFloat=600,minimumFitted:CGFloat=320,left:CGFloat=216,right:CGFloat=320,header:CGFloat=52
     static let lessonInspectionMinimum:CGFloat=120,lessonInspectionMaximum:CGFloat=220

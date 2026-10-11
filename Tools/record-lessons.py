@@ -5,6 +5,7 @@ Default is a dry run. --generate requires --sample, --lesson or --all.
 Each completed WAV has a provenance sidecar; both must validate before reuse.
 """
 import argparse
+import fcntl
 import hashlib
 import html
 import io
@@ -271,6 +272,9 @@ def main():
                       'voice': profile['voice'], 'speed': bodies[0]['speed']}), flush=True)
     if not args.generate:
         return
+    args.output.mkdir(parents=True,exist_ok=True)
+    generation_lock=(args.output/'.generation.lock').open('w')
+    fcntl.flock(generation_lock.fileno(),fcntl.LOCK_EX)
     key = sys.stdin.read().strip() if args.api_key_stdin else api_key()
     if not key:
         raise ValueError('No OpenAI API key supplied')

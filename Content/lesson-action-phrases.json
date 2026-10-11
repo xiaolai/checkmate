@@ -1,0 +1,364 @@
+{
+  "schemaVersion": 1,
+  "phrases": {
+    "rook-practice:7": [
+      "White's rook captures the pawn on D seven",
+      "Black's rook then captures White's rook from H seven, along the empty seventh rank, and Black wins"
+    ],
+    "rook-practice:11": [
+      "White's rook captures from D one to D eight",
+      "Black's rook on E eight captures it straight back"
+    ],
+    "bishop-practice:6": [
+      "White's bishop moves from B two to C three, aiming at the pawn on B four",
+      "Black's bishop moves from D seven to E six"
+    ],
+    "bishop-practice:13": [
+      "White's bishop moves from D one to H five, aiming at the pawn on F seven",
+      "Black's pawn moves from G seven to G six"
+    ],
+    "knight-practice:3": [
+      "White's knight jumps from B one to C three",
+      "Black's knight jumps from G eight to F six"
+    ],
+    "knight-practice:8": [
+      "Black's knight jumps from F six to H five",
+      "White's knight captures the pawn, jumping from B five to D six"
+    ],
+    "safe-squares:14": [
+      "The king steps from D two to E three",
+      "Then it steps from E three to F four",
+      "Then it steps from F four to G four"
+    ],
+    "safe-squares:15": [
+      "Next the king slips from G four to H five",
+      "Then it steps from H five to G six",
+      "Finally it steps from G six to F six and has arrived"
+    ],
+    "castling:1": [
+      "To castle on the kingside, the king moves two squares towards the H one rook, from E one to G one",
+      "Then the rook jumps over the king, from H one to F one"
+    ],
+    "castling:3": [
+      "The king moves two squares towards the A one rook, from E one to C one",
+      "Then the rook jumps over the king, from A one to D one"
+    ],
+    "castling:5": [
+      "The king moves from E eight to G eight",
+      "Then the rook jumps from H eight to F eight"
+    ],
+    "castling:6": [
+      "The king travels from E eight to C eight",
+      "Then the rook hops from A eight to D eight"
+    ],
+    "castling:9": [
+      "First the king slides across from E one to G one",
+      "Then the rook hops over it from H one to F one"
+    ],
+    "castling:11": [
+      "First the king slides across from E one to C one",
+      "Then the rook hops over it from A one to D one, onto a central file"
+    ],
+    "castling-rules:2": [
+      "The knight leaps out from G one to F three",
+      "Then the bishop heads off from F one to C four"
+    ],
+    "castling-rules:4": [
+      "Here the king steps from E one to F one",
+      "Later it steps back from F one to E one"
+    ],
+    "castling-rules:6": [
+      "The rook goes from H one to H three",
+      "Later it comes back from H three to H one"
+    ],
+    "castling-rules:13": [
+      "First the king slides across from E one to C one",
+      "Then the rook hops over it from A one to D one, straight across the attacked B one square"
+    ],
+    "promotion-en-passant:9": [
+      "The black king must move out of check, and here it steps from E six to E five",
+      "Then White's knight takes the queen, moving from F eight to H seven"
+    ],
+    "promotion-en-passant:15": [
+      "Black's pawn makes a double step, from G seven to G five",
+      "White's pawn moves from H two to H three instead"
+    ],
+    "draws:13": [
+      "White's queen moves from D seven to E eight, giving check",
+      "Black's king steps from G eight to H seven"
+    ],
+    "draws:14": [
+      "White's queen checks from E four",
+      "Black's king goes back to G eight",
+      "White's queen checks from E eight again",
+      "Black's king returns to H seven"
+    ],
+    "draws:15": [
+      "White's queen checks from E four",
+      "Black's king goes to G eight",
+      "White's queen checks from E eight",
+      "Black's king goes to H seven"
+    ],
+    "piece-values:9": [
+      "White's bishop captures the knight on C six",
+      "Black's pawn on B seven captures the bishop"
+    ],
+    "piece-values:12": [
+      "White's rook captures the knight on D five",
+      "Black's pawn captures the rook"
+    ],
+    "piece-values:14": [
+      "White's knight captures the rook on E five",
+      "Black's pawn captures the knight"
+    ],
+    "counting-material:5": [
+      "White's rook captures the rook on D eight",
+      "Black's rook on F eight captures back on D eight"
+    ],
+    "counting-material:8": [
+      "White's bishop captures the pawn on F seven, giving check",
+      "Black's king captures the bishop"
+    ],
+    "counting-material:11": [
+      "White's knight captures the pawn on E five",
+      "Black's knight captures the knight"
+    ],
+    "counting-material:13": [
+      "White's knight captures the pawn on E five",
+      "Black's knight captures the knight",
+      "White's rook captures the black knight on E five"
+    ],
+    "notation:13": [
+      "Here the king goes from E one to G one",
+      "Then the rook hops over it from H one to F one"
+    ],
+    "notation:14": [
+      "On the queen's side, the king goes from E one to C one",
+      "Then the rook hops from A one to D one"
+    ],
+    "etiquette:6": [
+      "White pushes a pawn from C two to C four",
+      "Black answers with a pawn from D seven to D five"
+    ],
+    "rules-review:10": [
+      "The king moves two squares, from E one to G one",
+      "Then the rook goes from H one to F one, on the king's other side"
+    ],
+    "opening:7": [
+      "White's dark-squared bishop goes out to F four",
+      "Black's light-squared bishop goes out to F five"
+    ],
+    "opening:8": [
+      "White's e-pawn steps forward one square, to E three",
+      "Black's e-pawn steps to E six"
+    ],
+    "opening:9": [
+      "White's bishop comes to E two",
+      "Black's bishop comes to E seven"
+    ],
+    "opening:10": [
+      "The king goes two squares to G one",
+      "The rook hops over to F one"
+    ],
+    "opening:12": [
+      "The king goes to G eight",
+      "The rook hops over to F eight"
+    ],
+    "opening:13": [
+      "White's knight jumps to C three",
+      "Black's pawn advances to D five"
+    ],
+    "opening:14": [
+      "White's knight jumps again, to B five",
+      "Black's c-pawn steps to C six and attacks it"
+    ],
+    "opening:15": [
+      "White's knight retreats to A three",
+      "Black's e-pawn advances to E five"
+    ],
+    "opening:18": [
+      "White's second knight comes to D two",
+      "Black's second knight comes to D seven"
+    ],
+    "opening:19": [
+      "White's c-pawn steps to C three",
+      "Black's c-pawn steps to C six"
+    ],
+    "opening:20": [
+      "White's queen moves to C two",
+      "Black's queen moves to C seven"
+    ],
+    "scholars-mate:2": [
+      "White's e-pawn advances to E four",
+      "Black pushes the g-pawn one square, to G six, to make room for a bishop"
+    ],
+    "scholars-mate:3": [
+      "White's bishop goes to C four and aims at F seven",
+      "Black's bishop goes to G seven"
+    ],
+    "scholars-mate:8": [
+      "Suppose White starts slowly, with a pawn to A three",
+      "Black's e-pawn advances to E five"
+    ],
+    "scholars-mate:9": [
+      "White pushes a pawn to H three",
+      "Black's bishop goes to C five and aims at F two"
+    ],
+    "scholars-mate:10": [
+      "White pushes a pawn to B three",
+      "Black's queen goes to F six and aims at F two as well"
+    ],
+    "scholars-mate:11": [
+      "White pushes a pawn to G four and ignores the danger",
+      "Black's queen captures on F two"
+    ],
+    "scholars-mate:14": [
+      "White pushes the d-pawn to D three to guard E four from the knight",
+      "Black's other knight jumps to C six"
+    ],
+    "scholars-mate:15": [
+      "White's knight goes to E two",
+      "Black's knight jumps to E five and attacks both the queen and the bishop"
+    ],
+    "fork:10": [
+      "Black's king slips into the corner, to H eight",
+      "White's queen takes the rook on A eight, giving check again"
+    ],
+    "skewer:8": [
+      "Black's king steps aside, to E five",
+      "White's bishop takes the rook on H seven"
+    ],
+    "skewer:11": [
+      "Black's queen escapes to D five",
+      "White's bishop takes the rook on H eight"
+    ],
+    "discovered-attack:5": [
+      "Black's king takes the bishop on H seven",
+      "Then White's rook takes the queen on D seven"
+    ],
+    "discovered-attack:12": [
+      "Black's king steps to F eight",
+      "White's knight takes the queen on B six"
+    ],
+    "discovered-attack:15": [
+      "Black's king steps to D eight",
+      "White's knight takes the queen on B five"
+    ],
+    "removing-the-defender:3": [
+      "Instead, White's bishop takes the knight on C six",
+      "Black's pawn on B seven takes the bishop back"
+    ],
+    "removing-the-defender:10": [
+      "Black's knight runs to D seven",
+      "White's rook takes the bishop on D five, and it is safe there"
+    ],
+    "two-rook-mate:4": [
+      "Black's king steps to F six",
+      "The rook from A four climbs past its partner to A six and gives check on the sixth rank"
+    ],
+    "two-rook-mate:5": [
+      "Black's king climbs to G seven",
+      "The rook on B five climbs to B seven and gives check on the seventh rank"
+    ],
+    "two-rook-mate:6": [
+      "Black's king is pushed to G eight, on the edge",
+      "The rook on A six goes to A eight and gives check along the last rank"
+    ],
+    "two-rook-mate:10": [
+      "So White's rook slides from B four to H four, far away from the king",
+      "Black's king steps to D six"
+    ],
+    "two-rook-mate:11": [
+      "The rook moves from H four to H six and gives check from a safe distance",
+      "Black's king climbs to D seven"
+    ],
+    "two-rook-mate:12": [
+      "The rook on A five checks from A seven",
+      "Black's king is pushed to E eight, on the edge"
+    ],
+    "queen-mate:4": [
+      "Black's king steps to F six",
+      "The queen follows to E four, again a knight's move away, and the box is smaller"
+    ],
+    "queen-mate:5": [
+      "Black's king goes to G seven",
+      "The queen follows to F five, and the box shrinks again"
+    ],
+    "queen-mate:6": [
+      "Black's king tries H six",
+      "The queen steps to G four, and now the king is trapped on H six, H seven and H eight"
+    ],
+    "queen-mate:7": [
+      "Black's king goes to H seven",
+      "The queen moves up to G five"
+    ],
+    "queen-mate:11": [
+      "White's king steps to F three",
+      "Black's king goes to H seven",
+      "White's king steps to F four",
+      "Black's king goes back to H eight"
+    ],
+    "queen-mate:12": [
+      "White's king steps to F five",
+      "Black's king goes to H seven",
+      "White's king steps to F six",
+      "Black's king returns to H eight"
+    ],
+    "rook-mate:2": [
+      "White's king steps to D three",
+      "Black's king steps forward to D five"
+    ],
+    "rook-mate:4": [
+      "The rook moves up to H five and gives check",
+      "Black's king cannot go down, so it retreats to C six"
+    ],
+    "rook-mate:7": [
+      "The rook checks from H seven",
+      "Black's king is pushed to C eight, on the edge"
+    ],
+    "rook-mate:8": [
+      "White's king follows to D six",
+      "Black's king steps to B eight, keeping away from the white king"
+    ],
+    "rook-mate:10": [
+      "White's king follows again, to C six",
+      "Black's king runs into the corner, to A eight"
+    ],
+    "rook-mate:12": [
+      "Instead, White's king steps to B six",
+      "Black's king must go to B eight, its only square"
+    ],
+    "famous-game:2": [
+      "White opens by pushing a pawn two squares, from E two to E four",
+      "Black answers with the pawn from C seven to C six, getting ready to fight for the centre"
+    ],
+    "famous-game:3": [
+      "White adds a second centre pawn, from D two to D four",
+      "Black pushes a pawn from D seven to D five, and it attacks the pawn on E four"
+    ],
+    "famous-game:4": [
+      "White's knight comes out from B one to C three to guard E four",
+      "Black's pawn captures the pawn on E four anyway"
+    ],
+    "famous-game:5": [
+      "White's knight takes back on E four",
+      "Black's knight comes out from G eight to F six and attacks it"
+    ],
+    "famous-game:6": [
+      "White's queen steps from D one to D three to guard the knight",
+      "Black pushes a pawn from E seven to E five, offering it to the pawn on D four"
+    ],
+    "famous-game:7": [
+      "White's pawn captures on E five",
+      "Black's queen moves from D eight to A five and gives check to the king on E one"
+    ],
+    "famous-game:8": [
+      "White's bishop moves from C one to D two and blocks the check",
+      "Black's queen captures the pawn on E five"
+    ],
+    "famous-game:10": [
+      "First the king slides two squares, from E one to C one",
+      "Then the rook hops over it, from A one to D one, onto the d-file"
+    ]
+  }
+}

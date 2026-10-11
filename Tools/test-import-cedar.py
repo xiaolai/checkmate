@@ -17,7 +17,7 @@ class TimingTests(unittest.TestCase):
     def testShortAudioCannotTruncateMoveOrRemoval(self):
         beat = {'moves': [['a1','a2'],['a2','a3'],['a3','a4']], 'remove':['a4']}
         duration=publisher.step_duration(beat,0.1,self.timing)
-        end=self.timing['movementStart']+2*self.timing['movementInterval']+self.timing['pieceDuration']+self.timing['removalDelay']
+        end=self.timing['movementStart']+3*self.timing['pieceDuration']+self.timing['removalDelay']
         self.assertGreaterEqual(duration,end+self.timing['postNarrationGap'])
 
     def testShortAudioCannotTruncateSixteenCounts(self):
@@ -44,7 +44,9 @@ class TimingTests(unittest.TestCase):
     def testPublishedCourseKeepsBeatIdsAndBoardFixtures(self):
         baseline=json.loads((HERE.parent / 'Content/course-baseline.json').read_text())
         content=json.loads((HERE.parent / 'Content/course-scripts.en-GB.json').read_text())
-        assets={beat['id']:{'file':'new/'+beat['id']+'.m4a','seconds':4} for lesson in content['lessons'] for beat in lesson['beats']}
+        cue_file=HERE.parent/'Content/lesson-action-cues.json'
+        cues=json.loads(cue_file.read_text()).get('cues',{}) if cue_file.exists() else {}
+        assets={beat['id']:{'file':'new/'+beat['id']+'.m4a','seconds':4,'textSHA256':__import__('hashlib').sha256(beat['speak'].encode()).hexdigest(),'masterSHA256':cues.get(beat['id'],{}).get('masterSHA256','fixture')} for lesson in content['lessons'] for beat in lesson['beats']}
         runtime=publisher.build_course(baseline,content,assets,self.timing,{'voice':'cedar'})
         self.assertEqual(runtime['sounds'],baseline['sounds'])
         self.assertEqual(runtime['exercises'],content['exercises'])
@@ -62,7 +64,7 @@ class TimingTests(unittest.TestCase):
                 self.assertEqual(published['hl'],start.get('hl',[]))
                 self.assertEqual(published.get('moves'),beat.get('moves'))
                 self.assertNotIn('quiz',published)
-        self.assertEqual(sum(len(rows) for rows in runtime['voices']),864)
+        self.assertEqual(sum(len(rows) for rows in runtime['voices']),878)
 
     def testCorrectedKnightDemonstrationKeepsPawnsAndRejectsUnreviewedActions(self):
         import copy

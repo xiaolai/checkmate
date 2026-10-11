@@ -62,16 +62,16 @@ final class BoardTitleView:NSView {
         board.dropReview={[weak self] data in self?.model.importReviewData(data)}
         model.review.objectWillChange.sink{[weak self] _ in DispatchQueue.main.async{self?.refresh()}}.store(in:&observations)
         model.onImport={[weak self] in guard let self=self else{return};self.desiredLeft=model.session.state.window.left;self.desiredRight=model.session.state.window.right;self.animateDrawers()};board.onLayout={[weak self] in self?.titleView.needsLayout=true;self?.titleView.syncCenter()};board.activate={[weak self] square in self?.select(square)};board.canDrag={[weak self] square in self?.dragMoves(square) ?? false};model.movePlacedDirectly={[weak self] move in self?.board.isDropped(move) ?? false};board.inspectRelationship={[weak self] mode in self?.toggleRelationship(mode)};board.dismissRelationships={[weak self] in guard let self=self else{return false};let dismissed=self.relationships.dismiss();if dismissed{self.refresh()};return dismissed};board.clearSelection={[weak self] in guard let self=self else{return};if self.model.review.active{self.model.review.clearSelection();self.refresh()}else if self.model.session.mode == .practice{self.model.session.clearSelection()}else{self.model.learning.clearSelection()}};titleView.board=board;titleView.tabs.target=self;titleView.tabs.action=#selector(selectTab)
-        controls=NSHostingView(rootView:TransportContent(session:model.session,learning:model.learning,voice:model.voice,review:model.review,newGame:{[weak self] in self?.newGame()},showDetails:{[weak self] in self?.showDetails()},continueWithStockfish:{[weak model] in model?.companion.disable();model?.session.continueWithStockfish()},resumeGame:{[weak model] in model?.resumeAfterFailedRestore()}));welcome=NSHostingView(rootView:WelcomeContent(title:"",goals:[]));puzzles=NSHostingView(rootView:PuzzleLibraryContent(learning:model.learning,session:model.session))
-        reviewWorkspaceView=NSHostingView(rootView:ReviewWorkspaceContent(model:model))
+        controls=VisibleHostingView(rootView:TransportContent(session:model.session,learning:model.learning,voice:model.voice,review:model.review,newGame:{[weak self] in self?.newGame()},showDetails:{[weak self] in self?.showDetails()},continueWithStockfish:{[weak model] in model?.companion.disable();model?.session.continueWithStockfish()},resumeGame:{[weak model] in model?.resumeAfterFailedRestore()}));welcome=VisibleHostingView(rootView:WelcomeContent(title:"",goals:[]));puzzles=VisibleHostingView(rootView:PuzzleLibraryContent(learning:model.learning,session:model.session))
+        reviewWorkspaceView=VisibleHostingView(rootView:ReviewWorkspaceContent(model:model))
         for v in [board,controls!,welcome!,puzzles!,reviewWorkspaceView!] {main.view.addSubview(v);v.translatesAutoresizingMaskIntoConstraints=false}
         NSLayoutConstraint.activate([controls.leadingAnchor.constraint(equalTo:main.view.leadingAnchor),controls.trailingAnchor.constraint(equalTo:main.view.trailingAnchor),controls.bottomAnchor.constraint(equalTo:main.view.safeAreaLayoutGuide.bottomAnchor),controls.heightAnchor.constraint(equalToConstant:Metrics.header)])
         // Errors overlay the top of the fixed board area; the board's size and layout are unaffected.
-        let banner=NSHostingView(rootView:StorageErrorBanner(model:model));errorBanner=banner;banner.isHidden=model.storageError==nil
+        let banner=VisibleHostingView(rootView:StorageErrorBanner(model:model));errorBanner=banner;banner.isHidden=model.storageError==nil
         main.view.addSubview(banner);banner.translatesAutoresizingMaskIntoConstraints=false
         NSLayoutConstraint.activate([banner.leadingAnchor.constraint(equalTo:main.view.safeAreaLayoutGuide.leadingAnchor),banner.trailingAnchor.constraint(equalTo:main.view.safeAreaLayoutGuide.trailingAnchor),banner.topAnchor.constraint(equalTo:main.view.safeAreaLayoutGuide.topAnchor)])
         model.$storageError.removeDuplicates().receive(on:RunLoop.main).sink{[weak self] message in guard let self=self else{return};self.errorBanner?.isHidden=message==nil;if let message=message{NSAccessibility.post(element:self.errorBanner as Any,notification:.announcementRequested,userInfo:[.announcement:message,.priority:NSAccessibilityPriorityLevel.high.rawValue])}}.store(in:&observations)
-        let playbackLine=NSHostingView(rootView:LessonProgressContent(review:model.review,session:model.session,learning:model.learning))
+        let playbackLine=VisibleHostingView(rootView:LessonProgressContent(review:model.review,session:model.session,learning:model.learning))
         playbackLineView=playbackLine
         main.view.addSubview(playbackLine);playbackLine.translatesAutoresizingMaskIntoConstraints=false
         NSLayoutConstraint.activate([playbackLine.leadingAnchor.constraint(equalTo:main.view.leadingAnchor),playbackLine.trailingAnchor.constraint(equalTo:main.view.trailingAnchor),playbackLine.bottomAnchor.constraint(equalTo:main.view.bottomAnchor),playbackLine.heightAnchor.constraint(equalToConstant:Metrics.playbackLineHeight)])
@@ -141,11 +141,11 @@ final class BoardTitleView:NSView {
 
     @objc func selectTab(){model.session.selectPresentation(titleView.tabs.selectedSegment==1)}
     func select(_ sq:String){
-        if model.review.active{if let from=model.review.selected,model.review.displayRules?.moves(from).contains(where:{$0.to==sq && $0.promotion != nil})==true{let menu=NSMenu();for (title,piece) in [("Queen","q"),("Rook","r"),("Bishop","b"),("Knight","n")]{let item=NSMenuItem(title:title,action:#selector(promoteReview(_:)),keyEquivalent:"");item.target=self;item.representedObject=[sq,piece];menu.addItem(item)};menu.popUp(positioning:nil,at:board.squareRect(sq).origin,in:board);return};try? model.review.selectSquare(sq);refresh();return}
+        if model.review.active{if let from=model.review.selected,model.review.displayRules?.moves(from).contains(where:{$0.to==sq && $0.promotion != nil})==true{let menu=NSMenu();for (title,piece) in [("Queen","q"),("Rook","r"),("Bishop","b"),("Knight","n")]{let item=NSMenuItem(title:title,action:#selector(promoteReview(_:)),keyEquivalent:"");item.target=self;item.image=promotionImage(piece);item.toolTip="Promote to a "+title.lowercased();item.representedObject=[sq,piece];menu.addItem(item)};menu.popUp(positioning:nil,at:board.squareRect(sq).origin,in:board);return};try? model.review.selectSquare(sq);refresh();return}
 
         if relationships.mode != nil{if model.session.mode == .practice{try? model.session.inspectPiece(sq)};relationships.select(board.position[sq] == nil ? nil:sq);refresh();return}
         let s=model.session;if s.mode == .practice {
-        if let from=s.selected,s.inspection?.legalNow==true,s.destinations.contains(sq),(s.presentationHidden || s.preview==nil && s.demonstration==nil) {let promotion=s.rules.moves(from).contains{$0.to==sq && $0.promotion != nil};if promotion {let menu=NSMenu();for (title,piece) in [("Queen","q"),("Rook","r"),("Bishop","b"),("Knight","n")] {let item=NSMenuItem(title:title,action:#selector(promote(_:)),keyEquivalent:"");item.target=self;item.representedObject=[from,sq,piece];menu.addItem(item)};menu.popUp(positioning:nil,at:board.squareRect(sq).origin,in:board);return}}
+        if let from=s.selected,s.inspection?.legalNow==true,s.destinations.contains(sq),(s.presentationHidden || s.preview==nil && s.demonstration==nil) {let promotion=s.rules.moves(from).contains{$0.to==sq && $0.promotion != nil};if promotion {let menu=NSMenu();for (title,piece) in [("Queen","q"),("Rook","r"),("Bishop","b"),("Knight","n")] {let item=NSMenuItem(title:title,action:#selector(promote(_:)),keyEquivalent:"");item.target=self;item.image=promotionImage(piece);item.toolTip="Promote to a "+title.lowercased();item.representedObject=[from,sq,piece];menu.addItem(item)};menu.popUp(positioning:nil,at:board.squareRect(sq).origin,in:board);return}}
         do{try s.select(sq)}catch{showError(error)}
     }else{model.learning.click(sq)};refresh()}
     /// Dragging applies where selecting a piece and then a square plays a move; marking and route exercises stay
@@ -156,6 +156,13 @@ final class BoardTitleView:NSView {
         let l=model.learning,s=model.session
         if s.mode == .practice{return board.position[square]?.first.map(String.init)==s.humanSide}
         return l.mini || l.activePuzzle != nil && l.exercise?.kind=="move"
+    }
+    private func promotionImage(_ piece:String)->NSImage {
+        let symbol=["q":"♛","r":"♜","b":"♝","n":"♞"][piece] ?? ""
+        let size=NSSize(width:Metrics.promotionIconSize,height:Metrics.promotionIconSize)
+        let image=NSImage(size:size,flipped:false){rect in
+            (symbol as NSString).draw(in:rect,withAttributes:[.font:NSFont.systemFont(ofSize:rect.height),.foregroundColor:NSColor.black]);return true
+        };image.isTemplate=true;return image
     }
     @objc func promoteReview(_ item:NSMenuItem){guard let values=item.representedObject as? [String] else{return};try? model.review.selectSquare(values[0],promotion:values[1]);refresh()}
     @objc func promote(_ item:NSMenuItem){guard let value=item.representedObject as? [String] else{return};do{try model.session.playWhite(from:value[0],to:value[1],promotion:value[2])}catch{showError(error)};refresh()}

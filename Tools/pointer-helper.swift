@@ -7,7 +7,12 @@ let pid=Int32(CommandLine.arguments[1])!
 let app=AXUIElementCreateApplication(pid)
 AXUIElementSetMessagingTimeout(app,2)
 func get(_ e:AXUIElement,_ k:String)->CFTypeRef?{var v:CFTypeRef?;AXUIElementCopyAttributeValue(e,k as CFString,&v);return v}
-func names(_ e:AXUIElement)->[String]{[kAXTitleAttribute,kAXDescriptionAttribute,kAXValueAttribute,kAXIdentifierAttribute].compactMap{get(e,$0) as? String}.filter{!$0.isEmpty}}
+func names(_ e:AXUIElement)->[String]{
+    let own=[kAXTitleAttribute,kAXDescriptionAttribute,kAXValueAttribute,kAXIdentifierAttribute].compactMap{get(e,$0) as? String}
+    let linked=(get(e,kAXTitleUIElementAttribute)).map{$0 as! AXUIElement}
+    let labels=linked.map{label in [kAXTitleAttribute,kAXDescriptionAttribute,kAXValueAttribute].compactMap{get(label,$0) as? String}} ?? []
+    return (own+labels).filter{!$0.isEmpty}
+}
 func frame(_ e:AXUIElement)->CGRect?{guard let p=get(e,kAXPositionAttribute),let s=get(e,kAXSizeAttribute) else{return nil};var origin=CGPoint.zero,size=CGSize.zero;AXValueGetValue(p as! AXValue,.cgPoint,&origin);AXValueGetValue(s as! AXValue,.cgSize,&size);return CGRect(origin:origin,size:size)}
 func find(_ e:AXUIElement,depth:Int=0,_ match:(String,[String])->Bool)->AXUIElement?{
     if depth>40{return nil};let role=get(e,kAXRoleAttribute) as? String ?? ""
@@ -65,6 +70,8 @@ case "drift-square":let p=center(square(a),a);gesture(from:p,to:CGPoint(x:p.x+(D
 case "drag-square":gesture(from:center(square(a),a),to:center(square(b),b))
 case "label":guard let e=square(a) else{fputs("Not found: \(a)\n",stderr);exit(2)};print(names(e).first ?? "")
 case "value":guard let e=element(a) else{fputs("Not found: \(a)\n",stderr);exit(2)};print(get(e,kAXValueAttribute).map{"\($0)"} ?? "")
+case "scroll-sidebar":guard let area=inWindows({role,n in role=="AXOutline" && n.contains("Sidebar")}),let bounds=frame(area),let window=windowOf(area),let windowBounds=frame(window) else{exit(2)};let point=CGPoint(x:bounds.minX+min(80,bounds.width/2),y:windowBounds.midY);post(.mouseMoved,point);let event=CGEvent(scrollWheelEvent2Source:source,units:.line,wheelCount:1,wheel1:Int32(a) ?? -5,wheel2:0,wheel3:0);event?.location=point;event?.post(tap:.cghidEventTap);usleep(250_000)
+case "choose-menu-item":let item=find(app){role,n in role=="AXMenuItem" && n.contains(a)};click(center(item,a))
 case "menu-open":print(find(app){role,n in role=="AXMenuItem" && n.contains(a)}.flatMap(frame).map{$0.width>0 && $0.height>0} ?? false)
 // Opens a menu-bar menu and chooses an item, both with the pointer.
 case "menu":let top=(get(app,kAXMenuBarAttribute)).flatMap{bar in find(bar as! AXUIElement){role,n in role=="AXMenuBarItem" && n.contains(a)}};click(center(top,a));usleep(250_000);click(center(top.flatMap{find($0){role,n in role=="AXMenuItem" && n.contains(b)}},b))

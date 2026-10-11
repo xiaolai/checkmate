@@ -107,6 +107,15 @@ import CheckmateCore
     func practice(){reviewOpenGeneration+=1;cancelReviewImport();if review.active || reviewWorkspace{returnToGame()};learning.pause();audio.stop();session.resumePractice()}
     func lesson(_ index:Int){leaveReviewForActivity();voice.disconnect();audio.stop();learning.openLesson(index:index)}
     func puzzles(){leaveReviewForActivity();voice.disconnect();audio.stop();learning.showPuzzleLibrary()}
+    func continueLesson(){guard learning.lessonIndex+1<learning.library.lessons.count else{return};leaveReviewForActivity();voice.disconnect();audio.stop();learning.openLesson(index:learning.lessonIndex+1,resume:false);learning.play()}
+    func practiceLesson(){
+        guard let preset=LessonPractice.forLesson(learning.current.id) else{return};leaveReviewForActivity()
+        do {
+            let fork=try ChessRules(fen:preset.fen)
+            learning.pause();audio.stop();voice.disconnect()
+            try session.installPracticeFork(fork,side:"w")
+        } catch {storageError=userFacingMessage(error,fallback:"This practice position could not be opened.")}
+    }
     func installImport(_ state:ApplicationState)throws -> URL {
         reviewOpenGeneration+=1;cancelReviewImport()
         try StateStore.validate(state)

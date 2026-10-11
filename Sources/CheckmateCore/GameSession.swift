@@ -25,6 +25,7 @@ public struct Preview:Codable {public var id:String,basePosition:Int,status:Stri
 public struct Coaching:Codable {public var status="idle",summary="",recommendation:MoveFacts?,analysis:EngineAnalysis?}
 public struct LessonProjection:Codable {
     public var mode:String,pieces:Position?,title:String,lessonId:String,step:Int,prompt:String?,choices:[String]?,playing:Bool,narrationActive:Bool,moving:Bool,turn:String?,winner:String?,rules:[String]?
+    public var drawReason:String?=nil
 }
 public func jsonObject<T:Encodable>(_ value:T)->Any {guard let data=try? JSONEncoder().encode(value),let object=try? JSONSerialization.jsonObject(with:data,options:.fragmentsAllowed) else{return NSNull()};return publicJSON(object)}
 private func publicJSON(_ raw:Any)->Any {
