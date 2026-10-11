@@ -1,5 +1,7 @@
-import json,os,pathlib,subprocess,sys,tempfile,time
+import atexit,json,os,pathlib,shutil,subprocess,sys,tempfile,time
 root=pathlib.Path.cwd();evidence=pathlib.Path(os.environ['CHECKMATE_EVIDENCE_DIR']);state=pathlib.Path(tempfile.mkdtemp(prefix='checkmate-lifecycle-'));app=root/'build/CheckmateAutomation.app/Contents/MacOS/CheckmateNative';ax=evidence/'ax-helper'
+# Removed at exit, after the finally below has stopped the app (run-gates fails a gate that leaves temporary files).
+atexit.register(shutil.rmtree,state,ignore_errors=True)
 subprocess.run(['xcrun','swiftc','Tools/ax-helper.swift','-o',str(ax)],check=True)
 env=dict(os.environ,CHECKMATE_AUTOMATION='1');args=[str(app),'--automation','--data-dir',str(state)];process=None
 

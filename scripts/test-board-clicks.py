@@ -7,6 +7,7 @@ import json
 import os
 import pathlib
 import re
+import shutil
 import socket
 import stat
 import subprocess
@@ -193,6 +194,8 @@ for scenario in scenarios:
             except subprocess.TimeoutExpired:
                 process.kill()
                 process.wait(timeout=5)
+        # Each scenario's state goes once its app has stopped (run-gates fails a gate that leaves temporary files).
+        shutil.rmtree(state, ignore_errors=True)
 results["passed"] = not failures
 (evidence / "board-click-results.json").write_text(json.dumps(results, indent=2))
 print(json.dumps(results, indent=2))

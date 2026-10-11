@@ -1,7 +1,9 @@
 """Silent native acceptance for independent startup preferences and MCP standby."""
+import atexit
 import json
 import os
 import pathlib
+import shutil
 import socket
 import subprocess
 import tempfile
@@ -14,6 +16,8 @@ root = pathlib.Path(__file__).resolve().parents[1]
 evidence = pathlib.Path(os.environ["CHECKMATE_EVIDENCE_DIR"])
 evidence.mkdir(parents=True, exist_ok=True)
 state = pathlib.Path(tempfile.mkdtemp(prefix="checkmate-startup-settings-"))
+# Removed at exit, after the finally below has stopped the app (run-gates fails a gate that leaves temporary files).
+atexit.register(shutil.rmtree, state, ignore_errors=True)
 state_file = state / "state-v1.json"
 discovery = state / "companion/connection.json"
 helper = evidence / "startup-ax-helper"

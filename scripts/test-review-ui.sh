@@ -6,7 +6,7 @@ checkmate_review_evidence=${CHECKMATE_EVIDENCE_DIR:-$(mktemp -d /tmp/checkmate-r
 mkdir -p "$checkmate_review_evidence"
 rm -f "$checkmate_review_evidence"/review-ui-results.json "$checkmate_review_evidence"/shutdown-persistence-result.json \
   "$checkmate_review_evidence"/open-panel-ready.json "$checkmate_review_evidence"/ax-request-*.json "$checkmate_review_evidence"/ax-result-*.json
-checkmate_review_data=$(mktemp -d /tmp/checkmate-review-state.XXXXXX)
+checkmate_review_data=$(mktemp -d "${TMPDIR:-/tmp}/checkmate-review-state.XXXXXX")
 CHECKMATE_BUNDLE_ID=ai.xiaolai.checkmate.native-review-automation CHECKMATE_APP_NAME=CheckmateReviewAutomation bash build.sh > "$checkmate_review_evidence/build.log" 2>&1
 # The out-of-process helper answers the scenario's accessibility requests and clicks with the real pointer.
 xcrun swiftc Tools/ReviewScenario.swift -o "$checkmate_review_evidence/review-scenario-helper"
@@ -14,7 +14,7 @@ xcrun swiftc Tools/ReviewScenario.swift -o "$checkmate_review_evidence/review-sc
 checkmate_helper_pid=$!
 CHECKMATE_AUTOMATION=1 build/CheckmateReviewAutomation.app/Contents/MacOS/CheckmateNative --automation --data-dir "$checkmate_review_data" --review-scenario "$checkmate_review_evidence" > "$checkmate_review_evidence/app.log" 2>&1 &
 checkmate_review_pid=$!
-trap 'kill "$checkmate_review_pid" "$checkmate_helper_pid" 2>/dev/null || true' EXIT
+trap 'kill "$checkmate_review_pid" "$checkmate_helper_pid" 2>/dev/null || true;wait "$checkmate_review_pid" "$checkmate_helper_pid" 2>/dev/null || true;rm -rf "$checkmate_review_data"' EXIT
 for ((i=0;i<600;i++)); do
   [[ -f "$checkmate_review_evidence/review-ui-results.json" ]] && break
   # Both processes may finish between the check above and these: look for the results once more before failing.

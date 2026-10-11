@@ -1,5 +1,5 @@
 """Silent build-host real-pointer checks for lesson activity handoffs, practice forks and promotion."""
-import json,os,pathlib,socket,subprocess,tempfile,time
+import json,os,pathlib,shutil,socket,subprocess,tempfile,time
 if not any(n in socket.gethostname().lower() for n in ['build-host','build-host']):raise SystemExit('Run on build-host only')
 root=pathlib.Path(__file__).resolve().parents[1];evidence=pathlib.Path(os.environ['CHECKMATE_EVIDENCE_DIR']);evidence.mkdir(parents=True,exist_ok=True)
 helpers={}
@@ -75,4 +75,7 @@ except Exception:
  (evidence/'lesson-failure-ax.txt').write_text(listing())
  subprocess.run(['/usr/sbin/screencapture','-x',str(evidence/'lesson-failure.png')],check=True)
  raise
-finally:stop()
+finally:
+ stop()
+ # The app is stopped first; run-gates fails a gate that leaves temporary files.
+ shutil.rmtree(state,ignore_errors=True)

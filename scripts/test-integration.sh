@@ -8,15 +8,16 @@ if [[ -n "${CHECKMATE_EXECUTION_ARCH:-}" ]]; then
  case "$CHECKMATE_EXECUTION_ARCH" in arm64|x86_64) ;; *) echo 'Invalid execution architecture' >&2;exit 1;; esac
  checkmate_launcher=(/usr/bin/arch "-$CHECKMATE_EXECUTION_ARCH")
 fi
-checkmate_data=$(mktemp -d /tmp/checkmate-integration-state.XXXXXX)
+checkmate_data=$(mktemp -d "${TMPDIR:-/tmp}/checkmate-integration-state.XXXXXX");checkmate_states=("$checkmate_data")
 CHECKMATE_AUTOMATION=1 ${checkmate_launcher[@]+"${checkmate_launcher[@]}"} build/CheckmateAutomation.app/Contents/MacOS/CheckmateNative --automation --data-dir "$checkmate_data" --companion-test > "$checkmate_evidence/broker-app.log" 2>&1 &
 checkmate_pid=$!
-trap 'kill "$checkmate_pid" 2>/dev/null || true' EXIT
+# Every phase's state is removed once its app has stopped.
+trap 'kill "$checkmate_pid" 2>/dev/null || true;wait "$checkmate_pid" 2>/dev/null || true;rm -rf "${checkmate_states[@]}"' EXIT
 for ((i=0;i<30;i++)); do [[ -f "$checkmate_data/companion/connection.json" ]] && break; sleep 1; done
 python3 scripts/test-integration.py build/CheckmateAutomation.app/Contents/MacOS/CheckmateMCP "$checkmate_data/companion/connection.json" > "$checkmate_evidence/broker-coach.json"
 kill "$checkmate_pid";wait "$checkmate_pid" || true
 for phase in preview opponent; do
- checkmate_data=$(mktemp -d /tmp/checkmate-integration-state.XXXXXX)
+ checkmate_data=$(mktemp -d "${TMPDIR:-/tmp}/checkmate-integration-state.XXXXXX");checkmate_states+=("$checkmate_data")
  flags=(--companion-test --preview-fixture);if [[ "$phase" == opponent ]];then flags=(--opponent-fixture);fi
  CHECKMATE_AUTOMATION=1 ${checkmate_launcher[@]+"${checkmate_launcher[@]}"} build/CheckmateAutomation.app/Contents/MacOS/CheckmateNative --automation --data-dir "$checkmate_data" "${flags[@]}" > "$checkmate_evidence/broker-$phase.log" 2>&1 &
  checkmate_pid=$!

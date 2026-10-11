@@ -6,8 +6,10 @@ checkmate_configuration=${CHECKMATE_CONFIGURATION:-debug}
 case "$checkmate_configuration" in debug|release) ;; *) echo "Invalid build configuration" >&2;exit 1;; esac
 checkmate_build_arguments=(--arch arm64 --arch x86_64)
 if [[ -n "${CHECKMATE_BUILD_PATH:-}" ]]; then checkmate_build_arguments+=(--scratch-path "$CHECKMATE_BUILD_PATH"); fi
-swift build -c "$checkmate_configuration" "${checkmate_build_arguments[@]}"
-checkmate_bin=$(swift build -c "$checkmate_configuration" "${checkmate_build_arguments[@]}" --show-bin-path)
+# SwiftPM keeps its build locks in TMPDIR: always the user's temp folder, so every build of this checkout shares them.
+checkmate_swiftpm_tmp=$(getconf DARWIN_USER_TEMP_DIR)
+TMPDIR="$checkmate_swiftpm_tmp" swift build -c "$checkmate_configuration" "${checkmate_build_arguments[@]}"
+checkmate_bin=$(TMPDIR="$checkmate_swiftpm_tmp" swift build -c "$checkmate_configuration" "${checkmate_build_arguments[@]}" --show-bin-path)
 checkmate_bundle_id=${CHECKMATE_BUNDLE_ID:-ai.xiaolai.checkmate.native-development}
 checkmate_app=${CHECKMATE_APP_NAME:-CheckmateNative}
 checkmate_target="build/$checkmate_app.app/Contents"
