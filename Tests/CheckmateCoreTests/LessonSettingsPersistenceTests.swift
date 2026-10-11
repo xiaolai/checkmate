@@ -24,4 +24,11 @@ extension LessonSettingsPersistenceTests {
         XCTAssertNil(LessonLanguages.normalizedSelection("fr-Qwer"))
         XCTAssertNil(LessonLanguages.normalizedSelection("en-US-GB"))
     }
+    /// The validator's code sets come from Foundation's current Locale APIs: countries only (not groupings such as EU
+    /// or UN), and only scripts an identifier names explicitly (English is not "Latn" by inference).
+    func testLanguageRegionAndScriptSetsKeepTheirMeaning(){
+        XCTAssertEqual(LessonLanguages.normalizedSelection("pt-br"),"pt-BR");XCTAssertEqual(LessonLanguages.normalizedSelection("sr-latn"),"sr-Latn")
+        XCTAssertEqual(LessonLanguages.normalizedSelection("pa-guru"),"pa-Guru");XCTAssertEqual(LessonLanguages.normalizedSelection("es-419"),"es-419")
+        for grouping in ["en-eu","en-un","en-ez","en-qo"]{XCTAssertNil(LessonLanguages.normalizedSelection(grouping),grouping)}
+    }
 }
