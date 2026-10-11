@@ -307,6 +307,8 @@ try:
     (state / "Reviews").chmod(0o500)
     try:
         pointer("click", "2, Black, dxc4")
+        # Quit only once the review shows the new position: a quit queued before the click is applied has nothing unsaved.
+        wait(lambda: pointer("label", "c4").startswith("c4, Black, pawn"), "Clicking dxc4 did not move the review there")
         pointer("menu", "Checkmate", "Quit Checkmate")
         wait(lambda: process.poll() is not None or "A review could not be saved." in listing(), "Quitting with an unsaved review did not ask")
         assert process.poll() is None, "Quitting with an unsaved review did not ask: the app quit"
