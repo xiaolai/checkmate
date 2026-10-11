@@ -32,7 +32,7 @@ that exercise it, and a per-checkout ledger remembers the inputs each gate last 
 `bash scripts/acceptance.sh --changed` runs the gates whose inputs changed (or that never passed),
 `--only pointer,unit` runs named gates, and `--list` shows what would run and why. A targeted run stops at the
 first failure and never writes `acceptance.json`; only the full run (no arguments) certifies a tree for release.
-`--check-map` fails if a file belongs to no gate; `python3 scripts/test-run-gates.py` (also run by the unit gate) checks the
+`--check-map` fails if a file belongs to no gate or a gate pattern matches no file (a path left behind by a move); `python3 scripts/test-run-gates.py` (also run by the unit gate) checks the
 selection, that every test program runs in some gate, and the leak check: each gate runs with a private `TMPDIR`
 and fails if it leaves anything there.
 

@@ -10,7 +10,7 @@
   "Sources/CheckmateNative/NativeModel.swift",
   "Sources/CheckmateNative/Helpers.swift",
   "Sources/CheckmateNative/ColorTokens.swift",
-  "Sources/CheckmateCore/Foundation.swift",
+  "Sources/CheckmateSupport/Foundation.swift",
   "Sources/CheckmateApplication/Persistence.swift",
   "Sources/CheckmateApplication/GameSession.swift",
   "Sources/CheckmateRules/ChessRules.swift",
@@ -346,14 +346,14 @@
     "scripts/test-integration.sh",
     "scripts/test-integration.py",
     "scripts/check-package.py",
-    "Sources/CheckmateCore/Engine.swift",
-    "Sources/CheckmateCore/UCIWorker.swift",
-    "Sources/CheckmateCore/ChessRules.swift",
+    "Sources/CheckmateEngine/Engine.swift",
+    "Sources/CheckmateEngine/UCIWorker.swift",
+    "Sources/CheckmateRules/ChessRules.swift",
+    "Sources/CheckmateRules/ChessScriptRuntime.swift",
     "Sources/CheckmateCore/Resources/stockfish",
     "Sources/CheckmateCore/Resources/stockfish-build.json",
     "Sources/CheckmateCore/Resources/nn-*.nnue",
-    "Sources/CheckmateCore/Resources/chess.js",
-    "ThirdParty/Stockfish/*"
+    "Sources/CheckmateCore/Resources/chess.js"
    ]
   },
   {

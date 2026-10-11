@@ -3,7 +3,8 @@
   run-gates.py --changed            run every gate whose input files changed since it last passed (or never passed)
   run-gates.py --only pointer,unit  run the named gates
   run-gates.py --list               print each gate, whether it is current, and why (what --changed would run); runs nothing
-  run-gates.py --check-map          fail if a tracked file belongs to no gate and is not listed as untested
+  run-gates.py --check-map          fail if a tracked file belongs to no gate and is not listed as untested,
+                                    or a gate pattern matches no file
   run-gates.py --full               every gate, then the release aggregate (what scripts/acceptance.sh runs)
   run-gates.py --record EVIDENCE    record every gate of a passing full run (--full does this itself)
 
@@ -66,6 +67,13 @@ def definition(name: str, checks: str = None) -> str:
 def unmapped(hashes: dict) -> list:
     every = MAP['shared'] + [pattern for gate in MAP['gates'] for pattern in gate['inputs']]
     return sorted(path for path in hashes if not matches(path, every) and not matches(path, list(MAP['untested'])))
+
+
+def dead_patterns(hashes: dict) -> list:
+    """Patterns that match no tracked file: a path left behind by a move, which silently stops covering the file."""
+    named = [('shared', pattern) for pattern in MAP['shared']] + [('untested', pattern) for pattern in MAP['untested']]
+    named += [(gate['name'], pattern) for gate in MAP['gates'] for pattern in gate['inputs']]
+    return [f'{owner}: {pattern}' for owner, pattern in named if not any(fnmatch.fnmatchcase(path, pattern) for path in hashes)]
 
 
 def ledger_path() -> pathlib.Path:
@@ -215,10 +223,15 @@ def main() -> int:
         print('Files that belong to no gate (add them to a gate in scripts/gates.json, or to "untested" with a reason):', file=sys.stderr)
         print('\n'.join('  ' + path for path in missing), file=sys.stderr)
         return 2
+    dead = dead_patterns(hashes)
+    if dead:
+        print('Patterns in scripts/gates.json that match no file (moved or deleted; point them at the current path):', file=sys.stderr)
+        print('\n'.join('  ' + entry for entry in dead), file=sys.stderr)
+        return 2
     if arguments.full:
         return run(ORDER, full=True)
     if arguments.check_map:
-        print(f'Every one of {len(hashes)} tracked files belongs to a gate or is listed as untested.')
+        print(f'Every one of {len(hashes)} tracked files belongs to a gate or is listed as untested, and every pattern matches a file.')
         return 0
     ledger = load_ledger()
     if arguments.list:

@@ -18,6 +18,9 @@ sys.path.insert(0, str(root / 'scripts'))
 gates = __import__('importlib').import_module('run-gates')
 
 subprocess.run([sys.executable, str(runner), '--check-map'], check=True, stdout=subprocess.DEVNULL)
+# A pattern left pointing at a moved file is reported, not silently ignored.
+assert gates.dead_patterns(hashes) == []
+assert 'intel: Sources/CheckmateEngine/Engine.swift' in gates.dead_patterns({k: v for k, v in hashes.items() if k != 'Sources/CheckmateEngine/Engine.swift'})
 
 
 def selected(edited: list, never_passed=(), redefined=()) -> set:
