@@ -5,8 +5,10 @@ Simulates edits by altering one recorded hash in a scratch ledger, then asserts 
 import json
 import pathlib
 import re
+import shutil
 import subprocess
 import sys
+import tempfile
 
 root = pathlib.Path(__file__).resolve().parent.parent
 runner = root / 'scripts/run-gates.py'
@@ -31,11 +33,15 @@ def selected(edited: list, never_passed=(), redefined=()) -> set:
 
 
 # Every helper program a gate's script names (Tools/*, scripts/*.py) must be one of that gate's inputs, so editing a helper reruns it.
+# The runner's own files run the scripts rather than serve them, so a script that names the runner does not depend on it.
+RUNNER = {'scripts/run-gates.py', 'scripts/gate_check.py', 'scripts/test-run-gates.py', 'scripts/aggregate-evidence.py', 'scripts/source-hashes.py'}
 for gate in spec['gates']:
     for script in re.findall(r'scripts/[\w.-]+\.(?:py|sh)', gate['run']):
+        if script in RUNNER:
+            continue
         text = (root / script).read_text()
         tokens = set(re.findall(r'[\w.-]+', text))  # a helper is named with or without its extension
-        named = {path for path in hashes if (path.startswith('Tools/') or (path.startswith('scripts/') and path.endswith('.py'))) and path != script and not gates.matches(path, list(spec['untested']))
+        named = {path for path in hashes if (path.startswith('Tools/') or (path.startswith('scripts/') and path.endswith('.py'))) and path != script and path not in RUNNER and not gates.matches(path, list(spec['untested']))
                  and ({pathlib.PurePath(path).name, pathlib.PurePath(path).stem} & tokens)}
         missing = sorted(path for path in named if path not in gates.inputs(gate, hashes))
         assert not missing, f"{gate['name']}: {script} uses {missing}, which are not inputs of the gate"
@@ -57,6 +63,18 @@ for edited, expected in cases:
     assert actual == expected, f'{edited}: selected {sorted(actual)}, expected {sorted(expected)}'
 assert selected([], never_passed={'lifecycle'}) == {'lifecycle'}, 'A gate that never passed must run'
 assert selected([], redefined={'layout'}) == {'layout'}, 'A gate whose command or checks changed must run'
+# A gate that leaves temporary files fails: run-gates gives each gate a private TMPDIR and reports what remains in it.
+scratch = pathlib.Path(tempfile.mkdtemp())
+assert gates.temporary_leftovers(scratch) == [], 'An empty TMPDIR must report nothing'
+(scratch / 'checkmate-ui-state.abc').mkdir()
+assert gates.temporary_leftovers(scratch) == ['checkmate-ui-state.abc'], 'A leftover state folder must be reported'
+shutil.rmtree(scratch)
+
+# Every test program runs in some gate: a test listed as untested would never run, and could rot unseen.
+test_programs = [path for path in hashes if re.search(r'(^|/)test[-_][^/]*\.(py|sh)$|Tests\.swift$', path)]
+exempt = sorted(path for path in test_programs if gates.matches(path, list(spec['untested'])))
+assert not exempt, f'Test programs listed as untested never run: {exempt}'
+
 # The checks a run applies are the ones it fingerprints: loaded from the same text, and any edit to that text changes it.
 assert gates.GATE_CHECK_SOURCE == (root / 'scripts/gate_check.py').read_text(), 'gate_check.py changed while the self-test ran'
 assert gates.check_gate.__code__.co_filename == str(root / 'scripts/gate_check.py')

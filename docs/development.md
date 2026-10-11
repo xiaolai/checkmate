@@ -25,7 +25,9 @@ that exercise it, and a per-checkout ledger remembers the inputs each gate last 
 `bash scripts/acceptance.sh --changed` runs the gates whose inputs changed (or that never passed),
 `--only pointer,unit` runs named gates, and `--list` shows what would run and why. A targeted run stops at the
 first failure and never writes `acceptance.json`; only the full run (no arguments) certifies a tree for release.
-`--check-map` fails if a file belongs to no gate; `python3 scripts/test-run-gates.py` checks the selection.
+`--check-map` fails if a file belongs to no gate; `python3 scripts/test-run-gates.py` (also run by the unit gate) checks the
+selection, that every test program runs in some gate, and the leak check: each gate runs with a private `TMPDIR`
+and fails if it leaves anything there.
 
 ## Piece inspection
 
@@ -114,8 +116,9 @@ The executable must run from inside an app bundle: it reports that bundle's
 `Version.env` owns the macOS runtime floor. Builds contain arm64 and x86_64 slices
 in the application, native MCP companion, and unchanged Stockfish engine. Package
 verification checks all three slices and their deployment versions, as well as
-modern and legacy icons. Run `bash scripts/test-intel.sh` on build-host for silent Intel
-unit, UI, and MCP acceptance under Rosetta. These tests do not substitute for a
+modern and legacy icons. The `intel` acceptance gate (`scripts/test-intel.sh`) runs the silent Intel
+unit, UI, and MCP acceptance under Rosetta on build-host in every full run, and in targeted runs when an
+architecture-dependent input (build settings, the engine, the rules runtime) changes. These tests do not substitute for a
 physical Intel Mac or macOS 14 runtime acceptance.
 
 ## Automatic startup connections

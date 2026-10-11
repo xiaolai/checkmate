@@ -280,10 +280,11 @@
   },
   {
    "name": "unit",
-   "run": "xcrun swiftc Tools/legacy-store-test.swift -o \"$CHECKMATE_EVIDENCE_DIR/legacy-store-test\" && \"$CHECKMATE_EVIDENCE_DIR/legacy-store-test\" Tools/legacy-export.js \"$CHECKMATE_EVIDENCE_DIR/legacy-export.json\" && CHECKMATE_LEGACY_EXPORT=\"$CHECKMATE_EVIDENCE_DIR/legacy-export.json\" CHECKMATE_AUTOMATION=1 swift test > \"$CHECKMATE_EVIDENCE_DIR/swift-tests.log\" 2>&1 && python3 -I Tools/test-lesson-action-alignment.py",
+   "run": "bash scripts/test-unit.sh",
    "result": "swift-tests.log",
    "key": "unit",
    "inputs": [
+    "scripts/test-unit.sh",
     "Sources/*",
     "Tests/*",
     "Tools/Acceptance/*",
@@ -291,7 +292,43 @@
     "Tools/legacy-export.js",
     "companion/*",
     "Tools/align-lesson-actions.py",
-    "Tools/test-lesson-action-alignment.py"
+    "Tools/test-lesson-action-alignment.py",
+    "Tools/test-import-cedar.py",
+    "Tools/test-record-lessons.py",
+    "Tools/record-lessons.py",
+    "Tools/verify-lesson-recordings.py",
+    "Tools/import-cedar-recordings.py",
+    "scripts/test-run-gates.py",
+    "scripts/run-gates.py",
+    "scripts/gates.json",
+    "scripts/gate_check.py",
+    "Content/narration-packaging.json"
+   ]
+  },
+  {
+   "name": "intel",
+   "key": "intelRosetta",
+   "run": "bash scripts/test-intel.sh",
+   "result": "intel-results.json",
+   "builds": true,
+   "requires": [
+    "ui",
+    "mcp"
+   ],
+   "inputs": [
+    "scripts/test-intel.sh",
+    "scripts/test-ui.sh",
+    "scripts/test-integration.sh",
+    "scripts/test-integration.py",
+    "scripts/check-package.py",
+    "Sources/CheckmateCore/Engine.swift",
+    "Sources/CheckmateCore/UCIWorker.swift",
+    "Sources/CheckmateCore/ChessRules.swift",
+    "Sources/CheckmateCore/Resources/stockfish",
+    "Sources/CheckmateCore/Resources/stockfish-build.json",
+    "Sources/CheckmateCore/Resources/nn-*.nnue",
+    "Sources/CheckmateCore/Resources/chess.js",
+    "ThirdParty/Stockfish/*"
    ]
   },
   {
@@ -326,12 +363,8 @@
  ],
  "untested": {
   "scripts/acceptance.sh": "gate runner",
-  "scripts/run-gates.py": "gate runner",
-  "scripts/gates.json": "gate map",
-  "scripts/gate_check.py": "gate result checks",
   "scripts/aggregate-evidence.py": "full-run aggregate",
   "scripts/source-hashes.py": "tree fingerprint",
-  "scripts/test-run-gates.py": "gate selection self-test (run it after editing this map)",
   "scripts/prepare-release.sh": "release (requires full acceptance evidence)",
   "scripts/release.sh": "release (requires full acceptance evidence)",
   "scripts/sign-release.sh": "release",
@@ -339,18 +372,12 @@
   "Content/*": "lesson authoring sources; the shipped lesson data is Sources/CheckmateCore/Resources (unit, pointer, pawn-duel)",
   "scripts/finish-release.sh": "release",
   "scripts/publish-release.sh": "release",
-  "scripts/test-intel.sh": "manual Intel/Rosetta check, not part of acceptance",
   "Tools/audio-probe.swift": "manual live-audio probe",
   "Tools/audit-lesson-rules.py": "content authoring",
   "Tools/calibrate-opponents.swift": "offline calibration",
   "Tools/export-spike.swift": "experiment",
-  "Tools/import-cedar-recordings.py": "content authoring",
   "Tools/measure-review-batch.py": "offline measurement",
   "Tools/prepare-lesson-scripts.py": "content authoring",
-  "Tools/record-lessons.py": "content authoring",
-  "Tools/test-import-cedar.py": "content authoring self-test",
-  "Tools/test-record-lessons.py": "content authoring self-test",
-  "Tools/verify-lesson-recordings.py": "content authoring",
   "Tools/verify-review-corpus.cjs": "offline corpus check"
  }
 }

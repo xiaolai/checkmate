@@ -18,6 +18,7 @@ import hashlib
 import json
 import os
 import pathlib
+import shutil
 import socket
 import subprocess
 import sys
@@ -111,6 +112,11 @@ def stale_reason(name: str, hashes: dict, ledger: dict):
     return f"{len(changed)} input(s) changed: {', '.join(changed[:4])}{' …' if len(changed) > 4 else ''}"
 
 
+def temporary_leftovers(scratch: pathlib.Path) -> list:
+    """What a gate left in its private TMPDIR; every test cleans up after itself, so anything here is a leak."""
+    return sorted(str(path.relative_to(scratch)) for path in scratch.iterdir())
+
+
 def require_build_host() -> None:
     host = socket.gethostname().lower()
     if 'build-host' not in host and not host.startswith('build-host'):
@@ -148,10 +154,15 @@ def run(names: list, full: bool = False) -> int:
         (evidence / gate['result']).unlink(missing_ok=True)
         started = time.monotonic()
         print(f'== {name}', flush=True)
-        completed = subprocess.run(['bash', '-c', 'set -euo pipefail; ' + gate['run']], cwd=ROOT, env=environment)
+        # Each gate gets its own TMPDIR: whatever it leaves there is a leak, reported instead of piling up in /tmp.
+        scratch = pathlib.Path(tempfile.mkdtemp(prefix=f'checkmate-gate-{name}.'))
+        completed = subprocess.run(['bash', '-c', 'set -euo pipefail; ' + gate['run']], cwd=ROOT, env={**environment, 'TMPDIR': str(scratch) + '/'})
         seconds = time.monotonic() - started
+        leftovers = temporary_leftovers(scratch)
+        shutil.rmtree(scratch, ignore_errors=True)
         try:
             assert completed.returncode == 0, f'exit {completed.returncode}'
+            assert not leftovers, f'left temporary files: {leftovers[:10]}'
             check_gate(evidence, gate)
             after = inputs(gate, tree())
             assert after == before, f"inputs changed since the run started: {sorted(k for k in after.keys() | before.keys() if after.get(k) != before.get(k))[:10]}"
