@@ -199,6 +199,7 @@ final class BoardTitleView:NSView {
         }
         guard model.session.mode == .practice else{return};let a=NSAlert();a.messageText="Start a new game?";a.informativeText="Your current game will be available under Restore Previous Game.";a.addButton(withTitle:"New Game");a.addButton(withTitle:"Cancel");a.beginSheetModal(for:window!){r in if r == .alertFirstButtonReturn{self.board.cancelAnimation();self.model.session.newGame()}}}
     @objc func showSettings(){if settings==nil{settings=SettingsWindow(model:model)};settings?.showWindow(nil);settings?.window?.makeKeyAndOrderFront(nil)}
+    @objc func showAbout(){showSettings();settings?.selectCategory("About")}
     @objc func undo(){guard !model.review.active,!model.reviewWorkspace else{return};board.cancelAnimation();if model.learning.mini,model.session.mode == .lesson{model.learning.undoMini()}else{model.session.undo()}}
     @objc func restorePrevious(){guard !model.review.active,!model.reviewWorkspace else{return};board.cancelAnimation();do{try model.session.restorePrevious()}catch{showError(error)}}
     func showError(_ error:Error){
