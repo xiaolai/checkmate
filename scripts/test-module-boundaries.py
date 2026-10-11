@@ -28,14 +28,20 @@ def check(root):
         target = re.search(r'\.target\(name:\s*"' + module + r'"([^\n]*)', manifest)
         assert target, f'Missing module: {module}'
         dependencies = re.search(r'dependencies:\s*\[([^\]]*)\]', target[1])
-        actual = set(re.findall(r'"(Checkmate\w+)"', dependencies[1])) if dependencies else set()
+        assert dependencies, f'{module}: dependencies must be listed on the target line'
+        # Every entry counts, not only Checkmate targets: a package product such as MCP is a dependency too.
+        products = re.findall(r'\.product\(\s*name:\s*"([^"]+)"', dependencies[1])
+        targets = re.findall(r'"([^"]+)"', re.sub(r'\.product\([^)]*\)', '', dependencies[1]))
+        actual = set(targets) | {f'product:{name}' for name in products}
         assert actual == allowed, f'{module}: invalid dependency graph {actual ^ allowed}'
         folder = root / 'Sources' / ({'CheckmateAssets': 'CheckmateCore', 'CheckmateCore': 'CheckmateComposition'}.get(module, module))
         files = list(folder.rglob('*.swift') if module != 'CheckmateAssets' else folder.glob('*.swift'))
         assert files, f'Empty module: {module}'
         for source in files:
             text = source.read_text()
-            imports = set(re.findall(r'^\s*(?:@\w+\s+)*import\s+(\w+)', text, re.M))
+            # Attributes, access levels and scoped imports (import class AppKit.NSView) all name the module last.
+            imports = set(re.findall(r'^\s*(?:@\w+(?:\([^)]*\))?\s+)*(?:(?:public|package|internal|fileprivate|private)\s+)?'
+                                     r'import\s+(?:(?:typealias|struct|class|enum|protocol|let|var|func)\s+)?(\w+)', text, re.M))
             assert not {name for name in imports if name.startswith('Checkmate')} - allowed, f'{source}: forbidden module dependency'
             if module == 'CheckmateDomain':
                 assert imports <= {'Foundation', 'CoreFoundation', 'CheckmateAssets'}, f'{source}: platform dependency in domain'
@@ -73,6 +79,9 @@ def test_rejections(root):
         rejects((fixture / 'Sources/CheckmateDomain/Errors.swift', lambda text: text + '\n  @preconcurrency import AppKit\n'))
         rejects((fixture / 'Sources/CheckmateApplication/WorkspaceTransitionCoordinator.swift', lambda text: text + '\nimport CheckmateMacPlatform\n'))
         rejects((fixture / 'Package.swift', lambda text: text.replace('name: "CheckmateDomain", dependencies: ["CheckmateAssets"]', 'name: "CheckmateDomain", dependencies: ["CheckmateAssets", "CheckmateApplication"]')))
+        rejects((fixture / 'Sources/CheckmateContent/Usage.swift', lambda text: text + '\nimport class AppKit.NSView\n'))
+        rejects((fixture / 'Sources/CheckmateApplication/GameSession.swift', lambda text: text + '\n@preconcurrency public import SwiftUI\n'))
+        rejects((fixture / 'Package.swift', lambda text: text.replace('name: "CheckmateDomain", dependencies: ["CheckmateAssets"]', 'name: "CheckmateDomain", dependencies: ["CheckmateAssets", .product(name: "MCP", package: "swift-sdk")]')))
         rejects((fixture / 'Sources/CheckmateComposition/Exports.swift', lambda text: text + '\npublic enum HiddenImplementation {}\n'))
 
 
