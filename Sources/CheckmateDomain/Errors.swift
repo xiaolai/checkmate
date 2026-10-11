@@ -1,4 +1,3 @@
-import CheckmateAssets
 import Foundation
 public enum CheckmateError: Error, CustomStringConvertible {
     case invalid(String), unavailable(String), stale, cancelled

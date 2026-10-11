@@ -1,4 +1,3 @@
-import CheckmateAssets
 import Foundation
 import CoreFoundation
 public struct AppSettings:Codable,Equatable {

@@ -1,4 +1,3 @@
-import CheckmateAssets
 import Foundation
 public struct SeededReviewRandom:RandomNumberGenerator {private var state:UInt64;public init(seed:UInt64){state=seed == 0 ? 1:seed};public mutating func next()->UInt64 {state = state &* 6364136223846793005 &+ 1442695040888963407;return state}}
 public enum BeginnerPolicy {

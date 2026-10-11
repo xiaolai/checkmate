@@ -1,4 +1,3 @@
-import CheckmateAssets
 import Foundation
 public enum LessonLanguages {
  public static let supported=["en","ar","bg","ca","cs","da","de","el","es","et","fa","fi","fr","he","hi","hr","hu","id","is","it","ja","ko","lt","lv","ms","nl","no","pl","pt","ro","ru","sk","sl","sr","sv","sw","ta","th","tr","uk","ur","vi","zh-Hans","zh-Hant"]

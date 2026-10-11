@@ -1,4 +1,3 @@
-import CheckmateAssets
 import Foundation
 
 extension LessonLanguages {

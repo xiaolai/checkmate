@@ -1,8 +1,5 @@
 import CheckmateDomain
-import CheckmateRules
-import CheckmateContent
 import CheckmateSupport
-import CheckmateAssets
 import Foundation
 public struct SavedReview:Codable {public let schemaVersion:Int,document:GameDocument;public var cursor:Int,branches:[ReviewBranch],updatedAt:Date}
 public struct ReviewIndexEntry:Codable,Identifiable {public let id:UUID,title:String,result:String,updatedAt:Date}

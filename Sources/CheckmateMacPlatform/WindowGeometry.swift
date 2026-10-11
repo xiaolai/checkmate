@@ -1,5 +1,4 @@
 import CoreGraphics
-import CheckmateAssets
 import Foundation
 public enum WindowGeometry {
     /// A restorable frame on a connected screen. With `square`, the board area (the frame less `drawers` of width)

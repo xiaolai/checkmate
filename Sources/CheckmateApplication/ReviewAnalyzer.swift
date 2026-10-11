@@ -1,8 +1,5 @@
 import CheckmateDomain
-import CheckmateRules
-import CheckmateContent
 import CheckmateSupport
-import CheckmateAssets
 import Foundation
 import Combine
 public struct ReviewEvidence:Codable {

@@ -1,8 +1,4 @@
 import CheckmateDomain
-import CheckmateRules
-import CheckmateEngine
-import CheckmateContent
-import CheckmateApplication
 import CheckmateSupport
 import CheckmateAssets
 import Foundation

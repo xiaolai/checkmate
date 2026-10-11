@@ -1,8 +1,5 @@
 import CheckmateDomain
-import CheckmateRules
-import CheckmateContent
 import CheckmateSupport
-import CheckmateAssets
 import Foundation
 
 /// One startup attempt. Dependencies keep automation away from accounts and audio. An attempt that finds the app

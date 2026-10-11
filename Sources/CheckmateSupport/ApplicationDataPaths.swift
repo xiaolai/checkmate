@@ -1,5 +1,3 @@
-import CheckmateDomain
-import CheckmateAssets
 import Foundation
 public enum ApplicationDataPaths {
     public static func dataDirectoryIdentifier(bundleIdentifier:String?)->String {

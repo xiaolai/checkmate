@@ -1,10 +1,7 @@
 import CheckmateDomain
 import CheckmateRules
-import CheckmateContent
 import CheckmateSupport
-import CheckmateAssets
 import Foundation
-import CryptoKit
 public struct PGNHeader:Codable,Equatable {public let name:String,value:String;public init(_ name:String,_ value:String){self.name=name;self.value=value}}
 public struct GameNode:Codable,Equatable,Identifiable {
     public let id:Int,parent:Int?,children:[Int],uci:String?,san:String?,beforeFEN:String,afterFEN:String,ply:Int,fullmove:Int,side:String,commentsBefore:[String],commentsAfter:[String],nags:[Int]

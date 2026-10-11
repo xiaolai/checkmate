@@ -1,4 +1,3 @@
-import CheckmateAssets
 import Foundation
 
 public enum RelationshipMode:String,Codable,CaseIterable {

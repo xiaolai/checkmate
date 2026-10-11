@@ -1,7 +1,5 @@
 import CheckmateDomain
 import CheckmateRules
-import CheckmateSupport
-import CheckmateAssets
 import Foundation
 /// Explore measured legal non-leading moves as well as strong candidates. No rating is implied.
 @MainActor public enum BeginnerOpponent {

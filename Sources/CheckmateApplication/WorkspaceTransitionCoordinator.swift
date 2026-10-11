@@ -1,9 +1,6 @@
 import Foundation
 import CheckmateDomain
 import CheckmateRules
-import CheckmateContent
-import CheckmateSupport
-import CheckmateAssets
 public enum WorkspaceNavigation {
         case practice,returnToGame,lesson(Int,resume:Bool=true),puzzles,reviewWorkspace
         /// A lesson's own practice position, played as White in a separate game.

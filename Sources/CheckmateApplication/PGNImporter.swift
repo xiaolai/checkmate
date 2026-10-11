@@ -1,8 +1,6 @@
 import CheckmateDomain
 import CheckmateRules
-import CheckmateContent
 import CheckmateSupport
-import CheckmateAssets
 import Foundation
 public enum PGNImporter {
     private enum Kind {case tag(String,String),word(String),comment(String),open,close}

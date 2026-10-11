@@ -1,4 +1,3 @@
-import CheckmateAssets
 import Foundation
 public enum ReviewPolicy {
     public static let maximumBytes=16*1024*1024,maximumRecords=1000,maximumMainlinePlies=2000,maximumNodes=10000,maximumDepth=32,pageSize=50,maximumPageSize=100,cacheBytes=256*1024*1024

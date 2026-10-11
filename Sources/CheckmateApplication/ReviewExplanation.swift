@@ -1,8 +1,6 @@
 import CheckmateDomain
 import CheckmateRules
-import CheckmateContent
 import CheckmateSupport
-import CheckmateAssets
 import Foundation
 public struct ReviewFact:Codable,Equatable,Identifiable {public let id:String,kind:String,text:String,squares:[String]}
 public struct ReviewExplanation:Codable,Equatable {

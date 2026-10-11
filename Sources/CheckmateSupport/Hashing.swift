@@ -1,5 +1,4 @@
 import CheckmateDomain
-import CheckmateAssets
 import Foundation
 import CryptoKit
 public func reviewHash(_ data:Data)->String {SHA256.hash(data:data).map{String(format:"%02x",$0)}.joined()}

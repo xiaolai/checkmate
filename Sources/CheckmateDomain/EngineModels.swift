@@ -1,4 +1,3 @@
-import CheckmateAssets
 import Foundation
 public struct AnalysisScore:Codable,Equatable {public var kind:String,value:Int,perspective="white",bound:String?;public init(kind:String,value:Int,bound:String?=nil){self.kind=kind;self.value=value;self.bound=bound}}
 public struct AnalysisLine:Codable,Equatable {public init(depth:Int,multiPv:Int,score:AnalysisScore,pv:[String],san:[String],nodes:Int?=nil,timeMs:Int?=nil,wdl:[Int]?=nil){self.depth=depth;self.multiPv=multiPv;self.score=score;self.pv=pv;self.san=san;self.nodes=nodes;self.timeMs=timeMs;self.wdl=wdl}

@@ -1,4 +1,3 @@
-import CheckmateAssets
 import Foundation
 /// What the board area shows outside a review: the one value the app, agents and voice read for where the learner is.
 public enum Place:Equatable {

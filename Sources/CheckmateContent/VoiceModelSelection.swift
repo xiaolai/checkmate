@@ -1,6 +1,5 @@
 import CheckmateDomain
 import CheckmateSupport
-import CheckmateAssets
 import Foundation
 
 /// Known stable models with the coach's reasoning and tool contract. No guessed IDs.

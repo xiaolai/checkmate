@@ -1,8 +1,6 @@
 import CheckmateDomain
 import CheckmateRules
-import CheckmateContent
 import CheckmateSupport
-import CheckmateAssets
 import Foundation
 public enum ReviewVoiceScript {
     public static func segments(_ explanation:ReviewExplanation)->[[String:Any]] {explanation.facts.prefix(3).map{["text":$0.text,"squares":Array($0.squares.prefix(8)),"kind":"focus"]}}

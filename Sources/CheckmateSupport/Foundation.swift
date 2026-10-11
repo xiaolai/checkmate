@@ -1,5 +1,4 @@
 import CheckmateDomain
-import CheckmateAssets
 import Foundation
 import OSLog
 /// User-visible error text: located import errors and app errors only; system errors use the

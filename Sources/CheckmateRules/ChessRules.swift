@@ -1,5 +1,4 @@
 import CheckmateDomain
-import CheckmateAssets
 import CheckmateSupport
 import Foundation
 import JavaScriptCore

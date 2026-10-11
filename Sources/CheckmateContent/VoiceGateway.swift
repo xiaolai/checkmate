@@ -1,6 +1,5 @@
 import CheckmateDomain
 import CheckmateSupport
-import CheckmateAssets
 import Foundation
 public struct VoiceTurnGate {
     private var generating=false,playing=false,ended=false

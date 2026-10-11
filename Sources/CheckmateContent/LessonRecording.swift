@@ -1,6 +1,5 @@
 import CheckmateDomain
 import CheckmateSupport
-import CheckmateAssets
 import Foundation
 public struct LessonRecordingResult:Sendable {public var pcm:Data,transcript:String,responseID:String,tokens:UsageTokens?,model:String;public init(pcm:Data,transcript:String,responseID:String,tokens:UsageTokens?,model:String){self.pcm=pcm;self.transcript=transcript;self.responseID=responseID;self.tokens=tokens;self.model=model}}
 public protocol LessonRecordingProvider:Sendable {func record(script:String,locale:String,voice:String,onUsage:@escaping @Sendable(String,UsageTokens?)->Void)async throws->LessonRecordingResult}

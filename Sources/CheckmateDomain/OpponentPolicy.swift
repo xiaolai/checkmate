@@ -1,4 +1,3 @@
-import CheckmateAssets
 import Foundation
 /// Standard game review is available by default; experimental labels, review voice and beginner policy require explicit opt-in.
 public enum ReviewRolloutPolicy {

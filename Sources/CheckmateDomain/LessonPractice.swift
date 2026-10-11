@@ -1,4 +1,3 @@
-import CheckmateAssets
 import Foundation
 /// Complete, legal positions for trying a lesson against an opponent rather than copying a recorded line.
 public struct LessonPractice:Equatable {

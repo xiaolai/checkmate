@@ -1,7 +1,6 @@
 import CheckmateDomain
 import CheckmateRules
 import CheckmateSupport
-import CheckmateAssets
 import Foundation
 import Darwin
 /// One serialized process, with protocol barriers. Cancellation kills the process;

@@ -1,4 +1,3 @@
-import CheckmateDomain
 import CheckmateAssets
 import Foundation
 import CoreFoundation
