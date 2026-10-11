@@ -1,11 +1,35 @@
-import hashlib, json, pathlib, plistlib, subprocess, sys
-app = pathlib.Path(sys.argv[1])
+import argparse, hashlib, json, pathlib, plistlib, re, subprocess
+parser = argparse.ArgumentParser(description='Verify a packaged Checkmate app bundle.', allow_abbrev=False)
+parser.add_argument('app', type=pathlib.Path)
+mode = parser.add_mutually_exclusive_group()
+mode.add_argument('--release-identity', action='store_true', help='release build before Developer ID signing: release bundle id and source-commit stamp')
+mode.add_argument('--release', action='store_true', help='signed, notarized release: --release-identity plus Developer ID, hardened runtime and timestamp on every executable')
+arguments = parser.parse_args()
+app = arguments.app
+release_identity = arguments.release or arguments.release_identity
+RELEASE_BUNDLE_ID = 'ai.xiaolai.checkmate'
+root = pathlib.Path(__file__).resolve().parents[1]
 info = plistlib.loads((app / 'Contents/Info.plist').read_bytes())
 if info.get('CFBundlePackageType') != 'APPL':
     raise RuntimeError('Bundle must declare application package type APPL')
-settings = dict(line.split('=', 1) for line in (pathlib.Path(__file__).resolve().parents[1] / 'Version.env').read_text().splitlines() if '=' in line)
+settings = dict(line.split('=', 1) for line in (root / 'Version.env').read_text().splitlines() if '=' in line)
 if not info['LSMinimumSystemVersion'] == settings['CHECKMATE_MINIMUM_MACOS']:
     raise RuntimeError('Package verification failed')
+# build.sh writes these from Version.env; a mismatch means the bundle was built from another tree or version.
+if info.get('CFBundleShortVersionString') != settings['CHECKMATE_VERSION'] or info.get('CFBundleVersion') != settings['CHECKMATE_BUILD_NUMBER']:
+    raise RuntimeError(f"Bundle version {info.get('CFBundleShortVersionString')} ({info.get('CFBundleVersion')}) differs from Version.env {settings['CHECKMATE_VERSION']} ({settings['CHECKMATE_BUILD_NUMBER']})")
+microphone = info.get('NSMicrophoneUsageDescription')
+if not (isinstance(microphone, str) and microphone.strip()):
+    raise RuntimeError('NSMicrophoneUsageDescription missing: macOS would terminate the app when the voice coach opens the microphone')
+# Release and development identities keep separate data, MCP registration and microphone permission.
+bundle_id = info.get('CFBundleIdentifier', '')
+if release_identity:
+    if bundle_id != RELEASE_BUNDLE_ID:
+        raise RuntimeError(f'Release bundle identifier must be {RELEASE_BUNDLE_ID}, not {bundle_id!r}')
+    if not re.fullmatch(r'[0-9a-f]{40}', info.get('CheckmateSourceCommit', '')):
+        raise RuntimeError('Release Info.plist lacks the CheckmateSourceCommit stamp (scripts/release.sh passes it to the build)')
+elif not bundle_id.startswith(RELEASE_BUNDLE_ID + '.'):
+    raise RuntimeError(f'A non-release build must use its own {RELEASE_BUNDLE_ID}.* identifier, not {bundle_id!r}')
 if not info.get('CFBundleIconName') == 'Checkmate':
     raise RuntimeError('Package verification failed')
 legacy_icon = info.get('CFBundleIconFile', '')
@@ -38,7 +62,7 @@ if not narration['assetSetSHA256'] == course['narration']['assetSetSHA256']:
     raise RuntimeError('Package verification failed')
 if course['exercises'] or any('quiz' in beat for lesson in course['lessons'] for beat in lesson['beats']):
     raise RuntimeError('Embedded lesson quizzes must not be bundled')
-if not len(narration['assets']) == 864:
+if not len(narration['assets']) == 878:
     raise RuntimeError('Package verification failed')
 assets = {row['file']: row for row in narration['assets']}
 for li, lesson in enumerate(course['voices']):
@@ -55,9 +79,14 @@ for li, lesson in enumerate(course['voices']):
             raise RuntimeError('Package verification failed')
 if not set(assets) == {str(p.relative_to(resources)) for p in (resources / 'course').rglob('*.m4a')}:
     raise RuntimeError('Obsolete or missing bundled clips')
-for file in ['stockfish', 'chess.js', 'chess-LICENSE', 'Stockfish-COPYING.txt', 'THIRD_PARTY_NOTICES.txt', 'voice-tools.json', 'coach-instructions.txt']:
+for file in ['stockfish', 'chess.js', 'chess-LICENSE', 'Stockfish-COPYING.txt', 'Checkmate-COPYING.txt', 'THIRD_PARTY_NOTICES.txt', 'voice-tools.json', 'coach-instructions.txt']:
     if not (resources / file).is_file():
         raise RuntimeError(file)
+# The notices point to Licenses/ for every resolved Swift package; each pin needs its license text.
+for pin in json.loads((root / 'Package.resolved').read_text())['pins']:
+    license_text = resources / 'Licenses' / f"{pin['identity']}.txt"
+    if not (license_text.is_file() and license_text.stat().st_size > 0):
+        raise RuntimeError(f'License text missing for {pin["identity"]}: {license_text.name}')
 engine = json.loads((resources / 'stockfish-build.json').read_text())
 if not hashlib.sha256((resources / 'stockfish').read_bytes()).hexdigest() == engine['binarySHA256']:
     raise RuntimeError('Package verification failed')
@@ -79,26 +108,56 @@ for line in subprocess.check_output(['otool', '-L', str(helper)], text=True).spl
     if not line.strip().split(' (', 1)[0].startswith(('/usr/lib/', '/System/Library/')):
         raise RuntimeError('Non-system companion runtime dependency')
 executable = app / 'Contents/MacOS/CheckmateNative'
+def version_key(text):
+    parts = [int(part) for part in text.split('.')]
+    while parts and parts[-1] == 0:
+        parts.pop()  # 14.0 and 14.0.0 are the same release
+    return tuple(parts)
+def deployment_targets(binary, architecture):
+    """Every macOS deployment version one slice records: LC_BUILD_VERSION minos, or legacy LC_VERSION_MIN_MACOSX version."""
+    # Without -arch, otool prints only the host's slice of a universal binary, so the other slice would go unchecked.
+    found, command = [], None
+    for line in subprocess.check_output(['otool', '-arch', architecture, '-l', str(binary)], text=True).splitlines():
+        fields = line.split()
+        if len(fields) != 2:
+            continue
+        if fields[0] == 'cmd':
+            command = fields[1]
+        elif (command, fields[0]) in {('LC_BUILD_VERSION', 'minos'), ('LC_VERSION_MIN_MACOSX', 'version')}:
+            found.append(fields[1])
+    return found
+minimum = version_key(settings['CHECKMATE_MINIMUM_MACOS'])
 for binary in (executable, helper, resources / 'stockfish'):
     architectures = set(subprocess.check_output(['lipo', '-archs', str(binary)], text=True).split())
     if architectures != {'arm64', 'x86_64'}:
         raise RuntimeError(f'Universal architecture missing: {binary.name}')
-    commands = subprocess.check_output(['otool', '-l', str(binary)], text=True)
-    versions = [line.split()[1] for line in commands.splitlines() if line.strip().startswith('minos ')]
-    # All runtime slices must be deployable on the advertised minimum OS.
-    minimum = tuple(map(int, settings['CHECKMATE_MINIMUM_MACOS'].split('.')))
-    for version in versions:
-        if tuple(map(int, version.split('.')[:2])) > minimum:
-            raise RuntimeError(f'{binary.name} requires macOS {version}')
+    # All runtime slices must be deployable on the advertised minimum OS; a slice with no record proves nothing.
+    for architecture in sorted(architectures):
+        targets = deployment_targets(binary, architecture)
+        if not targets:
+            raise RuntimeError(f'{binary.name} ({architecture}) records no macOS deployment target')
+        for target in targets:
+            if version_key(target) > minimum:
+                raise RuntimeError(f'{binary.name} ({architecture}) requires macOS {target}')
 links = subprocess.check_output(['otool', '-L', str(executable)], text=True)
 if not ('WebKit' not in links):
     raise RuntimeError('Package verification failed')
-subprocess.run(['codesign', '--verify', '--deep', '--strict', str(app)], check=True, capture_output=True)
-if '--release' in sys.argv:
-    entitlements = plistlib.loads(subprocess.check_output(['codesign', '-d', '--entitlements', ':-', str(app)], stderr=subprocess.DEVNULL))
-    if entitlements.get('com.apple.security.device.audio-input') is not True or entitlements.get('com.apple.security.get-task-allow'):
-        raise RuntimeError('Release must allow audio input and exclude debugger access')
-    signature = subprocess.run(['codesign', '-d', '--verbose=4', str(app)], capture_output=True, text=True, check=True).stderr
-    if '(runtime)' not in signature or 'Timestamp=' not in signature:
-        raise RuntimeError('Release must use hardened runtime and a secure timestamp')
-print(json.dumps({'passed': True, 'iconFormat': 'Icon Composer with legacy fallback', 'architectures': ['arm64', 'x86_64'], 'minimumMacOS': settings['CHECKMATE_MINIMUM_MACOS'], 'lessons': 40, 'audioFiles': 864, 'narrationVoice': 'cedar', 'audioHashesVerified': True, 'puzzles': 87, 'webRuntime': False, 'engineHasSystemDependenciesOnly': True}))
+verification = subprocess.run(['codesign', '--verify', '--deep', '--strict', str(app)], capture_output=True, text=True)
+if verification.returncode != 0:
+    raise RuntimeError(f'codesign --verify --deep --strict failed: {verification.stderr.strip()}')
+if arguments.release:
+    def entitlements(code):
+        raw = subprocess.check_output(['codesign', '-d', '--entitlements', ':-', str(code)], stderr=subprocess.DEVNULL)
+        return plistlib.loads(raw) if raw.strip() else {}
+    if entitlements(app).get('com.apple.security.device.audio-input') is not True:
+        raise RuntimeError('Release must allow audio input')
+    # Notarization requires these for nested code as well; checking each executable keeps a regression visible here.
+    for code in (app, helper, resources / 'stockfish'):
+        signature = subprocess.run(['codesign', '-d', '--verbose=4', str(code)], capture_output=True, text=True, check=True).stderr
+        flags = re.search(r'^CodeDirectory .*\bflags=0x([0-9a-fA-F]+)', signature, re.MULTILINE)
+        if not (flags and int(flags.group(1), 16) & 0x10000 and 'Timestamp=' in signature and 'Authority=Developer ID Application: ' in signature):
+            raise RuntimeError(f'{code.name} must carry a Developer ID signature with hardened runtime and a secure timestamp')
+        if entitlements(code).get('com.apple.security.get-task-allow'):
+            raise RuntimeError(f'{code.name} must exclude debugger access')
+# Every flag is a passed check: the acceptance aggregate rejects any false value.
+print(json.dumps({'passed': True, 'iconFormat': 'Icon Composer with legacy fallback', 'architectures': ['arm64', 'x86_64'], 'minimumMacOS': settings['CHECKMATE_MINIMUM_MACOS'], 'deploymentTargetsVerifiedPerSlice': True, 'bundleIdentifier': bundle_id, 'version': settings['CHECKMATE_VERSION'], 'build': settings['CHECKMATE_BUILD_NUMBER'], 'lessons': 40, 'audioFiles': len(narration['assets']), 'narrationVoice': 'cedar', 'audioHashesVerified': True, 'puzzles': 87, 'webRuntimeAbsent': True, 'engineHasSystemDependenciesOnly': True}))

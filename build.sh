@@ -18,8 +18,13 @@ cp "$checkmate_bin/CheckmateNative" "$checkmate_target/MacOS/CheckmateNative"
 cp "$checkmate_bin/CheckmateMCP" "$checkmate_target/MacOS/CheckmateMCP"
 for resource in "$checkmate_bin"/*.bundle; do cp -R "$resource" "$checkmate_target/Resources/"; done
 cat > "$checkmate_target/Info.plist" <<PLIST
-<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict><key>CFBundlePackageType</key><string>APPL</string><key>CFBundleInfoDictionaryVersion</key><string>6.0</string><key>CFBundleExecutable</key><string>CheckmateNative</string><key>CFBundleIdentifier</key><string>$checkmate_bundle_id</string><key>CFBundleName</key><string>Checkmate</string><key>CFBundleVersion</key><string>$CHECKMATE_BUILD_NUMBER</string><key>CFBundleShortVersionString</key><string>$CHECKMATE_VERSION</string><key>NSHighResolutionCapable</key><true/><key>LSMinimumSystemVersion</key><string>$CHECKMATE_MINIMUM_MACOS</string><key>NSMicrophoneUsageDescription</key><string>Listen to your questions during chess practice.</string></dict></plist>
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict><key>CFBundlePackageType</key><string>APPL</string><key>CFBundleInfoDictionaryVersion</key><string>6.0</string><key>CFBundleExecutable</key><string>CheckmateNative</string><key>CFBundleIdentifier</key><string>$checkmate_bundle_id</string><key>CFBundleName</key><string>Checkmate</string><key>CFBundleVersion</key><string>$CHECKMATE_BUILD_NUMBER</string><key>CFBundleShortVersionString</key><string>$CHECKMATE_VERSION</string><key>NSHighResolutionCapable</key><true/><key>LSMinimumSystemVersion</key><string>$CHECKMATE_MINIMUM_MACOS</string><key>NSMicrophoneUsageDescription</key><string>Listen to your questions during chess practice.</string><key>CFBundleDocumentTypes</key><array><dict><key>CFBundleTypeName</key><string>PGN chess game</string><key>CFBundleTypeRole</key><string>Viewer</string><key>LSHandlerRank</key><string>Alternate</string><key>CFBundleTypeExtensions</key><array><string>pgn</string></array></dict></array></dict></plist>
 PLIST
+# Release packaging records the exact commit it was built from (scripts/release.sh checks it is the tag).
+if [[ -n "${CHECKMATE_SOURCE_COMMIT:-}" ]]; then
+  [[ "$CHECKMATE_SOURCE_COMMIT" =~ ^[0-9a-f]{40}$ ]] || { echo 'Invalid source commit' >&2; exit 1; }
+  /usr/libexec/PlistBuddy -c "Add :CheckmateSourceCommit string $CHECKMATE_SOURCE_COMMIT" "$checkmate_target/Info.plist"
+fi
 # Restore the pinned engine bytes even if a prior nested signing pass touched
 # SwiftPM's cached resource copy. Release signing updates only its own copy.
 checkmate_engine_destination=$(find "$checkmate_target/Resources" -type f -name stockfish)
