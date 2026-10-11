@@ -34,11 +34,31 @@ func reveal(_ e:AXUIElement?){guard let e=e,let w=get(e,kAXWindowAttribute),let 
     for _ in 0..<60{guard let f=frame(e),!visible.contains(CGPoint(x:f.midX,y:f.midY)) else{return};let p=CGPoint(x:f.midX,y:wf.midY);post(.mouseMoved,p)
         let wheel=CGEvent(scrollWheelEvent2Source:source,units:.line,wheelCount:1,wheel1:f.midY>wf.midY ? -2:2,wheel2:0,wheel3:0);wheel?.location=p;wheel?.post(tap:.cghidEventTap);usleep(60_000)}}
 func click(_ p:CGPoint){post(.mouseMoved,p);usleep(80_000);post(.leftMouseDown,p);usleep(70_000);post(.leftMouseUp,p);usleep(150_000)}
+func key(_ code:CGKeyCode,flags:CGEventFlags=[]){for down in [true,false]{let event=CGEvent(keyboardEventSource:source,virtualKey:code,keyDown:down);event?.flags=down ? flags:[];event?.post(tap:.cghidEventTap)};usleep(200_000)}
+func type(_ text:String){for character in text{let units=Array(String(character).utf16);for down in [true,false]{let event=CGEvent(keyboardEventSource:source,virtualKey:0,keyDown:down);event?.flags=[];units.withUnsafeBufferPointer{buffer in if let address=buffer.baseAddress{event?.keyboardSetUnicodeString(stringLength:units.count,unicodeString:address)}};event?.post(tap:.cghidEventTap)};usleep(10_000)};usleep(200_000)}
 let action=CommandLine.arguments.count>2 ? CommandLine.arguments[2]:""
 let a=CommandLine.arguments.count>3 ? CommandLine.arguments[3]:"",b=CommandLine.arguments.count>4 ? CommandLine.arguments[4]:""
 NSRunningApplication(processIdentifier:pid)?.activate(options:[.activateAllWindows]);usleep(250_000)
 switch action {
 case "click":let e=element(a);reveal(e);click(center(e,a))
+case "select-popup":
+    let popup=element(a);reveal(popup);guard let popup,let bounds=frame(popup) else{fputs("Popup not found: \(a)\n",stderr);exit(2)};click(CGPoint(x:bounds.maxX-12,y:bounds.midY))
+    var option:AXUIElement?
+    for _ in 0..<20 {
+        option=find(popup){role,n in role=="AXMenuItem" && n.contains(b)} ?? find(app){role,n in role=="AXMenuItem" && n.contains(b)}
+        if option != nil{break};usleep(100_000)
+    }
+    if option==nil {
+        fputs("Popup chosen: \(names(popup)) frame \(bounds)\n",stderr)
+        func dump(_ element:AXUIElement,_ depth:Int=0){if depth>40{return};let role=get(element,kAXRoleAttribute) as? String ?? "";if (role=="AXPopUpButton" || role=="AXMenu" || role=="AXMenuItem"),(frame(element)?.width ?? 0)>0{fputs("\(role) \(names(element)) \(String(describing:frame(element)))\n",stderr)};for child in get(element,kAXChildrenAttribute) as? [AXUIElement] ?? []{dump(child,depth+1)}}
+        dump(app)
+    }
+    click(center(option,b))
+case "close-window":
+    guard let window=(get(app,kAXWindowsAttribute) as? [AXUIElement])?.first(where:{names($0).contains(a)}),let button=get(window,kAXCloseButtonAttribute) else{fputs("Window not found: \(a)\n",stderr);exit(2)}
+    click(center(button as! AXUIElement,a+" close button"))
+case "tab":key(48)
+case "go-folder":key(5,flags:[.maskCommand,.maskShift]);usleep(250_000);type(a);key(36);usleep(350_000)
 case "click-square":click(center(square(a),a))
 // Press a square and drift by the given distance before releasing, as a slightly moving trackpad click does.
 case "drift-square":let p=center(square(a),a);gesture(from:p,to:CGPoint(x:p.x+(Double(b) ?? 0),y:p.y+(Double(b) ?? 0)*0.3))

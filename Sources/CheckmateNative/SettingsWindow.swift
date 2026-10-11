@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 import CheckmateCore
-private enum SettingsCategory:String,CaseIterable,Identifiable {case board="Chessboard",sound="Sound",lessons="Lessons",practice="Practice",voice="Voice Coach",connections="Connections",about="About";var id:String{rawValue};var symbol:String{switch self{case .board:return "checkerboard.rectangle";case .sound:return "speaker.wave.2";case .lessons:return "book";case .practice:return "flag.checkered";case .voice:return "waveform";case .connections:return "link";case .about:return "info.circle"}}}
+private enum SettingsCategory:String,CaseIterable,Identifiable {case board="Chessboard",sound="Sound",lessons="Lessons",practice="Practice",voice="Voice Coach",connections="Connections",usage="Usage",about="About";var id:String{rawValue};var symbol:String{switch self{case .board:return "checkerboard.rectangle";case .sound:return "speaker.wave.2";case .lessons:return "book";case .practice:return "flag.checkered";case .voice:return "waveform";case .connections:return "link";case .usage:return "chart.bar";case .about:return "info.circle"}}}
 private final class SettingsSelection:ObservableObject {@Published var category:SettingsCategory? = .board}
 private struct SettingsSidebar:View {@ObservedObject var selection:SettingsSelection;var body:some View{List(SettingsCategory.allCases,selection:$selection.category){c in Label(c.rawValue,systemImage:c.symbol).tag(c)}.listStyle(.sidebar).scrollContentBackground(.hidden)}}
 private struct SettingsForm:View {
@@ -13,6 +13,9 @@ private struct SettingsForm:View {
     @State private var companionSetupRunning = false
     @ObservedObject var voiceAudio:VoiceAudio
     let about:AboutFacts
+    let lessonLanguages:LessonLanguageController
+    let usage:UsageLedger
+    let library:CourseLibrary
     func binding<T>(_ key:WritableKeyPath<AppSettings,T>)->Binding<T> {Binding(get:{session.state.settings[keyPath:key]},set:{var s=session.state.settings;s[keyPath:key]=$0;session.updateSettings(s)})}
     private func setUpCodex() {
         guard let codex=CompanionInstallation.installedCodex(),let directory=Bundle.main.executableURL?.deletingLastPathComponent() else {companionSetupStatus="Install Codex on this Mac first.";return}
@@ -29,6 +32,8 @@ private struct SettingsForm:View {
     }
     var body:some View {Form {
         switch selection.category ?? .board {
+        case .usage:
+            UsageSettingsPane(ledger:usage,controller:lessonLanguages)
         case .about:
             AboutPane(facts:about)
         case .connections:
@@ -36,6 +41,7 @@ private struct SettingsForm:View {
             Section {Text("MCP starts locally and waits for a Codex task. While the voice coach is connected, external MCP waits; disconnect voice to use the Codex companion.").foregroundStyle(.secondary)}
         case .voice:
             Section("Connection"){Text(voice.status);Text(voice.availability).foregroundStyle(.secondary);HStack{Button("Check availability"){voice.checkAvailability()}.disabled(voice.checkingAvailability || voice.connecting || voice.connected);Button(voice.connected ? "Disconnect":voice.connecting ? "Cancel":"Connect"){if voice.connected || voice.connecting{voice.disconnect()}else{voice.connect()}}.disabled(session.companionEnabled)};Toggle("Connect voice coach on launch",isOn:binding(\.voiceAutoConnect));Text("At launch, Checkmate checks Codex availability once. Voice connects only when your account authorizes a session.").foregroundStyle(.secondary)}
+            Section("Reasoning"){Text(voice.selectedModel.isEmpty ? "Automatic · newest compatible model":"Automatic · \(voice.selectedModel)").foregroundStyle(.secondary);Picker("Reasoning effort",selection:binding(\.coachReasoningEffort)){ForEach(AppSettings.reasoningEfforts,id:\.self){Text($0=="xhigh" ? "Extra high":$0.capitalized).tag($0)}}.accessibilityIdentifier("coach-reasoning-effort");Text("Minimal responds fastest. Higher effort allows deeper reasoning and may take longer and use more tokens. Changes apply to the next response.").font(.caption).foregroundStyle(.secondary)}
             Section("Speech"){Picker("Voice",selection:binding(\.coachVoice)){ForEach(AppSettings.voices,id:\.self){Text($0.capitalized).tag($0)}};if voice.connected && voice.activeVoice != session.state.settings.coachVoice{Text("Reconnect to use the selected voice.").font(.caption).foregroundStyle(.secondary)};Picker("Response language",selection:binding(\.voiceLanguage)){ForEach(AppSettings.languages.keys.sorted(),id:\.self){Text(AppSettings.languages[$0]!).tag($0)}};Slider(value:binding(\.voiceVolume),in:0...1){Text("Coach volume")};Button("Preview voice"){voice.audition()}.disabled(!voice.connected)}
             Section {ProgressView(value:voiceAudio.level,total:1).accessibilityLabel("Microphone input level");Button("Test microphone"){voice.testMicrophone()}.disabled(voice.connected);Toggle("Microphone",isOn:binding(\.voiceMicrophone));Picker("Input device",selection:binding(\.voiceInputDevice)){Text("System default").tag("");ForEach(VoiceAudio.devices()){Text($0.name).tag($0.id)}}.disabled(!session.state.settings.voiceMicrophone);Toggle("Allow explicitly requested White moves",isOn:binding(\.voiceAssistMoves))} header:{Text("Learner input")} footer:{Text("The microphone pauses while the coach speaks. Assisted moves require your spoken request.")}
         case .board:
@@ -44,7 +50,8 @@ private struct SettingsForm:View {
         case .sound:
             Section("Move sounds"){Toggle("Piece and move sounds",isOn:binding(\.moveSounds));Slider(value:binding(\.effectsVolume),in:0...1){Text("Effects volume")}.disabled(!session.state.settings.moveSounds)}
         case .lessons:
-            Section {Toggle("Narration",isOn:binding(\.narration));Slider(value:binding(\.volume),in:0...1){Text("Narration volume")}.disabled(!session.state.settings.narration);Toggle("Continue automatically",isOn:binding(\.autoAdvance))} header:{Text("Lesson playback")} footer:{Text("Lesson narration uses OpenAI Cedar and is AI-generated. Continue automatically plays the next transcript and starts the next lesson when this one ends. Quizzes wait for an answer, then resume after a correct answer.")}
+            LessonSettingsPane(controller:lessonLanguages,session:session,coach:voice,library:library)
+            Section {Toggle("Narration",isOn:binding(\.narration));Slider(value:binding(\.volume),in:0...1){Text("Narration volume")}.disabled(!session.state.settings.narration);Toggle("Continue automatically",isOn:binding(\.autoAdvance))} header:{Text("Lesson playback")} footer:{Text("Bundled English narration uses OpenAI Cedar. Generated lesson recordings use your selected voice and are AI-generated. Continue automatically plays the next transcript and starts the next lesson when this one ends. Quizzes wait for an answer, then resume after a correct answer.")}
         case .practice:
             Section("Opponent"){OpponentSettingsContent(session:session)}
             Section("Guidance"){Picker("Practice guidance",selection:binding(\.coachingMode)){Text("Guided game").tag("guided");Text("On request").tag("on_request");Text("Quiet").tag("quiet")}}
@@ -55,7 +62,7 @@ private struct SettingsForm:View {
     private let selection=SettingsSelection(),titleID=NSToolbarItem.Identifier("settings.title")
     init(model:NativeModel){selection.category=SettingsCategory.allCases.first{$0.rawValue==model.session.state.window.settingsCategory} ?? .board;let w=NSWindow(contentRect:NSRect(x:0,y:0,width:Metrics.settingsWidth,height:Metrics.settingsHeight),styleMask:[.titled,.closable,.fullSizeContentView],backing:.buffered,defer:false);super.init(window:w)
         w.title="Settings";w.titleVisibility = .hidden;w.isReleasedWhenClosed=false;w.autorecalculatesKeyViewLoop=true
-        let split=NSSplitViewController(),side=NSSplitViewItem(sidebarWithViewController:NSHostingController(rootView:SettingsSidebar(selection:selection))),detail=NSSplitViewItem(viewController:NSHostingController(rootView:SettingsForm(selection:selection,session:model.session,voice:model.voice,companion:model.companion,voiceAudio:model.voice.audio,about:AboutFacts(model:model))))
+        let split=NSSplitViewController(),side=NSSplitViewItem(sidebarWithViewController:NSHostingController(rootView:SettingsSidebar(selection:selection))),detail=NSSplitViewItem(viewController:NSHostingController(rootView:SettingsForm(selection:selection,session:model.session,voice:model.voice,companion:model.companion,voiceAudio:model.voice.audio,about:AboutFacts(model:model),lessonLanguages:model.lessonLanguages,usage:model.usage,library:model.learning.library)))
         side.canCollapse=false;side.minimumThickness=Metrics.settingsSidebar;side.maximumThickness=Metrics.settingsSidebar;side.allowsFullHeightLayout=true;side.titlebarSeparatorStyle = .none;detail.titlebarSeparatorStyle = .none;split.addSplitViewItem(side);split.addSplitViewItem(detail);w.contentViewController=split
         let toolbar=NSToolbar(identifier:"Settings.Toolbar");toolbar.delegate=self;toolbar.displayMode = .iconOnly;toolbar.centeredItemIdentifiers=[titleID];w.toolbar=toolbar;w.toolbarStyle = .unified;w.titlebarAppearsTransparent=true;w.titlebarSeparatorStyle = .none;w.setContentSize(NSSize(width:Metrics.settingsWidth,height:Metrics.settingsHeight));w.center()
     }

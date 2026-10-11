@@ -5,6 +5,7 @@ import CheckmateCore
 @MainActor final class NativeModel:ObservableObject {
     let session:GameSession,learning:LearningPlayer,audio:NativeAudio,store:StateStore
     let companion:CompanionBroker,voice:VoiceCoach
+    let usage:UsageLedger,lessonLanguages:LessonLanguageController
     let review=ReviewController()
     let reviewStore:ReviewStore,reviewAnalyzer:ReviewAnalyzer
     @Published var reviews:[ReviewIndexEntry]=[]
@@ -49,11 +50,24 @@ import CheckmateCore
     static let failedRestorePausedMessage=failedRestoreMessage+" Your game is paused. Choose Return to game to continue."
     func resumeAfterFailedRestore(){storageError=nil;practice()}
     init() throws {
+        if !NativePolicy.silent {Task.detached{CodexSubscriptionClient.cleanAbandonedPrivateHomes()}}
         store=StateStore(directory:StateStore.defaultDirectory());let state=try store.load();store.preserveFirstLaunchBackup()
         let engine=NativeEngine();reviewAnalyzer=ReviewAnalyzer(engine:engine,cacheDirectory:store.directory.appendingPathComponent("ReviewAnalysis"));reviewStore=ReviewStore(directory:store.directory.appendingPathComponent("Reviews"))
         reviewSaves=ReviewSaveCoordinator(store:reviewStore)
         session=try GameSession(engine:engine,state:state);learning=try LearningPlayer(session:session);audio=NativeAudio(scores:learning.library.sounds);learning.audio=audio
         companion=try CompanionBroker(session:session,directory:store.directory.appendingPathComponent("companion"));voice=try VoiceCoach(session:session)
+        usage=UsageLedger(directory:store.directory.appendingPathComponent("Usage"))
+        if NativePolicy.silent,ProcessInfo.processInfo.environment["CHECKMATE_LESSON_FIXTURE"]=="1" {
+            lessonLanguages=try LessonLanguageController(library:learning.library,directory:store.directory,usage:usage,translator:LessonAutomationTranslator(),recorder:LessonAutomationRecorder())
+        } else {
+            lessonLanguages=try LessonLanguageController(library:learning.library,directory:store.directory,usage:usage)
+        }
+        lessonLanguages.language=state.settings.lessonLanguage;lessonLanguages.voice=state.settings.lessonVoice
+        learning.packs=lessonLanguages.store;voice.usageLedger=usage;voice.connectionBlocked={[weak self] in self?.lessonLanguages.recording==true || self?.audio.isNarrationPlaying==true}
+        voice.connectionBlockReason={[weak self] in self?.lessonLanguages.recording==true ? "Finish or cancel lesson recording before connecting the voice coach.":"Stop lesson or preview playback before connecting the voice coach."}
+        lessonLanguages.voiceConflict={[weak self] in self?.voice.connected==true || self?.voice.connecting==true}
+        lessonLanguages.onSelectionChange={[weak self] in self?.learning.pause();self?.audio.stop()};lessonLanguages.onPacksChanged={[weak self] in self?.learning.reloadLocalizedPacks()};lessonLanguages.beforeRemove={[weak self] in guard let self else{return};if self.lessonLanguages.allLessons || self.lessonLanguages.selectedLesson==self.learning.lessonIndex{self.learning.pause();self.audio.stop()}else if !self.learning.playing{self.audio.stop()}}
+        lessonLanguages.playPreview={[weak self] url in guard let self else{return};self.learning.pause();self.audio.play(localURL:url,seconds:0,settings:self.session.state.settings)}
         session.reviewController=review;voice.attachReview(review)
         let reviewTools=ReviewTools(review:review,session:session,store:reviewStore,analyzer:reviewAnalyzer);reviewTools.onOpen={[weak self] document in self?.openReview(document)};reviewTools.onPractice={[weak self] in self?.practiceForkRequested=true};companion.tools.reviewTools=reviewTools;self.reviewTools=reviewTools
         reviewTools.activityGeneration={[weak self] in self?.reviewOpenGeneration ?? -1}
@@ -67,7 +81,7 @@ import CheckmateCore
         review.onEvent={[weak self] in self?.session.signalEvent();self?.saveReview()}
         // The banner observes this model; forward gate changes, and drop the paused sentence once the held game resumed or changed.
         session.$explicitResumeRequired.removeDuplicates().dropFirst().receive(on:RunLoop.main).sink{[weak self] held in guard let self=self else{return};self.objectWillChange.send();if !held,self.storageError==Self.failedRestorePausedMessage{self.storageError=Self.failedRestoreMessage}}.store(in:&observations)
-        session.$state.map(\.settings).removeDuplicates().dropFirst().receive(on:RunLoop.main).sink {[weak self] _ in self?.learning.settingsChanged();self?.voice.settingsChanged()}.store(in:&observations)
+        session.$state.map(\.settings).removeDuplicates().dropFirst().receive(on:RunLoop.main).sink {[weak self] _ in guard let self else{return};self.lessonLanguages.language=self.session.state.settings.lessonLanguage;self.lessonLanguages.voice=self.session.state.settings.lessonVoice;self.learning.settingsChanged();self.voice.settingsChanged()}.store(in:&observations)
     }
     func startConnections(){
         guard connectionStartup==nil,!NativePolicy.silent else{return}
@@ -97,7 +111,7 @@ import CheckmateCore
         reviewOpenGeneration+=1;cancelReviewImport()
         try StateStore.validate(state)
         let backup=try store.preserveBeforeImport(session.state)
-        saveTask?.cancel();voice.disconnect();companion.disable();learning.pause();audio.stopAll()
+        saveTask?.cancel();voice.disconnect();usage.flushForShutdown();companion.disable();learning.pause();audio.stopAll()
         try store.save(state);try session.installImportedState(state);learning.reloadFilters();onImport?();return backup
     }
     func importState(){
@@ -243,7 +257,7 @@ import CheckmateCore
     static func exportName(_ document:GameDocument,ideas:Bool)->String {document.historyAvailable || ideas ? "review.pgn":"review.fen"}
     func showBackups(){NSWorkspace.shared.activateFileViewerSelecting([store.directory])}
     func exportState(){let panel=NSSavePanel();panel.nameFieldStringValue="checkmate-state.json";panel.begin {response in guard response == .OK,let url=panel.url else{return};do{try self.store.save(self.session.state);try self.store.export(to:url)}catch{self.storageError="The export could not be written."}}}
-    func shutdown(){connectionStartup?.cancel();reviewTools.reset();reviewOpenGeneration+=1;cancelReviewImport();saveReview(immediate:true);shuttingDown=true;cancelReviewImport();reviewSaveTask?.cancel();review.cancel();saveTask?.cancel();soundTasks.values.forEach{$0.cancel()};session.prepareShutdown();voice.disconnect();companion.disable();learning.shutdown();audio.stopAll();session.cancelWork();try? store.save(session.state)}
+    func shutdown(){lessonLanguages.shutdown();connectionStartup?.cancel();reviewTools.reset();reviewOpenGeneration+=1;cancelReviewImport();saveReview(immediate:true);shuttingDown=true;cancelReviewImport();reviewSaveTask?.cancel();review.cancel();saveTask?.cancel();soundTasks.values.forEach{$0.cancel()};session.prepareShutdown();voice.disconnect();usage.flushForShutdown();companion.disable();learning.shutdown();audio.stopAll();session.cancelWork();try? store.save(session.state)}
 }
 /// Keeps the Save panel's suggested extension consistent with the chosen export contents.
 @MainActor final class ExportNaming:NSObject {

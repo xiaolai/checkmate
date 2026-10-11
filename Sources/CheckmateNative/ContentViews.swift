@@ -30,7 +30,7 @@ struct SidebarContent:View {
             Section("Saved reviews"){ForEach(model.reviews){record in Label(record.title=="?" ? "Untitled game":record.title,systemImage:"doc.text").tag("review:"+record.id.uuidString)
                 .contextMenu{Button("Delete Saved Review…",role:.destructive){model.requestDeleteReview(record.id)}.disabled(model.deletingReviewID != nil)}}}
         }
-        Section("Learn & explore") {ForEach(Array(learning.library.lessons.enumerated()),id:\.element.id){i,l in Label {Text(l.title)} icon:{Image(systemName:session.state.course.completed.contains(l.id) ? "checkmark.circle.fill":"book")}.tag("lesson:\(i)")}}
+        Section("Learn & explore") {ForEach(Array(learning.library.lessons.enumerated()),id:\.element.id){i,l in Label {Text(learning.localizedTitle(index:i))} icon:{Image(systemName:session.state.course.completed.contains(l.id) ? "checkmark.circle.fill":"book")}.tag("lesson:\(i)")}}
     }.listStyle(.sidebar).scrollContentBackground(.hidden).overlay(alignment:.bottom){if model.importingReview{VStack{ProgressView("Importing review…");Button("Cancel import"){model.cancelReviewImport()}}.padding().background(.regularMaterial)}}}
 }
 struct DetailContent:View {
@@ -85,12 +85,13 @@ struct DetailContent:View {
             }
             else if learning.activePuzzle != nil || session.mode == .lesson {
                 if session.mode == .lesson {
-                    Picker("Transcript",selection:Binding(get:{learning.step},set:{learning.seek(step:$0)})){ForEach(learning.current.beats.indices,id:\.self){i in Text("\(i+1). \(learning.library.stepTitles[learning.lessonIndex][i])").tag(i)}}
+                    Picker("Transcript",selection:Binding(get:{learning.step},set:{learning.seek(step:$0)})){ForEach(learning.current.beats.indices,id:\.self){i in Text("\(i+1). \(learning.localizedStepTitle(index:learning.lessonIndex,step:i))").tag(i)}}
                         .labelsHidden()
-                    Text(learning.beat.say).textSelection(.enabled)
+                    if let fallback=learning.fallbackMessage{Text(fallback).font(.caption).foregroundStyle(.secondary)}
+                    Text(learning.subtitle).textSelection(.enabled)
                 } else {
                     if let prompt=learning.exercise?.prompt {Text(prompt).font(.title2.bold())}
-                    Text(learning.activePuzzle?.context ?? learning.beat.say).textSelection(.enabled)
+                    Text(learning.activePuzzle?.context ?? learning.subtitle).textSelection(.enabled)
                 }
                 if let e=learning.activePuzzle?.exercise {
                     if e.kind=="choice" {ForEach(e.choices ?? [],id:\.self){choice in Button(choice){learning.choose(choice)}.disabled(learning.passed)}}
@@ -101,9 +102,9 @@ struct DetailContent:View {
                 if !learning.feedback.isEmpty{Text(learning.feedback).foregroundStyle(.secondary)}
                 if session.mode == .lesson {
                     // The title toggles too; by default only the chevron does.
-                    DisclosureGroup(isExpanded:$lessonGoalsShown){ForEach(learning.current.teaches ?? [],id:\.self){Text($0)}} label:{Text("In this lesson").contentShape(Rectangle()).onTapGesture{lessonGoalsShown.toggle()}}
+                    DisclosureGroup(isExpanded:$lessonGoalsShown){ForEach(learning.teaches,id:\.self){Text($0)}} label:{Text("In this lesson").contentShape(Rectangle()).onTapGesture{lessonGoalsShown.toggle()}}
                     ForEach(MiniGameKind.available(lessonID:learning.current.id),id:\.self){kind in Button("Play \(kind.title)"){learning.startMini(kind)}}
-                    if session.state.course.completed.contains(learning.current.id),learning.lessonIndex<learning.library.lessons.count-1 {Button("Continue to \(learning.library.lessons[learning.lessonIndex+1].title)"){model.lesson(learning.lessonIndex+1);learning.play()}}
+                    if session.state.course.completed.contains(learning.current.id),learning.lessonIndex<learning.library.lessons.count-1 {Button("Continue to \(learning.localizedTitle(index:learning.lessonIndex+1))"){model.lesson(learning.lessonIndex+1);learning.play()}}
                 } else {Button("Next puzzle"){learning.next()}.disabled(!learning.passed)}
             } else {Text("Quick puzzles").font(.title2.bold());Text("Choose an exercise from the library.")}
         }

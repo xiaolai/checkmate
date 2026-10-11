@@ -34,8 +34,8 @@ def listing():
     return subprocess.check_output([str(lister), str(process.pid), "list"], text=True)
 
 
-def wait(predicate, message):
-    deadline = time.monotonic() + 15
+def wait(predicate, message, timeout=15):
+    deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         if predicate():
             return
@@ -55,9 +55,13 @@ def replied(white_move):
 try:
     process = subprocess.Popen(command, env=environment, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     wait(lambda: "Chessboard" in listing(), "Board did not appear")
-    # Drawers opened with their toolbar buttons, as a person does, rather than restored at launch.
-    pointer("click", "Toggle Sidebar")
-    pointer("click", "Toggle Game Details")
+    time.sleep(1)  # Allow initial AppKit window and drawer restoration to finish.
+    # Explicitly open drawers, tolerating window restoration from previous automation runs.
+    if "AXStaticText: The Pawn" not in listing():
+        pointer("click", "Toggle Sidebar")
+    wait(lambda: "AXStaticText: The Pawn" in listing(), "Lesson sidebar did not open at launch")
+    if "Your next move." not in listing():
+        pointer("click", "Toggle Game Details")
     wait(lambda: "Your next move." in listing(), "Game details did not open")
 
     # A trackpad press that drifts within its square is still a click.
@@ -91,6 +95,10 @@ try:
     wait(lambda: pointer("menu-open", "Level 1") == "true", "The Skill menu did not open")
     pointer("escape")
 
+    # Window drawer restoration can survive across automation runs. Open explicitly if needed.
+    if "AXStaticText: The Pawn" not in listing():
+        pointer("click", "Toggle Sidebar")
+    wait(lambda: "AXStaticText: The Pawn" in listing(), "Lesson sidebar did not open")
     # Lesson drawer controls take the same path.
     pointer("click", "The Pawn")
     wait(lambda: "In this lesson" in listing(), "The lesson did not open")
@@ -110,11 +118,79 @@ try:
     wait(lambda: requested(state.resolve().as_uri()) or requested(state.as_uri()), "Show in Finder did not respond to a click")
     pointer("click", "Sound")
     wait(lambda: "Piece and move sounds" in listing(), "The Sound settings row did not respond to a click")
+    pointer("click", "Voice Coach")
+    wait(lambda: "Reasoning effort" in listing(), "Voice Coach reasoning settings did not appear")
+    for title, effort in [("Low", "low"), ("Medium", "medium"), ("High", "high"), ("Extra high", "xhigh"), ("Minimal", "minimal")]:
+        pointer("select-popup", "coach-reasoning-effort", title)
+        wait(lambda: json.loads((state / "state-v1.json").read_text())["settings"]["coachReasoningEffort"] == effort, "Reasoning effort did not persist: " + effort)
+    subprocess.run(["screencapture", "-x", str(evidence / "voice-reasoning-settings.png")], check=True)
+    pointer("click", "Lessons")
+    wait(lambda: "Recording voice" in listing(), "The Lessons settings row did not respond to a click")
+    pointer("click", "Search languages")
+    wait(lambda: "Translate" in listing(), "Lesson translation controls are missing")
+    fixture = environment.get("CHECKMATE_LESSON_FIXTURE") == "1"
+    if fixture:
+        pointer("select-popup", "lesson-language", "French")
+        pointer("click", "Translate")
+        wait(lambda: "French lesson:" in listing(), "Fixture translation did not populate text inspection")
+        wait(lambda: "Completed. Matching" in listing(), "Fixture translation did not finish")
+        pointer("click", "Generate preview")
+        wait(lambda: "Preview ready." in listing(), "Fixture preview generation did not finish")
+        pointer("click", "Play preview")
+        pointer("click", "Record / Resume")
+        wait(lambda: re.search(r"Lesson 1 of 1, clip [0-9]+ of 20", listing()) is not None, "Fixture recording progress is missing")
+        pointer("click", "Cancel")
+        wait(lambda: "Cancelled. Completed text and clips" in listing(), "Fixture recording cancellation failed")
+        subprocess.run(["screencapture", "-x", str(evidence / "lesson-settings.png")], check=True)
+        wait(lambda: "Incomplete lessons use English." in listing(), "Cancelled partial recording did not report English fallback")
+        pointer("click", "Record / Resume")
+        wait(lambda: "Complete offline lesson: 20 verified recordings." in listing(), "Fixture resumed recording did not complete", timeout=30)
+        pointer("close-window", "Settings")
+        pointer("click", "French lesson: Introduction")
+        wait(lambda: "French lesson:" in listing() and "In this lesson" in listing(), "Offline translated lesson did not open")
+        assert "This lesson is playing in English because" not in listing(), "Complete recording unexpectedly fell back to English"
+        subprocess.run(["screencapture", "-x", str(evidence / "offline-lesson.png")], check=True)
+        pointer("menu", "Checkmate", "Settings…")
+        wait(lambda: "Remove stored lesson" in listing(), "Lessons settings did not reopen")
+        pointer("click", "Remove stored lesson")
+        wait(lambda: "Remove stored lesson language?" in listing(), "Recording removal confirmation did not open")
+        pointer("click", "Remove")
+        wait(lambda: "Recordings removed." in listing(), "Confirmed recording removal failed")
+        wait(lambda: "French lesson:" in listing(), "Recording removal discarded translated inspection text")
+        pointer("close-window", "Settings")
+        pointer("click", "Introduction")
+        wait(lambda: "This lesson is playing in English because" in listing(), "Removed recording did not fall back to English")
+        subprocess.run(["screencapture", "-x", str(evidence / "fallback-lesson.png")], check=True)
+        pointer("menu", "Checkmate", "Settings…")
+        wait(lambda: "Recording voice" in listing(), "Lessons settings did not reopen after fallback")
+    pointer("click", "Usage")
+    wait(lambda: "Checkmate activity" in listing(), "The Usage settings row did not respond to a click")
+    pointer("select-popup", "usage-time-range", "All retained")
+    wait(lambda: ("Lesson translation" if fixture else "No recorded Checkmate activity") in listing(), "The usage range did not respond to a click")
+    pointer("click", "Clear history…")
+    wait(lambda: "Clear usage history?" in listing(), "Clear history confirmation did not open")
+    pointer("click", "Cancel")
+    wait(lambda: "Clear usage history?" not in listing(), "Clear history cancellation failed")
+    if fixture:
+        pointer("click", "Refresh account status")
+        wait(lambda: "Automation fixture account status" in listing(), "Explicit fixture account refresh failed")
+    pointer("tab")  # Posted keyboard navigation reaches a native control.
+    pointer("click", "Export JSON…")
+    wait(lambda: "Save" in listing(), "Usage export save panel did not open")
+    pointer("go-folder", str(state))
+    pointer("click", "Save")
+    exported = state / "Checkmate-usage.json"
+    wait(exported.exists, "Usage JSON export was not written")
+    exported_usage = json.loads(exported.read_text())
+    assert "records" in exported_usage, "Usage export has no record array"
+    if fixture:
+        assert any(record["activity"] == "translation" for record in exported_usage["records"]), "Fixture usage export lost translation activity"
+    subprocess.run(["screencapture", "-x", str(evidence / "usage-settings.png")], check=True)
     pointer("click", "About")
     wait(lambda: "Copyright © 2026" in listing(), "The About settings row did not respond to a click")
 
     result = {"passed": True, "clickWithDrift": True, "clickedMove": True, "draggedMove": True, "illegalDropSnapsBack": True,
-              "drawerToggles": True, "drawerMenu": True, "lessonDisclosure": True, "aboutPane": True, "silent": True}
+              "drawerToggles": True, "drawerMenu": True, "lessonDisclosure": True, "aboutPane": True, "coachReasoningSettings": True, "lessonSettings": True, "usageSettings": True, "usageClearConfirmation": True, "usageExport": True, "lessonJobFixture": fixture, "silent": True}
     (evidence / "pointer-results.json").write_text(json.dumps(result, indent=2))
     print(json.dumps(result))
 except Exception:

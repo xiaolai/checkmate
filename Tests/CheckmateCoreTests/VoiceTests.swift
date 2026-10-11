@@ -19,3 +19,36 @@ extension VoiceTests {@MainActor func testStopSpeechReleasesEngineHold()throws {
 extension VoiceTests {
     @MainActor func testRecheckWaitsForCancelledUnconfirmedResponse()throws {let s=try GameSession(engine:nil),v=try VoiceCoach(session:s);_ = try s.openVoice();v.receive(["type":"session.updated"]);XCTAssertTrue(v.status.contains("thinking"));v.recheck();XCTAssertFalse(v.status.contains("thinking"));v.receive(["type":"response.done","response":["id":"cancelled-original","status":"cancelled"]]);XCTAssertTrue(v.status.contains("thinking"));v.disconnect()}
 }
+extension VoiceTests {
+    func testCoachReasoningSettingsMigrationAndRoundtrip()throws {
+        XCTAssertEqual(AppSettings(raw:[:]).coachReasoningEffort,"minimal")
+        for invalid:Any in ["none","maximum",true,5,NSNull()] {XCTAssertEqual(AppSettings(raw:["coachReasoningEffort":invalid]).coachReasoningEffort,"minimal")}
+        for effort in AppSettings.reasoningEfforts {
+            let settings=AppSettings(raw:["coachReasoningEffort":effort])
+            XCTAssertEqual(try JSONDecoder().decode(AppSettings.self,from:JSONEncoder().encode(settings)).coachReasoningEffort,effort)
+            let event=VoiceSessionConfiguration.event(instructions:"Test",voice:"cedar",tools:[],effort:effort)
+            let config=try XCTUnwrap(event["session"] as? [String:Any])
+            XCTAssertEqual((config["reasoning"] as? [String:String])?["effort"],effort)
+        }
+        XCTAssertEqual(VoiceSessionConfiguration.model,"gpt-realtime-2.1")
+        XCTAssertTrue(VoiceSessionConfiguration.socketURL.absoluteString.hasSuffix("model=gpt-realtime-2.1"))
+        let fallback=VoiceSessionConfiguration.reasoningEvent(effort:"invalid")["session"] as? [String:Any]
+        XCTAssertEqual((fallback?["reasoning"] as? [String:String])?["effort"],"minimal")
+    }
+    @MainActor func testConnectedCoachEffortChangesWithoutReconnect()throws {
+        let session=try GameSession(engine:nil),coach=try VoiceCoach(session:session)
+        _=try session.openVoice();coach.receive(["type":"session.updated"])
+        let lease=session.voiceLease
+        var events:[[String:Any]]=[];coach.automationOutbound={events.append($0)}
+        for effort in AppSettings.reasoningEfforts {
+            var settings=session.state.settings;settings.coachReasoningEffort=effort
+            session.updateSettings(settings);coach.settingsChanged()
+            if effort != "minimal" {
+                let config=try XCTUnwrap(events.last?["session"] as? [String:Any])
+                XCTAssertEqual((config["reasoning"] as? [String:String])?["effort"],effort)
+            }
+            XCTAssertTrue(coach.connected);XCTAssertEqual(session.voiceLease,lease);XCTAssertFalse(coach.microphone)
+        }
+        coach.disconnect()
+    }
+}

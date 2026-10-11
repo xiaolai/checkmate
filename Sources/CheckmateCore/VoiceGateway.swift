@@ -18,9 +18,9 @@ public final class VoiceGateway:NSObject,URLSessionTaskDelegate,@unchecked Senda
     public static func accessToken(_ data:Data)throws->String {guard data.count<=65536,let a=try JSONSerialization.jsonObject(with:data) as? [String:Any],let t=(a["tokens"] as? [String:Any])?["access_token"] as? String,!t.isEmpty,t.count<=65536 else{throw CheckmateError.unavailable("Sign in to Codex on this Mac before connecting.")};return t}
     public static func clientSecret(_ data:Data)throws->String {guard data.count<=65536,let a=try JSONSerialization.jsonObject(with:data) as? [String:Any],let t=a["value"] as? String,!t.isEmpty,t.count<=4096 else{throw CheckmateError.unavailable("The account did not provide a voice session credential.")};return t}
     public func urlSession(_ session:URLSession,task:URLSessionTask,willPerformHTTPRedirection response:HTTPURLResponse,newRequest request:URLRequest,completionHandler:@escaping(URLRequest?)->Void){completionHandler(nil)}
-    public func authorize() async throws->String {
+    public func authorize(model:String="gpt-realtime") async throws->String {
         guard !NativePolicy.silent else{throw CheckmateError.unavailable("Live voice is disabled during automation.")}
-        let attributes=try FileManager.default.attributesOfItem(atPath:Self.credentialURL.path);guard (attributes[.size] as? Int ?? Int.max)<=65536 else{throw CheckmateError.unavailable("The sign-in file is invalid.")};let token=try Self.accessToken(Data(contentsOf:Self.credentialURL));var request=URLRequest(url:URL(string:"https://api.openai.com/v1/realtime/client_secrets")!);request.httpMethod="POST";request.timeoutInterval=20;request.setValue("Bearer \(token)",forHTTPHeaderField:"Authorization");request.setValue("application/json",forHTTPHeaderField:"Content-Type");request.httpBody=try JSONSerialization.data(withJSONObject:["session":["type":"realtime","model":"gpt-realtime"]])
+        let attributes=try FileManager.default.attributesOfItem(atPath:Self.credentialURL.path);guard (attributes[.size] as? Int ?? Int.max)<=65536 else{throw CheckmateError.unavailable("The sign-in file is invalid.")};let token=try Self.accessToken(Data(contentsOf:Self.credentialURL));var request=URLRequest(url:URL(string:"https://api.openai.com/v1/realtime/client_secrets")!);request.httpMethod="POST";request.timeoutInterval=20;request.setValue("Bearer \(token)",forHTTPHeaderField:"Authorization");request.setValue("application/json",forHTTPHeaderField:"Content-Type");request.httpBody=try JSONSerialization.data(withJSONObject:["session":["type":"realtime","model":model]])
         let configuration=URLSessionConfiguration.ephemeral;configuration.timeoutIntervalForResource=25;let session=URLSession(configuration:configuration,delegate:self,delegateQueue:nil);defer{session.invalidateAndCancel()};let (data,response)=try await session.data(for:request)
         guard let http=response as? HTTPURLResponse,(200..<300).contains(http.statusCode) else{throw CheckmateError.unavailable("The account could not authorize live voice. Check account access and connectivity.")};return try Self.clientSecret(data)
     }
@@ -28,8 +28,14 @@ public final class VoiceGateway:NSObject,URLSessionTaskDelegate,@unchecked Senda
 
 /// One configuration shared by the app and explicit headless service acceptance.
 public enum VoiceSessionConfiguration {
-    public static func event(instructions:String,voice:String,tools:[[String:Any]])->[String:Any] {
-        ["type":"session.update","session":["type":"realtime","instructions":instructions,"output_modalities":["audio"],"audio":["input":["format":["type":"audio/pcm","rate":24000],"turn_detection":["type":"semantic_vad","eagerness":"high","create_response":false,"interrupt_response":false],"transcription":["model":"gpt-4o-mini-transcribe"],"noise_reduction":["type":"far_field"]],"output":["format":["type":"audio/pcm","rate":24000],"voice":voice]],"tools":tools,"tool_choice":"auto"]]
+    public static let model="gpt-realtime-2.1"
+    public static let socketURL=socketURL(model:model)
+    public static func socketURL(model:String)->URL {URL(string:"wss://api.openai.com/v1/realtime?model=\(model)")!}
+    public static func reasoningEvent(effort:String)->[String:Any] {
+        ["type":"session.update","session":["type":"realtime","reasoning":["effort":AppSettings.reasoningEfforts.contains(effort) ? effort:"minimal"]]]
+    }
+    public static func event(instructions:String,voice:String,tools:[[String:Any]],effort:String="minimal")->[String:Any] {
+        ["type":"session.update","session":["type":"realtime","instructions":instructions,"reasoning":["effort":AppSettings.reasoningEfforts.contains(effort) ? effort:"minimal"],"output_modalities":["audio"],"audio":["input":["format":["type":"audio/pcm","rate":24000],"turn_detection":["type":"semantic_vad","eagerness":"high","create_response":false,"interrupt_response":false],"transcription":["model":"gpt-4o-mini-transcribe"],"noise_reduction":["type":"far_field"]],"output":["format":["type":"audio/pcm","rate":24000],"voice":voice]],"tools":tools,"tool_choice":"auto"]]
     }
 }
 

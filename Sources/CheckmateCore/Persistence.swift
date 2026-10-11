@@ -2,12 +2,15 @@ import Foundation
 import CryptoKit
 import CoreFoundation
 public struct AppSettings:Codable,Equatable {
+    public var coachReasoningEffort="minimal"
     public var coachVoice="cedar",voiceLanguage="en",voiceAutoConnect=true,voiceMicrophone=true,voiceInputDevice="",voiceAssistMoves=false,voiceVolume=1.0
     public var boardTheme="wood",narration=true,volume=1.0,autoAdvance=true,pieceDuration=700,moveSounds=true,effectsVolume=0.5,coachingMode="guided",skill=0,companionRole="coach"
+    public var lessonLanguage="en",lessonVoice="cedar"
     public var companionAutoStart=true
     public var opponentMode="skill",opponentElo=1320,miniOpponentProfile="standard",practiceSide="w"
     public var opponentPreset="custom",opponentRandomSeed=""
     public static let languages=["en":"English","zh":"Mandarin Chinese","es":"Spanish","fr":"French","de":"German","ja":"Japanese","ko":"Korean","pt":"Portuguese","it":"Italian","ar":"Arabic","hi":"Hindi"]
+    public static let reasoningEfforts=["minimal","low","medium","high","xhigh"]
     public static let voices=["marin","cedar","alloy","ash","ballad","coral","echo","sage","shimmer","verse"]
     public static let themes=["wood":"Walnut","green":"Sage","blue":"Slate","neutral":"Graphite"]
     public init() {}
@@ -16,7 +19,11 @@ public struct AppSettings:Codable,Equatable {
         func flag(_ k:String,_ fallback:Bool)->Bool {guard let n=raw[k] as? NSNumber,CFGetTypeID(n)==CFBooleanGetTypeID() else{return fallback};return n.boolValue}
         func integer(_ k:String,_ fallback:Int)->Int{guard let value=raw[k] as? NSNumber,CFGetTypeID(value) != CFBooleanGetTypeID() else{return fallback};let n=value.doubleValue;guard n.isFinite,floor(n)==n,abs(n)<=1_000_000 else{return fallback};return Int(n)}
         func level(_ k:String,_ fallback:Double)->Double {guard let v=raw[k] as? NSNumber,CFGetTypeID(v) != CFBooleanGetTypeID(),v.doubleValue.isFinite else{return fallback};return max(0,min(1,v.doubleValue))}
+        coachReasoningEffort=choice("coachReasoningEffort",Self.reasoningEfforts,"minimal")
         coachVoice=choice("coachVoice",Self.voices,"cedar");voiceLanguage=choice("voiceLanguage",Array(Self.languages.keys),"en")
+        let locale=raw["lessonLanguage"] as? String ?? "en"
+        lessonLanguage=LessonLanguages.valid(locale) ? locale:"en"
+        lessonVoice=choice("lessonVoice",["cedar","marin"],"cedar")
         boardTheme=choice("boardTheme",Array(Self.themes.keys),"wood");coachingMode=choice("coachingMode",["guided","on_request","quiet"],"guided");companionRole=choice("companionRole",["coach","opponent"],"coach")
         voiceAutoConnect=flag("voiceAutoConnect",true);companionAutoStart=flag("companionAutoStart",true);voiceMicrophone=flag("voiceMicrophone",true);voiceAssistMoves=flag("voiceAssistMoves",false)
         voiceInputDevice=String((raw["voiceInputDevice"] as? String ?? "").prefix(256));voiceVolume=level("voiceVolume",1)

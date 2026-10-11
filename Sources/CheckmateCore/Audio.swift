@@ -8,6 +8,8 @@ public struct AudioPolicy {public let automation:Bool;public init(automation:Boo
     public private(set) var error:String?
     public init(automation:Bool=NativePolicy.silent,scores:[String:[Tone]]){policy=AudioPolicy(automation:automation);self.scores=scores}
     public func play(file:String,seconds:Double,settings:AppSettings){stop();guard policy.mayPlay(enabled:settings.narration,volume:settings.volume) else{return};do{let p=try AVAudioPlayer(contentsOf:NativeResources.url(file));p.volume=Float(settings.volume);p.currentTime=min(seconds,p.duration);guard p.play() else{throw CheckmateError.unavailable("Narration could not play.")};narration=p;error=nil}catch{self.error="Narration could not play. You can still read the transcript."}}
+    public func play(localURL:URL,seconds:Double,settings:AppSettings){stop();guard localURL.isFileURL,policy.mayPlay(enabled:settings.narration,volume:settings.volume) else{return};do{let values=try localURL.resourceValues(forKeys:[.isSymbolicLinkKey,.fileSizeKey]);guard values.isSymbolicLink != true,(values.fileSize ?? Int.max)<=28_800_044 else{throw CheckmateError.invalid("Invalid local recording.")};let p=try AVAudioPlayer(contentsOf:localURL);p.volume=Float(settings.volume);p.currentTime=min(seconds,p.duration);guard p.play() else{throw CheckmateError.unavailable("Narration could not play.")};narration=p;error=nil}catch{self.error="Narration could not play. You can still read the transcript."}}
+    public var isNarrationPlaying:Bool {narration?.isPlaying==true}
     public var playbackTime:Double? {guard let narration=narration,narration.isPlaying else{return nil};return narration.currentTime}
     public func pause(){narration?.pause()}
     public func stop(){narration?.stop();narration=nil}

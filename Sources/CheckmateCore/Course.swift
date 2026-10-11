@@ -41,7 +41,7 @@ public struct CourseLibrary:Decodable {
         return lesson.beats.firstIndex{(Int($0.id?.split(separator:":").last ?? "") ?? 0)>=original} ?? lesson.beats.count-1
     }
     public func knownAnswerID(_ id:String)->Bool {exercises[id] != nil || retiredExerciseIDs?.contains(id)==true}
-    public func frame(lesson:Int,step:Int,seconds:Double,duration:Double=CourseTiming.standard.pieceDuration) throws -> CourseFrame {
+    public func frame(lesson:Int,step:Int,seconds:Double,duration:Double=CourseTiming.standard.pieceDuration,narrationSeconds:Double?=nil) throws -> CourseFrame {
         guard lessons.indices.contains(lesson),lessons[lesson].beats.indices.contains(step) else{throw CheckmateError.invalid("Invalid lesson step.")}
         var state=CourseFrame()
         for i in 0...step {
@@ -59,7 +59,7 @@ public struct CourseLibrary:Decodable {
             if seconds>=end+timing.removalDelay {try Self.apply(&board,moves:[],remove:beat.remove)}
             state.board=board
         }
-        let spacing=max(timing.minimumCountSpacing,voices[lesson][step].seconds/Double(max(1,beat.count.count)))
+        let spacing=max(timing.minimumCountSpacing,(narrationSeconds ?? voices[lesson][step].seconds)/Double(max(1,beat.count.count)))
         state.counts=Array(beat.count.prefix(max(0,Int(floor(seconds/spacing))+1)))
         return state
     }
