@@ -1,0 +1,111 @@
+name: Update Homebrew Tap
+
+on:
+  # Dispatched by scripts/publish-release.sh after the DMG is uploaded, never by the
+  # release event, which fires before asset uploads finish.
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (e.g., 0.3.7)'
+        required: true
+
+permissions:
+  contents: read
+
+# Serialized: two dispatches must never race to rewrite the shared tap.
+concurrency:
+  group: update-homebrew-tap
+  cancel-in-progress: false
+
+jobs:
+  update-tap:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      VERSION: ${{ github.event.inputs.version }}
+      REPO: xiaolai/checkmate
+    steps:
+      - name: Validate version input (stable X.Y.Z only)
+        run: |
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::version input must look like 'X.Y.Z' (got '$VERSION')"
+            exit 1
+          fi
+
+      - name: Checkout homebrew-tap
+        uses: actions/checkout@v4
+        with:
+          repository: xiaolai/homebrew-tap
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          path: homebrew-tap
+
+      - name: Refuse to re-publish or downgrade
+        run: |
+          CURRENT=$(grep '^  version "' homebrew-tap/Casks/checkmate.rb 2>/dev/null | head -1 | awk -F'"' '{print $2}')
+          if [ -z "$CURRENT" ]; then echo "No existing cask version found; first publish."; exit 0; fi
+          if [ "$VERSION" = "$CURRENT" ]; then echo "::error::Tap already at $CURRENT; refusing to re-publish."; exit 1; fi
+          HIGHER=$(printf '%s\n%s' "$VERSION" "$CURRENT" | sort -V | tail -1)
+          if [ "$HIGHER" != "$VERSION" ]; then echo "::error::Refusing to downgrade tap from $CURRENT to $VERSION"; exit 1; fi
+
+      - name: Wait for the DMG
+        run: |
+          URL="https://github.com/${REPO}/releases/download/v${VERSION}/Checkmate-${VERSION}.dmg"
+          for i in {1..30}; do
+            CODE=$(curl -sI -o /dev/null -w "%{http_code}" -L "$URL")
+            if [ "$CODE" = "200" ]; then exit 0; fi
+            echo "Attempt $i/30: waiting for $URL ($CODE)"; sleep 30
+          done
+          echo "::error::DMG not available after 15 minutes: $URL"; exit 1
+
+      # Trust chain: Developer ID signing and notarization, enforced by Gatekeeper on install.
+      - name: Download the DMG and hash it
+        id: sha256
+        run: |
+          URL="https://github.com/${REPO}/releases/download/v${VERSION}/Checkmate-${VERSION}.dmg"
+          curl --fail-with-body --retry 3 -sL -o checkmate.dmg "$URL"
+          # A 200 that carries the wrong bytes must not be hashed into the cask.
+          file checkmate.dmg | grep -Eqi 'disk image|bzip2|zlib|data' || { echo "::error::Downloaded file is not a disk image"; exit 1; }
+          [ "$(stat -c %s checkmate.dmg)" -gt 10000000 ] || { echo "::error::Downloaded DMG is implausibly small"; exit 1; }
+          echo "sha=$(sha256sum checkmate.dmg | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+
+      - name: Generate the cask
+        env:
+          SHA: ${{ steps.sha256.outputs.sha }}
+        run: |
+          mkdir -p homebrew-tap/Casks
+          # Unquoted heredoc: ${VERSION} and ${SHA} expand; Ruby's #{version} survives. No backticks inside.
+          cat > homebrew-tap/Casks/checkmate.rb <<RUBY
+          cask "checkmate" do
+            version "${VERSION}"
+            sha256 "${SHA}"
+
+            url "https://github.com/xiaolai/checkmate/releases/download/v#{version}/Checkmate-#{version}.dmg"
+            name "Checkmate"
+            desc "Native chess practice and offline narrated lessons"
+            homepage "https://github.com/xiaolai/checkmate"
+
+            livecheck do
+              url :homepage
+              strategy :github_latest
+            end
+
+            depends_on macos: :sonoma
+
+            app "Checkmate.app"
+
+            zap trash: [
+              "~/Library/Application Support/ai.xiaolai.checkmate",
+              "~/.codex/skills/checkmate-companion",
+            ]
+          end
+          RUBY
+
+      - name: Commit and push
+        run: |
+          cd homebrew-tap
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Casks/checkmate.rb
+          git diff --cached --quiet && { echo "No change to commit"; exit 0; }
+          git commit -m "checkmate ${VERSION}"
+          git push
