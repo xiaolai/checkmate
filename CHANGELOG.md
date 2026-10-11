@@ -1,3 +1,23 @@
+# Checkmate 0.5.0
+
+Under the hood, the app is now built from separate parts with enforced
+boundaries: chess rules, the engine, lesson content and the Mac
+interface each have their own module, and a build check rejects code
+that crosses a boundary it should not. Nothing you see changes, and
+saved progress, lessons and Codex connections work as before.
+
+Lesson languages now include Gurmukhi and Vai scripts, and language,
+region and script choices are checked against current system lists.
+Lesson translation through Codex is safer when several requests overlap.
+
+Automated acceptance covered every gate on build-host, including real pointer
+clicks, fullscreen and Intel under Rosetta. Live voice, translation and
+recording were not exercised for this release; human review, novice play
+and live microphone checks are still outstanding, and the experimental
+review quality labels, review voice and beginner opponent remain opt-in.
+
+Requires macOS 14+ with universal Apple Silicon and Intel binaries.
+
 # Checkmate 0.4.0
 
 Lessons in your language. Settings → Lessons can translate a lesson and
