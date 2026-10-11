@@ -4,11 +4,23 @@ final class SquareAccessibility:NSAccessibilityElement {
     weak var board:BoardView?;let square:String
     init(board:BoardView,square:String){self.board=board;self.square=square;super.init();setAccessibilityParent(board)}
     override func accessibilityRole()->NSAccessibility.Role? {.button}
-    override func accessibilityLabel()->String? {guard let board=board else{return square};var parts=[square];if let p=board.position[square]{parts += [p.first=="w" ? "White":"Black",BoardView.names[String(p.suffix(1)),default:"piece"]]};if board.selected==square{parts.append("selected")};if board.destinations.contains(square){parts.append(!board.destinationsPlayable ? "possible destination, not playable now":board.position[square]==nil ? "move destination":"capture destination")};if board.attacked.contains(square){parts.append("attacked or defended")};for h in board.highlights where h.sq==square{parts.append(h.kind=="check" ? "in check":h.kind=="no" ? "unavailable lesson destination":"highlighted")};for a in board.arrows where a.count==2{if a[0]==square{parts.append("suggested move to "+a[1])};if a[1]==square{parts.append("suggested move from "+a[0])}};for connection in board.relationshipConnectors {let description=connection.limited ? "restricted or conditional":"";if connection.source==square{parts.append("\(board.relationshipMode == .protected ? "protects":"attacks") \(connection.target) \(description)")};if connection.target==square{parts.append("\(board.relationshipMode == .protected ? "protected by":"attacked by") \(connection.source) \(description)")}};return parts.joined(separator:", ")}
+    override func accessibilityLabel()->String? {guard let board=board else{return square};var parts=[square];if let p=board.position[square]{parts += [p.first=="w" ? "White":"Black",BoardView.names[String(p.suffix(1)),default:"piece"]]};if board.selected==square{parts.append("selected")};if board.destinations.contains(square){parts.append(!board.destinationsPlayable ? "possible destination, not playable now":board.position[square]==nil ? "move destination":"capture destination")};if board.attacked.contains(square){parts.append("attacked or defended")};for h in board.highlights where h.sq==square{parts.append(h.kind=="check" ? "in check":h.kind=="no" ? "unavailable lesson destination":h.kind=="last" ? "part of the last move":"highlighted by the coach")};for a in board.arrows where a.count==2{if a[0]==square{parts.append("suggested move to "+a[1])};if a[1]==square{parts.append("suggested move from "+a[0])}};for connection in board.relationshipConnectors {let description=connection.limited ? "restricted or conditional":"";if connection.source==square{parts.append("\(board.relationshipMode == .protected ? "protects":"attacks") \(connection.target) \(description)")};if connection.target==square{parts.append("\(board.relationshipMode == .protected ? "protected by":"attacked by") \(connection.source) \(description)")}};return parts.joined(separator:", ")}
     override func accessibilityFrame()->NSRect {guard let b=board,let w=b.window else{return .zero};return w.convertToScreen(b.convert(b.squareRect(square),to:nil))}
     override func isAccessibilityFocused()->Bool {board?.focus==square && board?.window?.firstResponder === board}
     override func setAccessibilityFocused(_ value:Bool){if value{board?.focus=square;board?.window?.makeFirstResponder(board);board?.keyboardFocusVisible=true;board?.needsDisplay=true;NSAccessibility.post(element:self,notification:.focusedUIElementChanged)}}
     override func accessibilityPerformPress()->Bool {guard let board=board else{return false};board.focus=square;board.window?.makeFirstResponder(board);board.keyboardFocusVisible=true;board.activate?(square);board.needsDisplay=true;return true}
+}
+/// Review files are read off the main thread, one at a time, shared by Finder opens and board drops: a newer read
+/// replaces an older one, and a read that finishes after another activity was chosen is discarded, so a slow file
+/// never replaces what the learner opened or chose since. Starting a read first supersedes any older open or import
+/// still running, so that one cannot finish during the read and discard it.
+@MainActor final class ReviewFileReader {
+    var activity:()->Int={0},supersede:()->Void={},read:@Sendable (URL) throws->Data={try Data(contentsOf:$0)}
+    /// A synchronous read cannot be cancelled, so only one runs; a request made during it waits, and a newer one replaces it.
+    private var reading=false,queued:(file:URL,started:Int,deliver:(Data)->Void,failed:()->Void)?
+    func load(_ file:URL,deliver:@escaping (Data)->Void,failed:@escaping ()->Void){supersede();queued=(file,activity(),deliver,failed);if !reading{readNext()}}
+    private func readNext(){guard let request=queued else{reading=false;return};queued=nil;reading=true;let read=read
+        Task{let result=await Task.detached{Result{try read(request.file)}}.value;guard queued==nil,activity()==request.started else{readNext();return};reading=false;switch result{case .success(let data):request.deliver(data);case .failure:request.failed()}}}
 }
 final class BoardView:NSView {
     static let names=["p":"pawn","n":"knight","b":"bishop","r":"rook","q":"queen","k":"king"]
@@ -28,15 +40,18 @@ final class BoardView:NSView {
     var automationIncreaseContrast:Bool?
     var shouldReduceMotion:Bool {NativePolicy.silent ? automationReduceMotion ?? NSWorkspace.shared.accessibilityDisplayShouldReduceMotion:NSWorkspace.shared.accessibilityDisplayShouldReduceMotion}
     var shouldIncreaseContrast:Bool {NativePolicy.silent ? automationIncreaseContrast ?? NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast:NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast}
-    var reviewKey:((UInt16)->Bool)?,dropReview:((Data)->Void)?
+    var reviewKey:((UInt16)->Bool)?,dropReview:((Data)->Void)?,dropRejected:((String)->Void)?
+    /// The application's reader replaces this one, so a drop and a Finder open supersede each other.
+    var reviewFiles=ReviewFileReader()
     var keyboardFocusVisible=false
     private var showsKeyboardFocus:Bool {keyboardFocusVisible && window?.isKeyWindow == true && window?.firstResponder === self}
     var activate:((String)->Void)?,clearSelection:(()->Void)?,onLayout:(()->Void)?
     /// Whether a press on this square may drag its piece; elsewhere a press is only a click.
     var canDrag:((String)->Bool)?
-    // A press is a click on its square however far the pointer drifts within it. Dragging a piece selects
-    // it as the drag starts and, on release over another square, activates that square, so drops reuse the
-    // click rules for moves, promotion and lessons.
+    // A press that never becomes a drag is a click on the square it started on, however far the pointer drifts,
+    // even across a square edge; only a release off the board cancels it. Dragging a piece selects it as the drag
+    // starts and, on release over another square, activates that square, so drops reuse the click rules for
+    // moves, promotion and lessons.
     private static let dragThreshold:CGFloat=4
     private var press:(square:String,origin:NSPoint)?,drag:(from:String,point:NSPoint)?,droppedMove:(from:String,to:String)?
     var dragging:Bool {drag != nil}
@@ -46,16 +61,29 @@ final class BoardView:NSView {
     private lazy var squares=ChessRules.squares.map{SquareAccessibility(board:self,square:$0)}
     override var acceptsFirstResponder:Bool {true}
     override var mouseDownCanMoveWindow:Bool {false}
+    /// The click that brings the window forward also plays: the second click of a move is often that click.
+    override func acceptsFirstMouse(for event:NSEvent?)->Bool {true}
+    /// Draggable pieces show an open hand and a piece being dragged a closed hand, so dragging is discoverable.
+    func cursor(at point:NSPoint)->NSCursor {if drag != nil{return .closedHand};guard let sq=square(at:point),position[sq] != nil,canDrag?(sq)==true else{return .arrow};return .openHand}
+    private var cursorArea:NSTrackingArea?
+    override func updateTrackingAreas(){super.updateTrackingAreas();if let cursorArea{removeTrackingArea(cursorArea)};let area=NSTrackingArea(rect:.zero,options:[.mouseMoved,.cursorUpdate,.activeInKeyWindow,.inVisibleRect],owner:self);addTrackingArea(area);cursorArea=area}
+    override func cursorUpdate(with e:NSEvent){cursor(at:convert(e.locationInWindow,from:nil)).set()}
+    override func mouseMoved(with e:NSEvent){cursor(at:convert(e.locationInWindow,from:nil)).set()}
     override func accessibilityRole()->NSAccessibility.Role? {.group}
     override func accessibilityLabel()->String? {"Chessboard"}
-    override func accessibilityHelp()->String? {"Use arrow keys to explore squares and Space or Return to choose a piece or destination. Escape clears your selection."}
+    /// In a review's original game the plain arrow keys step through moves; Option with the arrow keys explores squares.
+    var reviewNavigation=false
+    override func accessibilityHelp()->String? {reviewNavigation ? "Left and Right arrows step through the game. Hold Option with the arrow keys to explore squares, then press Return to choose a piece or destination. Escape clears your selection.":"Use arrow keys to explore squares and Space or Return to choose a piece or destination. Escape clears your selection."}
     override func isAccessibilityElement()->Bool {true}
     override func accessibilityChildren()->[Any]? {squares}
     override var accessibilityFocusedUIElement:Any? {squares.first{$0.square==focus}}
     override func accessibilityHitTest(_ point:NSPoint)->Any? {guard let window=window else{return self};let local=convert(window.convertPoint(fromScreen:point),from:nil);guard let sq=square(at:local) else{return self};return squares.first{$0.square==sq}}
     var boardRect:NSRect {let side=max(0,min(bounds.width,bounds.height)-Metrics.boardMargin*2);return NSRect(x:(bounds.width-side)/2,y:(bounds.height-side)/2,width:side,height:side)}
-    func squareRect(_ sq:String)->NSRect {guard ChessRules.validSquare(sq) else{return .zero};let r=boardRect,s=r.width/8,file=Int(sq.utf8.first!-97),rank=Int(sq.suffix(1))!-1;return NSRect(x:r.minX+CGFloat(file)*s,y:r.minY+CGFloat(rank)*s,width:s,height:s)}
-    func square(at p:NSPoint)->String? {let r=boardRect;guard r.contains(p),r.width>0 else{return nil};return String(UnicodeScalar(97+min(7,Int((p.x-r.minX)/(r.width/8))))!)+String(min(7,Int((p.y-r.minY)/(r.height/8)))+1)}
+    /// Black at the bottom: the learner's own side is always nearest them. Every square position, coordinate
+    /// label and arrow-key direction follows it.
+    var blackAtBottom=false {didSet{if blackAtBottom != oldValue{needsDisplay=true;onLayout?()}}}
+    func squareRect(_ sq:String)->NSRect {guard ChessRules.validSquare(sq) else{return .zero};let r=boardRect,s=r.width/8,file=Int(sq.utf8.first!-97),rank=Int(sq.suffix(1))!-1,column=blackAtBottom ? 7-file:file,row=blackAtBottom ? 7-rank:rank;return NSRect(x:r.minX+CGFloat(column)*s,y:r.minY+CGFloat(row)*s,width:s,height:s)}
+    func square(at p:NSPoint)->String? {let r=boardRect;guard r.contains(p),r.width>0 else{return nil};let column=min(7,Int((p.x-r.minX)/(r.width/8))),row=min(7,Int((p.y-r.minY)/(r.height/8)));return String(UnicodeScalar(97+(blackAtBottom ? 7-column:column))!)+String((blackAtBottom ? 7-row:row)+1)}
     private var overlayTimer:Timer?,breathStart=ProcessInfo.processInfo.systemUptime
     var moveAnimationActive:Bool {timer != nil}
     var breathing:Bool {overlayTimer != nil && selected != nil}
@@ -97,19 +125,29 @@ final class BoardView:NSView {
             if selected != press.square{activate?(press.square)}
             guard selected==press.square,position[press.square] != nil else{self.press=nil;return}
         }
-        drag=(press.square,point);needsDisplay=true
+        if drag==nil{NSCursor.closedHand.set()};drag=(press.square,point);needsDisplay=true
     }
     override func mouseUp(with e:NSEvent){
-        defer{press=nil;drag=nil;needsDisplay=true}
-        guard let press=press else{return};let point=convert(e.locationInWindow,from:nil),target=square(at:point)
-        guard let drag=drag else{if target==press.square || hypot(point.x-press.origin.x,point.y-press.origin.y)<Self.dragThreshold{activate?(press.square)};return}
+        let point=convert(e.locationInWindow,from:nil)
+        defer{press=nil;drag=nil;cursor(at:point).set();needsDisplay=true}
+        guard let press=press else{return};let target=square(at:point)
+        guard let drag=drag else{if target != nil{activate?(press.square)};return}
         // A drop anywhere but a playable destination snaps back and keeps the piece selected.
         guard let target=target,target != drag.from,selected==drag.from,dropsAnywhere || destinationsPlayable && destinations.contains(target) else{return}
         focus=target;droppedMove=(drag.from,target);activate?(target);droppedMove=nil
     }
-    override func keyDown(with e:NSEvent){if e.modifierFlags.intersection([.command,.control,.option]).isEmpty,reviewKey?(e.keyCode)==true{return};if !e.modifierFlags.intersection([.command,.control,.option]).isEmpty{super.keyDown(with:e);return};if let char=e.charactersIgnoringModifiers?.lowercased(),char=="p" || char=="a"{inspectRelationship?(char=="p" ? .protected:.attacked);return};keyboardFocusVisible=true;if e.keyCode==36 || e.keyCode==49{activate?(focus);return};if e.keyCode==53{if dismissRelationships?()==true{return};selected=nil;destinations=[];clearSelection?();needsDisplay=true;return};var f=Int(focus.utf8.first!-97),r=Int(focus.suffix(1))!-1;switch e.keyCode{case 123:f-=1;case 124:f+=1;case 125:r-=1;case 126:r+=1;default:super.keyDown(with:e);return};focus=String(UnicodeScalar(97+max(0,min(7,f)))!)+String(max(0,min(7,r))+1);needsDisplay=true;if let square=squares.first(where:{$0.square==focus}){NSAccessibility.post(element:square,notification:.focusedUIElementChanged)}}
+    override func keyDown(with e:NSEvent){if e.modifierFlags.intersection([.command,.control,.option]).isEmpty,reviewKey?(e.keyCode)==true{return};let modifiers=e.modifierFlags.intersection([.command,.control,.option]);if !modifiers.isEmpty && !(modifiers == .option && (123...126).contains(e.keyCode)){super.keyDown(with:e);return};if let char=e.charactersIgnoringModifiers?.lowercased(),char=="p" || char=="a"{inspectRelationship?(char=="p" ? .protected:.attacked);return};keyboardFocusVisible=true;if e.keyCode==36 || e.keyCode==49{activate?(focus);return};if e.keyCode==53{if dismissRelationships?()==true{return};selected=nil;destinations=[];clearSelection?();needsDisplay=true;return};var f=Int(focus.utf8.first!-97),r=Int(focus.suffix(1))!-1;let step=blackAtBottom ? -1:1;switch e.keyCode{case 123:f-=step;case 124:f+=step;case 125:r-=step;case 126:r+=step;default:super.keyDown(with:e);return};focus=String(UnicodeScalar(97+max(0,min(7,f)))!)+String(max(0,min(7,r))+1);needsDisplay=true;if let square=squares.first(where:{$0.square==focus}){NSAccessibility.post(element:square,notification:.focusedUIElementChanged)}}
     override func draggingEntered(_ sender:NSDraggingInfo)->NSDragOperation {.copy}
-    override func performDragOperation(_ sender:NSDraggingInfo)->Bool {let pasteboard=sender.draggingPasteboard;if let url=NSURL(from:pasteboard) as URL?{guard url.isFileURL else{return false};do{let size=try url.resourceValues(forKeys:[.fileSizeKey]).fileSize ?? 0;guard size<=ReviewPolicy.maximumBytes else{return false};dropReview?(try Data(contentsOf:url));return true}catch{return false}};if let text=pasteboard.string(forType:.string),text.utf8.count<=ReviewPolicy.maximumBytes{dropReview?(Data(text.utf8));return true};return false}
+    /// A dropped file is read off the main thread, and only if it is a downloaded regular file within the import
+    /// limit: a symlink is followed to its file, and a pipe or an iCloud placeholder is refused with a reason.
+    override func performDragOperation(_ sender:NSDraggingInfo)->Bool {let pasteboard=sender.draggingPasteboard;if let url=NSURL(from:pasteboard) as URL?{guard url.isFileURL else{return false}
+            let file=url.resolvingSymlinksInPath()
+            do{let values=try file.resourceValues(forKeys:[.isRegularFileKey,.fileSizeKey,.ubiquitousItemDownloadingStatusKey])
+                guard values.isRegularFile==true,let size=values.fileSize else{dropRejected?("Drop a PGN or FEN file.");return false}
+                if let status=values.ubiquitousItemDownloadingStatus,status != .current{dropRejected?("This file is still in iCloud. Download it in Finder, then drop it again.");return false}
+                guard size<=ReviewPolicy.maximumBytes else{dropRejected?("This file is larger than the 16 MiB import limit.");return false}
+            }catch{dropRejected?("This file could not be read.");return false}
+            reviewFiles.load(file,deliver:{[weak self] in self?.dropReview?($0)},failed:{[weak self] in self?.dropRejected?("This file could not be read.")});return true};if let text=pasteboard.string(forType:.string),text.utf8.count<=ReviewPolicy.maximumBytes{dropReview?(Data(text.utf8));return true};return false}
     func cancelAnimation(){timer?.invalidate();timer=nil;moves=[];captured=[:];needsDisplay=true}
     func animate(_ m:MoveRecord,duration:Double){cancelAnimation();guard duration>0,!shouldReduceMotion,!isDropped(m) else{return};moves=[(m.color+m.piece,m.from,m.to)];if m.flags.contains("k")||m.flags.contains("q"){let rank=String(m.from.suffix(1));moves.append((m.color+"r",(m.flags.contains("k") ? "h":"a")+rank,(m.flags.contains("k") ? "f":"d")+rank))};if let p=m.captured{captured[m.flags.contains("e") ? String(m.to.prefix(1))+String(m.from.suffix(1)):m.to]=(m.color=="w" ? "b":"w")+p};animationStart=Date.timeIntervalSinceReferenceDate;animationDuration=duration;timer=Timer.scheduledTimer(withTimeInterval:Metrics.frameInterval,repeats:true){[weak self] _ in guard let self=self else{return};self.needsDisplay=true;if Date.timeIntervalSinceReferenceDate-self.animationStart>=self.animationDuration{self.cancelAnimation()}}}
     private func glyph(_ piece:String,rect:NSRect,alpha:CGFloat=1){let symbols=["k":"♚","q":"♛","r":"♜","b":"♝","n":"♞","p":"♟"],white=piece.first=="w",size=rect.width*0.8
@@ -125,7 +163,8 @@ final class BoardView:NSView {
                 let color=h.kind=="check" || h.kind=="no" ? palette.danger:palette.ink
                 let path=NSBezierPath(ovalIn:rect.insetBy(dx:s*BoardOverlay.annotationInset,dy:s*BoardOverlay.annotationInset))
                 color.withAlphaComponent(BoardOverlay.annotationFill).setFill();path.fill()
-                if h.kind != "last",!showsKeyboardFocus || focus != sq{color.withAlphaComponent(shouldIncreaseContrast ? 1:BoardOverlay.haloStrokeHigh).setStroke();path.lineWidth=s*BoardOverlay.haloWidth;path.stroke()}
+                // The last move is a quiet fill, but Increase Contrast outlines it too so it stays findable.
+                if h.kind != "last" || shouldIncreaseContrast,!showsKeyboardFocus || focus != sq{color.withAlphaComponent(shouldIncreaseContrast ? 1:BoardOverlay.haloStrokeHigh).setStroke();path.lineWidth=s*BoardOverlay.haloWidth;path.stroke()}
             }
             if attacked.contains(sq){palette.ink.withAlphaComponent(BoardOverlay.coverageOpacity).setStroke();let p=NSBezierPath(ovalIn:rect.insetBy(dx:s*0.36,dy:s*0.36));p.lineWidth=max(1,s*0.025);p.stroke()}
             // Playable moves are solid; possibilities that a click cannot play are hollow or dashed.
@@ -164,7 +203,7 @@ final class BoardView:NSView {
         if let d=drag,let piece=position[d.from]{glyph(piece,rect:NSRect(x:d.point.x-s/2,y:d.point.y-s/2,width:s,height:s))}
 
         let attrs:[NSAttributedString.Key:Any]=[.font:NSFont.systemFont(ofSize:Metrics.coordinateSize,weight:.medium),.foregroundColor:NativeColors.secondaryText]
-        for i in 0..<8 {let file=String(UnicodeScalar(65+i)!) as NSString,rank=String(i+1) as NSString;file.draw(at:NSPoint(x:r.minX+(CGFloat(i)+0.5)*s-4,y:r.minY-Metrics.padding),withAttributes:attrs);file.draw(at:NSPoint(x:r.minX+(CGFloat(i)+0.5)*s-4,y:r.maxY+4),withAttributes:attrs);rank.draw(at:NSPoint(x:r.minX-Metrics.padding,y:r.minY+(CGFloat(i)+0.5)*s-6),withAttributes:attrs);rank.draw(at:NSPoint(x:r.maxX+6,y:r.minY+(CGFloat(i)+0.5)*s-6),withAttributes:attrs)}
+        for i in 0..<8 {let file=String(UnicodeScalar(65+(blackAtBottom ? 7-i:i))!) as NSString,rank=String(blackAtBottom ? 8-i:i+1) as NSString;file.draw(at:NSPoint(x:r.minX+(CGFloat(i)+0.5)*s-4,y:r.minY-Metrics.padding),withAttributes:attrs);file.draw(at:NSPoint(x:r.minX+(CGFloat(i)+0.5)*s-4,y:r.maxY+4),withAttributes:attrs);rank.draw(at:NSPoint(x:r.minX-Metrics.padding,y:r.minY+(CGFloat(i)+0.5)*s-6),withAttributes:attrs);rank.draw(at:NSPoint(x:r.maxX+6,y:r.minY+(CGFloat(i)+0.5)*s-6),withAttributes:attrs)}
         for (i,sq) in counts.enumerated(){let rect=squareRect(sq),label=String(i+1) as NSString;label.draw(at:NSPoint(x:rect.minX+s*0.08,y:rect.maxY-s*0.25),withAttributes:[.font:NSFont.systemFont(ofSize:s*0.16,weight:.bold),.foregroundColor:palette.ink])}
     }
 }

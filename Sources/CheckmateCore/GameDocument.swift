@@ -3,7 +3,7 @@ import CryptoKit
 public enum ReviewPolicy {
     public static let maximumBytes=16*1024*1024,maximumRecords=1000,maximumMainlinePlies=2000,maximumNodes=10000,maximumDepth=32,pageSize=50,maximumPageSize=100,cacheBytes=256*1024*1024
     public static let quickBudget=500,deepBudget=3000,criticalMomentsToDeepen=1,maximumTitleScalars=256,maximumIndexBytes=2*1024*1024
-    public static let maximumLexemes=200000,maximumTokenScalars=1024,maximumTextScalars=1048576,maximumBranches=100,maximumBranchPlies=2000,maximumSavedBytes=64*1024*1024,maximumSavedRecords=1000,maximumLibraryBytes=512*1024*1024
+    public static let maximumTokenScalars=1024,maximumTextScalars=1048576,maximumBranches=100,maximumBranchPlies=2000,maximumSavedBytes=64*1024*1024,maximumSavedRecords=1000,maximumLibraryBytes=512*1024*1024
 }
 public func reviewHash(_ data:Data)->String {SHA256.hash(data:data).map{String(format:"%02x",$0)}.joined()}
 public func reviewFileHash(_ url:URL)throws -> String {
@@ -51,9 +51,35 @@ public struct GameDocument:Codable,Equatable,Identifiable {
         let clock=Int(rules.fen.split(separator:" ")[4]) ?? 0
         return ReviewPositionStatus(check:rules.check,checkmate:rules.checkmate,stalemate:rules.stalemate,insufficientMaterial:rules.insufficientMaterial,claimableThreefold:repetitions>=3,claimableFiftyMove:clock>=100,automaticFivefold:repetitions>=5,automaticSeventyFiveMove:clock>=150 && !rules.checkmate)
     }
-    public func validate()throws {
+    private func checkEnvelope()throws {
         guard schemaVersion==1,original.count<=ReviewPolicy.maximumBytes,reviewHash(original)==contentHash,!nodes.isEmpty,nodes.count<=ReviewPolicy.maximumNodes,nodes[0].parent==nil,nodes[0].afterFEN==startingFEN else{throw CheckmateError.invalid("Review document integrity failed.")}
-        let rebuilt=try PGNImporter.parse(original,provenance:provenance)
-        guard rebuilt.count==1,let record=rebuilt.first,record.headers==headers,record.startingFEN==startingFEN,record.result==result,record.termination==termination,record.nodes==nodes,record.historyAvailable==historyAvailable else{throw CheckmateError.invalid("Review tree integrity failed.")}
     }
+    /// This record as the current importer reads its hash-verified original bytes, keeping its identity. A saved
+    /// review whose stored tree came from an older importer or chess.js is read this way instead of being refused.
+    public func rederived()throws -> GameDocument {
+        try checkEnvelope();let report=try PGNImporter.parseReport(original,provenance:provenance)
+        guard report.documents.count==1,report.skipped.isEmpty,let record=report.documents.first else{throw CheckmateError.invalid("Review tree integrity failed.")}
+        return GameDocument(schemaVersion:1,id:id,contentHash:contentHash,importedAt:importedAt,provenance:provenance,original:original,headers:record.headers,startingFEN:record.startingFEN,result:record.result,termination:record.termination,historyAvailable:record.historyAvailable,nodes:record.nodes)
+    }
+    /// A document this process built from text is valid by construction; any other must equal a fresh re-parse.
+    public func validate()throws {
+        try checkEnvelope();if ImportedDocuments.shared.built(self){return}
+        guard try rederived()==self else{throw CheckmateError.invalid("Review tree integrity failed.")}
+    }
+}
+/// Fingerprints of the documents `PGNImporter` built in this process. Saving one of them skips the full re-parse a
+/// decoded document needs, which for a long game blocked a synchronous save for seconds. Only fingerprints are
+/// kept, never documents; an evicted or unknown document falls back to the re-parse.
+final class ImportedDocuments:@unchecked Sendable {
+    static let shared=ImportedDocuments()
+    private static let capacity=4096
+    private let lock=NSLock()
+    private var fingerprints:[UUID:String]=[:],order:[UUID]=[]
+    /// Canonical encoding of every field, so two documents share a fingerprint only when they are equal.
+    private static func fingerprint(_ document:GameDocument)->String? {let encoder=JSONEncoder();encoder.outputFormatting = .sortedKeys;return (try? encoder.encode(document)).map(reviewHash)}
+    func record(_ document:GameDocument){
+        guard let fingerprint=Self.fingerprint(document) else{return};lock.lock();defer{lock.unlock()}
+        if fingerprints.updateValue(fingerprint,forKey:document.id)==nil{order.append(document.id)};if order.count>Self.capacity{fingerprints[order.removeFirst()]=nil}
+    }
+    func built(_ document:GameDocument)->Bool {lock.lock();let known=fingerprints[document.id];lock.unlock();guard let known else{return false};return Self.fingerprint(document)==known}
 }

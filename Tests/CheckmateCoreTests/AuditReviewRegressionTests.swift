@@ -226,6 +226,8 @@ for raw in sys.stdin:
     func testRepeatedPreviewsDeduplicateAndRestorationPublishesIdeas()throws {
         let document=try PGNImporter.parse(Data("1. e4 e5 *".utf8))[0],review=ReviewController(),session=try GameSession(engine:nil)
         review.open(document,practice:session)
+        // Previews are shown, never kept: a hundred of them neither create ideas nor push one out.
+        try review.beginBranch();try review.playBranch("c2c4");review.clearBranch()
         for _ in 0..<102 {try review.previewLine(["d2d4"]);review.clearBranch()}
         XCTAssertEqual(review.authoredBranches.count,1)
         let saved=review.authoredBranches;review.close(practice:session);review.open(document,practice:session)

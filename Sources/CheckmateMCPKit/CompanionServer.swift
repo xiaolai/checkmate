@@ -4,6 +4,15 @@ import MCP
 import Darwin
 
 public enum CompanionServer {
+    /// The version reported to MCP clients. The helper runs from the app's `Contents/MacOS`, so the main bundle is the
+    /// app, whose `CFBundleShortVersionString` build.sh writes from Version.env; the reported version cannot drift from
+    /// the release. A binary outside an app bundle has no release version to report, so it refuses to start.
+    static func bundleVersion(_ bundle: Bundle = .main) throws -> String {
+        guard let version = bundle.infoDictionary?["CFBundleShortVersionString"] as? String, !version.isEmpty else {
+            throw ProtocolFailure("MISSING_BUNDLE_VERSION", "CheckmateMCP must run from inside the Checkmate app bundle.")
+        }
+        return version
+    }
     public static func make(client: BrokerClient) async throws -> Server {
         let schemas = try ToolSchemas()
         let definitions = try JSONSerialization.jsonObject(with: Data(contentsOf: NativeResources.url("tool-schemas.json"))) as! [String: [String: Any]]
@@ -14,7 +23,7 @@ public enum CompanionServer {
             return Tool(name: name, description: description, inputSchema: schema,
                         annotations: .init(readOnlyHint: info["readOnly"] as? Bool, destructiveHint: false, openWorldHint: false))
         }
-        let server = Server(name: "checkmate-companion", version: "0.3.3",
+        let server = Server(name: "checkmate-companion", version: try bundleVersion(),
                             instructions: try String(contentsOf: NativeResources.url("mcp-instructions.txt"), encoding: .utf8),
                             capabilities: .init(tools: .init(listChanged: false)))
         await server.withMethodHandler(ListTools.self) { _ in .init(tools: tools) }

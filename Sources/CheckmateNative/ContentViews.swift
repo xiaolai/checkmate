@@ -1,19 +1,21 @@
 import SwiftUI
 import CheckmateCore
+/// The sidebar row for an activity. The workspace, an unsaved review and each saved review are separate rows, so
+/// choosing Review game from an open review is a real selection change (RV-12).
+enum SidebarSelection {
+    static func tag(_ activity:Activity,saved:Set<UUID>,lessonIndex:Int)->String {
+        if let visit=activity.review{guard let document=visit.document else{return "review"};return saved.contains(document) ? "review:"+document.uuidString:"review:draft"}
+        switch activity.place {case .practice:return "practice";case .puzzleLibrary,.puzzle:return "puzzles";case .lesson,.miniGame:return "lesson:\(lessonIndex)"}
+    }
+}
 struct SidebarContent:View {
     @ObservedObject var session:GameSession
     @ObservedObject var learning:LearningPlayer
     @ObservedObject var model:NativeModel
-    private var selected:String {
-        if model.reviewWorkspace{return "review"}
-        if model.review.active {
-            if let document=model.review.document,model.reviews.contains(where:{$0.id==document.id}) {return "review:"+document.id.uuidString}
-            return "review"
-        }
-        return session.mode == .practice ? "practice":session.mode == .puzzles ? "puzzles":"lesson:\(learning.lessonIndex)"
-    }
+    private var selected:String {SidebarSelection.tag(session.activity,saved:Set(model.reviews.map(\.id)),lessonIndex:learning.lessonIndex)}
     private func navigate(_ value:String?) {
         guard let value=value else{return}
+        if value=="review:draft" {return}
         if value=="review" {model.showReviewWorkspace()}
         else if value.hasPrefix("review:"),let id=UUID(uuidString:String(value.dropFirst(7))) {model.openSavedReview(id)}
         else if value=="practice" {model.practice()}
@@ -25,13 +27,14 @@ struct SidebarContent:View {
             Label("Practice a game",systemImage:"flag.checkered").tag("practice")
             Label("Quick puzzles",systemImage:"lightbulb").tag("puzzles")
             Label("Review game",systemImage:"doc.text.magnifyingglass").tag("review")
+            if model.review.active,let document=model.review.document,!model.reviews.contains(where:{$0.id==document.id}){Label("Unsaved review",systemImage:"doc.badge.ellipsis").tag("review:draft")}
         }
         if !model.reviews.isEmpty {
             Section("Saved reviews"){ForEach(model.reviews){record in Label(record.title=="?" ? "Untitled game":record.title,systemImage:"doc.text").tag("review:"+record.id.uuidString)
                 .contextMenu{Button("Delete Saved Review…",role:.destructive){model.requestDeleteReview(record.id)}.disabled(model.deletingReviewID != nil)}}}
         }
         Section("Learn & explore") {ForEach(Array(learning.library.lessons.enumerated()),id:\.element.id){i,l in Label {Text(learning.localizedTitle(index:i))} icon:{Image(systemName:session.state.course.completed.contains(l.id) ? "checkmark.circle.fill":"book")}.tag("lesson:\(i)")}}
-    }.listStyle(.sidebar).scrollContentBackground(.hidden).overlay(alignment:.bottom){if model.importingReview{VStack{ProgressView("Importing review…");Button("Cancel import"){model.cancelReviewImport()}}.padding().background(.regularMaterial)}}}
+    }.listStyle(.sidebar).scrollContentBackground(.hidden).overlay(alignment:.bottom){if model.importingReview{VStack{ProgressView("Loading review…");Button("Cancel import"){model.cancelReviewImport()}}.padding().background(.regularMaterial)}}}
 }
 struct DetailContent:View {
     @ObservedObject var session:GameSession
@@ -67,7 +70,7 @@ struct DetailContent:View {
                 else {Text("Your next move.").font(.title2.bold());Text(session.message)}
                 if session.pausedOpponent {Text("The companion opponent disconnected.");Button("Continue with Stockfish"){model.companion.disable();session.continueWithStockfish()}}
                 OpponentSettingsContent(session:session)
-                Text("Moves").font(.headline);Text(session.rules.history.isEmpty ? "Your story starts with one move.":session.rules.history.enumerated().map{($0.offset%2==0 ? "\($0.offset/2+1). ":"")+$0.element}.joined(separator:"  ")).textSelection(.enabled)
+                Text("Moves").font(.headline);Text(session.rules.history.isEmpty ? "Your story starts with one move.":session.moveListText).textSelection(.enabled)
             }
             }
             if voice.connected || voice.connecting || !voice.history.isEmpty || voice.status != "Disconnected" {Divider();Text("Voice coach").font(.headline);Text(voice.status).foregroundStyle(.secondary);if voice.connected{HStack{Button("Recheck"){voice.recheck()};Button("Stop speaking"){voice.stopTurn()}}};ForEach(Array(voice.history.reversed())){entry in VStack(alignment:.leading){Text(entry.role=="learner" ? "You":"Coach").font(.caption).foregroundStyle(.secondary);Text(entry.text).textSelection(.enabled)}}}
@@ -171,9 +174,9 @@ struct TransportContent:View {
                 if session.explicitResumeRequired {NativeIcon(symbol:"play.fill",label:"Resume game",action:resumeGame)}
                 else if session.pausedOpponent {NativeIcon(symbol:"play.fill",label:"Continue with Stockfish",action:continueWithStockfish)}
                 NativeIcon(symbol:"arrow.counterclockwise",label:"New game",action:newGame)
-                NativeIcon(symbol:"arrow.uturn.backward",label:"Undo"){session.undo()}.disabled(session.rules.history.isEmpty)
-                NativeIcon(symbol:"flask",label:"Try a move"){try? session.beginPreview()}.disabled(session.rules.turn != session.humanSide || session.rules.over || session.busyReason == "opponent" || session.demonstration != nil)
-                NativeIcon(symbol:"lightbulb",label:"Hint"){session.hint()}.disabled(session.busy || session.rules.turn != session.humanSide || session.rules.over)
+                NativeIcon(symbol:"arrow.uturn.backward",label:"Undo"){session.undo()}.disabled(!session.canTakeBack)
+                NativeIcon(symbol:"flask",label:"Try a move"){try? session.beginPreview()}.disabled(session.rules.turn != session.humanSide || session.finished || session.busyReason == "opponent" || session.demonstration != nil)
+                NativeIcon(symbol:"lightbulb",label:"Hint"){session.hint()}.disabled(session.busy || session.rules.turn != session.humanSide || session.finished)
                 if session.busy {ProgressView().controlSize(.small).help("Stockfish is thinking")}
             }
             if voice.connecting {
@@ -216,7 +219,7 @@ struct LessonProgressContent:View {
     @ObservedObject var session:GameSession
     @ObservedObject var learning:LearningPlayer
     @State private var color=NativeColors.playbackAccents.randomElement() ?? NSColor.controlAccentColor
-    private var fraction:Double {if review.active{if let branch=review.branch{return branch.moves.isEmpty ? 0:Double(review.branchPly)/Double(branch.moves.count)};let route=[0]+(review.document?.mainline ?? []);return route.count<=1 ? 0:Double(route.firstIndex(of:review.nodeID) ?? 0)/Double(route.count-1)};return learning.duration>0 ? min(1,max(0,learning.seconds/learning.duration)):0}
+    private var fraction:Double {if review.active{return review.progress};return learning.duration>0 ? min(1,max(0,learning.seconds/learning.duration)):0}
     var body:some View {
         if review.active || session.mode == .lesson && !learning.mini && learning.activePuzzle==nil {
             GeometryReader {geometry in

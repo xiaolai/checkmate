@@ -9,4 +9,18 @@ final class LegacyMigrationTests:XCTestCase {
     }
     func testDuplicateImportReportsNoChanges()throws {var state=ApplicationState();let course=try CourseLibrary(),data=Data(#"{"checkmate-settings-v1":{"voiceLanguage":"fr"}}"#.utf8);_ = try LegacyImporter.apply(data,to:&state,course:course);state.settings.voiceLanguage="en";let report=try LegacyImporter.apply(data,to:&state,course:course);XCTAssertTrue(report.duplicate);XCTAssertTrue(report.recovered.isEmpty);XCTAssertEqual(state.settings.voiceLanguage,"en")}
     func testExportedLegacyStoreReimportsWithoutCredentials()throws {let data:Data;if let path=ProcessInfo.processInfo.environment["CHECKMATE_LEGACY_EXPORT"] {data=try Data(contentsOf:URL(fileURLWithPath:path))}else{data=Data(#"{"values":{"checkmate-practice-pgn":"1. e4 e5","checkmate-settings-v1":"{\"voiceLanguage\":\"ja\"}"}}"#.utf8)};var state=ApplicationState();let report=try LegacyImporter.apply(data,to:&state,course:CourseLibrary());try StateStore.validate(state);XCTAssertFalse(report.recovered.isEmpty);XCTAssertFalse(String(decoding:try JSONEncoder().encode(state),as:UTF8.self).contains("access_token"))}
+    /// An old archive changes only the settings it carries: opt-outs and strength stay as the learner set them.
+    func testArchiveSettingsNeverResetSettingsItLacks()throws {
+        var state=ApplicationState();state.settings.voiceAutoConnect=false;state.settings.companionAutoStart=false;state.settings.voiceMicrophone=false;state.settings.skill=7
+        _ = try LegacyImporter.apply(JSONSerialization.data(withJSONObject:["checkmate-settings-v1":["volume":0.4]]),to:&state,course:CourseLibrary())
+        XCTAssertEqual(state.settings.volume,0.4);XCTAssertFalse(state.settings.voiceAutoConnect);XCTAssertFalse(state.settings.companionAutoStart);XCTAssertFalse(state.settings.voiceMicrophone);XCTAssertEqual(state.settings.skill,7)
+    }
+    /// A legacy practice game was played as White, and the game it replaces stays under Restore Previous Game.
+    func testLegacyPracticeGameIsWhiteAndKeepsTheReplacedGame()throws {
+        var state=ApplicationState();let current=try ChessRules();try current.move(uci:"d2d4");try current.move(uci:"d7d5");try current.move(uci:"c2c4")
+        state.practice.pgn=current.pgn;state.practice.fen=current.fen;state.settings.practiceSide="b"
+        _ = try LegacyImporter.apply(JSONSerialization.data(withJSONObject:["checkmate-practice-pgn":"1. e4 e5"]),to:&state,course:CourseLibrary())
+        XCTAssertEqual(state.settings.practiceSide,"w");XCTAssertEqual(state.practice.previousGame,current.pgn);XCTAssertEqual(state.practice.previousSide,"b")
+        let restored=try ChessRules();try restored.restore(state.practice.pgn);XCTAssertEqual(restored.history,["e4","e5"])
+    }
 }

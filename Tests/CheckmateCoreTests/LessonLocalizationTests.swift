@@ -22,7 +22,8 @@ final class LessonLocalizationTests:XCTestCase {
   XCTAssertThrowsError(try LessonRecording.validate(pcm:Data(),transcript:"hi",script:"hi"))
   XCTAssertThrowsError(try LessonRecording.validate(pcm:Data([1]),transcript:"hi",script:"hi"))
   XCTAssertThrowsError(try LessonRecording.validate(pcm:Data(repeating:0,count:480),transcript:"wrong",script:"hi"))
-  XCTAssertEqual(try LessonRecording.validate(pcm:Data(repeating:0,count:48000),transcript:"Hi!",script:"hi"),1)
+  XCTAssertEqual(try LessonRecording.validate(pcm:plausibleLessonPCM("hi",seconds:1),transcript:"Hi!",script:"hi"),1)
+  XCTAssertThrowsError(try LessonRecording.validate(pcm:Data(repeating:0,count:48000),transcript:"Hi!",script:"hi"),"A silent clip is rejected")
  }
 }
 extension LessonLocalizationTests {
@@ -35,7 +36,7 @@ extension LessonLocalizationTests {
  }
  func testCorruptAudioProfileDuplicateManifestAndRemoval()throws {
   let source=LessonTranslation.source(library:try CourseLibrary(),index:0),dir=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);defer{try? FileManager.default.removeItem(at:dir)};let store=try LessonPackStore(directory:dir);try store.saveTranslation(source,source:source,locale:"fr")
-  var pack=try store.saveClip(pcm:Data(repeating:0,count:480),transcript:source.beats[0].speak,beatID:source.beats[0].id,source:source,locale:"fr",voice:"cedar",model:"gpt-realtime")
+  var pack=try store.saveClip(pcm:plausibleLessonPCM(source.beats[0].speak),transcript:source.beats[0].speak,beatID:source.beats[0].id,source:source,locale:"fr",voice:"cedar",model:"gpt-realtime")
   let url=try XCTUnwrap(store.clipURL(pack:pack,beatID:source.beats[0].id));var wav=try Data(contentsOf:url);wav[22]=2;try wav.write(to:url,options:.atomic);XCTAssertNil(try store.clipURL(pack:pack,beatID:source.beats[0].id))
   let manifest=store.directory.appendingPathComponent(LessonTranslation.hash(Data("pack|\(source.fingerprint)|fr|cedar|1".utf8)))
   pack.clips.append(pack.clips[0]);try JSONEncoder().encode(pack).write(to:manifest,options:.atomic);XCTAssertThrowsError(try store.partialPack(source:source,locale:"fr",voice:"cedar"));pack.clips.removeLast();pack.clips[0].generation=99;try JSONEncoder().encode(pack).write(to:manifest,options:.atomic);XCTAssertNil(try store.clipURL(pack:pack,beatID:source.beats[0].id))
@@ -50,10 +51,10 @@ extension LessonLocalizationTests {
 extension LessonLocalizationTests {
  func testDiscardAllVoicesAndSweepStaleSources()throws {
   let library=try CourseLibrary(),source=LessonTranslation.source(library:library,index:0),dir=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);defer{try? FileManager.default.removeItem(at:dir)};let store=try LessonPackStore(directory:dir);try store.saveTranslation(source,source:source,locale:"fr")
-  let first=source.beats[0];for voice in ["cedar","marin"]{_ = try store.saveClip(pcm:Data(repeating:0,count:480),transcript:first.speak,beatID:first.id,source:source,locale:"fr",voice:voice,model:"gpt-realtime-2026-10-01")}
-  XCTAssertThrowsError(try store.saveClip(pcm:Data(repeating:0,count:480),transcript:first.speak,beatID:first.id,source:source,locale:"fr",voice:"cedar",model:"gpt-realtime-mini"))
+  let first=source.beats[0];for voice in ["cedar","marin"]{_ = try store.saveClip(pcm:plausibleLessonPCM(first.speak),transcript:first.speak,beatID:first.id,source:source,locale:"fr",voice:voice,model:"gpt-realtime-2026-10-01")}
+  XCTAssertThrowsError(try store.saveClip(pcm:plausibleLessonPCM(first.speak),transcript:first.speak,beatID:first.id,source:source,locale:"fr",voice:"cedar",model:"gpt-realtime-mini"))
   try store.discardTranslation(source:source,locale:"fr");XCTAssertNil(try store.translation(source:source,locale:"fr"));XCTAssertNil(try store.partialPack(source:source,locale:"fr",voice:"cedar"));XCTAssertNil(try store.partialPack(source:source,locale:"fr",voice:"marin"))
-  try store.saveTranslation(source,source:source,locale:"fr");let pack=try store.saveClip(pcm:Data(repeating:0,count:480),transcript:first.speak,beatID:first.id,source:source,locale:"fr",voice:"cedar",model:"gpt-realtime");let audio=try XCTUnwrap(store.clipURL(pack:pack,beatID:first.id))
+  try store.saveTranslation(source,source:source,locale:"fr");let pack=try store.saveClip(pcm:plausibleLessonPCM(first.speak),transcript:first.speak,beatID:first.id,source:source,locale:"fr",voice:"cedar",model:"gpt-realtime");let audio=try XCTUnwrap(store.clipURL(pack:pack,beatID:first.id))
   let orphan=store.directory.appendingPathComponent(String(repeating:"a",count:64));try Data(contentsOf:audio).write(to:orphan);var course=try JSONSerialization.jsonObject(with:Data(contentsOf:NativeResources.url("course.json"))) as! [String:Any];var lessons=course["lessons"] as! [[String:Any]];lessons[0]["title"]="Changed source title";course["lessons"]=lessons;let updated=try JSONDecoder().decode(CourseLibrary.self,from:JSONSerialization.data(withJSONObject:course));try store.sweepStale(library:updated);XCTAssertFalse(FileManager.default.fileExists(atPath:orphan.path));XCTAssertTrue(FileManager.default.fileExists(atPath:audio.path));XCTAssertEqual(try store.translation(source:source,locale:"fr"),source);XCTAssertNil(try store.translation(source:LessonTranslation.source(library:updated,index:0),locale:"fr"))
  }
 }

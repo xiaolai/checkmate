@@ -5,7 +5,7 @@ import XCTest
  func testShortAndLongClipsKeepAllAuthoredActions()async throws {
   let dir=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);defer{try? FileManager.default.removeItem(at:dir)}
   let library=try CourseLibrary(),source=LessonTranslation.source(library:library,index:19),store=try LessonPackStore(directory:dir);try store.saveTranslation(source,source:source,locale:"fr")
-  for (index,beat) in source.beats.enumerated(){_ = try store.saveClip(pcm:Data(repeating:0,count:index==0 ? 48000*30:480),transcript:beat.speak,beatID:beat.id,source:source,locale:"fr",voice:"cedar",model:"gpt-realtime")}
+  for (index,beat) in source.beats.enumerated(){_ = try store.saveClip(pcm:plausibleLessonPCM(beat.speak,seconds:index==0 ? 30:0),transcript:beat.speak,beatID:beat.id,source:source,locale:"fr",voice:"cedar",model:"gpt-realtime")}
   let session=try GameSession(engine:nil),player=try LearningPlayer(session:session);session.state.settings.lessonLanguage="fr";session.state.settings.autoAdvance=false;player.openLesson(index:19);player.packs=store
   for _ in 0..<100 {if player.fallbackMessage==nil{break};try await Task.sleep(for:.milliseconds(10))};XCTAssertNil(player.fallbackMessage)
   player.openLesson(index:19);XCTAssertGreaterThanOrEqual(player.duration,30+library.lessonTiming.postNarrationGap)

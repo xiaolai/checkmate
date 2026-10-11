@@ -31,12 +31,14 @@ final class InteractionRegressionTests:XCTestCase {
         _ = try s.commitBlack("d5e4");XCTAssertNil(s.selected,"The selected piece was captured")
     }
 
-    @MainActor func testUndoToTheOpponentsMoveAsksTheOpponentAgain() async throws {
+    /// SH-14: as Black, Stockfish's opening move alone is not the learner's to take back; Undo is unavailable instead of
+    /// silently re-rolling Stockfish's move.
+    @MainActor func testUndoCannotTakeBackTheOpponentsOpeningMove() async throws {
         let engine=CountingEngine(),s=try GameSession(engine:engine);s.state.settings.coachingMode="quiet"
         try s.installPracticeFork(try ChessRules(),side:"b");await settle()
-        XCTAssertEqual(engine.requests,1);XCTAssertEqual(s.rules.history.count,1);XCTAssertEqual(s.rules.turn,"b")
+        XCTAssertEqual(engine.requests,1);XCTAssertEqual(s.rules.history.count,1);XCTAssertEqual(s.rules.turn,"b");XCTAssertFalse(s.canTakeBack)
         s.undo();await settle()
-        XCTAssertEqual(engine.requests,2,"Undo left White to move without asking Stockfish");XCTAssertEqual(s.rules.history.count,1);XCTAssertEqual(s.rules.turn,"b")
+        XCTAssertEqual(engine.requests,1,"Stockfish is not asked again");XCTAssertEqual(s.rules.history.count,1);XCTAssertEqual(s.rules.turn,"b")
     }
 
     @MainActor func testRetryRepeatsTheFailedHintOnTheLearnersTurn() async throws {

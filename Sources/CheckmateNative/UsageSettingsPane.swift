@@ -29,12 +29,13 @@ struct UsageSettingsPane:View {
             }
             let totals=ledger.totals(in:range)
             Text("\(totals.knownRecords) operations with reported counters · \(totals.unknownRecords) unknown · \(totals.incompleteRecords) incomplete").font(.caption).foregroundStyle(.secondary)
-            HStack{Button("Export JSON…"){export()}.accessibilityIdentifier("usage-export");Button("Clear history…",role:.destructive){clear()}.disabled(controller.busy).accessibilityIdentifier("usage-clear")}
+            HStack{Button("Export JSON…"){export()}.disabled(ledger.unavailable).accessibilityIdentifier("usage-export");Button("Clear history…",role:.destructive){clear()}.disabled(controller.busy).accessibilityIdentifier("usage-clear")}
             if let problem=error ?? ledger.storageError{Text(problem).foregroundStyle(.secondary)}
         }
         Section("Account status") {
             Text(controller.accountStatus).textSelection(.enabled).accessibilityIdentifier("usage-account-status")
-            Button("Refresh account status"){controller.refreshAccount()}.disabled(controller.busy)
+            // Account status has its own request, so it stays available while a lesson job spends credits.
+            Button("Refresh account status"){controller.refreshAccount()}
             Text("Account limits and available credits cover your account. Voice subscription quota attribution is unknown unless the provider reports it.").font(.caption).foregroundStyle(.secondary)
         }
         Section("Recent operations") {
@@ -54,7 +55,8 @@ struct UsageSettingsPane:View {
                     LabeledContent("Output text tokens",value:count(record.tokens?.outputText))
                     LabeledContent("Output audio tokens",value:count(record.tokens?.outputAudio))
                     if let credits=record.estimatedCredits{LabeledContent("Provider credit estimate",value:String(format:"%.6f",credits))}
-                    if let usd=record.estimatedUSD{LabeledContent("Provider USD estimate",value:String(format:"%.6f",usd));Text("Provider estimates are not actual charges.").font(.caption).foregroundStyle(.secondary)}
+                    if let usd=record.estimatedUSD{LabeledContent("Provider USD estimate",value:String(format:"%.6f",usd))}
+                    if record.estimatedCredits != nil || record.estimatedUSD != nil{Text("Provider estimates are not actual charges.").font(.caption).foregroundStyle(.secondary)}
                     if let locale=record.locale{LabeledContent("Language",value:locale)}
                     if let voice=record.voice{LabeledContent("Voice",value:voice.capitalized)}
                     if let duration=record.durationSeconds{LabeledContent("Duration",value:String(format:"%.1f seconds",duration))}
@@ -66,10 +68,10 @@ struct UsageSettingsPane:View {
     }
     private func export(){
         let panel=NSSavePanel();panel.allowedContentTypes=[.json];panel.nameFieldStringValue="Checkmate-usage.json"
-        panel.begin{response in guard response == .OK,let url=panel.url else{return};Task{do{try? await ledger.flush();try ledger.exportJSON().write(to:url,options:.atomic);error=nil}catch{self.error="Usage history could not be exported."}}}
+        panel.begin{response in guard response == .OK,let url=panel.url else{return};Task{do{try? await ledger.flush();try ledger.exportJSON().write(to:url,options:.atomic);error=nil}catch{self.error=userFacingMessage(error,fallback:"Usage history could not be exported. Choose another location.")}}}
     }
     private func clear(){
-        let alert=NSAlert();alert.messageText="Clear usage history?";alert.informativeText="This removes completed Checkmate usage history. Activity still running remains recorded. Your lessons, recordings and progress are kept.";let clear=alert.addButton(withTitle:"Clear history");clear.keyEquivalent="";let cancel=alert.addButton(withTitle:"Cancel");cancel.keyEquivalent="\r";alert.window.defaultButtonCell=cancel.cell as? NSButtonCell
+        let alert=NSAlert();alert.messageText="Clear usage history?";alert.informativeText=ledger.unavailable ? "The unreadable history file is kept, and a new history starts with this session’s activity. Your lessons, recordings and progress are kept.":"This removes completed Checkmate usage history. Activity still running remains recorded. Your lessons, recordings and progress are kept.";let clear=alert.addButton(withTitle:"Clear history");clear.keyEquivalent="";let cancel=alert.addButton(withTitle:"Cancel");cancel.keyEquivalent="\r";alert.window.defaultButtonCell=cancel.cell as? NSButtonCell
         guard alert.runModal() == .alertFirstButtonReturn else{return}
         Task{do{try ledger.clear();try await ledger.flush();error=nil}catch{self.error="Usage history could not be cleared."}}
     }

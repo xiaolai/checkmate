@@ -42,9 +42,12 @@ private final class NoRedirects: NSObject, URLSessionTaskDelegate, @unchecked Se
 }
 public actor BrokerClient {
     private let file: URL, clientID = UUID().uuidString
+    static let maximumResponseBytes = 2 * 1024 * 1024
     private let session = URLSession(configuration: .ephemeral, delegate: NoRedirects(), delegateQueue: nil)
     private var discovery: Discovery?
     private var heartbeat: Task<Void, Never>?
+    /// When the broker last accepted this client, on the same sleep-pausing clock as the broker's lease.
+    private var lastAccepted = SuspendingClock().now
     private var closed = false
     public init(connectionFile: URL = Discovery.defaultURL) { file = connectionFile }
     private func send(_ path: String, body: [String: Any], discovery: Discovery, timeout: TimeInterval = 3) async throws -> [String: Any] {
@@ -54,16 +57,28 @@ public actor BrokerClient {
         request.setValue("Bearer " + discovery.authorizationNonce, forHTTPHeaderField: "Authorization")
         request.setValue(clientID, forHTTPHeaderField: "x-checkmate-client")
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
-        let (data, response) = try await session.data(for: request)
-        guard let http = response as? HTTPURLResponse, !(300...399).contains(http.statusCode), data.count <= 131072,
-              let result = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { throw ProtocolFailure("CONNECTION_LOST") }
+        let (bytes, response) = try await session.bytes(for: request)
+        guard let http = response as? HTTPURLResponse, !(300...399).contains(http.statusCode) else { bytes.task.cancel(); throw ProtocolFailure("CONNECTION_LOST") }
+        // A large but intact reply (an annotated review page) is not a lost connection: say how to ask for less.
+        let tooLarge = ProtocolFailure("RESPONSE_TOO_LARGE", "The reply exceeded \(Self.maximumResponseBytes / 1024) KB. Request a smaller page with a lower limit.")
+        // The bound is enforced while reading, so an oversized reply is cancelled rather than buffered whole.
+        guard http.expectedContentLength <= Self.maximumResponseBytes else { bytes.task.cancel(); throw tooLarge }
+        var data = Data()
+        for try await byte in bytes {
+            guard data.count < Self.maximumResponseBytes else { bytes.task.cancel(); throw tooLarge }
+            data.append(byte)
+        }
+        guard let result = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { throw ProtocolFailure("CONNECTION_LOST") }
         return result
     }
     public func call(_ method: String, args: [String: Any]) async -> [String: Any] {
         guard !closed else { return ProtocolFailure("DISCONNECTED", "Start a new companion connection.").result }
         let current: Discovery
         do { current = try Discovery.read(file); discovery = current }
-        catch { return ProtocolFailure((error as? ProtocolFailure)?.code ?? "APP_NOT_READY", "Open Checkmate and enable chess MCP connections in Settings.").result }
+        catch {
+            let code = (error as? ProtocolFailure)?.code ?? "APP_NOT_READY"
+            return ProtocolFailure(code, code == "INCOMPATIBLE_SCHEMA" ? "This Checkmate MCP server and the running Checkmate app are different versions. In the running app choose Settings → Connections → Set up Codex, then start a new Codex task." : "Open Checkmate and enable chess MCP connections in Settings.").result
+        }
         let requestID = UUID().uuidString
         do {
             let result = try await withTaskCancellationHandler {
@@ -72,24 +87,38 @@ public actor BrokerClient {
             } onCancel: {
                 Task.detached { await self.cancel(requestID, discovery: current) }
             }
+            if result["error"] == nil { lastAccepted = SuspendingClock().now }
             if result["error"] == nil && heartbeat == nil && !closed {
                 heartbeat = Task { [weak self] in
+                    var delay = CompanionHeartbeat.interval
                     while !Task.isCancelled {
-                        do { try await Task.sleep(for: .seconds(10)); try Task.checkCancellation() } catch { break }
-                        guard let self, await self.pulse() else { break }
+                        do { try await Task.sleep(for: delay); try Task.checkCancellation() } catch { break }
+                        guard let self else { break }
+                        switch await self.pulse() {
+                        case .beat: delay = CompanionHeartbeat.interval
+                        case .retry: delay = CompanionHeartbeat.retryInterval
+                        case .stop: return
+                        }
                     }
                 }
             }
             return result
         } catch {
+            if let failure = error as? ProtocolFailure, failure.code == "RESPONSE_TOO_LARGE" { return failure.result }
             return ProtocolFailure(Task.isCancelled ? "CANCELLED" : "CONNECTION_LOST", "Read the current session before retrying. A timed-out move may already have completed; reuse its requestId.").result
         }
     }
     private func cancel(_ id: String, discovery: Discovery) async { _ = try? await send("cancel", body: ["id": id], discovery: discovery) }
-    private func pulse() async -> Bool {
-        guard !closed, let current = discovery else { return false }
-        do { let result = try await send("heartbeat", body: [:], discovery: current); if result["error"] == nil { return true } } catch {}
-        heartbeat = nil; return false
+    /// One heartbeat. A missed one is retried soon; only a refused lease, or silence longer than a lease, stops them.
+    private func pulse() async -> CompanionHeartbeat.Next {
+        guard !closed, let current = discovery else { heartbeat = nil; return .stop }
+        var code: String? = "CONNECTION_LOST"
+        if let result = try? await send("heartbeat", body: [:], discovery: current) {
+            code = result["error"] == nil ? nil : ((result["error"] as? [String: Any])?["code"] as? String ?? "INTERNAL_ERROR")
+        }
+        let next = CompanionHeartbeat.next(code: code, sinceSuccess: lastAccepted.duration(to: SuspendingClock().now))
+        if next == .beat { lastAccepted = SuspendingClock().now } else if next == .stop { heartbeat = nil }
+        return next
     }
     public func close() async {
         guard !closed else { return }; closed = true

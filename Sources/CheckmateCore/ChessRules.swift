@@ -41,6 +41,16 @@ public final class ChessRules {
         (try? raw("(()=>{const f=game.fen().split(' ');if(Number(f[4])>=150&&!game.isCheckmate())return true;const h=game.history({verbose:true}),key=fen=>fen.split(' ').slice(0,4).join(' '),current=key(game.fen()),positions=[h.length?h[0].before:game.fen(),...h.map(m=>m.after)];return positions.filter(fen=>key(fen)===current).length>=5})()") as? Bool) ?? false
     }
     public var draw:Bool {stalemate || insufficientMaterial || automaticDraw}
+    /// Claimable, not automatic: threefold repetition, or 50 moves by each side without a capture or pawn move.
+    public var threefoldRepetition:Bool {(try? raw("game.isThreefoldRepetition()") as? Bool) ?? false}
+    public var fiftyMoveClaim:Bool {(Int(fen.split(separator:" ").dropFirst(4).first ?? "0") ?? 0)>=100}
+    /// How the game ended by the rules, or nil while it continues.
+    public var ending:(result:String,reason:String)? {
+        if checkmate{return (turn=="w" ? "0-1":"1-0",(turn=="w" ? "Black":"White")+" wins by checkmate.")}
+        if stalemate{return ("1/2-1/2","Draw by stalemate.")};if insufficientMaterial{return ("1/2-1/2","Draw: neither side has enough material to checkmate.")}
+        if automaticDraw{return ("1/2-1/2",(Int(fen.split(separator:" ").dropFirst(4).first ?? "0") ?? 0)>=150 ? "Draw by the 75-move rule.":"Draw by fivefold repetition.")}
+        return nil
+    }
     public var status:String {checkmate ? "Checkmate" : draw ? "Draw" : (turn == "w" ? "White to move" : "Black to move") + (check ? " · Check" : "")}
     public func piece(_ square:String)->ChessPiece? {guard Self.validSquare(square) else{return nil};return try? decoded("game.get(\(literal(square)))",ChessPiece.self)}
     public var board:[String:String] {
@@ -63,8 +73,8 @@ public final class ChessRules {
     }
     /// PGN of this game whose Result names an automatic terminal outcome; otherwise *.
     /// chess.js always writes its Result header (default *), so a finished game needs it set explicitly.
-    public func recordPGN()throws -> String {
-        let result=checkmate ? (turn=="w" ? "0-1":"1-0"):draw ? "1/2-1/2":"*"
+    public func recordPGN(result override:String?=nil)throws -> String {
+        let result=override ?? (checkmate ? (turn=="w" ? "0-1":"1-0"):draw ? "1/2-1/2":"*")
         guard let value=try raw("(()=>{const g=new exports.Chess();g.loadPgn(game.pgn());g.setHeader('Result',\(literal(result)));return g.pgn()})()") as? String else{throw CheckmateError.invalid("The game record could not be written.")}
         return value
     }

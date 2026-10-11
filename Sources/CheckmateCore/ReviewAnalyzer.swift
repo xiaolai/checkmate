@@ -16,10 +16,22 @@ public struct ReviewMoment:Codable,Identifiable {public let id:Int,expectationLo
     @Published public private(set) var batchDocument:UUID?
     private var batchTask:Task<Void,Never>?,batchSearch:Task<ReviewEvidence,Error>?,generation=0,selectedCount=0
     private var cache:[String:ReviewEvidence]=[:]
+    /// Cache writes still running, by record; forgetting a record waits for them so a late write cannot restore its files.
+    private var pendingWrites:[UUID:(document:UUID,task:Task<Void,Never>)]=[:]
+    /// The disk write itself; tests slow it to hold a write in flight.
+    var writeCache:@Sendable (ReviewAnalysisCache,ReviewEvidence,String)throws->Void={try $0.save($1,key:$2)}
     public init(engine:NativeEngine,cacheDirectory:URL?=nil){self.engine=engine;disk=cacheDirectory.map{ReviewAnalysisCache(directory:$0)}}
     public func cancelBatch(){generation+=1;batchTask?.cancel();batchSearch?.cancel();batchTask=nil;batchSearch=nil;batchStatus="cancelled"}
     public func reset(){cancelBatch();batchDocument=nil;completed=0;failed=0;total=0;moments=[];batchStatus="idle"}
-    public func startBatch(_ document:GameDocument){cancelBatch();batchDocument=document.id;completed=0;failed=0;total=document.mainline.count;moments=[];batchStatus="pending";let epoch=generation
+    /// Whether a whole-game analysis of this record is still running.
+    public func batchRunning(_ id:UUID)->Bool {batchDocument==id && ["pending","deepening"].contains(batchStatus)}
+    /// Removes a deleted review's stored analysis from memory and disk; analysis other records computed is kept.
+    public func forgetAnalysis(documentID:UUID)async throws {
+        while let write=pendingWrites.first(where:{$0.value.document==documentID}){pendingWrites[write.key]=nil;await write.value.task.value}
+        cache=cache.filter{$0.value.documentID != documentID};let disk=disk;_ = try await Task.detached{try disk?.delete(documentID:documentID)}.value}
+    /// Starting again while the same record's analysis runs keeps its progress, and a record without moves has no game
+    /// to analyze, so neither restarts the batch nor reports an empty "ready".
+    public func startBatch(_ document:GameDocument){guard !batchRunning(document.id),!document.mainline.isEmpty else{return};cancelBatch();batchDocument=document.id;completed=0;failed=0;total=document.mainline.count;moments=[];batchStatus="pending";let epoch=generation
         batchTask=Task{for node in document.mainline {guard !Task.isCancelled,self.generation==epoch else{return};while self.selectedCount>0{try? await Task.sleep(nanoseconds:10_000_000);guard !Task.isCancelled,self.generation==epoch else{return}};var done=false
             while !done {guard !Task.isCancelled,self.generation==epoch else{return};while self.selectedCount>0{try? await Task.sleep(nanoseconds:10_000_000);guard !Task.isCancelled else{return}};let search=Task{try await self.compute(document:document,node:node,revision:0,budget:ReviewPolicy.quickBudget)};self.batchSearch=search
                 do{let evidence=try await search.value;guard self.generation==epoch else{return};self.recordMoment(evidence,document:document);done=true}catch{if !search.isCancelled{guard self.generation==epoch else{return};self.failed+=1;done=true}}}
@@ -87,6 +99,7 @@ public struct ReviewMoment:Codable,Identifiable {public let id:Int,expectationLo
         if let uci=selected.uci,let line=root.lines.first(where:{$0.pv.first==uci}){played=EngineAnalysis(bestMove:uci,budgetMs:budget,lines:[line])}else if let uci=selected.uci,!terminal{played=try await engine.analyzeHistory(startFEN:document.startingFEN,moves:rootHistory,profile:.skill(20),budget:budget,multiPv:1,searchMoves:[uci])}else{played=nil}
         try Task.checkCancellation()
         let result=ReviewEvidence(schemaVersion:1,documentID:document.id,documentHash:document.contentHash,nodeID:node,historyHash:hash,revision:revision,engineVersion:engine.capabilities.name+" "+engine.binaryIdentity,options:AnalysisPolicy.options,budgetMs:budget,createdAt:Date(),root:root,played:played,quality:"provisional",provisional:true)
-        if cache.count>=128,let oldest=cache.min(by:{$0.value.createdAt<$1.value.createdAt})?.key{cache.removeValue(forKey:oldest)};cache[key]=result;try? await Task.detached{try disk?.save(result,key:key)}.value;return result
+        if cache.count>=128,let oldest=cache.min(by:{$0.value.createdAt<$1.value.createdAt})?.key{cache.removeValue(forKey:oldest)};cache[key]=result
+        if let disk{let write=writeCache,token=UUID(),task=Task.detached{_ = try? write(disk,result,key)};pendingWrites[token]=(document.id,task);await task.value;pendingWrites[token]=nil};return result
     }
 }

@@ -43,8 +43,36 @@ public enum VoiceScriptRequest {
     public static func event(text:String,language:String,metadata:[String:String]=[:])->[String:Any] {
         ["type":"response.create","response":["conversation":"none","input":[],"output_modalities":["audio"],"tool_choice":"none","metadata":metadata,"instructions":"You are a text-to-speech reader. Read exactly the script below, in its written language. Do not greet, answer, explain, translate, or add words. The selected response language is \(language). SCRIPT:\n"+text]]
     }
-    public static func matches(_ transcript:String,script:String)->Bool {
-        func normalize(_ value:String)->String {value.lowercased().unicodeScalars.filter{CharacterSet.alphanumerics.contains($0)}.map(String.init).joined()}
-        return !script.isEmpty && normalize(transcript)==normalize(script)
+    /// Exact match of the words and numbers spoken, ignoring case, punctuation and how a number is written: every
+    /// Unicode digit counts as ASCII, and with the script's locale every number is spelled out on both sides, so
+    /// "4", "٤" and "vier" match while a different number, a missing word or an added word never does.
+    public static func matches(_ transcript:String,script:String,locale:String?=nil)->Bool {
+        !script.isEmpty && canonical(transcript,locale:locale)==canonical(script,locale:locale)
+    }
+    static func canonical(_ value:String,locale:String?)->String {
+        func ascii(_ value:String)->String {
+            var text="";for character in value.precomposedStringWithCompatibilityMapping.lowercased() {
+                if character.unicodeScalars.count==1,let scalar=character.unicodeScalars.first,scalar.properties.numericType == .decimal,let digit=character.wholeNumberValue{text.append(Character(String(digit)))}else{text.append(character)}
+            }
+            return text
+        }
+        var text=ascii(value)
+        if let locale,!locale.isEmpty {
+            // A number grouped as the locale groups it ("1,000", "1.000", "1 000", "1,00,000") is one number, written as
+            // plain digits before spelling, so it matches "1000" and "one thousand" instead of becoming "one zero".
+            let grouping=NumberFormatter();grouping.locale=Locale(identifier:locale);grouping.numberStyle = .decimal
+            let separator=ascii(grouping.groupingSeparator),primary=grouping.groupingSize,secondary=grouping.secondaryGroupingSize>0 ? grouping.secondaryGroupingSize:grouping.groupingSize
+            if !separator.isEmpty,primary>0,let regex=try? NSRegularExpression(pattern:"[0-9]+(?:"+NSRegularExpression.escapedPattern(for:separator)+"[0-9]+)+") {
+                for match in regex.matches(in:text,range:NSRange(text.startIndex...,in:text)).reversed() {
+                    guard let range=Range(match.range,in:text) else{continue};let groups=text[range].components(separatedBy:separator)
+                    if groups.last!.count==primary,groups.dropFirst().dropLast().allSatisfy({$0.count==secondary}),(1...(groups.count>2 ? secondary:primary)).contains(groups[0].count){text.replaceSubrange(range,with:groups.joined())}
+                }
+            }
+            let formatter=NumberFormatter();formatter.locale=Locale(identifier:locale);formatter.numberStyle = .spellOut
+            var spelled="",run=""
+            func flush(){if !run.isEmpty{spelled+=(run.count<=15 ? Int(run).flatMap{formatter.string(from:NSNumber(value:$0))}?.lowercased():nil) ?? run;run=""}}
+            for character in text{if character.isASCII,character.isNumber{run.append(character)}else{flush();spelled.append(character)}};flush();text=spelled
+        }
+        return text.unicodeScalars.filter{CharacterSet.alphanumerics.contains($0)}.map(String.init).joined()
     }
 }

@@ -1,5 +1,6 @@
 import Foundation
 import CheckmateMCPKit
+import CheckmateCore
 
 @main struct CheckmateMCP {
     static func main() async {
@@ -12,6 +13,7 @@ import CheckmateMCPKit
             file = URL(fileURLWithPath: arguments[1])
         }
         do { try await CompanionServer.run(connectionFile: file) }
+        catch let failure as ProtocolFailure { FileHandle.standardError.write(Data("Checkmate companion stopped: \(failure.message)\n".utf8)); exit(1) }
         catch { FileHandle.standardError.write(Data("Checkmate companion stopped. Please reconnect.\n".utf8)); exit(1) }
     }
 }

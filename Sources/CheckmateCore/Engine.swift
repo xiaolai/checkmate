@@ -31,8 +31,9 @@ public struct EngineAnalysis:Codable {public var opponentDecision:OpponentDecisi
     public func analyzeHistory(startFEN:String,moves:[String],profile:OpponentProfile,budget:Int,multiPv:Int,searchMoves:[String]=[])async throws -> EngineAnalysis {
         if binaryIdentity.isEmpty{binaryIdentity=try await identityTask.value}
         guard waiting<8 else{throw CheckmateError.unavailable("BUSY")};waiting+=1;defer{waiting-=1}
-        let deadline=Date().addingTimeInterval(4)
-        while searching{guard Date()<deadline else{throw CheckmateError.unavailable("BUSY")};try Task.checkCancellation();try await Task.sleep(nanoseconds:10_000_000)}
+        // A clock that stops while the Mac sleeps: waking must not turn a short wait into a false "BUSY".
+        let clock=SuspendingClock(),deadline=clock.now.advanced(by:.seconds(4))
+        while searching{guard clock.now<deadline else{throw CheckmateError.unavailable("BUSY")};try Task.checkCancellation();try await Task.sleep(nanoseconds:10_000_000)}
         try Task.checkCancellation();searching=true;defer{searching=false}
         // Validate on the main actor and send the validated canonical moves: the bundled Stockfish 19
         // rejects a non-canonical token such as e7e8 ("CRITICAL ERROR ... Illegal move") and exits.

@@ -32,7 +32,11 @@ import XCTest
         let file=root.appendingPathComponent("usage-v1.json"),data=Data("bad file".utf8);try data.write(to:file)
         let ledger=UsageLedger(directory:root);XCTAssertNotNil(ledger.storageError)
         _=ledger.begin(activity:.translation,provider:"codex",sessionID:"a");XCTAssertEqual(try Data(contentsOf:file),data)
+        XCTAssertThrowsError(try ledger.exportJSON(),"An unreadable history is never exported as an empty copy")
         try ledger.clear();XCTAssertNil(ledger.storageError)
+        let kept=try FileManager.default.contentsOfDirectory(atPath:root.path).filter{$0.hasPrefix("usage-v1.unreadable-")}
+        XCTAssertEqual(kept.count,1);XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(kept[0])),data,"Clear keeps the unreadable file it said was preserved")
+        XCTAssertNoThrow(try ledger.exportJSON())
     }
     func testIncompleteReloadPrivacyAndDateRanges() async throws {
         let root=directory();defer{try? FileManager.default.removeItem(at:root)}

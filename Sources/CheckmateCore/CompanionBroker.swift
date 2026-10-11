@@ -11,35 +11,50 @@ import Combine
     @Published public private(set) var connected=false
     @Published public private(set) var status="Disconnected"
     @Published public private(set) var error:String?
-    private var listener:NWListener?,authorizationNonce="",port:UInt16=0,owner:String?,lease:String?,touched=Date(),heartbeat:Timer?
+    private var listener:NWListener?,authorizationNonce="",port:UInt16=0,owner:String?,lease:String?,heartbeat:Timer?
+    /// Lease age is measured on a clock that stops while the Mac sleeps, so waking never expires a lease at once.
+    private let now:()->SuspendingClock.Instant
+    private var touched:SuspendingClock.Instant
     private let leaseTimeout:TimeInterval,heartbeatInterval:TimeInterval,requestTimeout:TimeInterval
     private var generation=UUID()
     public var connectionGeneration:UUID{generation}
     private var reservesSession=false,configuredRole="coach"
+    /// Clients the learner disconnected; each may not claim the session again (a new Codex task has a new id).
+    private var revokedClients:Set<String>=[]
     private var observation:AnyCancellable?
     private var connectionRequests:[ObjectIdentifier:String]=[:],requestOwners:[String:ObjectIdentifier]=[:]
     private var deadlines:[String:Task<Void,Never>]=[:]
     private var pending:[String:Task<Void,Never>]=[:],connections:[UUID:NWConnection]=[:]
-    public init(session:GameSession,directory:URL,leaseTimeout:TimeInterval=35,heartbeatInterval:TimeInterval=1,requestTimeout:TimeInterval=25) throws {self.requestTimeout=requestTimeout;self.leaseTimeout=leaseTimeout;self.heartbeatInterval=heartbeatInterval;self.session=session;self.directory=directory;tools=try CompanionTools(session:session);observation=session.objectWillChange.sink{[weak self] _ in DispatchQueue.main.async{self?.updateWaitingStatus()}}}
+    /// Connections that have not delivered a request yet, oldest first. When every slot is taken, the oldest of these
+    /// gives way, so idle sockets from another local account cannot lock the companion out.
+    private var unadmitted:[UUID]=[]
+    public init(session:GameSession,directory:URL,leaseTimeout:TimeInterval=35,heartbeatInterval:TimeInterval=1,requestTimeout:TimeInterval=25,now:@escaping ()->SuspendingClock.Instant={SuspendingClock().now}) throws {self.requestTimeout=requestTimeout;self.leaseTimeout=leaseTimeout;self.heartbeatInterval=heartbeatInterval;self.now=now;touched=now();self.session=session;self.directory=directory;tools=try CompanionTools(session:session)
+        // A connection file left by a crash names a port this process does not own; never let a client find it.
+        try? FileManager.default.removeItem(at:directory.appendingPathComponent("connection.json"));observation=session.objectWillChange.sink{[weak self] _ in DispatchQueue.main.async{self?.updateWaitingStatus()}}}
     public var activeRequestCount:Int{pending.count}
     public var activeConnectionCount:Int{connections.count}
     public func enable(role:String,standby:Bool=false) throws {
         do {
-        NativeLog.companion.debug("Starting private loopback broker");disable();error=nil;let epoch=UUID();generation=epoch;guard standby || session.voiceLease==nil else{throw ProtocolFailure("SESSION_IN_USE")};configuredRole=role;reservesSession = !standby
+        NativeLog.companion.debug("Starting private loopback broker");disable();error=nil;revokedClients=[];let epoch=UUID();generation=epoch;guard standby || session.voiceLease==nil else{throw ProtocolFailure("SESSION_IN_USE")};configuredRole=role;reservesSession = !standby
         let parameters=NWParameters.tcp;parameters.requiredLocalEndpoint = .hostPort(host:"127.0.0.1",port:.any)
         let listener=try NWListener(using:parameters,on:.any);self.listener=listener
         var bytes=[UInt8](repeating:0,count:32);guard SecRandomCopyBytes(kSecRandomDefault,bytes.count,&bytes)==errSecSuccess else{throw ProtocolFailure("INTERNAL_ERROR")};authorizationNonce=bytes.map{String(format:"%02x",$0)}.joined()
         enabled=true;status="Starting companion…";if reservesSession{session.setConnection(enabled:true,role:role)}
         listener.stateUpdateHandler={[weak self] state in Task{@MainActor in guard let self=self,self.generation==epoch else{return};switch state {case .ready:guard let port=listener.port else{return};self.port=port.rawValue;do{try self.writeDiscovery();self.updateWaitingStatus()}catch{self.error="Could not publish the private connection file.";self.disable()};case .failed:self.error="The companion could not open a local connection.";self.disable();default:break}}}
         listener.newConnectionHandler={[weak self] connection in Task{@MainActor in guard let self=self,self.generation==epoch else{connection.cancel();return};self.accept(connection)}};listener.start(queue:.main)
-        heartbeat=Timer.scheduledTimer(withTimeInterval:heartbeatInterval,repeats:true){[weak self] _ in Task{@MainActor in guard let self=self,self.owner != nil,Date().timeIntervalSince(self.touched)>self.leaseTimeout else{return};self.release()}}
+        heartbeat=Timer.scheduledTimer(withTimeInterval:heartbeatInterval,repeats:true){[weak self] _ in Task{@MainActor in guard let self=self,self.owner != nil,self.touched.duration(to:self.now())>Duration.seconds(self.leaseTimeout) else{return};self.release()}}
         } catch {
             disable();self.error="The companion could not start. Check local connectivity and try enabling MCP again."
             throw error
         }
     }
-    public func disable(){NativeLog.companion.debug("Disabling broker and cancelling pending requests");generation=UUID();enabled=false;heartbeat?.invalidate();heartbeat=nil;listener?.stateUpdateHandler=nil;listener?.newConnectionHandler=nil;listener?.cancel();listener=nil;release();for c in connections.values{c.cancel()};connections.removeAll();try? FileManager.default.removeItem(at:directory.appendingPathComponent("connection.json"));authorizationNonce="";port=0;session.setConnection(enabled:false,role:session.companionRole);status="Disconnected"}
-    public func release(){for deadline in deadlines.values{deadline.cancel()};deadlines.removeAll();for task in pending.values{task.cancel()};pending.removeAll();requestOwners.removeAll();tools.reset();owner=nil;lease=nil;connected=false;if session.companionEnabled || session.companionLease != nil || reservesSession{session.setConnection(enabled:enabled && reservesSession,role:configuredRole)};updateWaitingStatus()}
+    public func disable(){NativeLog.companion.debug("Disabling broker and cancelling pending requests");generation=UUID();enabled=false;heartbeat?.invalidate();heartbeat=nil;listener?.stateUpdateHandler=nil;listener?.newConnectionHandler=nil;listener?.cancel();listener=nil;release();for c in connections.values{c.cancel()};connections.removeAll();unadmitted.removeAll();try? FileManager.default.removeItem(at:directory.appendingPathComponent("connection.json"));authorizationNonce="";port=0;session.setConnection(enabled:false,role:session.companionRole);status="Disconnected"}
+    /// Ends the current lease (the client left, timed out or was disconnected). The app's suspension while hidden is
+    /// kept: a lease expiring because heartbeats are refused while hidden must not resume play.
+    public func release(){for deadline in deadlines.values{deadline.cancel()};deadlines.removeAll();for task in pending.values{task.cancel()};pending.removeAll();requestOwners.removeAll();tools.reset();owner=nil;lease=nil;connected=false;if session.companionEnabled || session.companionLease != nil || reservesSession{session.setConnection(enabled:enabled && reservesSession,role:configuredRole,suspended:session.suspended)};updateWaitingStatus()}
+    /// The learner's "Disconnect companion": the current client loses the session for good, rather than reclaiming
+    /// it on its next request. Another Codex task can still connect.
+    public func disconnectCurrentClient(){if let owner{revokedClients.insert(owner)};release()}
     public func suspend(_ value:Bool){guard enabled else{return};session.setConnection(enabled:enabled && (reservesSession || connected),role:configuredRole,lease:lease,suspended:value);status=value ? "Suspended — show Checkmate to continue":connected ? "Connected":"Waiting for a Codex connection"}
     private func updateWaitingStatus(){
         guard enabled,!connected,port>0,!session.suspended else{return}
@@ -51,8 +66,8 @@ import Combine
         try fm.createDirectory(at:directory,withIntermediateDirectories:true,attributes:[.posixPermissions:0o700]);try fm.setAttributes([.posixPermissions:0o700],ofItemAtPath:directory.path)
         let data=try JSONSerialization.data(withJSONObject:["schemaVersion":1,"url":"http://127.0.0.1:\(port)","token":authorizationNonce]);let url=directory.appendingPathComponent("connection.json");try data.write(to:url,options:.atomic);try fm.setAttributes([.posixPermissions:0o600],ofItemAtPath:url.path)
     }
-    private func accept(_ c:NWConnection){guard enabled,connections.count<16 else{c.cancel();return};let id=UUID(),key=ObjectIdentifier(c);connections[id]=c;let timeout=DispatchWorkItem{[weak c] in c?.cancel()};DispatchQueue.main.asyncAfter(deadline:.now()+5,execute:timeout)
-        c.stateUpdateHandler={[weak self] state in switch state{case .cancelled,.failed:Task{@MainActor in guard let self=self else{return};self.connections[id]=nil;self.cancelConnectionRequest(key)};default:break}}
+    private func accept(_ c:NWConnection){guard enabled else{c.cancel();return};if connections.count>=16{guard !unadmitted.isEmpty else{c.cancel();return};connections.removeValue(forKey:unadmitted.removeFirst())?.cancel()};let id=UUID(),key=ObjectIdentifier(c);connections[id]=c;unadmitted.append(id);let timeout=DispatchWorkItem{[weak c] in c?.cancel()};DispatchQueue.main.asyncAfter(deadline:.now()+5,execute:timeout)
+        c.stateUpdateHandler={[weak self] state in switch state{case .cancelled,.failed:Task{@MainActor in guard let self=self else{return};self.connections[id]=nil;self.unadmitted.removeAll{$0==id};self.cancelConnectionRequest(key)};default:break}}
 
         c.start(queue:.main);receive(c,id:id,data:Data(),timeout:timeout)
     }
@@ -64,15 +79,16 @@ import Combine
                 let lines=header.components(separatedBy:"\r\n"),start=lines[0].split(separator:" ");var headers:[String:String]=[:],valid=true
                 for line in lines.dropFirst(){guard let colon=line.firstIndex(of:":") else{valid=false;break};let name=line[..<colon].lowercased(),value=line[line.index(after:colon)...].trimmingCharacters(in:.whitespaces);if headers[name] != nil{valid=false;break};headers[name]=value}
                 guard valid,start.count==3,start[0]=="POST",start[2]=="HTTP/1.1",headers["transfer-encoding"]==nil,let length=Int(headers["content-length"] ?? "0"),length>=0,length<=131072 else{self.respond(c,ProtocolFailure("INVALID_ARGUMENT").result,status:400);return}
-                let body=Data(buffer[boundary.upperBound...]);if body.count>=length {guard body.count==length else{self.respond(c,ProtocolFailure("INVALID_ARGUMENT").result,status:400);return};timeout.cancel();self.handle(c,path:String(start[1]),headers:headers,body:body);return}
+                let body=Data(buffer[boundary.upperBound...]);if body.count>=length {guard body.count==length else{self.respond(c,ProtocolFailure("INVALID_ARGUMENT").result,status:400);return};timeout.cancel();self.unadmitted.removeAll{$0==id};self.handle(c,path:String(start[1]),headers:headers,body:body);return}
             }
             if buffer.range(of:Data("\r\n\r\n".utf8))==nil && buffer.count>8192{timeout.cancel();self.respond(c,ProtocolFailure("INVALID_ARGUMENT").result,status:413);return}
-            if complete || error != nil{timeout.cancel();c.cancel();self.connections[id]=nil;return};self.receive(c,id:id,data:buffer,timeout:timeout)
+            if complete || error != nil{timeout.cancel();c.cancel();self.connections[id]=nil;self.unadmitted.removeAll{$0==id};return};self.receive(c,id:id,data:buffer,timeout:timeout)
         }}}
     private func authenticate(_ h:[String:String],claim:Bool) throws -> String {
         guard enabled else{throw ProtocolFailure("DISABLED")};guard h["origin"]==nil,h["host"]=="127.0.0.1:\(port)",h["authorization"]=="Bearer \(authorizationNonce)" else{throw ProtocolFailure("NOT_AUTHORIZED")}
-        guard !session.suspended else{throw ProtocolFailure("APP_SUSPENDED")};guard session.voiceLease==nil else{throw ProtocolFailure("SESSION_IN_USE")};guard let client=h["x-checkmate-client"],UUID(uuidString:client) != nil else{throw ProtocolFailure("INVALID_ARGUMENT")}
-        if let owner=owner{guard owner==client else{throw ProtocolFailure("SESSION_IN_USE")}}else if claim{owner=client;lease=UUID().uuidString;connected=true;status="Connected";session.setConnection(enabled:true,role:configuredRole,lease:lease)}else{throw ProtocolFailure("NOT_CONNECTED")};touched=Date();return lease!
+        guard !session.suspended else{throw ProtocolFailure("APP_SUSPENDED")};guard session.voiceLease==nil else{throw ProtocolFailure("SESSION_IN_USE","The voice coach is connected in Checkmate. Calls are refused, not queued: ask the learner to disconnect voice in Checkmate to let Codex connect.")};guard let client=h["x-checkmate-client"],UUID(uuidString:client) != nil else{throw ProtocolFailure("INVALID_ARGUMENT")}
+        guard !revokedClients.contains(client) else{throw ProtocolFailure("DISCONNECTED_BY_USER","The learner disconnected this companion in Checkmate. Start a new Codex task to connect again.")}
+        if let owner=owner{guard owner==client else{throw ProtocolFailure("SESSION_IN_USE","Another Codex task is connected to Checkmate. Use one companion conversation at a time.")}}else if claim{owner=client;lease=UUID().uuidString;connected=true;status="Connected";session.setConnection(enabled:true,role:configuredRole,lease:lease)}else{throw ProtocolFailure("NOT_CONNECTED")};touched=now();return lease!
     }
     private func handle(_ c:NWConnection,path:String,headers:[String:String],body:Data){do {
         guard let a=(try? JSONSerialization.jsonObject(with:body)) as? [String:Any] else{throw ProtocolFailure("INVALID_ARGUMENT")};let lease=try authenticate(headers,claim:path=="/rpc")
@@ -90,4 +106,13 @@ import Combine
     }catch{respond(c,Self.failure(error),status:400)}}
     public static func failure(_ error:Error)->[String:Any] {if let e=error as? ProtocolFailure{return e.result};if error is CancellationError{return ProtocolFailure("CANCELLED").result};if let e=error as? CheckmateError {switch e{case .stale:return ProtocolFailure("STALE_STATE").result;case .cancelled:return ProtocolFailure("CANCELLED").result;case .invalid(let code):return ProtocolFailure(code.contains(" ") ? "INVALID_MOVE":code).result;case .unavailable(let code):return ProtocolFailure(code.contains(" ") ? "ENGINE_UNAVAILABLE":code).result}};return ProtocolFailure("INTERNAL_ERROR","The request failed. Read the current session and try again.").result}
     private func respond(_ c:NWConnection,_ result:Any,status:Int=200){let data=(try? JSONSerialization.data(withJSONObject:result,options:[.fragmentsAllowed,.sortedKeys])) ?? Data("{}".utf8);var reply=Data("HTTP/1.1 \(status) \(status==200 ? "OK":"Error")\r\nContent-Type: application/json\r\nContent-Length: \(data.count)\r\nConnection: close\r\n\r\n".utf8);reply.append(data);c.send(content:reply,completion:.contentProcessed{_ in c.cancel()})}
+}
+/// How an MCP client keeps its lease (`BrokerClient`). A missed heartbeat, such as one that outlasts a main-thread
+/// stall, is retried soon instead of ending the heartbeats; they stop only when the broker refuses the lease or the
+/// client has heard nothing for longer than a lease lasts. Either way the next tool call reconnects.
+public enum CompanionHeartbeat {
+    public enum Next:Equatable,Sendable {case beat,retry,stop}
+    public static let interval:Duration = .seconds(10),retryInterval:Duration = .seconds(2),lease:Duration = .seconds(35)
+    /// `code` is nil for an accepted heartbeat and `CONNECTION_LOST` when no reply arrived.
+    public static func next(code:String?,sinceSuccess:Duration)->Next {guard let code else{return .beat};return ["CONNECTION_LOST","APP_SUSPENDED"].contains(code) && sinceSuccess<lease ? .retry:.stop}
 }

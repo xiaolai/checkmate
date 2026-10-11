@@ -17,15 +17,42 @@ private struct SettingsForm:View {
     let usage:UsageLedger
     let library:CourseLibrary
     func binding<T>(_ key:WritableKeyPath<AppSettings,T>)->Binding<T> {Binding(get:{session.state.settings[keyPath:key]},set:{var s=session.state.settings;s[keyPath:key]=$0;session.updateSettings(s)})}
+    private func removeCodexSetup() {
+        guard !NativePolicy.silent else {companionSetupStatus="Codex setup is disabled during automation.";return}
+        guard let codex=CompanionInstallation.installedCodex() else {companionSetupStatus="Codex is not installed, so there is no Checkmate setup in it to remove.";return}
+        let alert=NSAlert();alert.messageText="Remove Checkmate from Codex?";alert.informativeText="Codex will no longer start Checkmate’s chess tools, and Checkmate’s companion skill is removed. A skill you edited is kept."
+        alert.addButton(withTitle:"Remove");let cancel=alert.addButton(withTitle:"Cancel");cancel.keyEquivalent="\r";alert.window.defaultButtonCell=cancel.cell as? NSButtonCell
+        guard alert.runModal() == .alertFirstButtonReturn else{return}
+        companionSetupRunning=true
+        Task {
+            do {
+                let skill=try Data(contentsOf:NativeResources.url("companion-skill.md"))
+                let removal=try await Task.detached {try CompanionInstallation.unregister(codex:codex,bundledSkill:skill)}.value
+                switch removal {case .removed:companionSetupStatus="Removed from Codex, with Checkmate’s companion skill.";case .absent:companionSetupStatus="Removed from Codex. No companion skill was installed.";case .kept:companionSetupStatus="Removed from Codex. Your edited companion skill was kept."}
+            } catch {companionSetupStatus=userFacingMessage(error,fallback:"Codex setup could not be removed.")}
+            companionSetupRunning=false
+        }
+    }
+    /// Whether the installed companion skill matches this version; read only, never written at launch.
+    private var skillNote:String? {
+        guard let bundled=try? Data(contentsOf:NativeResources.url("companion-skill.md")) else{return nil}
+        switch CompanionInstallation.skillState(bundled:bundled) {
+        case .outdated:return "The installed companion skill is from an older Checkmate. Choose Set up Codex to update it."
+        case .customized:return "Your companion skill differs from this version’s and is kept as it is. To use this version’s, remove ~/.codex/skills/\(CompanionInstallation.skillName()), then choose Set up Codex."
+        case .notInstalled,.current:return nil
+        }
+    }
     private func setUpCodex() {
+        guard !NativePolicy.silent else {companionSetupStatus="Codex setup is disabled during automation.";return}
+        if let problem=CompanionInstallation.launchLocationProblem(bundle:Bundle.main.bundleURL) {companionSetupStatus=problem;return}
         guard let codex=CompanionInstallation.installedCodex(),let directory=Bundle.main.executableURL?.deletingLastPathComponent() else {companionSetupStatus="Install Codex on this Mac first.";return}
         let executable=directory.appendingPathComponent("CheckmateMCP")
         companionSetupRunning=true
         Task {
             do {
                 let skill=try Data(contentsOf:NativeResources.url("companion-skill.md"))
-                try await Task.detached {try CompanionInstallation.register(executable:executable,codex:codex,skill:skill)}.value
-                companionSetupStatus="Ready. Enable chess MCP connections, then start a new Codex task using $checkmate-companion."
+                let state=try await Task.detached {try CompanionInstallation.register(executable:executable,codex:codex,skill:skill)}.value
+                companionSetupStatus="Ready. Enable chess MCP connections, then start a new Codex task using $\(CompanionInstallation.skillName())."+(state == .customized ? " Your customized companion skill was kept.":"")
             } catch {companionSetupStatus=error.localizedDescription}
             companionSetupRunning=false
         }
@@ -37,13 +64,13 @@ private struct SettingsForm:View {
         case .about:
             AboutPane(facts:about)
         case .connections:
-            Section("Codex companion"){Button(companionSetupRunning ? "Setting up…" : "Set up Codex"){setUpCodex()}.disabled(companionSetupRunning);if !companionSetupStatus.isEmpty{Text(companionSetupStatus).foregroundStyle(.secondary)};Text(companion.status);Toggle("Start chess MCP on launch",isOn:binding(\.companionAutoStart));Toggle("Allow chess MCP connections",isOn:Binding(get:{companion.enabled},set:{on in if on{do{try companion.enable(role:session.state.settings.companionRole,standby:true)}catch{companion.disable()}}else{companion.disable()}}));Picker("Companion role",selection:binding(\.companionRole)){Text("Coach").tag("coach");Text("Opponent (Black)").tag("opponent")}.disabled(companion.enabled);if companion.connected{Button("Disconnect companion"){companion.release()}};if let error=companion.error{Text(error).foregroundStyle(.secondary)}}
-            Section {Text("MCP starts locally and waits for a Codex task. While the voice coach is connected, external MCP waits; disconnect voice to use the Codex companion.").foregroundStyle(.secondary)}
+            Section("Codex companion"){Button(companionSetupRunning ? "Working…" : "Set up Codex"){setUpCodex()}.disabled(companionSetupRunning);Button("Remove Codex Setup…"){removeCodexSetup()}.disabled(companionSetupRunning);if !companionSetupStatus.isEmpty{Text(companionSetupStatus).foregroundStyle(.secondary)}else if let note=skillNote{Text(note).foregroundStyle(.secondary)};Text(companion.status);Toggle("Start chess MCP on launch",isOn:binding(\.companionAutoStart));Toggle("Allow chess MCP connections",isOn:Binding(get:{companion.enabled},set:{on in if on{do{try companion.enable(role:session.state.settings.companionRole,standby:true)}catch{companion.disable()}}else{companion.disable()}}));Picker("Companion role",selection:binding(\.companionRole)){Text("Coach").tag("coach");Text("Opponent (Black)").tag("opponent")}.disabled(companion.enabled);if companion.connected{Button("Disconnect companion"){companion.disconnectCurrentClient()}};if let error=companion.error{Text(error).foregroundStyle(.secondary)}}
+            Section {Text("MCP starts locally and waits for a Codex task. While the voice coach is connected, Codex requests are refused with an explanation; disconnect voice to use the Codex companion.").foregroundStyle(.secondary)}
         case .voice:
             Section("Connection"){Text(voice.status);Text(voice.availability).foregroundStyle(.secondary);HStack{Button("Check availability"){voice.checkAvailability()}.disabled(voice.checkingAvailability || voice.connecting || voice.connected);Button(voice.connected ? "Disconnect":voice.connecting ? "Cancel":"Connect"){if voice.connected || voice.connecting{voice.disconnect()}else{voice.connect()}}.disabled(session.companionEnabled)};Toggle("Connect voice coach on launch",isOn:binding(\.voiceAutoConnect));Text("At launch, Checkmate checks Codex availability once. Voice connects only when your account authorizes a session.").foregroundStyle(.secondary)}
             Section("Reasoning"){Text(voice.selectedModel.isEmpty ? "Automatic · newest compatible model":"Automatic · \(voice.selectedModel)").foregroundStyle(.secondary);Picker("Reasoning effort",selection:binding(\.coachReasoningEffort)){ForEach(AppSettings.reasoningEfforts,id:\.self){Text($0=="xhigh" ? "Extra high":$0.capitalized).tag($0)}}.accessibilityIdentifier("coach-reasoning-effort");Text("Minimal responds fastest. Higher effort allows deeper reasoning and may take longer and use more tokens. Changes apply to the next response.").font(.caption).foregroundStyle(.secondary)}
             Section("Speech"){Picker("Voice",selection:binding(\.coachVoice)){ForEach(AppSettings.voices,id:\.self){Text($0.capitalized).tag($0)}};if voice.connected && voice.activeVoice != session.state.settings.coachVoice{Text("Reconnect to use the selected voice.").font(.caption).foregroundStyle(.secondary)};Picker("Response language",selection:binding(\.voiceLanguage)){ForEach(AppSettings.languages.keys.sorted(),id:\.self){Text(AppSettings.languages[$0]!).tag($0)}};Slider(value:binding(\.voiceVolume),in:0...1){Text("Coach volume")};Button("Preview voice"){voice.audition()}.disabled(!voice.connected)}
-            Section {ProgressView(value:voiceAudio.level,total:1).accessibilityLabel("Microphone input level");Button("Test microphone"){voice.testMicrophone()}.disabled(voice.connected);Toggle("Microphone",isOn:binding(\.voiceMicrophone));Picker("Input device",selection:binding(\.voiceInputDevice)){Text("System default").tag("");ForEach(VoiceAudio.devices()){Text($0.name).tag($0.id)}}.disabled(!session.state.settings.voiceMicrophone);Toggle("Allow explicitly requested White moves",isOn:binding(\.voiceAssistMoves))} header:{Text("Learner input")} footer:{Text("The microphone pauses while the coach speaks. Assisted moves require your spoken request.")}
+            Section {ProgressView(value:voiceAudio.level,total:1).accessibilityLabel("Microphone input level");Button("Test microphone"){voice.testMicrophone()}.disabled(voice.connected || voice.connecting);Toggle("Microphone",isOn:binding(\.voiceMicrophone));Picker("Input device",selection:binding(\.voiceInputDevice)){Text("System default").tag("");ForEach(VoiceAudio.devices()){Text($0.name).tag($0.id)}}.disabled(!session.state.settings.voiceMicrophone);Toggle("Allow explicitly requested White moves",isOn:binding(\.voiceAssistMoves))} header:{Text("Learner input")} footer:{Text("The microphone pauses while the coach speaks. Assisted moves require your spoken request.")}
         case .board:
             Section("Appearance"){Picker("Board theme",selection:binding(\.boardTheme)){ForEach(["wood","green","blue","neutral"],id:\.self){Text(AppSettings.themes[$0]!).tag($0)}}}
             Section("Animation"){Picker("Piece movement",selection:binding(\.pieceDuration)){Text("Off").tag(0);Text("Fast").tag(300);Text("Medium").tag(500);Text("Slow").tag(700)}}
@@ -59,6 +86,8 @@ private struct SettingsForm:View {
     }.formStyle(.grouped).frame(minWidth:Metrics.settingsDetailMinimum,minHeight:Metrics.settingsFormMinimumHeight).onChange(of:selection.category){_,category in session.state.window.settingsCategory=category?.rawValue ?? "Chessboard";session.emit(semantic:false,save:true)}}
 }
 @MainActor final class SettingsWindow:NSWindowController,NSToolbarDelegate {
+    /// Escape closes Settings, as ⌘W (Window ▸ Close) does.
+    override func cancelOperation(_ sender:Any?){window?.performClose(sender)}
     private let selection=SettingsSelection(),titleID=NSToolbarItem.Identifier("settings.title")
     init(model:NativeModel){selection.category=SettingsCategory.allCases.first{$0.rawValue==model.session.state.window.settingsCategory} ?? .board;let w=NSWindow(contentRect:NSRect(x:0,y:0,width:Metrics.settingsWidth,height:Metrics.settingsHeight),styleMask:[.titled,.closable,.fullSizeContentView],backing:.buffered,defer:false);super.init(window:w)
         w.title="Settings";w.titleVisibility = .hidden;w.isReleasedWhenClosed=false;w.autorecalculatesKeyViewLoop=true

@@ -25,6 +25,19 @@ import XCTest
         XCTAssertEqual(events, ["check", "voice", "mcp"])
     }
 
+    /// Hidden during the check (Cmd-H, or launched hidden): the attempt waits and runs when the app is shown.
+    func testHiddenStartupWaitsAndResumesWhenShown() async {
+        var events: [String] = [], hidden = true
+        let startup = ConnectionStartup(settings: { AppSettings() }, check: { events.append("check"); return "test-session" },
+            connectVoice: { _ in events.append("voice") }, startMCP: { events.append("mcp") }, stillCurrent: { true }, visible: { !hidden }, silent: false)
+        startup.start(); await settle()
+        XCTAssertEqual(events, ["check"]); XCTAssertTrue(startup.deferred)
+        startup.start(); await settle(); XCTAssertEqual(events, ["check"], "A deferred attempt is resumed, not restarted by start()")
+        hidden = false; startup.resumeIfDeferred(); await settle()
+        XCTAssertEqual(events, ["check", "check", "voice", "mcp"]); XCTAssertFalse(startup.deferred)
+        startup.resumeIfDeferred(); await settle(); XCTAssertEqual(events.count, 4, "A finished attempt never runs again")
+    }
+
     func testIndependentTogglesAndFailedVoiceAuthorization() async {
         for voice in [false, true] {
             for mcp in [false, true] {

@@ -77,7 +77,7 @@ public struct UsageTotals: Equatable {
             let values=try url.resourceValues(forKeys:[.isSymbolicLinkKey,.fileSizeKey]);guard values.isSymbolicLink != true,(values.fileSize ?? 0)<=UsageLimits.maximumFileBytes else{throw CocoaError(.fileReadCorruptFile)}
             let file=try JSONDecoder().decode(File.self,from:Data(contentsOf:url));guard file.version==1,file.records.count<=UsageLimits.maximumRecords,file.records.allSatisfy(Self.valid) else{throw CocoaError(.fileReadCorruptFile)}
             records=file.records.map { var r=$0;if r.status == .running {r.status = .incomplete};return r }
-        }catch{unavailable=true;storageError="Usage history is unavailable. The original file has been preserved."}
+        }catch{unavailable=true;storageError="Usage history is unavailable; its original file is preserved. Activity in this session is shown here but not saved."}
     }
     private static func valid(_ r:UsageRecord)->Bool {
         let strings=[r.id,r.provider,r.sessionID,r.providerID ?? "",r.model ?? "",r.locale ?? "",r.voice ?? "",r.lessonID ?? ""]
@@ -87,8 +87,10 @@ public struct UsageTotals: Equatable {
         for estimate in [r.estimatedCredits,r.estimatedUSD]{if let estimate,(!estimate.isFinite || estimate<0 || estimate>UsageLimits.maximumEstimate){return false}}
         return true
     }
+    /// While the history file is unavailable, activity is still recorded in memory (never written over that file), so the
+    /// pane shows this session's paid work and Clear history can start a new history with it.
     @discardableResult public func begin(activity:UsageActivity,provider:String,sessionID:String,model:String?=nil,locale:String?=nil,voice:String?=nil,lessonID:String?=nil)->String {
-        let id=UUID().uuidString,now=Date();guard !unavailable else{return id}
+        let id=UUID().uuidString,now=Date()
         records.append(UsageRecord(id:id,activity:activity,provider:String(provider.prefix(256)),sessionID:String(sessionID.prefix(256)),model:model.map{String($0.prefix(256))},locale:locale.map{String($0.prefix(256))},voice:voice.map{String($0.prefix(256))},lessonID:lessonID.map{String($0.prefix(256))},startedAt:now,updatedAt:now,status:.running));persist();return id
     }
     public func record(operationID:String,providerID:String?,tokens:UsageTokens?,status:UsageStatus,cumulative:Bool=false,durationSeconds:Double?=nil,estimatedCredits:Double?=nil,estimatedUSD:Double?=nil,model:String?=nil) {
@@ -96,12 +98,23 @@ public struct UsageTotals: Equatable {
         let original=records[index]
         if let providerID,!cumulative,records.contains(where:{$0.id != operationID && $0.provider==original.provider && $0.sessionID==original.sessionID && $0.providerID==providerID && $0.activity==original.activity}){records.remove(at:index);persist();return}
         if !cumulative,original.providerID != nil,original.status != .running,original.status != .incomplete{return}
-        records[index].providerID=providerID.map{String($0.prefix(256))};records[index].tokens=tokens;if !(status == .running && original.status != .running){records[index].status=status};records[index].updatedAt=Date()
+        // Cumulative snapshots only grow; one that went down is older than what is stored (main-actor hops may arrive
+        // out of order), so it is dropped. A snapshot keeps every counter already known that it does not carry itself.
+        if cumulative,let tokens,let previous=original.tokens,Self.decreases(tokens,from:previous){return}
+        records[index].providerID=providerID.map{String($0.prefix(256))};records[index].tokens=cumulative ? Self.merged(tokens,over:original.tokens):tokens;if !(status == .running && original.status != .running){records[index].status=status};records[index].updatedAt=Date()
         if let model{records[index].model=String(model.prefix(256))}
         if let d=durationSeconds,d.isFinite,d>=0,d<=UsageLimits.maximumDuration{records[index].durationSeconds=d}
         if let estimate=estimatedCredits,estimate.isFinite,estimate>=0,estimate<=UsageLimits.maximumEstimate{records[index].estimatedCredits=estimate}
         if let estimate=estimatedUSD,estimate.isFinite,estimate>=0,estimate<=UsageLimits.maximumEstimate{records[index].estimatedUSD=estimate}
         persist()
+    }
+    private static func decreases(_ next:UsageTokens,from previous:UsageTokens)->Bool {
+        let pairs:[(Int64?,Int64?)]=[(next.input,previous.input),(next.output,previous.output),(next.total,previous.total),(next.cachedInput,previous.cachedInput),(next.reasoning,previous.reasoning)]
+        return pairs.contains{pair in if let n=pair.0,let p=pair.1{return n<p};return false}
+    }
+    private static func merged(_ next:UsageTokens?,over previous:UsageTokens?)->UsageTokens? {
+        guard let next,let previous else{return next ?? previous}
+        return UsageTokens(input:next.input ?? previous.input,output:next.output ?? previous.output,total:next.total ?? previous.total,cachedInput:next.cachedInput ?? previous.cachedInput,reasoning:next.reasoning ?? previous.reasoning,inputText:next.inputText ?? previous.inputText,inputAudio:next.inputAudio ?? previous.inputAudio,outputText:next.outputText ?? previous.outputText,outputAudio:next.outputAudio ?? previous.outputAudio,cachedText:next.cachedText ?? previous.cachedText,cachedAudio:next.cachedAudio ?? previous.cachedAudio)
     }
     public func finish(operationID:String,status:UsageStatus){guard let i=records.firstIndex(where:{$0.id==operationID}),records[i].status == .running else{return};records[i].status=status;records[i].updatedAt=Date();persist()}
     public func records(in range:UsageTimeRange,now:Date=Date(),calendar:Calendar = .current)->[UsageRecord] {
@@ -111,10 +124,16 @@ public struct UsageTotals: Equatable {
     public func totals(in range:UsageTimeRange = .all,now:Date=Date())->UsageTotals {
         var sum=UsageTotals();for r in records(in:range,now:now){if r.status == .incomplete || r.status == .running{sum.incompleteRecords+=1};guard let t=r.tokens,t.known else{sum.unknownRecords+=1;continue};sum.knownRecords+=1;sum.input += t.input ?? 0;sum.output += t.output ?? 0;sum.total += t.total ?? 0};return sum
     }
-    public func exportJSON() throws -> Data {let encoder=JSONEncoder();encoder.outputFormatting=[.prettyPrinted,.sortedKeys];encoder.dateEncodingStrategy = .iso8601;return try encoder.encode(File(records:records))}
+    /// Refuses while the history file is unreadable: an export of the empty in-memory history would look like a copy.
+    public func exportJSON() throws -> Data {guard !unavailable else{throw CheckmateError.unavailable("Usage history is unavailable, so there is nothing reliable to export. Its original file is kept unchanged.")};let encoder=JSONEncoder();encoder.outputFormatting=[.prettyPrinted,.sortedKeys];encoder.dateEncodingStrategy = .iso8601;return try encoder.encode(File(records:records))}
+    /// Clears completed history. An unreadable history file is first set aside (kept, never overwritten), so
+    /// clearing starts a new history without destroying the file the pane said was preserved; that new history begins
+    /// with this session's activity, which was only in memory.
     public func clear() throws {
         try checkDirectory()
-        records.removeAll{$0.status != .running};unavailable=false;storageError=nil;persist()
+        let url=directory.appendingPathComponent("usage-v1.json"),wasUnavailable=unavailable
+        if unavailable,FileManager.default.fileExists(atPath:url.path){let kept=directory.appendingPathComponent("usage-v1.unreadable-"+UUID().uuidString+".json");try FileManager.default.moveItem(at:url,to:kept)}
+        if !wasUnavailable{records.removeAll{$0.status != .running}};unavailable=false;storageError=nil;persist()
     }
     /// Enqueues the current snapshot for application shutdown without blocking the main actor.
     public func schedulePersistenceFlush() {persist(immediate:true)}
@@ -134,12 +153,16 @@ public struct UsageTotals: Equatable {
         guard !unavailable else{throw CocoaError(.fileReadCorruptFile)}
         pendingPersistence?.cancel();pendingPersistence=nil
         try checkDirectory()
+        // This write supersedes every earlier one, including their pending error reports.
+        persistenceRevision+=1;let revision=persistenceRevision
         let snapshot=records,root=directory
         try await withCheckedThrowingContinuation { (continuation:CheckedContinuation<Void,Error>) in
             persistenceQueue.async {
                 do{try Self.writeSnapshot(try JSONEncoder().encode(File(records:snapshot)),to:root);continuation.resume()}catch{continuation.resume(throwing:error)}
             }
         }
+        // A successful write clears a stale "could not be saved", unless a newer write has reported since.
+        if persistenceRevision==revision{storageError=nil}
     }
     private func checkDirectory() throws {
         guard !rejectedRootSymlink else{throw CocoaError(.fileWriteNoPermission)}
@@ -169,8 +192,9 @@ public struct UsageTotals: Equatable {
         try FileManager.default.setAttributes([.posixPermissions:0o600],ofItemAtPath:url.path)
     }
     private func persist(immediate:Bool=false) {
-        guard !unavailable else{return}
         let cutoff=Date().addingTimeInterval(-Double(UsageLimits.retentionDays)*86400);records.removeAll{$0.updatedAt<cutoff};if records.count>UsageLimits.maximumRecords{records.removeFirst(records.count-UsageLimits.maximumRecords)}
+        // An unavailable history keeps its records in memory only; its preserved file is never overwritten.
+        guard !unavailable else{return}
         do {
             try checkDirectory()
             let snapshot=records,root=directory

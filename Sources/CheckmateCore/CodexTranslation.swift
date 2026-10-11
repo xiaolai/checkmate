@@ -65,7 +65,7 @@ public final class CodexSubscriptionClient: LessonTranslationProvider, @unchecke
     }
     public func translate(source: LessonTranslation, locale: String,
                           onUsage: @escaping @Sendable (String, String, UsageTokens?) -> Void) async throws -> TranslationResult {
-        guard LessonLanguages.valid(locale) else { throw CheckmateError.invalid("Choose a valid language identifier.") }
+        guard LessonLanguages.normalizedSelection(locale) == locale else { throw CheckmateError.invalid("Choose a valid language identifier.") }
         let channel = try channel(); defer { channel.close() }
         return try await withTaskCancellationHandler(operation: {
             try await channel.initialize(checkIsolation: true)
@@ -151,6 +151,18 @@ public final class CodexSubscriptionClient: LessonTranslationProvider, @unchecke
                                      estimatedCredits: estimatedCredits, estimatedUSD: estimatedUSD)
         }, onCancel: { channel.requestClose() })
     }
+    /// A provider-supplied limit name reduced to visible letters, digits, "_" and "-": no bidi overrides, zero-width or
+    /// other format characters, controls or combining marks that could disguise the account status text.
+    static func safeLabel(_ name: String) -> String {
+        let kept = name.precomposedStringWithCanonicalMapping.unicodeScalars.filter { scalar in
+            switch scalar.properties.generalCategory {
+            case .uppercaseLetter, .lowercaseLetter, .titlecaseLetter, .modifierLetter, .otherLetter, .decimalNumber, .letterNumber, .otherNumber: return true
+            default: return scalar == "_" || scalar == "-"
+            }
+        }
+        let label = String(String.UnicodeScalarView(kept.prefix(64)))
+        return label.isEmpty ? "Codex" : label
+    }
     private static func number(_ value: Any?) -> Double? {
         guard let n = value as? NSNumber, CFGetTypeID(n) != CFBooleanGetTypeID() else { return nil }
         let d = n.doubleValue
@@ -171,7 +183,7 @@ public final class CodexSubscriptionClient: LessonTranslationProvider, @unchecke
                     ?? (result["rateLimits"] as? [String: Any]).map { ["Codex": $0] } ?? [:]
                 var windows = 0
                 for (name, rates) in buckets.sorted(by: { $0.key < $1.key }).prefix(20) {
-                    let safeName = String(name.filter { !$0.isNewline && !$0.isASCII || $0.isLetter || $0.isNumber || $0 == "_" || $0 == "-" }.prefix(64))
+                    let safeName = Self.safeLabel(name)
                     for key in ["primary", "secondary"] {
                         if let window = rates[key] as? [String: Any], let percent = Self.number(window["usedPercent"]), percent <= 100 {
                             var line = "\(safeName) \(key) window: \(Int(percent))% used"
@@ -200,7 +212,9 @@ public final class CodexSubscriptionClient: LessonTranslationProvider, @unchecke
 }
 
 private final class CodexChannel: @unchecked Sendable {
-    let scratch: URL, work: URL
+    /// `privateAuth` is the copied sign-in. It is deleted as soon as the channel is closed (cancellation runs that
+    /// synchronously, even at quit), not only when the async caller unwinds and removes the whole scratch home.
+    let scratch: URL, work: URL, privateAuth: URL
     private let process = Process(), input = Pipe(), output = Pipe(), lock = NSLock()
     private var queue: [[String: Any]] = [], failure = false, closed = false, rejectedTool = false, cleanupStarted = false, nextID = 0
     var attemptedTool: Bool { lock.withLock { rejectedTool } }
@@ -215,6 +229,7 @@ private final class CodexChannel: @unchecked Sendable {
         Self.removeAbandonedHomes(in: temporaryRoot)
         scratch = temporaryRoot.appendingPathComponent("checkmate-translation-" + UUID().uuidString)
         work = scratch.appendingPathComponent("work")
+        privateAuth = scratch.appendingPathComponent("codex").appendingPathComponent("auth.json")
         try FileManager.default.createDirectory(at: scratch, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
         do {
             try Data(String(getpid()).utf8).write(to: scratch.appendingPathComponent("owner.pid"), options: .atomic)
@@ -247,7 +262,6 @@ private final class CodexChannel: @unchecked Sendable {
             if let mode = originalCredentials["auth_mode"] as? String, mode == "chatgpt" { privateCredentials["auth_mode"] = mode }
             privateCredentials["last_refresh"] = ISO8601DateFormatter().string(from: Date())
             let privateData = try JSONSerialization.data(withJSONObject: privateCredentials)
-            let privateAuth = home.appendingPathComponent("auth.json")
             try privateData.write(to: privateAuth, options: .atomic)
             try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: privateAuth.path)
             let config = """
@@ -277,7 +291,8 @@ private final class CodexChannel: @unchecked Sendable {
             try Data(config.utf8).write(to: home.appendingPathComponent("config.toml"), options: .atomic)
             process.executableURL = executable; process.arguments = ["app-server", "--listen", "stdio://"]
             process.currentDirectoryURL = work
-            var env = ["PATH": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin", "HOME": scratch.path,
+            // An npm-installed codex is a Node script: keep its own directory (where nvm and Volta put node) on PATH.
+            var env = ["PATH": executable.deletingLastPathComponent().path + ":/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin", "HOME": scratch.path,
                        "CODEX_HOME": home.path, "TMPDIR": scratch.path]
             for key in ["HTTPS_PROXY", "HTTP_PROXY", "ALL_PROXY", "NO_PROXY", "https_proxy", "http_proxy", "all_proxy", "no_proxy"] {
                 if let value = ProcessInfo.processInfo.environment[key] { env[key] = value }
@@ -356,7 +371,9 @@ private final class CodexChannel: @unchecked Sendable {
             try? input.fileHandleForWriting.close()
             return true
         }
-        if shouldSignal && process.isRunning { _ = kill(process.processIdentifier, SIGTERM) }
+        guard shouldSignal else { return }
+        try? FileManager.default.removeItem(at: privateAuth)
+        if process.isRunning { _ = kill(process.processIdentifier, SIGTERM) }
     }
     func close() {
         requestClose()

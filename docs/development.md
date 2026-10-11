@@ -20,6 +20,13 @@ broker, a temporary WebKit legacy-store exporter test, and resource checks.
 The WebKit helper is a test executable, never part of the application. Its export is reimported by the deterministic migration test. The aggregate includes 483 sampled layout frames, constrained/fullscreen checks, lifecycle/restart tests, 1000 command transitions and 20 connection cycles. Automation does not enable VoiceOver or change accessibility preferences.
 The build bundles the native MCP adapter. UI/integration gates use its actual stdio protocol; neither the application nor its companion requires Node.
 
+While developing, run only the gates a change touches. `scripts/gates.json` maps every tracked file to the gates
+that exercise it, and a per-checkout ledger remembers the inputs each gate last passed on:
+`bash scripts/acceptance.sh --changed` runs the gates whose inputs changed (or that never passed),
+`--only pointer,unit` runs named gates, and `--list` shows what would run and why. A targeted run stops at the
+first failure and never writes `acceptance.json`; only the full run (no arguments) certifies a tree for release.
+`--check-map` fails if a file belongs to no gate; `python3 scripts/test-run-gates.py` checks the selection.
+
 ## Piece inspection
 
 Select a piece, then press `P` for **Protected by** or `A` for **Attacked by**
@@ -28,7 +35,9 @@ with `Command-Shift-P` and `Command-Shift-A`. The right drawer lists the related
 pieces and explains castling restrictions and conditional recaptures.
 Curved connectors have no arrowheads: teal indicates protection, red indicates
 attacks, and dashed connections indicate restricted or conditional relationships.
-Inspection clicks never play moves. Escape dismisses inspection first; a second
+During inspection, a click on a playable destination of the inspected piece leaves
+inspection and plays the move, so an accidental P or A never makes a legal move
+unplayable; any other click inspects. Escape dismisses inspection first; a second
 Escape clears selection. A changed position or presentation clears the inspection.
 
 Practice, previews and demonstrations use the displayed full position. En passant,
@@ -73,7 +82,7 @@ THIRD_PARTY_NOTICES.txt for engine, rules, artwork and content provenance.
 
 ## Rewritten lesson scripts
 
-All 40 lessons now use the native-owned British-English rewrite and 864 bundled OpenAI Cedar recordings at speed 1.0. [Content/lesson-scripts.en-GB.md](../Content/lesson-scripts.en-GB.md) is the script book; [Content/README.md](../Content/README.md) documents recording, verification and publication. Text, compressed audio, transcript titles, lesson projections and timing are published together, preserving actions, answer keys and saved progress. Playback is offline.
+All 40 lessons now use the native-owned British-English rewrite and 878 bundled OpenAI Cedar recordings at speed 1.0. [Content/lesson-scripts.en-GB.md](../Content/lesson-scripts.en-GB.md) is the script book; [Content/README.md](../Content/README.md) documents recording, verification and publication. Text, compressed audio, transcript titles, lesson projections and timing are published together, preserving actions, answer keys and saved progress. Playback is offline.
 
 Lesson mini-games default to human White versus computer Black: Pawn Duel, Rook Sweep, Rooks and Pawns, Bishop Sweep, Bishops and Pawns, Queen Against Pawns, and Knight Capture. Their opponent uses a bounded variant-aware search, without standard-chess king/check rules. The inspector offers a two-player option. Games are saved separately and Undo takes back a complete human/computer turn. Knight Corners is a solo ordered-corner challenge.
 
@@ -91,9 +100,14 @@ Review documents/cursors are stored separately from existing progress. Before do
 
 The installed app bundles `Contents/MacOS/CheckmateMCP`. Settings → Connections →
 Set up Codex registers that executable and installs the companion skill if absent.
-It preserves an existing customized skill. Restart the host MCP connection after
-moving the app to a different installation path. Developers can supply an isolated
+It preserves an existing customized skill. Codex stores the executable's absolute path,
+so run Set up Codex from the app's final location, such as `/Applications`, not from the
+mounted disk image, whose path disappears on eject. After moving the app, choose Set up
+Codex again, then start a new Codex task; restarting the MCP connection alone relaunches
+the old path. Developers can supply an isolated
 `--connection-file` to the executable; production uses the app's private discovery.
+The executable must run from inside an app bundle: it reports that bundle's
+`CFBundleShortVersionString` to MCP clients and refuses to start without one.
 
 ## Compatibility checks
 

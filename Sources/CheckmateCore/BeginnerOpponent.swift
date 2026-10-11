@@ -7,6 +7,8 @@ public enum BeginnerPolicy {
 @MainActor public enum BeginnerOpponent {
     public static let maximumRegretCp=BeginnerPolicy.maximumRegretCp,candidateCount=BeginnerPolicy.candidateCount,budgetMs=BeginnerPolicy.budgetMs
     public static func nextSevereStreak(_ result:EngineAnalysis,mover:String,current:Int)->Int {if let decision=result.opponentDecision{return (decision.estimatedRegretCp ?? 0)>=BeginnerPolicy.severeRegretCp ? min(BeginnerPolicy.maximumConsecutiveSevereErrors,current+1):0};guard let best=result.lines.first?.score,let chosen=result.lines.first(where:{$0.pv.first==result.bestMove})?.score,best.kind=="cp",chosen.kind=="cp",best.bound==nil,chosen.bound==nil else{return 0};let regret=max(0,(best.value-chosen.value)*(mover=="w" ? 1:-1));return regret>=BeginnerPolicy.severeRegretCp ? min(BeginnerPolicy.maximumConsecutiveSevereErrors,current+1):0}
+    /// A White-perspective score on one scale: mate in n is worth slightly less than 10000 for each extra move.
+    static func centipawns(_ score:AnalysisScore)->Int {score.kind=="mate" ? (score.value>0 ? 10000-score.value:-10000-score.value):score.value}
     public static func choose(rules:ChessRules,engine:NativeEngine,seed:UInt64,severeStreak:Int=0)async throws -> EngineAnalysis {
         let position=try rules.copy(),legal=position.moves();guard !legal.isEmpty else{return EngineAnalysis()}
         let start=position.records.first?.before ?? position.fen,history=position.records.map(\.uci),sign=position.turn=="w" ? 1:-1
@@ -25,7 +27,8 @@ public enum BeginnerPolicy {
             var regret=0
             if let best=best {
                 if line.score.kind=="mate",line.score.value*sign<0,best.kind != "mate" || best.value*sign>=0 {continue}
-                if best.kind=="cp",line.score.kind=="cp"{regret=max(0,(best.value-line.score.value)*sign);guard regret<=BeginnerPolicy.maximumRegretCp,severeStreak<BeginnerPolicy.maximumConsecutiveSevereErrors || regret<BeginnerPolicy.severeRegretCp else{continue}}
+                // Mates count as decisive centipawns, so passing up a forced mate is a large regret and the caps still apply.
+                if best.bound==nil{regret=max(0,(Self.centipawns(best)-Self.centipawns(line.score))*sign);guard regret<=BeginnerPolicy.maximumRegretCp,severeStreak<BeginnerPolicy.maximumConsecutiveSevereErrors || regret<BeginnerPolicy.severeRegretCp else{continue}}
             }
             let after=try ChessRules(fen:position.fen);try after.move(uci:uci)
             if after.moves().contains(where:{$0.captured=="q"}),move.captured != "q"{continue}

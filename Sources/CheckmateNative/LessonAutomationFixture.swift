@@ -23,6 +23,9 @@ struct LessonAutomationRecorder:LessonRecordingProvider {
         try await Task.sleep(for:.milliseconds(800))
         let id=UUID().uuidString,tokens=UsageTokens(input:20,output:30,total:50)
         onUsage(id,tokens)
-        return LessonRecordingResult(pcm:Data(repeating:0,count:4800),transcript:script,responseID:id,tokens:tokens,model:"gpt-realtime")
+        let letters=script.unicodeScalars.filter{CharacterSet.letters.contains($0)}.count,samples=max(2400,Int(Double(letters)/25*24000)+1)
+        // A quiet tone long enough for the script: recordings must be plausible speech length and not silent.
+        var pcm=Data(capacity:samples*2);for i in 0..<samples{var v=Int16(4000*sin(Double(i)*2*Double.pi*440/24000)).littleEndian;withUnsafeBytes(of:&v){pcm.append(contentsOf:$0)}}
+        return LessonRecordingResult(pcm:pcm,transcript:script,responseID:id,tokens:tokens,model:"gpt-realtime")
     }
 }

@@ -15,6 +15,7 @@ struct ReviewWorkspaceContent:View {
         }.fixedSize(horizontal:true,vertical:false)
         if model.session.rules.history.isEmpty{Text("Play a move to review your current game.").font(.caption).foregroundStyle(.secondary)}
         if !model.reviews.isEmpty{Text("Saved reviews are in the sidebar.").font(.caption).foregroundStyle(.secondary)}
+        Button("Return to game"){model.returnToGame()}
     }.padding(Metrics.padding).frame(maxWidth:.infinity,maxHeight:.infinity)}
 }
 struct ReviewDetailContent:View {
@@ -37,15 +38,21 @@ struct ReviewDetailContent:View {
             Text(review.explanation?.summary ?? "")
             if let note=review.explanation?.historyNote{Text(note).foregroundStyle(.secondary)}
             if review.nodeID==0{ForEach(Array((review.explanation?.takeaways ?? []).dropFirst()),id:\.self){Text("• "+$0)}}
-            if review.branch != nil {Text("Either side can make legal moves here. The imported game is preserved.");Button("Return to original"){review.clearBranch();model.saveReview()};Button("Analyze this idea"){review.analyze(using:model.reviewAnalyzer)}}
-            else{HStack{Button("Why?"){review.analyze(using:model.reviewAnalyzer)};Button("Look deeper"){review.analyze(using:model.reviewAnalyzer,budget:ReviewPolicy.deepBudget)};Button("Test my idea"){try? review.beginBranch()}}
+            if let branch=review.branch {
+                Text(branch.id==review.previewBranchID ? "A preview line: it is not kept unless you play a move in it.":"Either side can make legal moves here. The imported game is preserved.")
+                IdeaMoves(review:review,branch:branch,document:d)
+                HStack{Button("Return to original"){review.clearBranch();model.saveReview()};Button("Analyze this idea"){review.analyze(using:model.reviewAnalyzer)}
+                    if review.canUndoIdeaChange{Button("Undo change"){do{try review.undoIdeaChange();model.saveReview()}catch{model.storageError=userFacingMessage(error,fallback:"The change could not be undone.")}}}}
+            }
+            else{HStack{Button("Why?"){review.analyze(using:model.reviewAnalyzer)};Button("Look deeper"){review.analyze(using:model.reviewAnalyzer,budget:ReviewPolicy.deepBudget)};Button("Test my idea"){do{try review.beginBranch()}catch{model.storageError=userFacingMessage(error,fallback:"An imagined line could not start here.")}}}
                 if let pv=review.evidence?.root.lines.first?.pv,!pv.isEmpty{Button("Compare best line · before this move"){try? review.previewLine(pv,fromNode:d.nodes[review.nodeID].parent);review.seekBranch(0)}}
             }
             if review.analysisStatus=="pending"{ProgressView("Analyzing offline…")}
             if let evidence=review.evidence{Text(evidence.provisional ? "Provisional engine estimate":"Deeper engine comparison").foregroundStyle(.secondary);DisclosureGroup("Engine evidence"){ForEach(Array(evidence.root.lines.enumerated()),id:\.offset){_,line in Text(line.san.joined(separator:" "))};Text("\(evidence.engineVersion) · \(evidence.budgetMs) ms · full strength")}}
             if let error=review.error{Text(error).foregroundStyle(.secondary)}
             DisclosureGroup("Verified board facts"){ForEach(review.explanation?.facts ?? []){fact in Text(fact.text).textSelection(.enabled)}}
-            Button("Analyze whole game offline"){analyzer.startBatch(d)}
+            Button("Analyze whole game offline"){analyzer.startBatch(d)}.disabled(d.mainline.isEmpty || analyzer.batchRunning(d.id))
+            if d.mainline.isEmpty{Text("This position has no moves to analyze as a game; Why? analyzes the position itself.").font(.caption).foregroundStyle(.secondary)}
             if analyzer.batchDocument==d.id,["pending","deepening"].contains(analyzer.batchStatus){ProgressView(value:Double(analyzer.completed),total:Double(max(1,analyzer.total)));Text(analyzer.batchStatus=="deepening" ? "Checking the leading moment more deeply":"\(analyzer.completed) / \(analyzer.total) moves");Button("Cancel analysis"){analyzer.cancelBatch()}}
             if analyzer.batchDocument==d.id,analyzer.batchStatus=="failed"{Text("Offline analysis is unavailable for this game. The record remains navigable; try again later.").foregroundStyle(Color(nsColor:NativeColors.error))}
             else if analyzer.batchDocument==d.id,analyzer.batchStatus=="ready",analyzer.failed>0{Text("\(analyzer.failed) of \(analyzer.total) moves could not be analyzed.").foregroundStyle(.secondary)}
@@ -59,13 +66,17 @@ struct ReviewDetailContent:View {
             ForEach(allMoves ? d.mainline:scopedMoments(d).isEmpty ? important(d):scopedMoments(d).map(\.id),id:\.self){id in let n=d.nodes[id];Button("\(n.fullmove)\(n.side=="w" ? ".":"...") \(n.san ?? "")"){try? review.select(id);model.saveReview()}.buttonStyle(.plain).foregroundStyle(id==review.nodeID ? .primary:.secondary).accessibilityLabel("\(n.fullmove), \(n.side=="w" ? "White":"Black"), \(n.san ?? "")")}
             if !allMoves{Text(scopedMoments(d).isEmpty ? "Start with checks, captures, promotions and the final position. Analyze the game for engine-selected moments.":"Moments selected from legal moves and recorded engine comparisons. Provisional estimates may change with deeper analysis.").font(.caption).foregroundStyle(.secondary)}
             if !d.nodes[review.nodeID].children.isEmpty{DisclosureGroup("Recorded continuations"){ForEach(d.nodes[review.nodeID].children,id:\.self){id in Button(d.nodes[id].san ?? "Position"){try? review.select(id)}}}}
-            if !review.authoredBranches.isEmpty{DisclosureGroup("My imagined lines"){ForEach(review.authoredBranches,id:\.id){branch in Button("Idea from position \(branch.root) · \(branch.moves.count) moves"){try? review.openSavedBranch(branch.id)}}}}
+            if !review.authoredBranches.isEmpty{DisclosureGroup("My imagined lines (\(review.authoredBranches.count) of \(ReviewPolicy.maximumBranches))"){ForEach(review.authoredBranches,id:\.id){branch in HStack{
+                Button("Idea from position \(branch.root) · \(branch.moves.count) moves"){do{try review.openSavedBranch(branch.id)}catch{model.storageError=userFacingMessage(error,fallback:"This imagined line could not be opened.")}}
+                Spacer();Button("Delete",role:.destructive){do{try review.deleteBranch(branch.id);model.saveReview()}catch{model.storageError=userFacingMessage(error,fallback:"This imagined line could not be deleted.")}}.accessibilityLabel("Delete idea from position \(branch.root)")}}}}
             // Availability follows the displayed position, including an imagined line from the parent.
-            Divider();HStack{Button("Practise here"){model.practiceFromReview()}.disabled(!review.practiceForkAvailable);Button("Export PGN…"){model.exportReview()}}
+            Divider();HStack{Button("Practise here"){review.pause();model.practiceFromReview()}.disabled(!review.practiceForkAvailable);Button("Export PGN…"){model.exportReview()}}
             Button("Return to game"){model.returnToGame()}
             if voice.connected{Text("Voice connected · only selected verified facts are shared").font(.caption);Button("Narrate verified facts"){voice.narrateReview()};Button("Disconnect voice"){voice.disconnect()}}else if ReviewRolloutPolicy.reviewVoiceEnabled{Button("Connect optional voice"){voice.connect()}}
         }
-    }.sheet(isPresented:$model.practiceForkRequested){ReviewPracticeSheet(model:model)}}
+    }.sheet(isPresented:$model.practiceForkRequested){ReviewPracticeSheet(model:model)}
+    // A confirmation belongs to the review on screen; one left raised when the review closed must not reappear later.
+    .onDisappear{model.practiceForkRequested=false}}
     private func scopedMoments(_ d:GameDocument)->[ReviewMoment]{analyzer.batchDocument==d.id ? analyzer.moments.filter{d.nodes.indices.contains($0.id)}:[]}
     private func important(_ document:GameDocument)->[Int] {document.mainline.filter{id in let n=document.nodes[id];return n.san?.contains("+")==true || n.san?.contains("#")==true || n.san?.contains("x")==true || n.san?.contains("=")==true || id==document.mainline.last}}
 }
@@ -128,21 +139,44 @@ struct EngineEloControl:View {
     @ObservedObject var engine:NativeEngine
     @Binding var value:Int
     @State private var unavailable=false
-    var body:some View {Group{if let range=engine.capabilities.eloRange{Stepper("Engine estimate: \(value)",value:$value,in:range,step:50)}else{Text(unavailable ? "This engine does not provide an Elo setting. Use Stockfish skill instead.":"Checking engine strength settings…").foregroundStyle(.secondary)}}.task{do{try await engine.prepare();unavailable=engine.capabilities.eloRange==nil}catch{unavailable=true}}}
+    var body:some View {Group{if let range=engine.capabilities.eloRange{let shown=min(max(value,range.lowerBound),range.upperBound);Stepper("Engine estimate: \(shown)",value:Binding(get:{shown},set:{value=$0}),in:range,step:50)}else{Text(unavailable ? "This engine does not provide an Elo setting. Use Stockfish skill instead.":"Checking engine strength settings…").foregroundStyle(.secondary)}}.task{do{try await engine.prepare();unavailable=engine.capabilities.eloRange==nil}catch{unavailable=true}}}
 }
 
 struct ReviewPracticeSheet:View {
     @ObservedObject var model:NativeModel
     @State private var side="w"
     @State private var preset:String
+    /// The position this confirmation was raised for. An open, step or edit underneath the sheet (menu, drop or MCP)
+    /// must not make Start fork, or Save keep, a different position.
+    @State private var target:String?
     // Starts at the learner's current opponent rather than silently switching to custom settings.
-    init(model:NativeModel){self.model=model;let current=model.session.state.settings.opponentPreset;_preset=State(initialValue:current=="first_steps" && !ReviewRolloutPolicy.beginnerOpponentEnabled ? "custom":current)}
+    init(model:NativeModel){self.model=model;let current=model.session.state.settings.opponentPreset;_preset=State(initialValue:current=="first_steps" && !ReviewRolloutPolicy.beginnerOpponentEnabled ? "custom":current);_target=State(initialValue:model.review.practiceForkTarget)}
+    private func stillShown()->Bool {
+        guard target != nil,model.review.practiceForkTarget==target else{model.practiceForkRequested=false;model.storageError="The review changed while this was open, so nothing was started or saved. Choose Practise here again.";return false};return true
+    }
     var body:some View {VStack(alignment:.leading,spacing:Metrics.sectionGap){
         Text("Practise from this position").font(.headline)
         Text("Your current practice is backed up and becomes Previous game, replacing that shortcut’s older game. The imported record stays unchanged.")
         Picker("Play as",selection:$side){Text("White").tag("w");Text("Black").tag("b")}
         Picker("Opponent",selection:$preset){if ReviewRolloutPolicy.beginnerOpponentEnabled{Text("First steps").tag("first_steps")};Text("Gentle").tag("gentle");Text("Club").tag("club");Text("Keep custom settings").tag("custom")}
-        Button("Save this position for later"){model.saveCurrentReview();model.practiceForkRequested=false}
-        HStack{Spacer();Button("Cancel"){model.practiceForkRequested=false}.keyboardShortcut(.cancelAction);Button("Start practice"){model.confirmPracticeFork(side:side,preset:preset)}.keyboardShortcut(.defaultAction)}
+        Button("Save this position for later"){guard stillShown() else{return};model.saveCurrentReview();model.practiceForkRequested=false}
+        HStack{Spacer();Button("Cancel"){model.practiceForkRequested=false}.keyboardShortcut(.cancelAction);Button("Start practice"){guard stillShown() else{return};model.confirmPracticeFork(side:side,preset:preset)}.keyboardShortcut(.defaultAction)}
     }.padding(Metrics.padding).frame(minWidth:Metrics.right)}
+}
+
+/// The open imagined line's moves; each one shows its position.
+struct IdeaMoves:View {
+    @ObservedObject var review:ReviewController
+    let branch:ReviewBranch,document:GameDocument
+    private var sans:[String] {guard let rules=try? document.snapshotRules(at:branch.root) else{return []};var result:[String]=[];for uci in branch.moves{guard let move=try? rules.move(uci:uci) else{break};result.append(move.san)};return result}
+    var body:some View {
+        let moves=sans
+        if !moves.isEmpty {
+            Text("Moves in this line").font(.headline)
+            ForEach(Array(moves.enumerated()),id:\.offset){index,san in
+                Button("\(index+1). \(san)"){review.seekBranch(index+1)}.buttonStyle(.plain).foregroundStyle(index+1==review.branchPly ? .primary:.secondary)
+                    .accessibilityLabel("Imagined move \(index+1), \(san)")
+            }
+        }
+    }
 }

@@ -2,6 +2,7 @@ import Foundation
 public struct ReviewFact:Codable,Equatable,Identifiable {public let id:String,kind:String,text:String,squares:[String]}
 public struct ReviewExplanation:Codable,Equatable {
     public let title:String,summary:String,facts:[ReviewFact],takeaways:[String],historyNote:String?
+    static let standardStart="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
     private static let names=["p":"pawn","n":"knight","b":"bishop","r":"rook","q":"queen","k":"king"]
     private static let centralSquares=Set(["d4","d5","e4","e5"])
     public static func make(document:GameDocument,node:Int,evidence:ReviewEvidence?=nil)throws -> ReviewExplanation {
@@ -66,7 +67,7 @@ public struct ReviewExplanation:Codable,Equatable {
         if let castle=document.mainline.map({document.nodes[$0]}).first(where:{$0.san?.hasPrefix("O-O")==true}){takeaways.append("At \(castle.fullmove)\(castle.side=="w" ? ".":"...") \(castle.san ?? ""), both king and rook change squares. Inspect the king's safety afterward.")}
         }
         let overview="\(document.mainline.count) recorded half-moves. "+(takeaways.first ?? "Inspect the recorded position.")
-        return ReviewExplanation(title:node==0 ? "Game overview":"\(n.fullmove)\(n.side=="w" ? ".":"...") \(n.san ?? "Position")",summary:node==0 ? overview:facts.prefix(3).map(\.text).joined(separator:" "),facts:facts,takeaways:Array(takeaways.prefix(3)),historyNote:document.historyAvailable ? nil:"This FEN contains no earlier move history; repetition before this position is unknown.")
+        return ReviewExplanation(title:node==0 ? "Game overview":"\(n.fullmove)\(n.side=="w" ? ".":"...") \(n.san ?? "Position")",summary:node==0 ? overview:facts.prefix(3).map(\.text).joined(separator:" "),facts:facts,takeaways:Array(takeaways.prefix(3)),historyNote:!document.historyAvailable ? "This FEN contains no earlier move history; repetition before this position is unknown.":document.startingFEN.split(separator:" ").prefix(4) != Self.standardStart.split(separator:" ").prefix(4) ? "This game starts from a set-up position; moves before it are unknown, so earlier repetitions are not counted.":nil)
     }
     public static func imagined(rules:ChessRules)->ReviewExplanation {
         let text=rules.checkmate ? "This imagined position is checkmate.":rules.check ? "\(rules.turn=="w" ? "White":"Black") is in check in this imagined position.":"This is a separate imagined position, with \(rules.turn=="w" ? "White":"Black") to move. The original record is unchanged."

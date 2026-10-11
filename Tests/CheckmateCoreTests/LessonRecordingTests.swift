@@ -25,13 +25,13 @@ private final class RecordingUsageFixture:@unchecked Sendable {
 final class LessonRecordingTests:XCTestCase {
  private func start(model:String="gpt-realtime")->[[String:Any]] {[["type":"session.updated","session":["model":model]],["type":"response.created","response":["id":"r"]]]}
  private func done(status:String="completed",id:String="r")->[String:Any] {["type":"response.done","response":["id":id,"status":status,"usage":["total_tokens":19]]]}
- private func audio(_ count:Int=48,id:String="r")->[String:Any] {["type":"response.output_audio.delta","response_id":id,"delta":Data(repeating:0,count:count).base64EncodedString()]}
+ private func audio(_ count:Int=9600,id:String="r")->[String:Any] {["type":"response.output_audio.delta","response_id":id,"delta":plausibleLessonPCM("",seconds:Double(count)/48000).prefix(count).base64EncodedString()]}
  private func transcript(_ text:String="Hello.")->[String:Any] {["type":"response.output_audio_transcript.done","response_id":"r","transcript":text]}
  private func recorder(_ socket:RecordingSocketFixture,timeout:Double=1)->RealtimeLessonRecorder {RealtimeLessonRecorder(timeout:timeout,secretProvider:{"fixture-secret"},socketFactory:{_ in socket})}
  func testSuccessfulRecorderHasNoInputCaptureAndCloses()async throws {
   let socket=RecordingSocketFixture(start()+[audio(),transcript(),done()]),usage=RecordingUsageFixture()
   let result=try await recorder(socket).record(script:"Hello.",locale:"en",voice:"cedar",onUsage:usage.add)
-  XCTAssertEqual(result.pcm.count,48);XCTAssertEqual(usage.total,19);XCTAssertTrue(socket.closed)
+  XCTAssertEqual(result.pcm.count,9600);XCTAssertEqual(usage.total,19);XCTAssertTrue(socket.closed)
   let packets=try socket.sent.map{try JSONSerialization.jsonObject(with:$0) as! [String:Any]}
   XCTAssertEqual(packets.count,2);XCTAssertFalse(packets.contains{($0["type"] as? String ?? "").contains("input_audio_buffer")})
   let session=packets[0]["session"] as! [String:Any];XCTAssertTrue((session["tools"] as! [Any]).isEmpty);XCTAssertEqual(session["tool_choice"] as? String,"none")

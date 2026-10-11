@@ -17,7 +17,9 @@ public func userFacingMessage(_ error:Error,fallback:String)->String {
 }
 public enum NativeMode:String,Codable {case practice,lesson,puzzles}
 public enum NativePolicy {
-    public static var silent:Bool {ProcessInfo.processInfo.environment["CHECKMATE_AUTOMATION"] == "1" || ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil || CommandLine.arguments.contains("--automation")}
+    /// Silent: no live voice, Codex, microphone or audible output. Any process with XCTest loaded is silent, so a
+    /// bare `swift test` can never reach live services, whatever its environment.
+    public static var silent:Bool {ProcessInfo.processInfo.environment["CHECKMATE_AUTOMATION"] == "1" || ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil || CommandLine.arguments.contains("--automation") || NSClassFromString("XCTestCase") != nil}
 }
 
 public enum NativeLog {public static let lifecycle=Logger(subsystem:"ai.xiaolai.checkmate",category:"lifecycle");public static let engine=Logger(subsystem:"ai.xiaolai.checkmate",category:"engine");public static let course=Logger(subsystem:"ai.xiaolai.checkmate",category:"course");public static let companion=Logger(subsystem:"ai.xiaolai.checkmate",category:"companion");public static let voice=Logger(subsystem:"ai.xiaolai.checkmate",category:"voice");public static let storage=Logger(subsystem:"ai.xiaolai.checkmate",category:"storage")}

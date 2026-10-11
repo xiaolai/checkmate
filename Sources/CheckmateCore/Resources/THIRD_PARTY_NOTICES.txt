@@ -1,14 +1,30 @@
 Checkmate Native
 
+Source code for this version, including every repository path named below:
+https://github.com/xiaolai/checkmate/tree/v<version>
+where <version> is the version shown in Settings > About. The GitHub release
+for that version also carries the complete source archive:
+https://github.com/xiaolai/checkmate/releases/tag/v<version>
+
 chess.js 1.4.0, copyright Jeff Hlywa, BSD-2-Clause.
 Full license: chess-LICENSE in this resource directory.
 
-Stockfish 19, GPL-3.0-only. Unmodified upstream source, rebuilt on build-host.
+Stockfish 19, GPL-3.0-or-later (its source files grant GPL version 3 "or (at
+your option) any later version"). Unmodified upstream sf_19 source, compiled
+for arm64 and x86_64 with the recipe below.
 Full license: Stockfish-COPYING.txt.
 Official source: https://github.com/official-stockfish/Stockfish/tree/sf_19
-Corresponding source archive and reproducible recipe: ThirdParty/Stockfish/.
+Corresponding source archive (sf_19-source.tar.gz) and build notes:
+https://github.com/xiaolai/checkmate/tree/v<version>/ThirdParty/Stockfish
+Build recipe: Tools/build-stockfish.sh at the same tag.
 Source/network/binary checksums: stockfish-build.json.
-The official default nn-1a298aa575a0.nnue network is packaged separately;
+NNUE network nn-1a298aa575a0.nnue: Stockfish 19's official default network,
+packaged separately and unmodified. The sf_19 README lists the .nnue file as
+part of the Stockfish distribution, which it licenses under the GNU GPL
+version 3; the network is distributed under those terms. The README also
+states that Stockfish's networks are trained on data from the Leela Chess Zero
+project, made available under the Open Database License (ODbL):
+https://opendatacommons.org/licenses/odbl/odbl-10.txt
 NNUE_EMBEDDING_OFF changes packaging only, not evaluation or search.
 The child process disables macOS's freed large-allocation cache to bound RSS.
 No Homebrew library dependency: libSystem and libc++ from macOS only.
@@ -26,4 +42,4 @@ Original Checkmate code and owner-authored course materials: GPL-3.0-or-later.
 Full license: Checkmate-COPYING.txt.
 No Apple Chess 3D meshes, textures or renderer are shipped.
 
-Native MCP: Swift MCP SDK 0.12.1 and EventSource (MIT); SwiftNIO, Swift System, Swift Log, Swift Atomics and Swift Collections (Apache-2.0 with Swift runtime exception). See Licenses/ for full texts and Package.resolved in the source release for pinned revisions.
+Native MCP: Swift MCP SDK 0.12.1 and EventSource (MIT); SwiftNIO, Swift System, Swift Log, Swift Atomics and Swift Collections (Apache-2.0 with Swift runtime exception). See Licenses/ for full texts and Package.resolved in the source above for pinned revisions.

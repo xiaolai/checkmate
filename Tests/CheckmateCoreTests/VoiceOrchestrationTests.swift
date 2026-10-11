@@ -11,11 +11,12 @@ final class VoiceOrchestrationTests:XCTestCase {
 
 extension VoiceOrchestrationTests {
     @MainActor func testChangedScriptStopsBeforeNextSegment()async throws {
-        let s=try GameSession(engine:nil),v=try VoiceCoach(session:s);_ = try s.openVoice();v.receive(["type":"session.updated"])
+        let s=try GameSession(engine:nil),v=try VoiceCoach(session:s);var events:[[String:Any]]=[];v.automationOutbound={events.append($0)};_ = try s.openVoice();v.receive(["type":"session.updated"])
         _ = try await v.execute("speak_explanation",args:["positionId":s.positionId,"displayIdentity":s.displayIdentity,"segments":[["text":"Your pawn is on e2.","squares":["e2"],"kind":"observation"],["text":"Your king is on e1.","squares":["e1"],"kind":"observation"]]],id:"script")
-        v.receive(["type":"response.done","response":["status":"completed"]])
+        v.receive(["type":"response.done","response":["status":"completed"]]);let requests=events.filter{$0["type"] as? String=="response.create"}.count
         v.receive(["type":"response.output_audio_transcript.done","response_id":"script","transcript":"Your pawn is on e4."])
-        XCTAssertFalse(v.connected);XCTAssertTrue(v.status.contains("changed"));XCTAssertFalse(s.voiceHold);XCTAssertTrue(s.voiceFocus.isEmpty)
+        v.receive(["type":"response.done","response":["status":"cancelled"]])
+        XCTAssertTrue(v.connected);XCTAssertEqual(events.filter{$0["type"] as? String=="response.create"}.count,requests);XCTAssertTrue(s.voiceFocus.isEmpty);v.disconnect();XCTAssertFalse(s.voiceHold)
     }
     @MainActor func testIncompleteResponseDoesNotAdvanceTurn()throws {
         let s=try GameSession(engine:nil),v=try VoiceCoach(session:s);_ = try s.openVoice();v.receive(["type":"session.updated"])

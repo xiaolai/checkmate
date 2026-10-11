@@ -32,12 +32,13 @@ for raw in sys.stdin:
 }
 
 final class OpusImportMessageTests:XCTestCase {
+    /// A bad game in a collection is skipped and reported under its own record number; the good one still imports.
     func testLaterRecordErrorsReportTheirOwnRecordNumber()throws {
-        do{_ = try PGNImporter.parse(Data("[Event \"A\"]\n1. e4 *\n\n[Event \"B\"]\n1. e9 *".utf8));XCTFail("Invalid second record accepted")}
-        catch let error as ReviewImportError{XCTAssertEqual(error.record,2)}
-        // A lexer failure in the second record's first token must not be attributed to record 1.
-        do{_ = try PGNImporter.parse(Data("[Event \"A\"]\n1. e4 *\n\n[Event \"B".utf8));XCTFail("Unclosed header accepted")}
-        catch let error as ReviewImportError{XCTAssertEqual(error.record,2,error.errorDescription ?? "")}
+        let illegal=try PGNImporter.parseReport(Data("[Event \"A\"]\n1. e4 *\n\n[Event \"B\"]\n1. e9 *".utf8))
+        XCTAssertEqual(illegal.documents.map(\.title),["A"]);XCTAssertEqual(illegal.skipped.map(\.record),[2])
+        // A lexer failure in the second record's first token is reported for record 2 and never costs record 1.
+        let unclosed=try PGNImporter.parseReport(Data("[Event \"A\"]\n1. e4 *\n\n[Event \"B".utf8))
+        XCTAssertEqual(unclosed.documents.map(\.title),["A"]);XCTAssertEqual(unclosed.skipped.map(\.record),[2],unclosed.skipped.first?.errorDescription ?? "")
     }
     func testUserFacingMessagesAreReadableAndPathFree(){
         let importError=ReviewImportError(record:3,token:7,reason:"Illegal or ambiguous SAN: e9.")
@@ -48,8 +49,8 @@ final class OpusImportMessageTests:XCTestCase {
         XCTAssertEqual(userFacingMessage(foundation,fallback:"The file could not be read."),"The file could not be read.")
     }
     func testLaterRecordSemanticErrorKeepsItsRecordNumber()throws {
-        do{_ = try PGNImporter.parse(Data("[Event \"A\"]\n1. e4 *\n\n[Event \"B\"]\n1. d4 d5 ( 1-0 ) *".utf8));XCTFail("Result inside variation accepted")}
-        catch let error as ReviewImportError{XCTAssertEqual(error.record,2)}
+        let report=try PGNImporter.parseReport(Data("[Event \"A\"]\n1. e4 *\n\n[Event \"B\"]\n1. d4 d5 ( 1-0 ) *".utf8))
+        XCTAssertEqual(report.documents.map(\.title),["A"]);XCTAssertEqual(report.skipped.map(\.record),[2])
     }
 }
 
@@ -58,14 +59,14 @@ final class OpusImportMessageTests:XCTestCase {
     func testMCPOpenReviewRejectsActivityChangeDuringParseWithoutOrphan()async throws {
         let root=try temporaryDirectory();defer{try? FileManager.default.removeItem(at:root)}
         let (adapter,review,_,store)=try tools(root);var reads=0,opened=0
-        adapter.activityGeneration={reads+=1;return reads==1 ? 7:8};adapter.onOpen={_ in opened+=1}
+        adapter.activityGeneration={reads+=1;return reads==1 ? 7:8};adapter.onOpen={_,_ in opened+=1;return true}
         do{_ = try await adapter.call("open_review",args:["source":"paste","text":"[Event \"Agent\"]\n1. e4 *"]);XCTFail("Stale agent open accepted")}catch let failure as ProtocolFailure{XCTAssertEqual(failure.code,"STALE_REVIEW")}
         XCTAssertEqual(opened,0);XCTAssertFalse(review.active);XCTAssertEqual(try store.list().count,0,"Rejected open left a library entry")
     }
     func testMCPOpenReviewRejectsActivityChangeDuringSaveAndRemovesStagedEntry()async throws {
         let root=try temporaryDirectory();defer{try? FileManager.default.removeItem(at:root)}
         let (adapter,review,_,store)=try tools(root);var reads=0,opened=0
-        adapter.activityGeneration={reads+=1;return reads<=2 ? 7:8};adapter.onOpen={_ in opened+=1}
+        adapter.activityGeneration={reads+=1;return reads<=2 ? 7:8};adapter.onOpen={_,_ in opened+=1;return true}
         do{_ = try await adapter.call("open_review",args:["source":"current"]);XCTFail("Stale agent open accepted")}catch let failure as ProtocolFailure{XCTAssertEqual(failure.code,"STALE_REVIEW")}
         XCTAssertEqual(opened,0);XCTAssertFalse(review.active);XCTAssertEqual(try store.list().count,0)
     }
@@ -151,7 +152,8 @@ final class OpusImportMessageTests:XCTestCase {
 @MainActor final class OpusCanonicalMoveTests:XCTestCase {
     func testImaginedPromotionIsStoredAsCanonicalUCI()throws {
         let d=try PGNImporter.parse(Data("[SetUp \"1\"]\n[FEN \"7k/4P3/8/8/8/8/8/K7 w - - 0 1\"]\n*".utf8))[0],session=try GameSession(engine:nil),review=ReviewController()
-        review.open(d,practice:session);try review.previewLine(["e7e8"])
+        review.open(d,practice:session);try review.previewLine(["e7e8"]);XCTAssertEqual(review.branch?.moves,["e7e8q"])
+        review.clearBranch();try review.beginBranch();try review.playBranch("e7e8")
         XCTAssertEqual(review.branch?.moves,["e7e8q"]);XCTAssertEqual(try PGNImporter.parse(PGNExporter.withIdeas(d,branches:review.branchesForSaving)).count,2)
     }
     func testEngineReceivesValidatedCanonicalHistory()async throws {
@@ -196,6 +198,9 @@ final class OpusImportMessageTests:XCTestCase {
         let upgraded=StateStore(directory:root);upgraded.preserveFirstLaunchBackup()
         var next=old;next.settings.skill=3;try upgraded.save(next);try upgraded.save(next);upgraded.preserveFirstLaunchBackup()
         XCTAssertEqual(try Data(contentsOf:upgraded.firstLaunchBackupURL),original,"Pre-upgrade bytes must survive later saves")
+        // The next version keeps its own pre-upgrade copy beside the earlier one.
+        let newer=StateStore(directory:root);newer.appVersion="99.0.0";newer.preserveFirstLaunchBackup()
+        XCTAssertEqual(try Data(contentsOf:newer.firstLaunchBackupURL),try Data(contentsOf:upgraded.url));XCTAssertEqual(try Data(contentsOf:upgraded.firstLaunchBackupURL),original)
         XCTAssertNotEqual(try Data(contentsOf:upgraded.backupURL),original,"The rolling backup still tracks the previous save")
     }
 }

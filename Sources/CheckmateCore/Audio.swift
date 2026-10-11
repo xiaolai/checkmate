@@ -1,14 +1,27 @@
 import Foundation
 import AVFoundation
-public struct AudioPolicy {public let automation:Bool;public init(automation:Bool){self.automation=automation};public func mayPlay(enabled:Bool,volume:Double)->Bool {!automation && enabled && volume>0}}
+public struct AudioPolicy {public let automation:Bool;public init(automation:Bool){self.automation=automation};public func mayPlay(enabled:Bool,volume:Double)->Bool {!automation && enabled && volume>0}
+    /// Whether the learner's settings let narration (lessons and the Settings preview) be heard at all.
+    public static func narrationAudible(_ settings:AppSettings)->Bool {settings.narration && settings.volume>0}}
 @MainActor public final class NativeAudio:NarrationService {
     public let policy:AudioPolicy
     private var narration:AVAudioPlayer?,effect:AVAudioPlayer?
     private let scores:[String:[Tone]]
     public private(set) var error:String?
-    public init(automation:Bool=NativePolicy.silent,scores:[String:[Tone]]){policy=AudioPolicy(automation:automation);self.scores=scores}
-    public func play(file:String,seconds:Double,settings:AppSettings){stop();guard policy.mayPlay(enabled:settings.narration,volume:settings.volume) else{return};do{let p=try AVAudioPlayer(contentsOf:NativeResources.url(file));p.volume=Float(settings.volume);p.currentTime=min(seconds,p.duration);guard p.play() else{throw CheckmateError.unavailable("Narration could not play.")};narration=p;error=nil}catch{self.error="Narration could not play. You can still read the transcript."}}
-    public func play(localURL:URL,seconds:Double,settings:AppSettings){stop();guard localURL.isFileURL,policy.mayPlay(enabled:settings.narration,volume:settings.volume) else{return};do{let values=try localURL.resourceValues(forKeys:[.isSymbolicLinkKey,.fileSizeKey]);guard values.isSymbolicLink != true,(values.fileSize ?? Int.max)<=28_800_044 else{throw CheckmateError.invalid("Invalid local recording.")};let p=try AVAudioPlayer(contentsOf:localURL);p.volume=Float(settings.volume);p.currentTime=min(seconds,p.duration);guard p.play() else{throw CheckmateError.unavailable("Narration could not play.")};narration=p;error=nil}catch{self.error="Narration could not play. You can still read the transcript."}}
+    public private(set) var narrationFailure:String?
+    public static let playbackFailure="Narration could not play. You can still read the transcript."
+    public static let replacedFailure="Checkmate was updated or moved while open, so lesson narration is unavailable. Quit and reopen Checkmate to hear it."
+    /// Bundled narration resolves by path into the app bundle on disk. An update installed (or a move made) while the app
+    /// runs leaves this process's course pointing at files that are gone; only a relaunch loads the new course.
+    private let bundleURL:URL,launchedBundle:String?
+    public init(automation:Bool=NativePolicy.silent,scores:[String:[Tone]],bundleURL:URL=Bundle.main.bundleURL){policy=AudioPolicy(automation:automation);self.scores=scores;self.bundleURL=bundleURL;launchedBundle=Self.bundleIdentity(bundleURL)}
+    /// The file identity of the bundle's Info.plist (replaced with every install); nil outside an app bundle.
+    static func bundleIdentity(_ bundle:URL)->String? {guard let attributes=try? FileManager.default.attributesOfItem(atPath:bundle.appendingPathComponent("Contents/Info.plist").path),let inode=attributes[.systemFileNumber] as? NSNumber,let modified=attributes[.modificationDate] as? Date else{return nil};return "\(inode)|\(modified.timeIntervalSince1970)"}
+    /// Why bundled narration failed: the generic message, or a relaunch request when the app on disk is not this one.
+    var bundledNarrationFailure:String {Self.bundleIdentity(bundleURL)==launchedBundle ? Self.playbackFailure:Self.replacedFailure}
+    public func play(file:String,seconds:Double,settings:AppSettings){stop();narrationFailure=nil;guard policy.mayPlay(enabled:settings.narration,volume:settings.volume) else{return};do{let p=try AVAudioPlayer(contentsOf:NativeResources.url(file));p.volume=Float(settings.volume);p.currentTime=min(seconds,p.duration);guard p.play() else{throw CheckmateError.unavailable("Narration could not play.")};narration=p}catch{narrationFailure=bundledNarrationFailure}}
+    public func play(localURL:URL,seconds:Double,settings:AppSettings){stop();narrationFailure=nil;guard localURL.isFileURL,policy.mayPlay(enabled:settings.narration,volume:settings.volume) else{return};do{let values=try localURL.resourceValues(forKeys:[.isSymbolicLinkKey,.fileSizeKey]);guard values.isSymbolicLink != true,(values.fileSize ?? Int.max)<=28_800_044 else{throw CheckmateError.invalid("Invalid local recording.")};let p=try AVAudioPlayer(contentsOf:localURL);p.volume=Float(settings.volume);p.currentTime=min(seconds,p.duration);guard p.play() else{throw CheckmateError.unavailable("Narration could not play.")};narration=p}catch{narrationFailure=Self.playbackFailure}}
+    public func setNarrationVolume(_ volume:Double){narration?.volume=Float(volume)}
     public var isNarrationPlaying:Bool {narration?.isPlaying==true}
     public var playbackTime:Double? {guard let narration=narration,narration.isPlaying else{return nil};return narration.currentTime}
     public func pause(){narration?.pause()}

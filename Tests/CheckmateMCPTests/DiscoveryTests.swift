@@ -61,3 +61,13 @@ final class DiscoveryTests: XCTestCase {
         XCTAssertEqual((closed["error"] as? [String: Any])?["code"] as? String, "DISCONNECTED")
     }
 }
+
+/// The MCP server reports the app's own version and refuses to guess one outside an app bundle.
+final class ServerVersionTests:XCTestCase {
+    func testAMissingBundleVersionIsRefused()throws {
+        // Bundle(path:) caches by path, so each case gets its own directory.
+        func bundle(_ info:[String:String]?)throws -> Bundle {let root=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString+".bundle");addTeardownBlock{try? FileManager.default.removeItem(at:root)};try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true);if let info{try PropertyListSerialization.data(fromPropertyList:info,format:.xml,options:0).write(to:root.appendingPathComponent("Info.plist"))};return try XCTUnwrap(Bundle(path:root.path))}
+        XCTAssertThrowsError(try CompanionServer.bundleVersion(try bundle(nil)))
+        XCTAssertEqual(try CompanionServer.bundleVersion(try bundle(["CFBundleShortVersionString":"9.9.9","CFBundleIdentifier":"test.version"])),"9.9.9")
+    }
+}

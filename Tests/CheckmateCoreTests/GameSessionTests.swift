@@ -15,7 +15,7 @@ final class GameSessionTests:XCTestCase {
     }
 }
 extension GameSessionTests {
-    @MainActor func testUndoCancelsHintWithoutDisplayingStaleError() async throws {let s=try GameSession(engine:SlowHintEngine());s.hint();XCTAssertTrue(s.busy);s.undo();try await Task.sleep(nanoseconds:80_000_000);XCTAssertNil(s.error);XCTAssertEqual(s.coaching.status,"idle");XCTAssertFalse(s.busy)}
+    @MainActor func testUndoCancelsHintWithoutDisplayingStaleError() async throws {let s=try GameSession(engine:SlowHintEngine());for uci in ["e2e4","e7e5"]{try s.rules.move(uci:uci)};s.hint();XCTAssertTrue(s.busy);XCTAssertTrue(s.canTakeBack);s.undo();XCTAssertEqual(s.rules.history,[]);try await Task.sleep(nanoseconds:80_000_000);XCTAssertNil(s.error);XCTAssertEqual(s.coaching.status,"idle");XCTAssertFalse(s.busy)}
 }
 @MainActor private final class SlowHintEngine:EngineService{func analyze(fen:String,skill:Int,budget:Int,multiPv:Int) async throws->EngineAnalysis{try? await Task.sleep(nanoseconds:50_000_000);return EngineAnalysis(bestMove:"e2e4")}}
 extension GameSessionTests {
