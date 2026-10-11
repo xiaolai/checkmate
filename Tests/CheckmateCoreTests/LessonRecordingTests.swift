@@ -30,7 +30,7 @@ final class LessonRecordingTests:XCTestCase {
  private func recorder(_ socket:RecordingSocketFixture,timeout:Double=1)->RealtimeLessonRecorder {RealtimeLessonRecorder(timeout:timeout,secretProvider:{"fixture-secret"},socketFactory:{_ in socket})}
  func testSuccessfulRecorderHasNoInputCaptureAndCloses()async throws {
   let socket=RecordingSocketFixture(start()+[audio(),transcript(),done()]),usage=RecordingUsageFixture()
-  let result=try await recorder(socket).record(script:"Hello.",locale:"en",voice:"cedar",onUsage:usage.add)
+  let result=try await recorder(socket).record(script:"Hello.",locale:"en",voice:"cedar",onUsage:{usage.add($0,$1)})
   XCTAssertEqual(result.pcm.count,9600);XCTAssertEqual(usage.total,19);XCTAssertTrue(socket.closed)
   let packets=try socket.sent.map{try JSONSerialization.jsonObject(with:$0) as! [String:Any]}
   XCTAssertEqual(packets.count,2);XCTAssertFalse(packets.contains{($0["type"] as? String ?? "").contains("input_audio_buffer")})
@@ -39,13 +39,13 @@ final class LessonRecordingTests:XCTestCase {
  func testFailedCancelledAndInvalidFinalCaptureUsage()async {
   for status in ["failed","cancelled","completed"] {
    let socket=RecordingSocketFixture(start()+[done(status:status)]),usage=RecordingUsageFixture()
-   do{_=try await recorder(socket).record(script:"Hello.",locale:"en",voice:"cedar",onUsage:usage.add);XCTFail("Expected invalid response")}catch{}
+   do{_=try await recorder(socket).record(script:"Hello.",locale:"en",voice:"cedar",onUsage:{usage.add($0,$1)});XCTFail("Expected invalid response")}catch{}
    XCTAssertEqual(usage.count,1);XCTAssertEqual(usage.total,19);XCTAssertTrue(socket.closed)
   }
  }
  func testTranscriptMismatchPreservesDeliveredUsage()async {
   let socket=RecordingSocketFixture(start()+[audio(),transcript("Different text."),done()]),usage=RecordingUsageFixture()
-  do{_=try await recorder(socket).record(script:"Hello.",locale:"en",voice:"cedar",onUsage:usage.add);XCTFail("Expected mismatch")}catch{}
+  do{_=try await recorder(socket).record(script:"Hello.",locale:"en",voice:"cedar",onUsage:{usage.add($0,$1)});XCTFail("Expected mismatch")}catch{}
   XCTAssertEqual(usage.total,19);XCTAssertTrue(socket.closed)
  }
  func testRejectToolsOddPCMTranscriptBoundsAndForeignResponse()async {

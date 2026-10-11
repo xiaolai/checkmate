@@ -456,7 +456,7 @@ private final class CodexChannel: @unchecked Sendable {
         nextID += 1; let id = nextID
         try await send(["id": id, "method": method, "params": params])
         let deadline = Date().addingTimeInterval(rpcTimeout); var deferred: [[String: Any]] = []
-        defer { lock.lock(); queue.insert(contentsOf: deferred, at: 0); lock.unlock() }
+        defer { lock.withLock { queue.insert(contentsOf: deferred, at: 0) } }
         while true {
             let event = try await next(deadline: deadline)
             if event["id"] as? Int == id {
