@@ -1,6 +1,6 @@
 // Standalone build-host helper for the native review scenario, run concurrently with scripts/test-review-ui.sh:
 // 1. answers the scenario's numbered accessibility requests (rendered text/visibility, enabled state,
-//    AXPress, selected sidebar row) from outside the app process;
+//    real pointer clicks, selected sidebar row) from outside the app process;
 // 2. selects the actual fixture row in the real Open panel and presses Open;
 // 3. after normal termination, reads back the persisted review cursor and ideas.
 import AppKit
@@ -22,12 +22,39 @@ func rect(_ element:AXUIElement)->CGRect? {
     guard let rawPosition=value(element,kAXPositionAttribute),let rawSize=value(element,kAXSizeAttribute) else{return nil}
     var point=CGPoint.zero,size=CGSize.zero;AXValueGetValue(rawPosition as! AXValue,.cgPoint,&point);AXValueGetValue(rawSize as! AXValue,.cgSize,&size);return CGRect(origin:point,size:size)
 }
+/// Scrolls with the wheel, as a person does, until the element's centre is inside its window below the toolbar.
+func reveal(_ element:AXUIElement)->Bool {
+    // Elements in system panels may not report their window; one with an on-screen frame is already visible.
+    guard let window=value(element,kAXWindowAttribute),let windowFrame=rect(window as! AXUIElement) else{return rect(element).map{$0.width>0 && $0.height>0} ?? false}
+    let visible=windowFrame.insetBy(dx:0,dy:40).offsetBy(dx:0,dy:20),source=CGEventSource(stateID:.hidSystemState)
+    for _ in 0..<80 {
+        guard let box=rect(element) else{return false};if visible.contains(CGPoint(x:box.midX,y:box.midY)){return true}
+        let point=CGPoint(x:min(max(box.midX,visible.minX+4),visible.maxX-4),y:windowFrame.midY)
+        CGEvent(mouseEventSource:source,mouseType:.mouseMoved,mouseCursorPosition:point,mouseButton:.left)?.post(tap:.cghidEventTap)
+        let wheel=CGEvent(scrollWheelEvent2Source:source,units:.line,wheelCount:1,wheel1:box.midY>windowFrame.midY ? -2:2,wheel2:0,wheel3:0);wheel?.location=point;wheel?.post(tap:.cghidEventTap);usleep(60_000)
+    }
+    return false
+}
+func owner(at point:CGPoint)->pid_t?{var hit:AXUIElement?;guard AXUIElementCopyElementAtPosition(AXUIElementCreateSystemWide(),Float(point.x),Float(point.y),&hit) == .success,let hit else{return nil};var owner:pid_t=0;AXUIElementGetPid(hit,&owner);return owner}
+/// A real pointer click at the element's centre: posted HID events go through hit-testing, unlike AXPress.
+func click(_ element:AXUIElement,pid:Int)->Bool {
+    // A sheet's buttons exist before the sheet has animated on screen; wait for a real frame to click.
+    var frame:CGRect?;for _ in 0..<30{if let box=rect(element),box.width>0,box.height>0{frame=box;break};Thread.sleep(forTimeInterval:0.1)}
+    guard frame != nil,reveal(element),let box=rect(element) else{return false}
+    let point=CGPoint(x:box.midX,y:box.midY),source=CGEventSource(stateID:.hidSystemState)
+    // The click must land on the app under test: another app's window or a system prompt would take it silently.
+    var covering:pid_t?
+    for _ in 0..<3{NSRunningApplication(processIdentifier:pid_t(pid))?.activate(options:[]);Thread.sleep(forTimeInterval:0.25);covering=owner(at:point);if covering==nil || covering==pid_t(pid){break}}
+    if let covering,covering != pid_t(pid){print("Click at \(point) is covered by \(NSRunningApplication(processIdentifier:covering)?.localizedName ?? "pid \(covering)")");return false}
+    for type in [CGEventType.mouseMoved,.leftMouseDown,.leftMouseUp] {CGEvent(mouseEventSource:source,mouseType:type,mouseCursorPosition:point,mouseButton:.left)?.post(tap:.cghidEventTap);usleep(60_000)}
+    return true
+}
 func isolatedApp(_ pid:Int)->AXUIElement {
     guard let app=NSRunningApplication(processIdentifier:pid_t(pid)),app.bundleIdentifier==isolatedBundle else{fatalError("Request is not from the isolated review automation app")}
     let element=AXUIElementCreateApplication(pid_t(pid));AXUIElementSetMessagingTimeout(element,3);return element
 }
 /// One check; "passed" is decided here so the app cannot certify its own rendering.
-func run(_ check:[String:Any],in app:AXUIElement)->[String:Any] {
+func run(_ check:[String:Any],in app:AXUIElement,pid:Int)->[String:Any] {
     var result=check;let kind=check["kind"] as? String ?? ""
     switch kind {
     case "text":
@@ -43,7 +70,7 @@ func run(_ check:[String:Any],in app:AXUIElement)->[String:Any] {
     case "press":
         let title=check["title"] as? String ?? ""
         guard let button=find(app,title,button:true) else{result["found"]=false;result["passed"]=false;return result}
-        let status=AXUIElementPerformAction(button,kAXPressAction as CFString).rawValue;result["found"]=true;result["axError"]=Int(status);result["passed"]=status==0
+        let clicked=click(button,pid:pid);result["found"]=true;result["pointerClick"]=clicked;result["passed"]=clicked
     case "selectedRow":
         let text=check["value"] as? String ?? ""
         guard var row=find(app,text) else{result["found"]=false;result["passed"]=false;return result}
@@ -61,12 +88,13 @@ func openPanelPhase(){
     guard var row=find(ax,URL(fileURLWithPath:path).lastPathComponent) else{fatalError("Known fixture row absent from actual panel")}
     for _ in 0..<8 {if value(row,kAXRoleAttribute) as? String==kAXRowRole{break};guard let parent=value(row,kAXParentAttribute) else{break};row=parent as! AXUIElement}
     print("Row role",value(row,kAXRoleAttribute) ?? "")
-    print("Row selection",AXUIElementSetAttributeValue(row,kAXSelectedAttribute as CFString,kCFBooleanTrue).rawValue)
-    if let parent=value(row,kAXParentAttribute){print("Container selection",AXUIElementSetAttributeValue(parent as! AXUIElement,kAXSelectedRowsAttribute as CFString,[row] as CFArray).rawValue)}
+    // The Open panel is system UI, not the app under test: click it like a person when it reports frames, otherwise
+    // select through accessibility, and say which path ran.
+    if click(row,pid:pid){print("Clicked the fixture row with the pointer")}else{print("Row selection via accessibility",AXUIElementSetAttributeValue(row,kAXSelectedAttribute as CFString,kCFBooleanTrue).rawValue);if let parent=value(row,kAXParentAttribute){_=AXUIElementSetAttributeValue(parent as! AXUIElement,kAXSelectedRowsAttribute as CFString,[row] as CFArray)}}
     Thread.sleep(forTimeInterval:0.3)
+    guard value(row,kAXSelectedAttribute) as? Bool==true else{fatalError("The fixture row is not selected")}
     guard let open=find(ax,"Open",button:true) else{fatalError("Open control absent")}
-    print("Open action",AXUIElementPerformAction(open,kAXPressAction as CFString).rawValue)
-    print("Selected actual fixture row and pressed Open")
+    if click(open,pid:pid){print("Clicked Open with the pointer")}else{print("Open via accessibility",AXUIElementPerformAction(open,kAXPressAction as CFString).rawValue)}
 }
 
 var nextRequest=1,panelDone=false,pid:Int?
@@ -76,7 +104,7 @@ while Date()<deadline {
     if !panelDone,FileManager.default.fileExists(atPath:marker.path){openPanelPhase();panelDone=true;continue}
     let request=directory.appendingPathComponent("ax-request-\(nextRequest).json")
     if let data=try? Data(contentsOf:request),let object=try? JSONSerialization.jsonObject(with:data) as? [String:Any],let owner=object["pid"] as? Int,let checks=object["checks"] as? [[String:Any]] {
-        pid=owner;let app=isolatedApp(owner);let results=checks.map{run($0,in:app)}
+        pid=owner;let app=isolatedApp(owner);let results=checks.map{run($0,in:app,pid:owner)}
         let verified=results.allSatisfy{$0["passed"] as? Bool==true};print("AX request \(nextRequest) \(object["name"] as? String ?? "") passed=\(verified)")
         try JSONSerialization.data(withJSONObject:["name":object["name"] ?? "","results":results,"passed":verified],options:.sortedKeys).write(to:directory.appendingPathComponent("ax-result-\(nextRequest).json"),options:.atomic)
         nextRequest+=1;continue

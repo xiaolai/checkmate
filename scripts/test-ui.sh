@@ -13,7 +13,7 @@ if [[ -n "${CHECKMATE_EXECUTION_ARCH:-}" ]]; then
     case "$CHECKMATE_EXECUTION_ARCH" in arm64|x86_64) ;; *) echo 'Invalid execution architecture' >&2;exit 1;; esac
     checkmate_launcher=(/usr/bin/arch "-$CHECKMATE_EXECUTION_ARCH")
 fi
-CHECKMATE_AUTOMATION=1 "${checkmate_launcher[@]}" build/CheckmateAutomation.app/Contents/MacOS/CheckmateNative --automation --data-dir "$checkmate_data" --ui-scenario "$checkmate_evidence" > "$checkmate_evidence/app.log" 2>&1 &
+CHECKMATE_AUTOMATION=1 ${checkmate_launcher[@]+"${checkmate_launcher[@]}"} build/CheckmateAutomation.app/Contents/MacOS/CheckmateNative --automation --data-dir "$checkmate_data" --ui-scenario "$checkmate_evidence" > "$checkmate_evidence/app.log" 2>&1 &
 checkmate_pid=$!
 trap 'kill "$checkmate_pid" 2>/dev/null || true' EXIT
 for ((i=0;i<100;i++)); do [[ -f "$checkmate_evidence/ui-results.json" ]] && break; sleep 1; done

@@ -9,7 +9,7 @@ if [[ -n "${CHECKMATE_EXECUTION_ARCH:-}" ]]; then
  checkmate_launcher=(/usr/bin/arch "-$CHECKMATE_EXECUTION_ARCH")
 fi
 checkmate_data=$(mktemp -d /tmp/checkmate-integration-state.XXXXXX)
-CHECKMATE_AUTOMATION=1 "${checkmate_launcher[@]}" build/CheckmateAutomation.app/Contents/MacOS/CheckmateNative --automation --data-dir "$checkmate_data" --companion-test > "$checkmate_evidence/broker-app.log" 2>&1 &
+CHECKMATE_AUTOMATION=1 ${checkmate_launcher[@]+"${checkmate_launcher[@]}"} build/CheckmateAutomation.app/Contents/MacOS/CheckmateNative --automation --data-dir "$checkmate_data" --companion-test > "$checkmate_evidence/broker-app.log" 2>&1 &
 checkmate_pid=$!
 trap 'kill "$checkmate_pid" 2>/dev/null || true' EXIT
 for ((i=0;i<30;i++)); do [[ -f "$checkmate_data/companion/connection.json" ]] && break; sleep 1; done
@@ -18,7 +18,7 @@ kill "$checkmate_pid";wait "$checkmate_pid" || true
 for phase in preview opponent; do
  checkmate_data=$(mktemp -d /tmp/checkmate-integration-state.XXXXXX)
  flags=(--companion-test --preview-fixture);if [[ "$phase" == opponent ]];then flags=(--opponent-fixture);fi
- CHECKMATE_AUTOMATION=1 "${checkmate_launcher[@]}" build/CheckmateAutomation.app/Contents/MacOS/CheckmateNative --automation --data-dir "$checkmate_data" "${flags[@]}" > "$checkmate_evidence/broker-$phase.log" 2>&1 &
+ CHECKMATE_AUTOMATION=1 ${checkmate_launcher[@]+"${checkmate_launcher[@]}"} build/CheckmateAutomation.app/Contents/MacOS/CheckmateNative --automation --data-dir "$checkmate_data" "${flags[@]}" > "$checkmate_evidence/broker-$phase.log" 2>&1 &
  checkmate_pid=$!
  for ((i=0;i<30;i++));do [[ -f "$checkmate_data/companion/connection.json" ]] && break;sleep 1;done
  python3 scripts/test-integration.py build/CheckmateAutomation.app/Contents/MacOS/CheckmateMCP "$checkmate_data/companion/connection.json" "$phase" > "$checkmate_evidence/broker-$phase.json"

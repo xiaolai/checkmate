@@ -29,6 +29,9 @@ extension AcceptanceProbe {
                     Task { @MainActor in usage.record(operationID: operation, providerID: turn, tokens: tokens, status: .running, cumulative: true, model: model) }
                 })
                 report["privateAuthRemovedAndChildReaped"] = cleanup.passed
+                // translate() returns only after verifying the thread's private read-only profile and sandbox and an
+                // empty MCP server list (CodexTranslation.swift; fail-closed cases in CodexTranslationTests).
+                report["isolatedConfigAndNoMCPVerified"] = true
                 usage.record(operationID: operation, providerID: translated.turnID, tokens: translated.tokens, status: .completed, cumulative: true,
                              estimatedCredits: translated.estimatedCredits, estimatedUSD: translated.estimatedUSD, model: translated.model)
             } catch { usage.finish(operationID: operation, status: .failed); throw error }
@@ -36,7 +39,6 @@ extension AcceptanceProbe {
             let packs = try LessonPackStore(directory: dataDirectory)
             try packs.saveTranslation(translated.text, source: source, locale: "zh-Hans")
             report["translationValidated"] = true
-            report["isolatedConfigAndNoMCPVerified"] = true
             report["globalAuthUnchanged"] = initialAuthHash == LessonTranslation.hash(try Data(contentsOf: VoiceGateway.credentialURL))
             report["translatedBeats"] = translated.text.beats.count
             report["translationModel"] = translated.model
@@ -66,9 +68,17 @@ extension AcceptanceProbe {
             report["clipReloadsOffline"] = try partial.map { try reloaded.clipURL(pack: $0, beatID: beat.id) != nil } ?? false
             report["partialLessonDoesNotActivate"] = try reloaded.completePack(source: source, locale: "zh-Hans", voice: "cedar") == nil
             try await usage.flush()
-            try usage.exportJSON().write(to: root.appendingPathComponent("usage.json"), options: .atomic)
-            report["passed"] = report["textReloadsOffline"] as? Bool == true && report["clipReloadsOffline"] as? Bool == true
-                && report["partialLessonDoesNotActivate"] as? Bool == true && report["globalAuthUnchanged"] as? Bool == true && report["privateAuthRemovedAndChildReaped"] as? Bool == true
+            let exported = try usage.exportJSON()
+            try exported.write(to: root.appendingPathComponent("usage.json"), options: .atomic)
+            // The ledger must hold both of this run's paid operations as completed, each with its provider's reported
+            // counters; matching by operation id keeps records from an earlier run in the same directory from counting.
+            let records = (try JSONSerialization.jsonObject(with: exported) as? [String: Any])?["records"] as? [[String: Any]] ?? []
+            // At least one counter the provider actually reported; an empty or all-zero token record is not usage.
+            func reported(_ tokens: Any?) -> Bool { (tokens as? [String: Any])?.values.contains { ($0 as? NSNumber)?.int64Value ?? 0 > 0 } ?? false }
+            func completed(_ id: String, _ activity: String) -> Bool { records.contains { $0["id"] as? String == id && $0["activity"] as? String == activity && $0["status"] as? String == "completed" && reported($0["tokens"]) } }
+            report["usageRecorded"] = completed(operation, "translation") && completed(audioOperation, "lessonRecording")
+            report["passed"] = ["translationValidated", "isolatedConfigAndNoMCPVerified", "recordingValidated", "textReloadsOffline", "clipReloadsOffline",
+                                "partialLessonDoesNotActivate", "globalAuthUnchanged", "privateAuthRemovedAndChildReaped", "usageRecorded"].allSatisfy { report[$0] as? Bool == true }
         } catch {
             // All provider failures use bounded user-facing messages; no raw events/auth.
             report["error"] = userFacingMessage(error, fallback: "The live localization check failed.")

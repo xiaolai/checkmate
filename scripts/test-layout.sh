@@ -4,6 +4,8 @@ cd "$(dirname "$0")/.."
 case $(hostname) in *build-host*|*build-host*|build-host*) ;; *) echo 'Run native UI tests on build-host only.' >&2; exit 1;; esac
 checkmate_evidence=${CHECKMATE_EVIDENCE_DIR:-$(mktemp -d /tmp/checkmate-ui.XXXXXX)}
 mkdir -p "$checkmate_evidence"
+# A previous result must never satisfy the wait for this run.
+rm -f "$checkmate_evidence/layout-results.json" "$checkmate_evidence/layout-verification.json"
 checkmate_data=$(mktemp -d /tmp/checkmate-ui-state.XXXXXX)
 CHECKMATE_BUNDLE_ID=ai.xiaolai.checkmate.native-automation CHECKMATE_APP_NAME=CheckmateAutomation bash build.sh > "$checkmate_evidence/build.log" 2>&1
 CHECKMATE_AUTOMATION=1 build/CheckmateAutomation.app/Contents/MacOS/CheckmateNative --automation --data-dir "$checkmate_data" --layout-scenario "$checkmate_evidence" > "$checkmate_evidence/app.log" 2>&1 &

@@ -35,17 +35,24 @@ func gesture(from a:CGPoint,to b:CGPoint){
     post(.leftMouseUp,b);usleep(150_000)
 }
 // Scrolls with the wheel, as a person does, until the element sits inside its window below the toolbar.
-func reveal(_ e:AXUIElement?){guard let e=e,let w=get(e,kAXWindowAttribute),let wf=frame(w as! AXUIElement) else{return};let visible=wf.insetBy(dx:0,dy:40).offsetBy(dx:0,dy:20)
-    for _ in 0..<60{guard let f=frame(e),!visible.contains(CGPoint(x:f.midX,y:f.midY)) else{return};let p=CGPoint(x:f.midX,y:wf.midY);post(.mouseMoved,p)
+// Some SwiftUI elements do not report their window; find it through their parents instead of skipping the scroll.
+func windowOf(_ e:AXUIElement)->AXUIElement? {if let w=get(e,kAXWindowAttribute){return (w as! AXUIElement)};var current=e;for _ in 0..<60{guard let parent=get(current,kAXParentAttribute) else{return nil};let p=parent as! AXUIElement;if get(p,kAXRoleAttribute) as? String=="AXWindow"{return p};current=p};return nil}
+// Scrolling, like a click, must reach this app: a wheel over another app's window scrolls that window silently.
+func reveal(_ e:AXUIElement?){guard let e=e,let w=windowOf(e),let wf=frame(w) else{return};let visible=wf.insetBy(dx:0,dy:40).offsetBy(dx:0,dy:20)
+    for _ in 0..<60{guard let f=frame(e),!visible.contains(CGPoint(x:f.midX,y:f.midY)) else{return};let p=CGPoint(x:f.midX,y:wf.midY);unobstructed(p);post(.mouseMoved,p)
         let wheel=CGEvent(scrollWheelEvent2Source:source,units:.line,wheelCount:1,wheel1:f.midY>wf.midY ? -2:2,wheel2:0,wheel3:0);wheel?.location=p;wheel?.post(tap:.cghidEventTap);usleep(60_000)}}
-func click(_ p:CGPoint){post(.mouseMoved,p);usleep(80_000);post(.leftMouseDown,p);usleep(70_000);post(.leftMouseUp,p);usleep(150_000)}
+// A click must land on this app: another app's window or a system prompt over the point would take it silently.
+func owner(at p:CGPoint)->pid_t?{var hit:AXUIElement?;guard AXUIElementCopyElementAtPosition(AXUIElementCreateSystemWide(),Float(p.x),Float(p.y),&hit) == .success,let hit else{return nil};var owner:pid_t=0;AXUIElementGetPid(hit,&owner);return owner}
+func unobstructed(_ p:CGPoint){for _ in 0..<3{if owner(at:p)==pid{return};NSRunningApplication(processIdentifier:pid)?.activate(options:[.activateAllWindows]);usleep(400_000)}
+    guard let other=owner(at:p),other != pid else{return};fputs("Click at \(p) is covered by \(NSRunningApplication(processIdentifier:other)?.localizedName ?? "pid \(other)")\n",stderr);exit(3)}
+func click(_ p:CGPoint){unobstructed(p);post(.mouseMoved,p);usleep(80_000);post(.leftMouseDown,p);usleep(70_000);post(.leftMouseUp,p);usleep(150_000)}
 func key(_ code:CGKeyCode,flags:CGEventFlags=[]){for down in [true,false]{let event=CGEvent(keyboardEventSource:source,virtualKey:code,keyDown:down);event?.flags=down ? flags:[];event?.post(tap:.cghidEventTap)};usleep(200_000)}
 func type(_ text:String){for character in text{let units=Array(String(character).utf16);for down in [true,false]{let event=CGEvent(keyboardEventSource:source,virtualKey:0,keyDown:down);event?.flags=[];units.withUnsafeBufferPointer{buffer in if let address=buffer.baseAddress{event?.keyboardSetUnicodeString(stringLength:units.count,unicodeString:address)}};event?.post(tap:.cghidEventTap)};usleep(10_000)};usleep(200_000)}
 let action=CommandLine.arguments.count>2 ? CommandLine.arguments[2]:""
 let a=CommandLine.arguments.count>3 ? CommandLine.arguments[3]:"",b=CommandLine.arguments.count>4 ? CommandLine.arguments[4]:""
 NSRunningApplication(processIdentifier:pid)?.activate(options:[.activateAllWindows]);usleep(250_000)
 switch action {
-case "click":let e=element(a);reveal(e);click(center(e,a))
+case "click":let e=element(a);reveal(e);if let e,let w=windowOf(e),let wf=frame(w),let f=frame(e),!wf.contains(CGPoint(x:f.midX,y:f.midY)){fputs("Not visible after scrolling: \(a) element \(f) window \(wf)\n",stderr);exit(2)};click(center(e,a))
 case "select-popup":
     let popup=element(a);reveal(popup);guard let popup,let bounds=frame(popup) else{fputs("Popup not found: \(a)\n",stderr);exit(2)};click(CGPoint(x:bounds.maxX-12,y:bounds.midY))
     var option:AXUIElement?
@@ -61,8 +68,15 @@ case "select-popup":
     click(center(option,b))
 case "close-window":
     guard let window=(get(app,kAXWindowsAttribute) as? [AXUIElement])?.first(where:{names($0).contains(a)}),let button=get(window,kAXCloseButtonAttribute) else{fputs("Window not found: \(a)\n",stderr);exit(2)}
-    click(center(button as! AXUIElement,a+" close button"))
+    click(center((button as! AXUIElement),a+" close button"))
 case "tab":key(48)
+case "return":key(36)
+// Whether a control accepts input, as AXEnabled reports it.
+case "enabled":guard let e=element(a) else{fputs("Not found: \(a)\n",stderr);exit(2)};print((get(e,kAXEnabledAttribute) as? Bool) ?? false)
+// Clicks a button inside the window that shows the given text: an alert's Cancel, never another window's.
+case "dialog-click":
+    guard let window=(get(app,kAXWindowsAttribute) as? [AXUIElement])?.first(where:{w in find(w){_,n in n.contains(a)} != nil}) else{fputs("No window shows: \(a)\n",stderr);exit(2)}
+    click(center(find(window){role,n in role=="AXButton" && n.contains(b)},b))
 case "go-folder":key(5,flags:[.maskCommand,.maskShift]);usleep(250_000);type(a);key(36);usleep(350_000)
 case "click-square":click(center(square(a),a))
 // Press a square and drift by the given distance before releasing, as a slightly moving trackpad click does.

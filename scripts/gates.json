@@ -1,0 +1,356 @@
+{
+ "about": "Acceptance gates in run order, and the files each one exercises. scripts/run-gates.py --changed reruns only gates whose input files changed since they last passed; scripts/acceptance.sh with no arguments runs every gate and is the only run that certifies a tree for release. Every file scripts/source-hashes.py tracks must match a gate or the untested list (run-gates.py --check-map), so a new file cannot silently escape selection. Patterns are fnmatch globs relative to the repository root; '*' also crosses '/'.",
+ "shared": [
+  "Package.swift",
+  "Package.resolved",
+  "build.sh",
+  "Version.env",
+  "Artwork/*",
+  "Sources/CheckmateNative/App.swift",
+  "Sources/CheckmateNative/NativeModel.swift",
+  "Sources/CheckmateNative/Helpers.swift",
+  "Sources/CheckmateNative/ColorTokens.swift",
+  "Sources/CheckmateCore/Foundation.swift",
+  "Sources/CheckmateCore/Persistence.swift",
+  "Sources/CheckmateCore/GameSession.swift",
+  "Sources/CheckmateCore/ChessRules.swift",
+  "Sources/CheckmateCore/Resources/chess.js"
+ ],
+ "gates": [
+  {
+   "name": "ui",
+   "builds": true,
+   "run": "bash scripts/test-ui.sh",
+   "result": "ui-results.json",
+   "key": "nativeUI",
+   "inputs": [
+    "scripts/test-ui.sh",
+    "Sources/CheckmateNative/*",
+    "Sources/CheckmateCore/*"
+   ]
+  },
+  {
+   "name": "startup-settings",
+   "run": "python3 scripts/test-startup-settings.py",
+   "result": "startup-settings-results.json",
+   "key": "startupSettings",
+   "prebuilt": true,
+   "inputs": [
+    "scripts/test-startup-settings.py",
+    "Tools/ax-helper.swift",
+    "Sources/CheckmateNative/SettingsWindow.swift",
+    "Sources/CheckmateNative/MainWindow.swift",
+    "Sources/CheckmateCore/ConnectionStartup.swift",
+    "Sources/CheckmateCore/CompanionInstallation.swift",
+    "Sources/CheckmateCore/CompanionBroker.swift",
+    "Sources/CheckmateCore/VoiceCoach.swift",
+    "companion/*"
+   ]
+  },
+  {
+   "name": "sidebar",
+   "run": "python3 scripts/test-sidebar.py",
+   "result": "sidebar-results.json",
+   "key": "sidebar",
+   "prebuilt": true,
+   "inputs": [
+    "scripts/test-sidebar.py",
+    "Tools/ax-helper.swift",
+    "Sources/CheckmateNative/ContentViews.swift",
+    "Sources/CheckmateNative/MainWindow.swift",
+    "Sources/CheckmateCore/Course.swift",
+    "Sources/CheckmateCore/LearningPlayer.swift",
+    "Sources/CheckmateCore/ReviewStore.swift",
+    "Sources/CheckmateCore/Resources/course.json",
+    "companion/*"
+   ]
+  },
+  {
+   "name": "pointer",
+   "run": "CHECKMATE_LESSON_FIXTURE=1 python3 scripts/test-pointer.py",
+   "result": "pointer-results.json",
+   "key": "pointer",
+   "prebuilt": true,
+   "requires": [
+    "lessonJobFixture",
+    "lessonConfirmCancel",
+    "lessonConfirmReturnCancels",
+    "lessonDiscardConfirmed",
+    "lessonCleanupCannotCancel",
+    "codexSetupMessage",
+    "reviewChooserCancel",
+    "reviewChooserPicks",
+    "quitAlertCancelKeepsReview",
+    "quitSavesReview"
+   ],
+   "inputs": [
+    "scripts/test-pointer.py",
+    "Sources/CheckmateNative/ReviewViews.swift",
+    "Sources/CheckmateCore/ReviewStore.swift",
+    "Sources/CheckmateCore/ReviewController.swift",
+    "Sources/CheckmateCore/PGNImporter.swift",
+    "Tools/ax-helper.swift",
+    "Tools/pointer-helper.swift",
+    "Sources/CheckmateNative/BoardView.swift",
+    "Sources/CheckmateNative/BoardOverlay.swift",
+    "Sources/CheckmateNative/MainWindow.swift",
+    "Sources/CheckmateNative/ContentViews.swift",
+    "Sources/CheckmateNative/SettingsWindow.swift",
+    "Sources/CheckmateNative/AboutPane.swift",
+    "Sources/CheckmateNative/LessonSettingsPane.swift",
+    "Sources/CheckmateNative/UsageSettingsPane.swift",
+    "Sources/CheckmateNative/LessonAutomationFixture.swift",
+    "Sources/CheckmateCore/LearningPlayer.swift",
+    "Sources/CheckmateCore/Course.swift",
+    "Sources/CheckmateCore/Lesson*.swift",
+    "Sources/CheckmateCore/CodexTranslation.swift",
+    "Sources/CheckmateCore/Usage.swift",
+    "Sources/CheckmateCore/VoiceGateway.swift",
+    "Sources/CheckmateCore/VoiceModelSelection.swift",
+    "Sources/CheckmateCore/Audio.swift",
+    "Sources/CheckmateCore/Resources/course*.json",
+    "Sources/CheckmateCore/Resources/*COPYING*",
+    "Sources/CheckmateCore/Resources/THIRD_PARTY_NOTICES.txt",
+    "Sources/CheckmateCore/Resources/Licenses/*"
+   ]
+  },
+  {
+   "name": "lesson-remediation",
+   "key": "lessonRemediation",
+   "run": "python3 scripts/test-lesson-remediation.py",
+   "result": "lesson-remediation-results.json",
+   "prebuilt": true,
+   "requires": [
+    "activityPointerAndComputer",
+    "practicePointerAndPreviousGame",
+    "promotionPointer",
+    "silent"
+   ],
+   "inputs": [
+    "scripts/test-lesson-remediation.py",
+    "Tools/ax-helper.swift",
+    "Tools/pointer-helper.swift",
+    "Sources/CheckmateNative/BoardView.swift",
+    "Sources/CheckmateNative/BoardOverlay.swift",
+    "Sources/CheckmateNative/MainWindow.swift",
+    "Sources/CheckmateNative/ContentViews.swift",
+    "Sources/CheckmateCore/LearningPlayer.swift",
+    "Sources/CheckmateCore/Course.swift",
+    "Sources/CheckmateCore/Lesson*.swift",
+    "Sources/CheckmateCore/MiniGames.swift",
+    "Sources/CheckmateCore/Activity.swift",
+    "Sources/CheckmateCore/Resources/course*.json",
+    "Sources/CheckmateCore/Resources/projections.json"
+   ]
+  },
+  {
+   "name": "board-clicks",
+   "run": "python3 scripts/test-board-clicks.py",
+   "result": "board-click-results.json",
+   "key": "boardClicks",
+   "prebuilt": true,
+   "inputs": [
+    "scripts/test-board-clicks.py",
+    "Tools/board-click-helper.swift",
+    "Tools/pointer-helper.swift",
+    "Tools/ax-helper.swift",
+    "Sources/CheckmateNative/BoardView.swift",
+    "Sources/CheckmateNative/BoardOverlay.swift",
+    "Sources/CheckmateNative/MainWindow.swift",
+    "Sources/CheckmateNative/ContentViews.swift",
+    "Sources/CheckmateCore/WindowGeometry.swift",
+    "Sources/CheckmateCore/PieceRelationships.swift",
+    "Sources/CheckmateNative/Relationship*.swift"
+   ]
+  },
+  {
+   "name": "pawn-duel",
+   "builds": true,
+   "run": "bash scripts/test-pawn-duel.sh",
+   "result": "pawn-duel-results.json",
+   "key": "miniGames",
+   "inputs": [
+    "scripts/test-pawn-duel.sh",
+    "Sources/CheckmateCore/MiniGames.swift",
+    "Sources/CheckmateCore/LearningPlayer.swift",
+    "Sources/CheckmateCore/Course.swift",
+    "Sources/CheckmateCore/Resources/course*.json",
+    "Sources/CheckmateCore/Resources/course/*",
+    "Sources/CheckmateNative/BoardView.swift",
+    "Sources/CheckmateNative/ContentViews.swift",
+    "Sources/CheckmateNative/MainWindow.swift"
+   ]
+  },
+  {
+   "name": "fullscreen",
+   "builds": true,
+   "run": "bash scripts/test-fullscreen.sh",
+   "result": "fullscreen-results.json",
+   "key": "fullscreen",
+   "inputs": [
+    "scripts/test-fullscreen.sh",
+    "Sources/CheckmateNative/MainWindow.swift",
+    "Sources/CheckmateNative/ContentViews.swift",
+    "Sources/CheckmateNative/BoardView.swift",
+    "Sources/CheckmateCore/WindowGeometry.swift"
+   ]
+  },
+  {
+   "name": "layout",
+   "builds": true,
+   "run": "bash scripts/test-layout.sh",
+   "result": "layout-verification.json",
+   "key": "layout",
+   "inputs": [
+    "scripts/test-layout.sh",
+    "scripts/verify-native-layout.py",
+    "Sources/CheckmateNative/LayoutAcceptance.swift",
+    "Sources/CheckmateNative/MainWindow.swift",
+    "Sources/CheckmateNative/ContentViews.swift",
+    "Sources/CheckmateNative/BoardView.swift",
+    "Sources/CheckmateNative/BoardOverlay.swift",
+    "Sources/CheckmateNative/ReviewViews.swift",
+    "Sources/CheckmateNative/Relationship*.swift",
+    "Sources/CheckmateCore/WindowGeometry.swift"
+   ]
+  },
+  {
+   "name": "lifecycle",
+   "run": "python3 scripts/test-lifecycle.py",
+   "result": "lifecycle-results.json",
+   "key": "lifecycle",
+   "prebuilt": true,
+   "inputs": [
+    "scripts/test-lifecycle.py",
+    "Tools/ax-helper.swift",
+    "Sources/CheckmateNative/MainWindow.swift",
+    "Sources/CheckmateNative/SettingsWindow.swift",
+    "Sources/CheckmateCore/ConnectionStartup.swift",
+    "Sources/CheckmateCore/WindowGeometry.swift",
+    "Sources/CheckmateCore/Engine.swift",
+    "Sources/CheckmateCore/UCIWorker.swift"
+   ]
+  },
+  {
+   "name": "integration",
+   "run": "bash scripts/test-integration.sh",
+   "result": "broker-results.json",
+   "key": "brokerIntegration",
+   "prebuilt": true,
+   "inputs": [
+    "scripts/test-integration.sh",
+    "scripts/test-integration.py",
+    "Sources/CheckmateMCP/*",
+    "Sources/CheckmateMCPKit/*",
+    "Sources/CheckmateCore/Companion*.swift",
+    "Sources/CheckmateCore/ConnectionStartup.swift",
+    "Sources/CheckmateCore/ReviewTools.swift",
+    "Sources/CheckmateCore/Engine.swift",
+    "Sources/CheckmateCore/UCIWorker.swift",
+    "Sources/CheckmateCore/OpponentPolicy.swift",
+    "Sources/CheckmateCore/BeginnerOpponent.swift",
+    "Sources/CheckmateCore/Resources/*.json",
+    "Sources/CheckmateCore/Resources/*.txt",
+    "Sources/CheckmateCore/Resources/companion-skill.md",
+    "companion/*"
+   ]
+  },
+  {
+   "name": "review-ui",
+   "run": "bash scripts/test-review-ui.sh",
+   "result": "review-ui-results.json",
+   "key": "reviewUI",
+   "requires": [
+    "shutdownPersistence"
+   ],
+   "inputs": [
+    "scripts/test-review-ui.sh",
+    "Tools/ReviewScenario.swift",
+    "Sources/CheckmateNative/ReviewViews.swift",
+    "Sources/CheckmateNative/ContentViews.swift",
+    "Sources/CheckmateNative/MainWindow.swift",
+    "Sources/CheckmateNative/BoardView.swift",
+    "Sources/CheckmateCore/Review*.swift",
+    "Sources/CheckmateCore/PGNImporter.swift",
+    "Sources/CheckmateCore/GameDocument.swift",
+    "Sources/CheckmateCore/Engine.swift",
+    "Sources/CheckmateCore/UCIWorker.swift",
+    "Sources/CheckmateCore/VoiceCoach.swift"
+   ]
+  },
+  {
+   "name": "unit",
+   "run": "xcrun swiftc Tools/legacy-store-test.swift -o \"$CHECKMATE_EVIDENCE_DIR/legacy-store-test\" && \"$CHECKMATE_EVIDENCE_DIR/legacy-store-test\" Tools/legacy-export.js \"$CHECKMATE_EVIDENCE_DIR/legacy-export.json\" && CHECKMATE_LEGACY_EXPORT=\"$CHECKMATE_EVIDENCE_DIR/legacy-export.json\" CHECKMATE_AUTOMATION=1 swift test > \"$CHECKMATE_EVIDENCE_DIR/swift-tests.log\" 2>&1 && python3 -I Tools/test-lesson-action-alignment.py",
+   "result": "swift-tests.log",
+   "key": "unit",
+   "inputs": [
+    "Sources/*",
+    "Tests/*",
+    "Tools/Acceptance/*",
+    "Tools/legacy-store-test.swift",
+    "Tools/legacy-export.js",
+    "companion/*",
+    "Tools/align-lesson-actions.py",
+    "Tools/test-lesson-action-alignment.py"
+   ]
+  },
+  {
+   "name": "relocated",
+   "run": "bash scripts/test-relocated-package.sh",
+   "result": "relocated-results.json",
+   "key": "relocatedLaunch",
+   "prebuilt": true,
+   "inputs": [
+    "scripts/test-relocated-package.sh",
+    "Sources/CheckmateCore/Engine.swift",
+    "Sources/CheckmateCore/UCIWorker.swift",
+    "Sources/CheckmateCore/Resources/*",
+    "Sources/CheckmateCore/CompanionInstallation.swift",
+    "Sources/CheckmateMCP/*"
+   ]
+  },
+  {
+   "name": "package",
+   "run": "python3 scripts/check-package.py build/CheckmateAutomation.app > \"$CHECKMATE_EVIDENCE_DIR/package-results.json\"",
+   "result": "package-results.json",
+   "key": "packaging",
+   "prebuilt": true,
+   "inputs": [
+    "scripts/check-package.py",
+    "Sources/*",
+    "Tools/actool.sh",
+    "Tools/build-stockfish.sh",
+    "Tools/verify-engine-packaging.py"
+   ]
+  }
+ ],
+ "untested": {
+  "scripts/acceptance.sh": "gate runner",
+  "scripts/run-gates.py": "gate runner",
+  "scripts/gates.json": "gate map",
+  "scripts/gate_check.py": "gate result checks",
+  "scripts/aggregate-evidence.py": "full-run aggregate",
+  "scripts/source-hashes.py": "tree fingerprint",
+  "scripts/test-run-gates.py": "gate selection self-test (run it after editing this map)",
+  "scripts/prepare-release.sh": "release (requires full acceptance evidence)",
+  "scripts/release.sh": "release (requires full acceptance evidence)",
+  "scripts/sign-release.sh": "release",
+  "Release.entitlements": "release signing; finish-release.sh verify checks the signed app",
+  "Content/*": "lesson authoring sources; the shipped lesson data is Sources/CheckmateCore/Resources (unit, pointer, pawn-duel)",
+  "scripts/finish-release.sh": "release",
+  "scripts/publish-release.sh": "release",
+  "scripts/test-intel.sh": "manual Intel/Rosetta check, not part of acceptance",
+  "Tools/audio-probe.swift": "manual live-audio probe",
+  "Tools/audit-lesson-rules.py": "content authoring",
+  "Tools/calibrate-opponents.swift": "offline calibration",
+  "Tools/export-spike.swift": "experiment",
+  "Tools/import-cedar-recordings.py": "content authoring",
+  "Tools/measure-review-batch.py": "offline measurement",
+  "Tools/prepare-lesson-scripts.py": "content authoring",
+  "Tools/record-lessons.py": "content authoring",
+  "Tools/test-import-cedar.py": "content authoring self-test",
+  "Tools/test-record-lessons.py": "content authoring self-test",
+  "Tools/verify-lesson-recordings.py": "content authoring",
+  "Tools/verify-review-corpus.cjs": "offline corpus check"
+ }
+}

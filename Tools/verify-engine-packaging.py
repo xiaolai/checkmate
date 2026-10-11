@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """build-host-only matched-node old/new engine packaging equivalence, no app/audio."""
-import hashlib,json,os,pathlib,subprocess,sys,socket
+import hashlib,json,os,pathlib,subprocess,sys,socket,threading
 if 'build-host' not in socket.gethostname().lower():raise SystemExit('build-host only')
 original,replacement,gold,output=map(pathlib.Path,sys.argv[1:])
 rows=json.loads(gold.read_text())
@@ -9,13 +9,20 @@ rows=[row for row in rows if 'startFEN' in row]
 def observe(path):
  p=subprocess.Popen([str(path)],stdin=subprocess.PIPE,stdout=subprocess.PIPE,text=True,env=dict(os.environ,MallocLargeCache='0'))
  def send(s):p.stdin.write(s+'\n');p.stdin.flush()
- def until(prefix):
-  lines=[]
-  while True:
-   line=p.stdout.readline().strip()
-   if not line and p.poll() is not None:raise RuntimeError('Engine exited')
-   lines.append(line)
-   if line.startswith(prefix):return lines
+ def until(prefix,seconds=60):
+  # A wedged engine must fail the check, not hang it: the watchdog kills it, so readline() returns EOF.
+  expired=threading.Event()
+  watchdog=threading.Timer(seconds,lambda:(expired.set(),p.kill()));watchdog.start()
+  try:
+   lines=[]
+   while True:
+    raw=p.stdout.readline()
+    if not raw:
+     p.wait()
+     raise RuntimeError(f'Engine gave no {prefix} within {seconds}s' if expired.is_set() else 'Engine exited')
+    line=raw.strip();lines.append(line)
+    if line.startswith(prefix):return lines
+  finally:watchdog.cancel()
  try:
   send('uci');until('uciok')
   for k,v in {'Threads':'1','Hash':'32','MultiPV':'3','Skill Level':'20','UCI_LimitStrength':'false','UCI_ShowWDL':'true'}.items():send(f'setoption name {k} value {v}')
@@ -34,7 +41,11 @@ def observe(path):
    out.append({'id':row['id'],'bestmove':lines[-1].split()[1],'depth':depth,'lines':snapshots.get(depth,{})})
   return out
  finally:
-  send('quit');p.wait(timeout=5)
+  # After a kill or an exit the pipe is gone; writing 'quit' would replace the real error with BrokenPipeError.
+  # An engine that ignores quit is killed and reaped, never left running or allowed to replace the real error.
+  if p.poll() is None:
+   try:send('quit');p.wait(timeout=5)
+   except (BrokenPipeError,subprocess.TimeoutExpired):p.kill();p.wait(timeout=5)
 a=observe(original);b=observe(replacement)
 results=[{'id':x['id'],'sameBestMove':x['bestmove']==y['bestmove'],'sameScoresAndPVs':x==y,'original':x,'replacement':y} for x,y in zip(a,b)]
 report={'nodesPerSearch':10000,'threads':1,'hashMiB':32,'multiPV':3,'originalSHA256':hashlib.sha256(original.read_bytes()).hexdigest(),'replacementSHA256':hashlib.sha256(replacement.read_bytes()).hexdigest(),'targets':results,'passed':bool(results) and all(r['sameScoresAndPVs'] for r in results)}

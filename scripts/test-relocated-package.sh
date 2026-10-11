@@ -2,6 +2,8 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 checkmate_evidence=${CHECKMATE_EVIDENCE_DIR:?}
+# A previous result must never satisfy the wait for this run.
+rm -f "$checkmate_evidence/relocated-results.json"
 checkmate_copy=$(mktemp -d /tmp/checkmate-relocated.XXXXXX)
 trap 'rm -rf "$checkmate_copy"' EXIT
 ditto build/CheckmateAutomation.app "$checkmate_copy/Checkmate.app"

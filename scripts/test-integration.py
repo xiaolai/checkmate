@@ -11,7 +11,11 @@ class Client:
         self.sequence=0
         self.selector=selectors.DefaultSelector();self.selector.register(self.process.stdout,selectors.EVENT_READ)
         self.buffer=b'';self.pending={}
-        self.request('initialize',{'protocolVersion':'2025-11-25','capabilities':{},'clientInfo':{'name':'native-acceptance','version':'1'}})
+        initialized=self.request('initialize',{'protocolVersion':'2025-11-25','capabilities':{},'clientInfo':{'name':'native-acceptance','version':'1'}})
+        # The server reports the enclosing app's version, which build.sh writes from Version.env.
+        import plistlib
+        bundle_version=plistlib.loads((pathlib.Path(executable).resolve().parents[1]/'Info.plist').read_bytes())['CFBundleShortVersionString']
+        assert initialized['serverInfo']['version']==bundle_version,(initialized['serverInfo'],bundle_version)
         self.send({'jsonrpc':'2.0','method':'notifications/initialized'})
     def send(self,value):
         self.process.stdin.write((json.dumps(value)+'\n').encode());self.process.stdin.flush()

@@ -67,6 +67,8 @@ try:
  wait(lambda:pointer('label','e8').startswith('e8, White, knight'),'Knight menu choice did not promote')
  results['promotionPointer']=True
  results['silent']=True
+ # Reached only when every check above passed.
+ results['passed']=True
  (evidence/'lesson-remediation-results.json').write_text(json.dumps(results,indent=2))
  print(json.dumps(results))
 except Exception:
