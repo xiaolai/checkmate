@@ -1,3 +1,24 @@
+# Checkmate 0.6.1
+
+Lesson illustrations now follow the narration. When a lesson moves a piece,
+its arrows and check marks appear once the piece has landed, not before it
+starts moving. An attack arrow now stops at the piece it attacks: the
+Introduction's checking rook and a mate-in-one bishop no longer point past
+the king.
+
+If you translated the Introduction into another language, that saved
+translation no longer matches the corrected illustration. Translate the
+Introduction again in Settings → Lessons to use it. The English narration is
+unchanged.
+
+Automated acceptance covered every gate on build-host, including real pointer
+clicks that play the corrected lesson step. Live voice, translation and
+recording were not exercised for this release. Human review, novice play and
+live microphone checks are still outstanding, and the training library stays
+switched off.
+
+Requires macOS 14+ with universal Apple Silicon and Intel binaries.
+
 # Checkmate 0.6.0
 
 This release adds the groundwork for a training library: short, exactly
