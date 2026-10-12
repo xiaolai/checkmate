@@ -1,7 +1,7 @@
 # Checkmate
 
 Native macOS chess practice and learning, built with AppKit and SwiftUI.
-Offline Stockfish 19, 40 lessons, 87 puzzles and 878 Cedar recordings.
+Offline Stockfish 19, 34 lessons with 6 practice activities, 87 puzzles and 878 Cedar recordings.
 Lesson mini-games include computer opponents. Game review supports finished and unfinished games, PGN files and FEN positions.
 
 ```sh

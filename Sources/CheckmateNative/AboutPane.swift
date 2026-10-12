@@ -3,10 +3,10 @@ import SwiftUI
 import CheckmateCore
 /// What the About pane reports, read from the running bundle and course so it cannot drift from the release.
 struct AboutFacts {
-    let version:String,build:String,minimumSystem:String,lessons:Int,puzzles:Int,recordings:Int,dataDirectory:URL
+    let version:String,build:String,minimumSystem:String,lessons:Int,practiceActivities:Int,puzzles:Int,recordings:Int,dataDirectory:URL
     @MainActor init(model:NativeModel){let info=Bundle.main.infoDictionary ?? [:],library=model.learning.library
         version=info["CFBundleShortVersionString"] as? String ?? "unknown";build=info["CFBundleVersion"] as? String ?? "unknown";minimumSystem=info["LSMinimumSystemVersion"] as? String ?? "14.0"
-        lessons=library.lessons.count;puzzles=library.puzzles.count;recordings=library.voices.reduce(0){$0+$1.count};dataDirectory=model.store.directory}
+        lessons=library.lessons.filter{!$0.isPractice}.count;practiceActivities=library.lessons.filter(\.isPractice).count;puzzles=library.puzzles.count;recordings=library.voices.reduce(0){$0+$1.count};dataDirectory=model.store.directory}
 }
 /// The About pane carries the GPL's Appropriate Legal Notices: copyright, no warranty, the license and the source.
 struct AboutPane:View {
@@ -22,7 +22,7 @@ struct AboutPane:View {
     var body:some View {
         Section {HStack(spacing:14){Image(nsImage:NSApp.applicationIconImage).resizable().frame(width:64,height:64).accessibilityHidden(true)
             VStack(alignment:.leading,spacing:3){Text("Checkmate").font(.title2.weight(.semibold));Text("Version \(facts.version) (\(facts.build))").foregroundStyle(.secondary).textSelection(.enabled);Text("Learn and practice chess on your Mac.")}}}
-        Section("What's inside"){LabeledContent("Chess engine",value:"Stockfish 19, on this Mac");LabeledContent("Lessons",value:"\(facts.lessons)");LabeledContent("Puzzles",value:"\(facts.puzzles)");LabeledContent("Lesson recordings",value:"\(facts.recordings)");LabeledContent("Requires",value:"macOS \(facts.minimumSystem) or later")}
+        Section("What's inside"){LabeledContent("Chess engine",value:"Stockfish 19, on this Mac");LabeledContent("Lessons",value:"\(facts.lessons)");LabeledContent("Practice activities",value:"\(facts.practiceActivities)");LabeledContent("Puzzles",value:"\(facts.puzzles)");LabeledContent("Lesson recordings",value:"\(facts.recordings)");LabeledContent("Requires",value:"macOS \(facts.minimumSystem) or later")}
         Section("Privacy"){
             LabeledContent{Button("Show in Finder"){open(facts.dataDirectory,reveal:true)}}label:{Text("Games, progress and settings are stored only on this Mac.")}
             Text("Stockfish, lessons and puzzles work offline.")

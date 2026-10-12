@@ -129,6 +129,10 @@ let a=CommandLine.arguments.count>3 ? CommandLine.arguments[3]:"",b=CommandLine.
 if !["label","value","enabled","menu-open"].contains(action){NSRunningApplication(processIdentifier:pid)?.activate(options:[.activateAllWindows]);usleep(250_000)}
 switch action {
 case "click":let e=element(a);reveal(e);if let e,let w=windowOf(e),let wf=frame(w),let f=frame(e),!wf.contains(CGPoint(x:f.midX,y:f.midY)){fputs("Not visible after scrolling: \(a) element \(f) window \(wf)\n",stderr);exit(2)};click(center(e,a))
+// A real click a given number of points left of a named element's leading edge: the indent of a sidebar row.
+case "click-left":guard let d=Double(b),d.isFinite,d>=0,d<=200 else{fputs("Offset must be 0 to 200 points, found \(b)\n",stderr);exit(1)};let e=element(a);reveal(e);guard let e,let f=frame(e) else{fputs("Not found: \(a)\n",stderr);exit(2)};click(CGPoint(x:f.minX-d,y:f.midY))
+// The accessibility help (VoiceOver hint) of a named element or, failing that, of the nearest ancestor that has one.
+case "help":guard var e=element(a) else{fputs("Not found: \(a)\n",stderr);exit(2)};for _ in 0..<4{if let h=get(e,kAXHelpAttribute) as? String,!h.isEmpty{print(h);exit(0)};guard let p=get(e,kAXParentAttribute) else{break};e=p as! AXUIElement};print("")
 case "select-popup":
     let popup=element(a);reveal(popup);guard let popup,let bounds=frame(popup) else{fputs("Popup not found: \(a)\n",stderr);exit(2)};click(CGPoint(x:bounds.maxX-12,y:bounds.midY))
     var option:AXUIElement?

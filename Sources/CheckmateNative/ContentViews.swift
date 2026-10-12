@@ -13,6 +13,11 @@ struct SidebarContent:View {
     @ObservedObject var learning:LearningPlayer
     @ObservedObject var model:NativeModel
     private var selected:String {SidebarSelection.tag(session.activity,saved:Set(model.reviews.map(\.id)),lessonIndex:learning.lessonIndex)}
+    /// VoiceOver hears what the indent shows: which lesson an activity practises.
+    private func practiceHint(_ lesson:CourseLesson)->String {
+        guard let parent=lesson.practiceFor,let index=learning.library.lessons.firstIndex(where:{$0.id==parent}) else{return ""}
+        return "Practice activity for \(learning.localizedTitle(index:index))"
+    }
     private func navigate(_ value:String?) {
         guard let value=value else{return}
         if value=="review:draft" {return}
@@ -35,7 +40,8 @@ struct SidebarContent:View {
             Section("Saved reviews"){ForEach(model.reviews){record in Label(record.title=="?" ? "Untitled game":record.title,systemImage:"doc.text").tag("review:"+record.id.uuidString)
                 .contextMenu{Button("Delete Saved Review…",role:.destructive){model.requestDeleteReview(record.id)}.disabled(model.deletingReviewID != nil)}}}
         }
-        Section("Learn & explore") {ForEach(Array(learning.library.lessons.enumerated()),id:\.element.id){i,l in Label {Text(learning.localizedTitle(index:i))} icon:{Image(systemName:session.state.course.completed.contains(l.id) ? "checkmark.circle.fill":"book")}.tag("lesson:\(i)")}}
+        // A practice activity sits indented under its lesson, off the main path but one click away.
+        Section("Learn & explore") {ForEach(Array(learning.library.lessons.enumerated()),id:\.element.id){i,l in Label {Text(learning.localizedTitle(index:i))} icon:{Image(systemName:session.state.course.completed.contains(l.id) ? "checkmark.circle.fill":l.isPractice ? "gamecontroller":"book")}.padding(.leading,l.isPractice ? Metrics.practiceIndent:0).accessibilityHint(practiceHint(l)).tag("lesson:\(i)")}}
     }.listStyle(.sidebar).scrollContentBackground(.hidden).overlay(alignment:.bottom){if model.importingReview{VStack{ProgressView("Loading review…");Button("Cancel import"){model.cancelReviewImport()}}.padding().background(.regularMaterial)}}}
 }
 struct DetailContent:View {
@@ -107,6 +113,10 @@ struct DetailContent:View {
                     Button {learning.startMini(kind)} label:{Label("Play \(kind.title)",systemImage:"play.fill")}
                         .controlSize(.large).accessibilityIdentifier("lesson-play-"+kind.rawValue)
                 }
+                ForEach(learning.library.practice(for:learning.lessonIndex),id:\.self){index in
+                    Button {model.openPractice(index)} label:{Label("Practise: \(learning.localizedTitle(index:index))",systemImage:"gamecontroller")}
+                        .controlSize(.large).accessibilityIdentifier("lesson-open-practice-"+learning.library.lessons[index].id)
+                }
                 if let preset=LessonPractice.forLesson(learning.current.id) {
                     Button {model.practiceLesson()} label:{Label("Try it against the computer",systemImage:"play.fill")}
                         .controlSize(.large).accessibilityIdentifier("lesson-practice-position")
@@ -131,7 +141,7 @@ struct DetailContent:View {
         if session.mode == .lesson {
             // The title toggles too; by default only the chevron does.
             DisclosureGroup(isExpanded:$lessonGoalsShown){ForEach(learning.teaches,id:\.self){Text($0)}} label:{Text("In this lesson").contentShape(Rectangle()).onTapGesture{lessonGoalsShown.toggle()}}
-            if session.state.course.completed.contains(learning.current.id),learning.lessonIndex<learning.library.lessons.count-1 {Button("Continue to \(learning.localizedTitle(index:learning.lessonIndex+1))"){model.continueLesson()}}
+            if session.state.course.completed.contains(learning.current.id),let next=learning.library.nextMainLesson(after:learning.lessonIndex) {Button("Continue to \(learning.localizedTitle(index:next))"){model.continueLesson()}}
         } else {Button("Next puzzle"){learning.next()}.disabled(!learning.passed)}
     }
 }

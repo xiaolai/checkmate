@@ -1,3 +1,14 @@
+# Unreleased
+
+The practice activities no longer sit between the lessons. Pawn Duel, Rook Practice, Bishop Practice, Queen Practice, Knight Practice and Safe Squares now appear
+indented under the piece lesson they practise. Continue goes straight to the
+next lesson, so the path from The Pawn to The King is six lessons, and each
+lesson offers a Practise button for its activity. With Pause for practice on,
+continuous playback still stops at the end of a lesson to offer it. Saved
+progress and lesson translations are unaffected, except The Queen: it gains a
+takeaway giving the queen's starting square, so a saved translation of The
+Queen needs to be redone in Settings → Lessons.
+
 # Checkmate 0.6.1
 
 Lesson illustrations now follow the narration. When a lesson moves a piece,

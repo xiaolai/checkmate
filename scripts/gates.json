@@ -391,11 +391,12 @@
     "Tools/record-lessons.py",
     "Tools/verify-lesson-recordings.py",
     "Tools/import-cedar-recordings.py",
+    "Tools/prepare-lesson-scripts.py",
     "scripts/test-run-gates.py",
     "scripts/run-gates.py",
     "scripts/gates.json",
     "scripts/gate_check.py",
-    "Content/narration-packaging.json"
+    "Content/*"
    ]
   },
   {
@@ -462,7 +463,6 @@
   "scripts/release.sh": "release (requires full acceptance evidence)",
   "scripts/sign-release.sh": "release",
   "Release.entitlements": "release signing; finish-release.sh verify checks the signed app",
-  "Content/*": "lesson authoring sources; the shipped lesson data is Sources/CheckmateCore/Resources (unit, pointer, pawn-duel)",
   "scripts/finish-release.sh": "release",
   "scripts/publish-release.sh": "release",
   "Tools/audio-probe.swift": "manual live-audio probe",
@@ -470,7 +470,6 @@
   "Tools/calibrate-opponents.swift": "offline calibration",
   "Tools/export-spike.swift": "experiment",
   "Tools/measure-review-batch.py": "offline measurement",
-  "Tools/prepare-lesson-scripts.py": "content authoring",
   "Tools/training-oracle.cjs": "training content authoring aid; publication re-derives every answer in Swift (unit)",
   "Tools/verify-review-corpus.cjs": "offline corpus check"
  }

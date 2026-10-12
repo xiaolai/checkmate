@@ -18,6 +18,8 @@ for suite in CheckmateDomainTests CheckmateCoreTests CheckmateNativeTests Checkm
 done
 python3 -I Tools/test-lesson-action-alignment.py
 python3 -I Tools/test-import-cedar.py
+# Lesson sources: baseline parity, reviewed illustrations, practice relations and current exports.
+python3 -I Tools/prepare-lesson-scripts.py --check > /dev/null
 python3 -I Tools/test-record-lessons.py
 python3 -I Tools/prepare-training-content.py --check
 python3 -I Tools/test-prepare-training-content.py

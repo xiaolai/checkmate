@@ -18,6 +18,7 @@ struct Metrics {
     static let promotionIconSize:CGFloat=24
     static let playbackLineHeight:CGFloat=2,turnIndicatorSize:CGFloat=12,turnIndicatorOutline:CGFloat=1
     static let core:CGFloat=780,minimum:CGFloat=600,minimumFitted:CGFloat=320,left:CGFloat=216,right:CGFloat=320,header:CGFloat=52
+    static let practiceIndent:CGFloat=16
     static let lessonInspectionMinimum:CGFloat=120,lessonInspectionMaximum:CGFloat=220
     static let mascotSize:CGFloat=72,settingsDetailMinimum:CGFloat=480,settingsFormMinimumHeight:CGFloat=380
     static let button:CGFloat=32,padding:CGFloat=16,smallGap:CGFloat=8,sectionGap:CGFloat=20,boardMargin:CGFloat=20,coordinateSize:CGFloat=11

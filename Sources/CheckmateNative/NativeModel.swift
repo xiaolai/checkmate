@@ -180,11 +180,15 @@ import CheckmateCore
     func resumeTraining(){_ = try? transition(.trainingResume)}
     func retryTraining(_ id:String){_ = try? transition(.trainingRetry(id:id))}
     func playTrainingGame(_ kind:MiniGameKind,restart:Bool=false){_ = try? transition(.trainingLegacy(kind,restart:restart))}
-    /// Continue opens the next lesson from its start and plays it. A lesson read from training continues as one, as
-    /// automatic continuation does: the way back to training stays and the course bookmark is untouched.
-    func continueLesson(){let next=learning.lessonIndex+1;guard next<learning.library.lessons.count else{return}
-        if learning.readingFromTraining{guard (try? transition(.trainingLesson(id:learning.library.lessons[next].id)))==true else{return};learning.seek(step:0)}
-        else{guard (try? transition(.lesson(next,resume:false)))==true else{return}};learning.play()}
+    /// Continue opens the next main lesson from its start and plays it; practice activities are not on that path. A
+    /// lesson read from training continues as one, as automatic continuation does: the way back to training stays and
+    /// the course bookmark is untouched.
+    func continueLesson(){guard let next=learning.library.nextMainLesson(after:learning.lessonIndex) else{return};playLesson(next)}
+    /// Opens one of this lesson's practice activities, the same way Continue opens a lesson.
+    func openPractice(_ index:Int){guard learning.library.practice(for:learning.lessonIndex).contains(index) else{return};playLesson(index)}
+    private func playLesson(_ index:Int){
+        if learning.readingFromTraining{guard (try? transition(.trainingLesson(id:learning.library.lessons[index].id)))==true else{return};learning.seek(step:0)}
+        else{guard (try? transition(.lesson(index,resume:false)))==true else{return}};learning.play()}
     /// Practise this lesson starts a separate practice game, as White, from the lesson's preset position.
     func practiceLesson(){guard let preset=LessonPractice.forLesson(learning.current.id) else{return};_ = try? transition(.lessonPractice(fen:preset.fen))}
     /// Quitting stops a running lesson translation or recording; the clip in progress is already paid for and is lost.

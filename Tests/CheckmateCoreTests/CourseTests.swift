@@ -68,6 +68,23 @@ final class CourseTests:XCTestCase {
             }
         }}
     }
+    /// Each practice activity belongs to the piece lesson just before it; the main path runs past it.
+    func testPracticeActivitiesBelongToTheirPieceLesson() throws {
+        let course=try CourseLibrary()
+        func index(_ id:String)throws -> Int {try XCTUnwrap(course.lessons.firstIndex{$0.id==id},id)}
+        let pairs=["pawn":"pawn-duel","rook":"rook-practice","bishop":"bishop-practice","queen":"queen-practice","knight":"knight-practice","king":"safe-squares"]
+        XCTAssertEqual(Set(course.lessons.filter(\.isPractice).map(\.id)),Set(pairs.values))
+        for (parent,child) in pairs {
+            XCTAssertEqual(course.practice(for:try index(parent)),[try index(child)],parent)
+            XCTAssertEqual(course.practice(for:try index(child)),[],"an activity has no practice of its own")
+        }
+        for (from,to) in [("pawn","rook"),("pawn-duel","rook"),("king","check-and-checkmate"),("safe-squares","check-and-checkmate"),("board","pawn")] {
+            XCTAssertEqual(course.nextMainLesson(after:try index(from)),try index(to),from)
+        }
+        XCTAssertNil(course.nextMainLesson(after:course.lessons.count-1))
+        XCTAssertNil(course.nextMainLesson(after:course.lessons.count))
+        XCTAssertEqual(course.practice(for:-1),[])
+    }
     func testEveryExerciseAcceptsAuthoredAnswerAndRejectsWrongAnswer() throws {
         let c=try CourseLibrary()
         for (id,e) in c.exercises where e.kind != "path" {

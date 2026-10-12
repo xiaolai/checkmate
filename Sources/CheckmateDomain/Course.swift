@@ -17,7 +17,11 @@ public struct CourseBeat:Decodable {
     enum CodingKeys:String,CodingKey {case id,say,speak,set,moves,remove,arrows,hl,count,big,miniGame,pause,moveCues}
     public init(from d:Decoder) throws {let c=try d.container(keyedBy:CodingKeys.self);id=try c.decodeIfPresent(String.self,forKey:.id);say=try c.decode(String.self,forKey:.say);speak=try c.decodeIfPresent(String.self,forKey:.speak);hasSet=c.contains(.set);set=try c.decodeIfPresent(Position.self,forKey:.set);moves=try c.decodeIfPresent([[String]].self,forKey:.moves) ?? [];remove=try c.decodeIfPresent([String].self,forKey:.remove) ?? [];arrows=try c.decodeIfPresent([[String]].self,forKey:.arrows);hl=try c.decodeIfPresent([Highlight].self,forKey:.hl);count=try c.decodeIfPresent([String].self,forKey:.count) ?? [];big=try c.decodeIfPresent(String.self,forKey:.big);miniGame=try c.decodeIfPresent(Bool.self,forKey:.miniGame) ?? false;pause=try c.decodeIfPresent(Double.self,forKey:.pause);moveCues=try c.decodeIfPresent([Double].self,forKey:.moveCues);if let cues=moveCues {guard cues.count==moves.count,cues.allSatisfy({$0.isFinite && (0...1).contains($0)}),zip(cues,cues.dropFirst()).allSatisfy({$0.0 <= $0.1}) else{throw CheckmateError.invalid("Invalid authored movement cues.")}}}
 }
-public struct CourseLesson:Decodable {public let id:String,title:String,teaches:[String]?,mascot:String?,beats:[CourseBeat]}
+/// `practiceFor` names the main lesson a practice activity belongs to. It groups the activity under that lesson and
+/// keeps it off the main path; its identity, narration and saved progress are those of any other lesson.
+public struct CourseLesson:Decodable {public let id:String,title:String,teaches:[String]?,mascot:String?,practiceFor:String?,beats:[CourseBeat]
+    public var isPractice:Bool {practiceFor != nil}
+}
 public struct Exercise:Codable {
     public let kind:String,prompt:String,answers:[String]?,allowNone:Bool?,choices:[String]?,answer:String?,from:String?,to:String?,alternatives:[[String]]?
     public var referenceAnswer:[String] {switch kind {case "choice":return answer.map{[$0]} ?? [];case "squares":return answers ?? [];case "move":return alternatives?.first ?? [from ?? "",to ?? ""];default:return []}}
@@ -43,6 +47,10 @@ public struct CourseLibrary:Decodable {
         let original=progress.segmentID.flatMap{Int($0.split(separator:":").last ?? "")} ?? max(0,progress.step)
         return lesson.beats.firstIndex{(Int($0.id?.split(separator:":").last ?? "") ?? 0)>=original} ?? lesson.beats.count-1
     }
+    /// The practice activities that belong to a main lesson, in course order.
+    public func practice(for index:Int)->[Int] {guard lessons.indices.contains(index),!lessons[index].isPractice else{return []};return lessons.indices.filter{lessons[$0].practiceFor==lessons[index].id}}
+    /// Where the main path continues: the next main lesson after this lesson, or after the parent of a practice activity.
+    public func nextMainLesson(after index:Int)->Int? {guard lessons.indices.contains(index) else{return nil};return lessons.indices.first{$0>index && !lessons[$0].isPractice}}
     public func knownAnswerID(_ id:String)->Bool {exercises[id] != nil || retiredExerciseIDs?.contains(id)==true}
     /// Cue fractions are relative to narration duration, so longer translated clips never race at English speed.
     /// Explicit cues are measured against the bundled recording; recordings without them use paced illustration.

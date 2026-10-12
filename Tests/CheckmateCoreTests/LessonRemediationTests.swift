@@ -1,3 +1,4 @@
+import CryptoKit
 import XCTest
 import CheckmateCore
 @testable import CheckmateDomain
@@ -116,6 +117,26 @@ extension LessonRemediationTests {
         let library=try CourseLibrary()
         XCTAssertEqual(LessonTranslation.source(library:library,index:1).fingerprint,"78f8a1da04a91ee76b47554cb2a92abf11914a0b8c9ca173232ebbf374137c43")
         XCTAssertNotEqual(LessonTranslation.source(library:library,index:0).fingerprint,"f7e08d39a736162c32b70c7d7a1ddf524702c6e9cbf9e09109aebd8f365bdda9")
+    }
+    /// Grouping the practice activities changed no lesson's fingerprint; The Queen's new takeaway changed only hers. The
+    /// other 39 are pinned as they were before the change, so an accidental edit to any lesson invalidates its pack loudly.
+    func testOnlyTheQueenTakeawayChangedAFingerprint()throws {
+        let library=try CourseLibrary(),queen=try XCTUnwrap(library.lessons.firstIndex{$0.id=="queen"})
+        let rest=library.lessons.indices.filter{$0 != queen}.map{library.lessons[$0].id+"="+LessonTranslation.source(library:library,index:$0).fingerprint}.joined(separator:" ")
+        XCTAssertEqual(SHA256.hash(data:Data(rest.utf8)).map{String(format:"%02x",$0)}.joined(),"73f1082a409c65531e8f3957643793a86d65d30708f7b46667878394fd91ade9")
+        XCTAssertNotEqual(LessonTranslation.source(library:library,index:queen).fingerprint,"3cf69d141b21a27e2d340747366f03f84963a66ef9747ff0c8c6852364a01eae")
+    }
+    /// Grouping a practice activity under its lesson is presentation only: no lesson's translation pack is invalidated by it.
+    func testPracticeGroupingLeavesEveryFingerprintAlone()throws {
+        let data=try Data(contentsOf:NativeResources.url("course.json"))
+        var json=try XCTUnwrap(JSONSerialization.jsonObject(with:data) as? [String:Any]),lessons=try XCTUnwrap(json["lessons"] as? [[String:Any]])
+        XCTAssertEqual(lessons.filter{$0["practiceFor"] != nil}.count,6)
+        lessons=lessons.map{$0.filter{$0.key != "practiceFor"}};json["lessons"]=lessons
+        let grouped=try CourseLibrary(),ungrouped=try JSONDecoder().decode(CourseLibrary.self,from:JSONSerialization.data(withJSONObject:json))
+        XCTAssertTrue(ungrouped.lessons.allSatisfy{!$0.isPractice})
+        for index in grouped.lessons.indices {
+            XCTAssertEqual(LessonTranslation.source(library:grouped,index:index).fingerprint,LessonTranslation.source(library:ungrouped,index:index).fingerprint,grouped.lessons[index].id)
+        }
     }
 }
 

@@ -1,6 +1,6 @@
 # Checkmate development
 
-macOS 14+ AppKit/SwiftUI application for Apple Silicon and Intel. Practice with bundled Stockfish, 40 lessons,
+macOS 14+ AppKit/SwiftUI application for Apple Silicon and Intel. Practice with bundled Stockfish, 34 lessons with 6 practice activities,
 87 puzzles, reversible candidate previews and demonstrations, native
 settings, local MCP companion and native live voice transport. No web view or
 JavaScript UI runtime. JavaScriptCore runs the existing chess.js rules only.
@@ -95,9 +95,9 @@ THIRD_PARTY_NOTICES.txt for engine, rules, artwork and content provenance.
 
 ## Rewritten lesson scripts
 
-All 40 lessons now use the native-owned British-English rewrite and 878 bundled OpenAI Cedar recordings at speed 1.0. [Content/lesson-scripts.en-GB.md](../Content/lesson-scripts.en-GB.md) is the script book; [Content/README.md](../Content/README.md) documents recording, verification and publication. Text, compressed audio, transcript titles, lesson projections and timing are published together, preserving actions, answer keys and saved progress. Playback is offline.
+All 40 lesson entries (34 lessons and 6 practice activities) use the native-owned British-English rewrite and 878 bundled OpenAI Cedar recordings at speed 1.0. [Content/lesson-scripts.en-GB.md](../Content/lesson-scripts.en-GB.md) is the script book; [Content/README.md](../Content/README.md) documents recording, verification and publication. Text, compressed audio, transcript titles, lesson projections and timing are published together, preserving actions, answer keys and saved progress. Playback is offline.
 
-Lesson mini-games default to human White versus computer Black: Pawn Duel, Rook Sweep, Rooks and Pawns, Bishop Sweep, Bishops and Pawns, Queen Against Pawns, and Knight Capture. Their opponent uses a bounded variant-aware search, without standard-chess king/check rules. The inspector offers a two-player option. Games are saved separately and Undo takes back a complete human/computer turn. Knight Corners is a solo ordered-corner challenge.
+Each practice activity (`practiceFor` in the course content) sits indented under its piece lesson in the sidebar and is off the main path: Continue and automatic continuation go to the next lesson, and the lesson offers a Practise button instead. Pause for practice stops at the end of a lesson that has a game or activity. Lesson mini-games default to human White versus computer Black: Pawn Duel, Rook Sweep, Rooks and Pawns, Bishop Sweep, Bishops and Pawns, Queen Against Pawns, and Knight Capture. Their opponent uses a bounded variant-aware search, without standard-chess king/check rules. The inspector offers a two-player option. Games are saved separately and Undo takes back a complete human/computer turn. Knight Corners is a solo ordered-corner challenge.
 
 ## Game review
 

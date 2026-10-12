@@ -92,6 +92,34 @@ try:
  assert before>0,'No sample fell before the rook landed, so the order was not observed'
  assert 'suggested move' not in pointer('label','h8'),'The arrow runs past the king'
  results['lessonOverlayAfterMove']=True
+ # Practice activities sit indented under their piece lesson. For each of the six: the lesson's Practise button, a real
+ # click on the activity row's text and one on its indent each open it, and VoiceOver hears which lesson it practises.
+ # The sidebar's width is fixed (Metrics.left), so row geometry is the same at minimum width and in fullscreen.
+ # The title above the board names the lesson shown.
+ def opened(title):return lambda:'Current activity | '+title in listing()
+ activities=[('The Pawn','Pawn Duel'),('The Rook','Rook Practice'),('The Bishop','Bishop Practice'),('The Queen','Queen Practice'),('The Knight','Knight Practice'),('The King','Safe Squares')]
+ for parent,activity in activities:
+  pointer('click',parent);wait(lambda:'Practise: '+activity in listing(),f'{parent} does not offer {activity}')
+  pointer('click','Practise: '+activity);wait(opened(activity),f'Practise did not open {activity}')
+  pointer('click',parent);wait(lambda:'Practise: '+activity in listing(),f'The {parent} row did not open its lesson')
+  pointer('click',activity);wait(opened(activity),f'A click on the {activity} row text did not open it')
+  pointer('click',parent);wait(lambda:'Practise: '+activity in listing(),f'The {parent} row did not open its lesson')
+  pointer('click-left',activity,'30');wait(opened(activity),f'A click on the indent of the {activity} row did not open it')
+  hint=pointer('help',activity);assert hint=='Practice activity for '+parent,f'{activity} row hint: {hint!r}'
+ pointer('click','The Pawn')
+ wait(lambda:'Try it against the computer' in listing(),"The Pawn lost its own practice position")
+ for _ in range(3):
+  pointer('click','The Rook');wait(lambda:'Practise: Rook Practice' in listing(),'The Rook row did not open its lesson')
+  pointer('click','Rook Practice');wait(opened('Rook Practice'),'Rook Practice did not reopen')
+ subprocess.run(['/usr/sbin/screencapture','-x',str(evidence/'practice-sub-items.png')],check=True)
+ stop();value=saved();value['course']['completed']=sorted(set(value['course']['completed'])|{'pawn'});(state/'state-v1.json').write_text(json.dumps(value));launch()
+ if 'AXStaticText: The Pawn' not in listing():pointer('click','Toggle Sidebar')
+ wait(lambda:'AXStaticText: The Pawn' in listing(),'Sidebar did not open')
+ pointer('click','The Pawn')
+ if 'AXPopUpButton: Transcript' not in listing():pointer('click','Toggle Game Details')
+ wait(lambda:'Continue to The Rook' in listing(),'Continue after The Pawn does not name The Rook')
+ pointer('click','Continue to The Rook');wait(lambda:'Practise: Rook Practice' in listing(),'Continue did not open The Rook')
+ results['practiceSubItems']=True
  results['silent']=True
  # Reached only when every check above passed.
  results['passed']=True
