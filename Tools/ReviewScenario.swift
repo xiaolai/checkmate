@@ -13,13 +13,19 @@ let isolatedBundle="ai.xiaolai.checkmate.native-review-automation"
 func value(_ element:AXUIElement,_ attribute:String)->CFTypeRef?{var value:CFTypeRef?;AXUIElementCopyAttributeValue(element,attribute as CFString,&value);return value}
 func names(_ element:AXUIElement)->[String]{[kAXValueAttribute,kAXTitleAttribute,kAXDescriptionAttribute].compactMap{value(element,$0) as? String}}
 /// Depth-first search; `button` restricts matches to AXButton (titles such as "Open" also label other elements).
-func find(_ element:AXUIElement,_ text:String,button:Bool=false,depth:Int=0,budget:inout Int)->AXUIElement? {
+func find(_ element:AXUIElement,_ text:String,button:Bool=false,roles:Set<String>?=nil,depth:Int=0,budget:inout Int)->AXUIElement? {
     budget-=1;if budget<0 || depth>45 {return nil}
-    if (!button || value(element,kAXRoleAttribute) as? String==kAXButtonRole) && names(element).contains(text){return element}
-    for child in value(element,kAXChildrenAttribute) as? [AXUIElement] ?? []{if let found=find(child,text,button:button,depth:depth+1,budget:&budget){return found}}
+    let role=value(element,kAXRoleAttribute) as? String ?? ""
+    if (!button || role==kAXButtonRole) && roles.map({$0.contains(role)}) != false && names(element).contains(text){return element}
+    for child in value(element,kAXChildrenAttribute) as? [AXUIElement] ?? []{if let found=find(child,text,button:button,roles:roles,depth:depth+1,budget:&budget){return found}}
     return nil
 }
-func find(_ element:AXUIElement,_ text:String,button:Bool=false)->AXUIElement? {var budget=40000;return find(element,text,button:button,budget:&budget)}
+func find(_ element:AXUIElement,_ text:String,button:Bool=false,roles:Set<String>?=nil)->AXUIElement? {var budget=40000;return find(element,text,button:button,roles:roles,budget:&budget)}
+/// A file's entry in a panel, in any of its views: never the panel window, whose title can repeat the file name.
+let fileEntryRoles:Set<String>=[kAXStaticTextRole,kAXTextFieldRole,kAXCellRole,kAXRowRole,kAXImageRole]
+let keySource=CGEventSource(stateID:.hidSystemState)
+func key(_ code:CGKeyCode,flags:CGEventFlags=[]){for down in [true,false]{let event=CGEvent(keyboardEventSource:keySource,virtualKey:code,keyDown:down)!;event.flags=down ? flags:[];event.post(tap:.cghidEventTap)};usleep(150_000)}
+func type(_ text:String){for character in text{let units=Array(String(character).utf16);for down in [true,false]{let event=CGEvent(keyboardEventSource:keySource,virtualKey:0,keyDown:down)!;units.withUnsafeBufferPointer{if let address=$0.baseAddress{event.keyboardSetUnicodeString(stringLength:units.count,unicodeString:address)}};event.post(tap:.cghidEventTap)};usleep(8_000)};usleep(200_000)}
 func rect(_ element:AXUIElement)->CGRect? {
     guard let rawPosition=value(element,kAXPositionAttribute),let rawSize=value(element,kAXSizeAttribute) else{return nil}
     var point=CGPoint.zero,size=CGSize.zero;AXValueGetValue(rawPosition as! AXValue,.cgPoint,&point);AXValueGetValue(rawSize as! AXValue,.cgSize,&size);return CGRect(origin:point,size:size)
@@ -86,16 +92,30 @@ func openPanelPhase(){
     guard let data=try? Data(contentsOf:marker),let payload=try? JSONSerialization.jsonObject(with:data) as? [String:Any],let pid=payload["pid"] as? Int,let path=payload["path"] as? String,let app=NSRunningApplication(processIdentifier:pid_t(pid)),app.bundleIdentifier==isolatedBundle else{fatalError("Missing isolated panel marker")}
     app.activate(options:[.activateAllWindows]);Thread.sleep(forTimeInterval:0.4)
     guard NSWorkspace.shared.frontmostApplication?.processIdentifier==pid_t(pid) else{fatalError("Isolated app is not foreground")}
-    let ax=isolatedApp(pid);Thread.sleep(forTimeInterval:0.4)
-    guard var row=find(ax,URL(fileURLWithPath:path).lastPathComponent) else{fatalError("Known fixture row absent from actual panel")}
-    for _ in 0..<8 {if value(row,kAXRoleAttribute) as? String==kAXRowRole{break};guard let parent=value(row,kAXParentAttribute) else{break};row=parent as! AXUIElement}
-    print("Row role",value(row,kAXRoleAttribute) ?? "")
+    // The panel may open in a remembered folder and view on a given machine, so choose the fixture as a person would:
+    // Go to Folder with its path selects it in any view. A visible entry is clicked too, when the view shows one.
+    let ax=isolatedApp(pid),name=URL(fileURLWithPath:path).lastPathComponent
+    guard find(ax,"Open",button:true) != nil else{fatalError("Open panel absent")}
+    key(5,flags:[.maskCommand,.maskShift]);usleep(300_000);type(path);key(36);usleep(400_000)
+    let deadline=Date().addingTimeInterval(3)
+    var found=find(ax,name,roles:fileEntryRoles);while found==nil,Date()<deadline{Thread.sleep(forTimeInterval:0.1);found=find(ax,name,roles:fileEntryRoles)}
+    if found==nil{let shot=Process();shot.executableURL=URL(fileURLWithPath:"/usr/sbin/screencapture");shot.arguments=["-x",directory.appendingPathComponent("open-panel-missing-row.png").path];try? shot.run();shot.waitUntilExit()}
+    guard let entry=found else{fatalError("Known fixture row absent from actual panel")}
+    // List view wraps an entry in a row; column view does not. Click the row when there is one, otherwise the entry.
+    var row=entry,ancestor:AXUIElement?=entry
+    for _ in 0..<8 {guard let current=ancestor else{break};if value(current,kAXRoleAttribute) as? String==kAXRowRole{row=current;break};ancestor=value(current,kAXParentAttribute).map{$0 as! AXUIElement}}
+    FileHandle.standardError.write(Data("Fixture entry role \(value(row,kAXRoleAttribute) ?? "" as CFString)\n".utf8))
+    guard let open=find(ax,"Open",button:true) else{fatalError("Open control absent")}
     // The Open panel is system UI, not the app under test: click it like a person when it reports frames, otherwise
     // select through accessibility, and say which path ran.
-    if click(row,pid:pid){print("Clicked the fixture row with the pointer")}else{print("Row selection via accessibility",AXUIElementSetAttributeValue(row,kAXSelectedAttribute as CFString,kCFBooleanTrue).rawValue);if let parent=value(row,kAXParentAttribute){_=AXUIElementSetAttributeValue(parent as! AXUIElement,kAXSelectedRowsAttribute as CFString,[row] as CFArray)}}
-    Thread.sleep(forTimeInterval:0.3)
-    guard value(row,kAXSelectedAttribute) as? Bool==true else{fatalError("The fixture row is not selected")}
-    guard let open=find(ax,"Open",button:true) else{fatalError("Open control absent")}
+    let selectedByPath=value(open,kAXEnabledAttribute) as? Bool==true
+    if selectedByPath{FileHandle.standardError.write(Data("Go to Folder chose the fixture\n".utf8))}
+    else if click(row,pid:pid){FileHandle.standardError.write(Data("Clicked the fixture row with the pointer\n".utf8))}else{print("Row selection via accessibility",AXUIElementSetAttributeValue(row,kAXSelectedAttribute as CFString,kCFBooleanTrue).rawValue);if let parent=value(row,kAXParentAttribute){_=AXUIElementSetAttributeValue(parent as! AXUIElement,kAXSelectedRowsAttribute as CFString,[row] as CFArray)}}
+    // A chosen file is what enables Open, in every view of the panel.
+    let chosen=Date().addingTimeInterval(2);while value(open,kAXEnabledAttribute) as? Bool != true,Date()<chosen{Thread.sleep(forTimeInterval:0.1)}
+    guard value(open,kAXEnabledAttribute) as? Bool==true else{
+        let shot=Process();shot.executableURL=URL(fileURLWithPath:"/usr/sbin/screencapture");shot.arguments=["-x",directory.appendingPathComponent("open-panel-unselected.png").path];try? shot.run();shot.waitUntilExit()
+        fatalError("The fixture file is not chosen: Open stays disabled (clicked \(value(row,kAXRoleAttribute) ?? "none" as CFString) at \(rect(row).map{"\($0)"} ?? "no frame"))")}
     if click(open,pid:pid){print("Clicked Open with the pointer")}else{print("Open via accessibility",AXUIElementPerformAction(open,kAXPressAction as CFString).rawValue)}
 }
 
