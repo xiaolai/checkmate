@@ -1,17 +1,16 @@
-"""Silent build-host acceptance for sidebar navigation and the review action menu."""
+"""Silent test-host acceptance for sidebar navigation and the review action menu."""
 import atexit
 import json
 import os
 import pathlib
 import shutil
-import socket
 import subprocess
 import tempfile
 import time
 import uuid
 
-if not any(name in socket.gethostname().lower() for name in ("build-host", "build-host")):
-    raise SystemExit("Run native sidebar acceptance on build-host only.")
+import test_host
+test_host.require("native sidebar acceptance")
 root = pathlib.Path(__file__).resolve().parents[1]
 evidence = pathlib.Path(os.environ["CHECKMATE_EVIDENCE_DIR"])
 evidence.mkdir(parents=True, exist_ok=True)

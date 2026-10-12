@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
-case $(hostname) in *build-host*|*build-host*|build-host*) ;; *) echo 'Run native UI tests on build-host only.' >&2; exit 1;; esac
+python3 "$(dirname "$0")/test_host.py" "native UI tests" || exit 1
 checkmate_review_evidence=${CHECKMATE_EVIDENCE_DIR:-$(mktemp -d /tmp/checkmate-review-ui.XXXXXX)}
 mkdir -p "$checkmate_review_evidence"
 rm -f "$checkmate_review_evidence"/review-ui-results.json "$checkmate_review_evidence"/shutdown-persistence-result.json \

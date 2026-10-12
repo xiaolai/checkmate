@@ -1,4 +1,4 @@
-"""Silent build-host acceptance for real pointer input: board clicks, drags and drawer controls.
+"""Silent test-host acceptance for real pointer input: board clicks, drags and drawer controls.
 
 Accessibility presses bypass hit-testing, so every action here is a posted mouse event.
 """
@@ -8,13 +8,12 @@ import os
 import re
 import pathlib
 import shutil
-import socket
 import subprocess
 import tempfile
 import time
 
-if not any(name in socket.gethostname().lower() for name in ("build-host", "build-host")):
-    raise SystemExit("Run native pointer acceptance on build-host only.")
+import test_host
+test_host.require("native pointer acceptance")
 root = pathlib.Path(__file__).resolve().parents[1]
 evidence = pathlib.Path(os.environ["CHECKMATE_EVIDENCE_DIR"])
 evidence.mkdir(parents=True, exist_ok=True)

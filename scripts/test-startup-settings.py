@@ -4,13 +4,12 @@ import json
 import os
 import pathlib
 import shutil
-import socket
 import subprocess
 import tempfile
 import time
 
-if not any(name in socket.gethostname().lower() for name in ("build-host", "build-host")):
-    raise SystemExit("Run native Settings acceptance on build-host only.")
+import test_host
+test_host.require("native Settings acceptance")
 
 root = pathlib.Path(__file__).resolve().parents[1]
 evidence = pathlib.Path(os.environ["CHECKMATE_EVIDENCE_DIR"])

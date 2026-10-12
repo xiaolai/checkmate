@@ -14,7 +14,11 @@ native UI and MCP tests have separate test targets. The architecture gate reject
 
 ## Build and run
 
-All development execution stays on build-host. From the repository root:
+Development execution runs on a test host, never the main Mac: build-host, or test-host for end-to-end testing.
+`scripts/test_host.py` lists them, and acceptance refuses any other Mac. Release builds, recording import and the
+Stockfish build stay on build-host. A test host needs Xcode 27 selected with its licence accepted, Rosetta for the Intel gate,
+a logged-in GUI session whose display never sleeps, and Accessibility and Screen Recording permission for the remote
+login session that drives the pointer. From the repository root:
 
 ```sh
 bash build.sh

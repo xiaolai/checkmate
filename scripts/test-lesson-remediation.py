@@ -1,6 +1,6 @@
-"""Silent build-host real-pointer checks for lesson activity handoffs, practice forks and promotion."""
-import json,os,pathlib,shutil,socket,subprocess,tempfile,time
-if not any(n in socket.gethostname().lower() for n in ['build-host','build-host']):raise SystemExit('Run on build-host only')
+"""Silent test-host real-pointer checks for lesson activity handoffs, practice forks and promotion."""
+import json,os,pathlib,shutil,subprocess,tempfile,time
+import test_host;test_host.require('lesson pointer acceptance')
 root=pathlib.Path(__file__).resolve().parents[1];evidence=pathlib.Path(os.environ['CHECKMATE_EVIDENCE_DIR']);evidence.mkdir(parents=True,exist_ok=True)
 helpers={}
 for name in ['pointer-helper','ax-helper']:

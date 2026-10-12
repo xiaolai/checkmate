@@ -1,11 +1,13 @@
-// Standalone build-host helper for the native review scenario, run concurrently with scripts/test-review-ui.sh:
+// Standalone test-host helper for the native review scenario, run concurrently with scripts/test-review-ui.sh:
 // 1. answers the scenario's numbered accessibility requests (rendered text/visibility, enabled state,
 //    real pointer clicks, selected sidebar row) from outside the app process;
 // 2. selects the actual fixture row in the real Open panel and presses Open;
 // 3. after normal termination, reads back the persisted review cursor and ideas.
 import AppKit
 import ApplicationServices
-guard ProcessInfo.processInfo.hostName.lowercased().contains("build-host") || ProcessInfo.processInfo.hostName.lowercased().contains("build-host") else{fatalError("Run native UI helpers on build-host only")}
+// The same test hosts as scripts/test_host.py; scripts/test-run-gates.py checks the two lists agree.
+let testHosts=["build-host","build-host","test-host"]
+guard testHosts.contains(where:ProcessInfo.processInfo.hostName.lowercased().contains) else{fatalError("Run native UI helpers on a test host only (\(testHosts.joined(separator:", ")))")}
 let directory=URL(fileURLWithPath:CommandLine.arguments[1]),marker=directory.appendingPathComponent("open-panel-ready.json"),resultURL=directory.appendingPathComponent("review-ui-results.json")
 let isolatedBundle="ai.xiaolai.checkmate.native-review-automation"
 func value(_ element:AXUIElement,_ attribute:String)->CFTypeRef?{var value:CFTypeRef?;AXUIElementCopyAttributeValue(element,attribute as CFString,&value);return value}

@@ -1,6 +1,7 @@
 {
  "about": "Acceptance gates in run order, and the files each one exercises. scripts/run-gates.py --changed reruns only gates whose input files changed since they last passed; scripts/acceptance.sh with no arguments runs every gate and is the only run that certifies a tree for release. Every file scripts/source-hashes.py tracks must match a gate or the untested list (run-gates.py --check-map), so a new file cannot silently escape selection. Patterns are fnmatch globs relative to the repository root; '*' also crosses '/'.",
  "shared": [
+  "scripts/test_host.py",
   "Package.swift",
   "Package.resolved",
   "build.sh",

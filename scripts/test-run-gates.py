@@ -83,4 +83,12 @@ assert gates.GATE_CHECK_SOURCE == (root / 'scripts/gate_check.py').read_text(), 
 assert gates.check_gate.__code__.co_filename == str(root / 'scripts/gate_check.py')
 assert gates.definition('unit', gates.GATE_CHECK_SOURCE) == gates.definition('unit')
 assert gates.definition('unit', gates.GATE_CHECK_SOURCE + '#') != gates.definition('unit'), 'An edited check must change the definition'
-print(f'Gate selection self-test passed ({len(cases) + 4} cases).')
+# Acceptance runs only on listed test hosts, matched by name: any other Mac is refused.
+import test_host
+assert all(test_host.is_test_host(h) for h in ['build-host', 'build-host', 'test-host'])
+assert not any(test_host.is_test_host(h) for h in ['mac-mini', 'studio', 'laptop'])
+# The review helper is Swift and cannot import test_host, so it repeats the list; it must not drift.
+import re
+helper = re.search(r'let testHosts=\[([^\]]*)\]', (root / 'Tools/ReviewScenario.swift').read_text())
+assert helper and tuple(re.findall(r'"([^"]+)"', helper[1])) == test_host.TEST_HOSTS, 'Tools/ReviewScenario.swift test hosts differ from scripts/test_host.py'
+print(f'Gate selection self-test passed ({len(cases) + 5} cases).')

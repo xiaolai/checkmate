@@ -1,4 +1,4 @@
-"""Silent build-host acceptance: a click on a legal practice square must play, with real pointer events.
+"""Silent test-host acceptance: a click on a legal practice square must play, with real pointer events.
 
 Covers the ways a second click used to be lost: drift across a square edge, a first click on an inactive
 window, a click while piece inspection is on, and clicks under the storage error banner.
@@ -8,14 +8,13 @@ import os
 import pathlib
 import re
 import shutil
-import socket
 import stat
 import subprocess
 import tempfile
 import time
 
-if not any(name in socket.gethostname().lower() for name in ("build-host", "build-host")):
-    raise SystemExit("Run native pointer acceptance on build-host only.")
+import test_host
+test_host.require("native pointer acceptance")
 root = pathlib.Path(__file__).resolve().parents[1]
 evidence = pathlib.Path(os.environ["CHECKMATE_EVIDENCE_DIR"])
 evidence.mkdir(parents=True, exist_ok=True)

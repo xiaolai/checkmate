@@ -20,11 +20,12 @@ import json
 import os
 import pathlib
 import shutil
-import socket
 import subprocess
 import sys
 import tempfile
 import time
+
+import test_host
 
 # First, before anything that can fail (even loading the gate map): a full run's reused evidence directory must not keep
 # an earlier run's certificate, since only this run's aggregate may write one. Without the variable a run uses a fresh
@@ -125,14 +126,8 @@ def temporary_leftovers(scratch: pathlib.Path) -> list:
     return sorted(str(path.relative_to(scratch)) for path in scratch.iterdir())
 
 
-def require_build_host() -> None:
-    host = socket.gethostname().lower()
-    if 'build-host' not in host and not host.startswith('build-host'):
-        sys.exit('Run acceptance gates on build-host only.')
-
-
 def run(names: list, full: bool = False) -> int:
-    require_build_host()
+    test_host.require("acceptance gates")
     evidence = pathlib.Path(os.environ.get('CHECKMATE_EVIDENCE_DIR') or tempfile.mkdtemp(prefix='checkmate-gates.', dir='/tmp'))
     evidence.mkdir(parents=True, exist_ok=True)
     environment = {**os.environ, 'CHECKMATE_EVIDENCE_DIR': str(evidence)}
