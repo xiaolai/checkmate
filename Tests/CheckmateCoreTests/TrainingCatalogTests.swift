@@ -20,6 +20,22 @@ import CheckmateCore
         }
         print("TRAINING-CONTENT "+counted.sorted{$0.key<$1.key}.map{"\($0.key)=\($0.value)"}.joined(separator:" "))
     }
+    /// Move objectives and diagnosis ship a teaching graph; every other choice question must not.
+    func testOnlyMoveObjectivesAndDiagnosisCarryATeachingGraph()throws {
+        let provider=try TrainingScenarioProvider.bundled()
+        let all=provider.catalog.entries.flatMap{definition in provider.scenarios(for:definition.id).map{(definition,$0)}}
+        func edited(_ scenario:TrainingScenario,nodes:Any?)throws -> TrainingScenario {
+            var raw=try JSONSerialization.jsonObject(with:JSONEncoder().encode(scenario)) as! [String:Any]
+            raw["nodes"]=nodes
+            return try JSONDecoder().decode(TrainingScenario.self,from:JSONSerialization.data(withJSONObject:raw))
+        }
+        let (diagnosisEntry,diagnosis)=try XCTUnwrap(all.first{$0.1.check == .diagnosis})
+        let graph=try XCTUnwrap((JSONSerialization.jsonObject(with:JSONEncoder().encode(diagnosis)) as! [String:Any])["nodes"])
+        XCTAssertThrowsError(try edited(diagnosis,nodes:nil).validateStructure(for:diagnosisEntry),"a diagnosis without its graph is refused")
+        let (choiceEntry,choice)=try XCTUnwrap(all.first{$0.1.check?.task == .choose && $0.1.check != .diagnosis})
+        XCTAssertNoThrow(try choice.validateStructure(for:choiceEntry))
+        XCTAssertThrowsError(try edited(choice,nodes:graph).validateStructure(for:choiceEntry),"\(choice.id): a non-diagnosis choice carrying a graph is refused")
+    }
     func testMateInOnePoolMeetsItsPilotContract()throws {
         let provider=try TrainingScenarioProvider.bundled(),mates=provider.scenarios(for:"mate-in-one")
         let practice=mates.filter{$0.reserve != true},reserve=mates.filter{$0.reserve==true}

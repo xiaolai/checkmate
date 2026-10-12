@@ -27,7 +27,7 @@ import CheckmateCore
         for entry in try XCTUnwrap(training.catalog).entries {XCTAssertTrue(Set(entry.lessonLinks).isSubset(of:lessons),"\(entry.id) links an unknown lesson")}
     }
     func testReadingALinkedLessonKeepsTheCourseBookmarkAndReturnsToTraining()throws {
-        let (session,player,training,coordinator)=try fixture();defer{player.shutdown()}
+        let (session,player,_,coordinator)=try fixture();defer{player.shutdown()}
         // The learner's own place in the course, and an unfinished exercise.
         player.openLesson(index:2);player.seek(step:1)
         let bookmark=(session.state.course.lessonID,session.state.course.step)

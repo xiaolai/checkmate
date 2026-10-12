@@ -30,3 +30,6 @@ let package = Package(
     ],
     swiftLanguageModes: [.v5]
 )
+// A warning in this project's Swift is a compile error. It fails the compile itself, so no cached build can hide it,
+// and no build log has to be read for it to be seen.
+for target in package.targets { target.swiftSettings = (target.swiftSettings ?? []) + [.unsafeFlags(["-warnings-as-errors"])] }

@@ -8,7 +8,7 @@ import Foundation
 @MainActor public final class TrainingContinuationValidator {
     /// Every search for one scenario together (all teaching nodes, replies and quiescence) stays within this many
     /// positions, each produced by one make-move.
-    public static let nodeCap=32000
+    nonisolated public static let nodeCap=32000
     struct Classification:Decodable {let exhausted:Bool,nodes:Int,accepted:[String]?,rejected:[String]?,replies:[String:String]?}
     struct Holds:Decodable {let exhausted:Bool,holds:Bool?,nodes:Int}
     struct Exchange:Decodable {let exhausted:Bool,sign:Int?,nodes:Int?}

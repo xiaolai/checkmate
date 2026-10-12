@@ -223,8 +223,8 @@ public struct TrainingScenario:Codable,Equatable,Identifiable {
     }
     /// Move objectives (and diagnosis) ship a small teaching graph whose links stay inside it; nothing else has one.
     private func validateTeachingGraph(_ check:TrainingCheck)throws {
-        switch check.task {
-        case .move,.choose where check == .diagnosis:
+        switch (check.task,check) {
+        case (.move,_),(.choose,.diagnosis):
             guard let nodes,!nodes.isEmpty,nodes.count<=64 else{try fail("a move objective ships its teaching graph")}
             for node in nodes {
                 let moves=node.accepted+Array(node.replies.keys)+Array(node.replies.values)+Array((node.next ?? [:]).keys)
