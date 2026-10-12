@@ -33,6 +33,27 @@ import CheckmateCore
         model.openReview(try PGNImporter.parse(Data("1. d4 *".utf8))[0],draft:true)
         XCTAssertEqual(asked,1);XCTAssertNotEqual(model.review.document?.id,document.id);XCTAssertFalse(try model.reviewStore.list().contains{$0.id==document.id})
     }
+    /// #50: a navigation made while the question is up (an agent's call runs during the modal) overtakes the exit that
+    /// asked. "Save" given about it is not applied, and the draft as it now stands is asked about again.
+    func testSaveAnsweredAboutAnOvertakenNavigationIsNotAppliedAndAsksAgain()throws {
+        let model=try NativeModel();defer{model.shutdown()}
+        let document=try draftWithIdea(model);var answers:[NativeModel.DraftDisposal]=[]
+        model.askAboutDraft={_ in answers.append(answers.isEmpty ? .save:.cancel);if answers.count==1{model.supersedeReviewOpen()};return answers.last!}
+        XCTAssertFalse(model.returnToGame(),"the overtaken exit must not complete")
+        XCTAssertEqual(answers,[.save,.cancel],"the draft as it now stands was not asked about again")
+        XCTAssertTrue(model.review.active);XCTAssertTrue(model.reviewDraft,"the stale Save still saved the draft");XCTAssertEqual(model.review.document?.id,document.id)
+        XCTAssertFalse(try model.reviewStore.list().contains{$0.id==document.id},"the stale Save wrote the draft to the library")
+    }
+    /// The same for Don't Save on Quit: an approval given before an overtaking navigation never lets the draft go.
+    func testDontSaveAnsweredAboutAnOvertakenNavigationIsNotApproved()throws {
+        let model=try NativeModel();defer{model.shutdown()}
+        let document=try draftWithIdea(model);var asked=0
+        model.askAboutDraft={_ in asked+=1;if asked==1{model.supersedeReviewOpen();return .discard};return .cancel}
+        XCTAssertFalse(model.resolveDraftBeforeLeaving(),"a Don't Save given before the navigation changed was applied")
+        XCTAssertEqual(asked,2);XCTAssertEqual(model.review.document?.id,document.id);XCTAssertEqual(model.review.branchesForSaving.count,1)
+        // The answer given about the draft as it now stands is applied as usual.
+        model.askAboutDraft={_ in asked+=1;return .discard};XCTAssertTrue(model.resolveDraftBeforeLeaving());XCTAssertEqual(asked,3)
+    }
     func testADraftWithoutIdeasClosesWithoutAsking()throws {
         let model=try NativeModel();defer{model.shutdown()}
         model.openReview(try PGNImporter.parse(Data("1. e4 e5 *".utf8))[0],draft:true)

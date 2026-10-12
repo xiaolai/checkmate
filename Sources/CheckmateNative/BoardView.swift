@@ -54,9 +54,14 @@ final class BoardView:NSView {
     var destinationsPlayable=true
     /// Move puzzles show no destinations; a drop there is graded wherever it lands.
     var dropsAnywhere=false
-    /// A move animation belongs to the board it lands on: a replaced board (a hypothetical one, another activity) without
-    /// the moved piece on its destination cancels it, so it never hides or draws pieces of the previous board.
-    var position:Position=[:] {didSet{if position != oldValue,let m=moves.first,position[m.to]?.first != m.piece.first{cancelAnimation()}}}
+    /// A move animation belongs to one transition, the board before the move and the exact board it lands on, and moves
+    /// forward only: once the landing board is shown, any other board (the board before the move too, as an undo shows)
+    /// cancels it, and so does any board but the landing one while it is awaited. A hypothetical board, a replacement game
+    /// or another activity never keeps it, even one with a same-coloured piece on the destination.
+    /// What the board is showing, apart from its pieces (see GameWindow's presentations). A move animation belongs to the
+    /// source it started in: any change of source ends it, even to a board with identical pieces.
+    var displaySource="" {didSet{if displaySource != oldValue{cancelAnimation()}}}
+    var position:Position=[:] {didSet{if position != oldValue,let current=transition{if let next=current.advanced(to:position){transition=next}else{cancelAnimation()}}}}
     var destinations:[String]=[],attacked:[String]=[],highlights:[Highlight]=[],counts:[String]=[],explicitMotion:PieceMotion?,theme="wood",focus="e2"
     var arrows:[[String]]=[] {didSet{if arrows != oldValue{arrowElapsed=0;arrowStart=ProcessInfo.processInfo.systemUptime;updateBreathing()}}}
     var primaryMoveArrow:[String]? {arrows.first{$0.count==2 && ChessRules.validSquare($0[0]) && ChessRules.validSquare($0[1]) && $0[0] != $0[1]}}
@@ -88,6 +93,22 @@ final class BoardView:NSView {
     func isDropped(_ m:MoveRecord)->Bool {droppedMove.map{$0.from==m.from && $0.to==m.to} ?? false}
     override func layout(){super.layout();onLayout?()}
     private var moves:[(piece:String,from:String,to:String)]=[],captured:[String:String]=[:],animationStart:TimeInterval=0,animationDuration=0.0,timer:Timer?
+    /// The identity of the running animation: the boards on either side of the move it draws, and how far the displayed
+    /// board has followed it. The move may be applied after `animate`, so the animation can start over the board before
+    /// it (awaiting the landing board) or over the landing board itself (landed).
+    struct MoveTransition:Equatable {let before:Position,landing:Position;let phase:Phase
+        enum Phase:Equatable {case awaitingLanding,landed}
+        /// The transition starting over `position`, or nil when that board is neither side of the move.
+        static func starting(before:Position,landing:Position,over position:Position)->MoveTransition? {
+            if position==landing{return MoveTransition(before:before,landing:landing,phase:.landed)}
+            if position==before{return MoveTransition(before:before,landing:landing,phase:.awaitingLanding)}
+            return nil
+        }
+        /// The transition once `position` replaces the displayed board, or nil when that board ends it: only the landing
+        /// board, while it is still awaited, continues it.
+        func advanced(to position:Position)->MoveTransition? {phase == .awaitingLanding && position==landing ? MoveTransition(before:before,landing:landing,phase:.landed):nil}
+    }
+    private(set) var transition:MoveTransition?
     private lazy var squares=ChessRules.squares.map{SquareAccessibility(board:self,square:$0)}
     override var acceptsFirstResponder:Bool {true}
     override var mouseDownCanMoveWindow:Bool {false}
@@ -171,8 +192,19 @@ final class BoardView:NSView {
     /// A dropped file is checked and read off the main thread (`ReviewDrop.validated`); a refusal is reported with its reason.
     override func performDragOperation(_ sender:NSDraggingInfo)->Bool {let pasteboard=sender.draggingPasteboard;if let url=NSURL(from:pasteboard) as URL?{guard url.isFileURL else{return false}
             reviewFiles.load(url,prepare:ReviewDrop.validated,deliver:{[weak self] in self?.dropReview?($0)},rejected:{[weak self] error in self?.dropRejected?((error as? ReviewDrop.Rejection)?.reason ?? ReviewDrop.unreadable)});return true};if let text=pasteboard.string(forType:.string),text.utf8.count<=ReviewPolicy.maximumBytes{dropReview?(Data(text.utf8));return true};return false}
-    func cancelAnimation(){timer?.invalidate();timer=nil;moves=[];captured=[:];needsDisplay=true}
-    func animate(_ m:MoveRecord,duration:Double){cancelAnimation();guard duration>0,!shouldReduceMotion,!isDropped(m) else{return};moves=[(m.color+m.piece,m.from,m.to)];if m.flags.contains("k")||m.flags.contains("q"){let rank=String(m.from.suffix(1));moves.append((m.color+"r",(m.flags.contains("k") ? "h":"a")+rank,(m.flags.contains("k") ? "f":"d")+rank))};if let p=m.captured{captured[m.flags.contains("e") ? String(m.to.prefix(1))+String(m.from.suffix(1)):m.to]=(m.color=="w" ? "b":"w")+p};animationStart=ProcessInfo.processInfo.systemUptime;animationDuration=duration;let timer=Timer(timeInterval:Metrics.frameInterval,repeats:true){[weak self] _ in guard let self=self else{return};self.needsDisplay=true;if self.animationProgress>=1{self.cancelAnimation()}};self.timer=timer;RunLoop.main.add(timer,forMode:.common)}
+    func cancelAnimation(){timer?.invalidate();timer=nil;moves=[];captured=[:];transition=nil;needsDisplay=true}
+    /// Animates `m` onto `landing`, the exact board the move produces (by default the placement of `m.after`). The board
+    /// before the move is derived from `landing` by undoing the drawn moves and captures, so the animation runs only
+    /// while the displayed board follows that transition (`MoveTransition`): a move whose landing board is unknown, or
+    /// that does not belong to the board now shown, is not animated at all.
+    func animate(_ m:MoveRecord,landing:Position?=nil,duration:Double){cancelAnimation();guard duration>0,!shouldReduceMotion,!isDropped(m),let landing=landing ?? TrainingMaterial.board(fen:m.after) else{return}
+        var drawn=[(piece:m.color+m.piece,from:m.from,to:m.to)],taken:[String:String]=[:]
+        if m.flags.contains("k")||m.flags.contains("q"){let rank=String(m.from.suffix(1));drawn.append((m.color+"r",(m.flags.contains("k") ? "h":"a")+rank,(m.flags.contains("k") ? "f":"d")+rank))}
+        if let p=m.captured{taken[m.flags.contains("e") ? String(m.to.prefix(1))+String(m.from.suffix(1)):m.to]=(m.color=="w" ? "b":"w")+p}
+        var before=landing;for move in drawn{before[move.to]=nil};for move in drawn{before[move.from]=move.piece};for (square,piece) in taken{before[square]=piece}
+        guard let transition=MoveTransition.starting(before:before,landing:landing,over:position) else{return}
+        self.transition=transition;moves=drawn;captured=taken
+        animationStart=ProcessInfo.processInfo.systemUptime;animationDuration=duration;let timer=Timer(timeInterval:Metrics.frameInterval,repeats:true){[weak self] _ in guard let self=self else{return};self.needsDisplay=true;if self.animationProgress>=1{self.cancelAnimation()}};self.timer=timer;RunLoop.main.add(timer,forMode:.common)}
     /// Monotonic, so a clock change never stalls or skips a move.
     private var animationProgress:Double {animationDuration>0 ? min(1,max(0,(ProcessInfo.processInfo.systemUptime-animationStart)/animationDuration)):1}
     private func glyph(_ piece:String,rect:NSRect,alpha:CGFloat=1){let symbols=["k":"♚","q":"♛","r":"♜","b":"♝","n":"♞","p":"♟"],white=piece.first=="w",size=rect.width*0.8

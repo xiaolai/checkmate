@@ -243,12 +243,13 @@ import CheckmateCore
     /// stays, so nothing is lost.
     func resolveDraftBeforeLeaving()->Bool {
         guard review.active,reviewDraft,let id=review.document?.id else{return true}
-        let branches=review.branchesForSaving,ideas=branches.count;guard ideas>0 else{return true}
+        let branches=review.branchesForSaving,ideas=branches.count,generation=reviewOpenGeneration;guard ideas>0 else{return true}
         if let approved=draftDiscardApproved,approved.id==id,approved.branches==branches{return true}
         let answer=askAboutDraft?(ideas) ?? askLearnerAboutDraft(ideas)
-        // The question's modal run loop lets an agent change the draft meanwhile: an answer given about another review or
-        // other imagined lines is never applied to these; the draft as it now stands is asked about again.
-        guard answer == .cancel || review.active && reviewDraft && review.document?.id==id && review.branchesForSaving==branches else{return resolveDraftBeforeLeaving()}
+        // The question's modal run loop lets an agent change the draft, or navigate, meanwhile: an answer given about
+        // another review, other imagined lines or a navigation since overtaken is never applied (no save, no discard
+        // approval); the draft as it now stands is asked about again. Staying (Cancel) is always safe to apply.
+        guard answer == .cancel || review.active && reviewDraft && review.document?.id==id && review.branchesForSaving==branches && reviewOpenGeneration==generation else{return resolveDraftBeforeLeaving()}
         switch answer {
         case .discard:draftDiscardApproved=(id,branches);return true
         case .cancel:return false
@@ -408,6 +409,8 @@ import CheckmateCore
         case .practiceFork:do{_ = try store.preserveBeforeImport(session.state)}catch{practiceForkRequested=false;draftDiscardApproved=nil;storageError=userFacingMessage(error,fallback:"Practice could not start from this position. The review is unchanged.");return false}
         default:break
         }
+        // A staged training exercise is entered only over the record it was staged from: checked before any exit effect.
+        guard coordinator.stillCurrent(staged) else{draftDiscardApproved=nil;storageError=WorkspaceTransitionCoordinator.staleTrainingMessage;return false}
         // 3. Exit.
         leave(for:next,reviewing:reviewing,sameReview:sameReview)
         // 4. Application entry; the host owns save notifications and native lifecycle effects.

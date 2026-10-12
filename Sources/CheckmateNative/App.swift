@@ -215,7 +215,8 @@ import CheckmateCore
             if !defaultMotion{failures.append("Default motion preference differs from workspace")}
             game.board.automationReduceMotion=true;game.board.selected="e2";game.board.updateBreathing()
             if game.board.breathing{failures.append("Reduced Motion override retained breathing")}
-            let move=try ChessRules().moves("e2").first!;game.board.animate(move,duration:1)
+            // An animation only runs on the board it belongs to: show the start position the move is played from.
+            game.board.position=try ChessRules().board;let move=try ChessRules().moves("e2").first!;game.board.animate(move,duration:1)
             if game.board.moveAnimationActive{failures.append("Reduced Motion override retained move animation")}
             game.board.automationReduceMotion=false;game.board.animate(move,duration:1)
             if !game.board.moveAnimationActive{failures.append("Normal motion override did not start animation")};game.board.cancelAnimation()
