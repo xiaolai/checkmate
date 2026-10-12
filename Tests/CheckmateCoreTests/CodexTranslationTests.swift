@@ -131,7 +131,9 @@ final class CodexTranslationTests: XCTestCase {
             try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: executable.path)
         }
         deinit { try? FileManager.default.removeItem(at: directory) }
-        var client: CodexSubscriptionClient { CodexSubscriptionClient(executable: executable, credentialURL: credential, automationAllowed: true, timeout: 1) }
+        // A liveness bound, not a speed check: a cold Rosetta launch of the fake server can take over a second. Tests of
+        // the timeout itself pass their own short value.
+        var client: CodexSubscriptionClient { CodexSubscriptionClient(executable: executable, credentialURL: credential, automationAllowed: true, timeout: CodexTranslationLimits.rpcTimeout) }
         func assertCleaned() async throws {
             let failure = directory.appendingPathComponent("failure.txt")
             if FileManager.default.fileExists(atPath: failure.path) { XCTFail(try String(contentsOf: failure, encoding: .utf8)) }
@@ -157,7 +159,9 @@ final class CodexTranslationTests: XCTestCase {
     func testLateUsageAndUnsupportedEstimates() async throws {
         for scenario in ["late", "unsupported", "estimateDisconnect", "estimateTimeout"] {
             let fixture = try Fixture(scenario), source = LessonTranslation.source(library: try CourseLibrary(), index: 0)
-            let result = try await fixture.client.translate(source: source, locale: "fr", onUsage: { _, _, _ in })
+            // estimateTimeout waits out the estimate request, so it runs with a short request timeout of its own.
+            let client = scenario == "estimateTimeout" ? CodexSubscriptionClient(executable: fixture.executable, credentialURL: fixture.credential, automationAllowed: true, timeout: 3) : fixture.client
+            let result = try await client.translate(source: source, locale: "fr", onUsage: { _, _, _ in })
             XCTAssertEqual(result.tokens?.total, 120)
             if scenario != "late" { XCTAssertNil(result.estimatedCredits); XCTAssertNil(result.estimatedUSD) }
             try await fixture.assertCleaned()
