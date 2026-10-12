@@ -1,0 +1,93 @@
+{
+ "entry": "guided-games",
+ "scenarios": [
+  {
+   "id": "gg-initial-setup-w",
+   "entry": "guided-games",
+   "variant": "initial-setup",
+   "tier": 1,
+   "cluster": "gg-initial-setup",
+   "learner": "w",
+   "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+   "prompt": "Play a game as White from the starting position. Bring your pieces out and get your king to safety.",
+   "explanation": "Opening habits that usually help: control the centre, bring out knights and bishops, and castle.",
+   "hints": [
+    "Bring out your knights and bishops, and castle early.",
+    "Before each move, ask what your opponent's last move attacks."
+   ],
+   "check": "guidedGame",
+   "workflow": "guided-game",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "gg-initial-setup-b",
+   "entry": "guided-games",
+   "variant": "initial-setup",
+   "tier": 1,
+   "cluster": "gg-initial-setup",
+   "learner": "b",
+   "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+   "prompt": "Play a game as Black from the starting position. White moves first; then bring your pieces out and get your king to safety.",
+   "explanation": "As Black, answer White's centre with your own, develop, and castle.",
+   "hints": [
+    "Bring out your knights and bishops, and castle early.",
+    "Before each move, ask what your opponent's last move attacks."
+   ],
+   "check": "guidedGame",
+   "workflow": "guided-game",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "gg-short-start-italian",
+   "entry": "guided-games",
+   "variant": "short-start",
+   "tier": 1,
+   "cluster": "gg-short-start-italian",
+   "learner": "b",
+   "fen": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3",
+   "prompt": "Black to move after 1.e4 e5 2.Nf3 Nc6 3.Bc4. Carry on: develop and keep your king safe.",
+   "explanation": "White's bishop aims at f7, next to your king. Developing a piece that guards it, such as ...Nf6 or ...Bc5, and castling soon both help.",
+   "hints": [
+    "Bring out your knights and bishops, and castle early.",
+    "Before each move, ask what your opponent's last move attacks."
+   ],
+   "check": "guidedGame",
+   "workflow": "guided-game",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "gg-short-start-queens-pawn",
+   "entry": "guided-games",
+   "variant": "short-start",
+   "tier": 1,
+   "cluster": "gg-short-start-queens-pawn",
+   "learner": "w",
+   "fen": "rnbqkb1r/ppp1pppp/5n2/3p4/3P4/5N2/PPP1PPPP/RNBQKB1R w KQkq - 2 3",
+   "prompt": "White to move after 1.d4 d5 2.Nf3 Nf6. Carry on: develop and keep your king safe.",
+   "explanation": "Moves such as c4, e3 and Bf4 develop with the centre in mind; castle before opening the position.",
+   "hints": [
+    "Bring out your knights and bishops, and castle early.",
+    "Before each move, ask what your opponent's last move attacks."
+   ],
+   "check": "guidedGame",
+   "workflow": "guided-game",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  }
+ ]
+}

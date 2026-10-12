@@ -41,3 +41,62 @@ These boundaries make reusable behavior identifiable and prevent new UI dependen
 A Windows implementation still needs a native frontend, an alternative chess.js runtime, a Windows Stockfish process adapter, audio/device/network/credential adapters, platform logging/hashing and a replacement or bridge for Combine observation. It must also validate Foundation/CoreFoundation support, CLI discovery, data paths, resource packaging and engine cancellation on Windows. Keep existing saved-state and MCP formats at those boundaries.
 
 Choose the Windows frontend and interoperability strategy before implementing it. A Swift Windows host can consume the library products where supported. A WinUI/C# or C++ host needs an explicit bridge or service protocol; Swift target boundaries alone do not provide that ABI. Avoid duplicating chess and learning behavior in the new UI. A later portability phase should replace the remaining runtime dependencies behind these boundaries, with tests on a Windows host.
+
+## Training
+
+Training is default-off (`CHECKMATE_TRAINING_ENABLED=1` enables it in development and automation). Its values are portable: definitions, geometry, scenarios and saved training records live in Domain; legality, sessions, progress and the legacy-game bridge live in Application; the library and panels live in the native host.
+
+| Concern | Owner | Notes |
+| --- | --- | --- |
+| Catalog, objectives, rule modes, illegal-input policy | `CheckmateDomain/TrainingDefinition.swift` | Finite objective set; each entry declares `movementDrill`, `simplifiedVariant`, `recognitionDiagram` or `standardChess` and shows plain rules. No executable content. |
+| Exact geometry and movement BFS | `CheckmateDomain/TrainingGeometry.swift` | Pinned pieces still attack; rays stop at the first piece. Legal chess queries stay in Rules. |
+| Authored sources and coverage matrix | `Content/training/` | Published to `Resources/training/` by `Tools/prepare-training-content.py`; `--check` runs in the unit gate. |
+| Truthful activity projection | `CheckmateApplication/TrainingProjection.swift`, `GameSession` | Never contains accepted answers, solution sets or scheduled replies. |
+
+### Activity and protocol audit (WI-001)
+
+The legacy-game origin is part of the activity: `Place.miniGame(lessonIndex:Int?,kind:)` has a real lesson index when a lesson opened the game and `nil` when the library did. New places are `.trainingLibrary` and `.training(entry:)`; all three library places have `NativeMode.training`. A review opened over any of them returns there, because `ReviewVisit.returnTo` carries the place. There is no second origin flag.
+
+Consumers of `Place` and `NativeMode`, and their training behaviour:
+
+| Consumer | Behaviour in training |
+| --- | --- |
+| `GameSession.publicState()` (`get_session`, `wait_for_change`) | `mode: "training"`, `trainingProtocol: 1`, `training` projection; `capabilities` lists the training tools the current view offers when they are attached, and is empty otherwise. Lesson-launched mini-games and practice payloads are unchanged. |
+| `GameSession.setLesson` / `setTraining` | Each writes only in its own mode, so a late lesson publish cannot paint over training. Leaving training clears its projection. |
+| `CompanionTools` practice tools (`get_legal_moves`, `inspect_piece`, `analyze_position`, `preview_move`, `demonstrate_line`, `play_move`, `get_turn_brief`) | `UNSUPPORTED_MODE`: they require practice. |
+| `CompanionTools` `show_annotation` / `clear_annotations` | `UNSUPPORTED_MODE`: the training activity has no lesson board, so unrecorded agent help cannot reach an assessment. |
+| `GameSession.openVoice`, `VoiceCoach.changed`, `NativeModel.voiceMayConnect` | Voice requires practice: it cannot connect in training and disconnects on entering it. |
+| `LearningPlayer` mini-game scheduling, restart, profile change, reply callbacks | Keyed to the mini-game place, not lesson mode, so library-launched games keep the original opponent and rules. `leaveMini` returns to the opening lesson or the library. |
+| Native sidebar, details drawer, transport, menus, drag rules | Training branches (WI-004). |
+
+Protocol impact: `mode` gains the value `training`. A strict client that rejects unknown mode values must be updated before training is enabled for users; no old-client compatibility is claimed. The training projection is protocol version 1. There is no second registered MCP server.
+
+### Companion training tools (WI-007)
+
+`CheckmateApplication/TrainingTools.swift` adds five tools, routed by `CompanionTools` and attached only when training is enabled: `list_training_entries` (read-only), `start_training`, `submit_training_action`, `request_training_hint` and `end_training_attempt`.
+
+| Contract | Rule |
+| --- | --- |
+| Consent | `start_training` works only while the learner is already in Training; it never leaves a game, lesson or review (`LEARNER_CONSENT_REQUIRED`). |
+| Identity | Mutations name `attemptId` and `sessionRevision` from the projection, plus the session `revision`; anything older is `STALE_STATE`. |
+| Assistance | Every agent submission or hint marks the attempt as recorded help before it applies, so it can never count as a first try with no recorded help. |
+| Disclosure | Results carry only the projection. Agent hints stop at level 2 (`HINT_LIMIT`); revealing the answer is the learner's choice in the app. |
+| Ownership | The voice lease is refused (`ROLE_FORBIDDEN`); a review over an exercise owns the board (`REVIEW_ACTIVE`); generic practice and annotation tools stay `UNSUPPORTED_MODE`. |
+| Parity | Tools call the same controller methods as the board and drawer, so both reach the same result. |
+| Defender | While the practice defender of a playable game is choosing its reply, `submit_training_action` returns `BUSY`. |
+
+### Increment B: beginner skills (WI-009 to WI-013)
+
+Increment B is a preview behind a second flag: its entries appear only with `CHECKMATE_TRAINING_B=1` as well as `CHECKMATE_TRAINING_ENABLED=1` (`TrainingRolloutPolicy.beginnerEnabled`), and the library labels them as machine-checked but not yet editor-reviewed.
+
+| Concern | Owner | Notes |
+| --- | --- | --- |
+| Evaluator per scenario | `TrainingCheck` in `CheckmateDomain/TrainingScenario.swift` | Each focused variant fixes its evaluator; a mixed case names one from a fixed set. `TrainingTask` (move, select, choose, game) follows from it. |
+| Material values, defence-method tags, fork and pin geometry | `CheckmateDomain/TrainingMaterial.swift`, `TrainingRelationship.swift` | Tags and motifs explain technique only; whether a move works is decided by the search. |
+| Bounded search | `Resources/training-search.js`, run by `TrainingContinuationValidator` | Threshold search over N plies, then captures-only quiescence (all evasions in check); mate before material; draws count only when the goal allows them; 32,000 nodes per scenario, and exhaustion certifies nothing. Its hash is pinned in the content manifest. |
+| Teaching graph | `TrainingTeachingNode` | Each node has a position fingerprint, the complete accepted set and a reply per playable move. The runtime plays this immutable graph and never searches; a fingerprint mismatch withdraws the scenario without counting anything. Offline (`deep:`) validation re-derives every node. |
+| Special rules | `CheckmateApplication/TrainingSpecialRules.swift` | Castling and en-passant reasons are sets; questions must have exactly one. King-onto-rook is a rule error in castling tasks. |
+| Playable endings and guided games | `CheckmateApplication/TrainingEndgameController.swift`, `TrainingGuidedGame.swift` | The injected `EngineService` answers with the whole history from the start (`.skill(20)` for endings, `.skill(3)` for guided games, 300 ms). A reply is checked against the attempt and revision it was asked for and for legality before it is saved as a `.reply` action; a failure pauses the game and is never counted. Claimable draws need a claim; insufficient material, fivefold repetition and the 75-move rule end the game. |
+| Guided-game review | `TrainingGuidedGame.swift` | Habit notes (castling rights, a piece left to be taken, early queen moves) are labelled "worth reviewing" and never grade a move. Up to two moments per game come from exact mate-in-one detectors and are retried as `.moment` scenarios, marked as practice. |
+| Mixed practice | `TrainingMixedController.swift` | Prompts and hints name no topic; the topic is shown after the answer. The next case prefers a fresh one whose primary skill differs from the previous case. Reused positions name their `source` and keep its cluster. |
+| Bridges and lesson links | `TrainingScenarioProvider.bridge(for:)`, `Place.lesson(index:fromTraining:)` | Each family of existing games links one normal-chess case. A lesson opened from a training link keeps the course bookmark, and its transport leads back to training. |

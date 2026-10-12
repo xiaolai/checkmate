@@ -1,0 +1,711 @@
+{
+ "schemaVersion": 1,
+ "contentVersion": 1,
+ "entries": [
+  {
+   "id": "reach-target",
+   "title": "Reach the Target",
+   "summary": "Move one piece to the marked square, going around the pieces in the way.",
+   "rules": [
+    "Only your one piece moves. The other pieces stay where they are.",
+    "Your own pieces block the way and cannot be captured. You may capture a piece of the other colour by landing on it; a pawn captures only diagonally.",
+    "A king never steps onto a square an enemy piece attacks.",
+    "Reach the marked square within the move budget shown. When the task says \"fewest moves\", only a shortest route fits the budget."
+   ],
+   "objective": "reachTarget",
+   "ruleMode": "movementDrill",
+   "illegalInput": "selectionCorrection",
+   "actions": [
+    "playMove"
+   ],
+   "increment": "A",
+   "delivery": "pilot",
+   "origin": "new",
+   "skills": [
+    "movement"
+   ],
+   "variants": [
+    "knight",
+    "bishop",
+    "rook",
+    "queen",
+    "king",
+    "pawn"
+   ],
+   "lessonLinks": [
+    "rook",
+    "bishop",
+    "queen",
+    "knight",
+    "king",
+    "pawn",
+    "safe-squares"
+   ],
+   "tiers": 3
+  },
+  {
+   "id": "find-attackers",
+   "title": "Find the Attackers",
+   "summary": "Select every piece of the named colour that attacks the marked square.",
+   "rules": [
+    "An attack follows how a piece captures: pawns attack diagonally forward, knights jump, and rooks, bishops and queens attack along open lines.",
+    "A line stops at the first piece in the way. A pinned piece still attacks its squares.",
+    "Select the pieces, then choose Submit. Choose None if no piece attacks the square."
+   ],
+   "objective": "findAttackers",
+   "ruleMode": "recognitionDiagram",
+   "illegalInput": "notApplicable",
+   "actions": [
+    "selectSquares"
+   ],
+   "increment": "A",
+   "delivery": "pilot",
+   "origin": "new",
+   "skills": [
+    "attackProtection"
+   ],
+   "variants": [
+    "attackers"
+   ],
+   "lessonLinks": [
+    "piece-values",
+    "counting-material",
+    "removing-the-defender"
+   ],
+   "tiers": 3
+  },
+  {
+   "id": "mate-in-one",
+   "title": "Mate in One",
+   "summary": "Find a move that gives checkmate now. Any checkmating move counts.",
+   "rules": [
+    "This is a normal chess position: every chess rule applies.",
+    "Checkmate is check with no legal way out: the king has no safe square, the check cannot be blocked, and the checking piece cannot be captured.",
+    "A move that is not legal here is not played and does not count as an answer."
+   ],
+   "objective": "mateInOne",
+   "ruleMode": "standardChess",
+   "illegalInput": "selectionCorrection",
+   "actions": [
+    "playMove"
+   ],
+   "increment": "A",
+   "delivery": "pilot",
+   "origin": "new",
+   "skills": [
+    "checkMateDraw"
+   ],
+   "variants": [
+    "mate"
+   ],
+   "lessonLinks": [
+    "check-and-checkmate",
+    "puzzles-mate"
+   ],
+   "tiers": 3
+  },
+  {
+   "id": "pawn-duel",
+   "title": "Pawn Duel",
+   "summary": "The original Pawn Duel mini-game, with its own simplified rules.",
+   "rules": [
+    "Reach the far rank, capture every opposing pawn, or leave the opponent without a move.",
+    "Pawns move forward and capture diagonally. A pawn on its starting rank may advance two empty squares.",
+    "No en passant. Pawns stay pawns at the far rank.",
+    "Three repeated positions or 40 turns without a capture or pawn move draw this mini-game."
+   ],
+   "objective": "legacyGame",
+   "ruleMode": "simplifiedVariant",
+   "illegalInput": "selectionCorrection",
+   "actions": [
+    "playMove"
+   ],
+   "increment": "A",
+   "delivery": "pilot",
+   "origin": "existing",
+   "skills": [
+    "movement"
+   ],
+   "variants": [],
+   "lessonLinks": [
+    "pawn",
+    "pawn-duel"
+   ],
+   "tiers": 1,
+   "legacyKind": "pawn-duel"
+  },
+  {
+   "id": "king-safe-squares",
+   "title": "King Safe Squares",
+   "summary": "Select every square the king to move can legally go to.",
+   "rules": [
+    "This is a normal chess position, and it is the king's side to move.",
+    "A king may not move onto a square an enemy piece attacks, or next to the other king. It may capture an enemy piece that is not protected.",
+    "There is no castling in these positions. Choose None if the king has no legal move."
+   ],
+   "objective": "kingSafeSquares",
+   "ruleMode": "standardChess",
+   "illegalInput": "notApplicable",
+   "actions": [
+    "selectSquares"
+   ],
+   "increment": "A",
+   "delivery": "release",
+   "origin": "new",
+   "skills": [
+    "attackProtection",
+    "checkMateDraw"
+   ],
+   "variants": [
+    "king-moves"
+   ],
+   "lessonLinks": [
+    "king",
+    "safe-squares",
+    "check-and-checkmate"
+   ],
+   "tiers": 3
+  },
+  {
+   "id": "escape-check",
+   "title": "Escape Check",
+   "summary": "Your king is in check. Play any legal move that gets out of check.",
+   "rules": [
+    "This is a normal chess position: every chess rule applies.",
+    "Get out of check by moving the king, blocking the check, or capturing the checking piece. Every legal escape counts.",
+    "A move that leaves your king in check, or breaks how a piece moves, is a wrong answer here. The board does not change."
+   ],
+   "objective": "escapeCheck",
+   "ruleMode": "standardChess",
+   "illegalInput": "ruleError",
+   "actions": [
+    "playMove"
+   ],
+   "increment": "A",
+   "delivery": "release",
+   "origin": "new",
+   "skills": [
+    "checkMateDraw",
+    "threatResponse"
+   ],
+   "variants": [
+    "evade"
+   ],
+   "lessonLinks": [
+    "check-and-checkmate"
+   ],
+   "tiers": 3
+  },
+  {
+   "id": "rook-sweep",
+   "title": "Rook Sweep",
+   "summary": "The original Rook Sweep mini-game, with its own simplified rules.",
+   "rules": [
+    "Only rooks move. Capture every opposing pawn to win. Losing all your moving pieces or having no move loses.",
+    "Three repeated positions or 40 turns without a capture or pawn move draw this mini-game."
+   ],
+   "objective": "legacyGame",
+   "ruleMode": "simplifiedVariant",
+   "illegalInput": "selectionCorrection",
+   "actions": [
+    "playMove"
+   ],
+   "increment": "A",
+   "delivery": "release",
+   "origin": "existing",
+   "skills": [
+    "movement"
+   ],
+   "variants": [],
+   "lessonLinks": [
+    "rook",
+    "rook-practice"
+   ],
+   "tiers": 1,
+   "legacyKind": "rook-sweep"
+  },
+  {
+   "id": "bishop-sweep",
+   "title": "Bishop Sweep",
+   "summary": "The original Bishop Sweep mini-game, with its own simplified rules.",
+   "rules": [
+    "Only bishops move. Capture every opposing pawn to win. Losing all your moving pieces or having no move loses.",
+    "Three repeated positions or 40 turns without a capture or pawn move draw this mini-game."
+   ],
+   "objective": "legacyGame",
+   "ruleMode": "simplifiedVariant",
+   "illegalInput": "selectionCorrection",
+   "actions": [
+    "playMove"
+   ],
+   "increment": "A",
+   "delivery": "release",
+   "origin": "existing",
+   "skills": [
+    "movement"
+   ],
+   "variants": [],
+   "lessonLinks": [
+    "bishop",
+    "bishop-practice"
+   ],
+   "tiers": 1,
+   "legacyKind": "bishop-sweep"
+  },
+  {
+   "id": "rooks-and-pawns",
+   "title": "Rooks and Pawns",
+   "summary": "The original Rooks and Pawns mini-game, with its own simplified rules.",
+   "rules": [
+    "Win by capturing every opposing piece, or by reaching the far rank with a pawn that is still there after your opponent replies. You lose if you have no move. Pawns never promote, and there is no en passant.",
+    "Three repeated positions or 40 turns without a capture or pawn move draw this mini-game."
+   ],
+   "objective": "legacyGame",
+   "ruleMode": "simplifiedVariant",
+   "illegalInput": "selectionCorrection",
+   "actions": [
+    "playMove"
+   ],
+   "increment": "A",
+   "delivery": "release",
+   "origin": "existing",
+   "skills": [
+    "movement"
+   ],
+   "variants": [],
+   "lessonLinks": [
+    "rook",
+    "rook-practice"
+   ],
+   "tiers": 1,
+   "legacyKind": "rooks-and-pawns"
+  },
+  {
+   "id": "bishops-and-pawns",
+   "title": "Bishops and Pawns",
+   "summary": "The original Bishops and Pawns mini-game, with its own simplified rules.",
+   "rules": [
+    "Win by capturing every opposing piece, or by reaching the far rank with a pawn that is still there after your opponent replies. You lose if you have no move. Pawns never promote, and there is no en passant.",
+    "Three repeated positions or 40 turns without a capture or pawn move draw this mini-game."
+   ],
+   "objective": "legacyGame",
+   "ruleMode": "simplifiedVariant",
+   "illegalInput": "selectionCorrection",
+   "actions": [
+    "playMove"
+   ],
+   "increment": "A",
+   "delivery": "release",
+   "origin": "existing",
+   "skills": [
+    "movement"
+   ],
+   "variants": [],
+   "lessonLinks": [
+    "bishop",
+    "bishop-practice"
+   ],
+   "tiers": 1,
+   "legacyKind": "bishops-and-pawns"
+  },
+  {
+   "id": "queen-vs-pawns",
+   "title": "Queen Against Pawns",
+   "summary": "The original Queen Against Pawns mini-game: one black queen against eight white pawns.",
+   "rules": [
+    "Win by capturing every opposing piece, or by reaching the far rank with a pawn that is still there after your opponent replies. You lose if you have no move. Pawns never promote, and there is no en passant.",
+    "Three repeated positions or 40 turns without a capture or pawn move draw this mini-game."
+   ],
+   "objective": "legacyGame",
+   "ruleMode": "simplifiedVariant",
+   "illegalInput": "selectionCorrection",
+   "actions": [
+    "playMove"
+   ],
+   "increment": "A",
+   "delivery": "release",
+   "origin": "existing",
+   "skills": [
+    "movement"
+   ],
+   "variants": [],
+   "lessonLinks": [
+    "queen",
+    "queen-practice"
+   ],
+   "tiers": 1,
+   "legacyKind": "queen-vs-pawns"
+  },
+  {
+   "id": "knight-capture",
+   "title": "Knight Capture",
+   "summary": "The original Knight Capture mini-game, with its own simplified rules.",
+   "rules": [
+    "Only knights move. Capture opposing pieces. You lose if your knight is captured or cannot move.",
+    "Three repeated positions or 40 turns without a capture or pawn move draw this mini-game."
+   ],
+   "objective": "legacyGame",
+   "ruleMode": "simplifiedVariant",
+   "illegalInput": "selectionCorrection",
+   "actions": [
+    "playMove"
+   ],
+   "increment": "A",
+   "delivery": "release",
+   "origin": "existing",
+   "skills": [
+    "movement"
+   ],
+   "variants": [],
+   "lessonLinks": [
+    "knight",
+    "knight-practice"
+   ],
+   "tiers": 1,
+   "legacyKind": "knight-capture"
+  },
+  {
+   "id": "knight-corners",
+   "title": "Knight Corners",
+   "summary": "The original Knight Corners route: visit the corners in order with the white knight.",
+   "rules": [
+    "Visit a8, h8 and h1, then return to a1. Avoid the black pawns and the squares they attack."
+   ],
+   "objective": "legacyGame",
+   "ruleMode": "simplifiedVariant",
+   "illegalInput": "selectionCorrection",
+   "actions": [
+    "playMove"
+   ],
+   "increment": "A",
+   "delivery": "release",
+   "origin": "existing",
+   "skills": [
+    "movement"
+   ],
+   "variants": [],
+   "lessonLinks": [
+    "knight",
+    "knight-practice"
+   ],
+   "tiers": 1,
+   "legacyKind": "knight-corners"
+  },
+  {
+   "id": "find-defenders",
+   "title": "Find the Defenders",
+   "summary": "Select every piece that protects the marked piece.",
+   "rules": [
+    "A piece protects a friend when it could capture on that square if an enemy piece took the friend there.",
+    "Pawns protect diagonally forward, knights jump, and rooks, bishops and queens protect along open lines. A pinned piece still protects its squares.",
+    "Select the pieces, then choose Submit. Choose None if nothing protects the piece."
+   ],
+   "objective": "findDefenders",
+   "ruleMode": "recognitionDiagram",
+   "illegalInput": "notApplicable",
+   "actions": [
+    "selectSquares"
+   ],
+   "increment": "A",
+   "delivery": "release",
+   "origin": "new",
+   "skills": [
+    "attackProtection"
+   ],
+   "variants": [
+    "defenders"
+   ],
+   "lessonLinks": [
+    "piece-values",
+    "counting-material",
+    "removing-the-defender"
+   ],
+   "tiers": 3
+  },
+  {
+   "id": "check-mate-stalemate",
+   "title": "Check, Mate or Stalemate?",
+   "summary": "Decide whether the side to move is checkmated, stalemated, in check, or none of these.",
+   "rules": [
+    "Checkmate: in check with no legal move. Stalemate: not in check, with no legal move; the game is drawn.",
+    "Check: the king is attacked but has a legal way out. Neither: none of these three.",
+    "\"Neither\" does not mean the game cannot be drawn some other way."
+   ],
+   "objective": "classifyStatus",
+   "ruleMode": "standardChess",
+   "illegalInput": "notApplicable",
+   "actions": [
+    "chooseOption"
+   ],
+   "increment": "A",
+   "delivery": "release",
+   "origin": "new",
+   "skills": [
+    "checkMateDraw"
+   ],
+   "variants": [
+    "classify"
+   ],
+   "lessonLinks": [
+    "check-and-checkmate",
+    "draws"
+   ],
+   "tiers": 3
+  },
+  {
+   "id": "save-your-piece",
+   "title": "Save Your Piece",
+   "summary": "An enemy piece threatens one of yours. Find a move that keeps it safe.",
+   "rules": [
+    "This is a normal chess position: every chess rule applies.",
+    "A piece is safe when the opponent cannot win material from it within the short look-ahead described in the task, counting recaptures.",
+    "You can move the piece away, protect it, capture the attacker, or block the attack. Any move that meets the goal counts."
+   ],
+   "objective": "saveYourPiece",
+   "ruleMode": "standardChess",
+   "illegalInput": "selectionCorrection",
+   "actions": [
+    "playMove"
+   ],
+   "increment": "B",
+   "delivery": "release",
+   "origin": "new",
+   "skills": [
+    "threatResponse"
+   ],
+   "variants": [
+    "move-away",
+    "protect",
+    "capture-attacker",
+    "block",
+    "mixed-method"
+   ],
+   "lessonLinks": [
+    "piece-values",
+    "counting-material"
+   ],
+   "tiers": 3
+  },
+  {
+   "id": "capture-wisely",
+   "title": "Capture Wisely",
+   "summary": "Decide whether a capture wins material, loses it, or only trades.",
+   "rules": [
+    "Count with the usual values: queen 9, rook 5, bishop 3, knight 3, pawn 1.",
+    "Before you capture, look at every recapture. Taking a protected piece with a more valuable one can lose material.",
+    "Sometimes the best choice is not to capture at all."
+   ],
+   "objective": "captureWisely",
+   "ruleMode": "standardChess",
+   "illegalInput": "selectionCorrection",
+   "actions": [
+    "playMove",
+    "chooseOption",
+    "selectSquares"
+   ],
+   "increment": "B",
+   "delivery": "release",
+   "origin": "new",
+   "skills": [
+    "captureExchange"
+   ],
+   "variants": [
+    "free-piece",
+    "poisoned-capture",
+    "compare-exchange",
+    "anticipate-recapture"
+   ],
+   "lessonLinks": [
+    "piece-values",
+    "counting-material",
+    "removing-the-defender"
+   ],
+   "tiers": 3
+  },
+  {
+   "id": "special-moves",
+   "title": "Special Moves",
+   "summary": "Castling, promotion and en passant: play them correctly and know when they are not allowed.",
+   "rules": [
+    "Castling: the king moves two squares toward a rook that has not moved; the squares between are empty, the king is not in check, and it does not pass through or land on an attacked square.",
+    "Promotion: a pawn reaching the last rank becomes a queen, rook, bishop or knight.",
+    "En passant: a pawn that has just moved two squares can be captured as if it had moved one, but only immediately."
+   ],
+   "objective": "specialMoves",
+   "ruleMode": "standardChess",
+   "illegalInput": "ruleError",
+   "actions": [
+    "playMove",
+    "chooseOption",
+    "selectSquares"
+   ],
+   "increment": "B",
+   "delivery": "release",
+   "origin": "new",
+   "skills": [
+    "specialRules"
+   ],
+   "variants": [
+    "castle-legal",
+    "castle-unavailable",
+    "promotion",
+    "en-passant-available",
+    "en-passant-unavailable"
+   ],
+   "lessonLinks": [
+    "castling",
+    "castling-rules",
+    "promotion-en-passant",
+    "pawn"
+   ],
+   "tiers": 3
+  },
+  {
+   "id": "simple-tactics",
+   "title": "Simple Tactics",
+   "summary": "Spot and use forks and pins, and create or stop a checkmate threat.",
+   "rules": [
+    "A fork attacks two or more targets at once. A pin holds a piece in front of a more valuable one behind it.",
+    "Not every fork or pin wins material: check every reply the opponent has.",
+    "A mating threat is a move that would give checkmate next turn if the opponent did nothing about it."
+   ],
+   "objective": "simpleTactics",
+   "ruleMode": "standardChess",
+   "illegalInput": "selectionCorrection",
+   "actions": [
+    "playMove",
+    "chooseOption",
+    "selectSquares"
+   ],
+   "increment": "B",
+   "delivery": "release",
+   "origin": "new",
+   "skills": [
+    "elementaryTactics",
+    "checkMateDraw"
+   ],
+   "variants": [
+    "fork-recognize",
+    "pin-recognize",
+    "fork-realize",
+    "pin-realize",
+    "mate-threat-create",
+    "mate-threat-prevent"
+   ],
+   "lessonLinks": [
+    "fork",
+    "pin",
+    "skewer",
+    "discovered-attack"
+   ],
+   "tiers": 3
+  },
+  {
+   "id": "finish-the-game",
+   "title": "Finish the Game",
+   "summary": "Checkmate a lone king with a queen or a rook and your king.",
+   "rules": [
+    "This is a normal chess game against a computer defender that plays legal moves.",
+    "Win only by checkmate. Stalemate is a draw, and losing your queen or rook ends the task.",
+    "Threefold repetition and the 50-move rule can be claimed as draws; fivefold repetition and the 75-move rule end the game automatically."
+   ],
+   "objective": "finishTheGame",
+   "ruleMode": "standardChess",
+   "illegalInput": "selectionCorrection",
+   "actions": [
+    "playMove"
+   ],
+   "increment": "B",
+   "delivery": "release",
+   "origin": "new",
+   "skills": [
+    "convertingWin",
+    "checkMateDraw"
+   ],
+   "variants": [
+    "kqk",
+    "krk"
+   ],
+   "lessonLinks": [
+    "queen-mate",
+    "two-rook-mate",
+    "rook-mate"
+   ],
+   "tiers": 3
+  },
+  {
+   "id": "mixed-practice",
+   "title": "Mixed Practice",
+   "summary": "Positions without a topic label: work out what matters, then act.",
+   "rules": [
+    "Each task states a goal, such as winning material or stopping an immediate loss, but not the theme.",
+    "Any move that meets the stated goal counts, even if it is not the move the author expected.",
+    "Some positions need no capture, no special move and no tactic."
+   ],
+   "objective": "mixedPractice",
+   "ruleMode": "standardChess",
+   "illegalInput": "selectionCorrection",
+   "actions": [
+    "playMove",
+    "chooseOption",
+    "selectSquares"
+   ],
+   "increment": "B",
+   "delivery": "release",
+   "origin": "new",
+   "skills": [
+    "diagnosis",
+    "movement",
+    "attackProtection",
+    "threatResponse",
+    "captureExchange",
+    "checkMateDraw",
+    "specialRules",
+    "elementaryTactics"
+   ],
+   "variants": [
+    "mixed"
+   ],
+   "lessonLinks": [
+    "puzzles-material",
+    "puzzles-mate"
+   ],
+   "tiers": 3
+  },
+  {
+   "id": "guided-games",
+   "title": "Guided Games",
+   "summary": "Play a short, ordinary game from a reviewed start, then look again at a moment from it.",
+   "rules": [
+    "This is a normal chess game against a gentle computer opponent that makes mistakes.",
+    "Notes on your moves, such as castling or developing your pieces, are things worth reviewing, not wrong answers.",
+    "End the game whenever you like. A missed or allowed checkmate becomes a moment you can try again."
+   ],
+   "objective": "guidedGame",
+   "ruleMode": "standardChess",
+   "illegalInput": "selectionCorrection",
+   "actions": [
+    "playMove"
+   ],
+   "increment": "B",
+   "delivery": "release",
+   "origin": "new",
+   "skills": [
+    "gameHabits",
+    "diagnosis"
+   ],
+   "variants": [
+    "initial-setup",
+    "short-start",
+    "mate-find",
+    "mate-avoid"
+   ],
+   "lessonLinks": [
+    "opening",
+    "castling",
+    "rules-review"
+   ],
+   "tiers": 1
+  }
+ ]
+}

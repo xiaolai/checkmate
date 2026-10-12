@@ -8,8 +8,13 @@ public enum WorkspaceNavigation {
         case review(GameDocument,saved:SavedReview?,draft:Bool)
         case importProgress(ApplicationState,backup:(URL)->Void)
         case practiceFork(side:String,preset:String)
+        /// The training library; a new exercise for an entry; the saved unfinished exercise; an existing mini-game
+        /// opened from the library (its one saved board, or a new one on an explicit restart).
+        case trainingLibrary,trainingExercise(entry:String,variant:String?=nil),trainingScenario(id:String),trainingResume,trainingRetry(id:String),trainingLegacy(MiniGameKind,restart:Bool)
+        /// A training entry's linked lesson, read without moving the course bookmark; the way back leads to training.
+        case trainingLesson(id:String)
     }
-fileprivate enum WorkspaceEntry {case none,lessonPractice(ChessRules),review(GameDocument,restore:(cursor:Int,branches:[ReviewBranch])?),importProgress(ApplicationState),practiceFork(ChessRules)}
+fileprivate enum WorkspaceEntry {case none,lessonPractice(ChessRules),review(GameDocument,restore:(cursor:Int,branches:[ReviewBranch])?),importProgress(ApplicationState),practiceFork(ChessRules),training(TrainingController.StagedExercise)}
 
 /// A successful preparation carries its request; callers cannot pair it with another navigation.
 public struct PreparedWorkspaceTransition {
@@ -21,6 +26,8 @@ public struct PreparedWorkspaceTransition {
 @MainActor public final class WorkspaceTransitionCoordinator {
     private let session:GameSession,learning:LearningPlayer,review:ReviewController
     public init(session:GameSession,learning:LearningPlayer,review:ReviewController){self.session=session;self.learning=learning;self.review=review}
+    /// The new-exercise controller, when training is enabled: a review closing over an exercise hands its board back.
+    public var training:TrainingController?
     public func prepare(_ next:WorkspaceNavigation,pendingReview:(document:GameDocument,cursor:Int,branches:[ReviewBranch])?=nil)throws -> PreparedWorkspaceTransition {
         PreparedWorkspaceTransition(navigation:next,entry:try prepareEntry(next,pendingReview:pendingReview))
     }
@@ -37,31 +44,58 @@ public struct PreparedWorkspaceTransition {
             guard !rules.over else{throw CheckmateError.invalid("This position is terminal and cannot start practice.")}
             try GameSession.validatePracticeFork(rules,side:side);try ChessRules().restore(rules.pgn);return .practiceFork(rules)
         case .lessonPractice(let fen):let rules=try ChessRules(fen:fen);try GameSession.validatePracticeFork(rules,side:"w");return .lessonPractice(rules)
+        // A training exercise is chosen, validated and its evaluator built here: a failure leaves the activity as it was.
+        case .trainingExercise(let entry,let variant):return .training(try trainingController().stage(trainingController().prepare(entry:entry,variant:variant)))
+        case .trainingScenario(let id):return .training(try trainingController().stage(trainingController().prepare(scenario:id)))
+        case .trainingResume:return .training(try trainingController().stage(trainingController().prepareResume()))
+        case .trainingRetry(let id):return .training(try trainingController().stage(trainingController().prepareRetry(id:id)))
+        case .trainingLibrary,.trainingLegacy:_ = try trainingController();return .none
+        // A lesson that does not exist fails here, before the host closes a review or stops playback for it.
+        case .lesson(let index,_):guard learning.library.lessons.indices.contains(index) else{throw CheckmateError.invalid("That lesson is not available.")};return .none
+        case .trainingLesson(let id):_ = try trainingController();guard learning.library.lessons.contains(where:{$0.id==id}) else{throw CheckmateError.invalid("That lesson is not available.")};return .none
         default:return .none
         }
     }
     public func enter(prepared:PreparedWorkspaceTransition,from place:Place,wasReviewing:Bool,beforeReviewRestore:()->Void={},afterReviewRestore:()->Void={})throws {
         switch (prepared.navigation,prepared.entry) {
         case (.practice,_):
+            leaveTraining()
             if wasReviewing{session.enter(.at(.practice),resume:place == .practice)}else if place == .practice{session.resumeHeldReply()}else{session.enter(.at(.practice))}
-        case (.returnToGame,_):if wasReviewing{session.enter(.at(place),resume:true)}else if place == .practice{session.resumeHeldReply()};learning.resumeMiniOpponent()
-        case (.lesson(let index,let resume),_):if wasReviewing{session.enter(.at(place));session.cancelWork()};learning.openLesson(index:index,resume:resume)
-        case (.puzzles,_):if wasReviewing{session.enter(.at(place));session.cancelWork()};learning.showPuzzleLibrary()
-        case (.reviewWorkspace,_):session.enter(.reviewing(ReviewVisit(document:nil,draft:false,returnTo:place)))
+        case (.returnToGame,_):if wasReviewing{session.enter(.at(place),resume:true)}else if place == .practice{session.resumeHeldReply()};learning.resumeMiniOpponent();if place.mode == .training{training?.resumeAfterReview()}
+        case (.lesson(let index,let resume),_):leaveReview(wasReviewing,place);leaveTraining();learning.openLesson(index:index,resume:resume)
+        case (.puzzles,_):leaveReview(wasReviewing,place);leaveTraining();learning.showPuzzleLibrary()
+        case (.reviewWorkspace,_):training?.pauseForReview();session.enter(.reviewing(ReviewVisit(document:nil,draft:false,returnTo:place)))
         case (.review(let document,_,let draft),.review(let shown,let restore)):
+            training?.pauseForReview()
             review.load(shown);session.enter(.reviewing(ReviewVisit(document:document.id,draft:draft,returnTo:place)));beforeReviewRestore()
             if let restore{try? review.restoreSaved(cursor:restore.cursor,branches:restore.branches)}
             afterReviewRestore()
         case (.importProgress,.importProgress(let state)):
             do{try session.installImportedState(state)}catch{if session.activity.review != nil{session.enter(.at(place))};throw error}
+            // The imported record replaces the exercise held in memory: no reply for it may save over the import.
+            leaveTraining();training?.exercise=nil;training?.guidedReview=nil
             learning.reloadFilters()
         case (.practiceFork(let side,let preset),.practiceFork(let rules)):
             let previous=session.state.settings;var settings=previous;settings.opponentPreset=preset;session.updateSettings(settings,restartOpponent:false)
             do{try session.installPracticeFork(rules,side:side)}catch{session.updateSettings(previous,restartOpponent:false);if session.activity.review != nil{session.enter(.at(place))};throw error}
+            leaveTraining()
         case (.lessonPractice,.lessonPractice(let rules)):
             do{try session.installPracticeFork(rules,side:"w")}catch{if session.activity.review != nil{session.enter(.at(place))};throw error}
+            leaveTraining()
+        case (.trainingLibrary,_):leaveReview(wasReviewing,place);training?.openLibrary()
+        case (.trainingLegacy(let kind,let restart),_):leaveReview(wasReviewing,place);leaveTraining();training?.playLegacy(kind,restart:restart)
+        case (.trainingLesson(let id),_):
+            leaveReview(wasReviewing,place);leaveTraining()
+            if let index=learning.library.lessons.firstIndex(where:{$0.id==id}){learning.openLesson(index:index,fromTraining:true)}
+        case (.trainingExercise,.training(let prepared)),(.trainingScenario,.training(let prepared)),(.trainingResume,.training(let prepared)),(.trainingRetry,.training(let prepared)):leaveReview(wasReviewing,place);training?.begin(staged:prepared)
         default:break
         }
     }
+    /// Every exit from an exercise cancels its pending defender reply, so none advances or saves the exercise unseen.
+    /// Only Return to game, back to the training place, asks for it again.
+    private func leaveTraining(){training?.games.cancel()}
+    private func trainingController()throws -> TrainingController {guard let training else{throw CheckmateError.unavailable("Training is not available in this version.")};return training}
+    /// A review closed for another activity first returns to the place it covered, so the new one replaces that place.
+    private func leaveReview(_ wasReviewing:Bool,_ place:Place){if wasReviewing{session.enter(.at(place));session.cancelWork()}}
 }
 public enum WorkspaceEntryError:Error {case invalidRestore}

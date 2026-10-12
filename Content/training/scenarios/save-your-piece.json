@@ -1,0 +1,2289 @@
+{
+ "entry": "save-your-piece",
+ "scenarios": [
+  {
+   "id": "syp-move-away-1",
+   "entry": "save-your-piece",
+   "variant": "move-away",
+   "tier": 1,
+   "cluster": "syp-move-away-1",
+   "learner": "w",
+   "prompt": "White to move. Your rook on a2 is attacked. Make a move that keeps it.",
+   "explanation": "Nothing can stop the bishop on c4 from taking it where it stands, so the rook has to move: every square where it is safe is accepted. The check looks three moves ahead and then plays out every capture.",
+   "hints": [
+    "Four ways to save a piece: move it, protect it, capture the attacker, or block the line. Which of them works here?",
+    "Look at the bishop on c4. What can you do about it?"
+   ],
+   "fen": "8/8/4k3/8/2b5/6K1/R7/8 w - - 0 1",
+   "expected": {
+    "wrong": [
+     "g3f4"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "defense",
+   "goal": {
+    "kind": "survive",
+    "threshold": 0,
+    "target": "a2"
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "8/8/4k3/8/2b5/6K1/R7/8 w - -",
+     "accepted": [
+      "a2a1",
+      "a2a3",
+      "a2a4",
+      "a2a5",
+      "a2a7",
+      "a2a8",
+      "a2b2",
+      "a2c2",
+      "a2d2",
+      "a2f2",
+      "a2g2",
+      "a2h2"
+     ],
+     "replies": {
+      "a2a1": "c4a2",
+      "a2a3": "c4a2",
+      "a2a4": "c4a2",
+      "a2a5": "c4a2",
+      "a2a6": "c4a6",
+      "a2a7": "c4a2",
+      "a2a8": "c4a2",
+      "a2b2": "c4a2",
+      "a2c2": "c4a2",
+      "a2d2": "c4a2",
+      "a2e2": "c4e2",
+      "a2f2": "c4a2",
+      "a2g2": "c4a2",
+      "a2h2": "c4a2",
+      "g3f2": "c4a2",
+      "g3f3": "c4a2",
+      "g3f4": "c4a2",
+      "g3g2": "c4a2",
+      "g3g4": "c4a2",
+      "g3h2": "c4a2",
+      "g3h3": "c4a2",
+      "g3h4": "c4a2"
+     }
+    }
+   ],
+   "focus": [
+    "a2",
+    "c4"
+   ]
+  },
+  {
+   "id": "syp-move-away-2",
+   "entry": "save-your-piece",
+   "variant": "move-away",
+   "tier": 2,
+   "cluster": "syp-move-away-2",
+   "learner": "b",
+   "prompt": "Black to move. Your queen on a1 is attacked. Make a move that keeps it.",
+   "explanation": "Nothing can stop the bishop on f6 from taking it where it stands, so the queen has to move: every square where it is safe is accepted. The check looks three moves ahead and then plays out every capture.",
+   "hints": [
+    "Four ways to save a piece: move it, protect it, capture the attacker, or block the line. Which of them works here?",
+    "Look at the bishop on f6. What can you do about it?"
+   ],
+   "fen": "8/8/5B2/8/1K6/4R3/3P4/q6k b - - 0 1",
+   "expected": {
+    "wrong": [
+     "h1g2"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "defense",
+   "goal": {
+    "kind": "survive",
+    "threshold": 0,
+    "target": "a1"
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "8/8/5B2/8/1K6/4R3/3P4/q6k b - -",
+     "accepted": [
+      "a1a2",
+      "a1a6",
+      "a1a7",
+      "a1a8",
+      "a1b1",
+      "a1c1",
+      "a1d1",
+      "a1f1",
+      "a1f6",
+      "a1g1"
+     ],
+     "replies": {
+      "a1f6": "b4a3",
+      "a1a2": "b4b5",
+      "a1a3": "b4a3",
+      "a1a4": "b4a4",
+      "a1a5": "b4a5",
+      "a1a6": "b4b3",
+      "a1a7": "b4b3",
+      "a1a8": "b4b3",
+      "a1b1": "b4a3",
+      "a1b2": "f6b2",
+      "a1c1": "b4a4",
+      "a1c3": "b4c3",
+      "a1d1": "b4a3",
+      "a1d4": "f6d4",
+      "a1e1": "e3e1",
+      "a1e5": "e3e5",
+      "a1f1": "b4a3",
+      "a1g1": "b4a3",
+      "h1g1": "f6a1",
+      "h1g2": "f6a1",
+      "h1h2": "f6a1"
+     }
+    }
+   ],
+   "focus": [
+    "a1",
+    "f6"
+   ]
+  },
+  {
+   "id": "syp-move-away-3",
+   "entry": "save-your-piece",
+   "variant": "move-away",
+   "tier": 2,
+   "cluster": "syp-move-away-3",
+   "learner": "w",
+   "prompt": "White to move. Your rook on a4 is attacked. Make a move that keeps it.",
+   "explanation": "Nothing can stop the bishop on c2 from taking it where it stands, so the rook has to move: every square where it is safe is accepted. The check looks three moves ahead and then plays out every capture.",
+   "hints": [
+    "Four ways to save a piece: move it, protect it, capture the attacker, or block the line. Which of them works here?",
+    "Look at the bishop on c2. What can you do about it?"
+   ],
+   "fen": "2k1b3/8/8/5P2/R5K1/8/2b5/8 w - - 0 1",
+   "expected": {
+    "wrong": [
+     "f5f6"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "defense",
+   "goal": {
+    "kind": "survive",
+    "threshold": 0,
+    "target": "a4"
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "2k1b3/8/8/5P2/R5K1/8/2b5/8 w - -",
+     "accepted": [
+      "a4a1",
+      "a4a2",
+      "a4a3",
+      "a4a5",
+      "a4a6",
+      "a4a7",
+      "a4a8",
+      "a4b4",
+      "a4c4",
+      "a4d4",
+      "a4f4"
+     ],
+     "replies": {
+      "a4a1": "c2f5",
+      "a4a2": "c2f5",
+      "a4a3": "c2f5",
+      "a4a5": "c2f5",
+      "a4a6": "c2f5",
+      "a4a7": "c2f5",
+      "a4a8": "c8b7",
+      "a4b4": "c2f5",
+      "a4c4": "c8b7",
+      "a4d4": "c2f5",
+      "a4e4": "c2e4",
+      "a4f4": "c2f5",
+      "f5f6": "c2a4",
+      "g4f3": "c2a4",
+      "g4f4": "c2a4",
+      "g4g3": "c2a4",
+      "g4g5": "c2a4",
+      "g4h3": "c2a4",
+      "g4h4": "c2a4"
+     }
+    }
+   ],
+   "focus": [
+    "a4",
+    "c2",
+    "e8"
+   ]
+  },
+  {
+   "id": "syp-move-away-4",
+   "entry": "save-your-piece",
+   "variant": "move-away",
+   "tier": 1,
+   "cluster": "syp-move-away-4",
+   "learner": "b",
+   "prompt": "Black to move. Your rook on e2 is attacked. Make a move that keeps it.",
+   "explanation": "Nothing can stop the bishop on d3 from taking it where it stands, so the rook has to move: every square where it is safe is accepted. The check looks three moves ahead and then plays out every capture.",
+   "hints": [
+    "Four ways to save a piece: move it, protect it, capture the attacker, or block the line. Which of them works here?",
+    "Look at the bishop on d3. What can you do about it?"
+   ],
+   "fen": "5k2/8/8/8/6K1/3B1P2/4r3/8 b - - 0 1",
+   "expected": {
+    "wrong": [
+     "f8g8"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "defense",
+   "goal": {
+    "kind": "survive",
+    "threshold": 0,
+    "target": "e2"
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "5k2/8/8/8/6K1/3B1P2/4r3/8 b - -",
+     "accepted": [
+      "e2a2",
+      "e2b2",
+      "e2d2",
+      "e2e1",
+      "e2e3",
+      "e2e5",
+      "e2e6",
+      "e2e7",
+      "e2e8",
+      "e2f2",
+      "e2g2",
+      "e2h2"
+     ],
+     "replies": {
+      "e2a2": "d3a6",
+      "e2b2": "d3a6",
+      "e2c2": "d3c2",
+      "e2d2": "d3a6",
+      "e2e1": "d3a6",
+      "e2e3": "d3a6",
+      "e2e4": "d3e4",
+      "e2e5": "d3a6",
+      "e2e6": "d3a6",
+      "e2e7": "d3a6",
+      "e2e8": "d3a6",
+      "e2f2": "d3a6",
+      "e2g2": "g4f4",
+      "e2h2": "d3a6",
+      "f8e7": "d3e2",
+      "f8e8": "d3e2",
+      "f8f7": "d3e2",
+      "f8g7": "d3e2",
+      "f8g8": "d3e2"
+     }
+    }
+   ],
+   "focus": [
+    "e2",
+    "d3"
+   ]
+  },
+  {
+   "id": "syp-move-away-5",
+   "entry": "save-your-piece",
+   "variant": "move-away",
+   "tier": 1,
+   "cluster": "syp-move-away-5",
+   "learner": "w",
+   "prompt": "White to move. Your queen on g3 is attacked. Make a move that keeps it.",
+   "explanation": "Nothing can stop the rook on b3 from taking it where it stands, so the queen has to move: every square where it is safe is accepted. The check looks three moves ahead and then plays out every capture.",
+   "hints": [
+    "Four ways to save a piece: move it, protect it, capture the attacker, or block the line. Which of them works here?",
+    "Look at the rook on b3. What can you do about it?"
+   ],
+   "fen": "8/2n5/8/8/4K3/1r4Q1/8/5k2 w - - 0 1",
+   "expected": {
+    "wrong": [
+     "e4e5"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "defense",
+   "goal": {
+    "kind": "survive",
+    "threshold": 0,
+    "target": "g3"
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "8/2n5/8/8/4K3/1r4Q1/8/5k2 w - -",
+     "accepted": [
+      "g3b3",
+      "g3c7",
+      "g3d6",
+      "g3e5",
+      "g3f4",
+      "g3g5",
+      "g3g6",
+      "g3g7",
+      "g3g8",
+      "g3h2"
+     ],
+     "replies": {
+      "g3b3": "c7a6",
+      "g3c7": "b3a3",
+      "e4d4": "b3g3",
+      "e4e5": "b3g3",
+      "e4f4": "b3g3",
+      "e4f5": "b3g3",
+      "g3c3": "b3c3",
+      "g3d3": "b3d3",
+      "g3d6": "b3a3",
+      "g3e1": "f1e1",
+      "g3e3": "b3e3",
+      "g3e5": "b3a3",
+      "g3f2": "f1f2",
+      "g3f3": "b3f3",
+      "g3f4": "b3f3",
+      "g3g1": "f1g1",
+      "g3g2": "f1g2",
+      "g3g4": "b3b4",
+      "g3g5": "b3a3",
+      "g3g6": "b3a3",
+      "g3g7": "b3a3",
+      "g3g8": "b3a3",
+      "g3h2": "b3a3",
+      "g3h3": "b3h3",
+      "g3h4": "b3b4"
+     }
+    }
+   ],
+   "focus": [
+    "g3",
+    "b3"
+   ]
+  },
+  {
+   "id": "syp-move-away-6",
+   "entry": "save-your-piece",
+   "variant": "move-away",
+   "tier": 1,
+   "cluster": "syp-move-away-6",
+   "learner": "b",
+   "prompt": "Black to move. Your rook on b7 is attacked. Make a move that keeps it.",
+   "explanation": "Nothing can stop the rook on d7 from taking it where it stands, so the rook has to move: every square where it is safe is accepted. The check looks three moves ahead and then plays out every capture.",
+   "hints": [
+    "Four ways to save a piece: move it, protect it, capture the attacker, or block the line. Which of them works here?",
+    "Look at the rook on d7. What can you do about it?"
+   ],
+   "fen": "8/kr1R4/8/8/8/4K3/8/8 b - - 0 1",
+   "expected": {
+    "wrong": [
+     "a7a8"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "defense",
+   "goal": {
+    "kind": "survive",
+    "threshold": 0,
+    "target": "b7"
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "8/kr1R4/8/8/8/4K3/8/8 b - -",
+     "accepted": [
+      "b7d7"
+     ],
+     "replies": {
+      "b7d7": "e3e2",
+      "a7a6": "d7b7",
+      "a7a8": "d7b7",
+      "a7b6": "d7b7",
+      "a7b8": "d7b7",
+      "b7c7": "d7c7"
+     }
+    }
+   ],
+   "focus": [
+    "b7",
+    "d7"
+   ]
+  },
+  {
+   "id": "syp-move-away-7",
+   "entry": "save-your-piece",
+   "variant": "move-away",
+   "tier": 2,
+   "cluster": "syp-move-away-7",
+   "learner": "w",
+   "prompt": "White to move. Your rook on f5 is attacked. Make a move that keeps it.",
+   "explanation": "Nothing can stop the pawn on g6 from taking it where it stands, so the rook has to move: every square where it is safe is accepted. The check looks three moves ahead and then plays out every capture.",
+   "hints": [
+    "Four ways to save a piece: move it, protect it, capture the attacker, or block the line. Which of them works here?",
+    "Look at the pawn on g6. What can you do about it?"
+   ],
+   "fen": "8/8/6p1/5R2/6b1/2p1k3/8/7K w - - 0 1",
+   "expected": {
+    "wrong": [
+     "h1g2"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "defense",
+   "goal": {
+    "kind": "survive",
+    "threshold": 0,
+    "target": "f5"
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "8/8/6p1/5R2/6b1/2p1k3/8/7K w - -",
+     "accepted": [
+      "f5a5",
+      "f5b5",
+      "f5c5",
+      "f5e5",
+      "f5f1",
+      "f5f6",
+      "f5f7",
+      "f5f8",
+      "f5g5"
+     ],
+     "replies": {
+      "f5a5": "c3c2",
+      "f5b5": "c3c2",
+      "f5c5": "c3c2",
+      "f5d5": "g4f3",
+      "f5e5": "e3d2",
+      "f5f1": "c3c2",
+      "f5f2": "e3f2",
+      "f5f3": "e3f3",
+      "f5f4": "e3f4",
+      "f5f6": "c3c2",
+      "f5f7": "c3c2",
+      "f5f8": "c3c2",
+      "f5g5": "c3c2",
+      "f5h5": "g4h5",
+      "h1g1": "g4f5",
+      "h1g2": "g4f5",
+      "h1h2": "g4f5"
+     }
+    }
+   ],
+   "focus": [
+    "f5",
+    "g6",
+    "g4"
+   ]
+  },
+  {
+   "id": "syp-move-away-8",
+   "entry": "save-your-piece",
+   "variant": "move-away",
+   "tier": 1,
+   "cluster": "syp-move-away-8",
+   "learner": "b",
+   "prompt": "Black to move. Your knight on c6 is attacked. Make a move that keeps it.",
+   "explanation": "Nothing can stop the pawn on d5 from taking it where it stands, so the knight has to move: every square where it is safe is accepted. The check looks three moves ahead and then plays out every capture. In Knight Corners the pawns only stand in the way; in chess they capture, so a knight standing on a square a pawn attacks has to move.",
+   "hints": [
+    "Four ways to save a piece: move it, protect it, capture the attacker, or block the line. Which of them works here?",
+    "Look at the pawn on d5. What can you do about it?"
+   ],
+   "fen": "8/8/2n5/3Pk3/2K5/8/8/3N4 b - - 0 1",
+   "expected": {
+    "wrong": [
+     "e5d6"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "defense",
+   "goal": {
+    "kind": "survive",
+    "threshold": 0,
+    "target": "c6"
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "8/8/2n5/3Pk3/2K5/8/8/3N4 b - -",
+     "accepted": [
+      "c6a5",
+      "c6a7",
+      "c6b8",
+      "c6d4",
+      "c6d8",
+      "c6e7"
+     ],
+     "replies": {
+      "c6a5": "c4b4",
+      "c6a7": "c4b3",
+      "c6b4": "c4b4",
+      "c6b8": "c4b3",
+      "c6d4": "c4b4",
+      "c6d8": "c4b3",
+      "c6e7": "c4b3",
+      "e5d6": "d5c6",
+      "e5e4": "d5c6",
+      "e5f4": "d5c6",
+      "e5f5": "d5c6",
+      "e5f6": "d5c6"
+     }
+    }
+   ],
+   "focus": [
+    "c6",
+    "d5"
+   ],
+   "bridge": "knight-corners"
+  },
+  {
+   "id": "syp-move-away-9",
+   "entry": "save-your-piece",
+   "variant": "move-away",
+   "tier": 1,
+   "cluster": "syp-move-away-9",
+   "learner": "w",
+   "prompt": "White to move. Your bishop on h4 is attacked. Make a move that keeps it.",
+   "explanation": "Nothing can stop the pawn on g5 from taking it where it stands, so the bishop has to move: every square where it is safe is accepted. The check looks three moves ahead and then plays out every capture.",
+   "hints": [
+    "Four ways to save a piece: move it, protect it, capture the attacker, or block the line. Which of them works here?",
+    "Look at the pawn on g5. What can you do about it?"
+   ],
+   "fen": "8/8/8/6p1/2k4B/8/8/4K3 w - - 0 1",
+   "expected": {
+    "wrong": [
+     "e1d2"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "defense",
+   "goal": {
+    "kind": "survive",
+    "threshold": 0,
+    "target": "h4"
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "8/8/8/6p1/2k4B/8/8/4K3 w - -",
+     "accepted": [
+      "h4f2",
+      "h4g3"
+     ],
+     "replies": {
+      "e1d1": "g5h4",
+      "e1d2": "g5h4",
+      "e1e2": "g5h4",
+      "e1f1": "g5h4",
+      "e1f2": "g5h4",
+      "h4f2": "c4b3",
+      "h4g3": "c4b3"
+     }
+    }
+   ],
+   "focus": [
+    "h4",
+    "g5"
+   ]
+  },
+  {
+   "id": "syp-protect-1",
+   "entry": "save-your-piece",
+   "variant": "protect",
+   "tier": 2,
+   "cluster": "syp-protect-1",
+   "learner": "w",
+   "prompt": "White to move. Your knight on f1 is attacked. Make a move that keeps it.",
+   "explanation": "The enemy king on g1 attacks your knight. A king may never capture a protected piece, so protecting the knight saves it; every move that does is accepted. The check looks three moves ahead and then plays out every capture.",
+   "hints": [
+    "Four ways to save a piece: move it, protect it, capture the attacker, or block the line. Which of them works here?",
+    "Look at the king on g1. What can you do about it?"
+   ],
+   "fen": "8/8/8/2b1R1n1/8/8/3K4/5Nk1 w - - 0 1",
+   "expected": {
+    "wrong": [
+     "e5e6"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "defense",
+   "goal": {
+    "kind": "survive",
+    "threshold": 0,
+    "target": "f1"
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "8/8/8/2b1R1n1/8/8/3K4/5Nk1 w - -",
+     "accepted": [
+      "d2e2",
+      "e5f5"
+     ],
+     "replies": {
+      "e5c5": "g1f1",
+      "e5g5": "g1f1",
+      "d2c1": "g1f1",
+      "d2c2": "g1f1",
+      "d2c3": "g1f1",
+      "d2d1": "g1f1",
+      "d2d3": "g1f1",
+      "d2e1": "g5f3",
+      "d2e2": "c5a3",
+      "e5d5": "g1f1",
+      "e5e1": "c5b4",
+      "e5e2": "g1f1",
+      "e5e3": "c5e3",
+      "e5e4": "g5e4",
+      "e5e6": "g5e6",
+      "e5e7": "c5e7",
+      "e5e8": "g1f1",
+      "e5f5": "c5a3",
+      "f1e3": "c5e3",
+      "f1g3": "g5f3",
+      "f1h2": "g1h2"
+     }
+    }
+   ],
+   "focus": [
+    "f1",
+    "g1"
+   ]
+  },
+  {
+   "id": "syp-protect-2",
+   "entry": "save-your-piece",
+   "variant": "protect",
+   "tier": 3,
+   "cluster": "syp-protect-2",
+   "learner": "b",
+   "prompt": "Black to move. Your knight on h5 is attacked. Make a move that keeps it.",
+   "explanation": "The enemy king on h4 attacks your knight. A king may never capture a protected piece, so protecting the knight saves it; every move that does is accepted. The check looks three moves ahead and then plays out every capture.",
+   "hints": [
+    "Four ways to save a piece: move it, protect it, capture the attacker, or block the line. Which of them works here?",
+    "Look at the king on h4. What can you do about it?"
+   ],
+   "fen": "8/8/7N/5b1n/RB1k3K/3n4/8/8 b - - 0 1",
+   "expected": {
+    "wrong": [
+     "f5e6"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "defense",
+   "goal": {
+    "kind": "survive",
+    "threshold": 0,
+    "target": "h5"
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "8/8/7N/5b1n/RB1k3K/3n4/8/8 b - -",
+     "accepted": [
+      "f5g6"
+     ],
+     "replies": {
+      "d3b4": "a4b4",
+      "d3b2": "h4h5",
+      "d3c1": "h4h5",
+      "d3c5": "b4c5",
+      "d3e1": "b4e1",
+      "d3e5": "h4h5",
+      "d3f2": "h4h5",
+      "d3f4": "h6f5",
+      "d4c4": "h4h5",
+      "d4d5": "h4h5",
+      "d4e3": "h4h5",
+      "d4e4": "h4h5",
+      "d4e5": "h4h5",
+      "f5c8": "h4h5",
+      "f5d7": "h4h5",
+      "f5e4": "h4h5",
+      "f5e6": "h4h5",
+      "f5g4": "h4g4",
+      "f5g6": "a4a1",
+      "f5h3": "h4h3",
+      "f5h7": "h4h5",
+      "h5f4": "h6f5",
+      "h5f6": "h6f5",
+      "h5g3": "h4g3",
+      "h5g7": "a4a7"
+     }
+    }
+   ],
+   "focus": [
+    "h5",
+    "h4"
+   ]
+  },
+  {
+   "id": "syp-protect-3",
+   "entry": "save-your-piece",
+   "variant": "protect",
+   "tier": 2,
+   "cluster": "syp-protect-3",
+   "learner": "w",
+   "prompt": "White to move. Your knight on c1 is attacked. Make a move that keeps it.",
+   "explanation": "The enemy king on d2 attacks your knight. A king may never capture a protected piece, so protecting the knight saves it; every move that does is accepted. The check looks three moves ahead and then plays out every capture.",
+   "hints": [
+    "Four ways to save a piece: move it, protect it, capture the attacker, or block the line. Which of them works here?",
+    "Look at the king on d2. What can you do about it?"
+   ],
+   "fen": "8/2K5/p7/8/7R/8/3k4/2N2n1r w - - 0 1",
+   "expected": {
+    "wrong": [
+     "c7b8"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "defense",
+   "goal": {
+    "kind": "survive",
+    "threshold": 0,
+    "target": "c1"
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "8/2K5/p7/8/7R/8/3k4/2N2n1r w - -",
+     "accepted": [
+      "h4c4"
+     ],
+     "replies": {
+      "h4h1": "d2c1",
+      "c1a2": "h1h4",
+      "c1b3": "d2c3",
+      "c1d3": "h1h4",
+      "c1e2": "h1h4",
+      "c7b6": "h1h4",
+      "c7b7": "h1h4",
+      "c7b8": "h1h4",
+      "c7c6": "h1h4",
+      "c7c8": "h1h4",
+      "c7d6": "h1h4",
+      "c7d7": "h1h4",
+      "c7d8": "h1h4",
+      "h4a4": "d2c1",
+      "h4b4": "d2c1",
+      "h4c4": "a6a5",
+      "h4d4": "d2c1",
+      "h4e4": "d2c1",
+      "h4f4": "d2c1",
+      "h4g4": "d2c1",
+      "h4h2": "f1h2",
+      "h4h3": "h1h3",
+      "h4h5": "h1h5",
+      "h4h6": "h1h6",
+      "h4h7": "h1h7",
+      "h4h8": "h1h8"
+     }
+    }
+   ],
+   "focus": [
+    "c1",
+    "d2"
+   ]
+  },
+  {
+   "id": "syp-protect-4",
+   "entry": "save-your-piece",
+   "variant": "protect",
+   "tier": 2,
+   "cluster": "syp-protect-4",
+   "learner": "b",
+   "prompt": "Black to move. Your knight on c1 is attacked. Make a move that keeps it.",
+   "explanation": "The enemy king on d1 attacks your knight. A king may never capture a protected piece, so protecting the knight saves it; every move that does is accepted. The check looks three moves ahead and then plays out every capture.",
+   "hints": [
+    "Four ways to save a piece: move it, protect it, capture the attacker, or block the line. Which of them works here?",
+    "Look at the king on d1. What can you do about it?"
+   ],
+   "fen": "8/8/8/8/5P2/6p1/3R4/k1nK4 b - - 0 1",
+   "expected": {
+    "wrong": [
+     "g3g2"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "defense",
+   "goal": {
+    "kind": "survive",
+    "threshold": 0,
+    "target": "c1"
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "8/8/8/8/5P2/6p1/3R4/k1nK4 b - -",
+     "accepted": [
+      "a1b1"
+     ],
+     "replies": {
+      "a1b1": "d1e1",
+      "c1a2": "d2a2",
+      "c1b3": "d2d3",
+      "c1d3": "d2d3",
+      "c1e2": "d1e2",
+      "g3g2": "d1c1"
+     }
+    }
+   ],
+   "focus": [
+    "c1",
+    "d1"
+   ]
+  },
+  {
+   "id": "syp-protect-5",
+   "entry": "save-your-piece",
+   "variant": "protect",
+   "tier": 2,
+   "cluster": "syp-protect-5",
+   "learner": "w",
+   "prompt": "White to move. Your knight on e1 is attacked. Make a move that keeps it.",
+   "explanation": "The enemy king on f2 attacks your knight. A king may never capture a protected piece, so protecting the knight saves it; every move that does is accepted. The check looks three moves ahead and then plays out every capture.",
+   "hints": [
+    "Four ways to save a piece: move it, protect it, capture the attacker, or block the line. Which of them works here?",
+    "Look at the king on f2. What can you do about it?"
+   ],
+   "fen": "5r2/8/8/8/3p4/1KR3p1/5k2/4N3 w - - 0 1",
+   "expected": {
+    "wrong": [
+     "b3a4"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "defense",
+   "goal": {
+    "kind": "survive",
+    "threshold": 0,
+    "target": "e1"
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "5r2/8/8/8/3p4/1KR3p1/5k2/4N3 w - -",
+     "accepted": [
+      "c3c1"
+     ],
+     "replies": {
+      "c3g3": "f2g3",
+      "b3a2": "d4c3",
+      "b3a3": "d4c3",
+      "b3a4": "d4c3",
+      "b3b2": "d4c3",
+      "b3b4": "d4c3",
+      "b3c2": "d4c3",
+      "b3c4": "d4c3",
+      "c3c1": "d4d3",
+      "c3c2": "f2e1",
+      "c3c4": "f2e1",
+      "c3c5": "f2e1",
+      "c3c6": "f2e1",
+      "c3c7": "f2e1",
+      "c3c8": "f8c8",
+      "c3d3": "f2e1",
+      "c3e3": "d4e3",
+      "c3f3": "f8f3",
+      "e1c2": "d4c3",
+      "e1d3": "f2e3",
+      "e1f3": "d4c3",
+      "e1g2": "d4c3"
+     }
+    }
+   ],
+   "focus": [
+    "e1",
+    "f2"
+   ]
+  },
+  {
+   "id": "syp-protect-6",
+   "entry": "save-your-piece",
+   "variant": "protect",
+   "tier": 2,
+   "cluster": "syp-protect-6",
+   "learner": "b",
+   "prompt": "Black to move. Your knight on a1 is attacked. Make a move that keeps it.",
+   "explanation": "The enemy king on a2 attacks your knight. A king may never capture a protected piece, so protecting the knight saves it; every move that does is accepted. The check looks three moves ahead and then plays out every capture.",
+   "hints": [
+    "Four ways to save a piece: move it, protect it, capture the attacker, or block the line. Which of them works here?",
+    "Look at the king on a2. What can you do about it?"
+   ],
+   "fen": "8/4k3/2B5/8/8/n4B2/K7/n7 b - - 0 1",
+   "expected": {
+    "wrong": [
+     "e7d8"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "defense",
+   "goal": {
+    "kind": "survive",
+    "threshold": 0,
+    "target": "a1"
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "8/4k3/2B5/8/8/n4B2/K7/n7 b - -",
+     "accepted": [
+      "a3c2"
+     ],
+     "replies": {
+      "a1b3": "a2a3",
+      "a1c2": "c6e4",
+      "a3b1": "a2a1",
+      "a3b5": "a2a1",
+      "a3c2": "a2b1",
+      "a3c4": "a2a1",
+      "e7d6": "a2a1",
+      "e7d8": "a2a1",
+      "e7e6": "a2a1",
+      "e7f6": "a2a1",
+      "e7f7": "a2a1",
+      "e7f8": "a2a1"
+     }
+    }
+   ],
+   "focus": [
+    "a1",
+    "a2"
+   ]
+  },
+  {
+   "id": "syp-protect-7",
+   "entry": "save-your-piece",
+   "variant": "protect",
+   "tier": 3,
+   "cluster": "syp-protect-7",
+   "learner": "w",
+   "prompt": "White to move. Your knight on h5 is attacked. Make a move that keeps it.",
+   "explanation": "The enemy king on g6 attacks your knight. A king may never capture a protected piece, so protecting the knight saves it; every move that does is accepted. The check looks three moves ahead and then plays out every capture.",
+   "hints": [
+    "Four ways to save a piece: move it, protect it, capture the attacker, or block the line. Which of them works here?",
+    "Look at the king on g6. What can you do about it?"
+   ],
+   "fen": "8/8/6kb/1K1p3N/6p1/5P2/N7/8 w - - 0 1",
+   "expected": {
+    "wrong": [
+     "b5a6"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "defense",
+   "goal": {
+    "kind": "survive",
+    "threshold": 0,
+    "target": "h5"
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "8/8/6kb/1K1p3N/6p1/5P2/N7/8 w - -",
+     "accepted": [
+      "f3g4"
+     ],
+     "replies": {
+      "f3g4": "d5d4",
+      "a2b4": "g6h5",
+      "a2c1": "g6h5",
+      "a2c3": "g6h5",
+      "b5a4": "g6h5",
+      "b5a5": "g6h5",
+      "b5a6": "g6h5",
+      "b5b4": "g6h5",
+      "b5b6": "g6h5",
+      "b5c5": "g6h5",
+      "b5c6": "g6h5",
+      "f3f4": "g6h5",
+      "h5f4": "h6f4",
+      "h5f6": "g6f6",
+      "h5g3": "g4f3",
+      "h5g7": "g6g7"
+     }
+    }
+   ],
+   "focus": [
+    "h5",
+    "g6"
+   ]
+  },
+  {
+   "id": "syp-protect-8",
+   "entry": "save-your-piece",
+   "variant": "protect",
+   "tier": 2,
+   "cluster": "syp-protect-8",
+   "learner": "b",
+   "prompt": "Black to move. Your knight on f8 is attacked. Make a move that keeps it.",
+   "explanation": "The enemy king on g8 attacks your knight. A king may never capture a protected piece, so protecting the knight saves it; every move that does is accepted. The check looks three moves ahead and then plays out every capture.",
+   "hints": [
+    "Four ways to save a piece: move it, protect it, capture the attacker, or block the line. Which of them works here?",
+    "Look at the king on g8. What can you do about it?"
+   ],
+   "fen": "5nK1/5N2/3R4/8/kb6/8/8/8 b - - 0 1",
+   "expected": {
+    "wrong": [
+     "a4a5"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "defense",
+   "goal": {
+    "kind": "survive",
+    "threshold": 0,
+    "target": "f8"
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "5nK1/5N2/3R4/8/kb6/8/8/8 b - -",
+     "accepted": [
+      "b4d6"
+     ],
+     "replies": {
+      "b4d6": "f7d6",
+      "a4a3": "g8f8",
+      "a4a5": "g8f8",
+      "a4b3": "g8f8",
+      "a4b5": "g8f8",
+      "b4a3": "g8f8",
+      "b4a5": "g8f8",
+      "b4c3": "g8f8",
+      "b4c5": "g8f8",
+      "b4d2": "d6d2",
+      "b4e1": "g8f8",
+      "f8d7": "d6d7",
+      "f8e6": "d6e6",
+      "f8g6": "d6g6",
+      "f8h7": "g8h7"
+     }
+    }
+   ],
+   "focus": [
+    "f8",
+    "g8"
+   ]
+  },
+  {
+   "id": "syp-protect-9",
+   "entry": "save-your-piece",
+   "variant": "protect",
+   "tier": 2,
+   "cluster": "syp-protect-9",
+   "learner": "w",
+   "prompt": "White to move. Your knight on h8 is attacked. Make a move that keeps it.",
+   "explanation": "The enemy king on h7 attacks your knight. A king may never capture a protected piece, so protecting the knight saves it; every move that does is accepted. The check looks three moves ahead and then plays out every capture.",
+   "hints": [
+    "Four ways to save a piece: move it, protect it, capture the attacker, or block the line. Which of them works here?",
+    "Look at the king on h7. What can you do about it?"
+   ],
+   "fen": "1B5N/7k/1n6/8/8/7K/b7/8 w - - 0 1",
+   "expected": {
+    "wrong": [
+     "b8c7"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "defense",
+   "goal": {
+    "kind": "survive",
+    "threshold": 0,
+    "target": "h8"
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "1B5N/7k/1n6/8/8/7K/b7/8 w - -",
+     "accepted": [
+      "b8e5"
+     ],
+     "replies": {
+      "b8a7": "h7h8",
+      "b8c7": "h7h8",
+      "b8d6": "h7h8",
+      "b8e5": "a2b1",
+      "b8f4": "h7h8",
+      "b8g3": "h7h8",
+      "b8h2": "h7h8",
+      "h3g2": "h7h8",
+      "h3g3": "h7h8",
+      "h3g4": "h7h8",
+      "h3h2": "h7h8",
+      "h3h4": "h7h8",
+      "h8f7": "a2f7",
+      "h8g6": "h7g6"
+     }
+    }
+   ],
+   "focus": [
+    "h8",
+    "h7"
+   ]
+  },
+  {
+   "id": "syp-capture-attacker-1",
+   "entry": "save-your-piece",
+   "variant": "capture-attacker",
+   "tier": 1,
+   "cluster": "syp-capture-attacker-1",
+   "learner": "w",
+   "prompt": "White to move. Your queen on f4 is attacked. Make a move that keeps it.",
+   "explanation": "The queen cannot simply step away to safety here, but the attacking queen on h2 can be captured. Every saving move removes it. The check looks three moves ahead and then plays out every capture.",
+   "hints": [
+    "Four ways to save a piece: move it, protect it, capture the attacker, or block the line. Which of them works here?",
+    "Look at the queen on h2. What can you do about it?"
+   ],
+   "fen": "1K6/7k/8/2p5/5Q2/8/7q/8 w - - 0 1",
+   "expected": {
+    "wrong": [
+     "b8c8"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "defense",
+   "goal": {
+    "kind": "survive",
+    "threshold": 0,
+    "target": "f4"
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "1K6/7k/8/2p5/5Q2/8/7q/8 w - -",
+     "accepted": [
+      "f4h2"
+     ],
+     "replies": {
+      "f4h2": "h7g6",
+      "b8a7": "h2f4",
+      "b8a8": "h2f4",
+      "b8b7": "h2f4",
+      "b8c7": "h2f4",
+      "b8c8": "h2f4",
+      "f4c7": "h2c7",
+      "f4d6": "h2d6",
+      "f4e5": "h2e5",
+      "f4g3": "h2g3"
+     }
+    }
+   ],
+   "focus": [
+    "f4",
+    "h2"
+   ]
+  },
+  {
+   "id": "syp-capture-attacker-2",
+   "entry": "save-your-piece",
+   "variant": "capture-attacker",
+   "tier": 3,
+   "cluster": "syp-capture-attacker-2",
+   "learner": "b",
+   "prompt": "Black to move. Your bishop on g4 is attacked. Make a move that keeps it.",
+   "explanation": "The bishop cannot simply step away to safety here, but the attacking bishop on d1 can be captured. Every saving move removes it. The check looks three moves ahead and then plays out every capture.",
+   "hints": [
+    "Four ways to save a piece: move it, protect it, capture the attacker, or block the line. Which of them works here?",
+    "Look at the bishop on d1. What can you do about it?"
+   ],
+   "fen": "1R6/7K/8/7k/2p3b1/6P1/8/b2B4 b - - 0 1",
+   "expected": {
+    "wrong": [
+     "h5g5"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "defense",
+   "goal": {
+    "kind": "survive",
+    "threshold": 0,
+    "target": "g4"
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "1R6/7K/8/7k/2p3b1/6P1/8/b2B4 b - -",
+     "accepted": [
+      "g4d1"
+     ],
+     "replies": {
+      "g4d1": "b8a8",
+      "a1b2": "d1g4",
+      "a1c3": "d1g4",
+      "a1d4": "d1g4",
+      "a1e5": "d1g4",
+      "a1f6": "d1g4",
+      "a1g7": "d1g4",
+      "a1h8": "d1g4",
+      "c4c3": "d1g4",
+      "g4e2": "d1e2",
+      "g4f3": "d1f3",
+      "h5g5": "d1g4"
+     }
+    }
+   ],
+   "focus": [
+    "g4",
+    "d1"
+   ]
+  },
+  {
+   "id": "syp-capture-attacker-3",
+   "entry": "save-your-piece",
+   "variant": "capture-attacker",
+   "tier": 2,
+   "cluster": "syp-capture-attacker-3",
+   "learner": "w",
+   "prompt": "White to move. Your bishop on c8 is attacked. Make a move that keeps it.",
+   "explanation": "The bishop cannot simply step away to safety here, but the attacking bishop on e6 can be captured. Every saving move removes it. The check looks three moves ahead and then plays out every capture.",
+   "hints": [
+    "Four ways to save a piece: move it, protect it, capture the attacker, or block the line. Which of them works here?",
+    "Look at the bishop on e6. What can you do about it?"
+   ],
+   "fen": "2B5/8/4bb2/P7/k7/8/8/4K3 w - - 0 1",
+   "expected": {
+    "wrong": [
+     "a5a6"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "defense",
+   "goal": {
+    "kind": "survive",
+    "threshold": 0,
+    "target": "c8"
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "2B5/8/4bb2/P7/k7/8/8/4K3 w - -",
+     "accepted": [
+      "c8e6"
+     ],
+     "replies": {
+      "c8e6": "a4a5",
+      "a5a6": "e6c8",
+      "c8a6": "a4a5",
+      "c8b7": "a4a5",
+      "c8d7": "e6d7",
+      "e1d1": "e6c8",
+      "e1d2": "e6c8",
+      "e1e2": "e6c8",
+      "e1f1": "e6c8",
+      "e1f2": "e6c8"
+     }
+    }
+   ],
+   "focus": [
+    "c8",
+    "e6"
+   ]
+  },
+  {
+   "id": "syp-capture-attacker-4",
+   "entry": "save-your-piece",
+   "variant": "capture-attacker",
+   "tier": 2,
+   "cluster": "syp-capture-attacker-4",
+   "learner": "b",
+   "prompt": "Black to move. Your rook on d5 is attacked. Make a move that keeps it.",
+   "explanation": "The rook cannot simply step away to safety here, but the attacking king on e6 can be captured. Every saving move removes it. The check looks three moves ahead and then plays out every capture.",
+   "hints": [
+    "Four ways to save a piece: move it, protect it, capture the attacker, or block the line. Which of them works here?",
+    "Look at the king on e6. What can you do about it?"
+   ],
+   "fen": "3k4/8/4K3/2Rr4/4p3/8/1Bn5/8 b - - 0 1",
+   "expected": {
+    "wrong": [
+     "d8e8"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "defense",
+   "goal": {
+    "kind": "survive",
+    "threshold": 0,
+    "target": "d5"
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "3k4/8/4K3/2Rr4/4p3/8/1Bn5/8 b - -",
+     "accepted": [
+      "d5c5"
+     ],
+     "replies": {
+      "d5c5": "b2a1",
+      "c2a1": "c5d5",
+      "c2a3": "c5d5",
+      "c2b4": "c5d5",
+      "c2d4": "e6d5",
+      "c2e1": "c5d5",
+      "c2e3": "c5d5",
+      "d5d1": "c5c2",
+      "d5d2": "c5d5",
+      "d5d3": "c5c2",
+      "d5d4": "b2d4",
+      "d5d6": "e6d6",
+      "d5d7": "c5c2",
+      "d5e5": "b2e5",
+      "d5f5": "c5f5",
+      "d5g5": "c5g5",
+      "d5h5": "c5h5",
+      "d8e8": "c5d5",
+      "e4e3": "c5d5"
+     }
+    }
+   ],
+   "focus": [
+    "d5",
+    "e6",
+    "c5"
+   ]
+  },
+  {
+   "id": "syp-capture-attacker-5",
+   "entry": "save-your-piece",
+   "variant": "capture-attacker",
+   "tier": 1,
+   "cluster": "syp-capture-attacker-5",
+   "learner": "w",
+   "prompt": "White to move. Your rook on g6 is attacked. Make a move that keeps it.",
+   "explanation": "The rook cannot simply step away to safety here, but the attacking rook on g3 can be captured. Every saving move removes it. The check looks three moves ahead and then plays out every capture.",
+   "hints": [
+    "Four ways to save a piece: move it, protect it, capture the attacker, or block the line. Which of them works here?",
+    "Look at the rook on g3. What can you do about it?"
+   ],
+   "fen": "6K1/8/5pR1/8/8/2k3r1/8/8 w - - 0 1",
+   "expected": {
+    "wrong": [
+     "g8h8"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "defense",
+   "goal": {
+    "kind": "survive",
+    "threshold": 0,
+    "target": "g6"
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "6K1/8/5pR1/8/8/2k3r1/8/8 w - -",
+     "accepted": [
+      "g6g3"
+     ],
+     "replies": {
+      "g6g3": "c3b2",
+      "g6g4": "g3g4",
+      "g6g5": "f6g5",
+      "g6g7": "g3g7",
+      "g8f7": "g3g6",
+      "g8f8": "g3g6",
+      "g8g7": "g3g6",
+      "g8h7": "g3g6",
+      "g8h8": "g3g6"
+     }
+    }
+   ],
+   "focus": [
+    "g6",
+    "g3"
+   ]
+  },
+  {
+   "id": "syp-capture-attacker-6",
+   "entry": "save-your-piece",
+   "variant": "capture-attacker",
+   "tier": 2,
+   "cluster": "syp-capture-attacker-6",
+   "learner": "b",
+   "prompt": "Black to move. Your rook on h2 is attacked. Make a move that keeps it.",
+   "explanation": "The rook cannot simply step away to safety here, but the attacking queen on h1 can be captured. Every saving move removes it. The check looks three moves ahead and then plays out every capture.",
+   "hints": [
+    "Four ways to save a piece: move it, protect it, capture the attacker, or block the line. Which of them works here?",
+    "Look at the queen on h1. What can you do about it?"
+   ],
+   "fen": "8/8/6n1/5k1P/3K4/8/7r/7Q b - - 0 1",
+   "expected": {
+    "wrong": [
+     "g6e7"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "defense",
+   "goal": {
+    "kind": "survive",
+    "threshold": 0,
+    "target": "h2"
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "8/8/6n1/5k1P/3K4/8/7r/7Q b - -",
+     "accepted": [
+      "h2h1"
+     ],
+     "replies": {
+      "h2h1": "h5g6",
+      "h2h5": "h1h5",
+      "f5e6": "h1h2",
+      "f5f4": "h1h2",
+      "f5f6": "h1h2",
+      "f5g4": "h1h2",
+      "f5g5": "h1h2",
+      "g6e5": "h1h2",
+      "g6e7": "h1h2",
+      "g6f4": "h1h2",
+      "g6f8": "h1h2",
+      "g6h4": "h1h2",
+      "g6h8": "h1h2",
+      "h2a2": "h5g6",
+      "h2b2": "h5g6",
+      "h2c2": "h5g6",
+      "h2d2": "d4c3",
+      "h2e2": "h5g6",
+      "h2f2": "h5g6",
+      "h2g2": "h1g2",
+      "h2h3": "h1h3",
+      "h2h4": "h1h4"
+     }
+    }
+   ],
+   "focus": [
+    "h2",
+    "h1"
+   ]
+  },
+  {
+   "id": "syp-capture-attacker-7",
+   "entry": "save-your-piece",
+   "variant": "capture-attacker",
+   "tier": 1,
+   "cluster": "syp-capture-attacker-7",
+   "learner": "w",
+   "prompt": "White to move. Your knight on g3 is attacked. Make a move that keeps it.",
+   "explanation": "The knight cannot simply step away to safety here, but the attacking knight on f1 can be captured. Every saving move removes it. The check looks three moves ahead and then plays out every capture.",
+   "hints": [
+    "Four ways to save a piece: move it, protect it, capture the attacker, or block the line. Which of them works here?",
+    "Look at the knight on f1. What can you do about it?"
+   ],
+   "fen": "8/8/8/8/1k6/4P1N1/2K5/5n2 w - - 0 1",
+   "expected": {
+    "wrong": [
+     "e3e4"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "defense",
+   "goal": {
+    "kind": "survive",
+    "threshold": 0,
+    "target": "g3"
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "8/8/8/8/1k6/4P1N1/2K5/5n2 w - -",
+     "accepted": [
+      "g3f1"
+     ],
+     "replies": {
+      "g3f1": "b4a3",
+      "c2b1": "f1g3",
+      "c2b2": "f1g3",
+      "c2c1": "f1g3",
+      "c2d1": "f1g3",
+      "c2d3": "f1g3",
+      "e3e4": "f1g3",
+      "g3e2": "f1e3",
+      "g3e4": "f1e3",
+      "g3f5": "f1e3",
+      "g3h1": "f1e3",
+      "g3h5": "f1e3"
+     }
+    }
+   ],
+   "focus": [
+    "g3",
+    "f1"
+   ]
+  },
+  {
+   "id": "syp-capture-attacker-8",
+   "entry": "save-your-piece",
+   "variant": "capture-attacker",
+   "tier": 2,
+   "cluster": "syp-capture-attacker-8",
+   "learner": "b",
+   "prompt": "Black to move. Your rook on h1 is attacked. Make a move that keeps it.",
+   "explanation": "The rook cannot simply step away to safety here, but the attacking queen on e4 can be captured. Every saving move removes it. The check looks three moves ahead and then plays out every capture.",
+   "hints": [
+    "Four ways to save a piece: move it, protect it, capture the attacker, or block the line. Which of them works here?",
+    "Look at the queen on e4. What can you do about it?"
+   ],
+   "fen": "8/4p3/8/3p4/4Q3/8/k4K2/7r b - - 0 1",
+   "expected": {
+    "wrong": [
+     "e7e6"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "defense",
+   "goal": {
+    "kind": "survive",
+    "threshold": 0,
+    "target": "h1"
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "8/4p3/8/3p4/4Q3/8/k4K2/7r b - -",
+     "accepted": [
+      "d5e4"
+     ],
+     "replies": {
+      "d5e4": "f2e2",
+      "a2a1": "e4h1",
+      "a2a3": "e4h1",
+      "a2b2": "e4h1",
+      "a2b3": "e4h1",
+      "d5d4": "e4h1",
+      "e7e5": "e4h1",
+      "e7e6": "e4h1",
+      "h1a1": "e4d5",
+      "h1b1": "e4b1",
+      "h1c1": "e4d5",
+      "h1d1": "e4e7",
+      "h1e1": "e4e1",
+      "h1f1": "f2f1",
+      "h1g1": "f2g1",
+      "h1h2": "f2g1",
+      "h1h3": "e4d5",
+      "h1h4": "e4h4",
+      "h1h5": "e4e7",
+      "h1h6": "e4d5",
+      "h1h7": "e4h7",
+      "h1h8": "e4d5"
+     }
+    }
+   ],
+   "focus": [
+    "h1",
+    "e4"
+   ]
+  },
+  {
+   "id": "syp-capture-attacker-9",
+   "entry": "save-your-piece",
+   "variant": "capture-attacker",
+   "tier": 2,
+   "cluster": "syp-capture-attacker-9",
+   "learner": "w",
+   "prompt": "White to move. Your rook on e7 is attacked. Make a move that keeps it.",
+   "explanation": "The rook cannot simply step away to safety here, but the attacking rook on e8 can be captured. Every saving move removes it. The check looks three moves ahead and then plays out every capture.",
+   "hints": [
+    "Four ways to save a piece: move it, protect it, capture the attacker, or block the line. Which of them works here?",
+    "Look at the rook on e8. What can you do about it?"
+   ],
+   "fen": "4r3/4R3/k5p1/4Kp2/8/8/8/8 w - - 0 1",
+   "expected": {
+    "wrong": [
+     "e5d6"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "defense",
+   "goal": {
+    "kind": "survive",
+    "threshold": 0,
+    "target": "e7"
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "4r3/4R3/k5p1/4Kp2/8/8/8/8 w - -",
+     "accepted": [
+      "e7e8"
+     ],
+     "replies": {
+      "e7e8": "a6a5",
+      "e5d4": "e8e7",
+      "e5d5": "e8e7",
+      "e5d6": "e8e7",
+      "e5e6": "e8e7",
+      "e5f4": "e8e7",
+      "e5f6": "e8e7",
+      "e7e6": "e8e6"
+     }
+    }
+   ],
+   "focus": [
+    "e7",
+    "e8"
+   ]
+  },
+  {
+   "id": "syp-block-1",
+   "entry": "save-your-piece",
+   "variant": "block",
+   "tier": 3,
+   "cluster": "syp-block-1",
+   "learner": "w",
+   "prompt": "White to move. Your bishop on d7 is attacked. Make a move that keeps it.",
+   "explanation": "The rook on d5 attacks along a line. Putting a piece in between shields the bishop; every safe block is accepted. The check looks three moves ahead and then plays out every capture.",
+   "hints": [
+    "Four ways to save a piece: move it, protect it, capture the attacker, or block the line. Which of them works here?",
+    "Look at the rook on d5. What can you do about it?"
+   ],
+   "fen": "3K3b/3B4/7p/2Pr4/8/8/7B/3k4 w - - 0 1",
+   "expected": {
+    "wrong": [
+     "d8e8"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "defense",
+   "goal": {
+    "kind": "survive",
+    "threshold": 0,
+    "target": "d7"
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "3K3b/3B4/7p/2Pr4/8/8/7B/3k4 w - -",
+     "accepted": [
+      "h2d6"
+     ],
+     "replies": {
+      "c5c6": "d5d7",
+      "d8c7": "d5d7",
+      "d8c8": "d5d7",
+      "d8e7": "d5d7",
+      "d8e8": "d5d7",
+      "h2b8": "d5d7",
+      "h2c7": "d5d7",
+      "h2d6": "d5d6",
+      "h2e5": "d5d7",
+      "h2f4": "d5d7",
+      "h2g1": "d5d7",
+      "h2g3": "d5d7"
+     }
+    }
+   ],
+   "focus": [
+    "d7",
+    "d5"
+   ]
+  },
+  {
+   "id": "syp-block-2",
+   "entry": "save-your-piece",
+   "variant": "block",
+   "tier": 3,
+   "cluster": "syp-block-2",
+   "learner": "b",
+   "prompt": "Black to move. Your knight on g7 is attacked. Make a move that keeps it.",
+   "explanation": "The bishop on d4 attacks along a line. Putting a piece in between shields the knight; every safe block is accepted. The check looks three moves ahead and then plays out every capture.",
+   "hints": [
+    "Four ways to save a piece: move it, protect it, capture the attacker, or block the line. Which of them works here?",
+    "Look at the bishop on d4. What can you do about it?"
+   ],
+   "fen": "7k/5nn1/3b4/2N2B2/3B4/1K6/8/8 b - - 0 1",
+   "expected": {
+    "wrong": [
+     "h8g8"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "defense",
+   "goal": {
+    "kind": "survive",
+    "threshold": 0,
+    "target": "g7"
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "7k/5nn1/3b4/2N2B2/3B4/1K6/8/8 b - -",
+     "accepted": [
+      "d6e5",
+      "f7e5"
+     ],
+     "replies": {
+      "d6c5": "d4g7",
+      "d6b8": "d4g7",
+      "d6c7": "d4g7",
+      "d6e5": "d4e5",
+      "d6e7": "d4g7",
+      "d6f4": "d4g7",
+      "d6f8": "d4g7",
+      "d6g3": "d4g7",
+      "d6h2": "d4g7",
+      "f7d8": "d4g7",
+      "f7e5": "d4e5",
+      "f7g5": "d4g7",
+      "f7h6": "d4g7",
+      "h8g8": "d4g7"
+     }
+    }
+   ],
+   "focus": [
+    "g7",
+    "d4"
+   ]
+  },
+  {
+   "id": "syp-block-3",
+   "entry": "save-your-piece",
+   "variant": "block",
+   "tier": 2,
+   "cluster": "syp-block-3",
+   "learner": "w",
+   "prompt": "White to move. Your rook on d2 is attacked. Make a move that keeps it.",
+   "explanation": "The queen on h6 attacks along a line. Putting a piece in between shields the rook; every safe block is accepted. The check looks three moves ahead and then plays out every capture.",
+   "hints": [
+    "Four ways to save a piece: move it, protect it, capture the attacker, or block the line. Which of them works here?",
+    "Look at the queen on h6. What can you do about it?"
+   ],
+   "fen": "8/8/7q/8/4p3/k7/3R1PN1/2K5 w - - 0 1",
+   "expected": {
+    "wrong": [
+     "f2f3"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "defense",
+   "goal": {
+    "kind": "survive",
+    "threshold": 0,
+    "target": "d2"
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "8/8/7q/8/4p3/k7/3R1PN1/2K5 w - -",
+     "accepted": [
+      "g2e3"
+     ],
+     "replies": {
+      "c1b1": "h6d2",
+      "c1c2": "h6d2",
+      "c1d1": "h6d2",
+      "f2f3": "h6d2",
+      "f2f4": "e4f3",
+      "g2e1": "h6d2",
+      "g2e3": "h6e3",
+      "g2f4": "h6f4",
+      "g2h4": "h6d2"
+     }
+    }
+   ],
+   "focus": [
+    "d2",
+    "h6"
+   ]
+  },
+  {
+   "id": "syp-block-4",
+   "entry": "save-your-piece",
+   "variant": "block",
+   "tier": 3,
+   "cluster": "syp-block-4",
+   "learner": "b",
+   "prompt": "Black to move. Your rook on c4 is attacked. Make a move that keeps it.",
+   "explanation": "The queen on e2 attacks along a line. Putting a piece in between shields the rook; every safe block is accepted. The check looks three moves ahead and then plays out every capture.",
+   "hints": [
+    "Four ways to save a piece: move it, protect it, capture the attacker, or block the line. Which of them works here?",
+    "Look at the queen on e2. What can you do about it?"
+   ],
+   "fen": "8/8/7K/1k3b2/2r3P1/8/4Q2P/1b6 b - - 0 1",
+   "expected": {
+    "wrong": [
+     "b5a6"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "defense",
+   "goal": {
+    "kind": "survive",
+    "threshold": 0,
+    "target": "c4"
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "8/8/7K/1k3b2/2r3P1/8/4Q2P/1b6 b - -",
+     "accepted": [
+      "f5d3"
+     ],
+     "replies": {
+      "f5g4": "e2c4",
+      "b1a2": "e2c4",
+      "b1c2": "e2c4",
+      "b1d3": "e2b2",
+      "b1e4": "e2c4",
+      "b5a4": "e2c4",
+      "b5a5": "e2c4",
+      "b5a6": "e2c4",
+      "b5b4": "e2c4",
+      "b5b6": "e2c4",
+      "b5c5": "e2c4",
+      "b5c6": "e2c4",
+      "f5c2": "e2c4",
+      "f5c8": "e2c4",
+      "f5d3": "e2d3",
+      "f5d7": "e2c4",
+      "f5e4": "e2c4",
+      "f5e6": "e2c4",
+      "f5g6": "e2c4",
+      "f5h7": "e2c4"
+     }
+    }
+   ],
+   "focus": [
+    "c4",
+    "e2"
+   ]
+  },
+  {
+   "id": "syp-block-5",
+   "entry": "save-your-piece",
+   "variant": "block",
+   "tier": 2,
+   "cluster": "syp-block-5",
+   "learner": "w",
+   "prompt": "White to move. Your bishop on g6 is attacked. Make a move that keeps it.",
+   "explanation": "The queen on e6 attacks along a line. Putting a piece in between shields the bishop; every safe block is accepted. The check looks three moves ahead and then plays out every capture.",
+   "hints": [
+    "Four ways to save a piece: move it, protect it, capture the attacker, or block the line. Which of them works here?",
+    "Look at the queen on e6. What can you do about it?"
+   ],
+   "fen": "4N3/3N4/2k1q1BK/8/8/8/8/8 w - - 0 1",
+   "expected": {
+    "wrong": [
+     "e8g7"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "defense",
+   "goal": {
+    "kind": "survive",
+    "threshold": 0,
+    "target": "g6"
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "4N3/3N4/2k1q1BK/8/8/8/8/8 w - -",
+     "accepted": [
+      "d7f6"
+     ],
+     "replies": {
+      "d7b6": "c6b6",
+      "d7b8": "c6b6",
+      "d7c5": "c6c5",
+      "d7e5": "e6e5",
+      "d7f6": "e6e8",
+      "d7f8": "e6g6",
+      "e8c7": "c6c7",
+      "e8d6": "c6d6",
+      "e8f6": "e6d7",
+      "e8g7": "c6d7",
+      "h6g5": "c6d7",
+      "h6g7": "c6d7",
+      "h6h5": "c6d7",
+      "h6h7": "c6d7"
+     }
+    }
+   ],
+   "focus": [
+    "g6",
+    "e6"
+   ]
+  },
+  {
+   "id": "syp-block-6",
+   "entry": "save-your-piece",
+   "variant": "block",
+   "tier": 2,
+   "cluster": "syp-block-6",
+   "learner": "b",
+   "prompt": "Black to move. Your knight on g7 is attacked. Make a move that keeps it.",
+   "explanation": "The rook on g3 attacks along a line. Putting a piece in between shields the knight; every safe block is accepted. The check looks three moves ahead and then plays out every capture.",
+   "hints": [
+    "Four ways to save a piece: move it, protect it, capture the attacker, or block the line. Which of them works here?",
+    "Look at the rook on g3. What can you do about it?"
+   ],
+   "fen": "6kn/6np/8/8/8/6R1/5K2/8 b - - 0 1",
+   "expected": {
+    "wrong": [
+     "g8f7"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "defense",
+   "goal": {
+    "kind": "survive",
+    "threshold": 0,
+    "target": "g7"
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "6kn/6np/8/8/8/6R1/5K2/8 b - -",
+     "accepted": [
+      "h8g6"
+     ],
+     "replies": {
+      "g8f7": "g3g7",
+      "g8f8": "g3g7",
+      "h7h5": "g3g7",
+      "h7h6": "g3g7",
+      "h8f7": "g3g7",
+      "h8g6": "g3g6"
+     }
+    }
+   ],
+   "focus": [
+    "g7",
+    "g3"
+   ]
+  },
+  {
+   "id": "syp-block-7",
+   "entry": "save-your-piece",
+   "variant": "block",
+   "tier": 3,
+   "cluster": "syp-block-7",
+   "learner": "w",
+   "prompt": "White to move. Your rook on f3 is attacked. Make a move that keeps it.",
+   "explanation": "The bishop on b7 attacks along a line. Putting a piece in between shields the rook; every safe block is accepted. The check looks three moves ahead and then plays out every capture.",
+   "hints": [
+    "Four ways to save a piece: move it, protect it, capture the attacker, or block the line. Which of them works here?",
+    "Look at the bishop on b7. What can you do about it?"
+   ],
+   "fen": "8/rb1B4/8/2P5/7k/5R1n/6K1/8 w - - 0 1",
+   "expected": {
+    "wrong": [
+     "d7c8"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "defense",
+   "goal": {
+    "kind": "survive",
+    "threshold": 0,
+    "target": "f3"
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "8/rb1B4/8/2P5/7k/5R1n/6K1/8 w - -",
+     "accepted": [
+      "c5c6"
+     ],
+     "replies": {
+      "d7h3": "b7f3",
+      "c5c6": "b7c6",
+      "d7a4": "b7f3",
+      "d7b5": "b7f3",
+      "d7c6": "b7c6",
+      "d7c8": "b7f3",
+      "d7e6": "b7f3",
+      "d7e8": "b7f3",
+      "d7f5": "b7f3",
+      "d7g4": "b7f3",
+      "g2f1": "b7f3",
+      "g2h1": "b7f3",
+      "g2h2": "b7f3"
+     }
+    }
+   ],
+   "focus": [
+    "f3",
+    "b7"
+   ]
+  },
+  {
+   "id": "syp-block-8",
+   "entry": "save-your-piece",
+   "variant": "block",
+   "tier": 2,
+   "cluster": "syp-block-8",
+   "learner": "b",
+   "prompt": "Black to move. Your bishop on f5 is attacked. Make a move that keeps it.",
+   "explanation": "The queen on f1 attacks along a line. Putting a piece in between shields the bishop; every safe block is accepted. The check looks three moves ahead and then plays out every capture.",
+   "hints": [
+    "Four ways to save a piece: move it, protect it, capture the attacker, or block the line. Which of them works here?",
+    "Look at the queen on f1. What can you do about it?"
+   ],
+   "fen": "8/8/5k2/2b2b2/8/8/K7/4bQ2 b - - 0 1",
+   "expected": {
+    "wrong": [
+     "f6e7"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "defense",
+   "goal": {
+    "kind": "survive",
+    "threshold": 0,
+    "target": "f5"
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "8/8/5k2/2b2b2/8/8/K7/4bQ2 b - -",
+     "accepted": [
+      "c5f2",
+      "e1f2"
+     ],
+     "replies": {
+      "c5a3": "a2a3",
+      "c5a7": "f1e1",
+      "c5b4": "f1f5",
+      "c5b6": "f1e1",
+      "c5d4": "f1e1",
+      "c5d6": "f1e1",
+      "c5e3": "f1e1",
+      "c5e7": "f1e1",
+      "c5f2": "f1e1",
+      "c5f8": "f1e1",
+      "c5g1": "f1e1",
+      "e1a5": "f1f5",
+      "e1b4": "f1f5",
+      "e1c3": "f1f5",
+      "e1d2": "f1f5",
+      "e1f2": "f1f2",
+      "e1g3": "f1f5",
+      "e1h4": "f1f5",
+      "f6e5": "f1e1",
+      "f6e6": "f1e1",
+      "f6e7": "f1e1",
+      "f6f7": "f1e1",
+      "f6g5": "f1e1",
+      "f6g6": "f1e1",
+      "f6g7": "f1e1"
+     }
+    }
+   ],
+   "focus": [
+    "f5",
+    "f1"
+   ]
+  },
+  {
+   "id": "syp-block-9",
+   "entry": "save-your-piece",
+   "variant": "block",
+   "tier": 1,
+   "cluster": "syp-block-9",
+   "learner": "w",
+   "prompt": "White to move. Your rook on d2 is attacked. Make a move that keeps it.",
+   "explanation": "The queen on h6 attacks along a line. Putting a piece in between shields the rook; every safe block is accepted. The check looks three moves ahead and then plays out every capture.",
+   "hints": [
+    "Four ways to save a piece: move it, protect it, capture the attacker, or block the line. Which of them works here?",
+    "Look at the queen on h6. What can you do about it?"
+   ],
+   "fen": "3k4/8/3B3q/8/8/8/3R4/2K5 w - - 0 1",
+   "expected": {
+    "wrong": [
+     "c1b2"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "defense",
+   "goal": {
+    "kind": "survive",
+    "threshold": 0,
+    "target": "d2"
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "3k4/8/3B3q/8/8/8/3R4/2K5 w - -",
+     "accepted": [
+      "d6f4"
+     ],
+     "replies": {
+      "c1b1": "h6d2",
+      "c1b2": "h6d2",
+      "c1c2": "h6d2",
+      "c1d1": "h6d2",
+      "d6a3": "h6d2",
+      "d6b4": "h6d2",
+      "d6b8": "h6d2",
+      "d6c5": "h6d2",
+      "d6c7": "d8c7",
+      "d6e5": "h6d2",
+      "d6e7": "d8e7",
+      "d6f4": "d8c8",
+      "d6f8": "h6d2",
+      "d6g3": "h6d2",
+      "d6h2": "h6d2"
+     }
+    }
+   ],
+   "focus": [
+    "d2",
+    "h6"
+   ]
+  }
+ ]
+}

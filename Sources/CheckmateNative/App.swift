@@ -451,7 +451,7 @@ import CheckmateCore
             game.refresh();inspectionKey("p",35);if game.relationships.report?.mode != .protected{failures.append("P did not show protection")}
             try? await Task.sleep(for:.milliseconds(850));try? await game.capture(directory+"/protected-start.png")
             let unchanged=model.session.rules.fen;game.select("h3");if model.session.rules.fen == unchanged || game.relationships.mode != nil{failures.append("A legal destination clicked during inspection did not leave inspection and play")}
-            game.dismissInspection();model.session.clearSelection();model.session.rules.reset()
+            game.dismissInspection();model.session.clearSelection();do{try model.session.rules.reset()}catch{failures.append("The board could not be reset")}
             try? model.session.rules.load("k3q3/3PR3/8/8/6b1/8/8/4K3 w - - 0 1");try? model.session.inspectPiece("d7");game.refresh()
             let menuKey=NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:[.command,.shift],timestamp:0,windowNumber:game.window!.windowNumber,context:nil,characters:"P",charactersIgnoringModifiers:"p",isARepeat:false,keyCode:35)!
             if NSApp.mainMenu?.performKeyEquivalent(with:menuKey) != true{failures.append("Protection menu shortcut did not route")}
@@ -460,7 +460,7 @@ import CheckmateCore
             inspectionKey("a",0);if game.relationships.report?.mode != .attacked{failures.append("A did not show attacks")}
             try? await Task.sleep(for:.milliseconds(200));try? await game.capture(directory+"/attacked.png")
             inspectionKey("",53);if game.relationships.mode != nil{failures.append("Escape did not dismiss relationships")};if model.session.selected != "d7"{failures.append("Escape unexpectedly cleared selected piece")}
-            model.session.rules.reset();model.session.clearSelection();game.refresh()
+            do{try model.session.rules.reset()}catch{failures.append("The board could not be reset")};model.session.clearSelection();game.refresh()
             if game.desiredRight{game.toggleRight();try? await Task.sleep(for:.milliseconds(850))}
             let lessonBoardWidth=game.main.view.frame.width
             model.lesson(0);model.learning.seek(step:0);try? await Task.sleep(for:.milliseconds(850))

@@ -2,13 +2,20 @@ import Foundation
 /// What the board area shows outside a review: the one value the app, agents and voice read for where the learner is.
 public enum Place:Equatable {
     case practice
-    case lesson(index:Int)
+    /// A lesson. `fromTraining`: opened from a training entry's lesson link, so reading it leaves the course
+    /// bookmark where it was and the way back leads to training.
+    case lesson(index:Int,fromTraining:Bool=false)
     case puzzleLibrary
     case puzzle(id:String)
-    case miniGame(lessonIndex:Int,kind:MiniGameKind)
-    public var mode:NativeMode {switch self{case .practice:return .practice;case .lesson,.miniGame:return .lesson;case .puzzleLibrary,.puzzle:return .puzzles}}
+    /// An existing mini-game. `lessonIndex` is the lesson it was opened from, or nil when the training library opened
+    /// it: the origin lives here and nowhere else, so its mode, exit and review return follow from this one value.
+    case miniGame(lessonIndex:Int?,kind:MiniGameKind)
+    /// The training library, and a new training exercise (by entry identifier).
+    case trainingLibrary
+    case training(entry:String)
+    public var mode:NativeMode {switch self{case .practice:return .practice;case .lesson:return .lesson;case .miniGame(let index,_):return index==nil ? .training:.lesson;case .puzzleLibrary,.puzzle:return .puzzles;case .trainingLibrary,.training:return .training}}
     /// The lesson this place belongs to, if any.
-    public var lessonIndex:Int? {switch self{case .lesson(let index),.miniGame(let index,_):return index;default:return nil}}
+    public var lessonIndex:Int? {switch self{case .lesson(let index,_):return index;case .miniGame(let index,_):return index;default:return nil}}
 }
 /// A review shown over a place, which it returns to. `document` is nil in the review workspace (choosing a game).
 public struct ReviewVisit:Equatable {

@@ -7,6 +7,8 @@ import CheckmateCore
     let companion:CompanionBroker,voice:VoiceCoach
     let usage:UsageLedger,lessonLanguages:LessonLanguageController
     let review=ReviewController()
+    /// The training library and its exercises; nil while training is not enabled for this build (plan: rollout flag).
+    let training:TrainingController?
     let reviewStore:ReviewStore,reviewAnalyzer:ReviewAnalyzer
     @Published var reviews:[ReviewIndexEntry]=[]
     /// The review workspace and a draft review are part of the session's activity (B8.2), not flags of their own.
@@ -66,6 +68,7 @@ import CheckmateCore
         let engine=NativeEngine();reviewAnalyzer=ReviewAnalyzer(engine:engine,cacheDirectory:store.directory.appendingPathComponent("ReviewAnalysis"));reviewStore=ReviewStore(directory:store.directory.appendingPathComponent("Reviews"))
         reviewSaves=ReviewSaveCoordinator(store:reviewStore)
         session=try GameSession(engine:engine,state:state);learning=try LearningPlayer(session:session);audio=NativeAudio(scores:learning.library.sounds);learning.audio=audio
+        training=TrainingRolloutPolicy.enabled ? TrainingController(session:session,learning:learning):nil;training?.games.engine=engine
         companion=try CompanionBroker(session:session,directory:store.directory.appendingPathComponent("companion"));voice=try VoiceCoach(session:session)
         usage=UsageLedger(directory:store.directory.appendingPathComponent("Usage"))
         if NativePolicy.silent,ProcessInfo.processInfo.environment["CHECKMATE_LESSON_FIXTURE"]=="1" {
@@ -75,6 +78,10 @@ import CheckmateCore
             lessonLanguages=try LessonLanguageController(library:learning.library,directory:store.directory,usage:usage)
         }
         lessonLanguages.language=state.settings.lessonLanguage;lessonLanguages.voice=state.settings.lessonVoice
+        wireLessonLanguages();wireAgentTools();wirePersistence();wireSounds();loadSavedReviews();observeSession()
+    }
+    /// Lesson languages share the one narration channel and the voice coach's connection.
+    private func wireLessonLanguages(){
         learning.packs=lessonLanguages.store;voice.usageLedger=usage;voice.connectionBlocked={[weak self] in self?.lessonLanguages.recording==true || self?.audio.isNarrationPlaying==true}
         voice.connectionBlockReason={[weak self] in self?.lessonLanguages.recording==true ? "Finish or cancel lesson recording before connecting the voice coach.":"Stop lesson or preview playback before connecting the voice coach."}
         lessonLanguages.voiceConflict={[weak self] in self?.voice.connected==true || self?.voice.connecting==true}
@@ -82,20 +89,37 @@ import CheckmateCore
         // or a removal stops lesson narration (one narration channel) but never a mini-game's pending computer reply.
         lessonLanguages.onSelectionChange={[weak self] in guard let self,!self.learning.playing else{return};self.audio.stop()};lessonLanguages.onPacksChanged={[weak self] in self?.learning.reloadLocalizedPacks()};lessonLanguages.beforeRemove={[weak self] in guard let self else{return};if self.lessonLanguages.allLessons || self.lessonLanguages.selectedLesson==self.learning.lessonIndex{self.learning.pauseNarration();self.audio.stop()}else if !self.learning.playing{self.audio.stop()}}
         lessonLanguages.playPreview={[weak self] url in guard let self else{return};self.learning.pauseNarration();self.audio.play(localURL:url,seconds:0,settings:self.session.state.settings);self.lessonLanguages.reportPreviewPlayback(failure:self.audio.narrationFailure)}
+    }
+    /// The review and training tools agents call, and when an agent may open a review.
+    private func wireAgentTools(){
         session.reviewController=review;voice.attachReview(review)
         let reviewTools=ReviewTools(review:review,session:session,store:reviewStore,analyzer:reviewAnalyzer);reviewTools.onOpen={[weak self] document,saved in self?.openReview(document,saved:saved,stillWanted:{!Task.isCancelled}) ?? false};reviewTools.onPractice={[weak self] in self?.practiceFromReview()};companion.tools.reviewTools=reviewTools;self.reviewTools=reviewTools
         reviewTools.activityGeneration={[weak self] in self?.reviewOpenGeneration ?? -1}
+        if let training{let tools=TrainingTools(session:session,controller:training);tools.onStart={[weak self] entry,resume in guard let self else{return false};let kind=training.catalog?.entry(entry)?.legacyKind;let next:Navigation=resume ? .trainingResume:kind.map{.trainingLegacy($0,restart:false)} ?? .trainingExercise(entry:entry);return (try? self.transition(next)) ?? false};companion.tools.trainingTools=tools}
         companion.tools.reviewOpenAllowed={[weak self] in guard let self else{return false};return self.reviewWorkspace || self.review.active}
+    }
+    /// Progress saves debounced off every change, and the open review saves on each of its events.
+    private func wirePersistence(){
         session.onPersist={[weak self] state in guard let self=self else{return};self.saveTask?.cancel();self.saveTask=Task{try? await Task.sleep(nanoseconds:250_000_000);guard !Task.isCancelled else{return};do{try self.store.save(state);if self.storageError==Self.progressSaveFailure{self.storageError=nil}}catch{NativeLog.storage.error("State save failed; export remains available");self.storageError=Self.progressSaveFailure}}}
+        review.onEvent={[weak self] in self?.session.signalEvent();self?.saveReview()}
+    }
+    /// Move, illustration and undo sounds; a move's sound waits for its animation.
+    private func wireSounds(){
         learning.onIllustration={[weak self] piece,capture in guard let self=self else{return};self.audio.illustration(piece:piece,capture:capture,settings:self.session.state.settings)}
         session.onMove={[weak self] move in guard let self=self else{return};let settings=self.session.state.settings;let delay=NSWorkspace.shared.accessibilityDisplayShouldReduceMotion || self.movePlacedDirectly?(move)==true ? 0:settings.pieceDuration;let id=UUID();self.soundTasks[id]=Task{defer{self.soundTasks.removeValue(forKey:id)};try? await Task.sleep(nanoseconds:UInt64(delay)*1_000_000);guard !Task.isCancelled else{return};self.audio.move(move,settings:settings)}}
         learning.onMiniMove=session.onMove
-        learning.onMiniReset={[weak self] in self?.soundTasks.values.forEach{$0.cancel()};self?.soundTasks=[:]}
-        session.onUndo={[weak self] in guard let self=self else{return};self.soundTasks.values.forEach{$0.cancel()};self.soundTasks=[:];self.audio.move(nil,settings:self.session.state.settings,undo:true)}
+        learning.onMiniReset={[weak self] in self?.cancelMoveSounds()}
+        session.onUndo={[weak self] in guard let self=self else{return};self.cancelMoveSounds();self.audio.move(nil,settings:self.session.state.settings,undo:true)}
+    }
+    /// The saved-review library loads off the main thread; a library changed meanwhile wins.
+    private func loadSavedReviews(){
         let reviewStore=reviewStore;Task{do{let (entries,moved)=try await Task.detached{let entries=try reviewStore.list();return (entries,reviewStore.takeQuarantinedCount())}.value
             if moved>0{storageError="\(moved) saved review\(moved==1 ? "":"s") could not be read and \(moved==1 ? "was":"were") moved to the Quarantine folder inside Reviews. Nothing was deleted."}
             guard reviewLibraryGeneration==0 else{return};reviews=entries}catch{storageError="Saved reviews could not be loaded. Your current practice is unchanged."}}
-        review.onEvent={[weak self] in self?.session.signalEvent();self?.saveReview()}
+    }
+    /// Views observe this model: forward training, activity, resume-gate and settings changes.
+    private func observeSession(){
+        training?.objectWillChange.sink{[weak self] _ in self?.objectWillChange.send()}.store(in:&observations)
         // The workspace and draft flags read the session's activity; views observing this model follow it.
         session.$activity.removeDuplicates().dropFirst().sink{[weak self] _ in self?.objectWillChange.send()}.store(in:&observations)
         // The banner observes this model; forward gate changes, and drop the paused sentence once the held game resumed or changed.
@@ -148,8 +172,19 @@ import CheckmateCore
     func practice(){_ = try? transition(.practice)}
     func lesson(_ index:Int){_ = try? transition(.lesson(index))}
     func puzzles(){_ = try? transition(.puzzles)}
-    /// Continue opens the next lesson from its start and plays it.
-    func continueLesson(){guard learning.lessonIndex+1<learning.library.lessons.count else{return};if (try? transition(.lesson(learning.lessonIndex+1,resume:false)))==true{learning.play()}}
+    func trainingLibrary(){_ = try? transition(.trainingLibrary)}
+    /// A new exercise, the saved unfinished one, or an existing mini-game; a failure is shown and nothing changes.
+    func startTraining(_ entry:String,variant:String?=nil){_ = try? transition(.trainingExercise(entry:entry,variant:variant))}
+    func startTrainingScenario(_ id:String){_ = try? transition(.trainingScenario(id:id))}
+    func openTrainingLesson(_ id:String){_ = try? transition(.trainingLesson(id:id))}
+    func resumeTraining(){_ = try? transition(.trainingResume)}
+    func retryTraining(_ id:String){_ = try? transition(.trainingRetry(id:id))}
+    func playTrainingGame(_ kind:MiniGameKind,restart:Bool=false){_ = try? transition(.trainingLegacy(kind,restart:restart))}
+    /// Continue opens the next lesson from its start and plays it. A lesson read from training continues as one, as
+    /// automatic continuation does: the way back to training stays and the course bookmark is untouched.
+    func continueLesson(){let next=learning.lessonIndex+1;guard next<learning.library.lessons.count else{return}
+        if learning.readingFromTraining{guard (try? transition(.trainingLesson(id:learning.library.lessons[next].id)))==true else{return};learning.seek(step:0)}
+        else{guard (try? transition(.lesson(next,resume:false)))==true else{return}};learning.play()}
     /// Practise this lesson starts a separate practice game, as White, from the lesson's preset position.
     func practiceLesson(){guard let preset=LessonPractice.forLesson(learning.current.id) else{return};_ = try? transition(.lessonPractice(fen:preset.fen))}
     /// Quitting stops a running lesson translation or recording; the clip in progress is already paid for and is lost.
@@ -210,7 +245,11 @@ import CheckmateCore
         guard review.active,reviewDraft,let id=review.document?.id else{return true}
         let branches=review.branchesForSaving,ideas=branches.count;guard ideas>0 else{return true}
         if let approved=draftDiscardApproved,approved.id==id,approved.branches==branches{return true}
-        switch askAboutDraft?(ideas) ?? askLearnerAboutDraft(ideas) {
+        let answer=askAboutDraft?(ideas) ?? askLearnerAboutDraft(ideas)
+        // The question's modal run loop lets an agent change the draft meanwhile: an answer given about another review or
+        // other imagined lines is never applied to these; the draft as it now stands is asked about again.
+        guard answer == .cancel || review.active && reviewDraft && review.document?.id==id && review.branchesForSaving==branches else{return resolveDraftBeforeLeaving()}
+        switch answer {
         case .discard:draftDiscardApproved=(id,branches);return true
         case .cancel:return false
         case .save:return saveDraft()
@@ -307,12 +346,14 @@ import CheckmateCore
     }
     private func finishReviewSave(_ id:UUID,snapshot:ReviewSnapshot,result:Result<[ReviewIndexEntry],Error>){
         switch result {
-        case .success(let entries):reviews=entries;writtenReviewSnapshots[id]=snapshot;if pendingReviewSnapshots[id]==snapshot{pendingReviewSnapshots[id]=nil}
+        case .success(let entries):reviews=entries;reviewLibraryGeneration+=1;writtenReviewSnapshots[id]=snapshot;if pendingReviewSnapshots[id]==snapshot{pendingReviewSnapshots[id]=nil}
         case .failure(CheckmateError.cancelled):pendingReviewSnapshots[id]=nil  // the record was deleted
         case .failure(let error):let warning=Self.reviewSaveFailure(error);reviewSaveWarning=warning;storageError=warning
         }
-        if pendingReviewSnapshots.isEmpty,let warning=reviewSaveWarning{if storageError==warning{storageError=nil};reviewSaveWarning=nil}
+        reconcileReviewSaveWarning()
     }
+    /// The save warning stays while any review is unsaved, and goes once none is.
+    private func reconcileReviewSaveWarning(){if pendingReviewSnapshots.isEmpty,let warning=reviewSaveWarning{if storageError==warning{storageError=nil};reviewSaveWarning=nil}}
     /// Returns whether the review is open with its state restored; false when the learner kept a draft, the request was
     /// withdrawn while the draft question was up (`stillWanted`), or the restore failed.
     @discardableResult func openReview(_ document:GameDocument,saved:SavedReview?=nil,draft:Bool=false,stillWanted:()->Bool={true})->Bool{
@@ -344,44 +385,31 @@ import CheckmateCore
         // The draft question is modal and main-actor work (an agent's review call) runs during it: check the position again.
         if case .practiceFork=next,!practiceForkStillCurrent(){draftDiscardApproved=nil;return false}
         // 2. Staging.
-        let coordinator=WorkspaceTransitionCoordinator(session:session,learning:learning,review:review)
+        let coordinator=WorkspaceTransitionCoordinator(session:session,learning:learning,review:review);coordinator.training=training
         let staged:PreparedWorkspaceTransition
         do {
-            let pending:ReviewSnapshot?={if case .review(let document,_,_)=next{return pendingReviewSnapshots[document.id]};return nil}()
+            // The review shown again is reloaded from its live state: a draft has no pending snapshot, and a saved one's may be older.
+            let pending:ReviewSnapshot?={guard case .review(let document,_,_)=next else{return nil};if sameReview,let live=review.document{return ReviewSnapshot(document:live,cursor:review.nodeID,branches:review.branchesForSaving)};return pendingReviewSnapshots[document.id]}()
             staged=try coordinator.prepare(next,pendingReview:pending.map{(document:$0.document,cursor:$0.cursor,branches:$0.branches)})
         } catch WorkspaceEntryError.invalidRestore {
             draftDiscardApproved=nil;let waiting=reviewing ? false:session.requireExplicitResume()
             storageError=waiting ? Self.failedRestorePausedMessage:Self.failedRestoreMessage;return false
         } catch {
-            switch next {
-            case .practiceFork:practiceForkRequested=false;draftDiscardApproved=nil;storageError=userFacingMessage(error,fallback:"Practice could not start from this position. The review is unchanged.");return false
-            case .lessonPractice:draftDiscardApproved=nil;storageError=userFacingMessage(error,fallback:"This practice position could not be opened.");return false
-            default:throw error
-            }
+            // Every failed transition spends a "Don't save" given for it, thrown or not, so the next exit asks again.
+            draftDiscardApproved=nil
+            guard let fallback=Self.stagingFailure(next) else{throw error}
+            if case .practiceFork=next{practiceForkRequested=false}
+            storageError=userFacingMessage(error,fallback:fallback);return false
         }
         // The backup that an import or a fork keeps is the last staged step: it is written only for an entry that will happen.
         switch next {
         // The imported state is written here too: a write that fails leaves playback, connections and the activity alone.
-        case .importProgress(_,let backup):if let state=staged.importedState{backup(try store.preserveBeforeImport(session.state));try store.save(state)}
+        case .importProgress(_,let backup):if let state=staged.importedState{do{backup(try store.preserveBeforeImport(session.state));try store.save(state)}catch{draftDiscardApproved=nil;throw error}}
         case .practiceFork:do{_ = try store.preserveBeforeImport(session.state)}catch{practiceForkRequested=false;draftDiscardApproved=nil;storageError=userFacingMessage(error,fallback:"Practice could not start from this position. The review is unchanged.");return false}
         default:break
         }
         // 3. Exit.
-        reviewOpenGeneration+=1;cancelReviewImport();practiceForkRequested=false;practiceForkIdentity=nil
-        // Every way out of a review, and every review shown, starts with no whole-game analysis holding the engine (PL-1).
-        let entersReview:Bool={if case .review=next{return true};return false}()
-        if reviewing || entersReview{reviewAnalyzer.reset()}
-        // The open review is saved and closed unless it is the one being shown again.
-        if review.active && !sameReview{let saved=saveReview(immediate:true);review.unload();forgetFlushedReview(saved)}
-        switch next {
-        case .returnToGame:break
-        case .practice:if !reviewing{learning.pause()};audio.stop()
-        case .lesson,.puzzles:voice.disconnect();audio.stop()
-        case .lessonPractice:learning.pause();voice.disconnect();audio.stop()
-        case .reviewWorkspace,.review:learning.pause();voice.disconnect();audio.stopAll()
-        case .importProgress:saveTask?.cancel();voice.disconnect();usage.flushForShutdown();companion.disable();learning.pause();audio.stopAll()
-        case .practiceFork:session.cancelWork()
-        }
+        leave(for:next,reviewing:reviewing,sameReview:sameReview)
         // 4. Application entry; the host owns save notifications and native lifecycle effects.
         if case .review=next{restoringReview=true}
         do {
@@ -391,14 +419,48 @@ import CheckmateCore
             switch next {
             case .practiceFork:storageError=userFacingMessage(error,fallback:"Practice could not start from this position. The review was closed; your game is unchanged.");return false
             case .lessonPractice:storageError=userFacingMessage(error,fallback:"This practice position could not be opened.");return false
-            default:throw error
+            default:draftDiscardApproved=nil;throw error
             }
         }
         return true
     }
+    /// The message for a navigation whose staging failed, shown with nothing changed; nil when the failure is thrown.
+    private static func stagingFailure(_ next:Navigation)->String? {
+        switch next {
+        case .practiceFork:return "Practice could not start from this position. The review is unchanged."
+        case .lessonPractice:return "This practice position could not be opened."
+        case .trainingLibrary,.trainingExercise,.trainingScenario,.trainingResume,.trainingRetry,.trainingLegacy:return "This exercise could not be opened. Nothing was changed."
+        case .trainingLesson:return "This lesson could not be opened. Nothing was changed."
+        case .practice,.returnToGame,.lesson,.puzzles,.reviewWorkspace,.review,.importProgress:return nil
+        }
+    }
+    /// Step 3 of `transition`: everything the current activity holds stops, in a fixed order.
+    private func leave(for next:Navigation,reviewing:Bool,sameReview:Bool){
+        reviewOpenGeneration+=1;cancelReviewImport();practiceForkRequested=false;practiceForkIdentity=nil
+        // Every way out of a review, and every review shown, starts with no whole-game analysis holding the engine (PL-1).
+        let entersReview:Bool={if case .review=next{return true};return false}()
+        if reviewing || entersReview{reviewAnalyzer.reset()}
+        // The open review is saved and closed unless it is the one being shown again.
+        if review.active && !sameReview{let saved=saveReview(immediate:true);review.unload();forgetFlushedReview(saved)}
+        // A move sound still waiting for its animation belongs to the activity being left.
+        cancelMoveSounds()
+        switch next {
+        case .returnToGame:break
+        case .practice:if !reviewing{learning.pause()};audio.stop()
+        case .lesson,.puzzles:voice.disconnect();audio.stop()
+        case .lessonPractice:learning.pause();voice.disconnect();audio.stop()
+        case .reviewWorkspace,.review:learning.pause();voice.disconnect();audio.stopAll()
+        case .importProgress:saveTask?.cancel();voice.disconnect();usage.flushForShutdown();companion.disable();learning.pause();audio.stopAll()
+        case .practiceFork:session.cancelWork()
+        case .trainingLibrary,.trainingExercise,.trainingScenario,.trainingResume,.trainingRetry,.trainingLegacy,.trainingLesson:learning.pause();voice.disconnect();audio.stop()
+        }
+    }
+    private func cancelMoveSounds(){soundTasks.values.forEach{$0.cancel()};soundTasks=[:]}
     func openSavedReview(_ id:UUID){
         reviewOpenGeneration+=1;cancelReviewImport();let generation=reviewOpenGeneration
         guard !shuttingDown,review.document?.id != id,resolveDraftBeforeLeaving() else{return}
+        // The draft question is modal: another navigation made meanwhile wins, and this load never starts.
+        guard reviewOpenGeneration==generation else{draftDiscardApproved=nil;return}
         let store=reviewStore,delay=NativePolicy.silent ? min(2000,max(0,automationReviewLoadDelayMs)):0
         importingReview=true
         reviewImportTask=Task{do{
@@ -427,7 +489,7 @@ import CheckmateCore
         Task {
             do {
                 let entries=try await Task.detached{try writer.delete(id)}.value
-                pendingReviewSnapshots[id]=nil
+                pendingReviewSnapshots[id]=nil;reconcileReviewSaveWarning()
                 if review.document?.id==id{_ = try? transition(.returnToGame)}
                 reviews=entries;deletingReviewID=nil
                 if review.active{saveReview()}
@@ -442,27 +504,45 @@ import CheckmateCore
     }
     /// The game's text is read here; parsing it (seconds for a long game) runs detached, under the import overlay and its Cancel.
     func reviewCurrent(previous:Bool=false){
-        reviewOpenGeneration+=1;cancelReviewImport();let generation=reviewOpenGeneration,provenance=previous ? "Previous game":"Current game",fallback="This game could not be opened for review. Your practice is unchanged."
+        reviewOpenGeneration+=1;cancelReviewImport();let provenance=previous ? "Previous game":"Current game",fallback="This game could not be opened for review. Your practice is unchanged."
         let data:Data;do{data=previous ? try ReviewRecordSource.data(previousGame:session.state.practice.previousGame,result:session.state.practice.previousEnding?.result):try ReviewRecordSource.data(session.rules,result:session.state.practice.ending?.result)}catch{storageError=userFacingMessage(error,fallback:fallback);return}
-        let token=ReviewImportCancellation();reviewImportCancellation=token;importingReview=true
-        reviewImportTask=Task{do{let document=try await Task.detached{try PGNImporter.parse(data,provenance:provenance,cancelled:{token.cancelled})[0]}.value;guard !Task.isCancelled,reviewOpenGeneration==generation else{return};importingReview=false;openReview(document,draft:true)}catch{guard !Task.isCancelled else{return};importingReview=false;storageError=userFacingMessage(error,fallback:fallback)}}
+        parseForReview(data,provenance:provenance,fallback:fallback){documents,_ in self.openReview(documents[0],draft:true)}
     }
-    func importReviewData(_ data:Data){reviewOpenGeneration+=1;cancelReviewImport();cancelReviewImport();let token=ReviewImportCancellation();reviewImportCancellation=token;importingReview=true;let delay=NativePolicy.silent ? min(2000,max(0,automationReviewImportDelayMs)):0;reviewImportTask=Task{do{if delay>0{try await Task.sleep(for:.milliseconds(delay))};let report=try await withTaskCancellationHandler(operation:{try await Task.detached{try PGNImporter.parseReport(data,cancelled:{token.cancelled || Task.isCancelled})}.value},onCancel:{token.cancel()});guard !Task.isCancelled else{return};importingReview=false;let documents=report.documents;guard !documents.isEmpty else{throw CheckmateError.invalid("No games found in this record.")}
-                // Unreadable games in a collection are skipped, and the learner is told which.
-                if let first=report.skipped.first{storageError="\(report.skipped.count) game\(report.skipped.count==1 ? "":"s") in this file could not be read and \(report.skipped.count==1 ? "was":"were") skipped. "+(first.errorDescription ?? "")}
-                if documents.count==1{openReview(documents[0],draft:true)}else{let alert=NSAlert();alert.messageText="Choose a game to review";let picker=NSPopUpButton(frame:NSRect(x:0,y:0,width:440,height:28));picker.setAccessibilityLabel("Game to review");for (recordIndex,d) in documents.enumerated(){let label="\(recordIndex+1). \(d.header("White") ?? "White") – \(d.header("Black") ?? "Black") · \(d.result) · \(d.header("Date") ?? "Unknown date")";picker.addItem(withTitle:String(label.prefix(256)))};alert.accessoryView=picker;alert.addButton(withTitle:"Review");alert.addButton(withTitle:"Cancel")
+    func importReviewData(_ data:Data){
+        parseForReview(data,delay:NativePolicy.silent ? min(2000,max(0,automationReviewImportDelayMs)):0,fallback:"This record could not be imported. Your current game and reviews are unchanged."){documents,skipped in
+            // Unreadable games in a collection are skipped, and the learner is told which.
+            if let first=skipped.first{self.storageError="\(skipped.count) game\(skipped.count==1 ? "":"s") in this file could not be read and \(skipped.count==1 ? "was":"were") skipped. "+(first.errorDescription ?? "")}
+            if documents.count==1{self.openReview(documents[0],draft:true)}else{let alert=NSAlert();alert.messageText="Choose a game to review";let picker=NSPopUpButton(frame:NSRect(x:0,y:0,width:440,height:28));picker.setAccessibilityLabel("Game to review");for (recordIndex,d) in documents.enumerated(){let label="\(recordIndex+1). \(d.header("White") ?? "White") – \(d.header("Black") ?? "Black") · \(d.result) · \(d.header("Date") ?? "Unknown date")";picker.addItem(withTitle:String(label.prefix(256)))};alert.accessoryView=picker;alert.addButton(withTitle:"Review");alert.addButton(withTitle:"Cancel")
                 // Main-actor work (MCP, saved loads, timers) can run during the modal loop; a choice made
                 // after another activity was selected must not replace it.
-                let chooserGeneration=reviewOpenGeneration;let response=alert.runModal()
-                guard !Task.isCancelled,reviewOpenGeneration==chooserGeneration else{return}
-                if response == .alertFirstButtonReturn{openReview(documents[picker.indexOfSelectedItem],draft:true)}}}catch{guard !Task.isCancelled else{return};importingReview=false;storageError=userFacingMessage(error,fallback:"This record could not be imported. Your current game and reviews are unchanged.")}}}
+                let chooserGeneration=self.reviewOpenGeneration;let response=alert.runModal()
+                guard !Task.isCancelled,self.reviewOpenGeneration==chooserGeneration else{return}
+                if response == .alertFirstButtonReturn{self.openReview(documents[picker.indexOfSelectedItem],draft:true)}}
+        }
+    }
+    /// One cancellable parse for every review made from text (the current game, a file, a paste or a drop): it replaces
+    /// any older open or import, runs detached under the import overlay and its Cancel, and presents only while no
+    /// other activity was chosen. A record with no readable game fails with `fallback` or its own reason.
+    private func parseForReview(_ data:Data,provenance:String="Imported",delay:Int=0,fallback:String,present:@escaping (_ documents:[GameDocument],_ skipped:[ReviewImportError])throws->Void){
+        reviewOpenGeneration+=1;cancelReviewImport();let generation=reviewOpenGeneration,token=ReviewImportCancellation();reviewImportCancellation=token;importingReview=true
+        reviewImportTask=Task{do{
+            if delay>0{try await Task.sleep(for:.milliseconds(delay))}
+            let report=try await withTaskCancellationHandler(operation:{try await Task.detached{try PGNImporter.parseReport(data,provenance:provenance,cancelled:{token.cancelled})}.value},onCancel:{token.cancel()})
+            guard !Task.isCancelled,reviewOpenGeneration==generation else{return};importingReview=false
+            guard !report.documents.isEmpty else{throw CheckmateError.invalid("No games found in this record.")}
+            try present(report.documents,report.skipped)
+        }catch{guard !Task.isCancelled else{return};importingReview=false;storageError=userFacingMessage(error,fallback:fallback)}}
+    }
     /// Every exit that asked about a draft finishes at once except a saved review's load, so a cancelled load also
     /// spends that answer.
     /// A review file the learner just chose starts reading: it replaces any older open or import still running, so an
     /// earlier file's parse cannot finish first and take over.
     func supersedeReviewOpen(){reviewOpenGeneration+=1;cancelReviewImport()}
     func cancelReviewImport(){draftDiscardApproved=nil;reviewImportCancellation?.cancel();reviewImportCancellation=nil;reviewImportTask?.cancel();reviewImportTask=nil;importingReview=false}
-    func openPGN(){let panel=NSOpenPanel();panel.allowsOtherFileTypes=true;panel.allowsMultipleSelection=false;panel.begin{response in guard response == .OK,let url=panel.url else{return};do{let size=try url.resourceValues(forKeys:[.fileSizeKey]).fileSize ?? 0;guard size<=ReviewPolicy.maximumBytes else{throw CheckmateError.invalid("File exceeds 16 MiB.")};self.importReviewData(try Data(contentsOf:url))}catch{self.storageError=userFacingMessage(error,fallback:"The selected file could not be read. Your current game and reviews are unchanged.")}}}
+    /// Reads review files off the main thread, one at a time, with the drop's checks and bounded read.
+    lazy var reviewFiles:ReviewFileReader={let reader=ReviewFileReader();reader.activity={[weak self] in self?.activityGeneration ?? -1};reader.supersede={[weak self] in self?.supersedeReviewOpen()};return reader}()
+    func openPGN(){let panel=NSOpenPanel();panel.allowsOtherFileTypes=true;panel.allowsMultipleSelection=false;panel.begin{response in guard response == .OK,let url=panel.url else{return}
+        self.reviewFiles.load(url,prepare:ReviewDrop.validated,deliver:{[weak self] in self?.importReviewData($0)},rejected:{[weak self] error in self?.storageError=(error as? ReviewDrop.Rejection)?.reason ?? "The selected file could not be read. Your current game and reviews are unchanged."})}}
     func pasteReview(){guard let text=NSPasteboard.general.string(forType:.string) else{storageError="Copy PGN or FEN text first.";return};importReviewData(Data(text.utf8))}
     func exportReview(){
         guard let d=review.document else{return};let branches=review.branchesForSaving
@@ -487,7 +567,7 @@ import CheckmateCore
     static func exportName(_ document:GameDocument,ideas:Bool)->String {document.historyAvailable || ideas ? "review.pgn":"review.fen"}
     func showBackups(){NSWorkspace.shared.activateFileViewerSelecting([store.directory])}
     func exportState(){let panel=NSSavePanel();panel.nameFieldStringValue="checkmate-state.json";panel.begin {response in guard response == .OK,let url=panel.url else{return};do{try self.store.exportState(self.session.state,to:url)}catch{self.storageError=userFacingMessage(error,fallback:"The export could not be written. Choose another location.")}}}
-    func shutdown(){lessonLanguages.shutdown();connectionStartup?.cancel();reviewTools.reset();reviewOpenGeneration+=1;cancelReviewImport();saveReview(immediate:true);shuttingDown=true;cancelReviewImport();reviewSaveTask?.cancel();review.cancel();saveTask?.cancel();soundTasks.values.forEach{$0.cancel()};session.prepareShutdown();voice.disconnect();usage.flushForShutdown();companion.disable();learning.shutdown();audio.stopAll();session.cancelWork();try? store.save(session.state)}
+    func shutdown(){lessonLanguages.shutdown();connectionStartup?.cancel();reviewTools.reset();reviewOpenGeneration+=1;cancelReviewImport();saveReview(immediate:true);shuttingDown=true;reviewSaveTask?.cancel();review.cancel();saveTask?.cancel();cancelMoveSounds();session.prepareShutdown();voice.disconnect();usage.flushForShutdown();companion.disable();learning.shutdown();audio.stopAll();session.cancelWork();try? store.save(session.state)}
 }
 /// Keeps the Save panel's suggested extension consistent with the chosen export contents.
 @MainActor final class ExportNaming:NSObject {

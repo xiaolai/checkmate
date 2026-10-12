@@ -9,5 +9,15 @@ final class DomainContractTests:XCTestCase {
         let decoded=try JSONDecoder().decode(ApplicationState.self,from:JSONSerialization.data(withJSONObject:merged))
         XCTAssertEqual(decoded.unknownFields,state.unknownFields)
     }
+    func testFutureFieldsInsideKnownRecordsAndLargeIntegersSurviveASave()throws {
+        var raw=try JSONSerialization.jsonObject(with:JSONEncoder().encode(ApplicationState())) as! [String:Any]
+        var settings=raw["settings"] as! [String:Any];settings["futureSetting"]="kept";raw["settings"]=settings
+        raw["futureCounter"]=Int64(9_007_199_254_740_993)
+        let state=try JSONDecoder().decode(ApplicationState.self,from:JSONSerialization.data(withJSONObject:raw))
+        let written=try JSONSerialization.jsonObject(with:JSONEncoder().encode(state)) as! [String:Any]
+        let text=String(decoding:try JSONSerialization.data(withJSONObject:ApplicationState.merged(written,state.unknownFields,nested:state.unknownNestedFields)),as:UTF8.self)
+        XCTAssertTrue(text.contains("\"futureSetting\":\"kept\""),"a newer field inside a known record is written back")
+        XCTAssertTrue(text.contains("9007199254740993"),"a whole number beyond Double precision is written back unchanged")
+    }
     func testCourseLoadsWithoutNativeServices()throws {let course=try CourseLibrary();XCTAssertFalse(course.lessons.isEmpty);XCTAssertFalse(course.puzzles.isEmpty)}
 }

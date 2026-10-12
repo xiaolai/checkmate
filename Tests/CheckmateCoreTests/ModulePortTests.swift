@@ -30,7 +30,7 @@ final class ModulePortTests:XCTestCase {
         var creations=0
         let rules=try ChessRules(runtimeFactory:{creations+=1;return CountingRuntime()})
         try rules.move(uci:"e2e4");let copy=try rules.copy()
-        XCTAssertEqual(copy.fen,rules.fen);XCTAssertEqual(creations,3)
+        XCTAssertEqual(copy.fen,rules.fen);XCTAssertEqual(creations,2)
         try copy.move(uci:"e7e5");XCTAssertNotEqual(copy.fen,rules.fen)
         XCTAssertThrowsError(try rules.restore("not a valid game???"));XCTAssertEqual(rules.history,["e4"])
     }

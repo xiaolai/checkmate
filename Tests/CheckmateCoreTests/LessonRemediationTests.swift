@@ -49,7 +49,7 @@ final class LessonRemediationTests:XCTestCase {
             s.state.settings.pauseForPractice=pause;p.openLesson(index:3)
             p.seek(step:p.current.beats.count-1);p.play();p.advance(by:p.duration)
             XCTAssertEqual(p.lessonIndex,pause ? 3:4);XCTAssertEqual(p.playing,!pause)
-            XCTAssertEqual(p.awaitingPractice,pause);p.shutdown()
+            XCTAssertEqual(p.feedback,pause ? "Try it on the board, or continue to the next lesson.":"");p.shutdown()
         }
     }
     func testOldSettingsEnablePracticePause()throws {

@@ -5,7 +5,7 @@ import CheckmateCore
 enum SidebarSelection {
     static func tag(_ activity:Activity,saved:Set<UUID>,lessonIndex:Int)->String {
         if let visit=activity.review{guard let document=visit.document else{return "review"};return saved.contains(document) ? "review:"+document.uuidString:"review:draft"}
-        switch activity.place {case .practice:return "practice";case .puzzleLibrary,.puzzle:return "puzzles";case .lesson,.miniGame:return "lesson:\(lessonIndex)"}
+        switch activity.place {case .practice:return "practice";case .puzzleLibrary,.puzzle:return "puzzles";case .lesson:return "lesson:\(lessonIndex)";case .miniGame(let index,_):return index==nil ? "training":"lesson:\(lessonIndex)";case .trainingLibrary,.training:return "training"}
     }
 }
 struct SidebarContent:View {
@@ -20,12 +20,14 @@ struct SidebarContent:View {
         else if value.hasPrefix("review:"),let id=UUID(uuidString:String(value.dropFirst(7))) {model.openSavedReview(id)}
         else if value=="practice" {model.practice()}
         else if value=="puzzles" {model.puzzles()}
+        else if value=="training" {model.trainingLibrary()}
         else if let i=Int(value.replacingOccurrences(of:"lesson:",with:"")) {model.lesson(i)}
     }
     var body:some View {List(selection:Binding<String?>(get:{selected},set:navigate)){
         Section {
             Label("Practice a game",systemImage:"flag.checkered").tag("practice")
             Label("Quick puzzles",systemImage:"lightbulb").tag("puzzles")
+            if model.training != nil{Label("Training",systemImage:"figure.run").tag("training")}
             Label("Review game",systemImage:"doc.text.magnifyingglass").tag("review")
             if model.review.active,let document=model.review.document,!model.reviews.contains(where:{$0.id==document.id}){Label("Unsaved review",systemImage:"doc.badge.ellipsis").tag("review:draft")}
         }
@@ -52,78 +54,86 @@ struct DetailContent:View {
             Text("Explore a single board position. Earlier moves and repetition history are not included.").foregroundStyle(.secondary)
         } else if model.review.active{ReviewDetailContent(review:model.review,model:model)}else {
         if let label=relationships.selectedLabel{RelationshipContent(relationships:relationships,label:label,inspect:inspect);Divider()}
-        if session.mode == .practice {
-            if relationships.report==nil {
-            if !session.presentationHidden,let d=session.demonstration {
-                Text(d.title).font(.title2.bold());Text("Imagined moves").foregroundStyle(.secondary)
-                Picker("Line",selection:Binding(get:{d.line},set:{try? session.seekDemo(line:$0,ply:0)})){ForEach(d.lines.indices,id:\.self){i in Text(d.lines[i].label).tag(i)}}
-                Text(d.lines[d.line].frames[d.ply].explanation)
-                if session.rules.turn==session.opponentSide{Text("Stockfish waits while this demonstration is shown. Choose Game above or close it to continue.").font(.caption).foregroundStyle(.secondary)}
-                Text("\(d.ply) / \(d.lines[d.line].frames.count-1)").foregroundStyle(.secondary)
-            } else if !session.presentationHidden,let p=session.preview {
-                Text("Try a move").font(.title2.bold());Text("This does not change your game.").foregroundStyle(.secondary)
-                if let candidate=p.candidate {Text(candidate.description)}else{Text("Select a piece, then a destination to test your idea.")}
-                if let e=p.evaluation {Text(e.comparison);Picker("Continuation",selection:Binding(get:{p.line},set:{try? session.previewAt(ply:0,line:$0)})){Text("Your move").tag("candidate");Text("Engine suggestion").tag("recommended")};Text(e.exchange.moves.joined(separator:" · "));Button("Play my move"){try? session.playCandidate()}}
-                if p.status=="analyzing"{ProgressView("Comparing moves…")};if let error=p.error{Text(error).foregroundStyle(.secondary)}
-            } else {
-                if session.explicitResumeRequired {Text("Game paused.").font(.title2.bold());Text(session.message);Text("Your game is paused because a saved review could not be restored.");Button("Return to game"){model.resumeAfterFailedRestore()}}
-                else {Text("Your next move.").font(.title2.bold());Text(session.message)}
-                if session.pausedOpponent {Text("The companion opponent disconnected.");Button("Continue with Stockfish"){model.companion.disable();session.continueWithStockfish()}}
-                OpponentSettingsContent(session:session)
-                Text("Moves").font(.headline);Text(session.rules.history.isEmpty ? "Your story starts with one move.":session.moveListText).textSelection(.enabled)
-            }
-            }
-            if voice.connected || voice.connecting || !voice.history.isEmpty || voice.status != "Disconnected" {Divider();Text("Voice coach").font(.headline);Text(voice.status).foregroundStyle(.secondary);if voice.connected{HStack{Button("Recheck"){voice.recheck()};Button("Stop speaking"){voice.stopTurn()}}};ForEach(Array(voice.history.reversed())){entry in VStack(alignment:.leading){Text(entry.role=="learner" ? "You":"Coach").font(.caption).foregroundStyle(.secondary);Text(entry.text).textSelection(.enabled)}}}
-            if let error=session.error {Text(error).foregroundStyle(Color(nsColor:NativeColors.error));Button("Retry Stockfish"){session.retryEngine()}}
-        } else if relationships.report==nil {
-            if learning.mini {
-                Text(learning.miniStatus).font(.title2.bold())
-                if !learning.miniKind.solo {
-                    Picker("Opponent",selection:Binding(get:{learning.miniGame?.computer ?? true},set:{learning.setMiniComputer($0)})){Text("Computer").tag(true);Text("Two players on this device").tag(false)}
-                    Picker("Difficulty",selection:Binding(get:{session.state.settings.miniOpponentProfile},set:{var settings=session.state.settings;settings.miniOpponentProfile=$0;session.updateSettings(settings)})){Text("Beginner").tag("beginner");Text("Standard").tag("standard");Text("Challenging").tag("challenging")}
-                    Text(learning.miniGame?.computer==true ? "You play White. Select a piece, then its destination. The computer plays Black.":"Take turns moving White and Black on this device.")
-                }
-                if learning.miniGame?.isFinished==true {Button {learning.restartMini()} label:{Label("Play again",systemImage:"arrow.counterclockwise")}.accessibilityIdentifier("mini-play-again")}
-                Text(learning.miniKind.rules).foregroundStyle(.secondary)
-                if !learning.feedback.isEmpty{Text(learning.feedback)}
-            }
-            else if learning.activePuzzle != nil || session.mode == .lesson {
-                if session.mode == .lesson {
-                    if learning.practiceAvailable {
-                        ForEach(MiniGameKind.available(lessonID:learning.current.id),id:\.self){kind in
-                            Button {learning.startMini(kind)} label:{Label("Play \(kind.title)",systemImage:"play.fill")}
-                                .controlSize(.large).accessibilityIdentifier("lesson-play-"+kind.rawValue)
-                        }
-                        if let preset=LessonPractice.forLesson(learning.current.id) {
-                            Button {model.practiceLesson()} label:{Label("Try it against the computer",systemImage:"play.fill")}
-                                .controlSize(.large).accessibilityIdentifier("lesson-practice-position")
-                            Text(preset.goal).foregroundStyle(.secondary)
-                        }
-                    }
-                    Picker("Transcript",selection:Binding(get:{learning.step},set:{learning.seek(step:$0)})){ForEach(learning.current.beats.indices,id:\.self){i in Text("\(i+1). \(learning.localizedStepTitle(index:learning.lessonIndex,step:i))").tag(i)}}
-                        .labelsHidden()
-                    if let fallback=learning.fallbackMessage{Text(fallback).font(.caption).foregroundStyle(.secondary)}
-                    Text(learning.subtitle).textSelection(.enabled)
-                } else {
-                    if let prompt=learning.exercise?.prompt {Text(prompt).font(.title2.bold())}
-                    Text(learning.activePuzzle?.context ?? learning.subtitle).textSelection(.enabled)
-                }
-                if let e=learning.activePuzzle?.exercise {
-                    if e.kind=="choice" {ForEach(e.choices ?? [],id:\.self){choice in Button(choice){learning.choose(choice)}.disabled(learning.passed)}}
-                    if e.kind=="squares" {if e.answers?.count != 1{Button("Check my answer"){learning.checkAnswer()}.disabled(learning.picked.isEmpty || learning.passed)};if e.allowNone==true{Button("No squares"){learning.noSquares()}.disabled(learning.passed)}}
-                    if e.kind=="path"{Button("Restart path"){learning.restartPath()}}
-                    Button("Reveal answer"){learning.reveal()}.disabled(learning.passed)
-                }
-                if !learning.feedback.isEmpty{Text(learning.feedback).foregroundStyle(.secondary)}
-                if session.mode == .lesson {
-                    // The title toggles too; by default only the chevron does.
-                    DisclosureGroup(isExpanded:$lessonGoalsShown){ForEach(learning.teaches,id:\.self){Text($0)}} label:{Text("In this lesson").contentShape(Rectangle()).onTapGesture{lessonGoalsShown.toggle()}}
-                    if session.state.course.completed.contains(learning.current.id),learning.lessonIndex<learning.library.lessons.count-1 {Button("Continue to \(learning.localizedTitle(index:learning.lessonIndex+1))"){model.continueLesson()}}
-                } else {Button("Next puzzle"){learning.next()}.disabled(!learning.passed)}
+        if session.mode == .practice {practiceDetail}
+        else if relationships.report==nil {
+            if learning.mini {miniDetail}
+            else if learning.activePuzzle != nil || session.mode == .lesson {lessonOrPuzzleDetail}
+            else if session.mode == .training,let training=model.training {
+                if case .training=session.activity.place,training.exercise != nil {TrainingPanel(model:model,training:training)}
+                else {Text("Training").font(.title2.bold());Text("Choose an exercise from the library.")}
             } else {Text("Quick puzzles").font(.title2.bold());Text("Choose an exercise from the library.")}
         }
     }
     }.frame(maxWidth:.infinity,alignment:.leading).padding(Metrics.sectionGap)}.id(session.mode == .lesson ? learning.current.id+(learning.mini ? ":"+learning.miniKind.rawValue:""):session.mode.rawValue)}
+    @ViewBuilder private var practiceDetail:some View {
+        if relationships.report==nil {
+        if !session.presentationHidden,let d=session.demonstration {
+            Text(d.title).font(.title2.bold());Text("Imagined moves").foregroundStyle(.secondary)
+            Picker("Line",selection:Binding(get:{d.line},set:{try? session.seekDemo(line:$0,ply:0)})){ForEach(d.lines.indices,id:\.self){i in Text(d.lines[i].label).tag(i)}}
+            Text(d.lines[d.line].frames[d.ply].explanation)
+            if session.rules.turn==session.opponentSide{Text("Stockfish waits while this demonstration is shown. Choose Game above or close it to continue.").font(.caption).foregroundStyle(.secondary)}
+            Text("\(d.ply) / \(d.lines[d.line].frames.count-1)").foregroundStyle(.secondary)
+        } else if !session.presentationHidden,let p=session.preview {
+            Text("Try a move").font(.title2.bold());Text("This does not change your game.").foregroundStyle(.secondary)
+            if let candidate=p.candidate {Text(candidate.description)}else{Text("Select a piece, then a destination to test your idea.")}
+            if let e=p.evaluation {Text(e.comparison);Picker("Continuation",selection:Binding(get:{p.line},set:{try? session.previewAt(ply:0,line:$0)})){Text("Your move").tag("candidate");Text("Engine suggestion").tag("recommended")};Text((p.line=="candidate" ? e.candidateFrames:e.recommendedFrames).dropFirst().map(\.san).joined(separator:" · "));Button("Play my move"){try? session.playCandidate()}}
+            if p.status=="analyzing"{ProgressView("Comparing moves…")};if let error=p.error{Text(error).foregroundStyle(.secondary)}
+        } else {
+            if session.explicitResumeRequired {Text("Game paused.").font(.title2.bold());Text(session.message);Text("Your game is paused because a saved review could not be restored.");Button("Return to game"){model.resumeAfterFailedRestore()}}
+            else {Text("Your next move.").font(.title2.bold());Text(session.message)}
+            if session.pausedOpponent {Text("The companion opponent disconnected.");Button("Continue with Stockfish"){model.companion.disable();session.continueWithStockfish()}}
+            OpponentSettingsContent(session:session)
+            Text("Moves").font(.headline);Text(session.rules.history.isEmpty ? "Your story starts with one move.":session.moveListText).textSelection(.enabled)
+        }
+        }
+        if voice.connected || voice.connecting || !voice.history.isEmpty || voice.status != "Disconnected" {Divider();Text("Voice coach").font(.headline);Text(voice.status).foregroundStyle(.secondary);if voice.connected{HStack{Button("Recheck"){voice.recheck()};Button("Stop speaking"){voice.stopTurn()}}};ForEach(Array(voice.history.reversed())){entry in VStack(alignment:.leading){Text(entry.role=="learner" ? "You":"Coach").font(.caption).foregroundStyle(.secondary);Text(entry.text).textSelection(.enabled)}}}
+        if let error=session.error {Text(error).foregroundStyle(Color(nsColor:NativeColors.error));Button("Retry Stockfish"){session.retryEngine()}}
+    }
+    @ViewBuilder private var miniDetail:some View {
+        Text(learning.miniStatus).font(.title2.bold())
+        if !learning.miniKind.solo {
+            Picker("Opponent",selection:Binding(get:{learning.miniGame?.computer ?? true},set:{learning.setMiniComputer($0)})){Text("Computer").tag(true);Text("Two players on this device").tag(false)}
+            Picker("Difficulty",selection:Binding(get:{session.state.settings.miniOpponentProfile},set:{var settings=session.state.settings;settings.miniOpponentProfile=$0;session.updateSettings(settings)})){Text("Beginner").tag("beginner");Text("Standard").tag("standard");Text("Challenging").tag("challenging")}
+            Text(learning.miniGame?.computer==true ? "You play White. Select a piece, then its destination. The computer plays Black.":"Take turns moving White and Black on this device.")
+        }
+        if learning.miniGame?.isFinished==true {Button {learning.restartMini()} label:{Label("Play again",systemImage:"arrow.counterclockwise")}.accessibilityIdentifier("mini-play-again")}
+        Text(learning.miniKind.rules).foregroundStyle(.secondary)
+        if !learning.feedback.isEmpty{Text(learning.feedback)}
+    }
+    @ViewBuilder private var lessonOrPuzzleDetail:some View {
+        if session.mode == .lesson {
+            if learning.practiceAvailable {
+                ForEach(MiniGameKind.available(lessonID:learning.current.id),id:\.self){kind in
+                    Button {learning.startMini(kind)} label:{Label("Play \(kind.title)",systemImage:"play.fill")}
+                        .controlSize(.large).accessibilityIdentifier("lesson-play-"+kind.rawValue)
+                }
+                if let preset=LessonPractice.forLesson(learning.current.id) {
+                    Button {model.practiceLesson()} label:{Label("Try it against the computer",systemImage:"play.fill")}
+                        .controlSize(.large).accessibilityIdentifier("lesson-practice-position")
+                    Text(preset.goal).foregroundStyle(.secondary)
+                }
+            }
+            Picker("Transcript",selection:Binding(get:{learning.step},set:{learning.seek(step:$0)})){ForEach(learning.current.beats.indices,id:\.self){i in Text("\(i+1). \(learning.localizedStepTitle(index:learning.lessonIndex,step:i))").tag(i)}}
+                .labelsHidden()
+            if let fallback=learning.fallbackMessage{Text(fallback).font(.caption).foregroundStyle(.secondary)}
+            Text(learning.subtitle).textSelection(.enabled)
+        } else {
+            if let prompt=learning.exercise?.prompt {Text(prompt).font(.title2.bold())}
+            Text(learning.activePuzzle?.context ?? learning.subtitle).textSelection(.enabled)
+        }
+        if let e=learning.activePuzzle?.exercise {
+            if e.kind=="choice" {ForEach(e.choices ?? [],id:\.self){choice in Button(choice){learning.choose(choice)}.disabled(learning.passed)}}
+            if e.kind=="squares" {if e.answers?.count != 1{Button("Check my answer"){learning.checkAnswer()}.disabled(learning.picked.isEmpty || learning.passed)};if e.allowNone==true{Button("No squares"){learning.noSquares()}.disabled(learning.passed)}}
+            if e.kind=="path"{Button("Restart path"){learning.restartPath()}}
+            Button("Reveal answer"){learning.reveal()}.disabled(learning.passed)
+        }
+        if !learning.feedback.isEmpty{Text(learning.feedback).foregroundStyle(.secondary)}
+        if session.mode == .lesson {
+            // The title toggles too; by default only the chevron does.
+            DisclosureGroup(isExpanded:$lessonGoalsShown){ForEach(learning.teaches,id:\.self){Text($0)}} label:{Text("In this lesson").contentShape(Rectangle()).onTapGesture{lessonGoalsShown.toggle()}}
+            if session.state.course.completed.contains(learning.current.id),learning.lessonIndex<learning.library.lessons.count-1 {Button("Continue to \(learning.localizedTitle(index:learning.lessonIndex+1))"){model.continueLesson()}}
+        } else {Button("Next puzzle"){learning.next()}.disabled(!learning.passed)}
+    }
 }
 /// Import, storage, export and practice-fork failures, rendered over the board area so they
 /// are visible whichever drawers are open. Dismiss clears the message.
@@ -157,50 +167,20 @@ struct TransportContent:View {
     var continueWithStockfish:()->Void={}
     /// Explicit resume for a reply held after a failed review entry; always reachable with both drawers closed.
     var resumeGame:()->Void={}
+    /// The training controller, when training is enabled, and the way back to its library.
+    var training:TrainingController?=nil
+    var openTrainingLibrary:()->Void={}
     var body:some View {HStack(spacing:Metrics.smallGap) {
-        if review.active{ReviewTransport(review:review)}else if session.mode == .practice {
-            if !session.presentationHidden,let d=session.demonstration {
-                NativeIcon(symbol:"arrow.left",label:"Previous imagined move"){try? session.seekDemo(line:d.line,ply:max(0,d.ply-1))}.disabled(d.ply==0)
-                NativeIcon(symbol:d.playing ? "pause.fill":"play.fill",label:d.playing ? "Pause demonstration":"Play demonstration"){d.playing ? session.pauseDemo():session.playDemo()}
-                NativeIcon(symbol:"arrow.right",label:"Next imagined move"){try? session.seekDemo(line:d.line,ply:min(d.lines[d.line].frames.count-1,d.ply+1))}
-                NativeIcon(symbol:"xmark",label:"Close demonstration"){session.closePresentation()}
-            } else if !session.presentationHidden,let p=session.preview {
-                NativeIcon(symbol:"arrow.left",label:"Previous preview move"){try? session.previewAt(ply:max(0,p.ply-1),line:p.line)}.disabled(p.evaluation==nil)
-                NativeIcon(symbol:"arrow.right",label:"Next preview move"){let count=p.line=="candidate" ? p.evaluation?.candidateFrames.count:p.evaluation?.recommendedFrames.count;try? session.previewAt(ply:min((count ?? 1)-1,p.ply+1),line:p.line)}.disabled(p.evaluation==nil)
-                if p.candidate != nil{NativeIcon(symbol:"arrow.uturn.backward",label:"Try another move"){try? session.beginPreview()}.disabled(session.rules.turn != session.humanSide || session.rules.over)}
-                NativeIcon(symbol:"xmark",label:"Return to game"){session.closePresentation()}
-            } else {
-                TurnIndicator(side:session.rules.turn,label:session.rules.status)
-                if session.explicitResumeRequired {NativeIcon(symbol:"play.fill",label:"Resume game",action:resumeGame)}
-                else if session.pausedOpponent {NativeIcon(symbol:"play.fill",label:"Continue with Stockfish",action:continueWithStockfish)}
-                NativeIcon(symbol:"arrow.counterclockwise",label:"New game",action:newGame)
-                NativeIcon(symbol:"arrow.uturn.backward",label:"Undo"){session.undo()}.disabled(!session.canTakeBack)
-                NativeIcon(symbol:"flask",label:"Try a move"){try? session.beginPreview()}.disabled(session.rules.turn != session.humanSide || session.finished || session.busyReason == "opponent" || session.demonstration != nil)
-                NativeIcon(symbol:"lightbulb",label:"Hint"){session.hint()}.disabled(session.busy || session.rules.turn != session.humanSide || session.finished)
-                if session.busy {ProgressView().controlSize(.small).help("Stockfish is thinking")}
-            }
-            if voice.connecting {
-                ProgressView().controlSize(.small).help(voice.status).accessibilityLabel(voice.status)
-                NativeIcon(symbol:"xmark",label:"Cancel voice connection"){voice.disconnect()}
-            } else if voice.connected {
-                NativeIcon(symbol:session.state.settings.voiceMicrophone ? "mic":"mic.slash",label:session.state.settings.voiceMicrophone ? "Mute microphone":"Enable microphone"){
-                    var settings=session.state.settings
-                    settings.voiceMicrophone.toggle()
-                    session.updateSettings(settings)
-                }
-                NativeIcon(symbol:"stop.fill",label:"Stop coach speaking"){voice.stopTurn()}
-                    .disabled(!voice.status.hasPrefix("Speaking") && voice.status != "Coach is thinking…")
-                NativeIcon(symbol:"power",label:"Disconnect voice coach"){voice.disconnect()}
-            } else {
-                NativeIcon(symbol:"mic",label:session.companionEnabled ? "Disconnect the MCP companion before connecting voice":"Connect voice coach"){voice.connect()}
-                    .disabled(session.companionEnabled)
-            }
-        } else if learning.mini {
+        if review.active{ReviewTransport(review:review)}else if session.mode == .practice {practiceTransport;voiceTransport}
+        else if learning.mini {
             if !learning.miniKind.solo {TurnIndicator(side:learning.miniTurn,label:learning.miniStatus)}
             NativeIcon(symbol:"arrow.counterclockwise",label:"New game",action:newGame)
             NativeIcon(symbol:"arrow.uturn.backward",label:"Undo turn"){learning.undoMini()}.disabled(learning.miniGame?.history.isEmpty != false)
-            NativeIcon(symbol:"arrow.left",label:"Back to lesson"){learning.leaveMini()}
+            NativeIcon(symbol:"arrow.left",label:learning.miniFromLibrary ? "Back to training":"Back to lesson"){learning.leaveMini()}
+        } else if session.mode == .training,let training {
+            TrainingTransport(training:training,session:session,openLibrary:openTrainingLibrary)
         } else if session.mode == .lesson {
+            if learning.readingFromTraining{NativeIcon(symbol:"arrow.uturn.left",label:"Back to training",action:openTrainingLibrary)}
             NativeIcon(symbol:"book",label:"Show lesson guidance",action:showDetails)
             NativeIcon(symbol:"arrow.left",label:"Previous transcript"){learning.seek(step:learning.step-1)}.disabled(learning.step==0)
             NativeIcon(symbol:learning.playing ? "pause.fill":"play.fill",label:learning.playing ? "Pause":"Play"){learning.playing ? learning.pause():learning.play()}
@@ -212,6 +192,47 @@ struct TransportContent:View {
             NativeIcon(symbol:"arrow.right",label:"Next puzzle"){learning.next()}.disabled(!learning.passed)
         }
     }.padding(Metrics.padding)}
+    @ViewBuilder private var practiceTransport:some View {
+        if !session.presentationHidden,let d=session.demonstration {
+            NativeIcon(symbol:"arrow.left",label:"Previous imagined move"){try? session.seekDemo(line:d.line,ply:max(0,d.ply-1))}.disabled(d.ply==0)
+            NativeIcon(symbol:d.playing ? "pause.fill":"play.fill",label:d.playing ? "Pause demonstration":"Play demonstration"){d.playing ? session.pauseDemo():session.playDemo()}
+            NativeIcon(symbol:"arrow.right",label:"Next imagined move"){try? session.seekDemo(line:d.line,ply:min(d.lines[d.line].frames.count-1,d.ply+1))}.disabled(d.ply>=d.lines[d.line].frames.count-1)
+            NativeIcon(symbol:"xmark",label:"Close demonstration"){session.closePresentation()}
+        } else if !session.presentationHidden,let p=session.preview {
+            let frames=(p.line=="candidate" ? p.evaluation?.candidateFrames.count:p.evaluation?.recommendedFrames.count) ?? 0
+            NativeIcon(symbol:"arrow.left",label:"Previous preview move"){try? session.previewAt(ply:max(0,p.ply-1),line:p.line)}.disabled(p.evaluation==nil || p.ply==0)
+            NativeIcon(symbol:"arrow.right",label:"Next preview move"){try? session.previewAt(ply:min(frames-1,p.ply+1),line:p.line)}.disabled(p.evaluation==nil || p.ply>=frames-1)
+            if p.candidate != nil{NativeIcon(symbol:"arrow.uturn.backward",label:"Try another move"){try? session.beginPreview()}.disabled(session.rules.turn != session.humanSide || session.rules.over)}
+            NativeIcon(symbol:"xmark",label:"Return to game"){session.closePresentation()}
+        } else {
+            TurnIndicator(side:session.rules.turn,label:session.rules.status)
+            if session.explicitResumeRequired {NativeIcon(symbol:"play.fill",label:"Resume game",action:resumeGame)}
+            else if session.pausedOpponent {NativeIcon(symbol:"play.fill",label:"Continue with Stockfish",action:continueWithStockfish)}
+            NativeIcon(symbol:"arrow.counterclockwise",label:"New game",action:newGame)
+            NativeIcon(symbol:"arrow.uturn.backward",label:"Undo"){session.undo()}.disabled(!session.canTakeBack)
+            NativeIcon(symbol:"flask",label:"Try a move"){try? session.beginPreview()}.disabled(session.rules.turn != session.humanSide || session.finished || session.busyReason == "opponent" || session.demonstration != nil)
+            NativeIcon(symbol:"lightbulb",label:"Hint"){session.hint()}.disabled(session.busy || session.rules.turn != session.humanSide || session.finished)
+            if session.busy {ProgressView().controlSize(.small).help("Stockfish is thinking")}
+        }
+    }
+    @ViewBuilder private var voiceTransport:some View {
+        if voice.connecting {
+            ProgressView().controlSize(.small).help(voice.status).accessibilityLabel(voice.status)
+            NativeIcon(symbol:"xmark",label:"Cancel voice connection"){voice.disconnect()}
+        } else if voice.connected {
+            NativeIcon(symbol:session.state.settings.voiceMicrophone ? "mic":"mic.slash",label:session.state.settings.voiceMicrophone ? "Mute microphone":"Enable microphone"){
+                var settings=session.state.settings
+                settings.voiceMicrophone.toggle()
+                session.updateSettings(settings)
+            }
+            NativeIcon(symbol:"stop.fill",label:"Stop coach speaking"){voice.stopTurn()}
+                .disabled(!voice.status.hasPrefix("Speaking") && voice.status != "Coach is thinking…")
+            NativeIcon(symbol:"power",label:"Disconnect voice coach"){voice.disconnect()}
+        } else {
+            NativeIcon(symbol:"mic",label:session.companionEnabled ? "Disconnect the MCP companion before connecting voice":"Connect voice coach"){voice.connect()}
+                .disabled(session.companionEnabled)
+        }
+    }
 }
 // A passive edge indicator keeps playback feedback out of the transport controls.
 struct LessonProgressContent:View {
@@ -235,12 +256,31 @@ struct LessonProgressContent:View {
 struct PuzzleLibraryContent:View {
     @ObservedObject var learning:LearningPlayer
     @ObservedObject var session:GameSession
-    var body:some View {VStack(alignment:.leading,spacing:Metrics.padding){Text("Quick puzzles").font(.largeTitle.bold());Text("\(session.state.puzzles.values.filter(\.solved).count) solved · \(session.state.puzzles.values.filter(\.review).count) to review").foregroundStyle(.secondary)
+    var body:some View {let puzzles=learning.filteredPuzzles;VStack(alignment:.leading,spacing:Metrics.padding){Text("Quick puzzles").font(.largeTitle.bold());Text("\(session.state.puzzles.values.filter(\.solved).count) solved · \(session.state.puzzles.values.filter(\.review).count) to review").foregroundStyle(.secondary)
         TextField("Search exercises",text:$learning.query).textFieldStyle(.roundedBorder)
         HStack {Picker("Topic",selection:$learning.topic){Text("All topics").tag("All topics");ForEach(Array(Set(learning.library.puzzles.map(\.topic))).sorted(),id:\.self){Text($0).tag($0)}};Picker("Level",selection:$learning.level){ForEach(["All levels","Foundation","Developing"],id:\.self){Text($0).tag($0)}};Picker("Status",selection:$learning.filter){ForEach(["All","Unsolved","To review"],id:\.self){Text($0).tag($0)}}}
-        Text("\(learning.filteredPuzzles.count) exercises").foregroundStyle(.secondary)
-        List(learning.filteredPuzzles,id:\.id){p in Button{learning.openPuzzle(id:p.id)}label:{HStack{VStack(alignment:.leading){Text(p.title);Text(p.topic).font(.caption).foregroundStyle(.secondary)};Spacer();if session.state.puzzles[p.id]?.solved==true{Image(systemName:"checkmark.circle.fill").foregroundStyle(Color(nsColor:NativeColors.success))}}}.buttonStyle(.plain)}
-        if learning.filteredPuzzles.isEmpty{Text("No exercises match these filters.")}
+        Text("\(puzzles.count) exercises").foregroundStyle(.secondary)
+        List(puzzles,id:\.id){p in Button{learning.openPuzzle(id:p.id)}label:{HStack{VStack(alignment:.leading){Text(p.title);Text(p.topic).font(.caption).foregroundStyle(.secondary)};Spacer();if session.state.puzzles[p.id]?.solved==true{Image(systemName:"checkmark.circle.fill").foregroundStyle(Color(nsColor:NativeColors.success))}}}.buttonStyle(.plain)}
+        if puzzles.isEmpty{Text("No exercises match these filters.")}
     }.padding(Metrics.sectionGap)}
 }
-struct WelcomeContent:View {let title:String,goals:[String];var body:some View {VStack(spacing:Metrics.sectionGap){Image("LessonKnight",bundle:.main).resizable().renderingMode(.template).scaledToFit().foregroundStyle(.primary).frame(width:Metrics.mascotSize,height:Metrics.mascotSize).accessibilityHidden(true);Text(title).font(.largeTitle.bold())}.frame(maxWidth:.infinity,maxHeight:.infinity,alignment:.center)}}
+struct WelcomeContent:View {let title:String;var body:some View {VStack(spacing:Metrics.sectionGap){Image("LessonKnight",bundle:.main).resizable().renderingMode(.template).scaledToFit().foregroundStyle(.primary).frame(width:Metrics.mascotSize,height:Metrics.mascotSize).accessibilityHidden(true);Text(title).font(.largeTitle.bold())}.frame(maxWidth:.infinity,maxHeight:.infinity,alignment:.center)}}
+/// Exercise controls under the board: hint, try again or next, and the way back to the library.
+struct TrainingTransport:View {
+    @ObservedObject var training:TrainingController
+    @ObservedObject var session:GameSession
+    let openLibrary:()->Void
+    var body:some View {
+        if case .training=session.activity.place,let exercise=training.exercise {
+            TurnIndicator(side:exercise.scenario.learner,label:exercise.scenario.learner=="w" ? "You are White":"You are Black")
+            if exercise.finished {
+                if TrainingPanel.canRetry(exercise){NativeIcon(symbol:"arrow.counterclockwise",label:"Try again"){training.retry()}}
+                NativeIcon(symbol:"arrow.right",label:"Next exercise"){training.next()}
+            } else {
+                NativeIcon(symbol:"lightbulb",label:TrainingPanel.hintTitle(exercise)){training.hint()}.disabled(TrainingPanel.hintDisabled(exercise,thinking:training.games.thinking))
+                if exercise.scenario.drill != nil {NativeIcon(symbol:"arrow.uturn.backward",label:"Take back a move"){training.undo()}.disabled(exercise.movesUsed==0)}
+            }
+        }
+        NativeIcon(symbol:"square.grid.2x2",label:"Training library",action:openLibrary)
+    }
+}

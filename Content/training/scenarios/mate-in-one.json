@@ -1,0 +1,986 @@
+{
+ "entry": "mate-in-one",
+ "scenarios": [
+  {
+   "id": "mate-back-rank-w1",
+   "entry": "mate-in-one",
+   "variant": "mate",
+   "tier": 1,
+   "cluster": "back-rank",
+   "learner": "w",
+   "prompt": "White to move. Find a move that gives checkmate.",
+   "explanation": "Ra8 checks along the back rank, and the pawns block every escape.",
+   "hints": [
+    "The black king's own pawns take away its escape squares."
+   ],
+   "fen": "6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1",
+   "expected": {
+    "moves": [
+     "a1a8"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "mate-back-rank-b1",
+   "entry": "mate-in-one",
+   "variant": "mate",
+   "tier": 1,
+   "cluster": "back-rank",
+   "learner": "b",
+   "prompt": "Black to move. Find a move that gives checkmate.",
+   "explanation": "Ra1 checks along the first rank; White's own pawns take away every escape.",
+   "hints": [
+    "White's king has no space behind its pawns."
+   ],
+   "fen": "r5k1/8/8/8/8/8/5PPP/6K1 b - - 0 1",
+   "expected": {
+    "moves": [
+     "a8a1"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "mate-back-rank-w2",
+   "entry": "mate-in-one",
+   "variant": "mate",
+   "tier": 2,
+   "cluster": "back-rank",
+   "learner": "w",
+   "prompt": "White to move. Find a move that gives checkmate.",
+   "explanation": "Rd8 checks on the back rank. The queen cannot reach d8 or block, and the pawns trap the king.",
+   "hints": [
+    "Ignore the black queen for a moment: is Black's king safe on its back rank?"
+   ],
+   "fen": "6k1/5ppp/8/8/8/8/q4PPP/3R2K1 w - - 0 1",
+   "expected": {
+    "moves": [
+     "d1d8"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "mate-back-rank-w3",
+   "entry": "mate-in-one",
+   "variant": "mate",
+   "tier": 1,
+   "cluster": "back-rank",
+   "learner": "w",
+   "prompt": "White to move. Find a move that gives checkmate.",
+   "explanation": "Ra8 and Rb8 both check along the back rank with no escape: either one is checkmate.",
+   "hints": [
+    "Either rook can reach the back rank."
+   ],
+   "fen": "7k/6pp/8/8/8/8/8/RR4K1 w - - 0 1",
+   "expected": {
+    "moves": [
+     "a1a8",
+     "b1b8"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "mate-back-rank-b2",
+   "entry": "mate-in-one",
+   "variant": "mate",
+   "tier": 1,
+   "cluster": "back-rank",
+   "learner": "b",
+   "prompt": "Black to move. Find a move that gives checkmate.",
+   "explanation": "Rc1 checks along the first rank. d1 and f1 are covered by the rook and the pawns fill d2, e2 and f2.",
+   "hints": [
+    "White's king is surrounded by its own pawns."
+   ],
+   "fen": "2r1k3/8/8/8/8/8/3PPP2/4K3 b - - 0 1",
+   "expected": {
+    "moves": [
+     "c8c1"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "mate-back-rank-queen-b1",
+   "entry": "mate-in-one",
+   "variant": "mate",
+   "tier": 1,
+   "cluster": "back-rank-queen",
+   "learner": "b",
+   "prompt": "Black to move. Find a move that gives checkmate.",
+   "explanation": "Qb1 checks along the first rank, and the pawns trap White's king.",
+   "hints": [
+    "A queen can use the back rank too."
+   ],
+   "fen": "1q4k1/5ppp/8/8/8/8/5PPP/6K1 b - - 0 1",
+   "expected": {
+    "moves": [
+     "b8b1"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "mate-back-rank-queen-w1",
+   "entry": "mate-in-one",
+   "variant": "mate",
+   "tier": 1,
+   "cluster": "back-rank-queen",
+   "learner": "w",
+   "prompt": "White to move. Find a move that gives checkmate.",
+   "explanation": "Qb8 checks along the eighth rank; the pawns on f7, g7 and h7 leave no escape.",
+   "hints": [
+    "Which line leads to Black's back rank?"
+   ],
+   "fen": "6k1/5ppp/8/8/8/8/8/1Q4K1 w - - 0 1",
+   "expected": {
+    "moves": [
+     "b1b8"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "mate-back-rank-queen-b2",
+   "entry": "mate-in-one",
+   "variant": "mate",
+   "tier": 1,
+   "cluster": "back-rank-queen",
+   "learner": "b",
+   "prompt": "Black to move. Find a move that gives checkmate.",
+   "explanation": "Qa1 checks along the first rank, and White's pawns trap the king.",
+   "hints": [
+    "Look down the a-file."
+   ],
+   "fen": "q5k1/8/8/8/8/8/5PPP/6K1 b - - 0 1",
+   "expected": {
+    "moves": [
+     "a8a1"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "mate-queen-kiss-w1",
+   "entry": "mate-in-one",
+   "variant": "mate",
+   "tier": 1,
+   "cluster": "queen-kiss",
+   "learner": "w",
+   "prompt": "White to move. Find a move that gives checkmate.",
+   "explanation": "Four moves mate: Qg7 and Qh7 check with the king's protection, and Qa8 and Qb8 check along the back rank while the king covers the seventh.",
+   "hints": [
+    "Your king already covers g7 and h7. Where can the queen check without being captured?"
+   ],
+   "fen": "7k/Q7/6K1/8/8/8/8/8 w - - 0 1",
+   "expected": {
+    "moves": [
+     "a7a8",
+     "a7b8",
+     "a7g7",
+     "a7h7"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "mate-queen-kiss-b1",
+   "entry": "mate-in-one",
+   "variant": "mate",
+   "tier": 1,
+   "cluster": "queen-kiss",
+   "learner": "b",
+   "prompt": "Black to move. Find a move that gives checkmate.",
+   "explanation": "Four moves mate: Qg2 and Qh2 check with the king's protection, and Qa1 and Qb1 check along the first rank.",
+   "hints": [
+    "Your king already covers g2 and h2. Where can the queen check without being captured?"
+   ],
+   "fen": "8/8/8/8/8/6k1/q7/7K b - - 0 1",
+   "expected": {
+    "moves": [
+     "a2a1",
+     "a2b1",
+     "a2g2",
+     "a2h2"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "mate-rook-ladder-w1",
+   "entry": "mate-in-one",
+   "variant": "mate",
+   "tier": 1,
+   "cluster": "rook-ladder",
+   "learner": "w",
+   "prompt": "White to move. Find a move that gives checkmate.",
+   "explanation": "Ra8 checks on the eighth rank while Rb7 covers the seventh: no escape.",
+   "hints": [
+    "One rook already guards the seventh rank."
+   ],
+   "fen": "6k1/1R6/8/8/8/8/8/R5K1 w - - 0 1",
+   "expected": {
+    "moves": [
+     "a1a8"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "mate-rook-ladder-b1",
+   "entry": "mate-in-one",
+   "variant": "mate",
+   "tier": 1,
+   "cluster": "rook-ladder",
+   "learner": "b",
+   "prompt": "Black to move. Find a move that gives checkmate.",
+   "explanation": "Ra1 checks on the first rank while Rb2 covers the second.",
+   "hints": [
+    "One black rook already guards the second rank."
+   ],
+   "fen": "r5k1/8/8/8/8/8/1r6/6K1 b - - 0 1",
+   "expected": {
+    "moves": [
+     "a8a1"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "mate-rook-ladder-w2",
+   "entry": "mate-in-one",
+   "variant": "mate",
+   "tier": 2,
+   "cluster": "rook-ladder",
+   "learner": "w",
+   "prompt": "White to move. Find a move that gives checkmate.",
+   "explanation": "Ra8 checks along the back rank; Rh7 still covers c7, d7 and e7.",
+   "hints": [
+    "Keep the seventh rank covered."
+   ],
+   "fen": "3k4/7R/8/8/8/8/8/R5K1 w - - 0 1",
+   "expected": {
+    "moves": [
+     "a1a8"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "mate-king-rook-edge-w1",
+   "entry": "mate-in-one",
+   "variant": "mate",
+   "tier": 1,
+   "cluster": "king-rook-edge",
+   "learner": "w",
+   "prompt": "White to move. Find a move that gives checkmate.",
+   "explanation": "Ra8 checks along the edge; the white king covers d7, e7 and f7.",
+   "hints": [
+    "Your king already takes the squares in front of Black's king."
+   ],
+   "fen": "4k3/R7/4K3/8/8/8/8/8 w - - 0 1",
+   "expected": {
+    "moves": [
+     "a7a8"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "mate-king-rook-edge-b1",
+   "entry": "mate-in-one",
+   "variant": "mate",
+   "tier": 1,
+   "cluster": "king-rook-edge",
+   "learner": "b",
+   "prompt": "Black to move. Find a move that gives checkmate.",
+   "explanation": "Rh1 checks along the first rank; Black's king covers c2, d2 and e2.",
+   "hints": [
+    "Your king faces White's king; now check along the edge."
+   ],
+   "fen": "8/8/8/8/8/3k4/7r/3K4 b - - 0 1",
+   "expected": {
+    "moves": [
+     "h2h1"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "mate-smothered-w1",
+   "entry": "mate-in-one",
+   "variant": "mate",
+   "tier": 2,
+   "cluster": "smothered",
+   "learner": "w",
+   "prompt": "White to move. Find a move that gives checkmate.",
+   "explanation": "Nf7 checks, and the king's own rook and pawns leave it no square: a smothered mate.",
+   "hints": [
+    "Black's king is surrounded by its own pieces. Which piece can check it anyway?"
+   ],
+   "fen": "6rk/6pp/8/6N1/8/8/8/6K1 w - - 0 1",
+   "expected": {
+    "moves": [
+     "g5f7"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "mate-smothered-b1",
+   "entry": "mate-in-one",
+   "variant": "mate",
+   "tier": 2,
+   "cluster": "smothered",
+   "learner": "b",
+   "prompt": "Black to move. Find a move that gives checkmate.",
+   "explanation": "Nf2 checks; the rook and pawns take every escape square.",
+   "hints": [
+    "White's king is hemmed in by its own rook and pawns."
+   ],
+   "fen": "k7/8/8/8/4n3/8/6PP/6RK b - - 0 1",
+   "expected": {
+    "moves": [
+     "e4f2"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "mate-promotion-w1",
+   "entry": "mate-in-one",
+   "variant": "mate",
+   "tier": 2,
+   "cluster": "promotion",
+   "learner": "w",
+   "prompt": "White to move. Find a move that gives checkmate.",
+   "explanation": "Promoting on b8 checks along the back rank. A queen or a rook both mate, because the white king covers d7, e7 and f7.",
+   "hints": [
+    "A new piece can give check from the back rank."
+   ],
+   "fen": "4k3/1P6/4K3/8/8/8/8/8 w - - 0 1",
+   "expected": {
+    "moves": [
+     "b7b8q",
+     "b7b8r"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "mate-promotion-b1",
+   "entry": "mate-in-one",
+   "variant": "mate",
+   "tier": 2,
+   "cluster": "promotion",
+   "learner": "b",
+   "prompt": "Black to move. Find a move that gives checkmate.",
+   "explanation": "b1=Q or b1=R checks along the first rank while Black's king covers d2, e2 and f2.",
+   "hints": [
+    "Promote with check along the first rank."
+   ],
+   "fen": "8/8/8/8/8/4k3/1p6/4K3 b - - 0 1",
+   "expected": {
+    "moves": [
+     "b2b1q",
+     "b2b1r"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "mate-underpromotion-w1",
+   "entry": "mate-in-one",
+   "variant": "mate",
+   "tier": 3,
+   "cluster": "underpromotion",
+   "learner": "w",
+   "prompt": "White to move. Find a move that gives checkmate.",
+   "explanation": "f8=N checks h7, and Black's own pieces block every escape. A queen on f8 would not even give check.",
+   "hints": [
+    "A queen is not always the strongest promotion. Which new piece checks the king on h7?"
+   ],
+   "fen": "6br/5Ppk/6pp/8/8/8/8/K7 w - - 0 1",
+   "expected": {
+    "moves": [
+     "f7f8n"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "mate-pawn-mate-w1",
+   "entry": "mate-in-one",
+   "variant": "mate",
+   "tier": 2,
+   "cluster": "pawn-mate",
+   "learner": "w",
+   "prompt": "White to move. Find a move that gives checkmate.",
+   "explanation": "g7 checks; the king protects the pawn, covers h7, and the bishop covers g8.",
+   "hints": [
+    "A pawn can deliver checkmate when it is protected."
+   ],
+   "fen": "7k/8/6PK/8/2B5/8/8/8 w - - 0 1",
+   "expected": {
+    "moves": [
+     "g6g7"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "mate-pawn-mate-b1",
+   "entry": "mate-in-one",
+   "variant": "mate",
+   "tier": 2,
+   "cluster": "pawn-mate",
+   "learner": "b",
+   "prompt": "Black to move. Find a move that gives checkmate.",
+   "explanation": "g2 checks; Black's king protects the pawn and covers h2, and the bishop covers g1.",
+   "hints": [
+    "Push the pawn with check."
+   ],
+   "fen": "8/8/8/2b5/8/6pk/8/7K b - - 0 1",
+   "expected": {
+    "moves": [
+     "g3g2"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "mate-queen-corner-b1",
+   "entry": "mate-in-one",
+   "variant": "mate",
+   "tier": 2,
+   "cluster": "queen-corner",
+   "learner": "b",
+   "prompt": "Black to move. Find a move that gives checkmate.",
+   "explanation": "Qe1 and Qh1 both check along the first rank and cover b1: either is checkmate.",
+   "hints": [
+    "White's king is in the corner; your king takes a2 and b2."
+   ],
+   "fen": "8/8/8/8/7q/1k6/8/K7 b - - 0 1",
+   "expected": {
+    "moves": [
+     "h4e1",
+     "h4h1"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "mate-queen-corner-w1",
+   "entry": "mate-in-one",
+   "variant": "mate",
+   "tier": 2,
+   "cluster": "queen-corner",
+   "learner": "w",
+   "prompt": "White to move. Find a move that gives checkmate.",
+   "explanation": "Qe8 and Qh8 both check along the back rank and cover b8.",
+   "hints": [
+    "Your king takes a7 and b7. Check along the back rank."
+   ],
+   "fen": "k7/8/1K6/7Q/8/8/8/8 w - - 0 1",
+   "expected": {
+    "moves": [
+     "h5e8",
+     "h5h8"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "mate-scholar-w1",
+   "entry": "mate-in-one",
+   "variant": "mate",
+   "tier": 3,
+   "cluster": "f7-attack",
+   "learner": "w",
+   "prompt": "White to move. Find a move that gives checkmate.",
+   "explanation": "Qxf7 is check. The bishop on c4 guards the queen, and the king has no escape square.",
+   "hints": [
+    "Which black square is protected only by the king?"
+   ],
+   "fen": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5Q2/PPPP1PPP/RNB1K1NR w KQkq - 2 3",
+   "expected": {
+    "moves": [
+     "f3f7"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "mate-fools-b1",
+   "entry": "mate-in-one",
+   "variant": "mate",
+   "tier": 3,
+   "cluster": "fools-mate",
+   "learner": "b",
+   "prompt": "Black to move. Find a move that gives checkmate.",
+   "explanation": "Qh4 checks along the e1-h4 diagonal; nothing can block or capture, and the king cannot move.",
+   "hints": [
+    "White has opened the diagonal next to its king."
+   ],
+   "fen": "rnbqkbnr/pppp1ppp/8/4p3/6P1/5P2/PPPPP2P/RNBQKBNR b KQkq - 0 2",
+   "expected": {
+    "moves": [
+     "d8h4"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "mate-f2-attack-b1",
+   "entry": "mate-in-one",
+   "variant": "mate",
+   "tier": 3,
+   "cluster": "f7-attack",
+   "learner": "b",
+   "prompt": "Black to move. Find a move that gives checkmate.",
+   "explanation": "Qxf2 checks with the bishop's support; the king cannot escape or capture.",
+   "hints": [
+    "Which white square is protected only by the king?"
+   ],
+   "fen": "r1b1k1nr/pppp1ppp/2n5/2b1p3/4P2q/2N2N2/PPPP1PPP/R1BQKB1R b KQkq - 0 1",
+   "expected": {
+    "moves": [
+     "h4f2"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "mate-smothered-w2",
+   "entry": "mate-in-one",
+   "variant": "mate",
+   "tier": 3,
+   "cluster": "smothered",
+   "learner": "w",
+   "prompt": "White to move. Find a move that gives checkmate.",
+   "explanation": "Nf7 checks, and nothing can capture the knight or free the king: a smothered mate.",
+   "hints": [
+    "Black's king is hemmed in by its own rook and pawns."
+   ],
+   "fen": "r5rk/pp4pp/7N/q7/8/8/PP3PPP/6K1 w - - 0 1",
+   "expected": {
+    "moves": [
+     "h6f7"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "mate-rook-ladder-b2",
+   "entry": "mate-in-one",
+   "variant": "mate",
+   "tier": 2,
+   "cluster": "rook-ladder",
+   "learner": "b",
+   "prompt": "Black to move. Find a move that gives checkmate.",
+   "explanation": "Ra1 checks while Rb2 covers d2, e2 and f2.",
+   "hints": [
+    "Cover the second rank and check on the first."
+   ],
+   "fen": "r6k/8/8/8/8/8/1r6/4K3 b - - 0 1",
+   "expected": {
+    "moves": [
+     "a8a1"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "mate-king-rook-edge-w2",
+   "entry": "mate-in-one",
+   "variant": "mate",
+   "tier": 1,
+   "cluster": "king-rook-edge",
+   "learner": "w",
+   "prompt": "White to move. Find a move that gives checkmate.",
+   "explanation": "Rh8 checks along the back rank; the white king covers d7, e7 and f7.",
+   "hints": [
+    "Your king faces Black's; now check along the back rank."
+   ],
+   "fen": "4k3/8/4K3/8/8/8/8/7R w - - 0 1",
+   "expected": {
+    "moves": [
+     "h1h8"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "mate-anastasia-w1",
+   "entry": "mate-in-one",
+   "variant": "mate",
+   "tier": 2,
+   "cluster": "anastasia",
+   "learner": "w",
+   "prompt": "White to move. Find a move that gives checkmate.",
+   "explanation": "Rh5 checks along the h-file; the knight and Black's own pawns leave no escape: Anastasia's mate.",
+   "hints": [
+    "The knight on e7 already controls g6 and g8."
+   ],
+   "fen": "5r2/4Nppk/8/R7/8/8/8/6K1 w - - 0 1",
+   "expected": {
+    "moves": [
+     "a5h5"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "reserve": true
+  },
+  {
+   "id": "mate-arabian-w1",
+   "entry": "mate-in-one",
+   "variant": "mate",
+   "tier": 2,
+   "cluster": "arabian",
+   "learner": "w",
+   "prompt": "White to move. Find a move that gives checkmate.",
+   "explanation": "Rh7 checks; the knight protects the rook and covers g8: the Arabian mate.",
+   "hints": [
+    "Rook and knight work together near the corner."
+   ],
+   "fen": "7k/1R6/5N2/8/8/8/8/6K1 w - - 0 1",
+   "expected": {
+    "moves": [
+     "b7h7"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "reserve": true
+  },
+  {
+   "id": "mate-boden-w1",
+   "entry": "mate-in-one",
+   "variant": "mate",
+   "tier": 3,
+   "cluster": "boden",
+   "learner": "w",
+   "prompt": "White to move. Find a move that gives checkmate.",
+   "explanation": "Ba6 checks; the other bishop covers b8 and c7, and Black's own pieces fill d7 and d8: Boden's mate.",
+   "hints": [
+    "Two bishops on crossing diagonals."
+   ],
+   "fen": "2kr4/3n4/8/8/5B2/3B4/8/7K w - - 0 1",
+   "expected": {
+    "moves": [
+     "d3a6"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "reserve": true
+  },
+  {
+   "id": "mate-epaulette-w1",
+   "entry": "mate-in-one",
+   "variant": "mate",
+   "tier": 2,
+   "cluster": "epaulette",
+   "learner": "w",
+   "prompt": "White to move. Find a move that gives checkmate.",
+   "explanation": "Qe6 checks and covers d7, e7 and f7; the rooks block d8 and f8: the epaulette mate.",
+   "hints": [
+    "The king's own rooks sit beside it like shoulder pads."
+   ],
+   "fen": "3rkr2/8/8/8/8/8/Q7/6K1 w - - 0 1",
+   "expected": {
+    "moves": [
+     "a2e6"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "reserve": true
+  },
+  {
+   "id": "mate-queen-knight-w1",
+   "entry": "mate-in-one",
+   "variant": "mate",
+   "tier": 2,
+   "cluster": "queen-knight",
+   "learner": "w",
+   "prompt": "White to move. Find a move that gives checkmate.",
+   "explanation": "Qh7 checks with the knight's protection, and the king is boxed in.",
+   "hints": [
+    "Which square next to the king does your knight protect?"
+   ],
+   "fen": "5rk1/5pp1/8/6N1/8/3Q4/8/6K1 w - - 0 1",
+   "expected": {
+    "moves": [
+     "d3h7"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "reserve": true
+  },
+  {
+   "id": "mate-damiano-w1",
+   "entry": "mate-in-one",
+   "variant": "mate",
+   "tier": 2,
+   "cluster": "damiano",
+   "learner": "w",
+   "prompt": "White to move. Find a move that gives checkmate.",
+   "explanation": "Qh7 checks, protected by the g6 pawn, which also covers f7: Damiano's mate.",
+   "hints": [
+    "Your pawn on g6 supports a square next to the king."
+   ],
+   "fen": "5rk1/6p1/6P1/7Q/8/8/8/6K1 w - - 0 1",
+   "expected": {
+    "moves": [
+     "h5h7"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "reserve": true
+  },
+  {
+   "id": "mate-lolli-w1",
+   "entry": "mate-in-one",
+   "variant": "mate",
+   "tier": 2,
+   "cluster": "lolli",
+   "learner": "w",
+   "prompt": "White to move. Find a move that gives checkmate.",
+   "explanation": "Qg7 checks with the pawn's protection and covers f8 and h8.",
+   "hints": [
+    "The f6 pawn supports a square right next to the king."
+   ],
+   "fen": "6k1/5p1p/5PpQ/8/8/8/8/6K1 w - - 0 1",
+   "expected": {
+    "moves": [
+     "h6g7"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "reserve": true
+  },
+  {
+   "id": "mate-pillsbury-w1",
+   "entry": "mate-in-one",
+   "variant": "mate",
+   "tier": 3,
+   "cluster": "pillsbury",
+   "learner": "w",
+   "prompt": "White to move. Find a move that gives checkmate.",
+   "explanation": "Rg1 checks down the g-file; the bishop covers g7 and h8 and the f8 rook blocks the last square.",
+   "hints": [
+    "The bishop already controls the long diagonal."
+   ],
+   "fen": "5rk1/5p1p/8/8/8/8/1B6/K3R3 w - - 0 1",
+   "expected": {
+    "moves": [
+     "e1g1"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "reserve": true
+  },
+  {
+   "id": "mate-opera-w1",
+   "entry": "mate-in-one",
+   "variant": "mate",
+   "tier": 2,
+   "cluster": "opera",
+   "learner": "w",
+   "prompt": "White to move. Find a move that gives checkmate.",
+   "explanation": "Rd8 checks with the bishop's protection, which also covers e7: the opera mate.",
+   "hints": [
+    "The bishop on g5 controls d8 and e7."
+   ],
+   "fen": "4kb2/5p2/8/6B1/8/8/8/3R2K1 w - - 0 1",
+   "expected": {
+    "moves": [
+     "d1d8"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "reserve": true
+  },
+  {
+   "id": "mate-morphy-w1",
+   "entry": "mate-in-one",
+   "variant": "mate",
+   "tier": 2,
+   "cluster": "morphy",
+   "learner": "w",
+   "prompt": "White to move. Find a move that gives checkmate.",
+   "explanation": "Bd4 checks along the long diagonal; the rook covers g8 and g7 and the king's own pawn blocks h7: Morphy's mate.",
+   "hints": [
+    "Your rook already controls the g-file."
+   ],
+   "fen": "r6k/7p/8/8/8/4B3/8/6RK w - - 0 1",
+   "expected": {
+    "moves": [
+     "e3d4"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "reserve": true
+  }
+ ]
+}

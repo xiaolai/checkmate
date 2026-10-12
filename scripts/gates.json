@@ -187,6 +187,70 @@
    ]
   },
   {
+   "name": "training-pointer",
+   "run": "python3 scripts/test-training-pointer.py",
+   "result": "training-pointer-results.json",
+   "key": "trainingPointer",
+   "prebuilt": true,
+   "requires": [
+    "pilotEntries",
+    "drillDragAndClick",
+    "selectionSubmit",
+    "hintRecordedHelp",
+    "legacyFromLibrary",
+    "resumedAfterQuit",
+    "suggestionPractised"
+   ],
+   "inputs": [
+    "scripts/test-training-pointer.py",
+    "Tools/pointer-helper.swift",
+    "Tools/ax-helper.swift",
+    "Sources/CheckmateNative/Training*.swift",
+    "Sources/CheckmateNative/BoardView.swift",
+    "Sources/CheckmateNative/MainWindow.swift",
+    "Sources/CheckmateNative/ContentViews.swift",
+    "Sources/CheckmateApplication/Training*.swift",
+    "Sources/CheckmateApplication/LearningPlayer.swift",
+    "Sources/CheckmateApplication/WorkspaceTransitionCoordinator.swift",
+    "Sources/CheckmateCore/Resources/training/*"
+   ]
+  },
+  {
+   "name": "training-b-pointer",
+   "run": "python3 scripts/test-training-b-pointer.py",
+   "result": "training-b-pointer-results.json",
+   "key": "trainingBPointer",
+   "prebuilt": true,
+   "requires": [
+    "beginnerLibrary",
+    "variantChip",
+    "promotionCancelled",
+    "promotionChosen",
+    "bridgeOpened",
+    "endingReply",
+    "endingTakeBack",
+    "mixedTopicAfterAnswer",
+    "guidedGame",
+    "lessonLink"
+   ],
+   "inputs": [
+    "scripts/test-training-b-pointer.py",
+    "Tools/pointer-helper.swift",
+    "Tools/ax-helper.swift",
+    "Sources/CheckmateNative/Training*.swift",
+    "Sources/CheckmateNative/BoardView.swift",
+    "Sources/CheckmateNative/MainWindow.swift",
+    "Sources/CheckmateNative/ContentViews.swift",
+    "Sources/CheckmateApplication/Training*.swift",
+    "Sources/CheckmateApplication/LearningPlayer.swift",
+    "Sources/CheckmateApplication/WorkspaceTransitionCoordinator.swift",
+    "Sources/CheckmateCore/Resources/training/*",
+    "Sources/CheckmateCore/Resources/training-search.js",
+    "Sources/CheckmateEngine/*",
+    "Sources/CheckmateDomain/Activity.swift"
+   ]
+  },
+  {
    "name": "pawn-duel",
    "builds": true,
    "run": "bash scripts/test-pawn-duel.sh",
@@ -320,6 +384,8 @@
     "Tools/test-lesson-action-alignment.py",
     "Tools/test-import-cedar.py",
     "Tools/test-record-lessons.py",
+    "Tools/prepare-training-content.py",
+    "Tools/test-prepare-training-content.py",
     "Tools/record-lessons.py",
     "Tools/verify-lesson-recordings.py",
     "Tools/import-cedar-recordings.py",
@@ -403,6 +469,7 @@
   "Tools/export-spike.swift": "experiment",
   "Tools/measure-review-batch.py": "offline measurement",
   "Tools/prepare-lesson-scripts.py": "content authoring",
+  "Tools/training-oracle.cjs": "training content authoring aid; publication re-derives every answer in Swift (unit)",
   "Tools/verify-review-corpus.cjs": "offline corpus check"
  }
 }

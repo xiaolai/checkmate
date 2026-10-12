@@ -83,6 +83,10 @@ def test_rejections(root):
         rejects((fixture / 'Sources/CheckmateApplication/GameSession.swift', lambda text: text + '\n@preconcurrency public import SwiftUI\n'))
         rejects((fixture / 'Package.swift', lambda text: text.replace('name: "CheckmateDomain", dependencies: ["CheckmateAssets"]', 'name: "CheckmateDomain", dependencies: ["CheckmateAssets", .product(name: "MCP", package: "swift-sdk")]')))
         rejects((fixture / 'Sources/CheckmateComposition/Exports.swift', lambda text: text + '\npublic enum HiddenImplementation {}\n'))
+        # Training values stay portable: no JavaScriptCore, Combine or native UI in the domain, no engine in workflows.
+        rejects((fixture / 'Sources/CheckmateDomain/TrainingGeometry.swift', lambda text: text + '\nimport JavaScriptCore\n'))
+        rejects((fixture / 'Sources/CheckmateDomain/TrainingDefinition.swift', lambda text: text + '\nimport Combine\n'))
+        rejects((fixture / 'Sources/CheckmateApplication/TrainingProjection.swift', lambda text: text + '\nimport CheckmateEngine\n'))
 
 
 if __name__ == '__main__':

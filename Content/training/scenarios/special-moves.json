@@ -1,0 +1,2173 @@
+{
+ "entry": "special-moves",
+ "scenarios": [
+  {
+   "id": "sm-castle-legal-1-w",
+   "entry": "special-moves",
+   "variant": "castle-legal",
+   "tier": 1,
+   "cluster": "sm-castle-legal-1",
+   "learner": "w",
+   "fen": "4k3/8/8/8/8/8/5PPP/4K2R w K - 0 1",
+   "prompt": "White to move. Castle.",
+   "explanation": "Castling kingside is legal: the king steps two squares towards the rook, which then hops over to land right next to the king. Nothing stands between the king and the rook, and no square the king uses is attacked.",
+   "hints": [
+    "Castling needs a king and rook that have never moved, empty squares between them, and a king that is not in check and neither crosses nor lands on an attacked square.",
+    "Check each side in turn: kingside and queenside."
+   ],
+   "expected": {
+    "wrong": [
+     "e1h1"
+    ]
+   },
+   "check": "castle",
+   "nodes": [
+    {
+     "fingerprint": "4k3/8/8/8/8/8/5PPP/4K2R w K -",
+     "accepted": [
+      "e1g1"
+     ],
+     "replies": {}
+    }
+   ],
+   "focus": [
+    "e1"
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "sm-castle-legal-2-b",
+   "entry": "special-moves",
+   "variant": "castle-legal",
+   "tier": 1,
+   "cluster": "sm-castle-legal-2",
+   "learner": "b",
+   "fen": "r3k3/ppp5/8/8/8/8/8/4K3 b q - 0 1",
+   "prompt": "Black to move. Castle.",
+   "explanation": "Castling queenside is legal: the king steps two squares towards the rook, which then hops over to land right next to the king. On the queenside the rook travels further, but the king still moves just two squares.",
+   "hints": [
+    "Castling needs a king and rook that have never moved, empty squares between them, and a king that is not in check and neither crosses nor lands on an attacked square.",
+    "Check each side in turn: kingside and queenside."
+   ],
+   "expected": {
+    "wrong": [
+     "e8a8"
+    ]
+   },
+   "check": "castle",
+   "nodes": [
+    {
+     "fingerprint": "r3k3/ppp5/8/8/8/8/8/4K3 b q -",
+     "accepted": [
+      "e8c8"
+     ],
+     "replies": {}
+    }
+   ],
+   "focus": [
+    "e8"
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "sm-castle-legal-3-w",
+   "entry": "special-moves",
+   "variant": "castle-legal",
+   "tier": 1,
+   "cluster": "sm-castle-legal-3",
+   "learner": "w",
+   "fen": "r3k3/8/8/8/8/8/8/R3K2R w KQ - 0 1",
+   "prompt": "White to move. Castle.",
+   "explanation": "Castling either way is legal: the king steps two squares towards the rook, which then hops over to land right next to the king. Both sides are possible here; either castling is right.",
+   "hints": [
+    "Castling needs a king and rook that have never moved, empty squares between them, and a king that is not in check and neither crosses nor lands on an attacked square.",
+    "Check each side in turn: kingside and queenside."
+   ],
+   "expected": {
+    "wrong": [
+     "e1h1",
+     "e1a1"
+    ]
+   },
+   "check": "castle",
+   "nodes": [
+    {
+     "fingerprint": "r3k3/8/8/8/8/8/8/R3K2R w KQ -",
+     "accepted": [
+      "e1c1",
+      "e1g1"
+     ],
+     "replies": {}
+    }
+   ],
+   "focus": [
+    "e1"
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "sm-castle-legal-4-b",
+   "entry": "special-moves",
+   "variant": "castle-legal",
+   "tier": 2,
+   "cluster": "sm-castle-legal-4",
+   "learner": "b",
+   "fen": "rn2k2r/pppppppp/8/8/8/8/8/4K3 b kq - 0 1",
+   "prompt": "Black to move. Castle.",
+   "explanation": "Castling kingside is legal: the king steps two squares towards the rook, which then hops over to land right next to the king. Queenside castling is blocked by the knight on b8.",
+   "hints": [
+    "Castling needs a king and rook that have never moved, empty squares between them, and a king that is not in check and neither crosses nor lands on an attacked square.",
+    "Check each side in turn: kingside and queenside."
+   ],
+   "expected": {
+    "wrong": [
+     "e8h8",
+     "e8c8"
+    ]
+   },
+   "check": "castle",
+   "nodes": [
+    {
+     "fingerprint": "rn2k2r/pppppppp/8/8/8/8/8/4K3 b kq -",
+     "accepted": [
+      "e8g8"
+     ],
+     "replies": {}
+    }
+   ],
+   "focus": [
+    "e8"
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "sm-castle-legal-5-w",
+   "entry": "special-moves",
+   "variant": "castle-legal",
+   "tier": 2,
+   "cluster": "sm-castle-legal-5",
+   "learner": "w",
+   "fen": "4k3/8/8/7b/8/8/PP3PPP/R3K2R w KQ - 0 1",
+   "prompt": "White to move. Castle.",
+   "explanation": "Castling kingside is legal: the king steps two squares towards the rook, which then hops over to land right next to the king. Queenside castling is not allowed: the bishop on h5 attacks d1, which the king would cross.",
+   "hints": [
+    "Castling needs a king and rook that have never moved, empty squares between them, and a king that is not in check and neither crosses nor lands on an attacked square.",
+    "Check each side in turn: kingside and queenside."
+   ],
+   "expected": {
+    "wrong": [
+     "e1h1",
+     "e1c1"
+    ]
+   },
+   "check": "castle",
+   "nodes": [
+    {
+     "fingerprint": "4k3/8/8/7b/8/8/PP3PPP/R3K2R w KQ -",
+     "accepted": [
+      "e1g1"
+     ],
+     "replies": {}
+    }
+   ],
+   "focus": [
+    "e1"
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "sm-castle-legal-6-b",
+   "entry": "special-moves",
+   "variant": "castle-legal",
+   "tier": 2,
+   "cluster": "sm-castle-legal-6",
+   "learner": "b",
+   "fen": "r3k2r/pppppp1p/8/8/8/8/8/4K1R1 b kq - 0 1",
+   "prompt": "Black to move. Castle.",
+   "explanation": "Castling queenside is legal: the king steps two squares towards the rook, which then hops over to land right next to the king. Kingside castling is not allowed: the rook on g1 attacks g8, where the king would land.",
+   "hints": [
+    "Castling needs a king and rook that have never moved, empty squares between them, and a king that is not in check and neither crosses nor lands on an attacked square.",
+    "Check each side in turn: kingside and queenside."
+   ],
+   "expected": {
+    "wrong": [
+     "e8a8",
+     "e8g8"
+    ]
+   },
+   "check": "castle",
+   "nodes": [
+    {
+     "fingerprint": "r3k2r/pppppp1p/8/8/8/8/8/4K1R1 b kq -",
+     "accepted": [
+      "e8c8"
+     ],
+     "replies": {}
+    }
+   ],
+   "focus": [
+    "e8"
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "sm-castle-legal-7-w",
+   "entry": "special-moves",
+   "variant": "castle-legal",
+   "tier": 3,
+   "cluster": "sm-castle-legal-7",
+   "learner": "w",
+   "fen": "r1bqk2r/pppp1ppp/2n2n2/2b1p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4",
+   "prompt": "White to move. Castle.",
+   "explanation": "Castling kingside is legal: the king steps two squares towards the rook, which then hops over to land right next to the king. In this opening only kingside castling is ready; the queenside pieces are still at home.",
+   "hints": [
+    "Castling needs a king and rook that have never moved, empty squares between them, and a king that is not in check and neither crosses nor lands on an attacked square.",
+    "Check each side in turn: kingside and queenside."
+   ],
+   "expected": {
+    "wrong": [
+     "e1h1"
+    ]
+   },
+   "check": "castle",
+   "nodes": [
+    {
+     "fingerprint": "r1bqk2r/pppp1ppp/2n2n2/2b1p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq -",
+     "accepted": [
+      "e1g1"
+     ],
+     "replies": {}
+    }
+   ],
+   "focus": [
+    "e1"
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "sm-castle-legal-8-b",
+   "entry": "special-moves",
+   "variant": "castle-legal",
+   "tier": 3,
+   "cluster": "sm-castle-legal-8",
+   "learner": "b",
+   "fen": "r3kb1r/pppqpppp/2n2n2/3p1b2/3P1B2/2N2N2/PPPQPPPP/R3KB1R b KQkq - 6 6",
+   "prompt": "Black to move. Castle.",
+   "explanation": "Castling queenside is legal: the king steps two squares towards the rook, which then hops over to land right next to the king. Here only queenside castling is ready; the bishop on f8 blocks the kingside.",
+   "hints": [
+    "Castling needs a king and rook that have never moved, empty squares between them, and a king that is not in check and neither crosses nor lands on an attacked square.",
+    "Check each side in turn: kingside and queenside."
+   ],
+   "expected": {
+    "wrong": [
+     "e8a8",
+     "e8g8"
+    ]
+   },
+   "check": "castle",
+   "nodes": [
+    {
+     "fingerprint": "r3kb1r/pppqpppp/2n2n2/3p1b2/3P1B2/2N2N2/PPPQPPPP/R3KB1R b KQkq -",
+     "accepted": [
+      "e8c8"
+     ],
+     "replies": {}
+    }
+   ],
+   "focus": [
+    "e8"
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "sm-castle-legal-9-w",
+   "entry": "special-moves",
+   "variant": "castle-legal",
+   "tier": 2,
+   "cluster": "sm-castle-legal-9",
+   "learner": "w",
+   "fen": "2r1k3/8/8/8/8/8/PP3PPP/R3K2R w KQ - 0 1",
+   "prompt": "White to move. Castle.",
+   "explanation": "Castling kingside is legal: the king steps two squares towards the rook, which then hops over to land right next to the king. Queenside castling is not allowed: the rook on c8 attacks c1, where the king would land.",
+   "hints": [
+    "Castling needs a king and rook that have never moved, empty squares between them, and a king that is not in check and neither crosses nor lands on an attacked square.",
+    "Check each side in turn: kingside and queenside."
+   ],
+   "expected": {
+    "wrong": [
+     "e1h1",
+     "e1c1"
+    ]
+   },
+   "check": "castle",
+   "nodes": [
+    {
+     "fingerprint": "2r1k3/8/8/8/8/8/PP3PPP/R3K2R w KQ -",
+     "accepted": [
+      "e1g1"
+     ],
+     "replies": {}
+    }
+   ],
+   "focus": [
+    "e1"
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "sm-castle-legal-10-b",
+   "entry": "special-moves",
+   "variant": "castle-legal",
+   "tier": 2,
+   "cluster": "sm-castle-legal-10",
+   "learner": "b",
+   "fen": "r3k2r/ppp2ppp/8/8/8/8/8/R3K2R b KQkq - 0 1",
+   "prompt": "Black to move. Castle.",
+   "explanation": "Castling either way is legal: the king steps two squares towards the rook, which then hops over to land right next to the king. Both sides can castle: the black rooks do not attack any square the white king uses.",
+   "hints": [
+    "Castling needs a king and rook that have never moved, empty squares between them, and a king that is not in check and neither crosses nor lands on an attacked square.",
+    "Check each side in turn: kingside and queenside."
+   ],
+   "expected": {
+    "wrong": [
+     "e8h8",
+     "e8a8"
+    ]
+   },
+   "check": "castle",
+   "nodes": [
+    {
+     "fingerprint": "r3k2r/ppp2ppp/8/8/8/8/8/R3K2R b KQkq -",
+     "accepted": [
+      "e8c8",
+      "e8g8"
+     ],
+     "replies": {}
+    }
+   ],
+   "focus": [
+    "e8"
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "sm-castle-legal-11-w",
+   "entry": "special-moves",
+   "variant": "castle-legal",
+   "tier": 3,
+   "cluster": "sm-castle-legal-11",
+   "learner": "w",
+   "fen": "1r2k3/8/8/8/8/8/P4PPP/R3K2R w KQ - 0 1",
+   "prompt": "White to move. Castle.",
+   "explanation": "Castling either way is legal: the king steps two squares towards the rook, which then hops over to land right next to the king. The rook on b8 attacks b1, but the king never crosses or lands on b1, so queenside castling is still allowed, and kingside too. Only the squares the king uses matter.",
+   "hints": [
+    "Castling needs a king and rook that have never moved, empty squares between them, and a king that is not in check and neither crosses nor lands on an attacked square.",
+    "Check each side in turn: kingside and queenside."
+   ],
+   "expected": {
+    "wrong": [
+     "e1h1",
+     "e1a1"
+    ]
+   },
+   "check": "castle",
+   "nodes": [
+    {
+     "fingerprint": "1r2k3/8/8/8/8/8/P4PPP/R3K2R w KQ -",
+     "accepted": [
+      "e1c1",
+      "e1g1"
+     ],
+     "replies": {}
+    }
+   ],
+   "focus": [
+    "e1"
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "sm-castle-legal-12-b",
+   "entry": "special-moves",
+   "variant": "castle-legal",
+   "tier": 3,
+   "cluster": "sm-castle-legal-12",
+   "learner": "b",
+   "fen": "r3k2r/pppq1ppp/2npbn2/2b1p3/2B1P3/2NPBN2/PPPQ1PPP/R3K2R b KQkq - 0 1",
+   "prompt": "Black to move. Castle.",
+   "explanation": "Castling either way is legal: the king steps two squares towards the rook, which then hops over to land right next to the king. Both castlings are possible in this position.",
+   "hints": [
+    "Castling needs a king and rook that have never moved, empty squares between them, and a king that is not in check and neither crosses nor lands on an attacked square.",
+    "Check each side in turn: kingside and queenside."
+   ],
+   "expected": {
+    "wrong": [
+     "e8h8",
+     "e8a8"
+    ]
+   },
+   "check": "castle",
+   "nodes": [
+    {
+     "fingerprint": "r3k2r/pppq1ppp/2npbn2/2b1p3/2B1P3/2NPBN2/PPPQ1PPP/R3K2R b KQkq -",
+     "accepted": [
+      "e8c8",
+      "e8g8"
+     ],
+     "replies": {}
+    }
+   ],
+   "focus": [
+    "e8"
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "sm-castle-unavailable-1-w",
+   "entry": "special-moves",
+   "variant": "castle-unavailable",
+   "tier": 1,
+   "cluster": "sm-castle-unavailable-1",
+   "learner": "w",
+   "fen": "4k3/8/8/8/8/8/5PPP/4K2R w K - 0 1",
+   "prelude": [
+    "e1f1",
+    "e8d8",
+    "f1e1",
+    "d8e8"
+   ],
+   "prompt": "White to move. Can White castle kingside (king to g1) now? If not, why not?",
+   "explanation": "The king moved to f1 and back. Once the king has moved, it can never castle again in this game, even from its home square.",
+   "hints": [
+    "Check the four rules: neither piece has moved, the squares between are empty, the king is not in check, and it does not cross or land on an attacked square.",
+    "Look at the moves played so far, then at every enemy piece."
+   ],
+   "choices": [
+    "Yes, castling is allowed",
+    "No: the king or that rook has already moved",
+    "No: a piece is in the way",
+    "No: the king is in check",
+    "No: the king would cross an attacked square",
+    "No: the king would land on an attacked square"
+   ],
+   "expected": {
+    "choice": "No: the king or that rook has already moved"
+   },
+   "noAction": true,
+   "check": "castleReason",
+   "target": "g1",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "sm-castle-unavailable-2-b",
+   "entry": "special-moves",
+   "variant": "castle-unavailable",
+   "tier": 2,
+   "cluster": "sm-castle-unavailable-2",
+   "learner": "b",
+   "fen": "4k2r/5ppp/8/8/8/8/8/4K3 b k - 0 1",
+   "prelude": [
+    "h8g8",
+    "e1d1",
+    "g8h8",
+    "d1e1"
+   ],
+   "prompt": "Black to move. Can Black castle kingside (king to g8) now? If not, why not?",
+   "explanation": "The rook went to g8 and came back. A rook that has moved cannot castle any more.",
+   "hints": [
+    "Check the four rules: neither piece has moved, the squares between are empty, the king is not in check, and it does not cross or land on an attacked square.",
+    "Look at the moves played so far, then at every enemy piece."
+   ],
+   "choices": [
+    "Yes, castling is allowed",
+    "No: the king or that rook has already moved",
+    "No: a piece is in the way",
+    "No: the king is in check",
+    "No: the king would cross an attacked square",
+    "No: the king would land on an attacked square"
+   ],
+   "expected": {
+    "choice": "No: the king or that rook has already moved"
+   },
+   "noAction": true,
+   "check": "castleReason",
+   "target": "g8",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "sm-castle-unavailable-3-w",
+   "entry": "special-moves",
+   "variant": "castle-unavailable",
+   "tier": 2,
+   "cluster": "sm-castle-unavailable-3",
+   "learner": "w",
+   "fen": "4k3/8/8/8/8/8/PPP5/R3K3 w Q - 0 1",
+   "prelude": [
+    "a1b1",
+    "e8e7",
+    "b1a1",
+    "e7e8"
+   ],
+   "prompt": "White to move. Can White castle queenside (king to c1) now? If not, why not?",
+   "explanation": "The a1 rook moved to b1 and back, so queenside castling is gone for good.",
+   "hints": [
+    "Check the four rules: neither piece has moved, the squares between are empty, the king is not in check, and it does not cross or land on an attacked square.",
+    "Look at the moves played so far, then at every enemy piece."
+   ],
+   "choices": [
+    "Yes, castling is allowed",
+    "No: the king or that rook has already moved",
+    "No: a piece is in the way",
+    "No: the king is in check",
+    "No: the king would cross an attacked square",
+    "No: the king would land on an attacked square"
+   ],
+   "expected": {
+    "choice": "No: the king or that rook has already moved"
+   },
+   "noAction": true,
+   "check": "castleReason",
+   "target": "c1",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "sm-castle-unavailable-4-b",
+   "entry": "special-moves",
+   "variant": "castle-unavailable",
+   "tier": 1,
+   "cluster": "sm-castle-unavailable-4",
+   "learner": "b",
+   "fen": "4kb1r/5ppp/8/8/8/8/8/4K3 b k - 0 1",
+   "prompt": "Black to move. Can Black castle kingside (king to g8) now? If not, why not?",
+   "explanation": "The bishop on f8 stands between the king and the rook. Move it first, then castling becomes possible.",
+   "hints": [
+    "Check the four rules: neither piece has moved, the squares between are empty, the king is not in check, and it does not cross or land on an attacked square.",
+    "Look at the moves played so far, then at every enemy piece."
+   ],
+   "choices": [
+    "Yes, castling is allowed",
+    "No: the king or that rook has already moved",
+    "No: a piece is in the way",
+    "No: the king is in check",
+    "No: the king would cross an attacked square",
+    "No: the king would land on an attacked square"
+   ],
+   "expected": {
+    "choice": "No: a piece is in the way"
+   },
+   "noAction": true,
+   "check": "castleReason",
+   "target": "g8",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "sm-castle-unavailable-5-w",
+   "entry": "special-moves",
+   "variant": "castle-unavailable",
+   "tier": 2,
+   "cluster": "sm-castle-unavailable-5",
+   "learner": "w",
+   "fen": "4k3/8/8/8/8/8/PPP5/RN2K3 w Q - 0 1",
+   "prompt": "White to move. Can White castle queenside (king to c1) now? If not, why not?",
+   "explanation": "The knight on b1 is in the way. On the queenside, b1, c1 and d1 must all be empty.",
+   "hints": [
+    "Check the four rules: neither piece has moved, the squares between are empty, the king is not in check, and it does not cross or land on an attacked square.",
+    "Look at the moves played so far, then at every enemy piece."
+   ],
+   "choices": [
+    "Yes, castling is allowed",
+    "No: the king or that rook has already moved",
+    "No: a piece is in the way",
+    "No: the king is in check",
+    "No: the king would cross an attacked square",
+    "No: the king would land on an attacked square"
+   ],
+   "expected": {
+    "choice": "No: a piece is in the way"
+   },
+   "noAction": true,
+   "check": "castleReason",
+   "target": "c1",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "sm-castle-unavailable-6-b",
+   "entry": "special-moves",
+   "variant": "castle-unavailable",
+   "tier": 1,
+   "cluster": "sm-castle-unavailable-6",
+   "learner": "b",
+   "fen": "4k2r/5ppp/8/8/8/8/8/4R1K1 b k - 0 1",
+   "prompt": "Black to move. Can Black castle kingside (king to g8) now? If not, why not?",
+   "explanation": "The rook on e1 gives check. You may not castle out of check.",
+   "hints": [
+    "Check the four rules: neither piece has moved, the squares between are empty, the king is not in check, and it does not cross or land on an attacked square.",
+    "Look at the moves played so far, then at every enemy piece."
+   ],
+   "choices": [
+    "Yes, castling is allowed",
+    "No: the king or that rook has already moved",
+    "No: a piece is in the way",
+    "No: the king is in check",
+    "No: the king would cross an attacked square",
+    "No: the king would land on an attacked square"
+   ],
+   "expected": {
+    "choice": "No: the king is in check"
+   },
+   "noAction": true,
+   "check": "castleReason",
+   "target": "g8",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "sm-castle-unavailable-7-w",
+   "entry": "special-moves",
+   "variant": "castle-unavailable",
+   "tier": 2,
+   "cluster": "sm-castle-unavailable-7",
+   "learner": "w",
+   "fen": "4k3/8/8/8/1b6/8/5PPP/4K2R w K - 0 1",
+   "prompt": "White to move. Can White castle kingside (king to g1) now? If not, why not?",
+   "explanation": "The bishop on b4 gives check along the diagonal, and castling is never a way out of check.",
+   "hints": [
+    "Check the four rules: neither piece has moved, the squares between are empty, the king is not in check, and it does not cross or land on an attacked square.",
+    "Look at the moves played so far, then at every enemy piece."
+   ],
+   "choices": [
+    "Yes, castling is allowed",
+    "No: the king or that rook has already moved",
+    "No: a piece is in the way",
+    "No: the king is in check",
+    "No: the king would cross an attacked square",
+    "No: the king would land on an attacked square"
+   ],
+   "expected": {
+    "choice": "No: the king is in check"
+   },
+   "noAction": true,
+   "check": "castleReason",
+   "target": "g1",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "sm-castle-unavailable-8-b",
+   "entry": "special-moves",
+   "variant": "castle-unavailable",
+   "tier": 1,
+   "cluster": "sm-castle-unavailable-8",
+   "learner": "b",
+   "fen": "4k2r/6pp/8/8/8/8/8/4KR2 b k - 0 1",
+   "prompt": "Black to move. Can Black castle kingside (king to g8) now? If not, why not?",
+   "explanation": "The rook on f1 attacks f8, the square the king would pass over.",
+   "hints": [
+    "Check the four rules: neither piece has moved, the squares between are empty, the king is not in check, and it does not cross or land on an attacked square.",
+    "Look at the moves played so far, then at every enemy piece."
+   ],
+   "choices": [
+    "Yes, castling is allowed",
+    "No: the king or that rook has already moved",
+    "No: a piece is in the way",
+    "No: the king is in check",
+    "No: the king would cross an attacked square",
+    "No: the king would land on an attacked square"
+   ],
+   "expected": {
+    "choice": "No: the king would cross an attacked square"
+   },
+   "noAction": true,
+   "check": "castleReason",
+   "target": "g8",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "sm-castle-unavailable-9-w",
+   "entry": "special-moves",
+   "variant": "castle-unavailable",
+   "tier": 2,
+   "cluster": "sm-castle-unavailable-9",
+   "learner": "w",
+   "fen": "4k3/8/8/7b/8/8/PPP5/R3K3 w Q - 0 1",
+   "prompt": "White to move. Can White castle queenside (king to c1) now? If not, why not?",
+   "explanation": "The bishop on h5 attacks d1, the square the king would cross on its way to c1.",
+   "hints": [
+    "Check the four rules: neither piece has moved, the squares between are empty, the king is not in check, and it does not cross or land on an attacked square.",
+    "Look at the moves played so far, then at every enemy piece."
+   ],
+   "choices": [
+    "Yes, castling is allowed",
+    "No: the king or that rook has already moved",
+    "No: a piece is in the way",
+    "No: the king is in check",
+    "No: the king would cross an attacked square",
+    "No: the king would land on an attacked square"
+   ],
+   "expected": {
+    "choice": "No: the king would cross an attacked square"
+   },
+   "noAction": true,
+   "check": "castleReason",
+   "target": "c1",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "sm-castle-unavailable-10-b",
+   "entry": "special-moves",
+   "variant": "castle-unavailable",
+   "tier": 3,
+   "cluster": "sm-castle-unavailable-10",
+   "learner": "b",
+   "fen": "4k2r/5p1p/8/8/8/8/8/4K1R1 b k - 0 1",
+   "prompt": "Black to move. Can Black castle kingside (king to g8) now? If not, why not?",
+   "explanation": "The rook on g1 controls the open g-file, so the king would land in check on g8.",
+   "hints": [
+    "Check the four rules: neither piece has moved, the squares between are empty, the king is not in check, and it does not cross or land on an attacked square.",
+    "Look at the moves played so far, then at every enemy piece."
+   ],
+   "choices": [
+    "Yes, castling is allowed",
+    "No: the king or that rook has already moved",
+    "No: a piece is in the way",
+    "No: the king is in check",
+    "No: the king would cross an attacked square",
+    "No: the king would land on an attacked square"
+   ],
+   "expected": {
+    "choice": "No: the king would land on an attacked square"
+   },
+   "noAction": true,
+   "check": "castleReason",
+   "target": "g8",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "sm-castle-unavailable-11-w",
+   "entry": "special-moves",
+   "variant": "castle-unavailable",
+   "tier": 3,
+   "cluster": "sm-castle-unavailable-11",
+   "learner": "w",
+   "fen": "4k3/8/8/8/8/1n6/PP6/R3K3 w Q - 0 1",
+   "prompt": "White to move. Can White castle queenside (king to c1) now? If not, why not?",
+   "explanation": "The knight on b3 attacks c1, where the king would land.",
+   "hints": [
+    "Check the four rules: neither piece has moved, the squares between are empty, the king is not in check, and it does not cross or land on an attacked square.",
+    "Look at the moves played so far, then at every enemy piece."
+   ],
+   "choices": [
+    "Yes, castling is allowed",
+    "No: the king or that rook has already moved",
+    "No: a piece is in the way",
+    "No: the king is in check",
+    "No: the king would cross an attacked square",
+    "No: the king would land on an attacked square"
+   ],
+   "expected": {
+    "choice": "No: the king would land on an attacked square"
+   },
+   "noAction": true,
+   "check": "castleReason",
+   "target": "c1",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "sm-castle-unavailable-12-b",
+   "entry": "special-moves",
+   "variant": "castle-unavailable",
+   "tier": 3,
+   "cluster": "sm-castle-unavailable-12",
+   "learner": "b",
+   "fen": "4k2r/5p1p/6N1/8/8/8/8/4K3 b k - 0 1",
+   "prompt": "Black to move. Can Black castle kingside (king to g8) now? If not, why not?",
+   "explanation": "The knight on g6 attacks f8, the square the king would cross, so kingside castling is not allowed.",
+   "hints": [
+    "Check the four rules: neither piece has moved, the squares between are empty, the king is not in check, and it does not cross or land on an attacked square.",
+    "Look at the moves played so far, then at every enemy piece."
+   ],
+   "choices": [
+    "Yes, castling is allowed",
+    "No: the king or that rook has already moved",
+    "No: a piece is in the way",
+    "No: the king is in check",
+    "No: the king would cross an attacked square",
+    "No: the king would land on an attacked square"
+   ],
+   "expected": {
+    "choice": "No: the king would cross an attacked square"
+   },
+   "noAction": true,
+   "check": "castleReason",
+   "target": "g8",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "sm-promotion-1-w",
+   "entry": "special-moves",
+   "variant": "promotion",
+   "tier": 1,
+   "cluster": "sm-promotion-1",
+   "learner": "w",
+   "fen": "8/4P3/8/8/8/8/k7/4K3 w - - 0 1",
+   "prompt": "White to move. Promote a pawn.",
+   "explanation": "The pawn reaches the last rank and must become a queen, rook, bishop or knight. Any promotion piece is accepted. In Pawn Duel and the other pawn mini-games a pawn on the far rank stays a pawn; in chess it must be promoted, and the game goes on.",
+   "hints": [
+    "A pawn that reaches the far rank is exchanged for a queen, rook, bishop or knight of its own colour.",
+    "Which pawn can reach the last rank, by moving ahead or by capturing?"
+   ],
+   "check": "promotion",
+   "nodes": [
+    {
+     "fingerprint": "8/4P3/8/8/8/8/k7/4K3 w - -",
+     "accepted": [
+      "e7e8b",
+      "e7e8n",
+      "e7e8q",
+      "e7e8r"
+     ],
+     "replies": {}
+    }
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "bridge": "pawn-duel"
+  },
+  {
+   "id": "sm-promotion-2-b",
+   "entry": "special-moves",
+   "variant": "promotion",
+   "tier": 1,
+   "cluster": "sm-promotion-2",
+   "learner": "b",
+   "fen": "4k3/8/8/5K2/8/8/1p6/8 b - - 0 1",
+   "prompt": "Black to move. Promote a pawn.",
+   "explanation": "Most of the time a queen is best, but every promotion piece is a legal choice. Any promotion piece is accepted.",
+   "hints": [
+    "A pawn that reaches the far rank is exchanged for a queen, rook, bishop or knight of its own colour.",
+    "Which pawn can reach the last rank, by moving ahead or by capturing?"
+   ],
+   "check": "promotion",
+   "nodes": [
+    {
+     "fingerprint": "4k3/8/8/5K2/8/8/1p6/8 b - -",
+     "accepted": [
+      "b2b1b",
+      "b2b1n",
+      "b2b1q",
+      "b2b1r"
+     ],
+     "replies": {}
+    }
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "sm-promotion-3-w",
+   "entry": "special-moves",
+   "variant": "promotion",
+   "tier": 1,
+   "cluster": "sm-promotion-3",
+   "learner": "w",
+   "fen": "3r4/4P3/8/8/8/8/k7/4K3 w - - 0 1",
+   "prompt": "White to move. Promote a pawn.",
+   "explanation": "The pawn can promote by moving straight ahead or by capturing the rook on d8. Any promotion piece is accepted.",
+   "hints": [
+    "A pawn that reaches the far rank is exchanged for a queen, rook, bishop or knight of its own colour.",
+    "Which pawn can reach the last rank, by moving ahead or by capturing?"
+   ],
+   "check": "promotion",
+   "nodes": [
+    {
+     "fingerprint": "3r4/4P3/8/8/8/8/k7/4K3 w - -",
+     "accepted": [
+      "e7d8b",
+      "e7d8n",
+      "e7d8q",
+      "e7d8r",
+      "e7e8b",
+      "e7e8n",
+      "e7e8q",
+      "e7e8r"
+     ],
+     "replies": {}
+    }
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "sm-promotion-4-b",
+   "entry": "special-moves",
+   "variant": "promotion",
+   "tier": 2,
+   "cluster": "sm-promotion-4",
+   "learner": "b",
+   "fen": "6k1/K7/8/8/8/8/4p3/3RR3 b - - 0 1",
+   "prompt": "Black to move. Promote a pawn.",
+   "explanation": "The rook on e1 blocks the pawn, but it can still promote by capturing diagonally on d1. Any promotion piece is accepted.",
+   "hints": [
+    "A pawn that reaches the far rank is exchanged for a queen, rook, bishop or knight of its own colour.",
+    "Which pawn can reach the last rank, by moving ahead or by capturing?"
+   ],
+   "check": "promotion",
+   "nodes": [
+    {
+     "fingerprint": "6k1/K7/8/8/8/8/4p3/3RR3 b - -",
+     "accepted": [
+      "e2d1b",
+      "e2d1n",
+      "e2d1q",
+      "e2d1r"
+     ],
+     "replies": {}
+    }
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "sm-promotion-5-w",
+   "entry": "special-moves",
+   "variant": "promotion",
+   "tier": 2,
+   "cluster": "sm-promotion-5",
+   "learner": "w",
+   "fen": "8/P5P1/8/8/3k4/8/8/4K3 w - - 0 1",
+   "prompt": "White to move. Promote a pawn.",
+   "explanation": "Either pawn can promote. Any promotion piece is accepted.",
+   "hints": [
+    "A pawn that reaches the far rank is exchanged for a queen, rook, bishop or knight of its own colour.",
+    "Which pawn can reach the last rank, by moving ahead or by capturing?"
+   ],
+   "check": "promotion",
+   "nodes": [
+    {
+     "fingerprint": "8/P5P1/8/8/3k4/8/8/4K3 w - -",
+     "accepted": [
+      "a7a8b",
+      "a7a8n",
+      "a7a8q",
+      "a7a8r",
+      "g7g8b",
+      "g7g8n",
+      "g7g8q",
+      "g7g8r"
+     ],
+     "replies": {}
+    }
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "sm-promotion-6-b",
+   "entry": "special-moves",
+   "variant": "promotion",
+   "tier": 1,
+   "cluster": "sm-promotion-6",
+   "learner": "b",
+   "fen": "1k6/8/8/2K5/8/8/6p1/8 b - - 0 1",
+   "prompt": "Black to move. Promote a pawn.",
+   "explanation": "Pawns move straight ahead and promote on the far rank. Any promotion piece is accepted.",
+   "hints": [
+    "A pawn that reaches the far rank is exchanged for a queen, rook, bishop or knight of its own colour.",
+    "Which pawn can reach the last rank, by moving ahead or by capturing?"
+   ],
+   "check": "promotion",
+   "nodes": [
+    {
+     "fingerprint": "1k6/8/8/2K5/8/8/6p1/8 b - -",
+     "accepted": [
+      "g2g1b",
+      "g2g1n",
+      "g2g1q",
+      "g2g1r"
+     ],
+     "replies": {}
+    }
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "sm-promotion-7-w",
+   "entry": "special-moves",
+   "variant": "promotion",
+   "tier": 2,
+   "cluster": "sm-promotion-7",
+   "learner": "w",
+   "fen": "2b5/1P6/8/8/8/6k1/8/4K3 w - - 0 1",
+   "prompt": "White to move. Promote a pawn.",
+   "explanation": "Promoting on b8 or capturing the bishop on c8 both reach the last rank. Any promotion piece is accepted.",
+   "hints": [
+    "A pawn that reaches the far rank is exchanged for a queen, rook, bishop or knight of its own colour.",
+    "Which pawn can reach the last rank, by moving ahead or by capturing?"
+   ],
+   "check": "promotion",
+   "nodes": [
+    {
+     "fingerprint": "2b5/1P6/8/8/8/6k1/8/4K3 w - -",
+     "accepted": [
+      "b7b8b",
+      "b7b8n",
+      "b7b8q",
+      "b7b8r",
+      "b7c8b",
+      "b7c8n",
+      "b7c8q",
+      "b7c8r"
+     ],
+     "replies": {}
+    }
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "sm-promotion-8-b",
+   "entry": "special-moves",
+   "variant": "promotion",
+   "tier": 3,
+   "cluster": "sm-promotion-8",
+   "learner": "b",
+   "fen": "4k3/8/6K1/8/8/8/1p6/R1N5 b - - 0 1",
+   "prompt": "Black to move. Promote a pawn.",
+   "explanation": "With b1 empty the pawn may push, or capture on a1 or c1; each lands on the last rank and promotes. Any promotion piece is accepted.",
+   "hints": [
+    "A pawn that reaches the far rank is exchanged for a queen, rook, bishop or knight of its own colour.",
+    "Which pawn can reach the last rank, by moving ahead or by capturing?"
+   ],
+   "check": "promotion",
+   "nodes": [
+    {
+     "fingerprint": "4k3/8/6K1/8/8/8/1p6/R1N5 b - -",
+     "accepted": [
+      "b2a1b",
+      "b2a1n",
+      "b2a1q",
+      "b2a1r",
+      "b2b1b",
+      "b2b1n",
+      "b2b1q",
+      "b2b1r",
+      "b2c1b",
+      "b2c1n",
+      "b2c1q",
+      "b2c1r"
+     ],
+     "replies": {}
+    }
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "sm-promotion-9-w",
+   "entry": "special-moves",
+   "variant": "promotion",
+   "tier": 2,
+   "cluster": "sm-promotion-9",
+   "learner": "w",
+   "fen": "8/5PK1/8/8/8/8/2k5/8 w - - 0 1",
+   "prompt": "White to move. Promote a pawn.",
+   "explanation": "The king does not block the pawn: f8 is empty, so the pawn promotes. Any promotion piece is accepted.",
+   "hints": [
+    "A pawn that reaches the far rank is exchanged for a queen, rook, bishop or knight of its own colour.",
+    "Which pawn can reach the last rank, by moving ahead or by capturing?"
+   ],
+   "check": "promotion",
+   "nodes": [
+    {
+     "fingerprint": "8/5PK1/8/8/8/8/2k5/8 w - -",
+     "accepted": [
+      "f7f8b",
+      "f7f8n",
+      "f7f8q",
+      "f7f8r"
+     ],
+     "replies": {}
+    }
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "sm-promotion-10-b",
+   "entry": "special-moves",
+   "variant": "promotion",
+   "tier": 2,
+   "cluster": "sm-promotion-10",
+   "learner": "b",
+   "fen": "4k3/8/1K6/8/8/8/7p/6R1 b - - 0 1",
+   "prompt": "Black to move. Promote a pawn.",
+   "explanation": "The pawn may promote on h1 or by capturing the rook on g1. Any promotion piece is accepted.",
+   "hints": [
+    "A pawn that reaches the far rank is exchanged for a queen, rook, bishop or knight of its own colour.",
+    "Which pawn can reach the last rank, by moving ahead or by capturing?"
+   ],
+   "check": "promotion",
+   "nodes": [
+    {
+     "fingerprint": "4k3/8/1K6/8/8/8/7p/6R1 b - -",
+     "accepted": [
+      "h2g1b",
+      "h2g1n",
+      "h2g1q",
+      "h2g1r",
+      "h2h1b",
+      "h2h1n",
+      "h2h1q",
+      "h2h1r"
+     ],
+     "replies": {}
+    }
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "sm-promotion-11-w",
+   "entry": "special-moves",
+   "variant": "promotion",
+   "tier": 3,
+   "cluster": "sm-promotion-11",
+   "learner": "w",
+   "fen": "1n6/P1P5/8/8/8/5k2/8/4K3 w - - 0 1",
+   "prompt": "White to move. Promote a pawn.",
+   "explanation": "Both pawns can promote, by moving or by capturing the knight on b8. Any promotion piece is accepted.",
+   "hints": [
+    "A pawn that reaches the far rank is exchanged for a queen, rook, bishop or knight of its own colour.",
+    "Which pawn can reach the last rank, by moving ahead or by capturing?"
+   ],
+   "check": "promotion",
+   "nodes": [
+    {
+     "fingerprint": "1n6/P1P5/8/8/8/5k2/8/4K3 w - -",
+     "accepted": [
+      "a7a8b",
+      "a7a8n",
+      "a7a8q",
+      "a7a8r",
+      "a7b8b",
+      "a7b8n",
+      "a7b8q",
+      "a7b8r",
+      "c7b8b",
+      "c7b8n",
+      "c7b8q",
+      "c7b8r",
+      "c7c8b",
+      "c7c8n",
+      "c7c8q",
+      "c7c8r"
+     ],
+     "replies": {}
+    }
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "sm-promotion-12-b",
+   "entry": "special-moves",
+   "variant": "promotion",
+   "tier": 3,
+   "cluster": "sm-promotion-12",
+   "learner": "b",
+   "fen": "3k4/7R/1K6/8/8/8/3p4/8 b - - 0 1",
+   "prompt": "Black to move. Promote a pawn.",
+   "explanation": "The rook on h7 does not stop the pawn: d1 is free, so it promotes. Any promotion piece is accepted.",
+   "hints": [
+    "A pawn that reaches the far rank is exchanged for a queen, rook, bishop or knight of its own colour.",
+    "Which pawn can reach the last rank, by moving ahead or by capturing?"
+   ],
+   "check": "promotion",
+   "nodes": [
+    {
+     "fingerprint": "3k4/7R/1K6/8/8/8/3p4/8 b - -",
+     "accepted": [
+      "d2d1b",
+      "d2d1n",
+      "d2d1q",
+      "d2d1r"
+     ],
+     "replies": {}
+    }
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "sm-en-passant-available-1-w",
+   "entry": "special-moves",
+   "variant": "en-passant-available",
+   "tier": 1,
+   "cluster": "sm-en-passant-available-1",
+   "learner": "w",
+   "fen": "4k3/3p4/8/4P3/8/8/8/4K3 b - - 0 1",
+   "prelude": [
+    "d7d5"
+   ],
+   "prompt": "White to move. Capture en passant.",
+   "explanation": "The black pawn has just moved two squares past your pawn, so your pawn may capture it as if it had moved one: exd6.",
+   "hints": [
+    "En passant: if an enemy pawn advances two squares and stops next to your pawn, your pawn may take it as though it had advanced just one square. That chance lasts for your very next move only.",
+    "Look at the last move played."
+   ],
+   "check": "enPassant",
+   "nodes": [
+    {
+     "fingerprint": "4k3/8/8/3pP3/8/8/8/4K3 w - d6",
+     "accepted": [
+      "e5d6"
+     ],
+     "replies": {}
+    }
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "sm-en-passant-available-2-b",
+   "entry": "special-moves",
+   "variant": "en-passant-available",
+   "tier": 1,
+   "cluster": "sm-en-passant-available-2",
+   "learner": "b",
+   "fen": "4k3/8/8/8/4p3/8/5P2/4K3 w - - 0 1",
+   "prelude": [
+    "f2f4"
+   ],
+   "prompt": "Black to move. Capture en passant.",
+   "explanation": "The pawn on f4 has just moved two squares beside yours: exf6 en passant takes it.",
+   "hints": [
+    "En passant: if an enemy pawn advances two squares and stops next to your pawn, your pawn may take it as though it had advanced just one square. That chance lasts for your very next move only.",
+    "Look at the last move played."
+   ],
+   "check": "enPassant",
+   "nodes": [
+    {
+     "fingerprint": "4k3/8/8/8/4pP2/8/8/4K3 b - f3",
+     "accepted": [
+      "e4f3"
+     ],
+     "replies": {}
+    }
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "sm-en-passant-available-3-w",
+   "entry": "special-moves",
+   "variant": "en-passant-available",
+   "tier": 2,
+   "cluster": "sm-en-passant-available-3",
+   "learner": "w",
+   "fen": "4k3/3p4/8/2P1P3/8/8/8/4K3 b - - 0 1",
+   "prelude": [
+    "d7d5"
+   ],
+   "prompt": "White to move. Capture en passant.",
+   "explanation": "Both of your pawns stand beside it, so either may capture en passant.",
+   "hints": [
+    "En passant: if an enemy pawn advances two squares and stops next to your pawn, your pawn may take it as though it had advanced just one square. That chance lasts for your very next move only.",
+    "Look at the last move played."
+   ],
+   "check": "enPassant",
+   "nodes": [
+    {
+     "fingerprint": "4k3/8/8/2PpP3/8/8/8/4K3 w - d6",
+     "accepted": [
+      "c5d6",
+      "e5d6"
+     ],
+     "replies": {}
+    }
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "sm-en-passant-available-4-b",
+   "entry": "special-moves",
+   "variant": "en-passant-available",
+   "tier": 1,
+   "cluster": "sm-en-passant-available-4",
+   "learner": "b",
+   "fen": "4k3/8/8/8/2p5/8/1P6/4K3 w - - 0 1",
+   "prelude": [
+    "b2b4"
+   ],
+   "prompt": "Black to move. Capture en passant.",
+   "explanation": "The pawn on b4 jumped two squares; cxb6 en passant is allowed this move only.",
+   "hints": [
+    "En passant: if an enemy pawn advances two squares and stops next to your pawn, your pawn may take it as though it had advanced just one square. That chance lasts for your very next move only.",
+    "Look at the last move played."
+   ],
+   "check": "enPassant",
+   "nodes": [
+    {
+     "fingerprint": "4k3/8/8/8/1Pp5/8/8/4K3 b - b3",
+     "accepted": [
+      "c4b3"
+     ],
+     "replies": {}
+    }
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "sm-en-passant-available-5-w",
+   "entry": "special-moves",
+   "variant": "en-passant-available",
+   "tier": 2,
+   "cluster": "sm-en-passant-available-5",
+   "learner": "w",
+   "fen": "4k3/6p1/8/7P/8/8/8/4K3 b - - 0 1",
+   "prelude": [
+    "g7g5"
+   ],
+   "prompt": "White to move. Capture en passant.",
+   "explanation": "Even on the edge, a pawn beside the one that moved two squares may capture it en passant: hxg6.",
+   "hints": [
+    "En passant: if an enemy pawn advances two squares and stops next to your pawn, your pawn may take it as though it had advanced just one square. That chance lasts for your very next move only.",
+    "Look at the last move played."
+   ],
+   "check": "enPassant",
+   "nodes": [
+    {
+     "fingerprint": "4k3/8/8/6pP/8/8/8/4K3 w - g6",
+     "accepted": [
+      "h5g6"
+     ],
+     "replies": {}
+    }
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "sm-en-passant-available-6-b",
+   "entry": "special-moves",
+   "variant": "en-passant-available",
+   "tier": 2,
+   "cluster": "sm-en-passant-available-6",
+   "learner": "b",
+   "fen": "4k2r/8/8/8/3p4/8/2P5/R3K3 w - - 0 1",
+   "prelude": [
+    "c2c4"
+   ],
+   "prompt": "Black to move. Capture en passant.",
+   "explanation": "Taking en passant on c3 removes the pawn that just moved two squares.",
+   "hints": [
+    "En passant: if an enemy pawn advances two squares and stops next to your pawn, your pawn may take it as though it had advanced just one square. That chance lasts for your very next move only.",
+    "Look at the last move played."
+   ],
+   "check": "enPassant",
+   "nodes": [
+    {
+     "fingerprint": "4k2r/8/8/8/2Pp4/8/8/R3K3 b - c3",
+     "accepted": [
+      "d4c3"
+     ],
+     "replies": {}
+    }
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "sm-en-passant-available-7-w",
+   "entry": "special-moves",
+   "variant": "en-passant-available",
+   "tier": 2,
+   "cluster": "sm-en-passant-available-7",
+   "learner": "w",
+   "fen": "4k3/4p3/8/3P1P2/8/8/8/4K3 b - - 0 1",
+   "prelude": [
+    "e7e5"
+   ],
+   "prompt": "White to move. Capture en passant.",
+   "explanation": "Two of your pawns can take en passant on e6.",
+   "hints": [
+    "En passant: if an enemy pawn advances two squares and stops next to your pawn, your pawn may take it as though it had advanced just one square. That chance lasts for your very next move only.",
+    "Look at the last move played."
+   ],
+   "check": "enPassant",
+   "nodes": [
+    {
+     "fingerprint": "4k3/8/8/3PpP2/8/8/8/4K3 w - e6",
+     "accepted": [
+      "d5e6",
+      "f5e6"
+     ],
+     "replies": {}
+    }
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "sm-en-passant-available-8-b",
+   "entry": "special-moves",
+   "variant": "en-passant-available",
+   "tier": 3,
+   "cluster": "sm-en-passant-available-8",
+   "learner": "b",
+   "fen": "6k1/5ppp/8/8/2p5/8/PP1P4/2K5 w - - 0 1",
+   "prelude": [
+    "d2d4"
+   ],
+   "prompt": "Black to move. Capture en passant.",
+   "explanation": "Only the pawn that just moved two squares can be taken en passant: cxd6.",
+   "hints": [
+    "En passant: if an enemy pawn advances two squares and stops next to your pawn, your pawn may take it as though it had advanced just one square. That chance lasts for your very next move only.",
+    "Look at the last move played."
+   ],
+   "check": "enPassant",
+   "nodes": [
+    {
+     "fingerprint": "6k1/5ppp/8/8/2pP4/8/PP6/2K5 b - d3",
+     "accepted": [
+      "c4d3"
+     ],
+     "replies": {}
+    }
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "sm-en-passant-available-9-w",
+   "entry": "special-moves",
+   "variant": "en-passant-available",
+   "tier": 3,
+   "cluster": "sm-en-passant-available-9",
+   "learner": "w",
+   "fen": "4k3/p7/8/1P6/8/2n5/8/4K3 b - - 0 1",
+   "prelude": [
+    "a7a5"
+   ],
+   "prompt": "White to move. Capture en passant.",
+   "explanation": "The pawn on a5 has just jumped past your pawn: bxa6 en passant is allowed now, and only now.",
+   "hints": [
+    "En passant: if an enemy pawn advances two squares and stops next to your pawn, your pawn may take it as though it had advanced just one square. That chance lasts for your very next move only.",
+    "Look at the last move played."
+   ],
+   "check": "enPassant",
+   "nodes": [
+    {
+     "fingerprint": "4k3/8/8/pP6/8/2n5/8/4K3 w - a6",
+     "accepted": [
+      "b5a6"
+     ],
+     "replies": {}
+    }
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "sm-en-passant-available-10-b",
+   "entry": "special-moves",
+   "variant": "en-passant-available",
+   "tier": 3,
+   "cluster": "sm-en-passant-available-10",
+   "learner": "b",
+   "fen": "6k1/8/8/8/4p1p1/8/5P2/6K1 w - - 0 1",
+   "prelude": [
+    "f2f4"
+   ],
+   "prompt": "Black to move. Capture en passant.",
+   "explanation": "The pawn landed between your two pawns, and either may capture it en passant.",
+   "hints": [
+    "En passant: if an enemy pawn advances two squares and stops next to your pawn, your pawn may take it as though it had advanced just one square. That chance lasts for your very next move only.",
+    "Look at the last move played."
+   ],
+   "check": "enPassant",
+   "nodes": [
+    {
+     "fingerprint": "6k1/8/8/8/4pPp1/8/8/6K1 b - f3",
+     "accepted": [
+      "e4f3",
+      "g4f3"
+     ],
+     "replies": {}
+    }
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "sm-en-passant-available-11-w",
+   "entry": "special-moves",
+   "variant": "en-passant-available",
+   "tier": 3,
+   "cluster": "sm-en-passant-available-11",
+   "learner": "w",
+   "fen": "r3k2r/1p6/8/P7/8/8/8/R3K2R b KQkq - 0 1",
+   "prelude": [
+    "b7b5"
+   ],
+   "prompt": "White to move. Capture en passant.",
+   "explanation": "The pawn on b5 has just moved two squares beside yours: axb6 en passant takes it.",
+   "hints": [
+    "En passant: if an enemy pawn advances two squares and stops next to your pawn, your pawn may take it as though it had advanced just one square. That chance lasts for your very next move only.",
+    "Look at the last move played."
+   ],
+   "check": "enPassant",
+   "nodes": [
+    {
+     "fingerprint": "r3k2r/8/8/Pp6/8/8/8/R3K2R w KQkq b6",
+     "accepted": [
+      "a5b6"
+     ],
+     "replies": {}
+    }
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "sm-en-passant-available-12-b",
+   "entry": "special-moves",
+   "variant": "en-passant-available",
+   "tier": 2,
+   "cluster": "sm-en-passant-available-12",
+   "learner": "b",
+   "fen": "4k3/8/8/8/1p1p4/8/2P5/4K3 w - - 0 1",
+   "prelude": [
+    "c2c4"
+   ],
+   "prompt": "Black to move. Capture en passant.",
+   "explanation": "Either pawn may capture the pawn on c4 en passant: bxc6 or dxc6.",
+   "hints": [
+    "En passant: if an enemy pawn advances two squares and stops next to your pawn, your pawn may take it as though it had advanced just one square. That chance lasts for your very next move only.",
+    "Look at the last move played."
+   ],
+   "check": "enPassant",
+   "nodes": [
+    {
+     "fingerprint": "4k3/8/8/8/1pPp4/8/8/4K3 b - c3",
+     "accepted": [
+      "b4c3",
+      "d4c3"
+     ],
+     "replies": {}
+    }
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "sm-en-passant-unavailable-1-w",
+   "entry": "special-moves",
+   "variant": "en-passant-unavailable",
+   "tier": 1,
+   "cluster": "sm-en-passant-unavailable-1",
+   "learner": "w",
+   "fen": "4k3/8/3p4/4P3/8/8/8/4K3 b - - 0 1",
+   "prelude": [
+    "d6d5"
+   ],
+   "prompt": "White to move. Can you capture the pawn on d5 en passant right now? If not, why not?",
+   "explanation": "The pawn on d5 came from d6: it moved only one square, so en passant does not apply.",
+   "hints": [
+    "En passant needs three things: an enemy pawn that has just moved two squares, your pawn right beside it, and a capture that does not leave your king in check.",
+    "Look at the moves played so far."
+   ],
+   "choices": [
+    "Yes, en passant is allowed",
+    "No: that pawn did not just move two squares",
+    "No: the chance has passed",
+    "No: it would leave your king in check",
+    "No: none of your pawns stands beside it"
+   ],
+   "expected": {
+    "choice": "No: that pawn did not just move two squares"
+   },
+   "noAction": true,
+   "check": "enPassantChoice",
+   "target": "d5",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "sm-en-passant-unavailable-2-b",
+   "entry": "special-moves",
+   "variant": "en-passant-unavailable",
+   "tier": 2,
+   "cluster": "sm-en-passant-unavailable-2",
+   "learner": "b",
+   "fen": "4k3/8/8/8/4p3/8/3P4/4K3 w - - 0 1",
+   "prelude": [
+    "d2d3",
+    "e8d8",
+    "d3d4"
+   ],
+   "prompt": "Black to move. Can you capture the pawn on d4 en passant right now? If not, why not?",
+   "explanation": "The pawn reached d4 in two separate one-square moves. En passant applies only straight after a two-square move.",
+   "hints": [
+    "En passant needs three things: an enemy pawn that has just moved two squares, your pawn right beside it, and a capture that does not leave your king in check.",
+    "Look at the moves played so far."
+   ],
+   "choices": [
+    "Yes, en passant is allowed",
+    "No: that pawn did not just move two squares",
+    "No: the chance has passed",
+    "No: it would leave your king in check",
+    "No: none of your pawns stands beside it"
+   ],
+   "expected": {
+    "choice": "No: that pawn did not just move two squares"
+   },
+   "noAction": true,
+   "check": "enPassantChoice",
+   "target": "d4",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "sm-en-passant-unavailable-3-w",
+   "entry": "special-moves",
+   "variant": "en-passant-unavailable",
+   "tier": 2,
+   "cluster": "sm-en-passant-unavailable-3",
+   "learner": "w",
+   "fen": "4k3/8/5p2/4P3/8/8/8/4K3 b - - 0 1",
+   "prelude": [
+    "f6f5"
+   ],
+   "prompt": "White to move. Can you capture the pawn on f5 en passant right now? If not, why not?",
+   "explanation": "The pawn on f5 stepped one square from f6, so it cannot be taken en passant.",
+   "hints": [
+    "En passant needs three things: an enemy pawn that has just moved two squares, your pawn right beside it, and a capture that does not leave your king in check.",
+    "Look at the moves played so far."
+   ],
+   "choices": [
+    "Yes, en passant is allowed",
+    "No: that pawn did not just move two squares",
+    "No: the chance has passed",
+    "No: it would leave your king in check",
+    "No: none of your pawns stands beside it"
+   ],
+   "expected": {
+    "choice": "No: that pawn did not just move two squares"
+   },
+   "noAction": true,
+   "check": "enPassantChoice",
+   "target": "f5",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "sm-en-passant-unavailable-4-b",
+   "entry": "special-moves",
+   "variant": "en-passant-unavailable",
+   "tier": 1,
+   "cluster": "sm-en-passant-unavailable-4",
+   "learner": "b",
+   "fen": "4k3/8/8/8/4p3/8/3P4/4K3 w - - 0 1",
+   "prelude": [
+    "d2d4",
+    "e8d8",
+    "e1d1"
+   ],
+   "prompt": "Black to move. Can you capture the pawn on d4 en passant right now? If not, why not?",
+   "explanation": "The pawn did move two squares, but other moves have been played since. En passant must be played immediately or the chance is gone.",
+   "hints": [
+    "En passant needs three things: an enemy pawn that has just moved two squares, your pawn right beside it, and a capture that does not leave your king in check.",
+    "Look at the moves played so far."
+   ],
+   "choices": [
+    "Yes, en passant is allowed",
+    "No: that pawn did not just move two squares",
+    "No: the chance has passed",
+    "No: it would leave your king in check",
+    "No: none of your pawns stands beside it"
+   ],
+   "expected": {
+    "choice": "No: the chance has passed"
+   },
+   "noAction": true,
+   "check": "enPassantChoice",
+   "target": "d4",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "sm-en-passant-unavailable-5-w",
+   "entry": "special-moves",
+   "variant": "en-passant-unavailable",
+   "tier": 2,
+   "cluster": "sm-en-passant-unavailable-5",
+   "learner": "w",
+   "fen": "4k3/5p2/8/4P3/8/8/8/4K3 b - - 0 1",
+   "prelude": [
+    "f7f5",
+    "e1f2",
+    "e8e7"
+   ],
+   "prompt": "White to move. Can you capture the pawn on f5 en passant right now? If not, why not?",
+   "explanation": "Once a move has passed after the two-square step, en passant is no longer allowed.",
+   "hints": [
+    "En passant needs three things: an enemy pawn that has just moved two squares, your pawn right beside it, and a capture that does not leave your king in check.",
+    "Look at the moves played so far."
+   ],
+   "choices": [
+    "Yes, en passant is allowed",
+    "No: that pawn did not just move two squares",
+    "No: the chance has passed",
+    "No: it would leave your king in check",
+    "No: none of your pawns stands beside it"
+   ],
+   "expected": {
+    "choice": "No: the chance has passed"
+   },
+   "noAction": true,
+   "check": "enPassantChoice",
+   "target": "f5",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "sm-en-passant-unavailable-6-b",
+   "entry": "special-moves",
+   "variant": "en-passant-unavailable",
+   "tier": 3,
+   "cluster": "sm-en-passant-unavailable-6",
+   "learner": "b",
+   "fen": "4k3/8/8/8/2p5/8/1P6/4K3 w - - 0 1",
+   "prelude": [
+    "b2b4",
+    "e8e7",
+    "e1d2"
+   ],
+   "prompt": "Black to move. Can you capture the pawn on b4 en passant right now? If not, why not?",
+   "explanation": "The two-square move b2-b4 happened a move ago, so the en-passant chance has passed.",
+   "hints": [
+    "En passant needs three things: an enemy pawn that has just moved two squares, your pawn right beside it, and a capture that does not leave your king in check.",
+    "Look at the moves played so far."
+   ],
+   "choices": [
+    "Yes, en passant is allowed",
+    "No: that pawn did not just move two squares",
+    "No: the chance has passed",
+    "No: it would leave your king in check",
+    "No: none of your pawns stands beside it"
+   ],
+   "expected": {
+    "choice": "No: the chance has passed"
+   },
+   "noAction": true,
+   "check": "enPassantChoice",
+   "target": "b4",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "sm-en-passant-unavailable-7-w",
+   "entry": "special-moves",
+   "variant": "en-passant-unavailable",
+   "tier": 3,
+   "cluster": "sm-en-passant-unavailable-7",
+   "learner": "w",
+   "fen": "4k3/3p4/8/K3P2r/8/8/8/8 b - - 0 1",
+   "prelude": [
+    "d7d5"
+   ],
+   "prompt": "White to move. Can you capture the pawn on d5 en passant right now? If not, why not?",
+   "explanation": "Taking en passant would remove both pawns from the fifth rank and expose your king on a5 to the rook on h5. That leaves your king in check, so it is not allowed.",
+   "hints": [
+    "En passant needs three things: an enemy pawn that has just moved two squares, your pawn right beside it, and a capture that does not leave your king in check.",
+    "Look at the moves played so far."
+   ],
+   "choices": [
+    "Yes, en passant is allowed",
+    "No: that pawn did not just move two squares",
+    "No: the chance has passed",
+    "No: it would leave your king in check",
+    "No: none of your pawns stands beside it"
+   ],
+   "expected": {
+    "choice": "No: it would leave your king in check"
+   },
+   "noAction": true,
+   "check": "enPassantChoice",
+   "target": "d5",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "sm-en-passant-unavailable-8-b",
+   "entry": "special-moves",
+   "variant": "en-passant-unavailable",
+   "tier": 3,
+   "cluster": "sm-en-passant-unavailable-8",
+   "learner": "b",
+   "fen": "8/8/8/8/R3p2k/8/5P2/4K3 w - - 0 1",
+   "prelude": [
+    "f2f4"
+   ],
+   "prompt": "Black to move. Can you capture the pawn on f4 en passant right now? If not, why not?",
+   "explanation": "After exf6 the fifth rank would open and the rook on a4 would attack your king on h4, so en passant is illegal here.",
+   "hints": [
+    "En passant needs three things: an enemy pawn that has just moved two squares, your pawn right beside it, and a capture that does not leave your king in check.",
+    "Look at the moves played so far."
+   ],
+   "choices": [
+    "Yes, en passant is allowed",
+    "No: that pawn did not just move two squares",
+    "No: the chance has passed",
+    "No: it would leave your king in check",
+    "No: none of your pawns stands beside it"
+   ],
+   "expected": {
+    "choice": "No: it would leave your king in check"
+   },
+   "noAction": true,
+   "check": "enPassantChoice",
+   "target": "f4",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "sm-en-passant-unavailable-9-w",
+   "entry": "special-moves",
+   "variant": "en-passant-unavailable",
+   "tier": 3,
+   "cluster": "sm-en-passant-unavailable-9",
+   "learner": "w",
+   "fen": "8/3p4/8/1K2P1rk/8/8/8/8 b - - 0 1",
+   "prelude": [
+    "d7d5"
+   ],
+   "prompt": "White to move. Can you capture the pawn on d5 en passant right now? If not, why not?",
+   "explanation": "Capturing en passant would take both pawns off the rank between your king on b5 and the rook on g5: your king would be in check.",
+   "hints": [
+    "En passant needs three things: an enemy pawn that has just moved two squares, your pawn right beside it, and a capture that does not leave your king in check.",
+    "Look at the moves played so far."
+   ],
+   "choices": [
+    "Yes, en passant is allowed",
+    "No: that pawn did not just move two squares",
+    "No: the chance has passed",
+    "No: it would leave your king in check",
+    "No: none of your pawns stands beside it"
+   ],
+   "expected": {
+    "choice": "No: it would leave your king in check"
+   },
+   "noAction": true,
+   "check": "enPassantChoice",
+   "target": "d5",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "sm-en-passant-unavailable-10-b",
+   "entry": "special-moves",
+   "variant": "en-passant-unavailable",
+   "tier": 1,
+   "cluster": "sm-en-passant-unavailable-10",
+   "learner": "b",
+   "fen": "4k3/8/8/8/1p6/8/3P4/4K3 w - - 0 1",
+   "prelude": [
+    "d2d4"
+   ],
+   "prompt": "Black to move. Can you capture the pawn on d4 en passant right now? If not, why not?",
+   "explanation": "The pawn did move two squares, but none of your pawns stands right beside it on c4 or e4.",
+   "hints": [
+    "En passant needs three things: an enemy pawn that has just moved two squares, your pawn right beside it, and a capture that does not leave your king in check.",
+    "Look at the moves played so far."
+   ],
+   "choices": [
+    "Yes, en passant is allowed",
+    "No: that pawn did not just move two squares",
+    "No: the chance has passed",
+    "No: it would leave your king in check",
+    "No: none of your pawns stands beside it"
+   ],
+   "expected": {
+    "choice": "No: none of your pawns stands beside it"
+   },
+   "noAction": true,
+   "check": "enPassantChoice",
+   "target": "d4",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "sm-en-passant-unavailable-11-w",
+   "entry": "special-moves",
+   "variant": "en-passant-unavailable",
+   "tier": 2,
+   "cluster": "sm-en-passant-unavailable-11",
+   "learner": "w",
+   "fen": "4k3/6p1/8/P7/8/8/8/4K3 b - - 0 1",
+   "prelude": [
+    "g7g5"
+   ],
+   "prompt": "White to move. Can you capture the pawn on g5 en passant right now? If not, why not?",
+   "explanation": "Your pawn on a5 is far away: only a pawn on f5 or h5 could capture g5 en passant.",
+   "hints": [
+    "En passant needs three things: an enemy pawn that has just moved two squares, your pawn right beside it, and a capture that does not leave your king in check.",
+    "Look at the moves played so far."
+   ],
+   "choices": [
+    "Yes, en passant is allowed",
+    "No: that pawn did not just move two squares",
+    "No: the chance has passed",
+    "No: it would leave your king in check",
+    "No: none of your pawns stands beside it"
+   ],
+   "expected": {
+    "choice": "No: none of your pawns stands beside it"
+   },
+   "noAction": true,
+   "check": "enPassantChoice",
+   "target": "g5",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "sm-en-passant-unavailable-12-b",
+   "entry": "special-moves",
+   "variant": "en-passant-unavailable",
+   "tier": 2,
+   "cluster": "sm-en-passant-unavailable-12",
+   "learner": "b",
+   "fen": "4k3/8/8/8/3n4/8/2P5/4K3 w - - 0 1",
+   "prelude": [
+    "c2c4"
+   ],
+   "prompt": "Black to move. Can you capture the pawn on c4 en passant right now? If not, why not?",
+   "explanation": "Only pawns capture en passant. The knight on d4 is beside the pawn, but no pawn of yours is.",
+   "hints": [
+    "En passant needs three things: an enemy pawn that has just moved two squares, your pawn right beside it, and a capture that does not leave your king in check.",
+    "Look at the moves played so far."
+   ],
+   "choices": [
+    "Yes, en passant is allowed",
+    "No: that pawn did not just move two squares",
+    "No: the chance has passed",
+    "No: it would leave your king in check",
+    "No: none of your pawns stands beside it"
+   ],
+   "expected": {
+    "choice": "No: none of your pawns stands beside it"
+   },
+   "noAction": true,
+   "check": "enPassantChoice",
+   "target": "c4",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  }
+ ]
+}

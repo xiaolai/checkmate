@@ -27,6 +27,10 @@
     "description": "Start a reversible visual demonstration from the current real practice position. Supply up to 3 labeled lines of at most 12 legal UCI moves, each optionally with explanation, arrows and highlights. All moves are validated atomically. Defaults paused; autoplay is optional. Does not commit moves, overwrite a learner preview, or work in quizzes. Return includes demonstrationId as demonstration.id and validated SAN/FEN frames. These are possible lines, not verified best/forced variations.",
     "readOnly": false
   },
+  "end_training_attempt": {
+    "description": "After a finished exercise, try the same board again or start the next one; or leave to the training library at any time.",
+    "readOnly": false
+  },
   "get_legal_moves": {
     "description": "List legal practice-game moves for the observed revision. Unavailable in quizzes and partial teaching positions.",
     "readOnly": true
@@ -55,6 +59,10 @@
     "description": "Page locally saved immutable review records. No arbitrary file access.",
     "readOnly": true
   },
+  "list_training_entries": {
+    "description": "List the training entries the learner can open, with their plain rules and descriptive progress. Read-only; no answers.",
+    "readOnly": true
+  },
   "open_review": {
     "description": "Open a saved record, current-game snapshot, or bounded pasted PGN/FEN for read-only review. Does not play moves or start voice. When a review is already open, include its expectedReviewRevision to authorize replacement.",
     "readOnly": false
@@ -71,6 +79,10 @@
     "description": "Validate a reversible imagined UCI line atomically, then display its initial frame. Both sides can move in the local branch.",
     "readOnly": false
   },
+  "request_training_hint": {
+    "description": "Show the next hint for the current exercise (concept, then the relevant pieces). Recorded as help. The answer itself is only revealed by the learner.",
+    "readOnly": false
+  },
   "select_review_position": {
     "description": "Select a validated original node. Requires the exact current document, node and review revision; never edits the imported tree.",
     "readOnly": false
@@ -85,6 +97,14 @@
   },
   "start_practice_from_review": {
     "description": "Request the app's concrete confirmation, side and profile selection before creating a separate practice fork. Cannot silently replace an active game.",
+    "readOnly": false
+  },
+  "start_training": {
+    "description": "Open a training entry (or resume the saved exercise) for the learner. Only after the learner has chosen Training in the sidebar. Existing mini-games open their one saved board.",
+    "readOnly": false
+  },
+  "submit_training_action": {
+    "description": "Relay the learner's stated answer to the current training exercise: select squares, submit, none, choose a label, or a move. Bound to attemptId and sessionRevision. Recorded as help: never answer for the learner.",
     "readOnly": false
   },
   "wait_for_change": {

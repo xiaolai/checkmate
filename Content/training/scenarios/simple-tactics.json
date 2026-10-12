@@ -1,0 +1,2650 @@
+{
+ "entry": "simple-tactics",
+ "scenarios": [
+  {
+   "id": "st-fork-recognize-1",
+   "entry": "simple-tactics",
+   "variant": "fork-recognize",
+   "tier": 2,
+   "cluster": "st-fork-recognize-1",
+   "learner": "w",
+   "fen": "5K2/4B3/8/2p3p1/1p5b/p7/8/7k w - - 0 1",
+   "prompt": "Select every white piece that is forking: attacking two or more black pieces at once that are the king, worth more than it, or unprotected. If there is none, choose None.",
+   "explanation": "No white piece is forking. The bishop on e7 attacks the pawn on c5 (unprotected) and the pawn on g5 (protected and worth no more); a fork needs two targets that are the king, worth more, or unprotected, and only one of these is.",
+   "hints": [
+    "A fork is one piece attacking two worthwhile targets at once: the king, a bigger piece, or an unprotected one.",
+    "Check each white piece: what does it attack?"
+   ],
+   "expected": {
+    "squares": []
+   },
+   "noAction": true,
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "forks",
+   "askColor": "w"
+  },
+  {
+   "id": "st-fork-recognize-2",
+   "entry": "simple-tactics",
+   "variant": "fork-recognize",
+   "tier": 3,
+   "cluster": "st-fork-recognize-2",
+   "learner": "b",
+   "fen": "k7/8/8/4p3/1n1p1n1K/4n2n/3B1B2/8 b - - 0 1",
+   "prompt": "Select every white piece that is forking: attacking two or more black pieces at once that are the king, worth more than it, or unprotected. If there is none, choose None.",
+   "explanation": "No white piece is forking. The bishop on d2 attacks the knight on b4 (unprotected) and the knight on e3 (protected and worth no more); a fork needs two targets that are the king, worth more, or unprotected, and only one of these is.",
+   "hints": [
+    "A fork is one piece attacking two worthwhile targets at once: the king, a bigger piece, or an unprotected one.",
+    "Check each white piece: what does it attack?"
+   ],
+   "expected": {
+    "squares": []
+   },
+   "noAction": true,
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "forks",
+   "askColor": "w"
+  },
+  {
+   "id": "st-fork-recognize-3",
+   "entry": "simple-tactics",
+   "variant": "fork-recognize",
+   "tier": 2,
+   "cluster": "st-fork-recognize-3",
+   "learner": "w",
+   "fen": "8/8/2K5/5n2/8/2P1P1B1/3k1P1P/8 w - - 0 1",
+   "prompt": "Select every black piece that is forking: attacking two or more white pieces at once that are the king, worth more than it, or unprotected. If there is none, choose None.",
+   "explanation": "No black piece is forking. The king on d2 attacks the pawn on c3 (unprotected) and the pawn on e3 (protected and worth no more); a fork needs two targets that are the king, worth more, or unprotected, and only one of these is.",
+   "hints": [
+    "A fork is one piece attacking two worthwhile targets at once: the king, a bigger piece, or an unprotected one.",
+    "Check each black piece: what does it attack?"
+   ],
+   "expected": {
+    "squares": []
+   },
+   "noAction": true,
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "forks",
+   "askColor": "b"
+  },
+  {
+   "id": "st-fork-recognize-4",
+   "entry": "simple-tactics",
+   "variant": "fork-recognize",
+   "tier": 3,
+   "cluster": "st-fork-recognize-4",
+   "learner": "b",
+   "fen": "8/p1k5/Rn2K3/1p2p3/p7/6n1/8/8 b - - 0 1",
+   "prompt": "Select every white piece that is forking: attacking two or more black pieces at once that are the king, worth more than it, or unprotected. If there is none, choose None.",
+   "explanation": "No white piece is forking. The rook on a6 attacks the pawn on a4 (protected and worth no more), the pawn on a7 (unprotected) and the knight on b6 (protected and worth no more); a fork needs two targets that are the king, worth more, or unprotected, and only one of these is.",
+   "hints": [
+    "A fork is one piece attacking two worthwhile targets at once: the king, a bigger piece, or an unprotected one.",
+    "Check each white piece: what does it attack?"
+   ],
+   "expected": {
+    "squares": []
+   },
+   "noAction": true,
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "forks",
+   "askColor": "w"
+  },
+  {
+   "id": "st-fork-recognize-5",
+   "entry": "simple-tactics",
+   "variant": "fork-recognize",
+   "tier": 2,
+   "cluster": "st-fork-recognize-5",
+   "learner": "w",
+   "fen": "8/B5B1/3B4/N6k/2n5/6b1/8/5K2 w - - 0 1",
+   "prompt": "Select every black piece that is forking: attacking two or more white pieces at once that are the king, worth more than it, or unprotected. If there is none, choose None.",
+   "explanation": "The knight on c4 forks the bishop on d6 and knight on a5.",
+   "hints": [
+    "A fork is one piece attacking two worthwhile targets at once: the king, a bigger piece, or an unprotected one.",
+    "Check each black piece: what does it attack?"
+   ],
+   "expected": {
+    "squares": [
+     "c4"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "forks",
+   "askColor": "b"
+  },
+  {
+   "id": "st-fork-recognize-6",
+   "entry": "simple-tactics",
+   "variant": "fork-recognize",
+   "tier": 2,
+   "cluster": "st-fork-recognize-6",
+   "learner": "b",
+   "fen": "8/7k/8/5p1q/8/5R2/1KN4R/8 b - - 0 1",
+   "prompt": "Select every black piece that is forking: attacking two or more white pieces at once that are the king, worth more than it, or unprotected. If there is none, choose None.",
+   "explanation": "The queen on h5 forks the rook on h2 and rook on f3.",
+   "hints": [
+    "A fork is one piece attacking two worthwhile targets at once: the king, a bigger piece, or an unprotected one.",
+    "Check each black piece: what does it attack?"
+   ],
+   "expected": {
+    "squares": [
+     "h5"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "forks",
+   "askColor": "b"
+  },
+  {
+   "id": "st-fork-recognize-7",
+   "entry": "simple-tactics",
+   "variant": "fork-recognize",
+   "tier": 1,
+   "cluster": "st-fork-recognize-7",
+   "learner": "w",
+   "fen": "7K/5k2/8/8/5n2/2n1r3/3P4/8 w - - 0 1",
+   "prompt": "Select every white piece that is forking: attacking two or more black pieces at once that are the king, worth more than it, or unprotected. If there is none, choose None.",
+   "explanation": "The pawn on d2 forks the knight on c3 and rook on e3.",
+   "hints": [
+    "A fork is one piece attacking two worthwhile targets at once: the king, a bigger piece, or an unprotected one.",
+    "Check each white piece: what does it attack?"
+   ],
+   "expected": {
+    "squares": [
+     "d2"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "forks",
+   "askColor": "w"
+  },
+  {
+   "id": "st-fork-recognize-8",
+   "entry": "simple-tactics",
+   "variant": "fork-recognize",
+   "tier": 2,
+   "cluster": "st-fork-recognize-8",
+   "learner": "b",
+   "fen": "1N6/5QK1/3n4/1n6/4N1k1/2B5/8/8 b - - 0 1",
+   "prompt": "Select every black piece that is forking: attacking two or more white pieces at once that are the king, worth more than it, or unprotected. If there is none, choose None.",
+   "explanation": "The knight on d6 forks the queen on f7 and knight on e4.",
+   "hints": [
+    "A fork is one piece attacking two worthwhile targets at once: the king, a bigger piece, or an unprotected one.",
+    "Check each black piece: what does it attack?"
+   ],
+   "expected": {
+    "squares": [
+     "d6"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "forks",
+   "askColor": "b"
+  },
+  {
+   "id": "st-fork-recognize-9",
+   "entry": "simple-tactics",
+   "variant": "fork-recognize",
+   "tier": 2,
+   "cluster": "st-fork-recognize-9",
+   "learner": "w",
+   "fen": "8/5p2/2p5/8/2K4P/3r4/4r3/1kN5 w - - 0 1",
+   "prompt": "Select every white piece that is forking: attacking two or more black pieces at once that are the king, worth more than it, or unprotected. If there is none, choose None.",
+   "explanation": "The knight on c1 forks the rook on d3 and rook on e2.",
+   "hints": [
+    "A fork is one piece attacking two worthwhile targets at once: the king, a bigger piece, or an unprotected one.",
+    "Check each white piece: what does it attack?"
+   ],
+   "expected": {
+    "squares": [
+     "c1"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "forks",
+   "askColor": "w"
+  },
+  {
+   "id": "st-fork-recognize-10",
+   "entry": "simple-tactics",
+   "variant": "fork-recognize",
+   "tier": 2,
+   "cluster": "st-fork-recognize-10",
+   "learner": "b",
+   "fen": "6N1/1p4b1/4N3/1nq5/6K1/8/8/4k3 b - - 0 1",
+   "prompt": "Select every white piece that is forking: attacking two or more black pieces at once that are the king, worth more than it, or unprotected. If there is none, choose None.",
+   "explanation": "The knight on e6 forks the bishop on g7 and queen on c5.",
+   "hints": [
+    "A fork is one piece attacking two worthwhile targets at once: the king, a bigger piece, or an unprotected one.",
+    "Check each white piece: what does it attack?"
+   ],
+   "expected": {
+    "squares": [
+     "e6"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "forks",
+   "askColor": "w"
+  },
+  {
+   "id": "st-fork-recognize-11",
+   "entry": "simple-tactics",
+   "variant": "fork-recognize",
+   "tier": 2,
+   "cluster": "st-fork-recognize-11",
+   "learner": "w",
+   "fen": "1N4K1/3q4/2r5/8/3b4/p7/8/7k w - - 0 1",
+   "prompt": "Select every white piece that is forking: attacking two or more black pieces at once that are the king, worth more than it, or unprotected. If there is none, choose None.",
+   "explanation": "The knight on b8 forks the rook on c6 and queen on d7.",
+   "hints": [
+    "A fork is one piece attacking two worthwhile targets at once: the king, a bigger piece, or an unprotected one.",
+    "Check each white piece: what does it attack?"
+   ],
+   "expected": {
+    "squares": [
+     "b8"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "forks",
+   "askColor": "w"
+  },
+  {
+   "id": "st-fork-recognize-12",
+   "entry": "simple-tactics",
+   "variant": "fork-recognize",
+   "tier": 2,
+   "cluster": "st-fork-recognize-12",
+   "learner": "b",
+   "fen": "8/p1R5/8/2r5/K7/7B/2N5/1k6 b - - 0 1",
+   "prompt": "Select every black piece that is forking: attacking two or more white pieces at once that are the king, worth more than it, or unprotected. If there is none, choose None.",
+   "explanation": "The rook on c5 forks the rook on c7 and knight on c2.",
+   "hints": [
+    "A fork is one piece attacking two worthwhile targets at once: the king, a bigger piece, or an unprotected one.",
+    "Check each black piece: what does it attack?"
+   ],
+   "expected": {
+    "squares": [
+     "c5"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "forks",
+   "askColor": "b"
+  },
+  {
+   "id": "st-pin-recognize-1",
+   "entry": "simple-tactics",
+   "variant": "pin-recognize",
+   "tier": 1,
+   "cluster": "st-pin-recognize-1",
+   "learner": "w",
+   "fen": "8/7b/2k5/4n3/2N5/4R3/7K/8 w - - 0 1",
+   "prompt": "Select every black piece that is pinned: it stands on a line between an enemy bishop, rook or queen and its own king or a more valuable piece. If there is none, choose None.",
+   "explanation": "No black piece is pinned: no enemy bishop, rook or queen has exactly one black piece between it and the king or a more valuable piece.",
+   "hints": [
+    "A pin is a piece that cannot move without exposing the king, or a more valuable piece, behind it.",
+    "Look along the lines of the enemy bishops, rooks and queens."
+   ],
+   "expected": {
+    "squares": []
+   },
+   "noAction": true,
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "pins",
+   "askColor": "b"
+  },
+  {
+   "id": "st-pin-recognize-2",
+   "entry": "simple-tactics",
+   "variant": "pin-recognize",
+   "tier": 1,
+   "cluster": "st-pin-recognize-2",
+   "learner": "b",
+   "fen": "8/8/5K2/3k4/4R3/2Rb4/3n4/8 b - - 0 1",
+   "prompt": "Select every black piece that is pinned: it stands on a line between an enemy bishop, rook or queen and its own king or a more valuable piece. If there is none, choose None.",
+   "explanation": "No black piece is pinned: no enemy bishop, rook or queen has exactly one black piece between it and the king or a more valuable piece.",
+   "hints": [
+    "A pin is a piece that cannot move without exposing the king, or a more valuable piece, behind it.",
+    "Look along the lines of the enemy bishops, rooks and queens."
+   ],
+   "expected": {
+    "squares": []
+   },
+   "noAction": true,
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "pins",
+   "askColor": "b"
+  },
+  {
+   "id": "st-pin-recognize-3",
+   "entry": "simple-tactics",
+   "variant": "pin-recognize",
+   "tier": 1,
+   "cluster": "st-pin-recognize-3",
+   "learner": "w",
+   "fen": "1k6/7b/8/8/8/3BK3/7N/8 w - - 0 1",
+   "prompt": "Select every black piece that is pinned: it stands on a line between an enemy bishop, rook or queen and its own king or a more valuable piece. If there is none, choose None.",
+   "explanation": "No black piece is pinned: no enemy bishop, rook or queen has exactly one black piece between it and the king or a more valuable piece.",
+   "hints": [
+    "A pin is a piece that cannot move without exposing the king, or a more valuable piece, behind it.",
+    "Look along the lines of the enemy bishops, rooks and queens."
+   ],
+   "expected": {
+    "squares": []
+   },
+   "noAction": true,
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "pins",
+   "askColor": "b"
+  },
+  {
+   "id": "st-pin-recognize-4",
+   "entry": "simple-tactics",
+   "variant": "pin-recognize",
+   "tier": 1,
+   "cluster": "st-pin-recognize-4",
+   "learner": "b",
+   "fen": "8/8/3R4/7r/8/K6R/5k2/8 b - - 0 1",
+   "prompt": "Select every white piece that is pinned: it stands on a line between an enemy bishop, rook or queen and its own king or a more valuable piece. If there is none, choose None.",
+   "explanation": "No white piece is pinned: no enemy bishop, rook or queen has exactly one white piece between it and the king or a more valuable piece.",
+   "hints": [
+    "A pin is a piece that cannot move without exposing the king, or a more valuable piece, behind it.",
+    "Look along the lines of the enemy bishops, rooks and queens."
+   ],
+   "expected": {
+    "squares": []
+   },
+   "noAction": true,
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "pins",
+   "askColor": "w"
+  },
+  {
+   "id": "st-pin-recognize-5",
+   "entry": "simple-tactics",
+   "variant": "pin-recognize",
+   "tier": 2,
+   "cluster": "st-pin-recognize-5",
+   "learner": "w",
+   "fen": "k7/8/7N/8/K6b/6R1/3n1Q2/8 w - - 0 1",
+   "prompt": "Select every white piece that is pinned: it stands on a line between an enemy bishop, rook or queen and its own king or a more valuable piece. If there is none, choose None.",
+   "explanation": "The rook on g3 is pinned by the bishop on h4 to the queen on f2.",
+   "hints": [
+    "A pin is a piece that cannot move without exposing the king, or a more valuable piece, behind it.",
+    "Look along the lines of the enemy bishops, rooks and queens."
+   ],
+   "expected": {
+    "squares": [
+     "g3"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "pins",
+   "askColor": "w"
+  },
+  {
+   "id": "st-pin-recognize-6",
+   "entry": "simple-tactics",
+   "variant": "pin-recognize",
+   "tier": 2,
+   "cluster": "st-pin-recognize-6",
+   "learner": "b",
+   "fen": "q7/b3K1N1/R7/8/3p4/2k5/8/8 b - - 0 1",
+   "prompt": "Select every black piece that is pinned: it stands on a line between an enemy bishop, rook or queen and its own king or a more valuable piece. If there is none, choose None.",
+   "explanation": "The bishop on a7 is pinned by the rook on a6 to the queen on a8.",
+   "hints": [
+    "A pin is a piece that cannot move without exposing the king, or a more valuable piece, behind it.",
+    "Look along the lines of the enemy bishops, rooks and queens."
+   ],
+   "expected": {
+    "squares": [
+     "a7"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "pins",
+   "askColor": "b"
+  },
+  {
+   "id": "st-pin-recognize-7",
+   "entry": "simple-tactics",
+   "variant": "pin-recognize",
+   "tier": 3,
+   "cluster": "st-pin-recognize-7",
+   "learner": "w",
+   "fen": "8/1RN5/8/2r5/1P5K/1rk5/5B2/4n3 w - - 0 1",
+   "prompt": "Select every white piece that is pinned: it stands on a line between an enemy bishop, rook or queen and its own king or a more valuable piece. If there is none, choose None.",
+   "explanation": "The pawn on b4 is pinned by the rook on b3 to the rook on b7.",
+   "hints": [
+    "A pin is a piece that cannot move without exposing the king, or a more valuable piece, behind it.",
+    "Look along the lines of the enemy bishops, rooks and queens."
+   ],
+   "expected": {
+    "squares": [
+     "b4"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "pins",
+   "askColor": "w"
+  },
+  {
+   "id": "st-pin-recognize-8",
+   "entry": "simple-tactics",
+   "variant": "pin-recognize",
+   "tier": 2,
+   "cluster": "st-pin-recognize-8",
+   "learner": "b",
+   "fen": "1Q6/nN6/Pr6/3KN3/8/8/8/6k1 b - - 0 1",
+   "prompt": "Select every white piece that is pinned: it stands on a line between an enemy bishop, rook or queen and its own king or a more valuable piece. If there is none, choose None.",
+   "explanation": "The knight on b7 is pinned by the rook on b6 to the queen on b8.",
+   "hints": [
+    "A pin is a piece that cannot move without exposing the king, or a more valuable piece, behind it.",
+    "Look along the lines of the enemy bishops, rooks and queens."
+   ],
+   "expected": {
+    "squares": [
+     "b7"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "pins",
+   "askColor": "w"
+  },
+  {
+   "id": "st-pin-recognize-9",
+   "entry": "simple-tactics",
+   "variant": "pin-recognize",
+   "tier": 2,
+   "cluster": "st-pin-recognize-9",
+   "learner": "w",
+   "fen": "3K4/8/1k2r2r/8/7N/7Q/R7/8 w - - 0 1",
+   "prompt": "Select every white piece that is pinned: it stands on a line between an enemy bishop, rook or queen and its own king or a more valuable piece. If there is none, choose None.",
+   "explanation": "The knight on h4 is pinned by the rook on h6 to the queen on h3.",
+   "hints": [
+    "A pin is a piece that cannot move without exposing the king, or a more valuable piece, behind it.",
+    "Look along the lines of the enemy bishops, rooks and queens."
+   ],
+   "expected": {
+    "squares": [
+     "h4"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "pins",
+   "askColor": "w"
+  },
+  {
+   "id": "st-pin-recognize-10",
+   "entry": "simple-tactics",
+   "variant": "pin-recognize",
+   "tier": 2,
+   "cluster": "st-pin-recognize-10",
+   "learner": "b",
+   "fen": "q7/8/2n5/1k4KB/2p2R2/5B2/8/8 b - - 0 1",
+   "prompt": "Select every black piece that is pinned: it stands on a line between an enemy bishop, rook or queen and its own king or a more valuable piece. If there is none, choose None.",
+   "explanation": "The knight on c6 is pinned by the bishop on f3 to the queen on a8.",
+   "hints": [
+    "A pin is a piece that cannot move without exposing the king, or a more valuable piece, behind it.",
+    "Look along the lines of the enemy bishops, rooks and queens."
+   ],
+   "expected": {
+    "squares": [
+     "c6"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "pins",
+   "askColor": "b"
+  },
+  {
+   "id": "st-pin-recognize-11",
+   "entry": "simple-tactics",
+   "variant": "pin-recognize",
+   "tier": 3,
+   "cluster": "st-pin-recognize-11",
+   "learner": "w",
+   "fen": "6q1/8/N4pr1/k1K5/4p1R1/4P3/8/8 w - - 0 1",
+   "prompt": "Select every black piece that is pinned: it stands on a line between an enemy bishop, rook or queen and its own king or a more valuable piece. If there is none, choose None.",
+   "explanation": "The rook on g6 is pinned by the rook on g4 to the queen on g8.",
+   "hints": [
+    "A pin is a piece that cannot move without exposing the king, or a more valuable piece, behind it.",
+    "Look along the lines of the enemy bishops, rooks and queens."
+   ],
+   "expected": {
+    "squares": [
+     "g6"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "pins",
+   "askColor": "b"
+  },
+  {
+   "id": "st-pin-recognize-12",
+   "entry": "simple-tactics",
+   "variant": "pin-recognize",
+   "tier": 2,
+   "cluster": "st-pin-recognize-12",
+   "learner": "b",
+   "fen": "2q4R/7K/k3r3/8/3p4/7B/8/2B5 b - - 0 1",
+   "prompt": "Select every black piece that is pinned: it stands on a line between an enemy bishop, rook or queen and its own king or a more valuable piece. If there is none, choose None.",
+   "explanation": "The rook on e6 is pinned by the bishop on h3 to the queen on c8.",
+   "hints": [
+    "A pin is a piece that cannot move without exposing the king, or a more valuable piece, behind it.",
+    "Look along the lines of the enemy bishops, rooks and queens."
+   ],
+   "expected": {
+    "squares": [
+     "e6"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "pins",
+   "askColor": "b"
+  },
+  {
+   "id": "st-fork-realize-1",
+   "entry": "simple-tactics",
+   "variant": "fork-realize",
+   "tier": 2,
+   "cluster": "st-fork-realize-1",
+   "learner": "w",
+   "fen": "7b/8/1p6/N6n/8/k7/6NK/8 w - - 0 1",
+   "prompt": "White to move. Win material.",
+   "explanation": "Nc4+ forks the pawn on b6 and king on a3; whatever the reply, one of them can be won. Every move that wins material is accepted.",
+   "hints": [
+    "Look for a move that attacks two things at once.",
+    "Which enemy pieces are loose or on the same piece's path?"
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "material",
+   "goal": {
+    "kind": "gain",
+    "threshold": 1
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "7b/8/1p6/N6n/8/k7/6NK/8 w - -",
+     "accepted": [
+      "a5c4"
+     ],
+     "replies": {
+      "a5b3": "a3b3",
+      "a5b7": "a3a2",
+      "a5c4": "a3a2",
+      "a5c6": "a3a2",
+      "g2e1": "b6a5",
+      "g2e3": "b6a5",
+      "g2f4": "b6a5",
+      "g2h4": "b6a5",
+      "h2g1": "b6a5",
+      "h2h1": "b6a5",
+      "h2h3": "b6a5"
+     },
+     "next": {
+      "a5c4": 1
+     }
+    },
+    {
+     "fingerprint": "7b/8/1p6/7n/2N5/8/k5NK/8 w - -",
+     "accepted": [
+      "c4b6"
+     ],
+     "replies": {}
+    }
+   ],
+   "focus": [
+    "a5"
+   ]
+  },
+  {
+   "id": "st-fork-realize-2",
+   "entry": "simple-tactics",
+   "variant": "fork-realize",
+   "tier": 1,
+   "cluster": "st-fork-realize-2",
+   "learner": "b",
+   "fen": "n7/3K3N/8/8/B4p2/8/1k6/8 b - - 0 1",
+   "prompt": "Black to move. Win material.",
+   "explanation": "Nb6+ forks the king on d7 and bishop on a4; whatever the reply, one of them can be won. Every move that wins material is accepted.",
+   "hints": [
+    "Look for a move that attacks two things at once.",
+    "Which enemy pieces are loose or on the same piece's path?"
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "material",
+   "goal": {
+    "kind": "gain",
+    "threshold": 1
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "n7/3K3N/8/8/B4p2/8/1k6/8 b - -",
+     "accepted": [
+      "a8b6"
+     ],
+     "replies": {
+      "a8b6": "d7c6",
+      "a8c7": "d7c7",
+      "b2a1": "a4b3",
+      "b2a2": "a4b5",
+      "b2a3": "a4b5",
+      "b2b1": "a4b3",
+      "b2c1": "a4b3",
+      "b2c3": "a4b5",
+      "f4f3": "a4b5"
+     },
+     "next": {
+      "a8b6": 1
+     }
+    },
+    {
+     "fingerprint": "8/7N/1nK5/8/B4p2/8/1k6/8 b - -",
+     "accepted": [
+      "b6a4"
+     ],
+     "replies": {}
+    }
+   ],
+   "focus": [
+    "a8"
+   ]
+  },
+  {
+   "id": "st-fork-realize-3",
+   "entry": "simple-tactics",
+   "variant": "fork-realize",
+   "tier": 1,
+   "cluster": "st-fork-realize-3",
+   "learner": "w",
+   "fen": "6B1/8/2q5/5k2/8/8/n7/4QK2 w - - 0 1",
+   "prompt": "White to move. Win material.",
+   "explanation": "Qa5+ forks the king on f5 and knight on a2; whatever the reply, one of them can be won. Every move that wins material is accepted.",
+   "hints": [
+    "Look for a move that attacks two things at once.",
+    "Which enemy pieces are loose or on the same piece's path?"
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "material",
+   "goal": {
+    "kind": "gain",
+    "threshold": 1
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "6B1/8/2q5/5k2/8/8/n7/4QK2 w - -",
+     "accepted": [
+      "e1a5",
+      "e1b1",
+      "e1f2"
+     ],
+     "replies": {
+      "g8a2": "c6a6",
+      "e1a1": "a2c1",
+      "e1a5": "c6b5",
+      "e1b1": "c6c2",
+      "e1b4": "a2b4",
+      "e1c1": "a2c1",
+      "e1c3": "a2c3",
+      "e1d1": "a2b4",
+      "e1d2": "a2c1",
+      "e1e2": "a2b4",
+      "e1e3": "a2b4",
+      "e1e4": "c6e4",
+      "e1e5": "f5e5",
+      "e1e6": "c6e6",
+      "e1e7": "a2c1",
+      "e1e8": "c6e8",
+      "e1f2": "c6f3",
+      "e1g3": "a2b4",
+      "e1h4": "a2c1",
+      "f1e2": "a2c1",
+      "f1f2": "a2c1",
+      "f1g1": "a2c1",
+      "g8b3": "a2c1",
+      "g8c4": "c6c4",
+      "g8d5": "c6d5",
+      "g8e6": "c6e6",
+      "g8f7": "a2c1",
+      "g8h7": "f5f6"
+     },
+     "next": {
+      "e1a5": 1,
+      "e1b1": 2,
+      "e1f2": 3
+     }
+    },
+    {
+     "fingerprint": "6B1/8/8/Qq3k2/8/8/n7/5K2 w - -",
+     "accepted": [
+      "a5b5"
+     ],
+     "replies": {
+      "a5b5": "f5e4"
+     }
+    },
+    {
+     "fingerprint": "6B1/8/8/5k2/8/8/n1q5/1Q3K2 w - -",
+     "accepted": [
+      "b1c2",
+      "g8e6",
+      "g8h7"
+     ],
+     "replies": {
+      "b1c2": "f5e5",
+      "b1a2": "c2a2",
+      "g8a2": "c2b1",
+      "b1b5": "f5e4",
+      "g8e6": "f5e6",
+      "g8h7": "f5e5"
+     }
+    },
+    {
+     "fingerprint": "6B1/8/8/5k2/8/5q2/n4Q2/5K2 w - -",
+     "accepted": [
+      "f2f3"
+     ],
+     "replies": {
+      "f2f3": "f5e5",
+      "g8a2": "f3f2",
+      "g8e6": "f5e4",
+      "g8h7": "f5f4"
+     }
+    }
+   ],
+   "focus": [
+    "e1"
+   ]
+  },
+  {
+   "id": "st-fork-realize-4",
+   "entry": "simple-tactics",
+   "variant": "fork-realize",
+   "tier": 2,
+   "cluster": "st-fork-realize-4",
+   "learner": "b",
+   "fen": "8/5k2/8/nP1P4/B7/3n3B/8/3K4 b - - 0 1",
+   "prompt": "Black to move. Win material.",
+   "explanation": "Nf4 forks the pawn on d5 and bishop on h3; whatever the reply, one of them can be won. Every move that wins material is accepted.",
+   "hints": [
+    "Look for a move that attacks two things at once.",
+    "Which enemy pieces are loose or on the same piece's path?"
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "material",
+   "goal": {
+    "kind": "gain",
+    "threshold": 1
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "8/5k2/8/nP1P4/B7/3n3B/8/3K4 b - -",
+     "accepted": [
+      "d3b2",
+      "d3f2",
+      "d3f4"
+     ],
+     "replies": {
+      "a5b3": "a4b3",
+      "a5b7": "d1d2",
+      "a5c4": "a4b3",
+      "a5c6": "b5c6",
+      "d3b2": "d1c1",
+      "d3b4": "d5d6",
+      "d3c1": "d1c1",
+      "d3c5": "a4c2",
+      "d3e1": "d1e1",
+      "d3e5": "a4c2",
+      "d3f2": "d1c1",
+      "d3f4": "a4b3",
+      "f7e7": "d1d2",
+      "f7e8": "b5b6",
+      "f7f6": "d1d2",
+      "f7f8": "d1d2",
+      "f7g6": "a4c2",
+      "f7g7": "d1d2",
+      "f7g8": "d1d2"
+     },
+     "next": {
+      "d3b2": 1,
+      "d3f2": 2,
+      "d3f4": 3
+     }
+    },
+    {
+     "fingerprint": "8/5k2/8/nP1P4/B7/7B/1n6/2K5 b - -",
+     "accepted": [
+      "b2a4"
+     ],
+     "replies": {
+      "a5b3": "a4b3",
+      "b2d3": "c1b1"
+     }
+    },
+    {
+     "fingerprint": "8/5k2/8/nP1P4/B7/7B/5n2/2K5 b - -",
+     "accepted": [
+      "f2h3"
+     ],
+     "replies": {
+      "a5b3": "a4b3",
+      "f2d3": "c1b1"
+     }
+    },
+    {
+     "fingerprint": "8/5k2/8/nP1P4/5n2/1B5B/8/3K4 b - -",
+     "accepted": [
+      "a5b3",
+      "f4h3"
+     ],
+     "replies": {
+      "f4d5": "b3d5"
+     }
+    }
+   ],
+   "focus": [
+    "d3"
+   ]
+  },
+  {
+   "id": "st-fork-realize-5",
+   "entry": "simple-tactics",
+   "variant": "fork-realize",
+   "tier": 2,
+   "cluster": "st-fork-realize-5",
+   "learner": "w",
+   "fen": "4n3/Q7/P7/5K2/2rp4/8/1P4k1/8 w - - 0 1",
+   "prompt": "White to move. Win material.",
+   "explanation": "Qa8+ forks the knight on e8 and king on g2; whatever the reply, one of them can be won. Every move that wins material is accepted.",
+   "hints": [
+    "Look for a move that attacks two things at once.",
+    "Which enemy pieces are loose or on the same piece's path?"
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "material",
+   "goal": {
+    "kind": "gain",
+    "threshold": 1
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "4n3/Q7/P7/5K2/2rp4/8/1P4k1/8 w - -",
+     "accepted": [
+      "a7a8",
+      "a7e7"
+     ],
+     "replies": {
+      "a7d4": "c4d4",
+      "a7a8": "c4c6",
+      "a7b6": "e8c7",
+      "a7b7": "g2f1",
+      "a7b8": "c4c5",
+      "a7c5": "c4c5",
+      "a7c7": "c4c7",
+      "a7d7": "c4c5",
+      "a7e7": "c4a4",
+      "a7f7": "c4c5",
+      "a7g7": "e8g7",
+      "a7h7": "c4c5",
+      "b2b3": "c4c3",
+      "b2b4": "c4c6",
+      "f5e4": "c4a4",
+      "f5e5": "e8c7",
+      "f5e6": "c4c6",
+      "f5f4": "c4c6",
+      "f5g4": "c4c6",
+      "f5g5": "c4c6",
+      "f5g6": "c4c6"
+     },
+     "next": {
+      "a7a8": 1
+     }
+    },
+    {
+     "fingerprint": "Q3n3/8/P1r5/5K2/3p4/8/1P4k1/8 w - -",
+     "accepted": [
+      "a8c6",
+      "a8e8"
+     ],
+     "replies": {
+      "a8c6": "g2f1",
+      "a8e8": "c6a6"
+     }
+    }
+   ],
+   "focus": [
+    "a7"
+   ]
+  },
+  {
+   "id": "st-fork-realize-6",
+   "entry": "simple-tactics",
+   "variant": "fork-realize",
+   "tier": 1,
+   "cluster": "st-fork-realize-6",
+   "learner": "b",
+   "fen": "8/8/8/8/8/6K1/k7/1Nq3R1 b - - 0 1",
+   "prompt": "Black to move. Win material.",
+   "explanation": "Qxg1+ forks the knight on b1 and king on g3; whatever the reply, one of them can be won. Every move that wins material is accepted.",
+   "hints": [
+    "Look for a move that attacks two things at once.",
+    "Which enemy pieces are loose or on the same piece's path?"
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "material",
+   "goal": {
+    "kind": "gain",
+    "threshold": 1
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "8/8/8/8/8/6K1/k7/1Nq3R1 b - -",
+     "accepted": [
+      "c1g1"
+     ],
+     "replies": {
+      "c1g1": "g3f3",
+      "a2b1": "g1c1",
+      "c1b1": "g1b1",
+      "a2a1": "g1c1",
+      "a2b2": "g1c1",
+      "a2b3": "g1c1",
+      "c1a3": "b1a3",
+      "c1b2": "g1e1",
+      "c1c2": "g1e1",
+      "c1c3": "b1c3",
+      "c1c4": "b1d2",
+      "c1c5": "g1d1",
+      "c1c6": "g1d1",
+      "c1c7": "g3f2",
+      "c1c8": "b1d2",
+      "c1d1": "g1d1",
+      "c1d2": "b1d2",
+      "c1e1": "g1e1",
+      "c1e3": "g3g2",
+      "c1f1": "g1f1",
+      "c1f4": "g3f4",
+      "c1g5": "g3f2",
+      "c1h6": "b1c3"
+     },
+     "next": {
+      "c1g1": 1
+     }
+    },
+    {
+     "fingerprint": "8/8/8/8/8/5K2/k7/1N4q1 b - -",
+     "accepted": [
+      "a2a1",
+      "a2b1",
+      "a2b2",
+      "a2b3",
+      "g1a7",
+      "g1b1",
+      "g1b6",
+      "g1c1",
+      "g1c5",
+      "g1d1",
+      "g1d4",
+      "g1e1",
+      "g1f1",
+      "g1g5",
+      "g1g6",
+      "g1g7",
+      "g1g8",
+      "g1h1",
+      "g1h2"
+     ],
+     "replies": {
+      "g1d1": "f3e3",
+      "g1e3": "f3e3",
+      "g1f1": "f3e3",
+      "g1f2": "f3f2",
+      "g1g2": "f3g2",
+      "g1g3": "f3g3",
+      "g1g4": "f3g4",
+      "g1h1": "f3e2"
+     }
+    }
+   ],
+   "focus": [
+    "c1"
+   ]
+  },
+  {
+   "id": "st-fork-realize-7",
+   "entry": "simple-tactics",
+   "variant": "fork-realize",
+   "tier": 2,
+   "cluster": "st-fork-realize-7",
+   "learner": "w",
+   "fen": "8/6p1/3B1p2/6n1/7K/8/b3k3/3N4 w - - 0 1",
+   "prompt": "White to move. Win material.",
+   "explanation": "Nc3+ forks the king on e2 and bishop on a2; whatever the reply, one of them can be won. Every move that wins material is accepted.",
+   "hints": [
+    "Look for a move that attacks two things at once.",
+    "Which enemy pieces are loose or on the same piece's path?"
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "material",
+   "goal": {
+    "kind": "gain",
+    "threshold": 1
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "8/6p1/3B1p2/6n1/7K/8/b3k3/3N4 w - -",
+     "accepted": [
+      "d1c3"
+     ],
+     "replies": {
+      "d1b2": "a2b1",
+      "d1c3": "e2d2",
+      "d1e3": "e2e3",
+      "d1f2": "e2f2",
+      "d6a3": "e2d1",
+      "d6b4": "e2d1",
+      "d6b8": "e2d1",
+      "d6c5": "e2d1",
+      "d6c7": "e2d1",
+      "d6e5": "e2d1",
+      "d6e7": "e2d1",
+      "d6f4": "e2d1",
+      "d6f8": "e2d1",
+      "d6g3": "e2d1",
+      "d6h2": "e2d1",
+      "h4g3": "e2d1",
+      "h4g4": "e2d1",
+      "h4h5": "e2d1"
+     },
+     "next": {
+      "d1c3": 1
+     }
+    },
+    {
+     "fingerprint": "8/6p1/3B1p2/6n1/7K/2N5/b2k4/8 w - -",
+     "accepted": [
+      "c3a2"
+     ],
+     "replies": {
+      "c3b1": "a2b1",
+      "c3e4": "g5e4",
+      "d6f4": "d2c3"
+     }
+    }
+   ],
+   "focus": [
+    "d1"
+   ]
+  },
+  {
+   "id": "st-fork-realize-8",
+   "entry": "simple-tactics",
+   "variant": "fork-realize",
+   "tier": 1,
+   "cluster": "st-fork-realize-8",
+   "learner": "b",
+   "fen": "3R4/8/1K1P4/7k/8/8/7q/2B5 b - - 0 1",
+   "prompt": "Black to move. Win material.",
+   "explanation": "Qg1+ forks the bishop on c1 and king on b6; whatever the reply, one of them can be won. Every move that wins material is accepted.",
+   "hints": [
+    "Look for a move that attacks two things at once.",
+    "Which enemy pieces are loose or on the same piece's path?"
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "material",
+   "goal": {
+    "kind": "gain",
+    "threshold": 1
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "3R4/8/1K1P4/7k/8/8/7q/2B5 b - -",
+     "accepted": [
+      "h2g1"
+     ],
+     "replies": {
+      "h2d6": "d8d6",
+      "h2a2": "d8c8",
+      "h2b2": "c1b2",
+      "h2c2": "d8h8",
+      "h2d2": "c1d2",
+      "h2e2": "b6a7",
+      "h2e5": "b6b7",
+      "h2f2": "b6b7",
+      "h2f4": "c1f4",
+      "h2g1": "b6a5",
+      "h2g2": "b6a5",
+      "h2g3": "b6a6",
+      "h2h1": "c1a3",
+      "h2h3": "b6a7",
+      "h2h4": "d8a8",
+      "h5g4": "b6a5",
+      "h5g6": "b6a5",
+      "h5h4": "b6a5"
+     },
+     "next": {
+      "h2g1": 1
+     }
+    },
+    {
+     "fingerprint": "3R4/8/3P4/K6k/8/8/8/2B3q1 b - -",
+     "accepted": [
+      "g1c1",
+      "g1c5",
+      "g1e1"
+     ],
+     "replies": {
+      "g1a7": "a5b4",
+      "g1b6": "a5b6",
+      "g1c5": "a5a4",
+      "g1e1": "a5a4",
+      "g1g5": "c1g5"
+     }
+    }
+   ],
+   "focus": [
+    "h2"
+   ]
+  },
+  {
+   "id": "st-fork-realize-9",
+   "entry": "simple-tactics",
+   "variant": "fork-realize",
+   "tier": 1,
+   "cluster": "st-fork-realize-9",
+   "learner": "w",
+   "fen": "8/5k2/5p2/Q7/6K1/3n4/4r3/8 w - - 0 1",
+   "prompt": "White to move. Win material.",
+   "explanation": "Qd5+ forks the knight on d3 and king on f7; whatever the reply, one of them can be won. Every move that wins material is accepted.",
+   "hints": [
+    "Look for a move that attacks two things at once.",
+    "Which enemy pieces are loose or on the same piece's path?"
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "material",
+   "goal": {
+    "kind": "gain",
+    "threshold": 1
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "8/5k2/5p2/Q7/6K1/3n4/4r3/8 w - -",
+     "accepted": [
+      "a5d5"
+     ],
+     "replies": {
+      "a5a1": "d3b2",
+      "a5a2": "e2a2",
+      "a5a3": "d3b2",
+      "a5a4": "d3b2",
+      "a5a6": "d3e5",
+      "a5a7": "e2e7",
+      "a5a8": "d3b2",
+      "a5b4": "d3b4",
+      "a5b5": "d3e5",
+      "a5b6": "d3b2",
+      "a5c3": "d3b2",
+      "a5c5": "d3c5",
+      "a5c7": "f7e8",
+      "a5d2": "e2d2",
+      "a5d5": "e2e6",
+      "a5d8": "d3b2",
+      "a5e1": "d3e1",
+      "a5e5": "d3e5",
+      "a5f5": "d3b2",
+      "a5g5": "f6g5",
+      "a5h5": "f7f8",
+      "g4f3": "e2e5",
+      "g4f5": "d3b2",
+      "g4g3": "d3e5",
+      "g4h3": "d3e5",
+      "g4h4": "d3e5",
+      "g4h5": "d3b2"
+     },
+     "next": {
+      "a5d5": 1
+     }
+    },
+    {
+     "fingerprint": "8/5k2/4rp2/3Q4/6K1/3n4/8/8 w - -",
+     "accepted": [
+      "d5d3",
+      "d5d7"
+     ],
+     "replies": {
+      "d5e6": "f7e6",
+      "d5b7": "e6e7",
+      "d5d7": "e6e7",
+      "d5h5": "f7e7"
+     }
+    }
+   ],
+   "focus": [
+    "a5"
+   ]
+  },
+  {
+   "id": "st-pin-realize-1",
+   "entry": "simple-tactics",
+   "variant": "pin-realize",
+   "tier": 2,
+   "cluster": "st-pin-realize-1",
+   "learner": "w",
+   "fen": "8/7K/6P1/2P4p/2p5/8/B3n3/5k2 w - - 0 1",
+   "prompt": "White to move. Win material.",
+   "explanation": "Bxc4 pins the knight on e2, and the pinned piece can then be won. Every move that wins material is accepted.",
+   "hints": [
+    "Look for an enemy piece stuck in front of its king or a bigger piece.",
+    "Which line could a bishop, rook or queen use?"
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "material",
+   "goal": {
+    "kind": "gain",
+    "threshold": 1
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "8/7K/6P1/2P4p/2p5/8/B3n3/5k2 w - -",
+     "accepted": [
+      "a2c4",
+      "g6g7",
+      "h7h6"
+     ],
+     "replies": {
+      "a2c4": "f1e1",
+      "a2b1": "c4c3",
+      "a2b3": "c4b3",
+      "c5c6": "c4c3",
+      "g6g7": "c4c3",
+      "h7g7": "c4c3",
+      "h7g8": "c4c3",
+      "h7h6": "c4c3",
+      "h7h8": "c4c3"
+     },
+     "next": {
+      "a2c4": 1
+     }
+    },
+    {
+     "fingerprint": "8/7K/6P1/2P4p/2B5/8/4n3/4k3 w - -",
+     "accepted": [
+      "c4a2",
+      "c4a6",
+      "c4b3",
+      "c4b5",
+      "c4d3",
+      "c4d5",
+      "c4e2",
+      "c4e6",
+      "c4f7",
+      "c4g8",
+      "c5c6",
+      "g6g7",
+      "h7g7",
+      "h7g8",
+      "h7h6",
+      "h7h8"
+     ],
+     "replies": {
+      "c4e2": "e1e2"
+     }
+    }
+   ],
+   "focus": [
+    "a2"
+   ]
+  },
+  {
+   "id": "st-pin-realize-2",
+   "entry": "simple-tactics",
+   "variant": "pin-realize",
+   "tier": 2,
+   "cluster": "st-pin-realize-2",
+   "learner": "b",
+   "fen": "4k2b/8/5P2/8/8/P1N4p/1K6/8 b - - 0 1",
+   "prompt": "Black to move. Win material.",
+   "explanation": "Bxf6 pins the knight on c3, and the pinned piece can then be won. Every move that wins material is accepted.",
+   "hints": [
+    "Look for an enemy piece stuck in front of its king or a bigger piece.",
+    "Which line could a bishop, rook or queen use?"
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "material",
+   "goal": {
+    "kind": "gain",
+    "threshold": 1
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "4k2b/8/5P2/8/8/P1N4p/1K6/8 b - -",
+     "accepted": [
+      "e8f7",
+      "h3h2",
+      "h8f6"
+     ],
+     "replies": {
+      "h8f6": "a3a4",
+      "e8d7": "c3d5",
+      "e8d8": "c3d5",
+      "e8f7": "a3a4",
+      "e8f8": "c3d5",
+      "h3h2": "a3a4",
+      "h8g7": "f6g7"
+     },
+     "next": {
+      "h8f6": 1
+     }
+    },
+    {
+     "fingerprint": "4k3/8/5b2/8/P7/2N4p/1K6/8 b - -",
+     "accepted": [
+      "e8d7",
+      "e8d8",
+      "e8e7",
+      "e8f7",
+      "e8f8",
+      "f6c3",
+      "f6d4",
+      "f6d8",
+      "f6e5",
+      "f6e7",
+      "f6g5",
+      "f6g7",
+      "f6h4",
+      "f6h8",
+      "h3h2"
+     ],
+     "replies": {
+      "f6c3": "b2c3"
+     }
+    }
+   ],
+   "focus": [
+    "h8"
+   ]
+  },
+  {
+   "id": "st-pin-realize-3",
+   "entry": "simple-tactics",
+   "variant": "pin-realize",
+   "tier": 1,
+   "cluster": "st-pin-realize-3",
+   "learner": "w",
+   "fen": "8/5k2/8/3n1P2/B5K1/8/8/8 w - - 0 1",
+   "prompt": "White to move. Win material.",
+   "explanation": "Bb3 pins the knight on d5, and the pinned piece can then be won. Every move that wins material is accepted.",
+   "hints": [
+    "Look for an enemy piece stuck in front of its king or a bigger piece.",
+    "Which line could a bishop, rook or queen use?"
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "material",
+   "goal": {
+    "kind": "gain",
+    "threshold": 1
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "8/5k2/8/3n1P2/B5K1/8/8/8 w - -",
+     "accepted": [
+      "a4b3"
+     ],
+     "replies": {
+      "a4b3": "f7e7",
+      "a4b5": "d5b4",
+      "a4c2": "d5b4",
+      "a4c6": "d5b4",
+      "a4d1": "d5b4",
+      "a4d7": "d5b4",
+      "a4e8": "f7e8",
+      "f5f6": "d5f6",
+      "g4f3": "d5b4",
+      "g4g3": "d5b4",
+      "g4g5": "d5b4",
+      "g4h3": "d5b4",
+      "g4h4": "d5b4",
+      "g4h5": "d5b4"
+     },
+     "next": {
+      "a4b3": 1
+     }
+    },
+    {
+     "fingerprint": "8/4k3/8/3n1P2/6K1/1B6/8/8 w - -",
+     "accepted": [
+      "b3d5"
+     ],
+     "replies": {
+      "f5f6": "d5f6"
+     }
+    }
+   ],
+   "focus": [
+    "a4"
+   ]
+  },
+  {
+   "id": "st-pin-realize-4",
+   "entry": "simple-tactics",
+   "variant": "pin-realize",
+   "tier": 1,
+   "cluster": "st-pin-realize-4",
+   "learner": "b",
+   "fen": "3b4/5k2/8/8/8/7p/1R6/K7 b - - 0 1",
+   "prompt": "Black to move. Win material.",
+   "explanation": "Bf6 pins the rook on b2, and the pinned piece can then be won. Every move that wins material is accepted.",
+   "hints": [
+    "Look for an enemy piece stuck in front of its king or a bigger piece.",
+    "Which line could a bishop, rook or queen use?"
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "material",
+   "goal": {
+    "kind": "gain",
+    "threshold": 1
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "3b4/5k2/8/8/8/7p/1R6/K7 b - -",
+     "accepted": [
+      "d8f6"
+     ],
+     "replies": {
+      "d8a5": "a1a2",
+      "d8b6": "b2b6",
+      "d8c7": "a1a2",
+      "d8e7": "a1a2",
+      "d8f6": "a1a2",
+      "d8g5": "a1a2",
+      "d8h4": "a1a2",
+      "f7e6": "a1a2",
+      "f7e7": "a1a2",
+      "f7e8": "a1a2",
+      "f7f6": "a1a2",
+      "f7f8": "a1a2",
+      "f7g6": "a1a2",
+      "f7g7": "a1a2",
+      "f7g8": "a1a2",
+      "h3h2": "b2h2"
+     },
+     "next": {
+      "d8f6": 1
+     }
+    },
+    {
+     "fingerprint": "8/5k2/5b2/8/8/7p/KR6/8 b - -",
+     "accepted": [
+      "f6b2"
+     ],
+     "replies": {
+      "f6b2": "a2b2"
+     }
+    }
+   ],
+   "focus": [
+    "d8"
+   ]
+  },
+  {
+   "id": "st-pin-realize-5",
+   "entry": "simple-tactics",
+   "variant": "pin-realize",
+   "tier": 2,
+   "cluster": "st-pin-realize-5",
+   "learner": "w",
+   "fen": "8/8/6B1/p3p3/8/7K/4P1r1/7k w - - 0 1",
+   "prompt": "White to move. Win material.",
+   "explanation": "Be4 pins the rook on g2, and the pinned piece can then be won. Every move that wins material is accepted.",
+   "hints": [
+    "Look for an enemy piece stuck in front of its king or a bigger piece.",
+    "Which line could a bishop, rook or queen use?"
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "material",
+   "goal": {
+    "kind": "gain",
+    "threshold": 1
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "8/8/6B1/p3p3/8/7K/4P1r1/7k w - -",
+     "accepted": [
+      "g6e4"
+     ],
+     "replies": {
+      "e2e3": "g2g6",
+      "e2e4": "g2g6",
+      "g6b1": "g2e2",
+      "g6c2": "g2e2",
+      "g6d3": "a5a4",
+      "g6e4": "a5a4",
+      "g6e8": "g2e2",
+      "g6f5": "g2e2",
+      "g6f7": "g2e2",
+      "g6h5": "a5a4",
+      "g6h7": "g2e2",
+      "h3h4": "g2g6"
+     },
+     "next": {
+      "g6e4": 1
+     }
+    },
+    {
+     "fingerprint": "8/8/8/4p3/p3B3/7K/4P1r1/7k w - -",
+     "accepted": [
+      "e4g2"
+     ],
+     "replies": {
+      "e4g2": "h1g1"
+     }
+    }
+   ],
+   "focus": [
+    "g6"
+   ]
+  },
+  {
+   "id": "st-pin-realize-6",
+   "entry": "simple-tactics",
+   "variant": "pin-realize",
+   "tier": 2,
+   "cluster": "st-pin-realize-6",
+   "learner": "b",
+   "fen": "8/8/3p4/3K4/4Rp2/1P5b/8/7k b - - 0 1",
+   "prompt": "Black to move. Win material.",
+   "explanation": "Bg2 pins the rook on e4, and the pinned piece can then be won. Every move that wins material is accepted.",
+   "hints": [
+    "Look for an enemy piece stuck in front of its king or a bigger piece.",
+    "Which line could a bishop, rook or queen use?"
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "material",
+   "goal": {
+    "kind": "gain",
+    "threshold": 1
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "8/8/3p4/3K4/4Rp2/1P5b/8/7k b - -",
+     "accepted": [
+      "h3g2"
+     ],
+     "replies": {
+      "f4f3": "d5d6",
+      "h1g1": "d5d6",
+      "h1g2": "d5d6",
+      "h1h2": "d5d6",
+      "h3c8": "d5d6",
+      "h3d7": "d5d6",
+      "h3e6": "d5e6",
+      "h3f1": "d5d6",
+      "h3f5": "e4f4",
+      "h3g2": "d5d6",
+      "h3g4": "d5d6"
+     },
+     "next": {
+      "h3g2": 1
+     }
+    },
+    {
+     "fingerprint": "8/8/3K4/8/4Rp2/1P6/6b1/7k b - -",
+     "accepted": [
+      "g2e4"
+     ],
+     "replies": {}
+    }
+   ],
+   "focus": [
+    "h3"
+   ]
+  },
+  {
+   "id": "st-pin-realize-7",
+   "entry": "simple-tactics",
+   "variant": "pin-realize",
+   "tier": 1,
+   "cluster": "st-pin-realize-7",
+   "learner": "w",
+   "fen": "3K4/1B6/3pr3/5k2/8/8/8/8 w - - 0 1",
+   "prompt": "White to move. Win material.",
+   "explanation": "Bc8 pins the rook on e6, and the pinned piece can then be won. Every move that wins material is accepted.",
+   "hints": [
+    "Look for an enemy piece stuck in front of its king or a bigger piece.",
+    "Which line could a bishop, rook or queen use?"
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "material",
+   "goal": {
+    "kind": "gain",
+    "threshold": 1
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "3K4/1B6/3pr3/5k2/8/8/8/8 w - -",
+     "accepted": [
+      "b7c8"
+     ],
+     "replies": {
+      "b7a6": "d6d5",
+      "b7a8": "e6e1",
+      "b7c6": "e6e1",
+      "b7c8": "d6d5",
+      "b7d5": "e6e1",
+      "b7e4": "e6e4",
+      "b7f3": "e6e1",
+      "b7g2": "e6e1",
+      "b7h1": "e6e1",
+      "d8c7": "e6e7",
+      "d8c8": "e6e1",
+      "d8d7": "e6f6"
+     },
+     "next": {
+      "b7c8": 1
+     }
+    },
+    {
+     "fingerprint": "2BK4/8/4r3/3p1k2/8/8/8/8 w - -",
+     "accepted": [
+      "c8e6"
+     ],
+     "replies": {
+      "c8e6": "f5e6"
+     }
+    }
+   ],
+   "focus": [
+    "b7"
+   ]
+  },
+  {
+   "id": "st-pin-realize-8",
+   "entry": "simple-tactics",
+   "variant": "pin-realize",
+   "tier": 2,
+   "cluster": "st-pin-realize-8",
+   "learner": "b",
+   "fen": "8/8/1P1P4/8/k7/8/b2bR3/5K2 b - - 0 1",
+   "prompt": "Black to move. Win material.",
+   "explanation": "Bc4 pins the rook on e2, and the pinned piece can then be won. Every move that wins material is accepted.",
+   "hints": [
+    "Look for an enemy piece stuck in front of its king or a bigger piece.",
+    "Which line could a bishop, rook or queen use?"
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "material",
+   "goal": {
+    "kind": "gain",
+    "threshold": 1
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "8/8/1P1P4/8/k7/8/b2bR3/5K2 b - -",
+     "accepted": [
+      "a2c4"
+     ],
+     "replies": {
+      "a2b1": "e2d2",
+      "a2b3": "e2d2",
+      "a2c4": "b6b7",
+      "a2d5": "e2d2",
+      "a2e6": "e2d2",
+      "a2f7": "e2d2",
+      "a2g8": "e2d2",
+      "a4a3": "e2d2",
+      "a4a5": "e2d2",
+      "a4b3": "e2d2",
+      "a4b4": "e2d2",
+      "a4b5": "e2d2",
+      "d2a5": "e2a2",
+      "d2b4": "e2a2",
+      "d2c1": "e2a2",
+      "d2c3": "e2a2",
+      "d2e1": "e2a2",
+      "d2e3": "e2a2",
+      "d2f4": "e2a2",
+      "d2g5": "e2a2",
+      "d2h6": "e2a2"
+     },
+     "next": {
+      "a2c4": 1
+     }
+    },
+    {
+     "fingerprint": "8/1P6/3P4/8/k1b5/8/3bR3/5K2 b - -",
+     "accepted": [
+      "c4e2"
+     ],
+     "replies": {
+      "c4e2": "f1e2"
+     }
+    }
+   ],
+   "focus": [
+    "a2"
+   ]
+  },
+  {
+   "id": "st-pin-realize-9",
+   "entry": "simple-tactics",
+   "variant": "pin-realize",
+   "tier": 2,
+   "cluster": "st-pin-realize-9",
+   "learner": "w",
+   "fen": "8/4k3/3rp3/K3N3/8/7B/3B4/8 w - - 0 1",
+   "prompt": "White to move. Win material.",
+   "explanation": "Bb4 pins the rook on d6, and the pinned piece can then be won. Every move that wins material is accepted.",
+   "hints": [
+    "Look for an enemy piece stuck in front of its king or a bigger piece.",
+    "Which line could a bishop, rook or queen use?"
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "material",
+   "goal": {
+    "kind": "gain",
+    "threshold": 1
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "8/4k3/3rp3/K3N3/8/7B/3B4/8 w - -",
+     "accepted": [
+      "d2b4"
+     ],
+     "replies": {
+      "h3e6": "d6d2",
+      "a5a4": "d6d2",
+      "a5b4": "d6d2",
+      "a5b5": "d6d2",
+      "d2b4": "e7d8",
+      "d2c1": "d6d1",
+      "d2c3": "d6d1",
+      "d2e1": "d6d1",
+      "d2e3": "d6d1",
+      "d2f4": "d6d1",
+      "d2g5": "e7e8",
+      "d2h6": "d6d1",
+      "e5c4": "d6c6",
+      "e5c6": "d6c6",
+      "e5d3": "d6d3",
+      "e5d7": "d6d2",
+      "e5f3": "d6c6",
+      "e5f7": "d6d2",
+      "e5g4": "d6d2",
+      "e5g6": "e7d7",
+      "h3f1": "d6d2",
+      "h3f5": "d6d2",
+      "h3g2": "d6d2",
+      "h3g4": "d6d2"
+     },
+     "next": {
+      "d2b4": 1
+     }
+    },
+    {
+     "fingerprint": "3k4/8/3rp3/K3N3/1B6/7B/8/8 w - -",
+     "accepted": [
+      "b4d6",
+      "e5f7"
+     ],
+     "replies": {
+      "h3e6": "d6e6",
+      "e5c6": "d6c6",
+      "e5f7": "d8c7"
+     }
+    }
+   ],
+   "focus": [
+    "d2"
+   ]
+  },
+  {
+   "id": "st-mate-threat-create-1",
+   "entry": "simple-tactics",
+   "variant": "mate-threat-create",
+   "tier": 2,
+   "cluster": "st-mate-threat-create-1",
+   "learner": "w",
+   "fen": "k7/ppp1nR2/8/8/8/8/8/K7 w - - 0 1",
+   "prompt": "White to move. Make a move that threatens checkmate next move.",
+   "explanation": "For example, after Rxe7 you threaten Re8#. Every move that threatens checkmate next move is accepted.",
+   "hints": [
+    "A king trapped behind its own pawns is weak on its back rank.",
+    "Which of your pieces could reach the enemy king's rank or file?"
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "mateThreatCreate",
+   "nodes": [
+    {
+     "fingerprint": "k7/ppp1nR2/8/8/8/8/8/K7 w - -",
+     "accepted": [
+      "f7e7"
+     ],
+     "replies": {}
+    }
+   ]
+  },
+  {
+   "id": "st-mate-threat-create-2",
+   "entry": "simple-tactics",
+   "variant": "mate-threat-create",
+   "tier": 2,
+   "cluster": "st-mate-threat-create-2",
+   "learner": "b",
+   "fen": "2r5/8/8/7r/4k3/3R4/4PPP1/6K1 b - - 0 1",
+   "prompt": "Black to move. Make a move that threatens checkmate next move.",
+   "explanation": "For example, after Rch8 you threaten Rh1#. Every move that threatens checkmate next move is accepted.",
+   "hints": [
+    "A king trapped behind its own pawns is weak on its back rank.",
+    "Which of your pieces could reach the enemy king's rank or file?"
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "mateThreatCreate",
+   "nodes": [
+    {
+     "fingerprint": "2r5/8/8/7r/4k3/3R4/4PPP1/6K1 b - -",
+     "accepted": [
+      "c8h8"
+     ],
+     "replies": {}
+    }
+   ]
+  },
+  {
+   "id": "st-mate-threat-create-3",
+   "entry": "simple-tactics",
+   "variant": "mate-threat-create",
+   "tier": 2,
+   "cluster": "st-mate-threat-create-3",
+   "learner": "w",
+   "fen": "5k2/4ppp1/8/8/R2N4/2r5/8/3K4 w - - 0 1",
+   "prompt": "White to move. Make a move that threatens checkmate next move.",
+   "explanation": "For example, after Nc6 you threaten Ra8#. Every move that threatens checkmate next move is accepted.",
+   "hints": [
+    "A king trapped behind its own pawns is weak on its back rank.",
+    "Which of your pieces could reach the enemy king's rank or file?"
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "mateThreatCreate",
+   "nodes": [
+    {
+     "fingerprint": "5k2/4ppp1/8/8/R2N4/2r5/8/3K4 w - -",
+     "accepted": [
+      "d4c6"
+     ],
+     "replies": {}
+    }
+   ]
+  },
+  {
+   "id": "st-mate-threat-create-4",
+   "entry": "simple-tactics",
+   "variant": "mate-threat-create",
+   "tier": 2,
+   "cluster": "st-mate-threat-create-4",
+   "learner": "b",
+   "fen": "3k4/1b6/1r4R1/8/8/8/PPP5/K7 b - - 0 1",
+   "prompt": "Black to move. Make a move that threatens checkmate next move.",
+   "explanation": "For example, after Rd6 you threaten Rd1#. Every move that threatens checkmate next move is accepted.",
+   "hints": [
+    "A king trapped behind its own pawns is weak on its back rank.",
+    "Which of your pieces could reach the enemy king's rank or file?"
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "mateThreatCreate",
+   "nodes": [
+    {
+     "fingerprint": "3k4/1b6/1r4R1/8/8/8/PPP5/K7 b - -",
+     "accepted": [
+      "b6d6",
+      "b6e6",
+      "b6f6",
+      "b6g6"
+     ],
+     "replies": {}
+    }
+   ]
+  },
+  {
+   "id": "st-mate-threat-create-5",
+   "entry": "simple-tactics",
+   "variant": "mate-threat-create",
+   "tier": 2,
+   "cluster": "st-mate-threat-create-5",
+   "learner": "w",
+   "fen": "5k2/R3ppp1/4b3/8/5K2/8/8/8 w - - 0 1",
+   "prompt": "White to move. Make a move that threatens checkmate next move.",
+   "explanation": "For example, after Rd7 you threaten Rd8#. Every move that threatens checkmate next move is accepted.",
+   "hints": [
+    "A king trapped behind its own pawns is weak on its back rank.",
+    "Which of your pieces could reach the enemy king's rank or file?"
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "mateThreatCreate",
+   "nodes": [
+    {
+     "fingerprint": "5k2/R3ppp1/4b3/8/5K2/8/8/8 w - -",
+     "accepted": [
+      "a7d7"
+     ],
+     "replies": {}
+    }
+   ]
+  },
+  {
+   "id": "st-mate-threat-create-6",
+   "entry": "simple-tactics",
+   "variant": "mate-threat-create",
+   "tier": 2,
+   "cluster": "st-mate-threat-create-6",
+   "learner": "b",
+   "fen": "8/1p6/5r2/8/8/k7/4PPP1/5K2 b - - 0 1",
+   "prompt": "Black to move. Make a move that threatens checkmate next move.",
+   "explanation": "For example, after Rb6 you threaten Rb1#. Every move that threatens checkmate next move is accepted.",
+   "hints": [
+    "A king trapped behind its own pawns is weak on its back rank.",
+    "Which of your pieces could reach the enemy king's rank or file?"
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "mateThreatCreate",
+   "nodes": [
+    {
+     "fingerprint": "8/1p6/5r2/8/8/k7/4PPP1/5K2 b - -",
+     "accepted": [
+      "f6b6",
+      "f6c6",
+      "f6d6",
+      "f6h6"
+     ],
+     "replies": {}
+    }
+   ]
+  },
+  {
+   "id": "st-mate-threat-create-7",
+   "entry": "simple-tactics",
+   "variant": "mate-threat-create",
+   "tier": 2,
+   "cluster": "st-mate-threat-create-7",
+   "learner": "w",
+   "fen": "k7/ppp5/5b2/5R2/8/8/8/3R1K2 w - - 0 1",
+   "prompt": "White to move. Make a move that threatens checkmate next move.",
+   "explanation": "For example, after Rxf6 you threaten Rf8#. Every move that threatens checkmate next move is accepted.",
+   "hints": [
+    "A king trapped behind its own pawns is weak on its back rank.",
+    "Which of your pieces could reach the enemy king's rank or file?"
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "mateThreatCreate",
+   "nodes": [
+    {
+     "fingerprint": "k7/ppp5/5b2/5R2/8/8/8/3R1K2 w - -",
+     "accepted": [
+      "f5f6"
+     ],
+     "replies": {}
+    }
+   ]
+  },
+  {
+   "id": "st-mate-threat-create-8",
+   "entry": "simple-tactics",
+   "variant": "mate-threat-create",
+   "tier": 2,
+   "cluster": "st-mate-threat-create-8",
+   "learner": "b",
+   "fen": "8/8/r6P/6p1/8/5k2/PPP5/K7 b - - 0 1",
+   "prompt": "Black to move. Make a move that threatens checkmate next move.",
+   "explanation": "For example, after Rd6 you threaten Rd1#. Every move that threatens checkmate next move is accepted.",
+   "hints": [
+    "A king trapped behind its own pawns is weak on its back rank.",
+    "Which of your pieces could reach the enemy king's rank or file?"
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "mateThreatCreate",
+   "nodes": [
+    {
+     "fingerprint": "8/8/r6P/6p1/8/5k2/PPP5/K7 b - -",
+     "accepted": [
+      "a6d6",
+      "a6e6",
+      "a6h6"
+     ],
+     "replies": {}
+    }
+   ]
+  },
+  {
+   "id": "st-mate-threat-create-9",
+   "entry": "simple-tactics",
+   "variant": "mate-threat-create",
+   "tier": 2,
+   "cluster": "st-mate-threat-create-9",
+   "learner": "w",
+   "fen": "3r1k2/4ppp1/8/R7/K7/8/8/8 w - - 0 1",
+   "prompt": "White to move. Make a move that threatens checkmate next move.",
+   "explanation": "For example, after Ra8 you threaten Rxd8#. Every move that threatens checkmate next move is accepted.",
+   "hints": [
+    "A king trapped behind its own pawns is weak on its back rank.",
+    "Which of your pieces could reach the enemy king's rank or file?"
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "mateThreatCreate",
+   "nodes": [
+    {
+     "fingerprint": "3r1k2/4ppp1/8/R7/K7/8/8/8 w - -",
+     "accepted": [
+      "a5a8",
+      "a5d5",
+      "a5h5"
+     ],
+     "replies": {}
+    }
+   ]
+  },
+  {
+   "id": "st-mate-threat-prevent-1",
+   "entry": "simple-tactics",
+   "variant": "mate-threat-prevent",
+   "tier": 1,
+   "cluster": "st-mate-threat-prevent-1",
+   "learner": "w",
+   "fen": "8/7k/8/8/8/4r3/PPP5/K7 w - - 0 1",
+   "prompt": "White to move. Your opponent threatens checkmate. Stop it.",
+   "explanation": "The opponent threatens Re1#. Any move that leaves no mate in one is accepted, for example a3.",
+   "hints": [
+    "Find the move your opponent wants to play next.",
+    "You can make room for your king, guard the square, block the line or capture the attacker."
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "mateThreatPrevent",
+   "nodes": [
+    {
+     "fingerprint": "8/7k/8/8/8/4r3/PPP5/K7 w - -",
+     "accepted": [
+      "a2a3",
+      "a2a4",
+      "b2b3",
+      "b2b4"
+     ],
+     "replies": {
+      "c2c3": "e3e1",
+      "c2c4": "e3e1",
+      "a1b1": "e3e1"
+     }
+    }
+   ]
+  },
+  {
+   "id": "st-mate-threat-prevent-2",
+   "entry": "simple-tactics",
+   "variant": "mate-threat-prevent",
+   "tier": 1,
+   "cluster": "st-mate-threat-prevent-2",
+   "learner": "b",
+   "fen": "7k/5ppp/8/1RK5/8/8/8/8 b - - 0 1",
+   "prompt": "Black to move. Your opponent threatens checkmate. Stop it.",
+   "explanation": "The opponent threatens Rb8#. Any move that leaves no mate in one is accepted, for example g5.",
+   "hints": [
+    "Find the move your opponent wants to play next.",
+    "You can make room for your king, guard the square, block the line or capture the attacker."
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "mateThreatPrevent",
+   "nodes": [
+    {
+     "fingerprint": "7k/5ppp/8/1RK5/8/8/8/8 b - -",
+     "accepted": [
+      "g7g5",
+      "g7g6",
+      "h7h5",
+      "h7h6"
+     ],
+     "replies": {
+      "h8g8": "b5b8",
+      "f7f6": "b5b8",
+      "f7f5": "b5b8"
+     }
+    }
+   ]
+  },
+  {
+   "id": "st-mate-threat-prevent-3",
+   "entry": "simple-tactics",
+   "variant": "mate-threat-prevent",
+   "tier": 2,
+   "cluster": "st-mate-threat-prevent-3",
+   "learner": "w",
+   "fen": "7k/2N5/8/2q5/8/8/4PPP1/5K2 w - - 0 1",
+   "prompt": "White to move. Your opponent threatens checkmate. Stop it.",
+   "explanation": "The opponent threatens Qc1#. Any move that leaves no mate in one is accepted, for example e3.",
+   "hints": [
+    "Find the move your opponent wants to play next.",
+    "You can make room for your king, guard the square, block the line or capture the attacker."
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "mateThreatPrevent",
+   "nodes": [
+    {
+     "fingerprint": "7k/2N5/8/2q5/8/8/4PPP1/5K2 w - -",
+     "accepted": [
+      "e2e3",
+      "e2e4",
+      "f1g1",
+      "f2f3",
+      "f2f4",
+      "g2g3",
+      "g2g4"
+     ],
+     "replies": {
+      "c7a8": "c5c1",
+      "c7e8": "c5c1",
+      "c7e6": "c5c1",
+      "c7d5": "c5c1",
+      "c7b5": "c5c1",
+      "c7a6": "c5c1",
+      "f1e1": "c5c1"
+     }
+    }
+   ]
+  },
+  {
+   "id": "st-mate-threat-prevent-4",
+   "entry": "simple-tactics",
+   "variant": "mate-threat-prevent",
+   "tier": 2,
+   "cluster": "st-mate-threat-prevent-4",
+   "learner": "b",
+   "fen": "5k2/4ppp1/6R1/8/R7/8/2n4K/8 b - - 0 1",
+   "prompt": "Black to move. Your opponent threatens checkmate. Stop it.",
+   "explanation": "The opponent threatens Ra8#. Any move that leaves no mate in one is accepted, for example e5.",
+   "hints": [
+    "Find the move your opponent wants to play next.",
+    "You can make room for your king, guard the square, block the line or capture the attacker."
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "mateThreatPrevent",
+   "nodes": [
+    {
+     "fingerprint": "5k2/4ppp1/6R1/8/R7/8/2n4K/8 b - -",
+     "accepted": [
+      "e7e5",
+      "e7e6",
+      "f7f5",
+      "f7f6",
+      "f7g6",
+      "f8e8",
+      "f8g8"
+     ],
+     "replies": {
+      "c2a3": "a4a8",
+      "c2b4": "a4a8",
+      "c2d4": "a4a8",
+      "c2e3": "a4a8",
+      "c2e1": "a4a8",
+      "c2a1": "a4a8"
+     }
+    }
+   ]
+  },
+  {
+   "id": "st-mate-threat-prevent-5",
+   "entry": "simple-tactics",
+   "variant": "mate-threat-prevent",
+   "tier": 2,
+   "cluster": "st-mate-threat-prevent-5",
+   "learner": "w",
+   "fen": "3k4/8/4n3/8/4R3/3q4/5PPP/7K w - - 0 1",
+   "prompt": "White to move. Your opponent threatens checkmate. Stop it.",
+   "explanation": "The opponent threatens Qf1#. Any move that leaves no mate in one is accepted, for example Rd4+.",
+   "hints": [
+    "Find the move your opponent wants to play next.",
+    "You can make room for your king, guard the square, block the line or capture the attacker."
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "mateThreatPrevent",
+   "nodes": [
+    {
+     "fingerprint": "3k4/8/4n3/8/4R3/3q4/5PPP/7K w - -",
+     "accepted": [
+      "e4d4",
+      "e4e1",
+      "e4e2",
+      "h1g1",
+      "h2h3",
+      "h2h4"
+     ],
+     "replies": {
+      "e4e5": "d3f1",
+      "e4e6": "d3f1",
+      "e4f4": "d3b1",
+      "e4g4": "d3b1",
+      "e4h4": "d3b1",
+      "e4e3": "d3f1",
+      "e4c4": "d3d1",
+      "e4b4": "d3d1",
+      "e4a4": "d3b1",
+      "f2f3": "d3f1",
+      "f2f4": "d3f1",
+      "g2g3": "d3f1",
+      "g2g4": "d3f1"
+     }
+    }
+   ]
+  },
+  {
+   "id": "st-mate-threat-prevent-6",
+   "entry": "simple-tactics",
+   "variant": "mate-threat-prevent",
+   "tier": 2,
+   "cluster": "st-mate-threat-prevent-6",
+   "learner": "b",
+   "fen": "k7/ppp5/8/P7/8/8/8/K5R1 b - - 0 1",
+   "prompt": "Black to move. Your opponent threatens checkmate. Stop it.",
+   "explanation": "The opponent threatens Rg8#. Any move that leaves no mate in one is accepted, for example a6.",
+   "hints": [
+    "Find the move your opponent wants to play next.",
+    "You can make room for your king, guard the square, block the line or capture the attacker."
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "mateThreatPrevent",
+   "nodes": [
+    {
+     "fingerprint": "k7/ppp5/8/P7/8/8/8/K5R1 b - -",
+     "accepted": [
+      "a7a6",
+      "b7b5",
+      "b7b6"
+     ],
+     "replies": {
+      "a8b8": "g1g8",
+      "c7c6": "g1g8",
+      "c7c5": "g1g8"
+     }
+    }
+   ]
+  },
+  {
+   "id": "st-mate-threat-prevent-7",
+   "entry": "simple-tactics",
+   "variant": "mate-threat-prevent",
+   "tier": 2,
+   "cluster": "st-mate-threat-prevent-7",
+   "learner": "w",
+   "fen": "8/1R6/8/8/8/r2r3k/PPP5/K7 w - - 0 1",
+   "prompt": "White to move. Your opponent threatens checkmate. Stop it.",
+   "explanation": "The opponent threatens Rd1#. Any move that leaves no mate in one is accepted, for example bxa3.",
+   "hints": [
+    "Find the move your opponent wants to play next.",
+    "You can make room for your king, guard the square, block the line or capture the attacker."
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "mateThreatPrevent",
+   "nodes": [
+    {
+     "fingerprint": "8/1R6/8/8/8/r2r3k/PPP5/K7 w - -",
+     "accepted": [
+      "b2a3",
+      "b2b3",
+      "b2b4",
+      "b7b3",
+      "b7d7",
+      "b7h7",
+      "c2d3"
+     ],
+     "replies": {
+      "b7b8": "d3d1",
+      "b7c7": "d3d1",
+      "b7e7": "d3d1",
+      "b7f7": "d3d1",
+      "b7g7": "d3d1",
+      "b7b6": "d3d1",
+      "b7b5": "d3d1",
+      "b7b4": "d3d1",
+      "b7a7": "d3d1",
+      "c2c3": "d3d1",
+      "c2c4": "d3d1",
+      "a1b1": "d3d1"
+     }
+    }
+   ]
+  },
+  {
+   "id": "st-mate-threat-prevent-8",
+   "entry": "simple-tactics",
+   "variant": "mate-threat-prevent",
+   "tier": 2,
+   "cluster": "st-mate-threat-prevent-8",
+   "learner": "b",
+   "fen": "5k2/1n2ppp1/6R1/8/7R/K7/8/8 b - - 0 1",
+   "prompt": "Black to move. Your opponent threatens checkmate. Stop it.",
+   "explanation": "The opponent threatens Rh8#. Any move that leaves no mate in one is accepted, for example e5.",
+   "hints": [
+    "Find the move your opponent wants to play next.",
+    "You can make room for your king, guard the square, block the line or capture the attacker."
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "mateThreatPrevent",
+   "nodes": [
+    {
+     "fingerprint": "5k2/1n2ppp1/6R1/8/7R/K7/8/8 b - -",
+     "accepted": [
+      "e7e5",
+      "e7e6",
+      "f7f5",
+      "f7f6",
+      "f7g6",
+      "f8e8",
+      "f8g8"
+     ],
+     "replies": {
+      "b7d8": "h4h8",
+      "b7d6": "h4h8",
+      "b7c5": "h4h8",
+      "b7a5": "h4h8"
+     }
+    }
+   ]
+  },
+  {
+   "id": "st-mate-threat-prevent-9",
+   "entry": "simple-tactics",
+   "variant": "mate-threat-prevent",
+   "tier": 2,
+   "cluster": "st-mate-threat-prevent-9",
+   "learner": "w",
+   "fen": "3r1B2/8/p7/8/8/6k1/PPP5/K7 w - - 0 1",
+   "prompt": "White to move. Your opponent threatens checkmate. Stop it.",
+   "explanation": "The opponent threatens Rd1#. Any move that leaves no mate in one is accepted, for example a3.",
+   "hints": [
+    "Find the move your opponent wants to play next.",
+    "You can make room for your king, guard the square, block the line or capture the attacker."
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "mateThreatPrevent",
+   "nodes": [
+    {
+     "fingerprint": "3r1B2/8/p7/8/8/6k1/PPP5/K7 w - -",
+     "accepted": [
+      "a2a3",
+      "a2a4",
+      "b2b3",
+      "b2b4",
+      "f8d6",
+      "f8h6"
+     ],
+     "replies": {
+      "f8g7": "d8d1",
+      "f8e7": "d8d1",
+      "f8c5": "d8d1",
+      "f8b4": "d8d1",
+      "f8a3": "d8d1",
+      "c2c3": "d8d1",
+      "c2c4": "d8d1",
+      "a1b1": "d8d1"
+     }
+    }
+   ]
+  }
+ ]
+}

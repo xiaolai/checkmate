@@ -32,6 +32,7 @@ final class BoardTitleView:NSView {
     var sidebarItem:NSSplitViewItem!,boardItem:NSSplitViewItem!,inspectorItem:NSSplitViewItem!,controls:NSHostingView<TransportContent>!,welcome:NSHostingView<WelcomeContent>!,puzzles:NSHostingView<PuzzleLibraryContent>!
     private var playbackLineView:NSView?
     private var reviewWorkspaceView:NSHostingView<ReviewWorkspaceContent>!
+    private(set) var trainingLibraryView:NSHostingView<TrainingLibraryHost>!
     var leftExtent:CGFloat {Metrics.left+split.splitView.dividerThickness}
     var rightExtent:CGFloat {Metrics.right+split.splitView.dividerThickness}
     var availableFrameOverride:NSRect?
@@ -42,9 +43,12 @@ final class BoardTitleView:NSView {
     private var observations:Set<AnyCancellable>=[]
     private var coreFrame:NSRect?
     private var fittedLayout=false
+    /// Where the window last stood when fitting or the learner placed it: while fitted, a move from here is the learner's
+    /// and carries the preferred frame with it, so a later drawer change or relaunch keeps it.
+    private var fittedOrigin:NSPoint?
     private var announcedReviewIdentity=""
     private(set) var errorBanner:NSHostingView<StorageErrorBanner>?
-    func setCoreFrame(_ frame:NSRect){coreFrame=frame;fixedBoardWidth?.constant=frame.width;fixedBoardWidth?.isActive=true;window?.setFrame(frame,display:true);window?.contentView?.layoutSubtreeIfNeeded()}
+    func setCoreFrame(_ frame:NSRect){coreFrame=frame;fittedOrigin=nil;fixedBoardWidth?.constant=frame.width;fixedBoardWidth?.isActive=true;window?.setFrame(frame,display:true);fittedOrigin=window?.frame.origin;window?.contentView?.layoutSubtreeIfNeeded()}
     private let sidebarID=NSToolbarItem.Identifier("checkmate.sidebar"),inspectorID=NSToolbarItem.Identifier("checkmate.inspector"),titleID=NSToolbarItem.Identifier("checkmate.title"),settingsID=NSToolbarItem.Identifier("checkmate.settings")
     init(model:NativeModel){self.model=model
         let w=BoardWindow(contentRect:NSRect(x:0,y:0,width:Metrics.core,height:Metrics.core),styleMask:[.titled,.closable,.miniaturizable,.resizable,.fullSizeContentView],backing:.buffered,defer:false)
@@ -56,15 +60,29 @@ final class BoardTitleView:NSView {
         boardItem.minimumThickness=Metrics.minimum;boardItem.titlebarSeparatorStyle = .none;split.addSplitViewItem(sidebarItem);split.addSplitViewItem(boardItem);split.addSplitViewItem(inspectorItem);w.contentViewController=split
         let leftLimit=navigation.view.widthAnchor.constraint(lessThanOrEqualToConstant:Metrics.left),rightLimit=inspector.view.widthAnchor.constraint(lessThanOrEqualToConstant:Metrics.right);leftLimit.priority=NSLayoutConstraint.Priority(999);rightLimit.priority=NSLayoutConstraint.Priority(999);NSLayoutConstraint.activate([leftLimit,rightLimit])
         let toolbar=NSToolbar(identifier:"Checkmate.Native.Toolbar");toolbar.delegate=self;toolbar.displayMode = .iconOnly;toolbar.allowsUserCustomization=false;w.toolbar=toolbar;w.toolbarStyle = .unified
-        model.learning.onLessonOpened={[weak self] in self?.relationships.dismiss();self?.board.cancelAnimation();self?.showDetails();self?.refresh()}
-        model.onReview={[weak self] in self?.relationships.dismiss();self?.board.cancelAnimation();self?.showDetails();self?.refresh()}
+        installBoardCallbacks();buildBoardArea();observeModel()
+        let restored=WindowGeometry.restored(model.session.state.window.frame,screens:NSScreen.screens.map(\.visibleFrame),size:Double(Metrics.core),minimum:Double(Metrics.minimum))
+        fixedBoardWidth=main.view.widthAnchor.constraint(equalToConstant:restored.width);fixedBoardWidth!.isActive=true
+        coreFrame=restored;w.setFrame(restored,display:false);refresh()
+        desiredLeft=model.session.state.window.left;desiredRight=model.session.state.window.right
+        DispatchQueue.main.async{self.boardItem.minimumThickness=Metrics.minimum;self.animateDrawers();self.model.session.reply()}
+    }
+    required init?(coder:NSCoder){fatalError()}
+    /// Board input and the model's navigation and import callbacks.
+    private func installBoardCallbacks(){
+        // A lesson or review just opened starts clean, with its guidance showing.
+        let opened={[weak self] in guard let self else{return};self.relationships.dismiss();self.board.cancelAnimation();self.showDetails();self.refresh()}
+        model.learning.onLessonOpened=opened;model.onReview=opened
         board.reviewKey={[weak self] key in guard let self=self,self.model.review.active,self.model.review.branch==nil else{return false};switch key{case 123:self.model.review.step(-1);case 124:self.model.review.step(1);case 125:self.model.review.last();case 126:self.model.review.first();case 49:self.model.review.playing ? self.model.review.pause():self.model.review.play();default:return false};self.refresh();return true}
         board.dropReview={[weak self] data in self?.model.importReviewData(data)};board.dropRejected={[weak self] reason in self?.model.storageError=reason}
         model.review.objectWillChange.sink{[weak self] _ in DispatchQueue.main.async{self?.refresh()}}.store(in:&observations)
-        model.onImport={[weak self] in guard let self=self else{return};self.desiredLeft=model.session.state.window.left;self.desiredRight=model.session.state.window.right;self.animateDrawers()};board.onLayout={[weak self] in self?.titleView.needsLayout=true;self?.titleView.syncCenter()};board.activate={[weak self] square in self?.select(square)};board.canDrag={[weak self] square in self?.dragMoves(square) ?? false};model.movePlacedDirectly={[weak self] move in self?.board.isDropped(move) ?? false};board.inspectRelationship={[weak self] mode in self?.toggleRelationship(mode)};board.dismissRelationships={[weak self] in guard let self=self else{return false};let dismissed=self.relationships.dismiss();if dismissed{self.refresh()};return dismissed};board.clearSelection={[weak self] in guard let self=self else{return};if self.model.review.active{self.model.review.clearSelection();self.refresh()}else if self.model.session.mode == .practice{self.model.session.clearSelection()}else{self.model.learning.clearSelection()}};titleView.board=board;titleView.tabs.target=self;titleView.tabs.action=#selector(selectTab)
-        controls=VisibleHostingView(rootView:TransportContent(session:model.session,learning:model.learning,voice:model.voice,review:model.review,newGame:{[weak self] in self?.newGame()},showDetails:{[weak self] in self?.showDetails()},continueWithStockfish:{[weak model] in model?.companion.disable();model?.session.continueWithStockfish()},resumeGame:{[weak model] in model?.resumeAfterFailedRestore()}));welcome=VisibleHostingView(rootView:WelcomeContent(title:"",goals:[]));puzzles=VisibleHostingView(rootView:PuzzleLibraryContent(learning:model.learning,session:model.session))
-        reviewWorkspaceView=VisibleHostingView(rootView:ReviewWorkspaceContent(model:model))
-        for v in [board,controls!,welcome!,puzzles!,reviewWorkspaceView!] {main.view.addSubview(v);v.translatesAutoresizingMaskIntoConstraints=false}
+        model.onImport={[weak self] in guard let self=self else{return};self.desiredLeft=self.model.session.state.window.left;self.desiredRight=self.model.session.state.window.right;self.animateDrawers()};board.onLayout={[weak self] in self?.titleView.needsLayout=true;self?.titleView.syncCenter()};board.activate={[weak self] square in self?.select(square)};board.canDrag={[weak self] square in self?.dragMoves(square) ?? false};model.movePlacedDirectly={[weak self] move in self?.board.isDropped(move) ?? false};board.inspectRelationship={[weak self] mode in self?.toggleRelationship(mode)};board.dismissRelationships={[weak self] in guard let self=self else{return false};let dismissed=self.relationships.dismiss();if dismissed{self.refresh()};return dismissed};board.clearSelection={[weak self] in guard let self=self else{return};if self.model.review.active{self.model.review.clearSelection();self.refresh()}else if self.model.session.mode == .practice{self.model.session.clearSelection()}else if let training=self.model.training,self.trainingExercise != nil{training.clearSelection();self.refresh()}else{self.model.learning.clearSelection()}};titleView.board=board;titleView.tabs.target=self;titleView.tabs.action=#selector(selectTab)
+    }
+    /// The board area: transport, welcome card, puzzle and training libraries, error banner and playback line.
+    private func buildBoardArea(){
+        controls=VisibleHostingView(rootView:TransportContent(session:model.session,learning:model.learning,voice:model.voice,review:model.review,newGame:{[weak self] in self?.newGame()},showDetails:{[weak self] in self?.showDetails()},continueWithStockfish:{[weak model] in model?.companion.disable();model?.session.continueWithStockfish()},resumeGame:{[weak model] in model?.resumeAfterFailedRestore()},training:model.training,openTrainingLibrary:{[weak model] in model?.trainingLibrary()}));welcome=VisibleHostingView(rootView:WelcomeContent(title:""));puzzles=VisibleHostingView(rootView:PuzzleLibraryContent(learning:model.learning,session:model.session))
+        reviewWorkspaceView=VisibleHostingView(rootView:ReviewWorkspaceContent(model:model));trainingLibraryView=VisibleHostingView(rootView:TrainingLibraryHost(model:model))
+        for v in [board,controls!,welcome!,puzzles!,reviewWorkspaceView!,trainingLibraryView!] {main.view.addSubview(v);v.translatesAutoresizingMaskIntoConstraints=false}
         NSLayoutConstraint.activate([controls.leadingAnchor.constraint(equalTo:main.view.leadingAnchor),controls.trailingAnchor.constraint(equalTo:main.view.trailingAnchor),controls.bottomAnchor.constraint(equalTo:main.view.safeAreaLayoutGuide.bottomAnchor),controls.heightAnchor.constraint(equalToConstant:Metrics.header)])
         // Errors sit above the board area, which yields its top to the banner while one shows: a banner that
         // overlaid the board swallowed clicks on the eighth rank. The board stays square, only smaller.
@@ -76,7 +94,10 @@ final class BoardTitleView:NSView {
         playbackLineView=playbackLine
         main.view.addSubview(playbackLine);playbackLine.translatesAutoresizingMaskIntoConstraints=false
         NSLayoutConstraint.activate([playbackLine.leadingAnchor.constraint(equalTo:main.view.leadingAnchor),playbackLine.trailingAnchor.constraint(equalTo:main.view.trailingAnchor),playbackLine.bottomAnchor.constraint(equalTo:main.view.bottomAnchor),playbackLine.heightAnchor.constraint(equalToConstant:Metrics.playbackLineHeight)])
-        for v in [board,welcome!,puzzles!,reviewWorkspaceView!] {let top=v.topAnchor.constraint(equalTo:main.view.safeAreaLayoutGuide.topAnchor,constant:Metrics.smallGap);top.priority = .defaultHigh;NSLayoutConstraint.activate([v.leadingAnchor.constraint(equalTo:main.view.safeAreaLayoutGuide.leadingAnchor,constant:Metrics.padding),v.trailingAnchor.constraint(equalTo:main.view.safeAreaLayoutGuide.trailingAnchor,constant:-Metrics.padding),top,v.topAnchor.constraint(greaterThanOrEqualTo:banner.bottomAnchor),v.bottomAnchor.constraint(equalTo:controls.topAnchor,constant:-Metrics.smallGap)])}
+        for v in [board,welcome!,puzzles!,reviewWorkspaceView!,trainingLibraryView!] {let top=v.topAnchor.constraint(equalTo:main.view.safeAreaLayoutGuide.topAnchor,constant:Metrics.smallGap);top.priority = .defaultHigh;NSLayoutConstraint.activate([v.leadingAnchor.constraint(equalTo:main.view.safeAreaLayoutGuide.leadingAnchor,constant:Metrics.padding),v.trailingAnchor.constraint(equalTo:main.view.safeAreaLayoutGuide.trailingAnchor,constant:-Metrics.padding),top,v.topAnchor.constraint(greaterThanOrEqualTo:banner.bottomAnchor),v.bottomAnchor.constraint(equalTo:controls.topAnchor,constant:-Metrics.smallGap)])}
+    }
+    /// Model changes refresh the window; moves animate and are announced.
+    private func observeModel(){
         model.objectWillChange.sink{[weak self] _ in DispatchQueue.main.async{self?.refresh()}}.store(in:&observations)
         model.session.objectWillChange.sink{[weak self] _ in DispatchQueue.main.async{self?.refresh()}}.store(in:&observations);model.learning.objectWillChange.sink{[weak self] _ in DispatchQueue.main.async{self?.refresh()}}.store(in:&observations)
         model.voice.$connected.removeDuplicates().filter{$0}.receive(on:RunLoop.main).sink{[weak self] _ in self?.showDetails()}.store(in:&observations)
@@ -87,16 +108,10 @@ final class BoardTitleView:NSView {
         // A connection attempt or a live connection that ends with a message other than "Disconnected" failed.
         model.voice.$connecting.merge(with:model.voice.$connected).removeDuplicates().filter{!$0}.receive(on:RunLoop.main).sink{[weak self] _ in guard let self,!self.model.voice.connected,!self.model.voice.connecting,self.model.voice.status != "Disconnected" else{return};self.showDetails()}.store(in:&observations)
         let undone=model.session.onUndo;model.session.onUndo={[weak self] in undone?();self?.board.cancelAnimation()}
-        let sound=model.session.onMove;model.session.onMove={[weak self] move in sound?(move);guard let self=self else{return};self.board.animate(move,duration:Double(model.session.state.settings.pieceDuration)/1000);self.announce(move)}
-        let miniSound=model.learning.onMiniMove;model.learning.onMiniMove={[weak self] move in miniSound?(move);self?.board.animate(move,duration:Double(model.session.state.settings.pieceDuration)/1000);if self?.model.learning.miniGame?.computer==true,move.color=="b"{self?.announce("The computer played \(move.san).")}}
+        let sound=model.session.onMove;model.session.onMove={[weak self] move in sound?(move);guard let self=self else{return};self.board.animate(move,duration:Double(self.model.session.state.settings.pieceDuration)/1000);self.announce(move)}
+        let miniSound=model.learning.onMiniMove;model.learning.onMiniMove={[weak self] move in miniSound?(move);guard let self else{return};self.board.animate(move,duration:Double(self.model.session.state.settings.pieceDuration)/1000);if self.model.learning.miniGame?.computer==true,move.color=="b"{self.announce("The computer played \(move.san).")}}
         let miniReset=model.learning.onMiniReset;model.learning.onMiniReset={[weak self] in miniReset?();self?.board.cancelAnimation()}
-        let restored=WindowGeometry.restored(model.session.state.window.frame,screens:NSScreen.screens.map(\.visibleFrame),size:Double(Metrics.core),minimum:Double(Metrics.minimum))
-        fixedBoardWidth=main.view.widthAnchor.constraint(equalToConstant:restored.width);fixedBoardWidth!.isActive=true
-        coreFrame=restored;w.setFrame(restored,display:false);refresh()
-        desiredLeft=model.session.state.window.left;desiredRight=model.session.state.window.right
-        DispatchQueue.main.async{self.boardItem.minimumThickness=Metrics.minimum;self.animateDrawers();self.model.session.reply()}
     }
-    required init?(coder:NSCoder){fatalError()}
     func toolbarDefaultItemIdentifiers(_ t:NSToolbar)->[NSToolbarItem.Identifier]{[.flexibleSpace,sidebarID,.sidebarTrackingSeparator,.flexibleSpace,titleID,.flexibleSpace,settingsID,.inspectorTrackingSeparator,inspectorID,.flexibleSpace]}
     func toolbarAllowedItemIdentifiers(_ t:NSToolbar)->[NSToolbarItem.Identifier]{toolbarDefaultItemIdentifiers(t)}
     func toolbar(_ t:NSToolbar,itemForItemIdentifier id:NSToolbarItem.Identifier,willBeInsertedIntoToolbar:Bool)->NSToolbarItem? {
@@ -140,21 +155,23 @@ final class BoardTitleView:NSView {
             width.constant=targetCore
             if changeLeft{sidebarItem.animator().isCollapsed = !desiredLeft}
             if changeRight{inspectorItem.animator().isCollapsed = !desiredRight}
-        } completionHandler:{[weak self] in MainActor.assumeIsolated{guard let self=self else{return};self.window?.contentView?.layoutSubtreeIfNeeded();self.titleView.syncCenter();(self.window as? BoardWindow)?.drawerOrigins=nil;(self.window as? BoardWindow)?.drawerViewport=nil;self.animating=false;self.animateDrawers()}}
+        } completionHandler:{[weak self] in MainActor.assumeIsolated{guard let self=self else{return};self.window?.contentView?.layoutSubtreeIfNeeded();self.titleView.syncCenter();(self.window as? BoardWindow)?.drawerOrigins=nil;(self.window as? BoardWindow)?.drawerViewport=nil;self.fittedOrigin=self.window?.frame.origin;self.animating=false;self.animateDrawers()}}
     }
 
     @objc func selectTab(){model.session.selectPresentation(titleView.tabs.selectedSegment==1)}
     func select(_ sq:String){
-        if model.review.active{if let from=model.review.selected,model.review.displayRules?.moves(from).contains(where:{$0.to==sq && $0.promotion != nil})==true{let menu=NSMenu();for (title,piece) in [("Queen","q"),("Rook","r"),("Bishop","b"),("Knight","n")]{let item=NSMenuItem(title:title,action:#selector(promoteReview(_:)),keyEquivalent:"");item.target=self;item.image=promotionImage(piece);item.toolTip="Promote to a "+title.lowercased();item.representedObject=[sq,piece];menu.addItem(item)};menu.popUp(positioning:nil,at:board.squareRect(sq).origin,in:board);return};do{try model.review.selectSquare(sq)}catch{showError(error)};refresh();return}
+        if model.review.active{if let from=model.review.selected,model.review.displayRules?.moves(from).contains(where:{$0.to==sq && $0.promotion != nil})==true{let shown=reviewPromotionKey;showPromotionMenu(at:sq,action:#selector(promoteReview(_:))){[sq,$0,from,shown]};return};do{try model.review.selectSquare(sq)}catch{showError(error)};refresh();return}
 
         let s=model.session
         // Inspection hides the move dots but not the move: a playable destination of the inspected piece leaves
         // inspection and plays, so P or A pressed by accident can never make a legal move unplayable.
         if relationships.mode != nil{let plays=s.mode == .practice && s.selected != sq && s.inspection?.legalNow==true && s.destinations.contains(sq);if plays{relationships.dismiss()}else{if s.mode == .practice{try? s.inspectPiece(sq)};relationships.select(board.position[sq] == nil ? nil:sq);refresh();return}}
         if s.mode == .practice {
-        if let from=s.selected,s.inspection?.legalNow==true,s.destinations.contains(sq),(s.presentationHidden || s.preview==nil && s.demonstration==nil) {let promotion=s.rules.moves(from).contains{$0.to==sq && $0.promotion != nil};if promotion {let menu=NSMenu();for (title,piece) in [("Queen","q"),("Rook","r"),("Bishop","b"),("Knight","n")] {let item=NSMenuItem(title:title,action:#selector(promote(_:)),keyEquivalent:"");item.target=self;item.image=promotionImage(piece);item.toolTip="Promote to a "+title.lowercased();item.representedObject=[from,sq,piece];menu.addItem(item)};menu.popUp(positioning:nil,at:board.squareRect(sq).origin,in:board);return}}
+        if let from=s.selected,s.inspection?.legalNow==true,s.destinations.contains(sq),(s.presentationHidden || s.preview==nil && s.demonstration==nil) {let promotion=s.rules.moves(from).contains{$0.to==sq && $0.promotion != nil};if promotion {let fen=s.rules.fen;showPromotionMenu(at:sq,action:#selector(promote(_:))){[from,sq,$0,fen]};return}}
         do{try s.select(sq)}catch{showError(error)}
-    }else{model.learning.click(sq)};refresh()}
+    }else if let training=model.training,trainingExercise != nil{training.click(sq)}else{model.learning.click(sq)};refresh()}
+    /// The exercise shown on the board, if a training exercise (not the library or a library mini-game) is open.
+    var trainingExercise:TrainingController.Exercise? {guard case .training=model.session.activity.place else{return nil};return model.training?.exercise}
     /// Dragging applies where selecting a piece and then a square plays a move; marking and route exercises stay
     /// click-only, and in practice only the learner's own pieces drag.
     func dragMoves(_ square:String)->Bool {
@@ -162,7 +179,15 @@ final class BoardTitleView:NSView {
         if model.review.active{return true}
         let l=model.learning,s=model.session
         if s.mode == .practice{return board.position[square]?.first.map(String.init)==s.humanSide}
+        // Selecting squares is click-only; a piece the learner moves may be dragged.
+        if let exercise=trainingExercise{return !exercise.finished && (exercise.task == .move || exercise.task == .game && model.training?.games.thinking == false) && board.position[square]?.first.map(String.init)==exercise.scenario.learner}
         return l.mini || l.activePuzzle != nil && l.exercise?.kind=="move"
+    }
+    /// The promotion choices at a square; each item carries `payload(piece)` for its action.
+    private func showPromotionMenu(at sq:String,action:Selector,payload:(String)->[String]){
+        let menu=NSMenu()
+        for (title,piece) in [("Queen","q"),("Rook","r"),("Bishop","b"),("Knight","n")]{let item=NSMenuItem(title:title,action:action,keyEquivalent:"");item.target=self;item.image=promotionImage(piece);item.toolTip="Promote to a "+title.lowercased();item.representedObject=payload(piece);menu.addItem(item)}
+        menu.popUp(positioning:nil,at:board.squareRect(sq).origin,in:board)
     }
     private func promotionImage(_ piece:String)->NSImage {
         let symbol=["q":"♛","r":"♜","b":"♝","n":"♞"][piece] ?? ""
@@ -171,9 +196,12 @@ final class BoardTitleView:NSView {
             (symbol as NSString).draw(in:rect,withAttributes:[.font:NSFont.systemFont(ofSize:rect.height),.foregroundColor:NSColor.black]);return true
         };image.isTemplate=true;return image
     }
-    @objc func promoteReview(_ item:NSMenuItem){guard let values=item.representedObject as? [String] else{return};do{try model.review.selectSquare(values[0],promotion:values[1])}catch{showError(error)};refresh()}
-    @objc func promote(_ item:NSMenuItem){guard let value=item.representedObject as? [String] else{return};do{try model.session.playWhite(from:value[0],to:value[1],promotion:value[2])}catch{showError(error)};refresh()}
-    func toggleRelationship(_ mode:RelationshipMode){guard !model.review.active,!model.reviewWorkspace,let selected=board.selected,board.position[selected] != nil else{return};relationships.toggle(mode,selected:selected);refresh();if relationships.mode != nil{showDetails()}}
+    /// The review position a promotion menu was opened over; the menu's run loop lets an agent move the review meanwhile.
+    private var reviewPromotionKey:String {model.review.identity+":\(model.review.branchPly)"}
+    /// A choice applies only to the position and piece the menu was opened for; one changed meanwhile is ignored.
+    @objc func promoteReview(_ item:NSMenuItem){guard let values=item.representedObject as? [String],values.count==4,model.review.active,model.review.selected==values[2],reviewPromotionKey==values[3] else{refresh();return};do{try model.review.selectSquare(values[0],promotion:values[1])}catch{showError(error)};refresh()}
+    @objc func promote(_ item:NSMenuItem){guard let value=item.representedObject as? [String],value.count==4,!model.review.active,model.session.mode == .practice,model.session.rules.fen==value[3] else{refresh();return};do{try model.session.playWhite(from:value[0],to:value[1],promotion:value[2])}catch{showError(error)};refresh()}
+    func toggleRelationship(_ mode:RelationshipMode){guard !model.review.active,!model.reviewWorkspace,trainingExercise==nil,let selected=board.selected,board.position[selected] != nil else{return};relationships.toggle(mode,selected:selected);refresh();if relationships.mode != nil{showDetails()}}
     @objc func showProtection(){toggleRelationship(.protected)}
     @objc func showAttacks(){toggleRelationship(.attacked)}
     @objc func dismissInspection(){relationships.dismiss();refresh()}
@@ -189,56 +217,90 @@ final class BoardTitleView:NSView {
     private func announce(_ text:String){NSAccessibility.post(element:board,notification:.announcementRequested,userInfo:[.announcement:text,.priority:NSAccessibilityPriorityLevel.high.rawValue])}
     func refresh(){let s=model.session,l=model.learning
         // The learner's own side sits nearest them in practice; reviews and lessons keep White at the bottom.
-        board.blackAtBottom = !model.reviewWorkspace && !model.review.active && s.mode == .practice && s.humanSide=="b"
+        board.blackAtBottom = !model.reviewWorkspace && !model.review.active && (s.mode == .practice && s.humanSide=="b" || trainingExercise?.scenario.learner=="b")
         board.reviewNavigation=model.review.active && model.review.branch==nil
         reviewWorkspaceView.isHidden = !model.reviewWorkspace;controls.isHidden=model.reviewWorkspace;playbackLineView?.isHidden=model.reviewWorkspace
+        trainingLibraryView.isHidden=true
         if model.reviewWorkspace{board.isHidden=true;welcome.isHidden=true;puzzles.isHidden=true;titleView.label.stringValue="Game review";titleView.label.isHidden=false;titleView.tabs.isHidden=true;return}
-        if model.review.active{let review=model.review;board.position=review.board;board.theme=s.state.settings.boardTheme;board.selected=review.selected;board.destinations=review.destinations;board.destinationsPlayable=true;board.dropsAnywhere=false;board.attacked=[];board.highlights=[];board.arrows=[];board.counts=[];board.explicitMotion=nil;board.relationshipMode=nil;board.relationshipConnectors=[];
-            let move=review.branch.flatMap{branch in review.branchPly>0 ? branch.moves[review.branchPly-1]:nil} ?? review.document?.nodes[review.nodeID].uci
-            if let move=move {let from=String(move.prefix(2)),to=String(move.dropFirst(2).prefix(2));board.highlights=[Highlight(sq:from,kind:"last"),Highlight(sq:to,kind:"last")];if review.branch != nil{board.arrows=[[from,to]]}}
-            if let rules=review.displayRules,rules.check,let king=rules.board.first(where:{$0.value==rules.turn+"k"})?.key{board.highlights.append(Highlight(sq:king,kind:"check"))}
-            board.highlights += review.highlights+s.voiceFocus.map{Highlight(sq:$0,kind:"focus")};board.arrows += review.arrows
+        board.theme=s.state.settings.boardTheme
+        if model.review.active{let review=model.review;applyBoard(reviewPresentation(review));board.relationshipMode=nil;board.relationshipConnectors=[]
             if announcedReviewIdentity != review.identity{announcedReviewIdentity=review.identity;let node=review.document?.nodes[review.nodeID];let announcement=review.branch==nil ? "Review, \(node?.fullmove ?? 1), \(node?.side=="b" ? "Black":"White"), \(node?.san ?? "starting position")":"Imagined line, move \(review.branchPly)";NSAccessibility.post(element:board,notification:.announcementRequested,userInfo:[.announcement:announcement,.priority:NSAccessibilityPriorityLevel.high.rawValue])}
             board.isHidden=false;puzzles.isHidden=true;welcome.isHidden=true;titleView.label.stringValue=review.branch==nil ? "Review · Original game":"Review · Imagined moves";titleView.label.isHidden=false;titleView.tabs.isHidden=true;board.needsDisplay=true;return}
 
-        board.position=s.displayBoard;board.theme=s.state.settings.boardTheme;board.selected=s.mode == .practice ? s.selected:l.picked.first;board.destinations=s.mode == .practice ? s.destinations:l.destinations;board.destinationsPlayable=s.mode != .practice || s.inspection?.legalNow != false;board.dropsAnywhere=s.mode != .practice && !l.mini && l.activePuzzle != nil && l.exercise?.kind=="move";board.attacked=s.mode == .practice ? s.inspection?.attacks ?? []:[]
-        // The last move is drawn first so the coach's highlights stay visible on top of it, as in review.
-        board.highlights=s.highlights+s.voiceFocus.map{Highlight(sq:$0,kind:"focus")};if s.mode == .practice,s.displayView=="game" {if let last=s.rules.records.last{board.highlights.insert(contentsOf:[Highlight(sq:last.from,kind:"last"),Highlight(sq:last.to,kind:"last")],at:0)};if s.rules.check,let king=s.rules.board.first(where:{$0.value==s.rules.turn+"k"})?.key{board.highlights.append(Highlight(sq:king,kind:"check"))}};var moveArrows=s.arrows;board.counts=[];board.explicitMotion=nil
-        if s.mode != .practice {board.highlights+=l.frame.hl+l.picked.map{Highlight(sq:$0,kind:"focus")};moveArrows=l.frame.arrows+moveArrows;board.counts=l.frame.counts ?? [];board.explicitMotion=l.frame.motion.map{motion in var landed=motion;if board.shouldReduceMotion{landed.t=1};return landed}}
-        if !s.presentationHidden,let d=s.demonstration {let frame=d.lines[d.line].frames[d.ply];moveArrows=frame.arrows+moveArrows;board.highlights+=frame.highlights}
-        relationships.update(board:board.position,fen:s.mode == .practice ? s.displayFen:nil,selected:board.selected,identity:s.displayIdentity)
+        // An exercise's own presentation replaces the activity's before relationships read the selection; it offers no inspection.
+        var shown=trainingExercise.map(trainingPresentation) ?? activityPresentation()
+        if trainingExercise != nil{relationships.dismiss()}
+        relationships.update(board:shown.position,fen:s.mode == .practice ? s.displayFen:nil,selected:trainingExercise==nil ? shown.selected:nil,identity:s.displayIdentity)
+        if let report=relationships.report{shown.selected=report.square;shown.destinations=[];shown.attacked=[];shown.arrows=[];shown.highlights.removeAll{$0.kind != "check" && $0.kind != "no"}}
+        applyBoard(shown)
         board.relationshipMode=relationships.report?.mode
         board.relationshipConnectors=relationships.report?.relations.map{RelationshipConnector(source:$0.square,target:relationships.report!.square,limited:$0.limited)} ?? []
-        if let report=relationships.report{board.selected=report.square;board.destinations=[];board.attacked=[];moveArrows=[];board.highlights.removeAll{$0.kind != "check" && $0.kind != "no"}}
-        board.arrows=moveArrows
         board.needsDisplay=true
         let library=s.mode == .puzzles && l.activePuzzle==nil,titlecard=s.mode == .lesson && l.frame.board==nil
-        board.isHidden=library || titlecard;puzzles.isHidden = !library;welcome.isHidden = !titlecard
-        if titlecard {welcome.rootView=WelcomeContent(title:l.localizedStepTitle(index:l.lessonIndex,step:l.step),goals:l.teaches)}
-        titleView.label.stringValue=s.mode == .practice ? "Practice · \(s.humanSide=="b" ? "Black":"White") vs Stockfish":s.mode == .puzzles ? "Quick puzzles":l.mini ? l.miniKind.title:l.localizedTitle(index:l.lessonIndex)
+        let trainingLibrary=model.training != nil && s.activity.place == .trainingLibrary
+        board.isHidden=library || titlecard || trainingLibrary;puzzles.isHidden = !library;welcome.isHidden = !titlecard;trainingLibraryView.isHidden = !trainingLibrary
+        if titlecard {welcome.rootView=WelcomeContent(title:l.localizedStepTitle(index:l.lessonIndex,step:l.step))}
+        titleView.label.stringValue=s.mode == .practice ? "Practice · \(s.humanSide=="b" ? "Black":"White") vs Stockfish":s.mode == .puzzles ? "Quick puzzles":l.mini ? l.miniKind.title:s.mode == .training ? trainingExercise?.definition.title ?? "Training":l.localizedTitle(index:l.lessonIndex)
         let temporary=s.preview != nil || s.demonstration != nil;titleView.label.isHidden=temporary;titleView.tabs.isHidden = !temporary;titleView.tabs.setLabel(s.demonstration != nil ? "Demonstration":"Try a move",forSegment:1);titleView.tabs.selectedSegment=s.presentationHidden ? 0:1;titleView.needsLayout=true
     }
-    func validateMenuItem(_ item:NSMenuItem)->Bool {if [#selector(showProtection),#selector(showAttacks),#selector(dismissInspection)].contains(item.action){if item.action == #selector(dismissInspection){return relationships.mode != nil};item.state=(item.action == #selector(showProtection) && relationships.mode == .protected || item.action == #selector(showAttacks) && relationships.mode == .attacked) ? .on:.off;return !model.review.active && board.selected.flatMap{board.position[$0]} != nil && !board.isHidden};guard [#selector(newGame),#selector(undo as () -> Void),NSSelectorFromString("undo:"),#selector(restorePrevious),#selector(claimDraw),#selector(resign)].contains(item.action) else{return true};guard !model.review.active,!model.reviewWorkspace else{return false};if model.learning.mini,model.session.mode == .lesson,![#selector(restorePrevious),#selector(claimDraw),#selector(resign)].contains(item.action){return item.action == #selector(newGame) || model.learning.miniGame?.history.isEmpty == false};guard model.session.mode == .practice else{return false};if item.action == #selector(undo as () -> Void) || item.action == NSSelectorFromString("undo:"){return model.session.canTakeBack};if item.action == #selector(claimDraw){return model.session.claimableDraw != nil};if item.action == #selector(resign){return !model.session.finished && !model.session.rules.history.isEmpty};if item.action == #selector(restorePrevious){return !model.session.state.practice.previousGame.isEmpty};return true}
+    /// Everything the board shows for one activity. Each builder sets every field, so nothing from the previous
+    /// activity survives a switch; `applyBoard` is the one place the board receives it.
+    private struct BoardPresentation {var position:Position,selected:String?,destinations:[String],playable:Bool,dropsAnywhere:Bool,attacked:[String],highlights:[Highlight],arrows:[[String]],counts:[String],motion:PieceMotion?}
+    private func applyBoard(_ p:BoardPresentation){board.position=p.position;board.selected=p.selected;board.destinations=p.destinations;board.destinationsPlayable=p.playable;board.dropsAnywhere=p.dropsAnywhere;board.attacked=p.attacked;board.highlights=p.highlights;board.arrows=p.arrows;board.counts=p.counts;board.explicitMotion=p.motion}
+    /// A review: the last move (and an imagined line's arrow), check, then the review's and the voice coach's marks.
+    private func reviewPresentation(_ review:ReviewController)->BoardPresentation {
+        var p=BoardPresentation(position:review.board,selected:review.selected,destinations:review.destinations,playable:true,dropsAnywhere:false,attacked:[],highlights:[],arrows:[],counts:[],motion:nil)
+        // An imagined line starts from its own root, which a preview can place away from the selected move.
+        let imagined=review.branch.flatMap{branch in review.branchPly>0 ? branch.moves[review.branchPly-1]:nil}
+        if let move=imagined ?? review.document?.nodes[review.branch?.root ?? review.nodeID].uci {let from=String(move.prefix(2)),to=String(move.dropFirst(2).prefix(2));p.highlights=[Highlight(sq:from,kind:"last"),Highlight(sq:to,kind:"last")];if imagined != nil{p.arrows=[[from,to]]}}
+        if let rules=review.displayRules,rules.check,let king=rules.board.first(where:{$0.value==rules.turn+"k"})?.key{p.highlights.append(Highlight(sq:king,kind:"check"))}
+        p.highlights += review.highlights+model.session.voiceFocus.map{Highlight(sq:$0,kind:"focus")};p.arrows += review.arrows
+        return p
+    }
+    /// Practice, a lesson, a puzzle or a mini-game, with a demonstration on top.
+    private func activityPresentation()->BoardPresentation {let s=model.session,l=model.learning,practice=s.mode == .practice
+        var p=BoardPresentation(position:s.displayBoard,selected:practice ? s.selected:l.picked.first,destinations:practice ? s.destinations:l.destinations,playable:!practice || s.inspection?.legalNow != false,dropsAnywhere:!practice && !l.mini && l.activePuzzle != nil && l.exercise?.kind=="move",attacked:practice ? s.inspection?.attacks ?? []:[],highlights:s.highlights+s.voiceFocus.map{Highlight(sq:$0,kind:"focus")},arrows:s.arrows,counts:[],motion:nil)
+        // The last move is drawn first so the coach's highlights stay visible on top of it, as in review.
+        if practice,s.displayView=="game" {if let last=s.rules.records.last{p.highlights.insert(contentsOf:[Highlight(sq:last.from,kind:"last"),Highlight(sq:last.to,kind:"last")],at:0)};if s.rules.check,let king=s.rules.board.first(where:{$0.value==s.rules.turn+"k"})?.key{p.highlights.append(Highlight(sq:king,kind:"check"))}}
+        if !practice {p.highlights+=l.frame.hl+l.picked.map{Highlight(sq:$0,kind:"focus")};p.arrows=l.frame.arrows+p.arrows;p.counts=l.frame.counts ?? [];p.motion=l.frame.motion.map{motion in var landed=motion;if board.shouldReduceMotion{landed.t=1};return landed}}
+        if !s.presentationHidden,let d=s.demonstration {let frame=d.lines[d.line].frames[d.ply];p.arrows=frame.arrows+p.arrows;p.highlights+=frame.highlights}
+        return p
+    }
+    /// An exercise shows only what the learner did: no legal-move dots or hidden answers, except a hint asked for.
+    private func trainingPresentation(_ exercise:TrainingController.Exercise)->BoardPresentation {
+        let target=[exercise.scenario.target ?? exercise.scenario.drill?.target ?? exercise.scenario.goal?.target].compactMap{$0}.map{Highlight(sq:$0,kind:"target")}
+        return BoardPresentation(position:model.session.displayBoard,selected:exercise.picked,destinations:[],playable:true,dropsAnywhere:exercise.task == .move || exercise.task == .game,attacked:[],highlights:(exercise.lastMove.map{[Highlight(sq:$0.from,kind:"last"),Highlight(sq:$0.to,kind:"last")]} ?? [])+target+exercise.selection.map{Highlight(sq:$0,kind:"answer")}+exercise.hintSquares.map{Highlight(sq:$0,kind:"hint")},arrows:[],counts:[],motion:nil)
+    }
+    func validateMenuItem(_ item:NSMenuItem)->Bool {if [#selector(showProtection),#selector(showAttacks),#selector(dismissInspection)].contains(item.action){if item.action == #selector(dismissInspection){return relationships.mode != nil};item.state=(item.action == #selector(showProtection) && relationships.mode == .protected || item.action == #selector(showAttacks) && relationships.mode == .attacked) ? .on:.off;return !model.review.active && trainingExercise==nil && board.selected.flatMap{board.position[$0]} != nil && !board.isHidden};guard [#selector(newGame),#selector(undo as () -> Void),NSSelectorFromString("undo:"),#selector(restorePrevious),#selector(claimDraw),#selector(resign)].contains(item.action) else{return true};guard !model.review.active,!model.reviewWorkspace else{return false};if model.learning.mini,![#selector(restorePrevious),#selector(claimDraw),#selector(resign)].contains(item.action){return item.action == #selector(newGame) || model.learning.miniGame?.history.isEmpty == false};guard model.session.mode == .practice else{return false};if item.action == #selector(undo as () -> Void) || item.action == NSSelectorFromString("undo:"){return model.session.canTakeBack};if item.action == #selector(claimDraw){return model.session.claimableDraw != nil};if item.action == #selector(resign){return !model.session.finished && !model.session.rules.history.isEmpty};if item.action == #selector(restorePrevious){return !model.session.state.practice.previousGame.isEmpty};return true}
     @objc func newGame(){
         guard !model.review.active,!model.reviewWorkspace else{return}
-        if model.learning.mini,model.session.mode == .lesson {
+        if model.learning.mini {
             if model.learning.miniGame?.history.isEmpty != false{model.learning.restartMini();return}
-            let alert=NSAlert();alert.messageText="Start a new \(model.learning.miniKind.title) game?";alert.informativeText="This replaces the current mini-game.";alert.addButton(withTitle:"New Game");alert.addButton(withTitle:"Cancel");alert.beginSheetModal(for:window!){[weak self] response in if response == .alertFirstButtonReturn{self?.model.learning.restartMini()}};return
+            // The sheet answers for the mini-game it was shown over: one replaced meanwhile (an agent, a restart) is kept.
+            let shown=model.learning.miniGame.map{($0.kind,$0.opponentSeed)}
+            let alert=NSAlert();alert.messageText="Start a new \(model.learning.miniKind.title) game?";alert.informativeText="This replaces the current mini-game.";alert.addButton(withTitle:"New Game");alert.addButton(withTitle:"Cancel");alert.beginSheetModal(for:window!){[weak self] response in guard response == .alertFirstButtonReturn,let self,self.model.learning.mini,let game=self.model.learning.miniGame,let shown,game.kind==shown.0,game.opponentSeed==shown.1 else{return};self.model.learning.restartMini()};return
         }
         guard model.session.mode == .practice else{return};let a=NSAlert();a.messageText="Start a new game?";a.informativeText=model.session.state.practice.previousGame.isEmpty ? "Your current game will be available under Restore Previous Game.":"Your current game will be available under Restore Previous Game, replacing the game kept there now."
         let side=NSPopUpButton(frame:NSRect(x:0,y:0,width:220,height:28));side.addItems(withTitles:["Play as White","Play as Black"]);side.selectItem(at:model.session.humanSide=="b" ? 1:0);side.setAccessibilityLabel("Your side");a.accessoryView=side
-        a.addButton(withTitle:"New Game");a.addButton(withTitle:"Cancel");a.beginSheetModal(for:window!){r in if r == .alertFirstButtonReturn{self.board.cancelAnimation();self.model.session.newGame(side:side.indexOfSelectedItem==1 ? "b":"w")}}}
+        let shown=practiceGame
+        a.addButton(withTitle:"New Game");a.addButton(withTitle:"Cancel");a.beginSheetModal(for:window!){r in guard r == .alertFirstButtonReturn,self.stillShowing(shown) else{return};self.board.cancelAnimation();self.model.session.newGame(side:side.indexOfSelectedItem==1 ? "b":"w")}}
     @objc func claimDraw(){guard !model.review.active,model.session.mode == .practice else{return};model.session.claimDraw();refresh()}
     @objc func resign(){
         guard !model.review.active,model.session.mode == .practice,!model.session.finished,let window=window else{return}
         let a=NSAlert();a.messageText="Resign this game?";a.informativeText="The game is recorded as a loss. Start a new game or review it afterwards.";a.addButton(withTitle:"Resign");let cancel=a.addButton(withTitle:"Cancel");cancel.keyEquivalent="\r";a.window.defaultButtonCell=cancel.cell as? NSButtonCell
-        a.beginSheetModal(for:window){[weak self] r in if r == .alertFirstButtonReturn{self?.model.session.resign();self?.refresh()}}
+        let shown=practiceGame
+        a.beginSheetModal(for:window){[weak self] r in guard r == .alertFirstButtonReturn,let self,self.stillShowing(shown) else{return};self.model.session.resign();self.refresh()}
     }
+    /// The practice game a sheet was shown over. Moves played meanwhile keep it the same game; a new, restored or
+    /// forked game (an agent can start one while the sheet is up) or another activity does not.
+    private var practiceGame:(generation:Int,history:[String]) {let s=model.session;return (s.gameGeneration,s.rules.history)}
+    private func stillShowing(_ shown:(generation:Int,history:[String]))->Bool {
+        let now=practiceGame;return !model.review.active && !model.reviewWorkspace && model.session.mode == .practice && now.generation==shown.generation && now.history.starts(with:shown.history)}
     @objc func showSettings(){if settings==nil{settings=SettingsWindow(model:model)};settings?.showWindow(nil);settings?.window?.makeKeyAndOrderFront(nil)}
     @objc func showAbout(){showSettings();settings?.selectCategory("About")}
     /// Edit ▸ Undo (⌘Z) reaches here when no text field claims it: it takes back the move, as Game ▸ Take Back does.
     @objc func undo(_ sender:Any?){undo()}
-    @objc func undo(){guard !model.review.active,!model.reviewWorkspace else{return};board.cancelAnimation();if model.learning.mini,model.session.mode == .lesson{model.learning.undoMini()}else{model.session.undo()}}
+    @objc func undo(){guard !model.review.active,!model.reviewWorkspace else{return};board.cancelAnimation();if model.learning.mini{model.learning.undoMini()}else{model.session.undo()}}
     @objc func restorePrevious(){guard !model.review.active,!model.reviewWorkspace else{return};board.cancelAnimation();do{try model.session.restorePrevious()}catch{showError(error)}}
     func showError(_ error:Error){
         // ROLE_FORBIDDEN is an MCP contract code; people see what it means.
@@ -251,8 +313,9 @@ final class BoardTitleView:NSView {
         guard sender.inLiveResize,!animating,!fullscreen,!fullscreenTransition else{return frameSize}
         let drawers=drawerWidth,current=sender.frame.size
         var side=abs(frameSize.height-current.height)>abs(frameSize.width-current.width) ? frameSize.height:frameSize.width-drawers
-        if let visible=sender.screen?.visibleFrame{side=min(side,visible.height,visible.width-drawers)}
-        side=max(side,min(Metrics.minimum,sender.screen?.visibleFrame.height ?? Metrics.minimum))
+        // The floor is the usual minimum only where the screen fits it with these drawers, as `squareAfterResize` fits.
+        let fit=sender.screen.map{min($0.visibleFrame.height,$0.visibleFrame.width-drawers)} ?? .greatestFiniteMagnitude,lowest=min(Metrics.minimum,max(Metrics.minimumFitted,fit))
+        side=max(lowest,min(side,fit));boardItem.minimumThickness=lowest
         fixedBoardWidth?.constant=side;return NSSize(width:side+drawers,height:side)
     }
     private var drawerWidth:CGFloat {(sidebarItem.isCollapsed ? 0:leftExtent)+(inspectorItem.isCollapsed ? 0:rightExtent)}
@@ -272,16 +335,22 @@ final class BoardTitleView:NSView {
         boardItem.minimumThickness=min(Metrics.minimum,max(Metrics.minimumFitted,side))
         let frame=NSRect(x:window.frame.minX,y:window.frame.maxY-side,width:side+drawers,height:side)
         fixedBoardWidth?.constant=side;window.setFrame(frame,display:true)
-        coreFrame=NSRect(x:frame.minX+(sidebarItem.isCollapsed ? 0:leftExtent),y:frame.minY,width:side,height:side);rememberFrame()
+        coreFrame=NSRect(x:frame.minX+(sidebarItem.isCollapsed ? 0:leftExtent),y:frame.minY,width:side,height:side);fittedOrigin=window.frame.origin;rememberFrame()
     }
     func window(_ window:NSWindow,willUseFullScreenContentSize proposedSize:NSSize)->NSSize {window.screen?.frame.size ?? proposedSize}
-    func windowWillEnterFullScreen(_ notification:Notification){(window as? BoardWindow)?.drawerOrigins=nil;(window as? BoardWindow)?.drawerViewport=nil;if NativePolicy.silent{print("fullscreen: will enter")};guard let window=window else{return};fullscreenTransition=true;fullscreen=true;normalCoreFrame=coreFrame;fixedBoardWidth?.isActive=false;if let screen=window.screen{fixedBoardWidth?.constant=max(1,screen.frame.width-(sidebarItem.isCollapsed ? 0:leftExtent)-(inspectorItem.isCollapsed ? 0:rightExtent));fixedBoardWidth?.isActive=true;fullscreenWidth=split.view.widthAnchor.constraint(equalToConstant:screen.frame.width);fullscreenWidth?.isActive=true;sidebarItem.preferredThicknessFraction=Metrics.left/screen.frame.width;inspectorItem.preferredThicknessFraction=Metrics.right/screen.frame.width};sidebarItem.collapseBehavior = .preferResizingSiblingsWithFixedSplitView;inspectorItem.collapseBehavior = .preferResizingSiblingsWithFixedSplitView}
+    func windowWillEnterFullScreen(_ notification:Notification){(window as? BoardWindow)?.drawerOrigins=nil;(window as? BoardWindow)?.drawerViewport=nil;if NativePolicy.silent{print("fullscreen: will enter")};guard let window=window else{return};fullscreenTransition=true;fullscreen=true;normalCoreFrame=coreFrame;fixedBoardWidth?.isActive=false;installFullscreenLayout(window)}
+    /// Fullscreen fixes the split view to the screen's width and the board area to what the open drawers leave.
+    private func installFullscreenLayout(_ window:NSWindow){
+        if let screen=window.screen{fixedBoardWidth?.constant=max(1,screen.frame.width-(sidebarItem.isCollapsed ? 0:leftExtent)-(inspectorItem.isCollapsed ? 0:rightExtent));fixedBoardWidth?.isActive=true;fullscreenWidth?.isActive=false;fullscreenWidth=split.view.widthAnchor.constraint(equalToConstant:screen.frame.width);fullscreenWidth?.isActive=true;sidebarItem.preferredThicknessFraction=Metrics.left/screen.frame.width;inspectorItem.preferredThicknessFraction=Metrics.right/screen.frame.width}
+        sidebarItem.collapseBehavior = .preferResizingSiblingsWithFixedSplitView;inspectorItem.collapseBehavior = .preferResizingSiblingsWithFixedSplitView
+    }
     /// Minimised is away, like hidden (TX-5).
     func windowDidMiniaturize(_ notification:Notification){model.setAway(true)}
     func windowDidDeminiaturize(_ notification:Notification){model.setAway(NSApp.isHidden)}
     func windowDidEnterFullScreen(_ notification:Notification){if NativePolicy.silent{print("fullscreen: did enter")};fullscreenTransition=false;if let window=window,let screen=window.screen{window.setFrame(screen.frame,display:true)};split.view.autoresizingMask=[.width,.height];if fullscreen,let parent=split.view.superview{split.view.frame=parent.bounds};titleView.syncCenter();DispatchQueue.main.async{[weak self] in self?.titleView.syncCenter()};animateDrawers()}
     func windowDidFailToEnterFullScreen(_ window:NSWindow){fullscreenTransition=false;windowDidExitFullScreen(Notification(name:NSWindow.didExitFullScreenNotification,object:window))}
-    func windowDidFailToExitFullScreen(_ window:NSWindow){fullscreenTransition=false;fullscreen=true;fixedBoardWidth?.isActive=true;sidebarItem.collapseBehavior = .preferResizingSiblingsWithFixedSplitView;inspectorItem.collapseBehavior=sidebarItem.collapseBehavior;animateDrawers()}
+    /// Exit removed the fullscreen width (`windowWillExitFullScreen`); staying in fullscreen puts it back.
+    func windowDidFailToExitFullScreen(_ window:NSWindow){fullscreenTransition=false;fullscreen=true;fixedBoardWidth?.isActive=true;installFullscreenLayout(window);if let parent=split.view.superview{split.view.frame=parent.bounds};titleView.syncCenter();animateDrawers()}
     func windowWillExitFullScreen(_ notification:Notification){if NativePolicy.silent{print("fullscreen: will exit")};fullscreenTransition=true;fullscreenWidth?.isActive=false;fullscreenWidth=nil;fixedBoardWidth?.isActive=false}
     func windowDidExitFullScreen(_ notification:Notification){
         fullscreenWidth?.isActive=false;fullscreenWidth=nil;fullscreen=false;fullscreenTransition=false
@@ -294,29 +363,30 @@ final class BoardTitleView:NSView {
             fittedLayout = abs(restored.width-proposed.width)>1 || abs(restored.height-proposed.height)>1
             let boardWidth=restored.width-left-right
             boardItem.minimumThickness=min(Metrics.minimum,max(Metrics.minimumFitted,boardWidth))
-            fixedBoardWidth?.constant=boardWidth;window.setFrame(restored,display:true);fixedBoardWidth?.isActive=true
+            fittedOrigin=nil;fixedBoardWidth?.constant=boardWidth;window.setFrame(restored,display:true);fixedBoardWidth?.isActive=true;fittedOrigin=window.frame.origin
         }
         titleView.syncCenter();DispatchQueue.main.async{[weak self] in self?.titleView.syncCenter()};animateDrawers()
     }
 
-    private func rememberFrame(){guard !animating,!fullscreenTransition,let window=window,!window.styleMask.contains(.fullScreen) else{return};let frame=window.frame;if !fittedLayout{coreFrame?.origin=NSPoint(x:frame.minX+(sidebarItem.isCollapsed ? 0:leftExtent),y:frame.minY)};let preferred=coreFrame ?? frame;model.session.state.window.frame=[Double(preferred.minX),Double(preferred.minY),Double(preferred.width),Double(preferred.height)];model.session.emit(semantic:false,save:true)}
+    private func rememberFrame(){guard !animating,!fullscreenTransition,let window=window,!window.styleMask.contains(.fullScreen) else{return};let frame=window.frame;if !fittedLayout{coreFrame?.origin=NSPoint(x:frame.minX+(sidebarItem.isCollapsed ? 0:leftExtent),y:frame.minY)}else if let placed=fittedOrigin{coreFrame?.origin.x+=frame.minX-placed.x;coreFrame?.origin.y+=frame.minY-placed.y};fittedOrigin=frame.origin;let preferred=coreFrame ?? frame;model.session.state.window.frame=[Double(preferred.minX),Double(preferred.minY),Double(preferred.width),Double(preferred.height)];model.session.emit(semantic:false,save:true)}
     func windowDidMove(_ notification:Notification){rememberFrame()}
     func windowDidEndLiveResize(_ notification:Notification){if let window=window{let side=min(main.view.frame.width,window.frame.height);coreFrame=NSRect(x:window.frame.minX+(sidebarItem.isCollapsed ? 0:leftExtent),y:window.frame.minY,width:side,height:side)};fittedLayout=false;rememberFrame()}
     func windowDidResize(_ notification:Notification){if fullscreen,let parent=split.view.superview{split.view.frame=parent.bounds};squareAfterResize();titleView.syncCenter();DispatchQueue.main.async{[weak self] in self?.titleView.syncCenter()}}
     /// Closing the window quits, so it asks the same questions as Quit; a cancelled quit keeps the window open.
     func windowShouldClose(_ sender:NSWindow)->Bool{NSApp.terminate(nil);return false}
-    func snapshot(_ path:String){Task{try? await capture(path)}}
+    func snapshot(_ path:String){Task{do{try await capture(path)}catch{FileHandle.standardError.write(Data("snapshot failed: \(error)\n".utf8))}}}
     func capture(_ path:String) async throws {
         try await Self.captureWindow(window,path:path)
     }
     static func captureWindow(_ window:NSWindow?,path:String) async throws {
-        guard let id=window?.windowNumber else{return}
+        guard let id=window?.windowNumber else{throw CheckmateError.unavailable("There is no window to capture.")}
         let content:SCShareableContent
         if #available(macOS 14.4,*) {content=try await SCShareableContent.currentProcess}
         else {content=try await SCShareableContent.excludingDesktopWindows(false,onScreenWindowsOnly:false)}
-        guard let own=content.windows.first(where:{$0.windowID==CGWindowID(id)}) else{return}
+        guard let own=content.windows.first(where:{$0.windowID==CGWindowID(id)}) else{throw CheckmateError.unavailable("The window is not available for capture.")}
         let config=SCStreamConfiguration();config.width=Int(own.frame.width*2);config.height=Int(own.frame.height*2);config.showsCursor=false;config.ignoreShadowsSingleWindow=true
         let image=try await SCScreenshotManager.captureImage(contentFilter:SCContentFilter(desktopIndependentWindow:own),configuration:config)
-        try NSBitmapImageRep(cgImage:image).representation(using:.png,properties:[:])?.write(to:URL(fileURLWithPath:path))
+        guard let png=NSBitmapImageRep(cgImage:image).representation(using:.png,properties:[:]) else{throw CheckmateError.invalid("The capture could not be encoded as PNG.")}
+        try png.write(to:URL(fileURLWithPath:path))
     }
 }

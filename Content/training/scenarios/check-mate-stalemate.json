@@ -1,0 +1,855 @@
+{
+ "entry": "check-mate-stalemate",
+ "scenarios": [
+  {
+   "id": "cls-back-rank-mate-w1",
+   "entry": "check-mate-stalemate",
+   "variant": "classify",
+   "tier": 1,
+   "cluster": "back-rank-mate",
+   "learner": "b",
+   "prompt": "Black to move. Is Black checkmated, stalemated, in check, or none of these?",
+   "explanation": "Checkmate: the rook on a8 attacks Black's king on g8, and Black has no legal move.",
+   "hints": [
+    "Is the king attacked? Then look for any legal move at all."
+   ],
+   "fen": "R5k1/5ppp/8/8/8/8/8/6K1 b - - 0 1",
+   "choices": [
+    "Checkmate",
+    "Stalemate",
+    "Check",
+    "Neither"
+   ],
+   "expected": {
+    "choice": "Checkmate"
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "cls-back-rank-mate-b1",
+   "entry": "check-mate-stalemate",
+   "variant": "classify",
+   "tier": 1,
+   "cluster": "back-rank-mate",
+   "learner": "w",
+   "prompt": "White to move. Is White checkmated, stalemated, in check, or none of these?",
+   "explanation": "Checkmate: the rook on a1 attacks White's king on g1, and White has no legal move.",
+   "hints": [
+    "Is the king attacked? Then look for any legal move at all."
+   ],
+   "fen": "6k1/8/8/8/8/8/5PPP/r5K1 w - - 0 1",
+   "choices": [
+    "Checkmate",
+    "Stalemate",
+    "Check",
+    "Neither"
+   ],
+   "expected": {
+    "choice": "Checkmate"
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "cls-queen-kiss-mate-w1",
+   "entry": "check-mate-stalemate",
+   "variant": "classify",
+   "tier": 1,
+   "cluster": "queen-kiss-mate",
+   "learner": "b",
+   "prompt": "Black to move. Is Black checkmated, stalemated, in check, or none of these?",
+   "explanation": "Checkmate: the queen on g7 attacks Black's king on h8, and Black has no legal move.",
+   "hints": [
+    "Can the king capture the queen? What protects it?"
+   ],
+   "fen": "7k/6Q1/6K1/8/8/8/8/8 b - - 0 1",
+   "choices": [
+    "Checkmate",
+    "Stalemate",
+    "Check",
+    "Neither"
+   ],
+   "expected": {
+    "choice": "Checkmate"
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "cls-queen-kiss-mate-b1",
+   "entry": "check-mate-stalemate",
+   "variant": "classify",
+   "tier": 1,
+   "cluster": "queen-kiss-mate",
+   "learner": "w",
+   "prompt": "White to move. Is White checkmated, stalemated, in check, or none of these?",
+   "explanation": "Checkmate: the queen on g2 attacks White's king on h1, and White has no legal move.",
+   "hints": [
+    "Can the king capture the queen? What protects it?"
+   ],
+   "fen": "8/8/8/8/8/6k1/6q1/7K w - - 0 1",
+   "choices": [
+    "Checkmate",
+    "Stalemate",
+    "Check",
+    "Neither"
+   ],
+   "expected": {
+    "choice": "Checkmate"
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "cls-corner-stalemate-w1",
+   "entry": "check-mate-stalemate",
+   "variant": "classify",
+   "tier": 1,
+   "cluster": "corner-stalemate",
+   "learner": "b",
+   "prompt": "Black to move. Is Black checkmated, stalemated, in check, or none of these?",
+   "explanation": "Stalemate: it is Black's turn, Black is not in check, and no legal move exists. That is a draw.",
+   "hints": [
+    "Is the king attacked right now?"
+   ],
+   "fen": "7k/5Q2/6K1/8/8/8/8/8 b - - 0 1",
+   "choices": [
+    "Checkmate",
+    "Stalemate",
+    "Check",
+    "Neither"
+   ],
+   "expected": {
+    "choice": "Stalemate"
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "cls-corner-stalemate-b1",
+   "entry": "check-mate-stalemate",
+   "variant": "classify",
+   "tier": 1,
+   "cluster": "corner-stalemate",
+   "learner": "w",
+   "prompt": "White to move. Is White checkmated, stalemated, in check, or none of these?",
+   "explanation": "Stalemate: White's king is not in check, but White has no legal move. The game is drawn.",
+   "hints": [
+    "Is the king attacked right now?"
+   ],
+   "fen": "8/8/8/8/8/6k1/5q2/7K w - - 0 1",
+   "choices": [
+    "Checkmate",
+    "Stalemate",
+    "Check",
+    "Neither"
+   ],
+   "expected": {
+    "choice": "Stalemate"
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "cls-bishop-stalemate-w1",
+   "entry": "check-mate-stalemate",
+   "variant": "classify",
+   "tier": 2,
+   "cluster": "bishop-stalemate",
+   "learner": "b",
+   "prompt": "Black to move. Is Black checkmated, stalemated, in check, or none of these?",
+   "explanation": "Stalemate: it is Black's turn, Black is not in check, and no legal move exists. That is a draw.",
+   "hints": [
+    "Not in check. Which piece covers the last free square?"
+   ],
+   "fen": "k7/8/1K6/8/8/8/7B/8 b - - 0 1",
+   "choices": [
+    "Checkmate",
+    "Stalemate",
+    "Check",
+    "Neither"
+   ],
+   "expected": {
+    "choice": "Stalemate"
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "cls-bishop-stalemate-b1",
+   "entry": "check-mate-stalemate",
+   "variant": "classify",
+   "tier": 2,
+   "cluster": "bishop-stalemate",
+   "learner": "w",
+   "prompt": "White to move. Is White checkmated, stalemated, in check, or none of these?",
+   "explanation": "Stalemate: White's king is not in check, but White has no legal move. The game is drawn.",
+   "hints": [
+    "Not in check. Which piece covers the last free square?"
+   ],
+   "fen": "8/7b/8/8/8/1k6/8/K7 w - - 0 1",
+   "choices": [
+    "Checkmate",
+    "Stalemate",
+    "Check",
+    "Neither"
+   ],
+   "expected": {
+    "choice": "Stalemate"
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "cls-rook-check-w1",
+   "entry": "check-mate-stalemate",
+   "variant": "classify",
+   "tier": 1,
+   "cluster": "rook-check",
+   "learner": "b",
+   "prompt": "Black to move. Is Black checkmated, stalemated, in check, or none of these?",
+   "explanation": "Check: the rook on e1 attacks Black's king, but Black has 4 legal moves out of it, such as Kd7.",
+   "hints": [
+    "The king is attacked. Does it have a way out?"
+   ],
+   "fen": "4k3/8/8/8/8/8/8/2K1R3 b - - 0 1",
+   "choices": [
+    "Checkmate",
+    "Stalemate",
+    "Check",
+    "Neither"
+   ],
+   "expected": {
+    "choice": "Check"
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "cls-rook-check-b1",
+   "entry": "check-mate-stalemate",
+   "variant": "classify",
+   "tier": 1,
+   "cluster": "rook-check",
+   "learner": "w",
+   "prompt": "White to move. Is White checkmated, stalemated, in check, or none of these?",
+   "explanation": "Check: the rook on e8 attacks White's king, but White has 4 legal moves out of it, such as Kd1.",
+   "hints": [
+    "The king is attacked. Does it have a way out?"
+   ],
+   "fen": "2k1r3/8/8/8/8/8/8/4K3 w - - 0 1",
+   "choices": [
+    "Checkmate",
+    "Stalemate",
+    "Check",
+    "Neither"
+   ],
+   "expected": {
+    "choice": "Check"
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "cls-knight-check-w1",
+   "entry": "check-mate-stalemate",
+   "variant": "classify",
+   "tier": 1,
+   "cluster": "knight-check",
+   "learner": "b",
+   "prompt": "Black to move. Is Black checkmated, stalemated, in check, or none of these?",
+   "explanation": "Check: the knight on d6 attacks Black's king, but Black has 4 legal moves out of it, such as Kd7.",
+   "hints": [
+    "Knights check by jumping. Can the king step away?"
+   ],
+   "fen": "4k3/8/3N4/8/8/8/8/4K3 b - - 0 1",
+   "choices": [
+    "Checkmate",
+    "Stalemate",
+    "Check",
+    "Neither"
+   ],
+   "expected": {
+    "choice": "Check"
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "cls-knight-check-b1",
+   "entry": "check-mate-stalemate",
+   "variant": "classify",
+   "tier": 1,
+   "cluster": "knight-check",
+   "learner": "w",
+   "prompt": "White to move. Is White checkmated, stalemated, in check, or none of these?",
+   "explanation": "Check: the knight on d3 attacks White's king, but White has 4 legal moves out of it, such as Kd1.",
+   "hints": [
+    "Knights check by jumping. Can the king step away?"
+   ],
+   "fen": "4k3/8/8/8/8/3n4/8/4K3 w - - 0 1",
+   "choices": [
+    "Checkmate",
+    "Stalemate",
+    "Check",
+    "Neither"
+   ],
+   "expected": {
+    "choice": "Check"
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "cls-start-w1",
+   "entry": "check-mate-stalemate",
+   "variant": "classify",
+   "tier": 1,
+   "cluster": "start",
+   "learner": "w",
+   "prompt": "White to move. Is White checkmated, stalemated, in check, or none of these?",
+   "explanation": "Neither: White's king is not attacked and White has 20 legal moves.",
+   "hints": [
+    "Is anything attacking the king to move?"
+   ],
+   "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+   "choices": [
+    "Checkmate",
+    "Stalemate",
+    "Check",
+    "Neither"
+   ],
+   "expected": {
+    "choice": "Neither"
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "cls-start-b1",
+   "entry": "check-mate-stalemate",
+   "variant": "classify",
+   "tier": 1,
+   "cluster": "start",
+   "learner": "b",
+   "prompt": "Black to move. Is Black checkmated, stalemated, in check, or none of these?",
+   "explanation": "Neither: Black's king is not attacked and Black has 20 legal moves.",
+   "hints": [
+    "Is anything attacking the king to move?"
+   ],
+   "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR b KQkq - 0 1",
+   "choices": [
+    "Checkmate",
+    "Stalemate",
+    "Check",
+    "Neither"
+   ],
+   "expected": {
+    "choice": "Neither"
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "cls-spare-pawn-w1",
+   "entry": "check-mate-stalemate",
+   "variant": "classify",
+   "tier": 2,
+   "cluster": "spare-pawn",
+   "learner": "b",
+   "prompt": "Black to move. Is Black checkmated, stalemated, in check, or none of these?",
+   "explanation": "Neither: Black's king is not attacked and Black has 4 legal moves.",
+   "hints": [
+    "The king cannot move. Can any other piece?"
+   ],
+   "fen": "7k/5Q2/6K1/8/8/8/p7/8 b - - 0 1",
+   "choices": [
+    "Checkmate",
+    "Stalemate",
+    "Check",
+    "Neither"
+   ],
+   "expected": {
+    "choice": "Neither"
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "cls-spare-pawn-b1",
+   "entry": "check-mate-stalemate",
+   "variant": "classify",
+   "tier": 2,
+   "cluster": "spare-pawn",
+   "learner": "w",
+   "prompt": "White to move. Is White checkmated, stalemated, in check, or none of these?",
+   "explanation": "Neither: White's king is not attacked and White has 4 legal moves.",
+   "hints": [
+    "The king cannot move. Can any other piece?"
+   ],
+   "fen": "8/P7/8/8/8/6k1/5q2/7K w - - 0 1",
+   "choices": [
+    "Checkmate",
+    "Stalemate",
+    "Check",
+    "Neither"
+   ],
+   "expected": {
+    "choice": "Neither"
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "cls-smothered-mate-w1",
+   "entry": "check-mate-stalemate",
+   "variant": "classify",
+   "tier": 2,
+   "cluster": "smothered-mate",
+   "learner": "b",
+   "prompt": "Black to move. Is Black checkmated, stalemated, in check, or none of these?",
+   "explanation": "Checkmate: the knight on f7 attacks Black's king on h8, and Black has no legal move.",
+   "hints": [
+    "The king's own pieces take its squares."
+   ],
+   "fen": "6rk/5Npp/8/8/8/8/8/6K1 b - - 0 1",
+   "choices": [
+    "Checkmate",
+    "Stalemate",
+    "Check",
+    "Neither"
+   ],
+   "expected": {
+    "choice": "Checkmate"
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "cls-smothered-mate-b1",
+   "entry": "check-mate-stalemate",
+   "variant": "classify",
+   "tier": 2,
+   "cluster": "smothered-mate",
+   "learner": "w",
+   "prompt": "White to move. Is White checkmated, stalemated, in check, or none of these?",
+   "explanation": "Checkmate: the knight on f2 attacks White's king on h1, and White has no legal move.",
+   "hints": [
+    "The king's own pieces take its squares."
+   ],
+   "fen": "6k1/8/8/8/8/8/5nPP/6RK w - - 0 1",
+   "choices": [
+    "Checkmate",
+    "Stalemate",
+    "Check",
+    "Neither"
+   ],
+   "expected": {
+    "choice": "Checkmate"
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "cls-pawn-stalemate-w1",
+   "entry": "check-mate-stalemate",
+   "variant": "classify",
+   "tier": 2,
+   "cluster": "pawn-stalemate",
+   "learner": "w",
+   "prompt": "White to move. Is White checkmated, stalemated, in check, or none of these?",
+   "explanation": "Stalemate: White's king is not in check, but White has no legal move. The game is drawn.",
+   "hints": [
+    "Is the king attacked? Can it go anywhere?"
+   ],
+   "fen": "8/8/8/8/8/5k2/5p2/5K2 w - - 0 1",
+   "choices": [
+    "Checkmate",
+    "Stalemate",
+    "Check",
+    "Neither"
+   ],
+   "expected": {
+    "choice": "Stalemate"
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "cls-pawn-stalemate-b1",
+   "entry": "check-mate-stalemate",
+   "variant": "classify",
+   "tier": 2,
+   "cluster": "pawn-stalemate",
+   "learner": "b",
+   "prompt": "Black to move. Is Black checkmated, stalemated, in check, or none of these?",
+   "explanation": "Stalemate: it is Black's turn, Black is not in check, and no legal move exists. That is a draw.",
+   "hints": [
+    "Is the king attacked? Can it go anywhere?"
+   ],
+   "fen": "5k2/5P2/5K2/8/8/8/8/8 b - - 0 1",
+   "choices": [
+    "Checkmate",
+    "Stalemate",
+    "Check",
+    "Neither"
+   ],
+   "expected": {
+    "choice": "Stalemate"
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "cls-fools-mate-w1",
+   "entry": "check-mate-stalemate",
+   "variant": "classify",
+   "tier": 3,
+   "cluster": "fools-mate",
+   "learner": "w",
+   "prompt": "White to move. Is White checkmated, stalemated, in check, or none of these?",
+   "explanation": "Checkmate: the queen on h4 attacks White's king on e1, and White has no legal move.",
+   "hints": [
+    "Can anything block the diagonal or capture the queen?"
+   ],
+   "fen": "rnb1kbnr/pppp1ppp/8/4p3/6Pq/5P2/PPPPP2P/RNBQKBNR w KQkq - 1 3",
+   "choices": [
+    "Checkmate",
+    "Stalemate",
+    "Check",
+    "Neither"
+   ],
+   "expected": {
+    "choice": "Checkmate"
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "reserve": true
+  },
+  {
+   "id": "cls-rook-pair-mate-w1",
+   "entry": "check-mate-stalemate",
+   "variant": "classify",
+   "tier": 2,
+   "cluster": "rook-pair-mate",
+   "learner": "w",
+   "prompt": "White to move. Is White checkmated, stalemated, in check, or none of these?",
+   "explanation": "Checkmate: the rook on b1 attacks White's king on h1, and White has no legal move.",
+   "hints": [
+    "One rook checks; the other guards the rank in front."
+   ],
+   "fen": "6k1/8/8/8/8/8/r7/1r5K w - - 0 1",
+   "choices": [
+    "Checkmate",
+    "Stalemate",
+    "Check",
+    "Neither"
+   ],
+   "expected": {
+    "choice": "Checkmate"
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "reserve": true
+  },
+  {
+   "id": "cls-pawn-corner-stalemate-b1",
+   "entry": "check-mate-stalemate",
+   "variant": "classify",
+   "tier": 2,
+   "cluster": "pawn-corner-stalemate",
+   "learner": "b",
+   "prompt": "Black to move. Is Black checkmated, stalemated, in check, or none of these?",
+   "explanation": "Stalemate: it is Black's turn, Black is not in check, and no legal move exists. That is a draw.",
+   "hints": [
+    "Can the king take the pawn? What protects it?"
+   ],
+   "fen": "7k/7P/7K/8/8/8/8/8 b - - 0 1",
+   "choices": [
+    "Checkmate",
+    "Stalemate",
+    "Check",
+    "Neither"
+   ],
+   "expected": {
+    "choice": "Stalemate"
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "reserve": true
+  },
+  {
+   "id": "cls-queen-box-stalemate-b1",
+   "entry": "check-mate-stalemate",
+   "variant": "classify",
+   "tier": 3,
+   "cluster": "queen-box-stalemate",
+   "learner": "b",
+   "prompt": "Black to move. Is Black checkmated, stalemated, in check, or none of these?",
+   "explanation": "Stalemate: it is Black's turn, Black is not in check, and no legal move exists. That is a draw.",
+   "hints": [
+    "Not in check, and the queen covers every square around the king."
+   ],
+   "fen": "k1K5/8/1Q6/8/8/8/8/8 b - - 0 1",
+   "choices": [
+    "Checkmate",
+    "Stalemate",
+    "Check",
+    "Neither"
+   ],
+   "expected": {
+    "choice": "Stalemate"
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "reserve": true
+  },
+  {
+   "id": "cls-diagonal-check-b1",
+   "entry": "check-mate-stalemate",
+   "variant": "classify",
+   "tier": 2,
+   "cluster": "diagonal-check",
+   "learner": "b",
+   "prompt": "Black to move. Is Black checkmated, stalemated, in check, or none of these?",
+   "explanation": "Check: the queen on a4 attacks Black's king, but Black has 4 legal moves out of it, such as Kd8.",
+   "hints": [
+    "Follow the queen's diagonal. Can the side to move block or step away?"
+   ],
+   "fen": "4k3/8/8/8/Q7/8/8/4K3 b - - 0 1",
+   "choices": [
+    "Checkmate",
+    "Stalemate",
+    "Check",
+    "Neither"
+   ],
+   "expected": {
+    "choice": "Check"
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "reserve": true
+  },
+  {
+   "id": "cls-pawn-check-w1",
+   "entry": "check-mate-stalemate",
+   "variant": "classify",
+   "tier": 1,
+   "cluster": "pawn-check",
+   "learner": "w",
+   "prompt": "White to move. Is White checkmated, stalemated, in check, or none of these?",
+   "explanation": "Check: the pawn on d2 attacks White's king, but White has 5 legal moves out of it, such as Kd1.",
+   "hints": [
+    "Which way does a pawn attack?"
+   ],
+   "fen": "4k3/8/8/8/8/8/3p4/4K3 w - - 0 1",
+   "choices": [
+    "Checkmate",
+    "Stalemate",
+    "Check",
+    "Neither"
+   ],
+   "expected": {
+    "choice": "Check"
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "reserve": true
+  },
+  {
+   "id": "cls-double-check-b1",
+   "entry": "check-mate-stalemate",
+   "variant": "classify",
+   "tier": 3,
+   "cluster": "double-check",
+   "learner": "b",
+   "prompt": "Black to move. Is Black checkmated, stalemated, in check, or none of these?",
+   "explanation": "Check: the bishop on b5 and the rook on e1 attack Black's king, but Black has 3 legal moves out of it, such as Kd8.",
+   "hints": [
+    "Two pieces attack the king. Is there still a square?"
+   ],
+   "fen": "4k3/8/8/1B6/8/8/8/4R1K1 b - - 0 1",
+   "choices": [
+    "Checkmate",
+    "Stalemate",
+    "Check",
+    "Neither"
+   ],
+   "expected": {
+    "choice": "Check"
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "reserve": true
+  },
+  {
+   "id": "cls-spare-rook-w1",
+   "entry": "check-mate-stalemate",
+   "variant": "classify",
+   "tier": 3,
+   "cluster": "spare-rook",
+   "learner": "w",
+   "prompt": "White to move. Is White checkmated, stalemated, in check, or none of these?",
+   "explanation": "Neither: White's king is not attacked and White has 14 legal moves.",
+   "hints": [
+    "The king is boxed in, but is that the whole story?"
+   ],
+   "fen": "7R/8/8/8/8/1k6/2q5/K7 w - - 0 1",
+   "choices": [
+    "Checkmate",
+    "Stalemate",
+    "Check",
+    "Neither"
+   ],
+   "expected": {
+    "choice": "Neither"
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "reserve": true
+  },
+  {
+   "id": "cls-attacked-rook-w1",
+   "entry": "check-mate-stalemate",
+   "variant": "classify",
+   "tier": 2,
+   "cluster": "attacked-rook",
+   "learner": "w",
+   "prompt": "White to move. Is White checkmated, stalemated, in check, or none of these?",
+   "explanation": "Neither: White's king is not attacked and White has 6 legal moves.",
+   "hints": [
+    "A piece is attacked. Is the king?"
+   ],
+   "fen": "4k3/8/8/8/8/8/3r4/3RK3 w - - 0 1",
+   "choices": [
+    "Checkmate",
+    "Stalemate",
+    "Check",
+    "Neither"
+   ],
+   "expected": {
+    "choice": "Neither"
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "reserve": true
+  },
+  {
+   "id": "cls-queen-near-b1",
+   "entry": "check-mate-stalemate",
+   "variant": "classify",
+   "tier": 2,
+   "cluster": "queen-near",
+   "learner": "b",
+   "prompt": "Black to move. Is Black checkmated, stalemated, in check, or none of these?",
+   "explanation": "Neither: Black's king is not attacked and Black has 2 legal moves.",
+   "hints": [
+    "Trace each of the queen's lines to the king."
+   ],
+   "fen": "4k3/8/8/3Q4/8/8/8/4K3 b - - 0 1",
+   "choices": [
+    "Checkmate",
+    "Stalemate",
+    "Check",
+    "Neither"
+   ],
+   "expected": {
+    "choice": "Neither"
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "reserve": true
+  }
+ ]
+}

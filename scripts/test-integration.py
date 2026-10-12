@@ -53,7 +53,8 @@ class Client:
 def main():
     executable,discovery=sys.argv[1:3];phase=sys.argv[3] if len(sys.argv)>3 else 'coach';client=Client(executable,discovery)
     try:
-        definitions=client.request('tools/list',{})['tools'];assert len(definitions)==23
+        definitions=client.request('tools/list',{})['tools'];assert len(definitions)==28,len(definitions)  # 23 practice/review tools + 5 training tools
+        assert {'list_training_entries','start_training','submit_training_action','request_training_hint','end_training_attempt'}<={t['name'] for t in definitions}
         assert {t['name'] for t in definitions}==set(json.loads((pathlib.Path(__file__).resolve().parents[1]/'Sources/CheckmateCore/Resources/tool-schemas.json').read_text()))
         if phase=='preview':
             for _ in range(40):

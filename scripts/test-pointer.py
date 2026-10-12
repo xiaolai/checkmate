@@ -303,6 +303,14 @@ try:
     # Quitting with a review that cannot be saved asks first; Cancel keeps the app and the review.
     pointer("menu", "File", "Save Review")
     wait(lambda: len(reviews()) == 1, "Save Review did not write the review")
+    # The index is replaced atomically after the record: lock only once no temporary file is in flight and the
+    # folder's contents are stable, or a temporary file renamed away between listing and chmod fails the run.
+    def settled():
+        first = sorted(path.name for path in (state / "Reviews").rglob("*") if path.is_file())
+        time.sleep(0.5)
+        second = sorted(path.name for path in (state / "Reviews").rglob("*") if path.is_file())
+        return first == second and "index.json" in second and not any(".sb-" in name for name in second)
+    wait(settled, "The review folder did not settle after Save Review")
     saved = reviews()
     # Read-only files and folder: neither an atomic replacement nor an in-place rewrite can save the review.
     locked = [path for path in (state / "Reviews").rglob("*") if path.is_file()]

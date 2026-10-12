@@ -1,0 +1,509 @@
+{
+ "entry": "finish-the-game",
+ "scenarios": [
+  {
+   "id": "fg-kqk-w-1",
+   "entry": "finish-the-game",
+   "variant": "kqk",
+   "tier": 1,
+   "cluster": "fg-kqk-w-1",
+   "learner": "w",
+   "fen": "8/8/8/8/K7/3Q4/8/k7 w - - 0 1",
+   "prompt": "White to move. Checkmate the lone king with your king and queen. Every legal move is allowed; the practice defender plays the other side.",
+   "explanation": "King and queen against king: use the queen to shrink the enemy king's area, staying a knight's move away so it is never stalemated; once it is on the edge, bring your king next to it and give mate. If the enemy king has no legal move and is not in check, the game is a draw by stalemate.",
+   "hints": [
+    "Shrink the box: put your queen a knight's move from the enemy king, and follow it as it moves.",
+    "With the king on the edge, bring your own king close before you give mate, and leave the enemy king a move until then."
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "ending"
+  },
+  {
+   "id": "fg-kqk-w-2",
+   "entry": "finish-the-game",
+   "variant": "kqk",
+   "tier": 1,
+   "cluster": "fg-kqk-w-2",
+   "learner": "w",
+   "fen": "8/8/8/8/Q7/8/4K3/6k1 w - - 0 1",
+   "prompt": "White to move. Checkmate the lone king with your king and queen. Every legal move is allowed; the practice defender plays the other side.",
+   "explanation": "King and queen against king: use the queen to shrink the enemy king's area, staying a knight's move away so it is never stalemated; once it is on the edge, bring your king next to it and give mate. If the enemy king has no legal move and is not in check, the game is a draw by stalemate.",
+   "hints": [
+    "Shrink the box: put your queen a knight's move from the enemy king, and follow it as it moves.",
+    "With the king on the edge, bring your own king close before you give mate, and leave the enemy king a move until then."
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "ending"
+  },
+  {
+   "id": "fg-kqk-w-3",
+   "entry": "finish-the-game",
+   "variant": "kqk",
+   "tier": 2,
+   "cluster": "fg-kqk-w-3",
+   "learner": "w",
+   "fen": "1Q6/8/8/8/8/8/2k5/6K1 w - - 0 1",
+   "prompt": "White to move. Checkmate the lone king with your king and queen. Every legal move is allowed; the practice defender plays the other side.",
+   "explanation": "King and queen against king: use the queen to shrink the enemy king's area, staying a knight's move away so it is never stalemated; once it is on the edge, bring your king next to it and give mate. If the enemy king has no legal move and is not in check, the game is a draw by stalemate.",
+   "hints": [
+    "Shrink the box: put your queen a knight's move from the enemy king, and follow it as it moves.",
+    "With the king on the edge, bring your own king close before you give mate, and leave the enemy king a move until then."
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "ending"
+  },
+  {
+   "id": "fg-kqk-w-4",
+   "entry": "finish-the-game",
+   "variant": "kqk",
+   "tier": 2,
+   "cluster": "fg-kqk-w-4",
+   "learner": "w",
+   "fen": "8/8/8/1k6/8/4K3/6Q1/8 w - - 0 1",
+   "prompt": "White to move. Checkmate the lone king with your king and queen. Every legal move is allowed; the practice defender plays the other side.",
+   "explanation": "King and queen against king: use the queen to shrink the enemy king's area, staying a knight's move away so it is never stalemated; once it is on the edge, bring your king next to it and give mate. If the enemy king has no legal move and is not in check, the game is a draw by stalemate.",
+   "hints": [
+    "Shrink the box: put your queen a knight's move from the enemy king, and follow it as it moves.",
+    "With the king on the edge, bring your own king close before you give mate, and leave the enemy king a move until then."
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "ending"
+  },
+  {
+   "id": "fg-kqk-w-5",
+   "entry": "finish-the-game",
+   "variant": "kqk",
+   "tier": 3,
+   "cluster": "fg-kqk-w-5",
+   "learner": "w",
+   "fen": "8/8/5k2/3K4/8/8/8/2Q5 w - - 0 1",
+   "prompt": "White to move. Checkmate the lone king with your king and queen. Every legal move is allowed; the practice defender plays the other side.",
+   "explanation": "King and queen against king: use the queen to shrink the enemy king's area, staying a knight's move away so it is never stalemated; once it is on the edge, bring your king next to it and give mate. If the enemy king has no legal move and is not in check, the game is a draw by stalemate.",
+   "hints": [
+    "Shrink the box: put your queen a knight's move from the enemy king, and follow it as it moves.",
+    "With the king on the edge, bring your own king close before you give mate, and leave the enemy king a move until then."
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "ending"
+  },
+  {
+   "id": "fg-kqk-w-6",
+   "entry": "finish-the-game",
+   "variant": "kqk",
+   "tier": 3,
+   "cluster": "fg-kqk-w-6",
+   "learner": "w",
+   "fen": "8/8/2K1k3/8/8/2Q5/8/8 w - - 0 1",
+   "prompt": "White to move. Checkmate the lone king with your king and queen. Every legal move is allowed; the practice defender plays the other side.",
+   "explanation": "King and queen against king: use the queen to shrink the enemy king's area, staying a knight's move away so it is never stalemated; once it is on the edge, bring your king next to it and give mate. If the enemy king has no legal move and is not in check, the game is a draw by stalemate.",
+   "hints": [
+    "Shrink the box: put your queen a knight's move from the enemy king, and follow it as it moves.",
+    "With the king on the edge, bring your own king close before you give mate, and leave the enemy king a move until then."
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "ending"
+  },
+  {
+   "id": "fg-kqk-b-1",
+   "entry": "finish-the-game",
+   "variant": "kqk",
+   "tier": 1,
+   "cluster": "fg-kqk-b-1",
+   "learner": "b",
+   "fen": "8/K7/8/8/3k4/8/3q4/8 b - - 0 1",
+   "prompt": "Black to move. Checkmate the lone king with your king and queen. Every legal move is allowed; the practice defender plays the other side.",
+   "explanation": "King and queen against king: use the queen to shrink the enemy king's area, staying a knight's move away so it is never stalemated; once it is on the edge, bring your king next to it and give mate. If the enemy king has no legal move and is not in check, the game is a draw by stalemate.",
+   "hints": [
+    "Shrink the box: put your queen a knight's move from the enemy king, and follow it as it moves.",
+    "With the king on the edge, bring your own king close before you give mate, and leave the enemy king a move until then."
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "ending"
+  },
+  {
+   "id": "fg-kqk-b-2",
+   "entry": "finish-the-game",
+   "variant": "kqk",
+   "tier": 1,
+   "cluster": "fg-kqk-b-2",
+   "learner": "b",
+   "fen": "8/8/4k2K/8/6q1/8/8/8 b - - 0 1",
+   "prompt": "Black to move. Checkmate the lone king with your king and queen. Every legal move is allowed; the practice defender plays the other side.",
+   "explanation": "King and queen against king: use the queen to shrink the enemy king's area, staying a knight's move away so it is never stalemated; once it is on the edge, bring your king next to it and give mate. If the enemy king has no legal move and is not in check, the game is a draw by stalemate.",
+   "hints": [
+    "Shrink the box: put your queen a knight's move from the enemy king, and follow it as it moves.",
+    "With the king on the edge, bring your own king close before you give mate, and leave the enemy king a move until then."
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "ending"
+  },
+  {
+   "id": "fg-kqk-b-3",
+   "entry": "finish-the-game",
+   "variant": "kqk",
+   "tier": 2,
+   "cluster": "fg-kqk-b-3",
+   "learner": "b",
+   "fen": "8/3K4/5q2/8/8/5k2/8/8 b - - 0 1",
+   "prompt": "Black to move. Checkmate the lone king with your king and queen. Every legal move is allowed; the practice defender plays the other side.",
+   "explanation": "King and queen against king: use the queen to shrink the enemy king's area, staying a knight's move away so it is never stalemated; once it is on the edge, bring your king next to it and give mate. If the enemy king has no legal move and is not in check, the game is a draw by stalemate.",
+   "hints": [
+    "Shrink the box: put your queen a knight's move from the enemy king, and follow it as it moves.",
+    "With the king on the edge, bring your own king close before you give mate, and leave the enemy king a move until then."
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "ending"
+  },
+  {
+   "id": "fg-kqk-b-4",
+   "entry": "finish-the-game",
+   "variant": "kqk",
+   "tier": 2,
+   "cluster": "fg-kqk-b-4",
+   "learner": "b",
+   "fen": "1k6/8/4q3/8/8/6K1/8/8 b - - 0 1",
+   "prompt": "Black to move. Checkmate the lone king with your king and queen. Every legal move is allowed; the practice defender plays the other side.",
+   "explanation": "King and queen against king: use the queen to shrink the enemy king's area, staying a knight's move away so it is never stalemated; once it is on the edge, bring your king next to it and give mate. If the enemy king has no legal move and is not in check, the game is a draw by stalemate.",
+   "hints": [
+    "Shrink the box: put your queen a knight's move from the enemy king, and follow it as it moves.",
+    "With the king on the edge, bring your own king close before you give mate, and leave the enemy king a move until then."
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "ending"
+  },
+  {
+   "id": "fg-kqk-b-5",
+   "entry": "finish-the-game",
+   "variant": "kqk",
+   "tier": 3,
+   "cluster": "fg-kqk-b-5",
+   "learner": "b",
+   "fen": "8/8/8/8/8/5K2/1q1k4/8 b - - 0 1",
+   "prompt": "Black to move. Checkmate the lone king with your king and queen. Every legal move is allowed; the practice defender plays the other side.",
+   "explanation": "King and queen against king: use the queen to shrink the enemy king's area, staying a knight's move away so it is never stalemated; once it is on the edge, bring your king next to it and give mate. If the enemy king has no legal move and is not in check, the game is a draw by stalemate.",
+   "hints": [
+    "Shrink the box: put your queen a knight's move from the enemy king, and follow it as it moves.",
+    "With the king on the edge, bring your own king close before you give mate, and leave the enemy king a move until then."
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "ending"
+  },
+  {
+   "id": "fg-kqk-b-6",
+   "entry": "finish-the-game",
+   "variant": "kqk",
+   "tier": 3,
+   "cluster": "fg-kqk-b-6",
+   "learner": "b",
+   "fen": "8/5q2/8/8/8/4K3/8/2k5 b - - 0 1",
+   "prompt": "Black to move. Checkmate the lone king with your king and queen. Every legal move is allowed; the practice defender plays the other side.",
+   "explanation": "King and queen against king: use the queen to shrink the enemy king's area, staying a knight's move away so it is never stalemated; once it is on the edge, bring your king next to it and give mate. If the enemy king has no legal move and is not in check, the game is a draw by stalemate.",
+   "hints": [
+    "Shrink the box: put your queen a knight's move from the enemy king, and follow it as it moves.",
+    "With the king on the edge, bring your own king close before you give mate, and leave the enemy king a move until then."
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "ending"
+  },
+  {
+   "id": "fg-krk-w-1",
+   "entry": "finish-the-game",
+   "variant": "krk",
+   "tier": 1,
+   "cluster": "fg-krk-w-1",
+   "learner": "w",
+   "fen": "k7/8/8/3K4/8/8/8/5R2 w - - 0 1",
+   "prompt": "White to move. Checkmate the lone king with your king and rook. Every legal move is allowed; the practice defender plays the other side.",
+   "explanation": "King and rook against king: cut the enemy king off with the rook along a rank or file, walk your king up until the kings face each other, then check along the edge. Keep the rook far from the enemy king, or protected.",
+   "hints": [
+    "Use the rook as a wall the enemy king cannot cross, then bring your king.",
+    "When the kings stand opposite with one square between, a rook check on the edge is mate."
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "ending"
+  },
+  {
+   "id": "fg-krk-w-2",
+   "entry": "finish-the-game",
+   "variant": "krk",
+   "tier": 1,
+   "cluster": "fg-krk-w-2",
+   "learner": "w",
+   "fen": "8/5R2/8/8/8/4K3/7k/8 w - - 0 1",
+   "prompt": "White to move. Checkmate the lone king with your king and rook. Every legal move is allowed; the practice defender plays the other side.",
+   "explanation": "King and rook against king: cut the enemy king off with the rook along a rank or file, walk your king up until the kings face each other, then check along the edge. Keep the rook far from the enemy king, or protected.",
+   "hints": [
+    "Use the rook as a wall the enemy king cannot cross, then bring your king.",
+    "When the kings stand opposite with one square between, a rook check on the edge is mate."
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "ending"
+  },
+  {
+   "id": "fg-krk-w-3",
+   "entry": "finish-the-game",
+   "variant": "krk",
+   "tier": 2,
+   "cluster": "fg-krk-w-3",
+   "learner": "w",
+   "fen": "8/8/8/8/8/1k6/5R2/3K4 w - - 0 1",
+   "prompt": "White to move. Checkmate the lone king with your king and rook. Every legal move is allowed; the practice defender plays the other side.",
+   "explanation": "King and rook against king: cut the enemy king off with the rook along a rank or file, walk your king up until the kings face each other, then check along the edge. Keep the rook far from the enemy king, or protected.",
+   "hints": [
+    "Use the rook as a wall the enemy king cannot cross, then bring your king.",
+    "When the kings stand opposite with one square between, a rook check on the edge is mate."
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "ending"
+  },
+  {
+   "id": "fg-krk-w-4",
+   "entry": "finish-the-game",
+   "variant": "krk",
+   "tier": 2,
+   "cluster": "fg-krk-w-4",
+   "learner": "w",
+   "fen": "7K/8/8/6R1/8/8/1k6/8 w - - 0 1",
+   "prompt": "White to move. Checkmate the lone king with your king and rook. Every legal move is allowed; the practice defender plays the other side.",
+   "explanation": "King and rook against king: cut the enemy king off with the rook along a rank or file, walk your king up until the kings face each other, then check along the edge. Keep the rook far from the enemy king, or protected.",
+   "hints": [
+    "Use the rook as a wall the enemy king cannot cross, then bring your king.",
+    "When the kings stand opposite with one square between, a rook check on the edge is mate."
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "ending"
+  },
+  {
+   "id": "fg-krk-w-5",
+   "entry": "finish-the-game",
+   "variant": "krk",
+   "tier": 3,
+   "cluster": "fg-krk-w-5",
+   "learner": "w",
+   "fen": "8/8/8/2k5/6R1/8/8/5K2 w - - 0 1",
+   "prompt": "White to move. Checkmate the lone king with your king and rook. Every legal move is allowed; the practice defender plays the other side.",
+   "explanation": "King and rook against king: cut the enemy king off with the rook along a rank or file, walk your king up until the kings face each other, then check along the edge. Keep the rook far from the enemy king, or protected.",
+   "hints": [
+    "Use the rook as a wall the enemy king cannot cross, then bring your king.",
+    "When the kings stand opposite with one square between, a rook check on the edge is mate."
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "ending"
+  },
+  {
+   "id": "fg-krk-w-6",
+   "entry": "finish-the-game",
+   "variant": "krk",
+   "tier": 3,
+   "cluster": "fg-krk-w-6",
+   "learner": "w",
+   "fen": "K7/8/5k2/R7/8/8/8/8 w - - 0 1",
+   "prompt": "White to move. Checkmate the lone king with your king and rook. Every legal move is allowed; the practice defender plays the other side.",
+   "explanation": "King and rook against king: cut the enemy king off with the rook along a rank or file, walk your king up until the kings face each other, then check along the edge. Keep the rook far from the enemy king, or protected.",
+   "hints": [
+    "Use the rook as a wall the enemy king cannot cross, then bring your king.",
+    "When the kings stand opposite with one square between, a rook check on the edge is mate."
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "ending"
+  },
+  {
+   "id": "fg-krk-b-1",
+   "entry": "finish-the-game",
+   "variant": "krk",
+   "tier": 1,
+   "cluster": "fg-krk-b-1",
+   "learner": "b",
+   "fen": "8/8/8/7K/3r4/5k2/8/8 b - - 0 1",
+   "prompt": "Black to move. Checkmate the lone king with your king and rook. Every legal move is allowed; the practice defender plays the other side.",
+   "explanation": "King and rook against king: cut the enemy king off with the rook along a rank or file, walk your king up until the kings face each other, then check along the edge. Keep the rook far from the enemy king, or protected.",
+   "hints": [
+    "Use the rook as a wall the enemy king cannot cross, then bring your king.",
+    "When the kings stand opposite with one square between, a rook check on the edge is mate."
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "ending"
+  },
+  {
+   "id": "fg-krk-b-2",
+   "entry": "finish-the-game",
+   "variant": "krk",
+   "tier": 1,
+   "cluster": "fg-krk-b-2",
+   "learner": "b",
+   "fen": "8/6r1/8/8/8/K7/8/k7 b - - 0 1",
+   "prompt": "Black to move. Checkmate the lone king with your king and rook. Every legal move is allowed; the practice defender plays the other side.",
+   "explanation": "King and rook against king: cut the enemy king off with the rook along a rank or file, walk your king up until the kings face each other, then check along the edge. Keep the rook far from the enemy king, or protected.",
+   "hints": [
+    "Use the rook as a wall the enemy king cannot cross, then bring your king.",
+    "When the kings stand opposite with one square between, a rook check on the edge is mate."
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "ending"
+  },
+  {
+   "id": "fg-krk-b-3",
+   "entry": "finish-the-game",
+   "variant": "krk",
+   "tier": 2,
+   "cluster": "fg-krk-b-3",
+   "learner": "b",
+   "fen": "8/2K5/8/8/8/7r/8/6k1 b - - 0 1",
+   "prompt": "Black to move. Checkmate the lone king with your king and rook. Every legal move is allowed; the practice defender plays the other side.",
+   "explanation": "King and rook against king: cut the enemy king off with the rook along a rank or file, walk your king up until the kings face each other, then check along the edge. Keep the rook far from the enemy king, or protected.",
+   "hints": [
+    "Use the rook as a wall the enemy king cannot cross, then bring your king.",
+    "When the kings stand opposite with one square between, a rook check on the edge is mate."
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "ending"
+  },
+  {
+   "id": "fg-krk-b-4",
+   "entry": "finish-the-game",
+   "variant": "krk",
+   "tier": 2,
+   "cluster": "fg-krk-b-4",
+   "learner": "b",
+   "fen": "8/6r1/8/8/8/k7/2K5/8 b - - 0 1",
+   "prompt": "Black to move. Checkmate the lone king with your king and rook. Every legal move is allowed; the practice defender plays the other side.",
+   "explanation": "King and rook against king: cut the enemy king off with the rook along a rank or file, walk your king up until the kings face each other, then check along the edge. Keep the rook far from the enemy king, or protected.",
+   "hints": [
+    "Use the rook as a wall the enemy king cannot cross, then bring your king.",
+    "When the kings stand opposite with one square between, a rook check on the edge is mate."
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "ending"
+  },
+  {
+   "id": "fg-krk-b-5",
+   "entry": "finish-the-game",
+   "variant": "krk",
+   "tier": 3,
+   "cluster": "fg-krk-b-5",
+   "learner": "b",
+   "fen": "8/6k1/8/1r6/4K3/8/8/8 b - - 0 1",
+   "prompt": "Black to move. Checkmate the lone king with your king and rook. Every legal move is allowed; the practice defender plays the other side.",
+   "explanation": "King and rook against king: cut the enemy king off with the rook along a rank or file, walk your king up until the kings face each other, then check along the edge. Keep the rook far from the enemy king, or protected.",
+   "hints": [
+    "Use the rook as a wall the enemy king cannot cross, then bring your king.",
+    "When the kings stand opposite with one square between, a rook check on the edge is mate."
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "ending"
+  },
+  {
+   "id": "fg-krk-b-6",
+   "entry": "finish-the-game",
+   "variant": "krk",
+   "tier": 3,
+   "cluster": "fg-krk-b-6",
+   "learner": "b",
+   "fen": "8/8/5K2/8/2k5/8/r7/8 b - - 0 1",
+   "prompt": "Black to move. Checkmate the lone king with your king and rook. Every legal move is allowed; the practice defender plays the other side.",
+   "explanation": "King and rook against king: cut the enemy king off with the rook along a rank or file, walk your king up until the kings face each other, then check along the edge. Keep the rook far from the enemy king, or protected.",
+   "hints": [
+    "Use the rook as a wall the enemy king cannot cross, then bring your king.",
+    "When the kings stand opposite with one square between, a rook check on the edge is mate."
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "ending"
+  }
+ ]
+}

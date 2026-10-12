@@ -19,4 +19,6 @@ done
 python3 -I Tools/test-lesson-action-alignment.py
 python3 -I Tools/test-import-cedar.py
 python3 -I Tools/test-record-lessons.py
+python3 -I Tools/prepare-training-content.py --check
+python3 -I Tools/test-prepare-training-content.py
 python3 scripts/test-run-gates.py

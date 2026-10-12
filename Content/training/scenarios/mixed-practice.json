@@ -1,0 +1,2420 @@
+{
+ "entry": "mixed-practice",
+ "scenarios": [
+  {
+   "id": "mx-01",
+   "entry": "mixed-practice",
+   "variant": "mixed",
+   "tier": 1,
+   "cluster": "syp-move-away-1",
+   "learner": "w",
+   "source": "syp-move-away-1",
+   "skills": [
+    "threatResponse",
+    "attackProtection"
+   ],
+   "primarySkill": "threatResponse",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "fen": "8/8/4k3/8/2b5/6K1/R7/8 w - - 0 1",
+   "prompt": "White to move. Make a move that does not give away material.",
+   "explanation": "Every move that keeps your material counts, whatever else it does. One idea: Nothing can stop the bishop on c4 from taking it where it stands, so the rook has to move: every square where it is safe is accepted. The check looks three moves ahead and then plays out every capture.",
+   "hints": [
+    "Before you move, look at every capture and every check, for both sides.",
+    "Count what each side could take next, and what could take back."
+   ],
+   "check": "material",
+   "goal": {
+    "kind": "hold",
+    "threshold": 0
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "8/8/4k3/8/2b5/6K1/R7/8 w - -",
+     "accepted": [
+      "a2a1",
+      "a2a3",
+      "a2a4",
+      "a2a5",
+      "a2a7",
+      "a2a8",
+      "a2b2",
+      "a2c2",
+      "a2d2",
+      "a2f2",
+      "a2g2",
+      "a2h2"
+     ],
+     "replies": {
+      "a2a1": "c4a2",
+      "a2a3": "c4a2",
+      "a2a4": "c4a2",
+      "a2a5": "c4a2",
+      "a2a6": "c4a6",
+      "a2a7": "c4a2",
+      "a2a8": "c4a2",
+      "a2b2": "c4a2",
+      "a2c2": "c4a2",
+      "a2d2": "c4a2",
+      "a2e2": "c4e2",
+      "a2f2": "c4a2",
+      "a2g2": "c4a2",
+      "a2h2": "c4a2",
+      "g3f2": "c4a2",
+      "g3f3": "c4a2",
+      "g3f4": "c4a2",
+      "g3g2": "c4a2",
+      "g3g4": "c4a2",
+      "g3h2": "c4a2",
+      "g3h3": "c4a2",
+      "g3h4": "c4a2"
+     }
+    }
+   ]
+  },
+  {
+   "id": "mx-02",
+   "entry": "mixed-practice",
+   "variant": "mixed",
+   "tier": 2,
+   "cluster": "syp-move-away-2",
+   "learner": "b",
+   "source": "syp-move-away-2",
+   "skills": [
+    "threatResponse",
+    "attackProtection"
+   ],
+   "primarySkill": "threatResponse",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "fen": "8/8/5B2/8/1K6/4R3/3P4/q6k b - - 0 1",
+   "prompt": "Black to move. Make a move that does not give away material.",
+   "explanation": "Every move that keeps your material counts, whatever else it does. One idea: Nothing can stop the bishop on f6 from taking it where it stands, so the queen has to move: every square where it is safe is accepted. The check looks three moves ahead and then plays out every capture.",
+   "hints": [
+    "Before you move, look at every capture and every check, for both sides.",
+    "Count what each side could take next, and what could take back."
+   ],
+   "check": "material",
+   "goal": {
+    "kind": "hold",
+    "threshold": 0
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "8/8/5B2/8/1K6/4R3/3P4/q6k b - -",
+     "accepted": [
+      "a1a2",
+      "a1a6",
+      "a1a7",
+      "a1a8",
+      "a1b1",
+      "a1c1",
+      "a1d1",
+      "a1f1",
+      "a1f6",
+      "a1g1"
+     ],
+     "replies": {
+      "a1f6": "b4a3",
+      "a1a2": "b4b5",
+      "a1a3": "b4a3",
+      "a1a4": "b4a4",
+      "a1a5": "b4a5",
+      "a1a6": "b4b3",
+      "a1a7": "b4b3",
+      "a1a8": "b4b3",
+      "a1b1": "b4a3",
+      "a1b2": "f6b2",
+      "a1c1": "b4a4",
+      "a1c3": "b4c3",
+      "a1d1": "b4a3",
+      "a1d4": "f6d4",
+      "a1e1": "e3e1",
+      "a1e5": "e3e5",
+      "a1f1": "b4a3",
+      "a1g1": "b4a3",
+      "h1g1": "f6a1",
+      "h1g2": "f6a1",
+      "h1h2": "f6a1"
+     }
+    }
+   ]
+  },
+  {
+   "id": "mx-03",
+   "entry": "mixed-practice",
+   "variant": "mixed",
+   "tier": 2,
+   "cluster": "syp-protect-1",
+   "learner": "w",
+   "source": "syp-protect-1",
+   "skills": [
+    "threatResponse",
+    "attackProtection"
+   ],
+   "primarySkill": "threatResponse",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "fen": "8/8/8/2b1R1n1/8/8/3K4/5Nk1 w - - 0 1",
+   "prompt": "White to move. Make a move that does not give away material.",
+   "explanation": "Every move that keeps your material counts, whatever else it does. One idea: The enemy king on g1 attacks your knight. A king may never capture a protected piece, so protecting the knight saves it; every move that does is accepted. The check looks three moves ahead and then plays out every capture.",
+   "hints": [
+    "Before you move, look at every capture and every check, for both sides.",
+    "Count what each side could take next, and what could take back."
+   ],
+   "check": "material",
+   "goal": {
+    "kind": "hold",
+    "threshold": 0
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "8/8/8/2b1R1n1/8/8/3K4/5Nk1 w - -",
+     "accepted": [
+      "d2c1",
+      "d2c2",
+      "d2c3",
+      "d2d1",
+      "d2d3",
+      "d2e2",
+      "e5d5",
+      "e5f5",
+      "e5g5",
+      "f1h2"
+     ],
+     "replies": {
+      "e5c5": "g5e4",
+      "e5g5": "g1f1",
+      "d2c1": "g1f1",
+      "d2c2": "g1f1",
+      "d2c3": "g1f1",
+      "d2d1": "g1f1",
+      "d2d3": "g1f1",
+      "d2e1": "g5f3",
+      "d2e2": "c5a3",
+      "e5d5": "g1f1",
+      "e5e1": "c5b4",
+      "e5e2": "g1f1",
+      "e5e3": "c5e3",
+      "e5e4": "g5e4",
+      "e5e6": "g5e6",
+      "e5e7": "c5e7",
+      "e5e8": "g1f1",
+      "e5f5": "c5a3",
+      "f1e3": "g5f3",
+      "f1g3": "g5f3",
+      "f1h2": "g1h2"
+     }
+    }
+   ]
+  },
+  {
+   "id": "mx-04",
+   "entry": "mixed-practice",
+   "variant": "mixed",
+   "tier": 3,
+   "cluster": "syp-protect-2",
+   "learner": "b",
+   "source": "syp-protect-2",
+   "skills": [
+    "threatResponse",
+    "attackProtection"
+   ],
+   "primarySkill": "threatResponse",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "fen": "8/8/7N/5b1n/RB1k3K/3n4/8/8 b - - 0 1",
+   "prompt": "Black to move. Make a move that does not give away material.",
+   "explanation": "Every move that keeps your material counts, whatever else it does. One idea: The enemy king on h4 attacks your knight. A king may never capture a protected piece, so protecting the knight saves it; every move that does is accepted. The check looks three moves ahead and then plays out every capture.",
+   "hints": [
+    "Before you move, look at every capture and every check, for both sides.",
+    "Count what each side could take next, and what could take back."
+   ],
+   "check": "material",
+   "goal": {
+    "kind": "hold",
+    "threshold": 0
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "8/8/7N/5b1n/RB1k3K/3n4/8/8 b - -",
+     "accepted": [
+      "f5d7",
+      "f5g6"
+     ],
+     "replies": {
+      "d3b4": "a4b4",
+      "d3b2": "h4h5",
+      "d3c1": "h4h5",
+      "d3c5": "b4c5",
+      "d3e1": "b4e1",
+      "d3e5": "h4h5",
+      "d3f2": "h4h5",
+      "d3f4": "h6f5",
+      "d4c4": "h4h5",
+      "d4d5": "h4h5",
+      "d4e3": "h4h5",
+      "d4e4": "h4h5",
+      "d4e5": "h4h5",
+      "f5c8": "h4h5",
+      "f5d7": "h4h5",
+      "f5e4": "h4h5",
+      "f5e6": "h4h5",
+      "f5g4": "h4g4",
+      "f5g6": "a4a1",
+      "f5h3": "h4h3",
+      "f5h7": "h4h5",
+      "h5f4": "h6f5",
+      "h5f6": "h6f5",
+      "h5g3": "h4g3",
+      "h5g7": "b4f8"
+     }
+    }
+   ]
+  },
+  {
+   "id": "mx-05",
+   "entry": "mixed-practice",
+   "variant": "mixed",
+   "tier": 1,
+   "cluster": "syp-capture-attacker-1",
+   "learner": "w",
+   "source": "syp-capture-attacker-1",
+   "skills": [
+    "threatResponse",
+    "captureExchange"
+   ],
+   "primarySkill": "threatResponse",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "fen": "1K6/7k/8/2p5/5Q2/8/7q/8 w - - 0 1",
+   "prompt": "White to move. Make a move that does not give away material.",
+   "explanation": "Every move that keeps your material counts, whatever else it does. One idea: The queen cannot simply step away to safety here, but the attacking queen on h2 can be captured. Every saving move removes it. The check looks three moves ahead and then plays out every capture.",
+   "hints": [
+    "Before you move, look at every capture and every check, for both sides.",
+    "Count what each side could take next, and what could take back."
+   ],
+   "check": "material",
+   "goal": {
+    "kind": "hold",
+    "threshold": 0
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "1K6/7k/8/2p5/5Q2/8/7q/8 w - -",
+     "accepted": [
+      "f4c7",
+      "f4h2"
+     ],
+     "replies": {
+      "f4h2": "h7g6",
+      "b8a7": "h2f4",
+      "b8a8": "h2f4",
+      "b8b7": "h2f4",
+      "b8c7": "h2f4",
+      "b8c8": "h2f4",
+      "f4c7": "h2c7",
+      "f4d6": "h2d6",
+      "f4e5": "h2e5",
+      "f4g3": "h2g3"
+     }
+    }
+   ]
+  },
+  {
+   "id": "mx-06",
+   "entry": "mixed-practice",
+   "variant": "mixed",
+   "tier": 3,
+   "cluster": "syp-block-1",
+   "learner": "w",
+   "source": "syp-block-1",
+   "skills": [
+    "threatResponse",
+    "attackProtection"
+   ],
+   "primarySkill": "threatResponse",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "fen": "3K3b/3B4/7p/2Pr4/8/8/7B/3k4 w - - 0 1",
+   "prompt": "White to move. Make a move that does not give away material.",
+   "explanation": "Every move that keeps your material counts, whatever else it does. One idea: The rook on d5 attacks along a line. Putting a piece in between shields the bishop; every safe block is accepted. The check looks three moves ahead and then plays out every capture.",
+   "hints": [
+    "Before you move, look at every capture and every check, for both sides.",
+    "Count what each side could take next, and what could take back."
+   ],
+   "check": "material",
+   "goal": {
+    "kind": "hold",
+    "threshold": 0
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "3K3b/3B4/7p/2Pr4/8/8/7B/3k4 w - -",
+     "accepted": [
+      "c5c6",
+      "h2d6",
+      "h2f4",
+      "h2g1"
+     ],
+     "replies": {
+      "c5c6": "d5d7",
+      "d8c7": "d5c5",
+      "d8c8": "d5c5",
+      "d8e7": "d5c5",
+      "d8e8": "d5c5",
+      "h2b8": "d5c5",
+      "h2c7": "d5c5",
+      "h2d6": "d5d6",
+      "h2e5": "d5d7",
+      "h2f4": "d5d7",
+      "h2g1": "d5d7",
+      "h2g3": "d5c5"
+     }
+    }
+   ]
+  },
+  {
+   "id": "mx-07",
+   "entry": "mixed-practice",
+   "variant": "mixed",
+   "tier": 3,
+   "cluster": "syp-block-2",
+   "learner": "b",
+   "source": "syp-block-2",
+   "skills": [
+    "threatResponse",
+    "attackProtection"
+   ],
+   "primarySkill": "threatResponse",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "fen": "7k/5nn1/3b4/2N2B2/3B4/1K6/8/8 b - - 0 1",
+   "prompt": "Black to move. Make a move that does not give away material.",
+   "explanation": "Every move that keeps your material counts, whatever else it does. One idea: The bishop on d4 attacks along a line. Putting a piece in between shields the knight; every safe block is accepted. The check looks three moves ahead and then plays out every capture.",
+   "hints": [
+    "Before you move, look at every capture and every check, for both sides.",
+    "Count what each side could take next, and what could take back."
+   ],
+   "check": "material",
+   "goal": {
+    "kind": "hold",
+    "threshold": 0
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "7k/5nn1/3b4/2N2B2/3B4/1K6/8/8 b - -",
+     "accepted": [
+      "d6b8",
+      "d6c5",
+      "d6c7",
+      "d6e5",
+      "d6f4",
+      "d6f8",
+      "d6g3",
+      "d6h2",
+      "f7d8",
+      "f7e5",
+      "f7g5",
+      "f7h6",
+      "h8g8"
+     ],
+     "replies": {
+      "d6c5": "d4c5",
+      "d6b8": "d4g7",
+      "d6c7": "d4g7",
+      "d6e5": "d4e5",
+      "d6e7": "c5e6",
+      "d6f4": "d4g7",
+      "d6f8": "d4g7",
+      "d6g3": "d4g7",
+      "d6h2": "d4g7",
+      "f7d8": "d4g7",
+      "f7e5": "d4e5",
+      "f7g5": "d4g7",
+      "f7h6": "d4g7",
+      "h8g8": "d4g7"
+     }
+    }
+   ]
+  },
+  {
+   "id": "mx-08",
+   "entry": "mixed-practice",
+   "variant": "mixed",
+   "tier": 1,
+   "cluster": "cw-free-piece-1",
+   "learner": "w",
+   "source": "cw-free-piece-1",
+   "skills": [
+    "captureExchange",
+    "attackProtection"
+   ],
+   "primarySkill": "captureExchange",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "fen": "8/K7/3P4/2r4R/8/8/1k6/8 w - - 0 1",
+   "prompt": "White to move. Win material, or give checkmate.",
+   "explanation": "Every move that wins material counts. One idea: Rxc5 takes a piece nobody defends. Any move that wins material is accepted. In Rook Sweep and Bishop Sweep the pawns never capture back; in chess every piece can recapture, so first check that nothing protects the piece you take.",
+   "hints": [
+    "Before you move, look at every capture and every check, for both sides.",
+    "Count what each side could take next, and what could take back."
+   ],
+   "check": "material",
+   "goal": {
+    "kind": "gain",
+    "threshold": 1
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "8/K7/3P4/2r4R/8/8/1k6/8 w - -",
+     "accepted": [
+      "h5c5"
+     ],
+     "replies": {
+      "h5c5": "b2a1",
+      "a7a6": "c5h5",
+      "a7a8": "c5h5",
+      "a7b6": "c5h5",
+      "a7b7": "c5h5",
+      "a7b8": "c5h5",
+      "d6d7": "c5c7",
+      "h5d5": "c5d5",
+      "h5e5": "c5e5",
+      "h5f5": "c5f5",
+      "h5g5": "c5g5",
+      "h5h1": "b2a2",
+      "h5h2": "b2a1",
+      "h5h3": "b2a1",
+      "h5h4": "b2a1",
+      "h5h6": "b2a1",
+      "h5h7": "b2a1",
+      "h5h8": "b2a1"
+     }
+    }
+   ]
+  },
+  {
+   "id": "mx-09",
+   "entry": "mixed-practice",
+   "variant": "mixed",
+   "tier": 1,
+   "cluster": "cw-free-piece-2",
+   "learner": "b",
+   "source": "cw-free-piece-2",
+   "skills": [
+    "captureExchange",
+    "attackProtection"
+   ],
+   "primarySkill": "captureExchange",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "fen": "8/8/8/4k3/N3p3/7K/8/3b4 b - - 0 1",
+   "prompt": "Black to move. Win material, or give checkmate.",
+   "explanation": "Every move that wins material counts. One idea: Bxa4 takes a piece nobody defends. Any move that wins material is accepted.",
+   "hints": [
+    "Before you move, look at every capture and every check, for both sides.",
+    "Count what each side could take next, and what could take back."
+   ],
+   "check": "material",
+   "goal": {
+    "kind": "gain",
+    "threshold": 1
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "8/8/8/4k3/N3p3/7K/8/3b4 b - -",
+     "accepted": [
+      "d1a4"
+     ],
+     "replies": {
+      "d1a4": "h3g2",
+      "d1b3": "a4b2",
+      "d1c2": "a4b2",
+      "d1e2": "a4b2",
+      "d1f3": "a4b2",
+      "d1g4": "h3g4",
+      "d1h5": "a4b2",
+      "e4e3": "a4b2",
+      "e5d4": "a4b2",
+      "e5d5": "a4b2",
+      "e5d6": "a4b2",
+      "e5e6": "a4b2",
+      "e5f4": "a4b2",
+      "e5f5": "a4b2",
+      "e5f6": "a4b2"
+     }
+    }
+   ]
+  },
+  {
+   "id": "mx-10",
+   "entry": "mixed-practice",
+   "variant": "mixed",
+   "tier": 2,
+   "cluster": "cw-free-piece-3",
+   "learner": "w",
+   "source": "cw-free-piece-3",
+   "skills": [
+    "captureExchange",
+    "attackProtection"
+   ],
+   "primarySkill": "captureExchange",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "fen": "4n3/5N1p/6P1/8/7K/8/8/1k6 w - - 0 1",
+   "prompt": "White to move. Win material, or give checkmate.",
+   "explanation": "Every move that wins material counts. One idea: gxh7 takes a piece nobody defends. Any move that wins material is accepted.",
+   "hints": [
+    "Before you move, look at every capture and every check, for both sides.",
+    "Count what each side could take next, and what could take back."
+   ],
+   "check": "material",
+   "goal": {
+    "kind": "gain",
+    "threshold": 1
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "4n3/5N1p/6P1/8/7K/8/8/1k6 w - -",
+     "accepted": [
+      "g6h7"
+     ],
+     "replies": {
+      "g6h7": "b1a1",
+      "f7d6": "e8d6",
+      "f7d8": "h7g6",
+      "f7e5": "h7g6",
+      "f7g5": "h7g6",
+      "f7h6": "h7g6",
+      "f7h8": "h7g6",
+      "g6g7": "e8g7",
+      "h4g3": "h7g6",
+      "h4g4": "h7g6",
+      "h4g5": "h7g6",
+      "h4h3": "h7g6",
+      "h4h5": "h7g6"
+     }
+    }
+   ]
+  },
+  {
+   "id": "mx-11",
+   "entry": "mixed-practice",
+   "variant": "mixed",
+   "tier": 3,
+   "cluster": "cw-poisoned-capture-1",
+   "learner": "w",
+   "source": "cw-poisoned-capture-1",
+   "skills": [
+    "captureExchange",
+    "threatResponse"
+   ],
+   "primarySkill": "captureExchange",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "fen": "K5b1/5p2/8/7P/3P3p/8/Q5P1/2r1k3 w - - 0 1",
+   "prompt": "White to move. Make a move that does not give away material.",
+   "explanation": "Every move that keeps your material counts, whatever else it does. One idea: Every capture here loses material: Qxf7 is answered by the recapture Bxf7. Decline it and make a safe move. Every move that keeps the material balance is accepted.",
+   "hints": [
+    "Before you move, look at every capture and every check, for both sides.",
+    "Count what each side could take next, and what could take back."
+   ],
+   "check": "material",
+   "goal": {
+    "kind": "hold",
+    "threshold": 0
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "K5b1/5p2/8/7P/3P3p/8/Q5P1/2r1k3 w - -",
+     "accepted": [
+      "a2a3",
+      "a2a4",
+      "a2a5",
+      "a2a6",
+      "a2a7",
+      "a2b2",
+      "a2b3",
+      "a2d5",
+      "a8a7",
+      "a8b7",
+      "a8b8",
+      "d4d5",
+      "h5h6"
+     ],
+     "replies": {
+      "a2f7": "g8f7",
+      "a2a1": "c1a1",
+      "a2a3": "c1a1",
+      "a2a4": "c1a1",
+      "a2a5": "c1c3",
+      "a2a6": "c1a1",
+      "a2a7": "c1a1",
+      "a2b1": "c1b1",
+      "a2b2": "c1a1",
+      "a2b3": "c1a1",
+      "a2c2": "c1c2",
+      "a2c4": "c1c4",
+      "a2d2": "e1d2",
+      "a2d5": "c1a1",
+      "a2e2": "e1e2",
+      "a2e6": "f7e6",
+      "a2f2": "e1f2",
+      "a8a7": "c1a1",
+      "a8b7": "c1a1",
+      "a8b8": "c1a1",
+      "d4d5": "c1a1",
+      "g2g3": "h4g3",
+      "g2g4": "h4g3",
+      "h5h6": "c1a1"
+     }
+    }
+   ],
+   "noAction": true
+  },
+  {
+   "id": "mx-12",
+   "entry": "mixed-practice",
+   "variant": "mixed",
+   "tier": 3,
+   "cluster": "cw-poisoned-capture-2",
+   "learner": "b",
+   "source": "cw-poisoned-capture-2",
+   "skills": [
+    "captureExchange",
+    "threatResponse"
+   ],
+   "primarySkill": "captureExchange",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "fen": "8/5B2/4K2P/1R1P4/8/3r4/kb6/1b6 b - - 0 1",
+   "prompt": "Black to move. Make a move that does not give away material.",
+   "explanation": "Every move that keeps your material counts, whatever else it does. One idea: Every capture here loses material: Rxd5 is answered by the recapture Rxd5. Decline it and make a safe move. Every move that keeps the material balance is accepted.",
+   "hints": [
+    "Before you move, look at every capture and every check, for both sides.",
+    "Count what each side could take next, and what could take back."
+   ],
+   "check": "material",
+   "goal": {
+    "kind": "hold",
+    "threshold": 0
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "8/5B2/4K2P/1R1P4/8/3r4/kb6/1b6 b - -",
+     "accepted": [
+      "a2a1",
+      "a2a3",
+      "b1c2",
+      "b2a1",
+      "b2a3",
+      "b2c1",
+      "b2c3",
+      "b2d4",
+      "b2h8",
+      "d3a3",
+      "d3b3",
+      "d3c3",
+      "d3d1",
+      "d3d2",
+      "d3d4",
+      "d3e3",
+      "d3f3",
+      "d3g3",
+      "d3h3"
+     ],
+     "replies": {
+      "d3d5": "b5d5",
+      "a2a1": "b5b2",
+      "a2a3": "b5b2",
+      "b1c2": "b5b2",
+      "b2a1": "b5b1",
+      "b2a3": "b5b1",
+      "b2c1": "b5b1",
+      "b2c3": "b5b1",
+      "b2d4": "b5b1",
+      "b2e5": "b5b1",
+      "b2f6": "b5b1",
+      "b2g7": "b5b1",
+      "b2h8": "b5b1",
+      "d3a3": "b5b2",
+      "d3b3": "b5b3",
+      "d3c3": "b5b2",
+      "d3d1": "b5b2",
+      "d3d2": "b5b2",
+      "d3d4": "b5b2",
+      "d3e3": "e6d6",
+      "d3f3": "b5b2",
+      "d3g3": "b5b2",
+      "d3h3": "b5b2"
+     }
+    }
+   ],
+   "noAction": true
+  },
+  {
+   "id": "mx-13",
+   "entry": "mixed-practice",
+   "variant": "mixed",
+   "tier": 3,
+   "cluster": "cw-compare-exchange-1",
+   "learner": "w",
+   "source": "cw-compare-exchange-1",
+   "skills": [
+    "captureExchange"
+   ],
+   "primarySkill": "captureExchange",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "fen": "6K1/7N/8/4P3/3p4/1R3b2/k5b1/8 w - - 0 1",
+   "prompt": "White to move. Suppose you play Rxf3. After every capture that can follow, do you come out ahead, even, or behind?",
+   "explanation": "After Rxf3 the recapture costs you more than you won. Count the values: queen 9, rook 5, bishop 3, knight 3, pawn 1.",
+   "hints": [
+    "Count what you take, then what the opponent can take back, and so on until the captures stop.",
+    "What can recapture on f3?"
+   ],
+   "check": "exchange",
+   "stated": [
+    "b3f3"
+   ],
+   "choices": [
+    "You come out ahead",
+    "It is an even trade",
+    "You come out behind"
+   ],
+   "expected": {
+    "choice": "You come out behind"
+   }
+  },
+  {
+   "id": "mx-14",
+   "entry": "mixed-practice",
+   "variant": "mixed",
+   "tier": 3,
+   "cluster": "cw-compare-exchange-2",
+   "learner": "b",
+   "source": "cw-compare-exchange-2",
+   "skills": [
+    "captureExchange"
+   ],
+   "primarySkill": "captureExchange",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "fen": "8/2n5/5pk1/5pq1/8/7K/8/R1Q5 b - - 0 1",
+   "prompt": "Black to move. Suppose you play Qxc1. After every capture that can follow, do you come out ahead, even, or behind?",
+   "explanation": "After Qxc1 the recaptures cancel out: material ends level. Count the values: queen 9, rook 5, bishop 3, knight 3, pawn 1.",
+   "hints": [
+    "Count what you take, then what the opponent can take back, and so on until the captures stop.",
+    "What can recapture on c1?"
+   ],
+   "check": "exchange",
+   "stated": [
+    "g5c1"
+   ],
+   "choices": [
+    "You come out ahead",
+    "It is an even trade",
+    "You come out behind"
+   ],
+   "expected": {
+    "choice": "It is an even trade"
+   }
+  },
+  {
+   "id": "mx-15",
+   "entry": "mixed-practice",
+   "variant": "mixed",
+   "tier": 2,
+   "cluster": "st-fork-realize-1",
+   "learner": "w",
+   "source": "st-fork-realize-1",
+   "skills": [
+    "elementaryTactics",
+    "captureExchange"
+   ],
+   "primarySkill": "elementaryTactics",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "fen": "7b/8/1p6/N6n/8/k7/6NK/8 w - - 0 1",
+   "prompt": "White to move. Win material, or give checkmate.",
+   "explanation": "Every move that wins material counts. One idea: Nc4+ forks the pawn on b6 and king on a3; whatever the reply, one of them can be won. Every move that wins material is accepted.",
+   "hints": [
+    "Before you move, look at every capture and every check, for both sides.",
+    "Count what each side could take next, and what could take back."
+   ],
+   "check": "material",
+   "goal": {
+    "kind": "gain",
+    "threshold": 1
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "7b/8/1p6/N6n/8/k7/6NK/8 w - -",
+     "accepted": [
+      "a5c4"
+     ],
+     "replies": {
+      "a5b3": "a3b3",
+      "a5b7": "a3a2",
+      "a5c4": "a3a2",
+      "a5c6": "a3a2",
+      "g2e1": "b6a5",
+      "g2e3": "b6a5",
+      "g2f4": "b6a5",
+      "g2h4": "b6a5",
+      "h2g1": "b6a5",
+      "h2h1": "b6a5",
+      "h2h3": "b6a5"
+     }
+    }
+   ]
+  },
+  {
+   "id": "mx-16",
+   "entry": "mixed-practice",
+   "variant": "mixed",
+   "tier": 1,
+   "cluster": "st-fork-realize-2",
+   "learner": "b",
+   "source": "st-fork-realize-2",
+   "skills": [
+    "elementaryTactics",
+    "captureExchange"
+   ],
+   "primarySkill": "elementaryTactics",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "fen": "n7/3K3N/8/8/B4p2/8/1k6/8 b - - 0 1",
+   "prompt": "Black to move. Win material, or give checkmate.",
+   "explanation": "Every move that wins material counts. One idea: Nb6+ forks the king on d7 and bishop on a4; whatever the reply, one of them can be won. Every move that wins material is accepted.",
+   "hints": [
+    "Before you move, look at every capture and every check, for both sides.",
+    "Count what each side could take next, and what could take back."
+   ],
+   "check": "material",
+   "goal": {
+    "kind": "gain",
+    "threshold": 1
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "n7/3K3N/8/8/B4p2/8/1k6/8 b - -",
+     "accepted": [
+      "a8b6"
+     ],
+     "replies": {
+      "a8b6": "d7c6",
+      "a8c7": "d7c7",
+      "b2a1": "a4b3",
+      "b2a2": "a4b5",
+      "b2a3": "a4b5",
+      "b2b1": "a4b3",
+      "b2c1": "a4b3",
+      "b2c3": "a4b5",
+      "f4f3": "a4b5"
+     }
+    }
+   ]
+  },
+  {
+   "id": "mx-17",
+   "entry": "mixed-practice",
+   "variant": "mixed",
+   "tier": 2,
+   "cluster": "st-pin-realize-1",
+   "learner": "w",
+   "source": "st-pin-realize-1",
+   "skills": [
+    "elementaryTactics",
+    "captureExchange"
+   ],
+   "primarySkill": "elementaryTactics",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "fen": "8/7K/6P1/2P4p/2p5/8/B3n3/5k2 w - - 0 1",
+   "prompt": "White to move. Win material, or give checkmate.",
+   "explanation": "Every move that wins material counts. One idea: Bxc4 pins the knight on e2, and the pinned piece can then be won. Every move that wins material is accepted.",
+   "hints": [
+    "Before you move, look at every capture and every check, for both sides.",
+    "Count what each side could take next, and what could take back."
+   ],
+   "check": "material",
+   "goal": {
+    "kind": "gain",
+    "threshold": 1
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "8/7K/6P1/2P4p/2p5/8/B3n3/5k2 w - -",
+     "accepted": [
+      "a2c4",
+      "g6g7",
+      "h7h6"
+     ],
+     "replies": {
+      "a2c4": "f1e1",
+      "a2b1": "c4c3",
+      "a2b3": "c4b3",
+      "c5c6": "c4c3",
+      "g6g7": "c4c3",
+      "h7g7": "c4c3",
+      "h7g8": "c4c3",
+      "h7h6": "c4c3",
+      "h7h8": "c4c3"
+     }
+    }
+   ]
+  },
+  {
+   "id": "mx-18",
+   "entry": "mixed-practice",
+   "variant": "mixed",
+   "tier": 2,
+   "cluster": "st-pin-realize-2",
+   "learner": "b",
+   "source": "st-pin-realize-2",
+   "skills": [
+    "elementaryTactics",
+    "captureExchange"
+   ],
+   "primarySkill": "elementaryTactics",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "fen": "4k2b/8/5P2/8/8/P1N4p/1K6/8 b - - 0 1",
+   "prompt": "Black to move. Win material, or give checkmate.",
+   "explanation": "Every move that wins material counts. One idea: Bxf6 pins the knight on c3, and the pinned piece can then be won. Every move that wins material is accepted.",
+   "hints": [
+    "Before you move, look at every capture and every check, for both sides.",
+    "Count what each side could take next, and what could take back."
+   ],
+   "check": "material",
+   "goal": {
+    "kind": "gain",
+    "threshold": 1
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "4k2b/8/5P2/8/8/P1N4p/1K6/8 b - -",
+     "accepted": [
+      "e8f7",
+      "h3h2",
+      "h8f6"
+     ],
+     "replies": {
+      "h8f6": "a3a4",
+      "e8d7": "c3d5",
+      "e8d8": "c3d5",
+      "e8f7": "a3a4",
+      "e8f8": "c3d5",
+      "h3h2": "a3a4",
+      "h8g7": "f6g7"
+     }
+    }
+   ]
+  },
+  {
+   "id": "mx-19",
+   "entry": "mixed-practice",
+   "variant": "mixed",
+   "tier": 2,
+   "cluster": "st-fork-recognize-5",
+   "learner": "w",
+   "source": "st-fork-recognize-5",
+   "skills": [
+    "elementaryTactics",
+    "attackProtection"
+   ],
+   "primarySkill": "elementaryTactics",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "fen": "8/B5B1/3B4/N6k/2n5/6b1/8/5K2 w - - 0 1",
+   "prompt": "Select every black piece that is forking: attacking two or more white pieces at once that are the king, worth more than it, or unprotected. If there is none, choose None.",
+   "explanation": "The knight on c4 forks the bishop on d6 and knight on a5.",
+   "hints": [
+    "A fork is one piece attacking two worthwhile targets at once: the king, a bigger piece, or an unprotected one.",
+    "Check each black piece: what does it attack?"
+   ],
+   "check": "forks",
+   "askColor": "b",
+   "expected": {
+    "squares": [
+     "c4"
+    ]
+   }
+  },
+  {
+   "id": "mx-20",
+   "entry": "mixed-practice",
+   "variant": "mixed",
+   "tier": 2,
+   "cluster": "st-fork-recognize-1",
+   "learner": "w",
+   "source": "st-fork-recognize-1",
+   "skills": [
+    "elementaryTactics",
+    "attackProtection"
+   ],
+   "primarySkill": "elementaryTactics",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "fen": "5K2/4B3/8/2p3p1/1p5b/p7/8/7k w - - 0 1",
+   "prompt": "Select every white piece that is forking: attacking two or more black pieces at once that are the king, worth more than it, or unprotected. If there is none, choose None.",
+   "explanation": "No white piece is forking. The bishop on e7 attacks the pawn on c5 (unprotected) and the pawn on g5 (protected and worth no more); a fork needs two targets that are the king, worth more, or unprotected, and only one of these is.",
+   "hints": [
+    "A fork is one piece attacking two worthwhile targets at once: the king, a bigger piece, or an unprotected one.",
+    "Check each white piece: what does it attack?"
+   ],
+   "check": "forks",
+   "askColor": "w",
+   "expected": {
+    "squares": []
+   },
+   "noAction": true
+  },
+  {
+   "id": "mx-21",
+   "entry": "mixed-practice",
+   "variant": "mixed",
+   "tier": 2,
+   "cluster": "st-pin-recognize-5",
+   "learner": "w",
+   "source": "st-pin-recognize-5",
+   "skills": [
+    "elementaryTactics",
+    "attackProtection"
+   ],
+   "primarySkill": "elementaryTactics",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "fen": "k7/8/7N/8/K6b/6R1/3n1Q2/8 w - - 0 1",
+   "prompt": "Select every white piece that is pinned: it stands on a line between an enemy bishop, rook or queen and its own king or a more valuable piece. If there is none, choose None.",
+   "explanation": "The rook on g3 is pinned by the bishop on h4 to the queen on f2.",
+   "hints": [
+    "A pin is a piece that cannot move without exposing the king, or a more valuable piece, behind it.",
+    "Look along the lines of the enemy bishops, rooks and queens."
+   ],
+   "check": "pins",
+   "askColor": "w",
+   "expected": {
+    "squares": [
+     "g3"
+    ]
+   }
+  },
+  {
+   "id": "mx-22",
+   "entry": "mixed-practice",
+   "variant": "mixed",
+   "tier": 1,
+   "cluster": "sm-castle-unavailable-1",
+   "learner": "w",
+   "source": "sm-castle-unavailable-1-w",
+   "skills": [
+    "specialRules"
+   ],
+   "primarySkill": "specialRules",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "fen": "4k3/8/8/8/8/8/5PPP/4K2R w K - 0 1",
+   "prompt": "White to move. Can White castle kingside (king to g1) now? If not, why not?",
+   "explanation": "The king moved to f1 and back. Once the king has moved, it can never castle again in this game, even from its home square.",
+   "hints": [
+    "Check the four rules: neither piece has moved, the squares between are empty, the king is not in check, and it does not cross or land on an attacked square.",
+    "Look at the moves played so far, then at every enemy piece."
+   ],
+   "check": "castleReason",
+   "prelude": [
+    "e1f1",
+    "e8d8",
+    "f1e1",
+    "d8e8"
+   ],
+   "target": "g1",
+   "choices": [
+    "Yes, castling is allowed",
+    "No: the king or that rook has already moved",
+    "No: a piece is in the way",
+    "No: the king is in check",
+    "No: the king would cross an attacked square",
+    "No: the king would land on an attacked square"
+   ],
+   "expected": {
+    "choice": "No: the king or that rook has already moved"
+   },
+   "noAction": true
+  },
+  {
+   "id": "mx-23",
+   "entry": "mixed-practice",
+   "variant": "mixed",
+   "tier": 2,
+   "cluster": "sm-castle-unavailable-2",
+   "learner": "b",
+   "source": "sm-castle-unavailable-2-b",
+   "skills": [
+    "specialRules"
+   ],
+   "primarySkill": "specialRules",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "fen": "4k2r/5ppp/8/8/8/8/8/4K3 b k - 0 1",
+   "prompt": "Black to move. Can Black castle kingside (king to g8) now? If not, why not?",
+   "explanation": "The rook went to g8 and came back. A rook that has moved cannot castle any more.",
+   "hints": [
+    "Check the four rules: neither piece has moved, the squares between are empty, the king is not in check, and it does not cross or land on an attacked square.",
+    "Look at the moves played so far, then at every enemy piece."
+   ],
+   "check": "castleReason",
+   "prelude": [
+    "h8g8",
+    "e1d1",
+    "g8h8",
+    "d1e1"
+   ],
+   "target": "g8",
+   "choices": [
+    "Yes, castling is allowed",
+    "No: the king or that rook has already moved",
+    "No: a piece is in the way",
+    "No: the king is in check",
+    "No: the king would cross an attacked square",
+    "No: the king would land on an attacked square"
+   ],
+   "expected": {
+    "choice": "No: the king or that rook has already moved"
+   },
+   "noAction": true
+  },
+  {
+   "id": "mx-24",
+   "entry": "mixed-practice",
+   "variant": "mixed",
+   "tier": 2,
+   "cluster": "sm-castle-unavailable-3",
+   "learner": "w",
+   "source": "sm-castle-unavailable-3-w",
+   "skills": [
+    "specialRules"
+   ],
+   "primarySkill": "specialRules",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "fen": "4k3/8/8/8/8/8/PPP5/R3K3 w Q - 0 1",
+   "prompt": "White to move. Can White castle queenside (king to c1) now? If not, why not?",
+   "explanation": "The a1 rook moved to b1 and back, so queenside castling is gone for good.",
+   "hints": [
+    "Check the four rules: neither piece has moved, the squares between are empty, the king is not in check, and it does not cross or land on an attacked square.",
+    "Look at the moves played so far, then at every enemy piece."
+   ],
+   "check": "castleReason",
+   "prelude": [
+    "a1b1",
+    "e8e7",
+    "b1a1",
+    "e7e8"
+   ],
+   "target": "c1",
+   "choices": [
+    "Yes, castling is allowed",
+    "No: the king or that rook has already moved",
+    "No: a piece is in the way",
+    "No: the king is in check",
+    "No: the king would cross an attacked square",
+    "No: the king would land on an attacked square"
+   ],
+   "expected": {
+    "choice": "No: the king or that rook has already moved"
+   },
+   "noAction": true
+  },
+  {
+   "id": "mx-25",
+   "entry": "mixed-practice",
+   "variant": "mixed",
+   "tier": 1,
+   "cluster": "sm-en-passant-unavailable-1",
+   "learner": "w",
+   "source": "sm-en-passant-unavailable-1-w",
+   "skills": [
+    "specialRules"
+   ],
+   "primarySkill": "specialRules",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "fen": "4k3/8/3p4/4P3/8/8/8/4K3 b - - 0 1",
+   "prompt": "White to move. Can you capture the pawn on d5 en passant right now? If not, why not?",
+   "explanation": "The pawn on d5 came from d6: it moved only one square, so en passant does not apply.",
+   "hints": [
+    "En passant needs three things: an enemy pawn that has just moved two squares, your pawn right beside it, and a capture that does not leave your king in check.",
+    "Look at the moves played so far."
+   ],
+   "check": "enPassantChoice",
+   "prelude": [
+    "d6d5"
+   ],
+   "target": "d5",
+   "choices": [
+    "Yes, en passant is allowed",
+    "No: that pawn did not just move two squares",
+    "No: the chance has passed",
+    "No: it would leave your king in check",
+    "No: none of your pawns stands beside it"
+   ],
+   "expected": {
+    "choice": "No: that pawn did not just move two squares"
+   },
+   "noAction": true
+  },
+  {
+   "id": "mx-26",
+   "entry": "mixed-practice",
+   "variant": "mixed",
+   "tier": 2,
+   "cluster": "sm-en-passant-unavailable-2",
+   "learner": "b",
+   "source": "sm-en-passant-unavailable-2-b",
+   "skills": [
+    "specialRules"
+   ],
+   "primarySkill": "specialRules",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "fen": "4k3/8/8/8/4p3/8/3P4/4K3 w - - 0 1",
+   "prompt": "Black to move. Can you capture the pawn on d4 en passant right now? If not, why not?",
+   "explanation": "The pawn reached d4 in two separate one-square moves. En passant applies only straight after a two-square move.",
+   "hints": [
+    "En passant needs three things: an enemy pawn that has just moved two squares, your pawn right beside it, and a capture that does not leave your king in check.",
+    "Look at the moves played so far."
+   ],
+   "check": "enPassantChoice",
+   "prelude": [
+    "d2d3",
+    "e8d8",
+    "d3d4"
+   ],
+   "target": "d4",
+   "choices": [
+    "Yes, en passant is allowed",
+    "No: that pawn did not just move two squares",
+    "No: the chance has passed",
+    "No: it would leave your king in check",
+    "No: none of your pawns stands beside it"
+   ],
+   "expected": {
+    "choice": "No: that pawn did not just move two squares"
+   },
+   "noAction": true
+  },
+  {
+   "id": "mx-27",
+   "entry": "mixed-practice",
+   "variant": "mixed",
+   "tier": 2,
+   "cluster": "sm-en-passant-unavailable-3",
+   "learner": "w",
+   "source": "sm-en-passant-unavailable-3-w",
+   "skills": [
+    "specialRules"
+   ],
+   "primarySkill": "specialRules",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "fen": "4k3/8/5p2/4P3/8/8/8/4K3 b - - 0 1",
+   "prompt": "White to move. Can you capture the pawn on f5 en passant right now? If not, why not?",
+   "explanation": "The pawn on f5 stepped one square from f6, so it cannot be taken en passant.",
+   "hints": [
+    "En passant needs three things: an enemy pawn that has just moved two squares, your pawn right beside it, and a capture that does not leave your king in check.",
+    "Look at the moves played so far."
+   ],
+   "check": "enPassantChoice",
+   "prelude": [
+    "f6f5"
+   ],
+   "target": "f5",
+   "choices": [
+    "Yes, en passant is allowed",
+    "No: that pawn did not just move two squares",
+    "No: the chance has passed",
+    "No: it would leave your king in check",
+    "No: none of your pawns stands beside it"
+   ],
+   "expected": {
+    "choice": "No: that pawn did not just move two squares"
+   },
+   "noAction": true
+  },
+  {
+   "id": "mx-28",
+   "entry": "mixed-practice",
+   "variant": "mixed",
+   "tier": 1,
+   "cluster": "back-rank-mate",
+   "learner": "b",
+   "source": "cls-back-rank-mate-w1",
+   "skills": [
+    "checkMateDraw"
+   ],
+   "primarySkill": "checkMateDraw",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "fen": "R5k1/5ppp/8/8/8/8/8/6K1 b - - 0 1",
+   "prompt": "Black to move. Is Black checkmated, stalemated, in check, or none of these?",
+   "explanation": "Checkmate: the rook on a8 attacks Black's king on g8, and Black has no legal move.",
+   "hints": [
+    "Is the king attacked? Then look for any legal move at all."
+   ],
+   "check": "status",
+   "choices": [
+    "Checkmate",
+    "Stalemate",
+    "Check",
+    "Neither"
+   ],
+   "expected": {
+    "choice": "Checkmate"
+   }
+  },
+  {
+   "id": "mx-29",
+   "entry": "mixed-practice",
+   "variant": "mixed",
+   "tier": 1,
+   "cluster": "back-rank-mate",
+   "learner": "w",
+   "source": "cls-back-rank-mate-b1",
+   "skills": [
+    "checkMateDraw"
+   ],
+   "primarySkill": "checkMateDraw",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "fen": "6k1/8/8/8/8/8/5PPP/r5K1 w - - 0 1",
+   "prompt": "White to move. Is White checkmated, stalemated, in check, or none of these?",
+   "explanation": "Checkmate: the rook on a1 attacks White's king on g1, and White has no legal move.",
+   "hints": [
+    "Is the king attacked? Then look for any legal move at all."
+   ],
+   "check": "status",
+   "choices": [
+    "Checkmate",
+    "Stalemate",
+    "Check",
+    "Neither"
+   ],
+   "expected": {
+    "choice": "Checkmate"
+   }
+  },
+  {
+   "id": "mx-30",
+   "entry": "mixed-practice",
+   "variant": "mixed",
+   "tier": 1,
+   "cluster": "corner-stalemate",
+   "learner": "b",
+   "source": "cls-corner-stalemate-w1",
+   "skills": [
+    "checkMateDraw"
+   ],
+   "primarySkill": "checkMateDraw",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "fen": "7k/5Q2/6K1/8/8/8/8/8 b - - 0 1",
+   "prompt": "Black to move. Is Black checkmated, stalemated, in check, or none of these?",
+   "explanation": "Stalemate: it is Black's turn, Black is not in check, and no legal move exists. That is a draw.",
+   "hints": [
+    "Is the king attacked right now?"
+   ],
+   "check": "status",
+   "choices": [
+    "Checkmate",
+    "Stalemate",
+    "Check",
+    "Neither"
+   ],
+   "expected": {
+    "choice": "Stalemate"
+   }
+  },
+  {
+   "id": "mx-31",
+   "entry": "mixed-practice",
+   "variant": "mixed",
+   "tier": 1,
+   "cluster": "corner-stalemate",
+   "learner": "w",
+   "source": "cls-corner-stalemate-b1",
+   "skills": [
+    "checkMateDraw"
+   ],
+   "primarySkill": "checkMateDraw",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "fen": "8/8/8/8/8/6k1/5q2/7K w - - 0 1",
+   "prompt": "White to move. Is White checkmated, stalemated, in check, or none of these?",
+   "explanation": "Stalemate: White's king is not in check, but White has no legal move. The game is drawn.",
+   "hints": [
+    "Is the king attacked right now?"
+   ],
+   "check": "status",
+   "choices": [
+    "Checkmate",
+    "Stalemate",
+    "Check",
+    "Neither"
+   ],
+   "expected": {
+    "choice": "Stalemate"
+   }
+  },
+  {
+   "id": "mx-32",
+   "entry": "mixed-practice",
+   "variant": "mixed",
+   "tier": 1,
+   "cluster": "rook-check",
+   "learner": "b",
+   "source": "cls-rook-check-w1",
+   "skills": [
+    "checkMateDraw"
+   ],
+   "primarySkill": "checkMateDraw",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "fen": "4k3/8/8/8/8/8/8/2K1R3 b - - 0 1",
+   "prompt": "Black to move. Is Black checkmated, stalemated, in check, or none of these?",
+   "explanation": "Check: the rook on e1 attacks Black's king, but Black has 4 legal moves out of it, such as Kd7.",
+   "hints": [
+    "The king is attacked. Does it have a way out?"
+   ],
+   "check": "status",
+   "choices": [
+    "Checkmate",
+    "Stalemate",
+    "Check",
+    "Neither"
+   ],
+   "expected": {
+    "choice": "Check"
+   }
+  },
+  {
+   "id": "mx-33",
+   "entry": "mixed-practice",
+   "variant": "mixed",
+   "tier": 1,
+   "cluster": "start",
+   "learner": "w",
+   "source": "cls-start-w1",
+   "skills": [
+    "checkMateDraw"
+   ],
+   "primarySkill": "checkMateDraw",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+   "prompt": "White to move. Is White checkmated, stalemated, in check, or none of these?",
+   "explanation": "Neither: White's king is not attacked and White has 20 legal moves.",
+   "hints": [
+    "Is anything attacking the king to move?"
+   ],
+   "check": "status",
+   "choices": [
+    "Checkmate",
+    "Stalemate",
+    "Check",
+    "Neither"
+   ],
+   "expected": {
+    "choice": "Neither"
+   }
+  },
+  {
+   "id": "mx-34",
+   "entry": "mixed-practice",
+   "variant": "mixed",
+   "tier": 1,
+   "cluster": "rank-cut",
+   "learner": "w",
+   "source": "kss-rank-cut-w1",
+   "skills": [
+    "movement",
+    "attackProtection"
+   ],
+   "primarySkill": "movement",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "fen": "4k3/8/8/8/8/8/r7/4K3 w - - 0 1",
+   "prompt": "White to move. Select every square White's king can legally move to, or choose None.",
+   "explanation": "White's king can go to d1 and f1. Not safe: d2 (covered by the rook on a2); e2 (covered by the rook on a2); f2 (covered by the rook on a2).",
+   "hints": [
+    "A rook covers a whole rank. Which rank is it guarding?"
+   ],
+   "check": "kingSquares",
+   "expected": {
+    "squares": [
+     "d1",
+     "f1"
+    ]
+   }
+  },
+  {
+   "id": "mx-35",
+   "entry": "mixed-practice",
+   "variant": "mixed",
+   "tier": 1,
+   "cluster": "rank-cut",
+   "learner": "b",
+   "source": "kss-rank-cut-b1",
+   "skills": [
+    "movement",
+    "attackProtection"
+   ],
+   "primarySkill": "movement",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "fen": "4k3/R7/8/8/8/8/8/4K3 b - - 0 1",
+   "prompt": "Black to move. Select every square Black's king can legally move to, or choose None.",
+   "explanation": "Black's king can go to d8 and f8. Not safe: d7 (covered by the rook on a7); e7 (covered by the rook on a7); f7 (covered by the rook on a7).",
+   "hints": [
+    "A rook covers a whole rank. Which rank is it guarding?"
+   ],
+   "check": "kingSquares",
+   "expected": {
+    "squares": [
+     "d8",
+     "f8"
+    ]
+   }
+  },
+  {
+   "id": "mx-36",
+   "entry": "mixed-practice",
+   "variant": "mixed",
+   "tier": 1,
+   "cluster": "file-cut",
+   "learner": "w",
+   "source": "kss-file-cut-w1",
+   "skills": [
+    "movement",
+    "attackProtection"
+   ],
+   "primarySkill": "movement",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "fen": "3rk3/8/8/8/8/8/8/4K3 w - - 0 1",
+   "prompt": "White to move. Select every square White's king can legally move to, or choose None.",
+   "explanation": "White's king can go to e2, f1 and f2. Not safe: d1 (covered by the rook on d8); d2 (covered by the rook on d8).",
+   "hints": [
+    "A rook covers a whole file, all the way to the edge."
+   ],
+   "check": "kingSquares",
+   "expected": {
+    "squares": [
+     "e2",
+     "f1",
+     "f2"
+    ]
+   }
+  },
+  {
+   "id": "mx-37",
+   "entry": "mixed-practice",
+   "variant": "mixed",
+   "tier": 1,
+   "cluster": "file-cut",
+   "learner": "b",
+   "source": "kss-file-cut-b1",
+   "skills": [
+    "movement",
+    "attackProtection"
+   ],
+   "primarySkill": "movement",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "fen": "4k3/8/8/8/8/8/8/3RK3 b - - 0 1",
+   "prompt": "Black to move. Select every square Black's king can legally move to, or choose None.",
+   "explanation": "Black's king can go to e7, f7 and f8. Not safe: d7 (covered by the rook on d1); d8 (covered by the rook on d1).",
+   "hints": [
+    "A rook covers a whole file, all the way to the edge."
+   ],
+   "check": "kingSquares",
+   "expected": {
+    "squares": [
+     "e7",
+     "f7",
+     "f8"
+    ]
+   }
+  },
+  {
+   "id": "mx-38",
+   "entry": "mixed-practice",
+   "variant": "mixed",
+   "tier": 1,
+   "cluster": "knight-capture",
+   "learner": "w",
+   "source": "kss-knight-capture-w1",
+   "skills": [
+    "attackProtection",
+    "movement"
+   ],
+   "primarySkill": "attackProtection",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "fen": "4k3/8/8/8/8/8/3n4/4K3 w - - 0 1",
+   "prompt": "White to move. Select every square White's king can legally move to, or choose None.",
+   "explanation": "White's king can go to d1, d2, e2 and f2. Not safe: f1 (covered by the knight on d2).",
+   "hints": [
+    "A king may capture a piece next to it if nothing protects that piece."
+   ],
+   "check": "kingSquares",
+   "expected": {
+    "squares": [
+     "d1",
+     "d2",
+     "e2",
+     "f2"
+    ]
+   }
+  },
+  {
+   "id": "mx-39",
+   "entry": "mixed-practice",
+   "variant": "mixed",
+   "tier": 1,
+   "cluster": "knight-capture",
+   "learner": "b",
+   "source": "kss-knight-capture-b1",
+   "skills": [
+    "attackProtection",
+    "movement"
+   ],
+   "primarySkill": "attackProtection",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "fen": "4k3/3N4/8/8/8/8/8/4K3 b - - 0 1",
+   "prompt": "Black to move. Select every square Black's king can legally move to, or choose None.",
+   "explanation": "Black's king can go to d7, d8, e7 and f7. Not safe: f8 (covered by the knight on d7).",
+   "hints": [
+    "A king may capture a piece next to it if nothing protects that piece."
+   ],
+   "check": "kingSquares",
+   "expected": {
+    "squares": [
+     "d7",
+     "d8",
+     "e7",
+     "f7"
+    ]
+   }
+  },
+  {
+   "id": "mx-40",
+   "entry": "mixed-practice",
+   "variant": "mixed",
+   "tier": 2,
+   "cluster": "opposition",
+   "learner": "w",
+   "source": "kss-opposition-w1",
+   "skills": [
+    "attackProtection",
+    "movement"
+   ],
+   "primarySkill": "attackProtection",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "fen": "8/8/8/8/8/4k3/8/4K3 w - - 0 1",
+   "prompt": "White to move. Select every square White's king can legally move to, or choose None.",
+   "explanation": "White's king can go to d1 and f1. Not safe: d2 (next to the other king); e2 (next to the other king); f2 (next to the other king).",
+   "hints": [
+    "Kings can never stand next to each other."
+   ],
+   "check": "kingSquares",
+   "expected": {
+    "squares": [
+     "d1",
+     "f1"
+    ]
+   }
+  },
+  {
+   "id": "mx-41",
+   "entry": "mixed-practice",
+   "variant": "mixed",
+   "tier": 2,
+   "cluster": "opposition",
+   "learner": "b",
+   "source": "kss-opposition-b1",
+   "skills": [
+    "attackProtection",
+    "movement"
+   ],
+   "primarySkill": "attackProtection",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "fen": "4k3/8/4K3/8/8/8/8/8 b - - 0 1",
+   "prompt": "Black to move. Select every square Black's king can legally move to, or choose None.",
+   "explanation": "Black's king can go to d8 and f8. Not safe: d7 (next to the other king); e7 (next to the other king); f7 (next to the other king).",
+   "hints": [
+    "Kings can never stand next to each other."
+   ],
+   "check": "kingSquares",
+   "expected": {
+    "squares": [
+     "d8",
+     "f8"
+    ]
+   }
+  },
+  {
+   "id": "mx-42",
+   "entry": "mixed-practice",
+   "variant": "mixed",
+   "tier": 2,
+   "cluster": "queen-diagonal",
+   "learner": "w",
+   "source": "kss-queen-diagonal-w1",
+   "skills": [
+    "attackProtection",
+    "movement"
+   ],
+   "primarySkill": "attackProtection",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "fen": "4k3/8/8/7q/8/8/8/4K3 w - - 0 1",
+   "prompt": "White to move. Select every square White's king can legally move to, or choose None.",
+   "explanation": "White's king can go to d2, f1 and f2. Not safe: d1 (covered by the queen on h5); e2 (covered by the queen on h5).",
+   "hints": [
+    "Follow the queen's diagonals all the way to your king."
+   ],
+   "check": "kingSquares",
+   "expected": {
+    "squares": [
+     "d2",
+     "f1",
+     "f2"
+    ]
+   }
+  },
+  {
+   "id": "mx-43",
+   "entry": "mixed-practice",
+   "variant": "mixed",
+   "tier": 1,
+   "cluster": "st-mate-threat-prevent-1",
+   "learner": "w",
+   "source": "st-mate-threat-prevent-1",
+   "skills": [
+    "diagnosis",
+    "captureExchange"
+   ],
+   "primarySkill": "diagnosis",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "fen": "8/7k/8/8/8/4r3/PPP5/K7 w - - 0 1",
+   "prompt": "White to move. What needs your attention here? Choose one answer that applies.",
+   "explanation": "What mattered here: your opponent threatens checkmate. Then any move that keeps your material counts.",
+   "hints": [
+    "Before you move, look at every capture and every check, for both sides.",
+    "Count what each side could take next, and what could take back."
+   ],
+   "check": "diagnosis",
+   "goal": {
+    "kind": "hold",
+    "threshold": 0
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "8/7k/8/8/8/4r3/PPP5/K7 w - -",
+     "accepted": [
+      "a2a3",
+      "a2a4",
+      "b2b3",
+      "b2b4"
+     ],
+     "replies": {
+      "a1b1": "e3e1",
+      "a2a3": "e3a3",
+      "a2a4": "e3a3",
+      "b2b3": "e3b3",
+      "b2b4": "e3a3",
+      "c2c3": "e3e1",
+      "c2c4": "e3e1"
+     }
+    }
+   ],
+   "choices": [
+    "You can give checkmate now",
+    "Your opponent threatens checkmate",
+    "You can win material",
+    "One of your pieces is in danger",
+    "Nothing urgent"
+   ],
+   "expected": {
+    "choices": [
+     "Your opponent threatens checkmate"
+    ]
+   }
+  },
+  {
+   "id": "mx-44",
+   "entry": "mixed-practice",
+   "variant": "mixed",
+   "tier": 2,
+   "cluster": "syp-move-away-3",
+   "learner": "w",
+   "source": "syp-move-away-3",
+   "skills": [
+    "diagnosis",
+    "threatResponse"
+   ],
+   "primarySkill": "diagnosis",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "fen": "2k1b3/8/8/5P2/R5K1/8/2b5/8 w - - 0 1",
+   "prompt": "White to move. What needs your attention here? Choose one answer that applies.",
+   "explanation": "What mattered here: you can win material; one of your pieces is in danger. Then any move that wins material, or checkmates, counts.",
+   "hints": [
+    "Before you move, look at every capture and every check, for both sides.",
+    "Count what each side could take next, and what could take back."
+   ],
+   "check": "diagnosis",
+   "goal": {
+    "kind": "gain",
+    "threshold": 1
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "2k1b3/8/8/5P2/R5K1/8/2b5/8 w - -",
+     "accepted": [
+      "a4c4"
+     ],
+     "replies": {
+      "a4a1": "c2a4",
+      "a4a2": "c2a4",
+      "a4a3": "c2a4",
+      "a4a5": "c2a4",
+      "a4a6": "c2a4",
+      "a4a7": "c2a4",
+      "a4a8": "c8d7",
+      "a4b4": "c2a4",
+      "a4c4": "c8b7",
+      "a4d4": "c2a4",
+      "a4e4": "c2e4",
+      "a4f4": "c2a4",
+      "f5f6": "c2a4",
+      "g4f3": "c2a4",
+      "g4f4": "c2a4",
+      "g4g3": "c2a4",
+      "g4g5": "c2a4",
+      "g4h3": "c2a4",
+      "g4h4": "c2a4"
+     }
+    }
+   ],
+   "choices": [
+    "You can give checkmate now",
+    "Your opponent threatens checkmate",
+    "You can win material",
+    "One of your pieces is in danger",
+    "Nothing urgent"
+   ],
+   "expected": {
+    "choices": [
+     "You can win material",
+     "One of your pieces is in danger"
+    ]
+   }
+  },
+  {
+   "id": "mx-45",
+   "entry": "mixed-practice",
+   "variant": "mixed",
+   "tier": 1,
+   "cluster": "syp-move-away-4",
+   "learner": "b",
+   "source": "syp-move-away-4",
+   "skills": [
+    "diagnosis",
+    "threatResponse"
+   ],
+   "primarySkill": "diagnosis",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "fen": "5k2/8/8/8/6K1/3B1P2/4r3/8 b - - 0 1",
+   "prompt": "Black to move. What needs your attention here? Choose one answer that applies.",
+   "explanation": "What mattered here: one of your pieces is in danger. Then any move that keeps your material counts.",
+   "hints": [
+    "Before you move, look at every capture and every check, for both sides.",
+    "Count what each side could take next, and what could take back."
+   ],
+   "check": "diagnosis",
+   "goal": {
+    "kind": "hold",
+    "threshold": 0
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "5k2/8/8/8/6K1/3B1P2/4r3/8 b - -",
+     "accepted": [
+      "e2a2",
+      "e2b2",
+      "e2d2",
+      "e2e1",
+      "e2e3",
+      "e2e5",
+      "e2e6",
+      "e2e7",
+      "e2e8",
+      "e2f2",
+      "e2g2",
+      "e2h2"
+     ],
+     "replies": {
+      "e2a2": "d3a6",
+      "e2b2": "d3a6",
+      "e2c2": "d3c2",
+      "e2d2": "d3a6",
+      "e2e1": "d3a6",
+      "e2e3": "d3a6",
+      "e2e4": "d3e4",
+      "e2e5": "d3a6",
+      "e2e6": "d3a6",
+      "e2e7": "d3a6",
+      "e2e8": "d3a6",
+      "e2f2": "d3a6",
+      "e2g2": "g4f4",
+      "e2h2": "d3a6",
+      "f8e7": "d3e2",
+      "f8e8": "d3e2",
+      "f8f7": "d3e2",
+      "f8g7": "d3e2",
+      "f8g8": "d3e2"
+     }
+    }
+   ],
+   "choices": [
+    "You can give checkmate now",
+    "Your opponent threatens checkmate",
+    "You can win material",
+    "One of your pieces is in danger",
+    "Nothing urgent"
+   ],
+   "expected": {
+    "choices": [
+     "One of your pieces is in danger"
+    ]
+   }
+  },
+  {
+   "id": "mx-46",
+   "entry": "mixed-practice",
+   "variant": "mixed",
+   "tier": 2,
+   "cluster": "st-mate-threat-prevent-4",
+   "learner": "b",
+   "source": "st-mate-threat-prevent-4",
+   "skills": [
+    "diagnosis",
+    "captureExchange"
+   ],
+   "primarySkill": "diagnosis",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "fen": "5k2/4ppp1/6R1/8/R7/8/2n4K/8 b - - 0 1",
+   "prompt": "Black to move. What needs your attention here? Choose one answer that applies.",
+   "explanation": "What mattered here: your opponent threatens checkmate; you can win material. Then any move that wins material, or checkmates, counts.",
+   "hints": [
+    "Before you move, look at every capture and every check, for both sides.",
+    "Count what each side could take next, and what could take back."
+   ],
+   "check": "diagnosis",
+   "goal": {
+    "kind": "gain",
+    "threshold": 1
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "5k2/4ppp1/6R1/8/R7/8/2n4K/8 b - -",
+     "accepted": [
+      "f7g6"
+     ],
+     "replies": {
+      "f7g6": "a4a1",
+      "c2a1": "a4a8",
+      "c2a3": "a4a8",
+      "c2b4": "a4a8",
+      "c2d4": "a4a8",
+      "c2e1": "a4a8",
+      "c2e3": "a4a8",
+      "e7e5": "a4a8",
+      "e7e6": "a4a8",
+      "f7f5": "a4a2",
+      "f7f6": "a4a2",
+      "f8e8": "g6g7",
+      "f8g8": "a4a8"
+     }
+    }
+   ],
+   "choices": [
+    "You can give checkmate now",
+    "Your opponent threatens checkmate",
+    "You can win material",
+    "One of your pieces is in danger",
+    "Nothing urgent"
+   ],
+   "expected": {
+    "choices": [
+     "Your opponent threatens checkmate",
+     "You can win material"
+    ]
+   }
+  },
+  {
+   "id": "mx-47",
+   "entry": "mixed-practice",
+   "variant": "mixed",
+   "tier": 2,
+   "cluster": "st-mate-threat-prevent-7",
+   "learner": "w",
+   "source": "st-mate-threat-prevent-7",
+   "skills": [
+    "diagnosis",
+    "captureExchange"
+   ],
+   "primarySkill": "diagnosis",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "fen": "8/1R6/8/8/8/r2r3k/PPP5/K7 w - - 0 1",
+   "prompt": "White to move. What needs your attention here? Choose one answer that applies.",
+   "explanation": "What mattered here: your opponent threatens checkmate; you can win material. Then any move that wins material, or checkmates, counts.",
+   "hints": [
+    "Before you move, look at every capture and every check, for both sides.",
+    "Count what each side could take next, and what could take back."
+   ],
+   "check": "diagnosis",
+   "goal": {
+    "kind": "gain",
+    "threshold": 1
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "8/1R6/8/8/8/r2r3k/PPP5/K7 w - -",
+     "accepted": [
+      "b2a3",
+      "b7h7",
+      "c2d3"
+     ],
+     "replies": {
+      "b2a3": "d3a3",
+      "c2d3": "a3a2",
+      "a1b1": "d3d1",
+      "b2b3": "d3c3",
+      "b2b4": "d3c3",
+      "b7a7": "a3a7",
+      "b7b3": "a3b3",
+      "b7b4": "d3d1",
+      "b7b5": "d3d1",
+      "b7b6": "d3d1",
+      "b7b8": "d3d1",
+      "b7c7": "d3d1",
+      "b7d7": "d3d7",
+      "b7e7": "d3d1",
+      "b7f7": "d3d1",
+      "b7g7": "d3d1",
+      "b7h7": "h3g2",
+      "c2c3": "a3a4",
+      "c2c4": "a3a4"
+     }
+    }
+   ],
+   "choices": [
+    "You can give checkmate now",
+    "Your opponent threatens checkmate",
+    "You can win material",
+    "One of your pieces is in danger",
+    "Nothing urgent"
+   ],
+   "expected": {
+    "choices": [
+     "Your opponent threatens checkmate",
+     "You can win material"
+    ]
+   }
+  },
+  {
+   "id": "mx-48",
+   "entry": "mixed-practice",
+   "variant": "mixed",
+   "tier": 2,
+   "cluster": "st-pin-recognize-9",
+   "learner": "w",
+   "source": "st-pin-recognize-9",
+   "skills": [
+    "diagnosis",
+    "captureExchange"
+   ],
+   "primarySkill": "diagnosis",
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "fen": "3K4/8/1k2r2r/8/7N/7Q/R7/8 w - - 0 1",
+   "prompt": "White to move. What needs your attention here? Choose one answer that applies.",
+   "explanation": "What mattered here: nothing urgent. Then any move that keeps your material counts.",
+   "hints": [
+    "Before you move, look at every capture and every check, for both sides.",
+    "Count what each side could take next, and what could take back."
+   ],
+   "check": "diagnosis",
+   "goal": {
+    "kind": "hold",
+    "threshold": 0
+   },
+   "plies": 3,
+   "nodes": [
+    {
+     "fingerprint": "3K4/8/1k2r2r/8/7N/7Q/R7/8 w - -",
+     "accepted": [
+      "a2a1",
+      "a2a3",
+      "a2a4",
+      "a2a8",
+      "a2b2",
+      "a2c2",
+      "a2d2",
+      "a2f2",
+      "a2g2",
+      "a2h2",
+      "d8c8",
+      "d8d7",
+      "h3a3",
+      "h3b3",
+      "h3c3",
+      "h3f1",
+      "h3f3",
+      "h3f5",
+      "h3g2",
+      "h3g3",
+      "h3g4",
+      "h3h1",
+      "h3h2"
+     ],
+     "replies": {
+      "h3e6": "h6e6",
+      "a2a1": "h6h4",
+      "a2a3": "h6h4",
+      "a2a4": "h6h4",
+      "a2a5": "b6a5",
+      "a2a6": "b6a6",
+      "a2a7": "b6a7",
+      "a2a8": "h6h4",
+      "a2b2": "b6a5",
+      "a2c2": "h6h4",
+      "a2d2": "h6h4",
+      "a2e2": "e6e2",
+      "a2f2": "h6h4",
+      "a2g2": "h6h4",
+      "a2h2": "h6h4",
+      "d8c8": "h6h4",
+      "d8d7": "h6h4",
+      "h3a3": "h6h4",
+      "h3b3": "b6c5",
+      "h3c3": "h6h4",
+      "h3d3": "e6d6",
+      "h3e3": "e6e3",
+      "h3f1": "h6h4",
+      "h3f3": "h6h4",
+      "h3f5": "h6h4",
+      "h3g2": "h6h4",
+      "h3g3": "h6h4",
+      "h3g4": "h6h4",
+      "h3h1": "h6h4",
+      "h3h2": "h6h4",
+      "h4f3": "h6h3",
+      "h4f5": "h6h3",
+      "h4g2": "h6h3",
+      "h4g6": "h6h3"
+     }
+    }
+   ],
+   "choices": [
+    "You can give checkmate now",
+    "Your opponent threatens checkmate",
+    "You can win material",
+    "One of your pieces is in danger",
+    "Nothing urgent"
+   ],
+   "expected": {
+    "choices": [
+     "Nothing urgent"
+    ]
+   }
+  }
+ ]
+}

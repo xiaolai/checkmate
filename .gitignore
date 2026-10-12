@@ -11,6 +11,7 @@
 # Paid narration masters and private development records
 /recordings/
 /dev-docs/
+/.cc-suite/
 
 # Local credentials and environment configuration
 .env

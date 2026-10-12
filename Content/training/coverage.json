@@ -1,0 +1,793 @@
+{
+ "schemaVersion": 1,
+ "contexts": [
+  "guidedExample",
+  "focusedPractice",
+  "noHintPractice",
+  "mixedApplication"
+ ],
+ "mixedPolicy": {
+  "entry": "mixed-practice",
+  "minimumCases": 48,
+  "minimumPerSkill": 4,
+  "maximumPrimaryShare": 0.25,
+  "skills": [
+   "movement",
+   "attackProtection",
+   "threatResponse",
+   "captureExchange",
+   "checkMateDraw",
+   "specialRules",
+   "elementaryTactics",
+   "diagnosis"
+  ]
+ },
+ "evidenceColumns": [
+  "correctness",
+  "coverage",
+  "learnerEvidence"
+ ],
+ "rows": [
+  {
+   "skill": "movement",
+   "label": "Board/piece movement",
+   "workItems": [
+    "WI-002",
+    "WI-005"
+   ],
+   "guidedExample": [
+    {
+     "increment": "A",
+     "lesson": "pawn"
+    },
+    {
+     "increment": "A",
+     "lesson": "rook"
+    },
+    {
+     "increment": "A",
+     "lesson": "bishop"
+    },
+    {
+     "increment": "A",
+     "lesson": "queen"
+    },
+    {
+     "increment": "A",
+     "lesson": "knight"
+    },
+    {
+     "increment": "A",
+     "lesson": "king"
+    }
+   ],
+   "focusedPractice": [
+    {
+     "increment": "A",
+     "generated": "reach-target",
+     "tiers": [
+      1,
+      2,
+      3
+     ]
+    },
+    {
+     "increment": "A",
+     "legacy": "pawn-duel"
+    },
+    {
+     "increment": "A",
+     "legacy": "rook-sweep"
+    },
+    {
+     "increment": "A",
+     "legacy": "bishop-sweep"
+    },
+    {
+     "increment": "A",
+     "legacy": "knight-corners"
+    }
+   ],
+   "noHintPractice": [
+    {
+     "increment": "A",
+     "generated": "reach-target",
+     "tiers": [
+      2,
+      3
+     ]
+    }
+   ],
+   "mixedApplication": [
+    {
+     "increment": "A",
+     "legacy": "knight-capture"
+    },
+    {
+     "increment": "B",
+     "mixedSkill": "movement",
+     "minimum": 4
+    }
+   ]
+  },
+  {
+   "skill": "attackProtection",
+   "label": "Attack/protection awareness",
+   "workItems": [
+    "WI-002",
+    "WI-005"
+   ],
+   "guidedExample": [
+    {
+     "increment": "A",
+     "lesson": "counting-material"
+    },
+    {
+     "increment": "A",
+     "generated": "find-attackers",
+     "tiers": [
+      1
+     ]
+    }
+   ],
+   "focusedPractice": [
+    {
+     "increment": "A",
+     "generated": "find-attackers",
+     "tiers": [
+      1,
+      2,
+      3
+     ]
+    },
+    {
+     "increment": "A",
+     "generated": "find-defenders",
+     "tiers": [
+      1,
+      2,
+      3
+     ]
+    },
+    {
+     "increment": "A",
+     "entry": "king-safe-squares",
+     "variant": "king-moves",
+     "minimum": 30,
+     "clusters": 10
+    }
+   ],
+   "noHintPractice": [
+    {
+     "increment": "A",
+     "generated": "find-attackers",
+     "tiers": [
+      2,
+      3
+     ]
+    },
+    {
+     "increment": "A",
+     "generated": "find-defenders",
+     "tiers": [
+      2,
+      3
+     ]
+    }
+   ],
+   "mixedApplication": [
+    {
+     "increment": "B",
+     "mixedSkill": "attackProtection",
+     "minimum": 4
+    }
+   ]
+  },
+  {
+   "skill": "threatResponse",
+   "label": "Threat response",
+   "workItems": [
+    "WI-009"
+   ],
+   "guidedExample": [
+    {
+     "increment": "B",
+     "lesson": "counting-material"
+    },
+    {
+     "increment": "B",
+     "entry": "save-your-piece",
+     "variant": "move-away",
+     "minimum": 1,
+     "tier": 1
+    }
+   ],
+   "focusedPractice": [
+    {
+     "increment": "B",
+     "entry": "save-your-piece",
+     "variant": "move-away",
+     "minimum": 8
+    },
+    {
+     "increment": "B",
+     "entry": "save-your-piece",
+     "variant": "protect",
+     "minimum": 8
+    },
+    {
+     "increment": "B",
+     "entry": "save-your-piece",
+     "variant": "capture-attacker",
+     "minimum": 8
+    },
+    {
+     "increment": "B",
+     "entry": "save-your-piece",
+     "variant": "block",
+     "minimum": 8
+    }
+   ],
+   "noHintPractice": [
+    {
+     "increment": "B",
+     "entry": "save-your-piece",
+     "variant": "move-away",
+     "minimum": 2,
+     "tier": 2
+    },
+    {
+     "increment": "B",
+     "entry": "save-your-piece",
+     "variant": "protect",
+     "minimum": 2,
+     "tier": 2
+    },
+    {
+     "increment": "B",
+     "entry": "save-your-piece",
+     "variant": "capture-attacker",
+     "minimum": 2,
+     "tier": 2
+    },
+    {
+     "increment": "B",
+     "entry": "save-your-piece",
+     "variant": "block",
+     "minimum": 2,
+     "tier": 2
+    }
+   ],
+   "mixedApplication": [
+    {
+     "increment": "B",
+     "mixedSkill": "threatResponse",
+     "minimum": 4
+    }
+   ]
+  },
+  {
+   "skill": "captureExchange",
+   "label": "Capture/exchange decisions",
+   "workItems": [
+    "WI-009"
+   ],
+   "guidedExample": [
+    {
+     "increment": "B",
+     "lesson": "piece-values"
+    },
+    {
+     "increment": "B",
+     "entry": "capture-wisely",
+     "variant": "free-piece",
+     "minimum": 1,
+     "tier": 1
+    }
+   ],
+   "focusedPractice": [
+    {
+     "increment": "B",
+     "entry": "capture-wisely",
+     "variant": "free-piece",
+     "minimum": 12,
+     "noAction": 0
+    },
+    {
+     "increment": "B",
+     "entry": "capture-wisely",
+     "variant": "poisoned-capture",
+     "minimum": 12,
+     "noAction": 3
+    },
+    {
+     "increment": "B",
+     "entry": "capture-wisely",
+     "variant": "compare-exchange",
+     "minimum": 12,
+     "noAction": 0
+    },
+    {
+     "increment": "B",
+     "entry": "capture-wisely",
+     "variant": "anticipate-recapture",
+     "minimum": 12,
+     "noAction": 3
+    }
+   ],
+   "noHintPractice": [
+    {
+     "increment": "B",
+     "entry": "capture-wisely",
+     "variant": "free-piece",
+     "minimum": 3,
+     "tier": 2
+    },
+    {
+     "increment": "B",
+     "entry": "capture-wisely",
+     "variant": "poisoned-capture",
+     "minimum": 3,
+     "tier": 2
+    },
+    {
+     "increment": "B",
+     "entry": "capture-wisely",
+     "variant": "compare-exchange",
+     "minimum": 3,
+     "tier": 2
+    },
+    {
+     "increment": "B",
+     "entry": "capture-wisely",
+     "variant": "anticipate-recapture",
+     "minimum": 3,
+     "tier": 2
+    }
+   ],
+   "mixedApplication": [
+    {
+     "increment": "B",
+     "mixedSkill": "captureExchange",
+     "minimum": 4
+    }
+   ]
+  },
+  {
+   "skill": "checkMateDraw",
+   "label": "Check/mate/draw distinctions",
+   "workItems": [
+    "WI-002",
+    "WI-005",
+    "WI-011"
+   ],
+   "guidedExample": [
+    {
+     "increment": "A",
+     "lesson": "check-and-checkmate"
+    },
+    {
+     "increment": "A",
+     "lesson": "draws"
+    }
+   ],
+   "focusedPractice": [
+    {
+     "increment": "A",
+     "entry": "mate-in-one",
+     "variant": "mate",
+     "minimum": 30,
+     "clusters": 10
+    },
+    {
+     "increment": "A",
+     "entry": "escape-check",
+     "variant": "evade",
+     "minimum": 30,
+     "clusters": 10
+    },
+    {
+     "increment": "A",
+     "entry": "check-mate-stalemate",
+     "variant": "classify",
+     "minimum": 30,
+     "clusters": 10
+    },
+    {
+     "increment": "B",
+     "entry": "simple-tactics",
+     "variant": "mate-threat-create",
+     "minimum": 8
+    },
+    {
+     "increment": "B",
+     "entry": "simple-tactics",
+     "variant": "mate-threat-prevent",
+     "minimum": 8
+    }
+   ],
+   "noHintPractice": [
+    {
+     "increment": "A",
+     "entry": "mate-in-one",
+     "variant": "mate",
+     "minimum": 10,
+     "tier": 2
+    },
+    {
+     "increment": "A",
+     "entry": "escape-check",
+     "variant": "evade",
+     "minimum": 10,
+     "tier": 2
+    }
+   ],
+   "mixedApplication": [
+    {
+     "increment": "B",
+     "mixedSkill": "checkMateDraw",
+     "minimum": 4
+    }
+   ]
+  },
+  {
+   "skill": "specialRules",
+   "label": "Special rules",
+   "workItems": [
+    "WI-010"
+   ],
+   "guidedExample": [
+    {
+     "increment": "B",
+     "lesson": "castling"
+    },
+    {
+     "increment": "B",
+     "lesson": "castling-rules"
+    },
+    {
+     "increment": "B",
+     "lesson": "promotion-en-passant"
+    }
+   ],
+   "focusedPractice": [
+    {
+     "increment": "B",
+     "entry": "special-moves",
+     "variant": "castle-legal",
+     "minimum": 12,
+     "noAction": 0
+    },
+    {
+     "increment": "B",
+     "entry": "special-moves",
+     "variant": "castle-unavailable",
+     "minimum": 12,
+     "noAction": 3
+    },
+    {
+     "increment": "B",
+     "entry": "special-moves",
+     "variant": "promotion",
+     "minimum": 12,
+     "noAction": 0
+    },
+    {
+     "increment": "B",
+     "entry": "special-moves",
+     "variant": "en-passant-available",
+     "minimum": 12,
+     "noAction": 0
+    },
+    {
+     "increment": "B",
+     "entry": "special-moves",
+     "variant": "en-passant-unavailable",
+     "minimum": 12,
+     "noAction": 3
+    },
+    {
+     "increment": "B",
+     "bridge": "pawn-duel"
+    },
+    {
+     "increment": "B",
+     "bridge": "rook-sweep"
+    },
+    {
+     "increment": "B",
+     "bridge": "knight-capture"
+    },
+    {
+     "increment": "B",
+     "bridge": "knight-corners"
+    }
+   ],
+   "noHintPractice": [
+    {
+     "increment": "B",
+     "entry": "special-moves",
+     "variant": "castle-legal",
+     "minimum": 3,
+     "tier": 2
+    },
+    {
+     "increment": "B",
+     "entry": "special-moves",
+     "variant": "castle-unavailable",
+     "minimum": 3,
+     "tier": 2
+    },
+    {
+     "increment": "B",
+     "entry": "special-moves",
+     "variant": "promotion",
+     "minimum": 3,
+     "tier": 2
+    },
+    {
+     "increment": "B",
+     "entry": "special-moves",
+     "variant": "en-passant-available",
+     "minimum": 3,
+     "tier": 2
+    },
+    {
+     "increment": "B",
+     "entry": "special-moves",
+     "variant": "en-passant-unavailable",
+     "minimum": 3,
+     "tier": 2
+    }
+   ],
+   "mixedApplication": [
+    {
+     "increment": "B",
+     "mixedSkill": "specialRules",
+     "minimum": 4
+    }
+   ]
+  },
+  {
+   "skill": "elementaryTactics",
+   "label": "Elementary tactics",
+   "workItems": [
+    "WI-011"
+   ],
+   "guidedExample": [
+    {
+     "increment": "B",
+     "lesson": "fork"
+    },
+    {
+     "increment": "B",
+     "lesson": "pin"
+    }
+   ],
+   "focusedPractice": [
+    {
+     "increment": "B",
+     "entry": "simple-tactics",
+     "variant": "fork-recognize",
+     "minimum": 12,
+     "noAction": 3
+    },
+    {
+     "increment": "B",
+     "entry": "simple-tactics",
+     "variant": "pin-recognize",
+     "minimum": 12,
+     "noAction": 3
+    },
+    {
+     "increment": "B",
+     "entry": "simple-tactics",
+     "variant": "fork-realize",
+     "minimum": 8
+    },
+    {
+     "increment": "B",
+     "entry": "simple-tactics",
+     "variant": "pin-realize",
+     "minimum": 8
+    }
+   ],
+   "noHintPractice": [
+    {
+     "increment": "B",
+     "entry": "simple-tactics",
+     "variant": "fork-recognize",
+     "minimum": 2,
+     "tier": 2
+    },
+    {
+     "increment": "B",
+     "entry": "simple-tactics",
+     "variant": "pin-recognize",
+     "minimum": 2,
+     "tier": 2
+    },
+    {
+     "increment": "B",
+     "entry": "simple-tactics",
+     "variant": "fork-realize",
+     "minimum": 2,
+     "tier": 2
+    },
+    {
+     "increment": "B",
+     "entry": "simple-tactics",
+     "variant": "pin-realize",
+     "minimum": 2,
+     "tier": 2
+    }
+   ],
+   "mixedApplication": [
+    {
+     "increment": "B",
+     "mixedSkill": "elementaryTactics",
+     "minimum": 4
+    }
+   ]
+  },
+  {
+   "skill": "convertingWin",
+   "label": "Converting a basic win",
+   "workItems": [
+    "WI-012"
+   ],
+   "guidedExample": [
+    {
+     "increment": "B",
+     "lesson": "queen-mate"
+    },
+    {
+     "increment": "B",
+     "lesson": "two-rook-mate"
+    }
+   ],
+   "focusedPractice": [
+    {
+     "increment": "B",
+     "entry": "finish-the-game",
+     "variant": "kqk",
+     "minimum": 6,
+     "learner": "w"
+    },
+    {
+     "increment": "B",
+     "entry": "finish-the-game",
+     "variant": "kqk",
+     "minimum": 6,
+     "learner": "b"
+    },
+    {
+     "increment": "B",
+     "entry": "finish-the-game",
+     "variant": "krk",
+     "minimum": 6,
+     "learner": "w"
+    },
+    {
+     "increment": "B",
+     "entry": "finish-the-game",
+     "variant": "krk",
+     "minimum": 6,
+     "learner": "b"
+    }
+   ],
+   "noHintPractice": [
+    {
+     "increment": "B",
+     "entry": "finish-the-game",
+     "variant": "kqk",
+     "minimum": 2,
+     "tier": 2
+    },
+    {
+     "increment": "B",
+     "entry": "finish-the-game",
+     "variant": "krk",
+     "minimum": 2,
+     "tier": 2
+    }
+   ],
+   "mixedApplication": [
+    {
+     "increment": "B",
+     "entry": "finish-the-game",
+     "variant": "kqk",
+     "minimum": 2,
+     "tier": 3
+    },
+    {
+     "increment": "B",
+     "entry": "finish-the-game",
+     "variant": "krk",
+     "minimum": 2,
+     "tier": 3
+    }
+   ]
+  },
+  {
+   "skill": "gameHabits",
+   "label": "Basic game habits",
+   "workItems": [
+    "WI-013"
+   ],
+   "guidedExample": [
+    {
+     "increment": "B",
+     "lesson": "opening"
+    },
+    {
+     "increment": "B",
+     "lesson": "castling"
+    }
+   ],
+   "focusedPractice": [
+    {
+     "increment": "B",
+     "workflow": "guided-game",
+     "minimum": 4
+    }
+   ],
+   "noHintPractice": [
+    {
+     "increment": "B",
+     "workflow": "guided-game",
+     "minimum": 4
+    }
+   ],
+   "mixedApplication": [
+    {
+     "increment": "B",
+     "workflow": "guided-game",
+     "minimum": 4
+    }
+   ]
+  },
+  {
+   "skill": "diagnosis",
+   "label": "Unprompted diagnosis",
+   "workItems": [
+    "WI-013"
+   ],
+   "guidedExample": [
+    {
+     "increment": "B",
+     "lesson": "puzzles-material"
+    }
+   ],
+   "focusedPractice": [
+    {
+     "increment": "B",
+     "entry": "mixed-practice",
+     "variant": "mixed",
+     "minimum": 48
+    }
+   ],
+   "noHintPractice": [
+    {
+     "increment": "B",
+     "entry": "mixed-practice",
+     "variant": "mixed",
+     "minimum": 48
+    }
+   ],
+   "mixedApplication": [
+    {
+     "increment": "B",
+     "entry": "mixed-practice",
+     "variant": "mixed",
+     "minimum": 48
+    },
+    {
+     "increment": "B",
+     "workflow": "guided-game",
+     "minimum": 4
+    }
+   ]
+  }
+ ]
+}

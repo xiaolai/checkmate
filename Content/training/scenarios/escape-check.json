@@ -1,0 +1,917 @@
+{
+ "entry": "escape-check",
+ "scenarios": [
+  {
+   "id": "esc-step-aside-w1",
+   "entry": "escape-check",
+   "variant": "evade",
+   "tier": 1,
+   "cluster": "step-aside",
+   "learner": "w",
+   "prompt": "White is in check. Play a legal move that gets out of check.",
+   "explanation": "The rook on e8 gives check. Every legal escape counts: king moves Kd1, Kd2, Kf1 and Kf2.",
+   "hints": [
+    "Step off the rook's file."
+   ],
+   "fen": "4r1k1/8/8/8/8/8/8/4K3 w - - 0 1",
+   "expected": {
+    "moves": [
+     "e1d1",
+     "e1d2",
+     "e1f1",
+     "e1f2"
+    ],
+    "wrong": [
+     "e1e2"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "esc-step-aside-b1",
+   "entry": "escape-check",
+   "variant": "evade",
+   "tier": 1,
+   "cluster": "step-aside",
+   "learner": "b",
+   "prompt": "Black is in check. Play a legal move that gets out of check.",
+   "explanation": "The rook on e1 gives check. Every legal escape counts: king moves Kd7, Kd8, Kf7 and Kf8.",
+   "hints": [
+    "Step off the rook's file."
+   ],
+   "fen": "4k3/8/8/8/8/8/8/4R1K1 b - - 0 1",
+   "expected": {
+    "moves": [
+     "e8d7",
+     "e8d8",
+     "e8f7",
+     "e8f8"
+    ],
+    "wrong": [
+     "e8e7"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "esc-block-only-w1",
+   "entry": "escape-check",
+   "variant": "evade",
+   "tier": 2,
+   "cluster": "block-only",
+   "learner": "w",
+   "prompt": "White is in check. Play a legal move that gets out of check.",
+   "explanation": "The rook on e8 gives check. Every legal escape counts: blocking with Be2 and Qe2.",
+   "hints": [
+    "The king cannot move. Can something come between?"
+   ],
+   "fen": "4r1k1/8/8/8/8/8/3P1P2/3QKB2 w - - 0 1",
+   "expected": {
+    "moves": [
+     "d1e2",
+     "f1e2"
+    ],
+    "wrong": [
+     "e1e2",
+     "d1a1"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "esc-block-only-b1",
+   "entry": "escape-check",
+   "variant": "evade",
+   "tier": 2,
+   "cluster": "block-only",
+   "learner": "b",
+   "prompt": "Black is in check. Play a legal move that gets out of check.",
+   "explanation": "The rook on e1 gives check. Every legal escape counts: blocking with Be7 and Qe7.",
+   "hints": [
+    "The king cannot move. Can something come between?"
+   ],
+   "fen": "3qkb2/3p1p2/8/8/8/8/8/4R1K1 b - - 0 1",
+   "expected": {
+    "moves": [
+     "d8e7",
+     "f8e7"
+    ],
+    "wrong": [
+     "e8e7",
+     "d7d6"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "esc-capture-queen-w1",
+   "entry": "escape-check",
+   "variant": "evade",
+   "tier": 1,
+   "cluster": "capture-queen",
+   "learner": "w",
+   "prompt": "White is in check. Play a legal move that gets out of check.",
+   "explanation": "The queen on d2 gives check. Every legal escape counts: king moves Kf1 and Kxd2.",
+   "hints": [
+    "Is the checking piece protected?"
+   ],
+   "fen": "4k3/8/8/8/8/8/3q4/4K3 w - - 0 1",
+   "expected": {
+    "moves": [
+     "e1d2",
+     "e1f1"
+    ],
+    "wrong": [
+     "e1d1"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "esc-capture-queen-b1",
+   "entry": "escape-check",
+   "variant": "evade",
+   "tier": 1,
+   "cluster": "capture-queen",
+   "learner": "b",
+   "prompt": "Black is in check. Play a legal move that gets out of check.",
+   "explanation": "The queen on d7 gives check. Every legal escape counts: king moves Kf8 and Kxd7.",
+   "hints": [
+    "Is the checking piece protected?"
+   ],
+   "fen": "4k3/3Q4/8/8/8/8/8/4K3 b - - 0 1",
+   "expected": {
+    "moves": [
+     "e8d7",
+     "e8f8"
+    ],
+    "wrong": [
+     "e8d8"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "esc-knight-check-w1",
+   "entry": "escape-check",
+   "variant": "evade",
+   "tier": 2,
+   "cluster": "knight-check",
+   "learner": "w",
+   "prompt": "White is in check. Play a legal move that gets out of check.",
+   "explanation": "The knight on f3 gives check. Every legal escape counts: king moves Kd1, Ke2, Kf1 and Kf2.",
+   "hints": [
+    "A knight's check cannot be blocked."
+   ],
+   "fen": "4k3/8/8/8/8/5n2/8/R3K3 w - - 0 1",
+   "expected": {
+    "moves": [
+     "e1d1",
+     "e1e2",
+     "e1f1",
+     "e1f2"
+    ],
+    "wrong": [
+     "e1d2",
+     "a1a2"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "esc-knight-check-b1",
+   "entry": "escape-check",
+   "variant": "evade",
+   "tier": 2,
+   "cluster": "knight-check",
+   "learner": "b",
+   "prompt": "Black is in check. Play a legal move that gets out of check.",
+   "explanation": "The knight on f6 gives check. Every legal escape counts: king moves Kd8, Ke7, Kf7 and Kf8.",
+   "hints": [
+    "A knight's check cannot be blocked."
+   ],
+   "fen": "r3k3/8/5N2/8/8/8/8/4K3 b - - 0 1",
+   "expected": {
+    "moves": [
+     "e8d8",
+     "e8e7",
+     "e8f7",
+     "e8f8"
+    ],
+    "wrong": [
+     "e8d7",
+     "a8a1"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "esc-bishop-block-w1",
+   "entry": "escape-check",
+   "variant": "evade",
+   "tier": 2,
+   "cluster": "bishop-block",
+   "learner": "w",
+   "prompt": "White is in check. Play a legal move that gets out of check.",
+   "explanation": "The bishop on b4 gives check. Every legal escape counts: king moves Kd1, Ke2 and Kf2; blocking with Nd2.",
+   "hints": [
+    "Move away, or put a piece on the diagonal."
+   ],
+   "fen": "4k3/8/8/8/1b6/8/8/R3KN2 w - - 0 1",
+   "expected": {
+    "moves": [
+     "e1d1",
+     "e1e2",
+     "e1f2",
+     "f1d2"
+    ],
+    "wrong": [
+     "e1d2",
+     "a1a2"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "esc-bishop-block-b1",
+   "entry": "escape-check",
+   "variant": "evade",
+   "tier": 2,
+   "cluster": "bishop-block",
+   "learner": "b",
+   "prompt": "Black is in check. Play a legal move that gets out of check.",
+   "explanation": "The bishop on b5 gives check. Every legal escape counts: king moves Kd8, Ke7 and Kf7; blocking with Nd7.",
+   "hints": [
+    "Move away, or put a piece on the diagonal."
+   ],
+   "fen": "r3kn2/8/8/1B6/8/8/8/4K3 b - - 0 1",
+   "expected": {
+    "moves": [
+     "e8d8",
+     "e8e7",
+     "e8f7",
+     "f8d7"
+    ],
+    "wrong": [
+     "e8d7",
+     "a8a1"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "esc-double-check-w1",
+   "entry": "escape-check",
+   "variant": "evade",
+   "tier": 3,
+   "cluster": "double-check",
+   "learner": "w",
+   "prompt": "White is in check. Play a legal move that gets out of check.",
+   "explanation": "The bishop on b4 and the rook on h1 give check. Every legal escape counts: king moves Ke2 and Kf2.",
+   "hints": [
+    "Two pieces give check at once. Only one kind of move answers both."
+   ],
+   "fen": "4k3/8/8/8/1b6/8/8/R3K2r w - - 0 1",
+   "expected": {
+    "moves": [
+     "e1e2",
+     "e1f2"
+    ],
+    "wrong": [
+     "e1d1",
+     "a1a2"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "esc-double-check-b1",
+   "entry": "escape-check",
+   "variant": "evade",
+   "tier": 3,
+   "cluster": "double-check",
+   "learner": "b",
+   "prompt": "Black is in check. Play a legal move that gets out of check.",
+   "explanation": "The bishop on b5 and the rook on h8 give check. Every legal escape counts: king moves Ke7 and Kf7.",
+   "hints": [
+    "Two pieces give check at once. Only one kind of move answers both."
+   ],
+   "fen": "r3k2R/8/8/1B6/8/8/8/4K3 b - - 0 1",
+   "expected": {
+    "moves": [
+     "e8e7",
+     "e8f7"
+    ],
+    "wrong": [
+     "e8d7",
+     "a8a1"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "esc-pawn-check-w1",
+   "entry": "escape-check",
+   "variant": "evade",
+   "tier": 1,
+   "cluster": "pawn-check",
+   "learner": "w",
+   "prompt": "White is in check. Play a legal move that gets out of check.",
+   "explanation": "The pawn on d2 gives check. Every legal escape counts: king moves Kd1, Ke2, Kf1, Kf2 and Kxd2; capturing the checker with Nxd2.",
+   "hints": [
+    "A pawn checks diagonally. Can you capture it?"
+   ],
+   "fen": "4k3/8/8/8/8/8/3p4/1N2K3 w - - 0 1",
+   "expected": {
+    "moves": [
+     "b1d2",
+     "e1d1",
+     "e1d2",
+     "e1e2",
+     "e1f1",
+     "e1f2"
+    ],
+    "wrong": [
+     "b1a3"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "esc-pawn-check-b1",
+   "entry": "escape-check",
+   "variant": "evade",
+   "tier": 1,
+   "cluster": "pawn-check",
+   "learner": "b",
+   "prompt": "Black is in check. Play a legal move that gets out of check.",
+   "explanation": "The pawn on d7 gives check. Every legal escape counts: king moves Kd8, Ke7, Kf7, Kf8 and Kxd7; capturing the checker with Nxd7.",
+   "hints": [
+    "A pawn checks diagonally. Can you capture it?"
+   ],
+   "fen": "1n2k3/3P4/8/8/8/8/8/4K3 b - - 0 1",
+   "expected": {
+    "moves": [
+     "b8d7",
+     "e8d7",
+     "e8d8",
+     "e8e7",
+     "e8f7",
+     "e8f8"
+    ],
+    "wrong": [
+     "b8a6"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "esc-pawn-block-w1",
+   "entry": "escape-check",
+   "variant": "evade",
+   "tier": 2,
+   "cluster": "pawn-block",
+   "learner": "w",
+   "prompt": "White is in check. Play a legal move that gets out of check.",
+   "explanation": "The queen on h4 gives check. Every legal escape counts: king moves Kd1, Kd2, Ke2 and Kf1; blocking with g3.",
+   "hints": [
+    "Which squares lie between the queen and your king?"
+   ],
+   "fen": "4k3/8/8/8/7q/8/6P1/4K1N1 w - - 0 1",
+   "expected": {
+    "moves": [
+     "e1d1",
+     "e1d2",
+     "e1e2",
+     "e1f1",
+     "g2g3"
+    ],
+    "wrong": [
+     "e1f2",
+     "g1e2"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "esc-pawn-block-b1",
+   "entry": "escape-check",
+   "variant": "evade",
+   "tier": 2,
+   "cluster": "pawn-block",
+   "learner": "b",
+   "prompt": "Black is in check. Play a legal move that gets out of check.",
+   "explanation": "The queen on h5 gives check. Every legal escape counts: king moves Kd7, Kd8, Ke7 and Kf8; blocking with g6.",
+   "hints": [
+    "Which squares lie between the queen and your king?"
+   ],
+   "fen": "4k1n1/6p1/8/7Q/8/8/8/4K3 b - - 0 1",
+   "expected": {
+    "moves": [
+     "e8d7",
+     "e8d8",
+     "e8e7",
+     "e8f8",
+     "g7g6"
+    ],
+    "wrong": [
+     "e8f7",
+     "g8e7"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "esc-pinned-defender-w1",
+   "entry": "escape-check",
+   "variant": "evade",
+   "tier": 3,
+   "cluster": "pinned-defender",
+   "learner": "w",
+   "prompt": "White is in check. Play a legal move that gets out of check.",
+   "explanation": "The knight on c2 gives check. Every legal escape counts: king moves Kd1, Kd2, Kf1 and Kf2.",
+   "hints": [
+    "Your queen is pinned: if it leaves the file, your king is exposed."
+   ],
+   "fen": "4r1k1/8/8/8/8/8/2n1Q3/4K3 w - - 0 1",
+   "expected": {
+    "moves": [
+     "e1d1",
+     "e1d2",
+     "e1f1",
+     "e1f2"
+    ],
+    "wrong": [
+     "e2c2"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "esc-pinned-defender-b1",
+   "entry": "escape-check",
+   "variant": "evade",
+   "tier": 3,
+   "cluster": "pinned-defender",
+   "learner": "b",
+   "prompt": "Black is in check. Play a legal move that gets out of check.",
+   "explanation": "The knight on c7 gives check. Every legal escape counts: king moves Kd7, Kd8, Kf7 and Kf8.",
+   "hints": [
+    "Your queen is pinned: if it leaves the file, your king is exposed."
+   ],
+   "fen": "4k3/2N1q3/8/8/8/8/8/4R1K1 b - - 0 1",
+   "expected": {
+    "moves": [
+     "e8d7",
+     "e8d8",
+     "e8f7",
+     "e8f8"
+    ],
+    "wrong": [
+     "e7c7"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "esc-protected-checker-w1",
+   "entry": "escape-check",
+   "variant": "evade",
+   "tier": 3,
+   "cluster": "protected-checker",
+   "learner": "w",
+   "prompt": "White is in check. Play a legal move that gets out of check.",
+   "explanation": "The queen on e2 gives check. Every legal escape counts: capturing the checker with Rxe2+.",
+   "hints": [
+    "The king cannot capture a protected piece. Another piece can."
+   ],
+   "fen": "4k3/8/8/8/8/5b2/R3q3/4K3 w - - 0 1",
+   "expected": {
+    "moves": [
+     "a2e2"
+    ],
+    "wrong": [
+     "e1e2",
+     "a2a1"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "esc-protected-checker-b1",
+   "entry": "escape-check",
+   "variant": "evade",
+   "tier": 3,
+   "cluster": "protected-checker",
+   "learner": "b",
+   "prompt": "Black is in check. Play a legal move that gets out of check.",
+   "explanation": "The queen on e7 gives check. Every legal escape counts: capturing the checker with Rxe7+.",
+   "hints": [
+    "The king cannot capture a protected piece. Another piece can."
+   ],
+   "fen": "4k3/r3Q3/5B2/8/8/8/8/4K3 b - - 0 1",
+   "expected": {
+    "moves": [
+     "a7e7"
+    ],
+    "wrong": [
+     "e8e7",
+     "a7a1"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "esc-bishop-interpose-w1",
+   "entry": "escape-check",
+   "variant": "evade",
+   "tier": 2,
+   "cluster": "bishop-interpose",
+   "learner": "w",
+   "prompt": "White is in check. Play a legal move that gets out of check.",
+   "explanation": "The rook on a1 gives check. Every legal escape counts: king moves Kd2, Ke2 and Kf2; blocking with Bd1.",
+   "hints": [
+    "Step off the rank, or block it."
+   ],
+   "fen": "4k3/8/8/8/8/5B2/8/r3K3 w - - 0 1",
+   "expected": {
+    "moves": [
+     "e1d2",
+     "e1e2",
+     "e1f2",
+     "f3d1"
+    ],
+    "wrong": [
+     "e1d1",
+     "f3a8"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "reserve": true
+  },
+  {
+   "id": "esc-file-check-b1",
+   "entry": "escape-check",
+   "variant": "evade",
+   "tier": 1,
+   "cluster": "file-check",
+   "learner": "b",
+   "prompt": "Black is in check. Play a legal move that gets out of check.",
+   "explanation": "The queen on d1 gives check. Every legal escape counts: king moves Kc7, Kc8, Ke7 and Ke8.",
+   "hints": [
+    "Get off the queen's file."
+   ],
+   "fen": "3k4/8/8/8/8/8/8/3Q2K1 b - - 0 1",
+   "expected": {
+    "moves": [
+     "d8c7",
+     "d8c8",
+     "d8e7",
+     "d8e8"
+    ],
+    "wrong": [
+     "d8d7"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "reserve": true
+  },
+  {
+   "id": "esc-edge-escape-w1",
+   "entry": "escape-check",
+   "variant": "evade",
+   "tier": 2,
+   "cluster": "edge-escape",
+   "learner": "w",
+   "prompt": "White is in check. Play a legal move that gets out of check.",
+   "explanation": "The rook on a1 gives check. Every legal escape counts: king moves Kh2.",
+   "hints": [
+    "Only one square is left for the king."
+   ],
+   "fen": "6k1/8/8/8/8/8/6P1/r6K w - - 0 1",
+   "expected": {
+    "moves": [
+     "h1h2"
+    ],
+    "wrong": [
+     "h1g1",
+     "g2g3"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "reserve": true
+  },
+  {
+   "id": "esc-rook-captures-b1",
+   "entry": "escape-check",
+   "variant": "evade",
+   "tier": 3,
+   "cluster": "rook-captures",
+   "learner": "b",
+   "prompt": "Black is in check. Play a legal move that gets out of check.",
+   "explanation": "The knight on d6 gives check. Every legal escape counts: king moves Kd7, Ke7 and Kf8; capturing the checker with Rxd6.",
+   "hints": [
+    "A knight's check: move, or capture the knight."
+   ],
+   "fen": "3rk3/8/3N4/8/8/8/8/4K3 b - - 0 1",
+   "expected": {
+    "moves": [
+     "d8d6",
+     "e8d7",
+     "e8e7",
+     "e8f8"
+    ],
+    "wrong": [
+     "e8f7",
+     "d8a8"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "reserve": true
+  },
+  {
+   "id": "esc-knight-interpose-w1",
+   "entry": "escape-check",
+   "variant": "evade",
+   "tier": 3,
+   "cluster": "knight-interpose",
+   "learner": "w",
+   "prompt": "White is in check. Play a legal move that gets out of check.",
+   "explanation": "The bishop on a5 gives check. Every legal escape counts: king moves Kd1, Ke2, Kf1 and Kf2; blocking with Nc3 and Nd2.",
+   "hints": [
+    "A knight can jump onto the diagonal."
+   ],
+   "fen": "4k3/8/8/b7/8/8/8/1N2K3 w - - 0 1",
+   "expected": {
+    "moves": [
+     "b1c3",
+     "b1d2",
+     "e1d1",
+     "e1e2",
+     "e1f1",
+     "e1f2"
+    ],
+    "wrong": [
+     "e1d2",
+     "b1a3"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "reserve": true
+  },
+  {
+   "id": "esc-king-takes-rook-b1",
+   "entry": "escape-check",
+   "variant": "evade",
+   "tier": 1,
+   "cluster": "king-takes-rook",
+   "learner": "b",
+   "prompt": "Black is in check. Play a legal move that gets out of check.",
+   "explanation": "The rook on d8 gives check. Every legal escape counts: king moves Ke7, Kf7 and Kxd8.",
+   "hints": [
+    "The checking rook stands next to your king."
+   ],
+   "fen": "3Rk3/8/8/8/8/8/8/4K3 b - - 0 1",
+   "expected": {
+    "moves": [
+     "e8d8",
+     "e8e7",
+     "e8f7"
+    ],
+    "wrong": [
+     "e8d7"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "reserve": true
+  },
+  {
+   "id": "esc-queen-defends-w1",
+   "entry": "escape-check",
+   "variant": "evade",
+   "tier": 2,
+   "cluster": "queen-defends",
+   "learner": "w",
+   "prompt": "White is in check. Play a legal move that gets out of check.",
+   "explanation": "The queen on a1 gives check. Every legal escape counts: king moves Kd2, Ke2 and Kf2; capturing the checker with Qxa1; blocking with Qb1 and Qc1.",
+   "hints": [
+    "Your queen can capture or block; your king can step off the rank."
+   ],
+   "fen": "4k3/8/8/8/8/8/1Q6/q3K3 w - - 0 1",
+   "expected": {
+    "moves": [
+     "b2a1",
+     "b2b1",
+     "b2c1",
+     "e1d2",
+     "e1e2",
+     "e1f2"
+    ],
+    "wrong": [
+     "e1d1",
+     "b2a2"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "reserve": true
+  },
+  {
+   "id": "esc-back-rank-block-b1",
+   "entry": "escape-check",
+   "variant": "evade",
+   "tier": 3,
+   "cluster": "back-rank-block",
+   "learner": "b",
+   "prompt": "Black is in check. Play a legal move that gets out of check.",
+   "explanation": "The rook on d8 gives check. Every legal escape counts: blocking with Bf8.",
+   "hints": [
+    "The king has no square. Which piece can reach the rank in time?"
+   ],
+   "fen": "3R2k1/5ppp/8/2b5/8/8/8/7K b - - 0 1",
+   "expected": {
+    "moves": [
+     "c5f8"
+    ],
+    "wrong": [
+     "g8f8",
+     "c5a3"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "reserve": true
+  },
+  {
+   "id": "esc-protected-bishop-w1",
+   "entry": "escape-check",
+   "variant": "evade",
+   "tier": 2,
+   "cluster": "protected-bishop",
+   "learner": "w",
+   "prompt": "White is in check. Play a legal move that gets out of check.",
+   "explanation": "The bishop on d2 gives check. Every legal escape counts: king moves Kd1, Ke2, Kf1 and Kf2.",
+   "hints": [
+    "Is the checking bishop protected?"
+   ],
+   "fen": "4k3/8/8/8/8/2p5/3b4/4K3 w - - 0 1",
+   "expected": {
+    "moves": [
+     "e1d1",
+     "e1e2",
+     "e1f1",
+     "e1f2"
+    ],
+    "wrong": [
+     "e1d2"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "reserve": true
+  },
+  {
+   "id": "esc-pawn-captures-b1",
+   "entry": "escape-check",
+   "variant": "evade",
+   "tier": 1,
+   "cluster": "pawn-captures",
+   "learner": "b",
+   "prompt": "Black is in check. Play a legal move that gets out of check.",
+   "explanation": "The knight on g6 gives check. Every legal escape counts: king moves Kg7 and Kg8; capturing the checker with hxg6.",
+   "hints": [
+    "Capture the checker, or move the king."
+   ],
+   "fen": "7k/7p/6N1/8/8/8/8/4K3 b - - 0 1",
+   "expected": {
+    "moves": [
+     "h7g6",
+     "h8g7",
+     "h8g8"
+    ],
+    "wrong": [
+     "h7h6"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "reserve": true
+  }
+ ]
+}

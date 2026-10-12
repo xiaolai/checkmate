@@ -118,6 +118,16 @@ the old path. Developers can supply an isolated
 The executable must run from inside an app bundle: it reports that bundle's
 `CFBundleShortVersionString` to MCP clients and refuses to start without one.
 
+## Training
+
+Training is off unless `CHECKMATE_TRAINING_ENABLED=1` is set; with it off the sidebar shows no Training row and every training navigation and tool is refused. The library lists Increment A: eight existing mini-games (their one saved board, original rules, learner White) and seven new exercises. Training records live in the optional `training` object of `state-v1.json`; an unreadable or newer object is kept verbatim and training writes stay off until the learner resets it.
+
+Authored positions live in `Content/training/`. Publish them with `python3 Tools/prepare-training-content.py`; the unit gate runs `--check`, which fails when the published resources differ from the sources. The packager checks structure, duplicates, symmetric twins sharing a cluster and the skill coverage matrix; the Swift `TrainingValidationService` re-derives every answer with the bundled chess.js. `Tools/training-oracle.cjs` is an authoring aid only. Every scenario records `reviewer: null` until an editor reviews it.
+
+Increment B (the beginner skills, Guided Games and Mixed Practice) also needs `CHECKMATE_TRAINING_B=1`. Its scenarios carry a teaching graph produced by the bundled training search. The Swift tests re-derive it: `TrainingCatalogTests` checks every published scenario, and `TrainingTreeBudgetTests` re-runs the bounded search over the whole corpus within its node budget. Changing `training-search.js` changes its hash in the manifest, so republish and rerun both. Playable games use the bundled offline Stockfish; their tests use the scripted `ScriptedDefender` from `CheckmateTestSupport` instead.
+
+Gates: `unit` (content, validators, sessions, persistence, tools), `training-pointer` (real pointer events for the library, square selection, drag and click moves, hints, suggestions, Pawn Duel from the library, quit and Continue), `training-b-pointer` (Increment B with real pointer events: subskill chips, the promotion chooser, a bridge, an ending and a guided game answered by Stockfish, a mixed case and a related lesson), and the existing `pointer`, `layout`, `lifecycle` and `integration` gates. Learner usability and learning effect are not verified by any gate: see `docs/training-observation.md`.
+
 ## Compatibility checks
 
 `Version.env` owns the macOS runtime floor. Builds contain arm64 and x86_64 slices

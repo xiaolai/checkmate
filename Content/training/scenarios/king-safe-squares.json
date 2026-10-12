@@ -1,0 +1,780 @@
+{
+ "entry": "king-safe-squares",
+ "scenarios": [
+  {
+   "id": "kss-rank-cut-w1",
+   "entry": "king-safe-squares",
+   "variant": "king-moves",
+   "tier": 1,
+   "cluster": "rank-cut",
+   "learner": "w",
+   "prompt": "White to move. Select every square White's king can legally move to, or choose None.",
+   "explanation": "White's king can go to d1 and f1. Not safe: d2 (covered by the rook on a2); e2 (covered by the rook on a2); f2 (covered by the rook on a2).",
+   "hints": [
+    "A rook covers a whole rank. Which rank is it guarding?"
+   ],
+   "fen": "4k3/8/8/8/8/8/r7/4K3 w - - 0 1",
+   "expected": {
+    "squares": [
+     "d1",
+     "f1"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "kss-rank-cut-b1",
+   "entry": "king-safe-squares",
+   "variant": "king-moves",
+   "tier": 1,
+   "cluster": "rank-cut",
+   "learner": "b",
+   "prompt": "Black to move. Select every square Black's king can legally move to, or choose None.",
+   "explanation": "Black's king can go to d8 and f8. Not safe: d7 (covered by the rook on a7); e7 (covered by the rook on a7); f7 (covered by the rook on a7).",
+   "hints": [
+    "A rook covers a whole rank. Which rank is it guarding?"
+   ],
+   "fen": "4k3/R7/8/8/8/8/8/4K3 b - - 0 1",
+   "expected": {
+    "squares": [
+     "d8",
+     "f8"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "kss-file-cut-w1",
+   "entry": "king-safe-squares",
+   "variant": "king-moves",
+   "tier": 1,
+   "cluster": "file-cut",
+   "learner": "w",
+   "prompt": "White to move. Select every square White's king can legally move to, or choose None.",
+   "explanation": "White's king can go to e2, f1 and f2. Not safe: d1 (covered by the rook on d8); d2 (covered by the rook on d8).",
+   "hints": [
+    "A rook covers a whole file, all the way to the edge."
+   ],
+   "fen": "3rk3/8/8/8/8/8/8/4K3 w - - 0 1",
+   "expected": {
+    "squares": [
+     "e2",
+     "f1",
+     "f2"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "kss-file-cut-b1",
+   "entry": "king-safe-squares",
+   "variant": "king-moves",
+   "tier": 1,
+   "cluster": "file-cut",
+   "learner": "b",
+   "prompt": "Black to move. Select every square Black's king can legally move to, or choose None.",
+   "explanation": "Black's king can go to e7, f7 and f8. Not safe: d7 (covered by the rook on d1); d8 (covered by the rook on d1).",
+   "hints": [
+    "A rook covers a whole file, all the way to the edge."
+   ],
+   "fen": "4k3/8/8/8/8/8/8/3RK3 b - - 0 1",
+   "expected": {
+    "squares": [
+     "e7",
+     "f7",
+     "f8"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "kss-knight-capture-w1",
+   "entry": "king-safe-squares",
+   "variant": "king-moves",
+   "tier": 1,
+   "cluster": "knight-capture",
+   "learner": "w",
+   "prompt": "White to move. Select every square White's king can legally move to, or choose None.",
+   "explanation": "White's king can go to d1, d2, e2 and f2. Not safe: f1 (covered by the knight on d2).",
+   "hints": [
+    "A king may capture a piece next to it if nothing protects that piece."
+   ],
+   "fen": "4k3/8/8/8/8/8/3n4/4K3 w - - 0 1",
+   "expected": {
+    "squares": [
+     "d1",
+     "d2",
+     "e2",
+     "f2"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "kss-knight-capture-b1",
+   "entry": "king-safe-squares",
+   "variant": "king-moves",
+   "tier": 1,
+   "cluster": "knight-capture",
+   "learner": "b",
+   "prompt": "Black to move. Select every square Black's king can legally move to, or choose None.",
+   "explanation": "Black's king can go to d7, d8, e7 and f7. Not safe: f8 (covered by the knight on d7).",
+   "hints": [
+    "A king may capture a piece next to it if nothing protects that piece."
+   ],
+   "fen": "4k3/3N4/8/8/8/8/8/4K3 b - - 0 1",
+   "expected": {
+    "squares": [
+     "d7",
+     "d8",
+     "e7",
+     "f7"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "kss-opposition-w1",
+   "entry": "king-safe-squares",
+   "variant": "king-moves",
+   "tier": 2,
+   "cluster": "opposition",
+   "learner": "w",
+   "prompt": "White to move. Select every square White's king can legally move to, or choose None.",
+   "explanation": "White's king can go to d1 and f1. Not safe: d2 (next to the other king); e2 (next to the other king); f2 (next to the other king).",
+   "hints": [
+    "Kings can never stand next to each other."
+   ],
+   "fen": "8/8/8/8/8/4k3/8/4K3 w - - 0 1",
+   "expected": {
+    "squares": [
+     "d1",
+     "f1"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "kss-opposition-b1",
+   "entry": "king-safe-squares",
+   "variant": "king-moves",
+   "tier": 2,
+   "cluster": "opposition",
+   "learner": "b",
+   "prompt": "Black to move. Select every square Black's king can legally move to, or choose None.",
+   "explanation": "Black's king can go to d8 and f8. Not safe: d7 (next to the other king); e7 (next to the other king); f7 (next to the other king).",
+   "hints": [
+    "Kings can never stand next to each other."
+   ],
+   "fen": "4k3/8/4K3/8/8/8/8/8 b - - 0 1",
+   "expected": {
+    "squares": [
+     "d8",
+     "f8"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "kss-queen-diagonal-w1",
+   "entry": "king-safe-squares",
+   "variant": "king-moves",
+   "tier": 2,
+   "cluster": "queen-diagonal",
+   "learner": "w",
+   "prompt": "White to move. Select every square White's king can legally move to, or choose None.",
+   "explanation": "White's king can go to d2, f1 and f2. Not safe: d1 (covered by the queen on h5); e2 (covered by the queen on h5).",
+   "hints": [
+    "Follow the queen's diagonals all the way to your king."
+   ],
+   "fen": "4k3/8/8/7q/8/8/8/4K3 w - - 0 1",
+   "expected": {
+    "squares": [
+     "d2",
+     "f1",
+     "f2"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "kss-queen-diagonal-b1",
+   "entry": "king-safe-squares",
+   "variant": "king-moves",
+   "tier": 2,
+   "cluster": "queen-diagonal",
+   "learner": "b",
+   "prompt": "Black to move. Select every square Black's king can legally move to, or choose None.",
+   "explanation": "Black's king can go to d7, f7 and f8. Not safe: d8 (covered by the queen on h4); e7 (covered by the queen on h4).",
+   "hints": [
+    "Follow the queen's diagonals all the way to your king."
+   ],
+   "fen": "4k3/8/8/8/7Q/8/8/4K3 b - - 0 1",
+   "expected": {
+    "squares": [
+     "d7",
+     "f7",
+     "f8"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "kss-pawn-wall-w1",
+   "entry": "king-safe-squares",
+   "variant": "king-moves",
+   "tier": 2,
+   "cluster": "pawn-wall",
+   "learner": "w",
+   "prompt": "White to move. Select every square White's king can legally move to, or choose None.",
+   "explanation": "White's king can go to d2, d3, e2, f2 and f3. Not safe: d4 (covered by the pawn on e5); e4 (covered by the pawn on d5 and the pawn on f5); f4 (covered by the pawn on e5).",
+   "hints": [
+    "Pawns attack diagonally forward, one square."
+   ],
+   "fen": "4k3/8/8/3ppp2/8/4K3/8/8 w - - 0 1",
+   "expected": {
+    "squares": [
+     "d2",
+     "d3",
+     "e2",
+     "f2",
+     "f3"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "kss-pawn-wall-b1",
+   "entry": "king-safe-squares",
+   "variant": "king-moves",
+   "tier": 2,
+   "cluster": "pawn-wall",
+   "learner": "b",
+   "prompt": "Black to move. Select every square Black's king can legally move to, or choose None.",
+   "explanation": "Black's king can go to d6, d7, e7, f6 and f7. Not safe: d5 (covered by the pawn on e4); e5 (covered by the pawn on d4 and the pawn on f4); f5 (covered by the pawn on e4).",
+   "hints": [
+    "Pawns attack diagonally forward, one square."
+   ],
+   "fen": "8/8/4k3/8/3PPP2/8/8/4K3 b - - 0 1",
+   "expected": {
+    "squares": [
+     "d6",
+     "d7",
+     "e7",
+     "f6",
+     "f7"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "kss-protected-rook-w1",
+   "entry": "king-safe-squares",
+   "variant": "king-moves",
+   "tier": 2,
+   "cluster": "protected-rook",
+   "learner": "w",
+   "prompt": "White to move. Select every square White's king can legally move to, or choose None.",
+   "explanation": "White's king can go to f1. Not safe: d1 (covered by the rook on d2); d2 (protected by the rook on d3); e2 (covered by the rook on d2); f2 (covered by the rook on d2).",
+   "hints": [
+    "Before capturing, check whether the piece is protected."
+   ],
+   "fen": "4k3/8/8/8/8/3r4/3r4/4K3 w - - 0 1",
+   "expected": {
+    "squares": [
+     "f1"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "kss-protected-rook-b1",
+   "entry": "king-safe-squares",
+   "variant": "king-moves",
+   "tier": 2,
+   "cluster": "protected-rook",
+   "learner": "b",
+   "prompt": "Black to move. Select every square Black's king can legally move to, or choose None.",
+   "explanation": "Black's king can go to f8. Not safe: d7 (protected by the rook on d6); d8 (covered by the rook on d7); e7 (covered by the rook on d7); f7 (covered by the rook on d7).",
+   "hints": [
+    "Before capturing, check whether the piece is protected."
+   ],
+   "fen": "4k3/3R4/3R4/8/8/8/8/4K3 b - - 0 1",
+   "expected": {
+    "squares": [
+     "f8"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "kss-line-of-check-w1",
+   "entry": "king-safe-squares",
+   "variant": "king-moves",
+   "tier": 3,
+   "cluster": "line-of-check",
+   "learner": "w",
+   "prompt": "White to move. Select every square White's king can legally move to, or choose None.",
+   "explanation": "White's king can go to d2, e2 and f2. Not safe: d1 (covered by the rook on a1); f1 (covered by the rook on a1).",
+   "hints": [
+    "Stepping away along the line of the check does not escape it."
+   ],
+   "fen": "4k3/8/8/8/8/8/8/r3K3 w - - 0 1",
+   "expected": {
+    "squares": [
+     "d2",
+     "e2",
+     "f2"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "kss-line-of-check-b1",
+   "entry": "king-safe-squares",
+   "variant": "king-moves",
+   "tier": 3,
+   "cluster": "line-of-check",
+   "learner": "b",
+   "prompt": "Black to move. Select every square Black's king can legally move to, or choose None.",
+   "explanation": "Black's king can go to d7, e7 and f7. Not safe: d8 (covered by the rook on a8); f8 (covered by the rook on a8).",
+   "hints": [
+    "Stepping away along the line of the check does not escape it."
+   ],
+   "fen": "R3k3/8/8/8/8/8/8/4K3 b - - 0 1",
+   "expected": {
+    "squares": [
+     "d7",
+     "e7",
+     "f7"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "kss-corner-rank-w1",
+   "entry": "king-safe-squares",
+   "variant": "king-moves",
+   "tier": 1,
+   "cluster": "corner-rank",
+   "learner": "w",
+   "prompt": "White to move. Select every square White's king can legally move to, or choose None.",
+   "explanation": "White's king can go to b1. Not safe: a2 (covered by the rook on h2); b2 (covered by the rook on h2).",
+   "hints": [
+    "Which squares next to your king does the rook's rank reach?"
+   ],
+   "fen": "4k3/8/8/8/8/8/7r/K7 w - - 0 1",
+   "expected": {
+    "squares": [
+     "b1"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "kss-corner-rank-b1",
+   "entry": "king-safe-squares",
+   "variant": "king-moves",
+   "tier": 1,
+   "cluster": "corner-rank",
+   "learner": "b",
+   "prompt": "Black to move. Select every square Black's king can legally move to, or choose None.",
+   "explanation": "Black's king can go to b8. Not safe: a7 (covered by the rook on h7); b7 (covered by the rook on h7).",
+   "hints": [
+    "Which squares next to your king does the rook's rank reach?"
+   ],
+   "fen": "k7/7R/8/8/8/8/8/4K3 b - - 0 1",
+   "expected": {
+    "squares": [
+     "b8"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "kss-queen-far-w1",
+   "entry": "king-safe-squares",
+   "variant": "king-moves",
+   "tier": 1,
+   "cluster": "queen-far",
+   "learner": "w",
+   "prompt": "White to move. Select every square White's king can legally move to, or choose None.",
+   "explanation": "White's king can go to d1, d2, e2 and f1. Not safe: f2 (covered by the queen on a7).",
+   "hints": [
+    "A queen far away can still cover a square next to your king."
+   ],
+   "fen": "4k3/q7/8/8/8/8/8/4K3 w - - 0 1",
+   "expected": {
+    "squares": [
+     "d1",
+     "d2",
+     "e2",
+     "f1"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "kss-queen-far-b1",
+   "entry": "king-safe-squares",
+   "variant": "king-moves",
+   "tier": 1,
+   "cluster": "queen-far",
+   "learner": "b",
+   "prompt": "Black to move. Select every square Black's king can legally move to, or choose None.",
+   "explanation": "Black's king can go to d7, d8, e7 and f8. Not safe: f7 (covered by the queen on a2).",
+   "hints": [
+    "A queen far away can still cover a square next to your king."
+   ],
+   "fen": "4k3/8/8/8/8/8/Q7/4K3 b - - 0 1",
+   "expected": {
+    "squares": [
+     "d7",
+     "d8",
+     "e7",
+     "f8"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   }
+  },
+  {
+   "id": "kss-mixed-pieces-w1",
+   "entry": "king-safe-squares",
+   "variant": "king-moves",
+   "tier": 2,
+   "cluster": "mixed-pieces",
+   "learner": "w",
+   "prompt": "White to move. Select every square White's king can legally move to, or choose None.",
+   "explanation": "White's king can go to d3, f3 and f4. Not safe: d4 (covered by the bishop on f2); d5 (covered by the rook on c5); e3 (covered by the bishop on f2); e5 (covered by the rook on c5); f5 (covered by the rook on c5).",
+   "hints": [
+    "Check each of the eight squares: which enemy piece reaches it?"
+   ],
+   "fen": "4k3/8/8/2r5/4K3/8/5b2/8 w - - 0 1",
+   "expected": {
+    "squares": [
+     "d3",
+     "f3",
+     "f4"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "reserve": true
+  },
+  {
+   "id": "kss-no-king-move-b1",
+   "entry": "king-safe-squares",
+   "variant": "king-moves",
+   "tier": 3,
+   "cluster": "no-king-move",
+   "learner": "b",
+   "prompt": "Black to move. Select every square Black's king can legally move to, or choose None.",
+   "explanation": "Black's king has no legal move, so the answer is None. Not safe: a7 (covered by the queen on b6); b7 (covered by the queen on b6); b8 (covered by the queen on b6).",
+   "hints": [
+    "Sometimes the king has no legal square at all."
+   ],
+   "fen": "k7/7p/1Q6/8/8/8/8/4K3 b - - 0 1",
+   "expected": {
+    "squares": []
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "reserve": true
+  },
+  {
+   "id": "kss-pawn-forward-w1",
+   "entry": "king-safe-squares",
+   "variant": "king-moves",
+   "tier": 2,
+   "cluster": "pawn-forward",
+   "learner": "w",
+   "prompt": "White to move. Select every square White's king can legally move to, or choose None.",
+   "explanation": "White's king can go to d1, d2, f1 and f2. Not safe: e2 (covered by the pawn on d3 and the pawn on f3).",
+   "hints": [
+    "A pawn does not attack the square straight in front of it."
+   ],
+   "fen": "4k3/8/8/8/8/3p1p2/8/4K3 w - - 0 1",
+   "expected": {
+    "squares": [
+     "d1",
+     "d2",
+     "f1",
+     "f2"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "reserve": true
+  },
+  {
+   "id": "kss-knight-check-b1",
+   "entry": "king-safe-squares",
+   "variant": "king-moves",
+   "tier": 2,
+   "cluster": "knight-check",
+   "learner": "b",
+   "prompt": "Black to move. Select every square Black's king can legally move to, or choose None.",
+   "explanation": "Black's king can go to d8, e7, f7 and f8. Not safe: d7 (covered by the knight on f6).",
+   "hints": [
+    "The knight is checking. Which squares does it also reach?"
+   ],
+   "fen": "4k3/8/5N2/8/8/8/8/4K3 b - - 0 1",
+   "expected": {
+    "squares": [
+     "d8",
+     "e7",
+     "f7",
+     "f8"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "reserve": true
+  },
+  {
+   "id": "kss-queen-and-king-w1",
+   "entry": "king-safe-squares",
+   "variant": "king-moves",
+   "tier": 3,
+   "cluster": "queen-and-king",
+   "learner": "w",
+   "prompt": "White to move. Select every square White's king can legally move to, or choose None.",
+   "explanation": "White's king can go to a2. Not safe: b1 (covered by the queen on d1); b2 (next to the other king).",
+   "hints": [
+    "Count both the queen's lines and the enemy king's reach."
+   ],
+   "fen": "8/8/8/8/8/2k5/8/K2q4 w - - 0 1",
+   "expected": {
+    "squares": [
+     "a2"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "reserve": true
+  },
+  {
+   "id": "kss-bishop-and-knight-b1",
+   "entry": "king-safe-squares",
+   "variant": "king-moves",
+   "tier": 3,
+   "cluster": "bishop-and-knight",
+   "learner": "b",
+   "prompt": "Black to move. Select every square Black's king can legally move to, or choose None.",
+   "explanation": "Black's king can go to e7, f7 and f8. Not safe: d7 (covered by the bishop on b5); d8 (covered by the knight on f7).",
+   "hints": [
+    "One piece checks along a diagonal; another covers squares with a jump."
+   ],
+   "fen": "4k3/5N2/8/1B6/8/8/8/4K3 b - - 0 1",
+   "expected": {
+    "squares": [
+     "e7",
+     "f7",
+     "f8"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "reserve": true
+  },
+  {
+   "id": "kss-two-captures-w1",
+   "entry": "king-safe-squares",
+   "variant": "king-moves",
+   "tier": 3,
+   "cluster": "two-captures",
+   "learner": "w",
+   "prompt": "White to move. Select every square White's king can legally move to, or choose None.",
+   "explanation": "White's king can go to d1 and f2. Not safe: d2 (covered by the rook on f2); e2 (covered by the bishop on d1 and the rook on f2); f1 (covered by the rook on f2).",
+   "hints": [
+    "Unprotected pieces next to your king can be captured."
+   ],
+   "fen": "4k3/8/8/8/8/8/5r2/3bK3 w - - 0 1",
+   "expected": {
+    "squares": [
+     "d1",
+     "f2"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "reserve": true
+  },
+  {
+   "id": "kss-two-knights-b1",
+   "entry": "king-safe-squares",
+   "variant": "king-moves",
+   "tier": 2,
+   "cluster": "two-knights",
+   "learner": "b",
+   "prompt": "Black to move. Select every square Black's king can legally move to, or choose None.",
+   "explanation": "Black's king can go to d7, f7 and f8. Not safe: d8 (covered by the knight on c6); e7 (covered by the knight on c6 and the knight on g8).",
+   "hints": [
+    "Each knight jumps to eight squares. Which ones are next to your king?"
+   ],
+   "fen": "4k1N1/8/2N5/8/8/8/8/4K3 b - - 0 1",
+   "expected": {
+    "squares": [
+     "d7",
+     "f7",
+     "f8"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "reserve": true
+  },
+  {
+   "id": "kss-corner-rook-w1",
+   "entry": "king-safe-squares",
+   "variant": "king-moves",
+   "tier": 1,
+   "cluster": "corner-rook",
+   "learner": "w",
+   "prompt": "White to move. Select every square White's king can legally move to, or choose None.",
+   "explanation": "White's king can go to b1. Not safe: a2 (covered by the rook on g2); b2 (covered by the rook on g2).",
+   "hints": [
+    "A rook on the second rank can cut off the king."
+   ],
+   "fen": "4k3/8/8/8/8/8/6r1/K7 w - - 0 1",
+   "expected": {
+    "squares": [
+     "b1"
+    ]
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "reserve": true
+  },
+  {
+   "id": "kss-boxed-in-b1",
+   "entry": "king-safe-squares",
+   "variant": "king-moves",
+   "tier": 3,
+   "cluster": "boxed-in",
+   "learner": "b",
+   "prompt": "Black to move. Select every square Black's king can legally move to, or choose None.",
+   "explanation": "Black's king has no legal move, so the answer is None. Not safe: a7 (covered by the rook on c7); b7 (covered by the rook on c7); b8 (covered by the rook on c8).",
+   "hints": [
+    "Is any square next to the king safe from both rooks?"
+   ],
+   "fen": "k1R4r/2R5/8/8/8/8/8/4K3 b - - 0 1",
+   "expected": {
+    "squares": []
+   },
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "reserve": true
+  }
+ ]
+}

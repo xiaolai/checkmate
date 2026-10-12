@@ -13,7 +13,7 @@ final class RulesTests:XCTestCase {
         let rules=try ChessRules();try rules.move("e2","e4");try rules.move("e7","e5")
         let restored=try ChessRules();try restored.restore(rules.pgn)
         XCTAssertEqual(restored.fen,rules.fen);XCTAssertEqual(restored.history,["e4","e5"])
-        restored.undo();XCTAssertEqual(restored.turn,"b")
+        try restored.undo();XCTAssertEqual(restored.turn,"b")
     }
     func testIllegalMoveDoesNotChangeState() throws {
         let rules=try ChessRules();let before=rules.pgn
