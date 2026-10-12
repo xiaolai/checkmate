@@ -49,26 +49,66 @@ func windowOf(_ e:AXUIElement)->AXUIElement? {if let w=get(e,kAXWindowAttribute)
 // visible part (inside the window below the toolbar and inside every outer area) until the element, or the nearest
 // point of the inner areas still to turn, is in view. An element in no scroll area cannot be scrolled and is left as it is.
 func scrollAreas(_ e:AXUIElement)->[AXUIElement]{var areas:[AXUIElement]=[],current=e;while let area=ancestor(current,"AXScrollArea",stop:"AXWindow"){if let f=frame(area),f.width>0,f.height>0{areas.insert(area,at:0)};current=area};return areas}
-// The scroll area a wheel at this point reaches first: the hit element itself or its nearest scroll area.
-func scrollArea(at p:CGPoint)->AXUIElement?{var hit:AXUIElement?;guard AXUIElementCopyElementAtPosition(app,Float(p.x),Float(p.y),&hit) == .success,let hit else{return nil};if get(hit,kAXRoleAttribute) as? String=="AXScrollArea"{return hit};return ancestor(hit,"AXScrollArea",stop:"AXWindow")}
-// A wheel over a nested scroll area turns that one, so the point must hit the area itself: its middle when that does,
-// else the middle of an edge of its visible part, else the middle as before.
-func wheelPoint(_ area:AXUIElement,_ visible:CGRect)->CGPoint{let mid=CGPoint(x:visible.midX,y:visible.midY),edge:CGFloat=min(8,visible.width/4,visible.height/4)
-    let candidates=[mid,CGPoint(x:visible.midX,y:visible.minY+edge),CGPoint(x:visible.midX,y:visible.maxY-edge),CGPoint(x:visible.minX+edge,y:visible.midY),CGPoint(x:visible.maxX-edge,y:visible.midY)]
-    return candidates.first{scrollArea(at:$0).map{CFEqual($0,area)} ?? false} ?? mid}
+// Where a wheel at a point lands relative to `area`, as hit-testing reports it: on the area or content whose nearest scroll
+// area it is (direct), inside a scroll area nested in it (nested: the wheel turns that one first), or anywhere else.
+enum Reach{case direct,nested,outside}
+func reach(_ p:CGPoint,_ area:AXUIElement)->Reach{
+    var hit:AXUIElement?;guard AXUIElementCopyElementAtPosition(app,Float(p.x),Float(p.y),&hit) == .success,var current=hit else{return .outside}
+    var nested=false
+    for _ in 0..<60{
+        if CFEqual(current,area){return nested ? .nested:.direct}
+        let role=get(current,kAXRoleAttribute) as? String
+        if role=="AXWindow" || role=="AXApplication"{return .outside};if role=="AXScrollArea"{nested=true}
+        guard let parent=get(current,kAXParentAttribute) else{return .outside};current=parent as! AXUIElement}
+    return .outside}
+// Candidate wheel points: a grid every 4 points over an area's visible part, nearest its middle first. Any exposed patch at
+// least 4 by 4 points holds one, so every exposed strip at least 4 points across is reached.
+let gridStep:CGFloat=4
+func grid(_ r:CGRect)->[CGPoint]{var points:[CGPoint]=[]
+    for y in stride(from:r.minY+gridStep/2,to:r.maxY,by:gridStep){for x in stride(from:r.minX+gridStep/2,to:r.maxX,by:gridStep){points.append(CGPoint(x:x,y:y))}}
+    let c=CGPoint(x:r.midX,y:r.midY);return points.sorted{hypot($0.x-c.x,$0.y-c.y)<hypot($1.x-c.x,$1.y-c.y)}}
+func describe(_ area:AXUIElement)->String{"scroll area \(names(area).first.map{"\"\($0)\""} ?? "(unnamed)") at \(frame(area).map{"\($0)"} ?? "no frame")"}
+// Whether a frame changes from `before` within about 300 ms of a wheel step, as it does once the wheel turned its area.
+func moved(_ before:CGRect?,_ now:()->CGRect?)->Bool{for _ in 0..<6{if now() != before{return true};usleep(50_000)};return false}
 func clamp(_ p:CGPoint,_ r:CGRect)->CGPoint{CGPoint(x:min(max(p.x,r.minX),r.maxX),y:min(max(p.y,r.minY),r.maxY))}
 func reveal(_ e:AXUIElement?){guard let e=e,let w=windowOf(e),let wf=frame(w) else{return}
     let areas=scrollAreas(e);var visible=wf.insetBy(dx:0,dy:40).offsetBy(dx:0,dy:20)
     for (index,area) in areas.enumerated(){
         guard let af=frame(area) else{return};visible=visible.intersection(af.insetBy(dx:0,dy:4))
         guard !visible.isNull,visible.width>0,visible.height>0 else{fputs("Scroll area \(af) has no visible part in window \(wf)\n",stderr);exit(2)}
-        let p=wheelPoint(area,visible),inner=areas[(index+1)...]
-        func target()->CGPoint?{guard let f=frame(e) else{return nil};let room=inner.compactMap(frame).reduce(CGRect.infinite){$0.intersection($1.insetBy(dx:0,dy:4))};let c=CGPoint(x:f.midX,y:f.midY);return room.isNull ? c:clamp(c,room)}
-        var shown=false
+        let points=grid(visible),inner=areas[(index+1)...],next=inner.first
+        // Turning this area moves everything inside it, the next area included; a wheel that turned an inner area instead
+        // moves the element but not the next area. So the next area's frame shows this area's progress, else the element's.
+        func marker()->CGRect?{if let next{return frame(next)};return frame(e)}
+        func target()->CGPoint?{guard let f=frame(e) else{return nil};let c=CGPoint(x:f.midX,y:f.midY)
+            let room=inner.compactMap(frame).reduce(CGRect.infinite){$0.intersection($1.insetBy(dx:0,dy:4))}
+            if !room.isNull{return clamp(c,room)}
+            // Inner viewports that do not overlap yet: reveal the nearest part of the next one, whose own turn goes on from there.
+            guard let next,let nf=frame(next) else{return c};return clamp(c,nf.insetBy(dx:0,dy:4))}
+        // Only a point whose nearest scroll area is this one is wheeled at: over a nested area the wheel turns that area
+        // instead. Hit-tests are made lazily and remembered, and the chosen point is tested again just before its wheel
+        // step, since turning the area moves what lies under it. `spent` holds the points whose wheel step moved nothing.
+        var known:[Int:Reach]=[:],spent=Set<Int>(),shown=false,stalled=false
+        func verifiedPoint()->Int?{while true{
+            let open=points.indices.lazy.filter{!spent.contains($0)}
+            var chosen:Int?
+            for i in open{let r=known[i] ?? reach(points[i],area);known[i]=r;if r == .direct{chosen=i;break}}
+            guard let i=chosen else{return nil}
+            let now=reach(points[i],area);known[i]=now;if now == .direct{return i}}}
         // The 61st look follows the 60th scroll, so a last scroll that reveals the element counts.
-        for attempt in 0...60{guard let t=target() else{return};if visible.contains(t){shown=true;break};if attempt==60{break};unobstructed(p);post(.mouseMoved,p)
-            let lines=Int32(max(2,min(10,abs(t.y-p.y)/40)));let wheel=made(CGEvent(scrollWheelEvent2Source:source,units:.line,wheelCount:1,wheel1:t.y>p.y ? -lines:lines,wheel2:0,wheel3:0),"scroll");wheel.location=p;wheel.post(tap:.cghidEventTap);usleep(60_000)}
-        if !shown{fputs("Not visible after scrolling: element \(frame(e).map{"\($0)"} ?? "without a frame") visible region \(visible)\n",stderr);exit(2)}
+        for attempt in 0...60{guard let t=target() else{return};if visible.contains(t){shown=true;break};if attempt==60{break}
+            guard let pick=verifiedPoint() else{
+                if spent.isEmpty{fputs("No point in the visible region \(visible) hit-tests inside \(describe(area)), so no wheel step can be shown to reach it\n",stderr);exit(2)}
+                stalled=true;break}
+            let p=points[pick];unobstructed(p);post(.mouseMoved,p);let before=marker()
+            let lines=Int32(max(2,min(10,abs(t.y-p.y)/40)));let wheel=made(CGEvent(scrollWheelEvent2Source:source,units:.line,wheelCount:1,wheel1:t.y>p.y ? -lines:lines,wheel2:0,wheel3:0),"scroll");wheel.location=p;wheel.post(tap:.cghidEventTap);usleep(60_000)
+            // A step that turned the area moved what lies under every point: earlier hit-tests no longer hold.
+            if moved(before,marker){known.removeAll()}else{spent.insert(pick)}}
+        if shown{continue}
+        // No point turned this area further, so it is at its limit. An outer area has done its part once the next area shows
+        // at all: that area's turn reveals the element or fails. The innermost area has nothing left that could.
+        if stalled,let next,let nf=frame(next),!visible.intersection(nf.insetBy(dx:0,dy:4)).isEmpty{continue}
+        fputs("Not visible after scrolling: element \(frame(e).map{"\($0)"} ?? "without a frame") visible region \(visible)\(stalled ? ", and no point in it turned the scroll area further":"")\n",stderr);exit(2)
     }}
 // A click must land on this app: another app's window or a system prompt over the point would take it silently.
 func owner(at p:CGPoint)->pid_t?{var hit:AXUIElement?;guard AXUIElementCopyElementAtPosition(AXUIElementCreateSystemWide(),Float(p.x),Float(p.y),&hit) == .success,let hit else{return nil};var owner:pid_t=0;AXUIElementGetPid(hit,&owner);return owner}
