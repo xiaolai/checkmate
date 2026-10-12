@@ -1,3 +1,29 @@
+# Checkmate 0.6.0
+
+This release adds the groundwork for a training library: short, exactly
+graded exercises between lessons and full games. They cover piece movement,
+attacks and defence, check and mate, special moves, simple tactics and
+finishing a won ending. The library is included but switched off. It stays
+off until its content has had an editorial review and a beginner has been
+observed using it, so nothing in the app changes for you yet.
+
+Fixes you may notice:
+- The voice coach's Stop button now works from the conversation's real state,
+  including while a tool is still running after the coach finishes speaking.
+- Leaving a draft review re-checks your answer if the review changed while the
+  question was open.
+- Move animations and promotion menus no longer act on a board that has since
+  been replaced.
+- Very long imported games are refused before they are replayed.
+
+Automated acceptance covered every gate on build-host, including real pointer
+clicks, fullscreen and Intel under Rosetta. Live voice, translation and
+recording were not exercised for this release. Human review, novice play and
+live microphone checks are still outstanding. The experimental review quality
+labels, review voice and beginner opponent remain opt-in.
+
+Requires macOS 14+ with universal Apple Silicon and Intel binaries.
+
 # Checkmate 0.5.0
 
 Under the hood, the app is now built from separate parts with enforced
