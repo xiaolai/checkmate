@@ -444,7 +444,7 @@ import CheckmateCore
             if game.window?.isKeyWindow != true{failures.append("Overlay scenario could not activate the board window")}
             try? model.session.select("g1");game.window?.makeFirstResponder(game.board);game.refresh()
             model.session.annotate(arrows:[["g1","f3"],["d2","d4"]],highlights:[]);try? await Task.sleep(for:.milliseconds(100));try? await game.capture(directory+"/board-overlays-low.png")
-            if !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion && !game.board.breathing{failures.append("Selected piece did not start breathing")}
+            if game.window?.isKeyWindow != true{failures.append("Board window lost key focus before the breathing check: another app took focus")}else if !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion && !game.board.breathing{failures.append("Selected piece did not start breathing")}
             try? await Task.sleep(for:.milliseconds(1300));try? await game.capture(directory+"/board-overlays-high.png")
             game.board.isHidden=true;if game.board.breathing{failures.append("Hidden board kept its breathing timer")};game.board.isHidden=false
             game.board.selected=nil;if game.board.breathing{failures.append("Cleared selection kept its breathing timer")}
