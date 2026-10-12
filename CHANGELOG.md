@@ -1,4 +1,4 @@
-# Unreleased
+# Checkmate 0.7.0
 
 The beginner course is new. Every lesson, board, puzzle and recording was
 written again from scratch: 39 lessons and 82 puzzles, with all 710 narration
@@ -31,6 +31,16 @@ and puzzles are new, each lesson starts again from its first step, puzzle
 results start fresh, and a practice game in progress restarts in its new
 layout. Training history follows the renamed games. Saved lesson translations
 need to be made again in Settings → Lessons.
+
+Automated acceptance covered every gate on build-host and on a second test Mac,
+including real pointer clicks on every practice game and the lesson arrows,
+and tests of the saved-progress migration. Every course board and puzzle
+passed the machine checks above. No person has yet listened to the 710 new recordings
+or reviewed the new lessons as an editor or a beginner. Live voice,
+translation and recording were not exercised for this release, and the
+training library stays switched off.
+
+Requires macOS 14+ with universal Apple Silicon and Intel binaries.
 
 # Checkmate 0.6.2
 
