@@ -30,6 +30,39 @@ import CheckmateCore
             XCTAssertEqual(try validator.exchangeSign(exchange(fen,stated)),sign,"\(fen) \(stated)")
         }
     }
+    /// Owner decision D2: classification reports the resolved material delta. A line that ends in mate or stalemate is
+    /// a leaf scored by its material, never by who is mated, for either learner colour.
+    func testTerminalLinesAreClassifiedByMaterial()throws {
+        let validator=try TrainingContinuationValidator()
+        for (fen,stated,sign) in [
+            // Qxd8 wins a rook (+5), then Qxg2# mates the learner: still four points up, so ahead.
+            ("3r4/1b5k/6q1/8/8/8/6PP/3Q3K w - - 0 1",["d1d8"],1),
+            ("3q3k/6pp/8/8/8/6Q1/1B5K/3R4 b - - 0 1",["d8d1"],1),
+            // Qxg8+ Rxg8 Nf7#: the learner mates, but a queen went for a bishop (-6), so behind.
+            ("3r2bk/6pp/7N/8/2Q5/8/8/1K6 w - - 0 1",["c4g8","d8g8","h6f7"],-1),
+            ("1k6/8/8/2q5/8/7n/6PP/3R2BK b - - 0 1",["c5g1","d1g1","h3f2"],-1),
+            // Qxg6 wins a rook and stalemates: the stalemated leaf is scored (+5), not skipped as a draw.
+            ("7k/5K2/6r1/8/8/8/8/6Q1 w - - 0 1",["g1g6"],1),
+            ("6q1/8/8/8/8/6R1/5k2/7K b - - 0 1",["g8g3"],1)] {
+            XCTAssertEqual(try validator.exchangeSign(exchange(fen,stated)),sign,"\(fen) \(stated)")
+        }
+    }
+    /// Owner decision D2: exercise goals keep mate precedence over material. The same positions as above: gaining the
+    /// rook while being mated fails the goal, and delivering mate at a material deficit meets it.
+    func testGoalsKeepMatePrecedenceOverMaterial()throws {
+        func classify(_ fen:String)throws -> (accepted:Set<String>,rejected:Set<String>,replies:[String:String]) {
+            let probe=TrainingScenario(id:"mate-precedence",entry:"capture-wisely",variant:"poisoned-capture",tier:1,cluster:"m",learner:String(fen.split(separator:" ")[1]),prompt:"Win material.",explanation:"Mate decides.",hints:["Mate."],fen:fen,expected:TrainingExpected(wrong:[]),review:review,check:.material,goal:TrainingGoal(kind:.gain,threshold:1),plies:3)
+            return try TrainingContinuationValidator().classify(probe,plies:3)
+        }
+        for (fen,capture,mate) in [("3r4/1b5k/6q1/8/8/8/6PP/3Q3K w - - 0 1","d1d8","g6g2"),("3q3k/6pp/8/8/8/6Q1/1B5K/3R4 b - - 0 1","d8d1","g3g7")] {
+            let root=try classify(fen)
+            XCTAssertTrue(root.rejected.contains(capture),"\(fen): winning the rook into mate fails the goal")
+            XCTAssertEqual(root.replies[capture],mate,"\(fen): the mate is the refutation")
+        }
+        for (fen,sacrifice) in [("3r2bk/6pp/7N/8/2Q5/8/8/1K6 w - - 0 1","c4g8"),("1k6/8/8/2q5/8/7n/6PP/3R2BK b - - 0 1","c5g1")] {
+            XCTAssertTrue(try classify(fen).accepted.contains(sacrifice),"\(fen): the queen sacrifice that mates meets the goal")
+        }
+    }
     func testTheExchangeQuestionIsGradedOnTheResolvedSign()throws {
         let good=exchange("4k3/2p5/3n4/8/4N3/8/8/4K3 w - - 0 1",["e4d6"],choice:TrainingExchangeResult.even.label)
         XCTAssertNoThrow(try TrainingValidationService.validate(good,definition:try definition,deep:true))
