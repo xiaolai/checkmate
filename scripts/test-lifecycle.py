@@ -18,7 +18,8 @@ try:
  start=time.monotonic();process=subprocess.Popen(args,env=env,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL);wait(lambda:'Chessboard' in act('list'));warm=time.monotonic()-start;assert warm<2,warm
  act('fullscreen');time.sleep(2);act('press','Toggle Sidebar');time.sleep(.9);act('fullscreen');time.sleep(2);act('press','Toggle Sidebar');time.sleep(.9)
  act('drag');moved_x=float(act('position-x'));act('press','Toggle Sidebar');time.sleep(.9);act('press','Toggle Sidebar');time.sleep(.9);assert abs(float(act('position-x'))-moved_x)<=1,(moved_x,act('position-x'))
- time.sleep(.3);assert abs(json.loads((state/'state-v1.json').read_text())['window']['frame'][0]-moved_x)<=1
+ # Saves land 250 ms after a change; wait for this one rather than racing it.
+ wait(lambda:abs(json.loads((state/'state-v1.json').read_text())['window']['frame'][0]-moved_x)<=1)
  duplicate=subprocess.Popen(args,env=env,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL);duplicate.wait(timeout=5);assert process.poll() is None;assert act('windows').splitlines()[0]=='1'
  act('press','Settings');wait(lambda:'Settings' in act('windows'));act('press','Settings');assert act('windows').splitlines()[0]=='2';act('close-settings')
  act('press','e2, White, pawn');act('press','e4, move destination');time.sleep(1.2)

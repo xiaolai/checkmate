@@ -102,6 +102,9 @@ try:
     assert not saved()["settings"]["companionAutoStart"]
     act("press", "Allow chess MCP connections")
     wait(lambda: not discovery.exists())
+    # Saves land 250 ms after a change: let any the switch made arrive before checking it left the preference alone.
+    time.sleep(0.6)
+    assert not saved()["settings"]["companionAutoStart"]
     quit_app()
 
     launch()
