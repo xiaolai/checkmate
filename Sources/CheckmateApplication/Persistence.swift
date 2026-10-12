@@ -19,7 +19,7 @@ public final class StateStore {
         return value
     }
     public static func validate(_ value:ApplicationState) throws {
-        guard value.course.step>=0,(value.course.positions?.count ?? 0)<=1000,value.puzzles.values.allSatisfy({$0.attempts>=0}) else{throw CheckmateError.invalid("Saved learning progress has invalid bounds.")}
+        guard value.course.step>=0,(value.course.positions?.count ?? 0)<=1000,value.puzzles.values.allSatisfy({(0...PuzzleProgress.maximumAttempts).contains($0.attempts)}) else{throw CheckmateError.invalid("Saved learning progress has invalid bounds.")}
         if let games=value.miniGames {
             guard games.count<=MiniGameKind.allCases.count else{throw CheckmateError.invalid("Too many saved mini-games.")}
             for (id,game) in games {
@@ -36,18 +36,44 @@ public final class StateStore {
         // A saved or imported game, current or previous, starts from a legal position and stays within the length the app can replay.
         let rules=try ChessRules()
         // An over-long game is refused from its text before it is replayed; the history is read once and gives its ply count.
-        func replay(_ pgn:String,_ name:String)throws -> Int {let tooLong=CheckmateError.invalid("The \(name) is longer than 2000 moves.");guard movetextTokens(pgn)<=ReviewPolicy.maximumMainlinePlies else{throw tooLong};try rules.restore(pgn);let records=rules.records;_ = try PGNImporter.validateFEN(records.first?.before ?? rules.fen);guard records.count<=ReviewPolicy.maximumMainlinePlies else{throw tooLong};return records.count}
+        func replay(_ pgn:String,_ name:String)throws -> Int {let tooLong=CheckmateError.invalid("The \(name) is longer than 2000 moves.");guard mainlineMoveCount(pgn)<=ReviewPolicy.maximumMainlinePlies else{throw tooLong};try rules.restore(pgn);let records=rules.records;_ = try PGNImporter.validateFEN(records.first?.before ?? rules.fen);guard records.count<=ReviewPolicy.maximumMainlinePlies else{throw tooLong};return records.count}
         let plies=value.practice.pgn.isEmpty ? 0:try replay(value.practice.pgn,"saved game");if !value.practice.fen.isEmpty,value.practice.fen != rules.fen{throw CheckmateError.invalid("Saved game checksum does not match its history.")}
         // Take Back's boundary lies within its game, or Take Back stays disabled until play passes it.
         guard (0...plies).contains(value.practice.startPly) else{throw CheckmateError.invalid("The saved game's practice start is beyond its moves.")}
         let previousPlies=value.practice.previousGame.isEmpty ? 0:try replay(value.practice.previousGame,"previous game")
         guard (0...previousPlies).contains(value.practice.previousStartPly) else{throw CheckmateError.invalid("The previous game's practice start is beyond its moves.")}
     }
-    /// The moves in a PGN's movetext as the app writes it (space-separated, no variations): tokens starting with a letter,
-    /// outside header lines and brace comments; move numbers, results and NAGs start otherwise. A cheap bound before replay.
-    private static func movetextTokens(_ pgn:String)->Int {
-        let movetext=pgn.split(separator:"\n").filter{!$0.drop(while:\.isWhitespace).hasPrefix("[")}.joined(separator:" ").replacingOccurrences(of:"\\{[^}]*\\}",with:" ",options:.regularExpression)
-        return movetext.split(whereSeparator:\.isWhitespace).filter{$0.first?.isLetter==true}.count
+    /// The mainline moves `ChessRules.restore` (chess.js's PGN grammar) would replay, counted from the text alone so the
+    /// move bound holds before any replay. Linear in the text. Following that grammar: a move is castling written with
+    /// zeros (`0-0`, `0-0-0`) or a letter followed by one or more of `[a-zA-Z1-8=-]` (so `O-O`, `e8=Q`, `Nbd7`);
+    /// move numbers (`1.`, `1...`, attached as in `1.Nf3` or separate), results (`1-0`, `0-1`, `1/2-1/2`, `*`), NAGs
+    /// (`$1`), suffixes (`!?`, `+`, `#`), tag pairs, brace and rest-of-line comments carry no move; moves inside `( )`
+    /// variations are alternatives, not the mainline. Text the grammar rejects fails in `restore` whatever this counts.
+    static func mainlineMoveCount(_ pgn:String)->Int {
+        let text=Array(pgn.utf8),end=text.count;var i=0,depth=0,count=0
+        func isLetter(_ c:UInt8)->Bool {(c>=0x41 && c<=0x5A) || (c>=0x61 && c<=0x7A)}
+        func isDigit(_ c:UInt8)->Bool {c>=0x30 && c<=0x39}
+        func continuesMove(_ c:UInt8)->Bool {isLetter(c) || (c>=0x31 && c<=0x38) || c==UInt8(ascii:"-") || c==UInt8(ascii:"=")}
+        func startsWith(_ literal:StaticString)->Bool {let length=literal.utf8CodeUnitCount;guard i+length<=end else{return false};return (0..<length).allSatisfy{text[i+$0]==literal.utf8Start[$0]}}
+        func skip(past terminator:UInt8){while i<end,text[i] != terminator{i+=1};i+=1}
+        while i<end {
+            let c=text[i]
+            switch c {
+            case UInt8(ascii:"{"):skip(past:UInt8(ascii:"}"))
+            case UInt8(ascii:";"):while i<end,text[i] != UInt8(ascii:"\n"),text[i] != UInt8(ascii:"\r"){i+=1}
+            // A tag pair: `[`, name, quoted value (which may hold any character but a quote), `]`.
+            case UInt8(ascii:"["):skip(past:UInt8(ascii:"\""));skip(past:UInt8(ascii:"\""));skip(past:UInt8(ascii:"]"))
+            case UInt8(ascii:"("):depth+=1;i+=1
+            case UInt8(ascii:")"):depth=max(0,depth-1);i+=1
+            case UInt8(ascii:"$"):i+=1;while i<end,isDigit(text[i]){i+=1}
+            case UInt8(ascii:"0") where startsWith("0-0"):i+=3;if startsWith("-0"){i+=2};if depth==0{count+=1}
+            // A move number ends in dots, which the scan passes over; digits joined by `-` or `/` are a result.
+            case _ where isDigit(c):while i<end,isDigit(text[i]){i+=1};if i<end,text[i]==UInt8(ascii:"-") || text[i]==UInt8(ascii:"/"){while i<end,isDigit(text[i]) || text[i]==UInt8(ascii:"-") || text[i]==UInt8(ascii:"/"){i+=1}}
+            case _ where isLetter(c):i+=1;let body=i;while i<end,continuesMove(text[i]){i+=1};if i>body,depth==0{count+=1}
+            default:i+=1
+            }
+        }
+        return count
     }
     public func save(_ state:ApplicationState) throws {
         try FileManager.default.createDirectory(at:directory,withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])

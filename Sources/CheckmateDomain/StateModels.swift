@@ -66,7 +66,17 @@ public struct PracticeState:Codable {
     public init(from decoder:Decoder)throws {let c=try decoder.container(keyedBy:CodingKeys.self);pgn=try c.decodeIfPresent(String.self,forKey:.pgn) ?? "";fen=try c.decodeIfPresent(String.self,forKey:.fen) ?? "";previousGame=try c.decodeIfPresent(String.self,forKey:.previousGame) ?? "";previousSide=(try? c.decodeIfPresent(String.self,forKey:.previousSide)).flatMap{["w","b"].contains($0) ? $0:nil} ?? "w";beginnerSevereStreak=max(0,min(BeginnerPolicy.maximumConsecutiveSevereErrors,try c.decodeIfPresent(Int.self,forKey:.beginnerSevereStreak) ?? 0));startPly=max(0,(try? c.decodeIfPresent(Int.self,forKey:.startPly)).flatMap{$0} ?? 0);ending=Self.decided((try? c.decodeIfPresent(PracticeEnding.self,forKey:.ending)).flatMap{$0});previousStartPly=max(0,(try? c.decodeIfPresent(Int.self,forKey:.previousStartPly)).flatMap{$0} ?? 0);previousEnding=Self.decided((try? c.decodeIfPresent(PracticeEnding.self,forKey:.previousEnding)).flatMap{$0})}
 }
 public struct CourseProgress:Codable {public var lessonID="intro",step=0,segmentID:String?,positions:[String:String]?,completed:[String]=[],answered:[String]=[];public init(){}}
-public struct PuzzleProgress:Codable,Equatable {public var solved=false,review=false,attempts=0;public init(){};public mutating func record(correct:Bool,revealed:Bool=false){solved = solved || correct && !revealed;review = !correct || revealed;attempts=attempts<Int.max ? attempts+1:attempts}}
+/// One puzzle's progress. `attempts` counts the learner's answers, one per answer.
+public struct PuzzleProgress:Codable,Equatable {
+    /// The most attempts a loaded or imported record may hold (`StateStore.validate` refuses more): the bound every
+    /// persisted progress counter shares.
+    public static let maximumAttempts=TrainingState.maximumCount
+    public var solved=false,review=false,attempts=0;public init(){}
+    /// Records one answer. The count saturates at `maximumAttempts`: a record loaded at the bound stays at the bound
+    /// rather than leaving the range `StateStore.validate` accepts, which would refuse every later save. A count above
+    /// the bound (never loaded, only constructed) is pulled back to it, and the arithmetic cannot overflow.
+    public mutating func record(correct:Bool,revealed:Bool=false){solved = solved || correct && !revealed;review = !correct || revealed;attempts=attempts<Self.maximumAttempts ? attempts+1:Self.maximumAttempts}
+}
 public struct WindowState:Codable {public var left=false,right=false,settingsCategory="board";public var frame:[Double]?;public init(){}}
 public struct ApplicationState:Codable {
     public var schemaVersion=1,savedAt=Date(),practice=PracticeState(),course=CourseProgress(),settings=AppSettings(),puzzles:[String:PuzzleProgress]=[:],window=WindowState(),importedArchives:[String]=[]
