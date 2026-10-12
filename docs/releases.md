@@ -1,8 +1,8 @@
 # Checkmate releases
 
 `Version.env` owns the native version and monotonically increasing build number.
-Version 0.6.1 is build 15.
-Version 0.6.1 targets macOS 14+ with universal Apple Silicon and Intel binaries.
+Version 0.6.2 is build 16.
+Version 0.6.2 targets macOS 14+ with universal Apple Silicon and Intel binaries.
 Build tooling runs on build-host with Xcode 27; this is separate from the runtime target.
 Development and release builds use
 separate application identifiers and data directories.

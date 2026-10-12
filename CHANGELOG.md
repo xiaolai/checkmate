@@ -1,4 +1,4 @@
-# Unreleased
+# Checkmate 0.6.2
 
 The practice activities no longer sit between the lessons. Pawn Duel, Rook Practice, Bishop Practice, Queen Practice, Knight Practice and Safe Squares now appear
 indented under the piece lesson they practise. Continue goes straight to the
@@ -13,6 +13,15 @@ Short lesson arrows are now visible. An arrow one square long, such as each
 of the king's eight moves, used to shrink to a sliver of arrowhead; it now
 keeps a shaft and a whole head. The Knight lesson's counted routes (two
 squares, then one sideways) draw as one bent arrow instead of two pieces.
+
+Automated acceptance covered every gate on build-host and on a second test Mac,
+including real pointer clicks on every practice activity, its Practise button
+and the Continue button. Live voice, translation and recording were not
+exercised for this release. Whether the indented activities read as practice
+to a beginner, human review, novice play and live microphone checks are still
+outstanding, and the training library stays switched off.
+
+Requires macOS 14+ with universal Apple Silicon and Intel binaries.
 
 # Checkmate 0.6.1
 
