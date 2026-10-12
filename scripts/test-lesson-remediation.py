@@ -83,7 +83,9 @@ try:
  assert 'suggested move' not in pointer('label','h8') and 'in check' not in pointer('label','c8'),'The paused step shows overlays before its move'
  pointer('click','Play');before=0;end=time.monotonic()+20
  while True:
-  h8,c8=pointer('label','h8'),pointer('label','c8');landed=h8.startswith('h8, White, rook')
+  # The overlay square is read first: an overlay seen before the rook square still shows no rook is a true violation,
+  # while reading h8 first would let the rook land between the two reads.
+  c8=pointer('label','c8');h8=pointer('label','h8');landed=h8.startswith('h8, White, rook')
   assert landed or ('suggested move' not in h8 and 'in check' not in c8),f'Overlay before the rook landed: {h8} / {c8}'
   if not landed:before+=1
   if landed and 'suggested move to c8' in h8 and 'in check' in c8:break
