@@ -249,8 +249,9 @@ final class BoardView:NSView {
     }
     private func drawArrows(_ palette:BoardPalette,side s:CGFloat){
         var seen=Set<String>()
+        let joints=BoardArrow.joints(arrows,position:position)
         for arrow in arrows where arrow.count==2 {
-            guard seen.insert(arrow.joined(separator:":")).inserted,let geometry=BoardArrow(from:arrow[0],to:arrow[1],board:self) else{continue}
+            guard seen.insert(arrow.joined(separator:":")).inserted,let geometry=BoardArrow(from:arrow[0],to:arrow[1],board:self,through:joints.contains(arrow[1])) else{continue}
             let dash=BoardOverlay.arrowDash.map{$0*s}
             let phase=arrow==primaryMoveArrow ? BoardOverlay.arrowDashPhase(at:arrowElapsed,side:s):0
             geometry.shaft.setLineDash(dash,count:dash.count,phase:phase)

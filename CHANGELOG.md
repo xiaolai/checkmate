@@ -9,6 +9,11 @@ progress and lesson translations are unaffected, except The Queen: it gains a
 takeaway giving the queen's starting square, so a saved translation of The
 Queen needs to be redone in Settings → Lessons.
 
+Short lesson arrows are now visible. An arrow one square long, such as each
+of the king's eight moves, used to shrink to a sliver of arrowhead; it now
+keeps a shaft and a whole head. The Knight lesson's counted routes (two
+squares, then one sideways) draw as one bent arrow instead of two pieces.
+
 # Checkmate 0.6.1
 
 Lesson illustrations now follow the narration. When a lesson moves a piece,
