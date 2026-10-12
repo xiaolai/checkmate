@@ -184,13 +184,20 @@ import CheckmateCore
     /// lesson read from training continues as one, as automatic continuation does: the way back to training stays and
     /// the course bookmark is untouched.
     func continueLesson(){guard let next=learning.library.nextMainLesson(after:learning.lessonIndex) else{return};playLesson(next)}
+    /// The reverse of Continue: opens the previous main lesson paused on its last transcript, where the learner left it.
+    func previousLessonEnd(){
+        guard let previous=learning.library.previousMainLesson(before:learning.lessonIndex) else{return}
+        if learning.readingFromTraining{guard (try? transition(.trainingLesson(id:learning.library.lessons[previous].id)))==true else{return}}
+        else{guard (try? transition(.lesson(previous,resume:false)))==true else{return}}
+        learning.pause();learning.seek(step:learning.current.beats.count-1)
+    }
     /// Opens one of this lesson's practice activities, the same way Continue opens a lesson.
     func openPractice(_ index:Int){guard learning.library.practice(for:learning.lessonIndex).contains(index) else{return};playLesson(index)}
     private func playLesson(_ index:Int){
         if learning.readingFromTraining{guard (try? transition(.trainingLesson(id:learning.library.lessons[index].id)))==true else{return};learning.seek(step:0)}
         else{guard (try? transition(.lesson(index,resume:false)))==true else{return}};learning.play()}
     /// Practise this lesson starts a separate practice game, as White, from the lesson's preset position.
-    func practiceLesson(){guard let preset=LessonPractice.forLesson(learning.current.id) else{return};_ = try? transition(.lessonPractice(fen:preset.fen))}
+    func practiceLesson(){guard let preset=learning.current.practice else{return};_ = try? transition(.lessonPractice(fen:preset.fen))}
     /// Quitting stops a running lesson translation or recording; the clip in progress is already paid for and is lost.
     /// Returns false when the learner chose to keep the app open. Tests inject an answer; automation never blocks.
     var confirmQuitDuringLessonJob:(()->Bool)?

@@ -87,7 +87,7 @@ import CheckmateCore
         let savedTag=SidebarSelection.tag(.reviewing(ReviewVisit(document:saved,draft:false,returnTo:.lesson(index:2))),saved:[saved],lessonIndex:2)
         XCTAssertEqual(workspace,"review");XCTAssertEqual(draftTag,"review:draft");XCTAssertEqual(savedTag,"review:"+saved.uuidString)
         XCTAssertEqual(SidebarSelection.tag(.at(.miniGame(lessonIndex:3,kind:.pawnDuel)),saved:[],lessonIndex:3),"lesson:3")
-        XCTAssertEqual(SidebarSelection.tag(.at(.puzzle(id:"rook")),saved:[],lessonIndex:0),"puzzles")
+        XCTAssertEqual(SidebarSelection.tag(.at(.puzzle(id:"extra-1")),saved:[],lessonIndex:0),"puzzles")
         XCTAssertEqual(SidebarSelection.tag(.at(.practice),saved:[],lessonIndex:0),"practice")
     }
 
@@ -173,9 +173,9 @@ import CheckmateCore
     func testAReviewOverAPuzzleReturnsToThatPuzzle()throws {
         let model=try NativeModel();defer{model.shutdown()}
         model.puzzles();XCTAssertEqual(model.session.activity,.at(.puzzleLibrary))
-        model.learning.openPuzzle(id:"rook");XCTAssertEqual(model.session.activity,.at(.puzzle(id:"rook")));XCTAssertEqual(model.learning.activePuzzle?.id,"rook")
-        XCTAssertTrue(model.openReview(try document()));XCTAssertEqual(model.session.activity,.reviewing(ReviewVisit(document:model.review.document?.id,draft:false,returnTo:.puzzle(id:"rook"))))
-        model.returnToGame();XCTAssertEqual(model.session.activity,.at(.puzzle(id:"rook")));XCTAssertEqual(model.learning.activePuzzle?.id,"rook");XCTAssertEqual(model.session.lesson?.lessonId,"rook")
+        model.learning.openPuzzle(id:"extra-1");XCTAssertEqual(model.session.activity,.at(.puzzle(id:"extra-1")));XCTAssertEqual(model.learning.activePuzzle?.id,"extra-1")
+        XCTAssertTrue(model.openReview(try document()));XCTAssertEqual(model.session.activity,.reviewing(ReviewVisit(document:model.review.document?.id,draft:false,returnTo:.puzzle(id:"extra-1"))))
+        model.returnToGame();XCTAssertEqual(model.session.activity,.at(.puzzle(id:"extra-1")));XCTAssertEqual(model.learning.activePuzzle?.id,"extra-1");XCTAssertEqual(model.session.lesson?.lessonId,"extra-1")
     }
     /// Codex objection 2: a lesson left for a review keeps its transcript position.
     func testAReviewOverALessonReturnsToTheSameStep()throws {

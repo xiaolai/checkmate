@@ -45,7 +45,7 @@ verify)
     env -i PATH=/usr/bin:/bin HOME="$HOME" CHECKMATE_AUTOMATION=1 perl -e 'alarm 120; exec @ARGV' "$mount/Checkmate.app/Contents/MacOS/CheckmateNative" --package-check "$check/package-check.json"
     python3 - "$check/package-check.json" "$mount" <<'PY'
 import json,pathlib,sys
-result=json.load(open(sys.argv[1]));assert result['passed'] and result['lessons']==40 and pathlib.Path(result['resourceRoot']).resolve().is_relative_to(pathlib.Path(sys.argv[2]).resolve()),result
+result=json.load(open(sys.argv[1]));assert result['passed'] and result['lessons']==39 and pathlib.Path(result['resourceRoot']).resolve().is_relative_to(pathlib.Path(sys.argv[2]).resolve()),result
 print(json.dumps(result))
 PY
     rm -rf "$check"

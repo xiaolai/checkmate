@@ -20,7 +20,7 @@ final class CourseTests:XCTestCase {
     /// A beat's overlays describe the position its moves produce: the rook lands first, then its arrow and the check.
     func testOverlaysWaitForTheMovesTheyDescribe() throws {
         let course=try CourseLibrary()
-        let li=try XCTUnwrap(course.lessons.firstIndex{$0.id=="intro"}),si=try XCTUnwrap(course.lessons[li].beats.firstIndex{$0.id=="intro:8"})
+        let li=try XCTUnwrap(course.lessons.firstIndex{$0.id=="check-and-checkmate"}),si=try XCTUnwrap(course.lessons[li].beats.firstIndex{$0.id=="check-and-checkmate:15"})
         let narration=course.voices[li][si].seconds,duration=CourseTiming.standard.pieceDuration
         let landed=try XCTUnwrap(course.moveTimes(lesson:li,step:si,narrationSeconds:narration,pieceDuration:duration).last)+duration
         for seconds in [0,landed-duration/2,landed-0.01] {
@@ -29,9 +29,9 @@ final class CourseTests:XCTestCase {
             XCTAssertFalse(frame.hl.contains{$0.kind=="check"},"no check before the rook lands (\(seconds)s)")
         }
         let after=try course.frame(lesson:li,step:si,seconds:landed)
-        XCTAssertEqual(after.board?["a8"],"wr")
-        XCTAssertEqual(after.arrows,[["a8","g8"]],"the attack arrow ends on the king it attacks")
-        XCTAssertEqual(after.hl,[Highlight(sq:"g8",kind:"check")])
+        XCTAssertEqual(after.board?["h8"],"wr")
+        XCTAssertEqual(after.arrows,[["h8","c8"]],"the attack arrow ends on the king it attacks")
+        XCTAssertEqual(after.hl,[Highlight(sq:"c8",kind:"check")])
     }
     /// An arrow that previews the beat's own move, or that the previous beat already showed, stays up during the move.
     func testMovePreviewsAndCarriedOverlaysStayDuringTheMove() throws {
@@ -40,9 +40,8 @@ final class CourseTests:XCTestCase {
             let li=try XCTUnwrap(course.lessons.firstIndex{$0.beats.contains{$0.id==id}}),si=try XCTUnwrap(course.lessons[li].beats.firstIndex{$0.id==id})
             return try course.frame(lesson:li,step:si,seconds:0)
         }
-        XCTAssertEqual(try frame("rook-mate:16").arrows,[["f7","g7"]],"a preview of the coming move")
-        XCTAssertEqual(try frame("scholars-mate:7").arrows,[["c4","f7"]],"carried over from the previous beat")
-        XCTAssertEqual(try frame("scholars-mate:8").arrows,[["c4","f7"]],"the queen's new arrow waits for the queen")
+        XCTAssertEqual(try frame("notation:5").arrows,[["g8","f6"]],"a preview of the coming move")
+        XCTAssertEqual(try frame("scholars-mate:4").arrows,[["c4","f7"]],"carried over from the previous beat; the queen's new arrow waits for the queen")
     }
     /// Every arrow and check mark agrees with the board it is drawn on. A sliding piece's arrow may cross a piece to show
     /// a pin, skewer or blocked line, but it ends on a piece: it never runs past what it attacks onto an empty square.
@@ -72,15 +71,20 @@ final class CourseTests:XCTestCase {
     func testPracticeActivitiesBelongToTheirPieceLesson() throws {
         let course=try CourseLibrary()
         func index(_ id:String)throws -> Int {try XCTUnwrap(course.lessons.firstIndex{$0.id==id},id)}
-        let pairs=["pawn":"pawn-duel","rook":"rook-practice","bishop":"bishop-practice","queen":"queen-practice","knight":"knight-practice","king":"safe-squares"]
+        let pairs=["pawn":"pawn-duel","rook":"rook-practice","bishop":"bishop-practice","queen":"queen-practice","knight":"knight-practice"]
         XCTAssertEqual(Set(course.lessons.filter(\.isPractice).map(\.id)),Set(pairs.values))
         for (parent,child) in pairs {
             XCTAssertEqual(course.practice(for:try index(parent)),[try index(child)],parent)
             XCTAssertEqual(course.practice(for:try index(child)),[],"an activity has no practice of its own")
         }
-        for (from,to) in [("pawn","rook"),("pawn-duel","rook"),("king","check-and-checkmate"),("safe-squares","check-and-checkmate"),("board","pawn")] {
+        for (from,to) in [("pawn","rook"),("pawn-duel","rook"),("knight","king"),("knight-practice","king"),("king","safe-squares"),("safe-squares","check-and-checkmate"),("board","pawn")] {
             XCTAssertEqual(course.nextMainLesson(after:try index(from)),try index(to),from)
         }
+        for (from,to) in [("rook","pawn"),("pawn-duel","pawn"),("rook-practice","rook"),("check-and-checkmate","safe-squares"),("safe-squares","king"),("pawn","board")] {
+            XCTAssertEqual(course.previousMainLesson(before:try index(from)),try index(to),from)
+        }
+        XCTAssertNil(course.previousMainLesson(before:0))
+        XCTAssertNil(course.previousMainLesson(before:course.lessons.count))
         XCTAssertNil(course.nextMainLesson(after:course.lessons.count-1))
         XCTAssertNil(course.nextMainLesson(after:course.lessons.count))
         XCTAssertEqual(course.practice(for:-1),[])
@@ -95,17 +99,18 @@ final class CourseTests:XCTestCase {
 
     func testKnightJumpsOverUnmovedFriendlyPawnsInLesson() throws {
         let course=try CourseLibrary()
-        let li=try XCTUnwrap(course.lessons.firstIndex{$0.id=="knight"})
-        let si=try XCTUnwrap(course.lessons[li].beats.firstIndex{$0.id=="knight:16"})
+        let li=try XCTUnwrap(course.lessons.firstIndex{$0.id=="opening"})
+        let si=try XCTUnwrap(course.lessons[li].beats.firstIndex{$0.id=="opening:5"})
         let start=try XCTUnwrap(course.frame(lesson:li,step:si,seconds:0).board)
         let end=try XCTUnwrap(course.frame(lesson:li,step:si,seconds:course.voices[li][si].duration).board)
         let rules=try ChessRules()
+        try rules.move("d2","d4");try rules.move("d7","d5")
         XCTAssertEqual(start,rules.board)
         XCTAssertEqual(Set(rules.moves("g1").map(\.to)),Set(["f3","h3"]))
         XCTAssertThrowsError(try rules.move("g1","e2"))
         try rules.move("g1","f3")
         XCTAssertEqual(end,rules.board)
-        for file in "abcdefgh" {
+        for file in "abcefgh" {
             XCTAssertEqual(end[String(file)+"2"],"wp")
             XCTAssertEqual(end[String(file)+"7"],"bp")
         }

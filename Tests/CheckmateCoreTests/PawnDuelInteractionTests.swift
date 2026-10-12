@@ -13,8 +13,8 @@ final class PawnDuelInteractionTests:XCTestCase {
     @MainActor func testBothSidesCanMoveCaptureAndFinishPawnDuel()throws {
         let session=try GameSession(engine:nil),player=try LearningPlayer(session:session)
         player.openLesson(index:3);player.startPawnDuel(computer:false)
-        player.click("h7");XCTAssertTrue(player.picked.isEmpty)
-        for (from,to) in [("g2","g4"),("h7","h5"),("g4","h5"),("g7","g6"),("h5","h6"),("g6","g5"),("h6","h7"),("g5","g4"),("h7","h8")] {
+        player.click("g7");XCTAssertTrue(player.picked.isEmpty)
+        for (from,to) in [("g2","g4"),("f7","f5"),("g4","f5"),("g7","g6"),("f5","g6"),("b7","b6"),("g6","g7"),("b6","b5"),("g7","g8")] {
             let side=player.miniTurn
             player.click(from);XCTAssertEqual(player.picked,[from])
             XCTAssertTrue(player.destinations.contains(to),"\(from) → \(to)")

@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 1,
+  "sounds": {
+    "p": [
+      {
+        "duration": 0.075,
+        "from": 610,
+        "to": 250,
+        "gain": 0.09,
+        "wave": "sine",
+        "at": 0
+      }
+    ],
+    "n": [
+      {
+        "duration": 0.115,
+        "from": 380,
+        "to": 210,
+        "gain": 0.095,
+        "wave": "sine",
+        "at": 0
+      }
+    ],
+    "b": [
+      {
+        "duration": 0.085,
+        "from": 820,
+        "to": 500,
+        "gain": 0.06,
+        "wave": "triangle",
+        "at": 0
+      }
+    ],
+    "r": [
+      {
+        "duration": 0.13,
+        "from": 240,
+        "to": 120,
+        "gain": 0.1,
+        "wave": "triangle",
+        "at": 0
+      }
+    ],
+    "q": [
+      {
+        "duration": 0.17,
+        "from": 620,
+        "to": 480,
+        "gain": 0.065,
+        "wave": "sine",
+        "at": 0
+      },
+      {
+        "at": 0,
+        "duration": 0.12,
+        "from": 930,
+        "to": 720,
+        "gain": 0.018,
+        "wave": "sine"
+      }
+    ],
+    "k": [
+      {
+        "duration": 0.12,
+        "from": 180,
+        "to": 100,
+        "gain": 0.1,
+        "wave": "sine",
+        "at": 0
+      }
+    ]
+  }
+}

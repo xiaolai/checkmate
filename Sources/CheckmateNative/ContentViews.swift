@@ -117,7 +117,7 @@ struct DetailContent:View {
                     Button {model.openPractice(index)} label:{Label("Practise: \(learning.localizedTitle(index:index))",systemImage:"gamecontroller")}
                         .controlSize(.large).accessibilityIdentifier("lesson-open-practice-"+learning.library.lessons[index].id)
                 }
-                if let preset=LessonPractice.forLesson(learning.current.id) {
+                if let preset=learning.current.practice {
                     Button {model.practiceLesson()} label:{Label("Try it against the computer",systemImage:"play.fill")}
                         .controlSize(.large).accessibilityIdentifier("lesson-practice-position")
                     Text(preset.goal).foregroundStyle(.secondary)
@@ -180,6 +180,10 @@ struct TransportContent:View {
     /// The training controller, when training is enabled, and the way back to its library.
     var training:TrainingController?=nil
     var openTrainingLibrary:()->Void={}
+    /// Opens the next main lesson and plays it, as the lesson panel's Continue does.
+    var continueLesson:()->Void={}
+    /// Opens the previous main lesson at its last transcript, the reverse of Continue.
+    var previousLessonEnd:()->Void={}
     var body:some View {HStack(spacing:Metrics.smallGap) {
         if review.active{ReviewTransport(review:review)}else if session.mode == .practice {practiceTransport;voiceTransport}
         else if learning.mini {
@@ -192,10 +196,16 @@ struct TransportContent:View {
         } else if session.mode == .lesson {
             if learning.readingFromTraining{NativeIcon(symbol:"arrow.uturn.left",label:"Back to training",action:openTrainingLibrary)}
             NativeIcon(symbol:"book",label:"Show lesson guidance",action:showDetails)
-            NativeIcon(symbol:"arrow.left",label:"Previous transcript"){learning.seek(step:learning.step-1)}.disabled(learning.step==0)
+            // On the first transcript the arrow goes back to the end of the previous main lesson; the first lesson has none.
+            if learning.step==0,let previous=learning.library.previousMainLesson(before:learning.lessonIndex) {
+                NativeIcon(symbol:"arrow.left",label:"Previous lesson: \(learning.localizedTitle(index:previous))",action:previousLessonEnd)
+            } else {NativeIcon(symbol:"arrow.left",label:"Previous transcript"){learning.seek(step:learning.step-1)}.disabled(learning.step==0)}
             NativeIcon(symbol:learning.playing ? "pause.fill":"play.fill",label:learning.playing ? "Pause":"Play"){learning.playing ? learning.pause():learning.play()}
             NativeIcon(symbol:"arrow.counterclockwise",label:"Replay transcript"){learning.replay()}
-            NativeIcon(symbol:"arrow.right",label:"Next transcript"){learning.next()}
+            // On the last transcript the arrow moves on to the next main lesson, like Continue; the final lesson just completes.
+            if learning.step>=learning.current.beats.count-1,let next=learning.library.nextMainLesson(after:learning.lessonIndex) {
+                NativeIcon(symbol:"arrow.right",label:"Next lesson: \(learning.localizedTitle(index:next))"){learning.complete();continueLesson()}
+            } else {NativeIcon(symbol:"arrow.right",label:"Next transcript"){learning.next()}}
         } else if learning.activePuzzle != nil {
             NativeIcon(symbol:"square.grid.2x2",label:"Puzzle library"){learning.showPuzzleLibrary()}
             NativeIcon(symbol:"book",label:"Show puzzle question",action:showDetails)

@@ -252,9 +252,10 @@ final class B10LessonsStoreTests:XCTestCase {
 @MainActor final class B10LessonsPuzzleTests:XCTestCase {
  /// LE2-9: a path puzzle keeps its own guidance; a click on a square that is not a king step is not a mistake.
  func testPathPuzzleKeepsItsGuidanceAndIgnoresMisclicks()throws {
-  let session=try GameSession(engine:nil),player=try LearningPlayer(session:session),id="course:safe-squares:18";player.openPuzzle(id:id)
+  let session=try GameSession(engine:nil),player=try LearningPlayer(session:session),id="course:safe-squares:1";player.openPuzzle(id:id)
   player.click("h8");XCTAssertEqual(player.feedback,"Choose a square next to the king.");XCTAssertNil(session.state.puzzles[id],"A misclick is not recorded as a mistake")
-  player.click("a2");XCTAssertEqual(player.feedback,"That square is not a safe neighboring square. Try another step.","The rook on a4 attacks a2")
+  player.click("a2");XCTAssertNil(session.state.puzzles[id],"A safe step is not a mistake")
+  player.click("a3");XCTAssertEqual(player.feedback,"That square is not a safe neighboring square. Try another step.","The bishop on c5 attacks a3")
   XCTAssertEqual(session.state.puzzles[id]?.attempts,1);XCTAssertEqual(session.state.puzzles[id]?.review,true);XCTAssertFalse(player.passed)
   player.shutdown()
  }

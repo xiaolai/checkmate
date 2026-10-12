@@ -17,7 +17,7 @@ import CheckmateCore
         return Set(try JSONDecoder().decode([String].self,from:Data(output.utf8)))
     }
     /// A breadth-first search over chess.js's pseudo-legal move generator: a different move generator, a different
-    /// language and a different castling test (`isAttacked`).
+    /// language and a different king-safety test (`isAttacked`).
     private func referenceDistance(_ drill:MovementDrill)throws -> Int? {
         let input=try json(["piece":drill.piece,"start":drill.start,"target":drill.target,"pieces":drill.pieces])
         let script="""

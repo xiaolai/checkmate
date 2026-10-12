@@ -19,7 +19,7 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 spec=importlib.util.spec_from_file_location('recorder',ROOT/'Tools/record-lessons.py')
 recorder=importlib.util.module_from_spec(spec);spec.loader.exec_module(recorder)
-NUMBERS=dict(zip('12345678','one two three four five six seven eight'.split()))
+NUMBERS=dict(zip('12345678','one two three four'.split()+'five six seven eight'.split()))
 def tokens(text):
     text=re.sub(r'\b([a-h])([1-8])\b',lambda m:m[1]+' '+NUMBERS[m[2]],text.lower())
     text=re.sub(r'\b([1-8])\b',lambda m:NUMBERS[m[1]],text)

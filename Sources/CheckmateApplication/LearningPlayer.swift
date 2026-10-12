@@ -55,7 +55,7 @@ import Combine
     public var miniStatus:String {if let reason=miniGame?.drawReason{return "Draw. "+reason};if let winner=winner{return miniKind.solo ? "Route complete!":miniGame?.computer==true ? (winner=="w" ? "You win!":"Computer wins. Try again!"):(winner=="w" ? "White wins!":"Black wins!")};if miniKind.solo{return "Next corner: \(MiniGameRules.corners[miniGame?.snapshot.cornerIndex ?? 0])"};return miniGame?.computer==true ? (miniTurn=="w" ? "Your turn · White":"Computer’s turn · Black"):(miniTurn=="w" ? "White to move":"Black to move")}
     public var onIllustration:((String,Bool)->Void)?
     private var soundedMoves=Set<Int>()
-    public var practiceAvailable:Bool {!MiniGameKind.available(lessonID:current.id).isEmpty || LessonPractice.forLesson(current.id) != nil || !library.practice(for:lessonIndex).isEmpty}
+    public var practiceAvailable:Bool {!MiniGameKind.available(lessonID:current.id).isEmpty || current.practice != nil || !library.practice(for:lessonIndex).isEmpty}
     /// The lesson shown, or the last one shown while elsewhere (the sidebar and Settings follow it).
     public var lessonIndex:Int {session.activity.place.lessonIndex ?? lastLessonIndex}
     private var lastLessonIndex=0

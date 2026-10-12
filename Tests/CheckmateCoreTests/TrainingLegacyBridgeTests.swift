@@ -69,9 +69,9 @@ import CheckmateCore
         player2.startMini(.pawnDuel,fromLibrary:true);player2.undoMini();player2.click("a7");player2.click("a8")
         XCTAssertEqual(session.state.training?.events.count,1)
     }
-    /// Knight Corners with h1, h8 and a8 already visited and the knight one safe jump (c2-a1) from completing the route.
-    private func nearlyRouted()->MiniGameState {var game=MiniGameState(kind:.knightCorners);game.snapshot.board=["c2":"wn","c3":"bp","f3":"bp","c6":"bp","f6":"bp"];game.snapshot.cornerIndex=3;return game}
-    func testAKnightHopRouteCountsOncePerRun()throws {
+    /// Knight Corners with a8, h8 and h1 already visited and the knight one safe jump (c2-a1) from completing the route.
+    private func nearlyRouted()->MiniGameState {var game=MiniGameState(kind:.knightCorners);game.snapshot.board=["c2":"wn","c3":"bp","f3":"bp","d6":"bp","e5":"bp","b6":"bp","g6":"bp"];game.snapshot.cornerIndex=3;return game}
+    func testAKnightCornersRouteCountsOncePerRun()throws {
         var state=ApplicationState();state.miniGames=["knight-corners":nearlyRouted()]
         let (session,player,_)=try fixture(state);defer{player.shutdown()}
         player.startMini(.knightCorners,fromLibrary:true);XCTAssertEqual(player.miniGame?.computer,false,"a solo game has no opponent")

@@ -19,7 +19,7 @@ public struct CourseBeat:Decodable {
 }
 /// `practiceFor` names the main lesson a practice activity belongs to. It groups the activity under that lesson and
 /// keeps it off the main path; its identity, narration and saved progress are those of any other lesson.
-public struct CourseLesson:Decodable {public let id:String,title:String,teaches:[String]?,mascot:String?,practiceFor:String?,beats:[CourseBeat]
+public struct CourseLesson:Decodable {public let id:String,title:String,teaches:[String]?,mascot:String?,practiceFor:String?,practice:LessonPractice?,beats:[CourseBeat]
     public var isPractice:Bool {practiceFor != nil}
 }
 public struct Exercise:Codable {
@@ -51,6 +51,8 @@ public struct CourseLibrary:Decodable {
     public func practice(for index:Int)->[Int] {guard lessons.indices.contains(index),!lessons[index].isPractice else{return []};return lessons.indices.filter{lessons[$0].practiceFor==lessons[index].id}}
     /// Where the main path continues: the next main lesson after this lesson, or after the parent of a practice activity.
     public func nextMainLesson(after index:Int)->Int? {guard lessons.indices.contains(index) else{return nil};return lessons.indices.first{$0>index && !lessons[$0].isPractice}}
+    /// Where the main path came from: the nearest main lesson before this one. For a practice activity that is its parent.
+    public func previousMainLesson(before index:Int)->Int? {guard lessons.indices.contains(index) else{return nil};return lessons.indices.last{$0<index && !lessons[$0].isPractice}}
     public func knownAnswerID(_ id:String)->Bool {exercises[id] != nil || retiredExerciseIDs?.contains(id)==true}
     /// Cue fractions are relative to narration duration, so longer translated clips never race at English speed.
     /// Explicit cues are measured against the bundled recording; recordings without them use paced illustration.

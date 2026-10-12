@@ -12,7 +12,7 @@ import CheckmateCore
 final class MiniGameTests:XCTestCase {
     func testPlayableSetupsMatchAuthoredLessonBoards()throws {
         let library=try CourseLibrary()
-        for (kind,lesson,step) in [(MiniGameKind.rookSweep,"rook-practice",2),(.bishopSweep,"bishop-practice",7),(.queenVsPawns,"queen-practice",6),(.knightCapture,"knight-practice",1),(.knightCorners,"knight-practice",13)] {
+        for (kind,lesson,step) in [(MiniGameKind.pawnDuel,"pawn-duel",1),(.rookSweep,"rook-practice",1),(.rooksAndPawns,"rook-practice",9),(.bishopSweep,"bishop-practice",1),(.bishopsAndPawns,"bishop-practice",10),(.queenVsPawns,"queen-practice",1),(.knightCapture,"knight-practice",1),(.knightCorners,"knight-practice",11)] {
             let index=try XCTUnwrap(library.lessons.firstIndex{$0.id==lesson})
             XCTAssertEqual(kind.initialBoard,try library.frame(lesson:index,step:step,seconds:0).board,kind.rawValue)
         }
@@ -83,7 +83,7 @@ final class MiniGameTests:XCTestCase {
         let session=try GameSession(engine:nil),player=try LearningPlayer(session:session);session.state.settings.pieceDuration=0
         player.openLesson(index:3);player.startPawnDuel();let initial=player.frame.board
         player.click("g2");player.click("g4");XCTAssertTrue(player.miniThinking)
-        player.click("h7");XCTAssertTrue(player.picked.isEmpty)
+        player.click("g7");XCTAssertTrue(player.picked.isEmpty)
         for _ in 0..<150 where player.miniThinking {try await Task.sleep(for:.milliseconds(40))}
         XCTAssertFalse(player.miniThinking);XCTAssertEqual(player.miniTurn,"w");XCTAssertEqual(player.miniGame?.history.count,2)
         player.undoMini();XCTAssertEqual(player.frame.board,initial);XCTAssertEqual(player.miniTurn,"w")

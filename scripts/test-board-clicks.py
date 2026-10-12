@@ -149,6 +149,9 @@ def rank8_clickable_under_banner():
     pointer("click-square", "c3")
     wait(lambda: label("c3").startswith("c3, White, knight"), "b1-c3 did not play")
     wait(lambda: "storage-error-banner" in listing(), "A failed save did not show the storage error banner")
+    # The reply keeps a selection only on a White piece (GameSession.commitBlack), so clicking the black queen first
+    # would race it.
+    wait(replied("1. Nc3"), "Stockfish did not reply after b1-c3")
     banner, rank8 = frame("frame", "storage-error-banner"), frame("square-frame", "d8")
     results["bannerFrame"], results["rank8Frame"] = banner, rank8
     results["bannerOverlapPoints"] = max(0, banner[1] + banner[3] - rank8[1])

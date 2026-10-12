@@ -65,7 +65,9 @@ public struct PracticeState:Codable {
     private static func decided(_ ending:PracticeEnding?)->PracticeEnding? {ending.flatMap{["1-0","0-1","1/2-1/2"].contains($0.result) ? $0:nil}}
     public init(from decoder:Decoder)throws {let c=try decoder.container(keyedBy:CodingKeys.self);pgn=try c.decodeIfPresent(String.self,forKey:.pgn) ?? "";fen=try c.decodeIfPresent(String.self,forKey:.fen) ?? "";previousGame=try c.decodeIfPresent(String.self,forKey:.previousGame) ?? "";previousSide=(try? c.decodeIfPresent(String.self,forKey:.previousSide)).flatMap{["w","b"].contains($0) ? $0:nil} ?? "w";beginnerSevereStreak=max(0,min(BeginnerPolicy.maximumConsecutiveSevereErrors,try c.decodeIfPresent(Int.self,forKey:.beginnerSevereStreak) ?? 0));startPly=max(0,(try? c.decodeIfPresent(Int.self,forKey:.startPly)).flatMap{$0} ?? 0);ending=Self.decided((try? c.decodeIfPresent(PracticeEnding.self,forKey:.ending)).flatMap{$0});previousStartPly=max(0,(try? c.decodeIfPresent(Int.self,forKey:.previousStartPly)).flatMap{$0} ?? 0);previousEnding=Self.decided((try? c.decodeIfPresent(PracticeEnding.self,forKey:.previousEnding)).flatMap{$0})}
 }
-public struct CourseProgress:Codable {public var lessonID="intro",step=0,segmentID:String?,positions:[String:String]?,completed:[String]=[],answered:[String]=[];public init(){}}
+/// `edition` is the course edition the progress refers to; progress saved without one is edition 1 and is carried
+/// forward by `ProgressMigration` as it loads.
+public struct CourseProgress:Codable {public var lessonID="intro",step=0,segmentID:String?,positions:[String:String]?,completed:[String]=[],answered:[String]=[],edition:Int?=ProgressMigration.courseEdition;public init(){}}
 /// One puzzle's progress. `attempts` counts the learner's answers, one per answer.
 public struct PuzzleProgress:Codable,Equatable {
     /// The most attempts a loaded or imported record may hold (`StateStore.validate` refuses more): the bound every
@@ -159,17 +161,21 @@ public struct ApplicationState:Codable {
     private static func newer(_ version:JSONValue?)->Bool {
         switch version {case .number(let v)?:return v>Double(TrainingState.version);case .integer(let v)?:return v>Int64(TrainingState.version);case .unsigned(let v)?:return v>UInt64(TrainingState.version);default:return false}
     }
-    private struct GameKey:CodingKey {let stringValue:String;var intValue:Int? {nil};init(stringValue:String){self.stringValue=stringValue};init?(intValue:Int){nil}}
     /// Field by field as before; only a mini-game this version does not know (saved by a newer one) is dropped
     /// instead of failing the whole saved state. A damaged mini-game this version knows fails it, so a later save
     /// never erases that progress unseen.
     public init(from decoder:Decoder)throws {
-        let raw=try decoder.singleValueContainer().decode([String:JSONValue].self)
-        let c=try decoder.container(keyedBy:CodingKeys.self)
-        schemaVersion=try c.decode(Int.self,forKey:.schemaVersion);savedAt=try c.decode(Date.self,forKey:.savedAt);practice=try c.decode(PracticeState.self,forKey:.practice);course=try c.decode(CourseProgress.self,forKey:.course)
-        settings=try c.decode(AppSettings.self,forKey:.settings);puzzles=try c.decode([String:PuzzleProgress].self,forKey:.puzzles);window=try c.decode(WindowState.self,forKey:.window);importedArchives=try c.decode([String].self,forKey:.importedArchives)
-        if c.contains(.miniGames),try !c.decodeNil(forKey:.miniGames) {let games=try c.nestedContainer(keyedBy:GameKey.self,forKey:.miniGames);var known:[String:MiniGameState]=[:];for key in games.allKeys where MiniGameKind(rawValue:key.stringValue) != nil {known[key.stringValue]=try games.decode(MiniGameState.self,forKey:key)};miniGames=known}
-        puzzleFilters=try c.decodeIfPresent([String:String].self,forKey:.puzzleFilters)
+        // Progress from an earlier course edition is renamed first, so every field below reads the current one.
+        let raw=ProgressMigration.migrate(state:try decoder.singleValueContainer().decode([String:JSONValue].self))
+        func field<T:Decodable>(_ key:CodingKeys,_ type:T.Type)throws -> T {
+            guard let value=raw[key.rawValue] else{throw DecodingError.keyNotFound(key,.init(codingPath:decoder.codingPath,debugDescription:"Missing \(key.rawValue)."))}
+            return try JSONDecoder().decode(type,from:JSONEncoder().encode(value))
+        }
+        schemaVersion=try field(.schemaVersion,Int.self);savedAt=try field(.savedAt,Date.self);practice=try field(.practice,PracticeState.self);course=try field(.course,CourseProgress.self)
+        settings=try field(.settings,AppSettings.self);puzzles=try field(.puzzles,[String:PuzzleProgress].self);window=try field(.window,WindowState.self);importedArchives=try field(.importedArchives,[String].self)
+        if case .object(let games)?=raw["miniGames"] {var known:[String:MiniGameState]=[:];for (key,game) in games where MiniGameKind(rawValue:key) != nil {known[key]=try JSONDecoder().decode(MiniGameState.self,from:JSONEncoder().encode(game))};miniGames=known}
+        else if let games=raw["miniGames"],games != .null {throw DecodingError.typeMismatch([String:MiniGameState].self,.init(codingPath:decoder.codingPath,debugDescription:"Saved mini-games are not an object."))}
+        if let filters=raw["puzzleFilters"],filters != .null {puzzleFilters=try JSONDecoder().decode([String:String].self,from:JSONEncoder().encode(filters))}
         // Bad or newer training data never prevents loading the rest: it is kept raw, never silently replaced.
         if let value=raw["training"],value != .null {
             do{let decoded=try JSONDecoder().decode(TrainingState.self,from:JSONEncoder().encode(value));try decoded.validate();guard try JSONEncoder().encode(decoded).count<=TrainingState.maximumBytes else{throw CheckmateError.invalid("Training progress exceeds its storage budget.")};training=decoded}

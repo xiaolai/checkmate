@@ -40,7 +40,7 @@ import CheckmateCore
     /// The lesson's practice position becomes a separate practice game, as White, keeping the earlier game.
     func testPracticeLessonStartsTheLessonPositionAsAPracticeGame()throws {
         let model=try NativeModel();defer{model.shutdown()}
-        let preset=try XCTUnwrap(LessonPractice.forLesson("fork"))
+        let preset=try XCTUnwrap(model.learning.library.lessons.first{$0.id=="fork"}?.practice)
         model.practice();try model.session.rules.restore("1. e4 e5 *");model.lesson(try index(model,"fork"))
         model.practiceLesson()
         XCTAssertEqual(model.session.activity.place,.practice);XCTAssertNil(model.session.activity.review)

@@ -7,7 +7,7 @@
   "speed": 1.0,
   "response_format": "wav",
   "instructions": "Read the supplied text exactly, in clear British English. Sound like a warm, calm chess coach helping a beginner. Use natural conversational intonation and an unhurried pace, with brief pauses at sentence boundaries. Pronounce square coordinates distinctly. Keep encouragement understated. Do not add introductions, explanations, answers, or other words.",
-  "auditionIds": ["intro:0", "board:15", "bishop:0", "castling:0", "promotion-en-passant:20", "notation:18", "famous-game:0", "intro:17"],
+  "auditionIds": ["intro:0", "board:8", "bishop:0", "castling:0", "promotion-en-passant:10", "notation:5", "famous-game:0", "intro:17"],
   "requestTimeoutSeconds": 120,
   "retryAttempts": 3,
   "retryBackoffSeconds": 2,

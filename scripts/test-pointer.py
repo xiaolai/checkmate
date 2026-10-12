@@ -165,7 +165,7 @@ try:
         pointer("click", "Generate preview")
         wait(lambda: "Preview ready." in listing(), "Fixture preview generation did not finish")
         pointer("click", "Record / Resume")
-        wait(lambda: re.search(r"Lesson 1 of 1, clip [0-9]+ of 20", listing()) is not None, "Fixture recording progress is missing")
+        wait(lambda: re.search(r"Lesson 1 of 1, clip [0-9]+ of 18", listing()) is not None, "Fixture recording progress is missing")
         # Control for the cleanup check below: a running lesson job's Cancel accepts clicks.
         assert pointer("enabled", "lesson-job-cancel") == "true", "Cancel was disabled during a cancellable recording"
         pointer("click", "lesson-job-cancel")
@@ -173,27 +173,27 @@ try:
         subprocess.run(["screencapture", "-x", str(evidence / "lesson-settings.png")], check=True)
         wait(lambda: "Incomplete lessons use English." in listing(), "Cancelled partial recording did not report English fallback")
         pointer("click", "Record / Resume")
-        wait(lambda: "Complete offline lesson: 20 verified recordings." in listing(), "Fixture resumed recording did not complete", timeout=30)
+        wait(lambda: "Complete offline lesson: 18 verified recordings." in listing(), "Fixture resumed recording did not complete", timeout=30)
         # Destructive confirmations: Cancel (and Return, the default) close them without acting.
         pointer("click", "Remove clip")
         wait(lambda: "Remove clip 1?" in listing(), "Clip removal confirmation did not open")
         dialog("Remove clip 1?", "Cancel")
         wait(lambda: "Remove clip 1?" not in listing(), "Cancel did not close the clip removal confirmation")
         time.sleep(0.5)
-        assert "Clip 1 removed." not in listing() and "Complete offline lesson: 20 verified recordings." in listing(), "Cancel removed the clip"
+        assert "Clip 1 removed." not in listing() and "Complete offline lesson: 18 verified recordings." in listing(), "Cancel removed the clip"
         pointer("click", "Remove clip")
         wait(lambda: "Remove clip 1?" in listing(), "Clip removal confirmation did not reopen")
         pointer("return")
         wait(lambda: "Remove clip 1?" not in listing(), "Return did not close the clip removal confirmation")
         time.sleep(0.5)
-        assert "Clip 1 removed." not in listing() and "Complete offline lesson: 20 verified recordings." in listing(), "Return (the default button) removed the clip"
+        assert "Clip 1 removed." not in listing() and "Complete offline lesson: 18 verified recordings." in listing(), "Return (the default button) removed the clip"
         pointer("click", "Remove clip")
         wait(lambda: "Remove clip 1?" in listing(), "Clip removal confirmation did not open")
         dialog("Remove clip 1?", "Remove")
         wait(lambda: "Clip 1 removed." in listing(), "Confirmed clip removal failed")
-        wait(lambda: "19 of 20 recordings stored" in listing(), "Removing one clip did not keep the other 19")
+        wait(lambda: "17 of 18 recordings stored" in listing(), "Removing one clip did not keep the other 17")
         pointer("click", "Record / Resume")
-        wait(lambda: "Complete offline lesson: 20 verified recordings." in listing(), "Re-recording the removed clip did not complete", timeout=30)
+        wait(lambda: "Complete offline lesson: 18 verified recordings." in listing(), "Re-recording the removed clip did not complete", timeout=30)
         pointer("close-window", "Settings")
         pointer("click", "French lesson: Introduction")
         wait(lambda: "French lesson:" in listing() and "In this lesson" in listing(), "Offline translated lesson did not open")

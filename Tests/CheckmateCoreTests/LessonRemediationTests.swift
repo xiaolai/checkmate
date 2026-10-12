@@ -26,18 +26,18 @@ final class LessonRemediationTests:XCTestCase {
     }
     func testRepetitionDrawUndoAndOldSaveCompatibility()throws {
         var g=MiniGameState(kind:.rookSweep,computer:false)
-        let cycle=[MiniGameMove(from:"a1",to:"b1"),.init(from:"h8",to:"g8"),.init(from:"b1",to:"a1"),.init(from:"g8",to:"h8")]
+        let cycle=[MiniGameMove(from:"b1",to:"a1"),.init(from:"g8",to:"h8"),.init(from:"a1",to:"b1"),.init(from:"h8",to:"g8")]
         for _ in 0..<2{for move in cycle{XCTAssertTrue(g.play(move))}}
         XCTAssertNotNil(g.drawReason);XCTAssertTrue(g.isFinished)
         let restored=try JSONDecoder().decode(MiniGameState.self,from:JSONEncoder().encode(g));XCTAssertEqual(restored.drawReason,g.drawReason)
         g.undo();XCTAssertFalse(g.isFinished)
-        XCTAssertTrue(g.play(.init(from:"g8",to:"f8")))
+        XCTAssertTrue(g.play(.init(from:"h8",to:"f8")))
     }
     @MainActor func testAnimationOffAndOnEmitAllMovesOnceAcrossPauseResume()throws {
         for duration in [0,700] {
             let s=try GameSession(engine:nil),p=try LearningPlayer(session:s)
-            s.state.settings.pieceDuration=duration;p.openLesson(index:2)
-            p.seek(step:p.current.beats.firstIndex{$0.id=="pawn:5"}!)
+            s.state.settings.pieceDuration=duration;p.openLesson(index:p.library.lessons.firstIndex{$0.id=="safe-squares"}!)
+            p.seek(step:p.current.beats.firstIndex{$0.id=="safe-squares:14"}!)
             var events=0;p.onIllustration={_,_ in events+=1};p.play();p.advance(by:p.duration/2);p.pause();p.play();p.advance(by:p.duration/2-0.01)
             XCTAssertEqual(events,3,"animation duration \(duration)")
             p.pause();p.seek(step:p.step);XCTAssertEqual(events,3)
@@ -65,10 +65,11 @@ final class LessonRemediationTests:XCTestCase {
 
 extension LessonRemediationTests {
     @MainActor func testPracticePresetsAreLegalNonterminalAndContainBothKings()throws {
-        XCTAssertEqual(LessonPractice.presets.count,13)
-        for preset in LessonPractice.presets {
-            let r=try ChessRules(fen:preset.fen)
-            XCTAssertFalse(r.over,preset.lessonID);XCTAssertFalse(r.check,preset.lessonID)
+        let lessons=try CourseLibrary().lessons.filter{$0.practice != nil}
+        XCTAssertEqual(lessons.count,13)
+        for lesson in lessons {
+            let r=try ChessRules(fen:lesson.practice!.fen)
+            XCTAssertFalse(r.over,lesson.id);XCTAssertFalse(r.check,lesson.id)
             XCTAssertEqual(r.board.values.filter{$0=="wk"}.count,1);XCTAssertEqual(r.board.values.filter{$0=="bk"}.count,1)
             try GameSession.validatePracticeFork(r,side:"w")
         }
@@ -77,23 +78,23 @@ extension LessonRemediationTests {
         let s=try GameSession(engine:nil),p=try LearningPlayer(session:s)
         try s.rules.move("e2","e4");try s.rules.move("e7","e5");let old=s.rules.pgn
         p.openLesson(index:29);p.seek(step:5);let progress=s.state.course.segmentID
-        try s.installPracticeFork(ChessRules(fen:LessonPractice.forLesson("fork")!.fen),side:"w")
+        try s.installPracticeFork(ChessRules(fen:p.library.lessons.first{$0.id=="fork"}!.practice!.fen),side:"w")
         XCTAssertEqual(s.state.practice.previousGame,old);XCTAssertEqual(s.state.course.segmentID,progress);XCTAssertEqual(s.mode,.practice)
         try s.restorePrevious();XCTAssertEqual(s.rules.pgn,old);p.shutdown()
     }
     func testCueTimingScalesWithNarrationAndPreservesSlowAnimationEndpoints()throws {
-        let c=try CourseLibrary(),li=c.lessons.firstIndex{$0.id=="famous-game"}!,si=c.lessons[li].beats.firstIndex{$0.id=="famous-game:9"}!
+        let c=try CourseLibrary(),li=c.lessons.firstIndex{$0.id=="safe-squares"}!,si=c.lessons[li].beats.firstIndex{$0.id=="safe-squares:14"}!
         let times=c.moveTimes(lesson:li,step:si,narrationSeconds:30,pieceDuration:0.7)
         XCTAssertEqual(times.count,3);XCTAssertGreaterThan(times.last!,15)
         let end=c.playbackDuration(lesson:li,step:si,narrationSeconds:30,pieceDuration:0.7)
         XCTAssertEqual(try c.frame(lesson:li,step:si,seconds:end,duration:0.7,narrationSeconds:30).board,c.referenceFrames[li][si].end.board)
     }
-    func testNewPawnExampleAndUnderpromotionShowActualRule()throws {
-        let c=try CourseLibrary(),pawn=c.lessons.first{$0.id=="pawn"}!
-        XCTAssertTrue(pawn.beats.contains{$0.set==["h2":"wp"] && $0.moves==[["h2","h3"]]})
-        XCTAssertTrue(pawn.beats.contains{$0.set==["h3":"wp"] && $0.say.contains("not h5")})
-        let promo=c.lessons.first{$0.id=="promotion-en-passant"}!.beats.first{$0.moves.contains(["e7","e8","wn"])}!
-        XCTAssertNotNil(promo.set);XCTAssertTrue(CourseLibrary.attacks(["e8":"wn"],from:"e8",to:"f6"));XCTAssertTrue(CourseLibrary.attacks(["e8":"wn"],from:"e8",to:"d6"))
+    func testUnderpromotionShowsTheKnightsActualReach()throws {
+        let c=try CourseLibrary(),li=c.lessons.firstIndex{$0.id=="promotion-en-passant"}!
+        let si=try XCTUnwrap(c.lessons[li].beats.firstIndex{$0.moves.contains(["f7","f8","wn"])})
+        let end=try XCTUnwrap(c.referenceFrames[li][si].end.board)
+        XCTAssertEqual(end["f8"],"wn")
+        for arrow in c.referenceFrames[li][si].end.arrows {XCTAssertTrue(CourseLibrary.attacks(end,from:arrow[0],to:arrow[1]),"\(arrow)")}
     }
     func testPinnedKnightStillForbidsKingDestination()throws {
         let r=try ChessRules(fen:"4r3/8/8/6k1/8/8/4N3/4K3 b - - 0 1")
@@ -111,26 +112,18 @@ extension LessonRemediationTests {
 }
 
 extension LessonRemediationTests {
-    /// A saved translation pack survives an update that leaves its lesson alone, and is rebuilt for one that changes it.
-    /// The Chessboard is unchanged since 0.6.0; the Introduction's check arrow was corrected after it.
-    func testUnchangedLessonKeepsPublishedPackFingerprint()throws {
+    /// Every lesson's translation fingerprint, pinned when course edition 2 was published. A saved translation pack
+    /// is rebuilt when its lesson's fingerprint changes, so an accidental edit to any lesson must fail here first.
+    func testCourseEditionFingerprintsArePinned()throws {
         let library=try CourseLibrary()
-        XCTAssertEqual(LessonTranslation.source(library:library,index:1).fingerprint,"78f8a1da04a91ee76b47554cb2a92abf11914a0b8c9ca173232ebbf374137c43")
-        XCTAssertNotEqual(LessonTranslation.source(library:library,index:0).fingerprint,"f7e08d39a736162c32b70c7d7a1ddf524702c6e9cbf9e09109aebd8f365bdda9")
-    }
-    /// Grouping the practice activities changed no lesson's fingerprint; The Queen's new takeaway changed only hers. The
-    /// other 39 are pinned as they were before the change, so an accidental edit to any lesson invalidates its pack loudly.
-    func testOnlyTheQueenTakeawayChangedAFingerprint()throws {
-        let library=try CourseLibrary(),queen=try XCTUnwrap(library.lessons.firstIndex{$0.id=="queen"})
-        let rest=library.lessons.indices.filter{$0 != queen}.map{library.lessons[$0].id+"="+LessonTranslation.source(library:library,index:$0).fingerprint}.joined(separator:" ")
-        XCTAssertEqual(SHA256.hash(data:Data(rest.utf8)).map{String(format:"%02x",$0)}.joined(),"73f1082a409c65531e8f3957643793a86d65d30708f7b46667878394fd91ade9")
-        XCTAssertNotEqual(LessonTranslation.source(library:library,index:queen).fingerprint,"3cf69d141b21a27e2d340747366f03f84963a66ef9747ff0c8c6852364a01eae")
+        let all=library.lessons.indices.map{library.lessons[$0].id+"="+LessonTranslation.source(library:library,index:$0).fingerprint}.joined(separator:" ")
+        XCTAssertEqual(SHA256.hash(data:Data(all.utf8)).map{String(format:"%02x",$0)}.joined(),"123d072dba55463f3559b979539857932f634d44f5cb0fe6eb2cc417effc2719")
     }
     /// Grouping a practice activity under its lesson is presentation only: no lesson's translation pack is invalidated by it.
     func testPracticeGroupingLeavesEveryFingerprintAlone()throws {
         let data=try Data(contentsOf:NativeResources.url("course.json"))
         var json=try XCTUnwrap(JSONSerialization.jsonObject(with:data) as? [String:Any]),lessons=try XCTUnwrap(json["lessons"] as? [[String:Any]])
-        XCTAssertEqual(lessons.filter{$0["practiceFor"] != nil}.count,6)
+        XCTAssertEqual(lessons.filter{$0["practiceFor"] != nil}.count,5)
         lessons=lessons.map{$0.filter{$0.key != "practiceFor"}};json["lessons"]=lessons
         let grouped=try CourseLibrary(),ungrouped=try JSONDecoder().decode(CourseLibrary.self,from:JSONSerialization.data(withJSONObject:json))
         XCTAssertTrue(ungrouped.lessons.allSatisfy{!$0.isPractice})

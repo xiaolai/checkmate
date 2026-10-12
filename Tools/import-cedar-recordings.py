@@ -47,14 +47,6 @@ def step_duration(beat, audio_seconds, timing):
     return math.ceil(seconds * timing['frameRate']) / timing['frameRate']
 
 
-def short_label(text):
-    text = ' '.join(text.split())
-    if len(text) <= 32:
-        return text
-    prefix = text[:31]
-    return prefix[:prefix.rfind(' ')] + '…' if ' ' in prefix else prefix + '…'
-
-
 def reusable_asset(cache, master, encoding):
     """Reuse only the exact recording and encoding, even across asset sets."""
     if cache.get('audioEncoding') != encoding:
@@ -65,21 +57,14 @@ def reusable_asset(cache, master, encoding):
     return None
 
 
-def build_course(baseline, content, assets, timing, version):
-    result = copy.deepcopy(baseline)
-    result['lessons'] = copy.deepcopy(content['lessons'])
-    result['exercises'] = content['exercises']
-    result['retiredExerciseIDs'] = content['retiredExerciseIDs']
-    result['puzzles'] = content['puzzles']
-    result['timing'] = timing
-    result['voices'] = []
-    result['stepTitles'] = []
-    result['frames'] = []
+def build_course(sounds, content, assets, timing, version):
+    result = {'schemaVersion': 1, 'lessons': copy.deepcopy(content['lessons']), 'voices': [],
+              'exercises': content['exercises'], 'puzzles': content['puzzles'], 'stepTitles': [], 'frames': [],
+              'sounds': sounds, 'retiredExerciseIDs': content['retiredExerciseIDs'], 'timing': timing}
     prep = module('prepare', 'prepare-lesson-scripts.py')
     for li, lesson in enumerate(content['lessons']):
         voices = []
-        source_steps = [int(b['id'].rsplit(':', 1)[1]) for b in lesson['beats']]
-        result['frames'].append([prep.reference_frame(baseline, content, li, beat) for beat in lesson['beats']])
+        result['frames'].append(prep.lesson_frames(lesson))
         for step, beat in enumerate(lesson['beats']):
             asset = assets[beat['id']]
             cue_file=ROOT / 'Content/lesson-action-cues.json'
@@ -98,19 +83,22 @@ def build_course(baseline, content, assets, timing, version):
             runtime_beat = result['lessons'][li]['beats'][step]
             end = result['frames'][li][step]['end']
             runtime_beat.update(set=start.get('board'), hl=end.get('hl', []),
-                                arrows=end.get('arrows', []), big=start.get('big', ''))
-            for endpoint in ('start', 'end'):
-                if 'quiz' in result['frames'][li][step][endpoint].get('big', '').lower():
-                    result['frames'][li][step][endpoint]['big'] = ''
-            if 'quiz' in runtime_beat['big'].lower():
-                runtime_beat['big'] = ''
+                                arrows=end.get('arrows', []), big=start['big'])
+            # The step label is published once, in stepTitles.
+            del runtime_beat['label']
         stage_overlays(result['frames'][li], result['lessons'][li]['beats'])
         result['voices'].append(voices)
-        # Preserve the four curated navigation sequences; refresh later labels.
-        titles = [baseline['stepTitles'][li][i] if i<len(baseline['stepTitles'][li]) else short_label(lesson['beats'][step]['say']) for step,i in enumerate(source_steps)] if li < 4 else [short_label(lesson['title'] if step == 0 else beat.get('big') or beat['say']) for step, beat in enumerate(lesson['beats'])]
-        result['stepTitles'].append(titles)
+        result['stepTitles'].append([beat['label'] for beat in lesson['beats']])
     result['narration'] = version
     return result
+
+
+def build_projections(content, runtime):
+    """The agent-facing projection of every lesson step: a paused lesson showing the step's starting board."""
+    return [[{'mode': 'lesson', 'lessonId': lesson['id'], 'title': lesson['title'], 'step': step,
+              'pieces': runtime['frames'][li][step]['start'].get('board'), 'playing': False,
+              'narrationActive': False, 'moving': False} for step in range(len(lesson['beats']))]
+            for li, lesson in enumerate(content['lessons'])]
 
 
 def stage_overlays(frames, beats):
@@ -139,9 +127,9 @@ def main():
     prep = module('prepare', 'prepare-lesson-scripts.py')
     verifier = module('verifier', 'verify-lesson-recordings.py')
     recorder = verifier.recorder
-    baseline = json.loads(prep.SOURCE.read_text())
+    sounds = json.loads((ROOT / 'Content/course-sounds.json').read_text())['sounds']
     content = json.loads(prep.CONTENT.read_text())
-    prep.validate(content, baseline)
+    prep.validate(content)
     for name, expected in prep.outputs(content).items():
         assert (ROOT / 'Content' / name).read_text() == expected, 'Stale editorial export: ' + name
     profile = json.loads((ROOT / 'Content/narration-profile.cedar.json').read_text())
@@ -192,13 +180,8 @@ def main():
         version = {'provider': profile['provider'], 'voice': profile['voice'], 'model': profile['model'],
                    'speed': profile['speed'], 'locale': content['locale'], 'assetSetSHA256': identity,
                    'aiGenerated': True, 'manifest': 'course-narration.json'}
-        runtime = build_course(baseline, content, assets, config['timing'], version)
-        projections = json.loads((ROOT / 'Content/projections-baseline.json').read_text())
-        for li, lesson in enumerate(content['lessons']):
-            projections[li] = [copy.deepcopy(projections[li][int(b['id'].rsplit(':', 1)[1])]) if int(b['id'].rsplit(':',1)[1])<len(projections[li]) else {'mode':'lesson','lessonId':lesson['id'],'title':lesson['title'],'playing':False,'narrationActive':False,'moving':False} for b in lesson['beats']]
-            for step, projection in enumerate(projections[li]):
-                projection['step'] = step
-                projection['pieces'] = runtime['frames'][li][step]['start'].get('board')
+        runtime = build_course(sounds, content, assets, config['timing'], version)
+        projections = build_projections(content, runtime)
         provenance = dict(version, schemaVersion=1, audioEncoding=config['audio'], assets=list(assets.values()))
         # Preserve the old resource set once, before replacing active references.
         backup = ROOT / 'build/course-before-cedar'
@@ -244,8 +227,7 @@ def main():
         print(json.dumps({'published': True, 'lessons': len(runtime['lessons']), 'clips': len(assets),
                           'voice': profile['voice'], 'speed': profile['speed'], 'assetDirectory': str(relative),
                           'audioSeconds': sum(a['seconds'] for a in assets.values()),
-                          'compressedBytes': sum(a['bytes'] for a in assets.values()),
-                          'savedProgressMappingPreserved': True}, indent=2))
+                          'compressedBytes': sum(a['bytes'] for a in assets.values())}, indent=2))
     finally:
         if stage.exists():
             shutil.rmtree(stage)

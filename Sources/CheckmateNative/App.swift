@@ -328,7 +328,7 @@ import CheckmateCore
             model.lesson(3);model.learning.startPawnDuel(computer:false);game.refresh()
             try? await Task.sleep(for:.milliseconds(500))
             var clicks:[[String:Any]]=[]
-            for square in ["g2","g4","h7","h5","g4","h5"] {
+            for square in ["g2","g4","f7","f5","g4","f5"] {
                 let rect=game.board.squareRect(square),local=NSPoint(x:rect.midX,y:rect.midY)
                 let point=game.board.convert(local,to:nil),window=game.window!
                 let hit=window.contentView?.hitTest(window.contentView!.convert(point,from:nil))
@@ -339,7 +339,7 @@ import CheckmateCore
                 clicks.append(["square":square,"hit":String(describing:type(of:hit)),"selected":model.learning.picked,"turn":model.learning.miniTurn])
             }
             let board=model.learning.frame.board ?? [:]
-            let passed=board["h5"]=="wp" && board["g2"]==nil && board["g4"]==nil && board["h7"]==nil && model.learning.miniTurn=="b"
+            let passed=board["f5"]=="wp" && board["g2"]==nil && board["g4"]==nil && board["f7"]==nil && model.learning.miniTurn=="b"
             try? await game.capture(directory+"/pawn-duel.png")
             @MainActor func click(_ square:String)async {
                 let rect=game.board.squareRect(square),point=game.board.convert(NSPoint(x:rect.midX,y:rect.midY),to:nil)
@@ -470,15 +470,15 @@ import CheckmateCore
             game.toggleRight();try? await Task.sleep(for:.milliseconds(850));model.learning.seek(step:1);try? await Task.sleep(for:.milliseconds(100))
             if game.desiredRight{failures.append("Transcript navigation reopened manually closed lesson details")}
             model.lesson(0);model.learning.seek(step:0);try? await Task.sleep(for:.milliseconds(850));try? await game.capture(directory+"/lesson-welcome.png")
-            let explanation=model.learning.current.beats.firstIndex{$0.id=="intro:18"}!
+            let explanation=model.learning.current.beats.firstIndex{$0.id=="intro:15"}!
             model.learning.seek(step:explanation);model.learning.play();game.showDetails();try? await Task.sleep(for:.milliseconds(850));try? await game.capture(directory+"/lesson-explanation.png")
             let kingRect=game.board.squareRect("e1"),kingPoint=game.board.convert(NSPoint(x:kingRect.midX,y:kingRect.midY),to:nil)
             for type in [NSEvent.EventType.leftMouseDown,.leftMouseUp]{if let event=NSEvent.mouseEvent(with:type,location:kingPoint,modifierFlags:[],timestamp:ProcessInfo.processInfo.systemUptime,windowNumber:game.window!.windowNumber,context:nil,eventNumber:0,clickCount:1,pressure:type == .leftMouseDown ? 1:0){NSApp.sendEvent(event)};try? await Task.sleep(for:.milliseconds(80))}
             if !model.learning.playing || !model.learning.picked.isEmpty{failures.append("Lesson board click interrupted narration or created an answer")}
             model.learning.advance(by:model.learning.duration)
-            if model.learning.key != "intro:20" || !model.learning.playing{failures.append("Lesson did not continue past retired questions")}
+            if model.learning.key != "intro:16" || !model.learning.playing{failures.append("Lesson did not continue to the next explanation")}
             try? await game.capture(directory+"/lesson-continued.png")
-            model.puzzles();try? await Task.sleep(nanoseconds:200_000_000);try? await game.capture(directory+"/puzzles.png");model.learning.openPuzzle(id:"rook");model.learning.click("d2");model.learning.click("d5");if !model.learning.passed{failures.append("Puzzle capture failed")}
+            model.puzzles();try? await Task.sleep(nanoseconds:200_000_000);try? await game.capture(directory+"/puzzles.png");model.learning.openPuzzle(id:"extra-1");model.learning.click("f3");model.learning.click("h4");if !model.learning.passed{failures.append("Puzzle capture failed")}
             model.practice();try? model.session.demonstrate(title:"Central pawns",introduction:"Imagine making room for your pieces.",lines:[DemoLineInput(label:"Opening",moves:[DemoStepInput(uci:"e2e4"),DemoStepInput(uci:"e7e5")])]);try? model.session.seekDemo(line:0,ply:2);try? await Task.sleep(nanoseconds:200_000_000);try? await game.capture(directory+"/demonstration.png");model.session.closePresentation();game.showSettings();try? await Task.sleep(nanoseconds:200_000_000);try? await GameWindow.captureWindow(game.settings?.window,path:directory+"/settings-board.png")
             game.settings?.selectCategory("Voice Coach");try? await Task.sleep(nanoseconds:200_000_000);try? await GameWindow.captureWindow(game.settings?.window,path:directory+"/settings-voice.png")
             game.settings?.selectCategory("Connections");try? await Task.sleep(nanoseconds:200_000_000);try? await GameWindow.captureWindow(game.settings?.window,path:directory+"/settings-connections.png")

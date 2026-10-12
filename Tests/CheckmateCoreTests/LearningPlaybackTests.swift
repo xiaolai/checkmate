@@ -11,14 +11,14 @@ import CheckmateCore
 final class LearningPlaybackTests:XCTestCase {
     @MainActor func testLessonAdvancesWithoutAnswerAndSeekIsDeterministic() throws {
         let s=try GameSession(engine:nil),p=try LearningPlayer(session:s)
-        p.openLesson(index:0);p.seek(step:p.current.beats.firstIndex{$0.id=="intro:18"}!);p.play();p.advance(by:p.duration)
-        XCTAssertEqual(p.key,"intro:20");XCTAssertTrue(p.playing);XCTAssertNil(p.exercise)
+        p.openLesson(index:0);p.seek(step:p.current.beats.firstIndex{$0.id=="intro:15"}!);p.play();p.advance(by:p.duration)
+        XCTAssertEqual(p.key,"intro:16");XCTAssertTrue(p.playing);XCTAssertNil(p.exercise)
         p.seek(step:0);let first=p.frame;p.advance(by:1);p.seek(step:0);XCTAssertEqual(p.frame,first)
         p.shutdown()
     }
     @MainActor func testPuzzleRevealDoesNotMarkSolved() throws {
         let s=try GameSession(engine:nil),p=try LearningPlayer(session:s)
-        p.openPuzzle(id:"rook");p.reveal();XCTAssertFalse(s.state.puzzles["rook"]!.solved);XCTAssertTrue(s.state.puzzles["rook"]!.review)
+        p.openPuzzle(id:"extra-1");p.reveal();XCTAssertFalse(s.state.puzzles["extra-1"]!.solved);XCTAssertTrue(s.state.puzzles["extra-1"]!.review)
     }
     func testPawnDuelAndKingPathRules() {
         let board=["d5":"wp","e6":"bp"]
@@ -111,7 +111,7 @@ extension LearningPlaybackTests {
         let session=try GameSession(engine:nil),player=try LearningPlayer(session:session)
         session.state.settings.autoAdvance=true;session.state.settings.pauseForPractice=false
         let main=player.library.lessons.filter{!$0.isPractice}.map(\.id),practice=player.library.lessons.filter(\.isPractice).map(\.id)
-        XCTAssertEqual(main.count,34);XCTAssertEqual(practice.count,6)
+        XCTAssertEqual(main.count,34);XCTAssertEqual(practice.count,5)
         player.openLesson(index:0,resume:false);player.play()
         var visited:[String]=[],guardSteps=0
         // Every beat plays to its end in turn, as uninterrupted listening does; nothing seeks.
@@ -128,17 +128,17 @@ extension LearningPlaybackTests {
     @MainActor func testPlaybackSettingsAtAParentAndItsActivity() throws {
         let session=try GameSession(engine:nil),player=try LearningPlayer(session:session)
         func index(_ id:String)throws -> Int {try XCTUnwrap(player.library.lessons.firstIndex{$0.id==id})}
-        let rook=try index("rook"),rampant=try index("rook-practice"),bishop=try index("bishop")
+        let rook=try index("rook"),practice=try index("rook-practice"),bishop=try index("bishop")
         // (autoAdvance, pauseForPractice, start) -> where playback is afterwards, whether it plays, and the message.
         let cases:[(Bool,Bool,Int,Int,Bool,String)]=[
             (false,false,rook,rook,false,"Lesson explored! You can replay it whenever you like."),
             (false,true,rook,rook,false,"Lesson explored! You can replay it whenever you like."),
             (true,true,rook,rook,false,"Try Rook Practice, or continue to the next lesson."),
             (true,false,rook,bishop,true,""),
-            (false,false,rampant,rampant,false,"Lesson explored! You can replay it whenever you like."),
-            (false,true,rampant,rampant,false,"Lesson explored! You can replay it whenever you like."),
-            (true,true,rampant,rampant,false,"Try it on the board, or continue to the next lesson."),
-            (true,false,rampant,bishop,true,""),
+            (false,false,practice,practice,false,"Lesson explored! You can replay it whenever you like."),
+            (false,true,practice,practice,false,"Lesson explored! You can replay it whenever you like."),
+            (true,true,practice,practice,false,"Try it on the board, or continue to the next lesson."),
+            (true,false,practice,bishop,true,""),
         ]
         for (auto,pauseFor,start,end,playing,message) in cases {
             let label="autoAdvance \(auto), pauseForPractice \(pauseFor), from \(player.library.lessons[start].id)"
@@ -154,16 +154,17 @@ extension LearningPlaybackTests {
     @MainActor func testPauseForPracticeOffersTheActivity() throws {
         let session=try GameSession(engine:nil),player=try LearningPlayer(session:session)
         session.state.settings.autoAdvance=true;session.state.settings.pauseForPractice=true
-        let king=try XCTUnwrap(player.library.lessons.firstIndex{$0.id=="king"}),mine=try XCTUnwrap(player.library.lessons.firstIndex{$0.id=="safe-squares"})
+        let knight=try XCTUnwrap(player.library.lessons.firstIndex{$0.id=="knight"}),horses=try XCTUnwrap(player.library.lessons.firstIndex{$0.id=="knight-practice"})
+        player.openLesson(index:knight);player.seek(step:player.current.beats.count-1);player.play();player.advance(by:player.duration)
+        XCTAssertEqual(player.lessonIndex,knight);XCTAssertFalse(player.playing)
+        XCTAssertEqual(player.feedback,"Try Knight Practice, or continue to the next lesson.")
+        XCTAssertEqual(player.library.practice(for:knight),[horses])
+        // The King has no practice activity, so it continues to Safe Squares, which is a main lesson again.
+        let king=try XCTUnwrap(player.library.lessons.firstIndex{$0.id=="king"})
         player.openLesson(index:king);player.seek(step:player.current.beats.count-1);player.play();player.advance(by:player.duration)
-        XCTAssertEqual(player.lessonIndex,king);XCTAssertFalse(player.playing)
-        XCTAssertEqual(player.feedback,"Try Safe Squares, or continue to the next lesson.")
-        XCTAssertEqual(player.library.practice(for:king),[mine])
-        // Safe Squares itself has no game to pause for, so it continues past The King's path.
-        player.openLesson(index:mine);player.seek(step:player.current.beats.count-1);player.play();player.advance(by:player.duration)
-        XCTAssertEqual(player.current.id,"check-and-checkmate");XCTAssertTrue(player.playing);player.pause()
+        XCTAssertEqual(player.current.id,"safe-squares");XCTAssertTrue(player.playing);player.pause()
         // Completing again is idempotent.
-        player.openLesson(index:king);player.complete();player.complete()
-        XCTAssertEqual(session.state.course.completed.filter{$0=="king"}.count,1)
+        player.openLesson(index:knight);player.complete();player.complete()
+        XCTAssertEqual(session.state.course.completed.filter{$0=="knight"}.count,1)
     }
 }

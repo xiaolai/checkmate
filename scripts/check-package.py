@@ -51,8 +51,8 @@ resources = bundle / 'Contents/Resources/Resources'
 if not resources.is_dir():
     resources = bundle / 'Resources'
 course = json.loads((resources / 'course.json').read_text())
-if not (len(course['lessons']) == 40 and len(course['puzzles']) == 87):
-    raise RuntimeError('Package verification failed')
+if not (len(course['lessons']) == 39 and len(course['puzzles']) == 82):
+    raise RuntimeError(f"Bundled course has {len(course['lessons'])} lessons and {len(course['puzzles'])} puzzles, not 39 and 82")
 for lesson in course['voices']:
     for voice in lesson:
         if not (resources / voice['file']).is_file():
@@ -64,8 +64,8 @@ if not narration['assetSetSHA256'] == course['narration']['assetSetSHA256']:
     raise RuntimeError('Package verification failed')
 if course['exercises'] or any('quiz' in beat for lesson in course['lessons'] for beat in lesson['beats']):
     raise RuntimeError('Embedded lesson quizzes must not be bundled')
-if not len(narration['assets']) == 878:
-    raise RuntimeError('Package verification failed')
+if not len(narration['assets']) == 710:
+    raise RuntimeError(f"Bundled narration lists {len(narration['assets'])} clips, not 710")
 assets = {row['file']: row for row in narration['assets']}
 for li, lesson in enumerate(course['voices']):
     for step, voice in enumerate(lesson):
@@ -162,4 +162,4 @@ if arguments.release:
         if entitlements(code).get('com.apple.security.get-task-allow'):
             raise RuntimeError(f'{code.name} must exclude debugger access')
 # Every flag is a passed check: the acceptance aggregate rejects any false value.
-print(json.dumps({'passed': True, 'iconFormat': 'Icon Composer with legacy fallback', 'architectures': ['arm64', 'x86_64'], 'minimumMacOS': settings['CHECKMATE_MINIMUM_MACOS'], 'deploymentTargetsVerifiedPerSlice': True, 'bundleIdentifier': bundle_id, 'version': settings['CHECKMATE_VERSION'], 'build': settings['CHECKMATE_BUILD_NUMBER'], 'lessons': 40, 'audioFiles': len(narration['assets']), 'narrationVoice': 'cedar', 'audioHashesVerified': True, 'puzzles': 87, 'webRuntimeAbsent': True, 'engineHasSystemDependenciesOnly': True}))
+print(json.dumps({'passed': True, 'iconFormat': 'Icon Composer with legacy fallback', 'architectures': ['arm64', 'x86_64'], 'minimumMacOS': settings['CHECKMATE_MINIMUM_MACOS'], 'deploymentTargetsVerifiedPerSlice': True, 'bundleIdentifier': bundle_id, 'version': settings['CHECKMATE_VERSION'], 'build': settings['CHECKMATE_BUILD_NUMBER'], 'lessons': len(course['lessons']), 'audioFiles': len(narration['assets']), 'narrationVoice': 'cedar', 'audioHashesVerified': True, 'puzzles': len(course['puzzles']), 'webRuntimeAbsent': True, 'engineHasSystemDependenciesOnly': True}))

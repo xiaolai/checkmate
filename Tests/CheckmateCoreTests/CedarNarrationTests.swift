@@ -23,11 +23,12 @@ final class CedarNarrationTests:XCTestCase {
                 let player=try AVAudioPlayer(contentsOf:NativeResources.url(voice.file))
                 XCTAssertEqual(player.duration,voice.seconds,accuracy:0.001,"\(lesson.id):\(step)")
                 XCTAssertGreaterThanOrEqual(voice.duration,voice.seconds+course.lessonTiming.postNarrationGap)
-                XCTAssertFalse(lesson.beats[step].say.contains("pause the lesson"))
+                // The app plays no video, so narration that mentions one describes UI that is not there.
+                XCTAssertNil(lesson.beats[step].say.range(of:"video",options:.caseInsensitive),"\(lesson.id):\(step)")
                 count+=1
             }
         }
-        XCTAssertEqual(count,878)
+        XCTAssertEqual(count,710)
     }
 
     @MainActor func testPlaybackUsesCedarAssetAndKeepsSavedTranscriptPosition() throws {

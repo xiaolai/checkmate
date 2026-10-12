@@ -37,13 +37,13 @@ private actor GapOrderRecorder:LessonRecordingProvider {
  /// PL2-2: when saving fails, Export writes the in-memory state, not the (unreadable) last saved file.
  func testExportStateWritesInMemoryStateWhenSaveFails()throws {
   let store=StateStore(directory:dir);try FileManager.default.createDirectory(at:store.url,withIntermediateDirectories:true)  // a directory where the state file belongs: every save fails
-  var state=ApplicationState();state.settings.volume=0.3;state.settings.boardTheme="blue";state.puzzles["rook"]=PuzzleProgress()
+  var state=ApplicationState();state.settings.volume=0.3;state.settings.boardTheme="blue";state.puzzles["extra-1"]=PuzzleProgress()
   XCTAssertThrowsError(try store.save(state),"Precondition: the save must fail")
   let destination=dir.appendingPathComponent("exported.json"),fileExport=dir.appendingPathComponent("file-export.json")
   XCTAssertThrowsError(try store.export(to:fileExport),"Copying the saved file cannot work here; only exporting the state itself can")
   try store.exportState(state,to:destination)
   let exported=try JSONDecoder().decode(ApplicationState.self,from:Data(contentsOf:destination))
-  XCTAssertEqual(exported.settings.volume,0.3);XCTAssertEqual(exported.settings.boardTheme,"blue");XCTAssertNotNil(exported.puzzles["rook"]);try StateStore.validate(exported)
+  XCTAssertEqual(exported.settings.volume,0.3);XCTAssertEqual(exported.settings.boardTheme,"blue");XCTAssertNotNil(exported.puzzles["extra-1"]);try StateStore.validate(exported)
   let reloaded=try StateStore(directory:dir.appendingPathComponent("reimport")).loadAfterWriting(Data(contentsOf:destination));XCTAssertEqual(reloaded.settings.volume,0.3,"The export is a loadable saved state")
  }
  /// PL-2/SH-8: Start Fresh moves the unreadable file aside byte-for-byte; a fresh state can then load and save without touching it.

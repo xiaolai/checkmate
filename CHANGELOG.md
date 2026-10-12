@@ -1,6 +1,41 @@
+# Unreleased
+
+The beginner course is new. Every lesson, board, puzzle and recording was
+written again from scratch: 39 lessons and 82 puzzles, with all 710 narration
+clips recorded fresh. The order now follows the pieces first (each piece
+lesson with its practice activity beside it), then the king, check and
+checkmate, setting up the board, castling, the special moves and the rules of
+play, and then openings, tactics, the basic checkmates and puzzles. It ends
+with a famous short game, Réti against Tartakower, Vienna 1910.
+
+Every board in the course is checked by machine: each move shown is a legal
+move for that piece on that board, no move leaves its own king in check, every
+check mark sits on a king that is really attacked, and every board puzzle's answer
+is the complete set of correct moves. The same checks run again with an
+independent chess library.
+
+The practice games have new starting layouts and names: Pawn Duel, Rook Sweep,
+Rooks and Pawns, Bishop Sweep, Bishops and Pawns, Queen Against Pawns, Knight
+Capture and Knight Corners. Their rules are unchanged, except that Knight
+Corners now visits a8, h8 and h1 before returning to a1.
+
+On a lesson's last step, the → arrow in the toolbar now goes on to the next
+lesson, as the panel's Continue does; before, it only marked the lesson
+explored. In reverse, ← on a lesson's first step goes back to the end of the
+previous lesson, paused there. Both tooltips name the lesson, and both skip
+practice activities (from Pawn Duel, ← goes back to The Pawn).
+
+Your progress carries over: lessons you completed stay completed under their
+new names, and you return to the lesson you were in. Because the narration
+and puzzles are new, each lesson starts again from its first step, puzzle
+results start fresh, and a practice game in progress restarts in its new
+layout. Training history follows the renamed games. Saved lesson translations
+need to be made again in Settings → Lessons.
+
 # Checkmate 0.6.2
 
-The practice activities no longer sit between the lessons. Pawn Duel, Rook Practice, Bishop Practice, Queen Practice, Knight Practice and Safe Squares now appear
+The practice activities no longer sit between the lessons. Pawn Duel, Rook
+Practice, Bishop Practice, Queen Practice, Knight Practice and Safe Squares now appear
 indented under the piece lesson they practise. Continue goes straight to the
 next lesson, so the path from The Pawn to The King is six lessons, and each
 lesson offers a Practise button for its activity. With Pause for practice on,
