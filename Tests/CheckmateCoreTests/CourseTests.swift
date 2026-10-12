@@ -17,6 +17,57 @@ final class CourseTests:XCTestCase {
             XCTAssertEqual(try course.frame(lesson:li,step:step,seconds:course.voices[li][step].duration),expected.end,"\(l.id):\(step) end")
         }}
     }
+    /// A beat's overlays describe the position its moves produce: the rook lands first, then its arrow and the check.
+    func testOverlaysWaitForTheMovesTheyDescribe() throws {
+        let course=try CourseLibrary()
+        let li=try XCTUnwrap(course.lessons.firstIndex{$0.id=="intro"}),si=try XCTUnwrap(course.lessons[li].beats.firstIndex{$0.id=="intro:8"})
+        let narration=course.voices[li][si].seconds,duration=CourseTiming.standard.pieceDuration
+        let landed=try XCTUnwrap(course.moveTimes(lesson:li,step:si,narrationSeconds:narration,pieceDuration:duration).last)+duration
+        for seconds in [0,landed-duration/2,landed-0.01] {
+            let frame=try course.frame(lesson:li,step:si,seconds:seconds)
+            XCTAssertTrue(frame.arrows.isEmpty,"no arrow before the rook lands (\(seconds)s)")
+            XCTAssertFalse(frame.hl.contains{$0.kind=="check"},"no check before the rook lands (\(seconds)s)")
+        }
+        let after=try course.frame(lesson:li,step:si,seconds:landed)
+        XCTAssertEqual(after.board?["a8"],"wr")
+        XCTAssertEqual(after.arrows,[["a8","g8"]],"the attack arrow ends on the king it attacks")
+        XCTAssertEqual(after.hl,[Highlight(sq:"g8",kind:"check")])
+    }
+    /// An arrow that previews the beat's own move, or that the previous beat already showed, stays up during the move.
+    func testMovePreviewsAndCarriedOverlaysStayDuringTheMove() throws {
+        let course=try CourseLibrary()
+        func frame(_ id:String)throws -> CourseFrame {
+            let li=try XCTUnwrap(course.lessons.firstIndex{$0.beats.contains{$0.id==id}}),si=try XCTUnwrap(course.lessons[li].beats.firstIndex{$0.id==id})
+            return try course.frame(lesson:li,step:si,seconds:0)
+        }
+        XCTAssertEqual(try frame("rook-mate:16").arrows,[["f7","g7"]],"a preview of the coming move")
+        XCTAssertEqual(try frame("scholars-mate:7").arrows,[["c4","f7"]],"carried over from the previous beat")
+        XCTAssertEqual(try frame("scholars-mate:8").arrows,[["c4","f7"]],"the queen's new arrow waits for the queen")
+    }
+    /// Every arrow and check mark agrees with the board it is drawn on. A sliding piece's arrow may cross a piece to show
+    /// a pin, skewer or blocked line, but it ends on a piece: it never runs past what it attacks onto an empty square.
+    func testEveryOverlayAgreesWithItsBoard() throws {
+        let course=try CourseLibrary()
+        for (li,l) in course.lessons.enumerated() {for step in l.beats.indices {
+            let frame=try course.frame(lesson:li,step:step,seconds:course.voices[li][step].duration),id=l.beats[step].id ?? "\(l.id):\(step)"
+            guard let board=frame.board else{continue}
+            for arrow in frame.arrows {
+                guard let piece=board[arrow[0]],"rbq".contains(piece.suffix(1)) else{continue}
+                let (x0,y0)=(Int(arrow[0].utf8.first!),Int(arrow[0].suffix(1))!),(x1,y1)=(Int(arrow[1].utf8.first!),Int(arrow[1].suffix(1))!)
+                let (dx,dy)=(x1-x0,y1-y0)
+                guard dx==0 || dy==0 || abs(dx)==abs(dy) else{continue}
+                let (sx,sy)=(dx.signum(),dy.signum())
+                let crossed=(1..<max(abs(dx),abs(dy))).contains{board[String(UnicodeScalar(UInt8(x0+$0*sx)))+String(y0+$0*sy)] != nil}
+                XCTAssertFalse(crossed && board[arrow[1]]==nil,"\(id): \(arrow) runs past the piece it attacks onto an empty square")
+            }
+            for mark in frame.hl where mark.kind=="check" {
+                let king=board[mark.sq]
+                XCTAssertEqual(king?.suffix(1),"k","\(id): a check mark is on a king")
+                guard let colour=king?.prefix(1) else{continue}
+                XCTAssertTrue(board.contains{$0.value.prefix(1) != colour && CourseLibrary.attacks(board,from:$0.key,to:mark.sq)},"\(id): the marked king is attacked")
+            }
+        }}
+    }
     func testEveryExerciseAcceptsAuthoredAnswerAndRejectsWrongAnswer() throws {
         let c=try CourseLibrary()
         for (id,e) in c.exercises where e.kind != "path" {

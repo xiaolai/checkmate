@@ -110,9 +110,12 @@ extension LessonRemediationTests {
 }
 
 extension LessonRemediationTests {
+    /// A saved translation pack survives an update that leaves its lesson alone, and is rebuilt for one that changes it.
+    /// The Chessboard is unchanged since 0.6.0; the Introduction's check arrow was corrected after it.
     func testUnchangedLessonKeepsPublishedPackFingerprint()throws {
         let library=try CourseLibrary()
-        XCTAssertEqual(LessonTranslation.source(library:library,index:0).fingerprint,"f7e08d39a736162c32b70c7d7a1ddf524702c6e9cbf9e09109aebd8f365bdda9")
+        XCTAssertEqual(LessonTranslation.source(library:library,index:1).fingerprint,"78f8a1da04a91ee76b47554cb2a92abf11914a0b8c9ca173232ebbf374137c43")
+        XCTAssertNotEqual(LessonTranslation.source(library:library,index:0).fingerprint,"f7e08d39a736162c32b70c7d7a1ddf524702c6e9cbf9e09109aebd8f365bdda9")
     }
 }
 

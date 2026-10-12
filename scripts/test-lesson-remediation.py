@@ -66,6 +66,32 @@ try:
  pointer('choose-menu-item','Knight')
  wait(lambda:pointer('label','e8').startswith('e8, White, knight'),'Knight menu choice did not promote')
  results['promotionPointer']=True
+ # A lesson's arrow and check describe the position its move produces: they appear only once the rook has landed,
+ # and the arrow ends on the king it attacks. Sampled while the move plays (automation playback is silent).
+ stop();launch()
+ if 'AXStaticText: Introduction' not in listing():pointer('click','Toggle Sidebar')
+ wait(lambda:'AXStaticText: Introduction' in listing(),'Sidebar did not open')
+ # The first steps have no board, so a square is read only once the rook step has opened.
+ def label(square):
+  try:return pointer('label',square)
+  except subprocess.CalledProcessError:return ''
+ pointer('click','Introduction')
+ if 'AXPopUpButton: Transcript' not in listing():pointer('click','Toggle Game Details')
+ wait(lambda:'AXPopUpButton: Transcript' in listing(),'The Introduction transcript picker did not appear')
+ pointer('select-popup','Transcript','9. An attack: check')
+ wait(lambda:label('a1').startswith('a1, White, rook'),'The rook step did not open on its starting board')
+ assert 'suggested move' not in pointer('label','a8') and 'in check' not in pointer('label','g8'),'The paused step shows overlays before its move'
+ pointer('click','Play');before=0;end=time.monotonic()+20
+ while True:
+  a8,g8=pointer('label','a8'),pointer('label','g8');landed=a8.startswith('a8, White, rook')
+  assert landed or ('suggested move' not in a8 and 'in check' not in g8),f'Overlay before the rook landed: {a8} / {g8}'
+  if not landed:before+=1
+  if landed and 'suggested move to g8' in a8 and 'in check' in g8:break
+  assert time.monotonic()<end,f'The rook step never showed its arrow and check: {a8} / {g8}'
+  time.sleep(.03)
+ assert before>0,'No sample fell before the rook landed, so the order was not observed'
+ assert 'suggested move' not in pointer('label','h8'),'The arrow runs past the king'
+ results['lessonOverlayAfterMove']=True
  results['silent']=True
  # Reached only when every check above passed.
  results['passed']=True

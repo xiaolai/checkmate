@@ -64,21 +64,31 @@ public struct CourseLibrary:Decodable {
     }
     public func frame(lesson:Int,step:Int,seconds:Double,duration:Double=CourseTiming.standard.pieceDuration,narrationSeconds:Double?=nil,useCues:Bool=true) throws -> CourseFrame {
         guard lessons.indices.contains(lesson),lessons[lesson].beats.indices.contains(step) else{throw CheckmateError.invalid("Invalid lesson step.")}
-        var state=CourseFrame()
+        var state=CourseFrame(),previous=CourseFrame()
         for i in 0...step {
             let b=lessons[lesson].beats[i]
+            previous=state
             state=CourseFrame(board:b.hasSet ? b.set:state.board,hl:b.hl ?? (b.hasSet ? []:state.hl),arrows:b.arrows ?? (b.hasSet ? []:state.arrows),big:b.big ?? state.big)
             if i<step {if var board=state.board {try Self.apply(&board,moves:b.moves,remove:b.remove);state.board=board}}
         }
         let beat=lessons[lesson].beats[step],timing=lessonTiming
+        let times=moveTimes(lesson:lesson,step:step,narrationSeconds:narrationSeconds ?? voices[lesson][step].seconds,pieceDuration:duration,useCues:useCues)
+        let end=times.last.map{$0+duration} ?? 0
         if var board=state.board {
             for (i,m) in beat.moves.enumerated() {
-                let elapsed=seconds-moveTimes(lesson:lesson,step:step,narrationSeconds:narrationSeconds ?? voices[lesson][step].seconds,pieceDuration:duration,useCues:useCues)[i],t=duration==0 ? (elapsed>=0 ? 1.0:0.0):max(0,min(1,elapsed/duration))
+                let elapsed=seconds-times[i],t=duration==0 ? (elapsed>=0 ? 1.0:0.0):max(0,min(1,elapsed/duration))
                 if t>=1 {try Self.apply(&board,moves:[m])}else if t>0 {state.motion=PieceMotion(from:m[0],to:m[1],t:t);break}
             }
-            let end=moveTimes(lesson:lesson,step:step,narrationSeconds:narrationSeconds ?? voices[lesson][step].seconds,pieceDuration:duration,useCues:useCues).last.map{$0+duration} ?? 0
             if seconds>=end+timing.removalDelay {try Self.apply(&board,moves:[],remove:beat.remove)}
             state.board=board
+        }
+        // A beat's arrows and highlights describe the position its moves produce, so they appear when the last move
+        // lands. Until then only what the previous beat left up stays, with arrows previewing this beat's own moves.
+        // Tools/import-cedar-recordings.py stages each published start frame by the same rule.
+        if !beat.moves.isEmpty,seconds<end {
+            let previews=beat.moves.map{Array($0.prefix(2))}
+            state.arrows=state.arrows.filter{previous.arrows.contains($0) || previews.contains($0)}
+            state.hl=state.hl.filter{previous.hl.contains($0)}
         }
         let spacing=max(timing.minimumCountSpacing,(narrationSeconds ?? voices[lesson][step].seconds)/Double(max(1,beat.count.count)))
         state.counts=Array(beat.count.prefix(max(0,Int(floor(seconds/spacing))+1)))

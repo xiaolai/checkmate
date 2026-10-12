@@ -87,6 +87,21 @@ class TimingTests(unittest.TestCase):
         with self.assertRaisesRegex(AssertionError,'Unreviewed illustration'):
             prep.validate(mutated,baseline)
 
+    def testStartFramesHoldOverlaysUntilTheMovesLand(self):
+        def frame(arrows, hl):
+            return {'start': {'arrows': arrows, 'hl': hl}, 'end': {'arrows': arrows, 'hl': hl}}
+        check, kept = {'sq': 'g8', 'kind': 'check'}, {'sq': 'e1', 'kind': 'focus'}
+        frames = [frame([['c4', 'f7']], [kept]),
+                  frame([['c4', 'f7'], ['a8', 'g8'], ['b1', 'c3']], [kept, check]),
+                  frame([['d1', 'd8']], [check])]
+        beats = [{}, {'moves': [['a1', 'a8'], ['b1', 'c3']]}, {}]
+        publisher.stage_overlays(frames, beats)
+        # Carried over, or previewing the beat's own move: shown at once. Describing the result: shown after the move.
+        self.assertEqual(frames[1]['start'], {'arrows': [['c4', 'f7'], ['b1', 'c3']], 'hl': [kept]})
+        self.assertEqual(frames[1]['end']['arrows'], [['c4', 'f7'], ['a8', 'g8'], ['b1', 'c3']])
+        # A beat without moves shows everything from its start.
+        self.assertEqual(frames[2]['start'], {'arrows': [['d1', 'd8']], 'hl': [check]})
+
     def testRebuildReproducesPublishedContinuousCourse(self):
         root=HERE.parent
         baseline=json.loads((root/'Content/course-baseline.json').read_text())

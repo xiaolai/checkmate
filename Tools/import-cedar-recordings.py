@@ -96,19 +96,38 @@ def build_course(baseline, content, assets, timing, version):
             # when the removed question supplied the previous board setup.
             start = result['frames'][li][step]['start']
             runtime_beat = result['lessons'][li]['beats'][step]
-            runtime_beat.update(set=start.get('board'), hl=start.get('hl', []),
-                                arrows=start.get('arrows', []), big=start.get('big', ''))
+            end = result['frames'][li][step]['end']
+            runtime_beat.update(set=start.get('board'), hl=end.get('hl', []),
+                                arrows=end.get('arrows', []), big=start.get('big', ''))
             for endpoint in ('start', 'end'):
                 if 'quiz' in result['frames'][li][step][endpoint].get('big', '').lower():
                     result['frames'][li][step][endpoint]['big'] = ''
             if 'quiz' in runtime_beat['big'].lower():
                 runtime_beat['big'] = ''
+        stage_overlays(result['frames'][li], result['lessons'][li]['beats'])
         result['voices'].append(voices)
         # Preserve the four curated navigation sequences; refresh later labels.
         titles = [baseline['stepTitles'][li][i] if i<len(baseline['stepTitles'][li]) else short_label(lesson['beats'][step]['say']) for step,i in enumerate(source_steps)] if li < 4 else [short_label(lesson['title'] if step == 0 else beat.get('big') or beat['say']) for step, beat in enumerate(lesson['beats'])]
         result['stepTitles'].append(titles)
     result['narration'] = version
     return result
+
+
+def stage_overlays(frames, beats):
+    """Make each start frame what shows before the beat's moves land.
+
+    A beat's arrows and highlights describe the position its moves produce. Until the last move lands, only what the
+    previous beat left up stays, with arrows previewing the beat's own moves. Course.frame applies the same rule
+    over time, and the native course tests compare the two.
+    """
+    previous = {}
+    for frame, beat in zip(frames, beats):
+        shown = frame['end']
+        if beat.get('moves'):
+            previews = [move[:2] for move in beat['moves']]
+            frame['start']['arrows'] = [a for a in shown.get('arrows', []) if a in previous.get('arrows', []) or a in previews]
+            frame['start']['hl'] = [h for h in shown.get('hl', []) if h in previous.get('hl', [])]
+        previous = shown
 
 
 def main():
