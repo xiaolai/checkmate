@@ -29,13 +29,23 @@ import Combine
     public let session:GameSession,audio=VoiceAudio(),gateway=VoiceGateway()
     private let tools:CompanionTools,definitions:[[String:Any]],baseInstructions:String
     private var socket:URLSessionWebSocketTask?,transport:URLSession?,receiveTask:Task<Void,Never>?,connectTask:Task<Void,Never>?,timeout:Task<Void,Never>?
-    private var epoch=UUID(),lease="",gate=VoiceTurnGate(),ready=false,position="",speakingPosition="",display="",responseID="",turn=0,userTurn=false,applying=false,generatingAudio=false
+    /// Whether Stop has anything to stop: a response generating, its audio playing, or turn work (a tool task still
+    /// running after response.done) that stopping cancels. False before the session is ready, once a cancellation is
+    /// awaiting acknowledgement (Stop was already pressed), and after a failure or disconnect. Derived only by
+    /// `deriveCanStopTurn` from the four inputs below, each of which re-derives it whenever it changes.
+    @Published public private(set) var canStopTurn=false
+    private var gate=VoiceTurnGate() {didSet{deriveCanStopTurn()}}
+    private var ready=false {didSet{deriveCanStopTurn()}}
+    private var awaitingCancellation=false {didSet{deriveCanStopTurn()}}
+    private var calls:[String:Task<Void,Never>]=[:] {didSet{deriveCanStopTurn()}}
+    private func deriveCanStopTurn(){let next=ready && !awaitingCancellation && (!gate.ready || !calls.isEmpty);if canStopTurn != next{canStopTurn=next}}
+    private var epoch=UUID(),lease="",position="",speakingPosition="",display="",responseID="",turn=0,userTurn=false,applying=false,generatingAudio=false
     private var scriptTranscript:String?
     /// Why the microphone could not start this session, shown instead of "microphone off".
     @Published public private(set) var microphoneProblem:String?
     private var readyStatus:String {microphone ? "Your turn — listening":microphoneProblem.map{"Ready — microphone unavailable. "+$0} ?? (session.state.settings.voiceMicrophone ? "Ready — microphone unavailable":"Ready — microphone off")}
-    private var continuation=false,awaitingCancellation=false
-    private var queued:(String,Bool)?,segments:[SpeechSegment]=[],segment:SpeechSegment?,calls:[String:Task<Void,Never>]=[:],ignored=Set<String>()
+    private var continuation=false
+    private var queued:(String,Bool)?,segments:[SpeechSegment]=[],segment:SpeechSegment?,ignored=Set<String>()
     private var microphoneTest:Task<Void,Never>?,microphoneUpdate:Task<Void,Never>?
     var automationCaptureStart:((String)async throws->Void)?
     private func startInput(_ device:String)async throws {if NativePolicy.silent,let start=automationCaptureStart{try await start(device)}else{try await audio.startCapture(device:device)}}

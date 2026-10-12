@@ -226,7 +226,7 @@ struct TransportContent:View {
                 session.updateSettings(settings)
             }
             NativeIcon(symbol:"stop.fill",label:"Stop coach speaking"){voice.stopTurn()}
-                .disabled(!voice.status.hasPrefix("Speaking") && voice.status != "Coach is thinking…")
+                .disabled(!voice.canStopTurn)
             NativeIcon(symbol:"power",label:"Disconnect voice coach"){voice.disconnect()}
         } else {
             NativeIcon(symbol:"mic",label:session.companionEnabled ? "Disconnect the MCP companion before connecting voice":"Connect voice coach"){voice.connect()}
