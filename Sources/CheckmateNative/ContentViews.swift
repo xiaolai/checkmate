@@ -5,7 +5,7 @@ import CheckmateCore
 enum SidebarSelection {
     static func tag(_ activity:Activity,saved:Set<UUID>,lessonIndex:Int)->String {
         if let visit=activity.review{guard let document=visit.document else{return "review"};return saved.contains(document) ? "review:"+document.uuidString:"review:draft"}
-        switch activity.place {case .practice:return "practice";case .puzzleLibrary,.puzzle:return "puzzles";case .lesson:return "lesson:\(lessonIndex)";case .miniGame(let index,_):return index==nil ? "training":"lesson:\(lessonIndex)";case .trainingLibrary,.training:return "training"}
+        switch activity.place {case .practice:return "practice";case .puzzleLibrary,.puzzle:return "puzzles";case .lesson:return "lesson:\(lessonIndex)";case .miniGame(let index,_,_):return index==nil ? "training":"lesson:\(lessonIndex)";case .trainingLibrary,.training:return "training"}
     }
 }
 struct SidebarContent:View {

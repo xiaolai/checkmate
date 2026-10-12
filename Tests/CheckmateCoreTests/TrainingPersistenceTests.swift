@@ -90,6 +90,17 @@ import CheckmateCore
         let session=try GameSession(engine:nil);try session.installImportedState(imported)
         XCTAssertEqual(session.state.training,second.training);XCTAssertEqual(session.activity,.at(.practice),"import never opens a training board")
     }
+    func testARetryItemsStoredDayIsSavedVerbatimAndStillFormatChecked()throws {
+        // `notBefore` is a derived copy kept for compatibility; scheduling reads `addedAt`, so a save must not rewrite it.
+        let store=StateStore(directory:directory),item=TrainingRetryItem(id:"r",entry:"reach-target",scenario:Self.scenario,reason:"Not solved last time.",addedAt:Date(timeIntervalSince1970:1_800_000_000),notBefore:"2099-12-31",afterAttempt:0)
+        var training=TrainingState();training.finishedAttempts=1;training.retryQueue=[item]
+        var state=ApplicationState();state.training=training;try store.save(state)
+        guard case .object(let saved)=try savedTraining(store),case .array(let queue)=saved["retryQueue"],case .object(let written)=queue.first else{return XCTFail("the retry item was not written")}
+        XCTAssertEqual(written["notBefore"],.string("2099-12-31"),"kept as queued, even when it disagrees with addedAt")
+        XCTAssertEqual(try store.load().training,training)
+        var malformed=training;malformed.retryQueue=[TrainingRetryItem(id:"r",entry:"reach-target",scenario:Self.scenario,reason:"Not solved last time.",addedAt:item.addedAt,notBefore:"31/12/2099",afterAttempt:0)]
+        XCTAssertThrowsError(try malformed.validate(),"a stored day must still be a yyyy-MM-dd day")
+    }
     static let scenario=TrainingScenario(id:"t",entry:"reach-target",variant:"rook",tier:1,cluster:"c",learner:"w",prompt:"Reach h8.",explanation:"",hints:[],drill:MovementDrill(piece:"wr",start:"a1",target:"h8",pieces:[:]),budget:2)
     static func finishedPawnDuel()->MiniGameState {var game=MiniGameState(kind:.pawnDuel,computer:false);game.snapshot.board=["a7":"wp","h7":"bp"];_ = game.play(MiniGameMove(from:"a7",to:"a8"));return game}
 }

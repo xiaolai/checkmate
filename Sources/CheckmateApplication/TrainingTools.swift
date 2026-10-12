@@ -47,7 +47,8 @@ import Foundation
                 guard task == .move || task == .game,a["from"] is String,a["to"] is String else{throw ProtocolFailure("INVALID_ARGUMENT",task == .move || task == .game ? "A move needs from and to squares.":"This exercise is not answered with a move.")}
                 try learnerMayAct(exercise)
             }
-            controller.recordAgentHelp()
+            // Help that could not be recorded is never applied: graded, it would count as the learner's own work.
+            guard controller.recordAgentHelp() else{throw ProtocolFailure("UNAVAILABLE",refusal("The help could not be recorded, so nothing was done."))}
             switch kind {
             case "select":controller.replaceSelection(a["squares"] as! [String])
             case "submit":controller.submit()
@@ -62,7 +63,8 @@ import Foundation
             guard !controller.games.thinking else{throw ProtocolFailure("BUSY","The practice defender is choosing its reply.")}
             try learnerMayAct(exercise)
             guard (controller.exercise?.hintLevel ?? 0)<Self.maximumAgentHintLevel else{throw ProtocolFailure("HINT_LIMIT","Further help reveals the answer; only the learner can choose that.")}
-            controller.hint()
+            // A hint that was not saved as recorded help was not given: the agent is told, never shown a success.
+            guard controller.hint() else{throw ProtocolFailure("UNAVAILABLE",refusal("The hint could not be given."))}
             return result()
         default:
             let action=a["action"] as! String,shown=try current(a,finished:action=="leave" ? nil:true)
@@ -77,7 +79,9 @@ import Foundation
         }
     }
     /// The exercise this request was made for is still the one shown, at the same revision, and active or finished as
-    /// `finished` requires (nil: either).
+    /// `finished` requires (nil: either). The attempt revision moves with saved progress; a change that is shown but
+    /// not saved, such as the learner's selection, changes the projection and so the session revision, which
+    /// `CompanionTools` checks before any training call: a submission read before either change is `STALE_STATE`.
     @discardableResult private func current(_ a:[String:Any],finished:Bool?=false)throws -> TrainingController.Exercise {
         guard case .training=session.activity.place,let exercise=controller.exercise,a["attemptId"] as? String==exercise.snapshot.id,a["sessionRevision"] as? Int==exercise.snapshot.revision else{throw ProtocolFailure("STALE_STATE","The exercise or its revision changed. Read get_session again.")}
         if let finished,finished != exercise.finished{throw ProtocolFailure(finished ? "ATTEMPT_ACTIVE":"ATTEMPT_FINISHED")}
@@ -89,6 +93,11 @@ import Foundation
         guard exercise.task == .game else{return}
         if let paused=exercise.paused{throw ProtocolFailure("UNAVAILABLE",paused)}
         guard (try? exercise.current?.turn())==exercise.scenario.learner else{throw ProtocolFailure("BUSY","It is the practice defender's turn.")}
+    }
+    /// Why the controller just refused an action: what it told the learner on the exercise, else its notice.
+    private func refusal(_ fallback:String)->String {
+        if let feedback=controller.exercise?.feedback,!feedback.isEmpty{return feedback}
+        return controller.notice ?? fallback
     }
     private func result()->[String:Any] {["revision":session.revision,"training":session.training.map{jsonObject($0)} ?? NSNull()]}
     private func list()->[String:Any] {

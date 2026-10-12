@@ -53,13 +53,16 @@ public enum TrainingFreshness:String,Codable {case new,reserve,`repeat`}
     }
     public func suspend(_ id:String){suspended.insert(id)}
     /// The next scenario. `seen` holds the novelty clusters the learner has already practised for this entry.
-    public func next(for definition:TrainingEntryDefinition,seen:Set<String>,seed:UInt64,tier:Int=1,variant:String?=nil,previous:TrainingSkill?=nil)->Choice {
+    /// `generatedTier` steers generated drills only, clamped to the entry's tiers. Curated selection is tier-agnostic:
+    /// a curated scenario's `tier` is descriptive metadata (how hard its author judged it), never a selection filter,
+    /// so variant, suspension, novelty and reserve rules choose among all of an entry's curated scenarios.
+    public func next(for definition:TrainingEntryDefinition,seen:Set<String>,seed:UInt64,generatedTier:Int=1,variant:String?=nil,previous:TrainingSkill?=nil)->Choice {
         // An explicit variant must be one the entry offers; only nil leaves the choice to the seed.
         if let variant,!definition.variants.contains(variant){return .exhausted}
         var random=TrainingRandom(seed:seed)
         switch definition.objective {
         case .reachTarget,.findAttackers,.findDefenders:
-            let tier=max(1,min(definition.tiers,tier)),color:Character=random.chance(1,in:2) ? "w":"b"
+            let tier=max(1,min(definition.tiers,generatedTier)),color:Character=random.chance(1,in:2) ? "w":"b"
             // A few fresh seeds before giving up: each is itself capped at 64 candidates.
             for attempt in 0..<4 {
                 let draw=random.next() &+ UInt64(attempt)

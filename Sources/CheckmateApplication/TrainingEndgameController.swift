@@ -172,19 +172,21 @@ extension TrainingController {
         requestReply()
     }
     /// Concept, then the pieces that matter, then one good move from the defender's engine. All recorded help.
-    func gameHint(){
-        guard var state=exercise,!state.finished else{return}
+    /// Returns whether the hint was given and saved as recorded help; when not, nothing was recorded.
+    @discardableResult func gameHint()->Bool {
+        guard var state=exercise,!state.finished else{return false}
         // Saving now would advance the revision the pending reply was asked for: the learner waits for it instead.
-        guard !games.thinking else{state.feedback="Wait for the defender's reply.";exercise=state;publish();return}
+        guard !games.thinking else{state.feedback="Wait for the defender's reply.";exercise=state;publish();return false}
         // Hints are for the learner's own move: a paused game waits for the opponent's.
-        guard learnerToMove(state) else{return}
-        guard state.snapshot.actions.count<games.maximumActions else{state.feedback=TrainingEndgameController.tooLong;exercise=state;publish();return}
+        guard learnerToMove(state) else{return false}
+        guard state.snapshot.actions.count<games.maximumActions else{state.feedback=TrainingEndgameController.tooLong;exercise=state;publish();return false}
         state.hintLevel=min(state.hintLevel+1,3);state.snapshot.actions.append(.hint(level:state.hintLevel));state.snapshot.recordedHelp=true
         showGameHint(&state)
         // The request is tied to the revision `save` just wrote and to the current request generation, so a later
         // move, undo, review or exercise discards (and cancels) it.
-        guard save(state),state.hintLevel==3,let saved=exercise else{return}
-        guard let engine=games.engine else{stepBackHint();return}
+        guard save(state) else{return false}
+        guard state.hintLevel==3,let saved=exercise else{return true}
+        guard let engine=games.engine else{stepBackHint();return true}
         let attempt=saved.snapshot.id,revision=saved.snapshot.revision,start=state.scenario.fen ?? "",moves=(state.scenario.prelude ?? [])+state.line,ticket=games.generation
         games.hintWork?.cancel()
         games.hintWork=Task{[weak self] in
@@ -194,6 +196,7 @@ extension TrainingController {
             guard let move=result?.bestMove,let position=shown.current,let outcome=try? position.outcomes().first(where:{$0.uci==move}) else{self.stepBackHint();return}
             shown.hintSquares=[outcome.from,outcome.to];shown.hintText="One good move: \(outcome.san).";self.exercise=shown;self.publish()
         }
+        return true
     }
     /// The text and squares of the game hint at `state.hintLevel`; the third hint's move is added when the engine names one.
     private func showGameHint(_ state:inout Exercise){

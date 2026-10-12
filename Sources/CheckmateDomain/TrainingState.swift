@@ -47,7 +47,9 @@ public struct TrainingCompletionEvent:Codable,Equatable,Identifiable {
 /// Descriptive per-entry counters. They are never pruned; the bounded event and attempt lists behind them are.
 public struct TrainingEntrySummary:Codable,Equatable {
     public var attempts=0,firstTryNoRecordedHelp=0,assistedCompletions=0,practiceCompletions=0,incorrect=0,revealed=0,abandoned=0
-    /// Legacy games against the computer, from the learner's (White's) side, and two-player games finished.
+    /// Finished legacy mini-games; the meaning depends on the kind. Against the computer: results from the learner's
+    /// (White's) side. Two-player: only `twoPlayerFinishes`. Solo (Knight Corners): `legacyWins` counts completed routes,
+    /// the only way a solo game finishes, and its losses and draws stay zero and are never read.
     public var legacyWins=0,legacyLosses=0,legacyDraws=0,twoPlayerFinishes=0
     /// Distinct novelty clusters practised and local calendar days with practice (both bounded, newest kept).
     public var clusters:[String]=[],days:[String]=[]

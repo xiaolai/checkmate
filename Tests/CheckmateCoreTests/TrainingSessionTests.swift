@@ -53,7 +53,7 @@ import CheckmateCore
     }
     func testHintUndoAndRevealAreRecordedHelp()throws {
         let (session,player,controller)=try fixture();defer{player.shutdown()}
-        controller.begin(try controller.prepare(entry:"reach-target",tier:2))
+        controller.begin(try controller.prepare(entry:"reach-target",generatedTier:2))
         controller.hint();XCTAssertEqual(controller.exercise?.hintLevel,1);XCTAssertNotNil(controller.exercise?.hintText);XCTAssertEqual(session.training?.assisted,true)
         controller.hint();XCTAssertEqual(controller.exercise?.hintLevel,2);XCTAssertTrue(controller.exercise?.hintText?.contains("shortest route") ?? false)
         try solveDrill(controller)
@@ -100,7 +100,7 @@ import CheckmateCore
     }
     func testResumeReplaysTheSavedAttemptExactly()throws {
         let (session,player,controller)=try fixture();defer{player.shutdown()}
-        controller.begin(try controller.prepare(entry:"reach-target",tier:3))
+        controller.begin(try controller.prepare(entry:"reach-target",generatedTier:3))
         let drill=try XCTUnwrap(controller.exercise?.scenario.drill),first=try XCTUnwrap(drill.moves(drill.initial).first{$0.to != drill.target})
         controller.attempt(from:drill.start,to:first.to,promotion:nil);controller.hint()
         let board=controller.exercise?.board,revision=controller.exercise?.snapshot.revision
@@ -121,7 +121,7 @@ import CheckmateCore
     }
     func testADrillResumeHonoursEveryTakeBack()throws {
         let (session,player,controller)=try fixture();defer{player.shutdown()}
-        controller.begin(try controller.prepare(entry:"reach-target",tier:3))
+        controller.begin(try controller.prepare(entry:"reach-target",generatedTier:3))
         let drill=try XCTUnwrap(controller.exercise?.scenario.drill),steps=drill.moves(drill.initial).filter{$0.to != drill.target}
         XCTAssertGreaterThanOrEqual(steps.count,2,"fixture: two different first steps")
         controller.attempt(from:drill.start,to:steps[0].to,promotion:nil);controller.undo()
@@ -172,6 +172,66 @@ import CheckmateCore
         try coordinator.enter(prepared:try coordinator.prepare(.returnToGame),from:.training(entry:"reach-target"),wasReviewing:true)
         XCTAssertEqual(session.activity,.at(.training(entry:"reach-target")));XCTAssertEqual(session.training?.entryId,"reach-target")
         controller.hint();XCTAssertEqual(controller.exercise?.hintLevel,1)
+    }
+    /// A resumed attempt already at the revision bound would be refused by its first save, which runs after the
+    /// workspace is left (#31): staging refuses it with the rule `save` applies, so nothing is entered or changed.
+    func testAResumeAtTheRevisionBoundIsRefusedWhileStaging()throws {
+        let (session,player,controller)=try fixture();defer{player.shutdown()}
+        controller.begin(try controller.prepare(entry:"reach-target"));controller.leave()
+        session.state.training?.active?.revision=TrainingState.maximumCount
+        let saved=try XCTUnwrap(session.state.training?.active),record=try XCTUnwrap(session.state.training)
+        XCTAssertNil(TrainingController.nextSaved(saved,in:record,writable:true),"the save rule refuses the next revision")
+        let prepared=try controller.prepareResume()
+        XCTAssertThrowsError(try controller.stage(prepared),"its first save would be refused")
+        controller.begin(prepared)
+        XCTAssertNil(controller.exercise,"nothing was entered");XCTAssertEqual(session.activity,.at(.trainingLibrary))
+        XCTAssertEqual(session.state.training?.active,saved,"the saved attempt is unchanged");XCTAssertNotNil(controller.notice,"the learner is told")
+        // One below the bound still resumes: its first save writes exactly the bound, and the next save is refused.
+        session.state.training?.active?.revision=TrainingState.maximumCount-1
+        controller.begin(try controller.prepareResume())
+        XCTAssertEqual(controller.exercise?.snapshot.revision,TrainingState.maximumCount);XCTAssertEqual(session.state.training?.active?.revision,TrainingState.maximumCount)
+        let atBound=session.state.training?.active
+        XCTAssertFalse(controller.hint(),"a hint that cannot be saved is reported as not given")
+        XCTAssertEqual(controller.exercise?.hintLevel,0);XCTAssertEqual(session.state.training?.active,atBound)
+        XCTAssertFalse(controller.recordAgentHelp(),"help that cannot be saved is reported as not recorded")
+        XCTAssertEqual(controller.exercise?.snapshot.recordedHelp,false);XCTAssertEqual(session.state.training?.active,atBound)
+    }
+    /// A Continue prepared before newer progress was saved is refused: its replay lacks that progress, and entering it
+    /// would save over it. Continue again resumes the newer attempt.
+    func testAResumePreparedBeforeNewerProgressIsRefused()throws {
+        let (session,player,controller)=try fixture();defer{player.shutdown()}
+        controller.begin(try controller.prepare(entry:"reach-target",generatedTier:3))
+        let drill=try XCTUnwrap(controller.exercise?.scenario.drill),first=try XCTUnwrap(drill.moves(drill.initial).first{$0.to != drill.target})
+        controller.attempt(from:drill.start,to:first.to,promotion:nil);controller.leave()
+        let early=try controller.prepareResume()
+        // Meanwhile the attempt is continued and a hint is saved.
+        controller.begin(try controller.prepareResume());controller.hint();controller.leave()
+        let saved=try XCTUnwrap(session.state.training?.active);XCTAssertEqual(saved.actions.count,2,"fixture: the newer progress is saved")
+        XCTAssertThrowsError(try controller.stage(early),"the stale replay is never staged")
+        controller.begin(early)
+        XCTAssertNil(controller.exercise,"nothing was entered");XCTAssertEqual(session.activity,.at(.trainingLibrary))
+        XCTAssertEqual(session.state.training?.active,saved,"the newer progress is kept");XCTAssertNotNil(controller.notice,"the learner is told to choose Continue again")
+        controller.begin(try controller.prepareResume())
+        XCTAssertEqual(controller.exercise?.movesUsed,1);XCTAssertEqual(controller.exercise?.hintLevel,1,"Continue again resumes the newer attempt")
+    }
+    /// A staged exercise whose training record changed before entry is refused before the review over the board is
+    /// left and before anything is saved: `enter` throws, and the shown exercise and the newer record are kept.
+    func testTrainingEntryStaleSinceStagingThrowsBeforeLeaving()throws {
+        let (session,player,controller)=try fixture();defer{player.shutdown()}
+        let coordinator=WorkspaceTransitionCoordinator(session:session,learning:player,review:ReviewController());coordinator.training=controller
+        controller.begin(try controller.prepare(entry:"reach-target"))
+        let shown=try XCTUnwrap(controller.exercise?.snapshot.id),place=session.activity.place
+        session.enterReview(document:nil);XCTAssertTrue(session.reviewSuspended)
+        let prepared=try coordinator.prepare(.trainingExercise(entry:"find-attackers"))
+        // Progress is saved after staging, as an agent's or another window's save would be.
+        var record=try XCTUnwrap(session.state.training);record.active?.recordedHelp=true;session.state.training=record
+        XCTAssertThrowsError(try coordinator.enter(prepared:prepared,from:place,wasReviewing:true),"entry reports the refusal")
+        XCTAssertEqual(session.state.training,record,"the newer progress is not saved over, and the shown attempt is not recorded as abandoned")
+        XCTAssertEqual(controller.exercise?.snapshot.id,shown,"the shown exercise is kept");XCTAssertEqual(session.activity,.at(place),"a review the host closed returns to the place it covered")
+        // Staged again from the current record, the same request enters.
+        try coordinator.enter(prepared:try coordinator.prepare(.trainingExercise(entry:"find-attackers")),from:session.activity.place,wasReviewing:false)
+        XCTAssertEqual(session.activity,.at(.training(entry:"find-attackers")));XCTAssertEqual(session.state.training?.active?.entry,"find-attackers")
+        XCTAssertEqual(session.state.training?.summaries["reach-target"]?.abandoned,1)
     }
     // MARK: WI-005 exercises
     func testEscapeCheckGradesARawIllegalAttemptAsAWrongAnswer()throws {

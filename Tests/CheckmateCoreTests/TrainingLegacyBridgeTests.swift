@@ -69,6 +69,59 @@ import CheckmateCore
         player2.startMini(.pawnDuel,fromLibrary:true);player2.undoMini();player2.click("a7");player2.click("a8")
         XCTAssertEqual(session.state.training?.events.count,1)
     }
+    /// Knight Corners with h1, h8 and a8 already visited and the knight one safe jump (c2-a1) from completing the route.
+    private func nearlyRouted()->MiniGameState {var game=MiniGameState(kind:.knightCorners);game.snapshot.board=["c2":"wn","c3":"bp","f3":"bp","c6":"bp","f6":"bp"];game.snapshot.cornerIndex=3;return game}
+    func testAKnightHopRouteCountsOncePerRun()throws {
+        var state=ApplicationState();state.miniGames=["knight-corners":nearlyRouted()]
+        let (session,player,_)=try fixture(state);defer{player.shutdown()}
+        player.startMini(.knightCorners,fromLibrary:true);XCTAssertEqual(player.miniGame?.computer,false,"a solo game has no opponent")
+        player.click("c2");player.click("a1")
+        // A solo game has one way to finish: White completes the route. It is never a draw or a loss.
+        XCTAssertEqual(player.miniGame?.winner,"w");XCTAssertNil(player.miniGame?.drawReason)
+        let events=try XCTUnwrap(session.state.training?.events);XCTAssertEqual(events.map(\.kind),["knight-corners"]);XCTAssertEqual(events.first?.computer,false)
+        func counters(_ state:ApplicationState)->[Int] {let s=state.training?.summaries["knight-corners"] ?? TrainingEntrySummary();return [s.legacyWins,s.legacyLosses,s.legacyDraws,s.twoPlayerFinishes]}
+        XCTAssertEqual(counters(session.state),[1,0,0,0],"a completed route counts in legacyWins only")
+        XCTAssertEqual(TrainingRecommendation.progress("knight-corners",in:session.state.training!).lines,["Routes completed: 1"])
+        // Undo and the same route again in this run: still one.
+        player.undoMini();XCTAssertFalse(player.miniGame?.isFinished ?? true);player.click("c2");player.click("a1")
+        XCTAssertTrue(player.miniGame?.isFinished ?? false);XCTAssertEqual(session.state.training?.events.count,1);XCTAssertEqual(counters(session.state),[1,0,0,0])
+        // Reloading the finished route backfills nothing, and neither does undo and replay after the reload.
+        let reloaded=try JSONDecoder().decode(ApplicationState.self,from:JSONEncoder().encode(session.state))
+        let (session2,player2,_)=try fixture(reloaded);defer{player2.shutdown()}
+        player2.startMini(.knightCorners,fromLibrary:true);XCTAssertTrue(player2.miniGame?.isFinished ?? false,"fixture: the finished route was saved")
+        player2.undoMini();player2.click("c2");player2.click("a1")
+        XCTAssertEqual(session2.state.training?.events.count,1);XCTAssertEqual(counters(session2.state),[1,0,0,0])
+        // A new run is a new route and counts again.
+        var next=nearlyRouted();XCTAssertNotEqual(next.opponentSeed,player2.miniGame?.opponentSeed,"fixture: a new run")
+        XCTAssertTrue(next.play(MiniGameMove(from:"c2",to:"a1")));XCTAssertTrue(next.isFinished)
+        var state2=session2.state
+        XCTAssertNotNil(TrainingStore.recordLegacyCompletion(next,origin:"library",in:&state2,now:day,calendar:player2.calendar))
+        XCTAssertEqual(counters(state2),[2,0,0,0]);XCTAssertEqual(TrainingRecommendation.progress("knight-corners",in:state2.training!).lines,["Routes completed: 2"])
+    }
+    /// Finding #54: a lesson game's training origin comes from the activity alone. A library game in between holds
+    /// no origin, so a later lesson game cannot inherit a stale one, and the library game leads back to training.
+    func testTheLessonOriginOfAGameIsReadFromTheActivityAlone()throws {
+        let (session,player,_)=try fixture();defer{player.shutdown()}
+        player.openLesson(index:3,fromTraining:true);player.startMini(.pawnDuel,computer:false)
+        XCTAssertEqual(session.activity,.at(.miniGame(lessonIndex:3,kind:.pawnDuel,fromTraining:true)))
+        player.startMini(.queenVsPawns,fromLibrary:true)
+        XCTAssertEqual(session.activity,.at(.miniGame(lessonIndex:nil,kind:.queenVsPawns)),"a library game has no lesson and no lesson origin");XCTAssertTrue(player.miniFromLibrary)
+        player.startMini(.pawnDuel,computer:false)
+        XCTAssertEqual(session.activity,.at(.miniGame(lessonIndex:3,kind:.pawnDuel)),"no origin survives outside the activity")
+        player.leaveMini();XCTAssertEqual(session.activity,.at(.lesson(index:3)));XCTAssertFalse(player.readingFromTraining)
+        player.startMini(.queenVsPawns,fromLibrary:true);player.leaveMini();XCTAssertEqual(session.activity,.at(.trainingLibrary),"the library game leads back to training")
+    }
+    func testAReviewOverATrainingLinkedLessonGameReturnsToItsOrigin()throws {
+        let (session,player,_)=try fixture();defer{player.shutdown()}
+        let coordinator=WorkspaceTransitionCoordinator(session:session,learning:player,review:ReviewController())
+        let game=Place.miniGame(lessonIndex:3,kind:.queenVsPawns,fromTraining:true)
+        player.openLesson(index:3,fromTraining:true);player.startMini(.queenVsPawns);session.enterReview(document:nil)
+        XCTAssertEqual(session.activity.review?.returnTo,game)
+        try coordinator.enter(prepared:try coordinator.prepare(.returnToGame),from:session.activity.place,wasReviewing:true)
+        XCTAssertEqual(session.activity,.at(game));XCTAssertEqual(session.mode,.lesson)
+        player.restartMini();XCTAssertEqual(session.activity,.at(game))
+        player.leaveMini();XCTAssertEqual(session.activity,.at(.lesson(index:3,fromTraining:true)));XCTAssertTrue(player.readingFromTraining)
+    }
     func testAReviewOverALibraryGameReturnsToIt()throws {
         let (session,player,_)=try fixture();defer{player.shutdown()}
         let coordinator=WorkspaceTransitionCoordinator(session:session,learning:player,review:ReviewController())

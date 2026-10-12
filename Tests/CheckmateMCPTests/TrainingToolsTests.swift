@@ -69,6 +69,35 @@ import CheckmateCore
         let early=await code{try await f.tools.call("end_training_attempt",args:self.args(f,["action":"next"],exercise:true),lease:"lease")};XCTAssertEqual(early,"ATTEMPT_ACTIVE")
         let oldSession=await code{try await f.tools.call("request_training_hint",args:self.args(f,exercise:true).merging(["revision":0]){_,n in n},lease:"lease")};XCTAssertEqual(oldSession,"STALE_STATE")
     }
+    /// A selection the learner changes after the agent read the session is never graded on the agent's stale request:
+    /// the change is not saved progress, so the attempt revision stays, but it changes the projection and so the session
+    /// revision every training call is checked against.
+    func testASelectionChangedSinceTheAgentReadIsNotGraded()async throws {
+        let f=try fixture();defer{f.player.shutdown()}
+        var next:UInt64=41;f.controller.seed={next+=1;return next}
+        f.controller.begin(try f.controller.prepare(entry:"find-attackers"))
+        let scenario=try XCTUnwrap(f.controller.exercise?.scenario),diagram=try XCTUnwrap(scenario.diagram),target=try XCTUnwrap(scenario.target)
+        let answer=diagram.keys.filter{$0 != target && diagram[$0]!.hasPrefix(scenario.learner) && TrainingGeometry.attacks(from:$0,board:diagram).contains(target)}.sorted()
+        let wrong=try XCTUnwrap(["a1","h8","a8","h1","d4","e5"].first{!answer.contains($0) && $0 != target})
+        _ = try await f.tools.call("submit_training_action",args:args(f,["kind":"select","squares":answer],exercise:true),lease:"lease")
+        // The agent reads the right selection; the learner then adds a wrong square on the board.
+        let read=args(f,exercise:true),attemptRevision=f.controller.exercise?.snapshot.revision
+        f.controller.click(wrong)
+        XCTAssertEqual(Set(f.controller.exercise?.selection ?? []),Set(answer+[wrong]));XCTAssertEqual(f.controller.exercise?.snapshot.revision,attemptRevision,"a selection is not saved progress")
+        let stale=await code{try await f.tools.call("submit_training_action",args:read.merging(["kind":"submit","requestId":"stale-submit"]){_,n in n},lease:"lease")}
+        XCTAssertEqual(stale,"STALE_STATE","the agent never grades a selection it did not see")
+        let none=await code{try await f.tools.call("submit_training_action",args:read.merging(["kind":"none","requestId":"stale-none"]){_,n in n},lease:"lease")}
+        XCTAssertEqual(none,"STALE_STATE")
+        // Clearing is a change too.
+        let afterClick=args(f,exercise:true);f.controller.clearSelection()
+        let cleared=await code{try await f.tools.call("submit_training_action",args:afterClick.merging(["kind":"submit","requestId":"stale-clear"]){_,n in n},lease:"lease")}
+        XCTAssertEqual(cleared,"STALE_STATE");XCTAssertFalse(f.controller.exercise?.finished ?? true,"no stale request graded anything")
+        XCTAssertEqual(f.session.state.training?.active?.actions ?? [],[],"nothing was submitted")
+        // A fresh read relays the learner's current choice.
+        _ = try await f.tools.call("submit_training_action",args:args(f,["kind":"select","squares":answer],exercise:true),lease:"lease")
+        _ = try await f.tools.call("submit_training_action",args:args(f,["kind":answer.isEmpty ? "none":"submit"],exercise:true),lease:"lease")
+        XCTAssertEqual(f.controller.exercise?.status,.correct)
+    }
     func testAgentHelpIsRecordedAndHintsStopBeforeTheAnswer()async throws {
         let f=try fixture(only:["mate-back-rank-w1"]);defer{f.player.shutdown()}
         f.controller.openLibrary();_ = try await f.tools.call("start_training",args:args(f,["entryId":"mate-in-one"]),lease:"lease")
@@ -84,6 +113,29 @@ import CheckmateCore
         g.controller.begin(try g.controller.prepare(entry:"mate-in-one"))
         _ = try await g.tools.call("submit_training_action",args:args(g,["kind":"move","from":"a1","to":"a8"],exercise:true),lease:"lease")
         XCTAssertEqual(g.session.state.training?.summaries["mate-in-one"]?.firstTryNoRecordedHelp,0);XCTAssertEqual(g.session.state.training?.attempts.last?.recordedHelp,true)
+    }
+    /// Help that cannot be saved is never applied (#38): with the attempt at the revision bound, the agent's submission
+    /// and hint are refused before anything is graded, so assisted work is never credited as the learner's own.
+    func testHelpThatCannotBeRecordedIsRefusedBeforeGrading()async throws {
+        let f=try fixture(only:["mate-back-rank-w1"]);defer{f.player.shutdown()}
+        f.controller.begin(try f.controller.prepare(entry:"mate-in-one"));f.controller.openLibrary()
+        // Resumed one below the bound, the resume's own save writes exactly the bound; the next save is refused.
+        f.session.state.training?.active?.revision=TrainingState.maximumCount-1
+        f.controller.begin(try f.controller.prepareResume())
+        XCTAssertEqual(f.controller.exercise?.snapshot.revision,TrainingState.maximumCount,"fixture: the attempt is at the bound")
+        let saved=try XCTUnwrap(f.session.state.training?.active)
+        do {
+            _ = try await f.tools.call("submit_training_action",args:args(f,["kind":"move","from":"a1","to":"a8"],exercise:true),lease:"lease")
+            XCTFail("a submission whose help could not be recorded was applied")
+        } catch let failure as ProtocolFailure {
+            XCTAssertEqual(failure.code,"UNAVAILABLE");XCTAssertTrue(failure.message.contains("too long to save"),failure.message)
+        }
+        XCTAssertFalse(f.controller.exercise?.finished ?? true,"nothing was graded");XCTAssertEqual(f.controller.exercise?.snapshot.recordedHelp,false)
+        XCTAssertEqual(f.session.state.training?.attempts.count,0,"no result was recorded");XCTAssertNil(f.session.state.training?.summaries["mate-in-one"])
+        XCTAssertEqual(f.session.state.training?.active,saved,"the saved attempt is unchanged")
+        // A hint is recorded help too: one that could not be saved is reported, never returned as delivered.
+        let hint=await code{try await f.tools.call("request_training_hint",args:self.args(f,exercise:true),lease:"lease")}
+        XCTAssertEqual(hint,"UNAVAILABLE");XCTAssertEqual(f.controller.exercise?.hintLevel,0);XCTAssertEqual(f.session.state.training?.active,saved)
     }
     func testResultsNeverDiscloseStoredAnswers()async throws {
         let f=try fixture(only:["mate-back-rank-w1"]);defer{f.player.shutdown()}

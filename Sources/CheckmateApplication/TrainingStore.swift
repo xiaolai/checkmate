@@ -31,7 +31,6 @@ public enum TrainingStore {
         training.attempts.append(attempt);if outcome != .abandoned{training.finishedAttempts=training.finishedAttempts+1}
         var summary=training.summaries[snapshot.entry] ?? TrainingEntrySummary()
         summary.attempts=summary.attempts+1
-        // Counters saturate at the bound the saved record is validated against, so saving never fails on a count.
         switch outcome {
         case .correct:if firstTry{summary.firstTryNoRecordedHelp=summary.firstTryNoRecordedHelp+1}else if snapshot.recordedHelp{summary.assistedCompletions=summary.assistedCompletions+1}else{summary.practiceCompletions=summary.practiceCompletions+1}
         case .incorrect:summary.incorrect=summary.incorrect+1
@@ -70,7 +69,8 @@ public enum TrainingStore {
         let winner=game.winner,event=TrainingCompletionEvent(id:UUID().uuidString,kind:game.kind.rawValue,run:run,winner:winner,drawReason:game.drawReason,computer:game.computer,origin:origin,at:now)
         training.events.append(event);training.creditedRuns[game.kind.rawValue]=run
         var summary=training.summaries[game.kind.rawValue] ?? TrainingEntrySummary()
-        if !game.computer && !game.kind.solo{summary.twoPlayerFinishes=summary.twoPlayerFinishes+1}else if winner=="w"{summary.legacyWins=summary.legacyWins+1}else if winner=="b"{summary.legacyLosses=summary.legacyLosses+1}else{summary.legacyDraws=summary.legacyDraws+1}
+        // A solo game finishes only by completing its route, which counts in `legacyWins` (see TrainingEntrySummary).
+        if game.kind.solo{summary.legacyWins=summary.legacyWins+1}else if !game.computer{summary.twoPlayerFinishes=summary.twoPlayerFinishes+1}else if winner=="w"{summary.legacyWins=summary.legacyWins+1}else if winner=="b"{summary.legacyLosses=summary.legacyLosses+1}else{summary.legacyDraws=summary.legacyDraws+1}
         let today=day(now,calendar:calendar);if !summary.days.contains(today){summary.days.append(today)}
         training.summaries[game.kind.rawValue]=summary
         prune(&training);guard withinBudget(training),(try? training.validate()) != nil else{return nil}

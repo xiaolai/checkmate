@@ -161,16 +161,17 @@ import Combine
     /// the library never moves the course bookmark or starts narration.
     public func startMini(_ kind:MiniGameKind,restart:Bool=false,computer:Bool=true,fromLibrary:Bool=false){
         pause();miniGame = !restart ? session.state.miniGames?[kind.rawValue] ?? MiniGameState(kind:kind,computer:computer):MiniGameState(kind:kind,computer:computer)
-        if case .lesson(_,let linked)=session.activity.place{miniLessonFromTraining=linked}else if !mini{miniLessonFromTraining=false}
-        go(.miniGame(lessonIndex:fromLibrary ? nil:lessonIndex,kind:kind));picked=[];feedback=""
+        go(.miniGame(lessonIndex:fromLibrary ? nil:lessonIndex,kind:kind,fromTraining:!fromLibrary && lessonFromTraining));picked=[];feedback=""
         syncMini();scheduleMiniOpponent()
     }
     /// Whether the mini-game shown was opened from the training library rather than a lesson.
-    public var miniFromLibrary:Bool {if case .miniGame(nil,_)=session.activity.place{return true};return false}
-    /// Whether the lesson a mini-game was opened from is a training link. The mini-game place has no room for it, so it
-    /// is kept here from entry (a restart keeps it) and restored on the way back, which then still keeps the bookmark.
-    private var miniLessonFromTraining=false
-    private var miniLesson:Place {.lesson(index:lessonIndex,fromTraining:miniLessonFromTraining)}
+    public var miniFromLibrary:Bool {if case .miniGame(nil,_,_)=session.activity.place{return true};return false}
+    /// Whether the lesson shown, or the one the mini-game shown was opened from, is a training link. Read from the
+    /// activity alone, so a restart, a review over the game and the way back all keep it without a copy here.
+    private var lessonFromTraining:Bool {switch session.activity.place{case .lesson(_,let linked),.miniGame(_,_,let linked):return linked;default:return false}}
+    /// The lesson a lesson-launched mini-game returns to, still a training link when it was opened as one, so reading
+    /// it after the game keeps the course bookmark.
+    private var miniLesson:Place {.lesson(index:lessonIndex,fromTraining:lessonFromTraining)}
     /// After a review closes: delivers the activity state held back while the review owned the board, and re-queues the
     /// computer's mini-game reply that leaving for the review cancelled.
     public func resumeMiniOpponent(){if publishDeferred,!session.reviewSuspended,session.mode != .practice{publish()};scheduleMiniOpponent()}
@@ -250,13 +251,17 @@ import Combine
         publish()
     }
 
+    /// Whether narration is actually sounding, read from the narration service rather than from intent: its
+    /// `playbackTime` exists only while a player is playing, so a muted, failed, stopped, finished or absent player
+    /// (and the silent automation policy, which never starts one) all report false.
+    private var narrationAudible:Bool {audio?.playbackTime != nil}
     /// Set when a publish was held back because a review owns the board; `resumeMiniOpponent` delivers it on return.
     private var publishDeferred=false
     private func publish(){guard session.mode != .practice else{return};guard !session.reviewSuspended else{publishDeferred=true;return};publishDeferred=false
         // Training shows only a library-opened mini-game from here; its library and exercises have their own controller.
         if session.mode == .training{if mini{publishTrainingMini()};return}
         // The library has no board or lesson of its own: whatever paused, it stays the library.
-        if session.activity.place == .puzzleLibrary{session.setLesson(LessonProjection(mode:"quick_puzzle",pieces:nil,title:"Quick puzzles",lessonId:"puzzle-library",step:0,prompt:nil,choices:nil,playing:false,narrationActive:false,moving:false,turn:nil,winner:nil,rules:nil));return};let e=mini ? nil:exercise;session.setLesson(LessonProjection(mode:mini ? (miniKind == .pawnDuel ? "pawn_duel":"mini_game"):activePuzzle != nil ? "quick_puzzle":"lesson",pieces:frame.board,title:mini ? miniKind.title:activePuzzle?.title ?? current.title,lessonId:activePuzzle?.id ?? current.id,step:activePuzzle != nil ? 0:step,prompt:e?.prompt,choices:e?.kind=="choice" ? e?.choices:nil,playing:playing,narrationActive:playing && session.state.settings.narration && session.state.settings.volume>0 && audio?.narrationFailure==nil && seconds<narrationSeconds && !NativePolicy.silent,moving:frame.motion != nil,turn:mini ? miniTurn:nil,winner:winner,rules:mini ? miniRules:nil,drawReason:mini ? miniGame?.drawReason:nil))}
+        if session.activity.place == .puzzleLibrary{session.setLesson(LessonProjection(mode:"quick_puzzle",pieces:nil,title:"Quick puzzles",lessonId:"puzzle-library",step:0,prompt:nil,choices:nil,playing:false,narrationActive:false,moving:false,turn:nil,winner:nil,rules:nil));return};let e=mini ? nil:exercise;session.setLesson(LessonProjection(mode:mini ? (miniKind == .pawnDuel ? "pawn_duel":"mini_game"):activePuzzle != nil ? "quick_puzzle":"lesson",pieces:frame.board,title:mini ? miniKind.title:activePuzzle?.title ?? current.title,lessonId:activePuzzle?.id ?? current.id,step:activePuzzle != nil ? 0:step,prompt:e?.prompt,choices:e?.kind=="choice" ? e?.choices:nil,playing:playing,narrationActive:narrationAudible,moving:frame.motion != nil,turn:mini ? miniTurn:nil,winner:winner,rules:mini ? miniRules:nil,drawReason:mini ? miniGame?.drawReason:nil))}
     /// The shown mini-game's rules, the same from its lesson and from the training library.
     private var miniRules:[String] {miniKind == .pawnDuel ? ["Reach the far rank with a pawn, capture every opposing pawn, or leave the opponent without a move.","Pawns move forward and capture diagonally. A pawn on its starting rank may advance two empty squares.","No en passant. Pawns stay pawns at the far rank. "+MiniGameState.drawRules]:[miniKind.rules]}
     /// The truthful training projection of a library-opened mini-game: the same board, rules and outcome as from its lesson.

@@ -107,10 +107,54 @@ import CheckmateCore
         let catalog=try TrainingCatalog.bundled(),provider=try TrainingScenarioProvider(catalog:catalog,scenarios:[])
         for id in ["reach-target","find-attackers","find-defenders","pawn-duel"] {XCTAssertTrue(provider.available(try XCTUnwrap(catalog.entry(id))),id)}
         XCTAssertFalse(provider.available(try XCTUnwrap(catalog.entry("mate-in-one"))),"no curated content, no entry")
-        guard case .scenario(let made,.new)=provider.next(for:try XCTUnwrap(catalog.entry("reach-target")),seen:[],seed:9,tier:2,variant:"rook") else{return XCTFail()}
+        guard case .scenario(let made,.new)=provider.next(for:try XCTUnwrap(catalog.entry("reach-target")),seen:[],seed:9,generatedTier:2,variant:"rook") else{return XCTFail()}
         XCTAssertEqual(made.drill?.piece.last,"r");XCTAssertEqual(made.tier,2)
-        guard case .scenario(let again,.repeat)=provider.next(for:try XCTUnwrap(catalog.entry("reach-target")),seen:[made.cluster],seed:9,tier:2,variant:"rook") else{return XCTFail()}
+        guard case .scenario(let again,.repeat)=provider.next(for:try XCTUnwrap(catalog.entry("reach-target")),seen:[made.cluster],seed:9,generatedTier:2,variant:"rook") else{return XCTFail()}
         XCTAssertEqual(again,made,"the same seed is the same concrete board, labelled a repeat")
+    }
+    /// D1: a generated drill is made at the requested tier, clamped to the entry's tiers.
+    func testGeneratedSelectionHonoursTheGeneratedTier()throws {
+        let catalog=try TrainingCatalog.bundled(),provider=try TrainingScenarioProvider(catalog:catalog,scenarios:[])
+        for id in ["reach-target","find-attackers","find-defenders"] {
+            let definition=try XCTUnwrap(catalog.entry(id))
+            for (requested,made) in [(0,1),(1,1),(2,2),(3,3),(definition.tiers+5,definition.tiers)] {
+                let choice=(UInt64(1)...UInt64(40)).lazy.map{provider.next(for:definition,seen:[],seed:$0,generatedTier:requested)}.first{$0 != .exhausted}
+                guard case .scenario(let scenario,.new)=try XCTUnwrap(choice,"\(id) tier \(requested) made a board") else{return XCTFail("\(id) tier \(requested)")}
+                XCTAssertEqual(scenario.tier,min(made,definition.tiers),"\(id) requested tier \(requested)")
+            }
+        }
+    }
+    /// D1: curated selection is tier-agnostic. A curated tier is descriptive metadata, so every requested tier, in range
+    /// or not, chooses exactly as the default does: variant, suspension, novelty and reserve rules over all tiers.
+    func testCuratedSelectionIgnoresTheGeneratedTier()throws {
+        let catalog=try TrainingCatalog.bundled(),definition=try XCTUnwrap(catalog.entry("mate-in-one"))
+        func mate(_ id:String,_ tier:Int,_ cluster:String,_ fen:String,_ moves:[String],reserve:Bool=false)->TrainingScenario {TrainingScenario(id:id,entry:"mate-in-one",variant:"mate",tier:tier,cluster:cluster,learner:String(fen.split(separator:" ")[1]),prompt:"Mate in one.",explanation:"Mate.",hints:["Look for checks."],fen:fen,expected:TrainingExpected(moves:moves),reserve:reserve,review:TrainingReview(author:"test",reviewer:nil,validatorVersion:TrainingValidationService.validatorVersion))}
+        // The only fresh pool scenario is tier 3, the reserve is tier 2: a tier-1 request still gets them.
+        let scenarios=[mate("pool-hard",3,"back-rank","6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1",["a1a8"]),mate("reserve-mid",2,"promotion","6br/5Ppk/6pp/8/8/8/8/K7 w - - 0 1",["f7f8n"],reserve:true)]
+        let provider=try TrainingScenarioProvider(catalog:catalog,scenarios:scenarios)
+        func choices(_ tier:Int)->[TrainingScenarioProvider.Choice] {
+            [provider.next(for:definition,seen:[],seed:3,generatedTier:tier),
+             provider.next(for:definition,seen:[],seed:3,generatedTier:tier,variant:"mate"),
+             provider.next(for:definition,seen:["back-rank"],seed:3,generatedTier:tier),
+             provider.next(for:definition,seen:["back-rank","promotion"],seed:3,generatedTier:tier),
+             provider.next(for:definition,seen:[],seed:3,generatedTier:tier,variant:"no-such-variant")]
+        }
+        let expected=choices(1)
+        guard case .scenario(let fresh,.new)=expected[0],case .scenario(let reserve,.reserve)=expected[2],case .scenario(_,.repeat)=expected[3] else{return XCTFail("pool, then reserve, then labelled repeats: \(expected)")}
+        XCTAssertEqual(fresh.id,"pool-hard","a tier-1 request is not filtered to tier 1");XCTAssertEqual(reserve.id,"reserve-mid")
+        XCTAssertEqual(expected[1],expected[0],"the entry's own variant chooses as nil does");XCTAssertEqual(expected[4],.exhausted,"an unknown variant offers nothing")
+        for tier in [0,2,3,9]{XCTAssertEqual(choices(tier),expected,"requested tier \(tier)")}
+        // Suspension withdraws a scenario at every tier alike.
+        provider.suspend("pool-hard")
+        for tier in [1,3]{guard case .scenario(let left,.reserve)=provider.next(for:definition,seen:[],seed:3,generatedTier:tier) else{return XCTFail("tier \(tier)")};XCTAssertEqual(left.id,"reserve-mid")}
+        provider.suspend("reserve-mid")
+        for tier in [1,3]{XCTAssertEqual(provider.next(for:definition,seen:[],seed:3,generatedTier:tier),.exhausted)}
+        // Bundled content keeps its descriptive tiers: a tier-1 request for a variant authored only at tiers 2 and 3
+        // still receives it.
+        let bundled=try TrainingScenarioProvider.bundled(),save=try XCTUnwrap(bundled.catalog.entry("save-your-piece"))
+        XCTAssertFalse(bundled.scenarios(for:"save-your-piece").contains{$0.variant=="protect" && $0.tier==1},"fixture: no tier-1 protect scenario")
+        guard case .scenario(let protect,_)=bundled.next(for:save,seen:[],seed:5,generatedTier:1,variant:"protect") else{return XCTFail("curated content is offered at any requested tier")}
+        XCTAssertEqual(protect.variant,"protect");XCTAssertGreaterThan(protect.tier,1)
     }
     func testMeasuredSetupAndSubmissionLatency()throws {
         let fens=["6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1","7k/6pp/8/8/8/8/8/RR4K1 w - - 0 1","6br/5Ppk/6pp/8/8/8/8/K7 w - - 0 1","4k3/8/8/8/8/2N5/3PPP2/r3K3 w - - 0 1","4k3/4r3/8/8/8/8/4N3/4K2r w - - 0 1","k7/8/8/8/8/8/3n4/4K3 w - - 0 1","r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5Q2/PPPP1PPP/RNB1K1NR w KQkq - 2 3","rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"]

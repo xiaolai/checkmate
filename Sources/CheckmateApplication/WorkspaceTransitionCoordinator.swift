@@ -26,6 +26,12 @@ public struct PreparedWorkspaceTransition {
 @MainActor public final class WorkspaceTransitionCoordinator {
     private let session:GameSession,learning:LearningPlayer,review:ReviewController
     public init(session:GameSession,learning:LearningPlayer,review:ReviewController){self.session=session;self.learning=learning;self.review=review}
+    /// Whether a staged entry can still be entered: a training exercise is entered only over the record it was staged
+    /// from. The host asks before its exit effects, so a refusal leaves the review and every service as they were.
+    public func stillCurrent(_ prepared:PreparedWorkspaceTransition)->Bool {
+        if case .training(let staged)=prepared.entry{return training?.isCurrent(staged) ?? false};return true
+    }
+    public static let staleTrainingMessage="Training progress changed while this exercise was being opened, so it was not opened. Try again; your progress is unchanged."
     /// The new-exercise controller, when training is enabled: a review closing over an exercise hands its board back.
     public var training:TrainingController?
     public func prepare(_ next:WorkspaceNavigation,pendingReview:(document:GameDocument,cursor:Int,branches:[ReviewBranch])?=nil)throws -> PreparedWorkspaceTransition {
@@ -87,7 +93,15 @@ public struct PreparedWorkspaceTransition {
         case (.trainingLesson(let id),_):
             leaveReview(wasReviewing,place);leaveTraining()
             if let index=learning.library.lessons.firstIndex(where:{$0.id==id}){learning.openLesson(index:index,fromTraining:true)}
-        case (.trainingExercise,.training(let prepared)),(.trainingScenario,.training(let prepared)),(.trainingResume,.training(let prepared)),(.trainingRetry,.training(let prepared)):leaveReview(wasReviewing,place);training?.begin(staged:prepared)
+        case (.trainingExercise,.training(let staged)),(.trainingScenario,.training(let staged)),(.trainingResume,.training(let staged)),(.trainingRetry,.training(let staged)):
+            // Progress saved since staging would be overwritten by this exercise: refused before the review is left
+            // (one the host already closed returns to the place it covered), and entry itself cannot fail.
+            let training=try trainingController()
+            guard training.isCurrent(staged) else{
+                if session.activity.review != nil{session.enter(.at(place))}
+                throw CheckmateError.unavailable(Self.staleTrainingMessage)
+            }
+            leaveReview(wasReviewing,place);training.begin(staged:staged)
         default:break
         }
     }

@@ -118,4 +118,82 @@ import CheckmateCore
         XCTAssertThrowsError(try finish(1,.incorrect,in:&state,at:monday,calendar:utc),"one more would pass the bound")
         XCTAssertEqual(state.training,full,"nothing was recorded")
     }
+    func testALegacyCounterAtItsLimitRefusesToRecordInsteadOfCapping()throws {
+        var state=ApplicationState();let utc=calendar()
+        var full=TrainingState();full.summaries["pawn-duel"]=TrainingEntrySummary();full.summaries["pawn-duel"]?.twoPlayerFinishes=TrainingState.maximumCount
+        XCTAssertNoThrow(try full.validate(),"fixture: a record at the limit loads")
+        state.training=full
+        let game=TrainingPersistenceTests.finishedPawnDuel();XCTAssertFalse(game.computer,"fixture: a two-player finish")
+        XCTAssertNil(TrainingStore.recordLegacyCompletion(game,origin:"library",in:&state,now:monday,calendar:utc),"one more would pass the bound")
+        XCTAssertEqual(state.training,full,"nothing was recorded, not even the credited run")
+    }
+    func testRoutesCompletedCountOnlyFinishedRoutes()throws {
+        // Knight Corners finishes only by completing its route, recorded in `legacyWins`. Loss and draw counters on a solo
+        // summary (never written by this build) are not routes.
+        var training=TrainingState(),hop=TrainingEntrySummary();hop.legacyWins=2;hop.legacyLosses=3;hop.legacyDraws=4;training.summaries["knight-corners"]=hop
+        let progress=TrainingRecommendation.progress("knight-corners",in:training)
+        XCTAssertEqual(progress.routesCompleted,2);XCTAssertEqual([progress.gamesWon,progress.gamesLost,progress.gamesDrawn],[0,0,0])
+        XCTAssertEqual(progress.lines,["Routes completed: 2"])
+        hop.legacyWins=0;training.summaries["knight-corners"]=hop
+        XCTAssertEqual(TrainingRecommendation.progress("knight-corners",in:training).lines,[],"no route, nothing to report")
+    }
+    // MARK: Scheduling is derived from `addedAt` in the current Gregorian calendar (owner decision D5)
+    private func calendar(_ identifier:Calendar.Identifier,zone:String="UTC")->Calendar {var c=Calendar(identifier:identifier);c.timeZone=TimeZone(identifier:zone)!;return c}
+    /// One queued board with enough exercises finished since that only the day decides whether it is due.
+    private func queued(addedAt:Date,notBefore:String)->TrainingState {
+        var training=TrainingState();training.finishedAttempts=TrainingRecommendation.interveningItems
+        training.retryQueue=[TrainingRetryItem(id:"r",entry:"reach-target",scenario:scenario(1),reason:"Not solved last time.",addedAt:addedAt,notBefore:notBefore,afterAttempt:0)]
+        return training
+    }
+    private func due(_ training:TrainingState,at date:Date,_ calendar:Calendar)throws -> Bool {try XCTUnwrap(TrainingRecommendation.suggestions(in:training,now:date,calendar:calendar).first).due}
+    /// Queues one board under `calendar` at `date`, then finishes the three exercises it waits for.
+    private func queueRetry(at date:Date,calendar:Calendar)throws -> ApplicationState {
+        var state=ApplicationState();try finish(1,.incorrect,in:&state,at:date,calendar:calendar)
+        for n in 2...4{try finish(n,.correct,in:&state,at:date,calendar:calendar)}
+        return state
+    }
+    func testAStoredDayThatDisagreesWithAddedAtNeverChangesScheduling()throws {
+        let utc=calendar(),tuesday=monday.addingTimeInterval(86_400)
+        // Well formed but wrong: far in the past, far in the future, and the day it was added.
+        for stored in ["2000-01-01","2099-12-31","2027-03-01"] {
+            let training=queued(addedAt:monday,notBefore:stored);XCTAssertNoThrow(try training.validate(),"fixture: \(stored) is well formed")
+            XCTAssertFalse(try due(training,at:monday,utc),stored);XCTAssertTrue(try due(training,at:tuesday,utc),stored)
+        }
+    }
+    func testAChangedTimeZoneSchedulesByTheCurrentZone()throws {
+        // Added 14:30 UTC: 23:30 on 1 March in Tokyo, 14:30 on 1 March in UTC. At 15:01 UTC it is 2 March in Tokyo only.
+        let late=ISO8601DateFormatter().date(from:"2027-03-01T14:30:00Z")!,soon=late.addingTimeInterval(31*60),utcMidnight=ISO8601DateFormatter().date(from:"2027-03-02T00:00:00Z")!
+        for queuedIn in ["Asia/Tokyo","UTC"] {
+            let training=try XCTUnwrap(try queueRetry(at:late,calendar:calendar(queuedIn)).training)
+            XCTAssertEqual(training.retryQueue.first?.notBefore,"2027-03-02",queuedIn)
+            XCTAssertTrue(try due(training,at:soon,calendar("Asia/Tokyo")),"queued in \(queuedIn), read in Tokyo")
+            XCTAssertFalse(try due(training,at:soon,calendar("UTC")),"queued in \(queuedIn), read in UTC")
+            XCTAssertTrue(try due(training,at:utcMidnight,calendar("UTC")),"queued in \(queuedIn), next UTC day")
+        }
+    }
+    func testANonGregorianCalendarStillSchedulesByGregorianLocalDays()throws {
+        let tuesday=monday.addingTimeInterval(86_400),gregorian=calendar(.gregorian)
+        for system in [Calendar.Identifier.buddhist,.hebrew,.islamicUmmAlQura,.japanese,.persian] {
+            let input=calendar(system),state=try queueRetry(at:monday,calendar:input),training=try XCTUnwrap(state.training)
+            XCTAssertEqual(training.retryQueue.first?.notBefore,"2027-03-02","\(system): saved as a Gregorian day")
+            XCTAssertEqual(training.summaries["reach-target"]?.days,["2027-03-01"],"\(system)");XCTAssertNoThrow(try training.validate(),"\(system)")
+            for reader in [input,gregorian] {
+                XCTAssertFalse(try due(training,at:monday,reader),"\(system) read as \(reader.identifier)")
+                XCTAssertTrue(try due(training,at:tuesday,reader),"\(system) read as \(reader.identifier)")
+            }
+        }
+    }
+    func testTheNextLocalDayHoldsAcrossDaylightSavingChanges()throws {
+        let newYork=calendar("America/New_York"),iso=ISO8601DateFormatter()
+        // Spring forward (14 March 2027 is 23 hours long): added 23:30 EST on 13 March, due from local midnight.
+        // Fall back (7 November 2027 is 25 hours long): added 00:30 EDT on 7 November; 24 hours later is still 7 November.
+        let cases=[("2027-03-14T04:30:00Z","2027-03-14","2027-03-14T04:59:00Z","2027-03-14T05:00:00Z"),
+                   ("2027-11-07T04:30:00Z","2027-11-08","2027-11-08T04:30:00Z","2027-11-08T05:00:00Z")]
+        for (added,day,before,midnight) in cases {
+            let training=try XCTUnwrap(try queueRetry(at:iso.date(from:added)!,calendar:newYork).training)
+            XCTAssertEqual(training.retryQueue.first?.notBefore,day,added)
+            XCTAssertFalse(try due(training,at:iso.date(from:before)!,newYork),"\(added): still the same local day at \(before)")
+            XCTAssertTrue(try due(training,at:iso.date(from:midnight)!,newYork),"\(added): the next local day begins at \(midnight)")
+        }
+    }
 }

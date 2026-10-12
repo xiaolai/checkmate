@@ -115,3 +115,49 @@ extension LessonRemediationTests {
         XCTAssertEqual(LessonTranslation.source(library:library,index:0).fingerprint,"f7e08d39a736162c32b70c7d7a1ddf524702c6e9cbf9e09109aebd8f365bdda9")
     }
 }
+
+/// A silent narration service whose "sounding" state stands in for a real player: like NativeAudio it starts nothing
+/// when narration is off, muted or failing, and stops on pause and stop. `playbackTime` exists only while sounding.
+@MainActor private final class SoundingNarrationFake:NarrationService {
+    var sounding=false,failure:String?,started=0
+    var playbackTime:Double? {sounding ? 0:nil}
+    var narrationFailure:String? {failure}
+    func play(file:String,seconds:Double,settings:AppSettings){started+=1;sounding=failure==nil && settings.narration && settings.volume>0}
+    func play(localURL:URL,seconds:Double,settings:AppSettings){play(file:localURL.path,seconds:seconds,settings:settings)}
+    func pause(){sounding=false}
+    func stop(){sounding=false}
+}
+extension LessonRemediationTests {
+    /// Opens the first lesson, starts it, and republishes the projection without moving time.
+    @MainActor private func playingLesson(_ audio:SoundingNarrationFake?,configure:(inout AppSettings)->Void={_ in})throws->(GameSession,LearningPlayer) {
+        let s=try GameSession(engine:nil),p=try LearningPlayer(session:s);p.audio=audio
+        // The app loads the lesson-language selection when it installs the pack store; without it the first settings change reads as a language change.
+        p.reloadLocalizedPacks()
+        configure(&s.state.settings);p.openLesson(index:0);p.play();XCTAssertTrue(p.playing,"precondition: the lesson plays");p.advance(by:0)
+        return (s,p)
+    }
+    @MainActor func testNarrationActiveFollowsActualPlayback()throws {
+        let audio=SoundingNarrationFake();let (s,p)=try playingLesson(audio)
+        XCTAssertEqual(audio.started,1);XCTAssertEqual(s.lesson?.narrationActive,true)
+        audio.stop();p.advance(by:0);XCTAssertEqual(s.lesson?.narrationActive,false,"A stopped player is not narrating while the lesson still plays")
+        XCTAssertTrue(p.playing);p.shutdown()
+    }
+    @MainActor func testMutedNarrationIsNotActive()throws {
+        let audio=SoundingNarrationFake();let (s,p)=try playingLesson(audio){$0.volume=0}
+        XCTAssertEqual(s.lesson?.narrationActive,false)
+        s.state.settings.volume=0.8;p.settingsChanged();XCTAssertEqual(s.lesson?.narrationActive,true,"Unmuting restarts narration")
+        s.state.settings.volume=0;p.settingsChanged();XCTAssertEqual(s.lesson?.narrationActive,false,"Muting mid-clip stops reporting narration")
+        p.shutdown()
+    }
+    @MainActor func testFailedNarrationIsNotActive()throws {
+        let audio=SoundingNarrationFake();audio.failure="Narration could not play.";let (s,p)=try playingLesson(audio)
+        XCTAssertEqual(audio.started,1);XCTAssertEqual(s.lesson?.narrationActive,false);p.shutdown()
+    }
+    @MainActor func testMissingNarrationServiceIsNotActive()throws {
+        let (s,p)=try playingLesson(nil);XCTAssertEqual(s.lesson?.narrationActive,false);p.shutdown()
+    }
+    @MainActor func testPausedLessonReportsNoNarration()throws {
+        let audio=SoundingNarrationFake();let (s,p)=try playingLesson(audio);XCTAssertEqual(s.lesson?.narrationActive,true)
+        p.pause();XCTAssertFalse(audio.sounding);XCTAssertEqual(s.lesson?.narrationActive,false);p.shutdown()
+    }
+}
