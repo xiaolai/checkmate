@@ -15,6 +15,7 @@
   "Sources/CheckmateApplication/GameSession.swift",
   "Sources/CheckmateRules/ChessRules.swift",
   "Sources/CheckmateCore/Resources/chess.js",
+  "Sources/CheckmateCore/Resources/relationships.js",
   "Sources/CheckmateDomain/*",
   "Sources/CheckmateSupport/*",
   "Sources/CheckmateRules/*",

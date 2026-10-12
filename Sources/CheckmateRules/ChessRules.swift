@@ -1,3 +1,4 @@
+import CheckmateAssets
 import CheckmateDomain
 import Foundation
 public final class ChessRules {
@@ -76,45 +77,19 @@ public final class ChessRules {
         }
         return PieceInspection(square:sq,piece:p.type,color:p.color,attacks:attacks,destinations:destinations,legalNow:legal,note:legal ? "Dots show legal moves. Rings show attacks or defended squares.":"Dots show potential movement with current blockers. It is not this side’s turn; checks and pins may restrict these moves. Rings show attacks or defended squares.")
     }
+    /// The relationships evaluator (`relationships.js`), read once from the bundled resources. A missing or unreadable
+    /// resource fails every relationships call with this error; there is no inline fallback copy.
+    private static let relationshipsScript=Result<String,Error>{
+        do{return try String(contentsOf:NativeResources.url("relationships.js"),encoding:.utf8)}
+        catch{throw CheckmateError.unavailable("Chess relationships resource is missing or unreadable: \(error.localizedDescription)")}
+    }
     /// Evaluates a displayed position without mutating the live game or its history.
     /// An authored partial diagram intentionally supplies geometry only.
     public func relationships(_ square:String,mode:RelationshipMode,diagram:Position?=nil) throws -> RelationshipInspection {
         guard Self.validSquare(square) else{throw CheckmateError.invalid("INVALID_SQUARE")}
         let input:[String:Any]=["square":square,"mode":mode.rawValue,"diagram":diagram as Any? ?? NSNull()]
-        let expression="""
-        (()=>{
-            const input=\(try literal(input)),g=new exports.Chess(game.fen());
-            if(input.diagram){g.clear();for(const [sq,p] of Object.entries(input.diagram)){if(!g.put({color:p[0],type:p[1]},sq))throw Error('invalid diagram')}}
-            const selected=g.get(input.square);if(!selected)throw Error('no piece');
-            const own=selected.color,enemy=own==='w'?'b':'w',legalContext=!input.diagram,king=selected.type==='k';
-            const copy=()=>new exports.Chess(g.fen(),{skipValidation:!legalContext});
-            const enemyGame=()=>{const fields=g.fen().split(' ');if(fields[1]!==enemy){fields[1]=enemy;fields[3]='-'}return new exports.Chess(fields.join(' '))};
-            const captures=legalContext&&!king ? enemyGame().moves({verbose:true}).filter(m=>m.captured && (m.to===input.square || (m.flags.includes('e') && m.to[0]+m.from[1]===input.square))) : [];
-            const responses=captures.map(m=>{const after=enemyGame();after.move({from:m.from,to:m.to,promotion:m.promotion||'q'});const replies=after.moves({verbose:true}).filter(r=>r.to===m.to && r.captured);return {move:m,replies}});
-            const geometric=g.attackers(input.square,input.mode==='protected'?own:enemy);
-            const sources=new Set(geometric);
-            if(input.mode==='protected')for(const r of responses)for(const reply of r.replies)sources.add(reply.from);
-            else for(const m of captures)sources.add(m.from);
-            const safeCoverage=from=>{const test=copy(),piece=test.get(from);test.remove(input.square);test.remove(from);test.put(piece,input.square);const k=test.board().flat().find(p=>p&&p.color===own&&p.type==='k');return !!k&&!test.isAttacked(k.square,enemy)};
-            const relations=[...sources].sort().map(from=>{
-                const p=g.get(from),coverage=geometric.includes(from);
-                let status='coverage',replies=[],enPassant=false;
-                if(legalContext&&!king){
-                    if(input.mode==='attacked'){
-                        const moves=captures.filter(m=>m.from===from);status=moves.length?'available':'restricted';enPassant=moves.some(m=>m.flags.includes('e'));
-                        replies=moves.map(m=>({attackerSquare:from,attackerPiece:p.type,captureSAN:m.san,destination:m.to,canRecapture:false,recaptures:[]}));
-                    }else{
-                        replies=responses.map(r=>({attackerSquare:r.move.from,attackerPiece:r.move.piece,captureSAN:r.move.san,destination:r.move.to,canRecapture:r.replies.some(m=>m.from===from),recaptures:r.replies.filter(m=>m.from===from).map(m=>m.san)}));
-                        if(replies.length){const count=replies.filter(r=>r.canRecapture).length;status=count===replies.length?'available':count?'conditional':'restricted'}
-                        else if(!safeCoverage(from))status='restricted';
-                    }
-                }
-                return {square:from,piece:p.type,color:p.color,status,coverage,enPassant,responses:replies};
-            });
-            return {square:input.square,piece:selected.type,color:own,mode:input.mode,legalContext,relations};
-        })()
-        """
-        return try decoded(expression,RelationshipInspection.self)
+        let script=try Self.relationshipsScript.get()
+        return try decoded("(()=>{\n\(script)\nreturn relationships(\(try literal(input)),game)})()",RelationshipInspection.self)
     }
     // Throwing queries (plan rule 4). The convenience properties above fall back to empty or false values; training must
     // never grade on those, so a runtime failure here is an error, not "no legal moves" or "not in check".
