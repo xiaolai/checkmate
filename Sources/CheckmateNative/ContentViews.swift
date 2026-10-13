@@ -186,80 +186,65 @@ struct TransportContent:View {
     var continueLesson:()->Void={}
     /// Opens the previous main lesson at its last transcript, the reverse of Continue.
     var previousLessonEnd:()->Void={}
-    var body:some View {HStack(spacing:Metrics.smallGap) {
-        if review.active{ReviewTransport(review:review)}else if session.mode == .practice {practiceTransport;voiceTransport}
-        else if learning.mini {
-            if !learning.miniKind.solo {TurnIndicator(side:learning.miniTurn,label:learning.miniStatus)}
-            NativeIcon(symbol:"arrow.counterclockwise",label:"New game",action:newGame)
-            NativeIcon(symbol:"arrow.uturn.backward",label:"Undo turn"){learning.undoMini()}.disabled(learning.miniGame?.history.isEmpty != false)
-            NativeIcon(symbol:"arrow.left",label:learning.miniFromLibrary ? "Back to training":"Back to lesson"){learning.leaveMini()}
-        } else if session.mode == .training,let training {
-            TrainingTransport(training:training,session:session,openLibrary:openTrainingLibrary)
-        } else if session.mode == .lesson {
-            if learning.readingFromTraining{NativeIcon(symbol:"arrow.uturn.left",label:"Back to training",action:openTrainingLibrary)}
-            NativeIcon(symbol:"book",label:"Show lesson guidance",action:showDetails)
-            // On the first transcript the arrow goes back to the end of the previous main lesson; the first lesson has none.
-            if learning.step==0,let previous=learning.library.previousMainLesson(before:learning.lessonIndex) {
-                NativeIcon(symbol:"arrow.left",label:"Previous lesson: \(learning.localizedTitle(index:previous))",action:previousLessonEnd)
-            } else {NativeIcon(symbol:"arrow.left",label:"Previous transcript"){learning.seek(step:learning.step-1)}.disabled(learning.step==0)}
-            NativeIcon(symbol:learning.playing ? "pause.fill":"play.fill",label:learning.playing ? "Pause":"Play"){learning.playing ? learning.pause():learning.play()}
-            NativeIcon(symbol:"arrow.counterclockwise",label:learning.attemptStep ? (learning.attempt.hasMoves ? "Replay the original instruction (your game stays as it is)":"Replay the instruction"):"Replay transcript"){learning.replay()}
-            // On the last transcript the arrow moves on to the next main lesson, like Continue; the final lesson just completes.
-            if learning.step>=learning.current.beats.count-1,let next=learning.library.nextMainLesson(after:learning.lessonIndex) {
-                NativeIcon(symbol:"arrow.right",label:"Next lesson: \(learning.localizedTitle(index:next))"){learning.complete();continueLesson()}
-            } else {NativeIcon(symbol:"arrow.right",label:"Next transcript"){learning.next()}}
-            // The exercise's turn and its recovery stay reachable with the drawers closed.
-            if learning.attemptStep,let status=learning.attemptStatus {
-                TurnIndicator(side:learning.attempt.rules.turn,label:status)
-                if learning.attempt.waitingToResume {NativeIcon(symbol:"play.circle",label:"Resume your attempt"){learning.attempt.resume()}}
-                NativeIcon(symbol:"lightbulb",label:"Hint"){learning.attempt.hint();showDetails()}.disabled(!(learning.attempt.learnerToMove || learning.attempt.phase == .offTrack))
-                NativeIcon(symbol:"arrow.uturn.backward",label:"Undo turn"){learning.attempt.undo()}.disabled(!learning.attempt.hasMoves)
-            }
-        } else if learning.activePuzzle != nil {
-            NativeIcon(symbol:"square.grid.2x2",label:"Puzzle library"){learning.showPuzzleLibrary()}
-            NativeIcon(symbol:"book",label:"Show puzzle question",action:showDetails)
-            NativeIcon(symbol:"arrow.right",label:"Next puzzle"){learning.next()}.disabled(!learning.passed)
-        }
-    }.padding(Metrics.padding)}
-    @ViewBuilder private var practiceTransport:some View {
-        if !session.presentationHidden,let d=session.demonstration {
-            NativeIcon(symbol:"arrow.left",label:"Previous imagined move"){try? session.seekDemo(line:d.line,ply:max(0,d.ply-1))}.disabled(d.ply==0)
-            NativeIcon(symbol:d.playing ? "pause.fill":"play.fill",label:d.playing ? "Pause demonstration":"Play demonstration"){d.playing ? session.pauseDemo():session.playDemo()}
-            NativeIcon(symbol:"arrow.right",label:"Next imagined move"){try? session.seekDemo(line:d.line,ply:min(d.lines[d.line].frames.count-1,d.ply+1))}.disabled(d.ply>=d.lines[d.line].frames.count-1)
-            NativeIcon(symbol:"xmark",label:"Close demonstration"){session.closePresentation()}
-        } else if !session.presentationHidden,let p=session.preview {
-            let frames=(p.line=="candidate" ? p.evaluation?.candidateFrames.count:p.evaluation?.recommendedFrames.count) ?? 0
-            NativeIcon(symbol:"arrow.left",label:"Previous preview move"){try? session.previewAt(ply:max(0,p.ply-1),line:p.line)}.disabled(p.evaluation==nil || p.ply==0)
-            NativeIcon(symbol:"arrow.right",label:"Next preview move"){try? session.previewAt(ply:min(frames-1,p.ply+1),line:p.line)}.disabled(p.evaluation==nil || p.ply>=frames-1)
-            if p.candidate != nil{NativeIcon(symbol:"arrow.uturn.backward",label:"Try another move"){try? session.beginPreview()}.disabled(session.rules.turn != session.humanSide || session.rules.over)}
-            NativeIcon(symbol:"xmark",label:"Return to game"){session.closePresentation()}
-        } else {
-            TurnIndicator(side:session.rules.turn,label:session.rules.status)
-            if session.explicitResumeRequired {NativeIcon(symbol:"play.fill",label:"Resume game",action:resumeGame)}
-            else if session.pausedOpponent {NativeIcon(symbol:"play.fill",label:"Continue with Stockfish",action:continueWithStockfish)}
-            NativeIcon(symbol:"arrow.counterclockwise",label:"New game",action:newGame)
-            NativeIcon(symbol:"arrow.uturn.backward",label:"Undo"){session.undo()}.disabled(!session.canTakeBack)
-            NativeIcon(symbol:"flask",label:"Try a move"){try? session.beginPreview()}.disabled(session.rules.turn != session.humanSide || session.finished || session.busyReason == "opponent" || session.demonstration != nil)
-            NativeIcon(symbol:"lightbulb",label:"Hint"){session.hint()}.disabled(session.busy || session.rules.turn != session.humanSide || session.finished)
-            if session.busy {ProgressView().controlSize(.small).help("Stockfish is thinking")}
-        }
+    /// Leaves an imagined review branch for the imported game, saving the review as the drawer's button does.
+    var returnToOriginal:()->Void={}
+    /// Called with the rows the bar needs (1 or 2); the window sizes the bar and the board yields the height.
+    var rowsChanged:(Int)->Void={_ in}
+    /// Where the bar laid out each control, for the layout acceptance.
+    var framesChanged:([String:CGRect])->Void={_ in}
+    var voiceState:ControlBarVoice {
+        if voice.connecting{return .connecting(voice.status)}
+        if voice.connected{return .on(microphone:session.state.settings.voiceMicrophone,canStop:voice.canStopTurn)}
+        return .off(available:!session.companionEnabled)
     }
-    @ViewBuilder private var voiceTransport:some View {
-        if voice.connecting {
-            ProgressView().controlSize(.small).help(voice.status).accessibilityLabel(voice.status)
-            NativeIcon(symbol:"xmark",label:"Cancel voice connection"){voice.disconnect()}
-        } else if voice.connected {
-            NativeIcon(symbol:session.state.settings.voiceMicrophone ? "mic":"mic.slash",label:session.state.settings.voiceMicrophone ? "Mute microphone":"Enable microphone"){
-                var settings=session.state.settings
-                settings.voiceMicrophone.toggle()
-                session.updateSettings(settings)
-            }
-            NativeIcon(symbol:"stop.fill",label:"Stop coach speaking"){voice.stopTurn()}
-                .disabled(!voice.canStopTurn)
-            NativeIcon(symbol:"power",label:"Disconnect voice coach"){voice.disconnect()}
-        } else {
-            NativeIcon(symbol:"mic",label:session.companionEnabled ? "Disconnect the MCP companion before connecting voice":"Connect voice coach"){voice.connect()}
-                .disabled(session.companionEnabled)
+    /// The bar for what is shown now; the Lesson menu reads the same model, so menu and bar always agree.
+    var barModel:ControlBarModel {ControlBarModel.make(session:session,learning:learning,review:review,training:training,voice:voiceState)}
+    var body:some View {ControlBarView(model:barModel,perform:perform,rowsChanged:rowsChanged,framesChanged:framesChanged)}
+    /// What each control does; the model decides only which controls show and whether they can act.
+    func perform(_ action:ControlBarAction){
+        switch action {
+        case .stepFromStart:learning.replay()
+        case .previousStep:learning.seek(step:learning.step-1)
+        case .previousLesson:previousLessonEnd()
+        case .playPause:learning.playing ? learning.pause():learning.play()
+        case .nextStep:learning.next()
+        case .nextLesson:learning.complete();continueLesson()
+        case .resumeAttempt:learning.attempt.resume()
+        case .attemptHint:learning.attempt.hint();showDetails()
+        case .attemptUndo:learning.attempt.undo()
+        case .attemptRestart:learning.attempt.restart()
+        case .newGame,.miniNewGame:newGame()
+        case .takeBack:session.undo()
+        case .hint:session.hint()
+        case .tryMove,.tryAnotherMove:try? session.beginPreview()
+        case .resumeGame:resumeGame()
+        case .continueWithStockfish:continueWithStockfish()
+        case .previewPrevious:if let p=session.preview{try? session.previewAt(ply:max(0,p.ply-1),line:p.line)}
+        case .previewNext:
+            if let p=session.preview{let frames=(p.line=="candidate" ? p.evaluation?.candidateFrames.count:p.evaluation?.recommendedFrames.count) ?? 0;try? session.previewAt(ply:min(frames-1,p.ply+1),line:p.line)}
+        case .returnToGame:session.closePresentation()
+        case .demoPrevious:if let d=session.demonstration{try? session.seekDemo(line:d.line,ply:max(0,d.ply-1))}
+        case .demoPlayPause:if let d=session.demonstration{d.playing ? session.pauseDemo():session.playDemo()}
+        case .demoNext:if let d=session.demonstration{try? session.seekDemo(line:d.line,ply:min(d.lines[d.line].frames.count-1,d.ply+1))}
+        case .voiceConnect:voice.connect()
+        case .voiceCancel,.voiceDisconnect:voice.disconnect()
+        case .voiceMicrophone:var settings=session.state.settings;settings.voiceMicrophone.toggle();session.updateSettings(settings)
+        case .voiceStop:voice.stopTurn()
+        case .backFromMiniGame:learning.leaveMini()
+        case .miniUndo:learning.undoMini()
+        case .reviewFirst:review.first()
+        case .reviewPrevious:review.step(-1)
+        case .reviewPlayPause:review.playing ? review.pause():review.play()
+        case .reviewNext:review.step(1)
+        case .reviewLast:review.last()
+        case .returnToOriginal:returnToOriginal()
+        case .puzzleLibrary:learning.showPuzzleLibrary()
+        case .nextPuzzle:learning.next()
+        case .trainingHint:training?.hint()
+        case .trainingTakeBack:training?.undo()
+        case .trainingTryAgain:training?.retry()
+        case .trainingNextExercise:training?.next()
+        case .trainingLibrary,.backToTraining:openTrainingLibrary()
         }
     }
 }
@@ -295,21 +280,3 @@ struct PuzzleLibraryContent:View {
 }
 struct WelcomeContent:View {let title:String;var body:some View {VStack(spacing:Metrics.sectionGap){Image("LessonKnight",bundle:.main).resizable().renderingMode(.template).scaledToFit().foregroundStyle(.primary).frame(width:Metrics.mascotSize,height:Metrics.mascotSize).accessibilityHidden(true);Text(title).font(.largeTitle.bold())}.frame(maxWidth:.infinity,maxHeight:.infinity,alignment:.center)}}
 /// Exercise controls under the board: hint, try again or next, and the way back to the library.
-struct TrainingTransport:View {
-    @ObservedObject var training:TrainingController
-    @ObservedObject var session:GameSession
-    let openLibrary:()->Void
-    var body:some View {
-        if case .training=session.activity.place,let exercise=training.exercise {
-            TurnIndicator(side:exercise.scenario.learner,label:exercise.scenario.learner=="w" ? "You are White":"You are Black")
-            if exercise.finished {
-                if TrainingPanel.canRetry(exercise){NativeIcon(symbol:"arrow.counterclockwise",label:"Try again"){training.retry()}}
-                NativeIcon(symbol:"arrow.right",label:"Next exercise"){training.next()}
-            } else {
-                NativeIcon(symbol:"lightbulb",label:TrainingPanel.hintTitle(exercise)){training.hint()}.disabled(TrainingPanel.hintDisabled(exercise,thinking:training.games.thinking))
-                if exercise.scenario.drill != nil {NativeIcon(symbol:"arrow.uturn.backward",label:"Take back a move"){training.undo()}.disabled(exercise.movesUsed==0)}
-            }
-        }
-        NativeIcon(symbol:"square.grid.2x2",label:"Training library",action:openLibrary)
-    }
-}

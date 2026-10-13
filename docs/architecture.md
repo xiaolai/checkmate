@@ -28,6 +28,16 @@ A lesson's exercise is not a workspace transition. `LessonAttemptController` (Ap
 
 This extraction intentionally keeps native lifecycle effects with the host. Any new frontend must implement those host responsibilities, including save failures, stale modal requests, pending imports and explicit resume after a failed restore.
 
+The bottom control bar is one pure model, `ControlBarModel` (CheckmateNative/ControlBar.swift), built from the
+state shown, and one view that draws it. Status sits at the leading edge, tools at the trailing edge and the centre
+group centred under the board; when the sides no longer fit beside it the bar takes a second row and the board
+yields the height. In a lesson the centre always holds the same four slots (from the start, previous, play, next),
+so none moves as the learner steps through, the exercise step included. The Lesson menu performs the bar's own
+controls, so menu and bar never disagree. Each symbol has one meaning, checked by `ControlBarModelTests`.
+The window keeps its fixed shape (a square board area plus any open drawers) and its 600-point minimum; the
+layout gate measures every bar control in practice, a lesson and an exercise from 780 down to 320 points, and
+requires no overlap and nothing outside the bar at every size, and one row from the minimum up.
+
 ## Adding features
 
 1. Put values, saved-state fields and pure policy in Domain. Preserve Codable keys and unknown-field round trips.

@@ -80,18 +80,6 @@ struct ReviewDetailContent:View {
     private func scopedMoments(_ d:GameDocument)->[ReviewMoment]{analyzer.batchDocument==d.id ? analyzer.moments.filter{d.nodes.indices.contains($0.id)}:[]}
     private func important(_ document:GameDocument)->[Int] {document.mainline.filter{id in let n=document.nodes[id];return n.san?.contains("+")==true || n.san?.contains("#")==true || n.san?.contains("x")==true || n.san?.contains("=")==true || id==document.mainline.last}}
 }
-struct ReviewTransport:View {
-    @ObservedObject var review:ReviewController
-    var body:some View {HStack(spacing:Metrics.smallGap){
-        NativeIcon(symbol:"backward.end",label:"First position"){review.first()}
-        NativeIcon(symbol:"arrow.left",label:"Previous review move"){review.step(-1)}
-        NativeIcon(symbol:review.playing ? "pause.fill":"play.fill",label:review.playing ? "Pause review":"Play review"){review.playing ? review.pause():review.play()}
-        NativeIcon(symbol:"arrow.right",label:"Next review move"){review.step(1)}
-        NativeIcon(symbol:"forward.end",label:"Last position"){review.last()}
-        Text(review.branch==nil ? "Original":"Imagined").font(.caption).foregroundStyle(.secondary)
-    }.padding(Metrics.padding)}
-}
-
 struct OpponentSettingsContent:View {
     @ObservedObject var session:GameSession
     private var displayedPreset:String {session.state.settings.opponentPreset=="first_steps" && !ReviewRolloutPolicy.beginnerOpponentEnabled ? "custom":session.state.settings.opponentPreset}

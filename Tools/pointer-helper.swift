@@ -150,8 +150,12 @@ case "close-window":
     guard let window=(get(app,kAXWindowsAttribute) as? [AXUIElement])?.first(where:{names($0).contains(a)}),let button=get(window,kAXCloseButtonAttribute) else{fputs("Window not found: \(a)\n",stderr);exit(2)}
     click(center((button as! AXUIElement),a+" close button"))
 case "tab":key(48)
+// A shortcut: a virtual key code and modifiers named by the letters c (command), s (shift), o (option), t (control).
+case "shortcut":guard let code=CGKeyCode(a) else{fputs("Key code must be a number, found \(a)\n",stderr);exit(1)};var flags:CGEventFlags=[];for m in b{switch m{case "c":flags.insert(.maskCommand);case "s":flags.insert(.maskShift);case "o":flags.insert(.maskAlternate);case "t":flags.insert(.maskControl);default:fputs("Unknown modifier \(m)\n",stderr);exit(1)}};key(code,flags:flags,settle:300_000)
 case "return":key(36)
 // Whether a control accepts input, as AXEnabled reports it.
+// The element's screen frame as "x y width height", for checks that a control stays where it was.
+case "frame":guard let e=element(a),let f=frame(e) else{fputs("Not found: \(a)\n",stderr);exit(2)};print("\(f.minX) \(f.minY) \(f.width) \(f.height)")
 case "enabled":guard let e=element(a) else{fputs("Not found: \(a)\n",stderr);exit(2)};print((get(e,kAXEnabledAttribute) as? Bool) ?? false)
 // Clicks a button inside the window that shows the given text: an alert's Cancel, never another window's.
 case "dialog-click":

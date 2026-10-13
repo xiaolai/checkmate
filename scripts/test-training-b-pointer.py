@@ -210,6 +210,19 @@ try:
     wait(lambda: any("undo" in action for action in active()["actions"]), "Take back was not recorded")
     wait(lambda: label(piece).startswith(f"{piece}, {COLOURS[learner]}, {PIECES[kind]}"), "Take back did not restore the start")
     ending_take_back = True
+    # The same take-back from the control bar's button and from ⌘Z (Edit ▸ Undo), each after a fresh reply.
+    for how in ("bar", "command-z"):
+        undone = sum("undo" in action for action in active()["actions"])
+        pointer("drag-square", piece, to)
+        wait(lambda: label(to).startswith(f"{to}, {COLOURS[learner]}, {PIECES[kind]}"), f"The ending move before the {how} take-back did not land")
+        wait(lambda: "Your move." in listing() and sum("reply" in action for action in active()["actions"]) > undone, f"The defender did not answer before the {how} take-back", timeout=30)
+        if how == "bar":
+            pointer("click", "bar-trainingTakeBack")
+        else:
+            pointer("shortcut", "6", "c")
+        wait(lambda: sum("undo" in action for action in active()["actions"]) > undone, f"The {how} take-back was not recorded")
+        wait(lambda: label(piece).startswith(f"{piece}, {COLOURS[learner]}, {PIECES[kind]}"), f"The {how} take-back did not restore the start")
+    bar_and_command_z_take_back = True
 
     # Mixed practice: no topic before the answer; after it, the topic is shown.
     open_library()
@@ -247,7 +260,7 @@ try:
     lesson_link = True
 
     result = {"passed": True, "beginnerLibrary": beginner_library, "variantChip": variant_chip, "promotionCancelled": promotion_cancelled,
-              "promotionChosen": promotion_chosen, "bridgeOpened": bridge_opened, "endingReply": ending_reply, "endingTakeBack": ending_take_back,
+              "promotionChosen": promotion_chosen, "bridgeOpened": bridge_opened, "endingReply": ending_reply, "endingTakeBack": ending_take_back, "barAndCommandZTakeBack": bar_and_command_z_take_back,
               "mixedTopicAfterAnswer": mixed_topic_after_answer, "guidedGame": guided_game, "lessonLink": lesson_link}
     (evidence / "training-b-pointer-results.json").write_text(json.dumps(result, indent=2))
     print(json.dumps(result))

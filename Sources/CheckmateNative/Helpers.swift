@@ -43,4 +43,3 @@ final class ToolbarInsetHostingController<Content:View>:NSViewController {
         view=container
     }
 }
-struct NativeIcon:View {let symbol:String,label:String,action:()->Void;var body:some View {Button(action:action){Image(systemName:symbol)}.help(label).accessibilityLabel(label).buttonStyle(.bordered)}}

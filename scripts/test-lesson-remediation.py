@@ -30,7 +30,7 @@ try:
  launch()
  if 'AXStaticText: The Pawn' not in listing():pointer('click','Toggle Sidebar')
  wait(lambda:'AXStaticText: The Pawn' in listing(),'Sidebar did not open')
- if 'Your next move.' not in listing():pointer('click','Toggle Game Details')
+ if 'Your next move.' not in listing():pointer('click','Lesson Guidance' if 'Lesson Guidance' in listing() else 'Toggle Game Details')
  wait(lambda:'Your next move.' in listing(),'Details did not open')
  pointer('click-square','e2');pointer('click-square','e4')
  wait(lambda:'1. e4 ' in saved()['practice']['pgn'] and saved()['practice']['fen'].split()[1]=='w','Computer did not reply')
@@ -78,7 +78,7 @@ try:
   try:return pointer('label',square)
   except subprocess.CalledProcessError:return ''
  pointer('click','Check and Checkmate')
- if 'AXPopUpButton: Transcript' not in listing():pointer('click','Toggle Game Details')
+ if 'AXPopUpButton: Transcript' not in listing():pointer('click','Lesson Guidance' if 'Lesson Guidance' in listing() else 'Toggle Game Details')
  wait(lambda:'AXPopUpButton: Transcript' in listing(),'The Check and Checkmate transcript picker did not appear')
  pointer('select-popup','Transcript','16. A rook on the edge')
  wait(lambda:label('h1').startswith('h1, White, rook'),'The rook step did not open on its starting board')
@@ -119,7 +119,7 @@ try:
   found=re.search(r'AXPopUpButton: Transcript \| (\d+)\. ',listing());return int(found.group(1)) if found else 0
  def open_paused(title):
   pointer('click',title);wait(opened(title),f'{title} did not open')
-  if 'AXPopUpButton: Transcript' not in listing():pointer('click','Toggle Game Details')
+  if 'AXPopUpButton: Transcript' not in listing():pointer('click','Lesson Guidance' if 'Lesson Guidance' in listing() else 'Toggle Game Details')
   wait(lambda:'AXPopUpButton: Transcript' in listing(),f'The {title} transcript picker did not appear')
   # Opening a lesson plays it; pause first so the chosen transcript stays put.
   if 'AXButton: Pause' in listing():pointer('click','Pause')
@@ -175,7 +175,7 @@ try:
  if 'AXStaticText: The Pawn' not in listing():pointer('click','Toggle Sidebar')
  wait(lambda:'AXStaticText: The Pawn' in listing(),'Sidebar did not open')
  pointer('click','The Pawn')
- if 'AXPopUpButton: Transcript' not in listing():pointer('click','Toggle Game Details')
+ if 'AXPopUpButton: Transcript' not in listing():pointer('click','Lesson Guidance' if 'Lesson Guidance' in listing() else 'Toggle Game Details')
  wait(lambda:'Continue to The Rook' in listing(),'Continue after The Pawn does not name The Rook')
  pointer('click','Continue to The Rook');wait(lambda:'Practise: Rook Practice' in listing(),'Continue did not open The Rook')
  results['practiceSubItems']=True

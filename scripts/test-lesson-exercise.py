@@ -43,7 +43,7 @@ def drawers(sidebar,details):
  if ('AXStaticText: The Pawn' in listing())!=sidebar:pointer('click','Toggle Sidebar')
  wait(lambda:('AXStaticText: The Pawn' in listing())==sidebar,'The sidebar did not '+('open' if sidebar else 'close'))
  shown=lambda:'AXPopUpButton: Transcript' in listing() or 'Your next move.' in listing()
- if shown()!=details:pointer('click','Toggle Game Details')
+ if shown()!=details:pointer('click','Lesson Guidance' if 'Lesson Guidance' in listing() else 'Toggle Game Details')
  wait(lambda:shown()==details,'Game details did not '+('open' if details else 'close'))
 def open_lesson(lesson_title):
  """Clicks a lesson in the sidebar. A row far down the list exists only once the list has scrolled near it, so the
@@ -74,10 +74,25 @@ try:
  drawers(True,True)
  pointer('click-square','e2');pointer('click-square','e4')
  wait(lambda:'1. e4 ' in saved()['practice']['pgn'] and saved()['practice']['fen'].split()[1]=='w','Computer did not reply in practice')
+ # ⌘Z (Edit ▸ Undo) takes the move back, then the game goes on as before.
+ pointer('shortcut','6','c');wait(lambda:'1. e4' not in saved()['practice']['pgn'],'⌘Z did not take back the practice move')
+ pointer('click-square','e2');pointer('click-square','e4')
+ wait(lambda:'1. e4 ' in saved()['practice']['pgn'] and saved()['practice']['fen'].split()[1]=='w','Computer did not reply in practice')
  game=saved()['practice']['pgn'];previous=saved()['practice'].get('previousGame','')
 
- # Castling: with both drawers closed, a click castles; Restart, then a drag castles.
+ # Castling: the playback controls stay exactly where they were from the step before the exercise to the exercise
+ # step, with the drawers open and closed; then, drawers closed, a click castles; Restart, then a drag castles.
  exercise('Castling','castling')
+ def slots(last):return [pointer('frame',i) for i in ['bar-stepFromStart','bar-previousStep','bar-playPause',last]]
+ for sidebar,details in [(True,True),(False,False)]:
+  drawers(sidebar,details);time.sleep(.6);on_exercise=slots('bar-nextLesson')
+  pointer('click','bar-previousStep');wait(lambda:not title('Castling · ')(),'Castling: Previous did not leave the exercise step')
+  if 'AXButton: Pause' in listing():pointer('click','bar-playPause');time.sleep(.4)
+  before=slots('bar-nextStep');assert before==on_exercise,f'Castling: the playback controls moved between the steps: {before} then {on_exercise}'
+  pointer('click','bar-nextStep');wait(title('Castling · '),'Castling: Next did not return to the exercise step')
+ results['playbackSlotsStayPut']=True
+ # In a lesson the details toggle is named for the guidance it holds (the bar has no guidance button of its own).
+ assert 'Lesson Guidance' in listing() and 'bar-' in listing() and 'Show lesson guidance' not in listing(),'The details toggle is not named Lesson Guidance in a lesson'
  drawers(False,False)
  wait(title('Castling · Your turn'),'Castling: the title does not invite a move')
  play('e1g1')
@@ -98,6 +113,15 @@ try:
  play('e1c1');wait(holds('c1','White, king'),'Castling Rules: queenside castling did not play');wait(holds('d1','White, rook'),'Castling Rules: the rook did not follow')
  wait(title('Castling Rules · Well done'),'Castling Rules: success not shown')
  results['impossibleCastlingExplained']=True
+ # The Lesson menu by keyboard, on the same exercise: ⌘[ and ⌘] step off it and back, ⌘Z undoes its turn,
+ # ⇧⌘H gives a hint, ⌘P plays and pauses the instruction.
+ pointer('shortcut','33','c');wait(lambda:not title('Castling Rules · ')(),'⌘[ did not step back from the exercise')
+ pointer('shortcut','30','c');wait(title('Castling Rules · '),'⌘] did not return to the exercise')
+ pointer('shortcut','6','c');wait(lambda:attempt('castling-rules').get('moves')==[],'⌘Z did not undo the exercise turn')
+ drawers(False,True);pointer('shortcut','4','cs');wait(lambda:'Hint 1:' in listing(),'⇧⌘H did not give a hint')
+ pointer('shortcut','35','c');wait(lambda:'AXButton: Pause' in listing(),'⌘P did not play the instruction')
+ pointer('shortcut','35','c');wait(lambda:'AXButton: Play' in listing(),'⌘P did not pause the instruction')
+ results['lessonMenuShortcuts']=True
 
  # The Fork: an off-track move, Undo turn, then the authored line to success and Play on.
  exercise('The Fork','fork')

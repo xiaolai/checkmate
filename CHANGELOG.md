@@ -1,3 +1,22 @@
+# Unreleased
+
+The control bar under the board is redesigned. In a lesson its four playback
+buttons (from the start, previous, play, next) keep their places on every
+step, the exercise step included, instead of shifting as buttons came and
+went. Each symbol now has one meaning: chevrons step, a double chevron crosses
+into the next or previous lesson (whose name the status line and the button
+give), Undo and Restart no longer share a look-alike arrow, and actions an
+icon cannot explain are said in words (New game…, Try a move, Return to game,
+Resume your attempt, Back to The Pawn, Next puzzle). Whose turn it is, and
+when Stockfish is thinking, are written beside the turn dot. In practice the
+voice coach's Stop stays one click away and Disconnect moves into its menu.
+When the window is too narrow, the bar takes a second row and the board stays
+square. A new Lesson menu offers Play/Pause (⌘P), Previous and Next Step (⌘[
+and ⌘]), Play Step from Start (⌘R) and Hint (⇧⌘H). ⌘Z now reaches the board,
+where before it did nothing: it takes back a practice move, undoes a turn in a
+lesson exercise, or takes back a training move. In lessons and puzzles the
+details toggle is named Lesson Guidance, which replaces the book button.
+
 # Checkmate 0.7.1
 
 "Now try it yourself" is now a real turn inside the lesson. In the thirteen

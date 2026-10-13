@@ -5,6 +5,13 @@ import QuartzCore
 import ScreenCaptureKit
 import CheckmateCore
 final class BoardWindow:NSWindow {
+    /// Edit ▸ Undo (⌘Z): a text field in focus handles it first; otherwise the window would answer it with its own
+    /// empty undo manager and the game never heard it. It goes to the game instead: take back, undo turn.
+    @objc func undo(_ sender:Any?){(windowController as? GameWindow)?.undo()}
+    override func validateMenuItem(_ item:NSMenuItem)->Bool {
+        if item.action == #selector(undo(_:)),let controller=windowController as? GameWindow{return controller.validateMenuItem(item)}
+        return super.validateMenuItem(item)
+    }
     var drawerViewport:NSRect?,drawerOrigins:ClosedRange<CGFloat>?
     override func setFrame(_ frameRect:NSRect,display flag:Bool){var frame=frameRect;if let available=drawerViewport{frame.origin.x=max(available.minX,min(available.maxX-frame.width,frame.minX));frame.origin.y=max(available.minY,min(available.maxY-frame.height,frame.minY))};if let range=drawerOrigins{frame.origin.x=max(range.lowerBound,min(range.upperBound,frame.minX))};super.setFrame(frame,display:flag)}
 }
@@ -29,6 +36,9 @@ final class BoardTitleView:NSView {
     let model:NativeModel,board=BoardView(),split=DrawerSplitViewController(),main=NSViewController()
     var navigation:NSViewController!,inspector:NSViewController!
     let titleView=BoardTitleView(frame:NSRect(x:0,y:0,width:300,height:28))
+    private(set) var controlsHeight:NSLayoutConstraint!
+    /// Where the bar last laid out each control and its status, in the bar's coordinates (layout acceptance).
+    private(set) var barFrames:[String:CGRect]=[:]
     var sidebarItem:NSSplitViewItem!,boardItem:NSSplitViewItem!,inspectorItem:NSSplitViewItem!,controls:NSHostingView<TransportContent>!,welcome:NSHostingView<WelcomeContent>!,puzzles:NSHostingView<PuzzleLibraryContent>!
     private var playbackLineView:NSView?
     private var reviewWorkspaceView:NSHostingView<ReviewWorkspaceContent>!
@@ -80,10 +90,11 @@ final class BoardTitleView:NSView {
     }
     /// The board area: transport, welcome card, puzzle and training libraries, error banner and playback line.
     private func buildBoardArea(){
-        controls=VisibleHostingView(rootView:TransportContent(session:model.session,learning:model.learning,voice:model.voice,review:model.review,newGame:{[weak self] in self?.newGame()},showDetails:{[weak self] in self?.showDetails()},continueWithStockfish:{[weak model] in model?.companion.disable();model?.session.continueWithStockfish()},resumeGame:{[weak model] in model?.resumeAfterFailedRestore()},training:model.training,openTrainingLibrary:{[weak model] in model?.trainingLibrary()},continueLesson:{[weak model] in model?.continueLesson()},previousLessonEnd:{[weak model] in model?.previousLessonEnd()}));welcome=VisibleHostingView(rootView:WelcomeContent(title:""));puzzles=VisibleHostingView(rootView:PuzzleLibraryContent(learning:model.learning,session:model.session))
+        controls=VisibleHostingView(rootView:TransportContent(session:model.session,learning:model.learning,voice:model.voice,review:model.review,newGame:{[weak self] in self?.newGame()},showDetails:{[weak self] in self?.showDetails()},continueWithStockfish:{[weak model] in model?.companion.disable();model?.session.continueWithStockfish()},resumeGame:{[weak model] in model?.resumeAfterFailedRestore()},training:model.training,openTrainingLibrary:{[weak model] in model?.trainingLibrary()},continueLesson:{[weak self] in guard let self else{return};self.model.continueLesson();self.announceLesson()},previousLessonEnd:{[weak self] in guard let self else{return};self.model.previousLessonEnd();self.announceLesson()},returnToOriginal:{[weak model] in guard let model else{return};model.review.clearBranch();model.saveReview()},rowsChanged:{[weak self] rows in self?.setControlRows(rows)},framesChanged:{[weak self] frames in self?.barFrames=frames}));welcome=VisibleHostingView(rootView:WelcomeContent(title:""));puzzles=VisibleHostingView(rootView:PuzzleLibraryContent(learning:model.learning,session:model.session))
         reviewWorkspaceView=VisibleHostingView(rootView:ReviewWorkspaceContent(model:model));trainingLibraryView=VisibleHostingView(rootView:TrainingLibraryHost(model:model))
         for v in [board,controls!,welcome!,puzzles!,reviewWorkspaceView!,trainingLibraryView!] {main.view.addSubview(v);v.translatesAutoresizingMaskIntoConstraints=false}
-        NSLayoutConstraint.activate([controls.leadingAnchor.constraint(equalTo:main.view.leadingAnchor),controls.trailingAnchor.constraint(equalTo:main.view.trailingAnchor),controls.bottomAnchor.constraint(equalTo:main.view.safeAreaLayoutGuide.bottomAnchor),controls.heightAnchor.constraint(equalToConstant:Metrics.header)])
+        controlsHeight=controls.heightAnchor.constraint(equalToConstant:Metrics.header)
+        NSLayoutConstraint.activate([controls.leadingAnchor.constraint(equalTo:main.view.leadingAnchor),controls.trailingAnchor.constraint(equalTo:main.view.trailingAnchor),controls.bottomAnchor.constraint(equalTo:main.view.safeAreaLayoutGuide.bottomAnchor),controlsHeight])
         // Errors sit above the board area, which yields its top to the banner while one shows: a banner that
         // overlaid the board swallowed clicks on the eighth rank. The board stays square, only smaller.
         let banner=VisibleHostingView(rootView:StorageErrorBanner(model:model));errorBanner=banner;banner.isHidden=model.storageError==nil
@@ -122,6 +133,15 @@ final class BoardTitleView:NSView {
         let item=NSToolbarItem(itemIdentifier:id)
         if id==titleID{item.view=titleView;item.isBordered=false;item.label="Current activity";return item}
         item.image=NSImage(systemSymbolName:id==sidebarID ? "sidebar.left":id==inspectorID ? "sidebar.right":"gearshape",accessibilityDescription:nil);item.label=id==sidebarID ? "Toggle Sidebar":id==inspectorID ? "Toggle Game Details":"Settings";item.toolTip=item.label;item.target=self;item.action=id==sidebarID ? #selector(toggleLeft):id==inspectorID ? #selector(toggleRight):#selector(showSettings);item.isBordered=true;return item
+    }
+    /// In lessons and puzzles the details drawer holds the guidance, and its toggle says so.
+    var guidanceShown:Bool {!model.review.active && (model.session.mode == .lesson && !model.learning.mini || model.learning.activePuzzle != nil)}
+    /// The toolbar's details toggle is named for what it holds: in lessons and puzzles it is the guidance, which is
+    /// what lets the bar do without its own guidance button. Whether it is open shows in its tooltip and View menu title.
+    private func syncGuidanceToggle(){
+        guard let item=window?.toolbar?.items.first(where:{$0.itemIdentifier==inspectorID}) else{return}
+        let label=guidanceShown ? "Lesson Guidance":"Toggle Game Details",tip=guidanceShown ? (desiredRight ? "Hide the lesson guidance (⌥⌘I)":"Show the lesson guidance (⌥⌘I)"):"Toggle Game Details"
+        if item.label != label{item.label=label};if item.toolTip != tip{item.toolTip=tip}
     }
     @objc func toggleLeft(){desiredLeft.toggle();rememberPanes();animateDrawers()}
     @objc func toggleRight(){desiredRight.toggle();rememberPanes();animateDrawers()}
@@ -236,8 +256,12 @@ final class BoardTitleView:NSView {
         switch attempt.phase {case .achieved?:text+=" Well done! "+(attempt.judgement?.feedback ?? "");case .offTrack?,.failed?:text+=" "+(attempt.judgement?.feedback ?? "");default:break}
         return text
     }
+    /// The bar takes a second row when its sides no longer fit beside the centre group; the board yields the height.
+    private func setControlRows(_ rows:Int){let height=Metrics.header+CGFloat(max(0,rows-1))*(ControlBarView.rowHeight+Metrics.smallGap);if controlsHeight.constant != height{controlsHeight.constant=height}}
+    /// An arrow that crossed into another lesson says where the learner now is.
+    private func announceLesson(){announce("Now in \(model.learning.localizedTitle(index:model.learning.lessonIndex)).")}
     private func announce(_ text:String){NSAccessibility.post(element:board,notification:.announcementRequested,userInfo:[.announcement:text,.priority:NSAccessibilityPriorityLevel.high.rawValue])}
-    func refresh(){let s=model.session,l=model.learning
+    func refresh(){syncGuidanceToggle();let s=model.session,l=model.learning
         // The learner's own side sits nearest them in practice; reviews and lessons keep White at the bottom.
         board.blackAtBottom = !model.reviewWorkspace && !model.review.active && (s.mode == .practice && s.humanSide=="b" || trainingExercise?.scenario.learner=="b")
         board.reviewNavigation=model.review.active && model.review.branch==nil
@@ -296,7 +320,26 @@ final class BoardTitleView:NSView {
         let target=[exercise.scenario.target ?? exercise.scenario.drill?.target ?? exercise.scenario.goal?.target].compactMap{$0}.map{Highlight(sq:$0,kind:"target")}
         return BoardPresentation(source:"training",position:model.session.displayBoard,selected:exercise.picked,destinations:[],playable:true,dropsAnywhere:exercise.task == .move || exercise.task == .game,attacked:[],highlights:(exercise.lastMove.map{[Highlight(sq:$0.from,kind:"last"),Highlight(sq:$0.to,kind:"last")]} ?? [])+target+exercise.selection.map{Highlight(sq:$0,kind:"answer")}+exercise.hintSquares.map{Highlight(sq:$0,kind:"hint")},arrows:[],counts:[],motion:nil)
     }
-    func validateMenuItem(_ item:NSMenuItem)->Bool {if [#selector(showProtection),#selector(showAttacks),#selector(dismissInspection)].contains(item.action){if item.action == #selector(dismissInspection){return relationships.mode != nil};item.state=(item.action == #selector(showProtection) && relationships.mode == .protected || item.action == #selector(showAttacks) && relationships.mode == .attacked) ? .on:.off;return !model.review.active && trainingExercise==nil && board.selected.flatMap{board.position[$0]} != nil && !board.isHidden};guard [#selector(newGame),#selector(undo as () -> Void),NSSelectorFromString("undo:"),#selector(restorePrevious),#selector(claimDraw),#selector(resign)].contains(item.action) else{return true};guard !model.review.active,!model.reviewWorkspace else{return false};if model.learning.mini,![#selector(restorePrevious),#selector(claimDraw),#selector(resign)].contains(item.action){return item.action == #selector(newGame) || model.learning.miniGame?.history.isEmpty == false};guard model.session.mode == .practice else{return false};if item.action == #selector(undo as () -> Void) || item.action == NSSelectorFromString("undo:"){return model.session.canTakeBack};if item.action == #selector(claimDraw){return model.session.claimableDraw != nil};if item.action == #selector(resign){return !model.session.finished && !model.session.rules.history.isEmpty};if item.action == #selector(restorePrevious){return !model.session.state.practice.previousGame.isEmpty};return true}
+    func validateMenuItem(_ item:NSMenuItem)->Bool {
+        if let action=item.action,[#selector(lessonPlayPause),#selector(lessonPrevious),#selector(lessonNext),#selector(lessonFromStart),#selector(barHint)].contains(action) {
+            let shown=barItem(for:action)
+            let fallback=[#selector(lessonPlayPause):"Play",#selector(lessonPrevious):"Previous Step",#selector(lessonNext):"Next Step",#selector(lessonFromStart):"Play Step from Start",#selector(barHint):"Hint"][action] ?? item.title
+            // The title follows the control: Pause while playing, and the lesson's name where the arrow crosses into it.
+            switch shown?.action {
+            case .previousLesson?,.nextLesson?:item.title=shown!.label.replacingOccurrences(of:"Previous lesson:",with:"Previous Lesson:").replacingOccurrences(of:"Next lesson:",with:"Next Lesson:")
+            case .playPause?,.reviewPlayPause?,.demoPlayPause?:item.title=shown!.symbol=="pause.fill" ? "Pause":"Play"
+            case .attemptHint?,.trainingHint?:item.title=shown!.label
+            default:item.title=fallback
+            }
+            return shown?.enabled ?? false
+        }
+        if item.action == #selector(toggleRight){item.title=guidanceShown ? (desiredRight ? "Hide Lesson Guidance":"Show Lesson Guidance"):"Toggle Game Details";return true}
+        if item.action == #selector(undo as () -> Void) || item.action == NSSelectorFromString("undo:"),!model.review.active,!model.reviewWorkspace {
+            if model.learning.attemptStep{if item.action == #selector(undo as () -> Void){item.title="Undo Turn"};return model.learning.attempt.hasMoves}
+            if let exercise=trainingExercise{return model.training.map{ControlBarModel.canTakeBack($0,exercise)} ?? false}
+            if item.action == #selector(undo as () -> Void){item.title=model.learning.mini ? "Undo Turn":"Take Back Move"}
+        }
+        if [#selector(showProtection),#selector(showAttacks),#selector(dismissInspection)].contains(item.action){if item.action == #selector(dismissInspection){return relationships.mode != nil};item.state=(item.action == #selector(showProtection) && relationships.mode == .protected || item.action == #selector(showAttacks) && relationships.mode == .attacked) ? .on:.off;return !model.review.active && trainingExercise==nil && board.selected.flatMap{board.position[$0]} != nil && !board.isHidden};guard [#selector(newGame),#selector(undo as () -> Void),NSSelectorFromString("undo:"),#selector(restorePrevious),#selector(claimDraw),#selector(resign)].contains(item.action) else{return true};guard !model.review.active,!model.reviewWorkspace else{return false};if model.learning.mini,![#selector(restorePrevious),#selector(claimDraw),#selector(resign)].contains(item.action){return item.action == #selector(newGame) || model.learning.miniGame?.history.isEmpty == false};guard model.session.mode == .practice else{return false};if item.action == #selector(undo as () -> Void) || item.action == NSSelectorFromString("undo:"){return model.session.canTakeBack};if item.action == #selector(claimDraw){return model.session.claimableDraw != nil};if item.action == #selector(resign){return !model.session.finished && !model.session.rules.history.isEmpty};if item.action == #selector(restorePrevious){return !model.session.state.practice.previousGame.isEmpty};return true}
     @objc func newGame(){
         guard !model.review.active,!model.reviewWorkspace else{return}
         if model.learning.mini {
@@ -327,7 +370,36 @@ final class BoardTitleView:NSView {
     @objc func showAbout(){showSettings();settings?.selectCategory("About")}
     /// Edit ▸ Undo (⌘Z) reaches here when no text field claims it: it takes back the move, as Game ▸ Take Back does.
     @objc func undo(_ sender:Any?){undo()}
-    @objc func undo(){guard !model.review.active,!model.reviewWorkspace else{return};board.cancelAnimation();if model.learning.mini{model.learning.undoMini()}else{model.session.undo()}}
+    @objc func undo(){
+        guard !model.review.active,!model.reviewWorkspace else{return};board.cancelAnimation()
+        if model.learning.mini{model.learning.undoMini()}
+        else if model.learning.attemptStep{model.learning.attempt.undo()}
+        else if let exercise=trainingExercise{if let training=model.training,ControlBarModel.canTakeBack(training,exercise){training.undo()}}
+        else{model.session.undo()}
+    }
+    // MARK: Lesson menu: each item performs the bar's own control, so the two never disagree.
+    private var bar:ControlBarModel {controls.rootView.barModel}
+    /// The bar control a Lesson menu item stands for now, if the bar shows one.
+    private func barItem(for action:Selector)->ControlBarItem? {
+        let candidates:[ControlBarAction]
+        switch action {
+        case #selector(lessonPlayPause):candidates=[.playPause,.reviewPlayPause,.demoPlayPause]
+        case #selector(lessonPrevious):candidates=[.previousLesson,.previousStep,.reviewPrevious,.demoPrevious,.previewPrevious]
+        case #selector(lessonNext):candidates=[.nextLesson,.nextStep,.reviewNext,.demoNext,.previewNext]
+        case #selector(lessonFromStart):candidates=[.stepFromStart]
+        case #selector(barHint):candidates=[.attemptHint,.hint,.trainingHint]
+        default:return nil
+        }
+        // The review library hides the bar and owns the window: nothing reaches the lesson behind it.
+        guard !model.reviewWorkspace else{return nil}
+        let shown=bar;return candidates.lazy.compactMap{shown.item($0)}.first
+    }
+    private func performBar(_ action:Selector){guard let item=barItem(for:action),item.enabled else{NSSound.beep();return};controls.rootView.perform(item.action);refresh()}
+    @objc func lessonPlayPause(){performBar(#selector(lessonPlayPause))}
+    @objc func lessonPrevious(){performBar(#selector(lessonPrevious))}
+    @objc func lessonNext(){performBar(#selector(lessonNext))}
+    @objc func lessonFromStart(){performBar(#selector(lessonFromStart))}
+    @objc func barHint(){performBar(#selector(barHint))}
     @objc func restorePrevious(){guard !model.review.active,!model.reviewWorkspace else{return};board.cancelAnimation();do{try model.session.restorePrevious()}catch{showError(error)}}
     func showError(_ error:Error){
         // ROLE_FORBIDDEN is an MCP contract code; people see what it means.
