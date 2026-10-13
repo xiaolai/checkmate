@@ -1,4 +1,4 @@
-# Unreleased
+# Checkmate 0.7.3
 
 34 lesson recordings are re-recorded. In 21, the voice stopped before the last
 sentence of the text, so the clip ended early and sometimes reversed its point:
@@ -15,6 +15,17 @@ says "a square that a pawn attacks".
 Every recording is now transcribed before it is published, and a clip whose
 ending, words or squares are not all heard is refused. A faint doubled word under
 the voice cannot be caught this way; that still needs listening.
+
+Automated acceptance covered every gate on a second test Mac, and the native
+tests decode all 710 bundled clips. Every clip passed the coverage check
+(whisper-1 on the full clip and on its last three seconds), and two local
+whisper models agree on the 34 new takes. The new Chess Notation clip was played
+once for review; the other 33 new takes have not yet been listened to, and the
+remaining 676 clips have been checked by transcription only, which cannot hear a
+faint doubled word. Live voice and translation were not exercised for this
+release.
+
+Requires macOS 14+ with universal Apple Silicon and Intel binaries.
 
 # Checkmate 0.7.2
 
