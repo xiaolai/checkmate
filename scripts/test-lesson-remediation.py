@@ -96,6 +96,33 @@ try:
  assert before>0,'No sample fell before the rook landed, so the order was not observed'
  assert 'suggested move' not in pointer('label','b8'),'The arrow runs past the king'
  results['lessonOverlayAfterMove']=True
+ # Guard lines are drawn apart from arrows, and VoiceOver names them on both squares. Scholar's Mate step 2 reveals its
+ # two guards sentence by sentence: read while paused it shows both; Play starts with Black's king guarding f7 and adds
+ # White's king guarding f2 when that sentence is spoken (about 6 s in), and pausing keeps what is shown.
+ # The outline lists offscreen rows too; real wheel input brings the row into view before the click.
+ for attempt in range(20):
+  try:pointer('click',"Scholar's Mate");break
+  except subprocess.CalledProcessError:pointer('scroll-sidebar','-5')
+ wait(lambda:"Current activity | Scholar's Mate" in listing(),"Scholar's Mate did not open")
+ if 'AXButton: Pause' in listing():pointer('click','Pause')
+ if 'AXPopUpButton: Transcript' not in listing():pointer('click','Lesson Guidance' if 'Lesson Guidance' in listing() else 'Toggle Game Details')
+ wait(lambda:'AXPopUpButton: Transcript' in listing(),"The Scholar's Mate transcript picker did not appear")
+ pointer('select-popup','Transcript','2. The weak squares')
+ wait(lambda:'guards f7' in label('e8') and 'guards f2' in label('e1'),'The paused step does not show both guards')
+ assert 'guarded by e8' in label('f7') and 'guarded by e1' in label('f2') and 'suggested move' not in label('e8'),'A guard is not described as one on both squares'
+ subprocess.run(['/usr/sbin/screencapture','-x',str(evidence/'lesson-guards-read.png')],check=True)
+ pointer('click','Play');started=time.monotonic()
+ assert 'guards f7' in label('e8') and 'guards f2' not in label('e1'),'Play did not start at the first stage'
+ subprocess.run(['/usr/sbin/screencapture','-x',str(evidence/'lesson-guards-first-stage.png')],check=True)
+ assert time.monotonic()-started<5,'The first stage was read too late to tell the stages apart'
+ wait(lambda:'guards f2' in label('e1'),'The second guard never appeared',timeout=15)
+ assert time.monotonic()-started>4,'The second guard appeared before its sentence'
+ pointer('click','Pause');wait(lambda:'AXButton: Play' in listing(),"Scholar's Mate did not pause")
+ assert 'guards f7' in label('e8') and 'guards f2' in label('e1'),'Pausing changed the stages shown'
+ subprocess.run(['/usr/sbin/screencapture','-x',str(evidence/'lesson-guards-second-stage.png')],check=True)
+ results['lessonGuardStages']=True
+ # Back to the top of the sidebar, where the next checks find their lessons.
+ for attempt in range(attempt+1):pointer('scroll-sidebar','5')
  # Practice activities sit indented under their piece lesson. For each of the five: the lesson's Practise button, a real
  # click on the activity row's text and one on its indent each open it, and VoiceOver hears which lesson it practises.
  # The sidebar's width is fixed (Metrics.left), so row geometry is the same at minimum width and in fullscreen.

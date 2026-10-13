@@ -8,6 +8,11 @@ cannot pass both. It uses no app code, credentials, playback or microphone, and 
 - Every authored move follows its piece's movement on the board shown, castling is a king's two-square move followed
   by its rook in the same beat, en passant removes the passed pawn, and no move leaves its own king attacked.
 - Every check mark is on a king the other side attacks; every beat's published end board is what its moves produce.
+- Every guard line holds on the end board: its piece attacks the square, which is empty or holds a piece of the same
+  side. A guard in the start frame shows the same pieces on every board of the beat (start, each landing, after the
+  removals), and every guard that does is in the start frame. An arrow onto a piece its origin guards is only another
+  piece that could have made the beat's move to an empty square. A staged beat has no moves or removals, its stages add
+  up in order to its published overlays, its start frame is its first stage, and it has one cue per later stage.
 - Every move puzzle on a board with both kings: python-chess finds exactly the moves the validator accepts for its
   claim (mate, stalemate, check, escape from check, any legal move), and the authored answer is one of them.
 - Every lesson practice exercise (`practice`), replayed from its FEN: the invitation beat shows exactly that position;
@@ -79,8 +84,48 @@ def king_attacked(board, colour):
     return king is not None and board.is_attacked_by(not colour, king)
 
 
+def guard_shown(board, guard, final):
+    """The guard holds on `board` and shows there the pieces it shows on the final board."""
+    origin, target = map(chess.parse_square, guard)
+    piece, other = board.piece_at(origin), board.piece_at(target)
+    return piece is not None and target in board.attacks(origin) and (other is None or other.color == piece.color) \
+        and piece == final.piece_at(origin) and other == final.piece_at(target)
+
+
+def check_overlays(identity, beat, frame, boards):
+    final, first = boards[-1], boards[0]
+    end_guards, start_guards = frame['end'].get('guards', []), frame['start'].get('guards', [])
+    assert beat.get('guards', []) == end_guards, (identity, 'published guards differ from the end frame')
+    for guard in end_guards:
+        assert guard_shown(final, guard, final), (identity, 'guard does not hold', guard)
+        assert guard not in frame['end'].get('arrows', []), (identity, 'guard repeats an arrow', guard)
+        if 'stages' not in beat:
+            always = all(guard_shown(b, guard, final) for b in boards)
+            assert always == (guard in start_guards), (identity, 'start frame guard timing', guard)
+    assert all(g in end_guards for g in start_guards), (identity, 'start guard missing at the end')
+    moves = beat.get('moves', [])
+    for origin, target in frame['end'].get('arrows', []):
+        mover, other = final.piece_at(chess.parse_square(origin)), final.piece_at(chess.parse_square(target))
+        if mover is None or other is None or other.color != mover.color or chess.parse_square(target) not in final.attacks(chess.parse_square(origin)):
+            continue
+        alternative = first.piece_at(chess.parse_square(target)) is None and not any(m[0] == origin for m in moves) \
+            and any(m[1] == target and first.piece_at(chess.parse_square(m[0])).color == mover.color for m in moves)
+        assert alternative, (identity, 'an arrow onto a guarded piece of its own side', [origin, target])
+    if 'stages' in beat:
+        stages = beat['stages']
+        assert len(stages) >= 2 and not moves and not beat.get('remove'), (identity, 'stage shape')
+        assert len(beat.get('stageCues', [])) == len(stages) - 1, (identity, 'one cue per later stage')
+        for kind in ('hl', 'arrows', 'guards'):
+            union = []
+            for stage in stages:
+                union += [item for item in stage[kind] if item not in union]
+            assert union == beat[kind] == frame['end'][kind], (identity, 'stages add up to the overlays', kind)
+            assert frame['start'][kind] == stages[0][kind], (identity, 'start frame is the first stage', kind)
+
+
 def check_beat(identity, beat, frame):
     board = board_of(frame['start']['board'])
+    boards = [board.copy()]
     moves = beat.get('moves', [])
     for index, move in enumerate(moves):
         start, end = map(chess.parse_square, move[:2])
@@ -119,14 +164,18 @@ def check_beat(identity, beat, frame):
         promoted = move[2] if len(move) > 2 else None
         board.set_piece_at(end, chess.Piece.from_symbol(promoted[1].upper() if promoted[0] == 'w' else promoted[1]) if promoted else piece)
         assert not king_attacked(board, piece.color), (identity, 'leaves its own king attacked', move)
+        boards.append(board.copy())
     for square in beat.get('remove', []):
         if board.piece_at(chess.parse_square(square)) is not None:
             board.remove_piece_at(chess.parse_square(square))
+    if beat.get('remove'):
+        boards.append(board.copy())
     assert position_of(board) == (frame['end']['board'] or {}), (identity, 'endpoint mismatch')
     for mark in frame['end'].get('hl', []):
         if mark['kind'] == 'check':
             piece = board.piece_at(chess.parse_square(mark['sq']))
             assert piece is not None and piece.piece_type == chess.KING and king_attacked(board, piece.color), (identity, 'check mark on an unattacked king')
+    check_overlays(identity, beat, frame, boards)
     return len(moves)
 
 
@@ -542,6 +591,38 @@ def audit_course_practice(course):
     return found
 
 
+def overlay_mutations(course):
+    """Planted overlay defects: each changes one published beat (or its frames) in a copy and must be rejected."""
+    beats = {beat['id']: (li, si) for li, lesson in enumerate(course['lessons']) for si, beat in enumerate(lesson['beats'])}
+
+    def plant(identity, change):
+        li, si = beats[identity]
+        beat, frame = copy.deepcopy(course['lessons'][li]['beats'][si]), copy.deepcopy(course['frames'][li][si])
+        change(beat, frame)
+        return lambda: check_beat(identity, beat, frame)
+
+    def guards(*items):
+        def change(beat, frame):
+            beat['guards'] = frame['end']['guards'] = [list(i) for i in items]
+        return change
+
+    def arrow_for_guard(beat, frame):
+        frame['end']['arrows'] = beat['arrows'] = frame['end']['guards']
+        beat.pop('guards')
+        frame['end']['guards'] = frame['start']['guards'] = []
+
+    return {
+        'guard: onto an enemy piece': (plant('scholars-mate:7', guards(['f7', 'e8'])), 'guard does not hold'),
+        'guard: shown before the guarded queen lands': (plant('check-and-checkmate:13', lambda b, f: f['start'].__setitem__('guards', [['e6', 'e7']])), 'start frame guard timing'),
+        'guard: missing from a still beat\'s start': (plant('check-and-checkmate:14', lambda b, f: f['start'].__setitem__('guards', [])), 'start frame guard timing'),
+        'guard: published apart from its frame': (plant('rook:13', lambda b, f: b.__setitem__('guards', b['guards'][:1])), 'published guards differ'),
+        'arrow: a defence drawn as an attack': (plant('rook:13', arrow_for_guard), 'an arrow onto a guarded piece'),
+        'stage: the start frame shows every stage': (plant('scholars-mate:1', lambda b, f: f['start'].__setitem__('guards', f['end']['guards'])), 'start frame is the first stage'),
+        'stage: a missing cue': (plant('puzzles-material:3', lambda b, f: b.__setitem__('stageCues', [])), 'one cue per later stage'),
+        'stage: overlays that are not its stages': (plant('puzzles-material:3', lambda b, f: b['stages'][1]['guards'].pop()), 'stages add up'),
+    }
+
+
 def mutations(course):
     """Plant one defect at a time in a copy of the published exercises (files are never touched). Each plant must be
     rejected by the rule it targets, recognised by that rule's message; a plant that passes, or fails for another
@@ -626,6 +707,7 @@ def mutations(course):
         'checkpoint: promotion with every pawn blocked': (plant('castling', lambda p: p['checkpoints'].append({'kind': 'promote', 'label': 'x'})), 'no white pawn can still promote'),
         'checkpoint: castling that is never legal': (plant('castling-rules', kingside_only), 'no legal castling'),
     }
+    planted.update(overlay_mutations(course))
     caught = {}
     for name, (run, expected) in planted.items():
         try:

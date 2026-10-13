@@ -5,7 +5,8 @@
   python3 Tools/render-lesson.py --draft FILE [ID...]  lessons from a draft file
 
 Each beat shows its narration, its moves and the board after them. Uppercase is White, lowercase Black; highlights
-are marked beside the board, and arrows and counted squares are listed.
+are marked beside the board, and arrows, guards and counted squares are listed. A staged beat lists its stages
+in the order they appear.
 """
 import argparse
 import importlib.util
@@ -47,13 +48,17 @@ def render(lesson):
             out.append('  moves: ' + ', '.join('-'.join(m[:2]) + (f'={m[2]}' if len(m) > 2 else '') for m in beat['moves']))
         if beat.get('remove'):
             out.append('  removes: ' + ', '.join(beat['remove']))
-        if beat.get('arrows'):
-            out.append('  arrows: ' + ', '.join(f'{a}->{b}' for a, b in beat['arrows']))
+        for number, stage in enumerate(beat.get('stages', [beat]), 1):
+            prefix = f'  stage {number} ' if 'stages' in beat else '  '
+            if stage.get('arrows'):
+                out.append(prefix + 'arrows: ' + ', '.join(f'{a}->{b}' for a, b in stage['arrows']))
+            if stage.get('guards'):
+                out.append(prefix + 'guards: ' + ', '.join(f'{a}=>{b}' for a, b in stage['guards']))
+            if stage.get('hl'):
+                out.append(prefix + 'marks: ' + ' '.join(f"{h['sq']}{symbol[h['kind']]}({h['kind']})" for h in stage['hl']))
         if beat.get('count'):
             out.append('  counts: ' + ' '.join(beat['count']))
-        marks = {h['sq']: symbol[h['kind']] for h in beat.get('hl', [])}
-        if marks:
-            out.append('  marks: ' + ' '.join(f"{h['sq']}{symbol[h['kind']]}({h['kind']})" for h in beat.get('hl', [])))
+        marks = {h['sq']: symbol[h['kind']] for h in frame['end']['hl']}
         out.extend(board_text(frame['end']['board'], marks))
     return '\n'.join(out)
 

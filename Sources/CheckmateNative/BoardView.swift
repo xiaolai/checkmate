@@ -4,7 +4,7 @@ final class SquareAccessibility:NSAccessibilityElement {
     weak var board:BoardView?;let square:String
     init(board:BoardView,square:String){self.board=board;self.square=square;super.init();setAccessibilityParent(board)}
     override func accessibilityRole()->NSAccessibility.Role? {.button}
-    override func accessibilityLabel()->String? {guard let board=board else{return square};var parts=[square];if let p=board.position[square]{parts += [p.first=="w" ? "White":"Black",BoardView.names[String(p.suffix(1)),default:"piece"]]};if board.selected==square{parts.append("selected")};if board.destinations.contains(square){parts.append(!board.destinationsPlayable ? "possible destination, not playable now":board.captures(on:square) ? "capture destination":"move destination")};if board.attacked.contains(square){parts.append("attacked or defended")};for h in board.highlights where h.sq==square{parts.append(h.kind=="check" ? "in check":h.kind=="no" ? "unavailable lesson destination":h.kind=="last" ? "part of the last move":h.kind=="target" ? "target square":h.kind=="answer" ? "in your answer":h.kind=="hint" ? "shown by a hint":"highlighted by the coach")};for a in board.arrows where a.count==2{if a[0]==square{parts.append("suggested move to "+a[1])};if a[1]==square{parts.append("suggested move from "+a[0])}};for connection in board.relationshipConnectors {let description=connection.limited ? "restricted or conditional":"";if connection.source==square{parts.append("\(board.relationshipMode == .protected ? "protects":"attacks") \(connection.target) \(description)")};if connection.target==square{parts.append("\(board.relationshipMode == .protected ? "protected by":"attacked by") \(connection.source) \(description)")}};return parts.joined(separator:", ")}
+    override func accessibilityLabel()->String? {guard let board=board else{return square};var parts=[square];if let p=board.position[square]{parts += [p.first=="w" ? "White":"Black",BoardView.names[String(p.suffix(1)),default:"piece"]]};if board.selected==square{parts.append("selected")};if board.destinations.contains(square){parts.append(!board.destinationsPlayable ? "possible destination, not playable now":board.captures(on:square) ? "capture destination":"move destination")};if board.attacked.contains(square){parts.append("attacked or defended")};for h in board.highlights where h.sq==square{parts.append(h.kind=="check" ? "in check":h.kind=="no" ? "unavailable lesson destination":h.kind=="last" ? "part of the last move":h.kind=="target" ? "target square":h.kind=="answer" ? "in your answer":h.kind=="hint" ? "shown by a hint":"highlighted by the coach")};for a in board.arrows where a.count==2{if a[0]==square{parts.append("suggested move to "+a[1])};if a[1]==square{parts.append("suggested move from "+a[0])}};for g in board.guards where g.count==2{if g[0]==square{parts.append("guards "+g[1])};if g[1]==square{parts.append("guarded by "+g[0])}};for connection in board.relationshipConnectors {let description=connection.limited ? "restricted or conditional":"";if connection.source==square{parts.append("\(board.relationshipMode == .protected ? "protects":"attacks") \(connection.target) \(description)")};if connection.target==square{parts.append("\(board.relationshipMode == .protected ? "protected by":"attacked by") \(connection.source) \(description)")}};return parts.joined(separator:", ")}
     override func accessibilityFrame()->NSRect {guard let b=board,let w=b.window else{return .zero};return w.convertToScreen(b.convert(b.squareRect(square),to:nil))}
     override func isAccessibilityFocused()->Bool {board?.focus==square && board?.window?.firstResponder === board}
     override func setAccessibilityFocused(_ value:Bool){if value{board?.focus=square;board?.window?.makeFirstResponder(board);board?.keyboardFocusVisible=true;board?.needsDisplay=true;NSAccessibility.post(element:self,notification:.focusedUIElementChanged)}}
@@ -65,6 +65,8 @@ final class BoardView:NSView {
     var destinations:[String]=[],attacked:[String]=[],highlights:[Highlight]=[],counts:[String]=[],explicitMotion:PieceMotion?,theme="wood",focus="e2"
     var arrows:[[String]]=[] {didSet{if arrows != oldValue{arrowElapsed=0;arrowStart=ProcessInfo.processInfo.systemUptime;updateBreathing()}}}
     var primaryMoveArrow:[String]? {arrows.first{$0.count==2 && ChessRules.validSquare($0[0]) && ChessRules.validSquare($0[1]) && $0[0] != $0[1]}}
+    /// A lesson's guard lines, [from, to]: drawn like the Inspector's protection connectors, under the arrows.
+    var guards:[[String]]=[]
     var relationshipConnectors:[RelationshipConnector]=[]
     var relationshipMode:RelationshipMode? {didSet{if relationshipMode != oldValue{updateBreathing()}}}
     var inspectRelationship:((RelationshipMode)->Void)?,dismissRelationships:(()->Bool)?
@@ -213,7 +215,7 @@ final class BoardView:NSView {
         let attrs:[NSAttributedString.Key:Any]=[.font:NSFont(name:"Arial Unicode MS",size:size) ?? NSFont.systemFont(ofSize:size),.foregroundColor:(white ? BoardPalette.lightPiece:BoardPalette.darkPiece).withAlphaComponent(alpha),.strokeColor:BoardPalette.pieceOutline.withAlphaComponent(alpha),.strokeWidth:white ? BoardOverlay.pieceOutlineWidth:0]
         let value=symbols[String(piece.suffix(1)),default:"♟"] as NSString,s=value.size(withAttributes:attrs);value.draw(at:NSPoint(x:rect.midX-s.width/2,y:rect.midY-s.height/2),withAttributes:attrs)
     }
-    /// Layers draw bottom to top: squares and their marks, relationships, arrows, pieces, then coordinates.
+    /// Layers draw bottom to top: squares and their marks, guard lines and relationships, arrows, pieces, then coordinates.
     override func draw(_ dirty:NSRect){let s=boardRect.width/8;guard s>0 else{return}
         let palette=BoardPalette.theme(theme)
         drawSquares(palette,side:s);drawRelationships(palette,side:s);drawArrows(palette,side:s);drawPieces(side:s);drawLabels(palette,side:s)
@@ -236,18 +238,25 @@ final class BoardView:NSView {
         }
     }
     private func drawRelationships(_ palette:BoardPalette,side s:CGFloat){
+        // A guard line is a protection connector the lesson draws: solid, since the lesson states the guard outright.
+        var seen=Set<String>()
+        for line in guards where line.count==2 && ChessRules.validSquare(line[0]) && ChessRules.validSquare(line[1]) && seen.insert(line.joined(separator:":")).inserted {
+            connector(from:line[0],to:line[1],color:palette.protection,limited:false,side:s)
+        }
         if let mode=relationshipMode {
             let color=mode == .protected ? palette.protection:palette.danger
-            for connection in relationshipConnectors {
-                let a=squareRect(connection.source),b=squareRect(connection.target),dx=b.midX-a.midX,dy=b.midY-a.midY,length=hypot(dx,dy)
-                guard length>0 else{continue};let ux=dx/length,uy=dy/length,inset=s*BoardOverlay.relationshipInset,bend=min(length,s*2)*BoardOverlay.relationshipCurve
-                let start=NSPoint(x:a.midX+ux*inset,y:a.midY+uy*inset),end=NSPoint(x:b.midX-ux*inset,y:b.midY-uy*inset)
-                let curve=NSBezierPath();curve.move(to:start);curve.curve(to:end,controlPoint1:NSPoint(x:start.x+(end.x-start.x)/3-uy*bend,y:start.y+(end.y-start.y)/3+ux*bend),controlPoint2:NSPoint(x:start.x+2*(end.x-start.x)/3-uy*bend,y:start.y+2*(end.y-start.y)/3+ux*bend));curve.lineCapStyle = .round;curve.lineWidth=s*BoardOverlay.relationshipWidth
-                if connection.limited{let dash=BoardOverlay.relationshipDash.map{$0*s};curve.setLineDash(dash,count:dash.count,phase:0)}
-                color.withAlphaComponent(shouldIncreaseContrast ? 1:BoardOverlay.relationshipOpacity).setStroke();curve.stroke()
-                let halo=NSBezierPath(ovalIn:a.insetBy(dx:s*BoardOverlay.annotationInset,dy:s*BoardOverlay.annotationInset));color.withAlphaComponent(BoardOverlay.annotationFill).setFill();halo.fill();halo.lineWidth=s*BoardOverlay.haloWidth;halo.stroke()
-            }
+            for connection in relationshipConnectors {connector(from:connection.source,to:connection.target,color:color,limited:connection.limited,side:s)}
         }
+    }
+    /// A curved line from the source square towards the target, with a ring on the source: the piece that acts.
+    private func connector(from source:String,to target:String,color:NSColor,limited:Bool,side s:CGFloat){
+        let a=squareRect(source),b=squareRect(target),dx=b.midX-a.midX,dy=b.midY-a.midY,length=hypot(dx,dy)
+        guard length>0 else{return};let ux=dx/length,uy=dy/length,inset=s*BoardOverlay.relationshipInset,bend=min(length,s*2)*BoardOverlay.relationshipCurve
+        let start=NSPoint(x:a.midX+ux*inset,y:a.midY+uy*inset),end=NSPoint(x:b.midX-ux*inset,y:b.midY-uy*inset)
+        let curve=NSBezierPath();curve.move(to:start);curve.curve(to:end,controlPoint1:NSPoint(x:start.x+(end.x-start.x)/3-uy*bend,y:start.y+(end.y-start.y)/3+ux*bend),controlPoint2:NSPoint(x:start.x+2*(end.x-start.x)/3-uy*bend,y:start.y+2*(end.y-start.y)/3+ux*bend));curve.lineCapStyle = .round;curve.lineWidth=s*BoardOverlay.relationshipWidth
+        if limited{let dash=BoardOverlay.relationshipDash.map{$0*s};curve.setLineDash(dash,count:dash.count,phase:0)}
+        color.withAlphaComponent(shouldIncreaseContrast ? 1:BoardOverlay.relationshipOpacity).setStroke();curve.stroke()
+        let halo=NSBezierPath(ovalIn:a.insetBy(dx:s*BoardOverlay.annotationInset,dy:s*BoardOverlay.annotationInset));color.withAlphaComponent(BoardOverlay.annotationFill).setFill();halo.fill();halo.lineWidth=s*BoardOverlay.haloWidth;halo.stroke()
     }
     private func drawArrows(_ palette:BoardPalette,side s:CGFloat){
         var seen=Set<String>()

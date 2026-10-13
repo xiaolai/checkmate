@@ -88,6 +88,10 @@ import Combine
     @Published public private(set) var step=0
     @Published public private(set) var seconds=0.0
     @Published public private(set) var playing=false
+    /// Whether this step's illustration is being played rather than read. Play starts a staged beat at its first stage
+    /// and reveals the rest with the narration; pausing freezes what is shown, even at the very start. Going to a step
+    /// (or back to its start) reads it again, with every stage shown.
+    private var illustrationPlayed=false
     @Published public private(set) var frame=CourseFrame()
     @Published public private(set) var picked:[String]=[]
     @Published public private(set) var feedback=""
@@ -135,13 +139,13 @@ import Combine
     /// A lesson opened from a training link: its own reading position is kept, but the course bookmark (where the
     /// course continues) stays on the learner's own lesson.
     public var readingFromTraining:Bool {if case .lesson(_,true)=session.activity.place{return true};return false}
-    public func seek(step:Int) {NativeLog.course.debug("Seeking authored transcript");guard current.beats.indices.contains(step) else{return};pause();if mini{go(miniLesson)};self.step=step;seconds=0;soundedMoves=[];picked=[];feedback="";passed=false;if !readingFromTraining{session.state.course.lessonID=current.id;session.state.course.step=step;session.state.course.segmentID=key};session.state.course.positions=(session.state.course.positions ?? [:]).merging([current.id:key]){_,new in new};syncAttempt();rebuild();session.emit(semantic:false,save:true)}
-    public func play() {guard !mini,activePuzzle==nil else{return};guard !localizationLoading else{showPlaybackNotice("Checking offline lesson recordings. Try Play again shortly.");return};if seconds>=duration{seconds=0;soundedMoves=[]};playing=true;lastTick=Date();playNarration();timer?.invalidate();timer=Timer.scheduledTimer(withTimeInterval:0.04,repeats:true){[weak self] _ in Task{@MainActor in guard let self=self,let last=self.lastTick else{return};let now=Date();self.lastTick=now;self.tick(wallDelta:now.timeIntervalSince(last))}};rebuild()}
+    public func seek(step:Int) {NativeLog.course.debug("Seeking authored transcript");guard current.beats.indices.contains(step) else{return};pause();if mini{go(miniLesson)};self.step=step;seconds=0;illustrationPlayed=false;soundedMoves=[];picked=[];feedback="";passed=false;if !readingFromTraining{session.state.course.lessonID=current.id;session.state.course.step=step;session.state.course.segmentID=key};session.state.course.positions=(session.state.course.positions ?? [:]).merging([current.id:key]){_,new in new};syncAttempt();rebuild();session.emit(semantic:false,save:true)}
+    public func play() {guard !mini,activePuzzle==nil else{return};guard !localizationLoading else{showPlaybackNotice("Checking offline lesson recordings. Try Play again shortly.");return};if seconds>=duration{seconds=0;soundedMoves=[]};playing=true;illustrationPlayed=true;lastTick=Date();playNarration();timer?.invalidate();timer=Timer.scheduledTimer(withTimeInterval:0.04,repeats:true){[weak self] _ in Task{@MainActor in guard let self=self,let last=self.lastTick else{return};let now=Date();self.lastTick=now;self.tick(wallDelta:now.timeIntervalSince(last))}};rebuild()}
     public func pause(){if mini{onMiniReset?()};cancelMiniOpponent();attempt?.suspend();pauseNarration()}
     /// Stops lesson narration only. A mini-game's pending computer reply is not narration and keeps coming (LE-5).
     public func pauseNarration(){timer?.invalidate();timer=nil;lastTick=nil;playing=false;audio?.pause();if session.mode != .practice{publish()}}
     /// Stops playback at the start of the step; every move's illustration sound plays again from there.
-    private func rewind(){pause();seconds=0;soundedMoves=[]}
+    private func rewind(){pause();seconds=0;illustrationPlayed=false;soundedMoves=[]}
     /// Plays the step again from its start. On the invitation step that is the instruction only: the board stays.
     public func replay(){if attemptStep{pauseNarration();seconds=0;soundedMoves=[];play();return};rewind();play()}
     public func tick(wallDelta:Double){if let time=audio?.playbackTime,session.state.settings.narration{advance(by:max(0,time-seconds))}else{advance(by:wallDelta)}}
@@ -276,7 +280,7 @@ import Combine
         if playing{if settings.narration != narrationApplied.on || (settings.volume>0) != (narrationApplied.volume>0){playNarration()}else if settings.volume != narrationApplied.volume{narrationApplied.volume=settings.volume;audio?.setNarrationVolume(settings.volume)}};rebuild()}
     private func rebuild(){
         if attemptStep{frame=attemptFrame;picked=attempt.selected.map{[$0]} ?? [];publish();return}
-        do{frame=try library.frame(lesson:lessonIndex,step:step,seconds:seconds,duration:Double(session.state.settings.pieceDuration)/1000,narrationSeconds:narrationSeconds,useCues:localizedPacks[lessonIndex]==nil)}catch{feedback="The lesson illustration could not load."}
+        do{frame=try library.frame(lesson:lessonIndex,step:step,seconds:seconds,duration:Double(session.state.settings.pieceDuration)/1000,narrationSeconds:narrationSeconds,useCues:localizedPacks[lessonIndex]==nil,staged:illustrationPlayed)}catch{feedback="The lesson illustration could not load."}
         if playing {
             var board=library.referenceFrames[lessonIndex][step].start.board ?? [:]
             let times=library.moveTimes(lesson:lessonIndex,step:step,narrationSeconds:narrationSeconds,pieceDuration:Double(session.state.settings.pieceDuration)/1000,useCues:localizedPacks[lessonIndex]==nil)

@@ -62,18 +62,28 @@ def build_course(sounds, content, assets, timing, version):
               'exercises': content['exercises'], 'puzzles': content['puzzles'], 'stepTitles': [], 'frames': [],
               'sounds': sounds, 'retiredExerciseIDs': content['retiredExerciseIDs'], 'timing': timing}
     prep = module('prepare', 'prepare-lesson-scripts.py')
+    phrases, all_cues = authored_cues()
     for li, lesson in enumerate(content['lessons']):
         voices = []
         result['frames'].append(prep.lesson_frames(lesson))
         for step, beat in enumerate(lesson['beats']):
             asset = assets[beat['id']]
-            cue_file=ROOT / 'Content/lesson-action-cues.json'
-            cues=json.loads(cue_file.read_text()).get('cues',{}).get(beat['id']) if cue_file.exists() else None
+            published = result['lessons'][li]['beats'][step]
+            cues = all_cues.get(beat['id'])
+            assert cues or 'stages' not in beat, 'A staged beat needs aligned anchor phrases: ' + beat['id']
             if cues:
                 assert cues['textSHA256']==asset['textSHA256'], 'Stale action cue text: '+beat['id']
                 assert cues['masterSHA256']==asset['masterSHA256'], 'Stale action cue recording: '+beat['id']
-                assert len(cues['fractions'])==len(beat.get('moves',[])) and all(isinstance(x,(float,int)) and math.isfinite(x) and 0<=x<=1 for x in cues['fractions']) and cues['fractions']==sorted(cues['fractions']), 'Invalid action cue timing: '+beat['id']
-                result['lessons'][li]['beats'][step]['moveCues']=cues['fractions']
+                assert cues.get('anchorsSHA256')==prep.anchor_identity(phrases[beat['id']]), 'Stale action cue anchors: '+beat['id']
+                fractions=cues['fractions']
+                assert all(type(x) in (float,int) and math.isfinite(x) and 0<=x<=1 for x in fractions) and fractions==sorted(fractions), 'Invalid action cue timing: '+beat['id']
+                if 'stages' in beat:
+                    # Stage 0 shows from the start; each later stage when its anchor is spoken.
+                    assert len(fractions)==len(beat['stages'])-1 and all(0<x<1 for x in fractions) and len(set(fractions))==len(fractions), 'Invalid stage cue timing: '+beat['id']
+                    published['stageCues']=fractions
+                else:
+                    assert len(fractions)==len(beat.get('moves',[])), 'Invalid action cue timing: '+beat['id']
+                    published['moveCues']=fractions
             timed_beat=result['lessons'][li]['beats'][step]
             voices.append({'file': asset['file'], 'seconds': asset['seconds'],
                            'duration': step_duration(timed_beat, asset['seconds'], timing)})
@@ -84,6 +94,12 @@ def build_course(sounds, content, assets, timing, version):
             end = result['frames'][li][step]['end']
             runtime_beat.update(set=start.get('board'), hl=end.get('hl', []),
                                 arrows=end.get('arrows', []), big=start['big'])
+            # Guards are published only where there are some; a beat without them draws none.
+            runtime_beat.pop('guards', None)
+            if end.get('guards'):
+                runtime_beat['guards'] = end['guards']
+            if 'stages' in runtime_beat:
+                runtime_beat['stages'] = [{kind: stage.get(kind, []) for kind in prep.OVERLAYS} for stage in runtime_beat['stages']]
             # The step label is published once, in stepTitles.
             del runtime_beat['label']
         stage_overlays(result['frames'][li], result['lessons'][li]['beats'])
@@ -91,6 +107,15 @@ def build_course(sounds, content, assets, timing, version):
         result['stepTitles'].append([beat['label'] for beat in lesson['beats']])
     result['narration'] = version
     return result
+
+
+def authored_cues():
+    """The authored anchor phrases and the cues aligned from them. Every phrase list has its cue and every cue its
+    phrases, so a beat never falls back to paced timing because an alignment is missing."""
+    phrases = json.loads((ROOT / 'Content/lesson-action-phrases.json').read_text())['phrases']
+    cues = json.loads((ROOT / 'Content/lesson-action-cues.json').read_text())['cues']
+    assert set(phrases) == set(cues), 'Anchor phrases and aligned cues differ: ' + ', '.join(sorted(set(phrases) ^ set(cues)))
+    return phrases, cues
 
 
 def build_projections(content, runtime):
@@ -102,19 +127,27 @@ def build_projections(content, runtime):
 
 
 def stage_overlays(frames, beats):
-    """Make each start frame what shows before the beat's moves land.
+    """Make each start frame what shows when the beat begins.
 
     A beat's arrows and highlights describe the position its moves produce. Until the last move lands, only what the
-    previous beat left up stays, with arrows previewing the beat's own moves. Course.frame applies the same rule
-    over time, and the native course tests compare the two.
+    previous beat left up stays, with arrows previewing the beat's moves (`move_previews`). A guard shows from the first
+    board on which it shows what it shows at the end (`guard_reveal`). A staged beat begins with its first stage.
+    Course.frame applies the same rules over time, and the native course tests compare the two.
     """
+    prep = module('prepare', 'prepare-lesson-scripts.py')
     previous = {}
     for frame, beat in zip(frames, beats):
-        shown = frame['end']
+        shown, start = frame['end'], frame['start']
+        if beat.get('stages'):
+            for kind in prep.OVERLAYS:
+                start[kind] = copy.deepcopy(beat['stages'][0].get(kind, []))
         if beat.get('moves'):
-            previews = [move[:2] for move in beat['moves']]
-            frame['start']['arrows'] = [a for a in shown.get('arrows', []) if a in previous.get('arrows', []) or a in previews]
-            frame['start']['hl'] = [h for h in shown.get('hl', []) if h in previous.get('hl', [])]
+            previews = prep.move_previews(start.get('board'), beat)
+            start['arrows'] = [a for a in shown.get('arrows', []) if a in previous.get('arrows', []) or a in previews]
+            start['hl'] = [h for h in shown.get('hl', []) if h in previous.get('hl', [])]
+        if shown.get('guards') and (beat.get('moves') or beat.get('remove')):
+            boards = prep.beat_boards(start.get('board'), beat)
+            start['guards'] = [g for g in shown.get('guards', []) if prep.guard_reveal(boards, g) == 0]
         previous = shown
 
 

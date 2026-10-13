@@ -1903,13 +1903,15 @@
             [
               "e5",
               "d4"
-            ],
+            ]
+          ],
+          "speak": "A pawn guarded by another pawn is hard to win. If Black's pawn on E five takes on D four, the pawn on C three takes it back.",
+          "guards": [
             [
               "c3",
               "d4"
             ]
-          ],
-          "speak": "A pawn guarded by another pawn is hard to win. If Black's pawn on E five takes on D four, the pawn on C three takes it back."
+          ]
         },
         {
           "id": "pawn-duel:13",
@@ -2296,7 +2298,8 @@
             "c1": "wr",
             "f1": "wr"
           },
-          "arrows": [
+          "speak": "Two rooks on the same rank or file, with nothing between them, guard each other. If one is captured, the other can take back.",
+          "guards": [
             [
               "c1",
               "f1"
@@ -2305,8 +2308,7 @@
               "f1",
               "c1"
             ]
-          ],
-          "speak": "Two rooks on the same rank or file, with nothing between them, guard each other. If one is captured, the other can take back."
+          ]
         },
         {
           "id": "rook:14",
@@ -2343,10 +2345,6 @@
             [
               "d1",
               "d5"
-            ],
-            [
-              "e6",
-              "d5"
             ]
           ],
           "hl": [
@@ -2355,7 +2353,13 @@
               "kind": "no"
             }
           ],
-          "speak": "So check before you capture. The rook could take the pawn on D five, but Black's pawn on E six would then capture the rook: five points lost for one."
+          "speak": "So check before you capture. The rook could take the pawn on D five, but Black's pawn on E six would then capture the rook: five points lost for one.",
+          "guards": [
+            [
+              "e6",
+              "d5"
+            ]
+          ]
         },
         {
           "id": "rook:16",
@@ -2567,19 +2571,19 @@
             "h5": "bp",
             "a3": "bp"
           },
-          "arrows": [
-            [
-              "h7",
-              "d7"
-            ]
-          ],
           "hl": [
             {
               "sq": "d7",
               "kind": "no"
             }
           ],
-          "speak": "So before every move, look along the rank and the file of the square you are going to. If the enemy rook can reach it, choose another move."
+          "speak": "So before every move, look along the rank and the file of the square you are going to. If the enemy rook can reach it, choose another move.",
+          "guards": [
+            [
+              "h7",
+              "d7"
+            ]
+          ]
         },
         {
           "id": "rook-practice:9",
@@ -4234,10 +4238,6 @@
             [
               "d8",
               "d4"
-            ],
-            [
-              "c3",
-              "d4"
             ]
           ],
           "hl": [
@@ -4246,7 +4246,13 @@
               "kind": "no"
             }
           ],
-          "speak": "Pawns are strongest when they guard each other. The pawn on C three protects D four, so if the queen takes on D four, C three captures her."
+          "speak": "Pawns are strongest when they guard each other. The pawn on C three protects D four, so if the queen takes on D four, C three captures her.",
+          "guards": [
+            [
+              "c3",
+              "d4"
+            ]
+          ]
         },
         {
           "id": "queen-practice:8",
@@ -5757,12 +5763,6 @@
             "e5": "bn",
             "f6": "bp"
           },
-          "arrows": [
-            [
-              "f6",
-              "e5"
-            ]
-          ],
           "hl": [
             {
               "sq": "e5",
@@ -5770,7 +5770,13 @@
             }
           ],
           "big": "",
-          "speak": "The king cannot capture a protected piece either. The pawn on F six guards the knight on E five, so taking it would put the king straight into attack."
+          "speak": "The king cannot capture a protected piece either. The pawn on F six guards the knight on E five, so taking it would put the king straight into attack.",
+          "guards": [
+            [
+              "f6",
+              "e5"
+            ]
+          ]
         },
         {
           "id": "king:10",
@@ -5907,14 +5913,14 @@
               "e3"
             ]
           ],
-          "arrows": [
+          "big": "",
+          "speak": "When only a few pieces are left, the king becomes a useful fighter. Here the white king steps from E two to E three, right beside its pawn on D four, to protect it.",
+          "guards": [
             [
               "e3",
               "d4"
             ]
-          ],
-          "big": "",
-          "speak": "When only a few pieces are left, the king becomes a useful fighter. Here the white king steps from E two to E three, right beside its pawn on D four, to protect it."
+          ]
         },
         {
           "id": "king:17",
@@ -6296,12 +6302,6 @@
             "f4": "bn",
             "h6": "bb"
           },
-          "arrows": [
-            [
-              "h6",
-              "f4"
-            ]
-          ],
           "hl": [
             {
               "sq": "f4",
@@ -6309,7 +6309,13 @@
             }
           ],
           "big": "",
-          "speak": "An enemy piece is only safe to capture if nothing protects it. The bishop on H six guards the knight on F four, so F four is not a safe square for the king."
+          "speak": "An enemy piece is only safe to capture if nothing protects it. The bishop on H six guards the knight on F four, so F four is not a safe square for the king.",
+          "guards": [
+            [
+              "h6",
+              "f4"
+            ]
+          ]
         },
         {
           "id": "safe-squares:9",
@@ -6469,7 +6475,13 @@
           ],
           "pause": 2,
           "big": "",
-          "speak": "Now look along the fifth rank. The rook protects the knight on G five, so the king cannot take it. The only empty safe square on that rank is H five."
+          "speak": "Now look along the fifth rank. The rook protects the knight on G five, so the king cannot take it. The only empty safe square on that rank is H five.",
+          "guards": [
+            [
+              "d5",
+              "g5"
+            ]
+          ]
         },
         {
           "id": "safe-squares:13",
@@ -6939,7 +6951,13 @@
             }
           ],
           "big": "",
-          "speak": "The queen and king make a strong team. The queen slides from H seven to E seven, right in front of the black king, and the white king on E six protects her."
+          "speak": "The queen and king make a strong team. The queen slides from H seven to E seven, right in front of the black king, and the white king on E six protects her.",
+          "guards": [
+            [
+              "e6",
+              "e7"
+            ]
+          ]
         },
         {
           "id": "check-and-checkmate:14",
@@ -6972,7 +6990,13 @@
             }
           ],
           "big": "",
-          "speak": "The queen attacks D eight, F eight, D seven and F seven. The black king cannot capture her either, because the white king guards her. Checkmate."
+          "speak": "The queen attacks D eight, F eight, D seven and F seven. The black king cannot capture her either, because the white king guards her. Checkmate.",
+          "guards": [
+            [
+              "e6",
+              "e7"
+            ]
+          ]
         },
         {
           "id": "check-and-checkmate:15",
@@ -9866,7 +9890,13 @@
               "d5"
             ]
           ],
-          "speak": "Here White's rook can take the knight on D five, but Black's pawn on E six guards it."
+          "speak": "Here White's rook can take the knight on D five, but Black's pawn on E six guards it.",
+          "guards": [
+            [
+              "e6",
+              "d5"
+            ]
+          ]
         },
         {
           "id": "piece-values:12",
@@ -9903,7 +9933,13 @@
               "e5"
             ]
           ],
-          "speak": "This time White's knight can take a rook on E five that is guarded by the pawn on D six."
+          "speak": "This time White's knight can take a rook on E five that is guarded by the pawn on D six.",
+          "guards": [
+            [
+              "d6",
+              "e5"
+            ]
+          ]
         },
         {
           "id": "piece-values:14",
@@ -10217,10 +10253,6 @@
             [
               "f3",
               "e5"
-            ],
-            [
-              "c6",
-              "e5"
             ]
           ],
           "hl": [
@@ -10229,7 +10261,13 @@
               "kind": "focus"
             }
           ],
-          "speak": "Before you capture, count. White's knight attacks the pawn on E five, and Black's knight on C six defends it: one attacker, one defender."
+          "speak": "Before you capture, count. White's knight attacks the pawn on E five, and Black's knight on C six defends it: one attacker, one defender.",
+          "guards": [
+            [
+              "c6",
+              "e5"
+            ]
+          ]
         },
         {
           "id": "counting-material:11",
@@ -10269,10 +10307,6 @@
             [
               "e1",
               "e5"
-            ],
-            [
-              "c6",
-              "e5"
             ]
           ],
           "hl": [
@@ -10281,7 +10315,13 @@
               "kind": "focus"
             }
           ],
-          "speak": "Now White has a rook on E one as well. Two white pieces attack the pawn on E five, and only one black piece defends it."
+          "speak": "Now White has a rook on E one as well. Two white pieces attack the pawn on E five, and only one black piece defends it.",
+          "guards": [
+            [
+              "c6",
+              "e5"
+            ]
+          ]
         },
         {
           "id": "counting-material:13",
@@ -11622,7 +11662,13 @@
               "kind": "check"
             }
           ],
-          "speak": "White's queen moves from A seven to E seven, giving check. The queen covers every square around the king, and the white king guards her. That is checkmate, and White wins."
+          "speak": "White's queen moves from A seven to E seven, giving check. The queen covers every square around the king, and the white king guards her. That is checkmate, and White wins.",
+          "guards": [
+            [
+              "e6",
+              "e7"
+            ]
+          ]
         },
         {
           "id": "rules-review:9",
@@ -12022,14 +12068,16 @@
           "arrows": [
             [
               "f3",
-              "d4"
-            ],
-            [
-              "f3",
               "e5"
             ]
           ],
-          "speak": "Developing means bringing a piece to a square where it does useful work. White's knight jumps to F three, where it guards D four and watches E five."
+          "speak": "Developing means bringing a piece to a square where it does useful work. White's knight jumps to F three, where it guards D four and watches E five.",
+          "guards": [
+            [
+              "f3",
+              "d4"
+            ]
+          ]
         },
         {
           "id": "opening:6",
@@ -12044,15 +12092,17 @@
           "arrows": [
             [
               "f6",
-              "d5"
-            ],
-            [
-              "f6",
               "e4"
             ]
           ],
           "big": "",
-          "speak": "Black's knight jumps to F six. It guards D five and watches E four."
+          "speak": "Black's knight jumps to F six. It guards D five and watches E four.",
+          "guards": [
+            [
+              "f6",
+              "d5"
+            ]
+          ]
         },
         {
           "id": "opening:7",
@@ -12420,7 +12470,9 @@
           "id": "opening:21",
           "label": "Connected rooks",
           "say": "Now nothing stands between each side's two rooks. Rooks that see each other along the back rank are connected, and they guard each other.",
-          "arrows": [
+          "big": "",
+          "speak": "Now nothing stands between each side's two rooks. Rooks that see each other along the back rank are connected, and they guard each other.",
+          "guards": [
             [
               "a1",
               "f1"
@@ -12437,9 +12489,7 @@
               "f8",
               "a8"
             ]
-          ],
-          "big": "",
-          "speak": "Now nothing stands between each side's two rooks. Rooks that see each other along the back rank are connected, and they guard each other."
+          ]
         },
         {
           "id": "opening:22",
@@ -12507,18 +12557,38 @@
           "id": "scholars-mate:1",
           "label": "The weak squares",
           "say": "At the start, Black's pawn on f7 is guarded only by Black's king. White's pawn on f2 is guarded only by White's king.",
-          "hl": [
+          "big": "",
+          "speak": "At the start, Black's pawn on F seven is guarded only by Black's king. White's pawn on F two is guarded only by White's king.",
+          "stages": [
             {
-              "sq": "f7",
-              "kind": "focus"
+              "hl": [
+                {
+                  "sq": "f7",
+                  "kind": "focus"
+                }
+              ],
+              "guards": [
+                [
+                  "e8",
+                  "f7"
+                ]
+              ]
             },
             {
-              "sq": "f2",
-              "kind": "focus"
+              "hl": [
+                {
+                  "sq": "f2",
+                  "kind": "focus"
+                }
+              ],
+              "guards": [
+                [
+                  "e1",
+                  "f2"
+                ]
+              ]
             }
-          ],
-          "big": "",
-          "speak": "At the start, Black's pawn on F seven is guarded only by Black's king. White's pawn on F two is guarded only by White's king."
+          ]
         },
         {
           "id": "scholars-mate:2",
@@ -12631,12 +12701,6 @@
           "id": "scholars-mate:7",
           "label": "Why it is mate",
           "say": "The king cannot take the queen, because the bishop on c4 guards her. No other black piece can reach her, and the only empty square beside the king, f8, is attacked. The game ended in four moves.",
-          "arrows": [
-            [
-              "c4",
-              "f7"
-            ]
-          ],
           "hl": [
             {
               "sq": "e8",
@@ -12648,7 +12712,13 @@
             }
           ],
           "big": "",
-          "speak": "The king cannot take the queen, because the bishop on C four guards her. No other black piece can reach her, and the only empty square beside the king, F eight, is attacked. The game ended in four moves."
+          "speak": "The king cannot take the queen, because the bishop on C four guards her. No other black piece can reach her, and the only empty square beside the king, F eight, is attacked. The game ended in four moves.",
+          "guards": [
+            [
+              "c4",
+              "f7"
+            ]
+          ]
         },
         {
           "id": "scholars-mate:8",
@@ -12875,7 +12945,13 @@
             ]
           ],
           "big": "",
-          "speak": "White pushes the d-pawn to D three to guard E four from the knight. Black's other knight jumps to C six."
+          "speak": "White pushes the d-pawn to D three to guard E four from the knight. Black's other knight jumps to C six.",
+          "guards": [
+            [
+              "d3",
+              "e4"
+            ]
+          ]
         },
         {
           "id": "scholars-mate:15",
@@ -14158,7 +14234,13 @@
             }
           ],
           "big": "",
-          "speak": "White's bishop goes to B two and attacks the queen. If the queen takes the bishop, White's rook on B one takes her back."
+          "speak": "White's bishop goes to B two and attacks the queen. If the queen takes the bishop, White's rook on B one takes her back.",
+          "guards": [
+            [
+              "b1",
+              "b2"
+            ]
+          ]
         },
         {
           "id": "skewer:11",
@@ -14329,7 +14411,7 @@
           "arrows": [
             [
               "d1",
-              "d3"
+              "d7"
             ]
           ],
           "speak": "White's rook on D one points up the d-file towards Black's queen on D seven. But White's own bishop on D three stands in between, so for now the rook's attack is blocked."
@@ -14481,7 +14563,7 @@
           "arrows": [
             [
               "b2",
-              "d4"
+              "h8"
             ]
           ],
           "speak": "Here White's bishop on B two aims along the long diagonal towards Black's rook on H eight. White's own knight on D four is in the way."
@@ -14561,7 +14643,7 @@
           "arrows": [
             [
               "e1",
-              "e5"
+              "e8"
             ]
           ],
           "speak": "The most dangerous discovered attack uncovers a check. White's rook on E one aims at Black's king on E eight, with White's knight on E five in between."
@@ -14855,13 +14937,15 @@
             [
               "e1",
               "e5"
-            ],
+            ]
+          ],
+          "speak": "White's rook on E one attacks Black's bishop on E five. Black's knight on C six guards that bishop.",
+          "guards": [
             [
               "c6",
               "e5"
             ]
-          ],
-          "speak": "White's rook on E one attacks Black's bishop on E five. Black's knight on C six guards that bishop."
+          ]
         },
         {
           "id": "removing-the-defender:2",
@@ -14910,7 +14994,17 @@
               "e5"
             ]
           ],
-          "speak": "Look at E five now. The pawn on C six guards B five and D five, not E five, so nothing defends Black's bishop any more."
+          "speak": "Look at E five now. The pawn on C six guards B five and D five, not E five, so nothing defends Black's bishop any more.",
+          "guards": [
+            [
+              "c6",
+              "b5"
+            ],
+            [
+              "c6",
+              "d5"
+            ]
+          ]
         },
         {
           "id": "removing-the-defender:5",
@@ -14969,13 +15063,15 @@
             [
               "d1",
               "d5"
-            ],
+            ]
+          ],
+          "speak": "The second way is to chase the guard away. White's rook on D one attacks Black's bishop on D five, and Black's knight on F six guards it.",
+          "guards": [
             [
               "f6",
               "d5"
             ]
-          ],
-          "speak": "The second way is to chase the guard away. White's rook on D one attacks Black's bishop on D five, and Black's knight on F six guards it."
+          ]
         },
         {
           "id": "removing-the-defender:8",
@@ -15841,7 +15937,13 @@
               "kind": "check"
             }
           ],
-          "speak": "Now the queen goes to G seven and gives check. White's king on F six guards her, so Black's king cannot take her. Checkmate!"
+          "speak": "Now the queen goes to G seven and gives check. White's king on F six guards her, so Black's king cannot take her. Checkmate!",
+          "guards": [
+            [
+              "f6",
+              "g7"
+            ]
+          ]
         },
         {
           "id": "queen-mate:14",
@@ -16140,7 +16242,13 @@
               "kind": "no"
             }
           ],
-          "speak": "Careful here! Suppose the rook went to B seven. It is guarded by White's king, A seven and B eight are covered, and Black's king is not in check. Black has no legal move: stalemate, a draw."
+          "speak": "Careful here! Suppose the rook went to B seven. It is guarded by White's king, A seven and B eight are covered, and Black's king is not in check. Black has no legal move: stalemate, a draw.",
+          "guards": [
+            [
+              "c6",
+              "b7"
+            ]
+          ]
         },
         {
           "id": "rook-mate:12",
@@ -16288,29 +16396,49 @@
         {
           "id": "puzzles-material:3",
           "label": "Two guarded pawns",
-          "arrows": [
-            [
-              "d3",
-              "b5"
-            ],
-            [
-              "d3",
-              "h7"
-            ]
-          ],
-          "hl": [
-            {
-              "sq": "b5",
-              "kind": "no"
-            },
-            {
-              "sq": "h7",
-              "kind": "no"
-            }
-          ],
           "say": "The bishop on d3 can reach the pawns on b5 and h7, but both are guarded. The pawn on a6 guards b5, and the king guards h7.",
           "big": "",
-          "speak": "The bishop on D three can reach the pawns on B five and H seven, but both are guarded. The pawn on A six guards B five, and the king guards H seven."
+          "speak": "The bishop on D three can reach the pawns on B five and H seven, but both are guarded. The pawn on A six guards B five, and the king guards H seven.",
+          "stages": [
+            {
+              "hl": [
+                {
+                  "sq": "b5",
+                  "kind": "no"
+                },
+                {
+                  "sq": "h7",
+                  "kind": "no"
+                }
+              ],
+              "arrows": [
+                [
+                  "d3",
+                  "b5"
+                ],
+                [
+                  "d3",
+                  "h7"
+                ]
+              ]
+            },
+            {
+              "guards": [
+                [
+                  "a6",
+                  "b5"
+                ]
+              ]
+            },
+            {
+              "guards": [
+                [
+                  "g8",
+                  "h7"
+                ]
+              ]
+            }
+          ]
         },
         {
           "id": "puzzles-material:4",
@@ -16861,7 +16989,13 @@
           ],
           "say": "White's queen moves from a7 to g7, right beside the black king. White's king on g6 guards her.",
           "big": "",
-          "speak": "White's queen moves from A seven to G seven, right beside the black king. White's king on G six guards her."
+          "speak": "White's queen moves from A seven to G seven, right beside the black king. White's king on G six guards her.",
+          "guards": [
+            [
+              "g6",
+              "g7"
+            ]
+          ]
         },
         {
           "id": "puzzles-mate:9",
@@ -16882,7 +17016,13 @@
           ],
           "say": "The king cannot take the guarded queen, and she covers g8 and h7 as well. Checkmate.",
           "big": "",
-          "speak": "The king cannot take the guarded queen, and she covers G eight and H seven as well. Checkmate."
+          "speak": "The king cannot take the guarded queen, and she covers G eight and H seven as well. Checkmate.",
+          "guards": [
+            [
+              "g6",
+              "g7"
+            ]
+          ]
         },
         {
           "id": "puzzles-mate:10",
@@ -17212,7 +17352,13 @@
           ],
           "say": "White's queen steps from d1 to d3 to guard the knight. Black pushes a pawn from e7 to e5, offering it to the pawn on d4.",
           "big": "",
-          "speak": "White's queen steps from D one to D three to guard the knight. Black pushes a pawn from E seven to E five, offering it to the pawn on D four."
+          "speak": "White's queen steps from D one to D three to guard the knight. Black pushes a pawn from E seven to E five, offering it to the pawn on D four.",
+          "guards": [
+            [
+              "d3",
+              "e4"
+            ]
+          ]
         },
         {
           "id": "famous-game:7",
@@ -17496,14 +17642,14 @@
               "kind": "check"
             }
           ],
-          "arrows": [
+          "say": "White's bishop moves from g5 to d8. Checkmate!",
+          "speak": "White's bishop moves from G five to D eight. Checkmate!",
+          "guards": [
             [
               "d1",
               "d8"
             ]
-          ],
-          "say": "White's bishop moves from g5 to d8. Checkmate!",
-          "speak": "White's bishop moves from G five to D eight. Checkmate!"
+          ]
         },
         {
           "id": "famous-game:21",

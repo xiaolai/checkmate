@@ -303,5 +303,133 @@ class AuthoredMoveTests(unittest.TestCase):
         self.prep.validate_moves('castles', {'e1': 'wk', 'h1': 'wr'}, {'moves': [['e1', 'g1'], ['h1', 'f1']]})
 
 
+class GuardAndStageTests(unittest.TestCase):
+    """Guard lines and sentence-timed stages: what is accepted, and when each appears."""
+    def setUp(self):
+        self.prep = publisher.module('prepare', 'prepare-lesson-scripts.py')
+
+    def check(self, board, beat):
+        start = dict(board)
+        end = self.prep.validate_moves('beat', dict(board), beat)
+        self.prep.validate_overlays('beat', beat, end, start)
+
+    def testGuardsMustHoldOnTheBoardTheyDescribe(self):
+        board = {'e6': 'wk', 'e7': 'wq', 'e8': 'bk', 'a1': 'wr', 'h1': 'br'}
+        self.check(board, {'guards': [['e6', 'e7']]})
+        self.check(board, {'guards': [['e7', 'd8']]})  # an empty square it covers
+        rejected = {'an enemy piece is an attack': [['e7', 'e8']], 'out of reach': [['e6', 'e4']],
+                    'no piece': [['d6', 'e7']], 'a line through a piece': [['a1', 'h1']]}
+        for name, guards in rejected.items():
+            with self.subTest(name), self.assertRaisesRegex(AssertionError, 'does not guard'):
+                self.check(board, {'guards': guards})
+        with self.assertRaisesRegex(AssertionError, 'drawn twice'):
+            self.check(board, {'guards': [['e7', 'd8']], 'arrows': [['e7', 'd8']]})
+        with self.assertRaisesRegex(AssertionError, 'drawn twice'):
+            self.check(board, {'guards': [['e6', 'e7'], ['e6', 'e7']]})
+
+    def testAnArrowOntoItsOwnPieceIsAGuard(self):
+        board = {'c3': 'wp', 'd4': 'wp', 'd1': 'wr', 'd3': 'wb', 'd7': 'bq'}
+        with self.assertRaisesRegex(AssertionError, 'draw it as a guard'):
+            self.check(board, {'arrows': [['c3', 'd4']]})
+        # A blocked line is drawn through the blocker to its target, not stopped on it.
+        self.check(board, {'arrows': [['d1', 'd7']]})
+
+    def testAnotherPieceThatCouldMakeTheMoveIsAPreview(self):
+        board = {'e1': 'wk', 'b1': 'wn', 'f3': 'wn', 'e8': 'bk', 'b8': 'bn'}
+        beat = {'moves': [['b1', 'd2']], 'arrows': [['b1', 'd2'], ['f3', 'd2']]}
+        self.check(board, beat)
+        self.assertEqual(self.prep.move_previews(board, beat), [['b1', 'd2'], ['f3', 'd2']])
+        # Not of the mover's side, or not able to reach the square: no preview.
+        self.assertEqual(self.prep.move_previews(board, {'moves': [['b8', 'd7']], 'arrows': [['f3', 'd2']]}), [['b8', 'd7']])
+        self.assertEqual(self.prep.move_previews(board, {'moves': [['b1', 'c3']], 'arrows': [['f3', 'c3']]}), [['b1', 'c3']])
+
+    def testAGuardAppearsOnlyOnceItShowsTheEndRelationForGood(self):
+        def reveal(board, beat, guard):
+            return self.prep.guard_reveal(self.prep.beat_boards(board, beat), guard)
+        # The queen arrives on the square the king guards: from her landing, not while e7 is still empty.
+        self.assertEqual(reveal({'e6': 'wk', 'h7': 'wq', 'e8': 'bk'}, {'moves': [['h7', 'e7']]}, ['e6', 'e7']), 1)
+        # Untouched by the moves: from the start.
+        self.assertEqual(reveal({'e6': 'wk', 'e7': 'wq', 'a2': 'wp'}, {'moves': [['a2', 'a3']]}, ['e6', 'e7']), 0)
+        # The guard arrives with the first move and stays: from that landing (the d-pawn guarding e4).
+        self.assertEqual(reveal({'d2': 'wp', 'e4': 'wp', 'b8': 'bn'}, {'moves': [['d2', 'd3'], ['b8', 'c6']]}, ['d3', 'e4']), 1)
+        # Broken later in the beat (the guard moves away, its target is captured, or a piece blocks its line): never.
+        broken = {
+            'the guard relocates': ({'d3': 'wq', 'e4': 'wn', 'a7': 'bp'}, {'moves': [['a7', 'a6'], ['d3', 'd1']]}, ['d3', 'e4']),
+            'the target is captured': ({'c3': 'wn', 'e4': 'wp', 'd5': 'bp'}, {'moves': [['d5', 'e4']]}, ['c3', 'e4']),
+            'a blocker enters': ({'a1': 'wr', 'h1': 'wr', 'c3': 'bn'}, {'moves': [['c3', 'd1']]}, ['a1', 'h1']),
+        }
+        for name, (board, beat, guard) in broken.items():
+            with self.subTest(name):
+                self.assertIsNone(reveal(board, beat, guard))
+                with self.assertRaisesRegex(AssertionError, 'does not guard'):
+                    self.check(board, dict(beat, guards=[guard]))
+        # A removal that opens the line: after the removal, not before.
+        board, beat = {'a1': 'wr', 'h1': 'wr', 'd1': 'bn', 'a8': 'bk'}, {'remove': ['d1']}
+        self.assertEqual(reveal(board, beat, ['a1', 'h1']), 1)
+
+    def testStagesAreWellFormed(self):
+        board = {'e8': 'bk', 'f7': 'bp', 'e1': 'wk', 'f2': 'wp'}
+        f7, f2 = {'sq': 'f7', 'kind': 'focus'}, {'sq': 'f2', 'kind': 'focus'}
+        good = [{'hl': [f7], 'guards': [['e8', 'f7']]}, {'hl': [f2], 'guards': [['e1', 'f2']]}]
+        self.check(board, {'stages': good})
+        self.assertEqual(self.prep.overlays({'stages': good}), {'hl': [f7, f2], 'arrows': [], 'guards': [['e8', 'f7'], ['e1', 'f2']]})
+        rejected = {
+            'one stage': ({'stages': good[:1]}, 'two or more'),
+            'moves': ({'stages': good, 'moves': [['f2', 'f3']]}, 'no moves'),
+            'removals': ({'stages': good, 'remove': ['f2']}, 'no moves'),
+            'overlays beside the stages': ({'stages': good, 'hl': [f7]}, 'in its stages'),
+            'an empty stage': ({'stages': [good[0], {}]}, 'a stage holds'),
+            'an unknown field': ({'stages': [good[0], {'count': ['f2']}]}, 'a stage holds'),
+            'the same item twice': ({'stages': [good[0], {'hl': [f7]}]}, 'two stages'),
+            'two kinds on one square': ({'stages': [good[0], {'hl': [{'sq': 'f7', 'kind': 'no'}]}]}, 'two highlight kinds'),
+        }
+        for name, (beat, message) in rejected.items():
+            with self.subTest(name), self.assertRaisesRegex(AssertionError, message):
+                self.check(board, beat)
+
+    def testStartFramesShowTheFirstStageAndRevealedGuards(self):
+        prep = self.prep
+        f7, f2 = {'sq': 'f7', 'kind': 'focus'}, {'sq': 'f2', 'kind': 'focus'}
+        lesson = {'beats': [
+            {'big': '', 'set': {'e8': 'bk', 'f7': 'bp', 'e1': 'wk', 'f2': 'wp'},
+             'stages': [{'hl': [f7], 'guards': [['e8', 'f7']]}, {'hl': [f2], 'guards': [['e1', 'f2']]}]},
+            {'big': '', 'set': {'e6': 'wk', 'h7': 'wq', 'e8': 'bk', 'a2': 'wp'}, 'moves': [['h7', 'e7']],
+             'guards': [['e6', 'e7']]}]}
+        frames = prep.lesson_frames(lesson)
+        publisher.stage_overlays(frames, lesson['beats'])
+        self.assertEqual((frames[0]['start']['hl'], frames[0]['start']['guards']), ([f7], [['e8', 'f7']]))
+        self.assertEqual((frames[0]['end']['hl'], frames[0]['end']['guards']), ([f7, f2], [['e8', 'f7'], ['e1', 'f2']]))
+        self.assertEqual((frames[1]['start']['guards'], frames[1]['end']['guards']), ([], [['e6', 'e7']]))
+
+    def testCuesAreBoundToTheirAnchorPhrases(self):
+        root = HERE.parent
+        content = json.loads((root / 'Content/course-scripts.en-GB.json').read_text())
+        self.prep.fill_speech(content['lessons'])
+        sounds = json.loads((root / 'Content/course-sounds.json').read_text())['sounds']
+        timing = json.loads((root / 'Content/narration-packaging.json').read_text())['timing']
+        manifest = json.loads((root / 'Sources/CheckmateCore/Resources/course-narration.json').read_text())
+        assets = {a['id']: a for a in manifest['assets']}
+        phrases, cues = publisher.authored_cues()
+        original = publisher.authored_cues
+        cases = {
+            'an anchor changed, narration unchanged': (dict(phrases, **{'scholars-mate:1': ['Black pawn']}), cues, 'Stale action cue anchors'),
+            'a cue without phrases': ({k: v for k, v in phrases.items() if k != 'scholars-mate:1'}, cues, 'Anchor phrases and aligned cues differ'),
+            'a staged beat without its cue': ({k: v for k, v in phrases.items() if k != 'scholars-mate:1'},
+                                              {k: v for k, v in cues.items() if k != 'scholars-mate:1'}, 'A staged beat needs aligned anchor'),
+            'stage cues at the very start': (phrases, dict(cues, **{'scholars-mate:1': dict(cues['scholars-mate:1'], fractions=[0])}), 'Invalid stage cue timing'),
+            'a boolean cue': (phrases, dict(cues, **{'scholars-mate:1': dict(cues['scholars-mate:1'], fractions=[True])}), 'Invalid action cue timing'),
+        }
+        try:
+            for name, (p, c, message) in cases.items():
+                def authored(p=p, c=c):
+                    assert set(p) == set(c), 'Anchor phrases and aligned cues differ'
+                    return p, c
+                publisher.authored_cues = authored
+                with self.subTest(name), self.assertRaisesRegex(AssertionError, message):
+                    publisher.build_course(sounds, copy.deepcopy(content), assets, timing, {'voice': 'cedar'})
+        finally:
+            publisher.authored_cues = original
+
+
 if __name__ == "__main__":
     unittest.main()

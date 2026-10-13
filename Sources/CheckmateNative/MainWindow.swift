@@ -277,7 +277,7 @@ final class BoardTitleView:NSView {
         var shown=trainingExercise.map(trainingPresentation) ?? activityPresentation()
         if trainingExercise != nil{relationships.dismiss()}
         relationships.update(board:shown.position,fen:s.mode == .practice ? s.displayFen:l.attemptStep ? l.attempt.rules.fen:nil,selected:trainingExercise==nil ? shown.selected:nil,identity:s.displayIdentity)
-        if let report=relationships.report{shown.selected=report.square;shown.destinations=[];shown.attacked=[];shown.arrows=[];shown.highlights.removeAll{$0.kind != "check" && $0.kind != "no"}}
+        if let report=relationships.report{shown.selected=report.square;shown.destinations=[];shown.attacked=[];shown.arrows=[];shown.guards=[];shown.highlights.removeAll{$0.kind != "check" && $0.kind != "no"}}
         applyBoard(shown)
         board.relationshipMode=relationships.report?.mode
         board.relationshipConnectors=relationships.report?.relations.map{RelationshipConnector(source:$0.square,target:relationships.report!.square,limited:$0.limited)} ?? []
@@ -294,11 +294,11 @@ final class BoardTitleView:NSView {
     /// `source` names what the board shows (a review, its preview, a lesson, a demonstration, which practice game or
     /// mini-game run…), independent of the position: an animation belongs to one source, so switching to another with the
     /// same pieces (a new game from the start position included) still ends it.
-    private struct BoardPresentation {var source:String,position:Position,selected:String?,destinations:[String],playable:Bool,dropsAnywhere:Bool,attacked:[String],highlights:[Highlight],arrows:[[String]],counts:[String],motion:PieceMotion?}
-    private func applyBoard(_ p:BoardPresentation){board.displaySource=p.source;board.position=p.position;board.selected=p.selected;board.destinations=p.destinations;board.destinationsPlayable=p.playable;board.dropsAnywhere=p.dropsAnywhere;board.attacked=p.attacked;board.highlights=p.highlights;board.arrows=p.arrows;board.counts=p.counts;board.explicitMotion=p.motion}
+    private struct BoardPresentation {var source:String,position:Position,selected:String?,destinations:[String],playable:Bool,dropsAnywhere:Bool,attacked:[String],highlights:[Highlight],arrows:[[String]],guards:[[String]],counts:[String],motion:PieceMotion?}
+    private func applyBoard(_ p:BoardPresentation){board.displaySource=p.source;board.position=p.position;board.selected=p.selected;board.destinations=p.destinations;board.destinationsPlayable=p.playable;board.dropsAnywhere=p.dropsAnywhere;board.attacked=p.attacked;board.highlights=p.highlights;board.arrows=p.arrows;board.guards=p.guards;board.counts=p.counts;board.explicitMotion=p.motion}
     /// A review: the last move (and an imagined line's arrow), check, then the review's and the voice coach's marks.
     private func reviewPresentation(_ review:ReviewController)->BoardPresentation {
-        var p=BoardPresentation(source:review.branch==nil ? "review":"review_preview",position:review.board,selected:review.selected,destinations:review.destinations,playable:true,dropsAnywhere:false,attacked:[],highlights:[],arrows:[],counts:[],motion:nil)
+        var p=BoardPresentation(source:review.branch==nil ? "review":"review_preview",position:review.board,selected:review.selected,destinations:review.destinations,playable:true,dropsAnywhere:false,attacked:[],highlights:[],arrows:[],guards:[],counts:[],motion:nil)
         // An imagined line starts from its own root, which a preview can place away from the selected move.
         let imagined=review.branch.flatMap{branch in review.branchPly>0 ? branch.moves[review.branchPly-1]:nil}
         if let move=imagined ?? review.document?.nodes[review.branch?.root ?? review.nodeID].uci {let from=String(move.prefix(2)),to=String(move.dropFirst(2).prefix(2));p.highlights=[Highlight(sq:from,kind:"last"),Highlight(sq:to,kind:"last")];if imagined != nil{p.arrows=[[from,to]]}}
@@ -308,17 +308,17 @@ final class BoardTitleView:NSView {
     }
     /// Practice, a lesson, a puzzle or a mini-game, with a demonstration on top.
     private func activityPresentation()->BoardPresentation {let s=model.session,l=model.learning,practice=s.mode == .practice
-        var p=BoardPresentation(source:"\(s.displayView):\(s.gameGeneration):\(l.miniGame.map{"\($0.kind.rawValue)/\($0.opponentSeed ?? "")"} ?? ""):\(l.attemptStep ? l.attempt.record?.id ?? "":"")",position:s.displayBoard,selected:practice ? s.selected:l.picked.first,destinations:practice ? s.destinations:l.destinations,playable:!practice || s.inspection?.legalNow != false,dropsAnywhere:!practice && !l.mini && l.activePuzzle != nil && l.exercise?.kind=="move",attacked:practice ? s.inspection?.attacks ?? []:[],highlights:s.highlights+s.voiceFocus.map{Highlight(sq:$0,kind:"focus")},arrows:s.arrows,counts:[],motion:nil)
+        var p=BoardPresentation(source:"\(s.displayView):\(s.gameGeneration):\(l.miniGame.map{"\($0.kind.rawValue)/\($0.opponentSeed ?? "")"} ?? ""):\(l.attemptStep ? l.attempt.record?.id ?? "":"")",position:s.displayBoard,selected:practice ? s.selected:l.picked.first,destinations:practice ? s.destinations:l.destinations,playable:!practice || s.inspection?.legalNow != false,dropsAnywhere:!practice && !l.mini && l.activePuzzle != nil && l.exercise?.kind=="move",attacked:practice ? s.inspection?.attacks ?? []:[],highlights:s.highlights+s.voiceFocus.map{Highlight(sq:$0,kind:"focus")},arrows:s.arrows,guards:[],counts:[],motion:nil)
         // The last move is drawn first so the coach's highlights stay visible on top of it, as in review.
         if practice,s.displayView=="game" {if let last=s.rules.records.last{p.highlights.insert(contentsOf:[Highlight(sq:last.from,kind:"last"),Highlight(sq:last.to,kind:"last")],at:0)};if s.rules.check,let king=s.rules.board.first(where:{$0.value==s.rules.turn+"k"})?.key{p.highlights.append(Highlight(sq:king,kind:"check"))}}
-        if !practice {p.highlights+=l.frame.hl+l.picked.map{Highlight(sq:$0,kind:"focus")};p.arrows=l.frame.arrows+p.arrows;p.counts=l.frame.counts ?? [];p.motion=l.frame.motion.map{motion in var landed=motion;if board.shouldReduceMotion{landed.t=1};return landed}}
+        if !practice {p.highlights+=l.frame.hl+l.picked.map{Highlight(sq:$0,kind:"focus")};p.arrows=l.frame.arrows+p.arrows;p.guards=l.frame.guards;p.counts=l.frame.counts ?? [];p.motion=l.frame.motion.map{motion in var landed=motion;if board.shouldReduceMotion{landed.t=1};return landed}}
         if !s.presentationHidden,let d=s.demonstration {let frame=d.lines[d.line].frames[d.ply];p.arrows=frame.arrows+p.arrows;p.highlights+=frame.highlights}
         return p
     }
     /// An exercise shows only what the learner did: no legal-move dots or hidden answers, except a hint asked for.
     private func trainingPresentation(_ exercise:TrainingController.Exercise)->BoardPresentation {
         let target=[exercise.scenario.target ?? exercise.scenario.drill?.target ?? exercise.scenario.goal?.target].compactMap{$0}.map{Highlight(sq:$0,kind:"target")}
-        return BoardPresentation(source:"training",position:model.session.displayBoard,selected:exercise.picked,destinations:[],playable:true,dropsAnywhere:exercise.task == .move || exercise.task == .game,attacked:[],highlights:(exercise.lastMove.map{[Highlight(sq:$0.from,kind:"last"),Highlight(sq:$0.to,kind:"last")]} ?? [])+target+exercise.selection.map{Highlight(sq:$0,kind:"answer")}+exercise.hintSquares.map{Highlight(sq:$0,kind:"hint")},arrows:[],counts:[],motion:nil)
+        return BoardPresentation(source:"training",position:model.session.displayBoard,selected:exercise.picked,destinations:[],playable:true,dropsAnywhere:exercise.task == .move || exercise.task == .game,attacked:[],highlights:(exercise.lastMove.map{[Highlight(sq:$0.from,kind:"last"),Highlight(sq:$0.to,kind:"last")]} ?? [])+target+exercise.selection.map{Highlight(sq:$0,kind:"answer")}+exercise.hintSquares.map{Highlight(sq:$0,kind:"hint")},arrows:[],guards:[],counts:[],motion:nil)
     }
     func validateMenuItem(_ item:NSMenuItem)->Bool {
         if let action=item.action,[#selector(lessonPlayPause),#selector(lessonPrevious),#selector(lessonNext),#selector(lessonFromStart),#selector(barHint)].contains(action) {

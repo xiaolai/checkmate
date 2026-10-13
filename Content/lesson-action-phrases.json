@@ -359,6 +359,13 @@
     "famous-game:10": [
       "First the king slides two squares, from E one to C one",
       "Then the rook hops over it, from A one to D one, onto the d-file"
+    ],
+    "scholars-mate:1": [
+      "White's pawn on F two is guarded only by White's king"
+    ],
+    "puzzles-material:3": [
+      "The pawn on A six guards B five",
+      "the king guards H seven"
     ]
   }
 }

@@ -110,10 +110,31 @@ extension LessonRemediationTests {
     /// Re-pinned when Chess Notation's transcript (notation:12–14) gained the "read as" / "said as" its recording speaks.
     /// Re-pinned when two recordings that kept dropping words were reworded: Playing in a Tournament (tournaments:14
     /// no longer ends on "Check the rules.") and Queen Practice (queen-practice:11 says "a square that a pawn attacks").
+    /// Re-pinned when 20 lessons gained guard lines (defence drawn apart from attack arrows) and two gained
+    /// sentence-timed stages; the other 19 lessons, without guards or stages, keep their fingerprints.
     func testCourseEditionFingerprintsArePinned()throws {
         let library=try CourseLibrary()
         let all=library.lessons.indices.map{library.lessons[$0].id+"="+LessonTranslation.source(library:library,index:$0).fingerprint}.joined(separator:" ")
-        XCTAssertEqual(SHA256.hash(data:Data(all.utf8)).map{String(format:"%02x",$0)}.joined(),"cb6f6176f71b5ed7e9dd4ff0b0ef3b75172040ca4bc296848ebfaca53710d0b8")
+        XCTAssertEqual(SHA256.hash(data:Data(all.utf8)).map{String(format:"%02x",$0)}.joined(),"6a7bd49deed0f545f8e0ee51cea05d9bba6f840757f52e44084901e84665e410")
+    }
+    /// Guards and stages are lesson mechanics: a translation pack is rebuilt when they change, including a new stage
+    /// order or partition with the same overlays, but a lesson without them keeps its fingerprint (and its recordings).
+    func testGuardsAndStagesCountOnlyWhereTheyExist()throws {
+        let data=try Data(contentsOf:NativeResources.url("course.json"))
+        func fingerprint(_ lesson:String,_ change:(inout [String:Any])->Void)throws -> String {
+            var json=try XCTUnwrap(JSONSerialization.jsonObject(with:data) as? [String:Any]),lessons=try XCTUnwrap(json["lessons"] as? [[String:Any]])
+            let index=try XCTUnwrap(lessons.firstIndex{$0["id"] as? String==lesson})
+            var beats=try XCTUnwrap(lessons[index]["beats"] as? [[String:Any]]);for i in beats.indices{change(&beats[i])};lessons[index]["beats"]=beats;json["lessons"]=lessons
+            let library=try JSONDecoder().decode(CourseLibrary.self,from:JSONSerialization.data(withJSONObject:json))
+            return LessonTranslation.source(library:library,index:index).fingerprint
+        }
+        let plain=try fingerprint("intro"){_ in}
+        XCTAssertEqual(try fingerprint("intro"){$0["guards"]=[[String]]()},plain,"no guards is no change")
+        XCTAssertNotEqual(try fingerprint("intro"){if $0["id"] as? String=="intro:1"{$0["guards"]=[["e1","d1"]]}},plain)
+        let staged=try fingerprint("scholars-mate"){_ in}
+        let stage:(inout [String:Any],([[String:Any]])->[[String:Any]])->Void={beat,edit in if beat["id"] as? String=="scholars-mate:1",let stages=beat["stages"] as? [[String:Any]]{beat["stages"]=edit(stages)}}
+        XCTAssertNotEqual(try fingerprint("scholars-mate"){stage(&$0){Array($0.reversed())}},staged,"stage order")
+        XCTAssertNotEqual(try fingerprint("scholars-mate"){stage(&$0){s in var a=s[0],b=s[1];a["guards"]=(a["guards"] as! [[String]])+(b["guards"] as! [[String]]);b["guards"]=[[String]]();return [a,b]}},staged,"stage partition, same overlays")
     }
     /// Grouping a practice activity under its lesson is presentation only: no lesson's translation pack is invalidated by it.
     func testPracticeGroupingLeavesEveryFingerprintAlone()throws {

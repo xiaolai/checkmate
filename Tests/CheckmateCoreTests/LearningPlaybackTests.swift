@@ -32,6 +32,21 @@ final class LearningPlaybackTests:XCTestCase {
     }
 }
 extension LearningPlaybackTests {
+    /// A staged step read while paused shows every stage. Play starts at the first stage and reveals the next with the
+    /// narration; pausing freezes what is shown, even before the first tick; going to the step again reads it again.
+    @MainActor func testStagesArePlayedOnlyWhilePlaying() throws {
+        let s=try GameSession(engine:nil),p=try LearningPlayer(session:s)
+        let li=try XCTUnwrap(p.library.lessons.firstIndex{$0.id=="scholars-mate"});p.openLesson(index:li,resume:false)
+        let step=try XCTUnwrap(p.current.beats.firstIndex{$0.id=="scholars-mate:1"}),both=[["e8","f7"],["e1","f2"]]
+        p.seek(step:step);XCTAssertEqual(p.frame.guards,both,"read: every stage")
+        p.play();XCTAssertEqual(p.frame.guards,[["e8","f7"]],"played: the first stage")
+        p.pause();XCTAssertEqual(p.frame.guards,[["e8","f7"]],"paused at once: frozen, not read")
+        p.seek(step:step);XCTAssertEqual(p.frame.guards,both,"going to the step reads it again")
+        let cue=try XCTUnwrap(p.beat.stageCues?.first)*p.library.voices[li][step].seconds
+        p.play();p.advance(by:cue+0.01);XCTAssertEqual(p.frame.guards,both,"the second stage with its sentence")
+        p.pause();XCTAssertEqual(p.frame.guards,both)
+        p.shutdown()
+    }
     @MainActor func testNarrationClockOwnsLessonTimingWhileAudioPlays()throws {let s=try GameSession(engine:nil),p=try LearningPlayer(session:s),audio=MockNarrationClock();p.audio=audio;p.openLesson(index:0);p.play();audio.time=0.5;p.tick(wallDelta:2);XCTAssertEqual(p.seconds,0.5,accuracy:0.001);audio.time=nil;p.tick(wallDelta:0.25);XCTAssertEqual(p.seconds,0.75,accuracy:0.001);p.pause()}
 }
 @MainActor private final class MockNarrationClock:NarrationService {var time:Double?;var playbackTime:Double?{time};func play(file:String,seconds:Double,settings:AppSettings){};func pause(){};func stop(){}}

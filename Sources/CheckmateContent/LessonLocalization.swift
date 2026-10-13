@@ -12,7 +12,9 @@ public struct LessonTranslation:Codable,Equatable,Sendable {
  public static func source(library:CourseLibrary,index:Int)->Self {
   let lesson=library.lessons[index]
   var result=Self(lessonID:lesson.id,title:lesson.title,teaches:lesson.teaches ?? [],beats:lesson.beats.enumerated().map{TranslatedBeat(id:$0.element.id ?? lesson.id+":"+String($0.offset),stepTitle:library.stepTitles[index][$0.offset],say:$0.element.say,speak:$0.element.speak ?? $0.element.say)})
-  let mechanics:[[String:Any]]=lesson.beats.map {beat in var fields:[String:Any]=["hasSet":beat.hasSet,"set":beat.set as Any? ?? NSNull(),"moves":beat.moves,"remove":beat.remove,"arrows":beat.arrows as Any? ?? NSNull(),"hl":beat.hl?.map{["sq":$0.sq,"kind":$0.kind]} as Any? ?? NSNull(),"count":beat.count,"big":beat.big as Any? ?? NSNull(),"miniGame":beat.miniGame,"pause":beat.pause as Any? ?? NSNull()];if let cues=beat.moveCues{fields["moveCues"]=cues};return fields}
+  let mechanics:[[String:Any]]=lesson.beats.map {beat in var fields:[String:Any]=["hasSet":beat.hasSet,"set":beat.set as Any? ?? NSNull(),"moves":beat.moves,"remove":beat.remove,"arrows":beat.arrows as Any? ?? NSNull(),"hl":beat.hl?.map{["sq":$0.sq,"kind":$0.kind]} as Any? ?? NSNull(),"count":beat.count,"big":beat.big as Any? ?? NSNull(),"miniGame":beat.miniGame,"pause":beat.pause as Any? ?? NSNull()];if let cues=beat.moveCues{fields["moveCues"]=cues}
+   // Present only where a beat has them, so lessons without guards or stages keep their fingerprints and recordings.
+   if let guards=beat.guards,!guards.isEmpty{fields["guards"]=guards};if let stages=beat.stages{fields["stages"]=stages.map{["hl":$0.hl.map{["sq":$0.sq,"kind":$0.kind]},"arrows":$0.arrows,"guards":$0.guards]}};if let cues=beat.stageCues{fields["stageCues"]=cues};return fields}
   let timingEncoder=JSONEncoder();timingEncoder.outputFormatting = .sortedKeys
   let timing=(try? timingEncoder.encode(library.lessonTiming)).map{String(decoding:$0,as:UTF8.self)} ?? ""
   result.mechanicsHash=hash((try? JSONSerialization.data(withJSONObject:["beats":mechanics,"timing":timing],options:.sortedKeys)) ?? Data());return result

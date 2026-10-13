@@ -41,7 +41,8 @@ rules = _module('lesson_rules')
 provenance = _module('provenance')
 
 LESSON_ID = re.compile(r'^[a-z][a-z0-9]*(-[a-z0-9]+)*$')
-BEAT_KEYS = {'id', 'label', 'big', 'say', 'speak', 'set', 'moves', 'remove', 'hl', 'arrows', 'count', 'pause', 'miniGame'}
+BEAT_KEYS = {'id', 'label', 'big', 'say', 'speak', 'set', 'moves', 'remove', 'hl', 'arrows', 'guards', 'stages', 'count', 'pause', 'miniGame'}
+OVERLAYS = ('hl', 'arrows', 'guards')
 HIGHLIGHTS = {'focus', 'go', 'no', 'check'}
 LEVELS = {'Foundation', 'Developing'}
 VALUES = {'p': 1, 'n': 3, 'b': 3, 'r': 5, 'q': 9, 'k': 100}
@@ -64,14 +65,85 @@ def fill_speech(lessons):
     return lessons
 
 
+def overlays(beat):
+    """Everything a beat draws over its board, in order. A beat's overlays are its own: absent means none. A staged
+    beat draws its stages one after another, each adding to the last, so its overlays are all of them in stage order."""
+    if 'stages' in beat:
+        shown = {kind: [] for kind in OVERLAYS}
+        for stage in beat['stages']:
+            for kind in OVERLAYS:
+                shown[kind] += [item for item in stage.get(kind, []) if item not in shown[kind]]
+        return shown
+    return {kind: copy.deepcopy(beat.get(kind, [])) for kind in OVERLAYS}
+
+
+def beat_boards(board, beat):
+    """The boards a beat shows in turn: its start, after each move lands, and after its removals."""
+    boards = [copy.deepcopy(board or {})]
+    for move in beat.get('moves', []):
+        after = copy.deepcopy(boards[-1])
+        piece = after.pop(move[0])
+        after[move[1]] = move[2] if len(move) > 2 else piece
+        boards.append(after)
+    if beat.get('remove'):
+        boards.append({s: p for s, p in boards[-1].items() if s not in beat['remove']})
+    return boards
+
+
+def guard_holds(board, guard):
+    """A guard line means coverage: the piece on `from` reaches `to`, an empty square or a piece of its own side, so it
+    would capture anything that lands there. It does not judge whether that capture is legal (a pinned guard)."""
+    origin, target = guard
+    piece = board.get(origin)
+    return piece is not None and target in rules.attacks(board, origin) and board.get(target, piece)[0] == piece[0]
+
+
+def guard_reveal(boards, guard):
+    """The first of a beat's boards from which a guard shows what it shows at the end, on every later board, or None.
+    It shows that when it holds and both its squares hold what they hold at the end, so the king guarding the queen
+    appears when she lands, not while her square is still empty. A guard appears there (the start, a move landing or
+    the removals): never before its pieces arrive, nor while a later move or removal would break it. Course.frame
+    applies the same rule."""
+    final, first = boards[-1], None
+    for index in range(len(boards) - 1, -1, -1):
+        board = boards[index]
+        if not guard_holds(board, guard) or any(board.get(square) != final.get(square) for square in guard):
+            break
+        first = index
+    return first
+
+
+def move_previews(board, beat):
+    """Arrows that show before a beat's moves land: the moves themselves, and another piece of the mover's side that
+    could have made the same move on the starting board ("both knights could jump to d2"). Course.frame applies the
+    same rule."""
+    moves = beat.get('moves', [])
+    previews = [m[:2] for m in moves]
+    board = board or {}
+    for arrow in beat.get('arrows', []):
+        origin, target = arrow
+        if arrow in previews or origin not in board:
+            continue
+        side = board[origin][0]
+        if any(m[1] == target and board.get(m[0], ' ')[0] == side and m[0] != origin for m in moves) \
+                and not any(m[0] == origin for m in moves) and target not in board and target in rules.attacks(board, origin):
+            previews.append(arrow)
+    return previews
+
+
+def anchor_identity(phrases):
+    """What a beat's timing cues were aligned from: its anchor phrases in order. A cue made from other phrases is stale
+    even when the narration and its recording are unchanged."""
+    return sha(json.dumps(phrases, ensure_ascii=False))
+
+
 def lesson_frames(lesson):
     """Each beat's starting and ending view. A beat without `set` continues from the previous beat's end."""
     frames, board = [], None
     for beat in lesson['beats']:
         if 'set' in beat:
             board = copy.deepcopy(beat['set'])
-        start = {'board': copy.deepcopy(board), 'hl': beat.get('hl', []), 'arrows': beat.get('arrows', []),
-                 'big': beat['big'], 'counts': beat.get('count', [])[:1]}
+        start = {'board': copy.deepcopy(board), **overlays(beat), 'big': beat['big'], 'counts': beat.get('count', [])[:1]}
         end = copy.deepcopy(start)
         end['counts'] = beat.get('count', [])
         for move in beat.get('moves', []):
@@ -133,22 +205,54 @@ def validate_moves(where, board, beat):
     return board
 
 
-def validate_overlays(where, beat, end):
-    """Check marks sit on attacked kings; arrows follow a piece's lines on the board they describe."""
+def validate_stages(where, beat):
+    """A staged beat reveals its overlays sentence by sentence: two or more stages, each adding something new. Stages
+    pace a still board, so the beat has no moves or removals, and no overlays of its own besides its stages. A square
+    keeps one highlight kind, so what is drawn and what VoiceOver reads cannot disagree."""
+    if 'stages' not in beat:
+        return
+    stages = beat['stages']
+    assert isinstance(stages, list) and len(stages) >= 2, f'{where}: stages are a list of two or more'
+    assert not beat.get('moves') and not beat.get('remove'), f'{where}: a staged beat has no moves or removals'
+    assert not any(kind in beat for kind in OVERLAYS), f'{where}: a staged beat keeps its overlays in its stages'
+    seen, kinds = [], {}
+    for stage in stages:
+        assert isinstance(stage, dict) and stage and set(stage) <= set(OVERLAYS), f'{where}: a stage holds hl, arrows or guards'
+        for kind in OVERLAYS:
+            items = stage.get(kind, [])
+            assert isinstance(items, list), f'{where}: stage {kind}'
+            for item in items:
+                assert [kind, item] not in seen, f'{where}: {item} appears in two stages'
+                seen.append([kind, item])
+                if kind == 'hl' and isinstance(item, dict):
+                    assert kinds.setdefault(item.get('sq'), item.get('kind')) == item.get('kind'), f'{where}: {item.get("sq")} has two highlight kinds'
+        assert any(stage.get(kind) for kind in OVERLAYS), f'{where}: an empty stage'
+
+
+def validate_overlays(where, beat, end, start=None):
+    """Check marks sit on attacked kings; arrows follow a piece's lines on the board they describe; guards hold.
+
+    An arrow ending on a piece of its own side is a guard and must be drawn as one, unless it previews another piece
+    that could have made this beat's move (see `move_previews`). A guard holds on the final board, so it appears at some
+    point of the beat (`guard_reveal`), and it never repeats an arrow.
+    """
+    validate_stages(where, beat)
     board = end or {}
-    for mark in beat.get('hl', []):
+    shown = overlays(beat)
+    for mark in shown['hl']:
         assert isinstance(mark, dict) and set(mark) == {'sq', 'kind'} and mark['kind'] in HIGHLIGHTS, f'{where}: highlight {mark}'
         rules.xy(mark['sq'])
         if mark['kind'] == 'check':
             king = board.get(mark['sq'], '')
             assert king[1:] == 'k' and rules.attacked(board, mark['sq'], rules.other(king[0])), f'{where}: check mark on {mark["sq"]} is not an attacked king'
-    previews = [m[:2] for m in beat.get('moves', [])]
-    arrows = beat.get('arrows', [])
+    arrows = shown['arrows']
     for arrow in arrows:
         assert isinstance(arrow, list) and len(arrow) == 2 and arrow[0] != arrow[1], f'{where}: arrow {arrow}'
+        rules.xy(arrow[0])
+        rules.xy(arrow[1])
+    previews = move_previews(start, beat)
+    for arrow in arrows:
         origin, target = arrow
-        rules.xy(origin)
-        rules.xy(target)
         if arrow in previews:
             continue
         if origin not in board:
@@ -165,6 +269,19 @@ def validate_overlays(where, beat, end):
         diagonal = abs(x1 - x0) == abs(y1 - y0)
         allowed = piece[1] == 'q' and (straight or diagonal) or piece[1] == 'r' and straight or piece[1] == 'b' and diagonal
         assert allowed and target in board, f'{where}: arrow {origin}-{target} does not follow the {piece} on {origin}'
+    for arrow in arrows:
+        origin, target = arrow
+        if arrow not in previews and origin in board and target in board and board[origin][0] == board[target][0] \
+                and target in rules.attacks(board, origin):
+            raise AssertionError(f'{where}: arrow {origin}-{target} ends on a piece it guards; draw it as a guard')
+    boards = beat_boards(start, beat) if beat.get('moves') or beat.get('remove') else [board]
+    guards = shown['guards']
+    for guard in guards:
+        assert isinstance(guard, list) and len(guard) == 2 and guard[0] != guard[1], f'{where}: guard {guard}'
+        rules.xy(guard[0])
+        rules.xy(guard[1])
+        assert guards.count(guard) == 1 and guard not in arrows, f'{where}: guard {guard[0]}-{guard[1]} is drawn twice'
+        assert guard_reveal(boards, guard) is not None, f'{where}: the piece on {guard[0]} does not guard {guard[1]} when the beat ends'
     for square in beat.get('count', []):
         rules.xy(square)
 
@@ -532,8 +649,9 @@ def validate_lesson(lesson):
                 rules.valid_board(board)
         assert 'pause' not in beat or isinstance(beat['pause'], (int, float)) and 0 < beat['pause'] <= 5, f'{key}: pause'
         assert 'miniGame' not in beat or beat['miniGame'] is True, f'{key}: miniGame'
+        start = copy.deepcopy(board)
         board = validate_moves(key, board, beat)
-        validate_overlays(key, beat, board)
+        validate_overlays(key, beat, board, start)
     if 'practice' in lesson:
         validate_practice_exercise(lesson, lesson_frames(lesson))
 
