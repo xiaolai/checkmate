@@ -431,6 +431,8 @@
     "Tools/align-lesson-actions.py",
     "Tools/test-lesson-action-alignment.py",
     "Tools/test-import-cedar.py",
+    "Tools/test-narration-coverage.py",
+    "Tools/check-narration-coverage.py",
     "Tools/test-record-lessons.py",
     "Tools/prepare-training-content.py",
     "Tools/test-prepare-training-content.py",

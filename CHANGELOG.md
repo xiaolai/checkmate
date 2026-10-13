@@ -1,3 +1,9 @@
+# Unreleased
+
+Every recording is now transcribed before it is published, and a clip whose
+ending, words or squares are not all heard is refused. A faint doubled word under
+the voice cannot be caught this way; that still needs listening.
+
 # Checkmate 0.7.2
 
 The control bar under the board is redesigned. In a lesson its four playback

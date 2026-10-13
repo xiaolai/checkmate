@@ -143,6 +143,10 @@ def main():
     units = recorder.load_units(ROOT / 'Content/lesson-narration.en-GB.jsonl')
     masters, missing, failures = verifier.verify(profile, units, args.recordings)
     assert not missing and not failures, 'Incomplete or invalid recordings; run the verifier'
+    # Every master must be heard saying its whole text, its ending and its squares (Tools/check-narration-coverage.py).
+    coverage = module('coverage', 'check-narration-coverage.py')
+    unheard = [m['id'] for m in masters if not coverage.passing(args.recordings, m)]
+    assert not unheard, 'No passing coverage check for: ' + ', '.join(unheard[:20]) + '; run Tools/check-narration-coverage.py'
     identity = asset_set_identity(masters, config)
     relative = Path('course') / ('cedar-' + identity[:12])
     destination = RESOURCES / relative
