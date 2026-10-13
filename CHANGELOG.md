@@ -1,3 +1,33 @@
+# Checkmate 0.7.4
+
+Lessons now draw defence differently from attack. When a piece guards another,
+a curved line runs from the guard to what it protects, with a ring on the guard,
+the way the Inspector shows a protected piece; attacks and moves keep the dashed
+arrow. VoiceOver reads it on both squares ("guards f7", "guarded by e8"). About
+40 steps across 20 lessons changed: arrows that really showed a guard became
+guard lines (the bishop guarding the queen in Scholar's Mate, rooks guarding
+each other, the king beside its pawn), steps whose narration says a piece guards
+another now draw it, and the discovered-attack setups draw the whole blocked line
+through the piece in the way.
+
+A guard appears when it becomes true: the king's guard of the queen when she
+lands beside him, the d-pawn's guard of e4 when it reaches d3. In Chess Notation,
+the other knight (or rook) that could have made the move is shown before the
+move instead of after it. Scholar's Mate step 2 and Winning Material Puzzles step
+4 reveal their guards sentence by sentence; when stepped to while paused they
+show everything at once. Translated narration spaces those stages evenly rather
+than by sentence.
+
+Automated acceptance covered every gate on a second test Mac. A real-pointer
+check opened Scholar's Mate step 2 and confirmed both guards while paused, only
+Black's after Play, and White's with its sentence, with screenshots reviewed. An
+independent python-chess audit checks every guard and stage. No narration was
+re-recorded. The new illustrations have not yet been watched through by a
+person beyond those screenshots. Saved translations of the twenty changed
+lessons no longer match them and have to be made again; the other 19 lessons
+keep theirs. Live voice and
+translation were not exercised for this release.
+
 # Checkmate 0.7.3
 
 34 lesson recordings are re-recorded. In 21, the voice stopped before the last
