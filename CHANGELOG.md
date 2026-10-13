@@ -1,3 +1,34 @@
+# Unreleased
+
+"Now try it yourself" is now a real turn inside the lesson. In the thirteen
+lessons that end with an exercise (The Pawn, Castling, Castling Rules,
+Promotion and En Passant, Scholar's Mate, the five tactics and the three basic
+checkmates), the last step's own board is the learner's to play: click or drag
+a White piece, with both drawers open or closed, and the computer answers.
+Before, that board ignored every click and the drawer's "Try it against the
+computer" left the lesson for a practice game that replaced the learner's own
+game, with no way back. That button and its route are gone.
+
+The title shows where the exercise stands (Your turn, Computer's turn, Try
+again, Well done, Play on). The drawer lists what counts as doing it, two hints
+about the starting position and then a move shown as an arrow, Undo turn and
+Restart. A move that leaves
+the taught idea is called out and undone; Castling Rules explains why the
+other side cannot castle; stalemate in a checkmate lesson is explained rather
+than counted. The tactics follow an authored line with the computer's best
+defence; a fixed-depth search checks that the line wins its material against
+every defence and that no other winning move of the same shape is refused. After success the
+learner may play on against the beginner opponent. Leaving the step, the lesson
+or the app keeps the attempt exactly where it was; the computer's turn waits
+for Resume, as it does while the app is hidden. The practice game is never
+touched. Narration ending on the
+exercise never moves on to the next lesson.
+
+The Pin's exercise has a new position. In the old one no pin could win
+material, so "Pin it, attack it, and win material" was not true there; the new
+board keeps the knight on c6 and the king on e8, so the recorded narration
+stays word for word.
+
 # Checkmate 0.7.0
 
 The beginner course is new. Every lesson, board, puzzle and recording was

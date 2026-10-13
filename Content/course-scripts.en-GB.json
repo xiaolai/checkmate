@@ -1008,7 +1008,24 @@
       ],
       "practice": {
         "fen": "6k1/1pp2p2/8/3p4/8/2P2P2/1P2P3/6K1 w - - 0 1",
-        "goal": "Move your pawns forward, capture with them when it is safe, and try to win the black pawns."
+        "goal": "Move your pawns forward, capture with them when it is safe, and try to win the black pawns.",
+        "beat": "pawn:19",
+        "checkpoints": [
+          {
+            "kind": "pawnAdvance",
+            "label": "Move a pawn forward"
+          },
+          {
+            "kind": "pawnCapture",
+            "label": "Capture with a pawn"
+          }
+        ],
+        "opponent": "beginner",
+        "hints": [
+          "Pawns move straight ahead but capture one square diagonally forward. Move a pawn up until it attacks a black pawn, and check that it will be safe there.",
+          "The black pawn on d5 is the nearest target: a white pawn on c4 or e4 would attack it."
+        ],
+        "success": "You moved a pawn forward and captured with a pawn. Play on and try to win the black pawns, keeping your own pawns safe."
       },
       "beats": [
         {
@@ -7811,7 +7828,34 @@
       ],
       "practice": {
         "fen": "rnbq1rk1/ppp1bppp/3p1n2/4p3/2B1P3/2NP1N2/PPP2PPP/R1BQK2R w KQ - 3 6",
-        "goal": "Castle kingside to make your king safe, then keep bringing out your pieces."
+        "goal": "Castle kingside to make your king safe, then keep bringing out your pieces.",
+        "beat": "castling:15",
+        "teaching": [
+          {
+            "fingerprint": "rnbq1rk1/ppp1bppp/3p1n2/4p3/2B1P3/2NP1N2/PPP2PPP/R1BQK2R w",
+            "accepted": [
+              "e1g1"
+            ]
+          }
+        ],
+        "checkpoints": [
+          {
+            "kind": "castle",
+            "label": "Castle kingside"
+          }
+        ],
+        "opponent": "beginner",
+        "hints": [
+          "Castling moves your king and a rook in one turn. Check which side has an empty path between the king and its rook.",
+          "Your knight and bishop have already left g1 and f1, but your bishop and queen still stand on c1 and d1."
+        ],
+        "offTrack": "That move is not castling. Undo it, then move your king two squares towards the rook on the side with a clear path; the rook hops over it.",
+        "mistakes": {
+          "e1c1": "You cannot castle queenside yet: your bishop on c1 and queen on d1 still stand between the king and the rook on a1.",
+          "e1f1": "That moves the king only one square, and a king that has moved can never castle. Undo it and move the king two squares instead.",
+          "h1f1": "Moving the rook first is not castling, and a rook that has moved can never castle. Undo it and start with your king."
+        },
+        "success": "Well done: your king is tucked away on g1 behind its pawns, and your rook has come to f1, towards the centre. Keep bringing out your pieces."
       },
       "beats": [
         {
@@ -8246,7 +8290,33 @@
       ],
       "practice": {
         "fen": "r2q1rk1/p1pnbppp/bp1ppn2/8/3PP3/2N1BN2/PPPQ1PPP/R3K2R w KQ - 2 10",
-        "goal": "Work out which side you may castle on, castle there, then keep bringing out your pieces."
+        "goal": "Work out which side you may castle on, castle there, then keep bringing out your pieces.",
+        "beat": "castling-rules:16",
+        "teaching": [
+          {
+            "fingerprint": "r2q1rk1/p1pnbppp/bp1ppn2/8/3PP3/2N1BN2/PPPQ1PPP/R3K2R w",
+            "accepted": [
+              "e1c1"
+            ]
+          }
+        ],
+        "checkpoints": [
+          {
+            "kind": "castle",
+            "label": "Castle on the allowed side"
+          }
+        ],
+        "opponent": "beginner",
+        "hints": [
+          "Go through the checklist for each side: is the path empty, have the king and rook stayed at home, and is the king safe now, on the way and where it lands?",
+          "Follow the diagonal from Black's bishop on a6 towards your kingside. Which square that your king would cross does it attack?"
+        ],
+        "offTrack": "That move is not castling. Undo it, then castle on the side where your king does not cross or land on an attacked square.",
+        "mistakes": {
+          "e1g1": "You cannot castle kingside here: Black's bishop on a6 attacks f1, the square your king would cross. Check the other side.",
+          "e1d1": "That moves the king only one square, and a king that has moved can never castle. Undo it and castle instead."
+        },
+        "success": "Well done: you castled queenside, the only side allowed here, because Black's bishop on a6 attacks f1. Your king is on c1 and your rook on d1. Play on."
       },
       "beats": [
         {
@@ -8721,7 +8791,37 @@
       ],
       "practice": {
         "fen": "6k1/5ppp/P7/3pP3/8/8/5PPP/6K1 w - d6 0 1",
-        "goal": "Capture the pawn on d5 en passant, then race a pawn to the eighth rank and promote it."
+        "goal": "Capture the pawn on d5 en passant, then race a pawn to the eighth rank and promote it.",
+        "beat": "promotion-en-passant:19",
+        "teaching": [
+          {
+            "fingerprint": "6k1/5ppp/P7/3pP3/8/8/5PPP/6K1 w",
+            "accepted": [
+              "e5d6"
+            ]
+          }
+        ],
+        "checkpoints": [
+          {
+            "kind": "enPassant",
+            "label": "Capture en passant"
+          },
+          {
+            "kind": "promote",
+            "label": "Promote a pawn"
+          }
+        ],
+        "opponent": "beginner",
+        "hints": [
+          "En passant comes with a time limit: you may capture a pawn that has just made a double step only on the very next move, never later.",
+          "Your pawn on e5 stands right beside the black pawn on d5. Look at the square the black pawn passed over."
+        ],
+        "offTrack": "That move lets the en passant chance go for good. Undo it and capture the pawn on d5 first, by moving your e5 pawn onto the square it passed over.",
+        "mistakes": {
+          "a6a7": "Your a-pawn can race later. En passant must be played at once or the chance is gone, so undo this and capture the d5 pawn in passing first.",
+          "e5e6": "Pushing past the black pawn throws the en passant chance away. Undo it and capture the pawn on d5 in passing first."
+        },
+        "success": "Well done: you captured en passant and promoted a pawn, so you have used both special pawn rules. Play on with your new piece."
       },
       "beats": [
         {
@@ -12974,7 +13074,76 @@
       ],
       "practice": {
         "fen": "rnb1k1nr/pppp1ppp/5q2/2b1p3/2B1P3/2N5/PPPP1PPP/R1BQK1NR w KQkq - 0 1",
-        "goal": "Black threatens checkmate on f2. Stop it with a developing move, castle, and chase the early queen."
+        "goal": "Black threatens checkmate on f2. Stop it with a developing move, castle, and chase the early queen.",
+        "beat": "scholars-mate:20",
+        "teaching": [
+          {
+            "fingerprint": "rnb1k1nr/pppp1ppp/5q2/2b1p3/2B1P3/2N5/PPPP1PPP/R1BQK1NR w",
+            "accepted": [
+              "g1f3",
+              "g1h3"
+            ],
+            "replies": {
+              "c4e6": "f6f2",
+              "c4a6": "f6f2",
+              "c4d5": "f6f2",
+              "c4b5": "f6f2",
+              "c4d3": "f6f2",
+              "c4b3": "f6f2",
+              "c4e2": "f6f2",
+              "c4f1": "f6f2",
+              "c3d5": "f6f2",
+              "c3b5": "f6f2",
+              "c3a4": "f6f2",
+              "c3e2": "f6f2",
+              "c3b1": "f6f2",
+              "g1e2": "f6f2",
+              "e1f1": "f6f2",
+              "a1b1": "f6f2",
+              "h2h3": "f6f2",
+              "g2g3": "f6f2",
+              "d2d3": "f6f2",
+              "b2b3": "f6f2",
+              "a2a3": "f6f2",
+              "h2h4": "f6f2",
+              "g2g4": "f6f2",
+              "b2b4": "f6f2",
+              "a2a4": "f6f2"
+            }
+          }
+        ],
+        "checkpoints": [
+          {
+            "kind": "graph",
+            "label": "Stop the mate with a developing move"
+          },
+          {
+            "kind": "castle",
+            "label": "Castle your king"
+          },
+          {
+            "kind": "attackQueen",
+            "label": "Attack Black's queen"
+          }
+        ],
+        "opponent": "beginner",
+        "hints": [
+          "Black's queen and bishop both aim at f2. Bring out a piece you have not moved yet so that it guards f2 or blocks the queen's line to it.",
+          "Look at your knight on g1, which has not moved yet. Which of its squares blocks the queen, and which guards f2?"
+        ],
+        "offTrack": "That move does not stop the threat: Black's queen takes on f2 with checkmate. Undo it and guard f2 or block the queen with a piece you have not moved yet.",
+        "mistakes": {
+          "d1e2": "Your queen now guards f2, so the mate is stopped, but this lesson asks for a developing move. Undo it and bring out a piece that has not moved yet.",
+          "d1f3": "Your queen blocks the line to f2, but bringing her out early is the habit this lesson warns against. Undo it and stop the threat with a developing move.",
+          "d1h5": "Moving your queen frees d1 for your king, but Black's queen still takes on f2 with check. Undo it and guard f2 with a developing move.",
+          "d1g4": "Moving your queen frees d1 for your king, but Black's queen still takes on f2 with check. Undo it and guard f2 with a developing move.",
+          "e1e2": "Your king steps off the line, but it can never castle now and it stands in the open. Undo it and stop the threat with a developing move.",
+          "f2f3": "The pawn blocks the queen, but it develops nothing and takes f3 away from your knight. Undo it and stop the threat with a developing move.",
+          "f2f4": "This pawn move develops nothing, and the pawn can simply be captured. Undo it and stop the threat with a developing move.",
+          "d2d4": "The pawn on d4 blocks Black's bishop and stops the mate, but it develops nothing and can be captured. Undo it and stop the threat with a developing move.",
+          "c4f7": "Giving up your bishop with check stops the mate for now, but Black simply takes it and wins a piece for a pawn. Undo it and stop the threat with a developing move."
+        },
+        "success": "Well done: a developing move stopped the mate, your king is castled, and you attacked Black's early queen. That is how to meet Scholar's Mate."
       }
     },
     {
@@ -13300,7 +13469,47 @@
       ],
       "practice": {
         "fen": "rn1q1r1k/ppp3pp/8/6N1/8/8/PPPP1PPP/R1BQ2K1 w - - 0 1",
-        "goal": "Find the knight fork that wins material, then play on to win the game."
+        "goal": "Find the knight fork that wins material, then play on to win the game.",
+        "beat": "fork:14",
+        "teaching": [
+          {
+            "fingerprint": "rn1q1r1k/ppp3pp/8/6N1/8/8/PPPP1PPP/R1BQ2K1 w",
+            "accepted": [
+              "g5e6"
+            ],
+            "replies": {
+              "g5e6": "d8e7",
+              "g5f7": "f8f7"
+            },
+            "next": {
+              "g5e6": 1
+            }
+          },
+          {
+            "fingerprint": "rn3r1k/ppp1q1pp/4N3/8/8/8/PPPP1PPP/R1BQ2K1 w",
+            "accepted": [
+              "e6f8"
+            ]
+          }
+        ],
+        "checkpoints": [
+          {
+            "kind": "graph",
+            "label": "Fork two pieces and win material",
+            "tactic": "fork",
+            "gain": 2
+          }
+        ],
+        "opponent": "beginner",
+        "hints": [
+          "Look for a square where your knight attacks two valuable black pieces at once, and where no black piece can capture it.",
+          "Black's queen on d8 and rook on f8 are the targets. Which jump of your knight on g5 attacks both of them?"
+        ],
+        "offTrack": "That move does not win material with a fork. Undo it: put your knight where it attacks two black pieces at once, then take the one Black cannot save.",
+        "mistakes": {
+          "g5f7": "The knight on f7 checks the king and attacks the queen, but Black's rook on f8 simply takes it. Undo it and fork from a safe square."
+        },
+        "success": "Your knight attacked Black's queen and rook together. The queen escaped, so the knight took the rook: a rook, worth five, for at most a knight, worth three. Play on to win the game."
       }
     },
     {
@@ -13599,7 +13808,6 @@
           "say": "Now try it yourself against the computer. Black's knight on c6 stands on the same diagonal as Black's king. Pin it, attack it, and win material.",
           "set": {
             "g1": "wk",
-            "d1": "wq",
             "a1": "wr",
             "f1": "wr",
             "c4": "wb",
@@ -13611,21 +13819,24 @@
             "e4": "wp",
             "f2": "wp",
             "g2": "wp",
-            "h2": "wp",
             "e8": "bk",
-            "e7": "bq",
-            "a8": "br",
+            "e7": "bp",
             "h8": "br",
             "f8": "bb",
             "c6": "bn",
             "g8": "bn",
-            "a7": "bp",
             "b7": "bp",
             "c7": "bp",
             "d6": "bp",
             "f7": "bp",
             "g7": "bp",
-            "h7": "bp"
+            "h7": "bp",
+            "d8": "bq",
+            "b8": "br",
+            "a5": "bp",
+            "h3": "wp",
+            "e3": "wb",
+            "d2": "wq"
           },
           "hl": [
             {
@@ -13642,8 +13853,59 @@
         }
       ],
       "practice": {
-        "fen": "r3kbnr/ppp1qppp/2np4/8/2BPP3/2N5/PPP2PPP/R2Q1RK1 w kq - 0 1",
-        "goal": "Pin Black's knight to the king, attack the pinned piece, and win material."
+        "fen": "1r1qkbnr/1pp1pppp/2np4/p7/2BPP3/2N1B2P/PPPQ1PP1/R4RK1 w k - 0 12",
+        "goal": "Pin Black's knight to the king, attack the pinned piece, and win material.",
+        "beat": "pin:13",
+        "teaching": [
+          {
+            "fingerprint": "1r1qkbnr/1pp1pppp/2np4/p7/2BPP3/2N1B2P/PPPQ1PP1/R4RK1 w",
+            "accepted": [
+              "c4b5"
+            ],
+            "replies": {
+              "c4b5": "d8d7"
+            },
+            "next": {
+              "c4b5": 1
+            }
+          },
+          {
+            "fingerprint": "1r2kbnr/1ppqpppp/2np4/pB6/3PP3/2N1B2P/PPPQ1PP1/R4RK1 w",
+            "accepted": [
+              "d4d5"
+            ],
+            "replies": {
+              "d4d5": "e8d8"
+            },
+            "next": {
+              "d4d5": 2
+            }
+          },
+          {
+            "fingerprint": "1r1k1bnr/1ppqpppp/2np4/pB1P4/4P3/2N1B2P/PPPQ1PP1/R4RK1 w",
+            "accepted": [
+              "d5c6"
+            ]
+          }
+        ],
+        "checkpoints": [
+          {
+            "kind": "graph",
+            "label": "Pin the knight, attack it, win material",
+            "tactic": "pin",
+            "gain": 2
+          }
+        ],
+        "opponent": "beginner",
+        "hints": [
+          "Pin the knight to its king with a piece that moves along that diagonal, then attack the pinned knight again, ideally with a pawn.",
+          "Your bishop on c4 can step onto the diagonal in front of the knight, and your pawn on d4 is one step from attacking c6."
+        ],
+        "offTrack": "That does not use the pin. Undo it: pin the knight on c6 to the king first, then attack it with a pawn so that it cannot run.",
+        "mistakes": {
+          "d4d5": "Attacking the knight before it is pinned lets it run, and from e5 it would attack your bishop. Undo it and pin the knight first."
+        },
+        "success": "Your bishop pinned the knight and your pawn attacked it. The knight could not run without losing more, so your pawn took it: a knight for at most a pawn. Play on."
       }
     },
     {
@@ -13971,7 +14233,46 @@
       ],
       "practice": {
         "fen": "rr4q1/p1pn2pp/4k3/8/8/2N5/PPPQ1PPP/3R1BK1 w - - 0 1",
-        "goal": "Skewer Black's king and queen with a check, win the queen, and play on to win."
+        "goal": "Skewer Black's king and queen with a check, win the queen, and play on to win.",
+        "beat": "skewer:14",
+        "teaching": [
+          {
+            "fingerprint": "rr4q1/p1pn2pp/4k3/8/8/2N5/PPPQ1PPP/3R1BK1 w",
+            "accepted": [
+              "f1c4"
+            ],
+            "replies": {
+              "f1c4": "e6f6"
+            },
+            "next": {
+              "f1c4": 1
+            }
+          },
+          {
+            "fingerprint": "rr4q1/p1pn2pp/5k2/8/2B5/2N5/PPPQ1PPP/3R2K1 w",
+            "accepted": [
+              "c4g8"
+            ]
+          }
+        ],
+        "checkpoints": [
+          {
+            "kind": "graph",
+            "label": "Skewer the king and win the queen",
+            "tactic": "skewer",
+            "gain": 6
+          }
+        ],
+        "opponent": "beginner",
+        "hints": [
+          "Give check along the diagonal that runs through Black's king to the queen behind it. When the king steps aside, the queen can be taken.",
+          "Your bishop on f1 can reach that diagonal. Find the square where it checks the king and cannot be taken."
+        ],
+        "offTrack": "That does not win the queen. Undo it: check the king along its diagonal with the queen behind it, then take the queen when the king steps aside.",
+        "mistakes": {
+          "d2d5": "Your queen gives check on the right diagonal, but taking Black's queen with her is only an even trade. Undo it and skewer with a cheaper piece."
+        },
+        "success": "The check forced Black's king off the diagonal, and your bishop took the queen behind it. Even if Black takes your bishop back, you have won a queen for a bishop. Play on."
       }
     },
     {
@@ -14450,7 +14751,58 @@
       ],
       "practice": {
         "fen": "4k2r/pp3ppp/8/2q1N3/8/8/P4PPP/4R1K1 w - - 0 1",
-        "goal": "Move the knight off the e-file to uncover a check from your rook, and win material."
+        "goal": "Move the knight off the e-file to uncover a check from your rook, and win material.",
+        "beat": "discovered-attack:18",
+        "teaching": [
+          {
+            "fingerprint": "4k2r/pp3ppp/8/2q1N3/8/8/P4PPP/4R1K1 w",
+            "accepted": [
+              "e5d3",
+              "e5g6"
+            ],
+            "replies": {
+              "e5d3": "c5e7",
+              "e5g6": "e8d8",
+              "e5d7": "e8d7",
+              "e5f7": "e8f7"
+            },
+            "next": {
+              "e5d3": 1,
+              "e5g6": 2
+            }
+          },
+          {
+            "fingerprint": "4k2r/pp2qppp/8/8/8/3N4/P4PPP/4R1K1 w",
+            "accepted": [
+              "e1e7"
+            ]
+          },
+          {
+            "fingerprint": "3k3r/pp3ppp/6N1/2q5/8/8/P4PPP/4R1K1 w",
+            "accepted": [
+              "g6h8"
+            ]
+          }
+        ],
+        "checkpoints": [
+          {
+            "kind": "graph",
+            "label": "Uncover check and win material",
+            "tactic": "discovered",
+            "gain": 3
+          }
+        ],
+        "opponent": "beginner",
+        "hints": [
+          "When your knight leaves the e-file, your rook on e1 gives check. Choose a knight move that also attacks something valuable, so Black cannot deal with both.",
+          "Black's queen on c5 and rook on h8 are the targets. Which knight jump attacks one of them while your rook gives check?"
+        ],
+        "offTrack": "That does not win material. Undo it: uncover the rook's check with a knight move that also attacks something, then capture what Black cannot save.",
+        "mistakes": {
+          "e5d7": "The knight on d7 uncovers check and attacks the queen, but Black's king simply takes it. Undo it and find a square the king cannot reach.",
+          "e5f7": "Taking the pawn on f7 uncovers check, but Black's king takes your knight. Undo it and find a knight move the king cannot answer by taking the knight."
+        },
+        "success": "Your knight uncovered a check from the rook, and Black had to answer it first, so it could not save everything. You won material. Play on."
       }
     },
     {
@@ -14751,7 +15103,47 @@
       ],
       "practice": {
         "fen": "6k1/pp3ppp/2n5/1B6/3b4/8/PPP2PPP/3R2K1 w - - 0 1",
-        "goal": "Remove the knight that guards Black's bishop on d4, then win the bishop."
+        "goal": "Remove the knight that guards Black's bishop on d4, then win the bishop.",
+        "beat": "removing-the-defender:14",
+        "teaching": [
+          {
+            "fingerprint": "6k1/pp3ppp/2n5/1B6/3b4/8/PPP2PPP/3R2K1 w",
+            "accepted": [
+              "b5c6"
+            ],
+            "replies": {
+              "b5c6": "b7c6",
+              "d1d4": "c6d4"
+            },
+            "next": {
+              "b5c6": 1
+            }
+          },
+          {
+            "fingerprint": "6k1/p4ppp/2p5/8/3b4/8/PPP2PPP/3R2K1 w",
+            "accepted": [
+              "d1d4"
+            ]
+          }
+        ],
+        "checkpoints": [
+          {
+            "kind": "graph",
+            "label": "Remove the guard and win the bishop",
+            "tactic": "removeDefender",
+            "gain": 3
+          }
+        ],
+        "opponent": "beginner",
+        "hints": [
+          "A guarded piece is hard to win. Count its guards: if you capture or chase away the only one, the piece is left alone.",
+          "Which of your pieces attacks the knight on c6, the only guard of Black's bishop?"
+        ],
+        "offTrack": "That does not win the bishop. Undo it: first take away the knight that guards it, then capture the bishop with your rook.",
+        "mistakes": {
+          "d1d4": "If your rook takes the bishop now, the knight on c6 takes your rook: a rook, worth five, for a bishop, worth three. Undo it and remove the guard first."
+        },
+        "success": "You traded your bishop for the knight that guarded Black's bishop, and then your rook took the unguarded bishop: a whole bishop won. Play on."
       }
     },
     {
@@ -15121,7 +15513,20 @@
       ],
       "practice": {
         "fen": "8/8/8/8/4k3/8/1R6/R5K1 w - - 0 1",
-        "goal": "Use your two rooks like a ladder to checkmate Black's king."
+        "goal": "Use your two rooks like a ladder to checkmate Black's king.",
+        "beat": "two-rook-mate:16",
+        "checkpoints": [
+          {
+            "kind": "mate",
+            "label": "Checkmate Black's king"
+          }
+        ],
+        "opponent": "defender",
+        "hints": [
+          "Climb the ladder: one rook guards a rank as a wall while the other checks on the next rank. If the king comes close to a rook, slide that rook to the far side first.",
+          "Black's king is on e4. Put one rook on the third rank as a wall, then check from the fourth rank with the other."
+        ],
+        "success": "Checkmate! Your rooks took turns, one holding a wall while the other gave check, until Black's king had nowhere to go."
       }
     },
     {
@@ -15489,7 +15894,20 @@
       ],
       "practice": {
         "fen": "8/8/8/4k3/8/8/8/2KQ4 w - - 0 1",
-        "goal": "Checkmate Black's king with your queen and king, without allowing stalemate."
+        "goal": "Checkmate Black's king with your queen and king, without allowing stalemate.",
+        "beat": "queen-mate:17",
+        "checkpoints": [
+          {
+            "kind": "mate",
+            "label": "Checkmate Black's king"
+          }
+        ],
+        "opponent": "defender",
+        "hints": [
+          "Build a box: keep your queen a knight's move from Black's king and follow it, making the box smaller. Stop before stalemate and bring your king up to help.",
+          "Your king on c1 must walk up the board to guard the queen's final square. Before each queen move near the edge, check that Black's king can still move."
+        ],
+        "success": "Checkmate! Your queen boxed in Black's king, your king came up to guard her, and you never took away the king's last square too early."
       }
     },
     {
@@ -15801,7 +16219,20 @@
       ],
       "practice": {
         "fen": "8/8/8/3k4/8/8/8/4K2R w - - 0 1",
-        "goal": "Checkmate Black's king with your rook and king, without allowing stalemate."
+        "goal": "Checkmate Black's king with your rook and king, without allowing stalemate.",
+        "beat": "rook-mate:16",
+        "checkpoints": [
+          {
+            "kind": "mate",
+            "label": "Checkmate Black's king"
+          }
+        ],
+        "opponent": "defender",
+        "hints": [
+          "Box the king in with your rook, walk your own king up, and give check with the rook when the two kings face each other.",
+          "Your rook on h1 can guard a whole rank or file to start the box. Then bring your king from e1 towards Black's king."
+        ],
+        "success": "Checkmate! Your rook made the box smaller with each check, and your king guarded the squares the rook could not."
       }
     },
     {

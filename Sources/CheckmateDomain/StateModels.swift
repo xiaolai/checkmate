@@ -67,7 +67,8 @@ public struct PracticeState:Codable {
 }
 /// `edition` is the course edition the progress refers to; progress saved without one is edition 1 and is carried
 /// forward by `ProgressMigration` as it loads.
-public struct CourseProgress:Codable {public var lessonID="intro",step=0,segmentID:String?,positions:[String:String]?,completed:[String]=[],answered:[String]=[],edition:Int?=ProgressMigration.courseEdition;public init(){}}
+/// `completed` lists lessons explored to their end; `practised`, lessons whose own exercise was done at least once.
+public struct CourseProgress:Codable {public var lessonID="intro",step=0,segmentID:String?,positions:[String:String]?,completed:[String]=[],answered:[String]=[],edition:Int?=ProgressMigration.courseEdition,practised:[String]?;public init(){}}
 /// One puzzle's progress. `attempts` counts the learner's answers, one per answer.
 public struct PuzzleProgress:Codable,Equatable {
     /// The most attempts a loaded or imported record may hold (`StateStore.validate` refuses more): the bound every
@@ -83,6 +84,8 @@ public struct WindowState:Codable {public var left=false,right=false,settingsCat
 public struct ApplicationState:Codable {
     public var schemaVersion=1,savedAt=Date(),practice=PracticeState(),course=CourseProgress(),settings=AppSettings(),puzzles:[String:PuzzleProgress]=[:],window=WindowState(),importedArchives:[String]=[]
     public var miniGames:[String:MiniGameState]?
+    /// Each lesson's exercise in progress, by lesson id: separate from the practice game, mini-games and training.
+    public var lessonAttempts:[String:LessonAttemptRecord]?
     public var puzzleFilters:[String:String]?
     /// Optional training progress with its own envelope version; schemaVersion stays 1 (plan: Data Model).
     public var training:TrainingState?
@@ -98,12 +101,12 @@ public struct ApplicationState:Codable {
     /// top. Written back only into a record that still exists, so a record this build removed is never revived as a stub.
     public var unknownNestedFields:[[String]:JSONValue]=[:]
     public init(){}
-    private enum CodingKeys:String,CodingKey {case schemaVersion,savedAt,practice,course,settings,puzzles,window,importedArchives,miniGames,puzzleFilters,training}
+    private enum CodingKeys:String,CodingKey {case schemaVersion,savedAt,practice,course,settings,puzzles,window,importedArchives,miniGames,lessonAttempts,puzzleFilters,training}
     /// The objects whose own unknown keys are kept as well; other values (puzzles, positions) are this build's records.
-    static let preservedObjects:Set<String>=["practice","course","settings","window","miniGames","training"]
+    static let preservedObjects:Set<String>=["practice","course","settings","window","miniGames","training","lessonAttempts"]
     /// Every key this build can write, from a state with each optional field present.
     private static let writable:[String:JSONValue]={
-        var probe=ApplicationState();probe.miniGames=[:];probe.puzzleFilters=[:];probe.training=TrainingState();probe.window.frame=[0,0,1,1];probe.course.segmentID="";probe.course.positions=[:]
+        var probe=ApplicationState();probe.miniGames=[:];probe.lessonAttempts=[:];probe.course.practised=[];probe.puzzleFilters=[:];probe.training=TrainingState();probe.window.frame=[0,0,1,1];probe.course.segmentID="";probe.course.positions=[:]
         probe.practice.ending=PracticeEnding(result:"1-0",reason:"");probe.practice.previousEnding=probe.practice.ending
         return (try? jsonObject(probe)) ?? [:]
     }()
@@ -175,6 +178,9 @@ public struct ApplicationState:Codable {
         settings=try field(.settings,AppSettings.self);puzzles=try field(.puzzles,[String:PuzzleProgress].self);window=try field(.window,WindowState.self);importedArchives=try field(.importedArchives,[String].self)
         if case .object(let games)?=raw["miniGames"] {var known:[String:MiniGameState]=[:];for (key,game) in games where MiniGameKind(rawValue:key) != nil {known[key]=try JSONDecoder().decode(MiniGameState.self,from:JSONEncoder().encode(game))};miniGames=known}
         else if let games=raw["miniGames"],games != .null {throw DecodingError.typeMismatch([String:MiniGameState].self,.init(codingPath:decoder.codingPath,debugDescription:"Saved mini-games are not an object."))}
+        // An attempt this build cannot read is left out on its own (kept raw in `unknownFields` and written back until
+        // the learner plays that exercise here): the rest still loads.
+        if case .object(let attempts)?=raw["lessonAttempts"] {var known:[String:LessonAttemptRecord]=[:];for (key,value) in attempts {if let record=try? JSONDecoder().decode(LessonAttemptRecord.self,from:JSONEncoder().encode(value)){known[key]=record}};lessonAttempts=known}
         if let filters=raw["puzzleFilters"],filters != .null {puzzleFilters=try JSONDecoder().decode([String:String].self,from:JSONEncoder().encode(filters))}
         // Bad or newer training data never prevents loading the rest: it is kept raw, never silently replaced.
         if let value=raw["training"],value != .null {
@@ -187,7 +193,7 @@ public struct ApplicationState:Codable {
         var c=encoder.container(keyedBy:CodingKeys.self)
         try c.encode(schemaVersion,forKey:.schemaVersion);try c.encode(savedAt,forKey:.savedAt);try c.encode(practice,forKey:.practice);try c.encode(course,forKey:.course)
         try c.encode(settings,forKey:.settings);try c.encode(puzzles,forKey:.puzzles);try c.encode(window,forKey:.window);try c.encode(importedArchives,forKey:.importedArchives)
-        try c.encodeIfPresent(miniGames,forKey:.miniGames);try c.encodeIfPresent(puzzleFilters,forKey:.puzzleFilters)
+        try c.encodeIfPresent(miniGames,forKey:.miniGames);try c.encodeIfPresent(lessonAttempts,forKey:.lessonAttempts);try c.encodeIfPresent(puzzleFilters,forKey:.puzzleFilters)
         if let trainingRaw{try c.encode(trainingRaw,forKey:.training)}else{try c.encodeIfPresent(training,forKey:.training)}
     }
     /// Training records may be written: none was kept raw for lack of understanding.

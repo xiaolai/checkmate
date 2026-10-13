@@ -50,7 +50,7 @@ final class LessonRemediationTests:XCTestCase {
             s.state.settings.pauseForPractice=pause;p.openLesson(index:3)
             p.seek(step:p.current.beats.count-1);p.play();p.advance(by:p.duration)
             XCTAssertEqual(p.lessonIndex,pause ? 3:4);XCTAssertEqual(p.playing,!pause)
-            XCTAssertEqual(p.feedback,pause ? "Try it on the board, or continue to the next lesson.":"");p.shutdown()
+            XCTAssertEqual(p.feedback,pause ? "Play Pawn Duel, or continue to the next lesson.":"");p.shutdown()
         }
     }
     func testOldSettingsEnablePracticePause()throws {
@@ -73,14 +73,6 @@ extension LessonRemediationTests {
             XCTAssertEqual(r.board.values.filter{$0=="wk"}.count,1);XCTAssertEqual(r.board.values.filter{$0=="bk"}.count,1)
             try GameSession.validatePracticeFork(r,side:"w")
         }
-    }
-    @MainActor func testLessonPracticePreservesPreviousGameAndProgress()throws {
-        let s=try GameSession(engine:nil),p=try LearningPlayer(session:s)
-        try s.rules.move("e2","e4");try s.rules.move("e7","e5");let old=s.rules.pgn
-        p.openLesson(index:29);p.seek(step:5);let progress=s.state.course.segmentID
-        try s.installPracticeFork(ChessRules(fen:p.library.lessons.first{$0.id=="fork"}!.practice!.fen),side:"w")
-        XCTAssertEqual(s.state.practice.previousGame,old);XCTAssertEqual(s.state.course.segmentID,progress);XCTAssertEqual(s.mode,.practice)
-        try s.restorePrevious();XCTAssertEqual(s.rules.pgn,old);p.shutdown()
     }
     func testCueTimingScalesWithNarrationAndPreservesSlowAnimationEndpoints()throws {
         let c=try CourseLibrary(),li=c.lessons.firstIndex{$0.id=="safe-squares"}!,si=c.lessons[li].beats.firstIndex{$0.id=="safe-squares:14"}!
@@ -114,10 +106,11 @@ extension LessonRemediationTests {
 extension LessonRemediationTests {
     /// Every lesson's translation fingerprint, pinned when course edition 2 was published. A saved translation pack
     /// is rebuilt when its lesson's fingerprint changes, so an accidental edit to any lesson must fail here first.
+    /// Re-pinned when The Pin's exercise board (pin:13) changed: in the old position no pin won material.
     func testCourseEditionFingerprintsArePinned()throws {
         let library=try CourseLibrary()
         let all=library.lessons.indices.map{library.lessons[$0].id+"="+LessonTranslation.source(library:library,index:$0).fingerprint}.joined(separator:" ")
-        XCTAssertEqual(SHA256.hash(data:Data(all.utf8)).map{String(format:"%02x",$0)}.joined(),"123d072dba55463f3559b979539857932f634d44f5cb0fe6eb2cc417effc2719")
+        XCTAssertEqual(SHA256.hash(data:Data(all.utf8)).map{String(format:"%02x",$0)}.joined(),"ad5a490a4de918ff48e65155ab2783c43001e022d9565de93218dc28af6fc272")
     }
     /// Grouping a practice activity under its lesson is presentation only: no lesson's translation pack is invalidated by it.
     func testPracticeGroupingLeavesEveryFingerprintAlone()throws {

@@ -146,7 +146,7 @@
    "prebuilt": true,
    "requires": [
     "activityPointerAndComputer",
-    "practicePointerAndPreviousGame",
+    "lessonExerciseLeavesPracticeGame",
     "promotionPointer",
     "silent"
    ],
@@ -166,6 +166,38 @@
     "Sources/CheckmateDomain/Activity.swift",
     "Sources/CheckmateCore/Resources/course*.json",
     "Sources/CheckmateCore/Resources/projections.json"
+   ]
+  },
+  {
+   "name": "lesson-exercise",
+   "key": "lessonExercise",
+   "run": "python3 scripts/test-lesson-exercise.py",
+   "result": "lesson-exercise-results.json",
+   "prebuilt": true,
+   "requires": [
+    "castlingClickAndDragDrawersClosed",
+    "impossibleCastlingExplained",
+    "tacticOffTrackUndoLineAndPlayOn",
+    "leaveAndReturnRestores",
+    "promotionMenuInExercise",
+    "relaunchRestoresAttempt",
+    "practiceGameUntouched",
+    "silent"
+   ],
+   "inputs": [
+    "scripts/test-lesson-exercise.py",
+    "Tools/ax-helper.swift",
+    "Tools/pointer-helper.swift",
+    "Sources/CheckmateNative/BoardView.swift",
+    "Sources/CheckmateNative/MainWindow.swift",
+    "Sources/CheckmateNative/ContentViews.swift",
+    "Sources/CheckmateNative/LessonAttemptPanel.swift",
+    "Sources/CheckmateApplication/LearningPlayer.swift",
+    "Sources/CheckmateApplication/LessonAttempt*.swift",
+    "Sources/CheckmateApplication/BeginnerOpponent.swift",
+    "Sources/CheckmateDomain/LessonPractice.swift",
+    "Sources/CheckmateDomain/StateModels.swift",
+    "Sources/CheckmateCore/Resources/course*.json"
    ]
   },
   {

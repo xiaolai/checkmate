@@ -117,12 +117,14 @@ struct DetailContent:View {
                     Button {model.openPractice(index)} label:{Label("Practise: \(learning.localizedTitle(index:index))",systemImage:"gamecontroller")}
                         .controlSize(.large).accessibilityIdentifier("lesson-open-practice-"+learning.library.lessons[index].id)
                 }
-                if let preset=learning.current.practice {
-                    Button {model.practiceLesson()} label:{Label("Try it against the computer",systemImage:"play.fill")}
-                        .controlSize(.large).accessibilityIdentifier("lesson-practice-position")
-                    Text(preset.goal).foregroundStyle(.secondary)
+                // The exercise is played on the lesson's own invitation step; elsewhere in the lesson this leads there.
+                if !learning.attemptStep,learning.invitationStep != nil,let practice=learning.current.practice {
+                    Button {learning.goToAttempt()} label:{Label(learning.attemptInProgress ? "Resume your attempt":"Go to your turn",systemImage:"play.fill")}
+                        .controlSize(.large).accessibilityIdentifier("lesson-go-to-attempt")
+                    Text(practice.goal).foregroundStyle(.secondary)
                 }
             }
+            if learning.attemptStep {LessonAttemptPanel(learning:learning,continueLesson:{model.continueLesson()});Divider()}
             Picker("Transcript",selection:Binding(get:{learning.step},set:{learning.seek(step:$0)})){ForEach(learning.current.beats.indices,id:\.self){i in Text("\(i+1). \(learning.localizedStepTitle(index:learning.lessonIndex,step:i))").tag(i)}}
                 .labelsHidden()
             if let fallback=learning.fallbackMessage{Text(fallback).font(.caption).foregroundStyle(.secondary)}
@@ -201,11 +203,18 @@ struct TransportContent:View {
                 NativeIcon(symbol:"arrow.left",label:"Previous lesson: \(learning.localizedTitle(index:previous))",action:previousLessonEnd)
             } else {NativeIcon(symbol:"arrow.left",label:"Previous transcript"){learning.seek(step:learning.step-1)}.disabled(learning.step==0)}
             NativeIcon(symbol:learning.playing ? "pause.fill":"play.fill",label:learning.playing ? "Pause":"Play"){learning.playing ? learning.pause():learning.play()}
-            NativeIcon(symbol:"arrow.counterclockwise",label:"Replay transcript"){learning.replay()}
+            NativeIcon(symbol:"arrow.counterclockwise",label:learning.attemptStep ? (learning.attempt.hasMoves ? "Replay the original instruction (your game stays as it is)":"Replay the instruction"):"Replay transcript"){learning.replay()}
             // On the last transcript the arrow moves on to the next main lesson, like Continue; the final lesson just completes.
             if learning.step>=learning.current.beats.count-1,let next=learning.library.nextMainLesson(after:learning.lessonIndex) {
                 NativeIcon(symbol:"arrow.right",label:"Next lesson: \(learning.localizedTitle(index:next))"){learning.complete();continueLesson()}
             } else {NativeIcon(symbol:"arrow.right",label:"Next transcript"){learning.next()}}
+            // The exercise's turn and its recovery stay reachable with the drawers closed.
+            if learning.attemptStep,let status=learning.attemptStatus {
+                TurnIndicator(side:learning.attempt.rules.turn,label:status)
+                if learning.attempt.waitingToResume {NativeIcon(symbol:"play.circle",label:"Resume your attempt"){learning.attempt.resume()}}
+                NativeIcon(symbol:"lightbulb",label:"Hint"){learning.attempt.hint();showDetails()}.disabled(!(learning.attempt.learnerToMove || learning.attempt.phase == .offTrack))
+                NativeIcon(symbol:"arrow.uturn.backward",label:"Undo turn"){learning.attempt.undo()}.disabled(!learning.attempt.hasMoves)
+            }
         } else if learning.activePuzzle != nil {
             NativeIcon(symbol:"square.grid.2x2",label:"Puzzle library"){learning.showPuzzleLibrary()}
             NativeIcon(symbol:"book",label:"Show puzzle question",action:showDetails)

@@ -1,4 +1,4 @@
-"""Silent test-host real-pointer checks for lesson activity handoffs, practice forks and promotion."""
+"""Silent test-host real-pointer checks for lesson activity handoffs, the way to a lesson exercise, and promotion."""
 import json,os,pathlib,re,shutil,subprocess,tempfile,time
 import test_host;test_host.require('lesson pointer acceptance')
 root=pathlib.Path(__file__).resolve().parents[1];evidence=pathlib.Path(os.environ['CHECKMATE_EVIDENCE_DIR']);evidence.mkdir(parents=True,exist_ok=True)
@@ -34,7 +34,6 @@ try:
  wait(lambda:'Your next move.' in listing(),'Details did not open')
  pointer('click-square','e2');pointer('click-square','e4')
  wait(lambda:'1. e4 ' in saved()['practice']['pgn'] and saved()['practice']['fen'].split()[1]=='w','Computer did not reply')
- old=saved()['practice']['pgn']
  pointer('click','Pawn Duel');wait(lambda:'Play Pawn Duel' in listing(),'Visible game invitation missing')
  pointer('click','Play Pawn Duel');wait(lambda:'Your turn' in listing(),'Play button did not start game')
  wait(lambda:pointer('label','e2').startswith('e2, White, pawn'),'Mini-game board did not appear')
@@ -51,10 +50,13 @@ try:
  pointer('scroll-sidebar','-120')
  time.sleep(.5)
  (evidence/'practice-invitation-ax.txt').write_text(listing())
- pointer('click','The Fork');wait(lambda:'Try it against the computer' in listing(),'Practice invitation missing')
- pointer('click','Try it against the computer');wait(lambda:pointer('label','g5').startswith('g5, White, knight'),'Practice button did not install position')
- wait(lambda:saved()['practice'].get('previousGame')==old,'Lesson practice lost previous game')
- results['practicePointerAndPreviousGame']=True
+ # The lesson's exercise is its own invitation step: the button goes there and the practice game stays as it was.
+ game=saved()['practice']['pgn'];previous=saved()['practice'].get('previousGame','')
+ pointer('click','The Fork');wait(lambda:'Go to your turn' in listing(),'The Fork offers no way to its exercise')
+ pointer('click','Go to your turn');wait(lambda:'Current activity | The Fork · Your turn' in listing(),'Go to your turn did not open the exercise step')
+ wait(lambda:pointer('label','g5').startswith('g5, White, knight'),'The exercise board is not the practice position')
+ assert saved()['practice']['pgn']==game and saved()['practice'].get('previousGame','')==previous,'Going to the exercise touched the practice game'
+ results['lessonExerciseLeavesPracticeGame']=True
  stop()
  value=saved();fen='7k/4P3/8/8/8/8/8/K7 w - - 0 1'
  value['practice']['pgn']='[SetUp "1"]\n[FEN "'+fen+'"]\n\n*';value['practice']['fen']=fen;value['practice']['ending']=None
@@ -164,7 +166,7 @@ try:
  pointer('scroll-sidebar','400');time.sleep(.5)
  results['lessonBoundaryArrows']=True
  pointer('click','The Pawn')
- wait(lambda:'Try it against the computer' in listing(),"The Pawn lost its own practice position")
+ wait(lambda:'Go to your turn' in listing() or 'Resume your attempt' in listing() or 'lesson-attempt-status' in listing(),"The Pawn lost its own exercise")
  for _ in range(3):
   pointer('click','The Rook');wait(lambda:'Practise: Rook Practice' in listing(),'The Rook row did not open its lesson')
   pointer('click','Rook Practice');wait(opened('Rook Practice'),'Rook Practice did not reopen')

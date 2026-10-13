@@ -3,8 +3,6 @@ import CheckmateDomain
 import CheckmateRules
 public enum WorkspaceNavigation {
         case practice,returnToGame,lesson(Int,resume:Bool=true),puzzles,reviewWorkspace
-        /// A lesson's own practice position, played as White in a separate game.
-        case lessonPractice(fen:String)
         case review(GameDocument,saved:SavedReview?,draft:Bool)
         case importProgress(ApplicationState,backup:(URL)->Void)
         case practiceFork(side:String,preset:String)
@@ -14,7 +12,7 @@ public enum WorkspaceNavigation {
         /// A training entry's linked lesson, read without moving the course bookmark; the way back leads to training.
         case trainingLesson(id:String)
     }
-fileprivate enum WorkspaceEntry {case none,lessonPractice(ChessRules),review(GameDocument,restore:(cursor:Int,branches:[ReviewBranch])?),importProgress(ApplicationState),practiceFork(ChessRules),training(TrainingController.StagedExercise)}
+fileprivate enum WorkspaceEntry {case none,review(GameDocument,restore:(cursor:Int,branches:[ReviewBranch])?),importProgress(ApplicationState),practiceFork(ChessRules),training(TrainingController.StagedExercise)}
 
 /// A successful preparation carries its request; callers cannot pair it with another navigation.
 public struct PreparedWorkspaceTransition {
@@ -49,7 +47,6 @@ public struct PreparedWorkspaceTransition {
             let rules=try review.practiceForkRules()
             guard !rules.over else{throw CheckmateError.invalid("This position is terminal and cannot start practice.")}
             try GameSession.validatePracticeFork(rules,side:side);try ChessRules().restore(rules.pgn);return .practiceFork(rules)
-        case .lessonPractice(let fen):let rules=try ChessRules(fen:fen);try GameSession.validatePracticeFork(rules,side:"w");return .lessonPractice(rules)
         // A training exercise is chosen, validated and its evaluator built here: a failure leaves the activity as it was.
         case .trainingExercise(let entry,let variant):return .training(try trainingController().stage(trainingController().prepare(entry:entry,variant:variant)))
         case .trainingScenario(let id):return .training(try trainingController().stage(trainingController().prepare(scenario:id)))
@@ -81,12 +78,11 @@ public struct PreparedWorkspaceTransition {
             // The imported record replaces the exercise held in memory: no reply for it may save over the import.
             leaveTraining();training?.exercise=nil;training?.guidedReview=nil
             learning.reloadFilters()
+            // Likewise the lesson exercise shown: it is read again from the imported attempts.
+            learning.reloadAttempt()
         case (.practiceFork(let side,let preset),.practiceFork(let rules)):
             let previous=session.state.settings;var settings=previous;settings.opponentPreset=preset;session.updateSettings(settings,restartOpponent:false)
             do{try session.installPracticeFork(rules,side:side)}catch{session.updateSettings(previous,restartOpponent:false);if session.activity.review != nil{session.enter(.at(place))};throw error}
-            leaveTraining()
-        case (.lessonPractice,.lessonPractice(let rules)):
-            do{try session.installPracticeFork(rules,side:"w")}catch{if session.activity.review != nil{session.enter(.at(place))};throw error}
             leaveTraining()
         case (.trainingLibrary,_):leaveReview(wasReviewing,place);training?.openLibrary()
         case (.trainingLegacy(let kind,let restart),_):leaveReview(wasReviewing,place);leaveTraining();training?.playLegacy(kind,restart:restart)

@@ -118,6 +118,23 @@ def play(board, move, en_passant=None):
     return board
 
 
+def advance(board, colour, castling, en_passant, move):
+    """The position after a legal move: board, side to move, castling rights and en-passant square (FEN fields 1-4).
+
+    A king or rook leaving home, or a rook captured at home, removes the matching rights; a pawn's double step leaves
+    the square it passed over as the en-passant square.
+    """
+    piece = board[move[0]]
+    result = play(board, move, en_passant)
+    for square, rights in (('e1', 'KQ'), ('e8', 'kq'), ('h1', 'K'), ('a1', 'Q'), ('h8', 'k'), ('a8', 'q')):
+        if square in (move[0], move[1]):
+            castling = ''.join(c for c in castling if c not in rights)
+    passed = None
+    if piece[1] == 'p' and abs(int(move[0][1]) - int(move[1][1])) == 2:
+        passed = move[0][0] + str((int(move[0][1]) + int(move[1][1])) // 2)
+    return result, other(colour), castling, passed
+
+
 def in_check(board, colour):
     king = next((s for s, p in board.items() if p == colour + 'k'), None)
     return king is not None and attacked(board, king, other(colour))

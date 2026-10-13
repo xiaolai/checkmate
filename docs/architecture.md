@@ -22,7 +22,9 @@ Checkmate uses SwiftPM targets to enforce dependency direction. Native windows r
 
 ## Workspace lifecycle
 
-`WorkspaceTransitionCoordinator` prepares review restoration, imported progress and practice positions before the host leaves its current activity. It also owns entry into practice, lessons, puzzles and reviews. `NativeModel` keeps modal consent, generation checks, unsaved review snapshots, backup writes, native service teardown and save notifications. Existing order remains: consent and stale-request checks, fallible preparation and backup, exit, then entry. A failed preparation does not change the activity or board.
+`WorkspaceTransitionCoordinator` prepares review restoration, imported progress and practice forks from a review before the host leaves its current activity. It also owns entry into practice, lessons, puzzles and reviews. `NativeModel` keeps modal consent, generation checks, unsaved review snapshots, backup writes, native service teardown and save notifications. Existing order remains: consent and stale-request checks, fallible preparation and backup, exit, then entry. A failed preparation does not change the activity or board.
+
+A lesson's exercise is not a workspace transition. `LessonAttemptController` (Application) runs it on the lesson's own invitation step, saves it in `ApplicationState.lessonAttempts` and never touches the practice game; `LessonAttemptJudge` decides where an attempt stands by replaying its moves against the lesson's `practice` definition.
 
 This extraction intentionally keeps native lifecycle effects with the host. Any new frontend must implement those host responsibilities, including save failures, stale modal requests, pending imports and explicit resume after a failed restore.
 

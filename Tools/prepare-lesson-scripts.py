@@ -6,6 +6,15 @@ overlays, and every puzzle states a claim its answers are computed from. Checks 
 the rules of chess, check marks sit on attacked kings, arrows follow a piece's lines, and puzzle answers are exactly
 the moves or squares that satisfy their claim. This never edits runtime resources, audio or saved learner progress.
 
+A lesson's `practice` is the exercise on its invitation beat (`validate_practice_exercise`): exact fields, a beat whose
+board is the FEN, checkpoint kinds and labels, two hints, bounded texts, and a teaching graph replayed with castling
+rights, en passant and promotion. Checkpoints count in ANY order: the app judges each on the replayed game, and the
+teaching graph, when there is one, comes first by construction. So each kind appears once and no label or text may
+depend on the order, and every checkpoint must be possible from the start. `mistakes`, `offTrack` and both hints
+describe the starting position only: the app shows them before the first move, and after any move it uses a generic
+off-track text and a shown move instead. The independent audit (Tools/audit-lesson-rules.py) checks the chess behind
+each exercise.
+
   --check           validate and require current exports, writing nothing
   --draft FILE...   validate draft lessons ({"lessons": [...], "puzzles": [...]}) on their own
 """
@@ -293,9 +302,28 @@ def parse_fen(text):
     return board, colour, '' if castling == '-' else castling, None if en_passant == '-' else en_passant
 
 
+def placement(board):
+    """The first FEN field (piece placement) of a board."""
+    rows = []
+    for rank in '87654321':
+        row, empty = '', 0
+        for file in rules.FILES:
+            piece = board.get(file + rank)
+            if piece is None:
+                empty += 1
+                continue
+            row += (str(empty) if empty else '') + (piece[1].upper() if piece[0] == 'w' else piece[1])
+            empty = 0
+        rows.append(row + (str(empty) if empty else ''))
+    return '/'.join(rows)
+
+
 def validate_practice_position(where, practice):
-    """A practice position is a legal, unfinished game with White to move, not taken from the original course."""
-    assert set(practice) == {'fen', 'goal'} and practice['goal'].strip(), f'{where}: practice is a FEN and a goal'
+    """A practice position is a legal, unfinished game with White to move, not taken from the original course.
+
+    Returns the position (board, castling rights, en-passant square) the exercise starts from.
+    """
+    assert isinstance(practice, dict) and isinstance(practice.get('fen'), str), f'{where}: practice states a FEN'
     board, colour, castling, en_passant = parse_fen(practice['fen'])
     rules.valid_board(board)
     assert colour == 'w', f'{where}: practice starts with White to move'
@@ -303,17 +331,187 @@ def validate_practice_position(where, practice):
     for right, king, rook in (('K', 'e1', 'h1'), ('Q', 'e1', 'a1'), ('k', 'e8', 'h8'), ('q', 'e8', 'a8')):
         if right in castling:
             assert board.get(king, '')[1:] == 'k' and board.get(rook, '')[1:] == 'r', f'{where}: castling right {right} needs the king and rook at home'
+    if en_passant is not None:
+        # White to move: Black's pawn has just stepped from rank 7 to rank 5, passing over the en-passant square.
+        file = en_passant[0]
+        assert en_passant[1] == '6' and board.get(file + '5') == 'bp' and en_passant not in board and file + '7' not in board, \
+            f'{where}: en passant on {en_passant} needs a black pawn that has just made a double step past it'
     assert not rules.in_check(board, 'b'), f'{where}: the side not to move is in check'
     assert rules.legal_moves(board, 'w', en_passant, castling), f'{where}: White has no legal move'
     assert not provenance.board_hit(board), f'{where}: a practice position from the original course'
+    return board, castling, en_passant
+
+
+# The in-lesson exercise on a lesson's invitation step. The Swift decoder (CheckmateDomain/LessonPractice.swift) reads
+# these exact names; the independent audit (Tools/audit-lesson-rules.py) checks the chess behind them.
+PRACTICE_FIELDS = {'fen', 'goal', 'beat', 'checkpoints', 'opponent', 'hints', 'success'}
+GRAPH_FIELDS = {'teaching', 'offTrack'}
+CHECKPOINT_KINDS = {'graph', 'castle', 'enPassant', 'promote', 'pawnAdvance', 'pawnCapture', 'attackQueen', 'mate'}
+TACTICS = {'fork', 'pin', 'skewer', 'discovered', 'removeDefender'}
+NODE_FIELDS = {'fingerprint', 'accepted', 'replies', 'next'}
+TEXT_LIMIT, LABEL_LIMIT = 220, 48
+UCI = re.compile(r'^([a-h][1-8])([a-h][1-8])([qrbn]?)$')
+
+
+def practice_text(where, value, limit=TEXT_LIMIT):
+    assert isinstance(value, str) and value.strip() == value and value, f'{where}: a non-empty text without outer spaces'
+    assert len(value) <= limit, f'{where}: {len(value)} characters, more than {limit}'
+
+
+def uci_move(where, text, colour):
+    """A UCI move ("e2e4", "a7a8q") as a lesson-rules move for `colour`."""
+    match = UCI.match(text) if isinstance(text, str) else None
+    assert match and match[1] != match[2], f'{where}: {text!r} is not a UCI move'
+    return [match[1], match[2]] + ([colour + match[3]] if match[3] else [])
+
+
+def legal_ucis(position):
+    board, colour, castling, en_passant = position
+    return {m[0] + m[1] + (m[2][1] if len(m) > 2 else ''): m for m in rules.legal_moves(board, colour, en_passant, castling)}
+
+
+def validate_teaching(where, teaching, start):
+    """Replay the teaching graph from the practice position. Returns every position the graph reaches with White to
+    move: each node, and the position after each move that completes the graph (White's next turn, before Black's).
+
+    Node 0 is the practice position. At every node White is to move and `fingerprint` is the node's piece placement
+    and side to move. Each accepted move is legal; its authored reply (Black, legal) exists exactly when `next` names
+    the node the graph continues at, so an accepted move without `next` completes the graph and has no reply. A reply
+    for a move that is not accepted is a refutation of that legal off-track move. Indices are in range, every node is
+    reachable, no path loops, so every path through accepted moves ends at a completed graph.
+    """
+    assert isinstance(teaching, list) and teaching, f'{where}: teaching lists its nodes'
+    reached, positions = set(), []
+
+    def visit(index, position, path):
+        assert index not in path, f'{where}: teaching node {index} loops back on itself'
+        here = f'{where}: teaching node {index}'
+        node = teaching[index]
+        assert isinstance(node, dict) and {'fingerprint', 'accepted'} <= set(node) <= NODE_FIELDS, f'{here}: fields'
+        board, colour = position[:2]
+        assert colour == 'w', f'{here}: White is to move at every node'
+        assert node['fingerprint'] == placement(board) + ' w', f'{here}: fingerprint {node["fingerprint"]!r}, but the position is {placement(board)} w'
+        legal = legal_ucis(position)
+        accepted, replies, following = node['accepted'], node.get('replies', {}), node.get('next', {})
+        assert isinstance(accepted, list) and accepted and len(set(accepted)) == len(accepted), f'{here}: accepted moves'
+        assert isinstance(replies, dict) and isinstance(following, dict), f'{here}: replies and next map moves'
+        assert ('replies' not in node or replies) and ('next' not in node or following), f'{here}: omit replies or next when empty'
+        for move in accepted:
+            uci_move(here, move, 'w')
+            assert move in legal, f'{here}: accepted move {move} is not legal'
+            assert (move in replies) == (move in following), f'{here}: {move} has a reply exactly when the graph continues after it'
+        assert set(following) <= set(accepted), f'{here}: next names only accepted moves'
+        for move, target in following.items():
+            assert isinstance(target, int) and not isinstance(target, bool) and 0 <= target < len(teaching), f'{here}: next[{move}] = {target!r} is not a node'
+        for move, reply in replies.items():
+            uci_move(here, move, 'w')
+            assert move in legal, f'{here}: {move} is not legal, so it has no reply'
+            after = rules.advance(*position, legal[move])
+            uci_move(here, reply, 'b')
+            assert reply in legal_ucis(after), f'{here}: reply {reply} to {move} is not legal'
+        positions.append(position)
+        reached.add(index)
+        for move in accepted:
+            after = rules.advance(*position, legal[move])
+            if move in following:
+                visit(following[move], rules.advance(*after, legal_ucis(after)[replies[move]]), path | {index})
+            else:
+                positions.append((after[0], 'w', after[2], None))
+
+    visit(0, start, frozenset())
+    assert reached == set(range(len(teaching))), f'{where}: teaching nodes {sorted(set(range(len(teaching))) - reached)} are never reached'
+    return positions
+
+
+def castling_moves(position):
+    board = position[0]
+    return [m for m in legal_ucis(position).values() if board[m[0]] == 'wk' and abs(rules.xy(m[0])[0] - rules.xy(m[1])[0]) == 2]
+
+
+def can_promote(board):
+    """A white pawn with no black pawn ahead of it on its file, so it can reach the last rank without capturing."""
+    return any(piece == 'wp' and not any(board.get(square[0] + rank) == 'bp' for rank in '12345678' if rank > square[1])
+               for square, piece in board.items())
+
+
+def validate_practice_exercise(lesson, frames):
+    """A lesson's practice is the exercise on its invitation step, judged against `beat`'s board.
+
+    Fields are exact: `fen`, `goal`, `beat`, `checkpoints`, `opponent`, `hints` and `success` always; `teaching` and
+    `offTrack` together, for a forced opening; `mistakes` only with them. Checkpoints count in ANY order (the app
+    judges each on the replayed game; the teaching graph, when present, comes first by construction), so no label or
+    text may depend on their order and a kind appears at most once. A `graph` checkpoint needs a teaching graph; for a
+    tactic it also names the tactic and the integer material the line must win, which only the audit reads. Mates are
+    defended by `defender`, everything else by `beginner`. Hints are exactly two (the app adds a third stage itself).
+
+    `mistakes`, `offTrack` and the hints describe the starting position only (the app shows them before the first move),
+    so a `mistakes` move is off track there: it is not one of node 0's accepted moves.
+
+    Every checkpoint is possible from the start: `enPassant` needs the FEN's en-passant square and a legal White
+    en-passant capture at once; `promote` a white pawn with no black pawn ahead on its file; `pawnAdvance` and
+    `pawnCapture` a white pawn; `attackQueen` a black queen; `castle` a legal castling move at the start, at a teaching
+    node, or right after a move that completes the graph.
+    """
+    where, practice = lesson['id'], lesson['practice']
+    board, castling, en_passant = validate_practice_position(where, practice)
+    practice_text(f'{where}: practice goal', practice.get('goal'))
+    fields = set(practice)
+    assert PRACTICE_FIELDS <= fields and fields - PRACTICE_FIELDS in (set(), GRAPH_FIELDS, GRAPH_FIELDS | {'mistakes'}), \
+        f'{where}: practice fields {sorted(fields)}; teaching and offTrack go together, mistakes only with them'
+    for field in ('success', 'offTrack'):
+        if field in practice:
+            practice_text(f'{where}: practice {field}', practice[field])
+    ids = [beat['id'] for beat in lesson['beats']]
+    assert practice['beat'] in ids, f'{where}: practice beat {practice["beat"]!r} is not a beat of this lesson'
+    frame = frames[ids.index(practice['beat'])]
+    assert frame['start']['board'] == board == frame['end']['board'], f'{where}: the board of {practice["beat"]} is not the practice position'
+    hints = practice['hints']
+    assert isinstance(hints, list) and len(hints) == 2 and hints[0] != hints[1], f'{where}: exactly two different hints'
+    for hint in hints:
+        practice_text(f'{where}: hint', hint)
+    checkpoints = practice['checkpoints']
+    assert isinstance(checkpoints, list) and checkpoints, f'{where}: checkpoints say what counts as doing it'
+    kinds = []
+    for checkpoint in checkpoints:
+        assert isinstance(checkpoint, dict) and checkpoint.get('kind') in CHECKPOINT_KINDS, f'{where}: checkpoint {checkpoint!r}'
+        kind = checkpoint['kind']
+        if kind == 'graph' and ('tactic' in checkpoint or 'gain' in checkpoint):
+            assert set(checkpoint) == {'kind', 'label', 'tactic', 'gain'} and checkpoint['tactic'] in TACTICS, f'{where}: a tactic names one of {sorted(TACTICS)} and its gain'
+            gain = checkpoint['gain']
+            assert isinstance(gain, int) and not isinstance(gain, bool) and gain >= 1, f'{where}: gain is whole material won, at least 1'
+        else:
+            assert set(checkpoint) == {'kind', 'label'}, f'{where}: a {kind} checkpoint has a kind and a label'
+        practice_text(f'{where}: {kind} label', checkpoint['label'], LABEL_LIMIT)
+        kinds.append(kind)
+    assert len(set(kinds)) == len(kinds), f'{where}: checkpoints count in any order, so each kind appears once'
+    assert 'graph' not in kinds or 'teaching' in practice, f'{where}: a graph checkpoint needs a teaching graph'
+    assert practice['opponent'] == ('defender' if 'mate' in kinds else 'beginner'), f'{where}: mates are defended by defender, everything else by beginner'
+    start = (board, 'w', castling, en_passant)
+    if set(kinds) & {'enPassant', 'promote', 'pawnAdvance', 'pawnCapture'}:
+        assert 'wp' in board.values(), f'{where}: a pawn checkpoint needs a white pawn'
+    if 'enPassant' in kinds:
+        assert en_passant is not None, f"{where}: en passant is a checkpoint, so the FEN needs its en-passant square"
+        assert any(m[1] == en_passant and board[m[0]] == 'wp' for m in legal_ucis(start).values()), f'{where}: no legal en-passant capture at the start'
+    if 'promote' in kinds:
+        assert can_promote(board), f'{where}: promotion is a checkpoint, but every white pawn has a black pawn ahead of it'
+    if 'attackQueen' in kinds:
+        assert 'bq' in board.values(), f'{where}: attacking the queen needs a black queen'
+    positions = validate_teaching(where, practice['teaching'], start) if 'teaching' in practice else [start]
+    if 'castle' in kinds:
+        assert set(castling) & set('KQ'), f'{where}: castling is a checkpoint, but White has no castling right'
+        assert any(castling_moves(position) for position in positions), f'{where}: castling is a checkpoint, but no legal castling exists at the start or in the graph'
+    mistakes = practice.get('mistakes', {})
+    assert isinstance(mistakes, dict) and ('mistakes' not in practice or mistakes), f'{where}: mistakes map moves to feedback'
+    for move, text in mistakes.items():
+        uci_move(f'{where}: mistakes', move, 'w')
+        assert move not in practice['teaching'][0]['accepted'], f'{where}: mistakes describe the start, so {move} must be off track at node 0'
+        practice_text(f'{where}: mistake {move}', text)
 
 
 def validate_lesson(lesson):
     where = lesson.get('id', '?')
     assert LESSON_ID.match(where), f'{where}: lesson ids are lowercase words joined by hyphens'
     assert set(lesson) <= {'id', 'title', 'teaches', 'mascot', 'practiceFor', 'practice', 'beats'}, f'{where}: lesson fields'
-    if 'practice' in lesson:
-        validate_practice_position(where, lesson['practice'])
     assert isinstance(lesson['title'], str) and lesson['title'].strip(), f'{where}: title'
     assert lesson['teaches'] and all(isinstance(t, str) and t.strip() for t in lesson['teaches']), f'{where}: takeaways'
     assert lesson.get('mascot') is None or lesson['mascot'] in rules.PIECES, f'{where}: mascot'
@@ -336,6 +534,8 @@ def validate_lesson(lesson):
         assert 'miniGame' not in beat or beat['miniGame'] is True, f'{key}: miniGame'
         board = validate_moves(key, board, beat)
         validate_overlays(key, beat, board)
+    if 'practice' in lesson:
+        validate_practice_exercise(lesson, lesson_frames(lesson))
 
 
 def validate_practice(lessons):

@@ -37,7 +37,7 @@ final class ModulePortTests:XCTestCase {
     @MainActor func testInvalidWorkspaceEntryIsStagedWithoutMutatingSession()throws {
         let session=try GameSession(engine:nil),learning=try LearningPlayer(session:session),review=ReviewController()
         let coordinator=WorkspaceTransitionCoordinator(session:session,learning:learning,review:review),before=session.activity,fen=session.rules.fen
-        XCTAssertThrowsError(try coordinator.prepare(.lessonPractice(fen:"invalid")))
+        XCTAssertThrowsError(try coordinator.prepare(.lesson(10_000)))
         XCTAssertEqual(session.activity,before);XCTAssertEqual(session.rules.fen,fen);XCTAssertFalse(review.active)
         let prepared=try coordinator.prepare(.reviewWorkspace)
         XCTAssertEqual(session.activity,before)

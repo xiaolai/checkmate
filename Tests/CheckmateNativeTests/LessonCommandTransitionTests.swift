@@ -10,8 +10,9 @@ import CheckmateCore
 @testable import CheckmateMacPlatform
 
 
-/// The lesson remediation's Continue and "Try it against the computer" commands, routed through the one activity
-/// transition: each leaves a review the same way every navigation does, and a draft question answered Cancel stays.
+/// The lesson remediation's Continue command, routed through the one activity transition: it leaves a review the
+/// same way every navigation does, and a draft question answered Cancel stays. The lesson exercise is not a
+/// transition at all: it is the lesson's own invitation step.
 @MainActor final class LessonCommandTransitionTests:XCTestCase {
     private var directory:URL!
     override func setUp(){directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);setenv("CHECKMATE_DATA_DIR",directory.path,1)}
@@ -37,23 +38,24 @@ import CheckmateCore
         model.continueLesson()
         XCTAssertFalse(model.review.active);XCTAssertNil(model.session.activity.review);XCTAssertEqual(model.session.activity.place,.lesson(index:1))
     }
-    /// The lesson's practice position becomes a separate practice game, as White, keeping the earlier game.
-    func testPracticeLessonStartsTheLessonPositionAsAPracticeGame()throws {
+    /// Go to your turn opens the lesson's own exercise step: the learner stays in the lesson, and the practice game and
+    /// the game kept aside under Restore Previous Game are exactly as they were.
+    func testGoToYourTurnStaysInTheLessonAndLeavesThePracticeGameAlone()throws {
         let model=try NativeModel();defer{model.shutdown()}
-        let preset=try XCTUnwrap(model.learning.library.lessons.first{$0.id=="fork"}?.practice)
-        model.practice();try model.session.rules.restore("1. e4 e5 *");model.lesson(try index(model,"fork"))
-        model.practiceLesson()
-        XCTAssertEqual(model.session.activity.place,.practice);XCTAssertNil(model.session.activity.review)
-        XCTAssertEqual(model.session.rules.fen,preset.fen);XCTAssertEqual(model.session.humanSide,"w")
-        XCTAssertTrue(model.session.state.practice.previousGame.contains("e4"),"the earlier game was not kept as the previous game")
+        let fork=try index(model,"fork")
+        model.practice();try model.session.rules.restore("1. e4 e5 *");let game=model.session.rules.pgn,previous=model.session.state.practice.previousGame
+        model.lesson(fork);model.learning.seek(step:0);XCTAssertFalse(model.learning.attemptStep)
+        model.learning.goToAttempt()
+        XCTAssertEqual(model.session.activity.place,.lesson(index:fork));XCTAssertEqual(model.learning.step,model.learning.invitationStep);XCTAssertTrue(model.learning.attemptStep)
+        XCTAssertEqual(model.session.rules.pgn,game);XCTAssertEqual(model.session.state.practice.previousGame,previous)
     }
     /// A draft review with an idea asks first; Cancel keeps the draft and starts nothing.
-    func testPracticeLessonFromADraftCancelledKeepsTheDraft()throws {
+    func testContinueFromADraftCancelledKeepsTheDraft()throws {
         let model=try NativeModel();defer{model.shutdown()}
         model.lesson(try index(model,"fork"));try draftWithIdea(model);let fen=model.session.rules.fen;var asked=0;model.askAboutDraft={_ in asked+=1;return .cancel}
-        model.practiceLesson();model.continueLesson()
-        XCTAssertEqual(asked,2);XCTAssertTrue(model.review.active,"Cancel on the draft question still left the review")
-        XCTAssertEqual(model.session.rules.fen,fen,"Cancel on the draft question still started the practice position")
+        model.continueLesson()
+        XCTAssertEqual(asked,1);XCTAssertTrue(model.review.active,"Cancel on the draft question still left the review")
+        XCTAssertEqual(model.session.rules.fen,fen,"Cancel on the draft question still changed the game")
     }
 
     /// Practice activities are off the main path: Continue from a piece lesson, or from its activity, goes to the next

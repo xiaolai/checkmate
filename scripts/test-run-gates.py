@@ -53,7 +53,7 @@ every = {gate['name'] for gate in spec['gates']}
 cases = [
     ([], set()),
     (['Sources/CheckmateDomain/MiniGames.swift'], every),
-    (['Tools/pointer-helper.swift'], {'pointer', 'lesson-remediation', 'board-clicks', 'training-pointer', 'training-b-pointer'}),
+    (['Tools/pointer-helper.swift'], {'pointer', 'lesson-remediation', 'lesson-exercise', 'board-clicks', 'training-pointer', 'training-b-pointer'}),
     (['Tests/CheckmateNativeTests/BoardClickTests.swift'], {'architecture', 'unit'}),
     (['Sources/CheckmateNative/ReviewViews.swift'], {'architecture', 'ui', 'layout', 'review-ui', 'pointer', 'unit', 'package'}),
     (['Sources/CheckmateMCPKit/BrokerClient.swift'], {'architecture', 'integration', 'unit', 'package'}),

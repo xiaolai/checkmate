@@ -22,22 +22,12 @@ def fen(text):
     return board, colour, '' if castling == '-' else castling, None if en_passant == '-' else en_passant
 
 
-def after(board, colour, castling, en_passant, move):
-    piece = board[move[0]]
-    result = rules.play(board, move, en_passant)
-    for square, rights in (('e1', 'KQ'), ('e8', 'kq'), ('h1', 'K'), ('a1', 'Q'), ('h8', 'k'), ('a8', 'q')):
-        if square in (move[0], move[1]):
-            castling = ''.join(c for c in castling if c not in rights)
-    passed = None
-    if piece[1] == 'p' and abs(int(move[0][1]) - int(move[1][1])) == 2:
-        passed = move[0][0] + str((int(move[0][1]) + int(move[1][1])) // 2)
-    return result, rules.other(colour), castling, passed
-
-
 def perft(board, colour, castling, en_passant, depth):
+    """Counts move sequences through `rules.advance`, so the castling-right and en-passant tracking that the practice
+    graph replay relies on is checked against the published counts too."""
     if depth == 0:
         return 1
-    return sum(perft(*after(board, colour, castling, en_passant, move), depth - 1)
+    return sum(perft(*rules.advance(board, colour, castling, en_passant, move), depth - 1)
                for move in rules.legal_moves(board, colour, en_passant, castling))
 
 

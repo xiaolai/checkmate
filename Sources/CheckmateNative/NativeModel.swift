@@ -108,6 +108,8 @@ import CheckmateCore
         learning.onIllustration={[weak self] piece,capture in guard let self=self else{return};self.audio.illustration(piece:piece,capture:capture,settings:self.session.state.settings)}
         session.onMove={[weak self] move in guard let self=self else{return};let settings=self.session.state.settings;let delay=NSWorkspace.shared.accessibilityDisplayShouldReduceMotion || self.movePlacedDirectly?(move)==true ? 0:settings.pieceDuration;let id=UUID();self.soundTasks[id]=Task{defer{self.soundTasks.removeValue(forKey:id)};try? await Task.sleep(nanoseconds:UInt64(delay)*1_000_000);guard !Task.isCancelled else{return};self.audio.move(move,settings:settings)}}
         learning.onMiniMove=session.onMove
+        learning.onAttemptMove=session.onMove
+        learning.onAttemptReset={[weak self] in self?.cancelMoveSounds()}
         learning.onMiniReset={[weak self] in self?.cancelMoveSounds()}
         session.onUndo={[weak self] in guard let self=self else{return};self.cancelMoveSounds();self.audio.move(nil,settings:self.session.state.settings,undo:true)}
     }
@@ -196,8 +198,6 @@ import CheckmateCore
     private func playLesson(_ index:Int){
         if learning.readingFromTraining{guard (try? transition(.trainingLesson(id:learning.library.lessons[index].id)))==true else{return};learning.seek(step:0)}
         else{guard (try? transition(.lesson(index,resume:false)))==true else{return}};learning.play()}
-    /// Practise this lesson starts a separate practice game, as White, from the lesson's preset position.
-    func practiceLesson(){guard let preset=learning.current.practice else{return};_ = try? transition(.lessonPractice(fen:preset.fen))}
     /// Quitting stops a running lesson translation or recording; the clip in progress is already paid for and is lost.
     /// Returns false when the learner chose to keep the app open. Tests inject an answer; automation never blocks.
     var confirmQuitDuringLessonJob:(()->Bool)?
@@ -432,7 +432,6 @@ import CheckmateCore
         } catch {
             switch next {
             case .practiceFork:storageError=userFacingMessage(error,fallback:"Practice could not start from this position. The review was closed; your game is unchanged.");return false
-            case .lessonPractice:storageError=userFacingMessage(error,fallback:"This practice position could not be opened.");return false
             default:draftDiscardApproved=nil;throw error
             }
         }
@@ -442,7 +441,6 @@ import CheckmateCore
     private static func stagingFailure(_ next:Navigation)->String? {
         switch next {
         case .practiceFork:return "Practice could not start from this position. The review is unchanged."
-        case .lessonPractice:return "This practice position could not be opened."
         case .trainingLibrary,.trainingExercise,.trainingScenario,.trainingResume,.trainingRetry,.trainingLegacy:return "This exercise could not be opened. Nothing was changed."
         case .trainingLesson:return "This lesson could not be opened. Nothing was changed."
         case .practice,.returnToGame,.lesson,.puzzles,.reviewWorkspace,.review,.importProgress:return nil
@@ -462,7 +460,6 @@ import CheckmateCore
         case .returnToGame:break
         case .practice:if !reviewing{learning.pause()};audio.stop()
         case .lesson,.puzzles:voice.disconnect();audio.stop()
-        case .lessonPractice:learning.pause();voice.disconnect();audio.stop()
         case .reviewWorkspace,.review:learning.pause();voice.disconnect();audio.stopAll()
         case .importProgress:saveTask?.cancel();voice.disconnect();usage.flushForShutdown();companion.disable();learning.pause();audio.stopAll()
         case .practiceFork:session.cancelWork()

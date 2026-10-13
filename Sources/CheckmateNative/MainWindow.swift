@@ -110,6 +110,9 @@ final class BoardTitleView:NSView {
         let undone=model.session.onUndo;model.session.onUndo={[weak self] in undone?();self?.board.cancelAnimation()}
         let sound=model.session.onMove;model.session.onMove={[weak self] move in sound?(move);guard let self=self else{return};self.board.animate(move,duration:Double(self.model.session.state.settings.pieceDuration)/1000);self.announce(move)}
         let miniSound=model.learning.onMiniMove;model.learning.onMiniMove={[weak self] move in miniSound?(move);guard let self else{return};self.board.animate(move,landing:self.model.learning.miniGame?.board,duration:Double(self.model.session.state.settings.pieceDuration)/1000);if self.model.learning.miniGame?.computer==true,move.color=="b"{self.announce("The computer played \(move.san).")}}
+        let attemptSound=model.learning.onAttemptMove;model.learning.onAttemptMove={[weak self] move in attemptSound?(move);guard let self else{return};self.board.animate(move,landing:self.model.learning.attempt.board,duration:Double(self.model.session.state.settings.pieceDuration)/1000);self.announce(self.attemptAnnouncement(for:move))}
+        let attemptReset=model.learning.onAttemptReset;model.learning.onAttemptReset={[weak self] in attemptReset?();self?.board.cancelAnimation()}
+        board.refusedDrop={[weak self] from,to in guard let self,self.model.learning.attemptStep,!self.model.review.active else{return};self.model.learning.attempt.refused(from:from,to:to)}
         let miniReset=model.learning.onMiniReset;model.learning.onMiniReset={[weak self] in miniReset?();self?.board.cancelAnimation()}
     }
     func toolbarDefaultItemIdentifiers(_ t:NSToolbar)->[NSToolbarItem.Identifier]{[.flexibleSpace,sidebarID,.sidebarTrackingSeparator,.flexibleSpace,titleID,.flexibleSpace,settingsID,.inspectorTrackingSeparator,inspectorID,.flexibleSpace]}
@@ -165,11 +168,18 @@ final class BoardTitleView:NSView {
         let s=model.session
         // Inspection hides the move dots but not the move: a playable destination of the inspected piece leaves
         // inspection and plays, so P or A pressed by accident can never make a legal move unplayable.
-        if relationships.mode != nil{let plays=s.mode == .practice && s.selected != sq && s.inspection?.legalNow==true && s.destinations.contains(sq);if plays{relationships.dismiss()}else{if s.mode == .practice{try? s.inspectPiece(sq)};relationships.select(board.position[sq] == nil ? nil:sq);refresh();return}}
+        let attempt=model.learning.attemptStep ? model.learning.attempt:nil
+        if relationships.mode != nil{let plays=s.mode == .practice && s.selected != sq && s.inspection?.legalNow==true && s.destinations.contains(sq) || attempt.map{$0.selected != sq && $0.destinations.contains(sq)} == true;if plays{relationships.dismiss()}else{if s.mode == .practice{try? s.inspectPiece(sq)};relationships.select(board.position[sq] == nil ? nil:sq);refresh();return}}
         if s.mode == .practice {
         if let from=s.selected,s.inspection?.legalNow==true,s.destinations.contains(sq),(s.presentationHidden || s.preview==nil && s.demonstration==nil) {let promotion=s.rules.moves(from).contains{$0.to==sq && $0.promotion != nil};if promotion {let shown=practiceGame;showPromotionMenu(at:sq,action:#selector(promote(_:))){PracticePromotion(from:from,to:sq,piece:$0,game:shown)};return}}
         do{try s.select(sq)}catch{showError(error)}
-    }else if let training=model.training,trainingExercise != nil{training.click(sq)}else{model.learning.click(sq)};refresh()}
+    }else if let training=model.training,trainingExercise != nil{training.click(sq)}
+    else if model.learning.attemptStep,let from=model.learning.attempt.selected,model.learning.attempt.destinations.contains(sq),model.learning.attempt.needsPromotion(from:from,to:sq) {let shown=model.learning.attempt.identity;showPromotionMenu(at:sq,action:#selector(promoteAttempt(_:))){AttemptPromotion(from:from,to:sq,piece:$0,identity:shown)};return}
+    else{model.learning.click(sq)};refresh()}
+    /// A lesson exercise's promotion, bound to the attempt and move it was offered for: a choice made after the attempt
+    /// moved on (an undo, a restart, another step) does nothing.
+    struct AttemptPromotion {let from:String,to:String,piece:String,identity:String}
+    @objc func promoteAttempt(_ item:NSMenuItem){guard let choice=item.representedObject as? AttemptPromotion,!model.review.active,!model.reviewWorkspace,model.learning.attemptStep,model.learning.attempt.identity==choice.identity else{refresh();return};model.learning.attempt.play(from:choice.from,to:choice.to,promotion:choice.piece);refresh()}
     /// The exercise shown on the board, if a training exercise (not the library or a library mini-game) is open.
     var trainingExercise:TrainingController.Exercise? {guard case .training=model.session.activity.place else{return nil};return model.training?.exercise}
     /// Dragging applies where selecting a piece and then a square plays a move; marking and route exercises stay
@@ -181,6 +191,7 @@ final class BoardTitleView:NSView {
         if s.mode == .practice{return board.position[square]?.first.map(String.init)==s.humanSide}
         // Selecting squares is click-only; a piece the learner moves may be dragged.
         if let exercise=trainingExercise{return !exercise.finished && (exercise.task == .move || exercise.task == .game && model.training?.games.thinking == false) && board.position[square]?.first.map(String.init)==exercise.scenario.learner}
+        if l.attemptStep{return l.attempt.learnerToMove && board.position[square]?.first=="w"}
         return l.mini || l.activePuzzle != nil && l.exercise?.kind=="move"
     }
     /// The promotion choices at a square; each item carries `payload(piece)` for its action.
@@ -217,6 +228,14 @@ final class BoardTitleView:NSView {
         if s.rules.checkmate{text+=move.color==s.humanSide ? " Checkmate. You win.":" Checkmate."}else if s.rules.check{text+=move.color==s.humanSide ? " Check.":" Your king is in check."}else if s.rules.draw{text+=" The game is drawn."}
         return text
     }
+    /// What VoiceOver hears when a lesson exercise move lands: the move, check or mate, and the exercise's outcome.
+    func attemptAnnouncement(for move:MoveRecord)->String {
+        let attempt=model.learning.attempt!,rules=attempt.rules
+        var text=(move.color=="w" ? "You played ":"The computer played ")+move.san+"."
+        if rules.checkmate{text+=" Checkmate."}else if rules.check{text+=move.color=="w" ? " Check.":" Your king is in check."}else if rules.draw{text+=" The game is drawn."}
+        switch attempt.phase {case .achieved?:text+=" Well done! "+(attempt.judgement?.feedback ?? "");case .offTrack?,.failed?:text+=" "+(attempt.judgement?.feedback ?? "");default:break}
+        return text
+    }
     private func announce(_ text:String){NSAccessibility.post(element:board,notification:.announcementRequested,userInfo:[.announcement:text,.priority:NSAccessibilityPriorityLevel.high.rawValue])}
     func refresh(){let s=model.session,l=model.learning
         // The learner's own side sits nearest them in practice; reviews and lessons keep White at the bottom.
@@ -233,7 +252,7 @@ final class BoardTitleView:NSView {
         // An exercise's own presentation replaces the activity's before relationships read the selection; it offers no inspection.
         var shown=trainingExercise.map(trainingPresentation) ?? activityPresentation()
         if trainingExercise != nil{relationships.dismiss()}
-        relationships.update(board:shown.position,fen:s.mode == .practice ? s.displayFen:nil,selected:trainingExercise==nil ? shown.selected:nil,identity:s.displayIdentity)
+        relationships.update(board:shown.position,fen:s.mode == .practice ? s.displayFen:l.attemptStep ? l.attempt.rules.fen:nil,selected:trainingExercise==nil ? shown.selected:nil,identity:s.displayIdentity)
         if let report=relationships.report{shown.selected=report.square;shown.destinations=[];shown.attacked=[];shown.arrows=[];shown.highlights.removeAll{$0.kind != "check" && $0.kind != "no"}}
         applyBoard(shown)
         board.relationshipMode=relationships.report?.mode
@@ -243,7 +262,7 @@ final class BoardTitleView:NSView {
         let trainingLibrary=model.training != nil && s.activity.place == .trainingLibrary
         board.isHidden=library || titlecard || trainingLibrary;puzzles.isHidden = !library;welcome.isHidden = !titlecard;trainingLibraryView.isHidden = !trainingLibrary
         if titlecard {welcome.rootView=WelcomeContent(title:l.localizedStepTitle(index:l.lessonIndex,step:l.step))}
-        titleView.label.stringValue=s.mode == .practice ? "Practice · \(s.humanSide=="b" ? "Black":"White") vs Stockfish":s.mode == .puzzles ? "Quick puzzles":l.mini ? l.miniKind.title:s.mode == .training ? trainingExercise?.definition.title ?? "Training":l.localizedTitle(index:l.lessonIndex)
+        titleView.label.stringValue=s.mode == .practice ? "Practice · \(s.humanSide=="b" ? "Black":"White") vs Stockfish":s.mode == .puzzles ? "Quick puzzles":l.mini ? l.miniKind.title:s.mode == .training ? trainingExercise?.definition.title ?? "Training":l.localizedTitle(index:l.lessonIndex)+(l.attemptStatus.map{" · "+$0} ?? "")
         let temporary=s.preview != nil || s.demonstration != nil;titleView.label.isHidden=temporary;titleView.tabs.isHidden = !temporary;titleView.tabs.setLabel(s.demonstration != nil ? "Demonstration":"Try a move",forSegment:1);titleView.tabs.selectedSegment=s.presentationHidden ? 0:1;titleView.needsLayout=true
     }
     /// Everything the board shows for one activity. Each builder sets every field, so nothing from the previous
@@ -265,7 +284,7 @@ final class BoardTitleView:NSView {
     }
     /// Practice, a lesson, a puzzle or a mini-game, with a demonstration on top.
     private func activityPresentation()->BoardPresentation {let s=model.session,l=model.learning,practice=s.mode == .practice
-        var p=BoardPresentation(source:"\(s.displayView):\(s.gameGeneration):\(l.miniGame.map{"\($0.kind.rawValue)/\($0.opponentSeed ?? "")"} ?? "")",position:s.displayBoard,selected:practice ? s.selected:l.picked.first,destinations:practice ? s.destinations:l.destinations,playable:!practice || s.inspection?.legalNow != false,dropsAnywhere:!practice && !l.mini && l.activePuzzle != nil && l.exercise?.kind=="move",attacked:practice ? s.inspection?.attacks ?? []:[],highlights:s.highlights+s.voiceFocus.map{Highlight(sq:$0,kind:"focus")},arrows:s.arrows,counts:[],motion:nil)
+        var p=BoardPresentation(source:"\(s.displayView):\(s.gameGeneration):\(l.miniGame.map{"\($0.kind.rawValue)/\($0.opponentSeed ?? "")"} ?? ""):\(l.attemptStep ? l.attempt.record?.id ?? "":"")",position:s.displayBoard,selected:practice ? s.selected:l.picked.first,destinations:practice ? s.destinations:l.destinations,playable:!practice || s.inspection?.legalNow != false,dropsAnywhere:!practice && !l.mini && l.activePuzzle != nil && l.exercise?.kind=="move",attacked:practice ? s.inspection?.attacks ?? []:[],highlights:s.highlights+s.voiceFocus.map{Highlight(sq:$0,kind:"focus")},arrows:s.arrows,counts:[],motion:nil)
         // The last move is drawn first so the coach's highlights stay visible on top of it, as in review.
         if practice,s.displayView=="game" {if let last=s.rules.records.last{p.highlights.insert(contentsOf:[Highlight(sq:last.from,kind:"last"),Highlight(sq:last.to,kind:"last")],at:0)};if s.rules.check,let king=s.rules.board.first(where:{$0.value==s.rules.turn+"k"})?.key{p.highlights.append(Highlight(sq:king,kind:"check"))}}
         if !practice {p.highlights+=l.frame.hl+l.picked.map{Highlight(sq:$0,kind:"focus")};p.arrows=l.frame.arrows+p.arrows;p.counts=l.frame.counts ?? [];p.motion=l.frame.motion.map{motion in var landed=motion;if board.shouldReduceMotion{landed.t=1};return landed}}

@@ -30,6 +30,11 @@ public final class StateStore {
                 }
             }
         }
+        // Lesson attempts are replayed against their lesson when opened; here only their size and shape are bounded.
+        guard (value.course.practised?.count ?? 0)<=200,(value.course.practised ?? []).allSatisfy({!$0.isEmpty && $0.count<=80}) else{throw CheckmateError.invalid("Saved lesson exercises have invalid bounds.")}
+        if let attempts=value.lessonAttempts {
+            guard attempts.count<=200,attempts.allSatisfy({!$0.key.isEmpty && $0.key.count<=80 && $0.value.moves.count<=LessonAttemptRecord.maximumMoves && $0.value.moves.allSatisfy(ChessRules.validUCI) && (0...3).contains($0.value.hints) && $0.value.id.count<=64 && $0.value.definition.count<=64}) else{throw CheckmateError.invalid("Saved lesson exercises have invalid bounds.")}
+        }
         // This build's own training record stays within its bounds; a raw kept record is written back unchanged.
         if let training=value.training,value.trainingWritable {try training.validate();guard try JSONEncoder().encode(training).count<=TrainingState.maximumBytes else{throw CheckmateError.invalid("Training progress exceeds its storage budget.")}}
         guard value.schemaVersion==1 else{throw CheckmateError.invalid("Unsupported saved-state version.")}

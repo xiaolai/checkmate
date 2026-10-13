@@ -95,8 +95,13 @@ extension LearningPlaybackTests {
             let finalStep=player.current.beats.count-1
             session.state.course.answered.append(player.current.id+":"+String(finalStep))
             player.seek(step:finalStep)
+            let exercise=player.invitationStep==finalStep
             player.play();player.advance(by:player.duration)
-            if let next=player.library.nextMainLesson(after:index) {
+            // An exercise step is an interaction boundary: narration ending there never leaves the lesson.
+            if exercise {
+                XCTAssertEqual(player.lessonIndex,index,player.current.id);XCTAssertEqual(player.step,finalStep);XCTAssertFalse(player.playing)
+                XCTAssertEqual(player.feedback,"Your turn: make your move on the board, or continue to the next lesson.")
+            } else if let next=player.library.nextMainLesson(after:index) {
                 XCTAssertFalse(player.library.lessons[next].isPractice)
                 XCTAssertEqual(player.lessonIndex,next,player.library.lessons[index].id)
                 XCTAssertEqual(player.step,0);XCTAssertTrue(player.playing)
@@ -118,6 +123,8 @@ extension LearningPlaybackTests {
         while player.playing,guardSteps<5000 {
             if visited.last != player.current.id{visited.append(player.current.id)}
             player.advance(by:player.duration);guardSteps+=1
+            // Playback waits on an exercise; the learner's Continue goes on along the main path.
+            if !player.playing,player.attemptStep,let next=player.library.nextMainLesson(after:player.lessonIndex){player.openLesson(index:next,resume:false);player.play()}
         }
         XCTAssertEqual(visited,main)
         XCTAssertEqual(session.state.course.completed,main)
@@ -137,7 +144,7 @@ extension LearningPlaybackTests {
             (true,false,rook,bishop,true,""),
             (false,false,practice,practice,false,"Lesson explored! You can replay it whenever you like."),
             (false,true,practice,practice,false,"Lesson explored! You can replay it whenever you like."),
-            (true,true,practice,practice,false,"Try it on the board, or continue to the next lesson."),
+            (true,true,practice,practice,false,"Play Rook Sweep, or continue to the next lesson."),
             (true,false,practice,bishop,true,""),
         ]
         for (auto,pauseFor,start,end,playing,message) in cases {

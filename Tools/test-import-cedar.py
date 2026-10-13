@@ -1,6 +1,8 @@
 """Publication timing contracts; no API calls, encoding or playback."""
+import copy
 import importlib.util
 import json
+import re
 import unittest
 from pathlib import Path
 
@@ -161,6 +163,118 @@ class NarrationClaimTests(unittest.TestCase):
             self.assertEqual({p['title'] for p in projections[li]}, {lesson['title']}, 'The agent projection names the lesson as shown')
             topics = {p['topic'] for p in runtime['puzzles'] if p['id'].startswith('course:' + lesson['id'] + ':')}
             self.assertLessEqual(topics, {lesson['title']}, 'Quick puzzles name their lesson as shown')
+
+
+class LessonPracticeTests(unittest.TestCase):
+    """Each broken practice exercise is rejected for its own reason; the published ones pass."""
+    def setUp(self):
+        self.prep = publisher.module('prepare', 'prepare-lesson-scripts.py')
+        content = json.loads((HERE.parent / 'Content/course-scripts.en-GB.json').read_text())
+        self.lessons = {lesson['id']: lesson for lesson in content['lessons']}
+
+    def rejects(self, lesson_id, change, message):
+        lesson = copy.deepcopy(self.lessons[lesson_id])
+        change(lesson['practice'])
+        with self.subTest(message), self.assertRaisesRegex(AssertionError, re.escape(message)):
+            self.prep.validate_lesson(lesson)
+
+    def fingerprint(self, fen, *moves):
+        board, colour, castling, en_passant = self.prep.parse_fen(fen)
+        position = (board, colour, castling, en_passant)
+        for move in moves:
+            position = self.prep.rules.advance(*position, self.prep.legal_ucis(position)[move])
+        return self.prep.placement(position[0]) + ' ' + position[1]
+
+    def testPublishedExercises(self):
+        practice = {i for i, l in self.lessons.items() if 'practice' in l}
+        self.assertEqual(practice, {'pawn', 'castling', 'castling-rules', 'promotion-en-passant', 'scholars-mate', 'fork', 'pin', 'skewer',
+                                    'discovered-attack', 'removing-the-defender', 'two-rook-mate', 'queen-mate', 'rook-mate'})
+        for lesson_id in practice:
+            self.assertIn('beat', self.lessons[lesson_id]['practice'], lesson_id)
+            self.prep.validate_lesson(self.lessons[lesson_id])
+
+    def testFieldsBeatAndTexts(self):
+        self.rejects('fork', lambda p: p.__setitem__('hint', 'x'), 'practice fields')
+        self.rejects('fork', lambda p: p.pop('offTrack'), 'teaching and offTrack go together')
+        self.rejects('queen-mate', lambda p: p.__setitem__('mistakes', {'d1d8': 'x'}), 'mistakes only with them')
+        self.rejects('fork', lambda p: [p.pop(k) for k in list(p) if k not in ('fen', 'goal')], 'practice fields')
+        self.rejects('fork', lambda p: p.__setitem__('beat', 'pin:13'), 'is not a beat of this lesson')
+        self.rejects('fork', lambda p: p.__setitem__('beat', 'fork:13'), 'is not the practice position')
+        self.rejects('fork', lambda p: p.__setitem__('hints', p['hints'][:1]), 'exactly two different hints')
+        self.rejects('fork', lambda p: p.__setitem__('hints', [p['hints'][0]] * 2), 'exactly two different hints')
+        self.rejects('fork', lambda p: p.__setitem__('success', 'x' * 221), 'more than 220')
+        self.rejects('fork', lambda p: p.__setitem__('offTrack', ' padded'), 'without outer spaces')
+        self.rejects('promotion-en-passant', lambda p: p.__setitem__('fen', p['fen'].replace(' d6 ', ' c6 ')), 'en passant on c6 needs')
+
+    def testCheckpoints(self):
+        def checkpoints(*items):
+            return lambda p: p.__setitem__('checkpoints', list(items))
+        mate = {'kind': 'mate', 'label': "Checkmate Black's king"}
+        self.rejects('queen-mate', checkpoints({'kind': 'stalemate', 'label': 'x'}), 'checkpoint')
+        self.rejects('queen-mate', checkpoints({'kind': 'mate', 'label': 'x' * 49}), 'more than 48')
+        self.rejects('queen-mate', checkpoints(mate, mate), 'each kind appears once')
+        self.rejects('queen-mate', checkpoints(mate, {'kind': 'graph', 'label': 'x'}), 'needs a teaching graph')
+        self.rejects('queen-mate', checkpoints(mate, {'kind': 'mate', 'label': 'x', 'tactic': 'fork', 'gain': 1}), 'has a kind and a label')
+        self.rejects('queen-mate', checkpoints(mate, {'kind': 'pawnAdvance', 'label': 'x'}), 'needs a white pawn')
+        self.rejects('queen-mate', checkpoints(mate, {'kind': 'attackQueen', 'label': 'x'}), 'needs a black queen')
+        self.rejects('queen-mate', lambda p: p.__setitem__('opponent', 'beginner'), 'mates are defended by defender')
+        self.rejects('fork', lambda p: p.__setitem__('opponent', 'defender'), 'mates are defended by defender')
+        def without_graph(p):
+            for field in ('teaching', 'offTrack', 'mistakes'):
+                p.pop(field, None)
+        self.rejects('castling', lambda p: (without_graph(p), p.__setitem__('fen', p['fen'].replace(' KQ ', ' - '))), 'no castling right')
+        # Checkpoints must be possible from the start, not merely named.
+        self.rejects('castling-rules', lambda p: (without_graph(p), p.__setitem__('fen', p['fen'].replace(' KQ ', ' K '))), 'no legal castling exists at the start or in the graph')
+        self.rejects('pawn', checkpoints({'kind': 'pawnAdvance', 'label': 'x'}, {'kind': 'enPassant', 'label': 'y'}), "the FEN needs its en-passant square")
+        self.rejects('pawn', lambda p: (p.__setitem__('fen', p['fen'].replace(' - - ', ' - d6 ')), p.__setitem__('checkpoints', [{'kind': 'enPassant', 'label': 'x'}])), 'no legal en-passant capture at the start')
+        self.rejects('castling', lambda p: p['checkpoints'].append({'kind': 'promote', 'label': 'x'}), 'every white pawn has a black pawn ahead of it')
+        graph = lambda p: p['checkpoints'][0]
+        self.rejects('fork', lambda p: graph(p).__setitem__('tactic', 'deflection'), 'a tactic names one of')
+        for gain in (0, 2.5, True):
+            self.rejects('fork', lambda p, gain=gain: graph(p).__setitem__('gain', gain), 'gain is whole material')
+        self.rejects('fork', lambda p: graph(p).pop('gain'), 'a tactic names one of')
+
+    def testTeachingGraphReplay(self):
+        root = lambda p: p['teaching'][0]
+        self.rejects('fork', lambda p: p['teaching'][1].__setitem__('fingerprint', root(p)['fingerprint']), 'fingerprint')
+        self.rejects('castling-rules', lambda p: root(p).__setitem__('accepted', ['e1g1']), 'accepted move e1g1 is not legal')
+        self.rejects('fork', lambda p: root(p)['replies'].__setitem__('g5e6', 'a8a1'), 'reply a8a1 to g5e6 is not legal')
+        self.rejects('fork', lambda p: root(p).pop('next'), 'has a reply exactly when the graph continues')
+        self.rejects('fork', lambda p: root(p)['next'].__setitem__('g5e6', 2), 'is not a node')
+        self.rejects('fork', lambda p: root(p)['next'].__setitem__('g5e6', True), 'is not a node')
+        self.rejects('fork', lambda p: p['teaching'].append(copy.deepcopy(p['teaching'][1])), 'never reached')
+        self.rejects('fork', lambda p: p['teaching'][1].__setitem__('replies', {}), 'omit replies or next when empty')
+        self.rejects('fork', lambda p: p['teaching'][1].update(replies={'e6f8': 'e7f8'}, next={'e6f8': 1}), 'loops back on itself')
+        self.rejects('fork', lambda p: root(p)['replies'].__setitem__('g5g6', 'h7h6'), 'g5g6 is not legal, so it has no reply')
+        self.rejects('fork', lambda p: p['mistakes'].__setitem__('e1-g1', 'x'), 'is not a UCI move')
+        # Mistakes describe the start, so a mistake is a move node 0 does not accept.
+        self.rejects('castling', lambda p: p['mistakes'].__setitem__('e1g1', 'x'), 'must be off track at node 0')
+        # En passant comes only from the FEN's en-passant square.
+        self.rejects('promotion-en-passant', lambda p: (p.__setitem__('fen', p['fen'].replace(' d6 ', ' - ')), p.__setitem__('checkpoints', p['checkpoints'][1:])), 'accepted move e5d6 is not legal')
+
+        # Castling rights follow the moves: a rook that left h1 and came back no longer castles.
+        def rook_went_away(p):
+            fen = p['fen']
+            p['teaching'] = [
+                {'fingerprint': self.fingerprint(fen), 'accepted': ['h1g1'], 'replies': {'h1g1': 'a7a6'}, 'next': {'h1g1': 1}},
+                {'fingerprint': self.fingerprint(fen, 'h1g1', 'a7a6'), 'accepted': ['g1h1'], 'replies': {'g1h1': 'a6a5'}, 'next': {'g1h1': 2}},
+                {'fingerprint': self.fingerprint(fen, 'h1g1', 'a7a6', 'g1h1', 'a6a5'), 'accepted': ['e1g1']}]
+        self.rejects('castling', rook_went_away, 'accepted move e1g1 is not legal')
+
+    def testPromotionMovesNameTheirPiece(self):
+        fen = '7k/P7/8/8/8/8/8/6K1 w - - 0 1'
+        board = self.prep.parse_fen(fen)[0]
+        lesson = {'id': 'promotion-drill', 'title': 'Promotion drill', 'teaches': ['Promote.'],
+                  'beats': [{'id': 'promotion-drill:0', 'label': 'Your turn', 'big': '', 'say': 'Promote.', 'speak': 'Promote.', 'set': board}],
+                  'practice': {'fen': fen, 'goal': 'Promote the pawn.', 'beat': 'promotion-drill:0',
+                               'teaching': [{'fingerprint': self.fingerprint(fen), 'accepted': ['a7a8q', 'a7a8r']}],
+                               'checkpoints': [{'kind': 'graph', 'label': 'Promote the pawn'}], 'opponent': 'beginner',
+                               'hints': ['Walk the pawn to the last rank.', 'It is one step away.'], 'offTrack': 'Undo it and promote.',
+                               'success': 'Promoted.'}}
+        self.prep.validate_lesson(lesson)
+        lesson['practice']['teaching'][0]['accepted'] = ['a7a8']
+        with self.assertRaisesRegex(AssertionError, 'accepted move a7a8 is not legal'):
+            self.prep.validate_lesson(lesson)
 
 
 class AuthoredMoveTests(unittest.TestCase):

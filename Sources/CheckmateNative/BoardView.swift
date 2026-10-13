@@ -81,6 +81,8 @@ final class BoardView:NSView {
     var activate:((String)->Void)?,clearSelection:(()->Void)?,onLayout:(()->Void)?
     /// Whether a press on this square may drag its piece; elsewhere a press is only a click.
     var canDrag:((String)->Bool)?
+    /// A dragged piece dropped on a square it cannot reach (it snaps back): the host may explain why.
+    var refusedDrop:((String,String)->Void)?
     // A press that never becomes a drag is a click on the square it started on, however far the pointer drifts,
     // even across a square edge; only a release off the board cancels it. Dragging a piece selects it as the drag
     // starts and, on release over another square, activates that square, so drops reuse the click rules for
@@ -184,7 +186,7 @@ final class BoardView:NSView {
         guard let press=press else{return};let target=square(at:point)
         guard let drag=drag else{if target != nil{activate?(press.square)};return}
         // A drop anywhere but a playable destination snaps back and keeps the piece selected.
-        guard let target=target,target != drag.from,selected==drag.from,dropsAnywhere || destinationsPlayable && destinations.contains(target) else{return}
+        guard let target=target,target != drag.from,selected==drag.from,dropsAnywhere || destinationsPlayable && destinations.contains(target) else{if let target,target != drag.from{refusedDrop?(drag.from,target)};return}
         focus=target;droppedMove=(drag.from,target);activate?(target);droppedMove=nil
     }
     override func keyDown(with e:NSEvent){if e.modifierFlags.intersection([.command,.control,.option]).isEmpty,reviewKey?(e.keyCode)==true{return};let modifiers=e.modifierFlags.intersection([.command,.control,.option]);if !modifiers.isEmpty && !(modifiers == .option && (123...126).contains(e.keyCode)){super.keyDown(with:e);return};if let char=e.charactersIgnoringModifiers?.lowercased(),char=="p" || char=="a"{inspectRelationship?(char=="p" ? .protected:.attacked);return};keyboardFocusVisible=true;if e.keyCode==36 || e.keyCode==49{activate?(focus);return};if e.keyCode==53{if press != nil || drag != nil{press=nil;drag=nil;if let window{cursor(at:convert(window.mouseLocationOutsideOfEventStream,from:nil)).set()}};if dismissRelationships?()==true{needsDisplay=true;return};selected=nil;destinations=[];clearSelection?();needsDisplay=true;return};var f=Int(focus.utf8.first!-97),r=Int(focus.suffix(1))!-1;let step=blackAtBottom ? -1:1;switch e.keyCode{case 123:f-=step;case 124:f+=step;case 125:r-=step;case 126:r+=step;default:super.keyDown(with:e);return};focus=String(UnicodeScalar(97+max(0,min(7,f)))!)+String(max(0,min(7,r))+1);needsDisplay=true;if let square=squares.first(where:{$0.square==focus}){NSAccessibility.post(element:square,notification:.focusedUIElementChanged)}}

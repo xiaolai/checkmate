@@ -30,6 +30,8 @@ public struct Coaching:Codable {public var status="idle",summary="",recommendati
 public struct LessonProjection:Codable {
     public var mode:String,pieces:Position?,title:String,lessonId:String,step:Int,prompt:String?,choices:[String]?,playing:Bool,narrationActive:Bool,moving:Bool,turn:String?,winner:String?,rules:[String]?
     public var drawReason:String?=nil
+    /// The lesson's exercise on its invitation step: the board is the learner's game against the computer.
+    public var attempt:LessonAttemptProjection?=nil
 }
 @MainActor public final class GameSession:ObservableObject {
     public let rules:ChessRules
@@ -244,7 +246,7 @@ public struct LessonProjection:Codable {
     /// Shows practice; already there, it is the explicit resume: the game is shown again and the opponent replies.
     public func resumePractice(){if activity == .at(.practice){lesson=nil;changedPosition();reply()}else{enter(.at(.practice))}}
     /// Lessons and puzzles only: a late publish from a lesson can never paint over practice or training.
-    public func setLesson(_ projection:LessonProjection){guard mode == .lesson || mode == .puzzles else{return};cancelWork();explicitResumeRequired=false;liveSelection=nil;let changed=lesson==nil || lesson?.lessonId != projection.lessonId || lesson?.step != projection.step || lesson?.pieces != projection.pieces || lesson?.mode != projection.mode || lesson?.moving != projection.moving || lesson?.turn != projection.turn;if let old=lesson,NSDictionary(dictionary:jsonObject(old) as! [String:Any]).isEqual(to:jsonObject(projection) as! [String:Any]){return};lesson=projection;if changed{position+=1;clearAnnotations();clearPresentation()};emit(semantic:true)}
+    public func setLesson(_ projection:LessonProjection){guard mode == .lesson || mode == .puzzles else{return};cancelWork();explicitResumeRequired=false;liveSelection=nil;let changed=lesson==nil || lesson?.lessonId != projection.lessonId || lesson?.step != projection.step || lesson?.pieces != projection.pieces || lesson?.mode != projection.mode || lesson?.moving != projection.moving || lesson?.turn != projection.turn || lesson?.attempt?.attemptId != projection.attempt?.attemptId;if let old=lesson,NSDictionary(dictionary:jsonObject(old) as! [String:Any]).isEqual(to:jsonObject(projection) as! [String:Any]){return};lesson=projection;if changed{position+=1;clearAnnotations();clearPresentation()};emit(semantic:true)}
     /// The training activity's only writer. A changed board or task is a new position (annotations and presentations
     /// end with it); a status or selection change is not.
     /// Whether the companion's training tools are attached (training enabled); otherwise training advertises none.

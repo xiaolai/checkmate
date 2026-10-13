@@ -12,7 +12,18 @@ final class ProjectionParityTests:XCTestCase {
     @MainActor func testEveryAuthoredPublicLessonAndQuizProjection()throws {
         let expected=try JSONSerialization.jsonObject(with:Data(contentsOf:NativeResources.url("projections.json"))) as! [[[String:Any]]]
         let s=try GameSession(engine:nil),p=try LearningPlayer(session:s);var count=0
-        for (li,lesson) in expected.enumerated(){p.openLesson(index:li);for (step,want) in lesson.enumerated(){p.seek(step:step);let got=s.publicState()["state"] as! [String:Any];XCTAssertTrue(NSDictionary(dictionary:got).isEqual(to:want),"Projection mismatch \(li):\(step) actual=\(got) expected=\(want)");count+=1}}
+        for (li,lesson) in expected.enumerated(){p.openLesson(index:li);for (step,want) in lesson.enumerated(){p.seek(step:step);var got=s.publicState()["state"] as! [String:Any]
+            // An exercise step adds the live attempt (a fresh id each time) and White's turn to the authored projection.
+            if p.attemptStep{
+                // Every attempt field but its fresh id is fixed by the authored practice: a fresh attempt at its start.
+                let attempt=got.removeValue(forKey:"attempt") as? [String:Any],practice=try XCTUnwrap(p.current.practice),place="\(li):\(step)"
+                XCTAssertFalse((attempt?["attemptId"] as? String ?? "").isEmpty,place);XCTAssertEqual(attempt?["phase"] as? String,"yourTurn",place)
+                XCTAssertEqual((attempt?["fen"] as? String)?.split(separator:" ").prefix(4),practice.fen.split(separator:" ").prefix(4),place);XCTAssertEqual(attempt?["turn"] as? String,"w",place)
+                XCTAssertEqual(attempt?["goal"] as? String,practice.goal,place);XCTAssertEqual(attempt?["thinking"] as? Bool,false,place);XCTAssertEqual(attempt?["waitingToResume"] as? Bool,false,place)
+                XCTAssertNil(attempt?["feedback"] as? String,place)
+                let checkpoints=attempt?["checkpoints"] as? [[String:Any]]
+                XCTAssertEqual(checkpoints?.compactMap{$0["label"] as? String},practice.checkpoints?.map(\.label),place);XCTAssertEqual(checkpoints?.compactMap{$0["done"] as? Bool},practice.checkpoints?.map{_ in false},place)
+                XCTAssertEqual(Set(attempt?.keys.map{$0} ?? []),Set(["attemptId","fen","turn","phase","goal","checkpoints","thinking","waitingToResume"]).union(attempt?["feedback"]==nil ? []:["feedback"]),place);XCTAssertEqual(got.removeValue(forKey:"turn") as? String,"w");got["turn"]=want["turn"]}else{XCTAssertNil(got["attempt"])};XCTAssertTrue(NSDictionary(dictionary:got).isEqual(to:want),"Projection mismatch \(li):\(step) actual=\(got) expected=\(want)");count+=1}}
         XCTAssertEqual(count,710)
     }
     @MainActor func testPublicNullableFieldsAndLessonEventIdentity()throws {let s=try GameSession(engine:nil);let publicValue=s.publicState();let coaching=publicValue["coaching"] as! [String:Any];XCTAssertTrue(coaching["analysis"] is NSNull);XCTAssertTrue(coaching["recommendation"] is NSNull)
