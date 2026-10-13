@@ -1,4 +1,4 @@
-# Unreleased
+# Checkmate 0.7.2
 
 The control bar under the board is redesigned. In a lesson its four playback
 buttons (from the start, previous, play, next) keep their places on every
@@ -23,6 +23,18 @@ went on to say how the notation is read ("read as e takes f6", "said as
 castles queenside") while the text had already ended. The text now says it
 too, and the content check fails if a transcript drops a pronunciation its
 recording speaks.
+
+Automated acceptance covered every gate on a second test Mac. Real pointer
+clicks and key presses checked that the lesson playback buttons stay put on
+every step with the drawers open and closed, the Lesson menu shortcuts and ⌘Z,
+and training Take back from the bar and from ⌘Z; the layout gate measured every
+bar control in practice, a lesson and an exercise from 780 down to 320 points,
+with one row required from the 600-point minimum up. Codex reviewed the design
+and twice reviewed the implementation. Nobody has yet listened to the new
+controls with VoiceOver (their names are checked, not the speech), and live
+voice, translation and recording were not exercised for this release.
+
+Requires macOS 14+ with universal Apple Silicon and Intel binaries.
 
 # Checkmate 0.7.1
 
