@@ -1031,7 +1031,7 @@ Recording text: A side with no move on its turn loses. White's last pawn on E fi
 
 **queen-practice:11** — Tip for the queen
 
-At the start, the white pawns attack every square on the third rank. The queen should never stop on a square a pawn attacks.
+At the start, the white pawns attack every square on the third rank. The queen should never stop on a square that a pawn attacks.
 
 **queen-practice:12** — Tip for the pawns
 
@@ -2656,7 +2656,7 @@ If something goes wrong, such as an illegal move, a faulty clock or a draw claim
 
 **tournaments:14** — No outside help
 
-During play, you may not get advice from anyone, use notes or books, or analyse on another board. Phones are normally not allowed with you at all, unless the event allows them, for example switched off in a bag. Check the rules.
+During play, you may not get advice from anyone, use notes or books, or analyse on another board. Check the rules on phones: they are normally not allowed with you at all, unless the event allows them, for example switched off in a bag.
 
 **tournaments:15** — Behaving well
 

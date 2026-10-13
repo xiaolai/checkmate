@@ -1,5 +1,17 @@
 # Unreleased
 
+34 lesson recordings are re-recorded. In 21, the voice stopped before the last
+sentence of the text, so the clip ended early and sometimes reversed its point:
+"A side with no move on its turn" without "loses", several "Checkmate." endings,
+and "Check before you land.", "Keep her safe." and "The board is ready." among
+others. Three said a wrong square ("S six" for "F six", "D five" for "B five",
+and an unclear "B two"), and nine slurred a word into another ("Whites came" for
+"White's king", "coins" for "points", "slit" for "slip"). In Chess Notation, "On
+the queen's side" had a faint second "queen" under the voice; its new take has
+none. Two texts were reworded because the voice kept dropping or blurring them:
+Playing in a Tournament no longer ends on "Check the rules.", and Queen Practice
+says "a square that a pawn attacks".
+
 Every recording is now transcribed before it is published, and a clip whose
 ending, words or squares are not all heard is refused. A faint doubled word under
 the voice cannot be caught this way; that still needs listening.

@@ -289,10 +289,10 @@
     },
     "notation:14": {
       "textSHA256": "1b46d32a70d50db187e1e2244fb8cc2821cdbde4f52380a446c8d472338193ff",
-      "masterSHA256": "787d0ee7635fe637fe8323dc029e043fb18ea02dc48c5331247cdba9b68a22fa",
+      "masterSHA256": "da57667394eebfde6e92dbd7fb785f37a60164eed99779e57f32191aab67eb07",
       "fractions": [
         0,
-        0.34629
+        0.343969
       ],
       "method": "whisper-1-authored-phrase"
     },
@@ -577,10 +577,10 @@
     },
     "two-rook-mate:6": {
       "textSHA256": "dd2de1ce09bc9607866f387afa70c11b430dd997eb26b1e66285d50328413107",
-      "masterSHA256": "89555a43e66d58ab85f7acf673051a2cfc4c584b59f6e7943884a2cf8cfb350d",
+      "masterSHA256": "b8d9afd9ae40f03940929d754a1eb945aae25a5009adcdac4df0fe1121257231",
       "fractions": [
         0,
-        0.506383
+        0.390303
       ],
       "method": "whisper-1-authored-phrase"
     },
@@ -680,10 +680,10 @@
     },
     "rook-mate:4": {
       "textSHA256": "520ca7f468706949bf232fff55026b9f5b9cef532c4ef479565d1d3047ac38a7",
-      "masterSHA256": "b4c7324447278ab1cd619d360a7bd16a7782c64bcfb2354243794209d38676b2",
+      "masterSHA256": "a7002840f8d128120022e4b4372b6f668511dae2f6804f8bfe2cb54da1034ce5",
       "fractions": [
         0,
-        0.424121
+        0.360199
       ],
       "method": "whisper-1-authored-phrase"
     },

@@ -5230,7 +5230,7 @@
         {
           "id": "queen-practice:11",
           "big": "Queen tips",
-          "say": "At the start, the white pawns attack every square on the third rank. The queen should never stop on a square a pawn attacks.",
+          "say": "At the start, the white pawns attack every square on the third rank. The queen should never stop on a square that a pawn attacks.",
           "set": {
             "a2": "wp",
             "b2": "wp",
@@ -5276,7 +5276,7 @@
               "kind": "no"
             }
           ],
-          "speak": "At the start, the white pawns attack every square on the third rank. The queen should never stop on a square a pawn attacks.",
+          "speak": "At the start, the white pawns attack every square on the third rank. The queen should never stop on a square that a pawn attacks.",
           "arrows": []
         },
         {
@@ -13134,7 +13134,7 @@
           ],
           "moveCues": [
             0,
-            0.34629
+            0.343969
           ],
           "hl": [],
           "arrows": []
@@ -14371,8 +14371,8 @@
         {
           "id": "tournaments:14",
           "big": "",
-          "say": "During play, you may not get advice from anyone, use notes or books, or analyse on another board. Phones are normally not allowed with you at all, unless the event allows them, for example switched off in a bag. Check the rules.",
-          "speak": "During play, you may not get advice from anyone, use notes or books, or analyse on another board. Phones are normally not allowed with you at all, unless the event allows them, for example switched off in a bag. Check the rules.",
+          "say": "During play, you may not get advice from anyone, use notes or books, or analyse on another board. Check the rules on phones: they are normally not allowed with you at all, unless the event allows them, for example switched off in a bag.",
+          "speak": "During play, you may not get advice from anyone, use notes or books, or analyse on another board. Check the rules on phones: they are normally not allowed with you at all, unless the event allows them, for example switched off in a bag.",
           "set": null,
           "hl": [],
           "arrows": []
@@ -20432,7 +20432,7 @@
           "speak": "Black's king is pushed to G eight, on the edge. The rook on A six goes to A eight and gives check along the last rank. Checkmate!",
           "moveCues": [
             0,
-            0.506383
+            0.390303
           ],
           "set": {
             "c1": "wk",
@@ -21293,7 +21293,7 @@
           "speak": "The rook moves up to H five and gives check. Black's king cannot go down, so it retreats to C six. The box is now ranks 6 to 8.",
           "moveCues": [
             0,
-            0.424121
+            0.360199
           ],
           "set": {
             "h4": "wr",
@@ -23859,3628 +23859,3628 @@
   "voices": [
     [
       {
-        "file": "course/cedar-7263a3a9ecd6/intro/00.m4a",
+        "file": "course/cedar-ef402a662724/intro/00.m4a",
         "seconds": 9.1,
         "duration": 9.6
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/intro/01.m4a",
+        "file": "course/cedar-ef402a662724/intro/01.m4a",
         "seconds": 8.35,
         "duration": 8.866666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/intro/02.m4a",
+        "file": "course/cedar-ef402a662724/intro/02.m4a",
         "seconds": 6.75,
         "duration": 7.266666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/intro/03.m4a",
+        "file": "course/cedar-ef402a662724/intro/03.m4a",
         "seconds": 6,
         "duration": 6.5
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/intro/04.m4a",
+        "file": "course/cedar-ef402a662724/intro/04.m4a",
         "seconds": 9.75,
         "duration": 10.266666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/intro/05.m4a",
+        "file": "course/cedar-ef402a662724/intro/05.m4a",
         "seconds": 7.5,
         "duration": 8.0
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/intro/06.m4a",
+        "file": "course/cedar-ef402a662724/intro/06.m4a",
         "seconds": 8.25,
         "duration": 8.766666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/intro/07.m4a",
+        "file": "course/cedar-ef402a662724/intro/07.m4a",
         "seconds": 9.3,
         "duration": 9.8
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/intro/08.m4a",
-        "seconds": 7.1,
-        "duration": 7.6
+        "file": "course/cedar-ef402a662724/intro/08.m4a",
+        "seconds": 8,
+        "duration": 8.5
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/intro/09.m4a",
+        "file": "course/cedar-ef402a662724/intro/09.m4a",
         "seconds": 10.45,
         "duration": 10.966666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/intro/10.m4a",
+        "file": "course/cedar-ef402a662724/intro/10.m4a",
         "seconds": 10.8,
         "duration": 11.3
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/intro/11.m4a",
+        "file": "course/cedar-ef402a662724/intro/11.m4a",
         "seconds": 7.85,
         "duration": 8.366666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/intro/12.m4a",
+        "file": "course/cedar-ef402a662724/intro/12.m4a",
         "seconds": 11.7,
         "duration": 12.2
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/intro/13.m4a",
+        "file": "course/cedar-ef402a662724/intro/13.m4a",
         "seconds": 7.75,
         "duration": 8.266666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/intro/14.m4a",
+        "file": "course/cedar-ef402a662724/intro/14.m4a",
         "seconds": 7.5,
         "duration": 8.0
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/intro/15.m4a",
+        "file": "course/cedar-ef402a662724/intro/15.m4a",
         "seconds": 8.65,
         "duration": 9.166666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/intro/16.m4a",
+        "file": "course/cedar-ef402a662724/intro/16.m4a",
         "seconds": 10.3,
         "duration": 10.8
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/intro/17.m4a",
+        "file": "course/cedar-ef402a662724/intro/17.m4a",
         "seconds": 6.95,
         "duration": 7.466666666666667
       }
     ],
     [
       {
-        "file": "course/cedar-7263a3a9ecd6/board/00.m4a",
+        "file": "course/cedar-ef402a662724/board/00.m4a",
         "seconds": 4.7,
         "duration": 5.2
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/board/01.m4a",
+        "file": "course/cedar-ef402a662724/board/01.m4a",
         "seconds": 6.85,
         "duration": 7.366666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/board/02.m4a",
+        "file": "course/cedar-ef402a662724/board/02.m4a",
         "seconds": 7.6,
         "duration": 8.1
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/board/03.m4a",
+        "file": "course/cedar-ef402a662724/board/03.m4a",
         "seconds": 9.75,
         "duration": 10.266666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/board/04.m4a",
+        "file": "course/cedar-ef402a662724/board/04.m4a",
         "seconds": 9.15,
         "duration": 9.666666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/board/05.m4a",
+        "file": "course/cedar-ef402a662724/board/05.m4a",
         "seconds": 6.4,
         "duration": 6.9
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/board/06.m4a",
+        "file": "course/cedar-ef402a662724/board/06.m4a",
         "seconds": 7.35,
         "duration": 7.866666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/board/07.m4a",
+        "file": "course/cedar-ef402a662724/board/07.m4a",
         "seconds": 4.95,
         "duration": 5.466666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/board/08.m4a",
+        "file": "course/cedar-ef402a662724/board/08.m4a",
         "seconds": 10.4,
         "duration": 10.9
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/board/09.m4a",
+        "file": "course/cedar-ef402a662724/board/09.m4a",
         "seconds": 7.1,
         "duration": 7.6
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/board/10.m4a",
+        "file": "course/cedar-ef402a662724/board/10.m4a",
         "seconds": 9.4,
         "duration": 9.9
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/board/11.m4a",
+        "file": "course/cedar-ef402a662724/board/11.m4a",
         "seconds": 7.6,
         "duration": 8.1
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/board/12.m4a",
+        "file": "course/cedar-ef402a662724/board/12.m4a",
         "seconds": 8.85,
         "duration": 9.366666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/board/13.m4a",
+        "file": "course/cedar-ef402a662724/board/13.m4a",
         "seconds": 5.4,
         "duration": 5.9
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/board/14.m4a",
+        "file": "course/cedar-ef402a662724/board/14.m4a",
         "seconds": 13,
         "duration": 13.5
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/board/15.m4a",
-        "seconds": 10.5,
-        "duration": 11.0
+        "file": "course/cedar-ef402a662724/board/15.m4a",
+        "seconds": 10.85,
+        "duration": 11.366666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/board/16.m4a",
+        "file": "course/cedar-ef402a662724/board/16.m4a",
         "seconds": 10.3,
         "duration": 10.8
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/board/17.m4a",
+        "file": "course/cedar-ef402a662724/board/17.m4a",
         "seconds": 7.55,
         "duration": 8.066666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/board/18.m4a",
+        "file": "course/cedar-ef402a662724/board/18.m4a",
         "seconds": 9.35,
         "duration": 9.866666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/board/19.m4a",
+        "file": "course/cedar-ef402a662724/board/19.m4a",
         "seconds": 7.2,
         "duration": 7.7
       }
     ],
     [
       {
-        "file": "course/cedar-7263a3a9ecd6/pawn/00.m4a",
+        "file": "course/cedar-ef402a662724/pawn/00.m4a",
         "seconds": 6.3,
         "duration": 6.8
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/pawn/01.m4a",
+        "file": "course/cedar-ef402a662724/pawn/01.m4a",
         "seconds": 9.25,
         "duration": 9.766666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/pawn/02.m4a",
+        "file": "course/cedar-ef402a662724/pawn/02.m4a",
         "seconds": 10.3,
         "duration": 10.8
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/pawn/03.m4a",
+        "file": "course/cedar-ef402a662724/pawn/03.m4a",
         "seconds": 7.55,
         "duration": 8.066666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/pawn/04.m4a",
+        "file": "course/cedar-ef402a662724/pawn/04.m4a",
         "seconds": 8.05,
         "duration": 8.566666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/pawn/05.m4a",
+        "file": "course/cedar-ef402a662724/pawn/05.m4a",
         "seconds": 9.2,
         "duration": 9.7
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/pawn/06.m4a",
+        "file": "course/cedar-ef402a662724/pawn/06.m4a",
         "seconds": 6.15,
         "duration": 6.666666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/pawn/07.m4a",
+        "file": "course/cedar-ef402a662724/pawn/07.m4a",
         "seconds": 7.05,
         "duration": 7.566666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/pawn/08.m4a",
+        "file": "course/cedar-ef402a662724/pawn/08.m4a",
         "seconds": 7.1,
         "duration": 7.6
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/pawn/09.m4a",
+        "file": "course/cedar-ef402a662724/pawn/09.m4a",
         "seconds": 8.7,
         "duration": 9.2
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/pawn/10.m4a",
+        "file": "course/cedar-ef402a662724/pawn/10.m4a",
         "seconds": 8.95,
         "duration": 9.466666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/pawn/11.m4a",
+        "file": "course/cedar-ef402a662724/pawn/11.m4a",
         "seconds": 8.9,
         "duration": 9.4
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/pawn/12.m4a",
+        "file": "course/cedar-ef402a662724/pawn/12.m4a",
         "seconds": 7.95,
         "duration": 8.466666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/pawn/13.m4a",
+        "file": "course/cedar-ef402a662724/pawn/13.m4a",
         "seconds": 7.55,
         "duration": 8.066666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/pawn/14.m4a",
+        "file": "course/cedar-ef402a662724/pawn/14.m4a",
         "seconds": 7.35,
         "duration": 7.866666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/pawn/15.m4a",
+        "file": "course/cedar-ef402a662724/pawn/15.m4a",
         "seconds": 8.15,
         "duration": 8.666666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/pawn/16.m4a",
+        "file": "course/cedar-ef402a662724/pawn/16.m4a",
         "seconds": 7.2,
         "duration": 7.7
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/pawn/17.m4a",
+        "file": "course/cedar-ef402a662724/pawn/17.m4a",
         "seconds": 9.45,
         "duration": 9.966666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/pawn/18.m4a",
+        "file": "course/cedar-ef402a662724/pawn/18.m4a",
         "seconds": 9.5,
         "duration": 10.0
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/pawn/19.m4a",
+        "file": "course/cedar-ef402a662724/pawn/19.m4a",
         "seconds": 10.4,
         "duration": 10.9
       }
     ],
     [
       {
-        "file": "course/cedar-7263a3a9ecd6/pawn-duel/00.m4a",
+        "file": "course/cedar-ef402a662724/pawn-duel/00.m4a",
         "seconds": 7.15,
         "duration": 7.666666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/pawn-duel/01.m4a",
+        "file": "course/cedar-ef402a662724/pawn-duel/01.m4a",
         "seconds": 7.25,
         "duration": 7.766666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/pawn-duel/02.m4a",
+        "file": "course/cedar-ef402a662724/pawn-duel/02.m4a",
         "seconds": 8.45,
         "duration": 8.966666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/pawn-duel/03.m4a",
+        "file": "course/cedar-ef402a662724/pawn-duel/03.m4a",
         "seconds": 6.8,
         "duration": 7.3
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/pawn-duel/04.m4a",
+        "file": "course/cedar-ef402a662724/pawn-duel/04.m4a",
         "seconds": 7.2,
         "duration": 7.7
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/pawn-duel/05.m4a",
+        "file": "course/cedar-ef402a662724/pawn-duel/05.m4a",
         "seconds": 10.3,
         "duration": 10.8
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/pawn-duel/06.m4a",
+        "file": "course/cedar-ef402a662724/pawn-duel/06.m4a",
         "seconds": 8.25,
         "duration": 8.766666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/pawn-duel/07.m4a",
+        "file": "course/cedar-ef402a662724/pawn-duel/07.m4a",
         "seconds": 11.5,
         "duration": 12.0
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/pawn-duel/08.m4a",
+        "file": "course/cedar-ef402a662724/pawn-duel/08.m4a",
         "seconds": 7.1,
         "duration": 7.6
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/pawn-duel/09.m4a",
+        "file": "course/cedar-ef402a662724/pawn-duel/09.m4a",
         "seconds": 8.8,
         "duration": 9.3
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/pawn-duel/10.m4a",
+        "file": "course/cedar-ef402a662724/pawn-duel/10.m4a",
         "seconds": 9.75,
         "duration": 10.266666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/pawn-duel/11.m4a",
+        "file": "course/cedar-ef402a662724/pawn-duel/11.m4a",
         "seconds": 7.5,
         "duration": 8.0
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/pawn-duel/12.m4a",
+        "file": "course/cedar-ef402a662724/pawn-duel/12.m4a",
         "seconds": 8.3,
         "duration": 8.8
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/pawn-duel/13.m4a",
+        "file": "course/cedar-ef402a662724/pawn-duel/13.m4a",
         "seconds": 11.15,
         "duration": 11.666666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/pawn-duel/14.m4a",
+        "file": "course/cedar-ef402a662724/pawn-duel/14.m4a",
         "seconds": 10.3,
         "duration": 10.8
       }
     ],
     [
       {
-        "file": "course/cedar-7263a3a9ecd6/rook/00.m4a",
+        "file": "course/cedar-ef402a662724/rook/00.m4a",
         "seconds": 14,
         "duration": 14.5
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/rook/01.m4a",
+        "file": "course/cedar-ef402a662724/rook/01.m4a",
         "seconds": 6.7,
         "duration": 7.2
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/rook/02.m4a",
+        "file": "course/cedar-ef402a662724/rook/02.m4a",
         "seconds": 8.15,
         "duration": 8.666666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/rook/03.m4a",
+        "file": "course/cedar-ef402a662724/rook/03.m4a",
         "seconds": 6.55,
         "duration": 7.066666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/rook/04.m4a",
+        "file": "course/cedar-ef402a662724/rook/04.m4a",
         "seconds": 11.25,
         "duration": 11.766666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/rook/05.m4a",
+        "file": "course/cedar-ef402a662724/rook/05.m4a",
         "seconds": 8.9,
         "duration": 9.4
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/rook/06.m4a",
+        "file": "course/cedar-ef402a662724/rook/06.m4a",
         "seconds": 9.2,
         "duration": 9.7
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/rook/07.m4a",
+        "file": "course/cedar-ef402a662724/rook/07.m4a",
         "seconds": 8.75,
         "duration": 9.266666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/rook/08.m4a",
+        "file": "course/cedar-ef402a662724/rook/08.m4a",
         "seconds": 8.4,
         "duration": 8.9
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/rook/09.m4a",
+        "file": "course/cedar-ef402a662724/rook/09.m4a",
         "seconds": 8.65,
         "duration": 9.166666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/rook/10.m4a",
+        "file": "course/cedar-ef402a662724/rook/10.m4a",
         "seconds": 7.05,
         "duration": 7.566666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/rook/11.m4a",
+        "file": "course/cedar-ef402a662724/rook/11.m4a",
         "seconds": 11.3,
         "duration": 11.8
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/rook/12.m4a",
+        "file": "course/cedar-ef402a662724/rook/12.m4a",
         "seconds": 12.7,
         "duration": 13.2
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/rook/13.m4a",
+        "file": "course/cedar-ef402a662724/rook/13.m4a",
         "seconds": 8,
         "duration": 8.5
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/rook/14.m4a",
+        "file": "course/cedar-ef402a662724/rook/14.m4a",
         "seconds": 9.4,
         "duration": 9.9
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/rook/15.m4a",
+        "file": "course/cedar-ef402a662724/rook/15.m4a",
         "seconds": 8.8,
         "duration": 9.3
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/rook/16.m4a",
+        "file": "course/cedar-ef402a662724/rook/16.m4a",
         "seconds": 9.6,
         "duration": 10.1
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/rook/17.m4a",
+        "file": "course/cedar-ef402a662724/rook/17.m4a",
         "seconds": 5,
         "duration": 5.5
       }
     ],
     [
       {
-        "file": "course/cedar-7263a3a9ecd6/rook-practice/00.m4a",
+        "file": "course/cedar-ef402a662724/rook-practice/00.m4a",
         "seconds": 6.2,
         "duration": 6.7
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/rook-practice/01.m4a",
+        "file": "course/cedar-ef402a662724/rook-practice/01.m4a",
         "seconds": 9.85,
         "duration": 10.366666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/rook-practice/02.m4a",
+        "file": "course/cedar-ef402a662724/rook-practice/02.m4a",
         "seconds": 7.55,
         "duration": 8.066666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/rook-practice/03.m4a",
+        "file": "course/cedar-ef402a662724/rook-practice/03.m4a",
         "seconds": 8.1,
         "duration": 8.6
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/rook-practice/04.m4a",
+        "file": "course/cedar-ef402a662724/rook-practice/04.m4a",
         "seconds": 5.9,
         "duration": 6.4
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/rook-practice/05.m4a",
+        "file": "course/cedar-ef402a662724/rook-practice/05.m4a",
         "seconds": 9.25,
         "duration": 9.766666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/rook-practice/06.m4a",
+        "file": "course/cedar-ef402a662724/rook-practice/06.m4a",
         "seconds": 9.1,
         "duration": 11.6
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/rook-practice/07.m4a",
+        "file": "course/cedar-ef402a662724/rook-practice/07.m4a",
         "seconds": 8.85,
         "duration": 9.366666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/rook-practice/08.m4a",
+        "file": "course/cedar-ef402a662724/rook-practice/08.m4a",
         "seconds": 8.65,
         "duration": 9.166666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/rook-practice/09.m4a",
+        "file": "course/cedar-ef402a662724/rook-practice/09.m4a",
         "seconds": 12.2,
         "duration": 12.7
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/rook-practice/10.m4a",
+        "file": "course/cedar-ef402a662724/rook-practice/10.m4a",
         "seconds": 8.55,
         "duration": 9.066666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/rook-practice/11.m4a",
+        "file": "course/cedar-ef402a662724/rook-practice/11.m4a",
         "seconds": 9.55,
         "duration": 10.066666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/rook-practice/12.m4a",
+        "file": "course/cedar-ef402a662724/rook-practice/12.m4a",
         "seconds": 8.2,
         "duration": 8.7
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/rook-practice/13.m4a",
+        "file": "course/cedar-ef402a662724/rook-practice/13.m4a",
         "seconds": 11.8,
         "duration": 12.3
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/rook-practice/14.m4a",
+        "file": "course/cedar-ef402a662724/rook-practice/14.m4a",
         "seconds": 10.5,
         "duration": 11.0
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/rook-practice/15.m4a",
+        "file": "course/cedar-ef402a662724/rook-practice/15.m4a",
         "seconds": 6.95,
         "duration": 7.466666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/rook-practice/16.m4a",
+        "file": "course/cedar-ef402a662724/rook-practice/16.m4a",
         "seconds": 8.4,
         "duration": 8.9
       }
     ],
     [
       {
-        "file": "course/cedar-7263a3a9ecd6/bishop/00.m4a",
+        "file": "course/cedar-ef402a662724/bishop/00.m4a",
         "seconds": 11.95,
         "duration": 12.466666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/bishop/01.m4a",
+        "file": "course/cedar-ef402a662724/bishop/01.m4a",
         "seconds": 8.25,
         "duration": 8.766666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/bishop/02.m4a",
+        "file": "course/cedar-ef402a662724/bishop/02.m4a",
         "seconds": 6.75,
         "duration": 7.266666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/bishop/03.m4a",
+        "file": "course/cedar-ef402a662724/bishop/03.m4a",
         "seconds": 6.05,
         "duration": 6.566666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/bishop/04.m4a",
+        "file": "course/cedar-ef402a662724/bishop/04.m4a",
         "seconds": 9.1,
         "duration": 9.6
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/bishop/05.m4a",
+        "file": "course/cedar-ef402a662724/bishop/05.m4a",
         "seconds": 10.05,
         "duration": 10.566666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/bishop/06.m4a",
+        "file": "course/cedar-ef402a662724/bishop/06.m4a",
         "seconds": 9.15,
         "duration": 9.666666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/bishop/07.m4a",
+        "file": "course/cedar-ef402a662724/bishop/07.m4a",
         "seconds": 8.5,
         "duration": 9.0
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/bishop/08.m4a",
+        "file": "course/cedar-ef402a662724/bishop/08.m4a",
         "seconds": 8,
         "duration": 8.5
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/bishop/09.m4a",
-        "seconds": 10.6,
-        "duration": 11.1
+        "file": "course/cedar-ef402a662724/bishop/09.m4a",
+        "seconds": 8.8,
+        "duration": 9.3
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/bishop/10.m4a",
+        "file": "course/cedar-ef402a662724/bishop/10.m4a",
         "seconds": 12.9,
         "duration": 13.4
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/bishop/11.m4a",
+        "file": "course/cedar-ef402a662724/bishop/11.m4a",
         "seconds": 10.05,
         "duration": 10.566666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/bishop/12.m4a",
+        "file": "course/cedar-ef402a662724/bishop/12.m4a",
         "seconds": 6,
         "duration": 6.5
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/bishop/13.m4a",
+        "file": "course/cedar-ef402a662724/bishop/13.m4a",
         "seconds": 11,
         "duration": 11.5
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/bishop/14.m4a",
+        "file": "course/cedar-ef402a662724/bishop/14.m4a",
         "seconds": 6.75,
         "duration": 7.266666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/bishop/15.m4a",
+        "file": "course/cedar-ef402a662724/bishop/15.m4a",
         "seconds": 7.2,
         "duration": 7.7
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/bishop/16.m4a",
-        "seconds": 9,
-        "duration": 9.5
+        "file": "course/cedar-ef402a662724/bishop/16.m4a",
+        "seconds": 9.7,
+        "duration": 10.2
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/bishop/17.m4a",
+        "file": "course/cedar-ef402a662724/bishop/17.m4a",
         "seconds": 8.1,
         "duration": 8.6
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/bishop/18.m4a",
+        "file": "course/cedar-ef402a662724/bishop/18.m4a",
         "seconds": 4,
         "duration": 4.5
       }
     ],
     [
       {
-        "file": "course/cedar-7263a3a9ecd6/bishop-practice/00.m4a",
+        "file": "course/cedar-ef402a662724/bishop-practice/00.m4a",
         "seconds": 5.5,
         "duration": 6.0
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/bishop-practice/01.m4a",
+        "file": "course/cedar-ef402a662724/bishop-practice/01.m4a",
         "seconds": 10.15,
         "duration": 10.666666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/bishop-practice/02.m4a",
+        "file": "course/cedar-ef402a662724/bishop-practice/02.m4a",
         "seconds": 9.35,
         "duration": 9.866666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/bishop-practice/03.m4a",
+        "file": "course/cedar-ef402a662724/bishop-practice/03.m4a",
         "seconds": 5.05,
         "duration": 5.566666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/bishop-practice/04.m4a",
+        "file": "course/cedar-ef402a662724/bishop-practice/04.m4a",
         "seconds": 12.15,
         "duration": 12.666666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/bishop-practice/05.m4a",
+        "file": "course/cedar-ef402a662724/bishop-practice/05.m4a",
         "seconds": 9.45,
         "duration": 9.966666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/bishop-practice/06.m4a",
+        "file": "course/cedar-ef402a662724/bishop-practice/06.m4a",
         "seconds": 8.85,
         "duration": 9.366666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/bishop-practice/07.m4a",
+        "file": "course/cedar-ef402a662724/bishop-practice/07.m4a",
         "seconds": 12.25,
         "duration": 12.766666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/bishop-practice/08.m4a",
+        "file": "course/cedar-ef402a662724/bishop-practice/08.m4a",
         "seconds": 9.7,
         "duration": 10.2
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/bishop-practice/09.m4a",
-        "seconds": 11.5,
-        "duration": 12.0
+        "file": "course/cedar-ef402a662724/bishop-practice/09.m4a",
+        "seconds": 13.45,
+        "duration": 13.966666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/bishop-practice/10.m4a",
+        "file": "course/cedar-ef402a662724/bishop-practice/10.m4a",
         "seconds": 12.05,
         "duration": 12.566666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/bishop-practice/11.m4a",
+        "file": "course/cedar-ef402a662724/bishop-practice/11.m4a",
         "seconds": 12.55,
         "duration": 13.066666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/bishop-practice/12.m4a",
-        "seconds": 10,
-        "duration": 10.5
+        "file": "course/cedar-ef402a662724/bishop-practice/12.m4a",
+        "seconds": 10.35,
+        "duration": 10.866666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/bishop-practice/13.m4a",
+        "file": "course/cedar-ef402a662724/bishop-practice/13.m4a",
         "seconds": 11.6,
         "duration": 12.1
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/bishop-practice/14.m4a",
+        "file": "course/cedar-ef402a662724/bishop-practice/14.m4a",
         "seconds": 8.25,
         "duration": 8.766666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/bishop-practice/15.m4a",
+        "file": "course/cedar-ef402a662724/bishop-practice/15.m4a",
         "seconds": 8.3,
         "duration": 8.8
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/bishop-practice/16.m4a",
+        "file": "course/cedar-ef402a662724/bishop-practice/16.m4a",
         "seconds": 8,
         "duration": 8.5
       }
     ],
     [
       {
-        "file": "course/cedar-7263a3a9ecd6/queen/00.m4a",
+        "file": "course/cedar-ef402a662724/queen/00.m4a",
         "seconds": 5,
         "duration": 5.5
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/queen/01.m4a",
+        "file": "course/cedar-ef402a662724/queen/01.m4a",
         "seconds": 6.75,
         "duration": 7.266666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/queen/02.m4a",
+        "file": "course/cedar-ef402a662724/queen/02.m4a",
         "seconds": 4.05,
         "duration": 4.566666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/queen/03.m4a",
+        "file": "course/cedar-ef402a662724/queen/03.m4a",
         "seconds": 9.4,
         "duration": 9.9
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/queen/04.m4a",
+        "file": "course/cedar-ef402a662724/queen/04.m4a",
         "seconds": 8.95,
         "duration": 9.466666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/queen/05.m4a",
+        "file": "course/cedar-ef402a662724/queen/05.m4a",
         "seconds": 10.75,
         "duration": 11.266666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/queen/06.m4a",
+        "file": "course/cedar-ef402a662724/queen/06.m4a",
         "seconds": 8.85,
         "duration": 9.366666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/queen/07.m4a",
+        "file": "course/cedar-ef402a662724/queen/07.m4a",
         "seconds": 7.5,
         "duration": 8.0
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/queen/08.m4a",
+        "file": "course/cedar-ef402a662724/queen/08.m4a",
         "seconds": 5.75,
         "duration": 6.266666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/queen/09.m4a",
+        "file": "course/cedar-ef402a662724/queen/09.m4a",
         "seconds": 9.6,
         "duration": 10.1
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/queen/10.m4a",
+        "file": "course/cedar-ef402a662724/queen/10.m4a",
         "seconds": 5.3,
         "duration": 5.8
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/queen/11.m4a",
+        "file": "course/cedar-ef402a662724/queen/11.m4a",
         "seconds": 9.9,
         "duration": 10.4
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/queen/12.m4a",
+        "file": "course/cedar-ef402a662724/queen/12.m4a",
         "seconds": 8.95,
         "duration": 9.466666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/queen/13.m4a",
+        "file": "course/cedar-ef402a662724/queen/13.m4a",
         "seconds": 8.95,
         "duration": 9.466666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/queen/14.m4a",
+        "file": "course/cedar-ef402a662724/queen/14.m4a",
         "seconds": 5.4,
         "duration": 5.9
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/queen/15.m4a",
+        "file": "course/cedar-ef402a662724/queen/15.m4a",
         "seconds": 4.55,
         "duration": 5.066666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/queen/16.m4a",
+        "file": "course/cedar-ef402a662724/queen/16.m4a",
         "seconds": 11.4,
         "duration": 11.9
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/queen/17.m4a",
-        "seconds": 7.5,
-        "duration": 8.0
+        "file": "course/cedar-ef402a662724/queen/17.m4a",
+        "seconds": 8.65,
+        "duration": 9.166666666666666
       }
     ],
     [
       {
-        "file": "course/cedar-7263a3a9ecd6/queen-practice/00.m4a",
+        "file": "course/cedar-ef402a662724/queen-practice/00.m4a",
         "seconds": 6.2,
         "duration": 6.7
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/queen-practice/01.m4a",
+        "file": "course/cedar-ef402a662724/queen-practice/01.m4a",
         "seconds": 8.15,
         "duration": 8.666666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/queen-practice/02.m4a",
+        "file": "course/cedar-ef402a662724/queen-practice/02.m4a",
         "seconds": 7.8,
         "duration": 8.333333333333334
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/queen-practice/03.m4a",
+        "file": "course/cedar-ef402a662724/queen-practice/03.m4a",
         "seconds": 6.55,
         "duration": 7.066666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/queen-practice/04.m4a",
+        "file": "course/cedar-ef402a662724/queen-practice/04.m4a",
         "seconds": 5.55,
         "duration": 6.066666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/queen-practice/05.m4a",
+        "file": "course/cedar-ef402a662724/queen-practice/05.m4a",
         "seconds": 8.1,
         "duration": 8.6
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/queen-practice/06.m4a",
+        "file": "course/cedar-ef402a662724/queen-practice/06.m4a",
         "seconds": 5.95,
         "duration": 6.466666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/queen-practice/07.m4a",
+        "file": "course/cedar-ef402a662724/queen-practice/07.m4a",
         "seconds": 9.75,
         "duration": 10.266666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/queen-practice/08.m4a",
+        "file": "course/cedar-ef402a662724/queen-practice/08.m4a",
         "seconds": 11.2,
         "duration": 11.7
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/queen-practice/09.m4a",
+        "file": "course/cedar-ef402a662724/queen-practice/09.m4a",
         "seconds": 9.25,
         "duration": 9.766666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/queen-practice/10.m4a",
-        "seconds": 8.05,
-        "duration": 8.566666666666666
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/queen-practice/11.m4a",
-        "seconds": 7.65,
-        "duration": 8.166666666666666
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/queen-practice/12.m4a",
-        "seconds": 7.3,
-        "duration": 7.8
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/queen-practice/13.m4a",
-        "seconds": 10.45,
-        "duration": 10.966666666666667
-      }
-    ],
-    [
-      {
-        "file": "course/cedar-7263a3a9ecd6/knight/00.m4a",
-        "seconds": 5.35,
-        "duration": 5.866666666666666
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/knight/01.m4a",
-        "seconds": 12.95,
-        "duration": 13.466666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/knight/02.m4a",
-        "seconds": 5.75,
-        "duration": 6.266666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/knight/03.m4a",
-        "seconds": 5.5,
-        "duration": 6.0
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/knight/04.m4a",
-        "seconds": 10.4,
-        "duration": 10.9
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/knight/05.m4a",
-        "seconds": 6.05,
-        "duration": 6.566666666666666
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/knight/06.m4a",
-        "seconds": 10.1,
-        "duration": 10.6
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/knight/07.m4a",
-        "seconds": 7.2,
-        "duration": 7.7
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/knight/08.m4a",
-        "seconds": 6.95,
-        "duration": 7.466666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/knight/09.m4a",
-        "seconds": 9,
-        "duration": 9.5
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/knight/10.m4a",
-        "seconds": 6.3,
-        "duration": 6.8
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/knight/11.m4a",
-        "seconds": 7.25,
-        "duration": 7.766666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/knight/12.m4a",
-        "seconds": 10.85,
-        "duration": 11.366666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/knight/13.m4a",
-        "seconds": 8.85,
-        "duration": 9.366666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/knight/14.m4a",
-        "seconds": 7.8,
-        "duration": 8.333333333333334
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/knight/15.m4a",
-        "seconds": 11.35,
-        "duration": 11.866666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/knight/16.m4a",
-        "seconds": 3.05,
-        "duration": 3.566666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/knight/17.m4a",
-        "seconds": 7.25,
-        "duration": 7.766666666666667
-      }
-    ],
-    [
-      {
-        "file": "course/cedar-7263a3a9ecd6/knight-practice/00.m4a",
-        "seconds": 5.75,
-        "duration": 6.266666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/knight-practice/01.m4a",
-        "seconds": 7.75,
-        "duration": 8.266666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/knight-practice/02.m4a",
-        "seconds": 6.4,
-        "duration": 6.9
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/knight-practice/03.m4a",
-        "seconds": 7.9,
-        "duration": 8.4
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/knight-practice/04.m4a",
-        "seconds": 7.05,
-        "duration": 7.566666666666666
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/knight-practice/05.m4a",
-        "seconds": 7.4,
-        "duration": 7.9
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/knight-practice/06.m4a",
-        "seconds": 7.7,
-        "duration": 8.2
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/knight-practice/07.m4a",
-        "seconds": 10.45,
-        "duration": 10.966666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/knight-practice/08.m4a",
-        "seconds": 8.7,
-        "duration": 9.2
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/knight-practice/09.m4a",
-        "seconds": 7.65,
-        "duration": 8.166666666666666
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/knight-practice/10.m4a",
-        "seconds": 7.95,
-        "duration": 8.466666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/knight-practice/11.m4a",
-        "seconds": 10.5,
-        "duration": 11.0
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/knight-practice/12.m4a",
-        "seconds": 9.4,
-        "duration": 9.9
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/knight-practice/13.m4a",
-        "seconds": 9.45,
-        "duration": 9.966666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/knight-practice/14.m4a",
-        "seconds": 7,
-        "duration": 7.5
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/knight-practice/15.m4a",
-        "seconds": 7.8,
-        "duration": 8.333333333333334
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/knight-practice/16.m4a",
-        "seconds": 10.95,
-        "duration": 11.466666666666667
-      }
-    ],
-    [
-      {
-        "file": "course/cedar-7263a3a9ecd6/king/00.m4a",
-        "seconds": 7.65,
-        "duration": 8.166666666666666
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/king/01.m4a",
-        "seconds": 7.45,
-        "duration": 7.966666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/king/02.m4a",
-        "seconds": 7.25,
-        "duration": 7.766666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/king/03.m4a",
-        "seconds": 5.3,
-        "duration": 5.8
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/king/04.m4a",
-        "seconds": 10,
-        "duration": 10.5
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/king/05.m4a",
-        "seconds": 8.15,
-        "duration": 8.666666666666666
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/king/06.m4a",
-        "seconds": 11.2,
-        "duration": 11.7
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/king/07.m4a",
-        "seconds": 10.6,
-        "duration": 11.1
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/king/08.m4a",
-        "seconds": 7.6,
-        "duration": 8.1
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/king/09.m4a",
-        "seconds": 8.95,
-        "duration": 9.466666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/king/10.m4a",
-        "seconds": 8.9,
-        "duration": 9.4
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/king/11.m4a",
+        "file": "course/cedar-ef402a662724/queen-practice/10.m4a",
         "seconds": 10.15,
         "duration": 10.666666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/king/12.m4a",
-        "seconds": 7.55,
-        "duration": 8.066666666666666
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/king/13.m4a",
-        "seconds": 10.25,
-        "duration": 10.766666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/king/14.m4a",
-        "seconds": 9.15,
-        "duration": 9.666666666666666
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/king/15.m4a",
-        "seconds": 12.35,
-        "duration": 12.866666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/king/16.m4a",
-        "seconds": 10.45,
-        "duration": 10.966666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/king/17.m4a",
-        "seconds": 10.2,
-        "duration": 10.7
-      }
-    ],
-    [
-      {
-        "file": "course/cedar-7263a3a9ecd6/safe-squares/00.m4a",
-        "seconds": 7.9,
-        "duration": 8.4
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/safe-squares/01.m4a",
-        "seconds": 13.25,
-        "duration": 13.766666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/safe-squares/02.m4a",
-        "seconds": 5.6,
-        "duration": 6.1
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/safe-squares/03.m4a",
-        "seconds": 7.5,
-        "duration": 8.0
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/safe-squares/04.m4a",
-        "seconds": 13.7,
-        "duration": 14.2
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/safe-squares/05.m4a",
-        "seconds": 6.6,
-        "duration": 7.1
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/safe-squares/06.m4a",
-        "seconds": 11.4,
-        "duration": 11.9
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/safe-squares/07.m4a",
-        "seconds": 14.25,
-        "duration": 14.766666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/safe-squares/08.m4a",
-        "seconds": 11.65,
-        "duration": 12.166666666666666
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/safe-squares/09.m4a",
+        "file": "course/cedar-ef402a662724/queen-practice/11.m4a",
         "seconds": 7.7,
         "duration": 8.2
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/safe-squares/10.m4a",
-        "seconds": 15.4,
-        "duration": 15.9
+        "file": "course/cedar-ef402a662724/queen-practice/12.m4a",
+        "seconds": 7.3,
+        "duration": 7.8
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/safe-squares/11.m4a",
-        "seconds": 6.85,
-        "duration": 7.366666666666666
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/safe-squares/12.m4a",
-        "seconds": 10.4,
-        "duration": 12.9
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/safe-squares/13.m4a",
-        "seconds": 12.25,
-        "duration": 12.766666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/safe-squares/14.m4a",
-        "seconds": 9.1,
-        "duration": 9.6
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/safe-squares/15.m4a",
-        "seconds": 10.2,
-        "duration": 10.7
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/safe-squares/16.m4a",
-        "seconds": 7.75,
-        "duration": 8.266666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/safe-squares/17.m4a",
-        "seconds": 8.4,
-        "duration": 8.9
+        "file": "course/cedar-ef402a662724/queen-practice/13.m4a",
+        "seconds": 10.45,
+        "duration": 10.966666666666667
       }
     ],
     [
       {
-        "file": "course/cedar-7263a3a9ecd6/check-and-checkmate/00.m4a",
+        "file": "course/cedar-ef402a662724/knight/00.m4a",
+        "seconds": 5.35,
+        "duration": 5.866666666666666
+      },
+      {
+        "file": "course/cedar-ef402a662724/knight/01.m4a",
+        "seconds": 12.95,
+        "duration": 13.466666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/knight/02.m4a",
+        "seconds": 5.75,
+        "duration": 6.266666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/knight/03.m4a",
+        "seconds": 5.5,
+        "duration": 6.0
+      },
+      {
+        "file": "course/cedar-ef402a662724/knight/04.m4a",
+        "seconds": 10.4,
+        "duration": 10.9
+      },
+      {
+        "file": "course/cedar-ef402a662724/knight/05.m4a",
         "seconds": 6.05,
         "duration": 6.566666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/check-and-checkmate/01.m4a",
-        "seconds": 7.15,
-        "duration": 7.666666666666667
+        "file": "course/cedar-ef402a662724/knight/06.m4a",
+        "seconds": 10.1,
+        "duration": 10.6
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/check-and-checkmate/02.m4a",
-        "seconds": 6.8,
-        "duration": 7.3
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/check-and-checkmate/03.m4a",
-        "seconds": 6.45,
-        "duration": 6.966666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/check-and-checkmate/04.m4a",
-        "seconds": 9.45,
-        "duration": 9.966666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/check-and-checkmate/05.m4a",
-        "seconds": 5.35,
-        "duration": 5.866666666666666
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/check-and-checkmate/06.m4a",
-        "seconds": 9.55,
-        "duration": 10.066666666666666
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/check-and-checkmate/07.m4a",
-        "seconds": 9.25,
-        "duration": 9.766666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/check-and-checkmate/08.m4a",
-        "seconds": 9.4,
-        "duration": 9.9
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/check-and-checkmate/09.m4a",
-        "seconds": 5.25,
-        "duration": 5.766666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/check-and-checkmate/10.m4a",
-        "seconds": 7.1,
-        "duration": 7.6
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/check-and-checkmate/11.m4a",
-        "seconds": 7.35,
-        "duration": 7.866666666666666
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/check-and-checkmate/12.m4a",
-        "seconds": 9.7,
-        "duration": 10.2
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/check-and-checkmate/13.m4a",
-        "seconds": 9.85,
-        "duration": 10.366666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/check-and-checkmate/14.m4a",
-        "seconds": 8.75,
-        "duration": 9.266666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/check-and-checkmate/15.m4a",
-        "seconds": 8.35,
-        "duration": 8.866666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/check-and-checkmate/16.m4a",
-        "seconds": 12.35,
-        "duration": 12.866666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/check-and-checkmate/17.m4a",
-        "seconds": 10.95,
-        "duration": 11.466666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/check-and-checkmate/18.m4a",
-        "seconds": 8.65,
-        "duration": 9.166666666666666
-      }
-    ],
-    [
-      {
-        "file": "course/cedar-7263a3a9ecd6/setting-up/00.m4a",
-        "seconds": 5.95,
-        "duration": 6.466666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/setting-up/01.m4a",
-        "seconds": 9.65,
-        "duration": 10.166666666666666
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/setting-up/02.m4a",
-        "seconds": 5.6,
-        "duration": 6.1
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/setting-up/03.m4a",
-        "seconds": 4.45,
-        "duration": 4.966666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/setting-up/04.m4a",
-        "seconds": 6.35,
-        "duration": 6.866666666666666
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/setting-up/05.m4a",
-        "seconds": 5.55,
-        "duration": 6.066666666666666
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/setting-up/06.m4a",
-        "seconds": 7,
-        "duration": 7.5
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/setting-up/07.m4a",
-        "seconds": 5.7,
-        "duration": 6.2
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/setting-up/08.m4a",
-        "seconds": 9.4,
-        "duration": 9.9
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/setting-up/09.m4a",
-        "seconds": 10,
-        "duration": 10.5
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/setting-up/10.m4a",
-        "seconds": 6.8,
-        "duration": 7.3
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/setting-up/11.m4a",
-        "seconds": 8.55,
-        "duration": 9.066666666666666
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/setting-up/12.m4a",
-        "seconds": 4.35,
-        "duration": 4.866666666666666
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/setting-up/13.m4a",
-        "seconds": 7.7,
-        "duration": 8.2
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/setting-up/14.m4a",
-        "seconds": 7.55,
-        "duration": 8.066666666666666
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/setting-up/15.m4a",
-        "seconds": 8.65,
-        "duration": 9.166666666666666
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/setting-up/16.m4a",
-        "seconds": 7.8,
-        "duration": 8.333333333333334
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/setting-up/17.m4a",
-        "seconds": 9.1,
-        "duration": 9.6
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/setting-up/18.m4a",
-        "seconds": 12.05,
-        "duration": 12.566666666666666
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/setting-up/19.m4a",
-        "seconds": 5.55,
-        "duration": 6.066666666666666
-      }
-    ],
-    [
-      {
-        "file": "course/cedar-7263a3a9ecd6/castling/00.m4a",
-        "seconds": 8.9,
-        "duration": 9.4
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/castling/01.m4a",
-        "seconds": 11.55,
-        "duration": 12.066666666666666
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/castling/02.m4a",
-        "seconds": 6.5,
-        "duration": 7.0
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/castling/03.m4a",
-        "seconds": 11.3,
-        "duration": 11.8
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/castling/04.m4a",
-        "seconds": 7.3,
-        "duration": 7.8
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/castling/05.m4a",
-        "seconds": 8.3,
-        "duration": 8.8
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/castling/06.m4a",
-        "seconds": 8,
-        "duration": 8.5
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/castling/07.m4a",
-        "seconds": 8.7,
-        "duration": 9.2
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/castling/08.m4a",
-        "seconds": 11.45,
-        "duration": 11.966666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/castling/09.m4a",
-        "seconds": 16.45,
-        "duration": 16.966666666666665
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/castling/10.m4a",
-        "seconds": 7.7,
-        "duration": 8.2
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/castling/11.m4a",
-        "seconds": 10.4,
-        "duration": 10.9
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/castling/12.m4a",
-        "seconds": 8.35,
-        "duration": 8.866666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/castling/13.m4a",
-        "seconds": 7.4,
-        "duration": 7.9
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/castling/14.m4a",
-        "seconds": 10.8,
-        "duration": 11.3
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/castling/15.m4a",
-        "seconds": 8.75,
-        "duration": 9.266666666666667
-      }
-    ],
-    [
-      {
-        "file": "course/cedar-7263a3a9ecd6/castling-rules/00.m4a",
-        "seconds": 6.1,
-        "duration": 6.6
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/castling-rules/01.m4a",
-        "seconds": 11.6,
-        "duration": 12.1
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/castling-rules/02.m4a",
-        "seconds": 12.2,
-        "duration": 12.7
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/castling-rules/03.m4a",
-        "seconds": 9.65,
-        "duration": 10.166666666666666
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/castling-rules/04.m4a",
-        "seconds": 8.55,
-        "duration": 9.066666666666666
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/castling-rules/05.m4a",
-        "seconds": 7.35,
-        "duration": 7.866666666666666
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/castling-rules/06.m4a",
-        "seconds": 9.25,
-        "duration": 9.766666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/castling-rules/07.m4a",
-        "seconds": 8.8,
-        "duration": 9.3
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/castling-rules/08.m4a",
-        "seconds": 9.5,
-        "duration": 10.0
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/castling-rules/09.m4a",
-        "seconds": 9.8,
-        "duration": 10.3
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/castling-rules/10.m4a",
-        "seconds": 9.25,
-        "duration": 9.766666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/castling-rules/11.m4a",
-        "seconds": 11.5,
-        "duration": 12.0
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/castling-rules/12.m4a",
-        "seconds": 11.55,
-        "duration": 12.066666666666666
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/castling-rules/13.m4a",
-        "seconds": 11.85,
-        "duration": 12.366666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/castling-rules/14.m4a",
-        "seconds": 10.4,
-        "duration": 10.9
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/castling-rules/15.m4a",
-        "seconds": 12.6,
-        "duration": 13.1
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/castling-rules/16.m4a",
-        "seconds": 6.35,
-        "duration": 6.866666666666666
-      }
-    ],
-    [
-      {
-        "file": "course/cedar-7263a3a9ecd6/promotion-en-passant/00.m4a",
-        "seconds": 7.7,
-        "duration": 8.2
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/promotion-en-passant/01.m4a",
-        "seconds": 8.55,
-        "duration": 9.066666666666666
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/promotion-en-passant/02.m4a",
-        "seconds": 6.75,
-        "duration": 7.266666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/promotion-en-passant/03.m4a",
-        "seconds": 11.6,
-        "duration": 12.1
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/promotion-en-passant/04.m4a",
-        "seconds": 11.15,
-        "duration": 11.666666666666666
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/promotion-en-passant/05.m4a",
-        "seconds": 8.65,
-        "duration": 9.166666666666666
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/promotion-en-passant/06.m4a",
-        "seconds": 9.65,
-        "duration": 10.166666666666666
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/promotion-en-passant/07.m4a",
-        "seconds": 5.35,
-        "duration": 5.866666666666666
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/promotion-en-passant/08.m4a",
-        "seconds": 11.45,
-        "duration": 11.966666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/promotion-en-passant/09.m4a",
-        "seconds": 9.1,
-        "duration": 9.6
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/promotion-en-passant/10.m4a",
-        "seconds": 7.75,
-        "duration": 8.266666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/promotion-en-passant/11.m4a",
-        "seconds": 6.8,
-        "duration": 7.3
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/promotion-en-passant/12.m4a",
-        "seconds": 8.4,
-        "duration": 8.9
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/promotion-en-passant/13.m4a",
-        "seconds": 10.45,
-        "duration": 10.966666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/promotion-en-passant/14.m4a",
-        "seconds": 7.65,
-        "duration": 8.166666666666666
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/promotion-en-passant/15.m4a",
-        "seconds": 11.5,
-        "duration": 12.0
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/promotion-en-passant/16.m4a",
-        "seconds": 10.7,
-        "duration": 11.2
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/promotion-en-passant/17.m4a",
-        "seconds": 9.35,
-        "duration": 9.866666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/promotion-en-passant/18.m4a",
-        "seconds": 10,
-        "duration": 10.5
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/promotion-en-passant/19.m4a",
-        "seconds": 10.05,
-        "duration": 10.566666666666666
-      }
-    ],
-    [
-      {
-        "file": "course/cedar-7263a3a9ecd6/draws/00.m4a",
-        "seconds": 9.1,
-        "duration": 9.6
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/draws/01.m4a",
-        "seconds": 12.9,
-        "duration": 13.4
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/draws/02.m4a",
+        "file": "course/cedar-ef402a662724/knight/07.m4a",
         "seconds": 7.2,
         "duration": 7.7
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/draws/03.m4a",
-        "seconds": 5.4,
-        "duration": 5.9
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/draws/04.m4a",
-        "seconds": 11.1,
-        "duration": 11.6
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/draws/05.m4a",
-        "seconds": 8.25,
-        "duration": 8.766666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/draws/06.m4a",
-        "seconds": 9.65,
-        "duration": 10.166666666666666
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/draws/07.m4a",
-        "seconds": 12.15,
-        "duration": 12.666666666666666
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/draws/08.m4a",
-        "seconds": 12.75,
-        "duration": 13.266666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/draws/09.m4a",
-        "seconds": 8.4,
-        "duration": 8.9
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/draws/10.m4a",
-        "seconds": 8.35,
-        "duration": 8.866666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/draws/11.m4a",
-        "seconds": 7.25,
-        "duration": 7.766666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/draws/12.m4a",
-        "seconds": 9.65,
-        "duration": 10.166666666666666
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/draws/13.m4a",
-        "seconds": 10.25,
-        "duration": 10.766666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/draws/14.m4a",
-        "seconds": 13.65,
-        "duration": 14.166666666666666
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/draws/15.m4a",
-        "seconds": 9.35,
-        "duration": 9.866666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/draws/16.m4a",
-        "seconds": 13.75,
-        "duration": 14.266666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/draws/17.m4a",
-        "seconds": 7.4,
-        "duration": 7.9
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/draws/18.m4a",
-        "seconds": 9.35,
-        "duration": 9.866666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/draws/19.m4a",
-        "seconds": 8.5,
-        "duration": 9.0
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/draws/20.m4a",
-        "seconds": 12.5,
-        "duration": 13.0
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/draws/21.m4a",
-        "seconds": 10.8,
-        "duration": 11.3
-      }
-    ],
-    [
-      {
-        "file": "course/cedar-7263a3a9ecd6/piece-values/00.m4a",
-        "seconds": 6.5,
-        "duration": 7.0
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/piece-values/01.m4a",
-        "seconds": 6.15,
-        "duration": 6.666666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/piece-values/02.m4a",
-        "seconds": 4.8,
-        "duration": 5.3
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/piece-values/03.m4a",
-        "seconds": 7.05,
-        "duration": 7.566666666666666
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/piece-values/04.m4a",
-        "seconds": 4.15,
-        "duration": 4.666666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/piece-values/05.m4a",
-        "seconds": 6.45,
-        "duration": 6.966666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/piece-values/06.m4a",
-        "seconds": 7,
-        "duration": 7.5
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/piece-values/07.m4a",
-        "seconds": 9.2,
-        "duration": 9.7
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/piece-values/08.m4a",
-        "seconds": 6.65,
-        "duration": 7.166666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/piece-values/09.m4a",
-        "seconds": 6.15,
-        "duration": 6.666666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/piece-values/10.m4a",
-        "seconds": 6.1,
-        "duration": 6.6
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/piece-values/11.m4a",
-        "seconds": 6.2,
-        "duration": 6.7
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/piece-values/12.m4a",
-        "seconds": 9.45,
-        "duration": 9.966666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/piece-values/13.m4a",
-        "seconds": 6.75,
-        "duration": 7.266666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/piece-values/14.m4a",
-        "seconds": 9.55,
-        "duration": 10.066666666666666
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/piece-values/15.m4a",
-        "seconds": 6.25,
-        "duration": 6.766666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/piece-values/16.m4a",
-        "seconds": 8.7,
-        "duration": 9.2
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/piece-values/17.m4a",
-        "seconds": 8.65,
-        "duration": 9.166666666666666
-      }
-    ],
-    [
-      {
-        "file": "course/cedar-7263a3a9ecd6/counting-material/00.m4a",
-        "seconds": 7.35,
-        "duration": 7.866666666666666
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/counting-material/01.m4a",
-        "seconds": 9.5,
-        "duration": 10.0
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/counting-material/02.m4a",
-        "seconds": 9.15,
-        "duration": 9.666666666666666
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/counting-material/03.m4a",
-        "seconds": 6.8,
-        "duration": 7.3
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/counting-material/04.m4a",
-        "seconds": 7.25,
-        "duration": 7.766666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/counting-material/05.m4a",
-        "seconds": 7,
-        "duration": 7.5
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/counting-material/06.m4a",
-        "seconds": 7.35,
-        "duration": 7.866666666666666
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/counting-material/07.m4a",
-        "seconds": 5.6,
-        "duration": 6.1
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/counting-material/08.m4a",
-        "seconds": 6.7,
-        "duration": 7.2
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/counting-material/09.m4a",
-        "seconds": 8.05,
-        "duration": 8.566666666666666
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/counting-material/10.m4a",
-        "seconds": 9.3,
-        "duration": 9.8
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/counting-material/11.m4a",
-        "seconds": 7.2,
-        "duration": 7.7
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/counting-material/12.m4a",
-        "seconds": 8.45,
-        "duration": 8.966666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/counting-material/13.m4a",
-        "seconds": 9.5,
-        "duration": 10.0
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/counting-material/14.m4a",
-        "seconds": 9.55,
-        "duration": 10.066666666666666
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/counting-material/15.m4a",
-        "seconds": 11.9,
-        "duration": 12.4
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/counting-material/16.m4a",
-        "seconds": 9.3,
-        "duration": 9.8
-      }
-    ],
-    [
-      {
-        "file": "course/cedar-7263a3a9ecd6/notation/00.m4a",
-        "seconds": 9.5,
-        "duration": 10.0
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/notation/01.m4a",
-        "seconds": 10.85,
-        "duration": 11.366666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/notation/02.m4a",
-        "seconds": 9.6,
-        "duration": 10.1
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/notation/03.m4a",
-        "seconds": 5.35,
-        "duration": 5.866666666666666
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/notation/04.m4a",
-        "seconds": 10.05,
-        "duration": 10.566666666666666
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/notation/05.m4a",
-        "seconds": 9.1,
-        "duration": 9.6
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/notation/06.m4a",
-        "seconds": 6,
-        "duration": 6.5
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/notation/07.m4a",
-        "seconds": 5.55,
-        "duration": 6.066666666666666
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/notation/08.m4a",
-        "seconds": 9.65,
-        "duration": 10.166666666666666
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/notation/09.m4a",
-        "seconds": 6.85,
-        "duration": 7.366666666666666
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/notation/10.m4a",
-        "seconds": 5.85,
-        "duration": 6.366666666666666
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/notation/11.m4a",
-        "seconds": 10.35,
-        "duration": 10.866666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/notation/12.m4a",
-        "seconds": 11.9,
-        "duration": 12.4
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/notation/13.m4a",
-        "seconds": 13.2,
-        "duration": 13.7
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/notation/14.m4a",
-        "seconds": 14.15,
-        "duration": 14.666666666666666
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/notation/15.m4a",
-        "seconds": 9.1,
-        "duration": 9.6
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/notation/16.m4a",
-        "seconds": 9.3,
-        "duration": 9.8
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/notation/17.m4a",
-        "seconds": 12.4,
-        "duration": 12.9
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/notation/18.m4a",
-        "seconds": 11.6,
-        "duration": 12.1
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/notation/19.m4a",
-        "seconds": 10.5,
-        "duration": 11.0
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/notation/20.m4a",
-        "seconds": 11.45,
-        "duration": 11.966666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/notation/21.m4a",
-        "seconds": 9.5,
-        "duration": 10.0
-      }
-    ],
-    [
-      {
-        "file": "course/cedar-7263a3a9ecd6/etiquette/00.m4a",
-        "seconds": 6.55,
-        "duration": 7.066666666666666
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/etiquette/01.m4a",
-        "seconds": 6.8,
-        "duration": 7.3
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/etiquette/02.m4a",
-        "seconds": 7.45,
-        "duration": 7.966666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/etiquette/03.m4a",
-        "seconds": 7.15,
-        "duration": 7.666666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/etiquette/04.m4a",
-        "seconds": 8.45,
-        "duration": 8.966666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/etiquette/05.m4a",
-        "seconds": 6.9,
-        "duration": 7.4
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/etiquette/06.m4a",
-        "seconds": 6.6,
-        "duration": 7.1
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/etiquette/07.m4a",
-        "seconds": 9.5,
-        "duration": 10.0
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/etiquette/08.m4a",
-        "seconds": 13.85,
-        "duration": 14.366666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/etiquette/09.m4a",
-        "seconds": 12.9,
-        "duration": 13.4
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/etiquette/10.m4a",
-        "seconds": 8.45,
-        "duration": 8.966666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/etiquette/11.m4a",
-        "seconds": 7.65,
-        "duration": 8.166666666666666
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/etiquette/12.m4a",
-        "seconds": 9.2,
-        "duration": 9.7
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/etiquette/13.m4a",
-        "seconds": 5.9,
-        "duration": 6.4
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/etiquette/14.m4a",
-        "seconds": 6.9,
-        "duration": 7.4
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/etiquette/15.m4a",
-        "seconds": 5.55,
-        "duration": 6.066666666666666
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/etiquette/16.m4a",
-        "seconds": 5.1,
-        "duration": 5.6
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/etiquette/17.m4a",
-        "seconds": 9.55,
-        "duration": 10.066666666666666
-      }
-    ],
-    [
-      {
-        "file": "course/cedar-7263a3a9ecd6/tournaments/00.m4a",
-        "seconds": 5.8,
-        "duration": 6.3
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/tournaments/01.m4a",
-        "seconds": 7.25,
-        "duration": 7.766666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/tournaments/02.m4a",
-        "seconds": 8.25,
-        "duration": 8.766666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/tournaments/03.m4a",
-        "seconds": 6.9,
-        "duration": 7.4
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/tournaments/04.m4a",
-        "seconds": 6.55,
-        "duration": 7.066666666666666
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/tournaments/05.m4a",
-        "seconds": 7.95,
-        "duration": 8.466666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/tournaments/06.m4a",
-        "seconds": 9.55,
-        "duration": 10.066666666666666
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/tournaments/07.m4a",
-        "seconds": 10.8,
-        "duration": 11.3
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/tournaments/08.m4a",
-        "seconds": 6.2,
-        "duration": 6.7
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/tournaments/09.m4a",
-        "seconds": 7.4,
-        "duration": 7.9
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/tournaments/10.m4a",
-        "seconds": 11.15,
-        "duration": 11.666666666666666
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/tournaments/11.m4a",
-        "seconds": 8.75,
-        "duration": 9.266666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/tournaments/12.m4a",
-        "seconds": 7.3,
-        "duration": 7.8
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/tournaments/13.m4a",
-        "seconds": 7.6,
-        "duration": 8.1
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/tournaments/14.m4a",
-        "seconds": 13.05,
-        "duration": 13.566666666666666
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/tournaments/15.m4a",
-        "seconds": 7.65,
-        "duration": 8.166666666666666
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/tournaments/16.m4a",
-        "seconds": 5.95,
-        "duration": 6.466666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/tournaments/17.m4a",
-        "seconds": 10,
-        "duration": 10.5
-      }
-    ],
-    [
-      {
-        "file": "course/cedar-7263a3a9ecd6/rules-review/00.m4a",
-        "seconds": 7.1,
-        "duration": 7.6
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/rules-review/01.m4a",
-        "seconds": 11.25,
-        "duration": 11.766666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/rules-review/02.m4a",
-        "seconds": 5.15,
-        "duration": 5.666666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/rules-review/03.m4a",
-        "seconds": 5.9,
-        "duration": 6.4
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/rules-review/04.m4a",
-        "seconds": 7.1,
-        "duration": 7.6
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/rules-review/05.m4a",
-        "seconds": 9.45,
-        "duration": 9.966666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/rules-review/06.m4a",
-        "seconds": 5.25,
-        "duration": 5.766666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/rules-review/07.m4a",
-        "seconds": 11.25,
-        "duration": 11.766666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/rules-review/08.m4a",
-        "seconds": 11.3,
-        "duration": 11.8
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/rules-review/09.m4a",
-        "seconds": 8.7,
-        "duration": 9.2
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/rules-review/10.m4a",
-        "seconds": 9.25,
-        "duration": 9.766666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/rules-review/11.m4a",
-        "seconds": 11.75,
-        "duration": 12.266666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/rules-review/12.m4a",
-        "seconds": 10.6,
-        "duration": 11.1
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/rules-review/13.m4a",
-        "seconds": 7.1,
-        "duration": 7.6
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/rules-review/14.m4a",
-        "seconds": 10.2,
-        "duration": 10.7
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/rules-review/15.m4a",
-        "seconds": 12.45,
-        "duration": 12.966666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/rules-review/16.m4a",
-        "seconds": 8.35,
-        "duration": 8.866666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/rules-review/17.m4a",
-        "seconds": 8.65,
-        "duration": 9.166666666666666
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/rules-review/18.m4a",
-        "seconds": 9.7,
-        "duration": 10.2
-      }
-    ],
-    [
-      {
-        "file": "course/cedar-7263a3a9ecd6/opening/00.m4a",
-        "seconds": 7.45,
-        "duration": 7.966666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/opening/01.m4a",
-        "seconds": 10,
-        "duration": 10.5
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/opening/02.m4a",
-        "seconds": 9.15,
-        "duration": 9.666666666666666
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/opening/03.m4a",
-        "seconds": 9.65,
-        "duration": 10.166666666666666
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/opening/04.m4a",
-        "seconds": 6.3,
-        "duration": 6.8
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/opening/05.m4a",
-        "seconds": 9.55,
-        "duration": 10.066666666666666
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/opening/06.m4a",
-        "seconds": 5.55,
-        "duration": 6.066666666666666
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/opening/07.m4a",
+        "file": "course/cedar-ef402a662724/knight/08.m4a",
         "seconds": 6.95,
         "duration": 7.466666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/opening/08.m4a",
-        "seconds": 10.65,
-        "duration": 11.166666666666666
+        "file": "course/cedar-ef402a662724/knight/09.m4a",
+        "seconds": 9,
+        "duration": 9.5
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/opening/09.m4a",
+        "file": "course/cedar-ef402a662724/knight/10.m4a",
+        "seconds": 6.3,
+        "duration": 6.8
+      },
+      {
+        "file": "course/cedar-ef402a662724/knight/11.m4a",
+        "seconds": 7.25,
+        "duration": 7.766666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/knight/12.m4a",
+        "seconds": 10.85,
+        "duration": 11.366666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/knight/13.m4a",
         "seconds": 8.85,
         "duration": 9.366666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/opening/10.m4a",
-        "seconds": 5.65,
-        "duration": 6.166666666666667
+        "file": "course/cedar-ef402a662724/knight/14.m4a",
+        "seconds": 7.8,
+        "duration": 8.333333333333334
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/opening/11.m4a",
-        "seconds": 9.55,
-        "duration": 10.066666666666666
+        "file": "course/cedar-ef402a662724/knight/15.m4a",
+        "seconds": 11.35,
+        "duration": 11.866666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/opening/12.m4a",
-        "seconds": 6.65,
-        "duration": 7.166666666666667
+        "file": "course/cedar-ef402a662724/knight/16.m4a",
+        "seconds": 3.05,
+        "duration": 3.566666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/opening/13.m4a",
-        "seconds": 7.2,
-        "duration": 7.7
+        "file": "course/cedar-ef402a662724/knight/17.m4a",
+        "seconds": 7.25,
+        "duration": 7.766666666666667
+      }
+    ],
+    [
+      {
+        "file": "course/cedar-ef402a662724/knight-practice/00.m4a",
+        "seconds": 5.75,
+        "duration": 6.266666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/opening/14.m4a",
-        "seconds": 6.3,
-        "duration": 6.8
+        "file": "course/cedar-ef402a662724/knight-practice/01.m4a",
+        "seconds": 7.75,
+        "duration": 8.266666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/opening/15.m4a",
-        "seconds": 6.3,
-        "duration": 6.8
+        "file": "course/cedar-ef402a662724/knight-practice/02.m4a",
+        "seconds": 6.4,
+        "duration": 6.9
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/opening/16.m4a",
-        "seconds": 8.9,
-        "duration": 9.4
+        "file": "course/cedar-ef402a662724/knight-practice/03.m4a",
+        "seconds": 7.9,
+        "duration": 8.4
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/opening/17.m4a",
-        "seconds": 8.4,
-        "duration": 8.9
+        "file": "course/cedar-ef402a662724/knight-practice/04.m4a",
+        "seconds": 7.05,
+        "duration": 7.566666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/opening/18.m4a",
-        "seconds": 5.7,
-        "duration": 6.2
+        "file": "course/cedar-ef402a662724/knight-practice/05.m4a",
+        "seconds": 7.4,
+        "duration": 7.9
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/opening/19.m4a",
-        "seconds": 5.65,
-        "duration": 6.166666666666667
+        "file": "course/cedar-ef402a662724/knight-practice/06.m4a",
+        "seconds": 7.7,
+        "duration": 8.2
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/opening/20.m4a",
-        "seconds": 4.7,
-        "duration": 5.2
+        "file": "course/cedar-ef402a662724/knight-practice/07.m4a",
+        "seconds": 10.45,
+        "duration": 10.966666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/opening/21.m4a",
+        "file": "course/cedar-ef402a662724/knight-practice/08.m4a",
+        "seconds": 8.7,
+        "duration": 9.2
+      },
+      {
+        "file": "course/cedar-ef402a662724/knight-practice/09.m4a",
+        "seconds": 7.65,
+        "duration": 8.166666666666666
+      },
+      {
+        "file": "course/cedar-ef402a662724/knight-practice/10.m4a",
+        "seconds": 7.95,
+        "duration": 8.466666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/knight-practice/11.m4a",
+        "seconds": 10.5,
+        "duration": 11.0
+      },
+      {
+        "file": "course/cedar-ef402a662724/knight-practice/12.m4a",
+        "seconds": 9.4,
+        "duration": 9.9
+      },
+      {
+        "file": "course/cedar-ef402a662724/knight-practice/13.m4a",
+        "seconds": 9.45,
+        "duration": 9.966666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/knight-practice/14.m4a",
+        "seconds": 7,
+        "duration": 7.5
+      },
+      {
+        "file": "course/cedar-ef402a662724/knight-practice/15.m4a",
+        "seconds": 7.8,
+        "duration": 8.333333333333334
+      },
+      {
+        "file": "course/cedar-ef402a662724/knight-practice/16.m4a",
+        "seconds": 10.95,
+        "duration": 11.466666666666667
+      }
+    ],
+    [
+      {
+        "file": "course/cedar-ef402a662724/king/00.m4a",
+        "seconds": 7.65,
+        "duration": 8.166666666666666
+      },
+      {
+        "file": "course/cedar-ef402a662724/king/01.m4a",
         "seconds": 7.45,
         "duration": 7.966666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/opening/22.m4a",
+        "file": "course/cedar-ef402a662724/king/02.m4a",
+        "seconds": 7.25,
+        "duration": 7.766666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/king/03.m4a",
+        "seconds": 5.3,
+        "duration": 5.8
+      },
+      {
+        "file": "course/cedar-ef402a662724/king/04.m4a",
+        "seconds": 10,
+        "duration": 10.5
+      },
+      {
+        "file": "course/cedar-ef402a662724/king/05.m4a",
+        "seconds": 8.15,
+        "duration": 8.666666666666666
+      },
+      {
+        "file": "course/cedar-ef402a662724/king/06.m4a",
+        "seconds": 11.2,
+        "duration": 11.7
+      },
+      {
+        "file": "course/cedar-ef402a662724/king/07.m4a",
+        "seconds": 10.6,
+        "duration": 11.1
+      },
+      {
+        "file": "course/cedar-ef402a662724/king/08.m4a",
+        "seconds": 7.6,
+        "duration": 8.1
+      },
+      {
+        "file": "course/cedar-ef402a662724/king/09.m4a",
+        "seconds": 8.95,
+        "duration": 9.466666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/king/10.m4a",
+        "seconds": 8.9,
+        "duration": 9.4
+      },
+      {
+        "file": "course/cedar-ef402a662724/king/11.m4a",
+        "seconds": 10.15,
+        "duration": 10.666666666666666
+      },
+      {
+        "file": "course/cedar-ef402a662724/king/12.m4a",
+        "seconds": 7.55,
+        "duration": 8.066666666666666
+      },
+      {
+        "file": "course/cedar-ef402a662724/king/13.m4a",
+        "seconds": 10.25,
+        "duration": 10.766666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/king/14.m4a",
+        "seconds": 9.15,
+        "duration": 9.666666666666666
+      },
+      {
+        "file": "course/cedar-ef402a662724/king/15.m4a",
+        "seconds": 12.35,
+        "duration": 12.866666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/king/16.m4a",
+        "seconds": 10.45,
+        "duration": 10.966666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/king/17.m4a",
+        "seconds": 11.25,
+        "duration": 11.766666666666667
+      }
+    ],
+    [
+      {
+        "file": "course/cedar-ef402a662724/safe-squares/00.m4a",
+        "seconds": 7.9,
+        "duration": 8.4
+      },
+      {
+        "file": "course/cedar-ef402a662724/safe-squares/01.m4a",
+        "seconds": 13.25,
+        "duration": 13.766666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/safe-squares/02.m4a",
+        "seconds": 5.6,
+        "duration": 6.1
+      },
+      {
+        "file": "course/cedar-ef402a662724/safe-squares/03.m4a",
+        "seconds": 7.5,
+        "duration": 8.0
+      },
+      {
+        "file": "course/cedar-ef402a662724/safe-squares/04.m4a",
+        "seconds": 14.05,
+        "duration": 14.566666666666666
+      },
+      {
+        "file": "course/cedar-ef402a662724/safe-squares/05.m4a",
+        "seconds": 6.6,
+        "duration": 7.1
+      },
+      {
+        "file": "course/cedar-ef402a662724/safe-squares/06.m4a",
+        "seconds": 11.4,
+        "duration": 11.9
+      },
+      {
+        "file": "course/cedar-ef402a662724/safe-squares/07.m4a",
+        "seconds": 14.25,
+        "duration": 14.766666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/safe-squares/08.m4a",
+        "seconds": 11.65,
+        "duration": 12.166666666666666
+      },
+      {
+        "file": "course/cedar-ef402a662724/safe-squares/09.m4a",
+        "seconds": 7.7,
+        "duration": 8.2
+      },
+      {
+        "file": "course/cedar-ef402a662724/safe-squares/10.m4a",
+        "seconds": 15.4,
+        "duration": 15.9
+      },
+      {
+        "file": "course/cedar-ef402a662724/safe-squares/11.m4a",
+        "seconds": 6.85,
+        "duration": 7.366666666666666
+      },
+      {
+        "file": "course/cedar-ef402a662724/safe-squares/12.m4a",
+        "seconds": 10.4,
+        "duration": 12.9
+      },
+      {
+        "file": "course/cedar-ef402a662724/safe-squares/13.m4a",
+        "seconds": 12.25,
+        "duration": 12.766666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/safe-squares/14.m4a",
+        "seconds": 9.1,
+        "duration": 9.6
+      },
+      {
+        "file": "course/cedar-ef402a662724/safe-squares/15.m4a",
+        "seconds": 10.2,
+        "duration": 10.7
+      },
+      {
+        "file": "course/cedar-ef402a662724/safe-squares/16.m4a",
+        "seconds": 7.75,
+        "duration": 8.266666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/safe-squares/17.m4a",
+        "seconds": 8.4,
+        "duration": 8.9
+      }
+    ],
+    [
+      {
+        "file": "course/cedar-ef402a662724/check-and-checkmate/00.m4a",
+        "seconds": 6.05,
+        "duration": 6.566666666666666
+      },
+      {
+        "file": "course/cedar-ef402a662724/check-and-checkmate/01.m4a",
+        "seconds": 7.15,
+        "duration": 7.666666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/check-and-checkmate/02.m4a",
+        "seconds": 6.8,
+        "duration": 7.3
+      },
+      {
+        "file": "course/cedar-ef402a662724/check-and-checkmate/03.m4a",
+        "seconds": 6.45,
+        "duration": 6.966666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/check-and-checkmate/04.m4a",
+        "seconds": 9.45,
+        "duration": 9.966666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/check-and-checkmate/05.m4a",
+        "seconds": 5.35,
+        "duration": 5.866666666666666
+      },
+      {
+        "file": "course/cedar-ef402a662724/check-and-checkmate/06.m4a",
+        "seconds": 9.55,
+        "duration": 10.066666666666666
+      },
+      {
+        "file": "course/cedar-ef402a662724/check-and-checkmate/07.m4a",
+        "seconds": 9.25,
+        "duration": 9.766666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/check-and-checkmate/08.m4a",
+        "seconds": 9.4,
+        "duration": 9.9
+      },
+      {
+        "file": "course/cedar-ef402a662724/check-and-checkmate/09.m4a",
+        "seconds": 5.25,
+        "duration": 5.766666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/check-and-checkmate/10.m4a",
+        "seconds": 9.85,
+        "duration": 10.366666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/check-and-checkmate/11.m4a",
+        "seconds": 7.35,
+        "duration": 7.866666666666666
+      },
+      {
+        "file": "course/cedar-ef402a662724/check-and-checkmate/12.m4a",
+        "seconds": 12.7,
+        "duration": 13.2
+      },
+      {
+        "file": "course/cedar-ef402a662724/check-and-checkmate/13.m4a",
+        "seconds": 9.85,
+        "duration": 10.366666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/check-and-checkmate/14.m4a",
+        "seconds": 9.85,
+        "duration": 10.366666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/check-and-checkmate/15.m4a",
+        "seconds": 8.35,
+        "duration": 8.866666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/check-and-checkmate/16.m4a",
+        "seconds": 12.35,
+        "duration": 12.866666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/check-and-checkmate/17.m4a",
+        "seconds": 10.95,
+        "duration": 11.466666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/check-and-checkmate/18.m4a",
+        "seconds": 8.65,
+        "duration": 9.166666666666666
+      }
+    ],
+    [
+      {
+        "file": "course/cedar-ef402a662724/setting-up/00.m4a",
+        "seconds": 5.95,
+        "duration": 6.466666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/setting-up/01.m4a",
+        "seconds": 9.65,
+        "duration": 10.166666666666666
+      },
+      {
+        "file": "course/cedar-ef402a662724/setting-up/02.m4a",
+        "seconds": 5.6,
+        "duration": 6.1
+      },
+      {
+        "file": "course/cedar-ef402a662724/setting-up/03.m4a",
+        "seconds": 4.45,
+        "duration": 4.966666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/setting-up/04.m4a",
+        "seconds": 6.35,
+        "duration": 6.866666666666666
+      },
+      {
+        "file": "course/cedar-ef402a662724/setting-up/05.m4a",
+        "seconds": 5.55,
+        "duration": 6.066666666666666
+      },
+      {
+        "file": "course/cedar-ef402a662724/setting-up/06.m4a",
+        "seconds": 7,
+        "duration": 7.5
+      },
+      {
+        "file": "course/cedar-ef402a662724/setting-up/07.m4a",
+        "seconds": 5.7,
+        "duration": 6.2
+      },
+      {
+        "file": "course/cedar-ef402a662724/setting-up/08.m4a",
+        "seconds": 9.4,
+        "duration": 9.9
+      },
+      {
+        "file": "course/cedar-ef402a662724/setting-up/09.m4a",
+        "seconds": 10,
+        "duration": 10.5
+      },
+      {
+        "file": "course/cedar-ef402a662724/setting-up/10.m4a",
+        "seconds": 6.8,
+        "duration": 7.3
+      },
+      {
+        "file": "course/cedar-ef402a662724/setting-up/11.m4a",
+        "seconds": 8.55,
+        "duration": 9.066666666666666
+      },
+      {
+        "file": "course/cedar-ef402a662724/setting-up/12.m4a",
+        "seconds": 5.6,
+        "duration": 6.1
+      },
+      {
+        "file": "course/cedar-ef402a662724/setting-up/13.m4a",
+        "seconds": 7.7,
+        "duration": 8.2
+      },
+      {
+        "file": "course/cedar-ef402a662724/setting-up/14.m4a",
+        "seconds": 7.55,
+        "duration": 8.066666666666666
+      },
+      {
+        "file": "course/cedar-ef402a662724/setting-up/15.m4a",
+        "seconds": 8.65,
+        "duration": 9.166666666666666
+      },
+      {
+        "file": "course/cedar-ef402a662724/setting-up/16.m4a",
+        "seconds": 7.8,
+        "duration": 8.333333333333334
+      },
+      {
+        "file": "course/cedar-ef402a662724/setting-up/17.m4a",
+        "seconds": 9.1,
+        "duration": 9.6
+      },
+      {
+        "file": "course/cedar-ef402a662724/setting-up/18.m4a",
+        "seconds": 12.05,
+        "duration": 12.566666666666666
+      },
+      {
+        "file": "course/cedar-ef402a662724/setting-up/19.m4a",
+        "seconds": 5.55,
+        "duration": 6.066666666666666
+      }
+    ],
+    [
+      {
+        "file": "course/cedar-ef402a662724/castling/00.m4a",
+        "seconds": 8.9,
+        "duration": 9.4
+      },
+      {
+        "file": "course/cedar-ef402a662724/castling/01.m4a",
+        "seconds": 11.55,
+        "duration": 12.066666666666666
+      },
+      {
+        "file": "course/cedar-ef402a662724/castling/02.m4a",
+        "seconds": 6.5,
+        "duration": 7.0
+      },
+      {
+        "file": "course/cedar-ef402a662724/castling/03.m4a",
+        "seconds": 11.3,
+        "duration": 11.8
+      },
+      {
+        "file": "course/cedar-ef402a662724/castling/04.m4a",
+        "seconds": 7.3,
+        "duration": 7.8
+      },
+      {
+        "file": "course/cedar-ef402a662724/castling/05.m4a",
+        "seconds": 8.3,
+        "duration": 8.8
+      },
+      {
+        "file": "course/cedar-ef402a662724/castling/06.m4a",
+        "seconds": 8,
+        "duration": 8.5
+      },
+      {
+        "file": "course/cedar-ef402a662724/castling/07.m4a",
+        "seconds": 8.7,
+        "duration": 9.2
+      },
+      {
+        "file": "course/cedar-ef402a662724/castling/08.m4a",
+        "seconds": 11.45,
+        "duration": 11.966666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/castling/09.m4a",
+        "seconds": 16.45,
+        "duration": 16.966666666666665
+      },
+      {
+        "file": "course/cedar-ef402a662724/castling/10.m4a",
+        "seconds": 7.7,
+        "duration": 8.2
+      },
+      {
+        "file": "course/cedar-ef402a662724/castling/11.m4a",
+        "seconds": 10.4,
+        "duration": 10.9
+      },
+      {
+        "file": "course/cedar-ef402a662724/castling/12.m4a",
+        "seconds": 8.35,
+        "duration": 8.866666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/castling/13.m4a",
+        "seconds": 7.4,
+        "duration": 7.9
+      },
+      {
+        "file": "course/cedar-ef402a662724/castling/14.m4a",
+        "seconds": 10.8,
+        "duration": 11.3
+      },
+      {
+        "file": "course/cedar-ef402a662724/castling/15.m4a",
+        "seconds": 8.75,
+        "duration": 9.266666666666667
+      }
+    ],
+    [
+      {
+        "file": "course/cedar-ef402a662724/castling-rules/00.m4a",
+        "seconds": 6.1,
+        "duration": 6.6
+      },
+      {
+        "file": "course/cedar-ef402a662724/castling-rules/01.m4a",
+        "seconds": 11.6,
+        "duration": 12.1
+      },
+      {
+        "file": "course/cedar-ef402a662724/castling-rules/02.m4a",
+        "seconds": 12.2,
+        "duration": 12.7
+      },
+      {
+        "file": "course/cedar-ef402a662724/castling-rules/03.m4a",
+        "seconds": 9.65,
+        "duration": 10.166666666666666
+      },
+      {
+        "file": "course/cedar-ef402a662724/castling-rules/04.m4a",
+        "seconds": 8.55,
+        "duration": 9.066666666666666
+      },
+      {
+        "file": "course/cedar-ef402a662724/castling-rules/05.m4a",
+        "seconds": 7.35,
+        "duration": 7.866666666666666
+      },
+      {
+        "file": "course/cedar-ef402a662724/castling-rules/06.m4a",
+        "seconds": 9.25,
+        "duration": 9.766666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/castling-rules/07.m4a",
+        "seconds": 8.8,
+        "duration": 9.3
+      },
+      {
+        "file": "course/cedar-ef402a662724/castling-rules/08.m4a",
+        "seconds": 9.5,
+        "duration": 10.0
+      },
+      {
+        "file": "course/cedar-ef402a662724/castling-rules/09.m4a",
+        "seconds": 9.8,
+        "duration": 10.3
+      },
+      {
+        "file": "course/cedar-ef402a662724/castling-rules/10.m4a",
+        "seconds": 9.25,
+        "duration": 9.766666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/castling-rules/11.m4a",
+        "seconds": 11.5,
+        "duration": 12.0
+      },
+      {
+        "file": "course/cedar-ef402a662724/castling-rules/12.m4a",
+        "seconds": 11.55,
+        "duration": 12.066666666666666
+      },
+      {
+        "file": "course/cedar-ef402a662724/castling-rules/13.m4a",
+        "seconds": 11.85,
+        "duration": 12.366666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/castling-rules/14.m4a",
+        "seconds": 10.4,
+        "duration": 10.9
+      },
+      {
+        "file": "course/cedar-ef402a662724/castling-rules/15.m4a",
+        "seconds": 12.6,
+        "duration": 13.1
+      },
+      {
+        "file": "course/cedar-ef402a662724/castling-rules/16.m4a",
+        "seconds": 6.35,
+        "duration": 6.866666666666666
+      }
+    ],
+    [
+      {
+        "file": "course/cedar-ef402a662724/promotion-en-passant/00.m4a",
+        "seconds": 7.7,
+        "duration": 8.2
+      },
+      {
+        "file": "course/cedar-ef402a662724/promotion-en-passant/01.m4a",
+        "seconds": 8.55,
+        "duration": 9.066666666666666
+      },
+      {
+        "file": "course/cedar-ef402a662724/promotion-en-passant/02.m4a",
+        "seconds": 6.75,
+        "duration": 7.266666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/promotion-en-passant/03.m4a",
+        "seconds": 11.6,
+        "duration": 12.1
+      },
+      {
+        "file": "course/cedar-ef402a662724/promotion-en-passant/04.m4a",
+        "seconds": 11.15,
+        "duration": 11.666666666666666
+      },
+      {
+        "file": "course/cedar-ef402a662724/promotion-en-passant/05.m4a",
+        "seconds": 8.65,
+        "duration": 9.166666666666666
+      },
+      {
+        "file": "course/cedar-ef402a662724/promotion-en-passant/06.m4a",
+        "seconds": 9.65,
+        "duration": 10.166666666666666
+      },
+      {
+        "file": "course/cedar-ef402a662724/promotion-en-passant/07.m4a",
+        "seconds": 5.35,
+        "duration": 5.866666666666666
+      },
+      {
+        "file": "course/cedar-ef402a662724/promotion-en-passant/08.m4a",
+        "seconds": 11.45,
+        "duration": 11.966666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/promotion-en-passant/09.m4a",
+        "seconds": 9.1,
+        "duration": 9.6
+      },
+      {
+        "file": "course/cedar-ef402a662724/promotion-en-passant/10.m4a",
+        "seconds": 7.75,
+        "duration": 8.266666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/promotion-en-passant/11.m4a",
+        "seconds": 6.8,
+        "duration": 7.3
+      },
+      {
+        "file": "course/cedar-ef402a662724/promotion-en-passant/12.m4a",
+        "seconds": 8.7,
+        "duration": 9.2
+      },
+      {
+        "file": "course/cedar-ef402a662724/promotion-en-passant/13.m4a",
+        "seconds": 10.45,
+        "duration": 10.966666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/promotion-en-passant/14.m4a",
+        "seconds": 7.65,
+        "duration": 8.166666666666666
+      },
+      {
+        "file": "course/cedar-ef402a662724/promotion-en-passant/15.m4a",
+        "seconds": 11.5,
+        "duration": 12.0
+      },
+      {
+        "file": "course/cedar-ef402a662724/promotion-en-passant/16.m4a",
+        "seconds": 10.7,
+        "duration": 11.2
+      },
+      {
+        "file": "course/cedar-ef402a662724/promotion-en-passant/17.m4a",
+        "seconds": 9.35,
+        "duration": 9.866666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/promotion-en-passant/18.m4a",
+        "seconds": 10,
+        "duration": 10.5
+      },
+      {
+        "file": "course/cedar-ef402a662724/promotion-en-passant/19.m4a",
+        "seconds": 10.05,
+        "duration": 10.566666666666666
+      }
+    ],
+    [
+      {
+        "file": "course/cedar-ef402a662724/draws/00.m4a",
+        "seconds": 9.1,
+        "duration": 9.6
+      },
+      {
+        "file": "course/cedar-ef402a662724/draws/01.m4a",
+        "seconds": 12.9,
+        "duration": 13.4
+      },
+      {
+        "file": "course/cedar-ef402a662724/draws/02.m4a",
+        "seconds": 7.2,
+        "duration": 7.7
+      },
+      {
+        "file": "course/cedar-ef402a662724/draws/03.m4a",
+        "seconds": 5.4,
+        "duration": 5.9
+      },
+      {
+        "file": "course/cedar-ef402a662724/draws/04.m4a",
+        "seconds": 11.1,
+        "duration": 11.6
+      },
+      {
+        "file": "course/cedar-ef402a662724/draws/05.m4a",
+        "seconds": 8.25,
+        "duration": 8.766666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/draws/06.m4a",
+        "seconds": 9.65,
+        "duration": 10.166666666666666
+      },
+      {
+        "file": "course/cedar-ef402a662724/draws/07.m4a",
+        "seconds": 12.15,
+        "duration": 12.666666666666666
+      },
+      {
+        "file": "course/cedar-ef402a662724/draws/08.m4a",
+        "seconds": 12.75,
+        "duration": 13.266666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/draws/09.m4a",
+        "seconds": 8.4,
+        "duration": 8.9
+      },
+      {
+        "file": "course/cedar-ef402a662724/draws/10.m4a",
+        "seconds": 8.35,
+        "duration": 8.866666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/draws/11.m4a",
+        "seconds": 7.25,
+        "duration": 7.766666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/draws/12.m4a",
+        "seconds": 9.65,
+        "duration": 10.166666666666666
+      },
+      {
+        "file": "course/cedar-ef402a662724/draws/13.m4a",
+        "seconds": 10.25,
+        "duration": 10.766666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/draws/14.m4a",
+        "seconds": 13.65,
+        "duration": 14.166666666666666
+      },
+      {
+        "file": "course/cedar-ef402a662724/draws/15.m4a",
+        "seconds": 9.35,
+        "duration": 9.866666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/draws/16.m4a",
+        "seconds": 13.75,
+        "duration": 14.266666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/draws/17.m4a",
+        "seconds": 7.4,
+        "duration": 7.9
+      },
+      {
+        "file": "course/cedar-ef402a662724/draws/18.m4a",
+        "seconds": 9.35,
+        "duration": 9.866666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/draws/19.m4a",
+        "seconds": 8.5,
+        "duration": 9.0
+      },
+      {
+        "file": "course/cedar-ef402a662724/draws/20.m4a",
+        "seconds": 12.5,
+        "duration": 13.0
+      },
+      {
+        "file": "course/cedar-ef402a662724/draws/21.m4a",
+        "seconds": 10.8,
+        "duration": 11.3
+      }
+    ],
+    [
+      {
+        "file": "course/cedar-ef402a662724/piece-values/00.m4a",
+        "seconds": 6.5,
+        "duration": 7.0
+      },
+      {
+        "file": "course/cedar-ef402a662724/piece-values/01.m4a",
+        "seconds": 6.15,
+        "duration": 6.666666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/piece-values/02.m4a",
+        "seconds": 4.8,
+        "duration": 5.3
+      },
+      {
+        "file": "course/cedar-ef402a662724/piece-values/03.m4a",
+        "seconds": 7.05,
+        "duration": 7.566666666666666
+      },
+      {
+        "file": "course/cedar-ef402a662724/piece-values/04.m4a",
+        "seconds": 4.15,
+        "duration": 4.666666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/piece-values/05.m4a",
+        "seconds": 6.45,
+        "duration": 6.966666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/piece-values/06.m4a",
+        "seconds": 7,
+        "duration": 7.5
+      },
+      {
+        "file": "course/cedar-ef402a662724/piece-values/07.m4a",
+        "seconds": 9.2,
+        "duration": 9.7
+      },
+      {
+        "file": "course/cedar-ef402a662724/piece-values/08.m4a",
+        "seconds": 6.65,
+        "duration": 7.166666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/piece-values/09.m4a",
+        "seconds": 6.15,
+        "duration": 6.666666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/piece-values/10.m4a",
+        "seconds": 6.1,
+        "duration": 6.6
+      },
+      {
+        "file": "course/cedar-ef402a662724/piece-values/11.m4a",
+        "seconds": 6.2,
+        "duration": 6.7
+      },
+      {
+        "file": "course/cedar-ef402a662724/piece-values/12.m4a",
+        "seconds": 9.45,
+        "duration": 9.966666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/piece-values/13.m4a",
+        "seconds": 6.75,
+        "duration": 7.266666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/piece-values/14.m4a",
+        "seconds": 9.55,
+        "duration": 10.066666666666666
+      },
+      {
+        "file": "course/cedar-ef402a662724/piece-values/15.m4a",
+        "seconds": 6.25,
+        "duration": 6.766666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/piece-values/16.m4a",
+        "seconds": 8.7,
+        "duration": 9.2
+      },
+      {
+        "file": "course/cedar-ef402a662724/piece-values/17.m4a",
+        "seconds": 8.65,
+        "duration": 9.166666666666666
+      }
+    ],
+    [
+      {
+        "file": "course/cedar-ef402a662724/counting-material/00.m4a",
+        "seconds": 7.35,
+        "duration": 7.866666666666666
+      },
+      {
+        "file": "course/cedar-ef402a662724/counting-material/01.m4a",
+        "seconds": 9.5,
+        "duration": 10.0
+      },
+      {
+        "file": "course/cedar-ef402a662724/counting-material/02.m4a",
+        "seconds": 9.15,
+        "duration": 9.666666666666666
+      },
+      {
+        "file": "course/cedar-ef402a662724/counting-material/03.m4a",
+        "seconds": 6.8,
+        "duration": 7.3
+      },
+      {
+        "file": "course/cedar-ef402a662724/counting-material/04.m4a",
+        "seconds": 7.25,
+        "duration": 7.766666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/counting-material/05.m4a",
+        "seconds": 7,
+        "duration": 7.5
+      },
+      {
+        "file": "course/cedar-ef402a662724/counting-material/06.m4a",
+        "seconds": 7.35,
+        "duration": 7.866666666666666
+      },
+      {
+        "file": "course/cedar-ef402a662724/counting-material/07.m4a",
+        "seconds": 5.6,
+        "duration": 6.1
+      },
+      {
+        "file": "course/cedar-ef402a662724/counting-material/08.m4a",
+        "seconds": 6.7,
+        "duration": 7.2
+      },
+      {
+        "file": "course/cedar-ef402a662724/counting-material/09.m4a",
+        "seconds": 8.05,
+        "duration": 8.566666666666666
+      },
+      {
+        "file": "course/cedar-ef402a662724/counting-material/10.m4a",
+        "seconds": 9.3,
+        "duration": 9.8
+      },
+      {
+        "file": "course/cedar-ef402a662724/counting-material/11.m4a",
+        "seconds": 7.2,
+        "duration": 7.7
+      },
+      {
+        "file": "course/cedar-ef402a662724/counting-material/12.m4a",
+        "seconds": 8.45,
+        "duration": 8.966666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/counting-material/13.m4a",
+        "seconds": 9.5,
+        "duration": 10.0
+      },
+      {
+        "file": "course/cedar-ef402a662724/counting-material/14.m4a",
+        "seconds": 9.55,
+        "duration": 10.066666666666666
+      },
+      {
+        "file": "course/cedar-ef402a662724/counting-material/15.m4a",
+        "seconds": 11.9,
+        "duration": 12.4
+      },
+      {
+        "file": "course/cedar-ef402a662724/counting-material/16.m4a",
+        "seconds": 9.3,
+        "duration": 9.8
+      }
+    ],
+    [
+      {
+        "file": "course/cedar-ef402a662724/notation/00.m4a",
+        "seconds": 9.5,
+        "duration": 10.0
+      },
+      {
+        "file": "course/cedar-ef402a662724/notation/01.m4a",
+        "seconds": 10.85,
+        "duration": 11.366666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/notation/02.m4a",
+        "seconds": 9.6,
+        "duration": 10.1
+      },
+      {
+        "file": "course/cedar-ef402a662724/notation/03.m4a",
+        "seconds": 5.35,
+        "duration": 5.866666666666666
+      },
+      {
+        "file": "course/cedar-ef402a662724/notation/04.m4a",
+        "seconds": 10.05,
+        "duration": 10.566666666666666
+      },
+      {
+        "file": "course/cedar-ef402a662724/notation/05.m4a",
+        "seconds": 10.6,
+        "duration": 11.1
+      },
+      {
+        "file": "course/cedar-ef402a662724/notation/06.m4a",
+        "seconds": 6,
+        "duration": 6.5
+      },
+      {
+        "file": "course/cedar-ef402a662724/notation/07.m4a",
+        "seconds": 5.55,
+        "duration": 6.066666666666666
+      },
+      {
+        "file": "course/cedar-ef402a662724/notation/08.m4a",
+        "seconds": 9.65,
+        "duration": 10.166666666666666
+      },
+      {
+        "file": "course/cedar-ef402a662724/notation/09.m4a",
+        "seconds": 6.85,
+        "duration": 7.366666666666666
+      },
+      {
+        "file": "course/cedar-ef402a662724/notation/10.m4a",
+        "seconds": 5.85,
+        "duration": 6.366666666666666
+      },
+      {
+        "file": "course/cedar-ef402a662724/notation/11.m4a",
+        "seconds": 10.35,
+        "duration": 10.866666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/notation/12.m4a",
+        "seconds": 11.9,
+        "duration": 12.4
+      },
+      {
+        "file": "course/cedar-ef402a662724/notation/13.m4a",
+        "seconds": 13.2,
+        "duration": 13.7
+      },
+      {
+        "file": "course/cedar-ef402a662724/notation/14.m4a",
+        "seconds": 12.85,
+        "duration": 13.366666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/notation/15.m4a",
+        "seconds": 9.1,
+        "duration": 9.6
+      },
+      {
+        "file": "course/cedar-ef402a662724/notation/16.m4a",
+        "seconds": 9.3,
+        "duration": 9.8
+      },
+      {
+        "file": "course/cedar-ef402a662724/notation/17.m4a",
+        "seconds": 12.4,
+        "duration": 12.9
+      },
+      {
+        "file": "course/cedar-ef402a662724/notation/18.m4a",
+        "seconds": 11.6,
+        "duration": 12.1
+      },
+      {
+        "file": "course/cedar-ef402a662724/notation/19.m4a",
+        "seconds": 10.5,
+        "duration": 11.0
+      },
+      {
+        "file": "course/cedar-ef402a662724/notation/20.m4a",
+        "seconds": 11.45,
+        "duration": 11.966666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/notation/21.m4a",
+        "seconds": 9.5,
+        "duration": 10.0
+      }
+    ],
+    [
+      {
+        "file": "course/cedar-ef402a662724/etiquette/00.m4a",
+        "seconds": 6.55,
+        "duration": 7.066666666666666
+      },
+      {
+        "file": "course/cedar-ef402a662724/etiquette/01.m4a",
+        "seconds": 6.8,
+        "duration": 7.3
+      },
+      {
+        "file": "course/cedar-ef402a662724/etiquette/02.m4a",
+        "seconds": 7.45,
+        "duration": 7.966666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/etiquette/03.m4a",
+        "seconds": 7.15,
+        "duration": 7.666666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/etiquette/04.m4a",
+        "seconds": 8.45,
+        "duration": 8.966666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/etiquette/05.m4a",
+        "seconds": 6.9,
+        "duration": 7.4
+      },
+      {
+        "file": "course/cedar-ef402a662724/etiquette/06.m4a",
+        "seconds": 6.6,
+        "duration": 7.1
+      },
+      {
+        "file": "course/cedar-ef402a662724/etiquette/07.m4a",
+        "seconds": 9.5,
+        "duration": 10.0
+      },
+      {
+        "file": "course/cedar-ef402a662724/etiquette/08.m4a",
+        "seconds": 13.85,
+        "duration": 14.366666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/etiquette/09.m4a",
+        "seconds": 12.9,
+        "duration": 13.4
+      },
+      {
+        "file": "course/cedar-ef402a662724/etiquette/10.m4a",
+        "seconds": 8.45,
+        "duration": 8.966666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/etiquette/11.m4a",
+        "seconds": 7.65,
+        "duration": 8.166666666666666
+      },
+      {
+        "file": "course/cedar-ef402a662724/etiquette/12.m4a",
+        "seconds": 9.2,
+        "duration": 9.7
+      },
+      {
+        "file": "course/cedar-ef402a662724/etiquette/13.m4a",
+        "seconds": 5.9,
+        "duration": 6.4
+      },
+      {
+        "file": "course/cedar-ef402a662724/etiquette/14.m4a",
+        "seconds": 6.9,
+        "duration": 7.4
+      },
+      {
+        "file": "course/cedar-ef402a662724/etiquette/15.m4a",
+        "seconds": 5.55,
+        "duration": 6.066666666666666
+      },
+      {
+        "file": "course/cedar-ef402a662724/etiquette/16.m4a",
+        "seconds": 5.1,
+        "duration": 5.6
+      },
+      {
+        "file": "course/cedar-ef402a662724/etiquette/17.m4a",
+        "seconds": 9.55,
+        "duration": 10.066666666666666
+      }
+    ],
+    [
+      {
+        "file": "course/cedar-ef402a662724/tournaments/00.m4a",
+        "seconds": 5.8,
+        "duration": 6.3
+      },
+      {
+        "file": "course/cedar-ef402a662724/tournaments/01.m4a",
+        "seconds": 7.25,
+        "duration": 7.766666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/tournaments/02.m4a",
+        "seconds": 8.25,
+        "duration": 8.766666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/tournaments/03.m4a",
+        "seconds": 6.9,
+        "duration": 7.4
+      },
+      {
+        "file": "course/cedar-ef402a662724/tournaments/04.m4a",
+        "seconds": 6.55,
+        "duration": 7.066666666666666
+      },
+      {
+        "file": "course/cedar-ef402a662724/tournaments/05.m4a",
+        "seconds": 7.95,
+        "duration": 8.466666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/tournaments/06.m4a",
+        "seconds": 9.55,
+        "duration": 10.066666666666666
+      },
+      {
+        "file": "course/cedar-ef402a662724/tournaments/07.m4a",
+        "seconds": 10.8,
+        "duration": 11.3
+      },
+      {
+        "file": "course/cedar-ef402a662724/tournaments/08.m4a",
+        "seconds": 6.2,
+        "duration": 6.7
+      },
+      {
+        "file": "course/cedar-ef402a662724/tournaments/09.m4a",
+        "seconds": 7.4,
+        "duration": 7.9
+      },
+      {
+        "file": "course/cedar-ef402a662724/tournaments/10.m4a",
+        "seconds": 11.15,
+        "duration": 11.666666666666666
+      },
+      {
+        "file": "course/cedar-ef402a662724/tournaments/11.m4a",
+        "seconds": 8.75,
+        "duration": 9.266666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/tournaments/12.m4a",
+        "seconds": 7.3,
+        "duration": 7.8
+      },
+      {
+        "file": "course/cedar-ef402a662724/tournaments/13.m4a",
+        "seconds": 10.1,
+        "duration": 10.6
+      },
+      {
+        "file": "course/cedar-ef402a662724/tournaments/14.m4a",
+        "seconds": 14.4,
+        "duration": 14.9
+      },
+      {
+        "file": "course/cedar-ef402a662724/tournaments/15.m4a",
+        "seconds": 7.65,
+        "duration": 8.166666666666666
+      },
+      {
+        "file": "course/cedar-ef402a662724/tournaments/16.m4a",
+        "seconds": 5.95,
+        "duration": 6.466666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/tournaments/17.m4a",
+        "seconds": 10,
+        "duration": 10.5
+      }
+    ],
+    [
+      {
+        "file": "course/cedar-ef402a662724/rules-review/00.m4a",
+        "seconds": 7.1,
+        "duration": 7.6
+      },
+      {
+        "file": "course/cedar-ef402a662724/rules-review/01.m4a",
+        "seconds": 11.25,
+        "duration": 11.766666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/rules-review/02.m4a",
+        "seconds": 5.15,
+        "duration": 5.666666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/rules-review/03.m4a",
+        "seconds": 5.9,
+        "duration": 6.4
+      },
+      {
+        "file": "course/cedar-ef402a662724/rules-review/04.m4a",
+        "seconds": 7.1,
+        "duration": 7.6
+      },
+      {
+        "file": "course/cedar-ef402a662724/rules-review/05.m4a",
+        "seconds": 9.45,
+        "duration": 9.966666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/rules-review/06.m4a",
+        "seconds": 5.25,
+        "duration": 5.766666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/rules-review/07.m4a",
+        "seconds": 11.25,
+        "duration": 11.766666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/rules-review/08.m4a",
+        "seconds": 11.3,
+        "duration": 11.8
+      },
+      {
+        "file": "course/cedar-ef402a662724/rules-review/09.m4a",
+        "seconds": 8.7,
+        "duration": 9.2
+      },
+      {
+        "file": "course/cedar-ef402a662724/rules-review/10.m4a",
+        "seconds": 9.25,
+        "duration": 9.766666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/rules-review/11.m4a",
+        "seconds": 11.75,
+        "duration": 12.266666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/rules-review/12.m4a",
+        "seconds": 10.6,
+        "duration": 11.1
+      },
+      {
+        "file": "course/cedar-ef402a662724/rules-review/13.m4a",
+        "seconds": 7.1,
+        "duration": 7.6
+      },
+      {
+        "file": "course/cedar-ef402a662724/rules-review/14.m4a",
+        "seconds": 10.2,
+        "duration": 10.7
+      },
+      {
+        "file": "course/cedar-ef402a662724/rules-review/15.m4a",
+        "seconds": 12.45,
+        "duration": 12.966666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/rules-review/16.m4a",
+        "seconds": 8.35,
+        "duration": 8.866666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/rules-review/17.m4a",
+        "seconds": 8.65,
+        "duration": 9.166666666666666
+      },
+      {
+        "file": "course/cedar-ef402a662724/rules-review/18.m4a",
+        "seconds": 9.7,
+        "duration": 10.2
+      }
+    ],
+    [
+      {
+        "file": "course/cedar-ef402a662724/opening/00.m4a",
+        "seconds": 7.45,
+        "duration": 7.966666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/opening/01.m4a",
+        "seconds": 10,
+        "duration": 10.5
+      },
+      {
+        "file": "course/cedar-ef402a662724/opening/02.m4a",
+        "seconds": 9.15,
+        "duration": 9.666666666666666
+      },
+      {
+        "file": "course/cedar-ef402a662724/opening/03.m4a",
+        "seconds": 9.65,
+        "duration": 10.166666666666666
+      },
+      {
+        "file": "course/cedar-ef402a662724/opening/04.m4a",
+        "seconds": 6.3,
+        "duration": 6.8
+      },
+      {
+        "file": "course/cedar-ef402a662724/opening/05.m4a",
+        "seconds": 9.55,
+        "duration": 10.066666666666666
+      },
+      {
+        "file": "course/cedar-ef402a662724/opening/06.m4a",
+        "seconds": 5.55,
+        "duration": 6.066666666666666
+      },
+      {
+        "file": "course/cedar-ef402a662724/opening/07.m4a",
+        "seconds": 6.95,
+        "duration": 7.466666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/opening/08.m4a",
+        "seconds": 10.65,
+        "duration": 11.166666666666666
+      },
+      {
+        "file": "course/cedar-ef402a662724/opening/09.m4a",
+        "seconds": 8.85,
+        "duration": 9.366666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/opening/10.m4a",
+        "seconds": 5.65,
+        "duration": 6.166666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/opening/11.m4a",
+        "seconds": 9.55,
+        "duration": 10.066666666666666
+      },
+      {
+        "file": "course/cedar-ef402a662724/opening/12.m4a",
+        "seconds": 6.65,
+        "duration": 7.166666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/opening/13.m4a",
+        "seconds": 7.2,
+        "duration": 7.7
+      },
+      {
+        "file": "course/cedar-ef402a662724/opening/14.m4a",
+        "seconds": 6.3,
+        "duration": 6.8
+      },
+      {
+        "file": "course/cedar-ef402a662724/opening/15.m4a",
+        "seconds": 6.3,
+        "duration": 6.8
+      },
+      {
+        "file": "course/cedar-ef402a662724/opening/16.m4a",
+        "seconds": 8.9,
+        "duration": 9.4
+      },
+      {
+        "file": "course/cedar-ef402a662724/opening/17.m4a",
+        "seconds": 8.4,
+        "duration": 8.9
+      },
+      {
+        "file": "course/cedar-ef402a662724/opening/18.m4a",
+        "seconds": 5.7,
+        "duration": 6.2
+      },
+      {
+        "file": "course/cedar-ef402a662724/opening/19.m4a",
+        "seconds": 5.65,
+        "duration": 6.166666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/opening/20.m4a",
+        "seconds": 4.7,
+        "duration": 5.2
+      },
+      {
+        "file": "course/cedar-ef402a662724/opening/21.m4a",
+        "seconds": 7.45,
+        "duration": 7.966666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/opening/22.m4a",
         "seconds": 11.2,
         "duration": 11.7
       }
     ],
     [
       {
-        "file": "course/cedar-7263a3a9ecd6/scholars-mate/00.m4a",
+        "file": "course/cedar-ef402a662724/scholars-mate/00.m4a",
         "seconds": 11.3,
         "duration": 11.8
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/scholars-mate/01.m4a",
+        "file": "course/cedar-ef402a662724/scholars-mate/01.m4a",
         "seconds": 9.15,
         "duration": 9.666666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/scholars-mate/02.m4a",
+        "file": "course/cedar-ef402a662724/scholars-mate/02.m4a",
         "seconds": 7.75,
         "duration": 8.266666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/scholars-mate/03.m4a",
+        "file": "course/cedar-ef402a662724/scholars-mate/03.m4a",
         "seconds": 6.1,
         "duration": 6.6
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/scholars-mate/04.m4a",
+        "file": "course/cedar-ef402a662724/scholars-mate/04.m4a",
         "seconds": 7.45,
         "duration": 7.966666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/scholars-mate/05.m4a",
+        "file": "course/cedar-ef402a662724/scholars-mate/05.m4a",
         "seconds": 6.6,
         "duration": 7.1
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/scholars-mate/06.m4a",
+        "file": "course/cedar-ef402a662724/scholars-mate/06.m4a",
         "seconds": 4.8,
         "duration": 5.3
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/scholars-mate/07.m4a",
-        "seconds": 9.3,
-        "duration": 9.8
+        "file": "course/cedar-ef402a662724/scholars-mate/07.m4a",
+        "seconds": 12.6,
+        "duration": 13.1
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/scholars-mate/08.m4a",
+        "file": "course/cedar-ef402a662724/scholars-mate/08.m4a",
         "seconds": 9.85,
         "duration": 10.366666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/scholars-mate/09.m4a",
+        "file": "course/cedar-ef402a662724/scholars-mate/09.m4a",
         "seconds": 6.15,
         "duration": 6.666666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/scholars-mate/10.m4a",
+        "file": "course/cedar-ef402a662724/scholars-mate/10.m4a",
         "seconds": 6.4,
         "duration": 6.9
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/scholars-mate/11.m4a",
+        "file": "course/cedar-ef402a662724/scholars-mate/11.m4a",
         "seconds": 8.6,
         "duration": 9.1
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/scholars-mate/12.m4a",
+        "file": "course/cedar-ef402a662724/scholars-mate/12.m4a",
         "seconds": 10.35,
         "duration": 10.866666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/scholars-mate/13.m4a",
+        "file": "course/cedar-ef402a662724/scholars-mate/13.m4a",
         "seconds": 9.3,
         "duration": 9.8
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/scholars-mate/14.m4a",
+        "file": "course/cedar-ef402a662724/scholars-mate/14.m4a",
         "seconds": 7.15,
         "duration": 7.666666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/scholars-mate/15.m4a",
+        "file": "course/cedar-ef402a662724/scholars-mate/15.m4a",
         "seconds": 12.1,
         "duration": 12.6
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/scholars-mate/16.m4a",
+        "file": "course/cedar-ef402a662724/scholars-mate/16.m4a",
         "seconds": 9.8,
         "duration": 10.3
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/scholars-mate/17.m4a",
-        "seconds": 10.2,
-        "duration": 10.7
+        "file": "course/cedar-ef402a662724/scholars-mate/17.m4a",
+        "seconds": 8.65,
+        "duration": 9.166666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/scholars-mate/18.m4a",
+        "file": "course/cedar-ef402a662724/scholars-mate/18.m4a",
         "seconds": 7.95,
         "duration": 8.466666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/scholars-mate/19.m4a",
+        "file": "course/cedar-ef402a662724/scholars-mate/19.m4a",
         "seconds": 9.25,
         "duration": 9.766666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/scholars-mate/20.m4a",
+        "file": "course/cedar-ef402a662724/scholars-mate/20.m4a",
         "seconds": 10.2,
         "duration": 10.7
       }
     ],
     [
       {
-        "file": "course/cedar-7263a3a9ecd6/fork/00.m4a",
+        "file": "course/cedar-ef402a662724/fork/00.m4a",
         "seconds": 7.3,
         "duration": 7.8
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/fork/01.m4a",
+        "file": "course/cedar-ef402a662724/fork/01.m4a",
         "seconds": 7.8,
         "duration": 8.333333333333334
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/fork/02.m4a",
+        "file": "course/cedar-ef402a662724/fork/02.m4a",
         "seconds": 6.5,
         "duration": 7.0
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/fork/03.m4a",
+        "file": "course/cedar-ef402a662724/fork/03.m4a",
         "seconds": 5.75,
         "duration": 6.266666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/fork/04.m4a",
+        "file": "course/cedar-ef402a662724/fork/04.m4a",
         "seconds": 6,
         "duration": 6.5
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/fork/05.m4a",
+        "file": "course/cedar-ef402a662724/fork/05.m4a",
         "seconds": 7.45,
         "duration": 7.966666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/fork/06.m4a",
+        "file": "course/cedar-ef402a662724/fork/06.m4a",
         "seconds": 5.65,
         "duration": 6.166666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/fork/07.m4a",
+        "file": "course/cedar-ef402a662724/fork/07.m4a",
         "seconds": 13.7,
         "duration": 14.2
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/fork/08.m4a",
+        "file": "course/cedar-ef402a662724/fork/08.m4a",
         "seconds": 7.25,
         "duration": 7.766666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/fork/09.m4a",
+        "file": "course/cedar-ef402a662724/fork/09.m4a",
         "seconds": 7.3,
         "duration": 7.8
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/fork/10.m4a",
+        "file": "course/cedar-ef402a662724/fork/10.m4a",
         "seconds": 7.55,
         "duration": 8.066666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/fork/11.m4a",
+        "file": "course/cedar-ef402a662724/fork/11.m4a",
         "seconds": 7.95,
         "duration": 8.466666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/fork/12.m4a",
+        "file": "course/cedar-ef402a662724/fork/12.m4a",
         "seconds": 10.65,
         "duration": 11.166666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/fork/13.m4a",
+        "file": "course/cedar-ef402a662724/fork/13.m4a",
         "seconds": 9.45,
         "duration": 9.966666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/fork/14.m4a",
+        "file": "course/cedar-ef402a662724/fork/14.m4a",
         "seconds": 10.75,
         "duration": 11.266666666666667
       }
     ],
     [
       {
-        "file": "course/cedar-7263a3a9ecd6/pin/00.m4a",
+        "file": "course/cedar-ef402a662724/pin/00.m4a",
         "seconds": 7.8,
         "duration": 8.333333333333334
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/pin/01.m4a",
+        "file": "course/cedar-ef402a662724/pin/01.m4a",
         "seconds": 9.95,
         "duration": 10.466666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/pin/02.m4a",
+        "file": "course/cedar-ef402a662724/pin/02.m4a",
         "seconds": 9.6,
         "duration": 10.1
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/pin/03.m4a",
+        "file": "course/cedar-ef402a662724/pin/03.m4a",
         "seconds": 9.4,
         "duration": 9.9
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/pin/04.m4a",
+        "file": "course/cedar-ef402a662724/pin/04.m4a",
         "seconds": 8.9,
         "duration": 9.4
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/pin/05.m4a",
+        "file": "course/cedar-ef402a662724/pin/05.m4a",
         "seconds": 9.25,
         "duration": 9.766666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/pin/06.m4a",
+        "file": "course/cedar-ef402a662724/pin/06.m4a",
         "seconds": 12.95,
         "duration": 13.466666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/pin/07.m4a",
+        "file": "course/cedar-ef402a662724/pin/07.m4a",
         "seconds": 9.6,
         "duration": 10.1
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/pin/08.m4a",
+        "file": "course/cedar-ef402a662724/pin/08.m4a",
         "seconds": 7.4,
         "duration": 7.9
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/pin/09.m4a",
+        "file": "course/cedar-ef402a662724/pin/09.m4a",
         "seconds": 9.1,
         "duration": 9.6
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/pin/10.m4a",
+        "file": "course/cedar-ef402a662724/pin/10.m4a",
         "seconds": 9.1,
         "duration": 9.6
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/pin/11.m4a",
+        "file": "course/cedar-ef402a662724/pin/11.m4a",
         "seconds": 9.2,
         "duration": 9.7
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/pin/12.m4a",
+        "file": "course/cedar-ef402a662724/pin/12.m4a",
         "seconds": 8.25,
         "duration": 8.766666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/pin/13.m4a",
+        "file": "course/cedar-ef402a662724/pin/13.m4a",
         "seconds": 10.4,
         "duration": 10.9
       }
     ],
     [
       {
-        "file": "course/cedar-7263a3a9ecd6/skewer/00.m4a",
+        "file": "course/cedar-ef402a662724/skewer/00.m4a",
         "seconds": 6.95,
         "duration": 7.466666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/skewer/01.m4a",
+        "file": "course/cedar-ef402a662724/skewer/01.m4a",
         "seconds": 10.05,
         "duration": 10.566666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/skewer/02.m4a",
+        "file": "course/cedar-ef402a662724/skewer/02.m4a",
         "seconds": 6.85,
         "duration": 7.366666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/skewer/03.m4a",
+        "file": "course/cedar-ef402a662724/skewer/03.m4a",
         "seconds": 3.25,
         "duration": 3.7666666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/skewer/04.m4a",
+        "file": "course/cedar-ef402a662724/skewer/04.m4a",
         "seconds": 4.5,
         "duration": 5.0
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/skewer/05.m4a",
+        "file": "course/cedar-ef402a662724/skewer/05.m4a",
         "seconds": 10.4,
         "duration": 10.9
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/skewer/06.m4a",
+        "file": "course/cedar-ef402a662724/skewer/06.m4a",
         "seconds": 9,
         "duration": 9.5
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/skewer/07.m4a",
+        "file": "course/cedar-ef402a662724/skewer/07.m4a",
         "seconds": 8.7,
         "duration": 9.2
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/skewer/08.m4a",
+        "file": "course/cedar-ef402a662724/skewer/08.m4a",
         "seconds": 5.85,
         "duration": 6.366666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/skewer/09.m4a",
+        "file": "course/cedar-ef402a662724/skewer/09.m4a",
         "seconds": 9,
         "duration": 9.5
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/skewer/10.m4a",
+        "file": "course/cedar-ef402a662724/skewer/10.m4a",
         "seconds": 8.3,
         "duration": 8.8
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/skewer/11.m4a",
+        "file": "course/cedar-ef402a662724/skewer/11.m4a",
         "seconds": 5.35,
         "duration": 5.866666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/skewer/12.m4a",
+        "file": "course/cedar-ef402a662724/skewer/12.m4a",
         "seconds": 7.7,
         "duration": 8.2
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/skewer/13.m4a",
+        "file": "course/cedar-ef402a662724/skewer/13.m4a",
         "seconds": 8.55,
         "duration": 9.066666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/skewer/14.m4a",
+        "file": "course/cedar-ef402a662724/skewer/14.m4a",
         "seconds": 10.2,
         "duration": 10.7
       }
     ],
     [
       {
-        "file": "course/cedar-7263a3a9ecd6/discovered-attack/00.m4a",
+        "file": "course/cedar-ef402a662724/discovered-attack/00.m4a",
         "seconds": 10.45,
         "duration": 10.966666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/discovered-attack/01.m4a",
+        "file": "course/cedar-ef402a662724/discovered-attack/01.m4a",
         "seconds": 11.8,
         "duration": 12.3
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/discovered-attack/02.m4a",
+        "file": "course/cedar-ef402a662724/discovered-attack/02.m4a",
         "seconds": 9.3,
         "duration": 9.8
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/discovered-attack/03.m4a",
+        "file": "course/cedar-ef402a662724/discovered-attack/03.m4a",
         "seconds": 10,
         "duration": 10.5
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/discovered-attack/04.m4a",
+        "file": "course/cedar-ef402a662724/discovered-attack/04.m4a",
         "seconds": 10.7,
         "duration": 11.2
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/discovered-attack/05.m4a",
+        "file": "course/cedar-ef402a662724/discovered-attack/05.m4a",
         "seconds": 8,
         "duration": 8.5
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/discovered-attack/06.m4a",
+        "file": "course/cedar-ef402a662724/discovered-attack/06.m4a",
         "seconds": 7.6,
         "duration": 8.1
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/discovered-attack/07.m4a",
+        "file": "course/cedar-ef402a662724/discovered-attack/07.m4a",
         "seconds": 9.05,
         "duration": 9.566666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/discovered-attack/08.m4a",
+        "file": "course/cedar-ef402a662724/discovered-attack/08.m4a",
         "seconds": 8.05,
         "duration": 8.566666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/discovered-attack/09.m4a",
+        "file": "course/cedar-ef402a662724/discovered-attack/09.m4a",
         "seconds": 8.2,
         "duration": 8.7
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/discovered-attack/10.m4a",
+        "file": "course/cedar-ef402a662724/discovered-attack/10.m4a",
         "seconds": 9.4,
         "duration": 9.9
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/discovered-attack/11.m4a",
+        "file": "course/cedar-ef402a662724/discovered-attack/11.m4a",
         "seconds": 9.25,
         "duration": 9.766666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/discovered-attack/12.m4a",
+        "file": "course/cedar-ef402a662724/discovered-attack/12.m4a",
         "seconds": 8.85,
         "duration": 9.366666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/discovered-attack/13.m4a",
+        "file": "course/cedar-ef402a662724/discovered-attack/13.m4a",
         "seconds": 10.85,
         "duration": 11.366666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/discovered-attack/14.m4a",
-        "seconds": 11.95,
-        "duration": 12.466666666666667
+        "file": "course/cedar-ef402a662724/discovered-attack/14.m4a",
+        "seconds": 10.7,
+        "duration": 11.2
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/discovered-attack/15.m4a",
+        "file": "course/cedar-ef402a662724/discovered-attack/15.m4a",
         "seconds": 5.25,
         "duration": 5.766666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/discovered-attack/16.m4a",
+        "file": "course/cedar-ef402a662724/discovered-attack/16.m4a",
         "seconds": 9.5,
         "duration": 10.0
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/discovered-attack/17.m4a",
+        "file": "course/cedar-ef402a662724/discovered-attack/17.m4a",
         "seconds": 10.4,
         "duration": 10.9
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/discovered-attack/18.m4a",
+        "file": "course/cedar-ef402a662724/discovered-attack/18.m4a",
         "seconds": 9.7,
         "duration": 10.2
       }
     ],
     [
       {
-        "file": "course/cedar-7263a3a9ecd6/removing-the-defender/00.m4a",
+        "file": "course/cedar-ef402a662724/removing-the-defender/00.m4a",
         "seconds": 10,
         "duration": 10.5
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/removing-the-defender/01.m4a",
+        "file": "course/cedar-ef402a662724/removing-the-defender/01.m4a",
         "seconds": 7.8,
         "duration": 8.333333333333334
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/removing-the-defender/02.m4a",
+        "file": "course/cedar-ef402a662724/removing-the-defender/02.m4a",
         "seconds": 7.6,
         "duration": 8.1
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/removing-the-defender/03.m4a",
+        "file": "course/cedar-ef402a662724/removing-the-defender/03.m4a",
         "seconds": 6.1,
         "duration": 6.6
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/removing-the-defender/04.m4a",
+        "file": "course/cedar-ef402a662724/removing-the-defender/04.m4a",
         "seconds": 9.45,
         "duration": 9.966666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/removing-the-defender/05.m4a",
+        "file": "course/cedar-ef402a662724/removing-the-defender/05.m4a",
         "seconds": 5.9,
         "duration": 6.4
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/removing-the-defender/06.m4a",
+        "file": "course/cedar-ef402a662724/removing-the-defender/06.m4a",
         "seconds": 6.4,
         "duration": 6.9
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/removing-the-defender/07.m4a",
+        "file": "course/cedar-ef402a662724/removing-the-defender/07.m4a",
         "seconds": 8.95,
         "duration": 9.466666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/removing-the-defender/08.m4a",
+        "file": "course/cedar-ef402a662724/removing-the-defender/08.m4a",
         "seconds": 6.65,
         "duration": 7.166666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/removing-the-defender/09.m4a",
-        "seconds": 7.05,
-        "duration": 7.566666666666666
+        "file": "course/cedar-ef402a662724/removing-the-defender/09.m4a",
+        "seconds": 9.45,
+        "duration": 9.966666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/removing-the-defender/10.m4a",
+        "file": "course/cedar-ef402a662724/removing-the-defender/10.m4a",
         "seconds": 6.6,
         "duration": 7.1
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/removing-the-defender/11.m4a",
+        "file": "course/cedar-ef402a662724/removing-the-defender/11.m4a",
         "seconds": 8.95,
         "duration": 9.466666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/removing-the-defender/12.m4a",
+        "file": "course/cedar-ef402a662724/removing-the-defender/12.m4a",
         "seconds": 8.7,
         "duration": 9.2
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/removing-the-defender/13.m4a",
+        "file": "course/cedar-ef402a662724/removing-the-defender/13.m4a",
         "seconds": 6.35,
         "duration": 6.866666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/removing-the-defender/14.m4a",
+        "file": "course/cedar-ef402a662724/removing-the-defender/14.m4a",
         "seconds": 9.95,
         "duration": 10.466666666666667
       }
     ],
     [
       {
-        "file": "course/cedar-7263a3a9ecd6/two-rook-mate/00.m4a",
+        "file": "course/cedar-ef402a662724/two-rook-mate/00.m4a",
         "seconds": 8.45,
         "duration": 8.966666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/two-rook-mate/01.m4a",
+        "file": "course/cedar-ef402a662724/two-rook-mate/01.m4a",
         "seconds": 7.05,
         "duration": 7.566666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/two-rook-mate/02.m4a",
+        "file": "course/cedar-ef402a662724/two-rook-mate/02.m4a",
         "seconds": 5.45,
         "duration": 5.966666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/two-rook-mate/03.m4a",
-        "seconds": 4.9,
-        "duration": 5.4
+        "file": "course/cedar-ef402a662724/two-rook-mate/03.m4a",
+        "seconds": 6.45,
+        "duration": 6.966666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/two-rook-mate/04.m4a",
+        "file": "course/cedar-ef402a662724/two-rook-mate/04.m4a",
         "seconds": 7.4,
         "duration": 7.9
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/two-rook-mate/05.m4a",
+        "file": "course/cedar-ef402a662724/two-rook-mate/05.m4a",
         "seconds": 6.95,
         "duration": 7.466666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/two-rook-mate/06.m4a",
-        "seconds": 9.4,
-        "duration": 9.9
+        "file": "course/cedar-ef402a662724/two-rook-mate/06.m4a",
+        "seconds": 8.25,
+        "duration": 8.766666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/two-rook-mate/07.m4a",
+        "file": "course/cedar-ef402a662724/two-rook-mate/07.m4a",
         "seconds": 12.85,
         "duration": 13.366666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/two-rook-mate/08.m4a",
-        "seconds": 8.2,
-        "duration": 8.7
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/two-rook-mate/09.m4a",
-        "seconds": 14,
-        "duration": 14.5
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/two-rook-mate/10.m4a",
-        "seconds": 6.95,
-        "duration": 7.466666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/two-rook-mate/11.m4a",
-        "seconds": 6.95,
-        "duration": 7.466666666666667
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/two-rook-mate/12.m4a",
-        "seconds": 6,
-        "duration": 6.5
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/two-rook-mate/13.m4a",
-        "seconds": 7.05,
-        "duration": 7.566666666666666
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/two-rook-mate/14.m4a",
-        "seconds": 7.55,
-        "duration": 8.066666666666666
-      },
-      {
-        "file": "course/cedar-7263a3a9ecd6/two-rook-mate/15.m4a",
+        "file": "course/cedar-ef402a662724/two-rook-mate/08.m4a",
         "seconds": 8.4,
         "duration": 8.9
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/two-rook-mate/16.m4a",
+        "file": "course/cedar-ef402a662724/two-rook-mate/09.m4a",
+        "seconds": 14,
+        "duration": 14.5
+      },
+      {
+        "file": "course/cedar-ef402a662724/two-rook-mate/10.m4a",
+        "seconds": 6.95,
+        "duration": 7.466666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/two-rook-mate/11.m4a",
+        "seconds": 6.95,
+        "duration": 7.466666666666667
+      },
+      {
+        "file": "course/cedar-ef402a662724/two-rook-mate/12.m4a",
+        "seconds": 6,
+        "duration": 6.5
+      },
+      {
+        "file": "course/cedar-ef402a662724/two-rook-mate/13.m4a",
+        "seconds": 7.05,
+        "duration": 7.566666666666666
+      },
+      {
+        "file": "course/cedar-ef402a662724/two-rook-mate/14.m4a",
+        "seconds": 7.55,
+        "duration": 8.066666666666666
+      },
+      {
+        "file": "course/cedar-ef402a662724/two-rook-mate/15.m4a",
+        "seconds": 8.4,
+        "duration": 8.9
+      },
+      {
+        "file": "course/cedar-ef402a662724/two-rook-mate/16.m4a",
         "seconds": 6.6,
         "duration": 7.1
       }
     ],
     [
       {
-        "file": "course/cedar-7263a3a9ecd6/queen-mate/00.m4a",
+        "file": "course/cedar-ef402a662724/queen-mate/00.m4a",
         "seconds": 9.7,
         "duration": 10.2
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/queen-mate/01.m4a",
+        "file": "course/cedar-ef402a662724/queen-mate/01.m4a",
         "seconds": 9.2,
         "duration": 9.7
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/queen-mate/02.m4a",
+        "file": "course/cedar-ef402a662724/queen-mate/02.m4a",
         "seconds": 7.25,
         "duration": 7.766666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/queen-mate/03.m4a",
+        "file": "course/cedar-ef402a662724/queen-mate/03.m4a",
         "seconds": 6.2,
         "duration": 6.7
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/queen-mate/04.m4a",
+        "file": "course/cedar-ef402a662724/queen-mate/04.m4a",
         "seconds": 8.15,
         "duration": 8.666666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/queen-mate/05.m4a",
+        "file": "course/cedar-ef402a662724/queen-mate/05.m4a",
         "seconds": 7.05,
         "duration": 7.566666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/queen-mate/06.m4a",
+        "file": "course/cedar-ef402a662724/queen-mate/06.m4a",
         "seconds": 7.75,
         "duration": 8.266666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/queen-mate/07.m4a",
+        "file": "course/cedar-ef402a662724/queen-mate/07.m4a",
         "seconds": 8.1,
         "duration": 8.6
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/queen-mate/08.m4a",
+        "file": "course/cedar-ef402a662724/queen-mate/08.m4a",
         "seconds": 8.2,
         "duration": 8.7
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/queen-mate/09.m4a",
+        "file": "course/cedar-ef402a662724/queen-mate/09.m4a",
         "seconds": 13.05,
         "duration": 13.566666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/queen-mate/10.m4a",
+        "file": "course/cedar-ef402a662724/queen-mate/10.m4a",
         "seconds": 8.1,
         "duration": 8.6
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/queen-mate/11.m4a",
+        "file": "course/cedar-ef402a662724/queen-mate/11.m4a",
         "seconds": 9,
         "duration": 9.5
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/queen-mate/12.m4a",
+        "file": "course/cedar-ef402a662724/queen-mate/12.m4a",
         "seconds": 8.65,
         "duration": 9.166666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/queen-mate/13.m4a",
+        "file": "course/cedar-ef402a662724/queen-mate/13.m4a",
         "seconds": 9,
         "duration": 9.5
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/queen-mate/14.m4a",
+        "file": "course/cedar-ef402a662724/queen-mate/14.m4a",
         "seconds": 10.95,
         "duration": 11.466666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/queen-mate/15.m4a",
+        "file": "course/cedar-ef402a662724/queen-mate/15.m4a",
         "seconds": 7.65,
         "duration": 8.166666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/queen-mate/16.m4a",
+        "file": "course/cedar-ef402a662724/queen-mate/16.m4a",
         "seconds": 9,
         "duration": 9.5
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/queen-mate/17.m4a",
+        "file": "course/cedar-ef402a662724/queen-mate/17.m4a",
         "seconds": 6.9,
         "duration": 7.4
       }
     ],
     [
       {
-        "file": "course/cedar-7263a3a9ecd6/rook-mate/00.m4a",
+        "file": "course/cedar-ef402a662724/rook-mate/00.m4a",
         "seconds": 8.8,
         "duration": 9.3
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/rook-mate/01.m4a",
+        "file": "course/cedar-ef402a662724/rook-mate/01.m4a",
         "seconds": 9.5,
         "duration": 10.0
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/rook-mate/02.m4a",
+        "file": "course/cedar-ef402a662724/rook-mate/02.m4a",
         "seconds": 9.95,
         "duration": 10.466666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/rook-mate/03.m4a",
+        "file": "course/cedar-ef402a662724/rook-mate/03.m4a",
         "seconds": 10.1,
         "duration": 10.6
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/rook-mate/04.m4a",
-        "seconds": 9.95,
-        "duration": 10.466666666666667
+        "file": "course/cedar-ef402a662724/rook-mate/04.m4a",
+        "seconds": 10.05,
+        "duration": 10.566666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/rook-mate/05.m4a",
+        "file": "course/cedar-ef402a662724/rook-mate/05.m4a",
         "seconds": 8.75,
         "duration": 9.266666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/rook-mate/06.m4a",
+        "file": "course/cedar-ef402a662724/rook-mate/06.m4a",
         "seconds": 6.7,
         "duration": 7.2
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/rook-mate/07.m4a",
+        "file": "course/cedar-ef402a662724/rook-mate/07.m4a",
         "seconds": 5.85,
         "duration": 6.366666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/rook-mate/08.m4a",
+        "file": "course/cedar-ef402a662724/rook-mate/08.m4a",
         "seconds": 7.2,
         "duration": 7.7
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/rook-mate/09.m4a",
+        "file": "course/cedar-ef402a662724/rook-mate/09.m4a",
         "seconds": 7.75,
         "duration": 8.266666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/rook-mate/10.m4a",
+        "file": "course/cedar-ef402a662724/rook-mate/10.m4a",
         "seconds": 6.05,
         "duration": 6.566666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/rook-mate/11.m4a",
+        "file": "course/cedar-ef402a662724/rook-mate/11.m4a",
         "seconds": 13.4,
         "duration": 13.9
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/rook-mate/12.m4a",
+        "file": "course/cedar-ef402a662724/rook-mate/12.m4a",
         "seconds": 6.25,
         "duration": 6.766666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/rook-mate/13.m4a",
-        "seconds": 11.05,
-        "duration": 11.566666666666666
+        "file": "course/cedar-ef402a662724/rook-mate/13.m4a",
+        "seconds": 10.95,
+        "duration": 11.466666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/rook-mate/14.m4a",
+        "file": "course/cedar-ef402a662724/rook-mate/14.m4a",
         "seconds": 9.25,
         "duration": 9.766666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/rook-mate/15.m4a",
+        "file": "course/cedar-ef402a662724/rook-mate/15.m4a",
         "seconds": 9.2,
         "duration": 9.7
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/rook-mate/16.m4a",
+        "file": "course/cedar-ef402a662724/rook-mate/16.m4a",
         "seconds": 7.9,
         "duration": 8.4
       }
     ],
     [
       {
-        "file": "course/cedar-7263a3a9ecd6/puzzles-material/00.m4a",
+        "file": "course/cedar-ef402a662724/puzzles-material/00.m4a",
         "seconds": 7,
         "duration": 7.5
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/puzzles-material/01.m4a",
+        "file": "course/cedar-ef402a662724/puzzles-material/01.m4a",
         "seconds": 9.7,
         "duration": 10.2
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/puzzles-material/02.m4a",
+        "file": "course/cedar-ef402a662724/puzzles-material/02.m4a",
         "seconds": 6.45,
         "duration": 10.966666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/puzzles-material/03.m4a",
+        "file": "course/cedar-ef402a662724/puzzles-material/03.m4a",
         "seconds": 10,
         "duration": 10.5
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/puzzles-material/04.m4a",
+        "file": "course/cedar-ef402a662724/puzzles-material/04.m4a",
         "seconds": 6.8,
         "duration": 7.3
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/puzzles-material/05.m4a",
+        "file": "course/cedar-ef402a662724/puzzles-material/05.m4a",
         "seconds": 8.55,
         "duration": 9.066666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/puzzles-material/06.m4a",
-        "seconds": 8.65,
-        "duration": 13.166666666666666
+        "file": "course/cedar-ef402a662724/puzzles-material/06.m4a",
+        "seconds": 8.8,
+        "duration": 13.3
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/puzzles-material/07.m4a",
+        "file": "course/cedar-ef402a662724/puzzles-material/07.m4a",
         "seconds": 9.65,
         "duration": 10.166666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/puzzles-material/08.m4a",
+        "file": "course/cedar-ef402a662724/puzzles-material/08.m4a",
         "seconds": 7.05,
         "duration": 7.566666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/puzzles-material/09.m4a",
+        "file": "course/cedar-ef402a662724/puzzles-material/09.m4a",
         "seconds": 5.2,
         "duration": 5.7
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/puzzles-material/10.m4a",
+        "file": "course/cedar-ef402a662724/puzzles-material/10.m4a",
         "seconds": 7.15,
         "duration": 11.666666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/puzzles-material/11.m4a",
+        "file": "course/cedar-ef402a662724/puzzles-material/11.m4a",
         "seconds": 8,
         "duration": 8.5
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/puzzles-material/12.m4a",
+        "file": "course/cedar-ef402a662724/puzzles-material/12.m4a",
         "seconds": 7.65,
         "duration": 8.166666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/puzzles-material/13.m4a",
+        "file": "course/cedar-ef402a662724/puzzles-material/13.m4a",
         "seconds": 7.4,
         "duration": 7.9
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/puzzles-material/14.m4a",
+        "file": "course/cedar-ef402a662724/puzzles-material/14.m4a",
         "seconds": 10.05,
         "duration": 10.566666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/puzzles-material/15.m4a",
+        "file": "course/cedar-ef402a662724/puzzles-material/15.m4a",
         "seconds": 9.85,
         "duration": 14.366666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/puzzles-material/16.m4a",
+        "file": "course/cedar-ef402a662724/puzzles-material/16.m4a",
         "seconds": 8.1,
         "duration": 8.6
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/puzzles-material/17.m4a",
+        "file": "course/cedar-ef402a662724/puzzles-material/17.m4a",
         "seconds": 8.8,
         "duration": 9.3
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/puzzles-material/18.m4a",
+        "file": "course/cedar-ef402a662724/puzzles-material/18.m4a",
         "seconds": 10.7,
         "duration": 11.2
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/puzzles-material/19.m4a",
-        "seconds": 7.1,
-        "duration": 7.6
+        "file": "course/cedar-ef402a662724/puzzles-material/19.m4a",
+        "seconds": 7.95,
+        "duration": 8.466666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/puzzles-material/20.m4a",
+        "file": "course/cedar-ef402a662724/puzzles-material/20.m4a",
         "seconds": 6.8,
         "duration": 7.3
       }
     ],
     [
       {
-        "file": "course/cedar-7263a3a9ecd6/puzzles-mate/00.m4a",
+        "file": "course/cedar-ef402a662724/puzzles-mate/00.m4a",
         "seconds": 7.75,
         "duration": 8.266666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/puzzles-mate/01.m4a",
+        "file": "course/cedar-ef402a662724/puzzles-mate/01.m4a",
         "seconds": 10.8,
         "duration": 11.3
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/puzzles-mate/02.m4a",
-        "seconds": 8.6,
-        "duration": 12.1
+        "file": "course/cedar-ef402a662724/puzzles-mate/02.m4a",
+        "seconds": 9.25,
+        "duration": 12.766666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/puzzles-mate/03.m4a",
+        "file": "course/cedar-ef402a662724/puzzles-mate/03.m4a",
         "seconds": 6.35,
         "duration": 6.866666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/puzzles-mate/04.m4a",
-        "seconds": 9.25,
-        "duration": 9.766666666666667
+        "file": "course/cedar-ef402a662724/puzzles-mate/04.m4a",
+        "seconds": 8.15,
+        "duration": 8.666666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/puzzles-mate/05.m4a",
+        "file": "course/cedar-ef402a662724/puzzles-mate/05.m4a",
         "seconds": 8.35,
         "duration": 8.866666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/puzzles-mate/06.m4a",
+        "file": "course/cedar-ef402a662724/puzzles-mate/06.m4a",
         "seconds": 7.95,
         "duration": 8.466666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/puzzles-mate/07.m4a",
+        "file": "course/cedar-ef402a662724/puzzles-mate/07.m4a",
         "seconds": 9.2,
         "duration": 12.7
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/puzzles-mate/08.m4a",
+        "file": "course/cedar-ef402a662724/puzzles-mate/08.m4a",
         "seconds": 7.1,
         "duration": 7.6
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/puzzles-mate/09.m4a",
+        "file": "course/cedar-ef402a662724/puzzles-mate/09.m4a",
         "seconds": 6.3,
         "duration": 6.8
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/puzzles-mate/10.m4a",
+        "file": "course/cedar-ef402a662724/puzzles-mate/10.m4a",
         "seconds": 11.1,
         "duration": 11.6
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/puzzles-mate/11.m4a",
+        "file": "course/cedar-ef402a662724/puzzles-mate/11.m4a",
         "seconds": 12.2,
         "duration": 12.7
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/puzzles-mate/12.m4a",
+        "file": "course/cedar-ef402a662724/puzzles-mate/12.m4a",
         "seconds": 8.55,
         "duration": 9.066666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/puzzles-mate/13.m4a",
+        "file": "course/cedar-ef402a662724/puzzles-mate/13.m4a",
         "seconds": 8.6,
         "duration": 13.1
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/puzzles-mate/14.m4a",
+        "file": "course/cedar-ef402a662724/puzzles-mate/14.m4a",
         "seconds": 6.4,
         "duration": 6.9
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/puzzles-mate/15.m4a",
+        "file": "course/cedar-ef402a662724/puzzles-mate/15.m4a",
         "seconds": 8.6,
         "duration": 9.1
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/puzzles-mate/16.m4a",
+        "file": "course/cedar-ef402a662724/puzzles-mate/16.m4a",
         "seconds": 6.85,
         "duration": 7.366666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/puzzles-mate/17.m4a",
+        "file": "course/cedar-ef402a662724/puzzles-mate/17.m4a",
         "seconds": 6.6,
         "duration": 7.1
       }
     ],
     [
       {
-        "file": "course/cedar-7263a3a9ecd6/famous-game/00.m4a",
+        "file": "course/cedar-ef402a662724/famous-game/00.m4a",
         "seconds": 11.3,
         "duration": 11.8
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/famous-game/01.m4a",
+        "file": "course/cedar-ef402a662724/famous-game/01.m4a",
         "seconds": 5.75,
         "duration": 6.266666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/famous-game/02.m4a",
+        "file": "course/cedar-ef402a662724/famous-game/02.m4a",
         "seconds": 10,
         "duration": 10.5
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/famous-game/03.m4a",
+        "file": "course/cedar-ef402a662724/famous-game/03.m4a",
         "seconds": 9.25,
         "duration": 9.766666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/famous-game/04.m4a",
+        "file": "course/cedar-ef402a662724/famous-game/04.m4a",
         "seconds": 8.35,
         "duration": 8.866666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/famous-game/05.m4a",
+        "file": "course/cedar-ef402a662724/famous-game/05.m4a",
         "seconds": 6.05,
         "duration": 6.566666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/famous-game/06.m4a",
+        "file": "course/cedar-ef402a662724/famous-game/06.m4a",
         "seconds": 11.2,
         "duration": 11.7
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/famous-game/07.m4a",
+        "file": "course/cedar-ef402a662724/famous-game/07.m4a",
         "seconds": 8.15,
         "duration": 8.666666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/famous-game/08.m4a",
+        "file": "course/cedar-ef402a662724/famous-game/08.m4a",
         "seconds": 11.15,
         "duration": 11.666666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/famous-game/09.m4a",
+        "file": "course/cedar-ef402a662724/famous-game/09.m4a",
         "seconds": 11.05,
         "duration": 11.566666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/famous-game/10.m4a",
+        "file": "course/cedar-ef402a662724/famous-game/10.m4a",
         "seconds": 11.05,
         "duration": 11.566666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/famous-game/11.m4a",
-        "seconds": 4.6,
-        "duration": 5.1
+        "file": "course/cedar-ef402a662724/famous-game/11.m4a",
+        "seconds": 5.7,
+        "duration": 6.2
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/famous-game/12.m4a",
+        "file": "course/cedar-ef402a662724/famous-game/12.m4a",
         "seconds": 4.45,
         "duration": 4.966666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/famous-game/13.m4a",
+        "file": "course/cedar-ef402a662724/famous-game/13.m4a",
         "seconds": 9.05,
         "duration": 13.566666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/famous-game/14.m4a",
+        "file": "course/cedar-ef402a662724/famous-game/14.m4a",
         "seconds": 8,
         "duration": 8.5
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/famous-game/15.m4a",
+        "file": "course/cedar-ef402a662724/famous-game/15.m4a",
         "seconds": 8.1,
         "duration": 8.6
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/famous-game/16.m4a",
+        "file": "course/cedar-ef402a662724/famous-game/16.m4a",
         "seconds": 11.8,
         "duration": 12.3
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/famous-game/17.m4a",
+        "file": "course/cedar-ef402a662724/famous-game/17.m4a",
         "seconds": 10.35,
         "duration": 10.866666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/famous-game/18.m4a",
+        "file": "course/cedar-ef402a662724/famous-game/18.m4a",
         "seconds": 6.85,
         "duration": 7.366666666666666
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/famous-game/19.m4a",
+        "file": "course/cedar-ef402a662724/famous-game/19.m4a",
         "seconds": 4.2,
         "duration": 4.7
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/famous-game/20.m4a",
+        "file": "course/cedar-ef402a662724/famous-game/20.m4a",
         "seconds": 5,
         "duration": 5.5
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/famous-game/21.m4a",
+        "file": "course/cedar-ef402a662724/famous-game/21.m4a",
         "seconds": 12.2,
         "duration": 12.7
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/famous-game/22.m4a",
+        "file": "course/cedar-ef402a662724/famous-game/22.m4a",
         "seconds": 6.75,
         "duration": 7.266666666666667
       },
       {
-        "file": "course/cedar-7263a3a9ecd6/famous-game/23.m4a",
+        "file": "course/cedar-ef402a662724/famous-game/23.m4a",
         "seconds": 7.65,
         "duration": 8.166666666666666
       }
@@ -69899,7 +69899,7 @@
     "model": "gpt-4o-mini-tts-2025-12-15",
     "speed": 1.0,
     "locale": "en-GB",
-    "assetSetSHA256": "7263a3a9ecd697eb5b8115a4f7fbbd0251afb66033b1785d4608eb935d81e987",
+    "assetSetSHA256": "ef402a6627243ef037a73df316176a90aa72639cb6e3d1900647480c28e3a817",
     "aiGenerated": true,
     "manifest": "course-narration.json"
   }

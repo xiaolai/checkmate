@@ -108,10 +108,12 @@ extension LessonRemediationTests {
     /// is rebuilt when its lesson's fingerprint changes, so an accidental edit to any lesson must fail here first.
     /// Re-pinned when The Pin's exercise board (pin:13) changed: in the old position no pin won material.
     /// Re-pinned when Chess Notation's transcript (notation:12–14) gained the "read as" / "said as" its recording speaks.
+    /// Re-pinned when two recordings that kept dropping words were reworded: Playing in a Tournament (tournaments:14
+    /// no longer ends on "Check the rules.") and Queen Practice (queen-practice:11 says "a square that a pawn attacks").
     func testCourseEditionFingerprintsArePinned()throws {
         let library=try CourseLibrary()
         let all=library.lessons.indices.map{library.lessons[$0].id+"="+LessonTranslation.source(library:library,index:$0).fingerprint}.joined(separator:" ")
-        XCTAssertEqual(SHA256.hash(data:Data(all.utf8)).map{String(format:"%02x",$0)}.joined(),"d4fb11568386001198288832e2ec804f43d94e55e915901be3bf8035b2607914")
+        XCTAssertEqual(SHA256.hash(data:Data(all.utf8)).map{String(format:"%02x",$0)}.joined(),"cb6f6176f71b5ed7e9dd4ff0b0ef3b75172040ca4bc296848ebfaca53710d0b8")
     }
     /// Grouping a practice activity under its lesson is presentation only: no lesson's translation pack is invalidated by it.
     func testPracticeGroupingLeavesEveryFingerprintAlone()throws {
