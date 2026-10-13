@@ -118,6 +118,12 @@ def stage_overlays(frames, beats):
         previous = shown
 
 
+def asset_set_identity(masters, config):
+    """The asset set is named by what it holds: a retake of unchanged text keeps its request but not its audio, so
+    the master hashes are part of the name, or a retake would collide with the immutable set it replaces."""
+    return hashlib.sha256(encoded([[r['requestSHA256'], r['audioSHA256']] for r in masters]) + encoded(config)).hexdigest()
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--recordings', type=Path, default=ROOT / 'recordings/cedar')
@@ -137,7 +143,7 @@ def main():
     units = recorder.load_units(ROOT / 'Content/lesson-narration.en-GB.jsonl')
     masters, missing, failures = verifier.verify(profile, units, args.recordings)
     assert not missing and not failures, 'Incomplete or invalid recordings; run the verifier'
-    identity = hashlib.sha256(encoded([r['requestSHA256'] for r in masters]) + encoded(config)).hexdigest()
+    identity = asset_set_identity(masters, config)
     relative = Path('course') / ('cedar-' + identity[:12])
     destination = RESOURCES / relative
     manifest_file = RESOURCES / 'course-narration.json'

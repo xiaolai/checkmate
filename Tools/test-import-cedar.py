@@ -99,6 +99,13 @@ class TimingTests(unittest.TestCase):
         self.assertEqual(publisher.build_projections(content,rebuilt),projections)
 
 
+class AssetSetIdentityTests(unittest.TestCase):
+    def testARetakeOfUnchangedTextNamesANewAssetSet(self):
+        take = {'requestSHA256': 'r' * 64, 'audioSHA256': 'a' * 64}
+        retake = dict(take, audioSHA256='b' * 64)
+        self.assertNotEqual(publisher.asset_set_identity([take], {}), publisher.asset_set_identity([retake], {}))
+
+
 class PracticeRelationTests(unittest.TestCase):
     """Practice lessons sit under their piece lesson; the relation is presentation metadata only."""
     def setUp(self):
