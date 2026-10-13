@@ -2432,19 +2432,19 @@ Recording text: On move four, White's bishop takes the knight on F six. A captur
 
 **notation:12** — Pawn captures
 
-Black's pawn on e7 takes the bishop back on f6. A pawn capture begins with the file the pawn left: exf6.
+Black's pawn on e7 takes the bishop back on f6. A pawn capture begins with the file the pawn left: exf6, read as e takes f6.
 
 Recording text: Black's pawn on E seven takes the bishop back on F six. A pawn capture begins with the file the pawn left: E x F six, read as E takes F six.
 
 **notation:13** — Castling kingside
 
-Castling has its own sign. Here the king goes from e1 to g1. Then the rook hops over it from h1 to f1. Castling on the king's side is written O-O.
+Castling has its own sign. Here the king goes from e1 to g1. Then the rook hops over it from h1 to f1. Castling on the king's side is written O-O, and said as castles kingside.
 
 Recording text: Castling has its own sign. Here the king goes from E one to G one. Then the rook hops over it from H one to F one. Castling on the king's side is written O O, and said as castles kingside.
 
 **notation:14** — Castling queenside
 
-On the queen's side, the king goes from e1 to c1. Then the rook hops from a1 to d1. That longer castling is written O-O-O.
+On the queen's side, the king goes from e1 to c1. Then the rook hops from a1 to d1. That longer castling is written O-O-O, and said as castles queenside.
 
 Recording text: On the queen's side, the king goes from E one to C one. Then the rook hops from A one to D one. That longer castling is written O O O, and said as castles queenside.
 

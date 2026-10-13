@@ -17,6 +17,13 @@ where before it did nothing: it takes back a practice move, undoes a turn in a
 lesson exercise, or takes back a training move. In lessons and puzzles the
 details toggle is named Lesson Guidance, which replaces the book button.
 
+In Chess Notation, three transcript steps (a pawn capture, castling kingside
+and castling queenside) stopped a clause before the narration did: the voice
+went on to say how the notation is read ("read as e takes f6", "said as
+castles queenside") while the text had already ended. The text now says it
+too, and the content check fails if a transcript drops a pronunciation its
+recording speaks.
+
 # Checkmate 0.7.1
 
 "Now try it yourself" is now a real turn inside the lesson. In the thirteen

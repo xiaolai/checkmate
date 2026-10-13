@@ -558,10 +558,18 @@ LESSON_REFERENCE = re.compile(r"((?:[\w'’-]+ ){1,6})lesson\b", re.I)
 GENERIC_LESSON = {'a', 'an', 'the', 'this', 'that', 'each', 'every', 'next', 'previous', 'last', 'later', 'earlier', 'first', 'new', 'own', 'whole', 'one'}
 
 
+# How a notation is said out loud: the transcript shows it too, or the text stops where the voice goes on.
+SAID_AS = re.compile(r"\b(read|said) as\b", re.I)
+
+
 def validate_narration_claims(lessons):
-    """Recorded narration names no app control, and any lesson it names by title exists under that title."""
+    """Recorded narration names no app control, any lesson it names by title exists under that title, and the
+    transcript keeps every "read as" / "said as" the recording speaks."""
     titles = {l['title'].lower() for l in lessons} | {l['title'].lower().removeprefix('the ') for l in lessons}
     for lesson in lessons:
+        for beat in lesson['beats']:
+            spoken, shown = len(SAID_AS.findall(beat.get('speak') or beat['say'])), len(SAID_AS.findall(beat['say']))
+            assert spoken == shown, f"{beat['id']}: the recording says how a notation is pronounced {spoken} time(s), the transcript {shown}"
         texts = [(b['id'], b[k]) for b in lesson['beats'] for k in ('say', 'speak')] + [(lesson['id'], t) for t in lesson.get('teaches', [])]
         for where, text in texts:
             word = UI_WORDS.search(text)
