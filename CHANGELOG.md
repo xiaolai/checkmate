@@ -1,3 +1,34 @@
+# Checkmate 0.7.5
+
+The voice coach is steadier and easier to talk to. A reply that fails or takes too
+long now ends that reply instead of disconnecting, and a coach that keeps reaching
+for its chess tools without speaking stops after three tries and says so, so a
+guided game never waits on it. Questions asked while the coach is busy are
+answered afterwards instead of being lost, and your words stay above its answer.
+
+Where macOS echo cancellation is available you can interrupt the coach by
+speaking; otherwise it keeps the floor and Stop still works. In a guided game it
+gives one short idea after each of your moves, and speaks about Stockfish's move
+only for a check, capture, promotion or the end of the game. It waits through a
+pause while you think instead of answering half a question, and Settings → Voice
+Coach has a Spoken language choice.
+
+Voice reconnects when you come back to Practice or show the app again, and renews
+itself before the provider's one-hour session limit. It uses your ChatGPT
+subscription through Codex, never an API key, and says plainly when the sign-in
+has expired, was not accepted or is rate-limited. Your saved coach volume now
+applies from launch, and the launch check no longer runs when voice is set not to
+connect on launch. A reasoning effort the voice model refuses returns to the one
+in use. Preview voice plays the voice you selected, even while the coach uses
+another. Settings → Usage counts narrated segments heard as written, shown as text
+instead, or stopped.
+
+Automated acceptance covered every gate on a second test Mac. A live check on the
+build Mac, with no microphone or speaker, ran a real coach turn in English, Chinese
+and Spanish with every narrated segment verified, and a voice preview; releases now
+require it. Interrupting by voice, how the coach sounds, and how it waits through
+real pauses have not yet been checked by a person listening.
+
 # Checkmate 0.7.4
 
 Lessons now draw defence differently from attack. When a piece guards another,
