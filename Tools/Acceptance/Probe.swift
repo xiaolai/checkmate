@@ -74,10 +74,31 @@ import CheckmateCore
                     }
                 }
                 guard VoiceScriptRequest.matches(transcript,script:text) else{report["mismatchedTranscript"]=transcript;report["requestedScript"]=text;throw CheckmateError.unavailable("Live narration changed the verified script or language")}
+                // A Stop is acknowledged only by an error naming its own cancel event (VoiceCoach correlates by event_id):
+                // the provider must echo it when nothing is left to cancel.
+                if attempt==1 {
+                    let cancelID="probe-cancel-"+scope;try await send(["type":"response.cancel","event_id":cancelID]);var echoed=false
+                    while true {let message=try await socket.receive(),data:Data;switch message{case .data(let value):data=value;case .string(let value):data=Data(value.utf8);@unknown default:continue}
+                        guard let event=try JSONSerialization.jsonObject(with:data) as? [String:Any],event["type"] as? String=="error",let error=event["error"] as? [String:Any] else{continue}
+                        echoed=error["code"] as? String=="response_cancel_not_active" && error["event_id"] as? String==cancelID;break}
+                    report["cancelErrorEchoesEventID"]=echoed;guard echoed else{throw CheckmateError.unavailable("The provider did not name the cancel event in its error")}
+                }
                 try audio.write(to:destination.deletingLastPathComponent().appendingPathComponent("live-voice-\(attempt).pcm"),options:.atomic)
                 samples.append(["effort":effort,"attempt":attempt,"configured":configured,"isolatedAndScoped":isolated,"audioBytes":audio.count,"transcript":transcript,"requestedVerifiedText":text,"eventTypes":types.sorted()])
             }
-            report["passed"]=true;report["samples"]=samples;report["originalHashPreserved"]=review.document?.contentHash==document.contentHash
+            report["samples"]=samples;report["originalHashPreserved"]=review.document?.contentHash==document.contentHash
+            // D10: one typed learner turn per language through the production coach (headless audio): required tool
+            // calls, a validated speak_explanation, and each segment narrated and verified in that language.
+            var turns:[[String:Any]]=[]
+            for (language,question) in [("en","Where can my knight on g1 move?"),("zh","我在g1的马可以走到哪里？"),("es","¿A dónde puede ir mi caballo de g1?")] {
+                let turn=try await coachTurn(language:language,question:question);turns.append(turn)
+                guard turn["passed"] as? Bool==true else{report["coachTurns"]=turns;throw CheckmateError.unavailable("The live coach turn failed in \(language)")}
+            }
+            report["coachTurns"]=turns
+            // D6: the Settings preview in another voice, through its own session, ends by itself and records its usage.
+            let preview=try await voicePreview(model:report["selectedModel"] as? String ?? VoiceSessionConfiguration.model);report["preview"]=preview
+            guard preview["passed"] as? Bool==true else{throw CheckmateError.unavailable("The voice preview failed")}
+            report["passed"]=true
         } catch {
             report["passed"]=false
             // Never serialize request headers, credentials, provider response bodies or raw errors.
@@ -88,6 +109,31 @@ import CheckmateCore
         } catch {print("Could not write live acceptance report.");exit(3)}
         print("Live voice acceptance: \(report["passed"] as? Bool==true ? "PASS":"FAIL"); microphone and speaker were not used.")
         if report["passed"] as? Bool != true{exit(1)}
+    }
+    @MainActor static func voicePreview(model:String)async throws -> [String:Any] {
+        let directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);defer{try? FileManager.default.removeItem(at:directory)}
+        let preview=VoicePreview(),ledger=UsageLedger(directory:directory);preview.usageLedger=ledger;preview.audio.headless=true
+        let started=Date();preview.play(voice:"marin",language:"English",model:model,volume:1)
+        let end=Date().addingTimeInterval(30);while preview.playing,Date()<end{try? await Task.sleep(for:.milliseconds(100))}
+        let record=ledger.records.first
+        let passed = !preview.playing && preview.status.isEmpty && record?.status == .completed && (record?.durationSeconds ?? 0)>0 && record?.voice=="marin"
+        return ["passed":passed,"seconds":Date().timeIntervalSince(started),"status":preview.status,"usageStatus":record?.status.rawValue ?? "none","audioSeconds":record?.durationSeconds ?? 0]
+    }
+    /// A coach connected as in the app, without microphone or speaker, answers one typed question.
+    @MainActor static func coachTurn(language:String,question:String)async throws -> [String:Any] {
+        let directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);defer{try? FileManager.default.removeItem(at:directory)}
+        let session=try GameSession(engine:nil);session.state.settings.coachingMode="quiet";session.state.settings.voiceMicrophone=false;session.state.settings.voiceLanguage=language
+        let coach=try VoiceCoach(session:session),ledger=UsageLedger(directory:directory);coach.usageLedger=ledger;coach.audio.headless=true
+        defer{coach.disconnect()}
+        func wait(_ seconds:Double,_ condition:()->Bool)async -> Bool {let end=Date().addingTimeInterval(seconds);while Date()<end{if condition(){return true};try? await Task.sleep(for:.milliseconds(100))};return condition()}
+        let started=Date();coach.connect()
+        guard await wait(40,{coach.connected}) else{return ["language":language,"passed":false,"failure":"not connected: \(coach.status)"]}
+        coach.ask(question)
+        let answered=await wait(120,{!coach.canStopTurn && coach.history.contains{$0.role=="coach"} && !coach.status.hasPrefix("Coach is thinking")})
+        let counts=ledger.narrationCounts(),coachLines=coach.history.filter{$0.role=="coach"}.map(\.text)
+        let failures:Set<String>=[VoiceCoach.turnFailure,VoiceCoach.turnTimeout,VoiceCoach.turnUnfinished]
+        let passed=answered && coach.connected && (counts[.verified] ?? 0)>0 && (counts[.unverified] ?? 0)==0 && !failures.contains(coach.status)
+        return ["language":language,"passed":passed,"seconds":Date().timeIntervalSince(started),"model":coach.selectedModel,"verifiedSegments":counts[.verified] ?? 0,"unverifiedSegments":counts[.unverified] ?? 0,"interruptedSegments":counts[.interrupted] ?? 0,"coachTranscript":coachLines,"status":coach.status]
     }
     @MainActor static func downgradeFixture(_ root:URL,prepare:Bool)throws {
         let store=StateStore(directory:root.appendingPathComponent("Data")),reviews=ReviewStore(directory:store.directory.appendingPathComponent("Reviews"))

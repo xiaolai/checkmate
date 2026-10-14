@@ -240,6 +240,8 @@ import CheckmateCore
             let newestY=voiceAX.count==3 ? voiceAX[1]["y"] as? Double:nil,olderY=voiceAX.count==3 ? voiceAX[2]["y"] as? Double:nil
             let reviewVoicePassed=voiceStatus=="The coach could not complete this response." && axPassed(voiceAX,0) && axPassed(voiceAX,1) && axPassed(voiceAX,2) && (newestY ?? 1)<(olderY ?? 0) && model.voice.history.last?.context=="Review · starting position" && !model.session.voiceHold
             if !reviewVoicePassed{failures.append("Review voice status/newest-first transcript not rendered")}
+            // A failed turn keeps the session; this simulated one ends here so the rest of the review runs without voice.
+            model.voice.disconnect()
 
             try model.review.beginBranch();game.refresh()
             @MainActor func click(_ square:String)async {let rect=game.board.squareRect(square),point=game.board.convert(NSPoint(x:rect.midX,y:rect.midY),to:nil);for type in [NSEvent.EventType.leftMouseDown,.leftMouseUp]{if let event=NSEvent.mouseEvent(with:type,location:point,modifierFlags:[],timestamp:ProcessInfo.processInfo.systemUptime,windowNumber:game.window!.windowNumber,context:nil,eventNumber:0,clickCount:1,pressure:type == .leftMouseDown ? 1:0){NSApp.sendEvent(event)};try? await Task.sleep(for:.milliseconds(80))}}

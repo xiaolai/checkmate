@@ -19,11 +19,17 @@ no audio; only final verification runs the shipped app, once (see below).
 
 Synchronize the source to the build machine and run `bash scripts/acceptance.sh` there. It records the
 source hashes before building and writes `acceptance.json` only when every gate passes on an unchanged tree.
-Then run from this checkout, naming that evidence directory on the build machine:
+On build-host, where Codex is signed in, also run `bash scripts/live-voice.sh /absolute/path/to/live-voice.json`.
+It drives the production voice coach against the live provider with no microphone or speaker: scripted narration
+at two efforts, a typed coach turn in English, Chinese and Spanish whose narration must be verified, and a Settings
+voice preview. It costs a little provider usage, so it is never a gate. The report records the tree's source hashes,
+and `prepare-release.sh` refuses to package without a passing report for the same tree.
+Then run from this checkout, naming that evidence directory and report on the build machine:
 
 ```sh
 CHECKMATE_RELEASE_HOST=build-host CHECKMATE_RELEASE_ROOT=/absolute/path/to/checkmate \
-  CHECKMATE_ACCEPTANCE_EVIDENCE=/absolute/path/to/evidence bash scripts/release.sh
+  CHECKMATE_ACCEPTANCE_EVIDENCE=/absolute/path/to/evidence \
+  CHECKMATE_LIVE_VOICE_REPORT=/absolute/path/to/live-voice.json bash scripts/release.sh
 ```
 
 Run it from a clean checkout of tag `v<version>`: it refuses uncommitted changes, any

@@ -20,9 +20,15 @@ import Foundation
             if compatible { cached = (model, effort, now); return model }
         }
         cached = nil
-        throw CheckmateError.unavailable("No supported voice model is available for this account.")
+        throw Self.noModel(effort: effort)
     }
     public func invalidate() { cached = nil }
+    /// No candidate accepted the effort: above Minimal, the effort is the likelier cause, so it is named.
+    nonisolated public static func noModel(effort: String) -> CheckmateError {
+        guard effort != "minimal" else { return .unavailable("No supported voice model is available for this account.") }
+        let name = effort == "xhigh" ? "Extra high" : effort.capitalized
+        return .unavailable("No voice model available to this account supports \(name) reasoning. Choose a lower reasoning effort in Settings → Voice Coach.")
+    }
 }
 
 extension VoiceGateway {
@@ -30,8 +36,10 @@ extension VoiceGateway {
     public func supportsCoach(model: String, effort: String, voice: String,
                               tools: [[String: Any]]) async throws -> Bool {
         let secret: String
+        // Only a model the account cannot open is incompatible; an expired sign-in, a missing entitlement or the
+        // network is the same for every model, so it stops selection with its own reason.
         do { secret = try await authorize(model: model) }
-        catch { try Task.checkCancellation(); return false }
+        catch is ModelUnsupported { try Task.checkCancellation(); return false }
         var request = URLRequest(url: VoiceSessionConfiguration.socketURL(model: model))
         request.setValue("Bearer \(secret)", forHTTPHeaderField: "Authorization")
         request.timeoutInterval = 15

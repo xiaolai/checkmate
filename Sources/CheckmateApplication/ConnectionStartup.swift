@@ -34,20 +34,29 @@ import Foundation
         started = true
         task = Task { [weak self] in
             guard let self else { return }
-            let authorization = await check()
+            // Local MCP needs no account, so it starts at once instead of waiting behind the voice check.
+            startMCPIfWanted()
+            // The check reads the Codex sign-in and opens a provider session; only voice needs it, so a learner who
+            // opted out of connecting voice on launch never sends their credential.
+            let authorization = settings().voiceAutoConnect ? await check() : nil
             guard !Task.isCancelled, stillCurrent() else { return }
             guard visible() else { deferred = true; task = nil; return }
             // Re-read preferences after authorization; a learner may have opted out.
-            let preferences = settings()
-            if preferences.voiceAutoConnect, let authorization {
+            if settings().voiceAutoConnect, let authorization {
                 connectVoice(authorization)
             }
-            if preferences.companionAutoStart {
-                // A voice authorization failure does not prevent local MCP access.
-                try? startMCP()
-            }
+            // Started now if the app was hidden at first; a voice authorization failure never prevents it.
+            startMCPIfWanted()
             task = nil
         }
+    }
+
+    /// Once per launch, only while visible: a failed start is not retried.
+    private var mcpAttempted = false
+    private func startMCPIfWanted() {
+        guard !mcpAttempted, settings().companionAutoStart, visible(), stillCurrent() else { return }
+        mcpAttempted = true
+        try? startMCP()
     }
 
     /// Runs a deferred attempt again (with a fresh availability check) once the app is shown.

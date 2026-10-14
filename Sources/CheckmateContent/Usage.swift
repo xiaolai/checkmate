@@ -5,6 +5,9 @@ import Combine
 public enum UsageActivity: String, Codable, CaseIterable, Sendable { case translation, lessonRecording, voiceCoach, inputTranscription }
 public enum UsageStatus: String, Codable, Sendable { case running, completed, failed, cancelled, incomplete }
 public enum UsageTimeRange: String, CaseIterable { case today, thisMonth, all }
+/// What became of one narrated coach segment: heard as its verified script, replaced by text because the speech did not
+/// match it, or stopped before it could be checked. Separate from the provider's completion status.
+public enum NarrationOutcome: String, Codable, CaseIterable, Sendable { case verified, unverified, interrupted }
 public enum UsageLimits {
     public static let maximumCounter:Int64 = 1_000_000_000_000
     public static let maximumRecords = 10_000
@@ -52,6 +55,7 @@ public struct UsageRecord: Codable, Identifiable, Equatable, Sendable {
     public var tokens: UsageTokens?
     public var durationSeconds: Double?
     public var estimatedCredits: Double?, estimatedUSD: Double?
+    public var narration: NarrationOutcome?
 }
 public struct UsageTotals: Equatable {
     public var input: Int64=0, output: Int64=0, total: Int64=0
@@ -117,6 +121,9 @@ public struct UsageTotals: Equatable {
         guard let next,let previous else{return next ?? previous}
         return UsageTokens(input:next.input ?? previous.input,output:next.output ?? previous.output,total:next.total ?? previous.total,cachedInput:next.cachedInput ?? previous.cachedInput,reasoning:next.reasoning ?? previous.reasoning,inputText:next.inputText ?? previous.inputText,inputAudio:next.inputAudio ?? previous.inputAudio,outputText:next.outputText ?? previous.outputText,outputAudio:next.outputAudio ?? previous.outputAudio,cachedText:next.cachedText ?? previous.cachedText,cachedAudio:next.cachedAudio ?? previous.cachedAudio)
     }
+    /// Records a narrated segment's verification once; the first outcome stands.
+    public func markNarration(operationID:String,outcome:NarrationOutcome){guard let i=records.firstIndex(where:{$0.id==operationID}),records[i].narration==nil else{return};records[i].narration=outcome;records[i].updatedAt=Date();persist()}
+    public func narrationCounts(in range:UsageTimeRange = .all,now:Date=Date())->[NarrationOutcome:Int] {var counts:[NarrationOutcome:Int]=[:];for r in records(in:range,now:now){if let outcome=r.narration{counts[outcome,default:0]+=1}};return counts}
     public func finish(operationID:String,status:UsageStatus){guard let i=records.firstIndex(where:{$0.id==operationID}),records[i].status == .running else{return};records[i].status=status;records[i].updatedAt=Date();persist()}
     public func records(in range:UsageTimeRange,now:Date=Date(),calendar:Calendar = .current)->[UsageRecord] {
         let start:Date?;switch range{case .all:start=nil;case .today:start=calendar.startOfDay(for:now);case .thisMonth:start=calendar.dateInterval(of:.month,for:now)?.start}

@@ -15,12 +15,27 @@ changed=sorted(k for k in accepted.keys()|current.keys() if accepted.get(k)!=cur
 assert not changed,f'The tree differs from the accepted acceptance run: {changed[:20]}'
 PY
 }
+# The voice coach was exercised against the live provider for this same tree (scripts/live-voice.sh on build-host).
+live=${CHECKMATE_LIVE_VOICE_REPORT:?Set CHECKMATE_LIVE_VOICE_REPORT to the passing scripts/live-voice.sh report for this tree}
+live_voice_tree() {
+python3 - "$live" <<'PY'
+import json,subprocess,sys
+report=json.load(open(sys.argv[1]))
+assert report.get('passed') is True,'The live voice report did not pass'
+turns={turn.get('language'):turn for turn in report.get('coachTurns',[])}
+assert all(turns.get(language,{}).get('passed') is True for language in ('en','zh','es')),'The live coach turn is missing or failed in a language'
+assert report.get('preview',{}).get('passed') is True,'The live voice preview is missing or failed'
+current=json.loads(subprocess.check_output([sys.executable,'scripts/source-hashes.py','.'],text=True))
+changed=sorted(k for k in report.get('sourceHashes',{}).keys()|current.keys() if report.get('sourceHashes',{}).get(k)!=current.get(k))
+assert not changed,f'The tree differs from the live voice run: {changed[:20]}'
+PY
+}
 # The release is built from a private snapshot (0700, this process only), checked against the accepted run before the
 # build and again after it: an edit to the working tree while it builds can neither reach nor slip past the binary.
 snapshot=$(mktemp -d /tmp/checkmate-release-source.XXXXXX)
 trap 'rm -rf "$snapshot"' EXIT
 rsync -a --exclude=/.git --exclude='/.build*' --exclude=/build --exclude=/evidence ./ "$snapshot/"
-(cd "$snapshot" && accepted_tree)
+(cd "$snapshot" && accepted_tree && live_voice_tree)
 (cd "$snapshot" && CHECKMATE_CONFIGURATION=release CHECKMATE_APP_NAME=Checkmate CHECKMATE_BUNDLE_ID=ai.xiaolai.checkmate bash build.sh)
 (cd "$snapshot" && accepted_tree)
 out="$PWD/build/release"

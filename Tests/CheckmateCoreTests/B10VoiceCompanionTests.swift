@@ -119,7 +119,7 @@ import CheckmateCore
         let bundled=try Data(contentsOf:NativeResources.url("companion-skill.md")),skill=String(decoding:bundled,as:UTF8.self)
         XCTAssertEqual(bundled,try Data(contentsOf:root.appendingPathComponent("companion/skills/checkmate-companion/SKILL.md")),"The bundled skill and companion/skills must be byte-identical")
         // Voice-coach-only failures and an MCP start-up failure never reach a companion as a tool result.
-        let notToolResults:Set<String>=["UNGROUNDED_REVIEW_SPEECH","FEATURE_DISABLED","MISSING_BUNDLE_VERSION"]
+        let notToolResults:Set<String>=["UNGROUNDED_REVIEW_SPEECH","FEATURE_DISABLED","MISSING_BUNDLE_VERSION","PROACTIVE_LIMIT"]
         let pattern=try NSRegularExpression(pattern:#"(?:ProtocolFailure|CheckmateError\.(?:invalid|unavailable))\("([A-Z][A-Z_]+)""#);var codes=Set<String>()
         for folder in ["Sources/CheckmateDomain","Sources/CheckmateSupport","Sources/CheckmateRules","Sources/CheckmateEngine","Sources/CheckmateContent","Sources/CheckmateApplication","Sources/CheckmateMacPlatform","Sources/CheckmateMCPKit"] {
             for name in try FileManager.default.contentsOfDirectory(atPath:root.appendingPathComponent(folder).path) where name.hasSuffix(".swift") {

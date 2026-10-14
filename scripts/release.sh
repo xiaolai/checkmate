@@ -9,6 +9,7 @@ source Version.env
 host=${CHECKMATE_RELEASE_HOST:?Set CHECKMATE_RELEASE_HOST to the build-machine SSH alias}
 root=${CHECKMATE_RELEASE_ROOT:?Set CHECKMATE_RELEASE_ROOT to the remote repository root}
 evidence=${CHECKMATE_ACCEPTANCE_EVIDENCE:?Set CHECKMATE_ACCEPTANCE_EVIDENCE to the remote passing acceptance evidence directory}
+live=${CHECKMATE_LIVE_VOICE_REPORT:?Set CHECKMATE_LIVE_VOICE_REPORT to the remote passing scripts/live-voice.sh report}
 [[ "$host" =~ ^[a-zA-Z0-9._-]+$ && "$root" =~ ^/[a-zA-Z0-9/._-]+$ && "$evidence" =~ ^/[a-zA-Z0-9/._-]+$ ]] || exit 1
 # A release is the tag v<version> exactly: a clean tree at that tag, accepted unchanged on the build host.
 [[ -z "$(git status --porcelain)" ]] || { echo "error: the working tree has uncommitted changes" >&2; exit 1; }
@@ -60,7 +61,7 @@ notarize() {  # $1: the file to submit — a .zip of the app, or the .dmg
     note "notarised $(basename "$file")"
 }
 
-ssh "$host" "cd '$root' && CHECKMATE_SOURCE_COMMIT='$commit' CHECKMATE_ACCEPTANCE_EVIDENCE='$evidence' bash scripts/prepare-release.sh"
+ssh "$host" "cd '$root' && CHECKMATE_SOURCE_COMMIT='$commit' CHECKMATE_ACCEPTANCE_EVIDENCE='$evidence' CHECKMATE_LIVE_VOICE_REPORT='$live' bash scripts/prepare-release.sh"
 scp "$host:$root/build/release/Checkmate-$CHECKMATE_VERSION.zip" build/release/
 # Extract into a clean generated bundle; ditto merges with existing files.
 rm -rf build/release/Checkmate.app

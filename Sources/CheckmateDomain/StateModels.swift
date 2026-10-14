@@ -3,6 +3,8 @@ import CoreFoundation
 public struct AppSettings:Codable,Equatable {
     public var coachReasoningEffort="minimal"
     public var coachVoice="cedar",voiceLanguage="en",voiceAutoConnect=true,voiceMicrophone=true,voiceInputDevice="",voiceAssistMoves=false,voiceVolume=1.0
+    /// The language transcription listens for: "auto" detects it, "response" uses the coach's response language.
+    public var voiceInputLanguage="auto"
     public var boardTheme="wood",narration=true,volume=1.0,autoAdvance=true,pieceDuration=700,moveSounds=true,effectsVolume=0.5,coachingMode="guided",skill=0,companionRole="coach"
     public var pauseForPractice=true
     public var lessonLanguage="en",lessonVoice="cedar"
@@ -28,7 +30,7 @@ public struct AppSettings:Codable,Equatable {
         lessonVoice=choice("lessonVoice",["cedar","marin"],d.lessonVoice)
         boardTheme=choice("boardTheme",Array(Self.themes.keys),d.boardTheme);coachingMode=choice("coachingMode",["guided","on_request","quiet"],d.coachingMode);companionRole=choice("companionRole",["coach","opponent"],d.companionRole)
         voiceAutoConnect=flag("voiceAutoConnect",d.voiceAutoConnect);companionAutoStart=flag("companionAutoStart",d.companionAutoStart);voiceMicrophone=flag("voiceMicrophone",d.voiceMicrophone);voiceAssistMoves=flag("voiceAssistMoves",d.voiceAssistMoves)
-        voiceInputDevice=String((raw["voiceInputDevice"] as? String ?? d.voiceInputDevice).prefix(256));voiceVolume=level("voiceVolume",d.voiceVolume)
+        voiceInputDevice=String((raw["voiceInputDevice"] as? String ?? d.voiceInputDevice).prefix(256));voiceVolume=level("voiceVolume",d.voiceVolume);voiceInputLanguage=choice("voiceInputLanguage",["auto","response"],d.voiceInputLanguage)
         pauseForPractice=flag("pauseForPractice",d.pauseForPractice);narration=flag("narration",d.narration);volume=level("volume",d.volume);autoAdvance=flag("autoAdvance",d.autoAdvance);moveSounds=flag("moveSounds",d.moveSounds);effectsVolume=level("effectsVolume",d.effectsVolume)
         pieceDuration=[0,300,500,700].contains(integer("pieceDuration",-1)) ? integer("pieceDuration",d.pieceDuration):d.pieceDuration
         skill=max(0,min(20,integer("skill",d.skill)))

@@ -30,7 +30,7 @@ import CheckmateCore
             XCTAssertEqual(credential, "test-session"); events.append("voice")
         }, startMCP: { events.append("mcp") }, stillCurrent: { true }, silent: false)
         startup.start(); startup.start(); await settle()
-        XCTAssertEqual(events, ["check", "voice", "mcp"])
+        XCTAssertEqual(events, ["mcp", "check", "voice"], "local MCP never waits for the voice check")
     }
 
     /// Hidden during the check (Cmd-H, or launched hidden): the attempt waits and runs when the app is shown.
@@ -42,7 +42,7 @@ import CheckmateCore
         XCTAssertEqual(events, ["check"]); XCTAssertTrue(startup.deferred)
         startup.start(); await settle(); XCTAssertEqual(events, ["check"], "A deferred attempt is resumed, not restarted by start()")
         hidden = false; startup.resumeIfDeferred(); await settle()
-        XCTAssertEqual(events, ["check", "check", "voice", "mcp"]); XCTAssertFalse(startup.deferred)
+        XCTAssertEqual(events, ["check", "mcp", "check", "voice"]); XCTAssertFalse(startup.deferred)
         startup.resumeIfDeferred(); await settle(); XCTAssertEqual(events.count, 4, "A finished attempt never runs again")
     }
 
@@ -51,43 +51,48 @@ import CheckmateCore
             for mcp in [false, true] {
                 for available in [false, true] {
                     var settings = AppSettings(); settings.voiceAutoConnect = voice; settings.companionAutoStart = mcp
-                    var voiceStarts = 0, mcpStarts = 0
-                    let startup = ConnectionStartup(settings: { settings }, check: { available ? "test-session" : nil },
+                    var voiceStarts = 0, mcpStarts = 0, checks = 0
+                    let startup = ConnectionStartup(settings: { settings }, check: { checks += 1; return available ? "test-session" : nil },
                         connectVoice: { _ in voiceStarts += 1 }, startMCP: { mcpStarts += 1 },
                         stillCurrent: { true }, silent: false)
                     startup.start(); await settle()
                     XCTAssertEqual(voiceStarts, voice && available ? 1 : 0)
                     XCTAssertEqual(mcpStarts, mcp ? 1 : 0)
+                    XCTAssertEqual(checks, voice ? 1 : 0, "Opted out of voice on launch, the Codex sign-in is never read")
                 }
             }
         }
     }
 
+    /// Opting out of voice while its check is pending prevents the connection; local MCP had already started without
+    /// waiting for the check.
     func testOptOutWhileCheckPendingPreventsAutomaticConnection() async {
-        var settings = AppSettings(), started = false, connections = 0
+        var settings = AppSettings(), started = false, voices = 0, mcp = 0
         var continuation: CheckedContinuation<String?, Never>?
         let startup = ConnectionStartup(settings: { settings }, check: {
             started = true; return await withCheckedContinuation { continuation = $0 }
-        }, connectVoice: { _ in connections += 1 }, startMCP: { connections += 1 },
+        }, connectVoice: { _ in voices += 1 }, startMCP: { mcp += 1 },
             stillCurrent: { true }, silent: false)
         startup.start(); await settle(); XCTAssertTrue(started)
+        XCTAssertEqual(mcp, 1, "MCP started while the voice check was still pending")
         settings.voiceAutoConnect = false; settings.companionAutoStart = false
         continuation?.resume(returning: "test-session"); await settle()
-        XCTAssertEqual(connections, 0)
+        XCTAssertEqual(voices, 0); XCTAssertEqual(mcp, 1)
     }
 
     func testCancelledOrSupersededCheckDoesNotUndoManualActions() async {
         for cancel in [false, true] {
-            var current = true, connections = 0
+            var current = true, voices = 0, mcp = 0
             var continuation: CheckedContinuation<String?, Never>?
             let startup = ConnectionStartup(settings: { AppSettings() }, check: {
                 await withCheckedContinuation { continuation = $0 }
-            }, connectVoice: { _ in connections += 1 }, startMCP: { connections += 1 },
+            }, connectVoice: { _ in voices += 1 }, startMCP: { mcp += 1 },
                 stillCurrent: { current }, silent: false)
             startup.start(); await settle()
+            XCTAssertEqual(mcp, 1, "MCP started before the check")
             if cancel { startup.cancel() } else { current = false }
             continuation?.resume(returning: "test-session"); await settle()
-            XCTAssertEqual(connections, 0)
+            XCTAssertEqual(voices, 0); XCTAssertEqual(mcp, 1, "no second MCP start")
         }
     }
 

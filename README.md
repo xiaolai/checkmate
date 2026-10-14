@@ -11,13 +11,28 @@ brew install --cask xiaolai/tap/checkmate
 Requires macOS 14 or later. One universal app supports Apple Silicon and Intel Macs. [Development](docs/development.md),
 [release packaging](docs/releases.md), [changelog](CHANGELOG.md).
 
-At launch, Checkmate checks Codex availability and can connect the voice coach
-and start its private chess MCP broker automatically. Control these separately
-in Settings → Voice Coach and Settings → Connections. Existing voice opt-outs
-are preserved. While voice is connected, external MCP requests are refused with an explanation until voice disconnects.
+At launch, Checkmate can connect the voice coach and start its private chess MCP
+broker automatically. Control these separately in Settings → Voice Coach and
+Settings → Connections. The private MCP broker starts at once; the voice coach's
+Codex availability check runs only when voice is set to connect on launch.
+Existing voice opt-outs are preserved. While voice is connected, external MCP requests are refused with an explanation until voice disconnects.
+Voice runs on your ChatGPT subscription: it reads the ChatGPT sign-in in Codex's
+sign-in file, never uses an API key, and never refreshes the sign-in; when it has
+expired, open Codex once and connect again.
 The coach automatically selects the newest compatible model from its supported stable list (currently GPT-Realtime-2.1 and GPT-Realtime-2). A silent check verifies reasoning effort and chess tools; the result is cached for this app session for up to 24 hours. Settings → Voice Coach → Check availability refreshes the selection. The selected model is shown in Settings and remains fixed throughout a conversation. Choose reasoning effort in Settings → Voice Coach;
 Minimal is the default, with Low, Medium, High and Extra high available.
-Changes apply to subsequent responses without reconnecting.
+A change applies between responses without reconnecting; if the connected model
+refuses an effort, Settings returns to the one in use.
+
+In a guided game the coach gives one short idea after each of your moves, and
+comments on Stockfish's move only for a check, capture, promotion or the end of
+the game. Where macOS echo cancellation is available you can interrupt the coach
+by speaking; otherwise press Stop. A reply that fails or takes too long ends that
+reply, not the session. Voice that was connected reconnects when you return to
+Practice or show the app again, and a long session renews itself between replies
+before the provider's one-hour limit. Preview voice plays the voice selected in
+Settings, even while the coach is using another. Settings → Usage counts narrated
+segments heard as written, shown as text instead, and stopped.
 
 For an external Codex companion, choose **Set up Codex** after installing in Applications (and again if you move the app) in Settings →
 Connections, then start a new Codex task with `$checkmate-companion`.

@@ -5,6 +5,7 @@ import CheckmateCore
 @MainActor final class NativeModel:ObservableObject {
     let session:GameSession,learning:LearningPlayer,audio:NativeAudio,store:StateStore
     let companion:CompanionBroker,voice:VoiceCoach
+    let voicePreview=VoicePreview()
     let usage:UsageLedger,lessonLanguages:LessonLanguageController
     let review=ReviewController()
     /// The training library and its exercises; nil while training is not enabled for this build (plan: rollout flag).
@@ -82,8 +83,16 @@ import CheckmateCore
     }
     /// Lesson languages share the one narration channel and the voice coach's connection.
     private func wireLessonLanguages(){
-        learning.packs=lessonLanguages.store;voice.usageLedger=usage;voice.connectionBlocked={[weak self] in self?.lessonLanguages.recording==true || self?.audio.isNarrationPlaying==true}
-        voice.connectionBlockReason={[weak self] in self?.lessonLanguages.recording==true ? "Finish or cancel lesson recording before connecting the voice coach.":"Stop lesson or preview playback before connecting the voice coach."}
+        learning.packs=lessonLanguages.store;voice.usageLedger=usage;voice.connectionBlocked={[weak self] in self?.lessonLanguages.recording==true || self?.audio.isNarrationPlaying==true || self?.voicePreview.playing==true}
+        voice.connectionBlockReason={[weak self] in self?.lessonLanguages.recording==true ? "Finish or cancel lesson recording before connecting the voice coach.":self?.voicePreview.playing==true ? "Wait for the voice preview to finish before connecting the voice coach.":"Stop lesson or preview playback before connecting the voice coach."}
+        reconnectVoice={[weak self] in self?.voice.connect(greet:false)}
+        voicePreview.usageLedger=usage;voicePreview.onPlayingChanged={[weak self] playing in self?.voice.externalPlayback=playing}
+        // Whatever else plays waits for its turn: a preview blocks connecting, and lesson playback ends a preview.
+        lessonLanguages.objectWillChange.sink{[weak self] in DispatchQueue.main.async{self?.resumeVoiceIfIntended()}}.store(in:&observations)
+        learning.$playing.filter{$0}.sink{[weak self] _ in self?.voicePreview.cancel()}.store(in:&observations)
+        audio.onNarrationStart={[weak self] in self?.voicePreview.cancel()}
+        voicePreview.$playing.removeDuplicates().filter{!$0}.dropFirst().sink{[weak self] _ in DispatchQueue.main.async{self?.resumeVoiceIfIntended()}}.store(in:&observations)
+        voicePreview.blocked={[weak self] in guard let self else{return nil};if voice.canStopTurn{return "Wait until the coach finishes speaking, then preview."};if lessonLanguages.recording{return "Finish or cancel lesson recording before previewing a voice."};if audio.isNarrationPlaying{return "Stop lesson playback before previewing a voice."};return nil}
         lessonLanguages.voiceConflict={[weak self] in self?.voice.connected==true || self?.voice.connecting==true}
         // Settings effects are not navigation (LE-5): the Lesson picker only stops a preview of the old selection; a preview
         // or a removal stops lesson narration (one narration channel) but never a mini-game's pending computer reply.
@@ -124,6 +133,8 @@ import CheckmateCore
         training?.objectWillChange.sink{[weak self] _ in self?.objectWillChange.send()}.store(in:&observations)
         // The workspace and draft flags read the session's activity; views observing this model follow it.
         session.$activity.removeDuplicates().dropFirst().sink{[weak self] _ in self?.objectWillChange.send()}.store(in:&observations)
+        // Published before it changes: read the new activity on the next main-loop turn.
+        session.$activity.removeDuplicates().dropFirst().sink{[weak self] _ in DispatchQueue.main.async{self?.resumeVoiceIfIntended()}}.store(in:&observations)
         // The banner observes this model; forward gate changes, and drop the paused sentence once the held game resumed or changed.
         session.$explicitResumeRequired.removeDuplicates().dropFirst().receive(on:RunLoop.main).sink{[weak self] held in guard let self=self else{return};self.objectWillChange.send();if !held,self.storageError==Self.failedRestorePausedMessage{self.storageError=Self.failedRestoreMessage}}.store(in:&observations)
         session.$state.map(\.settings).removeDuplicates().dropFirst().receive(on:RunLoop.main).sink {[weak self] _ in guard let self else{return};self.syncLessonSelection();self.learning.settingsChanged();self.voice.settingsChanged()}.store(in:&observations)
@@ -140,10 +151,28 @@ import CheckmateCore
     func setAway(_ value:Bool){guard value != away else{return};away=value
         // The session itself holds play, with or without the MCP broker; voice disconnects only once play is held.
         if companion.enabled{companion.suspend(value)}else{session.setConnection(enabled:false,role:session.companionRole,suspended:value)}
-        if value{voice.disconnect()}else{resumeConnectionsIfDeferred()}}
+        if value{rememberVoice();voice.disconnect();voicePreview.cancel()}else{resumeConnectionsIfDeferred();resumeVoiceIfIntended()}}
+    /// D2: voice the learner had connected when it left Practice (or the app went away) reconnects when Practice is
+    /// visible again, without a new greeting. Leaving while voice was off, or an MCP companion taking the session,
+    /// leaves it off.
+    private(set) var voiceResumeIntent=false
+    var reconnectVoice:()->Void={}
+    private var claimsWhenVoiceLeft=0
+    private func rememberVoice(){if voice.connected || voice.connecting{voiceResumeIntent=true;claimsWhenVoiceLeft=session.companionClaims}}
+    func resumeVoiceIfIntended(){
+        guard voiceResumeIntent,!away,!shuttingDown,voiceMayConnect else{return}
+        if session.companionEnabled || session.companionClaims != claimsWhenVoiceLeft{voiceResumeIntent=false;return}
+        // A recording or narration that blocks connecting keeps the intent; its end tries again.
+        guard !voice.connectionBlocked(),!voicePreview.playing else{return}
+        voiceResumeIntent=false
+        guard !voice.connected,!voice.connecting else{return}
+        reconnectVoice()
+    }
     private func syncLessonSelection(){guard !lessonLanguages.busy else{return};lessonLanguages.language=session.state.settings.lessonLanguage;lessonLanguages.voice=session.state.settings.lessonVoice}
     func startConnections(){
         guard connectionStartup==nil,!NativePolicy.silent else{return}
+        // Voice is judged by its own and the activity's generations (connectVoice); the broker's generation, which its
+        // own start or an asynchronous listener failure moves, only decides whether MCP still starts.
         let activity=activityGeneration,voiceGeneration=voice.connectionGeneration,brokerGeneration=companion.connectionGeneration
         connectionStartup=ConnectionStartup(
             settings:{[weak self] in self?.session.state.settings ?? AppSettings()},
@@ -158,13 +187,13 @@ import CheckmateCore
                 voice.connect(authorizedSecret:authorization)
             },
             startMCP:{[weak self] in
-                guard let self,CompanionInstallation.installedCodex() != nil else{return}
+                guard let self,companion.connectionGeneration==brokerGeneration,CompanionInstallation.installedCodex() != nil else{return}
                 do{try companion.enable(role:session.state.settings.companionRole,standby:true)}
                 catch{companion.disable()}
             },
             stillCurrent:{[weak self] in
                 guard let self else{return false}
-                return !shuttingDown && companion.connectionGeneration==brokerGeneration
+                return !shuttingDown
             },
             visible:{[weak self] in guard let self else{return false};return !NSApp.isHidden && !session.suspended})
         connectionStartup?.start()
@@ -454,16 +483,16 @@ import CheckmateCore
         if reviewing || entersReview{reviewAnalyzer.reset()}
         // The open review is saved and closed unless it is the one being shown again.
         if review.active && !sameReview{let saved=saveReview(immediate:true);review.unload();forgetFlushedReview(saved)}
-        // A move sound still waiting for its animation belongs to the activity being left.
-        cancelMoveSounds()
+        // A move sound still waiting for its animation belongs to the activity being left, as does a voice preview.
+        cancelMoveSounds();voicePreview.cancel()
         switch next {
         case .returnToGame:break
         case .practice:if !reviewing{learning.pause()};audio.stop()
-        case .lesson,.puzzles:voice.disconnect();audio.stop()
-        case .reviewWorkspace,.review:learning.pause();voice.disconnect();audio.stopAll()
+        case .lesson,.puzzles:rememberVoice();voice.disconnect();audio.stop()
+        case .reviewWorkspace,.review:learning.pause();rememberVoice();voice.disconnect();audio.stopAll()
         case .importProgress:saveTask?.cancel();voice.disconnect();usage.flushForShutdown();companion.disable();learning.pause();audio.stopAll()
         case .practiceFork:session.cancelWork()
-        case .trainingLibrary,.trainingExercise,.trainingScenario,.trainingResume,.trainingRetry,.trainingLegacy,.trainingLesson:learning.pause();voice.disconnect();audio.stop()
+        case .trainingLibrary,.trainingExercise,.trainingScenario,.trainingResume,.trainingRetry,.trainingLegacy,.trainingLesson:learning.pause();rememberVoice();voice.disconnect();audio.stop()
         }
     }
     private func cancelMoveSounds(){soundTasks.values.forEach{$0.cancel()};soundTasks=[:]}
@@ -579,7 +608,7 @@ import CheckmateCore
     static func exportName(_ document:GameDocument,ideas:Bool)->String {document.historyAvailable || ideas ? "review.pgn":"review.fen"}
     func showBackups(){NSWorkspace.shared.activateFileViewerSelecting([store.directory])}
     func exportState(){let panel=NSSavePanel();panel.nameFieldStringValue="checkmate-state.json";panel.begin {response in guard response == .OK,let url=panel.url else{return};do{try self.store.exportState(self.session.state,to:url)}catch{self.storageError=userFacingMessage(error,fallback:"The export could not be written. Choose another location.")}}}
-    func shutdown(){lessonLanguages.shutdown();connectionStartup?.cancel();reviewTools.reset();reviewOpenGeneration+=1;cancelReviewImport();saveReview(immediate:true);shuttingDown=true;reviewSaveTask?.cancel();review.cancel();saveTask?.cancel();cancelMoveSounds();session.prepareShutdown();voice.disconnect();usage.flushForShutdown();companion.disable();learning.shutdown();audio.stopAll();session.cancelWork();try? store.save(session.state)}
+    func shutdown(){lessonLanguages.shutdown();connectionStartup?.cancel();voicePreview.cancel();voiceResumeIntent=false;reviewTools.reset();reviewOpenGeneration+=1;cancelReviewImport();saveReview(immediate:true);shuttingDown=true;reviewSaveTask?.cancel();review.cancel();saveTask?.cancel();cancelMoveSounds();session.prepareShutdown();voice.disconnect();usage.flushForShutdown();companion.disable();learning.shutdown();audio.stopAll();session.cancelWork();try? store.save(session.state)}
 }
 /// Keeps the Save panel's suggested extension consistent with the chosen export contents.
 @MainActor final class ExportNaming:NSObject {

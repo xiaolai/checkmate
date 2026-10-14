@@ -83,16 +83,25 @@ import CheckmateCore
         v.receive(["type":"response.done","response":["status":"completed"]]);XCTAssertFalse(v.canStopTurn)
     }
     func testAcknowledgementWithNothingQueuedEndsStop()throws {
-        let (_,v,_)=try connected();defer{v.disconnect()}
+        let (_,v,events)=try connected();defer{v.disconnect()}
         v.receive(["type":"input_audio_buffer.committed"]);v.stopTurn()
-        v.receive(["type":"error","error":["code":"response_cancel_not_active"]])
+        let cancel=try XCTUnwrap(events().last(where:{$0["type"] as? String=="response.cancel"})?["event_id"] as? String)
+        v.receive(["type":"error","error":["code":"response_cancel_not_active","event_id":cancel]])
         XCTAssertTrue(v.connected);XCTAssertFalse(v.canStopTurn)
+        // Acknowledged: the next learner turn starts at once instead of waiting.
+        let before=requests(events()).count;v.receive(["type":"input_audio_buffer.committed"]);XCTAssertEqual(requests(events()).count,before+1)
     }
+    /// A failed turn ends that turn, not the session: Stop has nothing left to stop and the coach listens again.
     func testFailureEndsStop()throws {
         for failure:[String:Any] in [["type":"error","error":["code":"invalid_request"]],["type":"response.done","response":["status":"failed"]]] {
-            let (_,v,_)=try connected();defer{v.disconnect()}
+            let (_,v,events)=try connected();defer{v.disconnect()}
             v.receive(["type":"input_audio_buffer.committed"]);XCTAssertTrue(v.canStopTurn)
-            v.receive(failure);XCTAssertFalse(v.connected,"fixture: \(failure) did not fail the session");XCTAssertFalse(v.canStopTurn,"\(failure)")
+            v.receive(failure)
+            // An error may belong to a response still running: its cancellation is acknowledged, naming its own event,
+            // before the turn is over.
+            if failure["type"] as? String=="error",let cancel=events().last(where:{$0["type"] as? String=="response.cancel"})?["event_id"] as? String {v.receive(["type":"error","error":["code":"response_cancel_not_active","event_id":cancel]])}
+            XCTAssertTrue(v.connected,"\(failure) ended the session instead of the turn");XCTAssertFalse(v.canStopTurn,"\(failure)")
+            XCTAssertEqual(v.status,VoiceCoach.turnFailure)
         }
     }
     func testDisconnectEndsStopWithWorkOutstanding()throws {

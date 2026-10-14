@@ -67,6 +67,7 @@
     "Sources/CheckmateContent/CompanionInstallation.swift",
     "Sources/CheckmateMacPlatform/CompanionBroker.swift",
     "Sources/CheckmateMacPlatform/VoiceCoach.swift",
+    "Sources/CheckmateMacPlatform/VoicePreview.swift",
     "companion/*"
    ]
   },
@@ -513,6 +514,7 @@
   "scripts/aggregate-evidence.py": "full-run aggregate",
   "scripts/source-hashes.py": "tree fingerprint",
   "scripts/prepare-release.sh": "release (requires full acceptance evidence)",
+  "scripts/live-voice.sh": "release (live provider; prepare-release.sh requires its report)",
   "scripts/release.sh": "release (requires full acceptance evidence)",
   "scripts/sign-release.sh": "release",
   "Release.entitlements": "release signing; finish-release.sh verify checks the signed app",

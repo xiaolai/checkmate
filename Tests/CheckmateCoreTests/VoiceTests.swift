@@ -44,7 +44,8 @@ extension VoiceTests {
         XCTAssertEqual((fallback?["reasoning"] as? [String:String])?["effort"],"minimal")
     }
     @MainActor func testConnectedCoachEffortChangesWithoutReconnect()throws {
-        let session=try GameSession(engine:nil),coach=try VoiceCoach(session:session)
+        // Quiet: no introduction is being generated, so each change is sent at once (a turn in progress defers it).
+        let session=try GameSession(engine:nil);session.state.settings.coachingMode="quiet";let coach=try VoiceCoach(session:session)
         _=try session.openVoice();coach.receive(["type":"session.updated"])
         let lease=session.voiceLease
         var events:[[String:Any]]=[];coach.automationOutbound={events.append($0)}
@@ -54,6 +55,8 @@ extension VoiceTests {
             if effort != "minimal" {
                 let config=try XCTUnwrap(events.last?["session"] as? [String:Any])
                 XCTAssertEqual((config["reasoning"] as? [String:String])?["effort"],effort)
+                // The next change waits for this one's acknowledgement.
+                coach.receive(["type":"session.updated","session":["reasoning":["effort":effort]]]);XCTAssertEqual(coach.activeEffort,effort)
             }
             XCTAssertTrue(coach.connected);XCTAssertEqual(session.voiceLease,lease);XCTAssertFalse(coach.microphone)
         }

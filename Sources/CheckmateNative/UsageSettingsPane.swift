@@ -24,6 +24,8 @@ struct UsageSettingsPane:View {
                     if !group.isEmpty {
                         let durations=group.compactMap(\.durationSeconds)
                         Text("\(group.count) operations · \(Set(group.map(\.sessionID)).count) sessions · "+(durations.isEmpty ? "Duration unknown":"\(String(format:"%.1f",durations.reduce(0,+)/60)) reported minutes · \(group.count-durations.count) durations unknown")).font(.caption).foregroundStyle(.secondary)
+                        let narrated=group.compactMap(\.narration)
+                        if !narrated.isEmpty{Text("Narrated segments: \(narrated.filter{$0 == .verified}.count) heard as written · \(narrated.filter{$0 == .unverified}.count) shown as text instead · \(narrated.filter{$0 == .interrupted}.count) stopped").font(.caption).foregroundStyle(.secondary).accessibilityIdentifier("usage-narration-outcomes")}
                     }
                 }
             }
@@ -59,6 +61,7 @@ struct UsageSettingsPane:View {
                     if record.estimatedCredits != nil || record.estimatedUSD != nil{Text("Provider estimates are not actual charges.").font(.caption).foregroundStyle(.secondary)}
                     if let locale=record.locale{LabeledContent("Language",value:locale)}
                     if let voice=record.voice{LabeledContent("Voice",value:voice.capitalized)}
+                    if let outcome=record.narration{LabeledContent("Narration",value:outcome == .verified ? "Heard as written":outcome == .unverified ? "Shown as text instead":"Stopped")}
                     if let duration=record.durationSeconds{LabeledContent("Duration",value:String(format:"%.1f seconds",duration))}
                     Text(record.startedAt.formatted(date:.abbreviated,time:.standard)).font(.caption)
                 } label:{Text("\(title(record.activity)) · \(record.status.rawValue.capitalized)")}
