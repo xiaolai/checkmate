@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""build-host-only matched-node old/new engine packaging equivalence, no app/audio."""
+"""test-host-only matched-node old/new engine packaging equivalence, no app/audio."""
 import hashlib,json,os,pathlib,subprocess,sys,socket,threading
-if 'build-host' not in socket.gethostname().lower():raise SystemExit('build-host only')
+if 'test-host' not in socket.gethostname().lower():raise SystemExit('test-host only')
 original,replacement,gold,output=map(pathlib.Path,sys.argv[1:])
 rows=json.loads(gold.read_text())
 if isinstance(rows,dict):rows=rows.get('targets',rows.get('rows',[]))

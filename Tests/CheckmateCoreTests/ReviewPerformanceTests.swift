@@ -10,7 +10,7 @@ import CheckmateCore
 
 @MainActor final class ReviewPerformanceTests:XCTestCase {
     func testImportNavigationAndSelectedLatency()async throws {
-        guard let path=ProcessInfo.processInfo.environment["CHECKMATE_REVIEW_PERFORMANCE"] else{throw XCTSkip("Explicit isolated build-host performance measurement gate.")}
+        guard let path=ProcessInfo.processInfo.environment["CHECKMATE_REVIEW_PERFORMANCE"] else{throw XCTSkip("Explicit isolated test-host performance measurement gate.")}
         var pgn="";for i in 0..<50{pgn+="\(i*2+1). Nf3 Nf6 \(i*2+2). Ng1 Ng8 "};pgn+="*"
         let bytes=Data(pgn.utf8),start=Date(),document=try await Task.detached{try PGNImporter.parse(bytes)[0]}.value,importMs=Date().timeIntervalSince(start)*1000
         let session=try GameSession(engine:nil),review=ReviewController();review.open(document,practice:session);var navigation:[Double]=[]
@@ -21,7 +21,7 @@ import CheckmateCore
         try JSONSerialization.data(withJSONObject:result,options:[.prettyPrinted,.sortedKeys]).write(to:URL(fileURLWithPath:path));XCTAssertLessThanOrEqual(importMs,1000);XCTAssertLessThanOrEqual(p95,100);XCTAssertLessThanOrEqual(selectedMs,2000)
     }
     func testMaximumMainlineNavigationScale()async throws {
-        guard let path=ProcessInfo.processInfo.environment["CHECKMATE_REVIEW_PERFORMANCE"] else{throw XCTSkip("Explicit build-host scale observation.")}
+        guard let path=ProcessInfo.processInfo.environment["CHECKMATE_REVIEW_PERFORMANCE"] else{throw XCTSkip("Explicit test-host scale observation.")}
         var pgn="";for i in 0..<500{pgn+="\(i*2+1). Nf3 Nf6 \(i*2+2). Ng1 Ng8 "};pgn+="*"
         let bytes=Data(pgn.utf8),start=Date(),document=try await Task.detached{try PGNImporter.parse(bytes)[0]}.value,importMs=Date().timeIntervalSince(start)*1000
         XCTAssertEqual(document.mainline.count,2000)
@@ -34,7 +34,7 @@ import CheckmateCore
     }
 
     func testSelectedQuickP95OnActualGame()async throws {
-        guard let path=ProcessInfo.processInfo.environment["CHECKMATE_REVIEW_PERFORMANCE"] else{throw XCTSkip("Explicit build-host selected quick p95 gate.")}
+        guard let path=ProcessInfo.processInfo.environment["CHECKMATE_REVIEW_PERFORMANCE"] else{throw XCTSkip("Explicit test-host selected quick p95 gate.")}
         let root=URL(fileURLWithPath:#filePath).deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("Fixtures/GameReview")
         let document=try PGNImporter.parse(Data(contentsOf:root.appendingPathComponent("games/public-07.pgn")))[0],engine=NativeEngine(),analyzer=ReviewAnalyzer(engine:engine)
         var samples:[Double]=[],rows:[[String:Any]]=[]

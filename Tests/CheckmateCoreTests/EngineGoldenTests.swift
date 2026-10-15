@@ -10,7 +10,7 @@ import CheckmateCore
 
 @MainActor final class EngineGoldenTests:XCTestCase {
     func testHeldOutStrongEvidence()async throws {
-        guard let corpus=ProcessInfo.processInfo.environment["CHECKMATE_REVIEW_CORPUS"],let destination=ProcessInfo.processInfo.environment["CHECKMATE_ENGINE_GOLD"] else{throw XCTSkip("Explicit build-host strong held-out evidence generation gate.")}
+        guard let corpus=ProcessInfo.processInfo.environment["CHECKMATE_REVIEW_CORPUS"],let destination=ProcessInfo.processInfo.environment["CHECKMATE_ENGINE_GOLD"] else{throw XCTSkip("Explicit test-host strong held-out evidence generation gate.")}
         let root=URL(fileURLWithPath:corpus),engine=NativeEngine();var rows:[[String:Any]]=[],stableCount=0
         let manifests=["manifest-expanded.json","manifest-novice.json"]
         for name in manifests {let manifest=try JSONSerialization.jsonObject(with:Data(contentsOf:root.appendingPathComponent(name))) as! [String:Any]

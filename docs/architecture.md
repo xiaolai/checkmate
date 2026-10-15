@@ -44,7 +44,7 @@ requires no overlap and nothing outside the bar at every size, and one row from 
 2. Put workflows in Application, using Domain contracts. Add native or external services below the appropriate adapter boundary; never import native UI into a workflow.
 3. Implement user interaction and composition in the native host. Keep real games and hypothetical boards separate.
 4. Add regression tests to the owning test suite. Domain tests import only Domain; native interaction tests live in `CheckmateNativeTests`; integration and controller tests live in `CheckmateCoreTests`.
-5. Update `scripts/gates.json` when a file moves or a new responsibility is added. Run the architecture gate, map and gate-selection checks on build-host, then only the acceptance gates the change touches.
+5. Update `scripts/gates.json` when a file moves or a new responsibility is added. Run the architecture gate, map and gate-selection checks on test-host, then only the acceptance gates the change touches.
 
 ## A future native Windows app
 

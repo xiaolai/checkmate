@@ -1,6 +1,6 @@
 #!/bin/bash
 # Live voice acceptance for a release (D10). It talks to the provider and costs money, so it never runs in a gate: run
-# it on build-host, where Codex is signed in, before scripts/release.sh. It drives the production coach headless (no
+# it on test-host, where Codex is signed in, and copy the report to the build machine before scripts/release.sh. It drives the production coach headless (no
 # microphone, no speaker): scripted narration, a typed coach turn in en/zh/es, and a Settings voice preview. The report
 # carries this tree's source hashes; prepare-release.sh refuses a report from another tree.
 set -euo pipefail

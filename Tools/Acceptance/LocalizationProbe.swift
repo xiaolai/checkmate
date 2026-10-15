@@ -9,7 +9,7 @@ private final class LocalizationCleanupEvidence: @unchecked Sendable {
 }
 
 extension AcceptanceProbe {
-    /// Explicit opt-in, headless and build-host-only. Translate one lesson and record
+    /// Explicit opt-in, headless and test-host-only. Translate one lesson and record
     /// one clip; never opens the microphone, speaker or released app's data.
     @MainActor static func localizationProbe(_ destination: URL) async {
         guard !NativePolicy.silent else { print("Live localization is disabled during automation."); exit(2) }

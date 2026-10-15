@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto'),cp=require('node:child_process'),os=require('node:os');
-if(!/build-host|build-host/i.test(os.hostname()))throw Error('Run corpus/native verification on build-host only.');
+if(!/test-host/i.test(os.hostname()))throw Error('Run corpus/native verification on test-host only.');
 const root=path.resolve(process.argv[2]||'../dev-docs/review-targets/20261009');
 const entries=['manifest.json','manifest-expanded.json','manifest-novice.json'].flatMap(file=>JSON.parse(fs.readFileSync(path.join(root,file))).entries);
 const groups=new Map();let heldOut=0;

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Silent build-host-only actual app+descendant-engine batch/RSS acceptance probe."""
+"""Silent test-host-only actual app+descendant-engine batch/RSS acceptance probe."""
 import hashlib, json, os, pathlib, socket, subprocess, sys, tempfile, time
-if not any(x in socket.gethostname().lower() for x in ('build-host','build-host')):
-    raise SystemExit('Run native performance probes on build-host only.')
+if 'test-host' not in socket.gethostname().lower():
+    raise SystemExit('Run native performance probes on test-host only.')
 root=pathlib.Path(__file__).resolve().parents[1]
 destination=pathlib.Path(sys.argv[1]).resolve();destination.mkdir(parents=True,exist_ok=True)
 (destination/'input.pgn').write_bytes((root/'Tests/Fixtures/GameReview/games/public-07.pgn').read_bytes())

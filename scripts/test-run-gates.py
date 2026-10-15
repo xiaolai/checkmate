@@ -85,8 +85,8 @@ assert gates.definition('unit', gates.GATE_CHECK_SOURCE) == gates.definition('un
 assert gates.definition('unit', gates.GATE_CHECK_SOURCE + '#') != gates.definition('unit'), 'An edited check must change the definition'
 # Acceptance runs only on listed test hosts, matched by name: any other Mac is refused.
 import test_host
-assert all(test_host.is_test_host(h) for h in ['build-host', 'build-host', 'test-host'])
-assert not any(test_host.is_test_host(h) for h in ['mac-mini', 'studio', 'laptop'])
+assert all(test_host.is_test_host(h) for h in ['test-host', 'test-host', 'test-host.local'])
+assert not any(test_host.is_test_host(h) for h in ['build-host', 'build-host', 'mac-mini', 'studio', 'laptop'])
 # The review helper is Swift and cannot import test_host, so it repeats the list; it must not drift.
 import re
 helper = re.search(r'let testHosts=\[([^\]]*)\]', (root / 'Tools/ReviewScenario.swift').read_text())

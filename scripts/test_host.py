@@ -1,12 +1,13 @@
-"""The machines that may build, launch and drive Checkmate for acceptance: never the main Mac.
+"""The machine that may build, launch and drive Checkmate for tests: never the main Mac, and not build-host, which only
+builds releases, imports recordings and builds Stockfish.
 
-Every acceptance script checks this one list, by lowercased host name. Python scripts import `require`; shell
+Every test script checks this one list, by lowercased host name. Python scripts import `require`; shell
 scripts run this file with a purpose and stop when it exits non-zero.
 """
 import socket
 import sys
 
-TEST_HOSTS = ('build-host', 'build-host', 'test-host')
+TEST_HOSTS = ('test-host',)
 
 
 def is_test_host(name=None):

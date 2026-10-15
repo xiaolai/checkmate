@@ -17,13 +17,14 @@ and Gatekeeper assessment. Hardened-runtime signing includes the audio-input
 entitlement required by the voice coach, without debugger access. Building and signing launch no app and play
 no audio; only final verification runs the shipped app, once (see below).
 
-Synchronize the source to the build machine and run `bash scripts/acceptance.sh` there. It records the
+Synchronize the source to test-host, the test host, and run `bash scripts/acceptance.sh` there. It records the
 source hashes before building and writes `acceptance.json` only when every gate passes on an unchanged tree.
-On build-host, where Codex is signed in, also run `bash scripts/live-voice.sh /absolute/path/to/live-voice.json`.
+On test-host, where Codex is signed in, also run `bash scripts/live-voice.sh /absolute/path/to/live-voice.json`.
 It drives the production voice coach against the live provider with no microphone or speaker: scripted narration
 at two efforts, a typed coach turn in English, Chinese and Spanish whose narration must be verified, and a Settings
 voice preview. It costs a little provider usage, so it is never a gate. The report records the tree's source hashes,
 and `prepare-release.sh` refuses to package without a passing report for the same tree.
+Copy the evidence directory and the report to the build machine (build-host), which never runs tests itself.
 Then run from this checkout, naming that evidence directory and report on the build machine:
 
 ```sh
@@ -70,6 +71,6 @@ hooks. Run Jev's `secret-scan` before commit/publication and `commit-message` on
 proposed message. Exclude raw agent sessions, build evidence, Python caches and
 uncompressed recording masters from source history.
 
-Compatibility acceptance distinguishes compilation and Rosetta execution on build-host
+Compatibility acceptance distinguishes compilation and Rosetta execution on test-host
 from physical Intel and macOS 14 runtime tests. Do not claim older-system runtime
 acceptance solely from a lower deployment target or successful cross-compilation.

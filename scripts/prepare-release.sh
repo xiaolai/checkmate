@@ -15,7 +15,7 @@ changed=sorted(k for k in accepted.keys()|current.keys() if accepted.get(k)!=cur
 assert not changed,f'The tree differs from the accepted acceptance run: {changed[:20]}'
 PY
 }
-# The voice coach was exercised against the live provider for this same tree (scripts/live-voice.sh on build-host).
+# The voice coach was exercised against the live provider for this same tree (scripts/live-voice.sh on test-host).
 live=${CHECKMATE_LIVE_VOICE_REPORT:?Set CHECKMATE_LIVE_VOICE_REPORT to the passing scripts/live-voice.sh report for this tree}
 live_voice_tree() {
 python3 - "$live" <<'PY'

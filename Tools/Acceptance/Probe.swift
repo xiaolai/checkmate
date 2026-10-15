@@ -5,8 +5,8 @@ import CheckmateCore
 @main struct AcceptanceProbe {
     @MainActor static func main() async {
         guard CommandLine.arguments.count == 3, ["--live-voice","--live-localization","--prepare-downgrade","--verify-downgrade"].contains(CommandLine.arguments[1]),
-              ["build-host", "build-host"].contains(where: ProcessInfo.processInfo.hostName.lowercased().contains) else {
-            print("Run CheckmateAcceptance --live-voice <report.json> on build-host outside silent UI automation.")
+              ProcessInfo.processInfo.hostName.lowercased().contains("test-host") else {
+            print("Run CheckmateAcceptance --live-voice <report.json> on test-host outside silent UI automation.")
             exit(2)
         }
         if CommandLine.arguments[1] == "--live-localization" {

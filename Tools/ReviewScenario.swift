@@ -6,7 +6,7 @@
 import AppKit
 import ApplicationServices
 // The same test hosts as scripts/test_host.py; scripts/test-run-gates.py checks the two lists agree.
-let testHosts=["build-host","build-host","test-host"]
+let testHosts=["test-host"]
 guard testHosts.contains(where:ProcessInfo.processInfo.hostName.lowercased().contains) else{fatalError("Run native UI helpers on a test host only (\(testHosts.joined(separator:", ")))")}
 let directory=URL(fileURLWithPath:CommandLine.arguments[1]),marker=directory.appendingPathComponent("open-panel-ready.json"),resultURL=directory.appendingPathComponent("review-ui-results.json")
 let isolatedBundle="ai.xiaolai.checkmate.native-review-automation"
