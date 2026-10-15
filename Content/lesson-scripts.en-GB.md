@@ -3484,9 +3484,9 @@ Recording text: The second way is to chase the guard away. White's rook on D one
 
 **removing-the-defender:8** — A pawn attacks the knight
 
-White pushes the pawn from e4 to e5, where it threatens to capture the knight on f6.
+White pushes the pawn from e4 to e5, where it threatens to capture the knight on f6. The bishop on d5 can't take the pawn, because bishops only move diagonally.
 
-Recording text: White pushes the pawn from E four to E five, where it threatens to capture the knight on F six.
+Recording text: White pushes the pawn from E four to E five, where it threatens to capture the knight on F six. The bishop on D five can't take the pawn, because bishops only move diagonally.
 
 **removing-the-defender:9** — Black can't keep both
 
@@ -3576,11 +3576,11 @@ Recording text: The rook on A eight checks the king and guards F eight and H eig
 
 Notice the pattern: one rook holds a wall while the other checks on the next rank, then they swap jobs. White's king never had to move.
 
-**two-rook-mate:9** — When the king comes close
+**two-rook-mate:9** — When Black's king comes close
 
-Now a new position. The rook on a5 holds the fifth rank, so the next step would be the rook from b4 to b6, but b6 is right next to Black's king, which would simply take the rook.
+Now a new position. The rook on a5 holds the fifth rank, so the next step would be the rook from b4 to b6, but b6 is right next to Black's king, and nothing guards it, so the king would simply take the rook.
 
-Recording text: Now a new position. The rook on A five holds the fifth rank, so the next step would be the rook from B four to B six, but B six is right next to Black's king, which would simply take the rook.
+Recording text: Now a new position. The rook on A five holds the fifth rank, so the next step would be the rook from B four to B six, but B six is right next to Black's king, and nothing guards it, so the king would simply take the rook.
 
 **two-rook-mate:10** — Slide to the far side
 

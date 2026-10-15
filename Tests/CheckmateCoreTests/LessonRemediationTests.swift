@@ -112,10 +112,12 @@ extension LessonRemediationTests {
     /// no longer ends on "Check the rules.") and Queen Practice (queen-practice:11 says "a square that a pawn attacks").
     /// Re-pinned when 20 lessons gained guard lines (defence drawn apart from attack arrows) and two gained
     /// sentence-timed stages; the other 19 lessons, without guards or stages, keep their fingerprints.
+    /// Re-pinned when two beats answered a beginner's question: Removing the Defender (removing-the-defender:8 says
+    /// the bishop on d5 can't take the pawn) and Two-Rook Checkmate (two-rook-mate:9 says nothing guards b6).
     func testCourseEditionFingerprintsArePinned()throws {
         let library=try CourseLibrary()
         let all=library.lessons.indices.map{library.lessons[$0].id+"="+LessonTranslation.source(library:library,index:$0).fingerprint}.joined(separator:" ")
-        XCTAssertEqual(SHA256.hash(data:Data(all.utf8)).map{String(format:"%02x",$0)}.joined(),"6a7bd49deed0f545f8e0ee51cea05d9bba6f840757f52e44084901e84665e410")
+        XCTAssertEqual(SHA256.hash(data:Data(all.utf8)).map{String(format:"%02x",$0)}.joined(),"1abcb1c2835091708e0bf76d77f58fdf9a22458c0ee6960ae5625f6cacb119f5")
     }
     /// Guards and stages are lesson mechanics: a translation pack is rebuilt when they change, including a new stage
     /// order or partition with the same overlays, but a lesson without them keeps its fingerprint (and its recordings).

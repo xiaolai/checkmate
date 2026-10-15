@@ -15077,7 +15077,7 @@
           "id": "removing-the-defender:8",
           "label": "A pawn attacks the knight",
           "big": "",
-          "say": "White pushes the pawn from e4 to e5, where it threatens to capture the knight on f6.",
+          "say": "White pushes the pawn from e4 to e5, where it threatens to capture the knight on f6. The bishop on d5 can't take the pawn, because bishops only move diagonally.",
           "moves": [
             [
               "e4",
@@ -15096,7 +15096,7 @@
               "f6"
             ]
           ],
-          "speak": "White pushes the pawn from E four to E five, where it threatens to capture the knight on F six."
+          "speak": "White pushes the pawn from E four to E five, where it threatens to capture the knight on F six. The bishop on D five can't take the pawn, because bishops only move diagonally."
         },
         {
           "id": "removing-the-defender:9",
@@ -15473,9 +15473,9 @@
         },
         {
           "id": "two-rook-mate:9",
-          "label": "When the king comes close",
+          "label": "When Black's king comes close",
           "big": "Keep your distance",
-          "say": "Now a new position. The rook on a5 holds the fifth rank, so the next step would be the rook from b4 to b6, but b6 is right next to Black's king, which would simply take the rook.",
+          "say": "Now a new position. The rook on a5 holds the fifth rank, so the next step would be the rook from b4 to b6, but b6 is right next to Black's king, and nothing guards it, so the king would simply take the rook.",
           "set": {
             "c1": "wk",
             "a5": "wr",
@@ -15494,7 +15494,7 @@
               "b6"
             ]
           ],
-          "speak": "Now a new position. The rook on A five holds the fifth rank, so the next step would be the rook from B four to B six, but B six is right next to Black's king, which would simply take the rook."
+          "speak": "Now a new position. The rook on A five holds the fifth rank, so the next step would be the rook from B four to B six, but B six is right next to Black's king, and nothing guards it, so the king would simply take the rook."
         },
         {
           "id": "two-rook-mate:10",
