@@ -1,8 +1,8 @@
 # Checkmate releases
 
 `Version.env` owns the native version and monotonically increasing build number.
-Version 0.7.5 is build 22.
-Version 0.7.5 targets macOS 14+ with universal Apple Silicon and Intel binaries.
+Version 0.7.6 is build 23.
+Version 0.7.6 targets macOS 14+ with universal Apple Silicon and Intel binaries.
 Build tooling runs on the build host with Xcode 27; this is separate from the runtime target.
 Development and release builds use
 separate application identifiers and data directories.

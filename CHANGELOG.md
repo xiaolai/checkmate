@@ -1,3 +1,19 @@
+# Checkmate 0.7.6
+
+Two lesson steps now answer a question beginners ask at that moment. In
+Removing the Defender, once White's pawn reaches e5, the narration explains that
+Black's bishop on d5 cannot take it, because bishops only move diagonally. In
+Two-Rook Checkmate, the step is now called "When Black's king comes close", and
+it says why the king could take a rook on b6: nothing guards that square. Both
+clips were recorded again in the same Cedar voice.
+
+Automated acceptance covered every gate on the test Mac. A live check, with no
+microphone or speaker, ran a real coach turn in English, Chinese and Spanish
+with every narrated segment verified, and a voice preview. A person listened to
+both new clips in the app. Interrupting the coach by voice, how it sounds, and
+how it waits through real pauses have still not been checked by a person
+listening.
+
 # Checkmate 0.7.5
 
 The voice coach is steadier and easier to talk to. A reply that fails or takes too
