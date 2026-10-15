@@ -3,11 +3,11 @@
 `Version.env` owns the native version and monotonically increasing build number.
 Version 0.7.5 is build 22.
 Version 0.7.5 targets macOS 14+ with universal Apple Silicon and Intel binaries.
-Build tooling runs on build-host with Xcode 27; this is separate from the runtime target.
+Build tooling runs on the build host with Xcode 27; this is separate from the runtime target.
 Development and release builds use
 separate application identifiers and data directories.
 
-Build and artifact verification run on build-host. The coordinating Mac signs the copied
+Build and artifact verification run on the build host. The coordinating Mac signs the copied
 artifacts and submits them through its existing `chase-notary` keychain profile.
 Neither signing nor notarization executes application code; credentials are never copied. Following XiaolaiDict's release process, the app is signed with
 hardened runtime and a secure timestamp, notarized and stapled before the DMG is
@@ -17,18 +17,18 @@ and Gatekeeper assessment. Hardened-runtime signing includes the audio-input
 entitlement required by the voice coach, without debugger access. Building and signing launch no app and play
 no audio; only final verification runs the shipped app, once (see below).
 
-Synchronize the source to test-host, the test host, and run `bash scripts/acceptance.sh` there. It records the
+Synchronize the source to the test host and run `bash scripts/acceptance.sh` there. It records the
 source hashes before building and writes `acceptance.json` only when every gate passes on an unchanged tree.
-On test-host, where Codex is signed in, also run `bash scripts/live-voice.sh /absolute/path/to/live-voice.json`.
+On the test host, where Codex is signed in, also run `bash scripts/live-voice.sh /absolute/path/to/live-voice.json`.
 It drives the production voice coach against the live provider with no microphone or speaker: scripted narration
 at two efforts, a typed coach turn in English, Chinese and Spanish whose narration must be verified, and a Settings
 voice preview. It costs a little provider usage, so it is never a gate. The report records the tree's source hashes,
 and `prepare-release.sh` refuses to package without a passing report for the same tree.
-Copy the evidence directory and the report to the build machine (build-host), which never runs tests itself.
-Then run from this checkout, naming that evidence directory and report on the build machine:
+Copy the evidence directory and the report to the build host, which never runs tests itself.
+Then run from this checkout, naming that evidence directory and report on the build host:
 
 ```sh
-CHECKMATE_RELEASE_HOST=build-host CHECKMATE_RELEASE_ROOT=/absolute/path/to/checkmate \
+CHECKMATE_RELEASE_HOST=your-build-host CHECKMATE_RELEASE_ROOT=/absolute/path/to/checkmate \
   CHECKMATE_ACCEPTANCE_EVIDENCE=/absolute/path/to/evidence \
   CHECKMATE_LIVE_VOICE_REPORT=/absolute/path/to/live-voice.json bash scripts/release.sh
 ```
@@ -71,6 +71,6 @@ hooks. Run Jev's `secret-scan` before commit/publication and `commit-message` on
 proposed message. Exclude raw agent sessions, build evidence, Python caches and
 uncompressed recording masters from source history.
 
-Compatibility acceptance distinguishes compilation and Rosetta execution on test-host
+Compatibility acceptance distinguishes compilation and Rosetta execution on the test host
 from physical Intel and macOS 14 runtime tests. Do not claim older-system runtime
 acceptance solely from a lower deployment target or successful cross-compilation.

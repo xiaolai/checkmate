@@ -14,9 +14,11 @@ native UI and MCP tests have separate test targets. The architecture gate reject
 
 ## Build and run
 
-Every test runs on test-host, never the main Mac: unit tests, acceptance gates, live-service checks and performance
-measurements. `scripts/test_host.py` names it, and acceptance refuses any other Mac. build-host only builds releases, imports
-recordings and builds Stockfish. The test host needs Xcode 27 selected with its licence accepted, Rosetta for the Intel gate,
+Every test runs on the test host, never the main Mac: unit tests, acceptance gates, live-service checks and performance
+measurements. The build host only builds releases, imports recordings and builds Stockfish. Each host is marked by a
+file, not by its name: `~/.config/checkmate/host-role` holds `test` or `build` (`mkdir -p ~/.config/checkmate && echo
+test > ~/.config/checkmate/host-role`). `scripts/test_host.py` reads it, and acceptance refuses a Mac without the test
+role, so no machine name appears in this repository. The test host needs Xcode 27 selected with its licence accepted, Rosetta for the Intel gate,
 a logged-in GUI session whose display never sleeps, and Accessibility and Screen Recording permission for the remote
 login session that drives the pointer. From the repository root:
 
@@ -140,7 +142,7 @@ Gates: `unit` (content, validators, sessions, persistence, tools), `training-poi
 in the application, native MCP companion, and unchanged Stockfish engine. Package
 verification checks all three slices and their deployment versions, as well as
 modern and legacy icons. The `intel` acceptance gate (`scripts/test-intel.sh`) runs the silent Intel
-unit, UI, and MCP acceptance under Rosetta on test-host in every full run, and in targeted runs when an
+unit, UI, and MCP acceptance under Rosetta on the test host in every full run, and in targeted runs when an
 architecture-dependent input (build settings, the engine, the rules runtime) changes. These tests do not substitute for a
 physical Intel Mac or macOS 14 runtime acceptance.
 

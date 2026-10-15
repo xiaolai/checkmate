@@ -83,12 +83,24 @@ assert gates.GATE_CHECK_SOURCE == (root / 'scripts/gate_check.py').read_text(), 
 assert gates.check_gate.__code__.co_filename == str(root / 'scripts/gate_check.py')
 assert gates.definition('unit', gates.GATE_CHECK_SOURCE) == gates.definition('unit')
 assert gates.definition('unit', gates.GATE_CHECK_SOURCE + '#') != gates.definition('unit'), 'An edited check must change the definition'
-# Acceptance runs only on listed test hosts, matched by name: any other Mac is refused.
+# Acceptance runs only on the Mac whose marker names it the test host: a Mac without a marker, or the build host, is
+# refused, and a marker naming an unknown role stops the run instead of passing as "not a test host".
 import test_host
-assert all(test_host.is_test_host(h) for h in ['test-host', 'test-host', 'test-host.local'])
-assert not any(test_host.is_test_host(h) for h in ['build-host', 'build-host', 'mac-mini', 'studio', 'laptop'])
-# The review helper is Swift and cannot import test_host, so it repeats the list; it must not drift.
-import re
-helper = re.search(r'let testHosts=\[([^\]]*)\]', (root / 'Tools/ReviewScenario.swift').read_text())
-assert helper and tuple(re.findall(r'"([^"]+)"', helper[1])) == test_host.TEST_HOSTS, 'Tools/ReviewScenario.swift test hosts differ from scripts/test_host.py'
+with tempfile.TemporaryDirectory() as home:
+    marker = pathlib.Path(home) / test_host.ROLE_FILE
+    assert test_host.host_role(home) is None and not test_host.is_test_host(home)
+    marker.parent.mkdir(parents=True)
+    marker.write_text('test\n')
+    assert test_host.is_test_host(home)
+    marker.write_text('build\n')
+    assert test_host.host_role(home) == 'build' and not test_host.is_test_host(home)
+    marker.write_text('tester\n')
+    try:
+        test_host.host_role(home)
+        raise AssertionError('A marker naming an unknown role must be refused')
+    except SystemExit:
+        pass
+# The Swift and JavaScript guards cannot import test_host, so each reads the marker itself; none may drift from it.
+for guard in ['Tools/ReviewScenario.swift', 'Tools/Acceptance/Probe.swift', 'Tools/calibrate-opponents.swift', 'Tools/verify-review-corpus.cjs']:
+    assert test_host.ROLE_FILE in (root / guard).read_text(), f'{guard} does not read ~/{test_host.ROLE_FILE}'
 print(f'Gate selection self-test passed ({len(cases) + 5} cases).')

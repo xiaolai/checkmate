@@ -201,7 +201,7 @@ results start fresh, and a practice game in progress restarts in its new
 layout. Training history follows the renamed games. Saved lesson translations
 need to be made again in Settings → Lessons.
 
-Automated acceptance covered every gate on build-host and on a second test Mac,
+Automated acceptance covered every gate on the build host and on a second test Mac,
 including real pointer clicks on every practice game and the lesson arrows,
 and tests of the saved-progress migration. Every course board and puzzle
 passed the machine checks above. No person has yet listened to the 710 new recordings
@@ -228,7 +228,7 @@ of the king's eight moves, used to shrink to a sliver of arrowhead; it now
 keeps a shaft and a whole head. The Knight lesson's counted routes (two
 squares, then one sideways) draw as one bent arrow instead of two pieces.
 
-Automated acceptance covered every gate on build-host and on a second test Mac,
+Automated acceptance covered every gate on the build host and on a second test Mac,
 including real pointer clicks on every practice activity, its Practise button
 and the Continue button. Live voice, translation and recording were not
 exercised for this release. Whether the indented activities read as practice
@@ -250,7 +250,7 @@ translation no longer matches the corrected illustration. Translate the
 Introduction again in Settings → Lessons to use it. The English narration is
 unchanged.
 
-Automated acceptance covered every gate on build-host, including real pointer
+Automated acceptance covered every gate on the build host, including real pointer
 clicks that play the corrected lesson step. Live voice, translation and
 recording were not exercised for this release. Human review, novice play and
 live microphone checks are still outstanding, and the training library stays
@@ -276,7 +276,7 @@ Fixes you may notice:
   been replaced.
 - Very long imported games are refused before they are replayed.
 
-Automated acceptance covered every gate on build-host, including real pointer
+Automated acceptance covered every gate on the build host, including real pointer
 clicks, fullscreen and Intel under Rosetta. Live voice, translation and
 recording were not exercised for this release. Human review, novice play and
 live microphone checks are still outstanding. The experimental review quality
@@ -296,7 +296,7 @@ Lesson languages now include Gurmukhi and Vai scripts, and language,
 region and script choices are checked against current system lists.
 Lesson translation through Codex is safer when several requests overlap.
 
-Automated acceptance covered every gate on build-host, including real pointer
+Automated acceptance covered every gate on the build host, including real pointer
 clicks, fullscreen and Intel under Rosetta. Live voice, translation and
 recording were not exercised for this release; human review, novice play
 and live microphone checks are still outstanding, and the experimental
@@ -329,7 +329,7 @@ through one path, so leaving a review always returns to the right place.
 The board stays square on any screen and drawer width. Connections from
 Codex retry safely, and disconnecting cancels work in progress.
 
-Automated acceptance covered every gate on build-host, including real pointer
+Automated acceptance covered every gate on the build host, including real pointer
 clicks. Live voice, translation and recording were checked silently
 during development; human review, novice play and live microphone checks
 are still outstanding, and the experimental review quality labels, review
@@ -413,7 +413,7 @@ Older macOS versions receive a generated icon fallback; newer versions retain
 the layered Icon Composer artwork. A screenshot API introduced in macOS 14.4
 now has an availability-checked fallback for macOS 14.0–14.3.
 
-Automated verification on build-host: 249 tests per architecture, five optional skips
+Automated verification on the build host: 249 tests per architecture, five optional skips
 and zero failures each, native UI checks, and 19 MCP integration checks per
 architecture. Intel execution was tested under Rosetta. Physical Intel and
 macOS 14/15 runtime acceptance remain unverified.
@@ -454,7 +454,7 @@ Audit fixes cover stale review work, promotion history, restore/resume safety,
 visible errors, voice context and MCP pause-state reporting. Explicit MCP routing
 keeps practice previews independent of review tools.
 
-Automated acceptance on build-host: 238 tests executed across native suites, 233 passed, five optional skips,
+Automated acceptance on the build host: 238 tests executed across native suites, 233 passed, five optional skips,
 zero failures. Native UI interaction, package/signature and cold/warm memory checks
 were verified during remediation; final release packaging is verified separately.
 Human review of the prepared corpus, novice play and audible/microphone acceptance

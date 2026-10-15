@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Silent test-host-only actual app+descendant-engine batch/RSS acceptance probe."""
-import hashlib, json, os, pathlib, socket, subprocess, sys, tempfile, time
-if 'test-host' not in socket.gethostname().lower():
-    raise SystemExit('Run native performance probes on test-host only.')
+import hashlib, json, os, pathlib, subprocess, sys, tempfile, time
 root=pathlib.Path(__file__).resolve().parents[1]
+sys.path.insert(0,str(root/'scripts'))
+import test_host
+test_host.require('native performance probes')
 destination=pathlib.Path(sys.argv[1]).resolve();destination.mkdir(parents=True,exist_ok=True)
 (destination/'input.pgn').write_bytes((root/'Tests/Fixtures/GameReview/games/public-07.pgn').read_bytes())
 warm='--warm' in sys.argv[2:]

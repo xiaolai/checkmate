@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check on build-host that every Cedar master speaks its whole recording text. Never plays audio.
+"""Check on the build host that every Cedar master speaks its whole recording text. Never plays audio.
 
 Speech synthesis sometimes stops early: 21 published clips once ended before their last sentence ("A side with no
 move on its turn ..." without "loses"), and every other check passed them, because length, hashes and settings
@@ -17,7 +17,6 @@ import importlib.util
 import io
 import json
 import re
-import socket
 import sys
 import urllib.request
 import uuid
@@ -26,6 +25,8 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / 'scripts'))
+import test_host
 TAIL_SECONDS = 3.0
 MISSING_RUN = 3
 
@@ -151,8 +152,7 @@ def main():
     parser.add_argument('--api-key-stdin', action='store_true')
     parser.add_argument('--recordings', type=Path, default=ROOT / 'recordings/cedar')
     args = parser.parse_args()
-    if not any(n in socket.gethostname().lower() for n in ['build-host', 'build-host']):
-        parser.error('Run on build-host only')
+    test_host.require('the narration coverage check', role='build')
     verifier = module('verifier', 'verify-lesson-recordings.py')
     recorder = verifier.recorder
     profile = json.loads((ROOT / 'Content/narration-profile.cedar.json').read_text())

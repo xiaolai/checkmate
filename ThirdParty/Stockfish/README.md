@@ -1,6 +1,6 @@
 # Stockfish 19 reproducible packaging
 
-The source archive is the unmodified official `sf_19` tag. Check `Resources/stockfish-build.json` for its SHA256 and the binary/network hashes. Compile only on build-host:
+The source archive is the unmodified official `sf_19` tag. Check `Resources/stockfish-build.json` for its SHA256 and the binary/network hashes. Compile only on the build host:
 
 ```sh
 bash Tools/build-stockfish.sh

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Coordinate an build-host build/sign/package with this Mac's existing notary keychain.
+# Coordinate a build/sign/package on the build host with this Mac's existing notary keychain.
 # Source must already be synchronized to CHECKMATE_RELEASE_ROOT on the build host.
 set -euo pipefail
 # Every Python check here is written with assert: an inherited PYTHONOPTIMIZE would silently skip them all.

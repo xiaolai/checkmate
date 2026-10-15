@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Publish verified Cedar assets and matching native course text/timing on build-host.
+"""Publish verified Cedar assets and matching native course text/timing on the build host.
 
 Runs no API calls or audio playback. Builds assets first and swaps course.json
 only after all compressed clips decode and pass provenance checks.
@@ -12,13 +12,15 @@ import json
 import math
 import os
 import shutil
-import socket
 import subprocess
+import sys
 import tempfile
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / 'scripts'))
+import test_host
 RESOURCES = ROOT / 'Sources/CheckmateCore/Resources'
 
 
@@ -161,8 +163,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--recordings', type=Path, default=ROOT / 'recordings/cedar')
     args = parser.parse_args()
-    if not socket.gethostname().lower().startswith('build-host') and 'build-host' not in socket.gethostname().lower():
-        parser.error('Run the native recording import on build-host only')
+    test_host.require('the native recording import', role='build')
     prep = module('prepare', 'prepare-lesson-scripts.py')
     verifier = module('verifier', 'verify-lesson-recordings.py')
     recorder = verifier.recorder

@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
-"""test-host-only matched-node old/new engine packaging equivalence, no app/audio."""
-import hashlib,json,os,pathlib,subprocess,sys,socket,threading
-if 'test-host' not in socket.gethostname().lower():raise SystemExit('test-host only')
+"""Test-host-only matched-node old/new engine packaging equivalence, no app/audio."""
+import hashlib,json,os,pathlib,subprocess,sys,threading
+sys.path.insert(0,str(pathlib.Path(__file__).resolve().parents[1]/'scripts'))
+import test_host
+test_host.require('engine packaging verification')
 original,replacement,gold,output=map(pathlib.Path,sys.argv[1:])
 rows=json.loads(gold.read_text())
 if isinstance(rows,dict):rows=rows.get('targets',rows.get('rows',[]))

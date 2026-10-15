@@ -2,7 +2,7 @@
 # Rebuild the unchanged GPL engine for both supported Mac architectures.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-case $(hostname) in *build-host*|*build-host*|build-host*) ;; *) echo 'Build Stockfish on build-host only.' >&2; exit 1;; esac
+python3 scripts/test_host.py --role build 'the Stockfish build' || exit 1
 checkmate_resources="$PWD/Sources/CheckmateCore/Resources"
 checkmate_archive="$PWD/ThirdParty/Stockfish/sf_19-source.tar.gz"
 python3 - "$checkmate_archive" "$checkmate_resources/stockfish-build.json" <<'PY'

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Align authored anchor phrases to Cedar masters on build-host. Never plays audio.
+"""Align authored anchor phrases to Cedar masters on the build host. Never plays audio.
 
 A phrase list times a beat's moves, or, on a staged beat, the stages after the first. Uses whisper-1 word timestamps;
 raw results are cached by audio hash, so re-aligning changed phrases on cached recordings makes no request. No
@@ -12,7 +12,6 @@ import difflib
 import importlib.util
 import json
 import re
-import socket
 import sys
 import threading
 import urllib.request
@@ -20,6 +19,8 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
+sys.path.insert(0,str(ROOT/'scripts'))
+import test_host
 spec=importlib.util.spec_from_file_location('recorder',ROOT/'Tools/record-lessons.py')
 recorder=importlib.util.module_from_spec(spec);spec.loader.exec_module(recorder)
 spec=importlib.util.spec_from_file_location('prepare',ROOT/'Tools/prepare-lesson-scripts.py')
@@ -66,7 +67,7 @@ def transcribe(file,script,key):
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--generate',action='store_true');parser.add_argument('--api-key-stdin',action='store_true');parser.add_argument('--recordings',type=Path,default=ROOT/'recordings/cedar');args=parser.parse_args()
-    if not any(n in socket.gethostname().lower() for n in ['build-host','build-host']):parser.error('Run on build-host only')
+    test_host.require('lesson action alignment',role='build')
     phrases=json.loads((ROOT/'Content/lesson-action-phrases.json').read_text())['phrases']
     units={u['id']:u for u in recorder.load_units(ROOT/'Content/lesson-narration.en-GB.jsonl')}
     print(json.dumps({'clips':len(phrases),'mode':'generate' if args.generate else 'dry_run'}),flush=True)

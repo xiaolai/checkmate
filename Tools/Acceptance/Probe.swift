@@ -3,10 +3,15 @@ import CheckmateCore
 
 /// Explicit, headless live-service acceptance. Never starts microphone capture or speaker output.
 @main struct AcceptanceProbe {
+    /// This Mac's role from ~/.config/checkmate/host-role, the marker scripts/test_host.py reads; nil without one.
+    static var hostRole: String? {
+        try? String(contentsOf: FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".config/checkmate/host-role"),
+                    encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines)
+    }
     @MainActor static func main() async {
         guard CommandLine.arguments.count == 3, ["--live-voice","--live-localization","--prepare-downgrade","--verify-downgrade"].contains(CommandLine.arguments[1]),
-              ProcessInfo.processInfo.hostName.lowercased().contains("test-host") else {
-            print("Run CheckmateAcceptance --live-voice <report.json> on test-host outside silent UI automation.")
+              hostRole == "test" else {
+            print("Run CheckmateAcceptance --live-voice <report.json> on the test host outside silent UI automation.")
             exit(2)
         }
         if CommandLine.arguments[1] == "--live-localization" {
