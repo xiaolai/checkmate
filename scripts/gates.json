@@ -526,6 +526,6 @@
   "Tools/export-spike.swift": "experiment",
   "Tools/measure-review-batch.py": "offline measurement",
   "Tools/training-oracle.cjs": "training content authoring aid; publication re-derives every answer in Swift (unit)",
-  "Tools/verify-review-corpus.cjs": "offline corpus check"
+  "Tools/verify-review-corpus.py": "offline corpus check"
  }
 }

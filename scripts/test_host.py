@@ -5,7 +5,7 @@ recordings and builds Stockfish. Any other Mac, the main Mac included, is neithe
 carries ~/.config/checkmate/host-role holding one word, `test` or `build`; machine names stay out of the repository.
 
 Python scripts import `require`; shell scripts run this file with a purpose (and `--role build` for build work) and
-stop when it exits non-zero. The Swift and JavaScript guards read the same marker; scripts/test-run-gates.py checks it.
+stop when it exits non-zero. The Swift guards read the same marker; scripts/test-run-gates.py checks that they do.
 """
 import pathlib
 import sys

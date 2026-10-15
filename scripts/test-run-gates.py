@@ -100,7 +100,7 @@ with tempfile.TemporaryDirectory() as home:
         raise AssertionError('A marker naming an unknown role must be refused')
     except SystemExit:
         pass
-# The Swift and JavaScript guards cannot import test_host, so each reads the marker itself; none may drift from it.
-for guard in ['Tools/ReviewScenario.swift', 'Tools/Acceptance/Probe.swift', 'Tools/calibrate-opponents.swift', 'Tools/verify-review-corpus.cjs']:
+# The Swift guards cannot import test_host, so each reads the marker itself; none may drift from it.
+for guard in ['Tools/ReviewScenario.swift', 'Tools/Acceptance/Probe.swift', 'Tools/calibrate-opponents.swift']:
     assert test_host.ROLE_FILE in (root / guard).read_text(), f'{guard} does not read ~/{test_host.ROLE_FILE}'
 print(f'Gate selection self-test passed ({len(cases) + 5} cases).')
