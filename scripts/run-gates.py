@@ -18,6 +18,7 @@ quietly; with --only the run stops at once; a full run treats every prerequisite
 $CHECKMATE_GATE_LEDGER (default ~/Library/Caches/checkmate-gates/<checkout hash>.json).
 """
 import argparse
+import datetime
 import fcntl
 import fnmatch
 import hashlib
@@ -246,6 +247,55 @@ def temporary_leftovers(scratch: pathlib.Path) -> list:
     return sorted(str(path.relative_to(scratch)) for path in scratch.iterdir())
 
 
+CRASH_REPORTS = pathlib.Path.home() / 'Library/Logs/DiagnosticReports'
+# The executables a gate launches. A gate kills its apps with SIGTERM and accepts that status, so an app that faulted
+# moments earlier still ends "Terminated: 15"; only its crash report shows the fault.
+CRASHABLE = {'CheckmateNative', 'CheckmateMCP', 'CheckmateAcceptance'}
+# ReportCrash writes the report of a process translated by Rosetta well after the crash (22 s seen), so the run waits
+# this long after its last gate before the final check.
+CRASH_SETTLE_SECONDS = 45
+
+
+def crash_reports(directory: pathlib.Path = None) -> set:
+    directory = directory or CRASH_REPORTS
+    return set(directory.glob('*.ips')) if directory.is_dir() else set()
+
+
+def built_uuids(root: pathlib.Path = ROOT) -> set:
+    """The LC_UUID of every slice of every executable this checkout built, so another checkout's crash is not blamed here."""
+    paths = [path for top in ['build', *(p.name for p in root.glob('.build*'))] for path in (root / top).rglob('*')
+             if path.name in CRASHABLE and path.is_file() and not path.is_symlink()]
+    uuids = set()
+    for path in paths:
+        listed = subprocess.run(['dwarfdump', '--uuid', str(path)], capture_output=True, text=True, check=True).stdout
+        uuids.update(line.split()[1].lower() for line in listed.splitlines() if line.startswith('UUID: '))
+    return uuids
+
+
+def crashes(reports: set, uuids: set) -> list:
+    """(capture time, report) for each crash report of an executable with one of these UUIDs."""
+    found = []
+    for report in sorted(reports):
+        header, _, body = report.read_text(errors='replace').partition('\n')
+        try:
+            meta, detail = json.loads(header), json.loads(body)
+        except json.JSONDecodeError:
+            continue  # Not a crash report this check understands; anything ReportCrash writes for a crash parses.
+        if meta.get('app_name') in CRASHABLE and str(meta.get('slice_uuid', '')).lower() in uuids:
+            captured = datetime.datetime.strptime(detail['captureTime'], '%Y-%m-%d %H:%M:%S.%f %z').timestamp()
+            found.append((captured, report))
+    return found
+
+
+def attribute(windows: list, found: list) -> dict:
+    """Each crash goes to the last gate that had started when it happened: the gate whose apps were running."""
+    blamed = {}
+    for captured, report in found:
+        started = [name for name, began, _ in windows if began <= captured]
+        blamed.setdefault(started[-1] if started else windows[0][0], []).append(report.name)
+    return blamed
+
+
 def run(names: list, full: bool = False) -> int:
     test_host.require("acceptance gates")
     evidence = pathlib.Path(os.environ.get('CHECKMATE_EVIDENCE_DIR') or tempfile.mkdtemp(prefix='checkmate-gates.', dir='/tmp'))
@@ -271,31 +321,45 @@ def run(names: list, full: bool = False) -> int:
         with open(evidence / 'build.log', 'w') as log:
             subprocess.run(['bash', 'build.sh'], cwd=ROOT, check=True, stdout=log, stderr=subprocess.STDOUT,
                            env={**environment, 'CHECKMATE_BUNDLE_ID': 'ai.xiaolai.checkmate.native-automation', 'CHECKMATE_APP_NAME': 'CheckmateAutomation'})
+    # A crash report from this checkout's apps fails the gate it came from, however the gate itself exited.
+    seen_reports, uuids, windows = crash_reports(), set(), []
     for name in names:
         gate = GATES[name]
         before = inputs(gate, start)
         (evidence / gate['result']).unlink(missing_ok=True)
-        started = time.monotonic()
+        started, began = time.monotonic(), time.time()
         print(f'== {name}', flush=True)
         # Each gate gets its own TMPDIR: whatever it leaves there is a leak, reported instead of piling up in /tmp.
         scratch = pathlib.Path(tempfile.mkdtemp(prefix=f'checkmate-gate-{name}.'))
         completed = subprocess.run(['bash', '-c', 'set -euo pipefail; ' + gate['run']], cwd=ROOT, env={**environment, 'TMPDIR': str(scratch) + '/'})
         seconds = time.monotonic() - started
+        windows.append((name, began, time.time()))
         leftovers = temporary_leftovers(scratch)
         shutil.rmtree(scratch, ignore_errors=True)
+        uuids |= built_uuids()
+        fresh = crash_reports() - seen_reports
+        blamed, seen_reports = attribute(windows, crashes(fresh, uuids)), seen_reports | fresh
         try:
             assert completed.returncode == 0, f'exit {completed.returncode}'
+            assert not blamed, 'an app crashed: ' + '; '.join(f"during {source}: {', '.join(reports)}" for source, reports in blamed.items())
             assert not leftovers, f'left temporary files: {leftovers[:10]}'
             check_gate(evidence, gate)
             after = inputs(gate, tree())
             assert after == before, f"inputs changed since the run started: {sorted(k for k in after.keys() | before.keys() if after.get(k) != before.get(k))[:10]}"
             assert definition(name) == definitions[name], 'the gate definition or its result checks changed since the run started'
         except (AssertionError, FileNotFoundError, json.JSONDecodeError) as failure:
-            update_ledger({name: None})
+            update_ledger({name: None, **{source: None for source in blamed}})
             print(f'FAILED {name} after {seconds:.0f}s: {failure}', flush=True)
             return 1
         update_ledger({name: {'inputs': before, 'definition': definitions[name], 'passedAt': time.time(), 'evidence': str(evidence), 'full': False}})
         print(f'PASSED {name} in {seconds:.0f}s', flush=True)
+    time.sleep(max(0.0, windows[-1][2] + CRASH_SETTLE_SECONDS - time.time()) if windows else 0.0)
+    late = attribute(windows, crashes(crash_reports() - seen_reports, uuids | built_uuids()))
+    if late:
+        update_ledger({name: None for name in late})
+        for name, reports in late.items():
+            print(f"FAILED {name}: an app crashed and its report arrived after the gate passed: {', '.join(reports)}", flush=True)
+        return 1
     if full:
         subprocess.run([sys.executable, str(ROOT / 'scripts/aggregate-evidence.py'), str(evidence)], cwd=ROOT, check=True)
         return record(evidence)

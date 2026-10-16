@@ -173,4 +173,22 @@ finally:
 # The Swift guards cannot import test_host, so each reads the marker itself; none may drift from it.
 for guard in ['Tools/ReviewScenario.swift', 'Tools/Acceptance/Probe.swift', 'Tools/calibrate-opponents.swift', 'Tools/lan-vm.swift', 'Tools/lan-vm-input.swift']:
     assert test_host.ROLE_FILE in (root / guard).read_text(), f'{guard} does not read ~/{test_host.ROLE_FILE}'
-print(f'Gate selection self-test passed ({len(cases) + 12} cases).')
+# A crash report of this checkout's app fails the gate whose apps were running, even when that gate exited 0 and the report
+# arrives during a later gate; another checkout's build, another program, and a report that is not JSON are not blamed.
+with tempfile.TemporaryDirectory() as reports:
+    reports = pathlib.Path(reports)
+    def report(file, app, uuid, captured):
+        (reports / file).write_text(json.dumps({'app_name': app, 'slice_uuid': uuid}) + '\n' + json.dumps({'captureTime': captured}))
+    report('CheckmateNative-ours.ips', 'CheckmateNative', '1DBA8679-7997-3AF0-99BC-741872B92F67', '2026-10-16 20:44:03.6928 +0800')
+    report('CheckmateNative-other.ips', 'CheckmateNative', '00000000-0000-0000-0000-000000000000', '2026-10-16 20:44:03.0000 +0800')
+    report('Finder-ours.ips', 'Finder', '1dba8679-7997-3af0-99bc-741872b92f67', '2026-10-16 20:44:03.0000 +0800')
+    (reports / 'Partial.ips').write_text('not a report')
+    found = gates.crashes(gates.crash_reports(reports), {'1dba8679-7997-3af0-99bc-741872b92f67'})
+    assert [r.name for _, r in found] == ['CheckmateNative-ours.ips'], found
+    crashed = found[0][0]
+    windows = [('intel', crashed - 400, crashed + 2), ('relocated', crashed + 20, crashed + 22)]
+    assert gates.attribute(windows, found) == {'intel': ['CheckmateNative-ours.ips']}, 'a report written during relocated still blames intel'
+    assert gates.attribute([('relocated', crashed + 20, crashed + 22)], found) == {'relocated': ['CheckmateNative-ours.ips']}, 'a crash before any gate began'
+    assert gates.attribute(windows, []) == {}
+    assert gates.crash_reports(reports / 'missing') == set()
+print(f'Gate selection self-test passed ({len(cases) + 17} cases).')
