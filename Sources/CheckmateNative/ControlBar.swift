@@ -69,6 +69,8 @@ extension ControlBarModel {
     /// The bar for what the app shows now. Pure: it reads the model and decides nothing else.
     @MainActor static func make(session:GameSession,learning:LearningPlayer,review:ReviewController,training:TrainingController?,voice:ControlBarVoice)->ControlBarModel {
         if review.active {return reviewBar(review)}
+        // The network game's actions live in its own pane and menus (LAN-play plan D10: no new toolbar items).
+        if session.mode == .network {return ControlBarModel()}
         if session.mode == .practice {return practiceBar(session,voice:voice)}
         if learning.mini {return miniBar(learning)}
         if session.mode == .training,let training {return trainingBar(training,session:session)}
@@ -134,17 +136,19 @@ extension ControlBarModel {
             ],trailing:trailing,trailingGroups:[voiceGroup.items])
         }
         var bar=ControlBarModel(statusInCentre:true)
-        bar.status = session.busyReason=="opponent" ? .working("Stockfish is thinking"):session.busy ? .working("Finding a hint"):.turn(side:session.rules.turn,label:session.rules.status)
+        // During a network game practice is viewable only: Stockfish waits and hints, Try a move and voice are off (D8).
+        let fair=session.fairness.engineHelpAllowed
+        bar.status = !fair ? .text(FairnessPolicy.practicePaused):session.busyReason=="opponent" ? .working("Stockfish is thinking"):session.busy ? .working("Finding a hint"):.turn(side:session.rules.turn,label:session.rules.status)
         bar.leading=[ControlBarItem(action:.newGame,label:"New game…")]
         if session.explicitResumeRequired{bar.leading.append(ControlBarItem(action:.resumeGame,label:"Resume game",prominent:true))}
         else if session.pausedOpponent{bar.leading.append(ControlBarItem(action:.continueWithStockfish,label:"Continue with Stockfish",prominent:true))}
         let yourMove=session.rules.turn==session.humanSide && !session.finished
         bar.trailing=[
             ControlBarItem(action:.takeBack,symbol:"arrow.uturn.backward",label:"Take back move",enabled:session.canTakeBack),
-            ControlBarItem(action:.hint,symbol:"lightbulb",label:"Hint",enabled:!session.busy && yourMove),
-            ControlBarItem(action:.tryMove,label:"Try a move",enabled:yourMove && session.busyReason != "opponent" && session.demonstration==nil),
+            ControlBarItem(action:.hint,symbol:"lightbulb",label:"Hint",enabled:fair && !session.busy && yourMove),
+            ControlBarItem(action:.tryMove,label:"Try a move",enabled:fair && yourMove && session.busyReason != "opponent" && session.demonstration==nil),
         ]
-        bar.trailingGroups=[voiceGroup.items]
+        bar.trailingGroups=fair ? [voiceGroup.items]:[]
         if let status=voiceGroup.status{bar.status = .working(status)}
         return bar
     }

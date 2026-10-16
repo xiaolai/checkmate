@@ -439,6 +439,89 @@
    ]
   },
   {
+   "name": "network-ui",
+   "run": "python3 scripts/test-network-ui.py",
+   "result": "network-ui-results.json",
+   "key": "networkUI",
+   "prebuilt": true,
+   "inputs": [
+    "scripts/test-network-ui.py",
+    "scripts/network_gate.py",
+    "Tools/pointer-helper.swift",
+    "Tools/ax-helper.swift",
+    "Tools/board-click-helper.swift",
+    "Sources/CheckmateApplication/Network*.swift",
+    "Sources/CheckmateDomain/Network*.swift",
+    "Sources/CheckmateMacPlatform/Network*.swift",
+    "Sources/CheckmateMacPlatform/NWNetwork*.swift",
+    "Sources/CheckmateNative/Network*.swift",
+    "Sources/CheckmateNative/NativeNetwork.swift",
+    "Sources/CheckmateNative/MainWindow.swift",
+    "Sources/CheckmateNative/ContentViews.swift",
+    "Sources/CheckmateNative/BoardView.swift",
+    "Sources/CheckmateNative/ReviewDetailViews.swift",
+    "Sources/CheckmateNative/ReviewLibraryViews.swift",
+    "Sources/CheckmateNative/LibraryTableView.swift"
+   ]
+  },
+  {
+   "name": "network-bonjour",
+   "run": "python3 scripts/test-network-bonjour.py",
+   "result": "network-bonjour-results.json",
+   "key": "networkBonjour",
+   "prebuilt": true,
+   "prerequisites": [
+    "bonjour-ready"
+   ],
+   "inputs": [
+    "scripts/test-network-bonjour.py",
+    "scripts/automation-identity.sh",
+    "scripts/network_gate.py",
+    "Tools/pointer-helper.swift",
+    "Tools/ax-helper.swift",
+    "Tools/board-click-helper.swift",
+    "Sources/CheckmateApplication/Network*.swift",
+    "Sources/CheckmateDomain/Network*.swift",
+    "Sources/CheckmateMacPlatform/Network*.swift",
+    "Sources/CheckmateMacPlatform/NWNetwork*.swift",
+    "Sources/CheckmateNative/Network*.swift",
+    "Sources/CheckmateNative/NativeNetwork.swift",
+    "Sources/CheckmateNative/MainWindow.swift",
+    "Sources/CheckmateNative/ContentViews.swift",
+    "Sources/CheckmateNative/BoardView.swift"
+   ]
+  },
+  {
+   "name": "network-lan",
+   "run": "python3 scripts/test-network-lan.py",
+   "result": "network-lan-results.json",
+   "key": "networkLAN",
+   "prebuilt": true,
+   "prerequisites": [
+    "bonjour-ready",
+    "bonjour-ready-pair",
+    "lan-pair"
+   ],
+   "inputs": [
+    "scripts/test-network-lan.py",
+    "scripts/automation-identity.sh",
+    "Tools/host-access.swift",
+    "scripts/network_gate.py",
+    "Tools/pointer-helper.swift",
+    "Tools/ax-helper.swift",
+    "Tools/board-click-helper.swift",
+    "Sources/CheckmateApplication/Network*.swift",
+    "Sources/CheckmateDomain/Network*.swift",
+    "Sources/CheckmateMacPlatform/Network*.swift",
+    "Sources/CheckmateMacPlatform/NWNetwork*.swift",
+    "Sources/CheckmateNative/Network*.swift",
+    "Sources/CheckmateNative/NativeNetwork.swift",
+    "Sources/CheckmateNative/MainWindow.swift",
+    "Sources/CheckmateNative/ContentViews.swift",
+    "Sources/CheckmateNative/BoardView.swift"
+   ]
+  },
+  {
    "name": "unit",
    "run": "bash scripts/test-unit.sh",
    "result": "swift-tests.log",
@@ -473,7 +556,9 @@
     "scripts/run-gates.py",
     "scripts/gates.json",
     "scripts/gate_check.py",
-    "Content/*"
+    "Content/*",
+    "scripts/test-fairness-inventory.py",
+    "Tools/host-access.swift"
    ]
   },
   {
@@ -549,6 +634,13 @@
   "Tools/export-spike.swift": "experiment",
   "Tools/measure-review-batch.py": "offline measurement",
   "Tools/training-oracle.cjs": "training content authoring aid; publication re-derives every answer in Swift (unit)",
-  "Tools/verify-review-corpus.py": "offline corpus check"
+  "Tools/verify-review-corpus.py": "offline corpus check",
+  "Tools/lan-spike.swift": "LAN-play spike (plan build order 1), run by hand on the test hosts; its verdicts are kept with the plan",
+  "Tools/lan-spike.sh": "LAN-play spike packaging, run by hand with Tools/lan-spike.swift",
+  "Tools/lan-spike-d.py": "LAN-play spike (d), run by hand; the network-ui gate covers two instances on one host",
+  "Tools/lan-vm.swift": "LAN-play spike (e): installs and boots macOS virtual machines on a test host, run by hand",
+  "Tools/lan-vm.sh": "LAN-play spike (e) packaging, signs Tools/lan-vm.swift with the virtualization entitlement",
+  "Tools/lan-vm-input.swift": "LAN-play spike (e): real clicks and keys into a virtual machine's window, run by hand",
+  "scripts/prepare-bonjour.sh": "prepares a host once for the Bonjour gates (LAN-play plan D14), by hand; run-gates.py checks the evidence it writes"
  }
 }

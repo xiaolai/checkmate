@@ -11,6 +11,8 @@ import CheckmateCore
     /// The training library and its exercises; nil while training is not enabled for this build (plan: rollout flag).
     let training:TrainingController?
     let reviewStore:ReviewStore,reviewAnalyzer:ReviewAnalyzer
+    /// The network-game fairness check every engine and voice component shares (LAN-play plan D8), and the network game.
+    let fairness:FairnessPolicy,network:NetworkGameController
     @Published var reviews:[ReviewIndexEntry]=[]
     /// The review workspace and a draft review are part of the session's activity (B8.2), not flags of their own.
     var reviewWorkspace:Bool {session.activity.inReviewWorkspace}
@@ -66,10 +68,11 @@ import CheckmateCore
     init() throws {
         if !NativePolicy.silent {Task.detached{CodexSubscriptionClient.cleanAbandonedPrivateHomes()}}
         store=StateStore(directory:StateStore.defaultDirectory());let state=try store.load();store.preserveFirstLaunchBackup()
-        let engine=NativeEngine();reviewAnalyzer=ReviewAnalyzer(engine:engine,cacheDirectory:store.directory.appendingPathComponent("ReviewAnalysis"));reviewStore=ReviewStore(directory:store.directory.appendingPathComponent("Reviews"))
+        // One fairness check for every component that can reach the engine or the voice coach (LAN-play plan D8).
+        let engine=NativeEngine(),fairness=FairnessPolicy();self.fairness=fairness;reviewAnalyzer=ReviewAnalyzer(engine:engine,cacheDirectory:store.directory.appendingPathComponent("ReviewAnalysis"),fairness:fairness);reviewStore=ReviewStore(directory:store.directory.appendingPathComponent("Reviews"))
         reviewSaves=ReviewSaveCoordinator(store:reviewStore)
-        session=try GameSession(engine:engine,state:state);learning=try LearningPlayer(session:session);audio=NativeAudio(scores:learning.library.sounds);learning.audio=audio
-        training=TrainingRolloutPolicy.enabled ? TrainingController(session:session,learning:learning):nil;training?.games.engine=engine
+        session=try GameSession(engine:engine,state:state,fairness:fairness);review.fairness=fairness;network=try NetworkGameController(services:Self.networkServices(directory:store.directory),participation:fairness.participation,playerName:Self.defaultPlayerName);session.network=network;learning=try LearningPlayer(session:session);audio=NativeAudio(scores:learning.library.sounds);learning.audio=audio
+        training=TrainingRolloutPolicy.enabled ? TrainingController(session:session,learning:learning):nil;training?.games.engine=engine;training?.games.fairness=fairness
         companion=try CompanionBroker(session:session,directory:store.directory.appendingPathComponent("companion"));voice=try VoiceCoach(session:session)
         usage=UsageLedger(directory:store.directory.appendingPathComponent("Usage"))
         if NativePolicy.silent,ProcessInfo.processInfo.environment["CHECKMATE_LESSON_FIXTURE"]=="1" {
@@ -80,7 +83,22 @@ import CheckmateCore
         }
         lessonLanguages.language=state.settings.lessonLanguage;lessonLanguages.voice=state.settings.lessonVoice
         wireLessonLanguages();wireAgentTools();wirePersistence();wireSounds();loadSavedReviews();observeSession()
+        // Views that hide engine output during a network game redraw when it begins or ends.
+        fairness.participation.observe{[weak self] _ in self?.objectWillChange.send()}
+        // The lobby browses only while the network place is on screen (D1); the game itself carries on elsewhere (D9).
+        session.$activity.removeDuplicates().sink{[weak self] activity in self?.network.setShown(activity == .at(.network))}.store(in:&observations)
+        // A host whose Mac sleeps stops its game as interrupted (D9).
+        // NSWorkspace posts these on the main thread; handling them there, not a hop later, gets the farewell queued
+        // before the Mac sleeps.
+        NSWorkspace.shared.notificationCenter.publisher(for:NSWorkspace.willSleepNotification).sink{[weak self] _ in MainActor.assumeIsolated{self?.network.systemWillSleep()}}.store(in:&observations)
+        NSWorkspace.shared.notificationCenter.publisher(for:NSWorkspace.didWakeNotification).sink{[weak self] _ in MainActor.assumeIsolated{self?.network.systemDidWake()}}.store(in:&observations)
     }
+    /// Answers "Leave the game? It counts as a resignation." and "Resign this game?" (D9). Tests inject an answer;
+    /// otherwise the learner is asked.
+    var confirmLeavingNetworkGame:(()->Bool)?
+    var confirmResigningNetworkGame:(()->Bool)?
+    /// How often the permission help's button asked for System Settings (D11); automation counts instead of opening it.
+    var networkSettingsRequests=0
     /// Lesson languages share the one narration channel and the voice coach's connection.
     private func wireLessonLanguages(){
         learning.packs=lessonLanguages.store;voice.usageLedger=usage;voice.connectionBlocked={[weak self] in self?.lessonLanguages.recording==true || self?.audio.isNarrationPlaying==true || self?.voicePreview.playing==true}
@@ -204,6 +222,7 @@ import CheckmateCore
     func lesson(_ index:Int){_ = try? transition(.lesson(index))}
     func puzzles(){_ = try? transition(.puzzles)}
     func trainingLibrary(){_ = try? transition(.trainingLibrary)}
+    func playOnNetwork(){_ = try? transition(.network)}
     /// A new exercise, the saved unfinished one, or an existing mini-game; a failure is shown and nothing changes.
     func startTraining(_ entry:String,variant:String?=nil){_ = try? transition(.trainingExercise(entry:entry,variant:variant))}
     func startTrainingScenario(_ id:String){_ = try? transition(.trainingScenario(id:id))}
@@ -417,7 +436,8 @@ import CheckmateCore
     @discardableResult func transition(_ next:Navigation,stillWanted:()->Bool={true})throws -> Bool {
         let place=session.activity.place,reviewing=session.activity.review != nil,token=reviewOpenGeneration
         let sameReview:Bool={if case .review(let document,_,_)=next{return review.document?.id==document.id};return false}()
-        // 1. The learner's say.
+        // 1. The learner's say. During a network game lessons, puzzles and training stay closed (LAN-play plan D8).
+        if next.needsEngineHelp,!fairness.engineHelpAllowed{storageError=FairnessPolicy.destinationUnavailable+".";return false}
         if case .practiceFork=next,!practiceForkStillCurrent(){return false}
         guard sameReview || resolveDraftBeforeLeaving() else{return false}
         // A "Don't save" answered this request only: withdrawn, or overtaken by another navigation made while the question
@@ -425,6 +445,8 @@ import CheckmateCore
         guard stillWanted(),reviewOpenGeneration==token else{draftDiscardApproved=nil;return false}
         // The draft question is modal and main-actor work (an agent's review call) runs during it: check the position again.
         if case .practiceFork=next,!practiceForkStillCurrent(){draftDiscardApproved=nil;return false}
+        // A network game may also have begun while the question was up.
+        if next.needsEngineHelp,!fairness.engineHelpAllowed{draftDiscardApproved=nil;storageError=FairnessPolicy.destinationUnavailable+".";return false}
         // 2. Staging.
         let coordinator=WorkspaceTransitionCoordinator(session:session,learning:learning,review:review);coordinator.training=training
         let staged:PreparedWorkspaceTransition
@@ -472,7 +494,7 @@ import CheckmateCore
         case .practiceFork:return "Practice could not start from this position. The review is unchanged."
         case .trainingLibrary,.trainingExercise,.trainingScenario,.trainingResume,.trainingRetry,.trainingLegacy:return "This exercise could not be opened. Nothing was changed."
         case .trainingLesson:return "This lesson could not be opened. Nothing was changed."
-        case .practice,.returnToGame,.lesson,.puzzles,.reviewWorkspace,.review,.importProgress:return nil
+        case .practice,.returnToGame,.lesson,.puzzles,.reviewWorkspace,.review,.importProgress,.network:return nil
         }
     }
     /// Step 3 of `transition`: everything the current activity holds stops, in a fixed order.
@@ -488,7 +510,7 @@ import CheckmateCore
         switch next {
         case .returnToGame:break
         case .practice:if !reviewing{learning.pause()};audio.stop()
-        case .lesson,.puzzles:rememberVoice();voice.disconnect();audio.stop()
+        case .lesson,.puzzles,.network:rememberVoice();voice.disconnect();audio.stop()
         case .reviewWorkspace,.review:learning.pause();rememberVoice();voice.disconnect();audio.stopAll()
         case .importProgress:saveTask?.cancel();voice.disconnect();usage.flushForShutdown();companion.disable();learning.pause();audio.stopAll()
         case .practiceFork:session.cancelWork()
@@ -620,7 +642,7 @@ import CheckmateCore
     static func exportName(_ document:GameDocument,ideas:Bool)->String {document.historyAvailable || ideas ? "review.pgn":"review.fen"}
     func showBackups(){NSWorkspace.shared.activateFileViewerSelecting([store.directory])}
     func exportState(){let panel=NSSavePanel();panel.nameFieldStringValue="checkmate-state.json";panel.begin {response in guard response == .OK,let url=panel.url else{return};do{try self.store.exportState(self.session.state,to:url)}catch{self.storageError=userFacingMessage(error,fallback:"The export could not be written. Choose another location.")}}}
-    func shutdown(){lessonLanguages.shutdown();connectionStartup?.cancel();voicePreview.cancel();voiceResumeIntent=false;reviewTools.reset();reviewOpenGeneration+=1;cancelReviewImport();saveReview(immediate:true);shuttingDown=true;reviewSaveTask?.cancel();review.cancel();saveTask?.cancel();cancelMoveSounds();session.prepareShutdown();voice.disconnect();usage.flushForShutdown();companion.disable();learning.shutdown();audio.stopAll();session.cancelWork();try? store.save(session.state)}
+    func shutdown(){network.shutdown();lessonLanguages.shutdown();connectionStartup?.cancel();voicePreview.cancel();voiceResumeIntent=false;reviewTools.reset();reviewOpenGeneration+=1;cancelReviewImport();saveReview(immediate:true);shuttingDown=true;reviewSaveTask?.cancel();review.cancel();saveTask?.cancel();cancelMoveSounds();session.prepareShutdown();voice.disconnect();usage.flushForShutdown();companion.disable();learning.shutdown();audio.stopAll();session.cancelWork();try? store.save(session.state)}
 }
 /// Keeps the Save panel's suggested extension consistent with the chosen export contents.
 @MainActor final class ExportNaming:NSObject {

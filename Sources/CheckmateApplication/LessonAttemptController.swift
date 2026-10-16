@@ -141,11 +141,12 @@ public struct LessonAttemptProjection:Codable,Equatable {
         record.hints=3;self.record=record;save()
         if phase == .offTrack{notice="Undo your last move first, then ask again.";onChange();return}
         if let node=judgement?.node,let move=practice?.teaching?[node].accepted.first{hintArrow=[String(move.prefix(2)),String(move.dropFirst(2).prefix(2))];onChange();return}
+        guard session.fairness.engineHelpAllowed else{notice=FairnessPolicy.destinationUnavailable+".";onChange();return}
         guard let engine=session.engine,let practice else{notice="A move cannot be shown right now.";onChange();return}
         let token=generation,moves=record.moves
         work=Task{[weak self] in
             let best=try? await engine.analyzeHistory(startFEN:practice.fen,moves:moves,profile:.skill(20),budget:300,multiPv:1).bestMove
-            guard let self,!Task.isCancelled,self.generation==token,self.record?.moves==moves else{return}
+            guard let self,!Task.isCancelled,self.generation==token,self.record?.moves==moves,self.session.fairness.engineHelpAllowed else{return}
             self.work=nil
             if let best,best.count>=4{self.hintArrow=[String(best.prefix(2)),String(best.dropFirst(2).prefix(2))]}else{self.notice="A move cannot be shown right now."}
             self.onChange()
@@ -160,27 +161,27 @@ public struct LessonAttemptProjection:Codable,Equatable {
         switch judgement.phase {case .computerTurn,.playingOn:return true;case .offTrack:return judgement.authoredReply != nil;default:return false}
     }
     private func scheduleReply(){
-        guard active,computerToMove,!waitingToResume,!session.reviewSuspended,let record,let practice,let judgement else{return}
+        guard active,computerToMove,!waitingToResume,!session.reviewSuspended,session.fairness.engineHelpAllowed,let record,let practice,let judgement else{return}
         // A hidden or minimised app holds play, as in Practice: the computer's turn waits for Resume.
         if session.suspended{waitingToResume=true;onChange();return}
         cancelReply();thinking=true;onChange()
         let token=generation,moves=record.moves,id=record.id,authored=judgement.authoredReply,delay=replyDelay()
         let opponent:LessonOpponent=judgement.phase == .playingOn ? .beginner:practice.opponent ?? .beginner
-        let engine=session.engine,position=try? rules.copy(),seed=(UInt64(ProgressMigration.digest(id),radix:16) ?? 1) &+ UInt64(moves.count)
+        let engine=session.engine,fairness=session.fairness,position=try? rules.copy(),seed=(UInt64(ProgressMigration.digest(id),radix:16) ?? 1) &+ UInt64(moves.count)
         work=Task{[weak self] in
             let started=ContinuousClock.now
             var choice=authored,failed=false
             if choice==nil {
-                if let engine,let position {
+                if let engine,let position,fairness.engineHelpAllowed {
                     switch opponent {
-                    case .beginner:choice=try? await BeginnerOpponent.choose(rules:position,engine:engine,seed:seed).bestMove
+                    case .beginner:choice=try? await BeginnerOpponent.choose(rules:position,engine:engine,seed:seed,fairness:fairness).bestMove
                     case .defender:choice=try? await engine.analyzeHistory(startFEN:practice.fen,moves:moves,profile:.skill(20),budget:300,multiPv:1).bestMove
                     }
                 }
                 failed=choice==nil
             }
             do{try await Task.sleep(for:max(.zero,delay-started.duration(to:.now)))}catch{return}
-            guard let self,!Task.isCancelled,self.generation==token,self.record?.id==id,self.record?.moves==moves else{return}
+            guard let self,!Task.isCancelled,self.generation==token,self.record?.id==id,self.record?.moves==moves,fairness.engineHelpAllowed else{return}
             self.work=nil;self.thinking=false
             if self.session.suspended{self.waitingToResume=true;self.onChange();return}
             if failed{self.waitingToResume=true;self.notice="The computer could not choose a reply. Press Resume to try again.";self.onChange();return}

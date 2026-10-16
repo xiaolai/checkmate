@@ -41,6 +41,9 @@ public struct ReviewBranch:Codable,Equatable {public let id:UUID,root:Int;public
     private var explanationCache:(String,ReviewExplanation)?
     @Published public private(set) var selected:String?
     @Published public private(set) var evidence:ReviewEvidence?
+    /// The network-game fairness check (LAN-play plan D8); the app sets the session's. While participating, reviews
+    /// still open and browse, but engine evidence and the explanations built from it are withheld.
+    public var fairness=FairnessPolicy()
     @Published public private(set) var analysisStatus="idle"
     @Published public private(set) var error:String?
     private var playback:Task<Void,Never>?,analysisTask:Task<Void,Never>?
@@ -51,7 +54,7 @@ public struct ReviewBranch:Codable,Equatable {public let id:UUID,root:Int;public
     public var displayFEN:String? {displayRules?.fen}
     public var board:Position {displayRules?.board ?? [:]}
     public var destinations:[String] {selected.flatMap{displayRules?.moves($0).map(\.to)} ?? []}
-    public var explanation:ReviewExplanation? {guard let d=document else{return nil};let key=identity+":\(branchPly):\(evidence?.createdAt.timeIntervalSince1970 ?? 0)";if let cache=explanationCache,cache.0==key{return cache.1};let result:ReviewExplanation?;if branch != nil,let rules=displayRules{result=ReviewExplanation.imagined(rules:rules)}else{result=try? ReviewExplanation.make(document:d,node:nodeID,evidence:evidence)};if let result=result{explanationCache=(key,result)};return result}
+    public var explanation:ReviewExplanation? {guard let d=document else{return nil};let shown=fairness.engineHelpAllowed ? evidence:nil,key=identity+":\(branchPly):\(shown?.createdAt.timeIntervalSince1970 ?? 0)";if let cache=explanationCache,cache.0==key{return cache.1};let result:ReviewExplanation?;if branch != nil,let rules=displayRules{result=ReviewExplanation.imagined(rules:rules)}else{result=try? ReviewExplanation.make(document:d,node:nodeID,evidence:shown)};if let result=result{explanationCache=(key,result)};return result}
     /// Shows `document` and records the review in the session's activity, over the place it returns to.
     public func open(_ document:GameDocument,practice:GameSession,draft:Bool=false){load(document);practice.enterReview(document:document.id,draft:draft)}
     /// The review's own content only; the caller changes the session's activity.
@@ -159,5 +162,5 @@ public struct ReviewBranch:Codable,Equatable {public let id:UUID,root:Int;public
     /// A legal move on the original game opens an imagined line with it; the imported record is never changed.
     public func selectSquare(_ square:String,promotion:String="q")throws {guard let rules=displayRules else{return};if let from=selected,rules.moves(from).contains(where:{$0.to==square}){guard let candidate=rules.moves(from).first(where:{$0.to==square && ($0.promotion==nil || $0.promotion==promotion)}) else{throw CheckmateError.invalid("Choose a valid promotion.")};if branch==nil{try beginBranch()};try playBranch(candidate.uci);return};selected=rules.piece(square)==nil ? nil:square}
     public func clearSelection(){selected=nil}
-    public func analyze(using analyzer:ReviewAnalyzer,budget:Int=ReviewPolicy.quickBudget){guard let d=document else{return};analysisTask?.cancel();let node=nodeID,epoch=revision,branch=self.branch,ply=branchPly;analysisStatus="pending";analysisTask=Task{do{let result:ReviewEvidence;if let branch=branch{result=try await analyzer.analyzeBranch(document:d,root:branch.root,moves:Array(branch.moves.prefix(ply)),revision:epoch)}else{result=try await analyzer.analyze(document:d,node:node,revision:epoch,budget:budget)};guard !Task.isCancelled,self.document?.id==d.id,self.nodeID==node,self.revision==epoch else{return};self.evidence=result;self.analysisStatus="ready"}catch{guard !Task.isCancelled,self.revision==epoch else{return};self.analysisStatus="failed";self.error="Analysis is unavailable; the record remains navigable."}}}
+    public func analyze(using analyzer:ReviewAnalyzer,budget:Int=ReviewPolicy.quickBudget){guard fairness.engineHelpAllowed,let d=document else{return};analysisTask?.cancel();let node=nodeID,epoch=revision,branch=self.branch,ply=branchPly;analysisStatus="pending";analysisTask=Task{do{let result:ReviewEvidence;if let branch=branch{result=try await analyzer.analyzeBranch(document:d,root:branch.root,moves:Array(branch.moves.prefix(ply)),revision:epoch)}else{result=try await analyzer.analyze(document:d,node:node,revision:epoch,budget:budget)};guard !Task.isCancelled,self.document?.id==d.id,self.nodeID==node,self.revision==epoch else{return};self.evidence=result;self.analysisStatus="ready"}catch{guard !Task.isCancelled,self.revision==epoch else{return};self.analysisStatus="failed";self.error="Analysis is unavailable; the record remains navigable."}}}
 }

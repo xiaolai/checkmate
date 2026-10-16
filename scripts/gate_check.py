@@ -12,6 +12,8 @@ if not __debug__:
 
 OPTIONAL_SKIPS = {
     'EngineGoldenTests testHeldOutStrongEvidence',
+    # Real Bonjour stays out of routine tests (LAN-play plan D12); the network-bonjour gate exercises it.
+    'NetworkLoopbackTests testBonjourPublishesBothListenersAndAJoinPairsThemByGameID',
     'OpponentCalibrationTests testSeededCompleteGames',
     'ReviewPerformanceTests testImportNavigationAndSelectedLatency',
     'ReviewPerformanceTests testMaximumMainlineNavigationScale',

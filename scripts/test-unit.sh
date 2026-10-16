@@ -28,3 +28,5 @@ python3 -I Tools/test-record-lessons.py
 python3 -I Tools/prepare-training-content.py --check
 python3 -I Tools/test-prepare-training-content.py
 python3 scripts/test-run-gates.py
+# Every engine and voice entry is classified for network-game fairness (LAN-play plan D8).
+python3 -I scripts/test-fairness-inventory.py > /dev/null

@@ -36,6 +36,10 @@ public struct LessonProjection:Codable {
 @MainActor public final class GameSession:ObservableObject {
     public let rules:ChessRules
     public var engine:EngineService?
+    /// The network-game fairness check (LAN-play plan D8), shared by every component the app builds over this session.
+    public let fairness:FairnessPolicy
+    /// The network game, while the network place shows it (D9); its own board, never `rules`.
+    public weak var network:NetworkGameController?
     @Published public var state:ApplicationState
     /// Where the learner is (B8.2): the one stored value; `mode` and `reviewSuspended` are read from it.
     @Published public private(set) var activity:Activity = .at(.practice)
@@ -86,6 +90,8 @@ public struct LessonProjection:Codable {
     private func arrive(at place:Place,from previous:Place){
         // Each projection belongs to its own activity: none outlives a move to another one.
         if place.mode != .training{training=nil};if place.mode == .training{lesson=nil}
+        // The network game owns the board (D9): practice work stops and its presentations end, the game itself stays.
+        if place == .network{lesson=nil;cancelWork();clearPresentation();clearAnnotations();liveSelection=nil;selected=nil;inspection=nil}
         if place == .practice,previous != .practice{lesson=nil;changedPosition();reply()}else{signalEvent()}
     }
     /// Opens a review (or with `document` nil, the review workspace) over the current place.
@@ -113,11 +119,20 @@ public struct LessonProjection:Codable {
     private var liveSelection:String?
     public func prepareShutdown(){shuttingDown=true;cancelWork();clearAnnotations();demoTask?.cancel()}
     private var work:Task<Void,Never>?,overlayTask:Task<Void,Never>?,demoTask:Task<Void,Never>?,generation=0
-    public init(engine:EngineService?,state:ApplicationState=ApplicationState()) throws {
-        self.engine=engine;self.state=state;rules=try ChessRules()
+    public init(engine:EngineService?,state:ApplicationState=ApplicationState(),fairness:FairnessPolicy?=nil) throws {
+        let fairness=fairness ?? FairnessPolicy();self.engine=engine;self.state=state;self.fairness=fairness;rules=try ChessRules()
         if !state.practice.pgn.isEmpty {try rules.restore(state.practice.pgn)}
         companionRole=state.settings.companionRole;coaching.summary=turnSummary();message=gameOverMessage ?? "You play \(humanSide=="w" ? "White":"Black"). Choose a piece to explore."
+        fairness.participation.observe{[weak self] _ in self?.participationChanged()}
     }
+    /// Joining cancels the engine reply, hint and analysis in flight and drops the coaching shown; leaving lets practice
+    /// reply again. Either way a waiting agent wakes, whatever its event filter (D15).
+    private func participationChanged(){
+        cancelWork();if !fairness.engineHelpAllowed{coaching=Coaching();coaching.summary=turnSummary();clearPresentation();clearAnnotations();voiceFocus=[]}
+        signalEvent();participationCursor=cursor;if fairness.engineHelpAllowed{reply()}
+    }
+    /// The cursor of the latest participation change: a wait from before it wakes whatever its filter (D15).
+    public private(set) var participationCursor=0
     public var humanSide:String {state.settings.practiceSide}
     public var opponentSide:String {humanSide=="w" ? "b":"w"}
     public static func validatePracticeFork(_ fork:ChessRules,side:String)throws {guard ["w","b"].contains(side),!fork.over else{throw CheckmateError.invalid("Terminal position cannot start practice.")}}
@@ -125,14 +140,14 @@ public struct LessonProjection:Codable {
     public var positionId:String {sessionId+":"+String(position)}
     /// What the board shows, by one precedence: an active review, the review workspace, training, a lesson, then a
     /// visible demonstration or preview over the practice game, then the game itself.
-    private enum DisplaySource {case review(ReviewController),reviewWorkspace,training,lesson,demonstration(Demonstration),preview(Preview),game}
-    private var displaySource:DisplaySource {if let review=reviewController,review.active{return .review(review)};if activity.inReviewWorkspace{return .reviewWorkspace};if mode == .training{return .training};if mode != .practice{return .lesson};if !presentationHidden,let d=demonstration{return .demonstration(d)};if !presentationHidden,let p=preview{return .preview(p)};return .game}
-    public var displayFen:String? {switch displaySource{case .review(let review):return review.displayFEN;case .reviewWorkspace,.training,.lesson:return nil;case .demonstration(let d):return d.lines[d.line].frames[d.ply].fen;case .preview(let p):return p.displayFen;case .game:return rules.fen}}
+    private enum DisplaySource {case review(ReviewController),reviewWorkspace,network(NetworkGameController?),training,lesson,demonstration(Demonstration),preview(Preview),game}
+    private var displaySource:DisplaySource {if let review=reviewController,review.active{return .review(review)};if activity.inReviewWorkspace{return .reviewWorkspace};if mode == .network{return .network(network)};if mode == .training{return .training};if mode != .practice{return .lesson};if !presentationHidden,let d=demonstration{return .demonstration(d)};if !presentationHidden,let p=preview{return .preview(p)};return .game}
+    public var displayFen:String? {switch displaySource{case .review(let review):return review.displayFEN;case .network(let game):return game?.fen;case .reviewWorkspace,.training,.lesson:return nil;case .demonstration(let d):return d.lines[d.line].frames[d.ply].fen;case .preview(let p):return p.displayFen;case .game:return rules.fen}}
     public var displayIdentity:String {
-        switch displaySource{case .review(let review):return review.identity;case .reviewWorkspace:return positionId+":review_workspace";case .training:return positionId+":training";case .lesson:return positionId+":lesson";case .demonstration(let d):return positionId+":\(d.id):\(d.line):\(d.ply)";case .preview(let p):return positionId+":\(p.id):\(p.line):\(p.ply)";case .game:return positionId+":game"}
+        switch displaySource{case .review(let review):return review.identity;case .network(let game):return positionId+":network:"+(game?.identity ?? "lobby");case .reviewWorkspace:return positionId+":review_workspace";case .training:return positionId+":training";case .lesson:return positionId+":lesson";case .demonstration(let d):return positionId+":\(d.id):\(d.line):\(d.ply)";case .preview(let p):return positionId+":\(p.id):\(p.line):\(p.ply)";case .game:return positionId+":game"}
     }
-    public var displayBoard:Position {switch displaySource{case .review(let review):return review.board;case .reviewWorkspace:return [:];case .training:return training?.pieces ?? [:];case .lesson:return lesson?.pieces ?? [:];case .game:return rules.board;case .demonstration,.preview:let fen=displayFen;if fen==rules.fen{return rules.board};return (try? ChessRules(fen:fen).board) ?? [:]}}
-    public var displayView:String {switch displaySource{case .review(let review):return review.branch==nil ? "review":"review_preview";case .reviewWorkspace:return "review_workspace";case .training:return "training";case .lesson:return "lesson";case .demonstration:return "demonstration";case .preview:return "preview";case .game:return "game"}}
+    public var displayBoard:Position {switch displaySource{case .review(let review):return review.board;case .network(let game):return game?.board ?? [:];case .reviewWorkspace:return [:];case .training:return training?.pieces ?? [:];case .lesson:return lesson?.pieces ?? [:];case .game:return rules.board;case .demonstration,.preview:let fen=displayFen;if fen==rules.fen{return rules.board};return (try? ChessRules(fen:fen).board) ?? [:]}}
+    public var displayView:String {switch displaySource{case .review(let review):return review.branch==nil ? "review":"review_preview";case .reviewWorkspace:return "review_workspace";case .network:return "network";case .training:return "training";case .lesson:return "lesson";case .demonstration:return "demonstration";case .preview:return "preview";case .game:return "game"}}
     public var destinations:[String] {inspection?.destinations ?? []}
     /// Any change to the effective opponent profile (including a preset-only change) cancels a stale pending reply.
     /// A coaching-mode change releases a voice hold; the settings and the release apply before any reply restarts.
@@ -182,19 +197,22 @@ public struct LessonProjection:Codable {
         guard !reviewSuspended,mode == .practice,rules.turn==humanSide,busyReason != "opponent",!finished,(presentationHidden || preview==nil && demonstration==nil) else{throw CheckmateError.invalid("ROLE_FORBIDDEN")}
         let move=try rules.move(from,to,promotion);changedPosition();if let ending=rules.ending{message=endingText(ending.reason)};onMove?(move);reply()
     }
-    public func commitBlack(_ uci:String) throws -> MoveRecord {guard !reviewSuspended,!explicitResumeRequired,rules.turn==opponentSide else{throw CheckmateError.stale};let kept=selected;let m=try rules.move(uci:uci);changedPosition();if let kept,rules.piece(kept)?.color==humanSide{selected=kept;inspection=learnerInspection(kept,on:rules,live:true)};onMove?(m);message=gameOverMessage ?? turnSummary();scheduleGuidance();return m}
-    public func reply(){guard !shuttingDown,!reviewSuspended,!explicitResumeRequired,mode == .practice,rules.turn==opponentSide,!finished,!busy,!voiceHold,!pausedOpponent,!suspended,(presentationHidden || (preview==nil && demonstration==nil)),(!companionEnabled || companionRole != "opponent"),let engine=engine else{return}
+    public func commitBlack(_ uci:String) throws -> MoveRecord {try fairness.requireEngineHelp();guard !reviewSuspended,!explicitResumeRequired,rules.turn==opponentSide else{throw CheckmateError.stale};let kept=selected;let m=try rules.move(uci:uci);changedPosition();if let kept,rules.piece(kept)?.color==humanSide{selected=kept;inspection=learnerInspection(kept,on:rules,live:true)};onMove?(m);message=gameOverMessage ?? turnSummary();scheduleGuidance();return m}
+    public func reply(){guard fairness.engineHelpAllowed,!shuttingDown,!reviewSuspended,!explicitResumeRequired,mode == .practice,rules.turn==opponentSide,!finished,!busy,!voiceHold,!pausedOpponent,!suspended,(presentationHidden || (preview==nil && demonstration==nil)),(!companionEnabled || companionRole != "opponent"),let engine=engine else{return}
         let fen=rules.fen,epoch=generation;busy=true;busyReason="opponent";emit(semantic:false)
-        work=Task {[weak self] in guard let self=self else{return};do{let result=try await self.chooseOpponentMove(engine:engine);try Task.checkCancellation();guard self.generation==epoch,self.rules.fen==fen else{return};guard let move=result.bestMove else{throw CheckmateError.unavailable("ENGINE_UNAVAILABLE")};self.busy=false;self.busyReason=nil;self.recordOpponentChoice(result);_ = try self.commitBlack(move)}catch{if self.generation==epoch {self.busy=false;self.busyReason=nil;self.error="Stockfish could not respond"+Self.engineReason(error)+". Retry, undo, or start a new game.";self.emit(semantic:false)}}}
+        work=Task {[weak self] in guard let self=self else{return};do{let result=try await self.chooseOpponentMove(engine:engine);try Task.checkCancellation();guard self.generation==epoch,self.rules.fen==fen,self.fairness.engineHelpAllowed else{return};guard let move=result.bestMove else{throw CheckmateError.unavailable("ENGINE_UNAVAILABLE")};self.busy=false;self.busyReason=nil;self.recordOpponentChoice(result);_ = try self.commitBlack(move)}catch{if self.generation==epoch {self.busy=false;self.busyReason=nil;self.error="Stockfish could not respond"+Self.engineReason(error)+". Retry, undo, or start a new game.";self.emit(semantic:false)}}}
     }
     /// The opponent's move for the current position at the learner's configured strength (beginner, Elo or skill).
     /// Stockfish's own reply and a companion opponent's `play_move` both choose through here.
     public func chooseOpponentMove(engine:EngineService)async throws -> EngineAnalysis {
+        try fairness.requireEngineHelp()
         if state.settings.opponentRandomSeed.isEmpty{state.settings.opponentRandomSeed=String(UInt64.random(in:1...UInt64.max),radix:16);emit(semantic:false,save:true)}
         let fen=rules.fen,profile=OpponentProfile.settings(state.settings),seed=UInt64(reviewHash(Data((state.settings.opponentRandomSeed+fen).utf8)).prefix(16),radix:16) ?? 1
-        if profile.mode=="beginner"{return try await BeginnerOpponent.choose(rules:rules,engine:engine,seed:seed,severeStreak:state.practice.beginnerSevereStreak)}
-        return try await engine.analyzeHistory(startFEN:rules.records.first?.before ?? fen,moves:rules.records.map(\.uci),profile:profile,budget:500,multiPv:1)
-
+        let result:EngineAnalysis
+        if profile.mode=="beginner"{result=try await BeginnerOpponent.choose(rules:rules,engine:engine,seed:seed,severeStreak:state.practice.beginnerSevereStreak,fairness:fairness)}
+        else{result=try await engine.analyzeHistory(startFEN:rules.records.first?.before ?? fen,moves:rules.records.map(\.uci),profile:profile,budget:500,multiPv:1)}
+        // A result computed across joining a network game is dropped, not delivered (D8).
+        try fairness.requireEngineHelp();return result
     }
     /// Keeps the beginner opponent's mistake budget current; call just before committing the chosen move.
     public func recordOpponentChoice(_ result:EngineAnalysis){
@@ -255,7 +273,7 @@ public struct LessonProjection:Codable {
     /// How many times a companion has taken the session; a change since voice left means voice must not come back.
     public private(set) var companionClaims=0
     public func setConnection(enabled:Bool,role:String,lease:String?=nil,suspended:Bool=false){if enabled,!companionEnabled{companionClaims+=1};let ownershipChanged=companionEnabled != enabled || companionRole != role || self.suspended != suspended; if ownershipChanged {cancelWork();clearAnnotations()};if companionRole=="opponent",companionEnabled,(!enabled || companionLease != nil && lease==nil){pausedOpponent=true};companionEnabled=enabled;companionRole=role;companionLease=lease;if enabled,role=="opponent",lease != nil{pausedOpponent=false};self.suspended=suspended;emit();if !pausedOpponent{reply()}}
-    public func openVoice() throws -> String {let reviewing=reviewController?.active==true;guard (!reviewing || ReviewRolloutPolicy.reviewVoiceEnabled),(mode == .practice && !reviewSuspended || reviewing),!companionEnabled else{throw CheckmateError.invalid("SESSION_IN_USE")};voiceLease=UUID().uuidString;return voiceLease!}
+    public func openVoice() throws -> String {try fairness.requireEngineHelp();let reviewing=reviewController?.active==true;guard (!reviewing || ReviewRolloutPolicy.reviewVoiceEnabled),(mode == .practice && !reviewSuspended || reviewing),!companionEnabled else{throw CheckmateError.invalid("SESSION_IN_USE")};voiceLease=UUID().uuidString;return voiceLease!}
     public func closeVoice(){voiceLease=nil;voiceHold=false;voiceFocus=[];emit(semantic:false);reply()}
     /// A hold also stops a reply already being searched, so none commits while the coach speaks; release restarts it.
     public func holdVoice(_ value:Bool){if value,busyReason=="opponent"{cancelWork()};voiceHold=value;emit(semantic:false);if !value{reply()}}
@@ -285,6 +303,7 @@ public struct LessonProjection:Codable {
     public func playDemo(){guard demonstration != nil,!presentationHidden else{return};if demonstration!.ply==demonstration!.lines[demonstration!.line].frames.count-1{demonstration!.ply=0;presentationFrameChanged()};demonstration!.playing=true;signalEvent();demoTask?.cancel();demoTask=Task{while !Task.isCancelled,self.demonstration?.playing==true {try? await Task.sleep(nanoseconds:1_500_000_000);guard !Task.isCancelled,var d=self.demonstration else{return};d.ply=min(d.ply+1,d.lines[d.line].frames.count-1);d.playing=d.ply<d.lines[d.line].frames.count-1;self.demonstration=d;self.presentationFrameChanged();self.cursor+=1;self.emit(semantic:false)}}}
     public func beginPreview() throws {guard mode == .practice,rules.turn==humanSide,!finished,demonstration==nil else{throw CheckmateError.invalid("ROLE_FORBIDDEN")};cancelWork();clearAnnotations();stashLiveSelection();selected=nil;inspection=nil;preview=Preview(id:UUID().uuidString,basePosition:position,status:"choosing",candidate:nil,evaluation:nil,displayFen:rules.fen,ply:0,line:"candidate",error:nil);presentationHidden=false;emit()}
     public func testMove(from:String,to:String,promotion:String="q") async throws {
+        try fairness.requireEngineHelp()
         guard preview != nil,preview!.basePosition==position else{throw CheckmateError.stale}
         let facts=try moveFacts(rules,uci:from+to+(promotion=="q" && !rules.moves(from).contains(where:{$0.to==to && $0.promotion != nil}) ? "":promotion)),epoch=position
         let staged=UUID().uuidString;preview=Preview(id:staged,basePosition:position,status:"analyzing",candidate:facts,evaluation:nil,displayFen:facts.fen,ply:1,line:"candidate",error:nil);presentationFrameChanged();emit()
@@ -298,9 +317,9 @@ public struct LessonProjection:Codable {
     /// Full-strength analysis of the game position, or of `then` played after it, with the whole history so
     /// repetitions count as they do in the game.
     private func analyzeGame(_ e:EngineService,then extra:[String]=[],budget:Int,multiPv:Int) async throws -> EngineAnalysis {try await e.analyzeHistory(startFEN:rules.records.first?.before ?? rules.fen,moves:rules.records.map(\.uci)+extra,profile:.skill(20),budget:budget,multiPv:multiPv)}
-    public func analyze(budget:Int=350,multiPv:Int=3) async throws -> EngineAnalysis {guard let e=engine else{throw CheckmateError.unavailable("ENGINE_UNAVAILABLE")};let epoch=position;let a=try await analyzeGame(e,budget:budget,multiPv:multiPv);guard epoch==position,!Task.isCancelled else{throw CheckmateError.stale};return a}
-    public func hint(){guard !busy,mode == .practice,rules.turn==humanSide,!finished else{return};cancelWork();let epoch=generation;busy=true;busyReason="analysis";coaching.status="thinking";emit(semantic:false);work=Task{do{let a=try await self.analyze();try Task.checkCancellation();guard self.generation==epoch else{return};self.busy=false;self.busyReason=nil;guard let uci=a.lines.first?.pv.first ?? a.bestMove else{throw CheckmateError.unavailable("No hint returned")};let facts=try self.moveFacts(self.rules,uci:uci);self.coaching.status="ready";self.coaching.recommendation=facts;self.coaching.analysis=a;self.message=facts.description;self.signalEvent();self.annotate(arrows:[[facts.from,facts.to]],highlights:[Highlight(sq:facts.from,kind:"focus")])}catch{guard self.generation==epoch,!Task.isCancelled else{return};self.busy=false;self.busyReason=nil;self.coaching.status="error";self.error="A hint is unavailable"+Self.engineReason(error)+". Please try again.";self.signalEvent()}}}
-    private func scheduleGuidance(){guard state.settings.coachingMode=="guided",voiceLease==nil,!(companionEnabled && companionRole=="opponent"),rules.turn==humanSide,!rules.over else{return};hint()}
+    public func analyze(budget:Int=350,multiPv:Int=3) async throws -> EngineAnalysis {try fairness.requireEngineHelp();guard let e=engine else{throw CheckmateError.unavailable("ENGINE_UNAVAILABLE")};let epoch=position;let a=try await analyzeGame(e,budget:budget,multiPv:multiPv);try fairness.requireEngineHelp();guard epoch==position,!Task.isCancelled else{throw CheckmateError.stale};return a}
+    public func hint(){guard fairness.engineHelpAllowed,!busy,mode == .practice,rules.turn==humanSide,!finished else{return};cancelWork();let epoch=generation;busy=true;busyReason="analysis";coaching.status="thinking";emit(semantic:false);work=Task{do{let a=try await self.analyze();try Task.checkCancellation();guard self.generation==epoch,self.fairness.engineHelpAllowed else{return};self.busy=false;self.busyReason=nil;guard let uci=a.lines.first?.pv.first ?? a.bestMove else{throw CheckmateError.unavailable("No hint returned")};let facts=try self.moveFacts(self.rules,uci:uci);self.coaching.status="ready";self.coaching.recommendation=facts;self.coaching.analysis=a;self.message=facts.description;self.signalEvent();self.annotate(arrows:[[facts.from,facts.to]],highlights:[Highlight(sq:facts.from,kind:"focus")])}catch{guard self.generation==epoch,!Task.isCancelled else{return};self.busy=false;self.busyReason=nil;self.coaching.status="error";self.error="A hint is unavailable"+Self.engineReason(error)+". Please try again.";self.signalEvent()}}}
+    private func scheduleGuidance(){guard fairness.engineHelpAllowed,state.settings.coachingMode=="guided",voiceLease==nil,!(companionEnabled && companionRole=="opponent"),rules.turn==humanSide,!rules.over else{return};hint()}
     public func boardFacts(_ r:ChessRules)->BoardFacts {
         var white=0,black=0,threats:[Threat]=[]
         for (sq,p) in r.board {let color=String(p.prefix(1)),kind=String(p.suffix(1));if color=="w"{white+=TrainingMaterial.value(p)}else{black+=TrainingMaterial.value(p)};for from in r.attackers(sq,color=="w" ? "b":"w") {threats.append(Threat(from:from,to:sq,piece:kind,color:color,attacker:r.piece(from)?.type ?? ""))}}
@@ -322,10 +341,11 @@ public struct LessonProjection:Codable {
     public func turnSummary()->String {if rules.checkmate{return "Checkmate. The game is over."};if rules.draw{return "The game is drawn."};guard let last=rules.records.last else{return "Choose a piece to explore, or try a move before playing it."};return "\(last.color=="b" ? "Black":"White") played \(last.san)."+(!rules.check ? "":rules.turn==humanSide ? " Your king is in check.":" The opponent's king is in check.")}
     public func lineFrames(_ r:ChessRules,moves:[String]) throws -> [LineFrame] {let g=try r.copy();var frames=[LineFrame(fen:g.fen,san:"Current position",uci:"")];for uci in moves.prefix(7){guard let m=try? g.move(uci:uci) else{break};frames.append(LineFrame(fen:g.fen,san:m.san,uci:m.uci))};return frames}
     public func evaluateCandidate(from:String,to:String,promotion:String="q") async throws -> CandidateEvaluation {
+        try fairness.requireEngineHelp()
         guard rules.turn==humanSide,!finished else{throw CheckmateError.invalid("ROLE_FORBIDDEN")}
         let base=try rules.copy(),epoch=position,m=try base.copy().move(from,to,promotion),candidate=try moveFacts(base,uci:m.uci),after=try base.copy();try after.move(uci:m.uci)
-        let root=try await analyze();var reply:EngineAnalysis?;if !after.over,let e=engine{reply=try await analyzeGame(e,then:[m.uci],budget:350,multiPv:2)}
-        guard position==epoch,!Task.isCancelled else{throw CheckmateError.stale}
+        let root=try await analyze();var reply:EngineAnalysis?;if !after.over,let e=engine{try fairness.requireEngineHelp();reply=try await analyzeGame(e,then:[m.uci],budget:350,multiPv:2)}
+        try fairness.requireEngineHelp();guard position==epoch,!Task.isCancelled else{throw CheckmateError.stale}
         let best=root.lines.first?.pv.first ?? root.bestMove,recommended=try best.map{try moveFacts(base,uci:$0)},rootScore=root.lines.first?.score
         let score=root.lines.first(where:{$0.pv.first==candidate.uci})?.score ?? reply?.lines.first?.score ?? (after.checkmate ? AnalysisScore(kind:"mate",value:0):after.draw ? AnalysisScore(kind:"cp",value:0):nil)
         // Scores are from White's side; a learner playing Black loses when the score rises.
@@ -342,6 +362,9 @@ public struct LessonProjection:Codable {
     /// The companion's connection, with the activity's own pause fields.
     private func controller(_ fields:[String:Any])->[String:Any] {["enabled":companionEnabled,"role":companionRole,"connected":companionLease != nil,"suspended":suspended].merging(fields){$1}}
     public func publicState()->[String:Any] {
+        // While participating, every projection is this one, before the review branch, so a review opened mid-game is
+        // redacted too (D15): no practice, coaching, preview, demonstration, review or training data.
+        if !fairness.engineHelpAllowed{return stateHeader.merging(["mode":"network","capabilities":[String](),"display":["activeView":"network","fen":NSNull(),"identity":"network"],"learnerSide":humanSide,"state":NSNull(),"controller":controller(["paused":true,"pauseReason":"network_game"])]){$1}}
         if let review=reviewController,review.active{return stateHeader.merging(["mode":"review","capabilities":["game_review","show_annotation","clear_annotations","list_review_games","open_review","get_review","select_review_position","analyze_review","get_review_analysis","cancel_review_analysis","preview_review_line","clear_review_preview","start_practice_from_review"],"display":["activeView":review.branch==nil ? "review":"review_preview","fen":review.displayFEN as Any? ?? NSNull(),"identity":review.identity],"review":review.projection(),"controller":controller(["paused":true])]){$1}}
         // The review workspace shows no board, whatever it was opened over: only the review library tools apply (TX-3).
         if activity.inReviewWorkspace{return stateHeader.merging(["mode":"review_workspace","capabilities":["list_review_games","open_review"],"display":["activeView":"review_workspace","fen":NSNull(),"identity":displayIdentity],"learnerSide":humanSide,"state":NSNull(),"controller":controller(["paused":true])]){$1}}

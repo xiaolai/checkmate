@@ -9,7 +9,12 @@
   run-gates.py --record EVIDENCE    record every gate of a passing full run (--full does this itself)
 
 A targeted run stops at the first failing gate and never writes acceptance.json: only scripts/acceptance.sh with no
-arguments certifies a tree for release. The ledger is per checkout, outside it, at
+arguments certifies a tree for release.
+
+A gate may list "prerequisites" (LAN-play plan D14; "requires" already names the result keys gate_check.py expects): evidence a person prepares once per host, such as
+bonjour-ready (scripts/prepare-bonjour.sh) or a reachable LAN pair. They are checked before anything is built. With
+--changed a stale gate whose prerequisites are missing is reported as UNVERIFIED and the run exits 3, never skipped
+quietly; with --only the run stops at once; a full run treats every prerequisite as required and refuses to certify. The ledger is per checkout, outside it, at
 $CHECKMATE_GATE_LEDGER (default ~/Library/Caches/checkmate-gates/<checkout hash>.json).
 """
 import argparse
@@ -43,6 +48,121 @@ check_gate = _checks['check_gate']
 MAP = json.loads((ROOT / 'scripts/gates.json').read_text())
 GATES = {gate['name']: gate for gate in MAP['gates']}
 ORDER = [gate['name'] for gate in MAP['gates']]
+
+
+AUTOMATION_BUNDLE = 'ai.xiaolai.checkmate.native-automation'
+UNVERIFIED = 3
+
+
+def _identity_fingerprint() -> str:
+    completed = subprocess.run(['bash', str(ROOT / 'scripts/automation-identity.sh'), 'fingerprint'], capture_output=True, text=True)
+    return completed.stdout.strip() if completed.returncode == 0 else ''
+
+
+def _evidence_problem(evidence: dict, fingerprint: str, account: str, build: str, where: str):
+    """Why a bonjour-ready record no longer holds, or None: it names the identity, app, account and system it was made for."""
+    if not isinstance(evidence, dict):
+        return f'the bonjour-ready record on {where} is not a JSON object; run scripts/prepare-bonjour.sh there again'
+    if not evidence:
+        return f'no bonjour-ready evidence on {where}; run scripts/prepare-bonjour.sh there'
+    for key, expected in (('fingerprint', fingerprint), ('bundleID', AUTOMATION_BUNDLE), ('account', account), ('macOSBuild', build)):
+        if not expected:
+            return f'cannot read the current {key} on {where}'
+        if evidence.get(key) != expected:
+            return f'bonjour-ready on {where} was made for another {key} ({evidence.get(key)!r}, now {expected!r}); run scripts/prepare-bonjour.sh again'
+    return None
+
+
+def bonjour_ready():
+    """This host's evidence that the automation app, signed with the stable local identity, browsed its own Bonjour
+    advertisement without the local-network denial (D14)."""
+    record = pathlib.Path.home() / '.config/checkmate/bonjour-ready.json'
+    try:
+        evidence = json.loads(record.read_text()) if record.exists() else {}
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        return f'the test host\'s bonjour-ready.json cannot be read ({error}); run scripts/prepare-bonjour.sh again'
+    if not isinstance(evidence, dict):
+        return 'the test host\'s bonjour-ready.json is not a JSON object; run scripts/prepare-bonjour.sh again'
+    build = subprocess.run(['sw_vers', '-buildVersion'], capture_output=True, text=True).stdout.strip()
+    import getpass
+    return _evidence_problem(evidence, _identity_fingerprint(), getpass.getuser(), build, 'the test host')
+
+
+def _pair():
+    return os.environ.get('CHECKMATE_LAN_PAIR', '').strip()
+
+
+def _on_pair(command: str, timeout: int = 20):
+    return subprocess.run(['ssh', '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=5', _pair(), command], capture_output=True, text=True, timeout=timeout)
+
+
+def lan_pair():
+    """The LAN pair answers over SSH and passes the same access check as a test host (Accessibility, Screen Recording,
+    an unlocked console)."""
+    if not _pair():
+        return 'no LAN pair configured: set CHECKMATE_LAN_PAIR in the test host\'s shell profile'
+    try:
+        if _on_pair('true').returncode != 0:
+            return f'the LAN pair does not answer over SSH'
+        probe = pathlib.Path(tempfile.mkdtemp(prefix='checkmate-host-access.')) / 'host-access'
+        try:
+            built = subprocess.run(['xcrun', 'swiftc', str(ROOT / 'Tools/host-access.swift'), '-o', str(probe)], capture_output=True, text=True)
+            if built.returncode != 0:
+                return f'could not build the access check for the LAN pair: {built.stderr.strip()[:300]}'
+            remote = '/tmp/checkmate-host-access'
+            if subprocess.run(['scp', '-q', '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=5', str(probe), f'{_pair()}:{remote}'], capture_output=True, timeout=120).returncode != 0:
+                return 'could not copy the access check to the LAN pair'
+            access = _on_pair(remote)
+        finally:
+            shutil.rmtree(probe.parent, ignore_errors=True)
+    except subprocess.TimeoutExpired:
+        return 'the LAN pair timed out over SSH'
+    if access.returncode != 0:
+        return f'the LAN pair fails the access check: {access.stdout.strip() or access.stderr.strip()}'
+    return None
+
+
+def bonjour_ready_pair():
+    """The pair's own bonjour-ready evidence, for the app the test host signed and copies to it."""
+    if not _pair():
+        return 'no LAN pair configured: set CHECKMATE_LAN_PAIR in the test host\'s shell profile'
+    try:
+        found = _on_pair('cat ~/.config/checkmate/bonjour-ready.json 2>/dev/null; echo; whoami; sw_vers -buildVersion')
+    except subprocess.TimeoutExpired:
+        return 'the LAN pair timed out over SSH'
+    lines = found.stdout.strip().split('\n')
+    if found.returncode != 0 or len(lines) < 2:
+        return 'the LAN pair does not answer over SSH'
+    account, build, text = lines[-2].strip(), lines[-1].strip(), '\n'.join(lines[:-2]).strip()
+    try:
+        evidence = json.loads(text) if text else {}
+    except json.JSONDecodeError:
+        return 'the LAN pair\'s bonjour-ready.json is not JSON; run scripts/prepare-bonjour.sh there again'
+    return _evidence_problem(evidence, _identity_fingerprint(), account, build, 'the LAN pair')
+
+
+# Each check returns None when met, or why not. Tests replace these; nothing here builds, and none runs inside a gate.
+PREREQUISITES = {'bonjour-ready': bonjour_ready, 'bonjour-ready-pair': bonjour_ready_pair, 'lan-pair': lan_pair}
+
+
+def unmet(names: list) -> dict:
+    """{gate: [(prerequisite, why)]} for the gates among `names` whose prerequisites are not met; each check runs once."""
+    results, found = {}, {}
+    for name in names:
+        for requirement in GATES[name].get('prerequisites', []):
+            if requirement not in results:
+                check = PREREQUISITES.get(requirement)
+                results[requirement] = check() if check else f'unknown prerequisite {requirement!r}'
+            if results[requirement]:
+                found.setdefault(name, []).append((requirement, results[requirement]))
+    return found
+
+
+def report_unverified(blocked: dict) -> None:
+    for name, problems in blocked.items():
+        print(f"UNVERIFIED {name}: needs {', '.join(requirement for requirement, _ in problems)}", file=sys.stderr)
+        for requirement, why in problems:
+            print(f'  {requirement}: {why}', file=sys.stderr)
 
 
 def tree() -> dict:
@@ -212,6 +332,10 @@ def main() -> int:
     arguments = parser.parse_args()
     if arguments.record:
         return record(arguments.record)
+    # Running gates, and the prerequisite checks before them (which compile a probe and reach the LAN pair), happen on
+    # the test host only, however this file is started; listing and the map check are read-only.
+    if not (arguments.list or arguments.check_map):
+        test_host.require('acceptance')
     hashes = tree()
     missing = unmapped(hashes)
     if missing:
@@ -224,15 +348,28 @@ def main() -> int:
         print('\n'.join('  ' + entry for entry in dead), file=sys.stderr)
         return 2
     if arguments.full:
+        # A release cannot certify a tree whose prerequisite-bound gates (the LAN gate) could not run.
+        blocked = unmet(ORDER)
+        if blocked:
+            report_unverified(blocked)
+            print('Full run refused: prerequisites are missing, so this tree cannot be certified. Nothing was built.', file=sys.stderr)
+            return UNVERIFIED
         return run(ORDER, full=True)
     if arguments.check_map:
         print(f'Every one of {len(hashes)} tracked files belongs to a gate or is listed as untested, and every pattern matches a file.')
         return 0
     ledger = load_ledger()
     if arguments.list:
+        stale = [name for name in ORDER if stale_reason(name, hashes, ledger) is not None]
+        # Listing is read-only and runs on any Mac; the prerequisite checks compile a probe and reach the LAN pair, so
+        # they run only where the gates themselves may.
+        blocked = unmet(stale) if 'test' in test_host.host_roles() else {}
+        if 'test' not in test_host.host_roles():
+            print('(not the test host: prerequisites are not checked here)')
         for name in ORDER:
             reason = stale_reason(name, hashes, ledger)
-            print(f"{name:17} {'current' if reason is None else 'RUN: ' + reason}")
+            status = 'current' if reason is None else (f"UNVERIFIED: needs {', '.join(r for r, _ in blocked[name])}; " if name in blocked else 'RUN: ') + reason
+            print(f"{name:17} {status}")
         return 0
     if arguments.only:
         names = [name.strip() for name in arguments.only.split(',') if name.strip()]
@@ -241,6 +378,11 @@ def main() -> int:
             print(f"Unknown gate(s) {unknown}; gates are: {', '.join(ORDER)}", file=sys.stderr)
             return 2
         names = [name for name in ORDER if name in names]
+        blocked = unmet(names)
+        if blocked:
+            report_unverified(blocked)
+            return UNVERIFIED
+        return run(names)
     else:
         names = [name for name in ORDER if stale_reason(name, hashes, ledger) is not None]
         for name in names:
@@ -248,7 +390,15 @@ def main() -> int:
         if not names:
             print('Every gate already passed on the current inputs; nothing to run.')
             return 0
-    return run(names)
+        # A stale gate that cannot run is never skipped quietly: it is reported, the rest run, and the run fails.
+        blocked = unmet(names)
+        report_unverified(blocked)
+        runnable = [name for name in names if name not in blocked]
+        status = run(runnable) if runnable else 0
+        if blocked:
+            print(f"{len(blocked)} stale gate(s) UNVERIFIED: {', '.join(blocked)}", file=sys.stderr)
+            return status or UNVERIFIED
+        return status
 
 
 if __name__ == '__main__':

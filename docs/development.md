@@ -136,6 +136,47 @@ Increment B (the beginner skills, Guided Games and Mixed Practice) also needs `C
 
 Gates: `unit` (content, validators, sessions, persistence, tools), `training-pointer` (real pointer events for the library, square selection, drag and click moves, hints, suggestions, Pawn Duel from the library, quit and Continue), `training-b-pointer` (Increment B with real pointer events: subskill chips, the promotion chooser, a bridge, an ending and a guided game answered by Stockfish, a mixed case and a related lesson), and the existing `pointer`, `layout`, `lifecycle` and `integration` gates. Learner usability and learning effect are not verified by any gate: see `docs/training-observation.md`.
 
+## Play on Network
+
+The host is authoritative. `CheckmateDomain` holds the protocol, codec, clocks, admission and the host and guest
+state machines (`Network*.swift`), with no I/O. `CheckmateApplication` runs them on a scheduler and a transport
+interface (`NetworkHostRunner`, `NetworkClientRunner`, `NetworkGameController`); `CheckmateMacPlatform` supplies the
+Network.framework transport over TLS with a pre-shared key derived from the code, and Bonjour discovery.
+`NetworkParticipation` turns engine help off everywhere while a game is played or watched, and `NetworkPolicy`
+decides which macOS versions show the feature. Unit tests drive the domain and runners with an in-memory transport and
+a manual clock; `NetworkLoopbackTests` run the real transport on loopback in one process. Real Bonjour stays out of
+routine tests: `CHECKMATE_BONJOUR_SMOKE=1` runs the one smoke test by hand.
+
+macOS 27 keeps the local-network decision per bundle ID and enforces it only for executables LaunchServices has
+registered. An app run from `build/` or `/tmp`, or a second registered copy, is refused silently: its connection
+stays in `preparing` and no prompt appears. Bonjour browsing is not gated, so a list of games proves nothing. The
+Bonjour gates therefore install one signed copy at `~/Applications/CheckmateAutomation.app`, unregister every other
+copy of the automation bundle ID, register it and open it through LaunchServices (`scripts/network_gate.py`).
+
+Three gates cover the interface, each with real pointer and key events:
+
+| Gate | Where | What |
+|---|---|---|
+| `network-ui` | test host, loopback | host, guest and spectator; pending move, refused spectator click, drop and resume, draw offer, resign, Review; light and dark |
+| `network-bonjour` | test host | two installed copies find each other over Bonjour, join, play, resign and review; permission state recorded |
+| `network-lan` | test host and LAN pair | the test host hosts and watches, the pair joins, the pair drops and resumes, play to checkmate, Review on both |
+
+The last two need evidence prepared once per Mac, checked before anything builds; a missing or stale record makes
+the gate UNVERIFIED, never skipped. `bash scripts/automation-identity.sh create` makes the stable local signing
+identity once per test host. `bash scripts/prepare-bonjour.sh` (and `--pair` for the LAN pair) installs the app,
+runs its Bonjour self-check, answers the local-network prompt with a real click, and writes
+`~/.config/checkmate/bonjour-ready.json`. The record names the identity, bundle ID, account and macOS build, and
+any change invalidates it. The LAN pair is named by `CHECKMATE_LAN_PAIR` in the test host's shell profile, as an SSH
+destination; it needs the same Accessibility, Screen Recording and unlocked console as a test host, and it never
+builds: it runs the app the test host built and signed.
+
+Two switches exist only in isolated automation. `CHECKMATE_NETWORK_LOOPBACK_DIR` replaces Bonjour with a shared
+folder, for `network-ui`. `CHECKMATE_NETWORK_FAULT_FILE` names a file the app polls: `10` drops its connections and
+refuses reconnecting for 10 seconds, and `stall 4` holds its outgoing messages for 4 seconds. A gate writes the file
+over SSH, so the control channel is never cut. A real cable or Wi-Fi loss is not automated, and neither is a real
+local-network denial: unit tests drive the denial path (help sheet, no timeout, recovery once granted) through the
+in-memory transport, and the gates record only that access was allowed.
+
 ## Compatibility checks
 
 `Version.env` owns the macOS runtime floor. Builds contain arm64 and x86_64 slices

@@ -25,7 +25,27 @@ public struct ReviewMoment:Codable,Identifiable {public let id:Int,expectationLo
     private var pendingWrites:[UUID:(document:UUID,task:Task<Void,Never>)]=[:]
     /// The disk write itself; tests slow it to hold a write in flight.
     var writeCache:@Sendable (ReviewAnalysisCache,ReviewEvidence,String)throws->Void={try $0.save($1,key:$2)}
-    public init(engine:any EngineService,cacheDirectory:URL?=nil){self.engine=engine;disk=cacheDirectory.map{ReviewAnalysisCache(directory:$0)}}
+    /// The network-game fairness check (LAN-play plan D8): no search, batch or cached evidence while participating.
+    public let fairness:FairnessPolicy
+    public init(engine:any EngineService,cacheDirectory:URL?=nil,fairness:FairnessPolicy?=nil){let fairness=fairness ?? FairnessPolicy();self.engine=engine;self.fairness=fairness;disk=cacheDirectory.map{ReviewAnalysisCache(directory:$0)}
+        fairness.participation.observe{[weak self] role in if role != nil{self?.cancelBatch();self?.cancelSelected()}}}
+    /// Single-position and branch searches running now. Joining a network game cancels them, so the engine stops
+    /// rather than finishing work whose result would only be withheld (D8).
+    private var selectedSearches:[UUID:Task<ReviewEvidence,Error>]=[:]
+    private func cancelSelected(){for task in selectedSearches.values {task.cancel()};for task in selectedAnalyses.values {task.cancel()};selectedSearches=[:];selectedAnalyses=[:]}
+    private var selectedAnalyses:[UUID:Task<EngineAnalysis,Error>]=[:]
+    private func trackedAnalysis(_ work:@escaping ()async throws -> EngineAnalysis)async throws -> EngineAnalysis {
+        let id=UUID(),task=Task{try await work()};selectedAnalyses[id]=task;defer{selectedAnalyses[id]=nil}
+        // Cancelled by joining: the caller hears the readable reason, not a bare cancellation.
+        do{return try await withTaskCancellationHandler(operation:{try await task.value},onCancel:{task.cancel()})}
+        catch{try fairness.requireEngineHelp();throw error}
+    }
+    private func tracked(_ work:@escaping ()async throws -> ReviewEvidence)async throws -> ReviewEvidence {
+        let id=UUID(),task=Task{try await work()};selectedSearches[id]=task;defer{selectedSearches[id]=nil}
+        // Cancelled by joining: the caller hears the readable reason, not a bare cancellation.
+        do{return try await withTaskCancellationHandler(operation:{try await task.value},onCancel:{task.cancel()})}
+        catch{try fairness.requireEngineHelp();throw error}
+    }
     public func cancelBatch(){generation+=1;batchTask?.cancel();batchSearch?.cancel();batchTask=nil;batchSearch=nil;batchStatus="cancelled";evaluations=[:]}
     public func reset(){cancelBatch();batchDocument=nil;completed=0;failed=0;total=0;moments=[];batchStatus="idle"}
     /// Whether a whole-game analysis of this record is still running.
@@ -36,7 +56,7 @@ public struct ReviewMoment:Codable,Identifiable {public let id:Int,expectationLo
         cache=cache.filter{$0.value.documentID != documentID};let disk=disk;_ = try await Task.detached{try disk?.delete(documentID:documentID)}.value}
     /// Starting again while the same record's analysis runs keeps its progress, and a record without moves has no game
     /// to analyze, so neither restarts the batch nor reports an empty "ready".
-    public func startBatch(_ document:GameDocument){guard !batchRunning(document.id),!document.mainline.isEmpty else{return};cancelBatch();batchDocument=document.id;completed=0;failed=0;total=document.mainline.count;moments=[];batchStatus="pending";let epoch=generation
+    public func startBatch(_ document:GameDocument){guard fairness.engineHelpAllowed,!batchRunning(document.id),!document.mainline.isEmpty else{return};cancelBatch();batchDocument=document.id;completed=0;failed=0;total=document.mainline.count;moments=[];batchStatus="pending";let epoch=generation
         batchTask=Task{for node in document.mainline {guard !Task.isCancelled,self.generation==epoch else{return};while self.selectedCount>0{try? await Task.sleep(nanoseconds:10_000_000);guard !Task.isCancelled,self.generation==epoch else{return}};var done=false
             while !done {guard !Task.isCancelled,self.generation==epoch else{return};while self.selectedCount>0{try? await Task.sleep(nanoseconds:10_000_000);guard !Task.isCancelled else{return}};let search=Task{try await self.compute(document:document,node:node,revision:0,budget:ReviewPolicy.quickBudget)};self.batchSearch=search
                 do{let evidence=try await search.value;guard self.generation==epoch else{return};self.recordMoment(evidence,document:document);self.recordEvaluation(evidence,document:document);done=true}catch{if !search.isCancelled{guard self.generation==epoch else{return};self.failed+=1;done=true}}}
@@ -68,8 +88,8 @@ public struct ReviewMoment:Codable,Identifiable {public let id:Int,expectationLo
     }
     public static func expectationLoss(root:AnalysisLine?,played:AnalysisLine?,mover:String)->Double? {guard let root=root,let played=played,root.score.bound==nil,played.score.bound==nil,let best=root.wdl,let actual=played.wdl,best.count==3,actual.count==3 else{return nil};func expected(_ wdl:[Int])->Double {Double(wdl[mover=="w" ? 0:2])+Double(wdl[1])/2};return max(0,(expected(best)-expected(actual))/1000)}
     public func analyze(document:GameDocument,node:Int,revision:Int,budget:Int=ReviewPolicy.quickBudget)async throws -> ReviewEvidence {
-        selectedCount+=1;batchSearch?.cancel();defer{selectedCount-=1}
-        return try await comparison(document:document,node:node,revision:revision,budget:budget)
+        try fairness.requireEngineHelp();selectedCount+=1;batchSearch?.cancel();defer{selectedCount-=1}
+        let evidence=try await tracked{try await self.comparison(document:document,node:node,revision:revision,budget:budget)};try fairness.requireEngineHelp();return evidence
     }
     private func comparison(document:GameDocument,node:Int,revision:Int,budget:Int)async throws -> ReviewEvidence {
         let quick=try await compute(document:document,node:node,revision:revision,budget:budget)
@@ -88,28 +108,30 @@ public struct ReviewMoment:Codable,Identifiable {public let id:Int,expectationLo
         return copy(quick,document:document,node:node,revision:revision,quality:quality,provisional:!stable)
     }
     public func analyzeBranch(document:GameDocument,root:Int,moves:[String],revision:Int)async throws -> ReviewEvidence {
-        selectedCount+=1;batchSearch?.cancel();defer{selectedCount-=1}
+        try fairness.requireEngineHelp();selectedCount+=1;batchSearch?.cancel();defer{selectedCount-=1}
         let history=try document.history(to:root)+moves,rules=try document.rules(at:root)
         for move in moves{try rules.move(uci:move)}
-        let analysis=rules.over ? EngineAnalysis():try await engine.analyzeHistory(startFEN:document.startingFEN,moves:history,profile:.skill(20),budget:ReviewPolicy.quickBudget,multiPv:3)
-        try Task.checkCancellation()
+        let engine=engine,start=document.startingFEN
+        let analysis=rules.over ? EngineAnalysis():try await trackedAnalysis{try await engine.analyzeHistory(startFEN:start,moves:history,profile:.skill(20),budget:ReviewPolicy.quickBudget,multiPv:3)}
+        try Task.checkCancellation();try fairness.requireEngineHelp()
         return ReviewEvidence(schemaVersion:1,documentID:document.id,documentHash:document.contentHash,nodeID:root,historyHash:reviewHash(Data((document.startingFEN+"|"+history.joined(separator:" ")).utf8)),revision:revision,engineVersion:engine.capabilities.name+" "+engine.binaryIdentity,options:AnalysisPolicy.options,budgetMs:ReviewPolicy.quickBudget,createdAt:Date(),root:analysis,played:nil,quality:"provisional",provisional:true)
     }
     private func copy(_ result:ReviewEvidence,document:GameDocument,node:Int,revision:Int,quality:String?=nil,provisional:Bool?=nil)->ReviewEvidence {ReviewEvidence(schemaVersion:1,documentID:document.id,documentHash:document.contentHash,nodeID:node,historyHash:result.historyHash,revision:revision,engineVersion:result.engineVersion,options:result.options,budgetMs:result.budgetMs,createdAt:result.createdAt,root:result.root,played:result.played,quality:quality ?? result.quality,provisional:provisional ?? result.provisional)}
     private func compute(document:GameDocument,node:Int,revision:Int,budget:Int)async throws -> ReviewEvidence {
-        try Task.checkCancellation();try await engine.prepare();let hash=try document.historyHash(to:node),selected=document.nodes[node],rootNode=selected.parent ?? node,rootHistory=try document.history(to:rootNode)
+        try Task.checkCancellation();try fairness.requireEngineHelp();try await engine.prepare();try fairness.requireEngineHelp();let hash=try document.historyHash(to:node),selected=document.nodes[node],rootNode=selected.parent ?? node,rootHistory=try document.history(to:rootNode)
         let key="v1:\(engine.binaryIdentity):\(document.contentHash):\(hash):\(budget):\(AnalysisPolicy.version):multipv3:played1"
         let disk=disk
         var stored=cache[key]
         if stored==nil{stored=await Task.detached{disk?.load(key)}.value}
-        try Task.checkCancellation()
+        // Cached evidence is engine output too: withheld while participating, like a fresh search (D8).
+        try Task.checkCancellation();try fairness.requireEngineHelp()
         if let result=stored,result.documentHash==document.contentHash,result.historyHash==hash,result.engineVersion.contains(engine.binaryIdentity){return copy(result,document:document,node:node,revision:revision)}
         let terminal=try autoreleasepool{try document.status(at:rootNode).terminal}
         let root=terminal ? EngineAnalysis(bestMove:nil,budgetMs:budget):try await engine.analyzeHistory(startFEN:document.startingFEN,moves:rootHistory,profile:.skill(20),budget:budget,multiPv:3)
-        try Task.checkCancellation()
+        try Task.checkCancellation();try fairness.requireEngineHelp()
         let played:EngineAnalysis?
         if let uci=selected.uci,let line=root.lines.first(where:{$0.pv.first==uci}){played=EngineAnalysis(bestMove:uci,budgetMs:budget,lines:[line])}else if let uci=selected.uci,!terminal{played=try await engine.analyzeHistory(startFEN:document.startingFEN,moves:rootHistory,profile:.skill(20),budget:budget,multiPv:1,searchMoves:[uci])}else{played=nil}
-        try Task.checkCancellation()
+        try Task.checkCancellation();try fairness.requireEngineHelp()
         let result=ReviewEvidence(schemaVersion:1,documentID:document.id,documentHash:document.contentHash,nodeID:node,historyHash:hash,revision:revision,engineVersion:engine.capabilities.name+" "+engine.binaryIdentity,options:AnalysisPolicy.options,budgetMs:budget,createdAt:Date(),root:root,played:played,quality:"provisional",provisional:true)
         if cache.count>=128,let oldest=cache.min(by:{$0.value.createdAt<$1.value.createdAt})?.key{cache.removeValue(forKey:oldest)};cache[key]=result
         if let disk{let write=writeCache,token=UUID(),task=Task.detached{_ = try? write(disk,result,key)};pendingWrites[token]=(document.id,task);await task.value;pendingWrites[token]=nil};return result

@@ -1,0 +1,33 @@
+{
+ "about": "Every EngineService call site and VoiceCoach request entry, classified for network-game fairness (LAN-play plan D8, R4-5). Checked by scripts/test-fairness-inventory.py: a new or extra call fails until it is listed here.",
+ "sites": [
+  {"file": "Sources/CheckmateApplication/GameSession.swift", "function": "chooseOpponentMove", "calls": 1, "kind": "guarded"},
+  {"file": "Sources/CheckmateApplication/GameSession.swift", "function": "analyzeGame", "calls": 1, "kind": "delegated",
+   "callers": [{"file": "Sources/CheckmateApplication/GameSession.swift", "function": "analyze"},
+               {"file": "Sources/CheckmateApplication/GameSession.swift", "function": "evaluateCandidate"}]},
+  {"file": "Sources/CheckmateApplication/BeginnerOpponent.swift", "function": "choose", "calls": 2, "kind": "delegated",
+   "callPattern": "BeginnerOpponent\\.choose\\(",
+   "callers": [{"file": "Sources/CheckmateApplication/GameSession.swift", "function": "chooseOpponentMove"},
+               {"file": "Sources/CheckmateApplication/LessonAttemptController.swift", "function": "scheduleReply"}]},
+  {"file": "Sources/CheckmateApplication/LessonAttemptController.swift", "function": "hint", "calls": 1, "kind": "guarded"},
+  {"file": "Sources/CheckmateApplication/LessonAttemptController.swift", "function": "scheduleReply", "calls": 1, "kind": "guarded"},
+  {"file": "Sources/CheckmateApplication/ReviewAnalyzer.swift", "function": "analyzeBranch", "calls": 1, "kind": "guarded"},
+  {"file": "Sources/CheckmateApplication/ReviewAnalyzer.swift", "function": "compute", "calls": 3, "kind": "guarded"},
+  {"file": "Sources/CheckmateApplication/TrainingEndgameController.swift", "function": "gameHint", "calls": 1, "kind": "guarded"},
+  {"file": "Sources/CheckmateApplication/TrainingEndgameController.swift", "function": "requestReply", "calls": 1, "kind": "guarded"},
+  {"file": "Sources/CheckmateMacPlatform/VoiceCoach.swift", "function": "ask", "calls": 1, "kind": "guarded"},
+  {"file": "Sources/CheckmateMacPlatform/VoiceCoach.swift", "function": "recheck", "calls": 1, "kind": "guarded"},
+  {"file": "Sources/CheckmateMacPlatform/VoiceCoach.swift", "function": "settled", "calls": 3, "kind": "guarded"},
+  {"file": "Sources/CheckmateMacPlatform/VoiceCoach.swift", "function": "receive", "calls": 2, "kind": "guarded"},
+  {"file": "Sources/CheckmateDomain/EngineService.swift", "function": "analyzeHistory", "calls": 1, "kind": "exempt",
+   "reason": "The protocol's own default: it forwards to the conforming engine's analyzeHistory; each caller is classified where it calls."},
+  {"file": "Sources/CheckmateEngine/Engine.swift", "function": "analyze", "calls": 1, "kind": "exempt",
+   "reason": "The engine's own implementation: analyze(fen:) forwards to its analyzeHistory; each caller is classified where it calls."},
+  {"file": "Sources/CheckmateNative/App.swift", "function": "applicationDidFinishLaunching", "calls": 1, "kind": "exempt",
+   "reason": "--package-check: the packaged-engine check runs before any session exists, then quits."},
+  {"file": "Sources/CheckmateNative/App.swift", "function": "runReviewBatchScenario", "calls": 1, "kind": "exempt",
+   "reason": "An isolated automation scenario warming the engine before its review batch; it runs no network game."},
+  {"file": "Sources/CheckmateNative/ReviewViews.swift", "function": "body", "calls": 1, "kind": "exempt",
+   "reason": "Settings reads the engine's capabilities (its Elo range) with prepare(); no search runs on any position."}
+ ]
+}

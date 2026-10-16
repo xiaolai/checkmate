@@ -64,7 +64,7 @@ final class BoardTitleView:NSView {
     init(model:NativeModel){self.model=model
         let w=BoardWindow(contentRect:NSRect(x:0,y:0,width:Metrics.core,height:Metrics.core),styleMask:[.titled,.closable,.miniaturizable,.resizable,.fullSizeContentView],backing:.buffered,defer:false)
         super.init(window:w);w.title="Checkmate";w.isMovableByWindowBackground=true;w.titleVisibility = .hidden;w.titlebarSeparatorStyle = .none;w.titlebarAppearsTransparent=true;w.isReleasedWhenClosed=false;w.isRestorable=false;w.delegate=self;w.autorecalculatesKeyViewLoop=true;w.identifier=NSUserInterfaceItemIdentifier("main");w.collectionBehavior=[.fullScreenPrimary];w.tabbingMode = .disallowed
-        main.view=BackgroundView();navigation=NSHostingController(rootView:SidebarContent(session:model.session,learning:model.learning,model:model));inspector=ToolbarInsetHostingController(rootView:DetailContent(session:model.session,learning:model.learning,model:model,voice:model.voice,relationships:relationships,inspect:{[weak self] mode in self?.toggleRelationship(mode)}))
+        main.view=BackgroundView();navigation=NSHostingController(rootView:SidebarContent(session:model.session,learning:model.learning,model:model,network:model.network));inspector=ToolbarInsetHostingController(rootView:DetailContent(session:model.session,learning:model.learning,model:model,voice:model.voice,relationships:relationships,inspect:{[weak self] mode in self?.toggleRelationship(mode)}))
         _ = split.view;split.splitView.autoresizingMask=[.width,.height];split.splitView.isVertical=true;split.splitView.dividerStyle = .thin
         sidebarItem=NSSplitViewItem(sidebarWithViewController:navigation);boardItem=NSSplitViewItem(viewController:main);inspectorItem=NSSplitViewItem(inspectorWithViewController:inspector)
         for (item,width) in [(sidebarItem!,Metrics.left),(inspectorItem!,Metrics.right)] {item.minimumThickness=width;item.maximumThickness=width;item.automaticMaximumThickness=width;item.preferredThicknessFraction=NSSplitViewItem.unspecifiedDimension;item.holdingPriority = .defaultHigh;item.canCollapse=true;item.canCollapseFromWindowResize=false;item.allowsFullHeightLayout=true;item.collapseBehavior = .preferResizingSplitViewWithFixedSiblings;item.titlebarSeparatorStyle = .none;item.isCollapsed=true}
@@ -87,7 +87,7 @@ final class BoardTitleView:NSView {
         board.reviewKey={[weak self] key in guard let self=self,self.model.review.active,self.model.review.branch==nil else{return false};switch key{case 123:self.model.review.step(-1);case 124:self.model.review.step(1);case 125:self.model.review.last();case 126:self.model.review.first();case 49:self.model.review.playing ? self.model.review.pause():self.model.review.play();default:return false};self.refresh();return true}
         board.dropReview={[weak self] data in self?.model.importReviewData(data)};board.dropRejected={[weak self] reason in self?.model.storageError=reason}
         model.review.objectWillChange.sink{[weak self] _ in DispatchQueue.main.async{self?.refresh()}}.store(in:&observations)
-        model.onImport={[weak self] in guard let self=self else{return};self.desiredLeft=self.model.session.state.window.left;self.desiredRight=self.model.session.state.window.right;self.animateDrawers()};board.onLayout={[weak self] in self?.titleView.needsLayout=true;self?.titleView.syncCenter()};board.activate={[weak self] square in self?.select(square)};board.canDrag={[weak self] square in self?.dragMoves(square) ?? false};model.movePlacedDirectly={[weak self] move in self?.board.isDropped(move) ?? false};board.inspectRelationship={[weak self] mode in self?.toggleRelationship(mode)};board.dismissRelationships={[weak self] in guard let self=self else{return false};let dismissed=self.relationships.dismiss();if dismissed{self.refresh()};return dismissed};board.clearSelection={[weak self] in guard let self=self else{return};if self.model.review.active{self.model.review.clearSelection();self.refresh()}else if self.model.session.mode == .practice{self.model.session.clearSelection()}else if let training=self.model.training,self.trainingExercise != nil{training.clearSelection();self.refresh()}else{self.model.learning.clearSelection()}};titleView.board=board;titleView.tabs.target=self;titleView.tabs.action=#selector(selectTab)
+        model.onImport={[weak self] in guard let self=self else{return};self.desiredLeft=self.model.session.state.window.left;self.desiredRight=self.model.session.state.window.right;self.animateDrawers()};board.onLayout={[weak self] in self?.titleView.needsLayout=true;self?.titleView.syncCenter()};board.activate={[weak self] square in self?.select(square)};board.canDrag={[weak self] square in self?.dragMoves(square) ?? false};model.movePlacedDirectly={[weak self] move in self?.board.isDropped(move) ?? false};board.inspectRelationship={[weak self] mode in self?.toggleRelationship(mode)};board.dismissRelationships={[weak self] in guard let self=self else{return false};let dismissed=self.relationships.dismiss();if dismissed{self.refresh()};return dismissed};board.clearSelection={[weak self] in guard let self=self else{return};if self.model.review.active{self.model.review.clearSelection();self.refresh()}else if self.model.session.mode == .network{self.model.network.clearSelection();self.refresh()}else if self.model.session.mode == .practice{self.model.session.clearSelection()}else if let training=self.model.training,self.trainingExercise != nil{training.clearSelection();self.refresh()}else{self.model.learning.clearSelection()}};titleView.board=board;titleView.tabs.target=self;titleView.tabs.action=#selector(selectTab)
     }
     /// The board area: transport, welcome card, puzzle and training libraries, error banner and playback line.
     private func buildBoardArea(){
@@ -117,6 +117,13 @@ final class BoardTitleView:NSView {
     /// Model changes refresh the window; moves animate and are announced.
     private func observeModel(){
         model.objectWillChange.sink{[weak self] _ in DispatchQueue.main.async{self?.refresh()}}.store(in:&observations)
+        model.network.objectWillChange.sink{[weak self] _ in DispatchQueue.main.async{self?.refresh()}}.store(in:&observations)
+        // VoiceOver hears the network game's moves, offers, result and clocks (LAN-play plan D10).
+        model.network.announce={[weak self] text in self?.announce(text)}
+        // D11: the permission help appears only on the two denial signals, and goes once access comes back.
+        model.network.$permissionHelp.removeDuplicates().receive(on:RunLoop.main).sink{[weak self] shown in self?.syncPermissionHelp(shown)}.store(in:&observations)
+        // The network place's lobby and game chrome live in the details drawer: open it on arrival, as a lesson or review does.
+        model.session.$activity.removeDuplicates().filter{$0 == .at(.network)}.receive(on:RunLoop.main).sink{[weak self] _ in self?.showDetails()}.store(in:&observations)
         model.session.objectWillChange.sink{[weak self] _ in DispatchQueue.main.async{self?.refresh()}}.store(in:&observations);model.learning.objectWillChange.sink{[weak self] _ in DispatchQueue.main.async{self?.refresh()}}.store(in:&observations)
         model.voice.$connected.removeDuplicates().filter{$0}.receive(on:RunLoop.main).sink{[weak self] _ in self?.showDetails()}.store(in:&observations)
         // These messages are shown only in the details drawer, which starts closed; open it when one appears.
@@ -193,6 +200,12 @@ final class BoardTitleView:NSView {
         if model.review.active{if let from=model.review.selected,model.review.displayRules?.moves(from).contains(where:{$0.to==sq && $0.promotion != nil})==true{let shown=reviewPromotionKey;showPromotionMenu(at:sq,action:#selector(promoteReview(_:))){[sq,$0,from,shown]};return};do{try model.review.selectSquare(sq)}catch{showError(error)};refresh();return}
 
         let s=model.session
+        // The network game takes its own input (LAN-play plan D9): no practice, lesson or relationship handling.
+        if s.mode == .network {
+            let game=model.network
+            if let from=game.selected,game.destinations.contains(sq),game.needsPromotion(from:from,to:sq){let shown=game.revision;showPromotionMenu(at:sq,action:#selector(promoteNetwork(_:))){NetworkPromotion(from:from,to:sq,piece:$0,revision:shown)};return}
+            game.click(sq);refresh();return
+        }
         // Inspection hides the move dots but not the move: a playable destination of the inspected piece leaves
         // inspection and plays, so P or A pressed by accident can never make a legal move unplayable.
         let attempt=model.learning.attemptStep ? model.learning.attempt:nil
@@ -207,6 +220,9 @@ final class BoardTitleView:NSView {
     /// moved on (an undo, a restart, another step) does nothing.
     struct AttemptPromotion {let from:String,to:String,piece:String,identity:String}
     @objc func promoteAttempt(_ item:NSMenuItem){guard let choice=item.representedObject as? AttemptPromotion,!model.review.active,!model.reviewWorkspace,model.learning.attemptStep,model.learning.attempt.identity==choice.identity else{refresh();return};model.learning.attempt.play(from:choice.from,to:choice.to,promotion:choice.piece);refresh()}
+    /// A network-game promotion, bound to the position the menu was opened over: one answered meanwhile does nothing.
+    struct NetworkPromotion {let from:String,to:String,piece:String,revision:Int}
+    @objc func promoteNetwork(_ item:NSMenuItem){guard let choice=item.representedObject as? NetworkPromotion,model.session.mode == .network,!model.review.active,model.network.revision==choice.revision else{refresh();return};model.network.play(from:choice.from,to:choice.to,promotion:choice.piece);refresh()}
     /// The exercise shown on the board, if a training exercise (not the library or a library mini-game) is open.
     var trainingExercise:TrainingController.Exercise? {guard case .training=model.session.activity.place else{return nil};return model.training?.exercise}
     /// Dragging applies where selecting a piece and then a square plays a move; marking and route exercises stay
@@ -215,6 +231,7 @@ final class BoardTitleView:NSView {
         guard !model.reviewWorkspace,relationships.mode==nil else{return false}
         if model.review.active{return true}
         let l=model.learning,s=model.session
+        if s.mode == .network{return model.network.canDrag(square)}
         if s.mode == .practice{return board.position[square]?.first.map(String.init)==s.humanSide}
         // Selecting squares is click-only; a piece the learner moves may be dragged.
         if let exercise=trainingExercise{return !exercise.finished && (exercise.task == .move || exercise.task == .game && model.training?.games.thinking == false) && board.position[square]?.first.map(String.init)==exercise.scenario.learner}
@@ -242,7 +259,7 @@ final class BoardTitleView:NSView {
     struct PracticePromotion {let from:String,to:String,piece:String,game:(generation:Int,position:Int,history:[String])}
     /// The menu's run loop lets an agent replace the game meanwhile; an identical position in another game is not this one.
     @objc func promote(_ item:NSMenuItem){guard let choice=item.representedObject as? PracticePromotion,stillShowing(choice.game,exactly:true) else{refresh();return};do{try model.session.playWhite(from:choice.from,to:choice.to,promotion:choice.piece)}catch{showError(error)};refresh()}
-    func toggleRelationship(_ mode:RelationshipMode){guard !model.review.active,!model.reviewWorkspace,trainingExercise==nil,let selected=board.selected,board.position[selected] != nil else{return};relationships.toggle(mode,selected:selected);refresh();if relationships.mode != nil{showDetails()}}
+    func toggleRelationship(_ mode:RelationshipMode){guard !model.review.active,!model.reviewWorkspace,model.session.mode != .network,trainingExercise==nil,let selected=board.selected,board.position[selected] != nil else{return};relationships.toggle(mode,selected:selected);refresh();if relationships.mode != nil{showDetails()}}
     @objc func showProtection(){toggleRelationship(.protected)}
     @objc func showAttacks(){toggleRelationship(.attacked)}
     @objc func dismissInspection(){relationships.dismiss();refresh()}
@@ -268,9 +285,9 @@ final class BoardTitleView:NSView {
     /// An arrow that crossed into another lesson says where the learner now is.
     private func announceLesson(){announce("Now in \(model.learning.localizedTitle(index:model.learning.lessonIndex)).")}
     private func announce(_ text:String){NSAccessibility.post(element:board,notification:.announcementRequested,userInfo:[.announcement:text,.priority:NSAccessibilityPriorityLevel.high.rawValue])}
-    func refresh(){syncGuidanceToggle();let s=model.session,l=model.learning
+    func refresh(){syncGuidanceToggle();syncMenus();let s=model.session,l=model.learning
         // The learner's own side sits nearest them in practice; reviews and lessons keep White at the bottom.
-        board.blackAtBottom = !model.reviewWorkspace && !model.review.active && (s.mode == .practice && s.humanSide=="b" || trainingExercise?.scenario.learner=="b")
+        board.blackAtBottom = !model.reviewWorkspace && !model.review.active && (s.mode == .practice && s.humanSide=="b" || trainingExercise?.scenario.learner=="b" || s.mode == .network && model.network.blackAtBottom)
         board.reviewNavigation=model.review.active && model.review.branch==nil
         reviewWorkspaceView.isHidden = !model.reviewWorkspace;controls.isHidden=model.reviewWorkspace;if workspaceFill.isActive != model.reviewWorkspace{workspaceAboveControls.isActive=false;workspaceFill.isActive=model.reviewWorkspace;workspaceAboveControls.isActive = !model.reviewWorkspace}
 playbackLineView?.isHidden=model.reviewWorkspace
@@ -282,9 +299,9 @@ playbackLineView?.isHidden=model.reviewWorkspace
             board.isHidden=false;puzzles.isHidden=true;welcome.isHidden=true;titleView.label.stringValue=review.branch==nil ? "Review · Original game":"Review · Imagined moves";titleView.label.isHidden=false;titleView.tabs.isHidden=true;board.needsDisplay=true;return}
 
         // An exercise's own presentation replaces the activity's before relationships read the selection; it offers no inspection.
-        var shown=trainingExercise.map(trainingPresentation) ?? activityPresentation()
+        var shown=s.mode == .network ? networkPresentation():trainingExercise.map(trainingPresentation) ?? activityPresentation()
         if trainingExercise != nil{relationships.dismiss()}
-        relationships.update(board:shown.position,fen:s.mode == .practice ? s.displayFen:l.attemptStep ? l.attempt.rules.fen:nil,selected:trainingExercise==nil ? shown.selected:nil,identity:s.displayIdentity)
+        relationships.update(board:shown.position,fen:s.mode == .practice ? s.displayFen:l.attemptStep ? l.attempt.rules.fen:nil,selected:trainingExercise==nil && s.mode != .network ? shown.selected:nil,identity:s.displayIdentity)
         if let report=relationships.report{shown.selected=report.square;shown.destinations=[];shown.attacked=[];shown.arrows=[];shown.guards=[];shown.highlights.removeAll{$0.kind != "check" && $0.kind != "no"}}
         applyBoard(shown)
         board.relationshipMode=relationships.report?.mode
@@ -294,7 +311,7 @@ playbackLineView?.isHidden=model.reviewWorkspace
         let trainingLibrary=model.training != nil && s.activity.place == .trainingLibrary
         board.isHidden=library || titlecard || trainingLibrary;puzzles.isHidden = !library;welcome.isHidden = !titlecard;trainingLibraryView.isHidden = !trainingLibrary
         if titlecard {welcome.rootView=WelcomeContent(title:l.localizedStepTitle(index:l.lessonIndex,step:l.step))}
-        titleView.label.stringValue=s.mode == .practice ? "Practice · \(s.humanSide=="b" ? "Black":"White") vs Stockfish":s.mode == .puzzles ? "Quick puzzles":l.mini ? l.miniKind.title:s.mode == .training ? trainingExercise?.definition.title ?? "Training":l.localizedTitle(index:l.lessonIndex)+(l.attemptStatus.map{" · "+$0} ?? "")
+        titleView.label.stringValue=s.mode == .network ? model.network.boardTitle:s.mode == .practice ? "Practice · \(s.humanSide=="b" ? "Black":"White") vs Stockfish":s.mode == .puzzles ? "Quick puzzles":l.mini ? l.miniKind.title:s.mode == .training ? trainingExercise?.definition.title ?? "Training":l.localizedTitle(index:l.lessonIndex)+(l.attemptStatus.map{" · "+$0} ?? "")
         let temporary=s.preview != nil || s.demonstration != nil;titleView.label.isHidden=temporary;titleView.tabs.isHidden = !temporary;titleView.tabs.setLabel(s.demonstration != nil ? "Demonstration":"Try a move",forSegment:1);titleView.tabs.selectedSegment=s.presentationHidden ? 0:1;titleView.needsLayout=true
     }
     /// Everything the board shows for one activity. Each builder sets every field, so nothing from the previous
@@ -323,12 +340,24 @@ playbackLineView?.isHidden=model.reviewWorkspace
         if !s.presentationHidden,let d=s.demonstration {let frame=d.lines[d.line].frames[d.ply];p.arrows=frame.arrows+p.arrows;p.highlights+=frame.highlights}
         return p
     }
+    /// The network game: its own board, selection and legal dots; a pending move shows its lifted piece and target.
+    private func networkPresentation()->BoardPresentation {
+        let game=model.network,rules=game.rules
+        var p=BoardPresentation(source:"network:\(game.identity)",position:game.board,selected:game.pending?.from ?? game.selected,destinations:game.destinations,playable:true,dropsAnywhere:false,attacked:[],highlights:[],arrows:[],guards:[],counts:[],motion:nil)
+        if let last=rules.records.last{p.highlights=[Highlight(sq:last.from,kind:"last"),Highlight(sq:last.to,kind:"last")]}
+        if rules.check,let king=rules.board.first(where:{$0.value==rules.turn+"k"})?.key{p.highlights.append(Highlight(sq:king,kind:"check"))}
+        if let pending=game.pending{p.highlights.append(Highlight(sq:pending.to,kind:"target"))}
+        return p
+    }
     /// An exercise shows only what the learner did: no legal-move dots or hidden answers, except a hint asked for.
     private func trainingPresentation(_ exercise:TrainingController.Exercise)->BoardPresentation {
         let target=[exercise.scenario.target ?? exercise.scenario.drill?.target ?? exercise.scenario.goal?.target].compactMap{$0}.map{Highlight(sq:$0,kind:"target")}
         return BoardPresentation(source:"training",position:model.session.displayBoard,selected:exercise.picked,destinations:[],playable:true,dropsAnywhere:exercise.task == .move || exercise.task == .game,attacked:[],highlights:(exercise.lastMove.map{[Highlight(sq:$0.from,kind:"last"),Highlight(sq:$0.to,kind:"last")]} ?? [])+target+exercise.selection.map{Highlight(sq:$0,kind:"answer")}+exercise.hintSquares.map{Highlight(sq:$0,kind:"hint")},arrows:[],guards:[],counts:[],motion:nil)
     }
     func validateMenuItem(_ item:NSMenuItem)->Bool {
+        // The network game's own items act on its controller (LAN-play plan D9); in network mode nothing else in the
+        // Game or Lesson menu shows (`syncMenus`).
+        if let action=item.action,let enabled=Self.networkItemEnabled(action,network:model.session.mode == .network,game:model.network){return enabled}
         if let action=item.action,[#selector(lessonPlayPause),#selector(lessonPrevious),#selector(lessonNext),#selector(lessonFromStart),#selector(barHint)].contains(action) {
             let shown=barItem(for:action)
             let fallback=[#selector(lessonPlayPause):"Play",#selector(lessonPrevious):"Previous Step",#selector(lessonNext):"Next Step",#selector(lessonFromStart):"Play Step from Start",#selector(barHint):"Hint"][action] ?? item.title
@@ -360,8 +389,72 @@ playbackLineView?.isHidden=model.reviewWorkspace
         let side=NSPopUpButton(frame:NSRect(x:0,y:0,width:220,height:28));side.addItems(withTitles:["Play as White","Play as Black"]);side.selectItem(at:model.session.humanSide=="b" ? 1:0);side.setAccessibilityLabel("Your side");a.accessoryView=side
         let shown=practiceGame
         a.addButton(withTitle:"New Game");a.addButton(withTitle:"Cancel");a.beginSheetModal(for:window!){r in guard r == .alertFirstButtonReturn,self.stillShowing(shown) else{return};self.board.cancelAnimation();self.model.session.newGame(side:side.indexOfSelectedItem==1 ? "b":"w")}}
-    @objc func claimDraw(){guard !model.review.active,model.session.mode == .practice else{return};model.session.claimDraw();refresh()}
+    @objc func claimDraw(){if model.session.mode == .network{model.network.claimDraw();return};guard !model.review.active,model.session.mode == .practice else{return};model.session.claimDraw();refresh()}
+    // MARK: The network game's menu items (LAN-play plan D9)
+    /// The Game menu in network mode: Resign, Offer Draw, Claim Draw, Flip Board and Leave Game, nothing else.
+    static let networkActions:Set<Selector>=[#selector(resign),#selector(offerDraw),#selector(claimDraw),#selector(flipBoard),#selector(leaveGame)]
+    /// Items that exist only for the network game, hidden elsewhere.
+    static let networkOnlyActions:Set<Selector>=[#selector(offerDraw),#selector(flipBoard),#selector(leaveGame)]
+    /// The Game menu and the Lesson menu's bar item, from `AppDelegate.installMenus`.
+    weak var gameMenu:NSMenu?
+    weak var lessonMenuItem:NSMenuItem?
+    func syncMenus(){if let gameMenu{Self.syncMenus(gameMenu,lesson:lessonMenuItem,network:model.session.mode == .network)}}
+    /// In network mode the Game menu shows only the network items and the Lesson menu hides; elsewhere the network-only
+    /// items hide. Hidden items take no key equivalents either, so a practice or lesson shortcut cannot reach the
+    /// network place.
+    static func syncMenus(_ gameMenu:NSMenu,lesson:NSMenuItem?,network:Bool){
+        for item in gameMenu.items {
+            let hidden=item.isSeparatorItem ? network:item.action.map{network ? !networkActions.contains($0):networkOnlyActions.contains($0)} ?? false
+            if item.isHidden != hidden{item.isHidden=hidden}
+        }
+        if let lesson,lesson.isHidden != network{lesson.isHidden=network}
+    }
+    /// Whether a network item is enabled; nil for an item the network game does not own here, which the window's
+    /// other rules decide.
+    static func networkItemEnabled(_ action:Selector,network:Bool,game:NetworkGameController)->Bool? {
+        guard networkOnlyActions.contains(action) || network && networkActions.contains(action) else{return nil}
+        guard network else{return false}
+        switch action {
+        case #selector(resign):return game.canResign
+        case #selector(claimDraw):return game.canClaimDraw
+        case #selector(offerDraw):return game.canOfferDraw
+        case #selector(flipBoard):return game.seat != nil
+        default:return game.part != nil
+        }
+    }
+    @objc func offerDraw(){guard model.session.mode == .network else{return};model.network.offerDraw()}
+    @objc func flipBoard(){guard model.session.mode == .network else{return};model.network.flip();refresh()}
+    @objc func leaveGame(){guard model.session.mode == .network else{return};model.leaveNetworkGame()}
+    /// D11's help: a sheet whose button opens System Settings › Privacy & Security › Local Network.
+    private func syncPermissionHelp(_ shown:Bool){
+        if shown,permissionAlert==nil,let window {
+            let alert=NSAlert();alert.messageText="Allow Checkmate on your local network"
+            alert.informativeText="Finding and joining network games needs Local Network access. Turn on Checkmate in System Settings › Privacy & Security › Local Network; a game that is waiting carries on by itself once it is on."
+            alert.addButton(withTitle:"Open Local Network Settings").setAccessibilityIdentifier("network-permission-open-settings")
+            alert.addButton(withTitle:"Not Now").setAccessibilityIdentifier("network-permission-close")
+            alert.window.setAccessibilityIdentifier("network-permission-sheet")
+            permissionAlert=alert
+            alert.beginSheetModal(for:window){[weak self] response in MainActor.assumeIsolated{
+                guard let self else{return};self.permissionAlert=nil
+                if response == .alertFirstButtonReturn{self.model.openLocalNetworkSettings()}
+                if self.model.network.permissionHelp{self.model.network.dismissPermissionHelp()}
+            }}
+        }else if !shown,let alert=permissionAlert,let window {window.endSheet(alert.window)}
+    }
+    private(set) var permissionAlert:NSAlert?
+    /// D9's crash notice at launch: "Your network game with Ben ended when Checkmate closed", with Review offered when
+    /// the game has moves. The file is gone once read.
+    func offerNetworkCrashReview(){
+        guard let entry=model.takeNetworkCrashNotice(),let window else{return}
+        let reviewable=NativeModel.reviewable(entry)
+        let alert=NSAlert();alert.messageText=entry.notice;alert.informativeText=reviewable ? "You can review the moves that were played.":"No moves were played."
+        if reviewable{alert.addButton(withTitle:"Review").setAccessibilityIdentifier("network-crash-review")}
+        alert.addButton(withTitle:reviewable ? "Not Now":"OK").setAccessibilityIdentifier("network-crash-dismiss")
+        alert.window.setAccessibilityIdentifier("network-crash-notice")
+        alert.beginSheetModal(for:window){[weak self] response in MainActor.assumeIsolated{if reviewable,response == .alertFirstButtonReturn{self?.model.reviewNetworkCrash(entry)}}}
+    }
     @objc func resign(){
+        if model.session.mode == .network{model.resignNetworkGame();return}
         guard !model.review.active,model.session.mode == .practice,!model.session.finished,let window=window else{return}
         let a=NSAlert();a.messageText="Resign this game?";a.informativeText="The game is recorded as a loss. Start a new game or review it afterwards.";a.addButton(withTitle:"Resign");let cancel=a.addButton(withTitle:"Cancel");cancel.keyEquivalent="\r";a.window.defaultButtonCell=cancel.cell as? NSButtonCell
         let shown=practiceGame

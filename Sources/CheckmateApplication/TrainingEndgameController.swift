@@ -22,6 +22,8 @@ import Foundation
     public var maximumActions=500
     static let tooLong="This game has grown too long to save, so it is paused. Nothing is counted; start again or go back."
     public var engine:EngineService?
+    /// The app's network-game fairness check (LAN-play plan D8); the app sets the session's, as it sets `engine`.
+    public var fairness=FairnessPolicy()
     var work:Task<Void,Never>?,hintWork:Task<Void,Never>?
     /// Advanced by every cancellation, so an answer to an older request is recognised and dropped.
     private(set) var generation=0
@@ -96,6 +98,7 @@ extension TrainingController {
     func requestReply(){
         guard showing,let state=exercise,state.task == .game,!state.finished,state.paused==nil,let position=state.current,(try? position.turn()) != state.scenario.learner else{return}
         guard let engine=games.engine else{pauseGame("The practice defender is not available. Try again in a moment.");return}
+        guard games.fairness.engineHelpAllowed else{pauseGame(FairnessPolicy.destinationUnavailable+".");return}
         let attempt=state.snapshot.id,revision=state.snapshot.revision,start=state.scenario.fen ?? "",moves=(state.scenario.prelude ?? [])+state.line,profile=TrainingEndgameController.profile(for:state.scenario.check)
         games.cancel();games.thinking=true;objectWillChange.send();publish()
         let ticket=games.generation
@@ -103,7 +106,7 @@ extension TrainingController {
             // A cancelled request may end in any error, or none: only the current request's answer or failure applies.
             do {
                 let result=try await engine.analyzeHistory(startFEN:start,moves:moves,profile:profile,budget:TrainingEndgameController.budget,multiPv:1)
-                guard !Task.isCancelled,let self,self.games.generation==ticket else{return}
+                guard !Task.isCancelled,let self,self.games.generation==ticket,self.games.fairness.engineHelpAllowed else{return}
                 self.receiveReply(result.bestMove,attempt:attempt,revision:revision)
             } catch {
                 guard !Task.isCancelled,let self,self.games.generation==ticket else{return}
@@ -186,12 +189,12 @@ extension TrainingController {
         // move, undo, review or exercise discards (and cancels) it.
         guard save(state) else{return false}
         guard state.hintLevel==3,let saved=exercise else{return true}
-        guard let engine=games.engine else{stepBackHint();return true}
+        guard let engine=games.engine,games.fairness.engineHelpAllowed else{stepBackHint();return true}
         let attempt=saved.snapshot.id,revision=saved.snapshot.revision,start=state.scenario.fen ?? "",moves=(state.scenario.prelude ?? [])+state.line,ticket=games.generation
         games.hintWork?.cancel()
         games.hintWork=Task{[weak self] in
             let result=try? await engine.analyzeHistory(startFEN:start,moves:moves,profile:TrainingEndgameController.profile,budget:TrainingEndgameController.budget,multiPv:1)
-            guard !Task.isCancelled,let self,self.games.generation==ticket,self.interactive,var shown=self.exercise,shown.snapshot.id==attempt,shown.snapshot.revision==revision else{return}
+            guard !Task.isCancelled,let self,self.games.generation==ticket,self.games.fairness.engineHelpAllowed,self.interactive,var shown=self.exercise,shown.snapshot.id==attempt,shown.snapshot.revision==revision else{return}
             self.games.hintWork=nil
             guard let move=result?.bestMove,let position=shown.current,let outcome=try? position.outcomes().first(where:{$0.uci==move}) else{self.stepBackHint();return}
             shown.hintSquares=[outcome.from,outcome.to];shown.hintText="One good move: \(outcome.san).";self.exercise=shown;self.publish()

@@ -11,6 +11,10 @@ public enum WorkspaceNavigation {
         case trainingLibrary,trainingExercise(entry:String,variant:String?=nil),trainingScenario(id:String),trainingResume,trainingRetry(id:String),trainingLegacy(MiniGameKind,restart:Bool)
         /// A training entry's linked lesson, read without moving the course bookmark; the way back leads to training.
         case trainingLesson(id:String)
+        /// Play on Network: the lobby, or the network game in progress (LAN-play plan D9).
+        case network
+        /// Lessons, puzzles and training: unavailable while the learner plays or watches a network game (D8).
+        public var needsEngineHelp:Bool {switch self{case .lesson,.puzzles,.trainingLibrary,.trainingExercise,.trainingScenario,.trainingResume,.trainingRetry,.trainingLegacy,.trainingLesson:return true;default:return false}}
     }
 fileprivate enum WorkspaceEntry {case none,review(GameDocument,restore:(cursor:Int,branches:[ReviewBranch])?),importProgress(ApplicationState),practiceFork(ChessRules),training(TrainingController.StagedExercise)}
 
@@ -85,6 +89,8 @@ public struct PreparedWorkspaceTransition {
             do{try session.installPracticeFork(rules,side:side)}catch{session.updateSettings(previous,restartOpponent:false);if session.activity.review != nil{session.enter(.at(place))};throw error}
             leaveTraining()
         case (.trainingLibrary,_):leaveReview(wasReviewing,place);training?.openLibrary()
+        // The network game owns the board: practice's reply and presentations stop on arrival (GameSession.arrive).
+        case (.network,_):leaveReview(wasReviewing,place);leaveTraining();session.enter(.at(.network))
         case (.trainingLegacy(let kind,let restart),_):leaveReview(wasReviewing,place);leaveTraining();training?.playLegacy(kind,restart:restart)
         case (.trainingLesson(let id),_):
             leaveReview(wasReviewing,place);leaveTraining()

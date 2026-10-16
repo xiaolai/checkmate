@@ -15,7 +15,10 @@ public enum Place:Equatable {
     /// The training library, and a new training exercise (by entry identifier).
     case trainingLibrary
     case training(entry:String)
-    public var mode:NativeMode {switch self{case .practice:return .practice;case .lesson:return .lesson;case .miniGame(let index,_,_):return index==nil ? .training:.lesson;case .puzzleLibrary,.puzzle:return .puzzles;case .trainingLibrary,.training:return .training}}
+    /// Play on Network: hosting, joining or watching a game over the local network, and the game itself. The network
+    /// game owns its own board (LAN-play plan D9); practice keeps its game underneath, untouched.
+    case network
+    public var mode:NativeMode {switch self{case .practice:return .practice;case .lesson:return .lesson;case .miniGame(let index,_,_):return index==nil ? .training:.lesson;case .puzzleLibrary,.puzzle:return .puzzles;case .trainingLibrary,.training:return .training;case .network:return .network}}
     /// The lesson this place belongs to, if any.
     public var lessonIndex:Int? {switch self{case .lesson(let index,_):return index;case .miniGame(let index,_,_):return index;default:return nil}}
 }

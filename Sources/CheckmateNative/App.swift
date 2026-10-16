@@ -17,8 +17,13 @@ import CheckmateCore
             guard lock == .held else{for app in NSRunningApplication.runningApplications(withBundleIdentifier:Bundle.main.bundleIdentifier ?? ""){if app.processIdentifier != ProcessInfo.processInfo.processIdentifier{app.activate(options:[.activateAllWindows])}};NSApp.terminate(nil);return}
             NativeLog.lifecycle.info("Opening native application");let model=try NativeModel();self.model=model;let window=GameWindow(model:model);game=window;window.board.reviewFiles=reviewFiles;installMenus(window:window,model:model);window.showWindow(nil);NSApp.activate(ignoringOtherApps:true)
             model.startConnections();openPendingFiles()
+            // A network game the previous run left behind when it closed (LAN-play plan D9).
+            window.offerNetworkCrashReview()
             // Scenario flags mutate and save the game: only an isolated automation run may use them, never the released app.
             let automation=Self.isolatedAutomation
+            // A gate may run one instance dark beside light ones (network-ui) without touching the system appearance.
+            if automation,CommandLine.arguments.contains("--dark-appearance"){NSApp.appearance=NSAppearance(named:.darkAqua)}
+            if automation,let i=CommandLine.arguments.firstIndex(of:"--bonjour-self-check"),i+1<CommandLine.arguments.count{NativeModel.runBonjourSelfCheck(output:URL(fileURLWithPath:CommandLine.arguments[i+1]),directory:root.appendingPathComponent("bonjour-self-check"))}
             if automation,CommandLine.arguments.contains("--companion-test"){try model.companion.enable(role:"coach");if automation,CommandLine.arguments.contains("--preview-fixture"){try model.session.beginPreview();Task{try? await model.session.testMove(from:"e2",to:"e4")}}}
             if automation,CommandLine.arguments.contains("--opponent-fixture"){try model.companion.enable(role:"opponent");try model.session.playWhite(from:"e2",to:"e4")}
             if automation,let i=CommandLine.arguments.firstIndex(of:"--review-batch-scenario"),i+1<CommandLine.arguments.count{runReviewBatchScenario(directory:CommandLine.arguments[i+1])}
@@ -509,13 +514,11 @@ import CheckmateCore
         let about=NSMenuItem(title:"About Checkmate",action:#selector(GameWindow.showAbout),keyEquivalent:"");about.target=window;app.addItem(about)
         let settings=NSMenuItem(title:"Settings…",action:#selector(GameWindow.showSettings),keyEquivalent:",");settings.target=window;app.addItem(settings);app.addItem(.separator());app.addItem(withTitle:"Hide Checkmate",action:#selector(NSApplication.hide(_:)),keyEquivalent:"h");let hideOthers=app.addItem(withTitle:"Hide Others",action:#selector(NSApplication.hideOtherApplications(_:)),keyEquivalent:"h");hideOthers.keyEquivalentModifierMask=[.command,.option];app.addItem(withTitle:"Show All",action:#selector(NSApplication.unhideAllApplications(_:)),keyEquivalent:"");app.addItem(.separator());app.addItem(withTitle:"Quit Checkmate",action:#selector(NSApplication.terminate(_:)),keyEquivalent:"q")
         let fileItem=NSMenuItem(title:"File",action:nil,keyEquivalent:""),fileMenu=NSMenu(title:"File");fileItem.submenu=fileMenu;menu.addItem(fileItem);for (title,action,key) in [("Open PGN…",#selector(openPGN),"o"),("Paste PGN or FEN",#selector(pasteReview),""),("Save Review",#selector(saveCurrentReview),"s"),("Review Current Game",#selector(reviewCurrent),""),("Review Previous Game",#selector(reviewPrevious),"")]{let item=NSMenuItem(title:title,action:action,keyEquivalent:key);item.target=self;fileMenu.addItem(item)}
-        let gameItem=NSMenuItem(title:"Game",action:nil,keyEquivalent:""),gameMenu=NSMenu(title:"Game");gameItem.submenu=gameMenu;menu.addItem(gameItem)
-        for (name,action,key) in [("New Game…",#selector(GameWindow.newGame),"n"),("Take Back Move",#selector(GameWindow.undo as (GameWindow) -> () -> Void),""),("Restore Previous Game",#selector(GameWindow.restorePrevious),""),("Claim Draw",#selector(GameWindow.claimDraw),""),("Resign…",#selector(GameWindow.resign),"")] {let item=NSMenuItem(title:name,action:action,keyEquivalent:key);item.target=window;gameMenu.addItem(item)}
-        gameMenu.addItem(.separator())
-        for (name,action,key) in [("Protected by",#selector(GameWindow.showProtection),"p"),("Attacked by",#selector(GameWindow.showAttacks),"a")] {let item=NSMenuItem(title:name,action:action,keyEquivalent:key);item.keyEquivalentModifierMask=[.command,.shift];item.target=window;gameMenu.addItem(item)}
-        let dismiss=NSMenuItem(title:"Dismiss Piece Inspection",action:#selector(GameWindow.dismissInspection),keyEquivalent:"");dismiss.target=window;gameMenu.addItem(dismiss)
+        let gameItem=NSMenuItem(title:"Game",action:nil,keyEquivalent:""),gameMenu=Self.makeGameMenu(target:window);gameItem.submenu=gameMenu;menu.addItem(gameItem)
         // Lesson: the bar's playback and help, with shortcuts. Space stays with the board, which uses it to activate a square.
         let lessonItem=NSMenuItem(title:"Lesson",action:nil,keyEquivalent:""),lessonMenu=NSMenu(title:"Lesson");lessonItem.submenu=lessonMenu;menu.addItem(lessonItem)
+        // In network mode the window shows only the network game's items and hides the Lesson menu (LAN-play plan D9).
+        window.gameMenu=gameMenu;window.lessonMenuItem=lessonItem
         for (name,action,key,modifiers) in [("Play",#selector(GameWindow.lessonPlayPause),"p",NSEvent.ModifierFlags.command),("Previous Step",#selector(GameWindow.lessonPrevious),"[",.command),("Next Step",#selector(GameWindow.lessonNext),"]",.command),("Play Step from Start",#selector(GameWindow.lessonFromStart),"r",.command),("Hint",#selector(GameWindow.barHint),"h",[.command,.shift])] {
             let item=NSMenuItem(title:name,action:action,keyEquivalent:key);item.keyEquivalentModifierMask=modifiers;item.target=window;lessonMenu.addItem(item)
             if action == #selector(GameWindow.lessonFromStart){lessonMenu.addItem(.separator())}
@@ -527,7 +530,20 @@ import CheckmateCore
         // Workspace-scoped: Find… searches the game library and is offered only while the review workspace shows.
         edit.addItem(.separator());let find=NSMenuItem(title:"Find…",action:#selector(findInLibrary),keyEquivalent:"f");find.target=self;edit.addItem(find)
         let windowItem=NSMenuItem(title:"Window",action:nil,keyEquivalent:""),windows=NSMenu(title:"Window");windowItem.submenu=windows;menu.addItem(windowItem);windows.addItem(withTitle:"Close",action:#selector(NSWindow.performClose(_:)),keyEquivalent:"w");windows.addItem(withTitle:"Minimize",action:#selector(NSWindow.performMiniaturize(_:)),keyEquivalent:"m");windows.addItem(withTitle:"Zoom",action:#selector(NSWindow.performZoom(_:)),keyEquivalent:"");windows.addItem(withTitle:"Bring All to Front",action:#selector(NSApplication.arrangeInFront(_:)),keyEquivalent:"");NSApp.windowsMenu=windows
-        NSApp.mainMenu=menu
+        NSApp.mainMenu=menu;window.syncMenus()
+    }
+    /// The Game menu: practice's items, the network game's (Offer Draw, Flip Board, Leave Game), and piece inspection.
+    /// Claim Draw and Resign serve both; the window shows each group only in its own mode.
+    /// The Game menu, its items aimed at `target` (the window; tests read it without one).
+    static func makeGameMenu(target:AnyObject?)->NSMenu {
+        let gameMenu=NSMenu(title:"Game")
+        for (name,action,key) in [("New Game…",#selector(GameWindow.newGame),"n"),("Take Back Move",#selector(GameWindow.undo as (GameWindow) -> () -> Void),""),("Restore Previous Game",#selector(GameWindow.restorePrevious),""),("Offer Draw",#selector(GameWindow.offerDraw),""),("Claim Draw",#selector(GameWindow.claimDraw),""),("Resign…",#selector(GameWindow.resign),""),("Flip Board",#selector(GameWindow.flipBoard),""),("Leave Game…",#selector(GameWindow.leaveGame),"")] {let item=NSMenuItem(title:name,action:action,keyEquivalent:key);item.target=target;gameMenu.addItem(item)}
+        // The network game's own items carry stable identifiers for the native gates (LAN-play plan D9).
+        for (action,identifier) in [(#selector(GameWindow.offerDraw),"network-menu-offer-draw"),(#selector(GameWindow.flipBoard),"network-menu-flip-board"),(#selector(GameWindow.leaveGame),"network-menu-leave-game")] {gameMenu.items.first{$0.action==action}?.identifier=NSUserInterfaceItemIdentifier(identifier)}
+        gameMenu.addItem(.separator())
+        for (name,action,key) in [("Protected by",#selector(GameWindow.showProtection),"p"),("Attacked by",#selector(GameWindow.showAttacks),"a")] {let item=NSMenuItem(title:name,action:action,keyEquivalent:key);item.keyEquivalentModifierMask=[.command,.shift];item.target=target;gameMenu.addItem(item)}
+        let dismiss=NSMenuItem(title:"Dismiss Piece Inspection",action:#selector(GameWindow.dismissInspection),keyEquivalent:"");dismiss.target=target;gameMenu.addItem(dismiss)
+        return gameMenu
     }
     func validateMenuItem(_ item:NSMenuItem)->Bool {
         if item.action == #selector(saveCurrentReview){return model?.review.active==true && model?.deletingReviewID==nil}
@@ -563,8 +579,15 @@ import CheckmateCore
         guard let values=try? file.resourceValues(forKeys:[.isRegularFileKey,.fileSizeKey]),values.isRegularFile==true,let size=values.fileSize,size<=ReviewPolicy.maximumBytes else{model.storageError="This file could not be opened for review. Use a PGN or FEN file up to 16 MiB.";return}
         reviewFiles.load(file,deliver:{[weak model] in model?.importReviewData($0)},failed:{[weak model] in model?.storageError="This file could not be read."})
     }
-    /// A draft review holding the learner's imagined lines is never discarded without asking.
-    func applicationShouldTerminate(_ sender:NSApplication)->NSApplication.TerminateReply {guard let model else{return .terminateNow};return model.mayQuitDuringLessonJob() && model.resolveDraftBeforeLeaving() && model.mayQuitAfterSaving() ? .terminateNow:.terminateCancel}
+    /// A draft review holding the learner's imagined lines is never discarded without asking. A seated network player
+    /// is asked last, just before closing, since leaving resigns; once everything agrees, the network game is left and the app waits until
+    /// the resignation, or the host's `ended`, has gone out (LAN-play plan D9).
+    func applicationShouldTerminate(_ sender:NSApplication)->NSApplication.TerminateReply {
+        guard let model else{return .terminateNow}
+        // The network question goes last: a guest may take a waiting host's seat while an earlier dialog is open.
+        guard model.mayQuitDuringLessonJob(),model.resolveDraftBeforeLeaving(),model.mayQuitAfterSaving(),model.mayQuitNetworkGame() else{return .terminateCancel}
+        return model.closeNetworkSession(then:{NSApp.reply(toApplicationShouldTerminate:true)}) ? .terminateLater:.terminateNow
+    }
     func applicationWillTerminate(_ notification:Notification){model?.shutdown();if lockDescriptor>=0{Darwin.close(lockDescriptor)}}
     /// Waits until a transition reaches its end state, polling every 50 ms. The deadline only bounds liveness:
     /// the caller still asserts the state, so a transition that never arrives fails rather than passes.

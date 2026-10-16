@@ -53,12 +53,15 @@ every = {gate['name'] for gate in spec['gates']}
 cases = [
     ([], set()),
     (['Sources/CheckmateDomain/MiniGames.swift'], every),
-    (['Tools/pointer-helper.swift'], {'pointer', 'lesson-remediation', 'lesson-exercise', 'board-clicks', 'training-pointer', 'training-b-pointer'}),
+    (['Tools/pointer-helper.swift'], {'pointer', 'lesson-remediation', 'lesson-exercise', 'board-clicks', 'training-pointer', 'training-b-pointer', 'network-ui', 'network-bonjour', 'network-lan'}),
     (['Tests/CheckmateNativeTests/BoardClickTests.swift'], {'architecture', 'unit'}),
+    # Play on Network: the loopback gate always; the Bonjour and two-Mac gates too, behind their prerequisites.
+    (['Sources/CheckmateMacPlatform/NWNetworkTransport.swift'], {'architecture', 'ui', 'network-ui', 'network-bonjour', 'network-lan', 'unit', 'package'}),
+    (['scripts/test-network-lan.py'], {'network-lan'}),
     (['Sources/CheckmateNative/ReviewViews.swift'], {'architecture', 'ui', 'sidebar', 'layout', 'review-ui', 'pointer', 'unit', 'package'}),
     # The library table is exercised by the real-pointer and review-scenario gates, not only by the shared UI build.
-    (['Sources/CheckmateNative/LibraryTableView.swift'], {'architecture', 'ui', 'review-ui', 'pointer', 'unit', 'package'}),
-    (['Sources/CheckmateNative/ReviewDetailViews.swift'], {'architecture', 'ui', 'sidebar', 'layout', 'review-ui', 'pointer', 'unit', 'package'}),
+    (['Sources/CheckmateNative/LibraryTableView.swift'], {'architecture', 'ui', 'review-ui', 'pointer', 'unit', 'package', 'network-ui'}),
+    (['Sources/CheckmateNative/ReviewDetailViews.swift'], {'architecture', 'ui', 'sidebar', 'layout', 'review-ui', 'pointer', 'unit', 'package', 'network-ui'}),
     (['Sources/CheckmateCore/Resources/game-library/manifest.json'], {'architecture', 'ui', 'sidebar', 'pointer', 'integration', 'review-ui', 'unit', 'relocated', 'package'}),
     (['Content/game-library/selection.json'], {'sidebar', 'pointer', 'review-ui', 'unit'}),
     (['Content/openings/a.tsv'], {'sidebar', 'pointer', 'review-ui', 'unit'}),
@@ -112,7 +115,62 @@ with tempfile.TemporaryDirectory() as home:
             raise AssertionError(f'A marker holding {refused!r} must be refused')
         except SystemExit:
             pass
+# Prerequisites (LAN-play plan D14): checked before anything builds; never a quiet skip, never a certified full run.
+import contextlib
+import io
+import os
+fake_gate = {'name': 'network-lan-fixture', 'run': 'true', 'result': 'none.json', 'key': 'none', 'inputs': [], 'prerequisites': ['bonjour-ready', 'lan-pair']}
+saved = (dict(gates.GATES), list(gates.ORDER), dict(gates.PREREQUISITES), gates.run, gates.stale_reason, dict(os.environ), list(sys.argv))
+ran = []
+try:
+    gates.GATES[fake_gate['name']] = fake_gate
+    gates.ORDER.append(fake_gate['name'])
+    # No pair configured, and no bonjour-ready evidence: both checks say why without touching the network.
+    os.environ.pop('CHECKMATE_LAN_PAIR', None)
+    assert 'CHECKMATE_LAN_PAIR' in gates.lan_pair() and 'CHECKMATE_LAN_PAIR' in gates.bonjour_ready_pair()
+    with tempfile.TemporaryDirectory() as home:
+        os.environ['HOME'] = home
+        assert 'no bonjour-ready evidence' in gates.bonjour_ready()
+        os.environ['HOME'] = saved[5]['HOME']
+    # Evidence made for another identity, account or system no longer holds.
+    good = {'fingerprint': 'F', 'bundleID': gates.AUTOMATION_BUNDLE, 'account': 'ops', 'macOSBuild': 'B'}
+    assert gates._evidence_problem(good, 'F', 'ops', 'B', 'here') is None
+    assert 'cannot read the current fingerprint' in gates._evidence_problem(good, '', 'ops', 'B', 'here'), 'a missing identity must not pass'
+    assert 'not a JSON object' in gates._evidence_problem(['not', 'an', 'object'], 'F', 'ops', 'B', 'here'), 'a record that is not an object must not crash or pass'
+    for key, value in (('fingerprint', 'G'), ('bundleID', 'other'), ('account', 'someone'), ('macOSBuild', 'C')):
+        assert key in (gates._evidence_problem({**good, key: value}, 'F', 'ops', 'B', 'here') or ''), f'a changed {key} must invalidate bonjour-ready'
+    gates.PREREQUISITES.update({'bonjour-ready': lambda: None, 'bonjour-ready-pair': lambda: None, 'lan-pair': lambda: 'no LAN pair configured'})
+    assert gates.unmet(gates.ORDER) == {name: [('lan-pair', 'no LAN pair configured')] for name in (fake_gate['name'], 'network-lan')}
+    assert gates.GATES['network-bonjour']['prerequisites'] == ['bonjour-ready']
+    gates.run = lambda names, full=False: ran.append((list(names), full)) or 0
+    ledger = pathlib.Path(tempfile.mkdtemp()) / 'ledger.json'
+    os.environ['CHECKMATE_GATE_LEDGER'] = str(ledger)
+
+    def main(*arguments):
+        sys.argv = ['run-gates.py', *arguments]
+        with contextlib.redirect_stderr(io.StringIO()) as errors, contextlib.redirect_stdout(io.StringIO()):
+            status = gates.main()
+        return status, errors.getvalue()
+    # --changed: the stale network gate is UNVERIFIED, the other stale gates still run, and the run fails.
+    gates.stale_reason = lambda name, hashes, ledger: 'never passed' if name in (fake_gate['name'], 'unit') else None
+    status, errors = main('--changed')
+    assert status == gates.UNVERIFIED and f"UNVERIFIED {fake_gate['name']}: needs lan-pair" in errors, (status, errors)
+    assert ran == [(['unit'], False)], ran
+    # --only: stops at once, before anything runs or builds.
+    ran.clear()
+    status, errors = main('--only', fake_gate['name'])
+    assert status == gates.UNVERIFIED and ran == [] and 'lan-pair' in errors
+    # A full run refuses to certify: nothing runs and no acceptance.json is written.
+    with tempfile.TemporaryDirectory() as evidence:
+        os.environ['CHECKMATE_EVIDENCE_DIR'] = evidence
+        status, errors = main('--full')
+        assert status == gates.UNVERIFIED and ran == [] and not (pathlib.Path(evidence) / 'acceptance.json').exists() and 'cannot be certified' in errors
+    shutil.rmtree(ledger.parent, ignore_errors=True)
+finally:
+    gates.GATES.clear(); gates.GATES.update(saved[0]); gates.ORDER[:] = saved[1]; gates.PREREQUISITES.clear(); gates.PREREQUISITES.update(saved[2])
+    gates.run, gates.stale_reason = saved[3], saved[4]
+    os.environ.clear(); os.environ.update(saved[5]); sys.argv[:] = saved[6]
 # The Swift guards cannot import test_host, so each reads the marker itself; none may drift from it.
-for guard in ['Tools/ReviewScenario.swift', 'Tools/Acceptance/Probe.swift', 'Tools/calibrate-opponents.swift']:
+for guard in ['Tools/ReviewScenario.swift', 'Tools/Acceptance/Probe.swift', 'Tools/calibrate-opponents.swift', 'Tools/lan-vm.swift', 'Tools/lan-vm-input.swift']:
     assert test_host.ROLE_FILE in (root / guard).read_text(), f'{guard} does not read ~/{test_host.ROLE_FILE}'
-print(f'Gate selection self-test passed ({len(cases) + 8} cases).')
+print(f'Gate selection self-test passed ({len(cases) + 12} cases).')

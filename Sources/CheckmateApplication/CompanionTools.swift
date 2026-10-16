@@ -15,6 +15,8 @@ import Foundation
     public func reset(){reviewTools?.reset();for r in receipts.values{r.task.cancel()};receipts.removeAll()}
     public func call(_ name:String,args:[String:Any],lease:String) async throws -> Any {
         try access(lease);let a=try schemas.parse(name,args:args);try Task.checkCancellation()
+        // Before any receipt or request-ID lookup, so an answer computed before joining is never handed out (D8).
+        try requireAllowed(name)
         if name=="get_session"{return session.publicState()}
         if name=="list_review_games"{guard let tools=reviewTools else{throw ProtocolFailure("UNSUPPORTED_MODE")};return Self.marked(try await tools.call(name,args:a))}
         if name=="get_turn_brief"{guard session.activity == .at(.practice) else{throw ProtocolFailure(session.reviewSuspended ? "REVIEW_ACTIVE":"UNSUPPORTED_MODE")};return ["state":session.publicState(),"facts":turnFacts()]}
@@ -22,12 +24,18 @@ import Foundation
         if name=="list_training_entries"{guard let tools=trainingTools else{throw ProtocolFailure("UNSUPPORTED_MODE")};return try await tools.call(name,args:a,lease:lease)}
         if let id=a["requestId"] as? String {
             receipts=receipts.filter{Date().timeIntervalSince($0.value.time)<600};let key=lease+":"+id,payload=String(decoding:try JSONSerialization.data(withJSONObject:["name":name,"args":a],options:.sortedKeys),as:UTF8.self)
-            if let r=receipts[key]{guard r.payload==payload else{throw ProtocolFailure("INVALID_ARGUMENT","Request ID was used for different arguments.")};return try await join(key,r.task)}
+            if let r=receipts[key]{guard r.payload==payload else{throw ProtocolFailure("INVALID_ARGUMENT","Request ID was used for different arguments.")};let value=try await join(key,r.task);try requireAllowed(name);return value}
             let task=Task{try await self.perform(name,args:a,lease:lease)};receipts[key]=(payload,Date(),task)
             if receipts.count>256,let oldest=receipts.min(by:{$0.value.time<$1.value.time})?.key{receipts[oldest]=nil}
-            return try await join(key,task)
+            let value=try await join(key,task);try requireAllowed(name);return value
         }
-        return try await perform(name,args:a,lease:lease)
+        let value=try await perform(name,args:a,lease:lease);try requireAllowed(name);return value
+    }
+    /// D8 and D15: during a network game only reading the session and browsing reviews remain. Checked before any
+    /// receipt or request-ID lookup, again when the work itself starts, and once more before a result is handed out,
+    /// since participation can begin while a call is suspended.
+    private func requireAllowed(_ name:String)throws {
+        if !session.fairness.engineHelpAllowed,!Self.networkGameTools.contains(name){throw ProtocolFailure(FairnessPolicy.refusal,"The learner is in a network game. Only get_session, wait_for_change and the review library tools work until it ends.")}
     }
     /// A receipt makes a retried mutation idempotent. A cancelled or BUSY one is forgotten: every mutation checks
     /// cancellation before it commits and refuses BUSY before it starts, so nothing happened, and the advised retry with
@@ -43,7 +51,7 @@ import Foundation
     /// that only after the learner chose Review; the app supplies this, and the default allows it.
     public var reviewOpenAllowed:()->Bool={true}
     private func perform(_ name:String,args a:[String:Any],lease:String) async throws -> Any {
-        try observed(a);try Task.checkCancellation()
+        try requireAllowed(name);try observed(a);try Task.checkCancellation()
         if ReviewTools.methods.contains(name) {guard let tools=reviewTools else{throw ProtocolFailure("UNSUPPORTED_MODE")};if name=="open_review",!session.reviewSuspended,!reviewOpenAllowed(){throw ProtocolFailure("LEARNER_CONSENT_REQUIRED","Opening a review would leave the learner's game or lesson. Ask the learner to choose Review game in Checkmate's sidebar, then call open_review again.")};return Self.marked(try await tools.call(name,args:a))}
         if session.reviewSuspended,let review=session.reviewController,review.active,Self.annotationTools.contains(name){return try reviewAnnotation(name,a,review)}
         guard !session.reviewSuspended else{throw ProtocolFailure("REVIEW_ACTIVE","Use scoped review tools for the displayed review board.")}
@@ -63,6 +71,8 @@ import Foundation
         }
     }
     private static let annotationTools:Set<String>=["show_annotation","clear_annotations"]
+    /// The tools that still answer while the learner plays or watches a network game (D15).
+    static let networkGameTools:Set<String>=["get_session","wait_for_change","list_review_games","open_review","get_review"]
     /// The arrows, highlights and lifetime a `show_annotation` request asks for.
     private static func annotation(_ a:[String:Any])throws -> (arrows:[[String]],highlights:[Highlight],ttl:Int) {try (a["arrows"] as? [[String]] ?? [],JSONDecoder().decode([Highlight].self,from:JSONSerialization.data(withJSONObject:a["highlights"] ?? [])),a["ttlMs"] as? Int ?? 15000)}
     /// The displayed review board. Showing names the review identity it was drawn for; clearing (whose schema carries
@@ -98,12 +108,15 @@ import Foundation
         // Practice events count only while practice is shown: a review over it keeps its mode but owns the board.
         func matches()->Bool {let practice=session.activity == .at(.practice);switch a["event"] as? String ?? "any" {case "learner_turn":return practice && session.rules.records.last?.color==session.opponentSide;case "opponent_turn":return practice && session.rules.turn==session.opponentSide && !session.finished;case "coaching":return practice && (["ready","error"].contains(session.preview?.status ?? "") || session.preview==nil && ["ready","error"].contains(session.coaching.status));default:return true}}
         let cursor=a["cursor"] as! Int,oldSession=a["sessionId"] as! String
+        // Entering or leaving a network game after the caller's cursor always wakes the wait, whatever its filter; the
+        // filter applies only to events after that transition (D15).
+        func transitioned()->Bool {cursor<session.participationCursor}
         func changed()->[String:Any] {["changed":true,"resyncRequired":oldSession != session.sessionId || session.cursor-cursor>128,"state":session.publicState()]}
-        if oldSession != session.sessionId || cursor<session.cursor && matches(){return changed()}
+        if oldSession != session.sessionId || cursor<session.cursor && (matches() || transitioned()){return changed()}
         guard cursor<=session.cursor else{throw ProtocolFailure("INVALID_ARGUMENT")};guard !waiting else{throw ProtocolFailure("BUSY")};waiting=true;defer{waiting=false}
         let end=Date().addingTimeInterval(Double(a["timeoutMs"] as? Int ?? 20000)/1000)
         // Every wake, the last at the deadline included, rechecks cancellation and access before reporting any state.
-        while true {try Task.checkCancellation();try access(lease);if session.cursor>cursor && matches(){return changed()};guard Date()<end else{break};await session.waitForEvent(until:end)}
+        while true {try Task.checkCancellation();try access(lease);if session.cursor>cursor && (matches() || transitioned()){return changed()};guard Date()<end else{break};await session.waitForEvent(until:end)}
         return ["changed":false,"state":session.publicState()]
     }
     public func turnFacts()->[String:Any] {

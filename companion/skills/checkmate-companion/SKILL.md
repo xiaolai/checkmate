@@ -58,6 +58,10 @@ Review tools work on the game shown in Checkmate's review. `open_review` leaves 
 
 Training tools work only while the learner is in **Training** (chosen in the sidebar); `start_training` never pulls the learner out of a game, lesson or review. Exercises are the learner's to solve: use `submit_training_action` only to relay an answer the learner has stated, never to answer for them, and know that every agent submission or hint marks the attempt as helped. `request_training_hint` gives the concept, then the relevant pieces; revealing the answer is the learner's choice in the app. Name the attempt with `attemptId` and `sessionRevision` from `get_session`; after any change, read them again. Results never include stored answers, and progress is descriptive: never call it a rating or mastery.
 
+## Network games
+
+While the learner plays or watches a game against another person on the local network, `get_session` reports `mode: "network"` with no board, no capabilities and `controller.pauseReason: "network_game"`. Every tool except `get_session`, `wait_for_change`, `list_review_games`, `open_review` and `get_review` returns `NETWORK_GAME`, and reviews carry no engine evidence or explanation until the game ends. Never help with that game in any way. Wait with `wait_for_change`: entering or leaving a network game always wakes it, whatever its `event` filter.
+
 ## Errors
 
 Every error has a `code` and a `message`; read the message, then:
@@ -74,6 +78,7 @@ Every error has a `code` and a `message`; read the message, then:
 - `LEARNER_CONSENT_REQUIRED`: ask the learner to choose **Review game** (for review tools) or **Training** (for training tools) first. `ROLE_FORBIDDEN`: wrong role or turn; the Coach never moves.
 - `PRESENTATION_ACTIVE`: a demonstration is open; close it first. `PREVIEW_NOT_READY`: wait with `event: "coaching"`.
 - `HINT_LIMIT`: you have given every hint an agent may; the answer is the learner's to reveal in the app. `ATTEMPT_ACTIVE`, `ATTEMPT_FINISHED`: the exercise is not in the state that action needs; read `get_session`. `UNAVAILABLE`: the exercise could not be opened; tell the learner and let them choose another.
+- `NETWORK_GAME`: the learner is in a network game, so engine help, coaching and analysis are off until it ends. Wait with `wait_for_change`; never work around it.
 - `GAME_OVER`: explain the result; no more moves. `ENGINE_UNAVAILABLE`: Stockfish failed; say so, never invent analysis.
 - `INVALID_ARGUMENT`, `INVALID_MOVE`, `INVALID_SQUARE`, `NO_PIECE`: rebuild the arguments from fresh state (`get_legal_moves`); never repeat them unchanged. `RESPONSE_TOO_LARGE`: request a smaller page with a lower `limit`.
 - `INTERNAL_ERROR` or any other code: read `get_session`, retry once, then tell the learner what failed.

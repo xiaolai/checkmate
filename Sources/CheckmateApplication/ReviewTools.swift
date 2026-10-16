@@ -69,6 +69,8 @@ public enum ReviewRecordSource {
         }
         try identity(args)
         guard let document=review.document else{throw ProtocolFailure("UNSUPPORTED_MODE")}
+        // Engine evidence, fresh or cached, is withheld during a network game (LAN-play plan D8).
+        if ["analyze_review","get_review_analysis"].contains(name){try session.fairness.requireEngineHelp()}
         switch name {
         case "get_review":let (offset,limit)=try page(args,count:document.nodes.count);guard offset==0 || args["pageIdentity"] as? String==document.contentHash else{throw ProtocolFailure("STALE_REVIEW")};var projection=review.projection();projection["moves"]=Self.agentNodes(document.nodes.dropFirst(offset).prefix(limit));projection["commentPolicy"]=Self.commentPolicy;projection["nextOffset"]=offset+limit<document.nodes.count ? offset+limit as Any:NSNull();projection["pageIdentity"]=document.contentHash;return projection
         case "select_review_position":guard let target=args["targetNode"] as? Int else{throw ProtocolFailure("INVALID_ARGUMENT")};try review.select(target);return review.projection()

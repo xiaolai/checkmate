@@ -30,6 +30,14 @@ if release_identity:
         raise RuntimeError('Release Info.plist lacks the CheckmateSourceCommit stamp (scripts/release.sh passes it to the build)')
 elif not bundle_id.startswith(RELEASE_BUNDLE_ID + '.'):
     raise RuntimeError(f'A non-release build must use its own {RELEASE_BUNDLE_ID}.* identifier, not {bundle_id!r}')
+# LAN play (plan D11, D12): without the usage text macOS refuses local-network access, and each build kind
+# advertises and browses only its own Bonjour service type.
+local_network = info.get('NSLocalNetworkUsageDescription')
+if not (isinstance(local_network, str) and local_network.strip()):
+    raise RuntimeError('NSLocalNetworkUsageDescription missing: macOS would refuse Play on Network')
+expected_service = '_checkmate._tcp' if bundle_id == RELEASE_BUNDLE_ID else '_checkmate-auto._tcp' if 'automation' in bundle_id else '_checkmate-dev._tcp'
+if info.get('NSBonjourServices') != [expected_service]:
+    raise RuntimeError(f"NSBonjourServices must be [{expected_service!r}] for {bundle_id}, found {info.get('NSBonjourServices')!r}")
 if not info.get('CFBundleIconName') == 'Checkmate':
     raise RuntimeError('Package verification failed')
 legacy_icon = info.get('CFBundleIconFile', '')

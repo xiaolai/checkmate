@@ -5,13 +5,16 @@ import CheckmateCore
 enum SidebarSelection {
     static func tag(_ activity:Activity,saved:Set<UUID>,lessonIndex:Int)->String {
         if let visit=activity.review{guard let document=visit.document else{return "review"};return saved.contains(document) ? "review:"+document.uuidString:"review:draft"}
-        switch activity.place {case .practice:return "practice";case .puzzleLibrary,.puzzle:return "puzzles";case .lesson:return "lesson:\(lessonIndex)";case .miniGame(let index,_,_):return index==nil ? "training":"lesson:\(lessonIndex)";case .trainingLibrary,.training:return "training"}
+        switch activity.place {case .practice:return "practice";case .puzzleLibrary,.puzzle:return "puzzles";case .lesson:return "lesson:\(lessonIndex)";case .miniGame(let index,_,_):return index==nil ? "training":"lesson:\(lessonIndex)";case .trainingLibrary,.training:return "training";case .network:return "network"}
     }
+    /// "Network game · your move" under Play on Network while the learner is elsewhere, Review included (LAN-play D9).
+    @MainActor static func networkBadge(_ activity:Activity,_ network:NetworkGameController)->String? {activity == .at(.network) ? nil:network.badge}
 }
 struct SidebarContent:View {
     @ObservedObject var session:GameSession
     @ObservedObject var learning:LearningPlayer
     @ObservedObject var model:NativeModel
+    @ObservedObject var network:NetworkGameController
     private var selected:String {SidebarSelection.tag(session.activity,saved:Set(model.reviews.map(\.id)),lessonIndex:learning.lessonIndex)}
     /// VoiceOver hears what the indent shows: which lesson an activity practises.
     private func practiceHint(_ lesson:CourseLesson)->String {
@@ -26,13 +29,17 @@ struct SidebarContent:View {
         else if value=="practice" {model.practice()}
         else if value=="puzzles" {model.puzzles()}
         else if value=="training" {model.trainingLibrary()}
+        else if value=="network" {model.playOnNetwork()}
         else if let i=Int(value.replacingOccurrences(of:"lesson:",with:"")) {model.lesson(i)}
     }
+    /// During a network game lessons, puzzles and training are closed (LAN-play plan D8): their rows say why.
+    private var participating:Bool {!model.fairness.engineHelpAllowed}
     var body:some View {List(selection:Binding<String?>(get:{selected},set:navigate)){
         Section {
             Label("Practice a game",systemImage:"flag.checkered").tag("practice")
-            Label("Quick puzzles",systemImage:"lightbulb").tag("puzzles")
-            if model.training != nil{Label("Training",systemImage:"figure.run").tag("training")}
+            if NetworkPolicy.availableHere{Label{VStack(alignment:.leading,spacing:1){Text("Play on Network");if let badge=SidebarSelection.networkBadge(session.activity,network){Text(badge).font(.caption).foregroundStyle(.secondary).accessibilityIdentifier("network-sidebar-badge")}}}icon:{Image(systemName:"network")}.tag("network")}
+            Label("Quick puzzles",systemImage:"lightbulb").tag("puzzles").selectionDisabled(participating).help(participating ? FairnessPolicy.destinationUnavailable:"")
+            if model.training != nil{Label("Training",systemImage:"figure.run").tag("training").selectionDisabled(participating).help(participating ? FairnessPolicy.destinationUnavailable:"")}
             Label("Review game",systemImage:"doc.text.magnifyingglass").tag("review")
             if model.review.active,let document=model.review.document,!model.reviews.contains(where:{$0.id==document.id}){Label("Unsaved review",systemImage:"doc.badge.ellipsis").tag("review:draft")}
         }
@@ -41,7 +48,7 @@ struct SidebarContent:View {
                 .contextMenu{Button("Delete Saved Review…",role:.destructive){model.requestDeleteReview(record.id)}.disabled(model.deletingReviewID != nil)}}}
         }
         // A practice activity sits indented under its lesson, off the main path but one click away.
-        Section("Learn & explore") {ForEach(Array(learning.library.lessons.enumerated()),id:\.element.id){i,l in Label {Text(learning.localizedTitle(index:i))} icon:{Image(systemName:session.state.course.completed.contains(l.id) ? "checkmark.circle.fill":l.isPractice ? "gamecontroller":"book")}.padding(.leading,l.isPractice ? Metrics.practiceIndent:0).accessibilityHint(practiceHint(l)).tag("lesson:\(i)")}}
+        Section("Learn & explore") {ForEach(Array(learning.library.lessons.enumerated()),id:\.element.id){i,l in Label {Text(learning.localizedTitle(index:i))} icon:{Image(systemName:session.state.course.completed.contains(l.id) ? "checkmark.circle.fill":l.isPractice ? "gamecontroller":"book")}.padding(.leading,l.isPractice ? Metrics.practiceIndent:0).accessibilityHint(participating ? FairnessPolicy.destinationUnavailable:practiceHint(l)).tag("lesson:\(i)").selectionDisabled(participating)}}
     }.listStyle(.sidebar).scrollContentBackground(.hidden).overlay(alignment:.bottom){if model.importingReview{VStack{ProgressView("Loading review…");Button("Cancel import"){model.cancelReviewImport()}}.padding().background(.regularMaterial)}}}
 }
 struct DetailContent:View {
@@ -60,7 +67,8 @@ struct DetailContent:View {
             Text("Explore a single board position. Earlier moves and repetition history are not included.").foregroundStyle(.secondary)
         } else if model.review.active{ReviewDetailContent(review:model.review,model:model)}else {
         if let label=relationships.selectedLabel{RelationshipContent(relationships:relationships,label:label,inspect:inspect);Divider()}
-        if session.mode == .practice {practiceDetail}
+        if session.mode == .network {NetworkDetail(model:model,game:model.network)}
+        else if session.mode == .practice {practiceDetail}
         else if relationships.report==nil {
             if learning.mini {miniDetail}
             else if learning.activePuzzle != nil || session.mode == .lesson {lessonOrPuzzleDetail}
@@ -72,6 +80,7 @@ struct DetailContent:View {
     }
     }.frame(maxWidth:.infinity,alignment:.leading).padding(Metrics.sectionGap)}.id(session.mode == .lesson ? learning.current.id+(learning.mini ? ":"+learning.miniKind.rawValue:""):session.mode.rawValue)}
     @ViewBuilder private var practiceDetail:some View {
+        if !model.fairness.engineHelpAllowed{Text(FairnessPolicy.practicePaused).foregroundStyle(.secondary).accessibilityIdentifier("practice-network-paused")}
         if relationships.report==nil {
         if !session.presentationHidden,let d=session.demonstration {
             Text(d.title).font(.title2.bold());Text("Imagined moves").foregroundStyle(.secondary)

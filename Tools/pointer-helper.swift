@@ -157,9 +157,11 @@ case "return":key(36)
 // The element's screen frame as "x y width height", for checks that a control stays where it was.
 case "frame":guard let e=element(a),let f=frame(e) else{fputs("Not found: \(a)\n",stderr);exit(2)};print("\(f.minX) \(f.minY) \(f.width) \(f.height)")
 case "enabled":guard let e=element(a) else{fputs("Not found: \(a)\n",stderr);exit(2)};print((get(e,kAXEnabledAttribute) as? Bool) ?? false)
-// Clicks a button inside the window that shows the given text: an alert's Cancel, never another window's.
+// Clicks a button inside the window that shows the given text, and every further text given after the button: an
+// alert's Cancel, never another window's.
 case "dialog-click":
-    guard let window=(get(app,kAXWindowsAttribute) as? [AXUIElement])?.first(where:{w in find(w){_,n in n.contains(a)} != nil}) else{fputs("No window shows: \(a)\n",stderr);exit(2)}
+    let shown=[a]+CommandLine.arguments.dropFirst(5)
+    guard let window=(get(app,kAXWindowsAttribute) as? [AXUIElement])?.first(where:{w in shown.allSatisfy{text in find(w){_,n in n.contains(text)} != nil}}) else{fputs("No window shows: \(shown.joined(separator:", "))\n",stderr);exit(2)}
     click(center(find(window){role,n in role=="AXButton" && n.contains(b)},b))
 case "go-folder":key(5,flags:[.maskCommand,.maskShift]);usleep(250_000);type(a);key(36);usleep(350_000)
 // A real click, or a drag, at fractions of a named element's width (its vertical middle): a point on a graph.

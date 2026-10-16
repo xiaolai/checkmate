@@ -1,3 +1,29 @@
+# Checkmate (next release, draft)
+
+Play on Network lets two people on the same local network play each other.
+One hosts a game from the sidebar and shares its play code; the other
+picks it from the list and types the code. Others can watch with a separate
+watch code, and their clicks never move a piece. Games can be untimed or
+timed, from 3 + 2 to 30 minutes, and both players can offer, accept or claim
+a draw, or resign. A player whose connection drops has up to two minutes to
+come back to the same seat. When a game ends, Review opens it with both
+players' names. If your clock runs out while your opponent has
+only a king, the game is a draw. Otherwise it is lost on time, even in the
+rare positions where no checkmate is possible, such as fully blocked pawn
+chains. While you play or watch, the engine, hints and the coach are
+paused everywhere in the app, and the companion only sees that a network
+game is on. The first time, macOS asks to let Checkmate use the local
+network. Play on Network appears on macOS 26 and later, and on macOS 14,
+which was checked in a virtual machine; it does not appear on macOS 15.
+
+Automated acceptance covered three copies of the app on the test Mac, real
+Bonjour discovery between two copies, and a game between two Macs on the same
+network, played to checkmate with real pointer clicks on both and reviewed on
+both. In that game the joining Mac lost its connection, through a test-only
+switch, and came back to its seat. A real cable or Wi-Fi loss was not tested
+automatically. No person has yet played a network game, or used it with
+VoiceOver.
+
 # Checkmate 0.7.7
 
 Review a game now has a library of famous games to explore. It holds 165:

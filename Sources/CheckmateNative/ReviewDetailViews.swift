@@ -144,7 +144,9 @@ struct ReviewAnalysisSection:View {
         let mine=analyzer.batchDocument==document.id
         VStack(alignment:.leading,spacing:Metrics.smallGap){
             Text("Evaluation").font(.headline)
-            if ReviewFormat.line(document).ids.isEmpty{Text("This position has no moves to analyze as a game; Why? analyzes the position itself.").font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)}
+            // No engine output during a network game (LAN-play plan D8): the graph and its controls wait until it ends.
+            if !model.fairness.engineHelpAllowed{Text(FairnessPolicy.analysisHidden).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)}
+            else if ReviewFormat.line(document).ids.isEmpty{Text("This position has no moves to analyze as a game; Why? analyzes the position itself.").font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)}
             else if mine,["pending","deepening"].contains(analyzer.batchStatus){
                 ProgressView(value:Double(analyzer.completed),total:Double(max(1,analyzer.total)))
                 HStack{Text(analyzer.batchStatus=="deepening" ? "Checking the leading moment more deeply":"\(analyzer.completed) / \(analyzer.total) moves").font(.caption).foregroundStyle(.secondary);Spacer(minLength:0);Button("Cancel Analysis"){analyzer.cancelBatch()}.controlSize(.small)}
@@ -212,7 +214,7 @@ struct ReviewMoveSection:View {
     @ObservedObject var analyzer:ReviewAnalyzer
     let document:GameDocument
     private static let rowHeight:CGFloat=22,maximumHeight:CGFloat=220
-    private var moments:[ReviewMoment] {analyzer.batchDocument==document.id ? analyzer.moments.filter{document.nodes.indices.contains($0.id)}:[]}
+    private var moments:[ReviewMoment] {analyzer.fairness.engineHelpAllowed && analyzer.batchDocument==document.id ? analyzer.moments.filter{document.nodes.indices.contains($0.id)}:[]}
     private func select(_ id:Int){try? review.select(id);model.saveReview()}
     var body:some View {
         let moments=self.moments,reasons=Dictionary(moments.map{($0.id,$0.reason)},uniquingKeysWith:{a,_ in a}),costly=ReviewFormat.costly(moments),rows=ReviewFormat.rows(document,line:ReviewFormat.line(document).ids)
@@ -265,6 +267,7 @@ struct ReviewPositionPanel:View {
             if let note=explanation?.historyNote{Text(verbatim:note).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)}
             if review.nodeID==0{ForEach(ReviewFormat.takeaways(explanation),id:\.self){item in HStack(alignment:.firstTextBaseline,spacing:6){Text("•").foregroundStyle(.secondary);Text(verbatim:item).fixedSize(horizontal:false,vertical:true)}}}
             if let branch=review.branch {ImaginedLineCallout(review:review,model:model,branch:branch,document:document)}
+            else if !model.fairness.engineHelpAllowed{Text(FairnessPolicy.analysisHidden).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true);idea.controlSize(.small)}
             else {
                 ViewThatFits(in:.horizontal){
                     HStack(spacing:Metrics.smallGap){actions}
@@ -274,7 +277,7 @@ struct ReviewPositionPanel:View {
             }
             if review.analysisStatus=="pending"{ProgressView("Analyzing offline…").controlSize(.small)}
             if let error=review.error{Text(error).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)}
-            if let evidence=review.evidence{EngineEvidenceList(evidence:evidence)}
+            if model.fairness.engineHelpAllowed,let evidence=review.evidence{EngineEvidenceList(evidence:evidence)}
             DisclosureGroup("Verified board facts"){VStack(alignment:.leading,spacing:4){ForEach(explanation?.facts ?? []){fact in Text(verbatim:fact.text).textSelection(.enabled).fixedSize(horizontal:false,vertical:true)}}.padding(.top,4)}
             if !document.nodes[review.nodeID].children.isEmpty{DisclosureGroup("Recorded continuations"){VStack(alignment:.leading,spacing:4){ForEach(document.nodes[review.nodeID].children,id:\.self){id in Button(document.nodes[id].san ?? "Position"){try? review.select(id)}.buttonStyle(.link)}}.padding(.top,4)}}
         }
@@ -307,7 +310,9 @@ struct ImaginedLineCallout:View {
         Text(branch.id==review.previewBranchID ? "A preview line: it is not kept unless you play a move in it.":"Either side can make legal moves here. The imported game is preserved.").font(.callout).fixedSize(horizontal:false,vertical:true)
         IdeaMoves(review:review,branch:branch,document:document)
         HStack(spacing:Metrics.smallGap){
-            Button("Analyze This Idea"){review.analyze(using:model.reviewAnalyzer)}
+            // No engine output during a network game (D8): say so rather than offer a button that does nothing.
+            if model.fairness.engineHelpAllowed{Button("Analyze This Idea"){review.analyze(using:model.reviewAnalyzer)}}
+            else{Text(FairnessPolicy.analysisHidden).foregroundStyle(.secondary)}
             if review.canUndoIdeaChange{Button("Undo Change"){do{try review.undoIdeaChange();model.saveReview()}catch{model.storageError=userFacingMessage(error,fallback:"The change could not be undone.")}}}
         }.controlSize(.small)
     }.padding(10).frame(maxWidth:.infinity,alignment:.leading).background(RoundedRectangle(cornerRadius:8).fill(Color.accentColor.opacity(0.08))).overlay(RoundedRectangle(cornerRadius:8).strokeBorder(Color.accentColor.opacity(0.3)))}
