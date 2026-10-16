@@ -49,3 +49,26 @@ extension GameSessionTests {
     @MainActor func testOpponentReconnectClearsDisconnectPause()throws {let s=try GameSession(engine:nil);s.setConnection(enabled:true,role:"opponent",lease:"first");s.setConnection(enabled:true,role:"opponent");XCTAssertTrue(s.pausedOpponent);s.setConnection(enabled:true,role:"opponent",lease:"second");XCTAssertFalse(s.pausedOpponent)}
     @MainActor func testCancellingGuidedHintClearsThinkingStatus()throws {let s=try GameSession(engine:SlowHintEngine());s.hint();XCTAssertEqual(s.coaching.status,"thinking");try s.beginPreview();XCTAssertEqual(s.coaching.status,"idle")}
 }
+extension GameSessionTests {
+    /// A demonstration or preview frame is read on every window refresh; building a chess runtime there made a new
+    /// JavaScript virtual machine per refresh, and one crashed under Rosetta while compiling its JIT thunks.
+    @MainActor func testDisplayBoardOfAFrameBuildsNoChessRuntime() throws {
+        let s=try GameSession(engine:nil)
+        try s.demonstrate(title:"Opening",introduction:"Imagine",lines:[DemoLineInput(label:"Italian",moves:["e2e4","e7e5","g1f3","b8c6","f1c4"].map{DemoStepInput(uci:$0)})])
+        try s.seekDemo(line:0,ply:5);let fen=try XCTUnwrap(s.displayFen);XCTAssertNotEqual(fen,s.rules.fen)
+        let before=JavaScriptCoreChessRuntime.instancesCreated
+        for _ in 0..<50 {_ = s.displayBoard}
+        XCTAssertEqual(JavaScriptCoreChessRuntime.instancesCreated,before,"reading the displayed board made a chess runtime")
+        XCTAssertEqual(s.displayBoard,try ChessRules(fen:fen).board)
+    }
+    /// The display reads pieces from a FEN without chess.js; both must agree on every kind of position a frame can show.
+    func testFENPiecesMatchTheRulesBoard() throws {
+        for fen in ["rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+                    "r3k2r/pppq1ppp/2npbn2/4p3/2B1P3/2NP1N2/PPPQ1PPP/R3K2R w KQkq - 4 9",
+                    "rnbqkbnr/ppp1p1pp/8/3pPp2/8/8/PPPP1PPP/RNBQKBNR w KQkq f6 0 3",
+                    "1Q2k3/8/8/8/8/8/5p2/K5n1 b - - 0 60",
+                    "8/2N1B3/5R2/8/3b4/1q6/6r1/K1n4k w - - 12 70"] {
+            XCTAssertEqual(TrainingMaterial.board(fen:fen),try ChessRules(fen:fen).board,fen)
+        }
+    }
+}
