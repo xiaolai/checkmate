@@ -1,4 +1,4 @@
-# Checkmate (next release, draft)
+# Checkmate 0.8.0
 
 Play on Network lets two people on the same local network play each other.
 One hosts a game from the sidebar and shares its play code; the other
@@ -23,6 +23,16 @@ both. In that game the joining Mac lost its connection, through a test-only
 switch, and came back to its seat. A real cable or Wi-Fi loss was not tested
 automatically. No person has yet played a network game, or used it with
 VoiceOver.
+
+A crash is fixed: showing a demonstration or a preview line could make the
+app quit when it ran under Rosetta, because every redraw built a new copy of
+the chess rules. The board in those views is now read directly from the
+position. A gate now fails when any app it launches leaves a crash report.
+
+Across the app, automated acceptance covered every gate on the test Mac,
+including the Intel build under Rosetta. A live check, with no microphone or
+speaker, ran a real coach turn in English, Chinese and Spanish with every
+narrated segment verified, and a voice preview.
 
 # Checkmate 0.7.7
 
