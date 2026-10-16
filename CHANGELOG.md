@@ -1,3 +1,25 @@
+# Checkmate 0.7.7
+
+Review a game now has a library of famous games to explore. It holds 165:
+two to four from every World Championship match from 1886 to 2024, and 14
+classics. You can search by player, event, year or opening, with or without
+accents, filter to championships, classics or your own games, and fold each
+match away. Import Collection… adds your own PGN files under My games, and
+Get More Games points to free PGN downloads. Each game's moves come from a
+recorded source file. When the sources do not say how a decisive game ended,
+the row says only who won.
+
+The review pane has been redesigned with native controls. It shows an
+evaluation graph once the whole game is analysed and marks only the moves
+worth a second look. The voice coach now works in review by default.
+
+Automated acceptance covered every gate on the test Mac, including real
+pointer clicks and drags in the library and a search over 5,000 imported
+games. A live check, with no microphone or speaker, ran a real coach turn in
+English, Chinese and Spanish with every narrated segment verified, and a voice
+preview. No person has yet listened to the coach in review or used the
+library with VoiceOver.
+
 # Checkmate 0.7.6
 
 Two lesson steps now answer a question beginners ask at that moment. In

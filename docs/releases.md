@@ -1,8 +1,8 @@
 # Checkmate releases
 
 `Version.env` owns the native version and monotonically increasing build number.
-Version 0.7.6 is build 23.
-Version 0.7.6 targets macOS 14+ with universal Apple Silicon and Intel binaries.
+Version 0.7.7 is build 24.
+Version 0.7.7 targets macOS 14+ with universal Apple Silicon and Intel binaries.
 Build tooling runs on the build host with Xcode 27; this is separate from the runtime target.
 Development and release builds use
 separate application identifiers and data directories.
@@ -62,8 +62,9 @@ network file, against a SHA-256 compiled into the app, and it uses the binary's 
 cached review analysis. The checkout's engine remains unmodified.
 
 Release notes must distinguish automated verification from human acceptance.
-Standard game review is available. Experimental quality labels, review voice and the beginner opponent remain opt-in until
-human review, novice play and live audio/microphone checks have been completed.
+Standard game review and its voice coach are available. Experimental quality labels and the beginner opponent remain
+opt-in until human review and novice play have been completed. The review voice coach is on by default from 0.7.7; how
+it sounds in review has not yet been checked by a person listening.
 Do not mark those criteria passed merely because the release has been packaged.
 
 Git publication requires a configured remote. Never push unrelated tags or skip
