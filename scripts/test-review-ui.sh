@@ -15,7 +15,7 @@ checkmate_helper_pid=$!
 CHECKMATE_AUTOMATION=1 build/CheckmateReviewAutomation.app/Contents/MacOS/CheckmateNative --automation --data-dir "$checkmate_review_data" --review-scenario "$checkmate_review_evidence" > "$checkmate_review_evidence/app.log" 2>&1 &
 checkmate_review_pid=$!
 trap 'kill "$checkmate_review_pid" "$checkmate_helper_pid" 2>/dev/null || true;wait "$checkmate_review_pid" "$checkmate_helper_pid" 2>/dev/null || true;rm -rf "$checkmate_review_data"' EXIT
-for ((i=0;i<600;i++)); do
+for ((i=0;i<900;i++)); do
   [[ -f "$checkmate_review_evidence/review-ui-results.json" ]] && break
   # Both processes may finish between the check above and these: look for the results once more before failing.
   kill -0 "$checkmate_helper_pid" 2>/dev/null || [[ -f "$checkmate_review_evidence/review-ui-results.json" ]] || { echo 'Review scenario helper exited early:' >&2; cat "$checkmate_review_evidence/helper.log" >&2; exit 1; }

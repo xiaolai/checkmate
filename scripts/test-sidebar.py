@@ -100,7 +100,10 @@ try:
     wait(lambda: len(review_files()) == 1)
     wait(lambda: "Saved reviews" in act("list"))
     assert "AXStaticText: Current game" in act("list")
-    act("press", "Choose Game…")
+    # Choosing another game is in the review's action menu, the same two-step route as Delete below.
+    act("press", "review-document-actions")
+    wait(lambda: "Choose Another Game…" in act("list"))
+    act("press", "Choose Another Game…")
     wait(lambda: "Choose a game or position to explore." in act("list"))
     assert len(review_files()) == 1
     act("press", "Review Current Game")

@@ -1,0 +1,1170 @@
+{
+ "schemaVersion": 1,
+ "about": "Where each bundled game came from: the downloaded file (URL and SHA-256) and the 1-based position of its record there. The files themselves are kept only in an untracked cache.",
+ "artifacts": {
+  "Anderssen": {
+   "url": "https://www.pgnmentor.com/players/Anderssen.zip",
+   "cache": "artifacts/Anderssen/Anderssen.zip",
+   "sha256": "a7b44e18652e06058dd36f32d10e3f425bf645a1aa71703714494209f01175d4",
+   "member": "Anderssen.pgn"
+  },
+  "Botvinnik": {
+   "url": "https://www.pgnmentor.com/players/Botvinnik.zip",
+   "cache": "artifacts/Botvinnik/Botvinnik.zip",
+   "sha256": "54f80c0ecab341aded6db8ebd5d29776fde1a7afc66995ffb103c9e226f3ed9c",
+   "member": "Botvinnik.pgn"
+  },
+  "FideChamp1993": {
+   "url": "https://www.pgnmentor.com/events/FideChamp1993.pgn",
+   "cache": "artifacts/FideChamp1993/FideChamp1993.pgn",
+   "sha256": "b9ccb84b1a444a4f1c5193ace1d50fcf7843c5080ade0abe05f81febf7e4c8fb"
+  },
+  "FideChamp1996": {
+   "url": "https://www.pgnmentor.com/events/FideChamp1996.pgn",
+   "cache": "artifacts/FideChamp1996/FideChamp1996.pgn",
+   "sha256": "1a2756833e3205db3a48e2e67636c2732009b51ea52ed866bdbb361177673f73"
+  },
+  "FideChamp2005": {
+   "url": "https://www.pgnmentor.com/events/FideChamp2005.pgn",
+   "cache": "artifacts/FideChamp2005/FideChamp2005.pgn",
+   "sha256": "4e62a694275906acd10ee4b10d62c75bd373133a762912e32122321f6b74b1b6"
+  },
+  "Fischer": {
+   "url": "https://www.pgnmentor.com/players/Fischer.zip",
+   "cache": "artifacts/Fischer/Fischer.zip",
+   "sha256": "c07174dd3a66116ca74ac3b466e771a53de95068bcafa0a453f6df65d36e0b2b",
+   "member": "Fischer.pgn"
+  },
+  "Kasparov": {
+   "url": "https://www.pgnmentor.com/players/Kasparov.zip",
+   "cache": "artifacts/Kasparov/Kasparov.zip",
+   "sha256": "c5acd2fa3175af0a32a3b45fc57282b21aaeda973a47b1e126668166a34a5702",
+   "member": "Kasparov.pgn"
+  },
+  "Marshall": {
+   "url": "https://www.pgnmentor.com/players/Marshall.zip",
+   "cache": "artifacts/Marshall/Marshall.zip",
+   "sha256": "01280153412a1bc4c1967c4b0a2ee75897ecbda09caffe740bfc1a8082b7ac68",
+   "member": "Marshall.pgn"
+  },
+  "PCAChamp1993": {
+   "url": "https://www.pgnmentor.com/events/PCAChamp1993.pgn",
+   "cache": "artifacts/PCAChamp1993/PCAChamp1993.pgn",
+   "sha256": "786139ef39f2ac8dcd264b671fe783def61d7d1cc50693285bef65e06fa4071c"
+  },
+  "PCAChamp1995": {
+   "url": "https://www.pgnmentor.com/events/PCAChamp1995.pgn",
+   "cache": "artifacts/PCAChamp1995/PCAChamp1995.pgn",
+   "sha256": "1fec53b4dacd2a6ab37e0e2ec241de308e1b286c8a4c5a2b686e321edcbe2494"
+  },
+  "Polugaevsky": {
+   "url": "https://www.pgnmentor.com/players/Polugaevsky.zip",
+   "cache": "artifacts/Polugaevsky/Polugaevsky.zip",
+   "sha256": "a913eab4d5dfabcc468b5685e782a4f4de84ce6177d49d807addabb94a11610d",
+   "member": "Polugaevsky.pgn"
+  },
+  "Rubinstein": {
+   "url": "https://www.pgnmentor.com/players/Rubinstein.zip",
+   "cache": "artifacts/Rubinstein/Rubinstein.zip",
+   "sha256": "63b48a0f65ad783c233ec569b9081e3478a847bc60d9fe32e9cc346daa8471f4",
+   "member": "Rubinstein.pgn"
+  },
+  "Short": {
+   "url": "https://www.pgnmentor.com/players/Short.zip",
+   "cache": "artifacts/Short/Short.zip",
+   "sha256": "a4e5dc4346591e446f892ece52e42d9ee781539bc5c9071341675635f2f63e5a",
+   "member": "Short.pgn"
+  },
+  "Steinitz": {
+   "url": "https://www.pgnmentor.com/players/Steinitz.zip",
+   "cache": "artifacts/Steinitz/Steinitz.zip",
+   "sha256": "b402eb57e0f64ad1291221bc89654a87e1eb1e9c015ff364e3fd31dee0cb593b",
+   "member": "Steinitz.pgn"
+  },
+  "WorldChamp1886": {
+   "url": "https://www.pgnmentor.com/events/WorldChamp1886.pgn",
+   "cache": "artifacts/WorldChamp1886/WorldChamp1886.pgn",
+   "sha256": "b1e1efabb4f52cc043dc717e8414b455bf7c1b854fb7a5f1641cd640c049ba6e"
+  },
+  "WorldChamp1889": {
+   "url": "https://www.pgnmentor.com/events/WorldChamp1889.pgn",
+   "cache": "artifacts/WorldChamp1889/WorldChamp1889.pgn",
+   "sha256": "4c1848f0598e5d06efde5e12072ac22ee7dd7065935de5e192a2947eea4de2b1"
+  },
+  "WorldChamp1890": {
+   "url": "https://www.pgnmentor.com/events/WorldChamp1890.pgn",
+   "cache": "artifacts/WorldChamp1890/WorldChamp1890.pgn",
+   "sha256": "f68703532810001ad512154ee5007ca33bc2f2f9530d79371f3e90c05974ae7c"
+  },
+  "WorldChamp1892": {
+   "url": "https://www.pgnmentor.com/events/WorldChamp1892.pgn",
+   "cache": "artifacts/WorldChamp1892/WorldChamp1892.pgn",
+   "sha256": "e4eef8214e5d291b5465fa48d28a9d19e36ede607008fbea667e8489266c09a8"
+  },
+  "WorldChamp1894": {
+   "url": "https://www.pgnmentor.com/events/WorldChamp1894.pgn",
+   "cache": "artifacts/WorldChamp1894/WorldChamp1894.pgn",
+   "sha256": "1f623a5fdc1e17f174a1ded96232f0c04143c729236efe580892bebbfa43d1a1"
+  },
+  "WorldChamp1896": {
+   "url": "https://www.pgnmentor.com/events/WorldChamp1896.pgn",
+   "cache": "artifacts/WorldChamp1896/WorldChamp1896.pgn",
+   "sha256": "7f1d32681e8aefd5a5eb1c9dc429a118cbb327843984f8e28efb8ca5511b1baf"
+  },
+  "WorldChamp1907": {
+   "url": "https://www.pgnmentor.com/events/WorldChamp1907.pgn",
+   "cache": "artifacts/WorldChamp1907/WorldChamp1907.pgn",
+   "sha256": "4f51458046721c3361a1d7107f4b83714b46399cbc2139901e2e4db166db8954"
+  },
+  "WorldChamp1908": {
+   "url": "https://www.pgnmentor.com/events/WorldChamp1908.pgn",
+   "cache": "artifacts/WorldChamp1908/WorldChamp1908.pgn",
+   "sha256": "32c43390122d55062cb6683d5e0ccfc765cfa6477b1d0f6c32c3e38bd9013919"
+  },
+  "WorldChamp1910a": {
+   "url": "https://www.pgnmentor.com/events/WorldChamp1910a.pgn",
+   "cache": "artifacts/WorldChamp1910a/WorldChamp1910a.pgn",
+   "sha256": "eb69cab03b9b352ab1c0e8d175da9b8d1fe3e6543f24b55c91d56f020aa620fa"
+  },
+  "WorldChamp1910b": {
+   "url": "https://www.pgnmentor.com/events/WorldChamp1910b.pgn",
+   "cache": "artifacts/WorldChamp1910b/WorldChamp1910b.pgn",
+   "sha256": "68401cf52d93dd17be3462192bb7220e67679977a445426ad8c8e76b168346b2"
+  },
+  "WorldChamp1921": {
+   "url": "https://www.pgnmentor.com/events/WorldChamp1921.pgn",
+   "cache": "artifacts/WorldChamp1921/WorldChamp1921.pgn",
+   "sha256": "0ad65b6a8cbeaa0fe76b2995745d40dee11712772f972b95cd1f472fff0fe449"
+  },
+  "WorldChamp1927": {
+   "url": "https://www.pgnmentor.com/events/WorldChamp1927.pgn",
+   "cache": "artifacts/WorldChamp1927/WorldChamp1927.pgn",
+   "sha256": "5fb9dc0521a96c52e82d246b433af831f39e4b722cee6755b7c04a0e85682daf"
+  },
+  "WorldChamp1929": {
+   "url": "https://www.pgnmentor.com/events/WorldChamp1929.pgn",
+   "cache": "artifacts/WorldChamp1929/WorldChamp1929.pgn",
+   "sha256": "65dad4c6bf115219517d995d68384b267687f9e57dfae6e3d648f8071c8d0764"
+  },
+  "WorldChamp1934": {
+   "url": "https://www.pgnmentor.com/events/WorldChamp1934.pgn",
+   "cache": "artifacts/WorldChamp1934/WorldChamp1934.pgn",
+   "sha256": "80659f8cd53c2886290b96f89b4ac43ba34395f7e4fb2bde93a71f0ae47e5301"
+  },
+  "WorldChamp1935": {
+   "url": "https://www.pgnmentor.com/events/WorldChamp1935.pgn",
+   "cache": "artifacts/WorldChamp1935/WorldChamp1935.pgn",
+   "sha256": "9907c935865f0f087452be30565b5ea7ae8773d30c9c4b9a4af43269950a3340"
+  },
+  "WorldChamp1937": {
+   "url": "https://www.pgnmentor.com/events/WorldChamp1937.pgn",
+   "cache": "artifacts/WorldChamp1937/WorldChamp1937.pgn",
+   "sha256": "bd557a68c83f8ed0eaa2f8a35e2ada83f02ecefc7f24245f78b947ccabf54768"
+  },
+  "WorldChamp1948": {
+   "url": "https://www.pgnmentor.com/events/WorldChamp1948.pgn",
+   "cache": "artifacts/WorldChamp1948/WorldChamp1948.pgn",
+   "sha256": "3212112223974b4617b1d683667727a612bab18cdfa12991595da55e6848456b"
+  },
+  "WorldChamp1951": {
+   "url": "https://www.pgnmentor.com/events/WorldChamp1951.pgn",
+   "cache": "artifacts/WorldChamp1951/WorldChamp1951.pgn",
+   "sha256": "ad5ca1789f2e1d90973685a71f05731e9f5e4dcd27a676becd639cbbfe12ff28"
+  },
+  "WorldChamp1954": {
+   "url": "https://www.pgnmentor.com/events/WorldChamp1954.pgn",
+   "cache": "artifacts/WorldChamp1954/WorldChamp1954.pgn",
+   "sha256": "4127f8fe8e31b86f70152340f44e8876bb778aade44f81b438739a9c14c0de38"
+  },
+  "WorldChamp1957": {
+   "url": "https://www.pgnmentor.com/events/WorldChamp1957.pgn",
+   "cache": "artifacts/WorldChamp1957/WorldChamp1957.pgn",
+   "sha256": "45e5a0c425d0a3e912316c1ad041320c48cf962f1fc8483428deb62dee6efd39"
+  },
+  "WorldChamp1958": {
+   "url": "https://www.pgnmentor.com/events/WorldChamp1958.pgn",
+   "cache": "artifacts/WorldChamp1958/WorldChamp1958.pgn",
+   "sha256": "0a1856dd60cd4c1bd2fb4ab91bf5c582e9dd2b95502ecb46505ab0cdb953e4ed"
+  },
+  "WorldChamp1960": {
+   "url": "https://www.pgnmentor.com/events/WorldChamp1960.pgn",
+   "cache": "artifacts/WorldChamp1960/WorldChamp1960.pgn",
+   "sha256": "045f2e45ce3031c025285354bbca1ed56d9dfe8affcb61b2880f212d58ca7aed"
+  },
+  "WorldChamp1961": {
+   "url": "https://www.pgnmentor.com/events/WorldChamp1961.pgn",
+   "cache": "artifacts/WorldChamp1961/WorldChamp1961.pgn",
+   "sha256": "3da9017911c5fb513ad05cd51d1db58dfca232c85887c7664964ef7cdfebe75f"
+  },
+  "WorldChamp1963": {
+   "url": "https://www.pgnmentor.com/events/WorldChamp1963.pgn",
+   "cache": "artifacts/WorldChamp1963/WorldChamp1963.pgn",
+   "sha256": "3379d0de14d4030c3f2d363155bb447bafbc92f255722fe09cedbe4809c54505"
+  },
+  "WorldChamp1966": {
+   "url": "https://www.pgnmentor.com/events/WorldChamp1966.pgn",
+   "cache": "artifacts/WorldChamp1966/WorldChamp1966.pgn",
+   "sha256": "c16ae42a74919d02dc4b7debeee362173b417a013c3248588ee652769879831c"
+  },
+  "WorldChamp1969": {
+   "url": "https://www.pgnmentor.com/events/WorldChamp1969.pgn",
+   "cache": "artifacts/WorldChamp1969/WorldChamp1969.pgn",
+   "sha256": "1d45fc7ead62b2afe26f4303db84f6b0ff324fda634c309fe6fea694219bc3d6"
+  },
+  "WorldChamp1972": {
+   "url": "https://www.pgnmentor.com/events/WorldChamp1972.pgn",
+   "cache": "artifacts/WorldChamp1972/WorldChamp1972.pgn",
+   "sha256": "2e328e7305609ed01821f6f40cf6da4e3b6bea7e93c10de9cb0c8b5b2d65f875"
+  },
+  "WorldChamp1978": {
+   "url": "https://www.pgnmentor.com/events/WorldChamp1978.pgn",
+   "cache": "artifacts/WorldChamp1978/WorldChamp1978.pgn",
+   "sha256": "be2d4d4b424d19ba4d03e6cffdd981b720cadd16b6d804d670717d3fbc0b0305"
+  },
+  "WorldChamp1981": {
+   "url": "https://www.pgnmentor.com/events/WorldChamp1981.pgn",
+   "cache": "artifacts/WorldChamp1981/WorldChamp1981.pgn",
+   "sha256": "232f3087895c9e3d32cf168f191fe8ed975cc648fff79195420d7a65f58405be"
+  },
+  "WorldChamp1984": {
+   "url": "https://www.pgnmentor.com/events/WorldChamp1984.pgn",
+   "cache": "artifacts/WorldChamp1984/WorldChamp1984.pgn",
+   "sha256": "e202d42cfc997980c3b6b830bd41a2ca1efda13aac6d62d5fd9dcde69a5a1766"
+  },
+  "WorldChamp1985": {
+   "url": "https://www.pgnmentor.com/events/WorldChamp1985.pgn",
+   "cache": "artifacts/WorldChamp1985/WorldChamp1985.pgn",
+   "sha256": "ed6e04af408f69b9c7a27c6544ad8df545ad653510e4813c3ffb32328dc7b254"
+  },
+  "WorldChamp1986": {
+   "url": "https://www.pgnmentor.com/events/WorldChamp1986.pgn",
+   "cache": "artifacts/WorldChamp1986/WorldChamp1986.pgn",
+   "sha256": "61b482987894df1669521099f067e1e42d01346439d541dd60b6224b92aa5dc3"
+  },
+  "WorldChamp1987": {
+   "url": "https://www.pgnmentor.com/events/WorldChamp1987.pgn",
+   "cache": "artifacts/WorldChamp1987/WorldChamp1987.pgn",
+   "sha256": "eb36ccc0b8e284ea0ef742c8b2b2d83d5cdd804acf162dc998789031c7167b44"
+  },
+  "WorldChamp1990": {
+   "url": "https://www.pgnmentor.com/events/WorldChamp1990.pgn",
+   "cache": "artifacts/WorldChamp1990/WorldChamp1990.pgn",
+   "sha256": "21a725b551253aac2fc3473dfe40b38a95f7a92781ba50f83372bc3fa447dc01"
+  },
+  "WorldChamp2000": {
+   "url": "https://www.pgnmentor.com/events/WorldChamp2000.pgn",
+   "cache": "artifacts/WorldChamp2000/WorldChamp2000.pgn",
+   "sha256": "1dcf3d75cdfadb0e859d9efd0e70d2800420666aeda663e644443a6d46a6c403"
+  },
+  "WorldChamp2004": {
+   "url": "https://www.pgnmentor.com/events/WorldChamp2004.pgn",
+   "cache": "artifacts/WorldChamp2004/WorldChamp2004.pgn",
+   "sha256": "f1dc467ef45844cbbaf738d3f1629accd011fa914f00a35d31fa679edab95ea8"
+  },
+  "WorldChamp2006": {
+   "url": "https://www.pgnmentor.com/events/WorldChamp2006.pgn",
+   "cache": "artifacts/WorldChamp2006/WorldChamp2006.pgn",
+   "sha256": "e4d674437fe43d387cd321933f65cc2257ddd2a62fb427880d59bfe7cb4f7594"
+  },
+  "WorldChamp2007": {
+   "url": "https://www.pgnmentor.com/events/WorldChamp2007.pgn",
+   "cache": "artifacts/WorldChamp2007/WorldChamp2007.pgn",
+   "sha256": "790f559d68765b1c309cc593eaaf40cb2b6f9a37932e986f74b7b977097bceeb"
+  },
+  "WorldChamp2008": {
+   "url": "https://www.pgnmentor.com/events/WorldChamp2008.pgn",
+   "cache": "artifacts/WorldChamp2008/WorldChamp2008.pgn",
+   "sha256": "dc2a2fdfe17ad2b3689b07b9363786b394cc7b3190815155c54e3e7ed7c9213c"
+  },
+  "WorldChamp2010": {
+   "url": "https://www.pgnmentor.com/events/WorldChamp2010.pgn",
+   "cache": "artifacts/WorldChamp2010/WorldChamp2010.pgn",
+   "sha256": "ce63c0254041f8bcf563da1090b3bdb8e51d875eecf6eb8a8de69e911608610f"
+  },
+  "WorldChamp2012": {
+   "url": "https://www.pgnmentor.com/events/WorldChamp2012.pgn",
+   "cache": "artifacts/WorldChamp2012/WorldChamp2012.pgn",
+   "sha256": "bd2709558b78ca773f8e2b4ab546f14183d638598bee9ec2242c247e1f5f3b93"
+  },
+  "WorldChamp2013": {
+   "url": "https://www.pgnmentor.com/events/WorldChamp2013.pgn",
+   "cache": "artifacts/WorldChamp2013/WorldChamp2013.pgn",
+   "sha256": "715d7ff5a56a53c9eebbcd13e369f172c04ee2f5e325496f85c4efee22ff2fbf"
+  },
+  "WorldChamp2014": {
+   "url": "https://www.pgnmentor.com/events/WorldChamp2014.pgn",
+   "cache": "artifacts/WorldChamp2014/WorldChamp2014.pgn",
+   "sha256": "4e88dd75d4b2d3195a483c12d479f21c4ed2d205a2d6776c34e1712c0788553f"
+  },
+  "WorldChamp2016": {
+   "url": "https://www.pgnmentor.com/events/WorldChamp2016.pgn",
+   "cache": "artifacts/WorldChamp2016/WorldChamp2016.pgn",
+   "sha256": "6f53aaf036cfd5f5152ab87f1a0868717b8fb73926467548f38d182388890174"
+  },
+  "WorldChamp2018": {
+   "url": "https://www.pgnmentor.com/events/WorldChamp2018.pgn",
+   "cache": "artifacts/WorldChamp2018/WorldChamp2018.pgn",
+   "sha256": "7bc49fb442bacea340e51a2fb34ad53a9f68177ef0d525ee83d66126f813fd28"
+  },
+  "WorldChamp2021": {
+   "url": "https://www.pgnmentor.com/events/WorldChamp2021.pgn",
+   "cache": "artifacts/WorldChamp2021/WorldChamp2021.pgn",
+   "sha256": "eaff21a63d82803f413199378fa8722733949cae52c3d0ce531bb409b64b250d"
+  },
+  "WorldChamp2023": {
+   "url": "https://www.pgnmentor.com/events/WorldChamp2023.pgn",
+   "cache": "artifacts/WorldChamp2023/WorldChamp2023.pgn",
+   "sha256": "242063c8c5c589c88378cfb29228fedf489d175ba014dce826f8860d1891241f"
+  },
+  "WorldChamp2024": {
+   "url": "https://www.pgnmentor.com/events/WorldChamp2024.pgn",
+   "cache": "artifacts/WorldChamp2024/WorldChamp2024.pgn",
+   "sha256": "7d3aeeee820731266afb81a8e67376b95cef181f8edff6f36df5622276dda343"
+  },
+  "earlier-lasker-thomas": {
+   "url": "repository:Content/game-library/artifacts/lasker-thomas.pgn",
+   "repository": "Content/game-library/artifacts/lasker-thomas.pgn",
+   "sha256": "375033a8cb80819e5b726496ce754f9d8a33642d780c84a53ff486c139f96238",
+   "note": "The standard score (Ed. Lasker v G. A. Thomas, London 1912, ending 18.Kd2#) as bundled by the earlier famous-games work; its UCI hash equals that work's python-chess cross-check. Public-domain game score, kept here so the bundle reproduces from the repository."
+  },
+  "earlier-legal-mate": {
+   "url": "repository:Content/game-library/artifacts/legal-mate.pgn",
+   "repository": "Content/game-library/artifacts/legal-mate.pgn",
+   "sha256": "67a4577f33b96e18252c7882f5e61469c0fd462e44c9ff650149682824c54364",
+   "note": "The traditional version of Legal's mate from the earlier famous-games work; its UCI hash equals that work's python-chess cross-check (c9f3346b...). Kept here so the bundle reproduces from the repository."
+  },
+  "lichess-wch2023-tiebreak": {
+   "url": "https://lichess.org/api/study/jCs1wd0E.pgn?comments=false&variations=false&clocks=false",
+   "cache": "artifacts/lichess-wch2023-tiebreak/study.pgn",
+   "sha256": "7fd17c510167bb1d61abc4379904ffa5fd98c70bdda13b044454620f8b04e5c1",
+   "note": "Lichess broadcast study of the 2023 rapid tiebreaks; the PGN Mentor file has the classical games only."
+  }
+ },
+ "games": {
+  "wch-1886-1": {
+   "artifact": "WorldChamp1886",
+   "record": 1,
+   "recordSHA256": "4e707de72a1d267dd6b5232928d3cfc029dc75b08a6a52fbf3f6b64ffe225622"
+  },
+  "wch-1886-7": {
+   "artifact": "WorldChamp1886",
+   "record": 7,
+   "recordSHA256": "6e9e210ac5e711fc6071cabeec90e33639207be277c027bc998d68a5d0108390"
+  },
+  "wch-1886-9": {
+   "artifact": "WorldChamp1886",
+   "record": 9,
+   "recordSHA256": "a2cbde288e07f945330a2bd3ef2a31307656a0f0dba3cc21b44ba519d678e6d8"
+  },
+  "wch-1886-20": {
+   "artifact": "WorldChamp1886",
+   "record": 20,
+   "recordSHA256": "03834a812a46c21b44103969408b824834b404546b1017087ba5c1f861eec0ec"
+  },
+  "wch-1889-1": {
+   "artifact": "WorldChamp1889",
+   "record": 1,
+   "recordSHA256": "9d2272216b0f7605032f1e45794d7df4f82feb71d55be45ed0cafe8e9fb6951f"
+  },
+  "wch-1889-17": {
+   "artifact": "WorldChamp1889",
+   "record": 17,
+   "recordSHA256": "d3c6e1e6e671b085b8a9658aa99544afd0c27b2a21d6949b044798c66a60b96e"
+  },
+  "wch-1890-1": {
+   "artifact": "WorldChamp1890",
+   "record": 1,
+   "recordSHA256": "a60073a9b90bbdd479305f4b83d7ce30459915143a150a206a8a9958ed4e7be5"
+  },
+  "wch-1890-19": {
+   "artifact": "WorldChamp1890",
+   "record": 19,
+   "recordSHA256": "8030c2e04855bc3110bc0ed61b68b7f779fb52b5f8c0dc02cf4c2e9db23d9c7b"
+  },
+  "wch-1892-1": {
+   "artifact": "WorldChamp1892",
+   "record": 1,
+   "recordSHA256": "c5b8e3f723dc8d762a57d96044e996b8b343a3da293658535018560e9f0f59bd"
+  },
+  "wch-1892-4": {
+   "artifact": "WorldChamp1892",
+   "record": 4,
+   "recordSHA256": "b346efb5e5e8f922c192851937cd2a6e132307cfb37e9bca92d47b34a53fd4dc"
+  },
+  "wch-1892-23": {
+   "artifact": "WorldChamp1892",
+   "record": 23,
+   "recordSHA256": "c88a42e69511f0e7aaf3818d1a47553c29bb3ccbf84e07a00fcbfe919a5b5a3d"
+  },
+  "wch-1894-1": {
+   "artifact": "WorldChamp1894",
+   "record": 1,
+   "recordSHA256": "25625a29143dc48743e693f6609b9c8c003422c597718a4c9ccba65a0ccba15e"
+  },
+  "wch-1894-19": {
+   "artifact": "WorldChamp1894",
+   "record": 19,
+   "recordSHA256": "7e93a049e82ee56d92a819866ab5cd29b07d75c03dbcc11e33ccd97fc495ff4c"
+  },
+  "wch-1896-1": {
+   "artifact": "WorldChamp1896",
+   "record": 1,
+   "recordSHA256": "97e0503736c2cd71859c57516341cf45d2ec86084db675a209ed9ef197a279b8"
+  },
+  "wch-1896-17": {
+   "artifact": "WorldChamp1896",
+   "record": 17,
+   "recordSHA256": "70008bd8aba30af365584b8b64643600d596d8e818e5423c86b10ab67c581787"
+  },
+  "wch-1907-1": {
+   "artifact": "WorldChamp1907",
+   "record": 1,
+   "recordSHA256": "4bea1694e9573e4fede31991a0c13f69bedaac5b418bc7c48a6a3bf6f9f40314"
+  },
+  "wch-1907-15": {
+   "artifact": "WorldChamp1907",
+   "record": 15,
+   "recordSHA256": "22b11a536f9097fe237ffd782fbf8915a4d2ab84e84edc15fe9a54dfed633364"
+  },
+  "wch-1908-1": {
+   "artifact": "WorldChamp1908",
+   "record": 1,
+   "recordSHA256": "66018a690a96bd482c66f7dc0ad535f74769cce71cb34c5dfd51401bf8b29102"
+  },
+  "wch-1908-16": {
+   "artifact": "WorldChamp1908",
+   "record": 16,
+   "recordSHA256": "971d72854bd200ad09331194ce486b06c972cd5d408bbf6cf3495b301554fc76"
+  },
+  "wch-1910-schlechter-5": {
+   "artifact": "WorldChamp1910a",
+   "record": 5,
+   "recordSHA256": "9593aab58e98636171a6fcab4274dab41158d5193a7699b0f27e8ccd7588800e"
+  },
+  "wch-1910-schlechter-10": {
+   "artifact": "WorldChamp1910a",
+   "record": 10,
+   "recordSHA256": "6dde9fc474cfab5979e62a473c42f61396df6d3468fe6ad7af9c1bf00a6a3960"
+  },
+  "wch-1910-janowski-1": {
+   "artifact": "WorldChamp1910b",
+   "record": 1,
+   "recordSHA256": "bc590ac442c4741a6bb4d9af20d130433d96d73daab249d9dd1eaf8353dc6bd0"
+  },
+  "wch-1910-janowski-11": {
+   "artifact": "WorldChamp1910b",
+   "record": 11,
+   "recordSHA256": "8744a57dd4a2578aa0929095af29d2f60944643e10fe8c43fc3693557287f6c1"
+  },
+  "wch-1921-5": {
+   "artifact": "WorldChamp1921",
+   "record": 5,
+   "recordSHA256": "f00517bfdf048b84c7f15ce822dcee89221e80d58b904ea5c4ceeb5cf36999e8"
+  },
+  "wch-1921-10": {
+   "artifact": "WorldChamp1921",
+   "record": 10,
+   "recordSHA256": "96049f4253ce48e7c1b3d644e20752d475a694aa741c9c1ef113aca40efe1b0a"
+  },
+  "wch-1921-11": {
+   "artifact": "WorldChamp1921",
+   "record": 11,
+   "recordSHA256": "11d7182d4e9b20d6772f6f740f1252b36346757b5fe3a29dc6bd36b759e4f83f"
+  },
+  "wch-1921-14": {
+   "artifact": "WorldChamp1921",
+   "record": 14,
+   "recordSHA256": "e26fdf8c2c173ed718340dd34b0794c6f37fce6f71c19277fb559d7daf73ed91"
+  },
+  "wch-1927-1": {
+   "artifact": "WorldChamp1927",
+   "record": 1,
+   "recordSHA256": "0d3b90a9573b6846f9409f7637c14e358996980c0c485eb36da42605ae35114c"
+  },
+  "wch-1927-11": {
+   "artifact": "WorldChamp1927",
+   "record": 11,
+   "recordSHA256": "26ce280ad034fbbc398a2d424ecaa490d05c467d128e7ad67ddcb5d8de14b694"
+  },
+  "wch-1927-21": {
+   "artifact": "WorldChamp1927",
+   "record": 21,
+   "recordSHA256": "5811df5275ed36806d875f560c0ed648e0293640474decf001793d793cb67287"
+  },
+  "wch-1927-34": {
+   "artifact": "WorldChamp1927",
+   "record": 34,
+   "recordSHA256": "5f8e52c9f54ce0fd6965965724b32f70731096a81a75d7dd67d1446bf5357708"
+  },
+  "wch-1929-1": {
+   "artifact": "WorldChamp1929",
+   "record": 1,
+   "recordSHA256": "6a2d454f33935b28db09cbb6c5deb8ace2f44fe50c12f07f3a7c16f84c7b261e"
+  },
+  "wch-1929-25": {
+   "artifact": "WorldChamp1929",
+   "record": 25,
+   "recordSHA256": "375bcdb36687e08817b2becd1923e016285c08127b8dc6fad51474cbe186dbd9"
+  },
+  "wch-1934-1": {
+   "artifact": "WorldChamp1934",
+   "record": 1,
+   "recordSHA256": "70381cf154c24386ce0acfc610058790d68ec8848874535684df82a3613b7234"
+  },
+  "wch-1934-26": {
+   "artifact": "WorldChamp1934",
+   "record": 26,
+   "recordSHA256": "112071a3dec686efa73993ce5c8b98346f1948f63a4379e220de4953939a58a4"
+  },
+  "wch-1935-1": {
+   "artifact": "WorldChamp1935",
+   "record": 1,
+   "recordSHA256": "1b627d7bc9a4a11ce130e6d0fabef75fe1bbd4163e59890453e9539cf6b17f28"
+  },
+  "wch-1935-26": {
+   "artifact": "WorldChamp1935",
+   "record": 26,
+   "recordSHA256": "d690faf9240ec6401c3adae5ff9c9ef540eebcb36de25575fee9c9cc87ecdaa7"
+  },
+  "wch-1935-30": {
+   "artifact": "WorldChamp1935",
+   "record": 30,
+   "recordSHA256": "54ab59d51497ee45759979f8811cb2439101bc0777507296ca5c313da922efd3"
+  },
+  "wch-1937-1": {
+   "artifact": "WorldChamp1937",
+   "record": 1,
+   "recordSHA256": "eaae2c7124e53b8f19988670752e6e668affb547676f07ef4f8649bbfc62077e"
+  },
+  "wch-1937-6": {
+   "artifact": "WorldChamp1937",
+   "record": 6,
+   "recordSHA256": "74faf4f47893538f17d1dcca59635c283adf3bff99baeae7681161acddfa8fdc"
+  },
+  "wch-1937-25": {
+   "artifact": "WorldChamp1937",
+   "record": 25,
+   "recordSHA256": "0d7673eef98bccc089d275c8b0744d897479d921d88367184daa36d3676c5875"
+  },
+  "wch-1948-botvinnik-keres": {
+   "artifact": "WorldChamp1948",
+   "record": 20,
+   "recordSHA256": "7b889afee026d21bab5f7c08df4576d47003e42783986eba1afc9e2aa5999d1b"
+  },
+  "wch-1948-botvinnik-euwe": {
+   "artifact": "WorldChamp1948",
+   "record": 5,
+   "recordSHA256": "2d7f1e33a05abe82279440c2f638c5abd37c800d90eb09e91303031e421ed0d4"
+  },
+  "wch-1948-smyslov-botvinnik": {
+   "artifact": "WorldChamp1948",
+   "record": 7,
+   "recordSHA256": "d10b2cd0fb4f0b2c25fbd44ee4b97760d1245d4230364d80b1d6d36bd1796d4d"
+  },
+  "wch-1948-botvinnik-reshevsky": {
+   "artifact": "WorldChamp1948",
+   "record": 9,
+   "recordSHA256": "26731275dfa818c1c1215ff5e1f2127ed0d4f9629740ca1a5809389494785338"
+  },
+  "wch-1951-22": {
+   "artifact": "WorldChamp1951",
+   "record": 22,
+   "recordSHA256": "a44b34e4eca8c54bb3a696c5a974e0002af1be374e8febbb8642903cfd555693"
+  },
+  "wch-1951-23": {
+   "artifact": "WorldChamp1951",
+   "record": 23,
+   "recordSHA256": "bcda1e2f2e9d365efb602cb0bc004d2a88408e5fe091593e27428ab12e8a0416"
+  },
+  "wch-1951-24": {
+   "artifact": "WorldChamp1951",
+   "record": 24,
+   "recordSHA256": "fe093237bbb656473a3e1c4aeaa639e235c4747ed4ac9332fa6f7144f5cb0244"
+  },
+  "wch-1954-1": {
+   "artifact": "WorldChamp1954",
+   "record": 1,
+   "recordSHA256": "12736cfb5bd44bbee076b2200ab8faac1bd3aed0424175c702a22b5608637223"
+  },
+  "wch-1954-24": {
+   "artifact": "WorldChamp1954",
+   "record": 24,
+   "recordSHA256": "8d8eb7f586504d1b16809fef57fec385dd06177fe994f20dd87ce170fe0d9b17"
+  },
+  "wch-1957-1": {
+   "artifact": "WorldChamp1957",
+   "record": 1,
+   "recordSHA256": "d032d5ec9a15a86ec1bf9e187936df66ec93ffdea242dad37228419f862dfd68"
+  },
+  "wch-1957-22": {
+   "artifact": "WorldChamp1957",
+   "record": 22,
+   "recordSHA256": "1fd575baf737767ba48ae42d10aaac7ad8843a08102cdb4f50a765362a6f3626"
+  },
+  "wch-1958-1": {
+   "artifact": "WorldChamp1958",
+   "record": 1,
+   "recordSHA256": "181b36d8843a4a811e0f06ffa9ba3da432f2c70dd3fccffa7f1c457045a06d29"
+  },
+  "wch-1958-23": {
+   "artifact": "WorldChamp1958",
+   "record": 23,
+   "recordSHA256": "342efdf8f9d032c29d56655d57c2ce085291e2ffbcc5ce11d49e01de1a21027f"
+  },
+  "wch-1960-1": {
+   "artifact": "WorldChamp1960",
+   "record": 1,
+   "recordSHA256": "ba7963b5cd1974ceaf71fca366099ce84237c03a3774e3d3d63d8e0c900b5e89"
+  },
+  "wch-1960-6": {
+   "artifact": "WorldChamp1960",
+   "record": 6,
+   "recordSHA256": "1cfe7d69627979aa2602e05a9733aef184f1cceb6961ddec64b04ce1446d8991"
+  },
+  "wch-1960-17": {
+   "artifact": "WorldChamp1960",
+   "record": 17,
+   "recordSHA256": "0571086af39565f052b0ea75fff7acd591d46adee70f255ef365150f54ee8b83"
+  },
+  "wch-1960-21": {
+   "artifact": "WorldChamp1960",
+   "record": 21,
+   "recordSHA256": "8a26d5c878e921dcddc432022e813f7432918a419ebac4b18359d0b8e4d70bca"
+  },
+  "wch-1961-1": {
+   "artifact": "WorldChamp1961",
+   "record": 1,
+   "recordSHA256": "0925c3b6e5c9a00e8aaf503215db8446384809bb1a92e2bb5781cab01972cca6"
+  },
+  "wch-1961-21": {
+   "artifact": "WorldChamp1961",
+   "record": 21,
+   "recordSHA256": "5cc23b393855d1de75988de082bec1f0731906178861d3601800bac0ef7fb916"
+  },
+  "wch-1963-5": {
+   "artifact": "WorldChamp1963",
+   "record": 5,
+   "recordSHA256": "c7dcc702bb6cf71de5944d0d97a08c19663d3fb37bc6a5364a30968ba00ad577"
+  },
+  "wch-1963-7": {
+   "artifact": "WorldChamp1963",
+   "record": 7,
+   "recordSHA256": "aa7ee8708ebc72a5ad59e7a5db1234edd46183b391cbd1a29b4722e7a6c2f37f"
+  },
+  "wch-1963-22": {
+   "artifact": "WorldChamp1963",
+   "record": 22,
+   "recordSHA256": "b6f5bc7ab967412d34f38ec21f23c9bd7257bfbcdbc1e443732c01a3cb4880eb"
+  },
+  "wch-1966-7": {
+   "artifact": "WorldChamp1966",
+   "record": 7,
+   "recordSHA256": "c262c97acbd7379ec31223e72efef8130722baba3d076a10299a5410c32b7e3c"
+  },
+  "wch-1966-10": {
+   "artifact": "WorldChamp1966",
+   "record": 10,
+   "recordSHA256": "6560acd7ac25f11446573575ba80e17c97c156408eb43587ccf2e7886243b8ee"
+  },
+  "wch-1966-24": {
+   "artifact": "WorldChamp1966",
+   "record": 24,
+   "recordSHA256": "98d2c1c8beb1914c970fb90cd084cd4e85035b9d4c2251e20e735af608e0eee6"
+  },
+  "wch-1969-5": {
+   "artifact": "WorldChamp1969",
+   "record": 5,
+   "recordSHA256": "d5b9164225329da2d458eaf01b9e1e5826d1fbdc1a1ae3cf2199f4efdebaba06"
+  },
+  "wch-1969-19": {
+   "artifact": "WorldChamp1969",
+   "record": 19,
+   "recordSHA256": "49d67b4a0a3e7f35c91bdae584c8fc4ee800e42874b851a4356d3d4bf242d850"
+  },
+  "wch-1969-23": {
+   "artifact": "WorldChamp1969",
+   "record": 23,
+   "recordSHA256": "9b7815151f5ecd957ed62ce318980d7b1aa035e44d6846649fbc5f7eade8d458"
+  },
+  "wch-1972-1": {
+   "artifact": "WorldChamp1972",
+   "record": 1,
+   "recordSHA256": "c5fda7ad4236f8e87877cb4fb62bbe38a50697567a717225b04d342db5286f7b"
+  },
+  "wch-1972-3": {
+   "artifact": "WorldChamp1972",
+   "record": 3,
+   "recordSHA256": "8cf26a6138abdfbe3d8b146b06bb6a40c3055cce0a275e70cde7f873bcc346b7"
+  },
+  "wch-1972-6": {
+   "artifact": "WorldChamp1972",
+   "record": 6,
+   "recordSHA256": "880f0cdaee06089474b8ee507d4e80448d8b12d76ca4e301f633bf6fb6a40067"
+  },
+  "wch-1972-13": {
+   "artifact": "WorldChamp1972",
+   "record": 13,
+   "recordSHA256": "3b0b50f5cc3fea1d2dda58b8fa1aa1104969be181dd4b46d9ca6d0c77b9efe0e"
+  },
+  "wch-1978-8": {
+   "artifact": "WorldChamp1978",
+   "record": 8,
+   "recordSHA256": "ec7ecd8b2b4340ba72d0cb2b4f6fd4b248797c658ff52b96c965f718ef731e70"
+  },
+  "wch-1978-17": {
+   "artifact": "WorldChamp1978",
+   "record": 17,
+   "recordSHA256": "da9545960bda32a264085df1b55c038f8e669d47aaeceb437a46de016f4af17e"
+  },
+  "wch-1978-31": {
+   "artifact": "WorldChamp1978",
+   "record": 31,
+   "recordSHA256": "97d18ae1a21e607f301b70867a6869d65040bf6ee865fd54695e19acba1a5fa1"
+  },
+  "wch-1978-32": {
+   "artifact": "WorldChamp1978",
+   "record": 32,
+   "recordSHA256": "3160ce05afc105bd074835250a2c100afebeb323bb0408fe99965015298b4f3d"
+  },
+  "wch-1981-1": {
+   "artifact": "WorldChamp1981",
+   "record": 1,
+   "recordSHA256": "90a909da458589b18374be8f751b6913c3ce70266f26d7696c8ecd41e24aacd6"
+  },
+  "wch-1981-9": {
+   "artifact": "WorldChamp1981",
+   "record": 9,
+   "recordSHA256": "4769cdf9ee75e5f7bb3bd1064d42932909504528f0f5a7a891525964e27ecb05"
+  },
+  "wch-1981-18": {
+   "artifact": "WorldChamp1981",
+   "record": 18,
+   "recordSHA256": "10fdd4a521171bd79490176a53a4e0a0224fbfecc443f767eee07adddf4ec1de"
+  },
+  "wch-1984-9": {
+   "artifact": "WorldChamp1984",
+   "record": 9,
+   "recordSHA256": "eb6b532ddf9e9049dc7213499271b50c478b3812c898951ee4f9d08a2af19bc9"
+  },
+  "wch-1984-27": {
+   "artifact": "WorldChamp1984",
+   "record": 27,
+   "recordSHA256": "6e5fca55af234da52a2fbe280a9e09294f425023dd4dd6d6941ccdcf62b08835"
+  },
+  "wch-1984-32": {
+   "artifact": "WorldChamp1984",
+   "record": 32,
+   "recordSHA256": "35cbc3cb9159b992caca99529b870513e929d2d0a597e8df3f3699d6129ad7ac"
+  },
+  "wch-1984-48": {
+   "artifact": "WorldChamp1984",
+   "record": 48,
+   "recordSHA256": "4d2c836895dc7b562cae08053b449e3e546479f04550a7aab9fc2e904201a81d"
+  },
+  "wch-1985-16": {
+   "artifact": "WorldChamp1985",
+   "record": 16,
+   "recordSHA256": "4077d9ebfbb18751cbede47ff5ec3aebbbfca70f30238f9f40cc65e8b74aa9d2"
+  },
+  "wch-1985-19": {
+   "artifact": "WorldChamp1985",
+   "record": 19,
+   "recordSHA256": "57d27f9363e8b9dbd7c87a0f442e0d641515e7cb88b290d05e612f13b7a69b6b"
+  },
+  "wch-1985-24": {
+   "artifact": "WorldChamp1985",
+   "record": 24,
+   "recordSHA256": "ed06c3ea6224293f57139dfaa4ad44b4af7efc031567dae118f8c5ffa584fbd3"
+  },
+  "wch-1986-16": {
+   "artifact": "WorldChamp1986",
+   "record": 16,
+   "recordSHA256": "2af9aa10454b881a3470fff5b006afb23bc295155a9c503f1b974fc9e4c8214a"
+  },
+  "wch-1986-19": {
+   "artifact": "WorldChamp1986",
+   "record": 19,
+   "recordSHA256": "aaea21a8d4bd2b2b6fbe8f26830c926a96d320aa28c7b1ce7008b1e378771e42"
+  },
+  "wch-1986-22": {
+   "artifact": "WorldChamp1986",
+   "record": 22,
+   "recordSHA256": "52d756ade5526d9af1f595368e7b6a1d4506cd1e807cb939b71522474f582204"
+  },
+  "wch-1987-23": {
+   "artifact": "WorldChamp1987",
+   "record": 23,
+   "recordSHA256": "1d15fda88b35584e445f5821a6ad1a871651ae7e8e290397fdf5dc6bbd2a7847"
+  },
+  "wch-1987-24": {
+   "artifact": "WorldChamp1987",
+   "record": 24,
+   "recordSHA256": "e4a04893348d5408faab2fe975f06df9d91eb8877707aeac0bc8f3e8ef4a682c"
+  },
+  "wch-1990-20": {
+   "artifact": "WorldChamp1990",
+   "record": 20,
+   "recordSHA256": "ce7b6a599971c4428c850ae76c4456b768352a3f30cf4614d763c9dd9bd05f21"
+  },
+  "wch-1990-24": {
+   "artifact": "WorldChamp1990",
+   "record": 24,
+   "recordSHA256": "84e37564347c93504997fd21bfaebc729474a9517cc358461c5027cbbb88795b"
+  },
+  "pca-1993-1": {
+   "artifact": "PCAChamp1993",
+   "record": 1,
+   "recordSHA256": "0fb8f05f8a206e17bfd170d8d620e11e4d17caab2f91bcb4f0e52356129e4a79"
+  },
+  "pca-1993-20": {
+   "artifact": "PCAChamp1993",
+   "record": 20,
+   "recordSHA256": "b1490969e575161721fad545087cb3641e4a40a679ccef4ff0fee2f018bd19c4"
+  },
+  "fide-1993-1": {
+   "artifact": "FideChamp1993",
+   "record": 1,
+   "recordSHA256": "d8194df1d225155fc47a165895c3ec02475636af7c71c5475d4c17f209774025"
+  },
+  "fide-1993-21": {
+   "artifact": "FideChamp1993",
+   "record": 21,
+   "recordSHA256": "7d2022570d26bfaa297a510cdcb2e588011c07be8adca3e07214cac5f028f25b"
+  },
+  "pca-1995-9": {
+   "artifact": "PCAChamp1995",
+   "record": 9,
+   "recordSHA256": "58c25f13d44fd246e137ae8444575179c4c036245445aa5459581dc3c32fa63b"
+  },
+  "pca-1995-10": {
+   "artifact": "PCAChamp1995",
+   "record": 10,
+   "recordSHA256": "0eb38eb9783d210c58f80be359159e585c7aa3ff50444a60cce7a768d9d1b967"
+  },
+  "pca-1995-18": {
+   "artifact": "PCAChamp1995",
+   "record": 18,
+   "recordSHA256": "f5ffb9681635cf66afd34f14d43e59d380fe55cc80d44bfd43830141d8d385bc"
+  },
+  "fide-1996-1": {
+   "artifact": "FideChamp1996",
+   "record": 1,
+   "recordSHA256": "2e637607b6124ef07ee63bb3912e07c4f4928e0ef8f14b07867f0e2aa5399d24"
+  },
+  "fide-1996-18": {
+   "artifact": "FideChamp1996",
+   "record": 18,
+   "recordSHA256": "042a763bd6086e6f74c7492da126e0ee143aae63a6cca7e99189f278fb49b10b"
+  },
+  "classical-2000-2": {
+   "artifact": "WorldChamp2000",
+   "record": 2,
+   "recordSHA256": "db9b894617b5a30cc9a0cf6fff6ad5a21499c235f6449df7a07ef57b55541462"
+  },
+  "classical-2000-10": {
+   "artifact": "WorldChamp2000",
+   "record": 10,
+   "recordSHA256": "864935dbf842b9df714703953b81df49fc628f3cee9288cae5b521c061774e7a"
+  },
+  "classical-2000-15": {
+   "artifact": "WorldChamp2000",
+   "record": 15,
+   "recordSHA256": "77dfdb99c67a19c93c54ab17d78e4c175282cd538cc5f7dc04cf3a9c0facfdf1"
+  },
+  "classical-2004-1": {
+   "artifact": "WorldChamp2004",
+   "record": 1,
+   "recordSHA256": "d734d0c5d73c25f2a08456994a16b0bbcf1ed0e208735a777c52930faae46f22"
+  },
+  "classical-2004-8": {
+   "artifact": "WorldChamp2004",
+   "record": 8,
+   "recordSHA256": "1e020ca49fffec48b5bff9fe29ae933c220fee781148d1c6476d699745afdfc4"
+  },
+  "classical-2004-14": {
+   "artifact": "WorldChamp2004",
+   "record": 14,
+   "recordSHA256": "3871c735b82d1ecbb67f4ed09c776da9dfa31575e2fba6b25a872cbc5ac22039"
+  },
+  "fide-2005-leko-topalov": {
+   "artifact": "FideChamp2005",
+   "record": 3,
+   "recordSHA256": "93d5e6b9c5930539eb97dccbba8bf20c0c9adc321e36fe625e418bc155e51e0d"
+  },
+  "fide-2005-topalov-kasimdzhanov": {
+   "artifact": "FideChamp2005",
+   "record": 28,
+   "recordSHA256": "943f5ea632e6d6a964a1d279fbe84c02858ef77a7aea2b9c2ffc90d05d494317"
+  },
+  "wch-2006-1": {
+   "artifact": "WorldChamp2006",
+   "record": 1,
+   "recordSHA256": "0e624f430ac10d69fe1e42af878761fd9c565c87bf0ca7d2b62f49b985f6f2a9"
+  },
+  "wch-2006-8": {
+   "artifact": "WorldChamp2006",
+   "record": 8,
+   "recordSHA256": "2dbdad95770d45ac9276e8d334e61b7f7c90e2f8c7e6a7ec6ef3d41656c5f5ec"
+  },
+  "wch-2006-tiebreak-4": {
+   "artifact": "WorldChamp2006",
+   "record": 16,
+   "recordSHA256": "f486c4bbfeb84f8666681e8c540948d9b01538d0239a3ca3e822ea22fd6d0068"
+  },
+  "wch-2007-anand-grischuk": {
+   "artifact": "WorldChamp2007",
+   "record": 26,
+   "recordSHA256": "eb7d2e7e6251a4d49ba44f02127f3d90587f075ff4a8b41a6524093bb15f116e"
+  },
+  "wch-2007-anand-morozevich": {
+   "artifact": "WorldChamp2007",
+   "record": 42,
+   "recordSHA256": "47dd788cf28caf8aaaaabe339616dacfb5d8ed4e5034823c777955389b3a530e"
+  },
+  "wch-2008-3": {
+   "artifact": "WorldChamp2008",
+   "record": 3,
+   "recordSHA256": "65dac3c711eb54439ce734974aa150e3e102302737cff1fd63540cecb22f0300"
+  },
+  "wch-2008-5": {
+   "artifact": "WorldChamp2008",
+   "record": 5,
+   "recordSHA256": "609d60fc17f270b17039697bf807c81d0188497dd9c95a09c09e06b1cd114a05"
+  },
+  "wch-2008-6": {
+   "artifact": "WorldChamp2008",
+   "record": 6,
+   "recordSHA256": "186792c49db65167840080e9dde8211e501a26ab9f3a098d8ca08a8f1fe919dc"
+  },
+  "wch-2008-10": {
+   "artifact": "WorldChamp2008",
+   "record": 10,
+   "recordSHA256": "0b9afec21d2520c0e464ea12361c4f69f0bfe884c328fb7390e889d11ffa9dbd"
+  },
+  "wch-2010-1": {
+   "artifact": "WorldChamp2010",
+   "record": 1,
+   "recordSHA256": "4c6ffea5788061f7384d4b8e780f20a3081b21f6ac80435ed66eec9dd20bc37b"
+  },
+  "wch-2010-2": {
+   "artifact": "WorldChamp2010",
+   "record": 2,
+   "recordSHA256": "0b8bcd7b794d57e366dbd16d3f384b9a98b39af45e0bbbc1076f8bc45abb46d4"
+  },
+  "wch-2010-12": {
+   "artifact": "WorldChamp2010",
+   "record": 12,
+   "recordSHA256": "ec325471db07a45de4544052556c7041cd6e7a1138417d45771fb6f057dc327a"
+  },
+  "wch-2012-7": {
+   "artifact": "WorldChamp2012",
+   "record": 7,
+   "recordSHA256": "a90f43010d6ff1c6436b9a2d8b0f586bf95e6b1d6a579ed33369c7a7858af868"
+  },
+  "wch-2012-8": {
+   "artifact": "WorldChamp2012",
+   "record": 8,
+   "recordSHA256": "b733e33ac9566c4e120d34afc1396f930cdaab1f85ac2fe62282e45dea095eda"
+  },
+  "wch-2012-tiebreak-2": {
+   "artifact": "WorldChamp2012",
+   "record": 14,
+   "recordSHA256": "c5f051eb1f51d4740eb1afe73b17c5d00b1eeecfc446fc3212f8b60e3a0af719"
+  },
+  "wch-2013-5": {
+   "artifact": "WorldChamp2013",
+   "record": 5,
+   "recordSHA256": "a1701f5d84cfec5f03bd4ba48bab1cbb160890d6b56715ee81d91958241eb494"
+  },
+  "wch-2013-6": {
+   "artifact": "WorldChamp2013",
+   "record": 6,
+   "recordSHA256": "b01b8bcbd7c4a416d7469d95d50a739ce05ea722953c36b2d7d0cf535c55a4e4"
+  },
+  "wch-2013-9": {
+   "artifact": "WorldChamp2013",
+   "record": 9,
+   "recordSHA256": "e4a19290d0f463193a20a158d7b3372818a1e3da88d7c127445bfba03c3bd795"
+  },
+  "wch-2014-2": {
+   "artifact": "WorldChamp2014",
+   "record": 2,
+   "recordSHA256": "58a29e6c2152790f22f4f383963c7723c77d7d0a532a0b80eddeb5c9f29b9f96"
+  },
+  "wch-2014-3": {
+   "artifact": "WorldChamp2014",
+   "record": 3,
+   "recordSHA256": "622c2f1920ec99a7f02dfe3d1c67f693dc941c68ff0a4809100d1386936a6b5d"
+  },
+  "wch-2014-6": {
+   "artifact": "WorldChamp2014",
+   "record": 6,
+   "recordSHA256": "c6ffe81b54cc67cdd20ad7099c4bf25c3ecc67b7757e0559b1cfde40c92680a4"
+  },
+  "wch-2014-11": {
+   "artifact": "WorldChamp2014",
+   "record": 11,
+   "recordSHA256": "b7da61ec6f8ad6f48b1126e8d564628f5f412d6aa14bde674ca32a59c3768504"
+  },
+  "wch-2016-8": {
+   "artifact": "WorldChamp2016",
+   "record": 8,
+   "recordSHA256": "fe0ee1c1a9f62ecd26845dc4976916b746fbae522c19b36195e5d1794a993290"
+  },
+  "wch-2016-10": {
+   "artifact": "WorldChamp2016",
+   "record": 10,
+   "recordSHA256": "a08f61606d52656caa52b747a351285ef7d71901d7045695310b56a2011d51ee"
+  },
+  "wch-2016-tiebreak-4": {
+   "artifact": "WorldChamp2016",
+   "record": 16,
+   "recordSHA256": "fbbefecb06ad01e373fffc410d3ca5725a6d82284a86ec311edbc89f6b2e808f"
+  },
+  "wch-2018-6": {
+   "artifact": "WorldChamp2018",
+   "record": 6,
+   "recordSHA256": "aa1f0767119f68d339670477e8648583fd615d07cafe62ccae635d94967578bd"
+  },
+  "wch-2018-12": {
+   "artifact": "WorldChamp2018",
+   "record": 12,
+   "recordSHA256": "fd75b471a8f3a64eeb0fef17471108a3e1db2a3232affa4a1c3eddbca5e172b3"
+  },
+  "wch-2018-tiebreak-1": {
+   "artifact": "WorldChamp2018",
+   "record": 13,
+   "recordSHA256": "bd84176df3677e57a339611821c6954fcdfcd2d2d5d4ee964bcada1669940070"
+  },
+  "wch-2021-6": {
+   "artifact": "WorldChamp2021",
+   "record": 6,
+   "recordSHA256": "1771dd0089467b4546249c49f8a6e6887d52ac8bd14c0a2eb1a7684d9ec216b4"
+  },
+  "wch-2021-8": {
+   "artifact": "WorldChamp2021",
+   "record": 8,
+   "recordSHA256": "66370156655ffdb29e2e2d7050e643888d6c42cf38fb66f834846cca71349e7b"
+  },
+  "wch-2021-9": {
+   "artifact": "WorldChamp2021",
+   "record": 9,
+   "recordSHA256": "66a1fc3d877eee55e4740eb810e40eff5d231b809da5f3a44a89e5fecf46b720"
+  },
+  "wch-2021-11": {
+   "artifact": "WorldChamp2021",
+   "record": 11,
+   "recordSHA256": "548f6ff3e02a4be748696a2da5f2099dd016b36b2102cef261cb51bcf65abd1c"
+  },
+  "wch-2023-4": {
+   "artifact": "WorldChamp2023",
+   "record": 4,
+   "recordSHA256": "1b31ec1bfc8619b0fbf61a2e6c0b7e56d17dc2c1728569871765dc9adce76cad"
+  },
+  "wch-2023-6": {
+   "artifact": "WorldChamp2023",
+   "record": 6,
+   "recordSHA256": "66c5e7e78aa1c9a1addde6368bd4396ed7322ec86356e70fbc913a26f5dcae83"
+  },
+  "wch-2023-12": {
+   "artifact": "WorldChamp2023",
+   "record": 12,
+   "recordSHA256": "5fc78fecca795fb9ab14a0e71cf318adafbee66bd435547e2b9b32248708ccbe"
+  },
+  "wch-2023-tiebreak-4": {
+   "artifact": "lichess-wch2023-tiebreak",
+   "record": 4,
+   "recordSHA256": "cfa0ffc763f8d6a58d60bbc7b73509da50e7b5854af3b14f94271ff10053f16e"
+  },
+  "wch-2024-1": {
+   "artifact": "WorldChamp2024",
+   "record": 1,
+   "recordSHA256": "c221139e98744c0a3daa4eb90883f40b9e26c6d640a9923e18f75482a1a551dc"
+  },
+  "wch-2024-3": {
+   "artifact": "WorldChamp2024",
+   "record": 3,
+   "recordSHA256": "3dedafee7d6b90a542e803cf5de74fcf73e115605e1c892f96adf2efa50b93c4"
+  },
+  "wch-2024-11": {
+   "artifact": "WorldChamp2024",
+   "record": 11,
+   "recordSHA256": "f544d64c11b9c843a42e1b9702a0f6f232f7413de113591fe08cad7abd1f1204"
+  },
+  "wch-2024-14": {
+   "artifact": "WorldChamp2024",
+   "record": 14,
+   "recordSHA256": "e330fae80a82e65d1e970fea58dfdab8a9dc371c692b76768928187aa77b1145"
+  },
+  "immortal": {
+   "artifact": "Anderssen",
+   "record": 55,
+   "recordSHA256": "2561d80c92b6c67f251e68720c7bd60603cd4fb27d1203e11d0378fc7a86c3f5"
+  },
+  "evergreen": {
+   "artifact": "Anderssen",
+   "record": 118,
+   "recordSHA256": "cb92c75cc34a2d202e080c86fbbd97d537e0a47cfd9629f1849a2060b3eabb61"
+  },
+  "legal-mate": {
+   "artifact": "earlier-legal-mate",
+   "record": 1,
+   "recordSHA256": "2b69021f551e451fb1d8ec9f9a617112c5a8332950b642ffb356e3a119fd7f53"
+  },
+  "lasker-thomas": {
+   "artifact": "earlier-lasker-thomas",
+   "record": 1,
+   "recordSHA256": "bf4fe55e61d2f5a6a71eb8c88de1780d5372fc319145e2ca741700d75dee2dd3"
+  },
+  "steinitz-bardeleben": {
+   "artifact": "Steinitz",
+   "record": 453,
+   "recordSHA256": "616d7c090484949fd44389a9ae4cd20c067cf1c23a530781d0bbfa358541b656"
+  },
+  "rotlewi-rubinstein": {
+   "artifact": "Rubinstein",
+   "record": 102,
+   "recordSHA256": "02e9c072ebdd782fbb52896ecb91f12268d2735887389dffc82d2b04c7a73238"
+  },
+  "levitsky-marshall": {
+   "artifact": "Marshall",
+   "record": 634,
+   "recordSHA256": "b4a1c7eca848b23568e7de00d7659e8d19dc4b6370611d451f2b5afb93cd2089"
+  },
+  "byrne-fischer": {
+   "artifact": "Fischer",
+   "record": 19,
+   "recordSHA256": "2145ff59a1d5e8603c1bfd2ec8dd82b1bd3e8c8bc97f840b81998d51d468bafe"
+  },
+  "kasparov-topalov": {
+   "artifact": "Kasparov",
+   "record": 1511,
+   "recordSHA256": "38cdd57a051eced0771689b0e92750fa78173985ed8e901b6dfc1bcd3e9d745b"
+  },
+  "capablanca-marshall": {
+   "artifact": "Marshall",
+   "record": 754,
+   "recordSHA256": "8aaf5345b047a0fe449b6da84293c623860c21cdf57c11b11578ebeb1a31fa61"
+  },
+  "botvinnik-capablanca": {
+   "artifact": "Botvinnik",
+   "record": 192,
+   "recordSHA256": "efcbb9adaf08e0f6221cd43e5cdef494f497832e3eef4787d43415a3bf4aae29"
+  },
+  "polugaevsky-nezhmetdinov": {
+   "artifact": "Polugaevsky",
+   "record": 102,
+   "recordSHA256": "de6cb3c90cfafe251b1b2317cd65531f7e5918c94e4dafb99dcca3842c2350f7"
+  },
+  "short-timman": {
+   "artifact": "Short",
+   "record": 1001,
+   "recordSHA256": "28343b4236107757122e3909f571d00eb380739e9ddcea6262951c1e29a21673"
+  },
+  "deep-blue-kasparov": {
+   "artifact": "Kasparov",
+   "record": 1366,
+   "recordSHA256": "20635ba325d2ce126ef4ed6b9601051760489343fcf36e3729e386f33fe9a9f9"
+  }
+ }
+}

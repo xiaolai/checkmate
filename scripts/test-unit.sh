@@ -23,6 +23,7 @@ python3 -I Tools/test-narration-coverage.py
 python3 -I Tools/prepare-lesson-scripts.py --check > /dev/null
 python3 -I Tools/test-lesson-rules.py
 python3 -I Tools/test-provenance.py
+python3 -I Tools/build-game-library.py --check
 python3 -I Tools/test-record-lessons.py
 python3 -I Tools/prepare-training-content.py --check
 python3 -I Tools/test-prepare-training-content.py

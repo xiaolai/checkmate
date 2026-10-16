@@ -42,6 +42,7 @@ final class BoardTitleView:NSView {
     var sidebarItem:NSSplitViewItem!,boardItem:NSSplitViewItem!,inspectorItem:NSSplitViewItem!,controls:NSHostingView<TransportContent>!,welcome:NSHostingView<WelcomeContent>!,puzzles:NSHostingView<PuzzleLibraryContent>!
     private var playbackLineView:NSView?
     private var reviewWorkspaceView:NSHostingView<ReviewWorkspaceContent>!
+    private var workspaceAboveControls:NSLayoutConstraint!,workspaceFill:NSLayoutConstraint!
     private(set) var trainingLibraryView:NSHostingView<TrainingLibraryHost>!
     var leftExtent:CGFloat {Metrics.left+split.splitView.dividerThickness}
     var rightExtent:CGFloat {Metrics.right+split.splitView.dividerThickness}
@@ -91,7 +92,10 @@ final class BoardTitleView:NSView {
     /// The board area: transport, welcome card, puzzle and training libraries, error banner and playback line.
     private func buildBoardArea(){
         controls=VisibleHostingView(rootView:TransportContent(session:model.session,learning:model.learning,voice:model.voice,review:model.review,newGame:{[weak self] in self?.newGame()},showDetails:{[weak self] in self?.showDetails()},continueWithStockfish:{[weak model] in model?.companion.disable();model?.session.continueWithStockfish()},resumeGame:{[weak model] in model?.resumeAfterFailedRestore()},training:model.training,openTrainingLibrary:{[weak model] in model?.trainingLibrary()},continueLesson:{[weak self] in guard let self else{return};self.model.continueLesson();self.announceLesson()},previousLessonEnd:{[weak self] in guard let self else{return};self.model.previousLessonEnd();self.announceLesson()},returnToOriginal:{[weak model] in guard let model else{return};model.review.clearBranch();model.saveReview()},rowsChanged:{[weak self] rows in self?.setControlRows(rows)},framesChanged:{[weak self] frames in self?.barFrames=frames}));welcome=VisibleHostingView(rootView:WelcomeContent(title:""));puzzles=VisibleHostingView(rootView:PuzzleLibraryContent(learning:model.learning,session:model.session))
-        reviewWorkspaceView=VisibleHostingView(rootView:ReviewWorkspaceContent(model:model));trainingLibraryView=VisibleHostingView(rootView:TrainingLibraryHost(model:model))
+        reviewWorkspaceView=VisibleHostingView(rootView:ReviewWorkspaceContent(model:model))
+        // The workspace fills the board area through its constraints; its list would otherwise feed a size back into them
+        // that changes with every layout pass (an endless Update Constraints loop).
+        reviewWorkspaceView.sizingOptions=[];trainingLibraryView=VisibleHostingView(rootView:TrainingLibraryHost(model:model))
         for v in [board,controls!,welcome!,puzzles!,reviewWorkspaceView!,trainingLibraryView!] {main.view.addSubview(v);v.translatesAutoresizingMaskIntoConstraints=false}
         controlsHeight=controls.heightAnchor.constraint(equalToConstant:Metrics.header)
         NSLayoutConstraint.activate([controls.leadingAnchor.constraint(equalTo:main.view.leadingAnchor),controls.trailingAnchor.constraint(equalTo:main.view.trailingAnchor),controls.bottomAnchor.constraint(equalTo:main.view.safeAreaLayoutGuide.bottomAnchor),controlsHeight])
@@ -105,7 +109,10 @@ final class BoardTitleView:NSView {
         playbackLineView=playbackLine
         main.view.addSubview(playbackLine);playbackLine.translatesAutoresizingMaskIntoConstraints=false
         NSLayoutConstraint.activate([playbackLine.leadingAnchor.constraint(equalTo:main.view.leadingAnchor),playbackLine.trailingAnchor.constraint(equalTo:main.view.trailingAnchor),playbackLine.bottomAnchor.constraint(equalTo:main.view.bottomAnchor),playbackLine.heightAnchor.constraint(equalToConstant:Metrics.playbackLineHeight)])
-        for v in [board,welcome!,puzzles!,reviewWorkspaceView!,trainingLibraryView!] {let top=v.topAnchor.constraint(equalTo:main.view.safeAreaLayoutGuide.topAnchor,constant:Metrics.smallGap);top.priority = .defaultHigh;NSLayoutConstraint.activate([v.leadingAnchor.constraint(equalTo:main.view.safeAreaLayoutGuide.leadingAnchor,constant:Metrics.padding),v.trailingAnchor.constraint(equalTo:main.view.safeAreaLayoutGuide.trailingAnchor,constant:-Metrics.padding),top,v.topAnchor.constraint(greaterThanOrEqualTo:banner.bottomAnchor),v.bottomAnchor.constraint(equalTo:controls.topAnchor,constant:-Metrics.smallGap)])}
+        // The transport is hidden while the workspace shows, so the workspace then runs down to the window's bottom edge
+        // instead of keeping the transport's height empty.
+        workspaceFill=reviewWorkspaceView.bottomAnchor.constraint(equalTo:main.view.safeAreaLayoutGuide.bottomAnchor,constant:-Metrics.smallGap)
+        for v in [board,welcome!,puzzles!,reviewWorkspaceView!,trainingLibraryView!] {let top=v.topAnchor.constraint(equalTo:main.view.safeAreaLayoutGuide.topAnchor,constant:Metrics.smallGap);top.priority = .defaultHigh;NSLayoutConstraint.activate([v.leadingAnchor.constraint(equalTo:main.view.safeAreaLayoutGuide.leadingAnchor,constant:Metrics.padding),v.trailingAnchor.constraint(equalTo:main.view.safeAreaLayoutGuide.trailingAnchor,constant:-Metrics.padding),top,v.topAnchor.constraint(greaterThanOrEqualTo:banner.bottomAnchor)]);let bottom=v.bottomAnchor.constraint(equalTo:controls.topAnchor,constant:-Metrics.smallGap);bottom.isActive=true;if v===reviewWorkspaceView{workspaceAboveControls=bottom}}
     }
     /// Model changes refresh the window; moves animate and are announced.
     private func observeModel(){
@@ -265,7 +272,8 @@ final class BoardTitleView:NSView {
         // The learner's own side sits nearest them in practice; reviews and lessons keep White at the bottom.
         board.blackAtBottom = !model.reviewWorkspace && !model.review.active && (s.mode == .practice && s.humanSide=="b" || trainingExercise?.scenario.learner=="b")
         board.reviewNavigation=model.review.active && model.review.branch==nil
-        reviewWorkspaceView.isHidden = !model.reviewWorkspace;controls.isHidden=model.reviewWorkspace;playbackLineView?.isHidden=model.reviewWorkspace
+        reviewWorkspaceView.isHidden = !model.reviewWorkspace;controls.isHidden=model.reviewWorkspace;if workspaceFill.isActive != model.reviewWorkspace{workspaceAboveControls.isActive=false;workspaceFill.isActive=model.reviewWorkspace;workspaceAboveControls.isActive = !model.reviewWorkspace}
+playbackLineView?.isHidden=model.reviewWorkspace
         trainingLibraryView.isHidden=true
         if model.reviewWorkspace{board.isHidden=true;welcome.isHidden=true;puzzles.isHidden=true;titleView.label.stringValue="Game review";titleView.label.isHidden=false;titleView.tabs.isHidden=true;return}
         board.theme=s.state.settings.boardTheme
@@ -483,8 +491,10 @@ final class BoardTitleView:NSView {
         if #available(macOS 14.4,*) {content=try await SCShareableContent.currentProcess}
         else {content=try await SCShareableContent.excludingDesktopWindows(false,onScreenWindowsOnly:false)}
         guard let own=content.windows.first(where:{$0.windowID==CGWindowID(id)}) else{throw CheckmateError.unavailable("The window is not available for capture.")}
-        let config=SCStreamConfiguration();config.width=Int(own.frame.width*2);config.height=Int(own.frame.height*2);config.showsCursor=false;config.ignoreShadowsSingleWindow=true
-        let image=try await SCScreenshotManager.captureImage(contentFilter:SCContentFilter(desktopIndependentWindow:own),configuration:config)
+        // The image is the window alone at the display's own pixel scale: a fixed 2× scale left a 1× window in one corner.
+        let filter=SCContentFilter(desktopIndependentWindow:own),scale=CGFloat(filter.pointPixelScale)
+        let config=SCStreamConfiguration();config.width=Int((filter.contentRect.width*scale).rounded());config.height=Int((filter.contentRect.height*scale).rounded());config.showsCursor=false;config.ignoreShadowsSingleWindow=true
+        let image=try await SCScreenshotManager.captureImage(contentFilter:filter,configuration:config)
         guard let png=NSBitmapImageRep(cgImage:image).representation(using:.png,properties:[:]) else{throw CheckmateError.invalid("The capture could not be encoded as PNG.")}
         try png.write(to:URL(fileURLWithPath:path))
     }

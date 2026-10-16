@@ -117,6 +117,67 @@ public enum PGNImporter {
         }
         guard !records.isEmpty else{throw skipped.first ?? ReviewImportError(record:1,token:0,reason:"No game records.")};return (records,skipped)
     }
+    /// One record of a collection as the importer divides it: its byte range in the file and its header tags. Only the
+    /// lexer runs (no replay, no document): a record is fully validated when it is opened.
+    public struct RecordSpan:Equatable,Sendable {public let offset:Int,length:Int,tags:[String:String]}
+    /// Splits a PGN collection into records with the importer's own lexer and record boundaries (`refuseOversizedCollection`).
+    /// A lexical error makes the record it falls in unreadable; reading resumes at the next line that starts a header.
+    public static func splitRecords(_ data:Data,maximumRecords:Int,cancelled:@escaping ()->Bool={false})throws -> (records:[RecordSpan],unreadable:Int) {
+        guard data.count<=ReviewPolicy.maximumBytes else{throw ReviewImportError(record:1,token:0,reason:"File exceeds the 16 MiB limit.")}
+        let utf8=String(data:data,encoding:.utf8)
+        guard var source=utf8 ?? String(data:data,encoding:.windowsCP1252) ?? String(data:data,encoding:.isoLatin1) else{throw ReviewImportError(record:1,token:0,reason:"The file is not readable text.")}
+        // Foundation may or may not keep a UTF-8 byte order mark in the decoded text; the bytes decide where text starts.
+        if source.first=="\u{feff}"{source.removeFirst()};let base=utf8 != nil && data.starts(with:[0xEF,0xBB,0xBF]) ? 3:0
+        let chars=Array(source.unicodeScalars),results=Set(["1-0","0-1","1/2-1/2","*"]),spellings=["1/2":"1/2-1/2","½-½":"1/2-1/2"]
+        // Scalar index to byte offset, advanced monotonically: a single-byte decoding has one byte per scalar.
+        var cursor=(scalar:0,byte:base)
+        func byte(_ index:Int)->Int {if utf8==nil{return base+index};while cursor.scalar<index{cursor.byte+=chars[cursor.scalar].utf8.count;cursor.scalar+=1};return cursor.byte}
+        let scanner=Scanner(chars,cancelled:cancelled);var spans:[RecordSpan]=[],unreadable=0,open=false,moves=false,depth=0,start=0,end=0,tags:[String:String]=[:],broken=false
+        func close(){if open{if broken{unreadable+=1}else{let first=byte(start),last=byte(end);spans.append(RecordSpan(offset:first,length:last-first,tags:tags))}};open=false;moves=false;depth=0;tags=[:];broken=false}
+        func begin(_ at:Int){close();open=true;start=at;end=at}
+        /// A record boundary: a header at the start of the file or at the start of a line that follows a blank line.
+        /// Recovery resumes only there, so a broken game's remaining headers never become a game of their own.
+        /// A line break is LF, CRLF or a lone CR, as the lexer accepts all three.
+        func boundary(after index:Int)->Int {
+            var i=index+1
+            while i<chars.count {
+                if chars[i]=="[" {var j=i-1,newlines=0;while j>=0,chars[j]==" " || chars[j]=="\t" || chars[j]=="\r" || chars[j]=="\n"{if chars[j]=="\n" || (chars[j]=="\r" && chars[j+1] != "\n"){newlines+=1};j-=1};if j<0 || newlines>=2{return i}}
+                i+=1
+            }
+            return chars.count
+        }
+        func overLimit()->ReviewImportError? {spans.count+unreadable>maximumRecords ? ReviewImportError(record:spans.count+unreadable,token:scanner.count,reason:"The file has more than \(maximumRecords) games."):nil}
+        while true {
+            // Checked before every token, so a file of millions of tiny records is refused as soon as it passes the limit.
+            if let problem=overLimit(){throw problem}
+            let before=scanner.i,token:Token?
+            do{token=try scanner.next()}catch is ReviewImportError{
+                // The failed token starts at or after `before`: the record it belongs to is unreadable, and reading
+                // resumes at the next record boundary after it (an unclosed comment does not swallow the games after it).
+                // The failed token starts at the first non-whitespace scalar from `before` (the lexer skips only whitespace
+                // between tokens); resuming strictly after it never rereads the same broken header.
+                var failed=before;while failed<chars.count,chars[failed].properties.isWhitespace{failed+=1}
+                if !open{begin(failed)};broken=true;let resume=boundary(after:failed);scanner.i=resume;end=max(end,failed);close();continue
+            }
+            guard let token else{break}
+            switch token.kind {
+            case .comment:if !open{continue}
+            case .tag(let name,let value):if !open || moves{begin(token.start)};if tags[name]==nil,tags.count<32{tags[name]=Self.bounded(value,scalars:256)}
+            case .open:if !open{begin(token.start)};moves=true;depth+=1
+            case .close:if !open{begin(token.start)};moves=true;depth=max(0,depth-1)
+            case .word(let spelled):if !open{begin(token.start)};moves=true;if depth==0,results.contains(spellings[spelled] ?? spelled){end=token.end;close();continue}
+            }
+            end=token.end
+        }
+        close()
+        if let problem=overLimit(){throw problem}
+        return (spans,unreadable)
+    }
+    /// Untrusted text bounded by Unicode scalars (so also by UTF-8 bytes, at most four per scalar), never by grapheme
+    /// clusters, which a run of combining marks can make arbitrarily long.
+    public static func bounded(_ text:String,scalars limit:Int)->String {
+        guard text.unicodeScalars.count>limit else{return text};var view=String.UnicodeScalarView();view.append(contentsOf:text.unicodeScalars.prefix(limit));return String(view)
+    }
     /// Counts game records from tokens alone, dividing them as `parseReport` does, so a collection over the limit is
     /// refused before any game is built rather than after building the first 1000. A lexical error ends the count;
     /// the parse then reports it against its own game.

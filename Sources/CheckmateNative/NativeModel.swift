@@ -548,6 +548,18 @@ import CheckmateCore
         let data:Data;do{data=previous ? try ReviewRecordSource.data(previousGame:session.state.practice.previousGame,result:session.state.practice.previousEnding?.result):try ReviewRecordSource.data(session.rules,result:session.state.practice.ending?.result)}catch{storageError=userFacingMessage(error,fallback:fallback);return}
         parseForReview(data,provenance:provenance,fallback:fallback){documents,_ in self.openReview(documents[0],draft:true)}
     }
+    /// The review workspace's game library (bundled games and imported collections), in the data directory's own
+    /// `Library/` folder, apart from `Reviews/`.
+    lazy var library:ReviewLibraryController={let controller=ReviewLibraryController(directory:store.directory.appendingPathComponent("Library"));controller.model=self;return controller}()
+    /// A library or collection game opens as a draft review through the same cancellable parse as any imported record.
+    /// The record must read as exactly one game with nothing skipped, and pass `verify` (a bundled game must replay to
+    /// its manifest entry), or nothing opens.
+    func openLibraryRecord(_ data:Data,provenance:String,fallback:String,verify:@escaping (GameDocument)throws->Void={_ in}){
+        parseForReview(data,provenance:provenance,delay:NativePolicy.silent ? min(2000,max(0,automationReviewImportDelayMs)):0,fallback:fallback){documents,skipped in
+            guard documents.count==1,skipped.isEmpty else{throw CheckmateError.invalid("This library record does not hold exactly one readable game.")}
+            try verify(documents[0]);self.openReview(documents[0],draft:true)
+        }
+    }
     func importReviewData(_ data:Data){
         parseForReview(data,delay:NativePolicy.silent ? min(2000,max(0,automationReviewImportDelayMs)):0,fallback:"This record could not be imported. Your current game and reviews are unchanged."){documents,skipped in
             // Unreadable games in a collection are skipped, and the learner is told which.

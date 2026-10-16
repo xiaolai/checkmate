@@ -162,6 +162,14 @@ case "dialog-click":
     guard let window=(get(app,kAXWindowsAttribute) as? [AXUIElement])?.first(where:{w in find(w){_,n in n.contains(a)} != nil}) else{fputs("No window shows: \(a)\n",stderr);exit(2)}
     click(center(find(window){role,n in role=="AXButton" && n.contains(b)},b))
 case "go-folder":key(5,flags:[.maskCommand,.maskShift]);usleep(250_000);type(a);key(36);usleep(350_000)
+// A real click, or a drag, at fractions of a named element's width (its vertical middle): a point on a graph.
+case "click-at","drag-across":
+    let fractions=([b]+CommandLine.arguments.dropFirst(5)).compactMap{Double($0)}.filter{$0>=0 && $0<=1}
+    guard fractions.count==(action=="click-at" ? 1:2),CommandLine.arguments.count==(action=="click-at" ? 5:6) else{fputs("Fractions must be numbers from 0 to 1\n",stderr);exit(1)}
+    let e=element(a);reveal(e);guard let e,let f=frame(e),f.width>0 else{fputs("Not found: \(a)\n",stderr);exit(2)}
+    let points=fractions.map{CGPoint(x:f.minX+f.width*CGFloat($0),y:f.midY)};if points.count==1{click(points[0])}else{gesture(from:points[0],to:points[1])}
+// A wheel turn of the given lines over a named element's centre, as a person scrolls a pane by pointing anywhere in it.
+case "wheel":guard let lines=Int32(b),abs(lines)<=20 else{fputs("Scroll lines must be a whole number from -20 to 20, found \(b)\n",stderr);exit(1)};let p=center(element(a),a);unobstructed(p);post(.mouseMoved,p);usleep(80_000);let event=made(CGEvent(scrollWheelEvent2Source:source,units:.line,wheelCount:1,wheel1:lines,wheel2:0,wheel3:0),"scroll");event.location=p;event.post(tap:.cghidEventTap);usleep(300_000)
 case "click-square":click(center(square(a),a))
 // Press a square and drift by the given distance before releasing, as a slightly moving trackpad click does.
 case "drift-square":guard let d=Double(b),d.isFinite,abs(d)<=1000 else{fputs("Drift distance must be a number of points from -1000 to 1000, found \(b)\n",stderr);exit(1)};let p=center(square(a),a);gesture(from:p,to:CGPoint(x:p.x+d,y:p.y+d*0.3))
@@ -174,5 +182,38 @@ case "menu-open":print(find(app){role,n in role=="AXMenuItem" && n.contains(a)}.
 // Opens a menu-bar menu and chooses an item, both with the pointer.
 case "menu":let top=(get(app,kAXMenuBarAttribute)).flatMap{bar in find(bar as! AXUIElement){role,n in role=="AXMenuBarItem" && n.contains(a)}};click(center(top,a));usleep(250_000);click(center(top.flatMap{find($0){role,n in role=="AXMenuItem" && n.contains(b)}},b))
 case "escape":key(53,settle:150_000)
+// Types text into the focused control of this app, as a person types.
+case "type":type(a)
+// A bare key by virtual key code (125 is the down arrow).
+case "key":guard let code=CGKeyCode(a) else{fputs("Key code must be a number, found \(a)\n",stderr);exit(1)};key(code)
+// A real file drag and drop: this helper starts a drag of the file from a small window of its own, and posted mouse
+// events carry it through the window server to the named element, where it is released. The app sees exactly what a
+// drag from Finder delivers. Prints the drag operation the destination accepted ("copy", "none", ...).
+case "drop-file":
+    let file=URL(fileURLWithPath:a);guard FileManager.default.isReadableFile(atPath:file.path) else{fputs("No such file: \(a)\n",stderr);exit(1)}
+    let target=element(b);reveal(target);let destination=center(target,b);unobstructed(destination)
+    DropSession.run(file,to:destination)
 default:fputs("Unknown action\n",stderr);exit(1)
+}
+/// The drag source of "drop-file": a 48-point window whose view begins a dragging session on the posted mouse-down.
+final class DropSession:NSView,NSDraggingSource {
+    var file:URL!
+    func draggingSession(_ session:NSDraggingSession,sourceOperationMaskFor context:NSDraggingContext)->NSDragOperation {.copy}
+    override func mouseDown(with event:NSEvent){let item=NSDraggingItem(pasteboardWriter:file as NSURL);item.setDraggingFrame(bounds,contents:NSWorkspace.shared.icon(forFile:file.path));beginDraggingSession(with:[item],event:event,source:self)}
+    func draggingSession(_ session:NSDraggingSession,endedAt point:NSPoint,operation:NSDragOperation){print(operation.contains(.copy) ? "copy":operation.isEmpty ? "none":"\(operation.rawValue)");exit(operation.isEmpty ? 6:0)}
+    static func run(_ file:URL,to destination:CGPoint){
+        let application=NSApplication.shared;application.setActivationPolicy(.accessory)
+        guard let screen=NSScreen.screens.first else{fputs("No screen\n",stderr);exit(2)}
+        // Top-left of the main screen, clear of the app's window centre where drops land.
+        let origin=NSPoint(x:screen.frame.minX+8,y:screen.frame.maxY-120),window=NSWindow(contentRect:NSRect(origin:origin,size:NSSize(width:48,height:48)),styleMask:[.borderless],backing:.buffered,defer:false)
+        let view=DropSession(frame:NSRect(x:0,y:0,width:48,height:48));view.file=file;window.contentView=view;window.level = .floating;window.orderFrontRegardless();application.activate(ignoringOtherApps:true)
+        let start=CGPoint(x:origin.x+24,y:screen.frame.maxY-(origin.y+24))
+        Thread.detachNewThread{
+            usleep(600_000);post(.mouseMoved,start);usleep(150_000);post(.leftMouseDown,start);usleep(150_000)
+            let steps=40;for k in 1...steps{let t=CGFloat(k)/CGFloat(steps);post(.leftMouseDragged,CGPoint(x:start.x+(destination.x-start.x)*t,y:start.y+(destination.y-start.y)*t));usleep(25_000)}
+            usleep(300_000);post(.leftMouseDragged,destination);usleep(300_000);post(.leftMouseUp,destination)
+            usleep(10_000_000);fputs("The drag did not end\n",stderr);exit(5)
+        }
+        application.run()
+    }
 }

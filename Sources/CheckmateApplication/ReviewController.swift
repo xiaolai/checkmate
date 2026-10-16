@@ -110,7 +110,7 @@ public struct ReviewBranch:Codable,Equatable {public let id:UUID,root:Int;public
     /// the line's own next move steps along it; a different move replaces the continuation, which can be undone.
     public func playBranch(_ uci:String)throws {
         // The move is tried on the shown position, which then leaves the cache: a refused move must not advance the board.
-        guard var branch=branch,let rules=displayRules else{throw CheckmateError.invalid("Open Test my idea first.")};rulesCache=nil;let canonical=try rules.move(uci:uci).uci
+        guard var branch=branch,let rules=displayRules else{throw CheckmateError.invalid("Open Test My Idea first.")};rulesCache=nil;let canonical=try rules.move(uci:uci).uci
         if branchPly<branch.moves.count,branch.moves[branchPly]==canonical{branchPly+=1;selected=nil;revision+=1;return}
         let wasPreview=branch.id==previewBranchID
         if wasPreview{guard !atIdeaLimit else{throw CheckmateError.invalid(Self.ideaLimitMessage)};previewBranchID=nil}

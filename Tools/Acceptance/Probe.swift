@@ -100,6 +100,9 @@ import CheckmateCore
                 guard turn["passed"] as? Bool==true else{report["coachTurns"]=turns;throw CheckmateError.unavailable("The live coach turn failed in \(language)")}
             }
             report["coachTurns"]=turns
+            // Review narration through the production coach: the review's verified facts, each segment narrated and verified.
+            let narration=try await reviewNarration();report["reviewNarration"]=narration
+            guard narration["passed"] as? Bool==true else{throw CheckmateError.unavailable("Live review narration failed")}
             // D6: the Settings preview in another voice, through its own session, ends by itself and records its usage.
             let preview=try await voicePreview(model:report["selectedModel"] as? String ?? VoiceSessionConfiguration.model);report["preview"]=preview
             guard preview["passed"] as? Bool==true else{throw CheckmateError.unavailable("The voice preview failed")}
@@ -123,6 +126,28 @@ import CheckmateCore
         let record=ledger.records.first
         let passed = !preview.playing && preview.status.isEmpty && record?.status == .completed && (record?.durationSeconds ?? 0)>0 && record?.voice=="marin"
         return ["passed":passed,"seconds":Date().timeIntervalSince(started),"status":preview.status,"usageStatus":record?.status.rawValue ?? "none","audioSeconds":record?.durationSeconds ?? 0]
+    }
+    /// A coach connected in an open review, as in the app (no microphone or speaker), narrates the selected move's
+    /// verified facts: every segment is narrated and verified, none unverified.
+    @MainActor static func reviewNarration()async throws -> [String:Any] {
+        let directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);defer{try? FileManager.default.removeItem(at:directory)}
+        let session=try GameSession(engine:nil);session.state.settings.coachingMode="quiet";session.state.settings.voiceMicrophone=false;session.state.settings.voiceLanguage="en"
+        let review=ReviewController();session.reviewController=review
+        let coach=try VoiceCoach(session:session),ledger=UsageLedger(directory:directory);coach.usageLedger=ledger;coach.audio.headless=true;coach.attachReview(review)
+        defer{coach.disconnect()}
+        let document=try PGNImporter.parse(Data("1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 *".utf8))[0]
+        review.open(document,practice:session);try review.select(document.mainline.last!)
+        guard let explanation=review.explanation else{return ["passed":false,"failure":"no verified explanation"]}
+        let expected=ReviewVoiceScript.segments(explanation).count
+        func wait(_ seconds:Double,_ condition:()->Bool)async -> Bool {let end=Date().addingTimeInterval(seconds);while Date()<end{if condition(){return true};try? await Task.sleep(for:.milliseconds(100))};return condition()}
+        let started=Date();coach.connect()
+        guard await wait(40,{coach.connected}) else{return ["passed":false,"failure":"not connected in review: \(coach.status)"]}
+        coach.narrateReview()
+        func settled()->Int {let c=ledger.narrationCounts();return (c[.verified] ?? 0)+(c[.unverified] ?? 0)+(c[.interrupted] ?? 0)}
+        let finished=await wait(120,{settled()>=expected})
+        let counts=ledger.narrationCounts()
+        let passed=finished && expected>0 && coach.connected && (counts[.verified] ?? 0)==expected && (counts[.unverified] ?? 0)==0 && review.document?.contentHash==document.contentHash
+        return ["passed":passed,"seconds":Date().timeIntervalSince(started),"model":coach.selectedModel,"expectedSegments":expected,"verifiedSegments":counts[.verified] ?? 0,"unverifiedSegments":counts[.unverified] ?? 0,"interruptedSegments":counts[.interrupted] ?? 0,"status":coach.status]
     }
     /// A coach connected as in the app, without microphone or speaker, answers one typed question.
     @MainActor static func coachTurn(language:String,question:String)async throws -> [String:Any] {

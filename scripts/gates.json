@@ -87,7 +87,14 @@
     "Sources/CheckmateApplication/LearningPlayer.swift",
     "Sources/CheckmateApplication/ReviewStore.swift",
     "Sources/CheckmateCore/Resources/course.json",
-    "companion/*"
+    "companion/*",
+    "Sources/CheckmateNative/Review*.swift",
+    "Sources/CheckmateApplication/GameLibrary.swift",
+    "Sources/CheckmateApplication/GameCollections.swift",
+    "Sources/CheckmateApplication/LibraryCatalog.swift",
+    "Sources/CheckmateCore/Resources/game-library/*",
+    "Content/game-library/*",
+    "Content/openings/*"
    ]
   },
   {
@@ -110,7 +117,15 @@
    ],
    "inputs": [
     "scripts/test-pointer.py",
-    "Sources/CheckmateNative/ReviewViews.swift",
+    "Sources/CheckmateNative/Review*.swift",
+    "Sources/CheckmateNative/LibraryTableView.swift",
+    "Sources/CheckmateApplication/GameLibrary.swift",
+    "Sources/CheckmateApplication/GameCollections.swift",
+    "Sources/CheckmateApplication/LibraryCatalog.swift",
+    "Sources/CheckmateCore/Resources/game-library/*",
+    "Content/game-library/*",
+    "Content/openings/*",
+    "Sources/CheckmateApplication/ReviewAnalyzer.swift",
     "Sources/CheckmateApplication/ReviewStore.swift",
     "Sources/CheckmateApplication/ReviewController.swift",
     "Sources/CheckmateApplication/PGNImporter.swift",
@@ -344,7 +359,7 @@
     "Sources/CheckmateNative/ControlBar.swift",
     "Sources/CheckmateNative/BoardView.swift",
     "Sources/CheckmateNative/BoardOverlay.swift",
-    "Sources/CheckmateNative/ReviewViews.swift",
+    "Sources/CheckmateNative/Review*.swift",
     "Sources/CheckmateNative/Relationship*.swift",
     "Sources/CheckmateMacPlatform/WindowGeometry.swift"
    ]
@@ -403,7 +418,14 @@
    "inputs": [
     "scripts/test-review-ui.sh",
     "Tools/ReviewScenario.swift",
-    "Sources/CheckmateNative/ReviewViews.swift",
+    "Sources/CheckmateNative/Review*.swift",
+    "Sources/CheckmateNative/LibraryTableView.swift",
+    "Sources/CheckmateApplication/GameLibrary.swift",
+    "Sources/CheckmateApplication/GameCollections.swift",
+    "Sources/CheckmateApplication/LibraryCatalog.swift",
+    "Sources/CheckmateCore/Resources/game-library/*",
+    "Content/game-library/*",
+    "Content/openings/*",
     "Sources/CheckmateNative/ContentViews.swift",
     "Sources/CheckmateNative/ControlBar.swift",
     "Sources/CheckmateNative/MainWindow.swift",
@@ -444,6 +466,7 @@
     "Tools/lesson_rules.py",
     "Tools/test-lesson-rules.py",
     "Tools/test-provenance.py",
+    "Tools/build-game-library.py",
     "Tools/render-lesson.py",
     "Tools/provenance.py",
     "scripts/test-run-gates.py",

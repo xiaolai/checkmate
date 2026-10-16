@@ -28,6 +28,13 @@ scaling, positioning and an Icon Composer graphite background.
 Cedar lesson recordings: AI-generated OpenAI speech. The bundled
 course-narration.json records the model, voice, input and final asset hashes.
 
+Game library (Sources/CheckmateCore/Resources/game-library): a small selection
+of historical move records, which are facts, chosen by us (Content/game-library).
+The moves were read from free PGN downloads (sources.json records each file);
+the header tags, titles and opening names are generated. No annotation,
+comments or variations are included. Opening names come from Lichess
+chess-openings (CC0; Content/openings/SOURCE.md).
+
 The bundled native MCP companion uses the official Swift MCP SDK 0.12.1 (MIT)
 and its Swift dependencies: EventSource (MIT), SwiftNIO, Swift System, Swift Log,
 Swift Atomics and Swift Collections (Apache-2.0 with Swift runtime exception).

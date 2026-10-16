@@ -31,17 +31,51 @@ func rect(_ element:AXUIElement)->CGRect? {
     var point=CGPoint.zero,size=CGSize.zero;AXValueGetValue(rawPosition as! AXValue,.cgPoint,&point);AXValueGetValue(rawSize as! AXValue,.cgSize,&size);return CGRect(origin:point,size:size)
 }
 /// Scrolls with the wheel, as a person does, until the element's centre is inside its window below the toolbar.
+/// Where to scroll to bring an element into view. `region` is what of the window (less its title area) shows through
+/// every enclosing scroll area that is itself in view, leaving out the `skip` innermost ones; `target` is the frame to
+/// move into `region`: the outermost enclosing scroll area that is out of view, or the element itself once every scroll
+/// area around it shows. `skipped` are the left-out scroll areas, which the wheel must avoid.
+func viewport(_ element:AXUIElement,skip:Int=0)->(region:CGRect,target:CGRect,innermost:Bool,skipped:[CGRect])? {
+    guard let window=value(element,kAXWindowAttribute),let windowFrame=rect(window as! AXUIElement),let box=rect(element) else{return nil}
+    var areas:[CGRect]=[],cursor=element
+    for _ in 0..<40 {
+        guard let parent=value(cursor,kAXParentAttribute) else{break};cursor=parent as! AXUIElement
+        if value(cursor,kAXRoleAttribute) as? String==kAXScrollAreaRole,let area=rect(cursor){areas.append(area)}
+    }
+    let skipped=Array(areas.prefix(skip));var region=windowFrame.insetBy(dx:0,dy:40).offsetBy(dx:0,dy:20)
+    // Outermost first: each scroll area shows only through the ones around it.
+    for area in areas.dropFirst(skip).reversed() {let next=region.intersection(area);if next.isNull || next.isEmpty{return (region,area,false,skipped)};region=next}
+    return (region,box,skip==0,skipped)
+}
 func reveal(_ element:AXUIElement)->Bool {
     // Elements in system panels may not report their window; one with an on-screen frame is already visible.
-    guard let window=value(element,kAXWindowAttribute),let windowFrame=rect(window as! AXUIElement) else{return rect(element).map{$0.width>0 && $0.height>0} ?? false}
-    let visible=windowFrame.insetBy(dx:0,dy:40).offsetBy(dx:0,dy:20),source=CGEventSource(stateID:.hidSystemState)
+    guard viewport(element) != nil else{return rect(element).map{$0.width>0 && $0.height>0} ?? false}
+    let source=CGEventSource(stateID:.hidSystemState);var skip=0,before:CGRect?
     for _ in 0..<80 {
-        guard let box=rect(element) else{return false};if visible.contains(CGPoint(x:box.midX,y:box.midY)){return true}
-        let point=CGPoint(x:min(max(box.midX,visible.minX+4),visible.maxX-4),y:windowFrame.midY)
+        guard let full=viewport(element) else{return false}
+        if full.innermost && full.region.contains(CGPoint(x:full.target.midX,y:full.target.midY)){return true}
+        // A wheel that moved nothing went to a scroll area already at its end: scroll the one around it instead.
+        let box=rect(element);if let before,before==box{skip+=1};before=box
+        guard let view=viewport(element,skip:skip) else{return false}
+        // The wheel goes to the deepest region that shows, outside any left-out scroll area, moving the target toward it.
+        let x=min(max(view.target.midX,view.region.minX+4),view.region.maxX-4)
+        let candidates=[CGPoint(x:x,y:view.region.midY),CGPoint(x:view.region.minX+4,y:view.region.midY),CGPoint(x:view.region.maxX-4,y:view.region.midY),CGPoint(x:x,y:view.region.minY+4),CGPoint(x:x,y:view.region.maxY-4)]
+        guard let point=candidates.first(where:{p in !view.skipped.contains{$0.contains(p)}}) else{return false}
         CGEvent(mouseEventSource:source,mouseType:.mouseMoved,mouseCursorPosition:point,mouseButton:.left)?.post(tap:.cghidEventTap)
-        let wheel=CGEvent(scrollWheelEvent2Source:source,units:.line,wheelCount:1,wheel1:box.midY>windowFrame.midY ? -2:2,wheel2:0,wheel3:0);wheel?.location=point;wheel?.post(tap:.cghidEventTap);usleep(60_000)
+        let wheel=CGEvent(scrollWheelEvent2Source:source,units:.line,wheelCount:1,wheel1:view.target.midY>view.region.midY ? -2:2,wheel2:0,wheel3:0);wheel?.location=point;wheel?.post(tap:.cghidEventTap);usleep(60_000)
     }
     return false
+}
+/// The part of an element on screen: its frame clipped by its window and by every scroll area around it, or nil when
+/// nothing of it shows.
+func shown(_ element:AXUIElement)->CGRect? {
+    guard var box=rect(element),box.width>0,box.height>0,let window=value(element,kAXWindowAttribute),let windowFrame=rect(window as! AXUIElement) else{return nil}
+    box=box.intersection(windowFrame);var cursor=element
+    for _ in 0..<40 {
+        guard let parent=value(cursor,kAXParentAttribute) else{break};cursor=parent as! AXUIElement
+        if value(cursor,kAXRoleAttribute) as? String==kAXScrollAreaRole,let clip=rect(cursor){box=box.intersection(clip)}
+    }
+    return box.isNull || box.width<=0 || box.height<=0 ? nil:box
 }
 func owner(at point:CGPoint)->pid_t?{var hit:AXUIElement?;guard AXUIElementCopyElementAtPosition(AXUIElementCreateSystemWide(),Float(point.x),Float(point.y),&hit) == .success,let hit else{return nil};var owner:pid_t=0;AXUIElementGetPid(hit,&owner);return owner}
 /// A real pointer click at the element's centre: posted HID events go through hit-testing, unlike AXPress.
@@ -68,9 +102,16 @@ func run(_ check:[String:Any],in app:AXUIElement,pid:Int)->[String:Any] {
     case "text":
         let text=check["value"] as? String ?? ""
         guard !text.isEmpty,let element=find(app,text) else{result["found"]=false;result["passed"]=false;return result}
-        let frame=rect(element),window=(value(element,kAXWindowAttribute)).map{rect($0 as! AXUIElement)} ?? nil
-        let visible=frame.map{box in box.width>0 && box.height>0 && (window.map{$0.intersects(box)} ?? false)} ?? false
-        result["found"]=true;result["role"]=value(element,kAXRoleAttribute) as? String ?? "";result["visible"]=visible;result["y"]=Double(frame?.minY ?? -1);result["passed"]=visible
+        // Text below the fold of a scrolling pane is scrolled to with the wheel first, as a person reads it; text that
+        // cannot be scrolled into view fails.
+        let revealed=reveal(element),frame=shown(element),visible=revealed && frame != nil
+        result["found"]=true;result["role"]=value(element,kAXRoleAttribute) as? String ?? "";result["revealed"]=revealed;result["visible"]=visible;result["y"]=Double(frame?.minY ?? -1);result["passed"]=visible
+    case "textOrder":
+        // Both texts are measured after one reveal, with no scrolling between them, so their positions compare.
+        let texts=check["values"] as? [String] ?? []
+        guard texts.count==2,let first=find(app,texts[0]),let second=find(app,texts[1]) else{result["found"]=false;result["passed"]=false;return result}
+        let revealed=reveal(first),a=shown(first),b=shown(second)
+        result["found"]=true;result["revealed"]=revealed;result["passed"]=revealed && a != nil && b != nil && a!.minY<b!.minY
     case "enabled":
         let title=check["title"] as? String ?? "",expected=check["expected"] as? Bool ?? true
         guard let button=find(app,title,button:true) else{result["found"]=false;result["passed"]=false;return result}
@@ -120,7 +161,8 @@ func openPanelPhase(){
 }
 
 var nextRequest=1,panelDone=false,pid:Int?
-let deadline=Date().addingTimeInterval(420)
+// Whole-game analysis of a library game for the pane screenshots adds up to four minutes to the scenario.
+let deadline=Date().addingTimeInterval(720)
 while Date()<deadline {
     if FileManager.default.fileExists(atPath:resultURL.path){break}
     if !panelDone,FileManager.default.fileExists(atPath:marker.path){openPanelPhase();panelDone=true;continue}

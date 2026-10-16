@@ -3,6 +3,7 @@
 Accessibility presses bypass hit-testing, so every action here is a posted mouse event.
 """
 import atexit
+import hashlib
 import json
 import os
 import re
@@ -342,10 +343,168 @@ try:
     assert list(after) == list(saved), "Quitting changed which reviews exist"
     assert list(after.values())[0] != list(saved.values())[0] and list(after.values())[0] == 4, f"Quit did not save the latest review position: {saved} -> {after}"
 
+    # The review pane with the real pointer: a game library row from the workspace, a move-table cell, the evaluation
+    # graph (both ends, between samples, a drag, a wheel turn over it) and Return to game from an original review, an
+    # imagined line and the workspace.
+    process = subprocess.Popen(command, env=environment, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    wait(lambda: "Chessboard" in listing(), "Board did not appear after relaunch")
+    time.sleep(1)
+    if "Review game" not in listing():
+        pointer("click", "Toggle Sidebar")
+    library = json.loads((root / "Sources/CheckmateCore/Resources/game-library/manifest.json").read_text())["games"]
+    # A fixed short game by id, never "the last entry": the move-table and graph checks below are written for the King Hunt.
+    king_hunt = next(game for game in library if game["id"] == "lasker-thomas")
+    row = "library-row-library:lasker-thomas"
+
+    def choose_scope(title):
+        """The scope control is a segmented control, or a pop-up menu when the window is narrow; either is clicked."""
+        if re.search(r"^AXPopUpButton: Show", listing(), re.M):
+            pointer("select-popup", "library-scope", title)
+            wait(lambda: pointer("value", "library-scope") == title, "The scope menu did not take " + title)
+        else:
+            pointer("click", title)
+
+    def show_classics():
+        choose_scope("Classics")
+        wait(lambda: row in listing() and "library-row-library:wch-2024-1" not in listing(), "The Classics segment did not list only the classics")
+
+    def open_library_game():
+        pointer("click", "Review game")
+        wait(lambda: "library-search" in listing(), "The workspace did not show the game library")
+        show_classics()
+        pointer("click", row)
+        wait(lambda: "AXButton: Save Review" in listing() and "11, White, Qxh7+" in listing(), "Clicking a library row did not open a draft review")
+
+    def back_to_game(where):
+        pointer("click", "Return to game")
+        wait(lambda: "Your next move." in listing(), "Return to game did not leave " + where)
+
+    open_library_game()
+    pointer("click", "11, White, Qxh7+")
+    wait(lambda: label("h7").startswith("h7, White, queen"), "Clicking a move-table cell did not show that position")
+    pointer("click", "Analyze Whole Game")
+    wait(lambda: "review-evaluation-graph" in listing(), "Whole-game analysis did not draw the evaluation graph", timeout=300)
+    graph, plies = "review-evaluation-graph", king_hunt["plies"]
+    practice = json.loads((state / "state-v1.json").read_text())["practice"]
+
+    def graph_position():
+        match = re.search(r"Evaluation graph, position (\d+) of (\d+)", listing())
+        return (int(match[1]), int(match[2])) if match else None
+
+    for fraction, expected in [(0.005, 0), (0.995, plies), (17.25 / plies, 17)]:
+        pointer("click-at", graph, f"{fraction:.4f}")
+        wait(lambda: graph_position() == (expected, plies), f"A click at {fraction:.3f} of the graph did not select position {expected}: {graph_position()}")
+    pointer("drag-across", graph, "0.2000", f"{30 / plies:.4f}")
+    wait(lambda: graph_position() == (30, plies), f"Dragging across the graph did not follow to position 30: {graph_position()}")
+    before = pointer("frame", graph)
+    pointer("wheel", graph, "-4")
+    wait(lambda: pointer("frame", graph) != before, "A wheel turn over the graph did not scroll the pane")
+    assert graph_position() == (30, plies), "Scrolling over the graph changed the position"
+    assert json.loads((state / "state-v1.json").read_text())["practice"] == practice, "Using the graph changed the practice game"
+    back_to_game("an original review")
+    open_library_game()
+    pointer("click", "Test My Idea")
+    wait(lambda: "Imagined line" in listing(), "Test My Idea did not open an imagined line")
+    back_to_game("an imagined line")
+    pointer("click", "Review game")
+    wait(lambda: "Choose a game or position to explore." in listing(), "The review workspace did not open")
+    back_to_game("the workspace")
+
+    # The game library browser with the real pointer and keyboard.
+    pointer("click", "Review game")
+    wait(lambda: "library-search" in listing(), "The workspace did not show the game library")
+    # Get More Games opens a browser, so it is only checked present and clickable, never clicked.
+    assert pointer("enabled", "Get More Games") == "true", "Get More Games is missing or disabled"
+    choose_scope("All")
+    wait(lambda: "library-row-library:wch-2024-14" in listing(), "The All segment did not list the newest championship first")
+    pointer("click", "library-search")
+    pointer("type", "kasparov topalov")
+    wait(lambda: "library-row-library:kasparov-topalov" in listing() and "library-row-library:wch-2024-14" not in listing(), "Typing in the search did not filter the library")
+    pointer("escape")
+    wait(lambda: "library-row-library:wch-2024-14" in listing(), "Escape did not clear the search")
+    choose_scope("World Championships")
+    wait(lambda: "library-row-library:wch-2024-1" in listing() and row not in listing(), "The World Championships segment did not show only championship games")
+    # Collapsing the newest event hides its games; expanding it shows them again.
+    section = "library-section-event:wch-2024"
+    pointer("click", section)
+    wait(lambda: "library-row-library:wch-2024-1" not in listing(), "Clicking an event's header did not collapse it")
+    pointer("click", section)
+    wait(lambda: "library-row-library:wch-2024-1" in listing(), "Clicking an event's header again did not expand it")
+    # Edit ▸ Find… (⌘F) focuses the search; ↓ moves into the results and Return opens the selected game.
+    choose_scope("Classics")
+    pointer("shortcut", "3", "c")
+    pointer("type", "lasker thomas")
+    wait(lambda: row in listing() and "library-row-library:immortal" not in listing(), "⌘F did not focus the library search")
+    pointer("key", "125")
+    pointer("return")
+    wait(lambda: "AXButton: Save Review" in listing() and "11, White, Qxh7+" in listing(), "↓ and Return from the search did not open the game")
+    back_to_game("a game opened from the keyboard")
+    collections = state / "Library"
+
+    def stored():
+        return sorted(path.name for path in collections.glob("*.pgn")) if collections.exists() else []
+
+    # Import Collection… through the real open panel.
+    imports = {"club.pgn": '[Event "Club night"]\n[White "Ada Example"]\n[Black "Ben Sample"]\n[Result "1-0"]\n\n1. e4 e5 2. Nf3 Nc6 1-0\n\n[Event "Club night"]\n[White "Ben Sample"]\n[Black "Cleo Test"]\n[Result "*"]\n\n1. d4 d5 *\n',
+               "dropped.pgn": '[Event "Dropped file"]\n[White "Dee Drop"]\n[Black "Eve Target"]\n[Result "0-1"]\n\n1. f3 e5 2. g4 Qh4# 0-1\n',
+               "board.pgn": '[Event "Board drop"]\n[White "Finn Board"]\n[Black "Gus Square"]\n[Result "*"]\n\n1. c4 e5 2. Nc3 Nf6 *\n'}
+    for name, text in imports.items():
+        (state / name).write_text(text)
+    pointer("click", "Review game")
+    wait(lambda: "library-search" in listing(), "The workspace did not show the game library")
+    # The search survives leaving the workspace; Escape in the field clears it.
+    pointer("click", "library-search")
+    pointer("escape")
+    wait(lambda: pointer("value", "library-search") == "", "Escape did not clear the kept search")
+    pointer("click", "Import Collection…")
+    wait(lambda: re.search(r"^AXButton: Import( \||$)", listing(), re.M) is not None, "Import Collection… did not open the open panel")
+    pointer("go-folder", str(state / "club.pgn"))
+    wait(lambda: "Go to Folder" not in listing(), "The open panel did not go to the collection")
+    time.sleep(0.5)
+    # Return presses the panel's default button, Import (its contents are another process's view, which accessibility
+    # searches can wait on indefinitely).
+    pointer("return")
+    wait(lambda: len(stored()) == 1, "Importing through the open panel stored no collection")
+    choose_scope("My games")
+    wait(lambda: "Ada Example – Ben Sample" in listing() and "Ben Sample – Cleo Test" in listing(), "My games did not list the imported collection")
+    # A real file drop on the library list imports it as a collection.
+    assert pointer("drop-file", str(state / "dropped.pgn"), "library-list") == "copy", "The library list refused the dropped file"
+    wait(lambda: len(stored()) == 2 and "Dee Drop – Eve Target" in listing(), "A file dropped on the library did not import as a collection")
+    # The same kind of drop on the practice board keeps today's behaviour: it opens the file for review, no collection.
+    back_to_game("the library")
+    assert pointer("drop-file", str(state / "board.pgn"), "Chessboard") == "copy", "The board refused the dropped file"
+    wait(lambda: "AXButton: Save Review" in listing() and "2, White, Nc3" in listing(), "A file dropped on the board did not open for review")
+    assert len(stored()) == 2, "A file dropped on the board was added to the library"
+    back_to_game("the dropped review")
+    # Remove a collection: the confirmation's Cancel keeps it, Remove deletes its file and index.
+    pointer("click", "Review game")
+    wait(lambda: "library-search" in listing(), "The workspace did not show the game library")
+    choose_scope("My games")
+    wait(lambda: "Dee Drop – Eve Target" in listing(), "My games did not list the dropped collection")
+    dropped_sha = hashlib.sha256(imports["dropped.pgn"].encode()).hexdigest()
+    pointer("click", "library-remove-" + dropped_sha[:12])
+    wait(lambda: "Remove “dropped.pgn”?" in listing(), "Remove… did not ask for confirmation")
+    dialog("Remove “dropped.pgn”?", "Cancel")
+    wait(lambda: "Remove “dropped.pgn”?" not in listing(), "Cancel did not close the confirmation")
+    assert len(stored()) == 2, "Cancel removed the collection"
+    pointer("click", "library-remove-" + dropped_sha[:12])
+    wait(lambda: "Remove “dropped.pgn”?" in listing(), "Remove… did not ask again")
+    dialog("Remove “dropped.pgn”?", "Remove")
+    wait(lambda: len(stored()) == 1 and "Dee Drop – Eve Target" not in listing(), "Remove did not delete the collection")
+    assert not (collections / (dropped_sha + ".index.json")).exists(), "Remove left the collection's index"
+    assert not (state / "Reviews").exists() or all("Dee Drop" not in path.read_text() for path in (state / "Reviews").glob("*.json")), "A collection became a saved review"
+    back_to_game("the library")
+    pointer("menu", "Checkmate", "Quit Checkmate")
+    deadline = time.monotonic() + 15
+    while process.poll() is None and time.monotonic() < deadline:
+        time.sleep(0.2)
+    assert process.poll() is not None, "Quit did not end the app after the review pane checks"
+
     result = {"passed": True, "clickWithDrift": True, "clickedMove": True, "draggedMove": True, "illegalDropSnapsBack": True,
               "drawerToggles": True, "drawerMenu": True, "lessonDisclosure": True, "aboutPane": True, "coachReasoningSettings": True, "lessonSettings": True, "usageSettings": True, "usageClearConfirmation": True, "usageExport": True, "lessonJobFixture": fixture,
               "lessonConfirmCancel": fixture, "lessonConfirmReturnCancels": fixture, "lessonDiscardConfirmed": fixture, "lessonCleanupCannotCancel": fixture,
-              "codexSetupMessage": True, "reviewChooserCancel": True, "reviewChooserPicks": True, "quitAlertCancelKeepsReview": True, "quitSavesReview": True}
+              "codexSetupMessage": True, "reviewChooserCancel": True, "reviewChooserPicks": True, "quitAlertCancelKeepsReview": True, "quitSavesReview": True,
+              "libraryRowOpensDraft": True, "librarySearchTyped": True, "librarySegments": True, "librarySectionCollapse": True, "libraryFindKeyboard": True, "libraryImportPanel": True, "libraryFileDrop": True, "boardDropUnchanged": True, "libraryRemoveConfirmed": True, "getMoreGamesPresent": True, "moveTableCellClick": True, "evaluationGraphClickAndDrag": True, "graphWheelScrollsPane": True, "returnToGameFromReview": True}
     (evidence / "pointer-results.json").write_text(json.dumps(result, indent=2))
     print(json.dumps(result))
 except Exception:

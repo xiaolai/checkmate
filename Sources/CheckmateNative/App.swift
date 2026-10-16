@@ -236,9 +236,8 @@ import CheckmateCore
             model.voice.receive(["type":"response.output_audio_transcript.done","response_id":"review-newer","transcript":"Newest review explanation."])
             model.voice.receive(["type":"response.done","response":["status":"failed"]])
             let voiceStatus=model.voice.status;try? await Task.sleep(for:.milliseconds(900));try? await game.capture(directory+"/review-voice.png")
-            let voiceAX=await ax("review-voice",[["kind":"text","value":voiceStatus],["kind":"text","value":"Newest review explanation."],["kind":"text","value":"Older review explanation."]])
-            let newestY=voiceAX.count==3 ? voiceAX[1]["y"] as? Double:nil,olderY=voiceAX.count==3 ? voiceAX[2]["y"] as? Double:nil
-            let reviewVoicePassed=voiceStatus=="The coach could not complete this response." && axPassed(voiceAX,0) && axPassed(voiceAX,1) && axPassed(voiceAX,2) && (newestY ?? 1)<(olderY ?? 0) && model.voice.history.last?.context=="Review · starting position" && !model.session.voiceHold
+            let voiceAX=await ax("review-voice",[["kind":"text","value":voiceStatus],["kind":"text","value":"Newest review explanation."],["kind":"text","value":"Older review explanation."],["kind":"textOrder","values":["Newest review explanation.","Older review explanation."]]])
+            let reviewVoicePassed=voiceStatus=="The coach could not complete this response." && (0..<4).allSatisfy{axPassed(voiceAX,$0)} && model.voice.history.last?.context=="Review · starting position" && !model.session.voiceHold
             if !reviewVoicePassed{failures.append("Review voice status/newest-first transcript not rendered")}
             // A failed turn keeps the session; this simulated one ends here so the rest of the review runs without voice.
             model.voice.disconnect()
@@ -319,7 +318,144 @@ import CheckmateCore
             let terminalLineVerified=axPassed(terminalAX,0) && model.review.displayRules?.checkmate==true
             if !terminalLineVerified{failures.append("Imagined checkmate left Practise here enabled")}
             model.returnToGame();model.session.cancelWork()
-            let result:[String:Any]=["passed":failures.isEmpty,"renderedImportError":renderedErrorPassed,"readableImportError":readableError,"staleChooserRejected":staleChooserPassed,"explicitReturnResumesReply":resumedOnExplicitReturn,"failedRestoreNoReplyUntilExplicitReturn":failedRestorePassed,"failedRestoreCallbacksHeld":callbacksHeld,"failedRestoreResumeWithDrawersClosed":drawersClosed && axPassed(resumeAX,1) && resumedByExplicitAction,"failedRestoreReplacementCleared":replacementCleared,"ideaMovesListed":ideaMovesListed,"noReplyDuringReview":noReplyDuringReview,"reviewVoiceRendered":reviewVoicePassed,"savedReviewRowSelected":savedRowSelected,"practiceForkParentPly0":forkPly0Verified,"practiceForkParentPly1":forkPly1Verified,"practiceForkImaginedMateDisabled":terminalLineVerified,"accessibilityChecks":axLog,"failures":failures,"geometry":geometry,"openPanelAccepted":openPanelAccepted,"openPanelCancel":openPanelCancelled,"savedRestore":savedRestorePassed,"savedLoadLesson":savedLoadLessonPassed,"savedLoadImport":savedLoadImportPassed,"savedLoadLatest":savedLoadLatestPassed,"savedLoadSameID":savedLoadSameIDPassed,"savedLoadStaleError":savedLoadErrorPassed,"staleImportCancelled":staleImportPassed,"closeFlush":closeFlushPassed,"reviewDocumentFile":model.reviewStore.documentURL(docs[0].id).path,"expectedPersistedCursor":docs[0].mainline.last!,"expectedSavedIdeas":savedIdeas.count,"pasteEntry":pastePassed,"dropCallbackEntry":dropCallbackPassed,"collectionChooser":collectionPassed,"appearances":appearances,"reducedMotionInjected":true,"defaultMotionMatchesWorkspace":defaultMotion,"accessibilitySquares":accessibleSquares.count,"mouseBranch":mouseBranchVerified,"keyboardBranch":keyboardBranchVerified,"keyboardNavigation":rightArrowVerified && leftArrowVerified,"typingFocusPreserved":typingPreserved,"hiddenPracticeMenuGuard":menuGuardPassed,"reviewAnnotationScoped":annotationRendered && annotationCleared,"fullscreenEntered":entered,"practicePreserved":preservedPractice,"blackPracticeTitle":blackPracticeTitle,"originalHashPreserved":originalHash==docs[0].contentHash,"silent":NativePolicy.silent]
+            // The review pane in light and dark: the workspace and its game library (all, a search, the World
+            // Championships grouped by event, My games, a narrow window), then a fixed short library game's overview,
+            // a mid-game position with the evaluation graph, and an imagined line there.
+            var paneCaptures:[String]=[]
+            var captureDefects:[String]=[],paneSizes:[String:String]=[:]
+            // A capture counts only if it is the window alone: its pixel size is the window's at the display's scale, and
+            // the window fills it (opaque samples across the whole image, not one corner of a larger canvas).
+            @MainActor func capturedWindow(_ path:String,_ name:String)->Bool {
+                guard let window=game.window,let image=NSImage(contentsOfFile:path),let rep=image.representations.first as? NSBitmapImageRep else{captureDefects.append(name+": unreadable");return false}
+                let scale=window.backingScaleFactor,expected=(Int((window.frame.width*scale).rounded()),Int((window.frame.height*scale).rounded()))
+                paneSizes[name]="\(rep.pixelsWide)x\(rep.pixelsHigh)"
+                guard abs(rep.pixelsWide-expected.0)<=2,abs(rep.pixelsHigh-expected.1)<=2 else{captureDefects.append(name+": \(rep.pixelsWide)x\(rep.pixelsHigh), window \(expected.0)x\(expected.1)");return false}
+                var opaque=0,samples=0
+                for x in stride(from:0.05,through:0.95,by:0.1){for y in stride(from:0.05,through:0.95,by:0.1){samples+=1;if (rep.colorAt(x:Int(Double(rep.pixelsWide)*x),y:Int(Double(rep.pixelsHigh)*y))?.alphaComponent ?? 0)>0.9{opaque+=1}}}
+                guard opaque==samples else{captureDefects.append(name+": window covers \(opaque) of \(samples) samples");return false}
+                return true
+            }
+            @MainActor func shoot(_ name:String)async {for (suffix,appearance) in [("light",NSAppearance.Name.aqua),("dark",.darkAqua)]{game.window?.appearance=NSAppearance(named:appearance);game.refresh();try? await Task.sleep(for:.milliseconds(500));let path=directory+"/pane-\(name)-\(suffix).png";if (try? await game.capture(path)) != nil,capturedWindow(path,name+"-"+suffix){paneCaptures.append(name+"-"+suffix)}};game.window?.appearance=nil}
+            let library=model.library
+            // Plan WI-16 budgets on the visible path, with 165 bundled and 5,000 imported rows: the clock stops only when the
+            // expected row exists in the window's accessibility tree (SwiftUI builds it only for rows it has laid out).
+            let timingRecords=(0..<5000).map{i in "[Event \"Club \(i % 40)\"]\n[White \"Player\(i)\"]\n[Black \"Rival\(i % 300)\"]\n[Result \"1-0\"]\n\n1. e4 e5 1-0\n"}.joined(separator:"\n")
+            let timingCollection=try library.store.importCollection(Data(timingRecords.utf8),name:"timing.pgn")
+            @MainActor func rowVisible(_ id:String)->Bool {
+                func find(_ element:Any,_ depth:Int)->Bool {
+                    guard depth<60,let node=element as? NSObject else{return false}
+                    func call(_ name:String)->Any? {let selector=NSSelectorFromString(name);return node.responds(to:selector) ? node.perform(selector)?.takeUnretainedValue():nil}
+                    if call("accessibilityIdentifier") as? String=="library-row-"+id{return true}
+                    // Table rows are reached through the view tree (only laid-out row views exist) and SwiftUI's accessibility
+                    // children; the table's `accessibilityRows` would build an element for every row and is not walked.
+                    let children:[Any]=((node as? NSView)?.subviews ?? [])+(call("accessibilityChildren") as? [Any] ?? [])
+                    return children.contains{find($0,depth+1)}
+                }
+                return game.window?.contentView.map{find($0,0)} ?? false
+            }
+            // Done only when the new first result is on screen and the old results it replaces are gone: a row the previous
+            // query also showed would otherwise count as the new result before the list has changed.
+            // The list's own table: its row count is what the screen draws (a header row per section plus its game rows).
+            @MainActor func tables(_ view:NSView?)->[NSTableView] {guard let view else{return []};return (view as? NSTableView).map{[$0]} ?? view.subviews.flatMap{tables($0)}}
+            @MainActor func table(_ view:NSView?)->NSTableView? {
+                tables(view).first{t in var v:NSView?=t;while let current=v{if current.accessibilityIdentifier()=="library-list"{return true};v=current.superview};return false}
+                    // Before SwiftUI has named its views the list is the table holding exactly the expected rows.
+                    ?? tables(view).first{$0.numberOfRows==library.items.count}
+            }
+            var tableCounts:[String]=[],phase:[(Date,Date)]=[],phases:[String]=[]
+            // The clock stops only when the table has applied this exact version of the lines, in this exact order (a row
+            // count can match before the table has changed), and has then drawn them.
+            @MainActor func waitTable(_ query:String)async -> Bool {
+                let expected=library.items.map(\.id),version=library.shownVersion
+                for _ in 0..<1000{if let t=table(game.window?.contentView) as? LibraryTableView,t.appliedVersion==version,t.appliedIDs==expected,t.numberOfRows==expected.count{let counted=Date();t.displayIfNeeded();phase.append((counted,Date()));return true};try? await Task.sleep(for:.milliseconds(1))}
+                tableCounts.append("\(query): table \(table(game.window?.contentView)?.numberOfRows ?? -1), all \(tables(game.window?.contentView).map{"\(type(of:$0)):\($0.numberOfRows):\($0.accessibilityIdentifier())"}), expected \(expected)");return false
+            }
+            @MainActor func waitVisible(_ id:String?,gone:[String]=[])async -> Bool {guard let id else{return false};for _ in 0..<1000{if rowVisible(id),!gone.contains(where:rowVisible){return true};try? await Task.sleep(for:.milliseconds(2))};return false}
+            let shownAt=Date();model.showReviewWorkspace();library.reload()
+            for _ in 0..<1000{if library.loaded,library.catalog.rowCount>=5165{break};try await Task.sleep(for:.milliseconds(2))}
+            let tableShown=await waitTable("")
+            let workspaceVisibleMs=Int(Date().timeIntervalSince(shownAt)*1000),timedRows=library.catalog.rowCount
+            let firstShown=await waitVisible(library.catalog.sections(scope:library.scope,query:"").first?.rows.first?.id) && tableShown
+            var previous=Array(library.catalog.sections(scope:library.scope,query:"").flatMap(\.rows).prefix(3).map(\.id))
+            var slowestKeystrokeMs=0,keystrokesShown=firstShown,keystrokeMs:[String:Int]=[:]
+            for query in ["k","ka","kar","karp","karpo","karpov","c","ca","car","carl","t","ta","tal"]{
+                // The expected results are worked out before the clock starts: only the app's own work is timed.
+                let rows=library.catalog.sections(scope:library.scope,query:query).flatMap(\.rows).map(\.id),kept=Set(rows)
+                let typed=Date();library.query=query;let filtered=Date()
+                // The clock stops when the list's table holds exactly the new results and has drawn them. Walking the
+                // accessibility tree afterwards (outside the clock: it makes SwiftUI build an element for each new row,
+                // ~800 ms that no sighted user waits for) confirms the right rows are the ones shown.
+                let applied=await waitTable(query)
+                if let last=phase.last,let t=table(game.window?.contentView) as? LibraryTableView{phases.append("\(query): filter \(Int(filtered.timeIntervalSince(typed)*1000)), apply \(Int(t.applyStarted.timeIntervalSince(typed)*1000))-\(Int(t.applyFinished.timeIntervalSince(typed)*1000)), table \(Int(last.0.timeIntervalSince(typed)*1000)), drawn \(Int(last.1.timeIntervalSince(typed)*1000))")}
+                let elapsed=Int(Date().timeIntervalSince(typed)*1000);keystrokeMs[String(keystrokeMs.count)+":"+query]=elapsed;slowestKeystrokeMs=max(slowestKeystrokeMs,elapsed)
+                let shown=await waitVisible(rows.first,gone:previous.filter{!kept.contains($0)});keystrokesShown=keystrokesShown && shown && applied;previous=Array(rows.prefix(3))
+            }
+            library.query=""
+            library.remove(timingCollection.sha256);for _ in 0..<200{if library.collection(timingCollection.sha256)==nil,library.catalog.collections.isEmpty{break};try await Task.sleep(for:.milliseconds(20))}
+            let budgetsPassed=timedRows>=5165 && keystrokesShown && workspaceVisibleMs<300 && slowestKeystrokeMs<50
+            if !budgetsPassed{failures.append("Library budgets missed (rows \(timedRows), rows shown \(keystrokesShown), workspace \(workspaceVisibleMs) ms, keystroke \(slowestKeystrokeMs) ms)")}
+            try await Task.sleep(for:.milliseconds(600));await shoot("workspace")
+            let libraryAX=await ax("game-library-listed",[["kind":"text","value":"Game library"],["kind":"text","value":"Get More Games"],["kind":"text","value":"World Championship 2024 · Ding – Gukesh"]])
+            // Section headers are announced as headings, as SwiftUI's header trait made them.
+            let eventHeading=libraryAX.indices.contains(2) && libraryAX[2]["role"] as? String=="AXHeading"
+            if !eventHeading{failures.append("An event header is not a heading: \(libraryAX.indices.contains(2) ? libraryAX[2]:[:])")}
+            library.query="fischer";try await Task.sleep(for:.milliseconds(400));await shoot("library-search");library.query=""
+            library.scope = .worldChampionships;try await Task.sleep(for:.milliseconds(400));await shoot("library-championships")
+            let collectionFile=URL(fileURLWithPath:directory+"/library-collection-fixture.pgn")
+            try Data("[Event \"Club championship\"]\n[Site \"Leeds\"]\n[Date \"2025.03.01\"]\n[Round \"1\"]\n[White \"Ada Example\"]\n[Black \"Ben Sample\"]\n[Result \"1-0\"]\n\n1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 1-0\n\n[Event \"Club championship\"]\n[Site \"Leeds\"]\n[Date \"2025.03.08\"]\n[Round \"2\"]\n[White \"Ben Sample\"]\n[Black \"Cleo Test\"]\n[Result \"1/2-1/2\"]\n\n1. d4 d5 2. c4 e6 1/2-1/2\n".utf8).write(to:collectionFile)
+            library.importCollection(collectionFile);for _ in 0..<100{if !library.catalog.collections.isEmpty{break};try await Task.sleep(for:.milliseconds(100))}
+            let collectionImported=library.catalog.collections.first?.1.count==2
+            library.scope = .myGames;try await Task.sleep(for:.milliseconds(400))
+            let collectionAX=await ax("collection-heading",[["kind":"text","value":"library-collection-fixture.pgn"]])
+            let collectionHeading=collectionAX.first?["role"] as? String=="AXHeading"
+            if !collectionHeading{failures.append("A collection header is not a heading: \(collectionAX)")}
+            await shoot("library-my-games");library.scope = .all
+            // Narrow through the square geometry: the window is re-squared from its height, so the height is what shrinks.
+            var narrowed=false
+            if let window=game.window{let wide=window.frame;var narrow=wide;narrow.size.height=max(window.minSize.height,wide.height*0.7);narrow.origin.y=wide.maxY-narrow.size.height;window.setFrame(narrow,display:true);try await Task.sleep(for:.milliseconds(700))
+                narrowed=window.frame.width<wide.width-100 && abs(window.frame.width-window.frame.height-(wide.width-wide.height))<=2
+                if !narrowed{failures.append("Narrow library window stayed \(Int(window.frame.width)) points wide (was \(Int(wide.width)))")}
+                await shoot("library-narrow");window.setFrame(wide,display:true);try await Task.sleep(for:.milliseconds(500))}
+            var graphReady=false,staleLibraryOpenDropped=false
+            // An open whose read is overtaken by navigation (back to practice) never opens: the newer activity stands.
+            if let row=library.catalog.classics.first(where:{$0.id=="library:lasker-thomas"}) {
+                library.open(row);model.practice();try await Task.sleep(for:.milliseconds(1500))
+                staleLibraryOpenDropped=model.review.document?.provenance != GameLibrary.provenance && !model.importingReview && !model.reviewWorkspace
+                if !staleLibraryOpenDropped{failures.append("A library open overtaken by navigation still opened")}
+                model.showReviewWorkspace();try await Task.sleep(for:.milliseconds(500))
+            }
+            // A then B: B is asked for while A is still being parsed, and B's read is held (automation barrier) until well
+            // after A's parse would have finished. A must never present, and B must open once released.
+            var newestOpenWins=false
+            if let a=library.catalog.classics.first(where:{$0.id=="library:immortal"}),let b=library.catalog.classics.first(where:{$0.id=="library:lasker-thomas"}) {
+                model.automationReviewImportDelayMs=1200
+                library.open(a);for _ in 0..<100{if model.importingReview{break};try await Task.sleep(for:.milliseconds(10))}
+                let aParsing=model.importingReview
+                library.automationHoldReads=true;library.open(b);try await Task.sleep(for:.milliseconds(2500))
+                let aPresented=model.review.document?.header("White")=="Anderssen"
+                library.automationReleaseReads();for _ in 0..<60{if model.review.document?.header("White")=="Edward Lasker",!model.importingReview{break};try await Task.sleep(for:.milliseconds(100))}
+                let bOpened=model.review.document?.provenance==GameLibrary.provenance && model.review.document?.header("White")=="Edward Lasker"
+                newestOpenWins=aParsing && !aPresented && bOpened
+                model.automationReviewImportDelayMs=0
+                if !newestOpenWins{failures.append("Opening B while A was parsing: A parsing \(aParsing), A presented \(aPresented), B opened \(bOpened)")}
+                model.showReviewWorkspace();try await Task.sleep(for:.milliseconds(500))
+            }
+            // A fixed short game by id (the King Hunt), never "the last entry": the bundle's order may change.
+            if let row=library.catalog.classics.first(where:{$0.id=="library:lasker-thomas"}) {
+                library.open(row);for _ in 0..<100{if model.review.document?.provenance==GameLibrary.provenance{break};try await Task.sleep(for:.milliseconds(100))}
+                if let d=model.review.document,d.provenance==GameLibrary.provenance{
+                    game.showDetails();try await Task.sleep(for:.milliseconds(900));await shoot("overview")
+                    model.reviewAnalyzer.startBatch(d);let begun=Date();while model.reviewAnalyzer.batchRunning(d.id),Date().timeIntervalSince(begun)<240{try await Task.sleep(for:.milliseconds(200))}
+                    graphReady=model.reviewAnalyzer.batchStatus=="ready" && ReviewFormat.series(d,evaluations:model.reviewAnalyzer.evaluations,outcome:ReviewFormat.finalOutcome(d)).allSatisfy{$0 != nil}
+                    let middle=d.mainline[d.mainline.count/2];try model.review.select(middle);try await Task.sleep(for:.milliseconds(900));await shoot("analysis")
+                    try model.review.beginBranch();if let move=model.review.displayRules?.moves().first{try model.review.playBranch(move.from+move.to+(move.promotion ?? ""))};try await Task.sleep(for:.milliseconds(900));await shoot("imagined")
+                    model.review.clearBranch()
+                }
+            }
+            model.returnToGame();model.session.cancelWork()
+            let paneCapturesPassed=paneCaptures.count==16 && captureDefects.isEmpty && narrowed && axPassed(libraryAX,0) && axPassed(libraryAX,1) && collectionImported && graphReady
+            if !paneCapturesPassed{failures.append("Review pane captures incomplete (captures=\(paneCaptures) defects=\(captureDefects) narrowed=\(narrowed) libraryListed=\(axPassed(libraryAX,0)) collectionImported=\(collectionImported) graphReady=\(graphReady))")}
+            let result:[String:Any]=["passed":failures.isEmpty,"reviewPaneCaptures":paneCapturesPassed,"staleLibraryOpenDropped":staleLibraryOpenDropped,"newestLibraryOpenWins":newestOpenWins,"libraryHeadings":eventHeading && collectionHeading,"paneCaptureSizes":paneSizes,"libraryBudgets":["phases":phases,"tableCounts":tableCounts,"keystrokeMs":keystrokeMs,"rows":timedRows,"rowsShown":keystrokesShown,"workspaceVisibleMs":workspaceVisibleMs,"slowestKeystrokeMs":slowestKeystrokeMs,"passed":budgetsPassed],"renderedImportError":renderedErrorPassed,"readableImportError":readableError,"staleChooserRejected":staleChooserPassed,"explicitReturnResumesReply":resumedOnExplicitReturn,"failedRestoreNoReplyUntilExplicitReturn":failedRestorePassed,"failedRestoreCallbacksHeld":callbacksHeld,"failedRestoreResumeWithDrawersClosed":drawersClosed && axPassed(resumeAX,1) && resumedByExplicitAction,"failedRestoreReplacementCleared":replacementCleared,"ideaMovesListed":ideaMovesListed,"noReplyDuringReview":noReplyDuringReview,"reviewVoiceRendered":reviewVoicePassed,"savedReviewRowSelected":savedRowSelected,"practiceForkParentPly0":forkPly0Verified,"practiceForkParentPly1":forkPly1Verified,"practiceForkImaginedMateDisabled":terminalLineVerified,"accessibilityChecks":axLog,"failures":failures,"geometry":geometry,"openPanelAccepted":openPanelAccepted,"openPanelCancel":openPanelCancelled,"savedRestore":savedRestorePassed,"savedLoadLesson":savedLoadLessonPassed,"savedLoadImport":savedLoadImportPassed,"savedLoadLatest":savedLoadLatestPassed,"savedLoadSameID":savedLoadSameIDPassed,"savedLoadStaleError":savedLoadErrorPassed,"staleImportCancelled":staleImportPassed,"closeFlush":closeFlushPassed,"reviewDocumentFile":model.reviewStore.documentURL(docs[0].id).path,"expectedPersistedCursor":docs[0].mainline.last!,"expectedSavedIdeas":savedIdeas.count,"pasteEntry":pastePassed,"dropCallbackEntry":dropCallbackPassed,"collectionChooser":collectionPassed,"appearances":appearances,"reducedMotionInjected":true,"defaultMotionMatchesWorkspace":defaultMotion,"accessibilitySquares":accessibleSquares.count,"mouseBranch":mouseBranchVerified,"keyboardBranch":keyboardBranchVerified,"keyboardNavigation":rightArrowVerified && leftArrowVerified,"typingFocusPreserved":typingPreserved,"hiddenPracticeMenuGuard":menuGuardPassed,"reviewAnnotationScoped":annotationRendered && annotationCleared,"fullscreenEntered":entered,"practicePreserved":preservedPractice,"blackPracticeTitle":blackPracticeTitle,"originalHashPreserved":originalHash==docs[0].contentHash,"silent":NativePolicy.silent]
             try JSONSerialization.data(withJSONObject:result,options:[.prettyPrinted,.sortedKeys]).write(to:URL(fileURLWithPath:directory+"/review-ui-results.json"));NSApp.terminate(nil)
         }catch{try? JSONSerialization.data(withJSONObject:["passed":false,"error":String(describing:error)]).write(to:URL(fileURLWithPath:directory+"/review-ui-results.json"));NSApp.terminate(nil)}
     }}
@@ -388,6 +524,8 @@ import CheckmateCore
         let viewItem=NSMenuItem(title:"View",action:nil,keyEquivalent:""),view=NSMenu(title:"View");viewItem.submenu=view;menu.addItem(viewItem)
         for (name,action,key,modifiers) in [("Toggle Sidebar",#selector(GameWindow.toggleLeft),"s",NSEvent.ModifierFlags([.command,.shift])),("Toggle Game Details",#selector(GameWindow.toggleRight),"i",NSEvent.ModifierFlags([.command,.option]))]{let item=NSMenuItem(title:name,action:action,keyEquivalent:key);item.target=window;item.keyEquivalentModifierMask=modifiers;view.addItem(item)}
         let editItem=NSMenuItem(title:"Edit",action:nil,keyEquivalent:""),edit=NSMenu(title:"Edit");editItem.submenu=edit;menu.insertItem(editItem,at:2);for (name,selector,key) in [("Undo",NSSelectorFromString("undo:"),"z"),("Redo",NSSelectorFromString("redo:"),"Z"),("Cut",#selector(NSText.cut(_:)),"x"),("Copy",#selector(NSText.copy(_:)),"c"),("Paste",#selector(NSText.paste(_:)),"v"),("Select All",#selector(NSText.selectAll(_:)),"a")]{edit.addItem(withTitle:name,action:selector,keyEquivalent:key)}
+        // Workspace-scoped: Find… searches the game library and is offered only while the review workspace shows.
+        edit.addItem(.separator());let find=NSMenuItem(title:"Find…",action:#selector(findInLibrary),keyEquivalent:"f");find.target=self;edit.addItem(find)
         let windowItem=NSMenuItem(title:"Window",action:nil,keyEquivalent:""),windows=NSMenu(title:"Window");windowItem.submenu=windows;menu.addItem(windowItem);windows.addItem(withTitle:"Close",action:#selector(NSWindow.performClose(_:)),keyEquivalent:"w");windows.addItem(withTitle:"Minimize",action:#selector(NSWindow.performMiniaturize(_:)),keyEquivalent:"m");windows.addItem(withTitle:"Zoom",action:#selector(NSWindow.performZoom(_:)),keyEquivalent:"");windows.addItem(withTitle:"Bring All to Front",action:#selector(NSApplication.arrangeInFront(_:)),keyEquivalent:"");NSApp.windowsMenu=windows
         NSApp.mainMenu=menu
     }
@@ -396,10 +534,12 @@ import CheckmateCore
         // Matches the review workspace: nothing to review is not offered.
         if item.action == #selector(reviewCurrent){return model?.session.rules.history.isEmpty==false}
         if item.action == #selector(reviewPrevious){return model?.session.state.practice.previousGame.isEmpty==false}
+        if item.action == #selector(findInLibrary){return model?.reviewWorkspace==true}
         return true
     }
     @objc func saveCurrentReview(){model?.saveCurrentReview()}
     @objc func openPGN(){model?.openPGN()}
+    @objc func findInLibrary(){guard model?.reviewWorkspace==true else{return};model?.library.requestFind()}
     @objc func pasteReview(){model?.pasteReview()}
     @objc func reviewCurrent(){model?.reviewCurrent()}
     @objc func reviewPrevious(){model?.reviewCurrent(previous:true)}

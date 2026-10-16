@@ -1,0 +1,133 @@
+import XCTest
+@testable import CheckmateNative
+import CheckmateCore
+@testable import CheckmateDomain
+@testable import CheckmateApplication
+
+/// The review pane's pure rules: move-table rows, header text, scores, takeaways and the evaluation series.
+@MainActor final class ReviewFormatTests:XCTestCase {
+    private func game(_ pgn:String)throws -> GameDocument {try PGNImporter.parse(Data(pgn.utf8))[0]}
+    private func sans(_ d:GameDocument,_ rows:[ReviewFormat.MoveRow])->[String] {rows.map{"\($0.number):\($0.white.flatMap{d.nodes[$0].san} ?? "-")/\($0.black.flatMap{d.nodes[$0].san} ?? "-")"}}
+
+    func testRowsPairMovesByTheirOwnMoveNumbers() throws {
+        let white=try game("1. e4 e5 2. Nf3 *")
+        XCTAssertEqual(sans(white,ReviewFormat.rows(white,line:white.mainline)),["1:e4/e5","2:Nf3/-"],"An odd-length game ends with a White-only row")
+        // A record starting with Black to move on move 17 shows 17. … then the Black move, never 1.
+        let black=try game("[FEN \"4k3/4p3/8/8/8/8/4P3/4K3 b - - 0 17\"]\n[SetUp \"1\"]\n\n17... Kd7 18. Kd2 Kc6 19. Kc2 *")
+        XCTAssertEqual(sans(black,ReviewFormat.rows(black,line:black.mainline)),["17:-/Kd7","18:Kd2/Kc6","19:Kc2/-"])
+        XCTAssertEqual(ReviewFormat.moveLabel(black.nodes[black.mainline[0]]),"17, Black, Kd7")
+        XCTAssertEqual(ReviewFormat.moveText(black.nodes[black.mainline[0]]),"17… Kd7")
+        XCTAssertEqual(ReviewFormat.rows(white,line:[]),[])
+    }
+    func testHeaderLeavesOutUnknownParts() throws {
+        let full=try game("[Event \"London\"]\n[Site \"London ENG\"]\n[Date \"1912.??.??\"]\n[White \"Edward Lasker\"]\n[Black \"George Alan Thomas\"]\n[Result \"1-0\"]\n\n1. d4 e6 1-0")
+        XCTAssertEqual(ReviewFormat.players(full),"Edward Lasker – George Alan Thomas")
+        XCTAssertEqual(ReviewFormat.details(full),"London · 1912","A site that repeats the event and the unknown month and day are left out")
+        let unknown=try game("[Event \"?\"]\n[Site \"\"]\n[Date \"????.??.??\"]\n[White \"?\"]\n[Black \"?\"]\n\n1. e4 *")
+        XCTAssertNil(ReviewFormat.details(unknown));XCTAssertEqual(ReviewFormat.players(unknown),"Imported game")
+        let one=try game("[White \"*Bold* _x_\"]\n[Date \"1851.06.21\"]\n\n1. e4 *")
+        XCTAssertEqual(ReviewFormat.players(one),"*Bold* _x_ – Black");XCTAssertEqual(ReviewFormat.details(one),"1851.06.21")
+        XCTAssertEqual(ReviewFormat.players(try PGNImporter.parse(Data("1. e4 *".utf8),provenance:"Current game")[0]),"Current game")
+        XCTAssertEqual(ReviewFormat.players(try game("8/8/8/4k3/8/8/8/4K3 w - - 0 1")),"Imported position")
+        XCTAssertEqual(["1-0","0-1","1/2-1/2","*"].map(ReviewFormat.result),["1–0","0–1","½–½","Unfinished"])
+    }
+    func testScoresReadFromWhitesSide() {
+        func cp(_ v:Int,_ bound:String?=nil)->String {ReviewFormat.score(AnalysisScore(kind:"cp",value:v,bound:bound))}
+        XCTAssertEqual([cp(80),cp(-140),cp(0),cp(-4),cp(1234)],["+0.8","−1.4","0.0","0.0","+12.3"])
+        XCTAssertEqual(cp(35,"lower"),"≥+0.3");XCTAssertEqual(cp(-35,"upper"),"≤−0.3")
+        XCTAssertEqual([3,-2,0].map{ReviewFormat.score(AnalysisScore(kind:"mate",value:$0))},["M3","−M2","#"])
+    }
+    func testTakeawaysDropTheOneRepeatingTheSummary() {
+        let e=ReviewExplanation(title:"Start",summary:"White won by checkmate.",facts:[],takeaways:["White won by checkmate. ","by checkmate.","Develop pieces first."],historyNote:nil)
+        XCTAssertEqual(ReviewFormat.takeaways(e),["Develop pieces first."]);XCTAssertEqual(ReviewFormat.takeaways(nil),[])
+    }
+    func testKeyMomentsAreAtMostFiveInGameOrder() throws {
+        let d=try game("1. e4 d5 2. exd5 Qxd5 3. Nc3 Qa5 4. d4 Nf6 5. Nf3 Bf5 6. Bc4 e6 7. Bd2 c6 8. Nd5 Qd8 9. Nxf6+ gxf6 10. Bb3 Qxd4 *")
+        let heuristic=ReviewFormat.heuristicMoments(d)
+        XCTAssertEqual(heuristic.map{d.nodes[$0].san!},["exd5","Qxd5","Nxf6+","gxf6","Qxd4"])
+        XCTAssertEqual(ReviewFormat.keyMoments(heuristic,in:d,engine:false),heuristic,"Five or fewer keep game order")
+        // When fewer fit, the heuristic keeps the final move; engine moments keep the most important, shown in game order.
+        XCTAssertEqual(ReviewFormat.keyMoments(heuristic,in:d,limit:3,engine:false).map{d.nodes[$0].san!},["exd5","Qxd5","Qxd4"])
+        XCTAssertEqual(ReviewFormat.keyMoments(heuristic.reversed(),in:d,limit:2,engine:true).map{d.nodes[$0].san!},["gxf6","Qxd4"])
+    }
+    func testSeriesClampsMarksGapsAndUsesTheResultAtMate() throws {
+        let d=try game("1. f3 e5 2. g4 Qh4# 0-1"),line=d.mainline
+        let scores:[Int:AnalysisScore]=[0:AnalysisScore(kind:"cp",value:20),line[0]:AnalysisScore(kind:"cp",value:-2500),line[2]:AnalysisScore(kind:"mate",value:-1),line[3]:AnalysisScore(kind:"cp",value:300)]
+        // The engine's last value is overruled by the checkmate on the board: Black mates, so the limit for Black.
+        XCTAssertEqual(ReviewFormat.series(d,evaluations:scores,outcome:ReviewFormat.finalOutcome(d)),[0.2,-10,nil,-10,-10])
+        let open=try game("1. e4 *");XCTAssertEqual(ReviewFormat.series(open,evaluations:[:],outcome:ReviewFormat.finalOutcome(open)),[nil,nil],"No score is a gap, not 0")
+        XCTAssertEqual(ReviewFormat.mainlineIndex(d,node:line[1]),2);XCTAssertNil(ReviewFormat.mainlineIndex(d,node:nil));XCTAssertEqual(ReviewFormat.node(d,index:0),0);XCTAssertEqual(ReviewFormat.node(d,index:99),line.last)
+    }
+    /// The analyzer's series is the played move's score after each move, never the parent's best line; a deeper pass
+    /// replaces a quick one.
+    func testSeriesFromAFixtureAnalyzer() async throws {
+        final class Fixture:EngineService {
+            var binaryIdentity:String {"review-format-fixture"}
+            var capabilities:EngineCapabilities {EngineCapabilities()}
+            func prepare()async throws {}
+            func analyze(fen:String,skill:Int,budget:Int,multiPv:Int)async throws -> EngineAnalysis {EngineAnalysis()}
+            func analyzeHistory(startFEN:String,moves:[String],profile:OpponentProfile,budget:Int,multiPv:Int,searchMoves:[String])async throws -> EngineAnalysis {
+                // The best line from a parent after k moves scores 50+k; the played move after it scores 10 per ply, 5 more when deep.
+                let score=searchMoves.isEmpty ? 50+moves.count:10*(moves.count+1)+(budget>=ReviewPolicy.deepBudget ? 5:0)
+                return EngineAnalysis(bestMove:searchMoves.first ?? "a1a1",budgetMs:budget,lines:[AnalysisLine(depth:20,multiPv:1,score:AnalysisScore(kind:"cp",value:score),pv:[searchMoves.first ?? "a1a1"],san:[])])
+            }
+        }
+        let analyzer=ReviewAnalyzer(engine:Fixture()),d=try game("1. e4 e5 2. Nf3 *")
+        analyzer.startBatch(d);let start=Date()
+        while ["pending","deepening"].contains(analyzer.batchStatus),Date().timeIntervalSince(start)<20{try await Task.sleep(for:.milliseconds(10))}
+        XCTAssertEqual(analyzer.batchStatus,"ready")
+        // Nf3, the final move, is the one moment deepened.
+        let series=ReviewFormat.series(d,evaluations:analyzer.evaluations,outcome:ReviewFormat.finalOutcome(d)).map{$0.map{($0*100).rounded()/100}}
+        XCTAssertEqual(series,[0.5,0.1,0.2,0.35])
+        analyzer.cancelBatch();XCTAssertTrue(analyzer.evaluations.isEmpty,"Cancelling clears the published scores")
+    }
+    /// A recorded draw ends the graph level even when the board is not finished; a resignation leaves the engine's value;
+    /// a checkmate on the board decides over a contradicting Result tag.
+    func testFinalOutcomeFollowsTheRecordedEnding() throws {
+        XCTAssertEqual(ReviewFormat.finalOutcome(try game("1. e4 e5 1/2-1/2")),0)
+        XCTAssertNil(ReviewFormat.finalOutcome(try game("1. e4 e5 1-0")))
+        XCTAssertEqual(ReviewFormat.finalOutcome(try game("1. f3 e5 2. g4 Qh4# 0-1")),-10)
+        let d=try game("1. e4 e5 1/2-1/2")
+        XCTAssertEqual(ReviewFormat.series(d,evaluations:[d.mainline[1]:AnalysisScore(kind:"cp",value:90)],outcome:ReviewFormat.finalOutcome(d)),[nil,nil,0])
+        XCTAssertNil(ReviewFormat.finalOutcome(try game("[SetUp \"1\"]\n[FEN \"4k3/8/8/8/8/8/8/4K3 w - - 0 1\"]\n\n*")),"No moves, no outcome")
+    }
+    /// Only moments the engine rates as costly get a dot; a capture or check that costs little does not.
+    func testOnlyCostlyMomentsAreMarked() {
+        let moments=[ReviewMoment(id:3,expectationLoss:0.25,reason:"Engine alternatives are worth comparing",provisional:true),ReviewMoment(id:5,expectationLoss:0.02,reason:"Capture, check or promotion",provisional:true),ReviewMoment(id:7,expectationLoss:nil,reason:"Capture, check or promotion",provisional:true)]
+        XCTAssertEqual(ReviewFormat.costly(moments),[3])
+    }
+    /// An engine fixture with win/draw/loss: Black's 1...e5 looks costly to the quick pass and fine to the deep one; with
+    /// `scorelessDeep` the deep pass returns no line for the played move.
+    private final class WDLFixture:EngineService {
+        let scorelessDeep:Bool
+        init(scorelessDeep:Bool){self.scorelessDeep=scorelessDeep}
+        var binaryIdentity:String {"review-format-wdl-fixture"}
+        var capabilities:EngineCapabilities {EngineCapabilities()}
+        func prepare()async throws {}
+        func analyze(fen:String,skill:Int,budget:Int,multiPv:Int)async throws -> EngineAnalysis {EngineAnalysis()}
+        func analyzeHistory(startFEN:String,moves:[String],profile:OpponentProfile,budget:Int,multiPv:Int,searchMoves:[String])async throws -> EngineAnalysis {
+            let deep=budget>=ReviewPolicy.deepBudget,even=[0,1000,0]
+            if searchMoves.isEmpty{return EngineAnalysis(bestMove:"a1a1",budgetMs:budget,lines:[AnalysisLine(depth:20,multiPv:1,score:AnalysisScore(kind:"cp",value:0),pv:["a1a1"],san:[],wdl:even)])}
+            if deep && scorelessDeep{return EngineAnalysis(bestMove:searchMoves[0],budgetMs:budget,lines:[])}
+            let costly=moves.count==1 && !deep
+            return EngineAnalysis(bestMove:searchMoves[0],budgetMs:budget,lines:[AnalysisLine(depth:20,multiPv:1,score:AnalysisScore(kind:"cp",value:costly ? 150:0),pv:[searchMoves[0]],san:[],wdl:costly ? [400,600,0]:even)])
+        }
+    }
+    private func runBatch(_ analyzer:ReviewAnalyzer,_ d:GameDocument)async throws {
+        analyzer.startBatch(d);let start=Date()
+        while ["pending","deepening"].contains(analyzer.batchStatus),Date().timeIntervalSince(start)<20{try await Task.sleep(for:.milliseconds(10))}
+        XCTAssertEqual(analyzer.batchStatus,"ready")
+    }
+    func testADeeperPassRetractsAQuietMomentItNoLongerRatesCostly() async throws {
+        let analyzer=ReviewAnalyzer(engine:WDLFixture(scorelessDeep:false)),d=try game("1. e4 e5 2. Nf3 *");try await runBatch(analyzer,d)
+        // e5 was the most costly quick moment, so it was the one deepened; the deep pass found it costs nothing.
+        XCTAssertFalse(analyzer.moments.contains{$0.id==d.mainline[1]},"A retracted quiet move stayed a moment")
+        XCTAssertTrue(analyzer.moments.contains{$0.id==d.mainline[2]},"The final move is always a moment")
+        XCTAssertEqual(analyzer.evaluations[d.mainline[1]]?.value,0,"The deep score replaced the quick one")
+    }
+    func testADeepResultWithoutAScoreLeavesAGap() async throws {
+        let analyzer=ReviewAnalyzer(engine:WDLFixture(scorelessDeep:true)),d=try game("1. e4 e5 2. Nf3 *");try await runBatch(analyzer,d)
+        XCTAssertNil(analyzer.evaluations[d.mainline[1]],"An older quick score stood in for a missing deep one")
+        XCTAssertNotNil(analyzer.evaluations[d.mainline[2]])
+    }
+}
