@@ -423,7 +423,7 @@ private final class CodexChannel: @unchecked Sendable {
         for key in ["HTTPS_PROXY", "HTTP_PROXY", "ALL_PROXY", "NO_PROXY", "https_proxy", "http_proxy", "all_proxy", "no_proxy"] {
             if let value = ProcessInfo.processInfo.environment[key] { environment[key] = value }
         }
-        let configuration = AppServerClient.Configuration(bin: executable.path, codexHome: home.path, environment: environment, timeout: rpcTimeout, clientName: "checkmate_lessons", workingDirectory: work.path, experimentalAPI: true, onEvent: { [weak self] in self?.admit($0) })
+        let configuration = AppServerClient.Configuration(bin: executable.path, codexHome: home.path, environment: environment, timeout: rpcTimeout, clientName: "checkmate_lessons", workingDirectory: work.path, experimentalAPI: true, onEvent: { [weak self] _, event in self?.admit(event) })
         guard lock.withLock({ () -> Bool in if closed { return false }; starting = true; return true }) else { throw CancellationError() }
         let outcome = await Result { try await Self.blocking { try AppServerClient.start(configuration) } }
         let closedMeanwhile = lock.withLock { () -> Bool in
