@@ -5,9 +5,9 @@
 // 3. after normal termination, reads back the persisted review cursor and ideas.
 import AppKit
 import ApplicationServices
-// The test host carries ~/.config/checkmate/host-role holding "test", the marker scripts/test_host.py reads.
-let hostRole=try? String(contentsOf:FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".config/checkmate/host-role"),encoding:.utf8).trimmingCharacters(in:.whitespacesAndNewlines)
-guard hostRole=="test" else{fatalError("Run native UI helpers on the test host only.")}
+// The test host carries ~/.config/checkmate/host-role naming "test" (alone or with "build"), the marker scripts/test_host.py reads.
+let hostRoles=Set(((try? String(contentsOf:FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".config/checkmate/host-role"),encoding:.utf8)) ?? "").split(whereSeparator:\.isWhitespace).map(String.init))
+guard hostRoles.contains("test") else{fatalError("Run native UI helpers on the test host only.")}
 let directory=URL(fileURLWithPath:CommandLine.arguments[1]),marker=directory.appendingPathComponent("open-panel-ready.json"),resultURL=directory.appendingPathComponent("review-ui-results.json")
 let isolatedBundle="ai.xiaolai.checkmate.native-review-automation"
 func value(_ element:AXUIElement,_ attribute:String)->CFTypeRef?{var value:CFTypeRef?;AXUIElementCopyAttributeValue(element,attribute as CFString,&value);return value}

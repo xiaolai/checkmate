@@ -96,19 +96,23 @@ assert gates.definition('unit', gates.GATE_CHECK_SOURCE + '#') != gates.definiti
 import test_host
 with tempfile.TemporaryDirectory() as home:
     marker = pathlib.Path(home) / test_host.ROLE_FILE
-    assert test_host.host_role(home) is None and not test_host.is_test_host(home)
+    assert test_host.host_roles(home) == frozenset() and not test_host.is_test_host(home)
     marker.parent.mkdir(parents=True)
     marker.write_text('test\n')
     assert test_host.is_test_host(home)
     marker.write_text('build\n')
-    assert test_host.host_role(home) == 'build' and not test_host.is_test_host(home)
-    marker.write_text('tester\n')
-    try:
-        test_host.host_role(home)
-        raise AssertionError('A marker naming an unknown role must be refused')
-    except SystemExit:
-        pass
+    assert test_host.host_roles(home) == {'build'} and not test_host.is_test_host(home)
+    # One Mac may hold both roles; the Swift guards accept the same marker.
+    marker.write_text('test build\n')
+    assert test_host.host_roles(home) == {'test', 'build'} and test_host.is_test_host(home)
+    for refused in ('tester\n', 'test tester\n', '\n'):
+        marker.write_text(refused)
+        try:
+            test_host.host_roles(home)
+            raise AssertionError(f'A marker holding {refused!r} must be refused')
+        except SystemExit:
+            pass
 # The Swift guards cannot import test_host, so each reads the marker itself; none may drift from it.
 for guard in ['Tools/ReviewScenario.swift', 'Tools/Acceptance/Probe.swift', 'Tools/calibrate-opponents.swift']:
     assert test_host.ROLE_FILE in (root / guard).read_text(), f'{guard} does not read ~/{test_host.ROLE_FILE}'
-print(f'Gate selection self-test passed ({len(cases) + 5} cases).')
+print(f'Gate selection self-test passed ({len(cases) + 8} cases).')

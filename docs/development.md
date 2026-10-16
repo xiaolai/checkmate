@@ -15,9 +15,9 @@ native UI and MCP tests have separate test targets. The architecture gate reject
 ## Build and run
 
 Every test runs on the test host, never the main Mac: unit tests, acceptance gates, live-service checks and performance
-measurements. The build host only builds releases, imports recordings and builds Stockfish. Each host is marked by a
-file, not by its name: `~/.config/checkmate/host-role` holds `test` or `build` (`mkdir -p ~/.config/checkmate && echo
-test > ~/.config/checkmate/host-role`). `scripts/test_host.py` reads it, and acceptance refuses a Mac without the test
+measurements. The build host only builds releases, imports recordings and builds Stockfish; one Mac may be both. Each
+host is marked by a file, not by its name: `~/.config/checkmate/host-role` names `test`, `build`, or both (`mkdir -p
+~/.config/checkmate && echo test build > ~/.config/checkmate/host-role`). `scripts/test_host.py` reads it, and acceptance refuses a Mac without the test
 role, so no machine name appears in this repository. The test host needs Xcode 27 selected with its licence accepted, Rosetta for the Intel gate,
 a logged-in GUI session whose display never sleeps, and Accessibility and Screen Recording permission for the remote
 login session that drives the pointer. From the repository root:
