@@ -7,11 +7,13 @@ import CheckmateCore
 @testable import CheckmateContent
 @testable import CheckmateApplication
 @testable import CheckmateMacPlatform
+import RealtimeConnection
+import PCM16
 
 final class VoiceTests:XCTestCase {
     func testGenerationDoesNotEndPlayback(){var gate=VoiceTurnGate();gate.begin();XCTAssertFalse(gate.ready);gate.generated(hasAudio:true);XCTAssertFalse(gate.ready);gate.playbackEnded();XCTAssertTrue(gate.ready);gate.begin();gate.playbackEnded();XCTAssertFalse(gate.ready);gate.generated(hasAudio:true);XCTAssertTrue(gate.ready)}
-    func testCredentialParsingAndRejections()throws {XCTAssertEqual(try VoiceGateway.accessToken(Data(#"{"tokens":{"access_token":"sample"}}"#.utf8)),"sample");XCTAssertThrowsError(try VoiceGateway.accessToken(Data(#"{"api_key":"no"}"#.utf8)));XCTAssertThrowsError(try VoiceGateway.clientSecret(Data(#"{"value":""}"#.utf8)));XCTAssertEqual(try VoiceGateway.clientSecret(Data(#"{"value":"ephemeral"}"#.utf8)),"ephemeral")}
-    func testPCMConversion(){let input:[Float]=[-2,-1,0,0.5,1,2];let data=VoicePCM.encode(input);XCTAssertEqual(data.count,12);let values=VoicePCM.decode(data);XCTAssertEqual(values.count,6);XCTAssertEqual(values[2],0);XCTAssertEqual(values[3],0.5,accuracy:0.001)}
+    func testCredentialParsingAndRejections()throws {XCTAssertEqual(try CodexSubscriptionClient.chatGPTAccessToken(Data(#"{"tokens":{"access_token":"sample"}}"#.utf8)),"sample");XCTAssertThrowsError(try CodexSubscriptionClient.chatGPTAccessToken(Data(#"{"api_key":"no"}"#.utf8)))}
+    func testPCMConversion(){let input:[Float]=[-2,-1,0,0.5,1,2];let data=PCM.encode(input);XCTAssertEqual(data.count,12);let values=PCM.decode(data);XCTAssertEqual(values.count,6);XCTAssertEqual(values[2],0);XCTAssertEqual(values[3],0.5,accuracy:0.001)}
 }
 extension VoiceTests {
     @MainActor func testVoiceToolAuthorizationAndStaleSpeech() async throws {let s=try GameSession(engine:nil),v=try VoiceCoach(session:s)
@@ -39,7 +41,7 @@ extension VoiceTests {
             XCTAssertEqual((config["reasoning"] as? [String:String])?["effort"],effort)
         }
         XCTAssertEqual(VoiceSessionConfiguration.model,"gpt-realtime-2.1")
-        XCTAssertTrue(VoiceSessionConfiguration.socketURL.absoluteString.hasSuffix("model=gpt-realtime-2.1"))
+        XCTAssertEqual(RealtimeSession.url(model:VoiceSessionConfiguration.model).absoluteString,"wss://api.openai.com/v1/realtime?model=gpt-realtime-2.1")
         let fallback=VoiceSessionConfiguration.reasoningEvent(effort:"invalid")["session"] as? [String:Any]
         XCTAssertEqual((fallback?["reasoning"] as? [String:String])?["effort"],"minimal")
     }

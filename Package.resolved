@@ -1,5 +1,5 @@
 {
-  "originHash" : "c5563efe07774026ce37da89c1a19cff3a39d3aecf47f06a732ca962b71192ff",
+  "originHash" : "6f3f62da3e1ff1f52861e2c4f2d0ea126a4dbdd2dd078559c2b7b1c86e240792",
   "pins" : [
     {
       "identity" : "eventsource",
@@ -8,6 +8,15 @@
       "state" : {
         "revision" : "86b5096ac59ab46e66bd1f6377c604bc1dab0bc2",
         "version" : "1.5.1"
+      }
+    },
+    {
+      "identity" : "sayso",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/xiaolai/sayso.git",
+      "state" : {
+        "revision" : "b0446175f66a34e02b1f1ca6e0eada43d2a60def",
+        "version" : "0.1.2"
       }
     },
     {

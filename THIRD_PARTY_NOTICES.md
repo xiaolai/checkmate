@@ -40,3 +40,9 @@ and its Swift dependencies: EventSource (MIT), SwiftNIO, Swift System, Swift Log
 Swift Atomics and Swift Collections (Apache-2.0 with Swift runtime exception).
 Exact resolved revisions are in Package.resolved. Full license texts
 are bundled under Sources/CheckmateCore/Resources/Licenses/.
+
+Voice and lesson translation use sayso 0.1 (ISC): the Codex sign-in and
+app-server client, the realtime connection, the said guard and PCM16 audio,
+from https://github.com/xiaolai/sayso . Its exact resolved revision is in
+Package.resolved, and its license text is bundled under
+Sources/CheckmateCore/Resources/Licenses/.

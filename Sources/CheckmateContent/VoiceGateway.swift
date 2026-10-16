@@ -1,6 +1,8 @@
 import CheckmateDomain
 import CheckmateSupport
+import CodexAuth
 import Foundation
+import RealtimeConnection
 public struct VoiceTurnGate {
     private var generating=false,playing=false,ended=false
     public init(){}
@@ -13,64 +15,105 @@ public struct VoiceTurnGate {
     public mutating func playbackEnded(){playing=false;ended=true}
     public mutating func reset(){generating=false;playing=false;ended=false}
 }
-public enum VoicePCM {
-    public static func encode(_ samples:[Float])->Data {var data=Data(capacity:samples.count*2);for v in samples{var n=Int16((v.isFinite ? max(-1,min(1,v)):0)*32767).littleEndian;withUnsafeBytes(of:&n){data.append(contentsOf:$0)}};return data}
-    public static func decode(_ data:Data)->[Float]{stride(from:0,to:max(0,data.count-1),by:2).map{Float(Int16(bitPattern:UInt16(data[$0]) | UInt16(data[$0+1])<<8))/32768}}
-}
-public final class VoiceGateway:NSObject,URLSessionTaskDelegate,@unchecked Sendable {
+/// Voice runs on the learner's ChatGPT subscription only, through Codex's sign-in (sayso's CodexAuth): Codex is asked for
+/// the token and renews it itself; without an installed Codex, Codex's sign-in file is read and never written. An
+/// API-key sign-in (and its key) is never used. The token only mints a short-lived realtime secret.
+public final class VoiceGateway:Sendable {
+    /// Codex's sign-in file, read by voice only when no Codex is installed, and copied (without its refresh token) into
+    /// a private translation home.
     public static let credentialURL=FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".codex/auth.json")
-    /// The ChatGPT sign-in Codex keeps for this Mac, read and never written. Voice runs on the learner's ChatGPT
-    /// subscription only: an API-key sign-in (and its key) is never used.
-    public static func accessToken(_ data:Data)throws->String {
-        guard data.count<=65536,let a=try JSONSerialization.jsonObject(with:data) as? [String:Any] else{throw signedOut}
-        if (a["auth_mode"] as? String)?.lowercased()=="apikey"{throw apiKeySignIn}
-        guard let token=(a["tokens"] as? [String:Any])?["access_token"] as? String,!token.isEmpty,token.count<=65536 else{throw signedOut}
-        return token
-    }
+    /// The mint request's limit and the whole exchange's, in seconds.
+    public static let mintTimeout:TimeInterval=20,mintResourceTimeout:TimeInterval=25
+    /// The asked lifetime of a realtime secret, the provider's default: a secret only opens a socket.
+    public static let secretLifetime=600
+    /// A sign-in with less than this left is renewed through Codex before it is used; one read from the file is expired.
+    public static let signInMargin:TimeInterval=60
+    /// Bounds each call to Codex while it fetches or renews the sign-in.
+    public static let codexTimeout:TimeInterval=20
+    /// One sign-in for the process: Codex runs only to fetch or renew the token, which stays in memory.
+    static let credentials=Result{try Credentials(CodexAuthConfiguration(margin:signInMargin,timeout:codexTimeout,clientName:"checkmate",guardAccess:{_ in if NativePolicy.silent{throw CheckmateError.unavailable("Live voice is disabled during automation.")}},log:{NativeLog.voice.debug("\($0)")}))}
+    private let client:HTTPClient
+    public init(){let configuration=URLSessionConfiguration.ephemeral;configuration.timeoutIntervalForResource=Self.mintResourceTimeout;client=HTTPClient(configuration:configuration)}
     public static let signedOut=CheckmateError.unavailable("Sign in to Codex on this Mac with your ChatGPT account before connecting.")
     public static let apiKeySignIn=CheckmateError.unavailable("Voice uses your ChatGPT subscription. Codex on this Mac is signed in with an API key; sign in to Codex with ChatGPT, then connect again.")
-    /// Codex can keep its sign-in in the keychain instead of this file; Checkmate reads only the file.
-    public static let noSignInFile=CheckmateError.unavailable("Checkmate could not find Codex's sign-in file. Sign in to Codex on this Mac (with its sign-in stored in a file, not only in the keychain), then connect again.")
-    public static func clientSecret(_ data:Data)throws->String {guard data.count<=65536,let a=try JSONSerialization.jsonObject(with:data) as? [String:Any],let t=a["value"] as? String,!t.isEmpty,t.count<=4096 else{throw CheckmateError.unavailable("The account did not provide a voice session credential.")};return t}
-    /// The learner-facing reason a Codex access token cannot be used: it has expired (Codex refreshes it only while
-    /// Codex runs, and Checkmate never refreshes it, which would invalidate Codex's own copy). Nil when it is usable
-    /// or carries no readable expiry.
-    public static func expiredSignIn(_ token:String,now:Date=Date())->CheckmateError? {
-        let parts=token.split(separator:".");guard parts.count==3 else{return nil};var payload=String(parts[1]).replacingOccurrences(of:"-",with:"+").replacingOccurrences(of:"_",with:"/");payload+=String(repeating:"=",count:(4-payload.count%4)%4)
-        guard let data=Data(base64Encoded:payload),let claims=try? JSONSerialization.jsonObject(with:data) as? [String:Any],let expiry=(claims["exp"] as? NSNumber)?.doubleValue else{return nil}
-        return expiry<=now.timeIntervalSince1970+60 ? Self.signInExpired:nil
+    public static let noCodex=CheckmateError.unavailable("Install Codex on this Mac and sign in with your ChatGPT account before connecting.")
+    /// A Codex that keeps its sign-in in the keychain must be asked for it; this one cannot be.
+    public static let keychainSignIn=CheckmateError.unavailable("Codex keeps its sign-in in the keychain, and this version of Codex cannot share it. Update Codex, then connect again.")
+    public static let signInExpired=CheckmateError.unavailable("Your Codex sign-in has expired and could not be renewed. Open Codex and sign in again, then connect.")
+    public static let codexTooOld=CheckmateError.unavailable("Codex on this Mac is too old for voice. Update Codex to \(minimumCodexVersion) or later, then connect again.")
+    public static let unreachable=CheckmateError.unavailable("Could not reach live voice. Check your internet connection.")
+    /// What a sign-in state means for the learner. Every state that is not ready names its own fix.
+    public static func signInFailure(_ state:CodexAuthState)->CheckmateError {
+        switch state {
+        case .ready,.notSignedIn,.noSignInFile:return signedOut
+        case .apiKey:return apiKeySignIn
+        case .unsupportedAuth:return .unavailable("Voice uses your ChatGPT subscription. Codex on this Mac is signed in another way; sign in to Codex with ChatGPT, then connect again.")
+        case .noCodex:return noCodex
+        case .codexTooOld:return codexTooOld
+        case .expired:return signInExpired
+        case .appServerAuthUnavailable:return keychainSignIn
+        case .providerWithoutOpenAIAuth:return .unavailable("Codex on this Mac is set to a model provider that does not use a ChatGPT sign-in, so voice cannot use it.")
+        case .codexError:return .unavailable("Codex on this Mac could not provide its sign-in. Check that Codex opens, then connect again.")
+        }
     }
-    public static let signInExpired=CheckmateError.unavailable("Your Codex sign-in has expired. Open Codex once to refresh it, then connect again.")
     /// A model the account cannot open a session for; the next candidate model is tried.
     public struct ModelUnsupported:Error {public let status:Int}
-    /// What an HTTP status from the session credential request means for the learner. 400, 404 and 422 name the model
-    /// as the problem, so selection moves on; every other failure is about the account or the service and stops it.
-    public static func authorizationFailure(status:Int)->Error {
-        switch status {
-        case 400,404,422:return ModelUnsupported(status:status)
-        case 401:return CheckmateError.unavailable("Your Codex sign-in was not accepted. Open Codex and sign in again, then connect.")
-        case 403:return CheckmateError.unavailable("This account was refused access to live voice.")
-        case 429:return CheckmateError.unavailable("Live voice is rate-limited for this account right now. Try again later.")
-        case 500...599:return CheckmateError.unavailable("Live voice is temporarily unavailable. Try again shortly.")
+    /// What a failed mint means for the learner. 400, 404 and 422 name the model as the problem, so selection moves on;
+    /// every other failure is about the sign-in, the account or the service and stops it.
+    public static func authorizationFailure(_ error:Error)->Error {
+        if error is CancellationError || Task.isCancelled {return CancellationError()}
+        if error is CheckmateError || error is ModelUnsupported {return error}
+        if let failure=error as? CodexAuthError {NativeLog.voice.error("Voice sign-in unavailable: \(failure.state.rawValue, privacy: .public)");return signInFailure(failure.state)}
+        guard let failure=error as? RealtimeError else{return CheckmateError.unavailable("The account could not authorize live voice. Check account access and connectivity.")}
+        if failure.errorClass == .cancelled {return CancellationError()}
+        if [400,404,422].contains(failure.status) {return ModelUnsupported(status:failure.status)}
+        NativeLog.voice.error("Voice authorization failed: \(failure.errorClass.rawValue, privacy: .public), HTTP \(failure.status, privacy: .public)")
+        switch failure.errorClass {
+        case .authExpired:return CheckmateError.unavailable("Your Codex sign-in was not accepted. Open Codex and sign in again, then connect.")
+        case .routeDenied:return CheckmateError.unavailable("This account was refused access to live voice.")
+        case .rateLimited:return CheckmateError.unavailable("Live voice is rate-limited for this account right now. Try again later.")
+        case .server:return CheckmateError.unavailable("Live voice is temporarily unavailable. Try again shortly.")
+        case .network:return unreachable
         default:return CheckmateError.unavailable("The account could not authorize live voice. Check account access and connectivity.")
         }
     }
-    public static let unreachable=CheckmateError.unavailable("Could not reach live voice. Check your internet connection.")
-    public func urlSession(_ session:URLSession,task:URLSessionTask,willPerformHTTPRedirection response:HTTPURLResponse,newRequest request:URLRequest,completionHandler:@escaping(URLRequest?)->Void){completionHandler(nil)}
-    public func authorize(model:String="gpt-realtime") async throws->String {
+    /// A realtime secret for a session of `model`, minted with Codex's sign-in (renewed once if the provider refuses it).
+    public func authorize(model:String="gpt-realtime") async throws->ClientSecret {
         guard !NativePolicy.silent else{throw CheckmateError.unavailable("Live voice is disabled during automation.")}
-        guard FileManager.default.fileExists(atPath:Self.credentialURL.path) else{throw Self.noSignInFile};let attributes=try FileManager.default.attributesOfItem(atPath:Self.credentialURL.path);guard (attributes[.size] as? Int ?? Int.max)<=65536 else{throw CheckmateError.unavailable("The sign-in file is invalid.")};let token=try Self.accessToken(Data(contentsOf:Self.credentialURL));if let expired=Self.expiredSignIn(token){throw expired};var request=URLRequest(url:URL(string:"https://api.openai.com/v1/realtime/client_secrets")!);request.httpMethod="POST";request.timeoutInterval=20;request.setValue("Bearer \(token)",forHTTPHeaderField:"Authorization");request.setValue("application/json",forHTTPHeaderField:"Content-Type");request.httpBody=try JSONSerialization.data(withJSONObject:["session":["type":"realtime","model":model]])
-        let configuration=URLSessionConfiguration.ephemeral;configuration.timeoutIntervalForResource=25;let session=URLSession(configuration:configuration,delegate:self,delegateQueue:nil);defer{session.invalidateAndCancel()};let data:Data,response:URLResponse
-        do{(data,response)=try await session.data(for:request)}catch let error as URLError where error.code != .cancelled{throw Self.unreachable}
-        guard let http=response as? HTTPURLResponse else{throw Self.unreachable};guard (200..<300).contains(http.statusCode) else{NativeLog.voice.error("Voice authorization failed with HTTP \(http.statusCode, privacy: .public)");throw Self.authorizationFailure(status:http.statusCode)};return try Self.clientSecret(data)
+        do {
+            let minter=Minter(client:client,credentials:try Self.credentials.get(),timeout:Self.mintTimeout,lifetimeSeconds:Self.secretLifetime)
+            return try await minter.secret(session:JSONSerialization.data(withJSONObject:["type":"realtime","model":model]))
+        } catch {throw Self.authorizationFailure(error)}
     }
+}
+
+/// A realtime session (sayso's) speaking JSON objects, with Checkmate's caps. Every voice socket of the app is one.
+public final class VoiceSocket:Sendable {
+    /// The read limit of every session but the lesson recorder's (LessonRecording.maximumMessageBytes).
+    public static let maximumMessageBytes=2*1024*1024
+    private let session:RealtimeSession
+    private init(_ session:RealtimeSession){self.session=session}
+    /// Opens `model`'s session with `secret`. `resourceTimeout` bounds the whole connection; nil leaves URLSession's.
+    public static func open(secret:ClientSecret,model:String,handshakeTimeout:TimeInterval,readLimit:Int=maximumMessageBytes,resourceTimeout:TimeInterval?=nil)async throws->VoiceSocket {
+        let configuration=URLSessionConfiguration.ephemeral;if let resourceTimeout{configuration.timeoutIntervalForResource=resourceTimeout}
+        return VoiceSocket(try await RealtimeSession.open(client:HTTPClient(configuration:configuration),secret:secret,configuration:.init(url:RealtimeSession.url(model:model),handshakeTimeout:handshakeTimeout,readLimit:readLimit)))
+    }
+    public func send(_ event:[String:Any])async throws {try await send(data:JSONSerialization.data(withJSONObject:event))}
+    /// Sends one encoded JSON object.
+    public func send(data:Data)async throws {try await session.send(data)}
+    /// The next message's bytes. A message over the read limit, a close or a broken connection ends the session.
+    public func receiveData()async throws->Data {try await session.next().raw}
+    /// The next event; one that is not a JSON object fails.
+    public func receive()async throws->[String:Any] {guard let event=try JSONSerialization.jsonObject(with:try await receiveData()) as? [String:Any] else{throw CheckmateError.invalid("Malformed voice event")};return event}
+    /// Closes the session: a normal close, dropped if the provider does not finish it promptly.
+    public func close()async {await session.close()}
+    /// Closes the session without waiting, for a caller that cannot.
+    public func closeSoon(){let session=session;Task{await session.close()}}
 }
 
 /// One configuration shared by the app and explicit headless service acceptance.
 public enum VoiceSessionConfiguration {
     public static let model="gpt-realtime-2.1"
-    public static let socketURL=socketURL(model:model)
-    public static func socketURL(model:String)->URL {URL(string:"wss://api.openai.com/v1/realtime?model=\(model)")!}
     public static func reasoningEvent(effort:String)->[String:Any] {
         ["type":"session.update","session":["type":"realtime","reasoning":["effort":AppSettings.reasoningEfforts.contains(effort) ? effort:"minimal"]]]
     }
@@ -87,37 +130,5 @@ public enum VoiceSessionConfiguration {
 public enum VoiceScriptRequest {
     public static func event(text:String,language:String,metadata:[String:String]=[:])->[String:Any] {
         ["type":"response.create","response":["conversation":"none","input":[],"output_modalities":["audio"],"tool_choice":"none","metadata":metadata,"instructions":"You are a text-to-speech reader. Read exactly the script below, in its written language. Do not greet, answer, explain, translate, or add words. The selected response language is \(language). SCRIPT:\n"+text]]
-    }
-    /// Exact match of the words and numbers spoken, ignoring case, punctuation and how a number is written: every
-    /// Unicode digit counts as ASCII, and with the script's locale every number is spelled out on both sides, so
-    /// "4", "٤" and "vier" match while a different number, a missing word or an added word never does.
-    public static func matches(_ transcript:String,script:String,locale:String?=nil)->Bool {
-        !script.isEmpty && canonical(transcript,locale:locale)==canonical(script,locale:locale)
-    }
-    static func canonical(_ value:String,locale:String?)->String {
-        func ascii(_ value:String)->String {
-            var text="";for character in value.precomposedStringWithCompatibilityMapping.lowercased() {
-                if character.unicodeScalars.count==1,let scalar=character.unicodeScalars.first,scalar.properties.numericType == .decimal,let digit=character.wholeNumberValue{text.append(Character(String(digit)))}else{text.append(character)}
-            }
-            return text
-        }
-        var text=ascii(value)
-        if let locale,!locale.isEmpty {
-            // A number grouped as the locale groups it ("1,000", "1.000", "1 000", "1,00,000") is one number, written as
-            // plain digits before spelling, so it matches "1000" and "one thousand" instead of becoming "one zero".
-            let grouping=NumberFormatter();grouping.locale=Locale(identifier:locale);grouping.numberStyle = .decimal
-            let separator=ascii(grouping.groupingSeparator),primary=grouping.groupingSize,secondary=grouping.secondaryGroupingSize>0 ? grouping.secondaryGroupingSize:grouping.groupingSize
-            if !separator.isEmpty,primary>0,let regex=try? NSRegularExpression(pattern:"[0-9]+(?:"+NSRegularExpression.escapedPattern(for:separator)+"[0-9]+)+") {
-                for match in regex.matches(in:text,range:NSRange(text.startIndex...,in:text)).reversed() {
-                    guard let range=Range(match.range,in:text) else{continue};let groups=text[range].components(separatedBy:separator)
-                    if groups.last!.count==primary,groups.dropFirst().dropLast().allSatisfy({$0.count==secondary}),(1...(groups.count>2 ? secondary:primary)).contains(groups[0].count){text.replaceSubrange(range,with:groups.joined())}
-                }
-            }
-            let formatter=NumberFormatter();formatter.locale=Locale(identifier:locale);formatter.numberStyle = .spellOut
-            var spelled="",run=""
-            func flush(){if !run.isEmpty{spelled+=(run.count<=15 ? Int(run).flatMap{formatter.string(from:NSNumber(value:$0))}?.lowercased():nil) ?? run;run=""}}
-            for character in text{if character.isASCII,character.isNumber{run.append(character)}else{flush();spelled.append(character)}};flush();text=spelled
-        }
-        return text.unicodeScalars.filter{CharacterSet.alphanumerics.contains($0)}.map(String.init).joined()
     }
 }

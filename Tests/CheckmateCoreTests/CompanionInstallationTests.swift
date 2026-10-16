@@ -8,6 +8,7 @@ import CheckmateCore
 @testable import CheckmateContent
 @testable import CheckmateApplication
 @testable import CheckmateMacPlatform
+import CodexAuth
 
 
 final class CompanionInstallationTests: XCTestCase {
@@ -39,15 +40,20 @@ final class CompanionInstallationTests: XCTestCase {
     }
     func testFinderLaunchFindsPerUserCodexInstalls() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);defer { try? FileManager.default.removeItem(at: root) }
-        let minimal = ["PATH": "/usr/bin:/bin"]
-        XCTAssertFalse(CompanionInstallation.candidates(home: root, environment: minimal).contains { $0.path.hasPrefix(root.path) && FileManager.default.isExecutableFile(atPath: $0.path) })
+        // The folders searched after PATH (sayso's lookup), each holding the codex it would find.
+        func found() -> [URL] { CodexExecutable.candidates(home: root.path).map { URL(fileURLWithPath: $0).appendingPathComponent("codex") }.filter { FileManager.default.isExecutableFile(atPath: $0.path) && $0.path.hasPrefix(root.path) } }
+        XCTAssertTrue(found().isEmpty)
+        XCTAssertNil(CompanionInstallation.installedCodex(home: root, environment: ["PATH": root.appendingPathComponent("bin").path]).flatMap { $0.path.hasPrefix(root.path) ? $0 : nil })
         try executable(root.appendingPathComponent(".nvm/versions/node/v9.0.0/bin/codex"))
         try executable(root.appendingPathComponent(".nvm/versions/node/v20.11.1/bin/codex"))
-        let nvm = CompanionInstallation.candidates(home: root, environment: minimal).filter { FileManager.default.isExecutableFile(atPath: $0.path) && $0.path.hasPrefix(root.path) }
+        let nvm = found()
         XCTAssertEqual(nvm.first?.path, root.appendingPathComponent(".nvm/versions/node/v20.11.1/bin/codex").path, "The newest nvm Node wins")
         try executable(root.appendingPathComponent(".local/bin/codex"))
-        let personal = CompanionInstallation.candidates(home: root, environment: minimal).filter { FileManager.default.isExecutableFile(atPath: $0.path) && $0.path.hasPrefix(root.path) }
+        let personal = found()
         XCTAssertEqual(personal.first?.path, root.appendingPathComponent(".local/bin/codex").path)
+        // PATH comes first: an explicit install on PATH wins over every per-user location.
+        try executable(root.appendingPathComponent("bin/codex"))
+        XCTAssertEqual(CompanionInstallation.installedCodex(home: root, environment: ["PATH": root.appendingPathComponent("bin").path])?.path, root.appendingPathComponent("bin/codex").path)
     }
     func testAnUnmodifiedOlderSkillIsUpdatedAndACustomizedOneIsKept() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);defer { try? FileManager.default.removeItem(at: root) }

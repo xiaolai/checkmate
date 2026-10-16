@@ -10,6 +10,7 @@ import CheckmateCore
 @testable import CheckmateMacPlatform
 
 @testable import CheckmateNative
+import SaidGuard
 
 /// Translates every lesson except those listed in `failing`, recording the order lessons were attempted.
 private actor GapOrderTranslator:LessonTranslationProvider {
@@ -149,16 +150,17 @@ private actor GapOrderRecorder:LessonRecordingProvider {
 
  /// A recording transcript matches its script however a number is written; a different number or word never does.
  func testTranscriptMatchingToleratesHowNumbersAreWritten()throws {
-  XCTAssertTrue(VoiceScriptRequest.matches("Move the knight 3 squares.",script:"Move the knight three squares.",locale:"en"))
-  XCTAssertTrue(VoiceScriptRequest.matches("Move the knight three squares.",script:"Move the knight 3 squares.",locale:"en"))
-  XCTAssertTrue(VoiceScriptRequest.matches("There are twenty one pieces",script:"There are 21 pieces",locale:"en"),"Hyphen and space in a spelled number are both ignored")
-  XCTAssertTrue(VoiceScriptRequest.matches("KNIGHT, to f3!",script:"knight to f three",locale:"en"))
-  XCTAssertTrue(VoiceScriptRequest.matches("ｅ３",script:"e three",locale:"en"),"Full-width digits count as ASCII before spelling")
-  XCTAssertTrue(VoiceScriptRequest.matches("Le cavalier va en f trois.",script:"Le cavalier va en f3.",locale:"fr"))
-  XCTAssertFalse(VoiceScriptRequest.matches("Move the knight 4 squares.",script:"Move the knight three squares.",locale:"en"))
-  XCTAssertFalse(VoiceScriptRequest.matches("knight to f thirty three",script:"knight to f3",locale:"en"))
-  XCTAssertFalse(VoiceScriptRequest.matches("Move the knight squares.",script:"Move the knight 3 squares.",locale:"en"),"A missing number fails")
-  XCTAssertFalse(VoiceScriptRequest.matches("Now move the knight 3 squares.",script:"Move the knight 3 squares.",locale:"en"),"An added word fails")
+  XCTAssertTrue(saidMatches("Move the knight 3 squares.","Move the knight three squares.",language:"en"))
+  XCTAssertTrue(saidMatches("Move the knight three squares.","Move the knight 3 squares.",language:"en"))
+  XCTAssertTrue(saidMatches("There are twenty one pieces","There are 21 pieces",language:"en"),"Hyphen and space in a spelled number are both accepted")
+  XCTAssertTrue(saidMatches("There are twenty-one pieces","There are 21 pieces",language:"en"))
+  XCTAssertTrue(saidMatches("KNIGHT, to f3!","knight to f three",language:"en"))
+  XCTAssertTrue(saidMatches("ｅ３","e three",language:"en"),"Full-width digits count as ASCII")
+  XCTAssertTrue(saidMatches("Le cavalier va en f trois.","Le cavalier va en f3.",language:"fr"))
+  XCTAssertFalse(saidMatches("Move the knight 4 squares.","Move the knight three squares.",language:"en"))
+  XCTAssertFalse(saidMatches("knight to f thirty three","knight to f3",language:"en"))
+  XCTAssertFalse(saidMatches("Move the knight squares.","Move the knight 3 squares.",language:"en"),"A missing number fails")
+  XCTAssertFalse(saidMatches("Now move the knight 3 squares.","Move the knight 3 squares.",language:"en"),"An added word fails")
  }
 
  // MARK: Legacy import (PL2-3)

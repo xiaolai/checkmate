@@ -8,6 +8,7 @@ import CheckmateCore
 @testable import CheckmateContent
 @testable import CheckmateApplication
 @testable import CheckmateMacPlatform
+import SaidGuard
 
 
 /// Translates every lesson unchanged except for a marked title.
@@ -38,16 +39,20 @@ private actor FixRecorder:LessonRecordingProvider {
  private func manifests()throws -> [URL] {let packs=dir.appendingPathComponent("LessonLanguages");return try FileManager.default.contentsOfDirectory(at:packs,includingPropertiesForKeys:nil).filter{(try? JSONDecoder().decode(LessonPack.self,from:Data(contentsOf:$0))) != nil}}
  private func audioCount()throws -> Int {try FileManager.default.contentsOfDirectory(at:dir.appendingPathComponent("LessonLanguages"),includingPropertiesForKeys:nil).filter{(try? FileHandle(forReadingFrom:$0).read(upToCount:4))==Data("RIFF".utf8)}.count}
 
- /// #12: a number written with the locale's grouping separators is the same number as its plain or spelled form.
+ /// #12: an English number matches its grouped, plain and spelled forms. In another language the said guard reads a
+ /// number as written or in the locale's words, never through its grouping: "1.000" against "1000" is a regeneration
+ /// (the model reads its own script back as written), never a false acceptance of another number.
  func testGroupedNumbersMatchTheirPlainAndSpelledForms(){
-  XCTAssertTrue(VoiceScriptRequest.matches("The board has 1,000 positions.",script:"The board has 1000 positions.",locale:"en"))
-  XCTAssertTrue(VoiceScriptRequest.matches("The board has one thousand positions.",script:"The board has 1,000 positions.",locale:"en"))
-  XCTAssertTrue(VoiceScriptRequest.matches("Das Brett hat 1.000 Stellungen.",script:"Das Brett hat 1000 Stellungen.",locale:"de"))
-  XCTAssertTrue(VoiceScriptRequest.matches("Il y a 1\u{202F}000 positions.",script:"Il y a 1000 positions.",locale:"fr"))
-  XCTAssertTrue(VoiceScriptRequest.matches("1,00,000",script:"100000",locale:"hi"),"Indian grouping")
-  XCTAssertFalse(VoiceScriptRequest.matches("The board has 1,000 positions.",script:"The board has 1001 positions.",locale:"en"))
-  XCTAssertFalse(VoiceScriptRequest.matches("squares 1,2,3",script:"squares 123",locale:"en"),"A list is not a grouped number")
-  XCTAssertFalse(VoiceScriptRequest.matches("1.000",script:"1000",locale:"en"),"In English a point is a decimal separator, not grouping")
+  XCTAssertTrue(saidMatches("The board has 1,000 positions.","The board has 1000 positions.",language:"en"))
+  XCTAssertTrue(saidMatches("The board has one thousand positions.","The board has 1,000 positions.",language:"en"))
+  XCTAssertTrue(saidMatches("Das Brett hat eintausend Stellungen.","Das Brett hat 1000 Stellungen.",language:"de"),"the locale's own spelling")
+  XCTAssertFalse(saidMatches("Das Brett hat tausend Stellungen.","Das Brett hat 1000 Stellungen.",language:"de"),"a shortened spelling is a regeneration")
+  XCTAssertFalse(saidMatches("Das Brett hat 1.000 Stellungen.","Das Brett hat 1000 Stellungen.",language:"de"))
+  XCTAssertFalse(saidMatches("Il y a 1\u{202F}000 positions.","Il y a 1000 positions.",language:"fr"))
+  XCTAssertFalse(saidMatches("1,00,000","100000",language:"hi"))
+  XCTAssertFalse(saidMatches("The board has 1,000 positions.","The board has 1001 positions.",language:"en"))
+  XCTAssertFalse(saidMatches("squares 1,2,3","squares 123",language:"en"),"A list is not a grouped number")
+  XCTAssertFalse(saidMatches("1.000","1000",language:"en"),"In English a point is a decimal separator, not grouping")
  }
 
  /// #13: a current manifest that cannot be decoded (damaged, or written by a newer version) keeps its recordings:

@@ -3,6 +3,7 @@ import CheckmateSupport
 import Foundation
 import Darwin
 import CoreFoundation
+import CodexAuth
 
 public struct TranslationResult: Sendable {
     public var text: LessonTranslation
@@ -30,8 +31,6 @@ public enum CodexTranslationLimits {
     public static let rpcTimeout: TimeInterval = 30
     public static let turnTimeout: TimeInterval = 240
     public static let finalUsageGrace: TimeInterval = 0.25
-    public static let cleanupGrace: TimeInterval = 1
-    public static let killGrace: TimeInterval = 0.25
     public static let pollInterval = Duration.milliseconds(10)
     public static let maximumCounter: Double = 1_000_000_000_000
 }
@@ -153,6 +152,14 @@ public final class CodexSubscriptionClient: LessonTranslationProvider, @unchecke
                                      estimatedCredits: estimatedCredits, estimatedUSD: estimatedUSD)
         }, onCancel: { channel.requestClose() })
     }
+    /// The ChatGPT access token in Codex's sign-in file, for the private copy only (voice asks Codex through CodexAuth). An
+    /// API-key sign-in, and its key, is never copied.
+    static func chatGPTAccessToken(_ data: Data) throws -> String {
+        guard data.count <= CodexTranslationLimits.credentialBytes, let a = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { throw VoiceGateway.signedOut }
+        if (a["auth_mode"] as? String)?.lowercased() == "apikey" { throw VoiceGateway.apiKeySignIn }
+        guard let token = (a["tokens"] as? [String: Any])?["access_token"] as? String, !token.isEmpty, token.count <= CodexTranslationLimits.credentialBytes else { throw VoiceGateway.signedOut }
+        return token
+    }
     /// A provider-supplied limit name reduced to visible letters, digits, "_" and "-": no bidi overrides, zero-width or
     /// other format characters, controls or combining marks that could disguise the account status text.
     static func safeLabel(_ name: String) -> String {
@@ -217,32 +224,39 @@ private final class CodexChannel: @unchecked Sendable {
     /// `privateAuth` is the copied sign-in. It is deleted as soon as the channel is closed (cancellation runs that
     /// synchronously, even at quit), not only when the async caller unwinds and removes the whole scratch home.
     let scratch: URL, work: URL, privateAuth: URL
-    private let process = Process(), input = Pipe(), output = Pipe(), lock = NSLock()
-    private var queue: [[String: Any]] = [], failure = false, closed = false, rejectedTool = false, cleanupStarted = false, nextID = 0
+    private let home: URL, executable: URL, rpcTimeout: TimeInterval
+    private let lock = NSLock()
+    /// The child (sayso's app-server client), once started. Its events arrive on the client's own thread.
+    private var client: AppServerClient?
+    private var queue: [[String: Any]] = [], overflow = false, closed = false, rejectedTool = false, cleanupStarted = false
+    /// The client is being started. Its child is not reachable until start returns, so a close meanwhile keeps the
+    /// private sign-in until then: deleting it under a starting child would leave that child running without it.
+    private var starting = false
+    /// When the child was first seen to have exited, so the events it wrote last can still arrive.
+    private var exitSeen: Date?
     var attemptedTool: Bool { lock.withLock { rejectedTool } }
-    private let rpcTimeout: TimeInterval
-    private var writeFD: Int32 = -1, readFD: Int32 = -1
-    private let readerDone = DispatchSemaphore(value: 0)
     private let cleanupObserver: (@Sendable (Bool) -> Void)?
+    /// Items that are tool operations; a translation turn may use none.
+    private static let toolItems: Set<String> = ["commandExecution", "fileChange", "mcpToolCall", "dynamicToolCall", "webSearch", "imageGeneration", "computerUse", "collabAgentToolCall"]
     init(executable: URL?, credentialURL: URL, rpcTimeout: TimeInterval, credentialMargin: TimeInterval, cleanupObserver: (@Sendable (Bool) -> Void)?) throws {
         guard let executable = executable ?? CompanionInstallation.installedCodex() else { throw CheckmateError.unavailable("Install and sign in to Codex on this Mac to translate lessons.") }
-        self.rpcTimeout = rpcTimeout; self.cleanupObserver = cleanupObserver
+        self.executable = executable; self.rpcTimeout = rpcTimeout; self.cleanupObserver = cleanupObserver
         let temporaryRoot = FileManager.default.temporaryDirectory.resolvingSymlinksInPath()
         Self.removeAbandonedHomes(in: temporaryRoot)
         scratch = temporaryRoot.appendingPathComponent("checkmate-translation-" + UUID().uuidString)
         work = scratch.appendingPathComponent("work")
-        privateAuth = scratch.appendingPathComponent("codex").appendingPathComponent("auth.json")
+        home = scratch.appendingPathComponent("codex")
+        privateAuth = home.appendingPathComponent("auth.json")
         try FileManager.default.createDirectory(at: scratch, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
         do {
             try Data(String(getpid()).utf8).write(to: scratch.appendingPathComponent("owner.pid"), options: .atomic)
-            let home = scratch.appendingPathComponent("codex")
             try FileManager.default.createDirectory(at: home, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
             try FileManager.default.createDirectory(at: work, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
             let attributes = try credentialURL.resourceValues(forKeys: [.fileSizeKey, .isSymbolicLinkKey, .isRegularFileKey])
             guard attributes.isSymbolicLink != true, attributes.isRegularFile == true,
                   (attributes.fileSize ?? Int.max) <= CodexTranslationLimits.credentialBytes else { throw CocoaError(.fileReadCorruptFile) }
             let credentials = try Data(contentsOf: credentialURL)
-            let token = try VoiceGateway.accessToken(credentials)
+            let token = try CodexSubscriptionClient.chatGPTAccessToken(credentials)
             let originalCredentials = try JSONSerialization.jsonObject(with: credentials) as! [String: Any]
             guard let originalTokens = originalCredentials["tokens"] as? [String: Any] else { throw CocoaError(.fileReadCorruptFile) }
             // Never give the child a usable refresh token: refreshing a copied
@@ -291,28 +305,6 @@ private final class CodexChannel: @unchecked Sendable {
             multi_agent = false
             """
             try Data(config.utf8).write(to: home.appendingPathComponent("config.toml"), options: .atomic)
-            process.executableURL = executable; process.arguments = ["app-server", "--listen", "stdio://"]
-            process.currentDirectoryURL = work
-            // An npm-installed codex is a Node script: keep its own directory (where nvm and Volta put node) on PATH.
-            var env = ["PATH": executable.deletingLastPathComponent().path + ":/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin", "HOME": scratch.path,
-                       "CODEX_HOME": home.path, "TMPDIR": scratch.path]
-            for key in ["HTTPS_PROXY", "HTTP_PROXY", "ALL_PROXY", "NO_PROXY", "https_proxy", "http_proxy", "all_proxy", "no_proxy"] {
-                if let value = ProcessInfo.processInfo.environment[key] { env[key] = value }
-            }
-            process.environment = env; process.standardInput = input; process.standardOutput = output; process.standardError = FileHandle.nullDevice
-            let fd = input.fileHandleForWriting.fileDescriptor
-            writeFD = fd
-            guard fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK) != -1 else { throw CocoaError(.fileWriteUnknown) }
-            guard fcntl(fd, F_SETNOSIGPIPE, 1) != -1 else { throw CocoaError(.fileWriteUnknown) }
-            try process.run()
-            try? input.fileHandleForReading.close()
-            try? output.fileHandleForWriting.close()
-            readFD = output.fileHandleForReading.fileDescriptor
-            guard fcntl(readFD, F_SETFL, fcntl(readFD, F_GETFL) | O_NONBLOCK) != -1 else {
-                _ = Self.reap(process.processIdentifier, grace: 0)
-                throw CocoaError(.fileReadUnknown)
-            }
-            DispatchQueue.global(qos: .userInitiated).async { [self] in readLoop() }
         } catch {
             try? FileManager.default.removeItem(at: scratch)
             if let error = error as? CheckmateError { throw error }
@@ -343,39 +335,32 @@ private final class CodexChannel: @unchecked Sendable {
             }
         }
     }
-    private static func reap(_ pid: Int32, grace: TimeInterval) -> Bool {
-        guard pid > 0 else { return true }
-        var status: Int32 = 0
-        let initial = waitpid(pid, &status, WNOHANG)
-        if initial == pid || (initial == -1 && errno == ECHILD) { return true }
-        _ = kill(pid, SIGTERM)
-        let deadline = Date().addingTimeInterval(grace)
-        while true {
-            let result = waitpid(pid, &status, WNOHANG)
-            if result == pid || (result == -1 && errno == ECHILD) { return true }
-            if Date() >= deadline { break }
-            Thread.sleep(forTimeInterval: 0.01)
+    /// Runs a blocking client call off Swift's cooperative pool.
+    private static func blocking<T>(_ body: @escaping () throws -> T) async throws -> T {
+        try await withCheckedThrowingContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async { continuation.resume(with: Result { try body() }) }
         }
-        _ = kill(pid, SIGKILL)
-        let killedDeadline = Date().addingTimeInterval(CodexTranslationLimits.killGrace)
-        while Date() < killedDeadline {
-            let result = waitpid(pid, &status, WNOHANG)
-            if result == pid || (result == -1 && errno == ECHILD) { return true }
-            Thread.sleep(forTimeInterval: 0.01)
-        }
-        return false
     }
-    func requestClose() {
-        let shouldSignal = lock.withLock { () -> Bool in
+    /// Takes one event from the client's thread: a server request or a tool item stops the translation at once.
+    private func admit(_ event: AppServerEvent) {
+        let params = event.paramsObject() ?? [:]
+        let type = (params["item"] as? [String: Any])?["type"] as? String ?? ""
+        let tool = event.isServerRequest || event.method.lowercased().contains("requestapproval") || Self.toolItems.contains(type)
+        let stop = lock.withLock { () -> Bool in
             if closed { return false }
-            closed = true
-            // Serialize descriptor closure with send's POSIX write.
-            try? input.fileHandleForWriting.close()
-            return true
+            if tool { rejectedTool = true; return true }
+            if queue.count >= CodexTranslationLimits.queuedEvents { overflow = true; return true }
+            queue.append(["method": event.method, "params": params]); return false
         }
-        guard shouldSignal else { return }
-        try? FileManager.default.removeItem(at: privateAuth)
-        if process.isRunning { _ = kill(process.processIdentifier, SIGTERM) }
+        if stop { requestClose() }
+    }
+    /// Ends the child without waiting (cancellation calls this): the private sign-in goes at once, the client closes on
+    /// another thread, and every call in progress fails.
+    func requestClose() {
+        let target: (client: AppServerClient?, starting: Bool)? = lock.withLock { if closed { return nil }; closed = true; return (client, starting) }
+        guard let target else { return }
+        if !target.starting { try? FileManager.default.removeItem(at: privateAuth) }
+        if let client = target.client { DispatchQueue.global(qos: .userInitiated).async { client.close() } }
     }
     func close() {
         requestClose()
@@ -383,51 +368,30 @@ private final class CodexChannel: @unchecked Sendable {
             if cleanupStarted { return false }; cleanupStarted = true; return true
         }
         guard shouldClean else { return }
-        // This defer runs on the operation's executor, never its cancel caller.
-        let reaped = Self.reap(process.processIdentifier, grace: CodexTranslationLimits.cleanupGrace)
-        let readerClosed = readerDone.wait(timeout: .now() + CodexTranslationLimits.killGrace) == .success
+        // This defer runs on the operation's executor, never its cancel caller. The package's close reaps the child (a
+        // second close waits for the first).
+        let client = lock.withLock { self.client }
+        client?.close()
+        let reaped = client.map { kill($0.pid, 0) != 0 } ?? true
         try? FileManager.default.removeItem(at: scratch)
-        cleanupObserver?(reaped && readerClosed && !FileManager.default.fileExists(atPath: scratch.path))
+        cleanupObserver?(reaped && !FileManager.default.fileExists(atPath: scratch.path))
     }
-    private func readLoop() {
-        defer { try? output.fileHandleForReading.close(); readerDone.signal() }
-        var buffer = Data()
-        var bytes = [UInt8](repeating: 0, count: 65_536)
-        let fd = readFD
-        while true {
-            lock.lock(); let stopped = closed; lock.unlock(); if stopped { return }
-            // FileHandle.read(upToCount:) may wait to fill the requested buffer on
-            // Darwin. A single nonblocking pipe read must deliver each JSON line
-            // promptly even while the server keeps stdout open.
-            let count = bytes.withUnsafeMutableBytes { Darwin.read(fd, $0.baseAddress!, $0.count) }
-            if count < 0 && (errno == EAGAIN || errno == EINTR) { Thread.sleep(forTimeInterval: 0.01); continue }
-            if count <= 0 { lock.lock(); failure = true; lock.unlock(); return }
-            buffer.append(contentsOf: bytes.prefix(count))
-            if buffer.count > CodexTranslationLimits.responseBytes { failTransport(); return }
-            while let newline = buffer.firstIndex(of: 10) {
-                let line = buffer.prefix(upTo: newline); buffer.removeSubrange(...newline)
-                guard let obj = (try? JSONSerialization.jsonObject(with: line)) as? [String: Any] else { failTransport(); return }
-                lock.lock(); let overflow = queue.count >= CodexTranslationLimits.queuedEvents
-                if !overflow { queue.append(obj) }; lock.unlock()
-                if overflow { failTransport(); return }
-            }
-        }
+    /// Whether the child has exited and the events it wrote last have had time to arrive. It is checked without
+    /// reaping, which the client does itself when it closes.
+    private func childGone() -> Bool {
+        guard let pid = lock.withLock({ client?.pid }) else { return false }
+        var info = siginfo_t()
+        guard waitid(P_PID, id_t(pid), &info, WEXITED | WNOHANG | WNOWAIT) == 0, info.si_pid == pid else { return false }
+        let first = lock.withLock { () -> Date in if exitSeen == nil { exitSeen = Date() }; return exitSeen! }
+        return Date().timeIntervalSince(first) > 0.25
     }
-    private func failTransport() { lock.lock(); failure = true; lock.unlock(); requestClose() }
     func poll() throws -> [String: Any]? {
-        lock.lock(); let event = queue.isEmpty ? nil : queue.removeFirst(), failed = failure, stopped = closed; lock.unlock()
-        if let event {
-            let method = event["method"] as? String ?? "", params = event["params"] as? [String: Any] ?? [:]
-            let type = (params["item"] as? [String: Any])?["type"] as? String ?? ""
-            if event["id"] != nil && event["method"] != nil || method.lowercased().contains("requestapproval") ||
-                ["commandExecution", "fileChange", "mcpToolCall", "dynamicToolCall", "webSearch", "imageGeneration", "computerUse", "collabAgentToolCall"].contains(type) {
-                lock.withLock { rejectedTool = true }
-                requestClose(); throw CheckmateError.unavailable("Translation stopped because Codex attempted a tool operation.")
-            }
-            return event
-        }
+        let (event, tool, overflowed, stopped) = lock.withLock { (queue.isEmpty ? nil : queue.removeFirst(), rejectedTool, overflow, closed) }
+        if tool { throw CheckmateError.unavailable("Translation stopped because Codex attempted a tool operation.") }
+        if let event { return event }
+        if overflowed { throw CheckmateError.unavailable("Codex translation disconnected.") }
         if stopped { throw CancellationError() }
-        if failed { throw CheckmateError.unavailable("Codex translation disconnected.") }
+        if childGone() { throw CheckmateError.unavailable("Codex translation disconnected.") }
         return nil
     }
     func next(deadline: Date) async throws -> [String: Any] {
@@ -437,42 +401,46 @@ private final class CodexChannel: @unchecked Sendable {
         }
         requestClose(); throw CheckmateError.unavailable("Codex translation timed out. Try again explicitly.")
     }
-    private func send(_ object: [String: Any]) async throws {
-        var data = try JSONSerialization.data(withJSONObject: object); data.append(10)
-        guard data.count <= CodexTranslationLimits.responseBytes else { throw CheckmateError.invalid("The translation request is too large.") }
-        let deadline = Date().addingTimeInterval(rpcTimeout), fd = writeFD
-        var offset = 0
-        while offset < data.count {
-            try Task.checkCancellation()
-            guard Date() < deadline else { requestClose(); throw CheckmateError.unavailable("Codex translation timed out.") }
-            let sent = try lock.withLock {
-                if closed { throw CancellationError() }
-                return data.withUnsafeBytes { raw in Darwin.write(fd, raw.baseAddress!.advanced(by: offset), raw.count - offset) }
-            }
-            if sent > 0 { offset += sent }
-            else if sent < 0 && errno != EAGAIN && errno != EINTR { throw CheckmateError.unavailable("Codex translation disconnected.") }
-            else { try await Task.sleep(for: CodexTranslationLimits.pollInterval) }
-        }
-    }
     func rpc(_ method: String, _ params: [String: Any]) async throws -> [String: Any] {
-        nextID += 1; let id = nextID
-        try await send(["id": id, "method": method, "params": params])
-        let deadline = Date().addingTimeInterval(rpcTimeout); var deferred: [[String: Any]] = []
-        defer { lock.withLock { queue.insert(contentsOf: deferred, at: 0) } }
-        while true {
-            let event = try await next(deadline: deadline)
-            if event["id"] as? Int == id {
-                guard event["error"] == nil, let result = event["result"] as? [String: Any]
-                else { throw CheckmateError.unavailable("Codex could not complete \(method). Update Codex if this method is unavailable.") }
-                return result
-            }
-            guard deferred.count < CodexTranslationLimits.queuedEvents else { failTransport(); throw CheckmateError.unavailable("Codex sent too many translation events.") }
-            deferred.append(event)
+        guard let client = lock.withLock({ closed ? nil : client }) else { throw CancellationError() }
+        guard try JSONSerialization.data(withJSONObject: params).count <= CodexTranslationLimits.responseBytes else { throw CheckmateError.invalid("The translation request is too large.") }
+        let unavailable = CheckmateError.unavailable("Codex could not complete \(method). Update Codex if this method is unavailable.")
+        let result: Any
+        do { result = try await Self.blocking { try client.call(method, params: params) } }
+        catch {
+            if attemptedTool { throw CheckmateError.unavailable("Translation stopped because Codex attempted a tool operation.") }
+            if lock.withLock({ closed }) || Task.isCancelled { throw CancellationError() }
+            throw unavailable
         }
+        guard let object = result as? [String: Any] else { throw unavailable }
+        return object
     }
+    /// Starts the child in the private home (sayso's client: its own process group, the experimental API for the
+    /// translation methods, every notification as an event) and checks the account; with `checkIsolation`, also the
+    /// effective configuration and that no MCP server was inherited.
     @discardableResult func initialize(checkIsolation: Bool = false) async throws -> [String: Any] {
-        _ = try await rpc("initialize", ["clientInfo": ["name": "checkmate_lessons", "version": "1"], "capabilities": ["experimentalApi": true]])
-        try await send(["method": "initialized"])
+        var environment = ["HOME": scratch.path, "TMPDIR": scratch.path]
+        for key in ["HTTPS_PROXY", "HTTP_PROXY", "ALL_PROXY", "NO_PROXY", "https_proxy", "http_proxy", "all_proxy", "no_proxy"] {
+            if let value = ProcessInfo.processInfo.environment[key] { environment[key] = value }
+        }
+        let configuration = AppServerClient.Configuration(bin: executable.path, codexHome: home.path, environment: environment, timeout: rpcTimeout, clientName: "checkmate_lessons", workingDirectory: work.path, experimentalAPI: true, onEvent: { [weak self] in self?.admit($0) })
+        guard lock.withLock({ () -> Bool in if closed { return false }; starting = true; return true }) else { throw CancellationError() }
+        let outcome = await Result { try await Self.blocking { try AppServerClient.start(configuration) } }
+        let closedMeanwhile = lock.withLock { () -> Bool in
+            starting = false
+            if !closed, case .success(let started) = outcome { client = started }
+            return closed
+        }
+        if closedMeanwhile {
+            // Closed while the child started: it ends now, and only then does its private sign-in go.
+            if case .success(let started) = outcome { started.close() }
+            try? FileManager.default.removeItem(at: privateAuth)
+            throw CancellationError()
+        }
+        guard case .success = outcome else {
+            if Task.isCancelled { throw CancellationError() }
+            throw CheckmateError.unavailable("Codex could not start a private translation. Update Codex if it is older than \(minimumCodexVersion).")
+        }
         let result = try await rpc("account/read", ["refreshToken": false])
         guard let account = result["account"] as? [String: Any], account["type"] as? String == "chatgpt"
         else { throw CheckmateError.unavailable("Sign in to Codex with ChatGPT for subscription lesson translation.") }

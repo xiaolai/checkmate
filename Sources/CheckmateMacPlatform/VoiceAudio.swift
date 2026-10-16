@@ -6,6 +6,7 @@ import Foundation
 import AVFoundation
 import CoreAudio
 import Combine
+import PCM16
 public struct VoiceInputDevice:Identifiable {public let id:String,name:String}
 @MainActor public final class VoiceAudio:ObservableObject {
     @Published public private(set) var level:Double=0
@@ -53,7 +54,7 @@ public struct VoiceInputDevice:Identifiable {public let id:String,name:String}
         }
         let format=input.outputFormat(forBus:0);guard format.sampleRate>0,format.channelCount>0,let target=AVAudioFormat(commonFormat:.pcmFormatFloat32,sampleRate:24000,channels:1,interleaved:false),let conversion=AVAudioConverter(from:format,to:target) else{throw CheckmateError.unavailable("This microphone audio format is unavailable.")};converter=conversion
         input.installTap(onBus:0,bufferSize:2048,format:format){[weak self] buffer,_ in
-            let capacity=AVAudioFrameCount(ceil(Double(buffer.frameLength)*24000/format.sampleRate)+16);guard let converted=AVAudioPCMBuffer(pcmFormat:target,frameCapacity:capacity) else{return};var supplied=false,error:NSError?;conversion.convert(to:converted,error:&error){_,status in if supplied{status.pointee = .noDataNow;return nil};supplied=true;status.pointee = .haveData;return buffer};guard error==nil,let samples=converted.floatChannelData?[0] else{return};let data=VoicePCM.encode(Array(UnsafeBufferPointer(start:samples,count:Int(converted.frameLength))));Task{@MainActor in guard let self=self,self.listening,self.captureGeneration==epoch else{return};let samples=VoicePCM.decode(data);self.level=min(1,sqrt(samples.reduce(0){$0+Double($1*$1)}/Double(max(1,samples.count)))*4);self.onInput?(data)}
+            let capacity=AVAudioFrameCount(ceil(Double(buffer.frameLength)*24000/format.sampleRate)+16);guard let converted=AVAudioPCMBuffer(pcmFormat:target,frameCapacity:capacity) else{return};var supplied=false,error:NSError?;conversion.convert(to:converted,error:&error){_,status in if supplied{status.pointee = .noDataNow;return nil};supplied=true;status.pointee = .haveData;return buffer};guard error==nil,let samples=converted.floatChannelData?[0] else{return};let data=PCM.encode(Array(UnsafeBufferPointer(start:samples,count:Int(converted.frameLength))));Task{@MainActor in guard let self=self,self.listening,self.captureGeneration==epoch else{return};let samples=PCM.decode(data);self.level=min(1,sqrt(samples.reduce(0){$0+Double($1*$1)}/Double(max(1,samples.count)))*4);self.onInput?(data)}
         };capture=engine;captureDevice=device;try engine.start();if voiceProcessing{player?.play();echoCancelled=true}
         configurationObserver=NotificationCenter.default.addObserver(forName:.AVAudioEngineConfigurationChange,object:engine,queue:.main){[weak self] _ in Task{@MainActor in guard let self=self,self.captureGeneration==epoch else{return};self.stopCapture();self.onInputChanged?()}}
     }
@@ -63,7 +64,7 @@ public struct VoiceInputDevice:Identifiable {public let id:String,name:String}
         guard !NativePolicy.silent else{return}
         if headless{guard !data.isEmpty else{return};let epoch=generation;if queued==0{onPlaybackStart?()};queued+=1;Task{@MainActor in guard self.generation==epoch else{return};self.queued-=1;if self.queued==0{self.onPlaybackEnd?()}};return}
         if echoCancelled,let p=player{if !p.isPlaying{p.play()}}else if output==nil {let e=AVAudioEngine(),p=AVAudioPlayerNode();e.attach(p);e.connect(p,to:e.mainMixerNode,format:AVAudioFormat(commonFormat:.pcmFormatFloat32,sampleRate:24000,channels:1,interleaved:false)!);try e.start();p.volume=volume;p.play();output=e;player=p;let epoch=generation;outputObserver=NotificationCenter.default.addObserver(forName:.AVAudioEngineConfigurationChange,object:e,queue:.main){[weak self] _ in Task{@MainActor in guard let self=self,self.generation==epoch else{return};let playing=self.queued>0;self.stopOutput();self.onOutputChanged?(playing)}}}
-        let values=VoicePCM.decode(data);guard !values.isEmpty,let buffer=AVAudioPCMBuffer(pcmFormat:player!.outputFormat(forBus:0),frameCapacity:AVAudioFrameCount(values.count)),let channel=buffer.floatChannelData?[0] else{return};buffer.frameLength=AVAudioFrameCount(values.count);values.withUnsafeBufferPointer{channel.update(from:$0.baseAddress!,count:values.count)};let epoch=generation;if queued==0{onPlaybackStart?()};queued+=1
+        let values=PCM.decode(data);guard !values.isEmpty,let buffer=AVAudioPCMBuffer(pcmFormat:player!.outputFormat(forBus:0),frameCapacity:AVAudioFrameCount(values.count)),let channel=buffer.floatChannelData?[0] else{return};buffer.frameLength=AVAudioFrameCount(values.count);values.withUnsafeBufferPointer{channel.update(from:$0.baseAddress!,count:values.count)};let epoch=generation;if queued==0{onPlaybackStart?()};queued+=1
         player!.scheduleBuffer(buffer,completionCallbackType:.dataPlayedBack){[weak self] _ in Task{@MainActor in guard let self=self,self.generation==epoch else{return};self.queued-=1;if self.queued==0{self.onPlaybackEnd?()}}}
     }
     public var playing:Bool{queued>0}

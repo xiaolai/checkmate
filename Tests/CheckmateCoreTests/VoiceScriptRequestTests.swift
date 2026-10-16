@@ -7,6 +7,7 @@ import CheckmateCore
 @testable import CheckmateContent
 @testable import CheckmateApplication
 @testable import CheckmateMacPlatform
+import SaidGuard
 
 final class VoiceScriptRequestTests:XCTestCase {
     func testScriptUsesIsolatedNoContextResponseAndKeepsScopeMetadata()throws {
@@ -17,24 +18,24 @@ final class VoiceScriptRequestTests:XCTestCase {
     }
     func testTranscriptMatchRejectsTranslationAddedWordsAndChangedSquares(){
         let script="Black moved the pawn from a7 to a6."
-        XCTAssertTrue(VoiceScriptRequest.matches("Black moved the pawn from A7 to A6!",script:script))
-        XCTAssertFalse(VoiceScriptRequest.matches("Hola. Black moved the pawn from a7 to a6.",script:script))
-        XCTAssertFalse(VoiceScriptRequest.matches("Black moved the pawn from a7 to a5.",script:script))
-        XCTAssertFalse(VoiceScriptRequest.matches("",script:""))
+        XCTAssertTrue(saidMatches("Black moved the pawn from A7 to A6!",script,language:"en"))
+        XCTAssertFalse(saidMatches("Hola. Black moved the pawn from a7 to a6.",script,language:"en"))
+        XCTAssertFalse(saidMatches("Black moved the pawn from a7 to a5.",script,language:"en"))
+        XCTAssertFalse(saidMatches("","",language:"en"))
     }
 }
 
 /// A recording is checked word for word, but the way a number is written is not a mismatch.
 final class TranscriptNumberTests:XCTestCase {
     func testDigitsInAnyScriptAndSpelledOutNumbersMatch(){
-        XCTAssertTrue(VoiceScriptRequest.matches("Der Läufer zieht nach e4.",script:"Der Läufer zieht nach e vier.",locale:"de"))
-        XCTAssertTrue(VoiceScriptRequest.matches("الملك في المربع ٤",script:"الملك في المربع 4",locale:"ar"))
-        XCTAssertTrue(VoiceScriptRequest.matches("ｅ４",script:"e4",locale:"en"))
-        XCTAssertTrue(VoiceScriptRequest.matches("Le pion va en e quatre.",script:"Le pion va en e4.",locale:"fr"))
+        XCTAssertTrue(saidMatches("Der Läufer zieht nach e4.","Der Läufer zieht nach e vier.",language:"de"))
+        XCTAssertTrue(saidMatches("الملك في المربع ٤","الملك في المربع 4",language:"ar"))
+        XCTAssertTrue(saidMatches("ｅ４","e4",language:"en"))
+        XCTAssertTrue(saidMatches("Le pion va en e quatre.","Le pion va en e4.",language:"fr"))
     }
     func testADifferentNumberOrWordStillFails(){
-        XCTAssertFalse(VoiceScriptRequest.matches("Der Läufer zieht nach e fünf.",script:"Der Läufer zieht nach e4.",locale:"de"))
-        XCTAssertFalse(VoiceScriptRequest.matches("Hallo. Der Läufer zieht nach e4.",script:"Der Läufer zieht nach e4.",locale:"de"))
-        XCTAssertFalse(VoiceScriptRequest.matches("الملك في المربع ٥",script:"الملك في المربع 4",locale:"ar"))
+        XCTAssertFalse(saidMatches("Der Läufer zieht nach e fünf.","Der Läufer zieht nach e4.",language:"de"))
+        XCTAssertFalse(saidMatches("Hallo. Der Läufer zieht nach e4.","Der Läufer zieht nach e4.",language:"de"))
+        XCTAssertFalse(saidMatches("الملك في المربع ٥","الملك في المربع 4",language:"ar"))
     }
 }

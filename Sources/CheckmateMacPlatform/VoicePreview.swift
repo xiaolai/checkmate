@@ -47,22 +47,18 @@ import Combine
             var bytes:Int64=0
             do {
                 let secret=try await gateway.authorize(model:model)
-                var request=URLRequest(url:VoiceSessionConfiguration.socketURL(model:model));request.setValue("Bearer \(secret)",forHTTPHeaderField:"Authorization");request.timeoutInterval=15
-                let transport=URLSession(configuration:.ephemeral,delegate:gateway,delegateQueue:nil),socket=transport.webSocketTask(with:request)
-                socket.maximumMessageSize=2*1024*1024;socket.resume()
-                defer{socket.cancel(with:.normalClosure,reason:nil);transport.invalidateAndCancel()}
-                let deadline=Task{try? await Task.sleep(nanoseconds:20_000_000_000);if !Task.isCancelled{socket.cancel(with:.goingAway,reason:nil)}}
+                let socket=try await VoiceSocket.open(secret:secret,model:model,handshakeTimeout:15)
+                defer{socket.closeSoon()}
+                let deadline=Task{try? await Task.sleep(nanoseconds:20_000_000_000);if !Task.isCancelled{await socket.close()}}
                 defer{deadline.cancel()}
-                func send(_ event:[String:Any])async throws {try await socket.send(.string(String(decoding:try JSONSerialization.data(withJSONObject:event),as:UTF8.self)))}
-                try await send(Self.sessionEvent(voice:voice))
+                try await socket.send(Self.sessionEvent(voice:voice))
                 var requested=false
                 while !Task.isCancelled,generation==current {
-                    let message=try await socket.receive(),data:Data
+                    let event=try await socket.receive()
                     guard generation==current else{return}
-                    switch message{case .data(let value):data=value;case .string(let value):data=Data(value.utf8);@unknown default:continue}
-                    guard let event=try JSONSerialization.jsonObject(with:data) as? [String:Any],let type=event["type"] as? String else{continue}
+                    guard let type=event["type"] as? String else{continue}
                     if type=="error"{throw CheckmateError.unavailable("The preview could not be played. Try again.")}
-                    if type=="session.updated",!requested{requested=true;try await send(Self.greetingEvent(language:language))}
+                    if type=="session.updated",!requested{requested=true;try await socket.send(Self.greetingEvent(language:language))}
                     if type=="response.output_audio.delta",let encoded=event["delta"] as? String,let chunk=Data(base64Encoded:encoded){bytes+=Int64(chunk.count);try audio.append(chunk)}
                     if type=="response.done" {
                         let response=event["response"] as? [String:Any] ?? [:]

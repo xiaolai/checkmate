@@ -36,7 +36,12 @@ private actor FakeRecorder:LessonRecordingProvider {
   XCTAssertTrue(usage.records.allSatisfy{$0.status == .completed});XCTAssertFalse(String(decoding:try usage.exportJSON(),as:UTF8.self).contains(source.beats[0].say))
  }
 
- func testCanonicalFingerprintAndWAVHeader()throws {let library=try CourseLibrary();let a=LessonTranslation.source(library:library,index:0);for _ in 0..<20 {XCTAssertEqual(a.fingerprint,LessonTranslation.source(library:library,index:0).fingerprint)};let wav=LessonRecording.wav(Data(repeating:0,count:480));XCTAssertTrue(LessonRecording.validWAV(wav));var bad=wav;bad[22]=2;XCTAssertFalse(LessonRecording.validWAV(bad))}
+ func testCanonicalFingerprintAndWAVHeader()throws {let library=try CourseLibrary();let a=LessonTranslation.source(library:library,index:0);for _ in 0..<20 {XCTAssertEqual(a.fingerprint,LessonTranslation.source(library:library,index:0).fingerprint)};let wav=try LessonRecording.wav(Data(repeating:0,count:480));XCTAssertTrue(LessonRecording.validWAV(wav));var bad=wav;bad[22]=2;XCTAssertFalse(LessonRecording.validWAV(bad))
+  // Saved clips are checked against the hash of their WAV bytes, so the header must stay byte for byte what earlier
+  // versions wrote: RIFF, 36 + n, WAVEfmt, PCM mono 24 kHz 16-bit, data, n.
+  let header:[UInt8]=[0x52,0x49,0x46,0x46,0x04,0x02,0,0,0x57,0x41,0x56,0x45,0x66,0x6D,0x74,0x20,16,0,0,0,1,0,1,0,0xC0,0x5D,0,0,0x80,0xBB,0,0,2,0,16,0,0x64,0x61,0x74,0x61,0xE0,0x01,0,0]
+  XCTAssertEqual([UInt8](wav.prefix(44)),header);XCTAssertEqual(wav.count,44+480)
+  XCTAssertFalse(LessonRecording.validWAV(try LessonRecording.wav(Data())),"an empty clip is not a recording")}
 }
 private actor SlowRecorder:LessonRecordingProvider {
  var calls=0

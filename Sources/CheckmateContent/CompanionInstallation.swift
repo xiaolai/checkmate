@@ -1,5 +1,6 @@
 import CheckmateDomain
 import CheckmateSupport
+import CodexAuth
 import Foundation
 import Darwin
 import CryptoKit
@@ -109,17 +110,10 @@ public enum CompanionInstallation {
         }
         return nil
     }
-    /// An app opened from Finder gets a minimal PATH, so the usual per-user install locations are searched too
-    /// (npm global, Volta, Bun, pnpm, ~/.local/bin and the newest nvm Node), after Homebrew and the inherited PATH.
+    /// The Codex executable, found as sayso finds it: an app opened from Finder gets a minimal PATH, so after PATH the
+    /// usual install locations are searched too (Homebrew, /usr/local, ~/.local/bin, npm global, Volta, Bun, pnpm and
+    /// every nvm Node, newest first). Only an absolute, executable regular file is returned.
     public static func installedCodex(home: URL = FileManager.default.homeDirectoryForCurrentUser, environment: [String: String] = ProcessInfo.processInfo.environment) -> URL? {
-        candidates(home: home, environment: environment).first { FileManager.default.isExecutableFile(atPath: $0.path) }
-    }
-    static func candidates(home: URL, environment: [String: String]) -> [URL] {
-        let fixed = ["/opt/homebrew/bin", "/usr/local/bin"] + (environment["PATH"] ?? "").split(separator: ":").map(String.init)
-        let personal = [".local/bin", ".npm-global/bin", ".volta/bin", ".bun/bin", "Library/pnpm"].map { home.appendingPathComponent($0).path }
-        let nvm = home.appendingPathComponent(".nvm/versions/node")
-        let nodes = ((try? FileManager.default.contentsOfDirectory(atPath: nvm.path)) ?? [])
-            .sorted { $0.compare($1, options: .numeric) == .orderedDescending }.map { nvm.appendingPathComponent($0).appendingPathComponent("bin").path }
-        return (fixed + personal + nodes).filter { !$0.isEmpty }.map { URL(fileURLWithPath: $0).appendingPathComponent("codex") }
+        CodexExecutable.resolve(explicit: nil, path: environment["PATH"] ?? "", candidates: CodexExecutable.candidates(home: home.path)).map { URL(fileURLWithPath: $0) }
     }
 }

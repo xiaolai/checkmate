@@ -16,9 +16,10 @@ broker automatically. Control these separately in Settings → Voice Coach and
 Settings → Connections. The private MCP broker starts at once; the voice coach's
 Codex availability check runs only when voice is set to connect on launch.
 Existing voice opt-outs are preserved. While voice is connected, external MCP requests are refused with an explanation until voice disconnects.
-Voice runs on your ChatGPT subscription: it reads the ChatGPT sign-in in Codex's
-sign-in file, never uses an API key, and never refreshes the sign-in; when it has
-expired, open Codex once and connect again.
+Voice runs on your ChatGPT subscription: it asks Codex for its ChatGPT sign-in
+(which Codex may keep in the keychain) and has Codex renew it when it is about to
+expire; without an installed Codex it reads Codex's sign-in file, which it never
+writes. It never uses an API key.
 The coach automatically selects the newest compatible model from its supported stable list (currently GPT-Realtime-2.1 and GPT-Realtime-2). A silent check verifies reasoning effort and chess tools; the result is cached for this app session for up to 24 hours. Settings → Voice Coach → Check availability refreshes the selection. The selected model is shown in Settings and remains fixed throughout a conversation. Choose reasoning effort in Settings → Voice Coach;
 Minimal is the default, with Low, Medium, High and Extra high available.
 A change applies between responses without reconnecting; if the connected model

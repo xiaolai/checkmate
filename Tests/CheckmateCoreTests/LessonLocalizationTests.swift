@@ -28,11 +28,14 @@ final class LessonLocalizationTests:XCTestCase {
   XCTAssertNil(try store.completePack(source:source,locale:"fr",voice:"marin"))
  }
  func testPCMValidation() throws {
-  XCTAssertThrowsError(try LessonRecording.validate(pcm:Data(),transcript:"hi",script:"hi"))
-  XCTAssertThrowsError(try LessonRecording.validate(pcm:Data([1]),transcript:"hi",script:"hi"))
-  XCTAssertThrowsError(try LessonRecording.validate(pcm:Data(repeating:0,count:480),transcript:"wrong",script:"hi"))
-  XCTAssertEqual(try LessonRecording.validate(pcm:plausibleLessonPCM("hi",seconds:1),transcript:"Hi!",script:"hi"),1)
-  XCTAssertThrowsError(try LessonRecording.validate(pcm:Data(repeating:0,count:48000),transcript:"Hi!",script:"hi"),"A silent clip is rejected")
+  XCTAssertThrowsError(try LessonRecording.validate(pcm:Data(),transcript:"hi",script:"hi",language:"en"))
+  XCTAssertThrowsError(try LessonRecording.validate(pcm:Data([1]),transcript:"hi",script:"hi",language:"en"))
+  XCTAssertThrowsError(try LessonRecording.validate(pcm:Data(repeating:0,count:480),transcript:"wrong",script:"hi",language:"en"))
+  XCTAssertEqual(try LessonRecording.validate(pcm:plausibleLessonPCM("hi",seconds:1),transcript:"Hi!",script:"hi",language:"en"),1)
+  XCTAssertThrowsError(try LessonRecording.validate(pcm:Data(repeating:0,count:48000),transcript:"Hi!",script:"hi",language:"en"),"A silent clip is rejected")
+  // The lesson's own language decides how its numbers may be read: French spells 3 as "trois", English does not.
+  XCTAssertEqual(try LessonRecording.validate(pcm:plausibleLessonPCM("Le cavalier va en f3.",seconds:2),transcript:"Le cavalier va en f trois.",script:"Le cavalier va en f3.",language:"fr"),2)
+  XCTAssertThrowsError(try LessonRecording.validate(pcm:plausibleLessonPCM("The knight goes to f3.",seconds:2),transcript:"The knight goes to f trois.",script:"The knight goes to f3.",language:"en"))
  }
 }
 extension LessonLocalizationTests {

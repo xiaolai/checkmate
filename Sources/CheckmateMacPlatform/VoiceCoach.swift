@@ -5,13 +5,15 @@ import CheckmateSupport
 import CheckmateAssets
 import Foundation
 import Combine
+import RealtimeConnection
+import SaidGuard
 @MainActor public final class VoiceCoach:ObservableObject {
     @Published public private(set) var status="Disconnected"
     @Published public private(set) var availability="Not checked"
     @Published public private(set) var checkingAvailability=false
-    private var availabilityTask:Task<String?,Never>?
+    private var availabilityTask:Task<ClientSecret?,Never>?
     /// The availability check in progress; a newer check (Check availability) replaces an older one.
-    public var currentAvailabilityCheck:Task<String?,Never>? {availabilityTask}
+    public var currentAvailabilityCheck:Task<ClientSecret?,Never>? {availabilityTask}
     private var availabilityEpoch=UUID()
     private let modelSelection=VoiceModelSelection()
     @Published public private(set) var selectedModel=""
@@ -28,7 +30,7 @@ import Combine
     private var usageModel=VoiceSessionConfiguration.model,seenTranscriptionIDs=Set<String>()
     public let session:GameSession,audio=VoiceAudio(),gateway=VoiceGateway()
     private let tools:CompanionTools,definitions:[[String:Any]],baseInstructions:String
-    private var socket:URLSessionWebSocketTask?,transport:URLSession?,receiveTask:Task<Void,Never>?,connectTask:Task<Void,Never>?,timeout:Task<Void,Never>?
+    private var socket:VoiceSocket?,receiveTask:Task<Void,Never>?,connectTask:Task<Void,Never>?,timeout:Task<Void,Never>?
     /// Whether Stop has anything to stop: a response generating, its audio playing, or turn work (a tool task still
     /// running after response.done) that stopping cancels. False before the session is ready, once a cancellation is
     /// awaiting acknowledgement (Stop was already pressed), and after a failure or disconnect. Derived only by
@@ -106,10 +108,10 @@ import Combine
         audio.onPlaybackEnd={[weak self] in guard let self=self else{return};self.gate.playbackEnded();self.session.setVoiceFocus([],identity:self.display);self.settled()}
         observation=session.objectWillChange.sink{[weak self] in DispatchQueue.main.async{self?.changed()}}
     }
-    @discardableResult public func checkAvailability(requireCodex:Bool=false)->Task<String?,Never> {
+    @discardableResult public func checkAvailability(requireCodex:Bool=false)->Task<ClientSecret?,Never> {
         availabilityTask?.cancel();let generation=UUID();availabilityEpoch=generation
         availability="Checking…";checkingAvailability=true
-        let task=Task<String?,Never> { [weak self] in
+        let task=Task<ClientSecret?,Never> { [weak self] in
             guard let self else{return nil}
             defer{if availabilityEpoch==generation{checkingAvailability=false;availabilityTask=nil}}
             guard !NativePolicy.silent else{availability="Live availability checks are disabled during automation.";return nil}
@@ -131,8 +133,8 @@ import Combine
     public static let networkGameStatus="Voice coaching is off during your network game."
     public var connectionBlockReason:()->String={"Finish or cancel lesson recording before connecting the voice coach."}
     /// `greet` is false when voice resumes a conversation the learner already had (returning to Practice, or renewal).
-    public func connect(authorizedSecret:String?=nil,greet:Bool=true){connectRequests.append(greet);guard session.fairness.engineHelpAllowed else{status=Self.networkGameStatus;return};guard !connectionBlocked() else{status=connectionBlockReason();return};guard !NativePolicy.silent,socket==nil,!connecting else{return};disconnect();usageModel=VoiceSessionConfiguration.model;do{lease=try session.openVoice()}catch{status="Voice coaching requires Practice or enabled review voice, with no external MCP companion connected.";return};greetOnReady=greet;if greet{carriedSummary=""};connecting=true;audio.volume=Float(session.state.settings.voiceVolume);let generation=epoch;status=authorizedSecret==nil ? "Authorizing voice…":"Connecting voice…";connectTask=Task {do{let secret:String,model:String;if let authorizedSecret{secret=authorizedSecret;model=authorizedModel}else{model=try await resolveModel();secret=try await gateway.authorize(model:model)};guard generation==epoch,!Task.isCancelled else{return};selectedModel=model;usageModel=model;var request=URLRequest(url:VoiceSessionConfiguration.socketURL(model:model));request.setValue("Bearer \(secret)",forHTTPHeaderField:"Authorization");request.timeoutInterval=20;let config=URLSessionConfiguration.ephemeral;transport=URLSession(configuration:config,delegate:gateway,delegateQueue:nil);let ws=transport!.webSocketTask(with:request);socket=ws;ws.maximumMessageSize=2*1024*1024;ws.resume();status="Connecting voice…";activeVoice=session.state.settings.coachVoice
-        receiveTask=Task{do{while !Task.isCancelled,generation==epoch {let message=try await ws.receive();guard generation==epoch,!Task.isCancelled else{return};let data:Data;switch message{case .data(let d):data=d;case .string(let s):data=Data(s.utf8);@unknown default:continue};guard let event=try JSONSerialization.jsonObject(with:data) as? [String:Any] else{throw CheckmateError.invalid("Malformed voice event")};receive(event)}}catch{if generation==epoch{fail("Voice connection ended. Reconnect to continue.")}}}
+    public func connect(authorizedSecret:ClientSecret?=nil,greet:Bool=true){connectRequests.append(greet);guard session.fairness.engineHelpAllowed else{status=Self.networkGameStatus;return};guard !connectionBlocked() else{status=connectionBlockReason();return};guard !NativePolicy.silent,socket==nil,!connecting else{return};disconnect();usageModel=VoiceSessionConfiguration.model;do{lease=try session.openVoice()}catch{status="Voice coaching requires Practice or enabled review voice, with no external MCP companion connected.";return};greetOnReady=greet;if greet{carriedSummary=""};connecting=true;audio.volume=Float(session.state.settings.voiceVolume);let generation=epoch;status=authorizedSecret==nil ? "Authorizing voice…":"Connecting voice…";connectTask=Task {do{let secret:ClientSecret,model:String;if let authorizedSecret{secret=authorizedSecret;model=authorizedModel}else{model=try await resolveModel();secret=try await gateway.authorize(model:model)};guard generation==epoch,!Task.isCancelled else{return};selectedModel=model;usageModel=model;status="Connecting voice…";let ws=try await VoiceSocket.open(secret:secret,model:model,handshakeTimeout:20);guard generation==epoch,!Task.isCancelled else{ws.closeSoon();return};socket=ws;activeVoice=session.state.settings.coachVoice
+        receiveTask=Task{do{while !Task.isCancelled,generation==epoch {let event=try await ws.receive();guard generation==epoch,!Task.isCancelled else{return};receive(event)}}catch{if generation==epoch{fail("Voice connection ended. Reconnect to continue.")}}}
         // A microphone problem never ends the session: the coach still talks, and the specific fix is shown.
         configure();armTimeout();microphoneProblem=nil;if session.state.settings.voiceMicrophone{do{try await startInput(session.state.settings.voiceInputDevice)}catch is CancellationError{throw CancellationError()}catch{microphoneProblem=userFacingMessage(error,fallback:"The microphone is unavailable. Select another input device or turn off Microphone.")}};guard generation==epoch,!Task.isCancelled else{return};syncMic();if ready,gate.ready,calls.isEmpty,!awaitingCancellation{status=readyStatus}
     }catch{if error is CancellationError{return};if generation==epoch{fail(userFacingMessage(error,fallback:"Could not connect voice. Check account access, network and microphone permissions."))}}}}
@@ -146,13 +148,13 @@ import Combine
         // Readiness and pending work end first: stopping audio below reports interrupted playback, which must not
         // start another segment, request or renewal on a session that is going away.
         ready=false;segments=[];segment=nil;queued=nil;continuation=false;renewalTask?.cancel();renewalTask=nil;renewalDue=false
-        for operation in Set(usageOperations.values).union(pendingUsage.values){usageLedger?.finish(operationID:operation,status:.incomplete)};usageOperations.removeAll();pendingUsage.removeAll();usagePCMBytes.removeAll();seenTranscriptionIDs.removeAll();availabilityTask?.cancel();availabilityTask=nil;availabilityEpoch=UUID();if checkingAvailability{availability="Not checked"};checkingAvailability=false;NativeLog.voice.debug("Disconnecting voice and releasing audio resources");microphoneTest?.cancel();microphoneTest=nil;microphoneUpdate?.cancel();microphoneUpdate=nil;epoch=UUID();connectTask?.cancel();connectTask=nil;receiveTask?.cancel();receiveTask=nil;timeout?.cancel();timeout=nil;for task in calls.values{task.cancel()};calls.removeAll();socket?.cancel(with:.normalClosure,reason:nil);socket=nil;transport?.invalidateAndCancel();transport=nil;audio.stop();ready=false;connected=false;connecting=false;microphone=false;gate.reset();awaitingCancellation=false;queued=nil;segments=[];segment=nil;continuation=false;ignored=[];responseID="";userTurn=false;lease="";microphoneProblem=nil;turnMessage=nil;rounds=0;cancelling="";committedLearner=[];pendingEffort=nil;effortChange=nil;toolItems=[:];narration(.interrupted);renewalTask?.cancel();renewalTask=nil;renewalDue=false;tools.reset();if session.voiceLease != nil{session.closeVoice()}else if session.voiceHold{session.holdVoice(false)};status="Disconnected"}
+        for operation in Set(usageOperations.values).union(pendingUsage.values){usageLedger?.finish(operationID:operation,status:.incomplete)};usageOperations.removeAll();pendingUsage.removeAll();usagePCMBytes.removeAll();seenTranscriptionIDs.removeAll();availabilityTask?.cancel();availabilityTask=nil;availabilityEpoch=UUID();if checkingAvailability{availability="Not checked"};checkingAvailability=false;NativeLog.voice.debug("Disconnecting voice and releasing audio resources");microphoneTest?.cancel();microphoneTest=nil;microphoneUpdate?.cancel();microphoneUpdate=nil;epoch=UUID();connectTask?.cancel();connectTask=nil;receiveTask?.cancel();receiveTask=nil;timeout?.cancel();timeout=nil;for task in calls.values{task.cancel()};calls.removeAll();socket?.closeSoon();socket=nil;audio.stop();ready=false;connected=false;connecting=false;microphone=false;gate.reset();awaitingCancellation=false;queued=nil;segments=[];segment=nil;continuation=false;ignored=[];responseID="";userTurn=false;lease="";microphoneProblem=nil;turnMessage=nil;rounds=0;cancelling="";committedLearner=[];pendingEffort=nil;effortChange=nil;toolItems=[:];narration(.interrupted);renewalTask?.cancel();renewalTask=nil;renewalDue=false;tools.reset();if session.voiceLease != nil{session.closeVoice()}else if session.voiceHold{session.holdVoice(false)};status="Disconnected"}
     private func fail(_ message:String){modelSelection.invalidate();disconnect();status=message}
     /// A segment whose speech differs from its verified script, or cannot be checked, ends this explanation but not the
     /// session: nothing more of it is spoken, its verified text is shown in the history, and the coach listens again.
     private func unverifiedNarration(_ id:String,_ segment:SpeechSegment,responseDone:Bool){narration(.unverified);let text=([segment]+segments).map(\.text).joined(separator:" ");if responseDone{gate.reset()};stopTurn(release:false,keepLearnerTurn:true);addHistory(id,"coach","Narration could not be verified, so here is the explanation as text: "+text);if !awaitingCancellation{settled()}}
     var automationOutbound:(([String:Any])->Void)?
-    private func send(_ event:[String:Any]){if NativePolicy.silent{automationOutbound?(event)};guard let socket=socket,let data=try? JSONSerialization.data(withJSONObject:event),let text=String(data:data,encoding:.utf8) else{return};let generation=epoch;Task{do{try await socket.send(.string(text))}catch{if self.epoch==generation{self.fail("Could not send voice data. Reconnect to continue.")}}}}
+    private func send(_ event:[String:Any]){if NativePolicy.silent{automationOutbound?(event)};guard let socket=socket,let data=try? JSONSerialization.data(withJSONObject:event) else{return};let generation=epoch;Task{do{try await socket.send(data:data)}catch{if self.epoch==generation{self.fail("Could not send voice data. Reconnect to continue.")}}}}
     /// Another voice is playing (a Settings preview): the microphone pauses so the coach does not hear it as the learner.
     public var externalPlayback=false {didSet{syncMic();if !externalPlayback{settled()}}}
     /// The microphone streams to the coach while the session is ready and idle, or (D1) while the coach narrates with
@@ -167,7 +169,7 @@ import Combine
     /// acknowledges, means the connection itself is gone.
     private func armTimeout(_ seconds:Double?=nil){timeout?.cancel();let generation=epoch,limit=(seconds ?? Self.thinkingTimeout(effort:confirmedEffort))*timeoutScale;timeout=Task{try? await Task.sleep(nanoseconds:UInt64(limit*1_000_000_000));guard !Task.isCancelled,epoch==generation else{return};if !ready || awaitingCancellation{fail("Voice response timed out. Reconnect to continue.")}else{if !gate.generatingResponse{audio.stopOutput();gate.reset()};endTurn(Self.turnTimeout)}}}
     /// Errors that mean the session itself is unusable; any other error ends only the turn it interrupted.
-    nonisolated static func sessionFatal(code:String?,type:String?)->Bool {["session_expired","invalid_api_key","session_not_found"].contains(code ?? "") || ["authentication_error","permission_error"].contains(type ?? "")}
+    nonisolated static func sessionFatal(code:String?,type:String?)->Bool {RealtimeError.errorEvent(type:type ?? "",code:code ?? "",param:"",message:"").fatal}
     nonisolated static func effort(of event:[String:Any])->String? {((event["session"] as? [String:Any])?["reasoning"] as? [String:Any])?["effort"] as? String}
     /// A reasoning change reaches the session only between turns, one at a time, so its acknowledgement or rejection
     /// is never confused with a turn's events.
@@ -280,12 +282,12 @@ import Combine
         case "response.output_audio.delta":if let text=event["delta"] as? String,let data=Data(base64Encoded:text){responseAudioBytes+=Int64(data.count);do{try audio.append(data)}catch{fail("Audio output failed. Reconnect voice.")};if !gate.ready{armTimeout(max(Self.thinkingTimeout(effort:confirmedEffort),Double(responseAudioBytes)/48000+10))}}
         case "response.output_audio_transcript.done":
             let transcript=event["transcript"] as? String ?? ""
-            if generatingAudio,let segment=segment{scriptTranscript=transcript;guard VoiceScriptRequest.matches(transcript,script:segment.text,locale:session.state.settings.voiceLanguage) else{unverifiedNarration(id,segment,responseDone:false);return};narration(.verified)}
+            if generatingAudio,let segment=segment{scriptTranscript=transcript;guard saidMatches(transcript,segment.text,language:session.state.settings.voiceLanguage) else{unverifiedNarration(id,segment,responseDone:false);return};narration(.verified)}
             addHistory(id,"coach",transcript)
         case "response.function_call_arguments.done":runTool(event)
         case "response.output_item.done":trackItem(event["item"] as? [String:Any])
         case "conversation.item.added","conversation.item.created","conversation.item.done":trackItem(event["item"] as? [String:Any])
-        case "response.done":guard responseID.isEmpty || id.isEmpty || id==responseID else{return};guard response["status"] as? String=="completed" else{gate.reset();endTurn(Self.turnFailure);return};if generatingAudio,let segment=segment{guard let transcript=scriptTranscript,VoiceScriptRequest.matches(transcript,script:segment.text,locale:session.state.settings.voiceLanguage) else{unverifiedNarration(id,segment,responseDone:true);return}};gate.generated(hasAudio:generatingAudio && audio.playing);if !gate.ready{armTimeout(Double(responseAudioBytes)/48000+10)};settled()
+        case "response.done":guard responseID.isEmpty || id.isEmpty || id==responseID else{return};guard response["status"] as? String=="completed" else{gate.reset();endTurn(Self.turnFailure);return};if generatingAudio,let segment=segment{guard let transcript=scriptTranscript,saidMatches(transcript,segment.text,language:session.state.settings.voiceLanguage) else{unverifiedNarration(id,segment,responseDone:true);return}};gate.generated(hasAudio:generatingAudio && audio.playing);if !gate.ready{armTimeout(Double(responseAudioBytes)/48000+10)};settled()
         case "error":let error=event["error"] as? [String:Any] ?? [:],code=error["code"] as? String,kind=error["type"] as? String,source=error["event_id"] as? String
             if ready,!Self.sessionFatal(code:code,type:kind),code == "response_cancel_not_active"{if awaitingCancellation,source==cancelEvent{awaitingCancellation=false;cancelling="";settled()};return}
             if ready,Self.sessionFatal(code:code,type:kind){fail("Voice service error. Check account/model access and reconnect.")}else if (error["event_id"] as? String)?.hasPrefix(Self.prunePrefix)==true{NativeLog.voice.debug("Pruning skipped an item: \(code ?? "unknown", privacy: .public)")}else if let change=effortChange,error["event_id"] as? String==change.event{effortRejected(change)}else if !ready || Self.sessionFatal(code:code,type:kind){fail("Voice service error. Check account/model access and reconnect.")}else{NativeLog.voice.error("Voice service error: \(code ?? "unknown", privacy: .public)");endTurn(Self.turnFailure)}

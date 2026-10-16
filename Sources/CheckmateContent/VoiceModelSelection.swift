@@ -1,6 +1,7 @@
 import CheckmateDomain
 import CheckmateSupport
 import Foundation
+import RealtimeConnection
 
 /// Known stable models with the coach's reasoning and tool contract. No guessed IDs.
 @MainActor public final class VoiceModelSelection {
@@ -35,39 +36,29 @@ extension VoiceGateway {
     /// Silent compatibility probe: no response generation, microphone or speaker.
     public func supportsCoach(model: String, effort: String, voice: String,
                               tools: [[String: Any]]) async throws -> Bool {
-        let secret: String
+        let secret: ClientSecret
         // Only a model the account cannot open is incompatible; an expired sign-in, a missing entitlement or the
         // network is the same for every model, so it stops selection with its own reason.
         do { secret = try await authorize(model: model) }
         catch is ModelUnsupported { try Task.checkCancellation(); return false }
-        var request = URLRequest(url: VoiceSessionConfiguration.socketURL(model: model))
-        request.setValue("Bearer \(secret)", forHTTPHeaderField: "Authorization")
-        request.timeoutInterval = 15
-        let transport = URLSession(configuration: .ephemeral, delegate: self, delegateQueue: nil)
-        let socket = transport.webSocketTask(with: request)
-        socket.maximumMessageSize = 2 * 1024 * 1024
-        socket.resume()
-        let deadline = Task { try? await Task.sleep(nanoseconds: 15_000_000_000); if !Task.isCancelled { socket.cancel(with: .goingAway, reason: nil) } }
-        defer { deadline.cancel(); socket.cancel(with: .normalClosure, reason: nil); transport.invalidateAndCancel() }
-        return try await withTaskCancellationHandler(operation: {
-            do {
-                let event = VoiceSessionConfiguration.event(instructions: "Compatibility check only. Do not generate a response.", voice: voice, tools: tools, effort: effort)
-                let payload = try JSONSerialization.data(withJSONObject: event)
-                try await socket.send(.string(String(decoding: payload, as: UTF8.self)))
-                for _ in 0..<16 {
-                    try Task.checkCancellation()
-                    let message = try await socket.receive()
-                    let data: Data
-                    switch message { case .data(let d): data = d; case .string(let s): data = Data(s.utf8); @unknown default: return false }
-                    guard let event = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { return false }
-                    if event["type"] as? String == "error" { return false }
-                    if event["type"] as? String == "session.updated" {
-                        return Self.coachSessionMatches(event, model: model, effort: effort, toolNames: tools.compactMap { $0["name"] as? String })
-                    }
+        let socket: VoiceSocket
+        do { socket = try await VoiceSocket.open(secret: secret, model: model, handshakeTimeout: 15) }
+        catch { try Task.checkCancellation(); return false }
+        let deadline = Task { try? await Task.sleep(nanoseconds: 15_000_000_000); if !Task.isCancelled { await socket.close() } }
+        defer { deadline.cancel(); socket.closeSoon() }
+        do {
+            let event = VoiceSessionConfiguration.event(instructions: "Compatibility check only. Do not generate a response.", voice: voice, tools: tools, effort: effort)
+            try await socket.send(event)
+            for _ in 0..<16 {
+                try Task.checkCancellation()
+                let event = try await socket.receive()
+                if event["type"] as? String == "error" { return false }
+                if event["type"] as? String == "session.updated" {
+                    return Self.coachSessionMatches(event, model: model, effort: effort, toolNames: tools.compactMap { $0["name"] as? String })
                 }
-                return false
-            } catch { try Task.checkCancellation(); return false }
-        }, onCancel: { socket.cancel(with: .goingAway, reason: nil) })
+            }
+            return false
+        } catch { try Task.checkCancellation(); return false }
     }
     public static func coachSessionMatches(_ event: [String: Any], model: String, effort: String, toolNames: [String]) -> Bool {
         guard let session = event["session"] as? [String: Any],

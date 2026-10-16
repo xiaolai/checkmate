@@ -7,9 +7,10 @@ import CheckmateCore
 @testable import CheckmateContent
 @testable import CheckmateApplication
 @testable import CheckmateMacPlatform
+import PCM16
 
 final class CompletionTests:XCTestCase {
-    func testNonFiniteAndOddPCM(){XCTAssertEqual(VoicePCM.decode(VoicePCM.encode([.nan,.infinity,-.infinity])),[0,0,0]);XCTAssertEqual(VoicePCM.decode(Data()),[]);XCTAssertEqual(VoicePCM.decode(Data([0])),[])}
+    func testNonFiniteAndOddPCM(){XCTAssertEqual(PCM.decode(PCM.encode([.nan,.infinity,-.infinity])),[0,0,0]);XCTAssertEqual(PCM.decode(Data()),[]);XCTAssertEqual(PCM.decode(Data([0])),[])}
     @MainActor func testThousandTransitionsAndDispatchBudget()throws {
         let s=try GameSession(engine:nil);var elapsed:[Double]=[]
         func dispatch(_ body:()throws->Void)rethrows {let start=Date();try body();elapsed.append(Date().timeIntervalSince(start))}

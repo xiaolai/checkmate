@@ -43,3 +43,5 @@ Full license: Checkmate-COPYING.txt.
 No Apple Chess 3D meshes, textures or renderer are shipped.
 
 Native MCP: Swift MCP SDK 0.12.1 and EventSource (MIT); SwiftNIO, Swift System, Swift Log, Swift Atomics and Swift Collections (Apache-2.0 with Swift runtime exception). See Licenses/ for full texts and Package.resolved in the source above for pinned revisions.
+
+Voice and lesson translation: sayso 0.1 (ISC), https://github.com/xiaolai/sayso: the Codex sign-in and app-server client, the realtime connection, the said guard and PCM16 audio. See Licenses/ for its full text and Package.resolved in the source above for its pinned revision.

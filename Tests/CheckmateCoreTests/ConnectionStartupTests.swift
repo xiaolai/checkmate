@@ -7,6 +7,7 @@ import CheckmateCore
 @testable import CheckmateContent
 @testable import CheckmateApplication
 @testable import CheckmateMacPlatform
+import RealtimeConnection
 
 
 @MainActor final class ConnectionStartupTests: XCTestCase {
@@ -104,7 +105,7 @@ import CheckmateCore
         let session = try GameSession(engine: nil), voice = try VoiceCoach(session: session)
         let authorization = await voice.checkAvailability().value
         XCTAssertNil(authorization)
-        voice.connect(authorizedSecret: "test-session")
+        voice.connect(authorizedSecret: ClientSecret(bearer: "test-session", expiresAt: Date()))
         XCTAssertNil(session.voiceLease); XCTAssertFalse(voice.connecting)
         XCTAssertFalse(voice.audio.capturing)
     }

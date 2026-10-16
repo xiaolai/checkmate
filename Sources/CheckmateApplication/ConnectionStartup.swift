@@ -4,11 +4,12 @@ import Foundation
 
 /// One startup attempt. Dependencies keep automation away from accounts and audio. An attempt that finds the app
 /// hidden or suspended waits, and `resumeIfDeferred()` (on unhide) runs it again; one overtaken by the learner or by
-/// shutdown (`stillCurrent` false) ends.
-@MainActor public final class ConnectionStartup {
+/// shutdown (`stillCurrent` false) ends. `Authorization` is what a successful check hands to `connectVoice` (the app's
+/// realtime secret); startup only passes it on.
+@MainActor public final class ConnectionStartup<Authorization> {
     private let settings: () -> AppSettings
-    private let check: () async -> String?
-    private let connectVoice: (String) -> Void
+    private let check: () async -> Authorization?
+    private let connectVoice: (Authorization) -> Void
     private let startMCP: () throws -> Void
     private let stillCurrent: () -> Bool
     private let visible: () -> Bool
@@ -18,8 +19,8 @@ import Foundation
     private var task: Task<Void, Never>?
 
     public init(settings: @escaping () -> AppSettings,
-                check: @escaping () async -> String?,
-                connectVoice: @escaping (String) -> Void,
+                check: @escaping () async -> Authorization?,
+                connectVoice: @escaping (Authorization) -> Void,
                 startMCP: @escaping () throws -> Void,
                 stillCurrent: @escaping () -> Bool,
                 visible: @escaping () -> Bool = { true },

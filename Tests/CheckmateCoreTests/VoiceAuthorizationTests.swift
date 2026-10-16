@@ -3,26 +3,30 @@ import CheckmateCore
 @testable import CheckmateDomain
 @testable import CheckmateSupport
 @testable import CheckmateContent
+import RealtimeConnection
+import CodexAuth
 
 /// Why voice cannot connect is told in words the learner can act on, and an account problem is never mistaken for an
 /// incompatible model. No network: tokens and statuses are fixtures.
 final class VoiceAuthorizationTests:XCTestCase {
-    private func token(_ claims:[String:Any])->String {
-        func part(_ object:[String:Any])->String {(try! JSONSerialization.data(withJSONObject:object)).base64EncodedString().replacingOccurrences(of:"+",with:"-").replacingOccurrences(of:"/",with:"_").replacingOccurrences(of:"=",with:"")}
-        return part(["alg":"none"])+"."+part(claims)+".signature"
+    /// Every sign-in state Codex can be in names its own fix; none reads as a model or network problem.
+    func testSignInStatesNameTheirFix() {
+        let failing=CodexAuthState.allCases.filter{$0 != .ready}
+        let messages=failing.map{userFacingMessage(VoiceGateway.signInFailure($0),fallback:"")}
+        XCTAssertFalse(messages.contains(""))
+        XCTAssertEqual(userFacingMessage(VoiceGateway.signInFailure(.apiKey),fallback:""),userFacingMessage(VoiceGateway.apiKeySignIn,fallback:""))
+        XCTAssertEqual(userFacingMessage(VoiceGateway.signInFailure(.expired),fallback:""),userFacingMessage(VoiceGateway.signInExpired,fallback:""))
+        XCTAssertTrue(userFacingMessage(VoiceGateway.signInFailure(.codexTooOld),fallback:"").contains(minimumCodexVersion))
+        XCTAssertTrue(userFacingMessage(VoiceGateway.signInFailure(.appServerAuthUnavailable),fallback:"").contains("keychain"))
+        // Distinct fixes get distinct words: only not-signed-in and no-sign-in-file share "sign in first".
+        XCTAssertEqual(Set(messages).count,failing.count-1,"\(messages)")
+        // A sign-in failure reaching authorization is reported as that state, never as the service.
+        XCTAssertEqual(userFacingMessage(VoiceGateway.authorizationFailure(CodexAuthError(.expired)),fallback:""),userFacingMessage(VoiceGateway.signInExpired,fallback:""))
+        XCTAssertEqual(userFacingMessage(VoiceGateway.authorizationFailure(CodexAuthError(.noCodex)),fallback:""),userFacingMessage(VoiceGateway.noCodex,fallback:""))
     }
-    func testExpiredCodexSignInIsNamed() {
-        let now=Date(timeIntervalSince1970:1_000_000)
-        XCTAssertNotNil(VoiceGateway.expiredSignIn(token(["exp":999_000]),now:now),"expired")
-        XCTAssertNotNil(VoiceGateway.expiredSignIn(token(["exp":1_000_030]),now:now),"expires within a minute")
-        XCTAssertNil(VoiceGateway.expiredSignIn(token(["exp":1_100_000]),now:now),"still valid")
-        XCTAssertNil(VoiceGateway.expiredSignIn("opaque-token",now:now),"no readable expiry is left to the provider")
-        XCTAssertNil(VoiceGateway.expiredSignIn(token(["sub":"x"]),now:now))
-        XCTAssertEqual(userFacingMessage(VoiceGateway.expiredSignIn(token(["exp":1]),now:now)!,fallback:""),"Your Codex sign-in has expired. Open Codex once to refresh it, then connect again.")
-    }
+    /// The translation's private sign-in copy takes only a ChatGPT access token; an API key is never read.
     func testCodexCredentialSources()throws {
-        func credential(_ json:String)throws->String {try VoiceGateway.accessToken(Data(json.utf8))}
-        // Only the ChatGPT subscription sign-in is used; an API key is never read, whatever else the file holds.
+        func credential(_ json:String)throws->String {try CodexSubscriptionClient.chatGPTAccessToken(Data(json.utf8))}
         XCTAssertEqual(try credential(#"{"tokens":{"access_token":"token"},"OPENAI_API_KEY":null}"#),"token")
         XCTAssertEqual(try credential(#"{"auth_mode":"chatgpt","OPENAI_API_KEY":"key","tokens":{"access_token":"token"}}"#),"token")
         for apiKey in [#"{"auth_mode":"apikey","OPENAI_API_KEY":"key","tokens":null}"#,#"{"auth_mode":"apikey","OPENAI_API_KEY":"key","tokens":{"access_token":"token"}}"#] {
@@ -31,11 +35,16 @@ final class VoiceAuthorizationTests:XCTestCase {
         XCTAssertThrowsError(try credential(#"{"OPENAI_API_KEY":"key"}"#),"a key without a ChatGPT sign-in")
         XCTAssertThrowsError(try credential(#"{"tokens":{"access_token":""}}"#))
     }
+    /// A refused mint is classified by the package; Checkmate decides only the words and the model fallback.
     func testStatusesNameTheirCause() {
-        for status in [400,404,422] {XCTAssertTrue(VoiceGateway.authorizationFailure(status:status) is VoiceGateway.ModelUnsupported,"\(status)")}
-        let messages=[401,403,429,503,418].map{userFacingMessage(VoiceGateway.authorizationFailure(status:$0),fallback:"")}
+        func refused(_ status:Int)->Error {VoiceGateway.authorizationFailure(RealtimeError(RealtimeError.classify(status:status,code:""),status:status))}
+        for status in [400,404,422] {XCTAssertTrue(refused(status) is VoiceGateway.ModelUnsupported,"\(status)")}
+        let messages=[401,403,429,503,418].map{userFacingMessage(refused($0),fallback:"")}
         XCTAssertEqual(Set(messages).count,5,"each cause has its own message: \(messages)");XCTAssertFalse(messages.contains(""))
         XCTAssertTrue(messages[0].contains("not accepted"),"a 401 is not claimed to be an expiry")
+        XCTAssertEqual(userFacingMessage(VoiceGateway.authorizationFailure(RealtimeError(.network)),fallback:""),userFacingMessage(VoiceGateway.unreachable,fallback:""))
+        XCTAssertTrue(VoiceGateway.authorizationFailure(RealtimeError(.cancelled)) is CancellationError)
+        XCTAssertTrue(VoiceGateway.authorizationFailure(RealtimeError(.routeDenied,status:401,code:"missing_scope")) is CheckmateError,"a missing scope is an account refusal, not a model")
     }
     /// An expired sign-in stops model selection with its own reason instead of "no supported model".
     @MainActor func testAccountFailureIsNotAnIncompatibleModel()async {

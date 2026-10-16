@@ -1,5 +1,6 @@
 import Foundation
 import CheckmateCore
+import SaidGuard
 
 /// Explicit, headless live-service acceptance. Never starts microphone capture or speaker output.
 @main struct AcceptanceProbe {
@@ -43,21 +44,17 @@ import CheckmateCore
                 let selected=try await selector.resolve(effort:effort){model in try await gateway.supportsCoach(model:model,effort:effort,voice:"cedar",tools:coachTools)}
                 report["selectedModel"]=selected;report["automaticSelectionPassed"]=true
                 let secret=try await gateway.authorize(model:selected)
-                var request=URLRequest(url:VoiceSessionConfiguration.socketURL(model:selected))
-                request.setValue("Bearer \(secret)",forHTTPHeaderField:"Authorization")
-                let transport=URLSession(configuration:.ephemeral,delegate:gateway,delegateQueue:nil)
-                let socket=transport.webSocketTask(with:request);socket.maximumMessageSize=2*1024*1024;socket.resume()
-                defer {socket.cancel(with:.normalClosure,reason:nil);transport.invalidateAndCancel()}
-                let watchdog=Task {try? await Task.sleep(for:.seconds(35));guard !Task.isCancelled else{return};socket.cancel(with:.goingAway,reason:nil)}
+                let socket=try await VoiceSocket.open(secret:secret,model:selected,handshakeTimeout:20)
+                defer {socket.closeSoon()}
+                let watchdog=Task {try? await Task.sleep(for:.seconds(35));guard !Task.isCancelled else{return};await socket.close()}
                 defer {watchdog.cancel()}
-                func send(_ event:[String:Any])async throws {try await socket.send(.string(String(decoding:try JSONSerialization.data(withJSONObject:event),as:UTF8.self)))}
+                func send(_ event:[String:Any])async throws {try await socket.send(event)}
                 try await send(VoiceSessionConfiguration.event(instructions:"Response language: English. Read only the supplied verified facts verbatim, without inferred motives.",voice:"cedar",tools:[],effort:effort))
                 let scope=UUID().uuidString
                 var configured=false,isolated=false,audio=Data(),transcript="",types:Set<String>=[]
                 while true {
-                    let message=try await socket.receive(),data:Data
-                    switch message {case .data(let value):data=value;case .string(let value):data=Data(value.utf8);@unknown default:throw CheckmateError.invalid("Unknown voice message")}
-                    guard let event=try JSONSerialization.jsonObject(with:data) as? [String:Any],let type=event["type"] as? String else{continue}
+                    let event=try await socket.receive()
+                    guard let type=event["type"] as? String else{continue}
                     types.insert(type)
                     if type=="error" {throw CheckmateError.unavailable("Live service rejected an event: \((event["error"] as? [String:Any])?["code"] as? String ?? "unknown")")}
                     if type=="session.updated",!configured {
@@ -78,13 +75,13 @@ import CheckmateCore
                         break
                     }
                 }
-                guard VoiceScriptRequest.matches(transcript,script:text) else{report["mismatchedTranscript"]=transcript;report["requestedScript"]=text;throw CheckmateError.unavailable("Live narration changed the verified script or language")}
+                guard saidMatches(transcript,text,language:"en") else{report["mismatchedTranscript"]=transcript;report["requestedScript"]=text;throw CheckmateError.unavailable("Live narration changed the verified script or language")}
                 // A Stop is acknowledged only by an error naming its own cancel event (VoiceCoach correlates by event_id):
                 // the provider must echo it when nothing is left to cancel.
                 if attempt==1 {
                     let cancelID="probe-cancel-"+scope;try await send(["type":"response.cancel","event_id":cancelID]);var echoed=false
-                    while true {let message=try await socket.receive(),data:Data;switch message{case .data(let value):data=value;case .string(let value):data=Data(value.utf8);@unknown default:continue}
-                        guard let event=try JSONSerialization.jsonObject(with:data) as? [String:Any],event["type"] as? String=="error",let error=event["error"] as? [String:Any] else{continue}
+                    while true {let event=try await socket.receive()
+                        guard event["type"] as? String=="error",let error=event["error"] as? [String:Any] else{continue}
                         echoed=error["code"] as? String=="response_cancel_not_active" && error["event_id"] as? String==cancelID;break}
                     report["cancelErrorEchoesEventID"]=echoed;guard echoed else{throw CheckmateError.unavailable("The provider did not name the cancel event in its error")}
                 }

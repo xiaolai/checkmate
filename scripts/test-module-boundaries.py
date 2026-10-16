@@ -15,9 +15,10 @@ MODULES = {
     'CheckmateSupport': {'CheckmateDomain', 'CheckmateAssets'},
     'CheckmateRules': {'CheckmateDomain', 'CheckmateAssets', 'CheckmateSupport'},
     'CheckmateEngine': {'CheckmateDomain', 'CheckmateRules', 'CheckmateSupport', 'CheckmateAssets'},
-    'CheckmateContent': {'CheckmateDomain', 'CheckmateSupport', 'CheckmateAssets'},
+    # sayso's products: the Codex sign-in, the realtime connection, the said guard and PCM16 (the voice adapters).
+    'CheckmateContent': {'CheckmateDomain', 'CheckmateSupport', 'CheckmateAssets', 'product:CodexAuth', 'product:RealtimeConnection', 'product:SaidGuard', 'product:PCM16'},
     'CheckmateApplication': {'CheckmateDomain', 'CheckmateRules', 'CheckmateContent', 'CheckmateSupport', 'CheckmateAssets'},
-    'CheckmateMacPlatform': {'CheckmateDomain', 'CheckmateRules', 'CheckmateEngine', 'CheckmateContent', 'CheckmateApplication', 'CheckmateSupport', 'CheckmateAssets'},
+    'CheckmateMacPlatform': {'CheckmateDomain', 'CheckmateRules', 'CheckmateEngine', 'CheckmateContent', 'CheckmateApplication', 'CheckmateSupport', 'CheckmateAssets', 'product:RealtimeConnection', 'product:SaidGuard', 'product:PCM16'},
     'CheckmateCore': {'CheckmateDomain', 'CheckmateRules', 'CheckmateEngine', 'CheckmateContent', 'CheckmateApplication', 'CheckmateMacPlatform', 'CheckmateSupport', 'CheckmateAssets'},
 }
 

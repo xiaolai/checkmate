@@ -8,6 +8,7 @@ import CheckmateCore
 @testable import CheckmateContent
 @testable import CheckmateApplication
 @testable import CheckmateMacPlatform
+import RealtimeConnection
 
 
 private final class RecordingSocketFixture:LessonRecordingSocket,@unchecked Sendable {
@@ -36,7 +37,7 @@ final class LessonRecordingTests:XCTestCase {
  private func done(status:String="completed",id:String="r")->[String:Any] {["type":"response.done","response":["id":id,"status":status,"usage":["total_tokens":19]]]}
  private func audio(_ count:Int=9600,id:String="r")->[String:Any] {["type":"response.output_audio.delta","response_id":id,"delta":plausibleLessonPCM("",seconds:Double(count)/48000).prefix(count).base64EncodedString()]}
  private func transcript(_ text:String="Hello.")->[String:Any] {["type":"response.output_audio_transcript.done","response_id":"r","transcript":text]}
- private func recorder(_ socket:RecordingSocketFixture,timeout:Double=1)->RealtimeLessonRecorder {RealtimeLessonRecorder(timeout:timeout,secretProvider:{"fixture-secret"},socketFactory:{_ in socket})}
+ private func recorder(_ socket:RecordingSocketFixture,timeout:Double=1)->RealtimeLessonRecorder {RealtimeLessonRecorder(timeout:timeout,secretProvider:{ClientSecret(bearer:"fixture-secret",expiresAt:Date())},socketFactory:{_ in socket})}
  func testSuccessfulRecorderHasNoInputCaptureAndCloses()async throws {
   let socket=RecordingSocketFixture(start()+[audio(),transcript(),done()]),usage=RecordingUsageFixture()
   let result=try await recorder(socket).record(script:"Hello.",locale:"en",voice:"cedar",onUsage:{usage.add($0,$1)})
@@ -92,13 +93,5 @@ final class LessonRecordingTests:XCTestCase {
  }
  func testLiveRecorderIsDisabledInAutomation()async {
   do{_=try await RealtimeLessonRecorder().record(script:"Hello.",locale:"en",voice:"cedar",onUsage:{_,_ in});XCTFail("Expected disabled live transport")}catch{XCTAssertTrue(String(describing:error).contains("automation"))}
- }
- func testRedirectDelegateRefusesRedirect() {
-  let gateway=VoiceGateway(),session=URLSession(configuration:.ephemeral),task=session.dataTask(with:URL(string:"https://api.openai.com")!)
-  defer{session.invalidateAndCancel()}
-  let response=HTTPURLResponse(url:URL(string:"https://api.openai.com")!,statusCode:302,httpVersion:nil,headerFields:nil)!
-  var accepted=true
-  gateway.urlSession(session,task:task,willPerformHTTPRedirection:response,newRequest:URLRequest(url:URL(string:"https://example.invalid")!)){accepted=$0 != nil}
-  XCTAssertFalse(accepted)
  }
 }

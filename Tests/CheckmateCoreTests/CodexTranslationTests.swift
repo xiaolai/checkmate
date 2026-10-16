@@ -47,7 +47,12 @@ final class CodexTranslationTests: XCTestCase {
             def tokens(total):
                 notify('thread/tokenUsage/updated',threadId='thread',turnId='turn',tokenUsage={'total':{'inputTokens':80,'outputTokens':40,'totalTokens':total,'cachedInputTokens':10,'reasoningOutputTokens':5}})
             for line in sys.stdin:
-                request = json.loads(line); method = request['method']; params = request.get('params',{}); ident = request.get('id')
+                request = json.loads(line)
+                if 'method' not in request:
+                    # The client's answer to a server request (an approval) this fake sent: always a refusal.
+                    assert request.get('id') == 99 and 'error' in request and 'result' not in request, request
+                    continue
+                method = request['method']; params = request.get('params',{}); ident = request.get('id')
                 if method == 'initialized': continue
                 if scenario == 'timeout': time.sleep(10); continue
                 result = {}

@@ -2,6 +2,7 @@ import AppKit
 import UniformTypeIdentifiers
 import Combine
 import CheckmateCore
+import RealtimeConnection
 @MainActor final class NativeModel:ObservableObject {
     let session:GameSession,learning:LearningPlayer,audio:NativeAudio,store:StateStore
     let companion:CompanionBroker,voice:VoiceCoach
@@ -45,7 +46,7 @@ import CheckmateCore
     private var reviewSaveTask:Task<Void,Never>?
     private static let progressSaveFailure="Your progress could not be saved. Export it before quitting."
     private var shuttingDown=false
-    private var connectionStartup:ConnectionStartup?
+    private var connectionStartup:ConnectionStartup<ClientSecret>?
     var onReview:(()->Void)?
     /// True for a move the learner dropped in place: it does not animate, so its sound does not wait for one.
     var movePlacedDirectly:((MoveRecord)->Bool)?
