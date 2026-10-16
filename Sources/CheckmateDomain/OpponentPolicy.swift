@@ -1,8 +1,9 @@
 import Foundation
-/// Standard game review is available by default; experimental labels, review voice and beginner policy require explicit opt-in.
+/// Standard game review and its voice coach are available by default; experimental labels and beginner policy require explicit opt-in.
 public enum ReviewRolloutPolicy {
     public static var reviewQualityLabels:Bool {ProcessInfo.processInfo.environment["CHECKMATE_REVIEW_QUALITY_LABELS"] == "1"}
-    public static var reviewVoiceEnabled:Bool {ProcessInfo.processInfo.environment["CHECKMATE_REVIEW_VOICE_ENABLED"] == "1"}
+    /// The voice coach in review is on unless `CHECKMATE_REVIEW_VOICE_ENABLED=0` turns it off.
+    public static var reviewVoiceEnabled:Bool {ProcessInfo.processInfo.environment["CHECKMATE_REVIEW_VOICE_ENABLED"] != "0"}
     public static var beginnerOpponentEnabled:Bool {ProcessInfo.processInfo.environment["CHECKMATE_BEGINNER_OPPONENT_ENABLED"] == "1"}
 }
 public struct EngineCapabilities:Codable,Equatable {

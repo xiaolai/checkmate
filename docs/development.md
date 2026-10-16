@@ -109,7 +109,7 @@ Standard game review is available in normal builds without environment variables
 
 Review accepts PGN collections and standard-chess FEN positions from native Open, paste or drop, or the current/previous game. Imported records remain immutable. Recorded variations and imagined lines are separate; “Practise here” starts a separate full-history game after choosing a side and profile and preserving the prior game. FEN-only review cannot recover earlier moves or repetition history.
 
-Custom opponent skill0–20 and the engine's discovered Elo range are independent of full-strength review analysis. Engine Elo is an estimate, not a promised human rating. Experimental features remain separately gated by `CHECKMATE_REVIEW_QUALITY_LABELS=1`, `CHECKMATE_REVIEW_VOICE_ENABLED=1` and `CHECKMATE_BEGINNER_OPPONENT_ENABLED=1`.
+Custom opponent skill0–20 and the engine's discovered Elo range are independent of full-strength review analysis. Engine Elo is an estimate, not a promised human rating. Experimental features remain separately gated by `CHECKMATE_REVIEW_QUALITY_LABELS=1` and `CHECKMATE_BEGINNER_OPPONENT_ENABLED=1`. The voice coach in review is on by default; `CHECKMATE_REVIEW_VOICE_ENABLED=0` turns it off.
 
 The sidebar Review game destination opens a workspace with visible Open PGN, Paste PGN/FEN and current-game actions; it does not create a document. Native imports and current-game reviews remain drafts until Save Review (Command-S). Saved reviews subsequently autosave cursor and imagined lines. MCP-created reviews keep their existing persistence contract.
 
