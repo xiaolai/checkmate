@@ -30,10 +30,31 @@ final class VoiceAuthorizationTests:XCTestCase {
         XCTAssertEqual(try credential(#"{"tokens":{"access_token":"token"},"OPENAI_API_KEY":null}"#),"token")
         XCTAssertEqual(try credential(#"{"auth_mode":"chatgpt","OPENAI_API_KEY":"key","tokens":{"access_token":"token"}}"#),"token")
         for apiKey in [#"{"auth_mode":"apikey","OPENAI_API_KEY":"key","tokens":null}"#,#"{"auth_mode":"apikey","OPENAI_API_KEY":"key","tokens":{"access_token":"token"}}"#] {
-            XCTAssertThrowsError(try credential(apiKey)){XCTAssertEqual(userFacingMessage($0,fallback:""),userFacingMessage(VoiceGateway.apiKeySignIn,fallback:""))}
+            XCTAssertThrowsError(try credential(apiKey)){XCTAssertEqual(userFacingMessage($0,fallback:""),userFacingMessage(CodexSubscriptionClient.signInFailure(.apiKey),fallback:""))}
         }
         XCTAssertThrowsError(try credential(#"{"OPENAI_API_KEY":"key"}"#),"a key without a ChatGPT sign-in")
         XCTAssertThrowsError(try credential(#"{"tokens":{"access_token":""}}"#))
+    }
+    /// The sign-in file is where sayso's CodexAuth reads it: CODEX_HOME when set (through links), else ~/.codex.
+    func testCredentialFileFollowsCodexHome()throws {
+        let home=URL(fileURLWithPath:"/Users/learner",isDirectory:true)
+        XCTAssertEqual(VoiceGateway.credentialURL(environment:[:],home:home).path,"/Users/learner/.codex/auth.json")
+        XCTAssertEqual(VoiceGateway.credentialURL(environment:["CODEX_HOME":""],home:home).path,"/Users/learner/.codex/auth.json")
+        let real=FileManager.default.temporaryDirectory.resolvingSymlinksInPath().appendingPathComponent(UUID().uuidString)
+        let link=FileManager.default.temporaryDirectory.resolvingSymlinksInPath().appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at:real,withIntermediateDirectories:true)
+        try FileManager.default.createSymbolicLink(at:link,withDestinationURL:real)
+        defer{try? FileManager.default.removeItem(at:link);try? FileManager.default.removeItem(at:real)}
+        XCTAssertEqual(VoiceGateway.credentialURL(environment:["CODEX_HOME":real.path],home:home).path,real.appendingPathComponent("auth.json").path)
+        XCTAssertEqual(VoiceGateway.credentialURL(environment:["CODEX_HOME":link.path],home:home).path,real.appendingPathComponent("auth.json").path)
+    }
+    /// Translation names each sign-in state's fix in its own words, never voice's.
+    func testTranslationSignInStatesNameTheirFix() {
+        let failing=CodexAuthState.allCases.filter{$0 != .ready}
+        let messages=failing.map{userFacingMessage(CodexSubscriptionClient.signInFailure($0),fallback:"")}
+        XCTAssertFalse(messages.contains(""))
+        XCTAssertEqual(Set(messages).count,failing.count-1,"\(messages)")
+        for message in messages {XCTAssertTrue(message.contains("translat"),message);XCTAssertFalse(message.contains("connect"),message)}
     }
     /// A refused mint is classified by the package; Checkmate decides only the words and the model fallback.
     func testStatusesNameTheirCause() {
