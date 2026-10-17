@@ -28,7 +28,6 @@ public protocol LessonTranslationProvider: Sendable {
 public enum CodexTranslationLimits {
     public static let responseBytes = 2_000_000
     public static let queuedEvents = 2_048
-    public static let credentialBytes = 65_536
     public static let rpcTimeout: TimeInterval = 30
     public static let turnTimeout: TimeInterval = 240
     public static let finalUsageGrace: TimeInterval = 0.25
@@ -40,32 +39,31 @@ public enum CodexTranslationLimits {
 /// hooks, project instructions, environment API keys or persisted threads are inherited.
 public final class CodexSubscriptionClient: LessonTranslationProvider, @unchecked Sendable {
     private let executable: URL?
-    private let credentialURL: URL
     private let automationAllowed: Bool
     private let timeout: TimeInterval
     private let cleanupObserver: (@Sendable (Bool) -> Void)?
     /// The ChatGPT token Codex holds, renewed by Codex when less than a turn and a minute is left (sayso's CodexAuth).
-    /// The private copy is made only from a sign-in file holding this token. Nil during automation, whose fake sign-in
-    /// file is the whole sign-in.
-    private let signIn: (@Sendable () async throws -> String)?
-    public convenience init(executable: URL? = nil, credentialURL: URL = VoiceGateway.credentialURL,
-                            automationAllowed: Bool = false, timeout: TimeInterval = CodexTranslationLimits.turnTimeout,
+    /// The private home's sign-in is written from it (sayso's writePrivateSignIn); Codex's own sign-in file is never
+    /// read, so a keychain sign-in works as a file one does. Nil during automation unless a test supplies a fake one.
+    private let signIn: (@Sendable () async throws -> Token)?
+    public convenience init(executable: URL? = nil, automationAllowed: Bool = false,
+                            timeout: TimeInterval = CodexTranslationLimits.turnTimeout,
                             cleanupObserver: (@Sendable (Bool) -> Void)? = nil) {
         let bounded = max(0.1, min(600, timeout))
-        self.init(executable: executable, credentialURL: credentialURL, automationAllowed: automationAllowed, timeout: bounded,
+        self.init(executable: executable, automationAllowed: automationAllowed, timeout: bounded,
                   cleanupObserver: cleanupObserver, signIn: NativePolicy.silent ? nil : Self.codexSignIn(margin: bounded + 60))
     }
-    init(executable: URL?, credentialURL: URL, automationAllowed: Bool, timeout: TimeInterval,
-         cleanupObserver: (@Sendable (Bool) -> Void)?, signIn: (@Sendable () async throws -> String)?) {
-        self.executable = executable; self.credentialURL = credentialURL
+    init(executable: URL?, automationAllowed: Bool, timeout: TimeInterval,
+         cleanupObserver: (@Sendable (Bool) -> Void)?, signIn: (@Sendable () async throws -> Token)?) {
+        self.executable = executable
         self.automationAllowed = automationAllowed; self.timeout = max(0.1, min(600, timeout)); self.cleanupObserver = cleanupObserver
         self.signIn = signIn
     }
-    private static func codexSignIn(margin: TimeInterval) -> @Sendable () async throws -> String {
+    private static func codexSignIn(margin: TimeInterval) -> @Sendable () async throws -> Token {
         let credentials = Result { try Credentials(CodexAuthConfiguration(margin: margin, timeout: VoiceGateway.codexTimeout, clientName: "checkmate",
             guardAccess: { _ in if NativePolicy.silent { throw CheckmateError.unavailable("Live translation is disabled during automation.") } },
             log: { NativeLog.voice.debug("\($0)") })) }
-        return { try await credentials.get().token().bearer }
+        return { try await credentials.get().token() }
     }
     /// What a sign-in state means for translating. Every state that is not ready names its own fix.
     static func signInFailure(_ state: CodexAuthState) -> CheckmateError {
@@ -81,32 +79,27 @@ public final class CodexSubscriptionClient: LessonTranslationProvider, @unchecke
         case .codexError: return .unavailable("Codex on this Mac could not provide its sign-in. Check that Codex opens, then translate again.")
         }
     }
-    /// Codex returned a sign-in its sign-in file does not hold: it keeps the sign-in in the keychain, and the private
-    /// translation home can only be given a copy of the file.
-    static let keychainSignIn = CheckmateError.unavailable("Codex keeps its sign-in in the keychain, and lesson translation needs it in Codex's sign-in file. Set cli_auth_credentials_store = \"file\" in Codex's config.toml and sign in to Codex again, then translate.")
     public static func cleanAbandonedPrivateHomes() {
         CodexChannel.removeAbandonedHomes(in: FileManager.default.temporaryDirectory.resolvingSymlinksInPath())
     }
     private func channel() async throws -> CodexChannel {
-        // Automation may inject an executable and fake credentials; never authorize
-        // a real account simply because someone set the test seam's Boolean.
+        // Automation may inject an executable and a fake sign-in; never authorize a real account simply because someone
+        // set the test seam's Boolean. Under automation the public initialiser gives no sign-in at all.
         if NativePolicy.silent {
             guard automationAllowed, let executable,
-                  credentialURL.standardizedFileURL != VoiceGateway.credentialURL.standardizedFileURL,
                   executable.resolvingSymlinksInPath() != CompanionInstallation.installedCodex()?.resolvingSymlinksInPath()
             else { throw CheckmateError.unavailable("Live translation is disabled during automation.") }
         }
-        var expectedToken: String?
-        if let signIn {
-            do { expectedToken = try await signIn() }
-            catch let failure as CodexAuthError {
-                if failure.errorClass == .cancelled || Task.isCancelled { throw CancellationError() }
-                NativeLog.voice.error("Translation sign-in unavailable: \(failure.state.rawValue, privacy: .public)")
-                throw Self.signInFailure(failure.state)
-            }
+        guard let signIn else { throw CheckmateError.unavailable("Live translation is disabled during automation.") }
+        let token: Token
+        do { token = try await signIn() }
+        catch let failure as CodexAuthError {
+            if failure.errorClass == .cancelled || Task.isCancelled { throw CancellationError() }
+            NativeLog.voice.error("Translation sign-in unavailable: \(failure.state.rawValue, privacy: .public)")
+            throw Self.signInFailure(failure.state)
         }
-        return try CodexChannel(executable: executable, credentialURL: credentialURL, expectedToken: expectedToken,
-                                rpcTimeout: min(timeout, CodexTranslationLimits.rpcTimeout), credentialMargin: timeout + 60, cleanupObserver: cleanupObserver)
+        return try CodexChannel(executable: executable, token: token,
+                                rpcTimeout: min(timeout, CodexTranslationLimits.rpcTimeout), cleanupObserver: cleanupObserver)
     }
     public func translate(source: LessonTranslation, locale: String,
                           onUsage: @escaping @Sendable (String, String, UsageTokens?) -> Void) async throws -> TranslationResult {
@@ -196,14 +189,6 @@ public final class CodexSubscriptionClient: LessonTranslationProvider, @unchecke
                                      estimatedCredits: estimatedCredits, estimatedUSD: estimatedUSD)
         }, onCancel: { channel.requestClose() })
     }
-    /// The ChatGPT access token in Codex's sign-in file, for the private copy only: Codex itself hands out the token
-    /// (``signIn``), and this one must be the same. An API-key sign-in, and its key, is never copied.
-    static func chatGPTAccessToken(_ data: Data) throws -> String {
-        guard data.count <= CodexTranslationLimits.credentialBytes, let a = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { throw signInFailure(.notSignedIn) }
-        if (a["auth_mode"] as? String)?.lowercased() == "apikey" { throw signInFailure(.apiKey) }
-        guard let token = (a["tokens"] as? [String: Any])?["access_token"] as? String, !token.isEmpty, token.count <= CodexTranslationLimits.credentialBytes else { throw signInFailure(.notSignedIn) }
-        return token
-    }
     /// A provider-supplied limit name reduced to visible letters, digits, "_" and "-": no bidi overrides, zero-width or
     /// other format characters, controls or combining marks that could disguise the account status text.
     static func safeLabel(_ name: String) -> String {
@@ -265,8 +250,9 @@ public final class CodexSubscriptionClient: LessonTranslationProvider, @unchecke
 }
 
 private final class CodexChannel: @unchecked Sendable {
-    /// `privateAuth` is the copied sign-in. It is deleted as soon as the channel is closed (cancellation runs that
-    /// synchronously, even at quit), not only when the async caller unwinds and removes the whole scratch home.
+    /// `privateAuth` is the private sign-in, written from the token Codex handed out. It is deleted as soon as the channel
+    /// is closed (cancellation runs that synchronously, even at quit), not only when the async caller unwinds and
+    /// removes the whole scratch home.
     let scratch: URL, work: URL, privateAuth: URL
     private let home: URL, executable: URL, rpcTimeout: TimeInterval
     private let lock = NSLock()
@@ -282,8 +268,8 @@ private final class CodexChannel: @unchecked Sendable {
     private let cleanupObserver: (@Sendable (Bool) -> Void)?
     /// Items that are tool operations; a translation turn may use none.
     private static let toolItems: Set<String> = ["commandExecution", "fileChange", "mcpToolCall", "dynamicToolCall", "webSearch", "imageGeneration", "computerUse", "collabAgentToolCall"]
-    /// `expectedToken` is the token Codex handed out for this translation; the sign-in file must hold it.
-    init(executable: URL?, credentialURL: URL, expectedToken: String?, rpcTimeout: TimeInterval, credentialMargin: TimeInterval, cleanupObserver: (@Sendable (Bool) -> Void)?) throws {
+    /// `token` is the one Codex handed out for this translation, fresh for the turn and a minute beyond.
+    init(executable: URL?, token: Token, rpcTimeout: TimeInterval, cleanupObserver: (@Sendable (Bool) -> Void)?) throws {
         guard let executable = executable ?? CompanionInstallation.installedCodex() else { throw CheckmateError.unavailable("Install and sign in to Codex on this Mac to translate lessons.") }
         self.executable = executable; self.rpcTimeout = rpcTimeout; self.cleanupObserver = cleanupObserver
         let temporaryRoot = FileManager.default.temporaryDirectory.resolvingSymlinksInPath()
@@ -297,36 +283,9 @@ private final class CodexChannel: @unchecked Sendable {
             try Data(String(getpid()).utf8).write(to: scratch.appendingPathComponent("owner.pid"), options: .atomic)
             try FileManager.default.createDirectory(at: home, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
             try FileManager.default.createDirectory(at: work, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
-            if expectedToken != nil, (try? credentialURL.checkResourceIsReachable()) != true { throw CodexSubscriptionClient.keychainSignIn }
-            let attributes = try credentialURL.resourceValues(forKeys: [.fileSizeKey, .isSymbolicLinkKey, .isRegularFileKey])
-            guard attributes.isSymbolicLink != true, attributes.isRegularFile == true,
-                  (attributes.fileSize ?? Int.max) <= CodexTranslationLimits.credentialBytes else { throw CocoaError(.fileReadCorruptFile) }
-            let credentials = try Data(contentsOf: credentialURL)
-            let token = try CodexSubscriptionClient.chatGPTAccessToken(credentials)
-            if let expectedToken, token != expectedToken { throw CodexSubscriptionClient.keychainSignIn }
-            guard let originalCredentials = try JSONSerialization.jsonObject(with: credentials) as? [String: Any],
-                  let originalTokens = originalCredentials["tokens"] as? [String: Any] else { throw CocoaError(.fileReadCorruptFile) }
-            // Never give the child a usable refresh token: refreshing a copied
-            // rotating credential could invalidate the real Codex sign-in.
-            do {
-                let parts = token.split(separator: ".")
-                guard parts.count == 3 else { throw CocoaError(.fileReadCorruptFile) }
-                var encoded = String(parts[1]).replacingOccurrences(of: "-", with: "+").replacingOccurrences(of: "_", with: "/")
-                encoded += String(repeating: "=", count: (4 - encoded.count % 4) % 4)
-                guard let payload = Data(base64Encoded: encoded),
-                      let claims = try JSONSerialization.jsonObject(with: payload) as? [String: Any],
-                      let expiration = claims["exp"] as? NSNumber,
-                      expiration.doubleValue > Date().timeIntervalSince1970 + credentialMargin
-                else { throw CodexSubscriptionClient.signInFailure(.expired) }
-            }
-            var tokens = originalTokens.filter { ["access_token", "id_token", "account_id"].contains($0.key) }
-            tokens["refresh_token"] = ""
-            var privateCredentials: [String: Any] = ["tokens": tokens]
-            if let mode = originalCredentials["auth_mode"] as? String, mode == "chatgpt" { privateCredentials["auth_mode"] = mode }
-            privateCredentials["last_refresh"] = ISO8601DateFormatter().string(from: Date())
-            let privateData = try JSONSerialization.data(withJSONObject: privateCredentials)
-            try privateData.write(to: privateAuth, options: .atomic)
-            try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: privateAuth.path)
+            // The private home's own sign-in, from the token alone (sayso's AUTH-08): no refresh token, so this Codex can
+            // never rotate the learner's sign-in; 0600, written new, and never a copy of Codex's sign-in file.
+            try writePrivateSignIn(token, codexHome: home.path)
             let config = """
             approval_policy = "never"
             default_permissions = "checkmate-lessons"
@@ -355,6 +314,9 @@ private final class CodexChannel: @unchecked Sendable {
         } catch {
             try? FileManager.default.removeItem(at: scratch)
             if let error = error as? CheckmateError { throw error }
+            if let error = error as? CodexAuthError {
+                NativeLog.voice.error("Private translation sign-in refused: \(error.message, privacy: .public)")
+            }
             throw CheckmateError.unavailable("Codex sign-in or private translation setup is unavailable.")
         }
     }

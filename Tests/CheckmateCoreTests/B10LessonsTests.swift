@@ -8,6 +8,7 @@ import CheckmateCore
 @testable import CheckmateContent
 @testable import CheckmateApplication
 @testable import CheckmateMacPlatform
+import RealtimeConnection
 
 
 /// Records which narration a lesson asked for, without any audio.
@@ -189,7 +190,7 @@ private func b10Directory()->URL {FileManager.default.temporaryDirectory.appendi
   XCTAssertEqual(LessonLanguages.normalizedSelection("es-419"),"es-419");XCTAssertNil(LessonLanguages.normalizedSelection("fr-999"))
   for code in LessonLanguages.supported {XCTAssertEqual(LessonLanguages.normalizedSelection(code),code,"Built-in language \(code) must pass the paid-job check")}
   let source=LessonTranslation.source(library:try CourseLibrary(),index:0)
-  let client=CodexSubscriptionClient(executable:dir.appendingPathComponent("missing-codex"),credentialURL:dir.appendingPathComponent("missing-auth.json"),automationAllowed:true,timeout:1)
+  let client=CodexSubscriptionClient(executable:dir.appendingPathComponent("missing-codex"),automationAllowed:true,timeout:1)
   do{_=try await client.translate(source:source,locale:"fr-XX",onUsage:{_,_,_ in});XCTFail("Translated an unrecognized language")}catch{XCTAssertEqual(String(describing:error),"Choose a valid language identifier.")}
   let recorder=RealtimeLessonRecorder(timeout:1,secretProvider:{throw CheckmateError.unavailable("no secret")},socketFactory:{_ in throw CheckmateError.unavailable("no socket")})
   do{_=try await recorder.record(script:"Bonjour.",locale:"fr-XX",voice:"cedar",onUsage:{_,_ in});XCTFail("Recorded an unrecognized language")}catch{XCTAssertEqual(String(describing:error),"Invalid recording language or voice.")}
@@ -218,11 +219,10 @@ final class B10LessonsStoreTests:XCTestCase {
   XCTAssertEqual(CodexSubscriptionClient.safeLabel("\u{202E}\u{200B}"),"Codex")
   XCTAssertEqual(CodexSubscriptionClient.safeLabel(String(repeating:"a",count:100)).count,64)
  }
- /// LE-10: cancelling (as quitting does) deletes the copied sign-in at once, before the async cleanup can run.
- func testCancellingDeletesTheCopiedSignInImmediately()async throws {
+ /// LE-10: cancelling (as quitting does) deletes the private sign-in at once, before the async cleanup can run.
+ func testCancellingDeletesThePrivateSignInImmediately()async throws {
   let dir=b10Directory();try FileManager.default.createDirectory(at:dir,withIntermediateDirectories:true);defer{try? FileManager.default.removeItem(at:dir)}
-  let executable=dir.appendingPathComponent("fake-app-server"),credential=dir.appendingPathComponent("fake-auth.json")
-  try Data("{\"tokens\":{\"access_token\":\"fake.eyJleHAiOjQxMDI0NDQ4MDB9.signature\",\"refresh_token\":\"fake-refresh\"}}".utf8).write(to:credential)
+  let executable=dir.appendingPathComponent("fake-app-server")
   let script="""
   #!/usr/bin/python3
   import os, sys, json, pathlib, time
@@ -237,12 +237,12 @@ final class B10LessonsStoreTests:XCTestCase {
       print(json.dumps({'id': request.get('id'), 'result': result}), flush=True)
   """
   try Data(script.utf8).write(to:executable);try FileManager.default.setAttributes([.posixPermissions:0o755],ofItemAtPath:executable.path)
-  let client=CodexSubscriptionClient(executable:executable,credentialURL:credential,automationAllowed:true,timeout:5)
+  let client=CodexSubscriptionClient(executable:executable,automationAllowed:true,timeout:5,cleanupObserver:nil,signIn:{Token(bearer:fakeTranslationToken,expires:nil)})
   let task=Task{try await client.accountStatus()},waiting=dir.appendingPathComponent("waiting")
   for _ in 0..<500 where !FileManager.default.fileExists(atPath:waiting.path){try await Task.sleep(for:.milliseconds(10))}
   let scratch=URL(fileURLWithPath:try String(contentsOf:dir.appendingPathComponent("scratch.txt"),encoding:.utf8)),auth=scratch.appendingPathComponent("codex/auth.json")
   XCTAssertTrue(FileManager.default.fileExists(atPath:auth.path))
-  task.cancel();XCTAssertFalse(FileManager.default.fileExists(atPath:auth.path),"The copied sign-in outlived the cancellation")
+  task.cancel();XCTAssertFalse(FileManager.default.fileExists(atPath:auth.path),"The private sign-in outlived the cancellation")
   do{_=try await task.value;XCTFail("Cancellation succeeded")}catch{XCTAssertTrue(error is CancellationError)}
   for _ in 0..<200 where FileManager.default.fileExists(atPath:scratch.path){try await Task.sleep(for:.milliseconds(20))}
   XCTAssertFalse(FileManager.default.fileExists(atPath:scratch.path))

@@ -24,17 +24,6 @@ final class VoiceAuthorizationTests:XCTestCase {
         XCTAssertEqual(userFacingMessage(VoiceGateway.authorizationFailure(CodexAuthError(.expired)),fallback:""),userFacingMessage(VoiceGateway.signInExpired,fallback:""))
         XCTAssertEqual(userFacingMessage(VoiceGateway.authorizationFailure(CodexAuthError(.noCodex)),fallback:""),userFacingMessage(VoiceGateway.noCodex,fallback:""))
     }
-    /// The translation's private sign-in copy takes only a ChatGPT access token; an API key is never read.
-    func testCodexCredentialSources()throws {
-        func credential(_ json:String)throws->String {try CodexSubscriptionClient.chatGPTAccessToken(Data(json.utf8))}
-        XCTAssertEqual(try credential(#"{"tokens":{"access_token":"token"},"OPENAI_API_KEY":null}"#),"token")
-        XCTAssertEqual(try credential(#"{"auth_mode":"chatgpt","OPENAI_API_KEY":"key","tokens":{"access_token":"token"}}"#),"token")
-        for apiKey in [#"{"auth_mode":"apikey","OPENAI_API_KEY":"key","tokens":null}"#,#"{"auth_mode":"apikey","OPENAI_API_KEY":"key","tokens":{"access_token":"token"}}"#] {
-            XCTAssertThrowsError(try credential(apiKey)){XCTAssertEqual(userFacingMessage($0,fallback:""),userFacingMessage(CodexSubscriptionClient.signInFailure(.apiKey),fallback:""))}
-        }
-        XCTAssertThrowsError(try credential(#"{"OPENAI_API_KEY":"key"}"#),"a key without a ChatGPT sign-in")
-        XCTAssertThrowsError(try credential(#"{"tokens":{"access_token":""}}"#))
-    }
     /// The sign-in file is where sayso's CodexAuth reads it: CODEX_HOME when set (through links), else ~/.codex.
     func testCredentialFileFollowsCodexHome()throws {
         let home=URL(fileURLWithPath:"/Users/learner",isDirectory:true)

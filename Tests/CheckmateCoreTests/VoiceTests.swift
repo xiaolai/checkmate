@@ -12,7 +12,6 @@ import PCM16
 
 final class VoiceTests:XCTestCase {
     func testGenerationDoesNotEndPlayback(){var gate=VoiceTurnGate();gate.begin();XCTAssertFalse(gate.ready);gate.generated(hasAudio:true);XCTAssertFalse(gate.ready);gate.playbackEnded();XCTAssertTrue(gate.ready);gate.begin();gate.playbackEnded();XCTAssertFalse(gate.ready);gate.generated(hasAudio:true);XCTAssertTrue(gate.ready)}
-    func testCredentialParsingAndRejections()throws {XCTAssertEqual(try CodexSubscriptionClient.chatGPTAccessToken(Data(#"{"tokens":{"access_token":"sample"}}"#.utf8)),"sample");XCTAssertThrowsError(try CodexSubscriptionClient.chatGPTAccessToken(Data(#"{"api_key":"no"}"#.utf8)))}
     func testPCMConversion(){let input:[Float]=[-2,-1,0,0.5,1,2];let data=PCM.encode(input);XCTAssertEqual(data.count,12);let values=PCM.decode(data);XCTAssertEqual(values.count,6);XCTAssertEqual(values[2],0);XCTAssertEqual(values[3],0.5,accuracy:0.001)}
 }
 extension VoiceTests {

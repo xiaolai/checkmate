@@ -19,9 +19,9 @@ public struct VoiceTurnGate {
 /// the token and renews it itself; without an installed Codex, Codex's sign-in file is read and never written. An
 /// API-key sign-in (and its key) is never used. The token only mints a short-lived realtime secret.
 public final class VoiceGateway:Sendable {
-    /// Codex's sign-in file, read by voice only when no Codex is installed, and copied (without its refresh token) into
-    /// a private translation home. It is where sayso's CodexAuth reads it: in `CODEX_HOME` when that is set, followed
-    /// through links, else in ~/.codex.
+    /// Codex's sign-in file, read by voice only when no Codex is installed (lesson translation never reads it: its
+    /// private home is signed in from the token). It is where sayso's CodexAuth reads it: in `CODEX_HOME` when that is
+    /// set, followed through links, else in ~/.codex.
     public static var credentialURL:URL{credentialURL(environment:ProcessInfo.processInfo.environment,home:FileManager.default.homeDirectoryForCurrentUser)}
     static func credentialURL(environment:[String:String],home:URL)->URL{
         guard let codexHome=environment["CODEX_HOME"],!codexHome.isEmpty else{return home.appendingPathComponent(".codex/auth.json")}

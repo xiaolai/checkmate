@@ -9,18 +9,20 @@ import CheckmateCore
 @testable import CheckmateApplication
 @testable import CheckmateMacPlatform
 import CodexAuth
+import RealtimeConnection
 
+
+/// A fake sign-in as Codex hands one out: a JWT naming a ChatGPT account, expiring in 2100.
+let fakeTranslationToken = "eyJhbGciOiJub25lIn0.eyJleHAiOjQxMDI0NDQ4MDAsImh0dHBzOi8vYXBpLm9wZW5haS5jb20vYXV0aCI6eyJjaGF0Z3B0X2FjY291bnRfaWQiOiJhY2N0LWZpeHR1cmUifX0.c2ln"
 
 final class CodexTranslationTests: XCTestCase {
     private final class Fixture {
-        let directory: URL, executable: URL, credential: URL, marker: URL
+        let directory: URL, executable: URL, marker: URL
         init(_ scenario: String) throws {
             directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             executable = directory.appendingPathComponent("fake-app-server")
-            credential = directory.appendingPathComponent("fake-auth.json")
             marker = directory.appendingPathComponent("marker.json")
-            try Data("{\"tokens\":{\"access_token\":\"fake.eyJleHAiOjQxMDI0NDQ4MDB9.signature\",\"refresh_token\":\"fake-refresh-never-copy\",\"extra_token\":\"drop-me\"},\"OPENAI_API_KEY\":\"fake-drop-key\"}".utf8).write(to: credential)
             let script = """
             #!/usr/bin/python3
             import os, sys, json, pathlib, time
@@ -34,9 +36,11 @@ final class CodexTranslationTests: XCTestCase {
             config = (home / 'config.toml').read_text()
             assert all(flag + ' = false' in config for flag in ['shell_tool', 'unified_exec', 'daemon_auto_start', 'hooks', 'apps', 'browser_use', 'computer_use', 'remote_plugin'])
             assert (home / 'auth.json').stat().st_mode & 0o777 == 0o600
+            # Written from the token alone: no refresh token, so this Codex can never rotate the learner's sign-in.
             private_auth = json.loads((home / 'auth.json').read_text())
-            assert private_auth['tokens']['refresh_token'] == ''
-            assert 'OPENAI_API_KEY' not in private_auth and 'extra_token' not in private_auth['tokens']
+            token = '\(fakeTranslationToken)'
+            assert sorted(private_auth) == ['auth_mode', 'last_refresh', 'tokens'] and private_auth['auth_mode'] == 'chatgpt'
+            assert private_auth['tokens'] == {'id_token': token, 'access_token': token, 'refresh_token': '', 'account_id': 'acct-fixture'}
             assert private_auth['last_refresh']
             assert os.environ['HOME'] == str(home.parent)
             assert pathlib.Path.cwd().name == 'work'
@@ -139,7 +143,11 @@ final class CodexTranslationTests: XCTestCase {
         deinit { try? FileManager.default.removeItem(at: directory) }
         // A liveness bound, not a speed check: a cold Rosetta launch of the fake server can take over a second. Tests of
         // the timeout itself pass their own short value.
-        var client: CodexSubscriptionClient { CodexSubscriptionClient(executable: executable, credentialURL: credential, automationAllowed: true, timeout: CodexTranslationLimits.rpcTimeout) }
+        var client: CodexSubscriptionClient { client() }
+        func client(timeout: TimeInterval = CodexTranslationLimits.rpcTimeout,
+                    signIn: @escaping @Sendable () async throws -> Token = { Token(bearer: fakeTranslationToken, expires: nil) }) -> CodexSubscriptionClient {
+            CodexSubscriptionClient(executable: executable, automationAllowed: true, timeout: timeout, cleanupObserver: nil, signIn: signIn)
+        }
         func assertCleaned() async throws {
             let failure = directory.appendingPathComponent("failure.txt")
             if FileManager.default.fileExists(atPath: failure.path) { XCTFail(try String(contentsOf: failure, encoding: .utf8)) }
@@ -162,39 +170,48 @@ final class CodexTranslationTests: XCTestCase {
         XCTAssertEqual(result.estimatedUSD, 0.025)
         try await fixture.assertCleaned()
     }
-    /// Codex hands out the sign-in (renewing it), and the private copy is made only from a sign-in file holding that
-    /// same token; a keychain sign-in or a failed renewal names its own fix, and no child is started for either.
-    func testPrivateCopyRequiresTheTokenCodexHandsOut() async throws {
-        let token = "fake.eyJleHAiOjQxMDI0NDQ4MDB9.signature", source = LessonTranslation.source(library: try CourseLibrary(), index: 0)
-        func client(_ fixture: Fixture, credential: URL? = nil, signIn: @escaping @Sendable () async throws -> String) -> CodexSubscriptionClient {
-            CodexSubscriptionClient(executable: fixture.executable, credentialURL: credential ?? fixture.credential, automationAllowed: true,
-                                    timeout: CodexTranslationLimits.rpcTimeout, cleanupObserver: nil, signIn: signIn)
-        }
-        let matching = try Fixture("normal")
-        let result = try await client(matching) { token }.translate(source: source, locale: "fr", onUsage: { _, _, _ in })
+    /// Codex hands out the sign-in (renewing it), and the private home's sign-in is written from that token alone, so a
+    /// keychain sign-in works as a file one does. A sign-in Codex cannot give names its own fix, and a token the private
+    /// sign-in refuses stops before any child starts.
+    func testPrivateSignInIsWrittenFromTheTokenCodexHandsOut() async throws {
+        let source = LessonTranslation.source(library: try CourseLibrary(), index: 0)
+        let handedOut = try Fixture("normal")
+        let result = try await handedOut.client.translate(source: source, locale: "fr", onUsage: { _, _, _ in })
         XCTAssertEqual(result.text, source)
-        try await matching.assertCleaned()
-        let cases: [(String, URL?, @Sendable () async throws -> String, CheckmateError)] = [
-            ("another token", nil, { "other.eyJleHAiOjQxMDI0NDQ4MDB9.signature" }, CodexSubscriptionClient.keychainSignIn),
-            ("no sign-in file", URL(fileURLWithPath: "/nonexistent/auth.json"), { token }, CodexSubscriptionClient.keychainSignIn),
-            ("renewal failed", nil, { throw CodexAuthError(.expired) }, CodexSubscriptionClient.signInFailure(.expired)),
-            ("keychain unsupported", nil, { throw CodexAuthError(.appServerAuthUnavailable) }, CodexSubscriptionClient.signInFailure(.appServerAuthUnavailable)),
+        try await handedOut.assertCleaned()
+        let setup = CheckmateError.unavailable("Codex sign-in or private translation setup is unavailable.")
+        func token(_ payload: String) -> @Sendable () async throws -> Token { { Token(bearer: "eyJhbGciOiJub25lIn0." + payload + ".c2ln", expires: nil) } }
+        let cases: [(String, @Sendable () async throws -> Token, CheckmateError)] = [
+            ("renewal failed", { throw CodexAuthError(.expired) }, CodexSubscriptionClient.signInFailure(.expired)),
+            ("keychain unsupported", { throw CodexAuthError(.appServerAuthUnavailable) }, CodexSubscriptionClient.signInFailure(.appServerAuthUnavailable)),
+            ("API key", { throw CodexAuthError(.apiKey, mode: "apikey") }, CodexSubscriptionClient.signInFailure(.apiKey)),
+            ("not signed in", { throw CodexAuthError(.notSignedIn) }, CodexSubscriptionClient.signInFailure(.notSignedIn)),
+            ("opaque token", { Token(bearer: "opaque-token", expires: nil) }, setup),
+            ("no account", token("eyJleHAiOjQxMDI0NDQ4MDB9"), setup),
+            ("expired token", token("eyJleHAiOjEsImh0dHBzOi8vYXBpLm9wZW5haS5jb20vYXV0aCI6eyJjaGF0Z3B0X2FjY291bnRfaWQiOiJhY2N0LWZpeHR1cmUifX0"), setup),
         ]
-        for (name, credential, signIn, expected) in cases {
+        for (name, signIn, expected) in cases {
             let fixture = try Fixture("normal")
-            do { _ = try await client(fixture, credential: credential, signIn: signIn).translate(source: source, locale: "fr", onUsage: { _, _, _ in }); XCTFail(name) }
-            catch { XCTAssertEqual(userFacingMessage(error, fallback: ""), userFacingMessage(expected, fallback: ""), name) }
+            do { _ = try await fixture.client(signIn: signIn).translate(source: source, locale: "fr", onUsage: { _, _, _ in }); XCTFail(name) }
+            catch {
+                XCTAssertEqual(userFacingMessage(error, fallback: ""), userFacingMessage(expected, fallback: ""), name)
+                XCTAssertFalse(String(describing: error).contains("opaque-token"), name)
+            }
             XCTAssertFalse(FileManager.default.fileExists(atPath: fixture.marker.path), "\(name): a child was started")
         }
         let cancelled = try Fixture("normal")
-        do { _ = try await client(cancelled) { throw CancellationError() }.accountStatus(); XCTFail("cancelled") }
+        do { _ = try await cancelled.client(signIn: { throw CancellationError() }).accountStatus(); XCTFail("cancelled") }
         catch { XCTAssertTrue(error is CancellationError, "\(error)") }
+        // The public initialiser gives automation no sign-in at all: a real account is never reached from a test.
+        do { _ = try await CodexSubscriptionClient(executable: cancelled.executable, automationAllowed: true).accountStatus(); XCTFail("automation signed in") }
+        catch { XCTAssertTrue(String(describing: error).contains("disabled during automation"), "\(error)") }
+        XCTAssertFalse(FileManager.default.fileExists(atPath: cancelled.marker.path))
     }
     func testLateUsageAndUnsupportedEstimates() async throws {
         for scenario in ["late", "unsupported", "estimateDisconnect", "estimateTimeout"] {
             let fixture = try Fixture(scenario), source = LessonTranslation.source(library: try CourseLibrary(), index: 0)
             // estimateTimeout waits out the estimate request, so it runs with a short request timeout of its own.
-            let client = scenario == "estimateTimeout" ? CodexSubscriptionClient(executable: fixture.executable, credentialURL: fixture.credential, automationAllowed: true, timeout: 3) : fixture.client
+            let client = scenario == "estimateTimeout" ? fixture.client(timeout: 3) : fixture.client
             let result = try await client.translate(source: source, locale: "fr", onUsage: { _, _, _ in })
             XCTAssertEqual(result.tokens?.total, 120)
             if scenario != "late" { XCTAssertNil(result.estimatedCredits); XCTAssertNil(result.estimatedUSD) }
@@ -207,7 +224,7 @@ final class CodexTranslationTests: XCTestCase {
             do { _ = try await fixture.client.translate(source: source, locale: "fr", onUsage: { _, _, _ in }); XCTFail("Forbidden flow succeeded") }
             catch {
                 let message = String(describing: error)
-                XCTAssertFalse(message.contains("fake.eyJleHAiOjQxMDI0NDQ4MDB9.signature"))
+                XCTAssertFalse(message.contains(fakeTranslationToken))
                 XCTAssertTrue(message.contains(scenario != "apiKey" ? "tool operation" : "ChatGPT"), message)
             }
             try await fixture.assertCleaned()
@@ -215,7 +232,7 @@ final class CodexTranslationTests: XCTestCase {
     }
     func testTimeoutAndCancellationReapChildAndPrivateAuth() async throws {
         let fixture = try Fixture("timeout")
-        let client = CodexSubscriptionClient(executable: fixture.executable, credentialURL: fixture.credential, automationAllowed: true, timeout: 0.2)
+        let client = fixture.client(timeout: 0.2)
         do { _ = try await client.accountStatus(); XCTFail("Timeout succeeded") } catch { }
         try await fixture.assertCleaned()
         let cancelling = try Fixture("cancel"), source = LessonTranslation.source(library: try CourseLibrary(), index: 0)
@@ -256,27 +273,6 @@ final class CodexTranslationTests: XCTestCase {
             catch { XCTAssertTrue(String(describing: error).contains("could not complete")) }
             try await fixture.assertCleaned()
         }
-    }
-    func testOpaqueAndWithinConfiguredTimeoutCredentialsFailClosed() async throws {
-        for token in ["opaque-token", "header." + Data("{\"exp\":\(Int(Date().timeIntervalSince1970)+400)}".utf8).base64EncodedString().replacingOccurrences(of: "=", with: "") + ".signature"] {
-            let fixture = try Fixture("normal")
-            let data = try JSONSerialization.data(withJSONObject: ["tokens": ["access_token": token, "refresh_token": "do-not-rotate"]])
-            try data.write(to: fixture.credential)
-            let client = CodexSubscriptionClient(executable: fixture.executable, credentialURL: fixture.credential, automationAllowed: true, timeout: 600)
-            do { _ = try await client.accountStatus(); XCTFail("Unsafe expiry succeeded") } catch { }
-            XCTAssertEqual(try Data(contentsOf: fixture.credential), data)
-            XCTAssertFalse(FileManager.default.fileExists(atPath: fixture.marker.path))
-        }
-    }
-    func testExpiredCredentialCannotLaunchOrRefreshRealSignIn() async throws {
-        let fixture = try Fixture("normal")
-        let payload = Data("{\"exp\":1}".utf8).base64EncodedString().replacingOccurrences(of: "=", with: "")
-        let data = try JSONSerialization.data(withJSONObject: ["tokens": ["access_token": "header." + payload + ".signature", "refresh_token": "do-not-rotate"]])
-        try data.write(to: fixture.credential)
-        do { _ = try await fixture.client.accountStatus(); XCTFail("Expired token succeeded") }
-        catch { XCTAssertEqual(userFacingMessage(error, fallback: ""), userFacingMessage(CodexSubscriptionClient.signInFailure(.expired), fallback: "")) }
-        XCTAssertEqual(try Data(contentsOf: fixture.credential), data)
-        XCTAssertFalse(FileManager.default.fileExists(atPath: fixture.marker.path))
     }
     func testAbandonedPrivateHomeIsRemovedAndActiveHomeKept() async throws {
         let root = FileManager.default.temporaryDirectory.resolvingSymlinksInPath()
