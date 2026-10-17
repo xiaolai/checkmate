@@ -9,8 +9,12 @@ final class UCIWorker:@unchecked Sendable {
     let executable:URL
     private let lifecycle=NSLock(),serial=NSLock()
     private var process:Process?,input:FileHandle?,output:FileHandle?,pending="",generation=0
+    /// The process whose launch and handshake are in progress. Its startup watchdog stops it even when a later search
+    /// has reserved a newer generation meanwhile, which would make `cancel(expected:)` a no-op and leave the handshake,
+    /// and every search waiting behind it, blocked.
+    private var starting:Process?
     private(set) var capabilities=EngineCapabilities()
-    init(executable:URL){self.executable=executable}
+    init(executable:URL,startupAllowance:TimeInterval=10){self.executable=executable;self.startupAllowance=startupAllowance}
     deinit{cancel()}
     func reserve()->Int {lifecycle.lock();defer{lifecycle.unlock()};generation+=1;return generation}
     private func isCurrent(_ epoch:Int)->Bool {lifecycle.lock();defer{lifecycle.unlock()};return epoch==generation}
@@ -21,11 +25,15 @@ final class UCIWorker:@unchecked Sendable {
         try startWithinAllowance(epoch:epoch);return capabilities
     }
     /// Launch and the UCI handshake (a cold start loads the network) get their own allowance, so a slow start
-    /// is never charged to a search's deadline.
-    private static let startupAllowance:TimeInterval=10
+    /// is never charged to a search's deadline. Ten seconds in the app; tests shorten it.
+    private let startupAllowance:TimeInterval
     private func startWithinAllowance(epoch:Int)throws {
-        let timeout=DispatchWorkItem{[weak self] in self?.cancel(expected:epoch)};DispatchQueue.global().asyncAfter(deadline:.now()+Self.startupAllowance,execute:timeout);defer{timeout.cancel()}
-        do{try start(epoch:epoch)}catch{cancel(expected:epoch);throw error}
+        let timeout=DispatchWorkItem{[weak self] in self?.cancel(expected:epoch);self?.stopStarting()};DispatchQueue.global().asyncAfter(deadline:.now()+startupAllowance,execute:timeout);defer{timeout.cancel()}
+        do{try start(epoch:epoch)}catch{cancel(expected:epoch);stopStarting();throw error}
+    }
+    private func stopStarting(){
+        lifecycle.lock();let process=starting;starting=nil;if self.process===process{self.process=nil};lifecycle.unlock()
+        guard let process,process.isRunning else{return};process.terminate();DispatchQueue.global().asyncAfter(deadline:.now()+0.3){if process.isRunning{kill(process.processIdentifier,SIGKILL)}}
     }
     private func send(_ command:String)throws {guard let input=input else{throw CheckmateError.unavailable("Engine pipe unavailable.")};try input.write(contentsOf:Data((command+"\n").utf8))}
     private func line()throws -> String {while true{if let end=pending.firstIndex(of:"\n"){let line=String(pending[..<end]).trimmingCharacters(in:.whitespacesAndNewlines);pending.removeSubrange(...end);return line};guard let data=output?.availableData,!data.isEmpty else{throw CheckmateError.unavailable("Engine stopped responding.")};pending+=String(decoding:data,as:UTF8.self);guard pending.count<2*1024*1024 else{throw CheckmateError.unavailable("Engine output limit exceeded.")}}}
@@ -35,13 +43,16 @@ final class UCIWorker:@unchecked Sendable {
         lifecycle.lock();let alive=process?.isRunning==true;lifecycle.unlock();if alive{return}
         pending="";capabilities=EngineCapabilities();let process=Process(),inPipe=Pipe(),outPipe=Pipe()
         process.executableURL=executable;process.currentDirectoryURL=executable.deletingLastPathComponent();process.environment=ProcessInfo.processInfo.environment.merging(EngineRuntimePolicy.environment){_,policy in policy};process.standardInput=inPipe;process.standardOutput=outPipe;process.standardError=FileHandle.nullDevice;signal(SIGPIPE,SIG_IGN)
-        try process.run();lifecycle.lock();guard generation==epoch else{lifecycle.unlock();process.terminate();throw CheckmateError.cancelled};self.process=process;lifecycle.unlock();input=inPipe.fileHandleForWriting;output=outPipe.fileHandleForReading
+        try process.run();lifecycle.lock();guard generation==epoch else{lifecycle.unlock();process.terminate();throw CheckmateError.cancelled};self.process=process;starting=process;lifecycle.unlock();input=inPipe.fileHandleForWriting;output=outPipe.fileHandleForReading
         try send("uci");try barrier("uciok");try send("isready");try barrier("readyok")
+        lifecycle.lock();if starting===process{starting=nil};lifecycle.unlock()
     }
     /// `limit` is a time in milliseconds or a node count (A5); the calibration nodes of a silent run replace either.
     func search(startFEN:String,moves:[String],finalFEN:String,profile:OpponentProfile,limit:EngineSearchLimit,multiPv:Int,searchMoves:[String],epoch:Int)throws -> EngineAnalysis {
         serial.lock();defer{serial.unlock()}
         guard isCurrent(epoch) else{throw CheckmateError.cancelled}
+        // The position command is one line: a line break in it would end the command early and stop Stockfish.
+        guard !(startFEN+finalFEN).contains(where:\.isNewline) else{throw CheckmateError.invalid("Invalid position.")}
         try startWithinAllowance(epoch:epoch)
         // A node search has no time of its own; ten seconds is far beyond any node count the app asks for.
         let budget:Int,go:String

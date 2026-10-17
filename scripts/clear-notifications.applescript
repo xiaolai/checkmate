@@ -13,6 +13,7 @@ tell application "System Events" to tell process "NotificationCenter"
 			-- The list is read first: iterating `entire contents` in place yields references that are not elements.
 			set elements to entire contents of window "Notification Center"
 			repeat with k in elements
+				-- An element without actions, or one gone since the list was read, is skipped; that is all this try allows.
 				try
 					set names to name of every action of (contents of k)
 					repeat with i from 1 to count of names
@@ -27,6 +28,11 @@ tell application "System Events" to tell process "NotificationCenter"
 				end try
 				if acted then exit repeat
 			end repeat
+		on error message number code
+			-- No assistive access (-1719, -25211) or no permission to control System Events (-1743) is a failure the
+			-- caller must see, not "dismissed 0": the error ends the script, so osascript exits non-zero and run-gates.py
+			-- prints its warning. Anything else is the window changing while it is read; the next pass reads it again.
+			if code is in {-1719, -25211, -1743} then error message number code
 		end try
 		if not acted then exit repeat
 		delay 1

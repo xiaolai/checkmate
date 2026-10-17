@@ -15,6 +15,13 @@ must appear in Tests/fairness-inventory.json as one of:
              practice session and the learner's agreed level for a network session, so no engine site can use it.
 A new call site, in a new function or as one more call in a listed one, fails until it is classified; so does an entry
 whose site is gone. The self-test copies the sources, adds unguarded calls to a listed file and requires failures.
+
+How the source is read: calls are found with whitespace allowed and through any receiver (`self.request(`,
+`e.prepare()`), and inside string interpolations, which Swift runs. Each declaration of a name is checked on its own,
+so one overload's guard never covers another's call. A check counts only when it is enforced: a discarded result
+(`_ = …`, a bare `try?`) is no check. An `await` before a call other than the call's own is a suspension during which
+participation can change, so a delegated or assisted call after one needs its check again after it. A voice entry's
+check must sit in the same `case` as its call, and no engine call may be listed voice.
 """
 import json
 import pathlib
@@ -27,8 +34,13 @@ if not __debug__:
     raise SystemExit("The fairness inventory needs Python assertions enabled.")
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-ENGINE_CALL = re.compile(r'\.analyze\(fen:|(?<!func )\banalyzeHistory\(startFEN:|\b\w*[Ee]ngine\)?\??\.prepare\(\)')
-VOICE_CALL = re.compile(r'(?<![.\w])(?<!func )request\(')
+ENGINE_CALL = re.compile(r'\.analyze\s*\(\s*fen\s*:|(?<!func )\banalyzeHistory\s*\(\s*startFEN\s*:|\.prepare\s*\(\s*\)')
+VOICE_CALL = re.compile(r'(?:(?<![.\w])|(?<=\bself\.))(?<!func )request\s*\(')
+AWAIT = re.compile(r'\bawait\b')
+# A `case` label starting a statement: a voice entry's check must sit in its call's own case (or before any).
+CASE = re.compile(r'(?:^|[;{\n])[ \t]*case\b')
+# What stands before a check that discards its result: `_ = …` or a bare `try?`, through any receiver chain.
+DISCARDED = re.compile(r'(_\s*=\s*(?:try[?!]?\s*)?|try\?\s*)(?:\w+\.)*$')
 CHECK = re.compile(r'fairness\.(?:engineHelpAllowed|requireEngineHelp\(\))')
 ASSIST_CHECK = re.compile(r'fairness\.requireNetworkHint\(\)')
 ASSIST_FILES = {'Sources/CheckmateApplication/NetworkAssistant.swift'}
@@ -38,10 +50,35 @@ DECLARATION = re.compile(r'\bfunc\s+(\w+)|\b(init)\s*[(<]|\bvar\s+(\w+)\s*:[^={\
 NO_BODY = re.compile(r'(?:func|var|let|init|case|struct|class|enum|extension)\b|\}')
 
 
+def string_end(text, i):
+    """(end, interpolations) of the one-line string literal opening at text[i]: each interpolation's code as a span."""
+    j, n, spans = i + 1, len(text), []
+    while j < n and text[j] != '\n':
+        if text.startswith('\\(', j):
+            k, depth = j + 2, 1
+            while k < n and depth and text[k] != '\n':
+                if text[k] == '"':
+                    k = string_end(text, k)[0]
+                    continue
+                depth += {'(': 1, ')': -1}.get(text[k], 0)
+                k += 1
+            spans.append((j + 2, k - 1))
+            j = k
+            continue
+        if text[j] == '\\':
+            j += 2
+            continue
+        if text[j] == '"':
+            return j + 1, spans
+        j += 1
+    return j + 1, spans
+
+
 def blank(text):
     """Comments and string literals become spaces of the same length (newlines kept), so offsets stay valid and nothing
-    inside a string or comment counts as code; interpolations are blanked with their string."""
+    inside a string or comment counts as code. An interpolation is code Swift runs, so it stays, itself blanked."""
     out, i, n = list(text), 0, len(text)
+    kept = []
 
     def clear(a, b):
         out[a:b] = [c if c == '\n' else ' ' for c in text[a:b]]
@@ -57,27 +94,15 @@ def blank(text):
             j = text.find('"""', i + 3)
             j = n if j < 0 else j + 3
         elif text[i] == '"':
-            j, depth = i + 1, 0
-            while j < n and text[j] != '\n':
-                if text.startswith('\\(', j):
-                    depth, j = depth + 1, j + 2
-                    continue
-                if text[j] == '\\':
-                    j += 2
-                    continue
-                if depth and text[j] == '(':
-                    depth += 1
-                elif depth and text[j] == ')':
-                    depth -= 1
-                elif text[j] == '"' and not depth:
-                    break
-                j += 1
-            j += 1
+            j, spans = string_end(text, i)
+            kept += spans
         else:
             i += 1
             continue
         clear(i, j)
         i = j
+    for a, b in kept:
+        out[a:b] = list(blank(text[a:b]))
     return ''.join(out)
 
 
@@ -119,24 +144,55 @@ def functions(code):
 
 
 def scan(root):
-    """({(file, function): [call offsets]}, {file: blanked code})."""
-    sites, codes = {}, {}
+    """({(file, function): [call offsets]}, {file: blanked code}, {(file, offset) of each engine call},
+    {(file, offset): the declaration's (name, body start, body end) it sits in})."""
+    sites, codes, engine, enclosing = {}, {}, set(), {}
     for path in sorted((root / 'Sources').rglob('*.swift')):
         relative = str(path.relative_to(root))
         code = codes[relative] = blank(path.read_text())
         calls = [m.start() for m in ENGINE_CALL.finditer(code)]
+        engine |= {(relative, offset) for offset in calls}
         if path.name == 'VoiceCoach.swift':
             calls += [m.start() for m in VOICE_CALL.finditer(code)]
         spans = functions(code)
         for offset in calls:
             inside = [span for span in spans if span[1] < offset < span[2]]
-            name = min(inside, key=lambda span: span[2] - span[1])[0] if inside else '<top level>'
-            sites.setdefault((relative, name), []).append(offset)
-    return sites, codes
+            span = min(inside, key=lambda span: span[2] - span[1]) if inside else ('<top level>', 0, len(code))
+            enclosing[(relative, offset)] = span
+            sites.setdefault((relative, span[0]), []).append(offset)
+    return sites, codes, engine, enclosing
+
+
+def enforced(pattern, code, a, b):
+    """Whether a check matching `pattern` in code[a:b] is enforced: its result is not discarded (`_ = …`), and a
+    `try?` is compared with nil, so a refusal stops the work."""
+    for match in pattern.finditer(code, a, b):
+        before = DISCARDED.search(code, max(0, match.start() - 60), match.start())
+        if before is None:
+            return True
+        if before.group(1).startswith('try?') and re.match(r'\s*\)\s*[!=]=\s*nil', code[match.end():]):
+            return True
+    return False
+
+
+def own_await(code, start, offset):
+    """Where the call at `offset` begins its own `await` (`try await engine.analyzeHistory(`): the last `await` before
+    it in the same statement. Every `await` before that one is an earlier suspension."""
+    own = offset
+    for match in AWAIT.finditer(code, start, offset):
+        if not re.search(r'[;{}\n]', code[match.end():offset]):
+            own = match.start()
+    return own
+
+
+def rechecked(pattern, code, start, offset):
+    """True unless an earlier suspension in the declaration precedes the call with no enforced check since it."""
+    earlier = [m.start() for m in AWAIT.finditer(code, start, own_await(code, start, offset))]
+    return not earlier or enforced(pattern, code, earlier[-1], offset)
 
 
 def check(root, inventory):
-    sites, codes = scan(root)
+    sites, codes, engine, enclosing = scan(root)
     entries = {(entry['file'], entry['function']): entry for entry in inventory['sites']}
     problems = []
     for key, offsets in sorted(sites.items()):
@@ -147,17 +203,21 @@ def check(root, inventory):
         if entry.get('calls') != len(offsets):
             problems.append(f'{key[0]} {key[1]}: {len(offsets)} call(s), the inventory lists {entry.get("calls")}')
         code, kind = codes[key[0]], entry.get('kind')
-        spans = [span for span in functions(code) if span[0] == key[1] and any(span[1] < o < span[2] for o in offsets)]
-        start = min((span[1] for span in spans), default=0)
+        # Each declaration of the name is checked on its own: one overload's guard never covers another's call.
+        declarations = {}
+        for offset in offsets:
+            declarations.setdefault(enclosing[(key[0], offset)], []).append(offset)
         if kind == 'guarded':
-            if not CHECK.search(code, start, min(offsets)):
-                problems.append(f'{key[0]} {key[1]} is listed guarded but does not check FairnessPolicy before its first call')
+            for (_, start, _), calls in declarations.items():
+                if not enforced(CHECK, code, start, min(calls)):
+                    problems.append(f'{key[0]} {key[1]} is listed guarded but does not check FairnessPolicy before its first call')
         elif kind == 'delegated':
             callers = entry.get('callers') or []
             if not callers:
                 problems.append(f'{key[0]} {key[1]} is delegated without callers')
             # How callers name the helper (BeginnerOpponent.choose), so an unrelated function of the same name never counts.
-            pattern = re.compile(entry.get('callPattern') or r'(?<![\w.])' + re.escape(key[1]) + r'\(')
+            # `self.helper(` and `Self.helper(` are calls too; any other receiver names another type's method.
+            pattern = re.compile(entry.get('callPattern') or r'(?:(?<![\w.])|(?<=\bself\.)|(?<=\bSelf\.))' + re.escape(key[1]) + r'\s*\(')
             # Each listed caller is guarded in its own right: it calls the helper and checks the policy before that.
             for caller in callers:
                 caller_code = codes.get(caller['file'], '')
@@ -165,7 +225,7 @@ def check(root, inventory):
                          for m in pattern.finditer(caller_code[s[1]:s[2]])]
                 if not calls:
                     problems.append(f'{key[0]} {key[1]}: listed caller {caller["file"]} {caller["function"]} does not call it')
-                elif not all(CHECK.search(caller_code, body, call) for body, call in calls):
+                elif not all(enforced(CHECK, caller_code, body, call) for body, call in calls):
                     problems.append(f'{key[0]} {key[1]}: listed caller {caller["file"]} {caller["function"]} does not check FairnessPolicy before calling it')
             # Every function that calls the helper must be a listed caller.
             listed = {(c['file'], c['function']) for c in callers}
@@ -174,10 +234,9 @@ def check(root, inventory):
                     if (file, s[0]) != key and pattern.search(other[s[1]:s[2]]) and (file, s[0]) not in listed:
                         if not any(span[1] < s[1] and s[2] < span[2] and (file, span[0]) in listed for span in functions(other)):
                             problems.append(f'{key[0]} {key[1]}: {file} {s[0]} calls it but is not a listed caller')
-            # The await that belongs to a call sits just before it; an earlier one means work already ran meanwhile.
-            for offset in offsets:
-                earlier = [m.start() for m in re.finditer(r'\bawait\b', code[start:offset - 40])]
-                if earlier and not CHECK.search(code, start + earlier[-1], offset):
+            # The await that belongs to a call is its own; an earlier one means work already ran meanwhile.
+            for (_, start, _), calls in declarations.items():
+                if not all(rechecked(CHECK, code, start, offset) for offset in calls):
                     problems.append(f'{key[0]} {key[1]}: a call after an earlier await has no FairnessPolicy check before it')
         elif kind == 'assisted':
             if key[0] not in ASSIST_FILES:
@@ -185,18 +244,27 @@ def check(root, inventory):
             elif not (entry.get('reason') or '').strip():
                 problems.append(f'{key[0]} {key[1]} is assisted without a reason')
             else:
-                end = max(span[2] for span in spans)
-                if not ASSIST_CHECK.search(code, start, min(offsets)):
-                    problems.append(f'{key[0]} {key[1]} is listed assisted but does not check requireNetworkHint before its first call')
-                if not ASSIST_CHECK.search(code, max(offsets), end):
-                    problems.append(f'{key[0]} {key[1]} is listed assisted but does not check requireNetworkHint again after its last call')
+                for (_, start, end), calls in declarations.items():
+                    if not enforced(ASSIST_CHECK, code, start, min(calls)):
+                        problems.append(f'{key[0]} {key[1]} is listed assisted but does not check requireNetworkHint before its first call')
+                    if not all(rechecked(ASSIST_CHECK, code, start, offset) for offset in calls):
+                        problems.append(f'{key[0]} {key[1]}: an assisted call after an earlier await has no requireNetworkHint check before it')
+                    if not enforced(ASSIST_CHECK, code, max(calls), end):
+                        problems.append(f'{key[0]} {key[1]} is listed assisted but does not check requireNetworkHint again after its last call')
         elif kind == 'voice':
             if key[0] not in VOICE_FILES:
                 problems.append(f'{key[0]} {key[1]} is listed voice, which only the voice coach may be')
             elif not (entry.get('reason') or '').strip():
                 problems.append(f'{key[0]} {key[1]} is voice without a reason')
-            elif not VOICE_CHECK.search(code, start, min(offsets)):
-                problems.append(f'{key[0]} {key[1]} is listed voice but does not check voiceAllowed before its first call')
+            elif any((key[0], offset) in engine for offset in offsets):
+                problems.append(f'{key[0]} {key[1]} is listed voice but makes an engine call, which the voice check cannot cover')
+            else:
+                for (_, start, _), calls in declarations.items():
+                    for offset in calls:
+                        cases = [m.end() for m in CASE.finditer(code, start, offset)]
+                        if not enforced(VOICE_CHECK, code, cases[-1] if cases else start, offset):
+                            problems.append(f'{key[0]} {key[1]} is listed voice but does not check voiceAllowed before a call, in its own case')
+                            break
         elif kind == 'exempt':
             if not (entry.get('reason') or '').strip():
                 problems.append(f'{key[0]} {key[1]} is exempt without a reason')
@@ -257,6 +325,54 @@ def self_test(inventory):
             if entry['function'] == 'chooseOpponentMove':
                 entry.update(kind='voice', reason='sneaking practice through the voice check')
         assert any('only the voice coach' in p for p in check(fixture, widened)), 'an engine site listed voice passed'
+        # An engine call inside a voice entry cannot pass on the voice check.
+        recheck_call = 'public func recheck(){guard session.fairness.voiceAllowed(network:networkSession) else{return};'
+        coach.write_text(voice.replace(recheck_call, recheck_call + '_ = try? await session.engine?.analyze(fen:"",skill:20,budget:100,multiPv:1);', 1))
+        widened = json.loads(json.dumps(inventory))
+        for entry in widened['sites']:
+            if entry['file'].endswith('VoiceCoach.swift') and entry['function'] == 'recheck':
+                entry['calls'] += 1
+        assert any('makes an engine call' in p for p in check(fixture, widened)), 'an engine call inside a voice entry passed'
+        # A voice check in another case does not cover a call; each case checks for its own.
+        committed = 'if session.fairness.voiceAllowed(network:networkSession){if ownMove{request('
+        assert committed in voice, 'the fixture marker moved; update the self-test'
+        coach.write_text(voice.replace(committed, 'if true{if ownMove{request(', 1))
+        assert any('in its own case' in p for p in check(fixture, inventory)), 'a voice call relying on another case\'s check passed'
+        coach.write_text(voice)
+        # A discarded check is no check: `_ = try?` refuses nothing.
+        assistant.write_text(hint.replace(after, '_ = try? self.fairness.requireNetworkHint()', 1))
+        assert any('again after its last call' in p for p in check(fixture, inventory)), 'a discarded re-check passed'
+        # A suspension before the search needs the check again after it, in the assistant and in a delegated helper.
+        search = 'let analysis=try await engine.analyzeHistory('
+        assert search in hint, 'the fixture marker moved; update the self-test'
+        assistant.write_text(hint.replace(search, 'await Task.yield();' + search, 1))
+        assert any('assisted call after an earlier await' in p for p in check(fixture, inventory)), 'an assisted call after a suspension passed'
+        assistant.write_text(hint)
+        helper = '{try await e.analyzeHistory(startFEN:'
+        assert helper in original, 'the fixture marker moved; update the self-test'
+        session.write_text(original.replace(helper, '{await Task.yield();try await e.analyzeHistory(startFEN:', 1))
+        assert any('after an earlier await' in p for p in check(fixture, inventory)), 'a suspension just before a delegated call passed'
+        session.write_text(original)
+        # Calls spelled with spaces, through another receiver, or inside an interpolation are calls; so is self.helper(.
+        for name, body in [('sneakySpacing', '_ = try await engine?.analyzeHistory( startFEN:"",moves:[],profile:.skill(20),budget:100,multiPv:1)'),
+                           ('sneakyAlias', 'let e=engine!;try await e.prepare()'),
+                           ('sneakyInterpolation', 'print("\\(try await engine!.analyze(fen:"",skill:20,budget:100,multiPv:1))")')]:
+            session.write_text(original + f'\nextension GameSession {{func {name}()async throws {{{body}}}}}\n')
+            assert any(name in p for p in check(fixture, inventory)), f'{name}: an unlisted call passed'
+        session.write_text(original + '\nextension GameSession {func sneakyHelper()async throws {_ = try await self.analyzeGame(engine!,budget:100,multiPv:1)}}\n')
+        assert any('sneakyHelper calls it but is not a listed caller' in p for p in check(fixture, inventory)), 'a self.helper( caller passed'
+        session.write_text(original)
+        coach.write_text(voice + '\nextension VoiceCoach {func sneakyTurn(){self.request("Say anything",user:false)}}\n')
+        assert any('sneakyTurn' in p for p in check(fixture, inventory)), 'a self.request( call passed'
+        coach.write_text(voice)
+        # One declaration's guard never covers another's call: an unguarded overload fails even when the count matches.
+        assistant.write_text(hint + '\nextension NetworkAssistant {func start(_ quiet:Int)async throws {_ = try await engine?.analyzeHistory(startFEN:"",moves:[],profile:.skill(20),budget:100,multiPv:1)}}\n')
+        widened = json.loads(json.dumps(inventory))
+        for entry in widened['sites']:
+            if entry['file'].endswith('NetworkAssistant.swift') and entry['function'] == 'start':
+                entry['calls'] += 1
+        assert any('before its first call' in p for p in check(fixture, widened)), 'an unguarded overload passed on another declaration\'s guard'
+        assistant.write_text(hint)
 
 
 if __name__ == '__main__':

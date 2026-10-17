@@ -118,9 +118,11 @@ final class BoardTitleView:NSView {
     private func observeModel(){
         model.objectWillChange.sink{[weak self] _ in DispatchQueue.main.async{self?.refresh()}}.store(in:&observations)
         model.network.objectWillChange.sink{[weak self] _ in DispatchQueue.main.async{self?.refresh()}}.store(in:&observations)
-        // The agreed hint's arrow follows the assistant (assistance plan A6), and the inspector follows the agreed level.
+        // The agreed hint's arrow follows the assistant (assistance plan A6). The inspector follows the agreed level
+        // through the model, which redraws on every participation change.
         model.networkAssistant.objectWillChange.sink{[weak self] _ in DispatchQueue.main.async{self?.refresh()}}.store(in:&observations)
-        model.fairness.participation.objectWillChange.sink{[weak self] _ in DispatchQueue.main.async{self?.refresh()}}.store(in:&observations)
+        // The squares the network game's coach is speaking about (A10) light up as it speaks, and go when it stops.
+        model.voice.$networkFocus.removeDuplicates().dropFirst().receive(on:RunLoop.main).sink{[weak self] _ in self?.refresh()}.store(in:&observations)
         // VoiceOver hears the network game's moves, offers, result and clocks (LAN-play plan D10).
         model.network.announce={[weak self] text in self?.announce(text)}
         // D11: the permission help appears only on the two denial signals, and goes once access comes back.
@@ -203,7 +205,8 @@ final class BoardTitleView:NSView {
         if model.review.active{if let from=model.review.selected,model.review.displayRules?.moves(from).contains(where:{$0.to==sq && $0.promotion != nil})==true{let shown=reviewPromotionKey;showPromotionMenu(at:sq,action:#selector(promoteReview(_:))){[sq,$0,from,shown]};return};do{try model.review.selectSquare(sq)}catch{showError(error)};refresh();return}
 
         let s=model.session
-        // The network game takes its own input (LAN-play plan D9): no practice, lesson or relationship handling.
+        // The network game takes its own input (LAN-play plan D9): no practice or lesson handling, and the piece
+        // inspector only at the level both players agreed (assistance plan A1).
         if s.mode == .network {
             let game=model.network
             // Board insight (assistance plan A1): while inspecting, a click picks the piece to inspect, except a dot of
@@ -358,6 +361,8 @@ playbackLineView?.isHidden=model.reviewWorkspace
         if let pending=game.pending{p.highlights.append(Highlight(sq:pending.to,kind:"target"))}
         // The agreed hint (assistance plan A6), on the learner's own board only: an arrow from the piece to its square.
         if let hint=model.networkAssistant.hint{p.arrows=[[hint.from,hint.to]];p.highlights.append(Highlight(sq:hint.from,kind:"focus"))}
+        // The coach's segment being spoken, on the learner's own board (A10).
+        p.highlights += model.voice.networkFocus.map{Highlight(sq:$0,kind:"focus")}
         return p
     }
     /// An exercise shows only what the learner did: no legal-move dots or hidden answers, except a hint asked for.

@@ -25,6 +25,7 @@ import hashlib
 import json
 import os
 import pathlib
+import shlex
 import shutil
 import subprocess
 import sys
@@ -110,10 +111,18 @@ def lan_pair():
             built = subprocess.run(['xcrun', 'swiftc', str(ROOT / 'Tools/host-access.swift'), '-o', str(probe)], capture_output=True, text=True)
             if built.returncode != 0:
                 return f'could not build the access check for the LAN pair: {built.stderr.strip()[:300]}'
-            remote = '/tmp/checkmate-host-access'
-            if subprocess.run(['scp', '-q', '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=5', str(probe), f'{_pair()}:{remote}'], capture_output=True, timeout=120).returncode != 0:
-                return 'could not copy the access check to the LAN pair'
-            access = _on_pair(remote)
+            # A private folder of its own on the pair (mktemp -d is 0700), never a shared, predictable /tmp path.
+            made = _on_pair('mktemp -d /tmp/checkmate-host-access.XXXXXX')
+            if made.returncode != 0 or not made.stdout.strip():
+                return 'could not make a folder for the access check on the LAN pair'
+            folder = made.stdout.strip()
+            remote = f'{folder}/host-access'
+            try:
+                if subprocess.run(['scp', '-q', '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=5', str(probe), f'{_pair()}:{shlex.quote(remote)}'], capture_output=True, timeout=120).returncode != 0:
+                    return 'could not copy the access check to the LAN pair'
+                access = _on_pair(shlex.quote(remote))
+            finally:
+                _on_pair(f'rm -rf {shlex.quote(folder)}')
         finally:
             shutil.rmtree(probe.parent, ignore_errors=True)
     except subprocess.TimeoutExpired:
@@ -287,10 +296,15 @@ def crashes(reports: set, uuids: set) -> list:
     return found
 
 
-def attribute(windows: list, found: list) -> dict:
-    """Each crash goes to the last gate that had started when it happened: the gate whose apps were running."""
+def attribute(windows: list, found: list, since: float = None) -> dict:
+    """Each crash goes to the last gate that had started when it happened: the gate whose apps were running; one before
+    any gate began (the run's own build) goes to the first. A report captured before the run itself began (`since`) is
+    an earlier run's, written late by ReportCrash, and is not this run's to blame: it is printed and set aside."""
     blamed = {}
     for captured, report in found:
+        if since is not None and captured < since:
+            print(f'Ignoring {report.name}: captured before this run began, so an earlier run\'s crash', flush=True)
+            continue
         started = [name for name, began, _ in windows if began <= captured]
         blamed.setdefault(started[-1] if started else windows[0][0], []).append(report.name)
     return blamed
@@ -300,15 +314,35 @@ def clear_notifications() -> None:
     """Dismisses Notification Center's alerts before a gate, so a banner cannot cover a pointer click. The `intel` gate's
     Rosetta launch makes macOS post one ("App Update Required") that sat over later gates' controls. A failure to
     clear is printed, never hidden; the pointer helper still refuses a covered click, so it cannot pass quietly."""
-    completed = subprocess.run(['osascript', str(ROOT / 'scripts/clear-notifications.applescript')], capture_output=True, text=True, timeout=60)
+    try:
+        completed = subprocess.run(['osascript', str(ROOT / 'scripts/clear-notifications.applescript')], capture_output=True, text=True, timeout=60)
+    except (subprocess.TimeoutExpired, OSError) as failure:
+        print(f'WARNING: could not clear Notification Center: {failure}', flush=True)
+        return
     if completed.returncode != 0:
         print(f'WARNING: could not clear Notification Center: {completed.stderr.strip()}', flush=True)
     elif completed.stdout.strip() != 'dismissed 0':
         print(f'Notification Center: {completed.stdout.strip()}', flush=True)
 
 
+def late_crashes(windows: list, seen: set, uuids: set, since: float) -> bool:
+    """After the last gate that ran, waits out ReportCrash's delay and fails every gate whose app crashed with a report
+    that arrived late, clearing its pass from the ledger. Runs however the run ends, so a later gate's failure cannot
+    leave an earlier gate recorded as passed over a crash. True when there was one."""
+    if not windows:
+        return False
+    time.sleep(max(0.0, windows[-1][2] + CRASH_SETTLE_SECONDS - time.time()))
+    late = attribute(windows, crashes(crash_reports() - seen, uuids | built_uuids()), since)
+    if late:
+        update_ledger({name: None for name in late})
+        for name, reports in late.items():
+            print(f"FAILED {name}: an app crashed and its report arrived after the gate passed: {', '.join(reports)}", flush=True)
+    return bool(late)
+
+
 def run(names: list, full: bool = False) -> int:
     test_host.require("acceptance gates")
+    run_began = time.time()
     evidence = pathlib.Path(os.environ.get('CHECKMATE_EVIDENCE_DIR') or tempfile.mkdtemp(prefix='checkmate-gates.', dir='/tmp'))
     evidence.mkdir(parents=True, exist_ok=True)
     environment = {**os.environ, 'CHECKMATE_EVIDENCE_DIR': str(evidence)}
@@ -350,7 +384,7 @@ def run(names: list, full: bool = False) -> int:
         shutil.rmtree(scratch, ignore_errors=True)
         uuids |= built_uuids()
         fresh = crash_reports() - seen_reports
-        blamed, seen_reports = attribute(windows, crashes(fresh, uuids)), seen_reports | fresh
+        blamed, seen_reports = attribute(windows, crashes(fresh, uuids), run_began), seen_reports | fresh
         try:
             assert completed.returncode == 0, f'exit {completed.returncode}'
             assert not blamed, 'an app crashed: ' + '; '.join(f"during {source}: {', '.join(reports)}" for source, reports in blamed.items())
@@ -362,15 +396,11 @@ def run(names: list, full: bool = False) -> int:
         except (AssertionError, FileNotFoundError, json.JSONDecodeError) as failure:
             update_ledger({name: None, **{source: None for source in blamed}})
             print(f'FAILED {name} after {seconds:.0f}s: {failure}', flush=True)
+            late_crashes(windows, seen_reports, uuids, run_began)
             return 1
         update_ledger({name: {'inputs': before, 'definition': definitions[name], 'passedAt': time.time(), 'evidence': str(evidence), 'full': False}})
         print(f'PASSED {name} in {seconds:.0f}s', flush=True)
-    time.sleep(max(0.0, windows[-1][2] + CRASH_SETTLE_SECONDS - time.time()) if windows else 0.0)
-    late = attribute(windows, crashes(crash_reports() - seen_reports, uuids | built_uuids()))
-    if late:
-        update_ledger({name: None for name in late})
-        for name, reports in late.items():
-            print(f"FAILED {name}: an app crashed and its report arrived after the gate passed: {', '.join(reports)}", flush=True)
+    if late_crashes(windows, seen_reports, uuids, run_began):
         return 1
     if full:
         subprocess.run([sys.executable, str(ROOT / 'scripts/aggregate-evidence.py'), str(evidence)], cwd=ROOT, check=True)

@@ -40,9 +40,29 @@ final class NetworkGameRecordTests:XCTestCase {
         let record=NetworkGameRecord.reviewPGN(assisted,on:day,calendar:utc)
         XCTAssertTrue(record.contains("[TimeControl \"600+5\"]\n[Assistance \"White: Hints on request; Black: Off\"]\n[Termination \"Checkmate\"]"),record)
         XCTAssertTrue(record.hasSuffix("1. e4 {Hint shown} e5 2. Qh5 Nc6 3. Bc4 {Hint shown} Nf6 4. Qxf7# {Hint shown} 1-0"),record)
-        let documents=try PGNImporter.parse(Data(record.utf8))
-        XCTAssertEqual(documents.count,1);XCTAssertEqual(documents.first?.mainline.count,7,"the comments are not moves")
+        let documents=try PGNImporter.parse(Data(record.utf8)),document=try XCTUnwrap(documents.first)
+        XCTAssertEqual(documents.count,1);XCTAssertEqual(document.mainline.count,7,"the comments are not moves")
+        for (index,node) in document.mainline.enumerated() {XCTAssertEqual(document.nodes[node].commentsAfter,[1,5,7].contains(index+1) ? ["Hint shown"]:[],"ply \(index+1)")}
         XCTAssertFalse(NetworkGameRecord.reviewPGN(game(pgn:"1. d4 d5",outcome:nil),on:day,calendar:utc).contains("Assistance"),"no header without assistance")
+    }
+    /// A peer's record is any PGN the rules replay, comments and variations included (chess.js keeps comments when it
+    /// exports): only moves count as plies, so a comment after Black's assisted move lands after that move, not inside
+    /// another comment.
+    func testOnlyMovesCountAsPliesInAPeersRecord()throws {
+        var commented=game(pgn:"1. e4 {note here} e5 (1... c5 {a variation} 2. Nf3) 2. Nf3 $1 ; to the end of the line\nNc6 *",outcome:nil)
+        commented.assistedPlies=[2,4]
+        let record=NetworkGameRecord.reviewPGN(commented,on:day,calendar:utc)
+        XCTAssertTrue(record.hasSuffix("1. e4 e5 {Hint shown} 2. Nf3 Nc6 {Hint shown} *"),record)
+        let document=try XCTUnwrap(PGNImporter.parse(Data(record.utf8)).first)
+        XCTAssertEqual(document.mainline.map{document.nodes[$0].san},["e4","e5","Nf3","Nc6"]);XCTAssertEqual(document.nodes[document.mainline[1]].commentsAfter,["Hint shown"])
+    }
+    /// A record that starts from a set-up position keeps it, so Review replays its moves from there.
+    func testASetUpStartIsKept()throws {
+        let fen="4k3/8/8/8/8/8/4P3/4K3 w - - 0 1"
+        let record=NetworkGameRecord.reviewPGN(game(pgn:"[SetUp \"1\"]\n[FEN \"\(fen)\"]\n\n1. e4 Kd7 *",outcome:nil),on:day,calendar:utc)
+        XCTAssertTrue(record.contains("[SetUp \"1\"]\n[FEN \"\(fen)\"]"),record)
+        let document=try XCTUnwrap(PGNImporter.parse(Data(record.utf8)).first)
+        XCTAssertEqual(document.mainline.map{document.nodes[$0].san},["e4","Kd7"])
     }
     /// The crash file round-trips, names the other player, is private to the user, and an unreadable one is removed.
     func testTheCrashFileHoldsThePublicRecordOnly()throws {

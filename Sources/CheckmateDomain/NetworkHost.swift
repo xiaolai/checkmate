@@ -135,6 +135,9 @@ public final class NetworkHost:CustomReflectable {
         var pings:[(nonce:NetworkID,sentAt:NetworkInstant)]=[]
         var inbound=NetworkRateWindow()
         var closeWhenFlushed=false
+        /// The record changed in a way no message carries (the guest's name) while a snapshot was already on its way:
+        /// another follows it.
+        var snapshotStale=false
     }
     private enum Origin {case host,guest(NetworkConnectionID,commandID:NetworkID)}
     /// `runEpoch` is made once per app launch; `gameID` is the one published in both TXT records.
@@ -246,7 +249,7 @@ public final class NetworkHost:CustomReflectable {
         if phase == .reserved,let deadline=reservationDeadline,now>=deadline {
             // No ack within 30 s: the reservation lapses and the seat is free. Only possible before any move.
             if let connection=seat?.connection {detach(connection,.timeout)}
-            seat=nil;guestName=nil;reservationDeadline=nil;phase = .waiting
+            seat=nil;guestName=nil;reservationDeadline=nil;phase = .waiting;try refreshSpectators()
         }
         if phase == .disconnected,!holdExpired,let deadline=holdDeadline,now>=deadline {holdExpired=true}
         if let due=nextPing,now>=due {
@@ -326,7 +329,7 @@ public final class NetworkHost:CustomReflectable {
             switch phase {
             case .waiting:
                 seat=Seat(claimID:claimID,credential:.random(using:random),gameID:gameID,epoch:runEpoch)
-                guestName=name;reservationDeadline=now+NetworkLimits.reservationDuration;phase = .reserved
+                guestName=name;reservationDeadline=now+NetworkLimits.reservationDuration;phase = .reserved;try refreshSpectators()
                 try attachGuest(id);try sendSeated(id)
             case .reserved where seat?.claimID.matches(claimID)==true:try attachGuest(id);try sendSeated(id)
             case .reserved,.running,.disconnected:try close(id,.seatTaken)
@@ -521,8 +524,14 @@ public final class NetworkHost:CustomReflectable {
         guard a.clocks?.active == b.clocks?.active else{return false}
         var a=a,b=b;a.clocks=nil;b.clocks=nil;return a==b
     }
+    /// Spectators learn a guest's name only from a snapshot, as no other message names anyone: each gets a fresh one
+    /// when the guest's name changes (a seat reserved, a reservation lapsed), after any snapshot already on its way.
+    private func refreshSpectators()throws {
+        for id in spectators {if peers[id]!.outbox.snapshotPending {peers[id]!.snapshotStale=true}else{try requestSnapshot(id)}}
+    }
     private func pump(_ id:NetworkConnectionID)throws {
         guard peers[id] != nil else{return}
+        if peers[id]!.snapshotStale,!peers[id]!.outbox.snapshotPending {peers[id]!.snapshotStale=false;try requestSnapshot(id);return}
         defer{releaseIdleCapture()}
         if let message=try peers[id]!.outbox.next() {
             // A snapshot part is only made when it is sent, so its bytes meet both budgets here (D7).

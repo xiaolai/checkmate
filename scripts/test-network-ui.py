@@ -39,13 +39,27 @@ def step(name):
     results["steps"].append({"step": name, "at": round(time.monotonic() - started, 2)})
 
 
-def inspect(instance, square):
+def inspect(instance, square, expected):
     """Selects a piece with a real click and presses P with the board focused: the square's VoiceOver label then says
-    what protects it, if the inspector opened (assistance plan A1)."""
+    what protects it, if the inspector opened (assistance plan A1). `expected`: the inspector must open, polled until
+    it does; otherwise it must stay shut over a bounded watch, every read a real read of the square (never an empty
+    label from a failed read, which would also contain no "protected by")."""
     instance.square(square)
     instance.run("pointer-helper", "key", KEY_P)
-    time.sleep(0.5)
-    return instance.label(square)
+    if expected:
+        return wait_for(lambda: (lambda text: text if "protected by" in text else None)(instance.read_label(square)), f"P did not show what protects {square} on {instance.name}")
+    for _ in range(4):
+        time.sleep(0.5)
+        label = instance.read_label(square)
+        assert "protected by" not in label, f"P inspected {square} on {instance.name}, which has no board insight: {label}"
+    return label
+
+
+def shut(instance, square, message):
+    """The inspector stays shut on `square`: real reads over a bounded watch, as `inspect` checks."""
+    for _ in range(4):
+        time.sleep(0.5)
+        assert "protected by" not in instance.read_label(square), message
 
 
 def suggested(instance):
@@ -60,10 +74,13 @@ def suggested(instance):
 instances, failure = [], None
 try:
     loopback = {"CHECKMATE_NETWORK_LOOPBACK_DIR": shared}
+    # Each instance is registered for cleanup as soon as it starts, so one that fails to start leaves none running.
     host = Instance("host", evidence, helpers, environment=loopback)
+    instances.append(host)
     guest = Instance("guest", evidence, helpers, environment=loopback, arguments=["--dark-appearance"])
+    instances.append(guest)
     watcher = Instance("spectator", evidence, helpers, environment=loopback)
-    instances = [host, guest, watcher]
+    instances.append(watcher)
     for instance in instances:
         open_network(instance)
     step("three lobbies open")
@@ -114,6 +131,8 @@ try:
     host.capture("guest-away")
     wait(lambda: guest.shows("network-status") and not guest.shows("Reconnecting to"), "the guest never came back from the disconnect", 40)
     wait(lambda: host.shows("Your move."), "the host never saw the guest return", 20)
+    # A game without assistance offers no Hint on a player's own move, where the turn would otherwise show one.
+    assert not host.shows("network-hint-button"), "the host was offered a hint on its move in a game without assistance"
     step("dropped and resumed")
     host.square("g1")
     host.square("f3")
@@ -121,10 +140,11 @@ try:
         wait(lambda instance=instance: instance.label("f3").startswith("f3, White, knight"), f"{instance.name} never showed 2. Nf3")
     step("play continued after resuming")
 
-    # Assistance plan A1 and A12 in a game without assistance: no Hint button, and P inspects nothing.
-    assert not host.shows("network-hint-button") and not host.shows("network-terms"), "a game without assistance offered help"
-    label = inspect(guest, "d7")
-    assert "protected by" not in label, f"P inspected a piece in a game without assistance: {label}"
+    # Assistance plan A1 and A12 in a game without assistance, on the guest's own move: no Hint button, no voice
+    # coach, and P inspects nothing.
+    assert not guest.shows("network-hint-button") and not host.shows("network-terms"), "a game without assistance offered help"
+    assert not any(instance.shows("network-voice-connect") for instance in instances), "a game without assistance offered the voice coach"
+    inspect(guest, "d7", expected=False)
     guest.run("pointer-helper", "key", KEY_ESCAPE)
     step("no assistance: no Hint and no inspector")
 
@@ -173,8 +193,9 @@ try:
 
     # Hints on request for both (A3, A6, A7, A12): a light host, a dark guest.
     host = Instance("assisted-host", evidence, helpers, environment=loopback)
+    instances.append(host)
     guest = Instance("assisted-guest", evidence, helpers, environment=loopback, arguments=["--dark-appearance"])
-    instances = [host, guest]
+    instances.append(guest)
     for instance in instances:
         open_network(instance)
     play_code, _ = host_game(host, "Dee", assistance="Hints on request")
@@ -197,6 +218,10 @@ try:
     guest.click("network-accept-assistance")
     wait(lambda: host.shows("Eve") and guest.shows("network-terms"), "accepting did not join the game", 30)
     assert host.shows("Assistance: hints on request for both players."), "the host did not show the terms"
+    # Hints on request allow the voice coach (A10): each player is offered it. Connecting needs live credentials, so
+    # the gate checks the control is offered, not a session.
+    for instance in instances:
+        wait(lambda instance=instance: instance.shows("network-voice-connect"), f"{instance.name} was not offered the voice coach at hints on request")
     step("assistance accepted")
 
     host.square("e2")
@@ -215,11 +240,11 @@ try:
     wait(lambda: guest.shows("Hints used: Dee 0 · Eve 1") and suggested(guest) is None, "the guest's board kept the hint after the move")
     step("the hinted move was counted")
 
-    label = inspect(host, "d2")
-    assert "protected by" in label, f"P did not show what protects d2: {label}"
+    inspect(host, "d2", expected=True)
     host.capture("inspector-light")
     host.run("pointer-helper", "key", KEY_ESCAPE)
-    wait(lambda: "protected by" not in host.label("d2"), "Escape did not dismiss the inspector")
+    wait(lambda: "protected by" not in host.read_label("d2"), "Escape did not dismiss the inspector")
+    shut(host, "d2", "the inspector came back after Escape")
     step("P showed protection on the network board")
     for instance in instances:
         instance.stop()
@@ -227,8 +252,9 @@ try:
 
     # A handicap (A2, A12): White gets hints, Black none; both see it called a handicap.
     host = Instance("handicap-host", evidence, helpers, environment=loopback)
+    instances.append(host)
     guest = Instance("handicap-guest", evidence, helpers, environment=loopback)
-    instances = [host, guest]
+    instances.append(guest)
     for instance in instances:
         open_network(instance)
     play_code, _ = host_game(host, "Fay", handicap=("Hints on request", "Off"))
@@ -237,7 +263,7 @@ try:
     # The earlier phases' hosts were stopped by a signal: their games went with them, as a Bonjour one would.
     stale = [title for title in ("Ana's game", "Dee's game") if game_row(guest, title)]
     assert not stale, f"a stopped instance's game is still listed: {stale}"
-    join(guest, "Fay's game", "Gil", play_code, accept=True)
+    join(guest, "Fay's game", "Gil", play_code, accept="Handicap: White gets hints on request, Black gets no help.")
     wait(lambda: host.shows("Gil") and guest.shows("network-terms"), "the handicap game did not start", 30)
     for instance in instances:
         assert instance.shows("Handicap:"), f"{instance.name} did not call the terms a handicap"
@@ -247,8 +273,8 @@ try:
     host.square("e4")
     wait(lambda: guest.label("e4").startswith("e4, White, pawn"), "the guest never showed 1. e4")
     assert not guest.shows("network-hint-button"), "Black, without help, was offered a hint"
-    label = inspect(guest, "d7")
-    assert "protected by" not in label, f"P inspected for the side without help: {label}"
+    assert not guest.shows("network-voice-connect"), "Black, without help, was offered the voice coach"
+    inspect(guest, "d7", expected=False)
     guest.capture("handicap-guest")
     step("handicap shown on both; the side without help gets none")
     results["passed"] = True

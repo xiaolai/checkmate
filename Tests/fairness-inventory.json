@@ -29,6 +29,8 @@
    "reason": "The protocol's own defaults: they forward to the conforming engine's analyzeHistory; each caller is classified where it calls."},
   {"file": "Sources/CheckmateEngine/Engine.swift", "function": "analyze", "calls": 1, "kind": "exempt",
    "reason": "The engine's own implementation: analyze(fen:) forwards to its analyzeHistory; each caller is classified where it calls."},
+  {"file": "Sources/CheckmateEngine/Engine.swift", "function": "prepare", "calls": 1, "kind": "exempt",
+   "reason": "The engine's own implementation: prepare() starts its UCI worker and reads its capabilities; no search runs on any position, and each caller is classified where it calls."},
   {"file": "Sources/CheckmateNative/App.swift", "function": "applicationDidFinishLaunching", "calls": 1, "kind": "exempt",
    "reason": "--package-check: the packaged-engine check runs before any session exists, then quits."},
   {"file": "Sources/CheckmateNative/App.swift", "function": "runReviewBatchScenario", "calls": 1, "kind": "exempt",

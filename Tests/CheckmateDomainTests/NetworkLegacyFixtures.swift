@@ -52,6 +52,25 @@ struct Legacy10Wire:Decodable {
     var reason:String?
     var result:NetworkGameResult?
     var termination:NetworkTermination?
+    /// The fields 1.0's decoder required for each message type: a message missing one was malformed to it. Only what
+    /// 1.0 declared; 1.1's optional additions are on no list.
+    static let required:[String:Set<String>]=[
+        "hello":["name","appVersion"],"seatedAck":[],"resume":["gameID","credential"],"resync":[],"move":["gameID","commandID","revision","uci"],
+        "resign":["gameID","commandID"],"drawOffer":["gameID","commandID","revision"],"drawAnswer":["gameID","commandID","offerID","accept"],
+        "claimDraw":["gameID","commandID","revision"],"pong":["nonce"],"bye":["reason"],"seated":["credential"],"resumed":[],"watching":[],
+        "snapshotBegin":["snapshotID","revision","hash","totalBytes","parts"],"snapshotPart":["snapshotID","index","data"],"snapshotEnd":["snapshotID"],
+        "moved":["revision","uci","san","hash"],"rejected":["commandID","reason"],"drawOffered":["offerID","by"],"drawDeclined":["offerID"],
+        "clock":["clocks"],"ended":["result","termination","revision"],"ping":["nonce"]]
+    enum Refusal:Error {case notOneZero,unknownType(String),missing(String,Set<String>)}
+    /// 1.0's decoding as a whole: its major, a type it knew, every field that type required, each of its declared type.
+    static func decode(_ data:Data)throws -> Legacy10Wire {
+        let wire=try JSONDecoder().decode(Legacy10Wire.self,from:data)
+        guard wire.protocol.major==1 else{throw Refusal.notOneZero}
+        guard let fields=required[wire.type] else{throw Refusal.unknownType(wire.type)}
+        let present=Set(((try JSONSerialization.jsonObject(with:data)) as? [String:Any] ?? [:]).filter{!($0.value is NSNull)}.keys)
+        guard fields.isSubset(of:present) else{throw Refusal.missing(wire.type,fields.subtracting(present))}
+        return wire
+    }
     /// 1.0's own reading of a `bye` reason: one it does not know is `unknown`.
     static let byeReasons:Set<String>=["seatTaken","badSnapshot","slow","protocolVersion","malformed","timeout","rateLimited","notAllowed","full","busy","replaced","badCredential","gameOver","hostLeft","leaving","unknown"]
 }

@@ -37,7 +37,10 @@ final class NetworkCodecTests:XCTestCase {
                 .move(gameID:game,commandID:id,revision:3,uci:"e7e8q"),.resign(gameID:game,commandID:id),.drawOffer(gameID:game,commandID:id,revision:4),.drawAnswer(gameID:game,commandID:id,offerID:id,accept:true),.claimDraw(gameID:game,commandID:id,revision:5),.pong(nonce:id),.bye(.slow),
                 .seated(credential:secret),.resumed,.watching,.snapshotBegin(snapshotID:id,revision:9,hash:"ab12",totalBytes:9217,parts:2),.snapshotPart(snapshotID:id,index:1,data:Data([1,2,3])),.snapshotEnd(snapshotID:id),
                 .moved(NetworkMoved(revision:6,uci:"g1f3",san:"Nf3",hash:"cd34",clocks:clocks,receiptFor:id)),.moved(NetworkMoved(revision:7,uci:"g8f6",san:"Nf6",hash:"ef56",clocks:nil,receiptFor:nil)),
-                .rejected(commandID:id,reason:.stale),.drawOffered(NetworkDrawOffer(offerID:id,by:.white)),.drawDeclined(offerID:id),.clock(clocks),.ended(NetworkEnded(outcome:NetworkOutcome(result:.draw,termination:.agreement),revision:8,clocks:clocks)),.ping(nonce:id)]
+                .rejected(commandID:id,reason:.stale),.drawOffered(NetworkDrawOffer(offerID:id,by:.white)),.drawDeclined(offerID:id),.clock(clocks),.ended(NetworkEnded(outcome:NetworkOutcome(result:.draw,termination:.agreement),revision:8,clocks:clocks)),.ping(nonce:id),
+                // 1.1's additions (assistance plan A4), so the fuzzer mutates them too.
+                .hello(name:"Dee",appVersion:"0.9.0",claimID:secret,assistance:NetworkAssistance(white:.hints,black:.off)),.move(gameID:game,commandID:id,revision:3,uci:"e2e4",assisted:true),
+                .moved(NetworkMoved(revision:8,uci:"b1c3",san:"Nc3",hash:"ab90",clocks:nil,receiptFor:id,assisted:true))]
     }
     func testEveryMessageRoundTripsWithItsTypeAndProtocol()throws {
         let messages=everyMessage
@@ -61,7 +64,12 @@ final class NetworkCodecTests:XCTestCase {
                        #"{"type":"move","protocol":{"major":1,"minor":0},"gameID":"x","commandID":"y","revision":0,"uci":"e2e4"}"#,
                        #"{"type":"move","protocol":{"major":1,"minor":0},"gameID":"\#(game.text)","commandID":"\#(id.text)","revision":-1,"uci":"e2e4"}"#,
                        #"{"type":"move","protocol":{"major":1,"minor":0},"gameID":"\#(game.text)","commandID":"\#(id.text)","revision":1,"uci":"e2e9"}"#,
-                       #"{"type":"clock","protocol":{"major":1,"minor":0},"clocks":{"white":-5,"black":0}}"#]
+                       #"{"type":"clock","protocol":{"major":1,"minor":0},"clocks":{"white":-5,"black":0}}"#,
+                       // 1.1's fields (A4): terms missing a side, an unknown level, and a flag that is not a Boolean.
+                       #"{"type":"hello","protocol":{"major":1,"minor":1},"name":"Ben","appVersion":"1","assistance":{"white":"hints"}}"#,
+                       #"{"type":"hello","protocol":{"major":1,"minor":1},"name":"Ben","appVersion":"1","assistance":{"white":"turbo","black":"off"}}"#,
+                       #"{"type":"move","protocol":{"major":1,"minor":1},"gameID":"\#(game.text)","commandID":"\#(id.text)","revision":1,"uci":"e2e4","assisted":"yes"}"#,
+                       #"{"type":"moved","protocol":{"major":1,"minor":1},"revision":1,"uci":"e2e4","san":"e4","hash":"ab","assisted":1}"#]
         for text in malformed {XCTAssertThrowsError(try NetworkCodec.decode(json(text)),text){XCTAssertEqual(($0 as? NetworkCodecError)?.byeReason,.malformed,text)}}
         let command=id
         XCTAssertEqual(try NetworkCodec.decode(json(#"{"type":"bye","protocol":{"major":1,"minor":3},"reason":"solarFlare"}"#)),.bye(.unknown))

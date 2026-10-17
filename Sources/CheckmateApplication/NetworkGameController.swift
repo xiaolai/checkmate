@@ -130,6 +130,11 @@ import OSLog
     private static let clockSlack=500
     private var participating:NetworkParticipation.Role?
     private var participatingAssistance:NetworkAssistanceLevel = .off
+    /// The last record's moves could not be shown: the board is behind the game, so it takes no move and no help
+    /// until a record that loads arrives.
+    private var recordUnreadable=false
+    /// The clock announcement waiting for its threshold; each reading replaces it, so one is ever pending.
+    private var clockAlarm:NetworkScheduledWork?
     /// The game revision of the turn in which a hint was shown to the learner (A7); their move in that turn says so.
     private var assistedTurn:Int?
     /// The record last written to the crash file, without its clocks.
@@ -152,12 +157,12 @@ import OSLog
     /// Shows a game: the seat the learner holds and the position (a record the host's game has already verified).
     /// Moves go to `submit`.
     public func show(seat:Seat,title:String,pgn:String)throws {
-        try load(pgn);self.seat=seat;self.title=title;detached=true;pending=nil
+        try load(pgn);recordUnreadable=false;self.seat=seat;self.title=title;detached=true;pending=nil
         if case .player(let side)=seat{learnerSide=NetworkSide(rawValue:side)}else{learnerSide=nil}
         resetInput();changed()
     }
     /// The lobby again: no game on the board.
-    public func clear(){seat=nil;detached=false;title=Self.lobbyTitle;try? load("");resetInput();changed()}
+    public func clear(){seat=nil;detached=false;title=Self.lobbyTitle;try? load("");recordUnreadable=false;resetInput();changed()}
     /// A move the game applied, the learner's own or the opponent's. It clears a pending move it answers.
     public func applied(uci:String)throws {try rules.move(uci:uci);if pending?.uci==uci{pending=nil};resetInput();changed()}
     /// The game refused the pending move: the piece goes back, nothing else changes.
@@ -169,6 +174,7 @@ import OSLog
     // MARK: Input
     /// Moves are taken only in a running game: the host's once the guest is seated, a guest's while live (D4).
     private var inputOpen:Bool {
+        guard !recordUnreadable else{return false}
         switch part {
         case nil:return detached
         case .host?:return runner != nil && hostPhase == .running && outcome==nil && !leaving
@@ -176,10 +182,11 @@ import OSLog
         case .spectator?:return false
         }
     }
-    /// It is the learner's move in a running game, whether or not one is already on its way.
-    public var yourTurn:Bool {guard let side,inputOpen,!rules.over else{return false};return rules.turn==side}
+    /// It is the learner's move in a running game, with none already on its way. Once a move is sent the turn is
+    /// over for help too (assistance plan A7): its `assisted` flag went with it, so no hint or coach turn may follow.
+    public var yourTurn:Bool {guard pending==nil,let side,inputOpen,!rules.over else{return false};return rules.turn==side}
     /// Whether it is the learner's move now, with nothing pending.
-    public var canMove:Bool {pending==nil && yourTurn}
+    public var canMove:Bool {yourTurn}
     /// "Network game · your move", for the sidebar while the learner is elsewhere.
     public var badge:String? {yourTurn ? Self.yourMoveBadge:nil}
     public func canDrag(_ square:String)->Bool {canMove && rules.piece(square)?.color==side}
@@ -198,16 +205,17 @@ import OSLog
         objectWillChange.send()
     }
     /// The piece inspector (Protected by / Attacked by) works on this board (A1, A8): a seated player whose agreed level
-    /// is board insight or more. Never a spectator, and never once the game is over.
-    public var inspectable:Bool {side != nil && participation?.role == .player && (participation?.assistance ?? .off) >= .insight}
+    /// is board insight or more. Never a spectator, never once the game is over, and never on a board behind its record.
+    public var inspectable:Bool {side != nil && !recordUnreadable && participation?.role == .player && (participation?.assistance ?? .off) >= .insight}
     /// Escape on the board: the selected piece and its dots go, so a later click on a former dot plays nothing.
     public func clearSelection(){guard selected != nil || !destinations.isEmpty else{return};selected=nil;destinations=[];objectWillChange.send()}
     /// Submits one move; anything illegal, or a second move while one is pending, is ignored.
     public func play(from:String,to:String,promotion:String="q"){
         guard canMove,let move=rules.moves(from).first(where:{$0.to==to && ($0.promotion==nil || $0.promotion==promotion)}) else{return}
+        // A7: read before the move is pending, which ends the turn's help.
+        let uci=move.uci,session=sessionNumber,assisted=assistedThisTurn
         pending=PendingMove(from:from,to:to,uci:move.uci);pendingRevision=gameRevision;pendingSeen=false
         selected=nil;destinations=[];notice=Self.sendingNotice;objectWillChange.send()
-        let uci=move.uci,session=sessionNumber,assisted=assistedThisTurn
         switch runner {
         case .host(let runner,_)?:runner.perform(.move(uci:uci,assisted:assisted))
         case .client(let runner)?:runner.submitMove(uci:uci,assisted:assisted)
@@ -243,7 +251,7 @@ import OSLog
     // main-actor method would be isolated to the main actor wherever it runs.
     nonisolated private static func relay<Event>(_ delivery:NetworkDelivery,_ handle:@escaping @MainActor (Event)->Void)->(Event)->Void {{event in delivery{handle(event)}}}
     nonisolated private static func after(_ scheduler:any NetworkScheduler,_ delivery:NetworkDelivery,_ work:@escaping @MainActor ()->Void){scheduler.enqueue{delivery(work)}}
-    nonisolated private static func alarm(_ scheduler:any NetworkScheduler,at deadline:NetworkInstant,_ delivery:NetworkDelivery,_ work:@escaping @MainActor ()->Void){_ = scheduler.schedule(at:deadline){delivery(work)}}
+    @discardableResult nonisolated private static func alarm(_ scheduler:any NetworkScheduler,at deadline:NetworkInstant,_ delivery:NetworkDelivery,_ work:@escaping @MainActor ()->Void)->NetworkScheduledWork {scheduler.schedule(at:deadline){delivery(work)}}
     nonisolated private static func browse(_ discovery:any NetworkDiscovery,on scheduler:any NetworkScheduler,_ updates:@escaping (NetworkDiscoveryUpdate)->Void){scheduler.enqueue{discovery.start(updates)}}
     nonisolated private static func stopBrowsing(_ discovery:any NetworkDiscovery,on scheduler:any NetworkScheduler){scheduler.enqueue{discovery.stop()}}
 
@@ -397,19 +405,19 @@ import OSLog
     }
     /// A public record, from the host's own game or a verified snapshot: names, clocks, the open offer, the result, and
     /// the board when the moves changed. Announces what a sighted player would see happen.
-    private func present(_ game:NetworkPublicGame,at instant:NetworkInstant){
+    func present(_ game:NetworkPublicGame,at instant:NetworkInstant){
         let previousOffer=openOffer,previousOutcome=outcome,plies=rules.history.count,first=record==nil
         record=game;gameRevision=game.revision;clockSync=game.clocks.map{($0,instant)}
         update(\.whiteName,game.whiteName);update(\.blackName,game.blackName);update(\.timeControl,game.timeControl);update(\.openOffer,game.openOffer);update(\.outcome,game.outcome)
         if seat==nil,let mine=learnerSeat{seat=mine}
         var moved=false
         if game.pgn != shownPGN {
-            do{try load(game.pgn);shownPGN=game.pgn;moved=rules.history.count != plies}
-            catch{NativeLog.lifecycle.error("A network game record could not be shown: \(String(describing:error),privacy:.public)")}
+            do{try load(game.pgn);shownPGN=game.pgn;moved=rules.history.count != plies;recordUnreadable=false}
+            catch{recordUnreadable=true;NativeLog.lifecycle.error("A network game record could not be shown: \(String(describing:error),privacy:.public)")}
             resetInput();changed()
             // A12: a move its mover made with a hint shown says so, as the hint count beside the names does.
             if rules.history.count>plies,let last=rules.records.last{let mover:NetworkSide=last.color=="b" ? .black:.white;announce(NetworkWording.move(last,players:players)+(game.assistedPlies.last==rules.history.count ? ". "+NetworkWording.usedHint(mover,players:players):""))}
-        }
+        }else if recordUnreadable{recordUnreadable=false;objectWillChange.send()}
         // A12: joining or watching a game with assistance announces its terms once, as the line under the names shows them.
         if first,part != .host,let terms=NetworkWording.terms(game.assistance,players:players){announce(terms)}
         if pending != nil,gameRevision != pendingRevision{clearPending()}
@@ -497,6 +505,7 @@ import OSLog
     /// the local countdown cannot repeat one.
     private func watchClocks(){
         clockWatch+=1
+        if let alarm=clockAlarm,let scheduler=services?.scheduler{clockAlarm=nil;scheduler.enqueue{alarm.cancel()}}
         guard let services,countingDown,let clocks=clocks(at:services.scheduler.now),let side=clocks.active else{return}
         let left=clocks.remaining(side)
         if let announced=clockAnnounced[side],left>announced+Self.clockSlack{clockAnnounced[side]=nil}
@@ -506,7 +515,7 @@ import OSLog
         clockSeen[side]=left
         guard let next=NetworkWording.nextClockThreshold(below:left) else{return}
         let watch=clockWatch
-        Self.alarm(services.scheduler,at:services.scheduler.now + .milliseconds(left-next),services.delivery){[weak self] in guard let self,self.clockWatch==watch else{return};self.watchClocks()}
+        clockAlarm=Self.alarm(services.scheduler,at:services.scheduler.now + .milliseconds(left-next),services.delivery){[weak self] in guard let self,self.clockWatch==watch else{return};self.watchClocks()}
     }
 
     // MARK: Commands

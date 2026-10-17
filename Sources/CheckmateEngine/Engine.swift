@@ -12,8 +12,8 @@ import Combine
     private let identityTask:Task<String,Error>
     @Published public private(set) var capabilities=EngineCapabilities()
     private var searching=false,waiting=0
-    /// Start FEN, caller moves, replayed rules and their validated canonical UCI.
-    private var validationCache:(String,[String],ChessRules,[String])?
+    /// Start FEN, caller moves, replayed rules, their validated canonical UCI, and the start FEN as the rules write it.
+    private var validationCache:(String,[String],ChessRules,[String],String)?
     public init(executable:URL?=nil){self.executable=executable ?? NativeResources.url("stockfish");worker=UCIWorker(executable:self.executable);let file=self.executable;let bundled=executable==nil;identityTask=Task.detached{
             let binary=try reviewFileHash(file),network=file.deletingLastPathComponent().appendingPathComponent(EngineRuntimePolicy.networkFile)
             if FileManager.default.fileExists(atPath:network.path){let hash=try reviewFileHash(network);guard !bundled || hash==EngineRuntimePolicy.networkSHA256 else{throw CheckmateError.unavailable("The bundled engine network is invalid.")};return binary+":network:"+hash}
@@ -45,15 +45,17 @@ import Combine
         try Task.checkCancellation();searching=true;defer{searching=false}
         // Validate on the main actor and send the validated canonical moves: the bundled Stockfish 19
         // rejects a non-canonical token such as e7e8 ("CRITICAL ERROR ... Illegal move") and exits.
-        let rules:ChessRules,canonical:[String]
+        // The start FEN goes to the engine as the rules write it, too: chess.js accepts fields separated by a line
+        // break, which would cut Stockfish's line-based position command short.
+        let rules:ChessRules,canonical:[String],start:String
         let previous=validationCache;validationCache=nil
-        if let cached=previous,cached.0==startFEN,moves.starts(with:cached.1){rules=cached.2;var validated=cached.3;for move in moves.dropFirst(cached.1.count){validated.append(try rules.move(uci:move).uci)};canonical=validated}
-        else{rules=try ChessRules(fen:startFEN);var validated:[String]=[];for move in moves{validated.append(try rules.move(uci:move).uci)};canonical=validated}
-        validationCache=(startFEN,moves,rules,canonical)
+        if let cached=previous,cached.0==startFEN,moves.starts(with:cached.1){rules=cached.2;start=cached.4;var validated=cached.3;for move in moves.dropFirst(cached.1.count){validated.append(try rules.move(uci:move).uci)};canonical=validated}
+        else{rules=try ChessRules(fen:startFEN);start=rules.fen;var validated:[String]=[];for move in moves{validated.append(try rules.move(uci:move).uci)};canonical=validated}
+        validationCache=(startFEN,moves,rules,canonical,start)
         let legal=rules.moves()
         guard searchMoves.allSatisfy({uci in legal.contains{$0.uci==uci}}) else{throw CheckmateError.invalid("Illegal searchmoves constraint.")}
         let worker=worker,fen=rules.fen,epoch=worker.reserve(),lines=max(1,min(16,multiPv,max(1,searchMoves.isEmpty ? legal.count:searchMoves.count)))
-        var result=try await withTaskCancellationHandler(operation:{try await Task.detached(priority:.userInitiated){try worker.search(startFEN:startFEN,moves:canonical,finalFEN:fen,profile:profile,limit:limit,multiPv:lines,searchMoves:searchMoves,epoch:epoch)}.value},onCancel:{worker.cancel(expected:epoch)})
+        var result=try await withTaskCancellationHandler(operation:{try await Task.detached(priority:.userInitiated){try worker.search(startFEN:start,moves:canonical,finalFEN:fen,profile:profile,limit:limit,multiPv:lines,searchMoves:searchMoves,epoch:epoch)}.value},onCancel:{worker.cancel(expected:epoch)})
         capabilities=worker.metadata()
         result.lines=try result.lines.compactMap{line in try autoreleasepool{var line=line;let replay=try ChessRules(fen:fen);do{line.san=try line.pv.map{try replay.move(uci:$0).san};return line}catch{return nil}}}
         return result

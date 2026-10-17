@@ -42,7 +42,8 @@ import CheckmateCore
         engine.hold=true
         let first=Task{try await tools.call("play_move",args:args,lease:"fixture")}
         var spins=0;while engine.waiting==nil,spins<10_000{spins+=1;await Task.yield()}
-        XCTAssertNotNil(engine.waiting,"The move must be waiting on the engine when it is cancelled")
+        // Without the engine waiting, cancelling would test nothing, and the held search would block the retry below.
+        guard engine.waiting != nil else{engine.hold=false;first.cancel();_ = try? await first.value;return XCTFail("The move must be waiting on the engine when it is cancelled")}
         first.cancel();engine.release()
         do{_ = try await first.value;XCTFail("The interrupted call reports cancellation")}catch{XCTAssertEqual(code(error),"CANCELLED")}
         XCTAssertEqual(s.rules.history.count,1,"A cancelled move is never played")
@@ -128,6 +129,17 @@ import CheckmateCore
                 for match in pattern.matches(in:text,range:NSRange(text.startIndex...,in:text)){codes.insert(String(text[Range(match.range(at:1),in:text)!]))}
             }
         }
+        // Codes chosen by a condition ("A" : "B") and the network game's refusal, which is named, not spelled out.
+        let chosen=try NSRegularExpression(pattern:#"(?:ProtocolFailure|CheckmateError\.(?:invalid|unavailable))\([^"\n]*\?\s*"([A-Z][A-Z_]+)"\s*:\s*"([A-Z][A-Z_]+)""#)
+        let named=try NSRegularExpression(pattern:#"(?:ProtocolFailure|CheckmateError\.(?:invalid|unavailable))\((?:FairnessPolicy|Self)\.refusal\b"#)
+        for folder in ["Sources/CheckmateApplication","Sources/CheckmateMacPlatform","Sources/CheckmateMCPKit"] {
+            for name in try FileManager.default.contentsOfDirectory(atPath:root.appendingPathComponent(folder).path) where name.hasSuffix(".swift") {
+                let text=try String(contentsOf:root.appendingPathComponent(folder).appendingPathComponent(name),encoding:.utf8),range=NSRange(text.startIndex...,in:text)
+                for match in chosen.matches(in:text,range:range){for group in 1...2{codes.insert(String(text[Range(match.range(at:group),in:text)!]))}}
+                if named.firstMatch(in:text,range:range) != nil{codes.insert(FairnessPolicy.refusal)}
+            }
+        }
+        for code in [FairnessPolicy.refusal,"ATTEMPT_ACTIVE","ATTEMPT_FINISHED","REVIEW_ACTIVE","CONNECTION_LOST"]{XCTAssertTrue(codes.contains(code),"The scan misses \(code)")}
         XCTAssertGreaterThan(codes.count,20,"The source scan found the app's error codes")
         for code in codes.subtracting(notToolResults).sorted(){XCTAssertTrue(skill.contains("`\(code)`"),"The companion skill does not explain \(code)")}
     }

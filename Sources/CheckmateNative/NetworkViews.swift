@@ -124,15 +124,16 @@ struct NetworkDetail:View {
     /// microphone follows Settings, as in Practice.
     @ViewBuilder private var voiceCoach:some View {
         if voice.networkVoiceAvailable,game.outcome==nil {
+            // Connecting, and why a connection ended or was refused, show as well as a live session's state.
+            if voice.status != "Disconnected" || voice.connected {Text(voice.status).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("network-voice-status")}
             if voice.connected,voice.networkSession {
-                Text(voice.status).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("network-voice-status")
                 HStack {
                     Button("Stop Speaking"){voice.stopTurn()}.disabled(!voice.canStopTurn).accessibilityIdentifier("network-voice-stop")
                     Button("Disconnect Coach"){voice.disconnect()}.accessibilityIdentifier("network-voice-disconnect")
                 }
-                ForEach(Array(voice.history.suffix(3).reversed())){entry in Text((entry.role=="learner" ? "You: ":"Coach: ")+entry.text).font(.caption).fixedSize(horizontal:false,vertical:true)}
             } else if voice.connecting {Button("Cancel Voice Coach"){voice.disconnect()}.accessibilityIdentifier("network-voice-cancel")}
-            else {Button("Connect Voice Coach"){voice.connect()}.accessibilityIdentifier("network-voice-connect")}
+            else {Button("Connect Voice Coach"){model.connectNetworkVoice()}.accessibilityIdentifier("network-voice-connect")}
+            ForEach(Array(model.networkVoiceHistory.suffix(3).reversed())){entry in Text((entry.role=="learner" ? "You: ":"Coach: ")+entry.text).font(.caption).fixedSize(horizontal:false,vertical:true)}
         }
     }
     private var leaveTitle:String {

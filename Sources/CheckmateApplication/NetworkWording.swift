@@ -114,12 +114,14 @@ public enum NetworkWording {
         case .wrongGame,.unknown:return "That didn't work. Try again."
         }
     }
+    /// Under Try Again (D8): engine help stays off while the seat can still be resumed.
+    public static let seatHeld="Your seat is kept for you, so practice help stays off until you review this game or go back to games."
+    /// Assistance plan A3: the terms the guest accepted are not the game's, whichever Mac found it.
+    static func assistanceChanged(_ game:String)->String {"\(game) has different assistance than the one you accepted."}
     /// What a guest or spectator reads once its game stopped for good (D9, D11), about the game by its name. A
     /// connection that never worked is "Couldn't reach Ana's game", with no guessed cause; one that worked and was
     /// lost is the game having stopped: interrupted, no result. Nil when nothing needs saying: this Mac left, or the
     /// game ended with a result.
-    /// Under Try Again (D8): engine help stays off while the seat can still be resumed.
-    public static let seatHeld="Your seat is kept for you, so practice help stays off until you review this game or go back to games."
     public static func stop(_ stop:NetworkClientStop,game:String,wasLive:Bool)->String? {
         let lost=wasLive ? "\(game) has stopped.":"Couldn't reach \(game)."
         switch stop {
@@ -128,6 +130,7 @@ public enum NetworkWording {
         // TLS with the typed code failed: a fact about the attempt, not a guess at the network.
         case .handshakeFailed:return "Couldn't open \(game) with that code."
         case .insecure:return "Couldn't reach \(game) securely."
+        case .assistanceChanged:return Self.assistanceChanged(game)
         case .closedByHost(let reason):
             switch reason {
             case .hostLeft:return "\(game) has stopped."
@@ -137,7 +140,7 @@ public enum NetworkWording {
             case .full:return "\(game) has as many spectators as it allows."
             case .protocolVersion:return "\(game) uses a different version of Checkmate."
             // Assistance plan A3: the terms the guest accepted are not the game's.
-            case .assistanceChanged:return "\(game) has different assistance than the one you accepted."
+            case .assistanceChanged:return Self.assistanceChanged(game)
             case .badCredential,.replaced:return "\(game) no longer holds your seat."
             case .badSnapshot,.slow,.malformed,.timeout,.rateLimited,.busy,.leaving,.unknown:return lost
             }

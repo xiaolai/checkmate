@@ -136,14 +136,14 @@ final class NetworkSnapshotTests:XCTestCase {
         func fresh()->NetworkReceiver {NetworkReceiver(gameID:net.gameID,role:.spectator,name:"Fresh",appVersion:"1",rules:net.factory,hashing:testHashing,random:net.random.source)}
         let receiver=fresh()
         var outputs:[NetworkReceiverOutput]=[]
-        for message in snapshot {outputs.append(try receiver.receive(message:message,at:net.now))}
+        for message in [NetworkMessage.watching]+snapshot {outputs.append(try receiver.receive(message:message,at:net.now))}
         XCTAssertEqual(receiver.revision,2)
         for moved in [moves[0],moves[0],moves[1]] {outputs.append(try receiver.receive(message:.moved(moved),at:net.now))}
         XCTAssertEqual(outputs.flatMap(\.events).filter{if case .applied=$0 {return true};return false}.count,2,"exactly two applied")
         XCTAssertEqual(receiver.revision,4);XCTAssertEqual(testHashing.positionHash(fen:try XCTUnwrap(receiver.fen),revision:4),moves[1].hash)
         XCTAssertTrue(outputs.allSatisfy{$0.close==nil && $0.send.isEmpty},"no disconnect and no resync")
         let gapped=fresh()
-        for message in snapshot {_ = try gapped.receive(message:message,at:net.now)}
+        for message in [NetworkMessage.watching]+snapshot {_ = try gapped.receive(message:message,at:net.now)}
         _ = try gapped.receive(message:.moved(moves[0]),at:net.now)
         XCTAssertEqual(try gapped.receive(message:.moved(moves[2]),at:net.now).send,[.resync]);XCTAssertEqual(gapped.revision,3,"the gapped move is discarded")
         XCTAssertEqual(try gapped.receive(message:.moved(moves[2]),at:net.now).send,[],"one resync until a snapshot arrives")
@@ -202,7 +202,7 @@ final class NetworkSnapshotTests:XCTestCase {
         func messages(_ game:NetworkPublicGame,hash:String)throws -> [NetworkMessage] {NetworkSnapshot(snapshotID:id,revision:game.revision,hash:hash,payload:try game.encoded()).messages}
         func close(_ list:[NetworkMessage])throws -> NetworkByeReason? {
             watcher.connectionLost()
-            for message in list {if let reason=try watcher.receive(message:message,at:net.now).close {return reason}}
+            for message in [NetworkMessage.watching]+list {if let reason=try watcher.receive(message:message,at:net.now).close {return reason}}
             return nil
         }
         var forged=game;forged.pgn=game.pgn.replacingOccurrences(of:"e7e5",with:"e7e6")
@@ -211,16 +211,24 @@ final class NetworkSnapshotTests:XCTestCase {
         if case .snapshotPart(let snapshotID,let index,var data)=broken[1],let range=data.range(of:Data("e7e5".utf8)) {data[range.lowerBound+3]=UInt8(ascii:"6");broken[1] = .snapshotPart(snapshotID:snapshotID,index:index,data:data)}else{XCTFail()}
         XCTAssertEqual(try close(broken),.badSnapshot,"a forged part")
         var long=game;long.pgn="[Fake]\n"+Array(repeating:"g1f3",count:4000).joined(separator:" ")
-        let parts=try messages(long,hash:hash);XCTAssertEqual(parts.count,5)
+        // The long record's own hash, so each corruption below is the only thing wrong with it.
+        let longRules=FakeRules(script:net.script);try longRules.networkLoad(pgn:long.pgn)
+        let longHash=testHashing.positionHash(fen:try longRules.networkFEN(),revision:long.revision)
+        let parts=try messages(long,hash:longHash);XCTAssertEqual(parts.count,5)
         var swapped=parts;swapped.swapAt(1,2)
         var missing=parts;missing.remove(at:2)
         var interrupted=parts;interrupted.insert(.ping(nonce:id),at:2)
-        let foreign=NetworkSnapshot(snapshotID:id,revision:long.revision,hash:hash,payload:try long.encoded()).messages
+        let foreign=NetworkSnapshot(snapshotID:NetworkID.random(using:net.random.source),revision:long.revision,hash:longHash,payload:try long.encoded()).messages
         var mixed=parts;mixed[2]=foreign[2]
         for list in [swapped,missing,interrupted,mixed] {XCTAssertEqual(try close(list),.badSnapshot)}
         XCTAssertEqual(watcher.fen,fen);XCTAssertEqual(watcher.revision,2,"every failure left the board as it was")
+        XCTAssertNil(try close(parts),"the long record itself installs: only the corruptions failed")
         XCTAssertNil(try close(try messages(game,hash:hash)));XCTAssertEqual(watcher.revision,2)
-        XCTAssertThrowsError(try NetworkSnapshotAssembler(snapshotID:id,revision:0,hash:"h",totalBytes:NetworkLimits.maximumSnapshotBytes+1,parts:NetworkLimits.maximumSnapshotParts+1))
+        // One byte over the limit, with the part count those bytes need, so only the byte limit refuses it; and a part
+        // count that does not match the bytes, on its own.
+        let over=NetworkLimits.maximumSnapshotBytes+1,needed=(over+NetworkLimits.maximumSnapshotPartBytes-1)/NetworkLimits.maximumSnapshotPartBytes
+        XCTAssertThrowsError(try NetworkSnapshotAssembler(snapshotID:id,revision:0,hash:"h",totalBytes:over,parts:needed),"over the byte limit")
+        XCTAssertThrowsError(try NetworkSnapshotAssembler(snapshotID:id,revision:0,hash:"h",totalBytes:1000,parts:2),"a part count the bytes do not need")
         XCTAssertNoThrow(try NetworkSnapshotAssembler(snapshotID:id,revision:0,hash:"h",totalBytes:NetworkLimits.maximumSnapshotBytes,parts:NetworkLimits.maximumSnapshotParts))
     }
     func testLongRecordsTravelInPacedPartsAndRoundTrip()throws {
@@ -278,7 +286,7 @@ final class NetworkSnapshotTests:XCTestCase {
                 }
             }
         }
-        XCTAssertEqual(snapshots,6,"watching and terminal for the spectator; seated, resumed, stale and terminal for the guest")
+        XCTAssertEqual(snapshots,7,"watching, the guest's name and terminal for the spectator; seated, resumed, stale and terminal for the guest")
         for connection in watcherConnections {for frame in net.sent[connection] ?? [] {clean(String(decoding:frame,as:UTF8.self),"a spectator message")}}
         XCTAssertGreaterThanOrEqual(net.sent[watcherConnections[0]]?.count ?? 0,10,"watching, two snapshots, two moves, ended")
         let carrying=net.sent.values.joined().filter{String(decoding:$0,as:UTF8.self).contains(credential.text)}
@@ -302,5 +310,42 @@ final class NetworkSnapshotTests:XCTestCase {
         XCTAssertThrowsError(try JSONDecoder().decode(NetworkPublicGame.self,from:try invalid.encoded()))
         invalid=game;invalid.clocks=NetworkClocks(white:1,black:1,active:nil)
         XCTAssertThrowsError(try JSONDecoder().decode(NetworkPublicGame.self,from:try invalid.encoded()),"an untimed game has no clocks")
+    }
+    /// A record at `revision` over `moves`, on the fake rules, as a snapshot a host would send.
+    private func snapshot(_ gameID:NetworkGameID,revision:Int,moves:[String],hostSide:NetworkSide = .white,script:FakeScript)throws -> [NetworkMessage] {
+        let rules=FakeRules(script:script),pgn="[Fake]\n"+moves.joined(separator:" ");try rules.networkLoad(pgn:pgn)
+        let game=NetworkPublicGame(gameID:gameID,revision:revision,hostSide:hostSide,whiteName:"Ana",blackName:"Ben",timeControl:.untimed,pgn:pgn,clocks:nil,openOffer:nil,outcome:nil)
+        return try NetworkSnapshot.capture(game,fen:try rules.networkFEN(),hashing:testHashing,random:random.source).messages
+    }
+    private func deliver(_ receiver:NetworkReceiver,_ messages:[NetworkMessage])throws -> NetworkByeReason? {
+        for message in messages {if let reason=try receiver.receive(message:message,at:.origin).close {return reason}};return nil
+    }
+    /// D5: a snapshot comes only after `seated`, `resumed` or `watching`. One before them would let a connection
+    /// count as live, and its game be shown, without the admission that begins participation (D8).
+    func testASnapshotBeforeAdmissionBreaksTheProtocol()throws {
+        let script=FakeScript(),gameID=NetworkGameID.random(using:random.source),factory=NetworkRulesFactory{FakeRules(script:script)}
+        let guest=NetworkReceiver(gameID:gameID,role:.guest(claimID:.random(using:random.source)),name:"Ben",appVersion:"1",rules:factory,hashing:testHashing,random:random.source)
+        let watcher=NetworkReceiver(gameID:gameID,role:.spectator,name:"Cy",appVersion:"1",rules:factory,hashing:testHashing,random:random.source)
+        for receiver in [guest,watcher] {
+            XCTAssertEqual(try deliver(receiver,try snapshot(gameID,revision:0,moves:[],script:script)),.malformed);XCTAssertNil(receiver.installed)
+        }
+        XCTAssertNil(try deliver(watcher,[.watching]+(try snapshot(gameID,revision:0,moves:[],script:script))));XCTAssertNotNil(watcher.installed)
+        watcher.connectionLost()
+        XCTAssertEqual(try deliver(watcher,try snapshot(gameID,revision:0,moves:[],script:script)),.malformed,"a new connection is admitted again first")
+    }
+    /// The seats and the moves already shown never change: a later snapshot that swaps the host's side, or goes back
+    /// to an earlier revision, is not this game. One at the same revision, as a refresh brings, still installs.
+    func testALaterSnapshotCannotSwapSidesOrGoBack()throws {
+        let script=FakeScript(),gameID=NetworkGameID.random(using:random.source),factory=NetworkRulesFactory{FakeRules(script:script)}
+        let guest=NetworkReceiver(gameID:gameID,role:.guest(claimID:.random(using:random.source)),name:"Ben",appVersion:"1",rules:factory,hashing:testHashing,random:random.source)
+        XCTAssertNil(try deliver(guest,[.seated(credential:.random(using:random.source))]+(try snapshot(gameID,revision:2,moves:["e2e4","e7e5"],script:script))))
+        XCTAssertEqual(guest.side,.black)
+        XCTAssertEqual(try deliver(guest,try snapshot(gameID,revision:2,moves:["e2e4","e7e5"],hostSide:.black,script:script)),.malformed)
+        XCTAssertEqual(guest.side,.black,"the guest keeps its seat");XCTAssertEqual(guest.installed?.hostSide,.white)
+        XCTAssertEqual(try deliver(guest,try snapshot(gameID,revision:1,moves:["e2e4"],script:script)),.malformed)
+        XCTAssertEqual(guest.revision,2,"no move already shown is taken back");XCTAssertEqual(try guest.publicGame(at:.origin)?.pgn,"[Fake]\ne2e4 e7e5")
+        XCTAssertNil(try deliver(guest,try snapshot(gameID,revision:2,moves:["e2e4","e7e5"],script:script)),"the same revision again installs")
+        guest.connectionLost()
+        XCTAssertEqual(try deliver(guest,[.resumed]+(try snapshot(gameID,revision:1,moves:["e2e4"],script:script))),.malformed,"nor after reconnecting")
     }
 }

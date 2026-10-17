@@ -30,13 +30,19 @@ import CheckmateCore
             let legal=searchMoves.isEmpty ? rules.moves().map(\.uci).sorted():searchMoves
             return EngineAnalysis(bestMove:legal.first,lines:legal.prefix(max(1,multiPv)).enumerated().map{AnalysisLine(depth:12,multiPv:$0.offset+1,score:AnalysisScore(kind:"cp",value:-$0.offset*5),pv:[$0.element],san:[])})
         }
-        /// Node-limited searches (assistance plan A5), which only the network assistant asks for, and their profiles.
-        private(set) var limits:[EngineSearchLimit]=[],profiles:[OpponentProfile]=[],multiPvs:[Int]=[]
+        /// Searches given an explicit limit (assistance plan A5), their profiles and the positions they start from. Only
+        /// the network assistant asks for a node limit.
+        private(set) var limits:[EngineSearchLimit]=[],profiles:[OpponentProfile]=[],multiPvs:[Int]=[],startFENs:[String]=[]
         private(set) var nodeCallsWhileParticipating=0
-        /// Calls made while participating by anything but the network assistant: always zero (A8).
+        /// Calls made while participating by anything but a node-limited search, the network assistant's kind: always
+        /// zero (A8). Which caller asked is the fairness inventory's to prove; this counts only what reached the engine.
         var otherCallsWhileParticipating:Int {callsWhileParticipating-nodeCallsWhileParticipating}
+        /// Explicitly limited searches still to fail, one each, before they succeed again.
+        var failures=0
         func analyzeHistory(startFEN:String,moves:[String],profile:OpponentProfile,limit:EngineSearchLimit,multiPv:Int)async throws -> EngineAnalysis {
-            limits.append(limit);profiles.append(profile);multiPvs.append(multiPv);if participation?.role != nil{nodeCallsWhileParticipating+=1}
+            limits.append(limit);profiles.append(profile);multiPvs.append(multiPv);startFENs.append(startFEN)
+            if failures>0 {failures-=1;record();throw CheckmateError.unavailable("ENGINE_UNAVAILABLE")}
+            if case .nodes=limit,participation?.role != nil{nodeCallsWhileParticipating+=1}
             return try await analyzeHistory(startFEN:startFEN,moves:moves,profile:profile,budget:0,multiPv:multiPv,searchMoves:[])
         }
         private func record(){calls+=1;if participation?.role != nil{callsWhileParticipating+=1}}
@@ -60,7 +66,7 @@ import CheckmateCore
     /// engine is not asked anything while participating. After leaving, practice replies again.
     func testAReplyHeldAcrossJoiningAndLeavingLeavesThePracticeGameByteIdentical()async throws {
         for role in [NetworkParticipation.Role.player,.spectator] {
-            let (session,engine)=try session();var saved:[Data]=[];session.onPersist={_ in saved.append((try? self.practiceBytes(session)) ?? Data())}
+            let (session,engine)=try session();var saved:[Data]=[];session.onPersist={[weak session] _ in guard let session else{return};saved.append((try? self.practiceBytes(session)) ?? Data())}
             engine.holding=true;try session.playWhite(from:"e2",to:"e4")
             try await settle({engine.held==1},"the reply is asked for and held")
             let before=try practiceBytes(session),savedBefore=saved.count

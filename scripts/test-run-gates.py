@@ -191,4 +191,32 @@ with tempfile.TemporaryDirectory() as reports:
     assert gates.attribute([('relocated', crashed + 20, crashed + 22)], found) == {'relocated': ['CheckmateNative-ours.ips']}, 'a crash before any gate began'
     assert gates.attribute(windows, []) == {}
     assert gates.crash_reports(reports / 'missing') == set()
-print(f'Gate selection self-test passed ({len(cases) + 17} cases).')
+    # A report captured before this run began is an earlier run's, written late: it blames no gate of this run.
+    assert gates.attribute(windows, found, since=crashed + 1) == {}, "an earlier run's late report blamed this run"
+    assert gates.attribute(windows, found, since=crashed - 1) == {'intel': ['CheckmateNative-ours.ips']}
+    # A late crash is checked however the run ends: a gate that failed later still clears the crashed gate's pass.
+    saved = (gates.crash_reports, gates.built_uuids, gates.update_ledger, gates.time.sleep)
+    cleared = []
+    try:
+        gates.crash_reports, gates.built_uuids = (lambda directory=None: set(found_reports)), (lambda root=None: set())
+        found_reports = {reports / 'CheckmateNative-ours.ips'}
+        gates.update_ledger, gates.time.sleep = cleared.append, (lambda seconds: None)
+        with contextlib.redirect_stdout(io.StringIO()):
+            assert gates.late_crashes(windows, set(), {'1dba8679-7997-3af0-99bc-741872b92f67'}, crashed - 500), 'a late crash was not found'
+        assert cleared == [{'intel': None}], f'the crashed gate kept its pass: {cleared}'
+        assert not gates.late_crashes([], set(), set(), 0), 'no gate ran, so nothing can have crashed late'
+    finally:
+        gates.crash_reports, gates.built_uuids, gates.update_ledger, gates.time.sleep = saved
+# Clearing Notification Center never stops acceptance: a stalled or missing osascript is a warning, not an exception.
+saved_run = gates.subprocess.run
+try:
+    for problem in (gates.subprocess.TimeoutExpired('osascript', 60), FileNotFoundError('osascript')):
+        def stalled(*arguments, problem=problem, **options):
+            raise problem
+        gates.subprocess.run, printed = stalled, io.StringIO()
+        with contextlib.redirect_stdout(printed):
+            gates.clear_notifications()
+        assert 'WARNING: could not clear Notification Center' in printed.getvalue(), printed.getvalue()
+finally:
+    gates.subprocess.run = saved_run
+print(f'Gate selection self-test passed ({len(cases) + 22} cases).')

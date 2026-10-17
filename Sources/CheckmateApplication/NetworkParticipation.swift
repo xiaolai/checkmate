@@ -26,6 +26,11 @@ import Foundation
 /// The one check every engine and voice entry point asks (D8): no engine help, cached evidence or voice coaching while
 /// the learner plays or watches a network game. Checked when work starts and again when its result arrives, after
 /// every `await`, so work begun before joining delivers nothing.
+///
+/// The assistance plan narrows that ban for the learner's own network game only: at the level both players agreed,
+/// its hints and piece inspector (A8) and a voice coach opened for it (A10) may act, through `networkAssistance` and
+/// `voiceAllowed(network:)`. Practice, Review, lessons, training and MCP stay closed while participating, whatever the
+/// level, because `engineHelpAllowed` never changes for them.
 @MainActor public final class FairnessPolicy {
     public let participation:NetworkParticipation
     /// A policy with its own participation, which nothing begins: for components built outside the app, such as tests.
@@ -36,7 +41,7 @@ import Foundation
     public func requireEngineHelp()throws {guard engineHelpAllowed else{throw CheckmateError.invalid(Self.refusal)}}
     /// What the learner's own network game may show them (assistance plan A8). A scoped permission, not a lifted ban:
     /// `engineHelpAllowed` stays false throughout, so practice, Review, lessons, training and MCP stay closed at every
-    /// level. Only the network game's own hints (`NetworkAssistant`) and inspector read this.
+    /// level. Only the network game's own hints (`NetworkAssistant`), its inspector and its voice coach read this.
     public var networkAssistance:NetworkAssistanceLevel {participation.role == .player ? participation.assistance:.off}
     /// Refuses a network hint unless the learner's agreed level allows hints (A8).
     public func requireNetworkHint()throws {guard networkAssistance >= .hints else{throw CheckmateError.invalid(Self.refusal)}}

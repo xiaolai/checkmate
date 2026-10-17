@@ -3,25 +3,28 @@ import Foundation
 /// turn at once instead of streaming until the turn timeout. Two runaways are caught:
 /// - arguments longer than the call's own schema allows (its `limit`), or than the whole-call cap;
 /// - an unending stream of whitespace, which OpenAI's JSON-mode documentation warns a model can produce. Whitespace
-///   outside strings is insignificant, so it counts as a runaway once it passes `maximumWhitespace` and outweighs
-///   everything else the call has said.
+///   outside strings is insignificant, so one unbroken run of it longer than `maximumWhitespace` is a runaway. Layout
+///   is not: indentation comes in short runs between fields, however many fields a long call has.
 struct VoiceToolArguments {
     /// The whole-call cap `runTool` has always applied to finished arguments.
     static let maximumBytes=65536
     static let maximumWhitespace=1024
     let limit:Int
-    private(set) var bytes=0,whitespace=0
+    /// `whitespace` is all insignificant whitespace so far; `longestRun` its longest unbroken run.
+    private(set) var bytes=0,whitespace=0,longestRun=0
+    private var run=0
     private var inString=false,escaped=false
     init(limit:Int=Self.maximumBytes){self.limit=min(limit,Self.maximumBytes)}
     /// The call's arguments still fit: false once either runaway is seen. The schema bound counts what the call says,
     /// not its layout, so pretty-printed arguments are measured like compact ones.
-    var withinBounds:Bool {bytes<=Self.maximumBytes && bytes-whitespace<=limit && !(whitespace>Self.maximumWhitespace && whitespace*2>bytes)}
+    var withinBounds:Bool {bytes<=Self.maximumBytes && bytes-whitespace<=limit && longestRun<=Self.maximumWhitespace}
     mutating func append(_ delta:String){
         bytes+=delta.utf8.count
         for byte in delta.utf8 {
             if inString {if escaped{escaped=false}else if byte==0x5C{escaped=true}else if byte==0x22{inString=false}}
+            else if byte==0x20 || byte==0x0A || byte==0x0D || byte==0x09{whitespace+=1;run+=1;longestRun=max(longestRun,run);continue}
             else if byte==0x22{inString=true}
-            else if byte==0x20 || byte==0x0A || byte==0x0D || byte==0x09{whitespace+=1}
+            run=0
         }
     }
     /// The most bytes any arguments valid under `schema` can take, every string character escaped as `\uXXXX`; nil

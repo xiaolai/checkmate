@@ -179,19 +179,25 @@ import SaidGuard
         guard let entry=ben.games.first,let code=ana.playCode,ben.join(entry,code:code.grouped,accepting:terms) else{return ["passed":false,"failure":"the game could not be joined"]};scheduler.run()
         guard fairness.networkAssistance == .hints,ana.yourTurn else{return ["passed":false,"failure":"the game did not start at hints"]}
         let session=try GameSession(engine:nil,fairness:fairness);session.state.settings.voiceMicrophone=false;session.state.settings.voiceLanguage="en"
+        // Practice stands elsewhere (1. d4, Black to move), so advice drawn from it could not pass for the network game's.
+        try session.playWhite(from:"d2",to:"d4");guard session.rules.fen != ana.rules.fen else{return ["passed":false,"failure":"the practice and network boards match"]}
         let coach=try VoiceCoach(session:session),ledger=UsageLedger(directory:directory),assistant=NetworkAssistant(game:ana,fairness:fairness,engine:NativeEngine())
         coach.usageLedger=ledger;coach.audio.headless=true;coach.network=(ana,assistant)
         defer{coach.disconnect();ana.leave();scheduler.run()}
         func wait(_ seconds:Double,_ condition:()->Bool)async -> Bool {let end=Date().addingTimeInterval(seconds);while Date()<end{if condition(){return true};try? await Task.sleep(for:.milliseconds(100))};return condition()}
         let started=Date();coach.connect()
         guard await wait(40,{coach.connected}) else{return ["passed":false,"failure":"not connected: \(coach.status)"]}
-        coach.ask("Which move should I consider here, and why?")
+        coach.ask("Use the agreed hint: which move does it suggest here, and why?")
         let answered=await wait(120,{!coach.canStopTurn && coach.history.contains{$0.role=="coach"} && !coach.status.hasPrefix("Coach is thinking")})
         let counts=ledger.narrationCounts(),coachLines=coach.history.filter{$0.role=="coach"}.map(\.text)
         let failures:Set<String>=[VoiceCoach.turnFailure,VoiceCoach.turnTimeout,VoiceCoach.turnUnfinished]
-        let passed=answered && coach.connected && coach.networkSession && (counts[.verified] ?? 0)>0 && (counts[.unverified] ?? 0)==0 && !failures.contains(coach.status) && ana.assistedThisTurn
-        return ["passed":passed,"seconds":Date().timeIntervalSince(started),"model":coach.selectedModel,"networkSession":coach.networkSession,"assistedFlagged":ana.assistedThisTurn,"hintShown":assistant.hint?.uci ?? NSNull(),"verifiedSegments":counts[.verified] ?? 0,"unverifiedSegments":counts[.unverified] ?? 0,"coachTranscript":coachLines,"status":coach.status]
+        // The hint came from the engine both players agreed to, searched on the network game's position.
+        let hinted=assistant.hint.map{hint in ana.rules.moves().contains{$0.uci==hint.uci}} ?? false
+        let passed=answered && coach.connected && coach.networkSession && (counts[.verified] ?? 0)>0 && (counts[.unverified] ?? 0)==0 && !failures.contains(coach.status) && ana.assistedThisTurn && hinted
+        return ["passed":passed,"hintLegalOnNetworkBoard":hinted,"seconds":Date().timeIntervalSince(started),"model":coach.selectedModel,"networkSession":coach.networkSession,"assistedFlagged":ana.assistedThisTurn,"hintShown":assistant.hint?.uci ?? NSNull(),"verifiedSegments":counts[.verified] ?? 0,"unverifiedSegments":counts[.unverified] ?? 0,"coachTranscript":coachLines,"status":coach.status]
     }
+    /// A document's main line as UCI moves, for comparing what was exported with what is read back.
+    static func mainlineMoves(_ document:GameDocument)->[String] {document.mainline.compactMap{document.nodes[$0].uci}}
     @MainActor static func downgradeFixture(_ root:URL,prepare:Bool)throws {
         let store=StateStore(directory:root.appendingPathComponent("Data")),reviews=ReviewStore(directory:store.directory.appendingPathComponent("Reviews"))
         let manifest=root.appendingPathComponent("downgrade-fixture.json")
@@ -204,11 +210,13 @@ import SaidGuard
             try reviews.save(document,cursor:2,branches:[idea])
             try PGNExporter.withIdeas(document,branches:[idea]).write(to:root.appendingPathComponent("exported-original-and-ideas.pgn"),options:.atomic)
             try FileManager.default.copyItem(at:store.directory,to:root.appendingPathComponent("BeforeDowngrade"))
-            try JSONSerialization.data(withJSONObject:["reviewID":document.id.uuidString,"originalHash":document.contentHash,"practicePGN":state.practice.pgn,"skill":17,"elo":1800],options:[.prettyPrinted,.sortedKeys]).write(to:manifest,options:.atomic)
+            let exported=try PGNImporter.parse(Data(contentsOf:root.appendingPathComponent("exported-original-and-ideas.pgn"))).map(mainlineMoves)
+            try JSONSerialization.data(withJSONObject:["reviewID":document.id.uuidString,"originalHash":document.contentHash,"practicePGN":state.practice.pgn,"skill":17,"elo":1800,"answered":state.course.answered,"branchRoot":idea.root,"branchMoves":idea.moves,"exportedMoves":exported],options:[.prettyPrinted,.sortedKeys]).write(to:manifest,options:.atomic)
         } else {
             let expected=try JSONSerialization.jsonObject(with:Data(contentsOf:manifest)) as! [String:Any],state=try store.load(),review=try reviews.load(UUID(uuidString:expected["reviewID"] as! String)!)
-            guard state.settings.skill==17,state.settings.opponentElo==1800,state.practice.pgn==expected["practicePGN"] as? String,state.course.completed==["intro","board"],review.document.contentHash==expected["originalHash"] as? String,review.cursor==2,review.branches.count==1 else{throw CheckmateError.invalid("Downgrade fixture lost data")}
-            guard try PGNImporter.parse(Data(contentsOf:root.appendingPathComponent("exported-original-and-ideas.pgn"))).count==2 else{throw CheckmateError.invalid("Export lost an imagined line")}
+            guard state.settings.skill==17,state.settings.opponentElo==1800,state.practice.pgn==expected["practicePGN"] as? String,state.course.completed==["intro","board"],state.course.answered==expected["answered"] as? [String],review.document.contentHash==expected["originalHash"] as? String,review.cursor==2,review.branches.count==1,review.branches[0].root==expected["branchRoot"] as? Int,review.branches[0].moves==expected["branchMoves"] as? [String] else{throw CheckmateError.invalid("Downgrade fixture lost data")}
+            let exported=try PGNImporter.parse(Data(contentsOf:root.appendingPathComponent("exported-original-and-ideas.pgn"))).map(mainlineMoves)
+            guard exported.count==2,exported==expected["exportedMoves"] as? [[String]] else{throw CheckmateError.invalid("Export lost an imagined line")}
         }
     }
 

@@ -25,7 +25,8 @@ import CheckmateCore
     private func delta(_ v:VoiceCoach,_ text:String,id:String="call-1",response:String="resp-1"){v.receive(["type":"response.function_call_arguments.delta","response_id":response,"call_id":id,"delta":text])}
     private func outputs(_ events:[[String:Any]])->[String] {events.filter{($0["item"] as? [String:Any])?["type"] as? String=="function_call_output"}.compactMap{($0["item"] as? [String:Any])?["output"] as? String}}
     private func cancels(_ events:[[String:Any]])->Int {events.filter{$0["type"] as? String=="response.cancel"}.count}
-    private func until(_ what:String,_ condition:()->Bool)async throws {for _ in 0..<200{if condition(){return};try await Task.sleep(nanoseconds:10_000_000)};XCTFail("timed out waiting for \(what)")}
+    /// Waits for `condition`; throws when it never holds, so nothing after it reads results that are not there.
+    private func until(_ what:String,_ condition:()->Bool)async throws {for _ in 0..<200{if condition(){return};try await Task.sleep(nanoseconds:10_000_000)};throw CheckmateError.unavailable("timed out waiting for \(what)")}
     private var definitions:[[String:Any]] {get throws {try JSONSerialization.jsonObject(with:Data(contentsOf:NativeResources.url("voice-tools.json"))) as! [[String:Any]]}}
 
     /// Every tool the coach is offered, practice and network, has a finite bound below the whole-call cap, so a
@@ -46,11 +47,30 @@ import CheckmateCore
         let segment:[String:Any]=["text":String(repeating:"\"\\\u{1}",count:133)+"\"","squares":["a1","b2","c3","d4"],"kind":"possibility"]
         let speech:[String:Any]=["positionId":String(repeating:"\"",count:100),"displayIdentity":String(repeating:"\u{1}",count:300),"segments":Array(repeating:segment,count:4)]
         XCTAssertTrue(try ToolSchemas.validateValue(speech,schema:schema) is [String:Any],"fixture: the speech is valid")
-        for options:JSONSerialization.WritingOptions in [[],[.prettyPrinted,.sortedKeys]] {
-            let text=String(decoding:try JSONSerialization.data(withJSONObject:speech,options:options),as:UTF8.self)
-            var arguments=VoiceToolArguments(limit:limit);for piece in text.chunked(3){arguments.append(piece)}
-            XCTAssertTrue(arguments.withinBounds,"\(text.utf8.count) bytes against a bound of \(limit)")
+        // The costliest escape: every character a control character, written as \u00XX (6 bytes each).
+        let control:[String:Any]=["text":String(repeating:"\u{1}",count:400),"squares":["a1","b2","c3","d4"],"kind":"possibility"]
+        let worst:[String:Any]=["positionId":String(repeating:"\u{1}",count:100),"displayIdentity":String(repeating:"\u{1}",count:300),"segments":Array(repeating:control,count:4)]
+        XCTAssertTrue(try ToolSchemas.validateValue(worst,schema:schema) is [String:Any],"fixture: the control-character speech is valid")
+        for value in [speech,worst] {
+            for options:JSONSerialization.WritingOptions in [[],[.prettyPrinted,.sortedKeys]] {
+                let text=String(decoding:try JSONSerialization.data(withJSONObject:value,options:options),as:UTF8.self)
+                var arguments=VoiceToolArguments(limit:limit);for piece in text.chunked(3){arguments.append(piece)}
+                XCTAssertTrue(arguments.withinBounds,"\(text.utf8.count) bytes against a bound of \(limit)")
+            }
         }
+    }
+    /// Indentation is layout, not a runaway: the longest demonstration, pretty-printed four spaces deep, fits.
+    func testALongPrettyPrintedDemonstrationFits()throws {
+        let schema=try definitions.first{$0["name"] as? String=="demonstrate_moves"}!["parameters"] as! [String:Any]
+        let move:[String:Any]=["uci":"e2e4","explanation":"","arrows":[] as [Any],"highlights":[] as [Any]]
+        let line:[String:Any]=["label":"Line","moves":Array(repeating:move,count:12)]
+        let demonstration:[String:Any]=["title":"Ideas","introduction":"","lines":Array(repeating:line,count:3),"autoplay":false,"positionId":"p"]
+        XCTAssertTrue(try ToolSchemas.validateValue(demonstration,schema:schema) is [String:Any],"fixture: the demonstration is valid")
+        let pretty=String(decoding:try JSONSerialization.data(withJSONObject:demonstration,options:[.prettyPrinted,.sortedKeys]),as:UTF8.self)
+        let text=pretty.components(separatedBy:"\n").map{(row:String)->String in let indent=row.prefix{$0==" "}.count;return String(repeating:" ",count:indent*2)+String(row.dropFirst(indent))}.joined(separator:"\n")
+        var arguments=VoiceToolArguments(limit:VoiceToolArguments.limit(schema:schema) ?? VoiceToolArguments.maximumBytes);for piece in text.chunked(5){arguments.append(piece)}
+        XCTAssertGreaterThan(arguments.whitespace,VoiceToolArguments.maximumWhitespace,"fixture: more layout than one run may hold");XCTAssertGreaterThan(arguments.whitespace*2,arguments.bytes,"fixture: mostly layout")
+        XCTAssertTrue(arguments.withinBounds)
     }
     /// Whitespace inside strings is speech; outside them it is insignificant, and an unending run of it is a runaway.
     func testWhitespaceCountsOnlyOutsideStrings(){
@@ -87,7 +107,20 @@ import CheckmateCore
         for piece in ["{","}"]{delta(v,piece)}
         v.receive(["type":"response.function_call_arguments.done","response_id":"resp-1","name":"get_board","call_id":"call-1","arguments":"{}"])
         try await until("the board result"){outputs(events()).count==1}
+        let board=try XCTUnwrap(try JSONSerialization.jsonObject(with:Data(XCTUnwrap(outputs(events()).first).utf8)) as? [String:Any])
+        XCTAssertNil(board["error"],"the call succeeded");XCTAssertNotNil(board["state"],"it returned the board")
         XCTAssertEqual(cancels(events()),0);XCTAssertNotEqual(v.status,VoiceCoach.turnFailure)
+    }
+    /// A turn stopped after a call arrived but before its task ran: the call never runs, so a move the coach was asked
+    /// to play is not played.
+    func testACallStoppedBeforeItRunsDoesNothing()async throws {
+        let (s,v,events)=try connected();defer{v.disconnect()};s.state.settings.voiceAssistMoves=true
+        respond(v,events)
+        let arguments=String(decoding:try JSONSerialization.data(withJSONObject:["positionId":s.positionId,"from":"e2","to":"e4"]),as:UTF8.self)
+        v.receive(["type":"response.function_call_arguments.done","response_id":"resp-1","name":"play_requested_move","call_id":"call-1","arguments":arguments])
+        v.stopTurn()
+        try await Task.sleep(nanoseconds:100_000_000)
+        XCTAssertTrue(s.rules.history.isEmpty,"the stopped call played a move");XCTAssertTrue(outputs(events()).isEmpty)
     }
     /// Finished arguments that are not a JSON object are answered as invalid, so the coach can correct its call; they
     /// were dropped silently, which left the turn to time out.
@@ -95,7 +128,7 @@ import CheckmateCore
         let (_,v,events)=try connected();defer{v.disconnect()}
         respond(v,events);v.receive(["type":"response.function_call_arguments.done","response_id":"resp-1","name":"get_board","call_id":"call-1","arguments":"{\"unterminated"])
         try await until("an answer"){outputs(events()).count==1}
-        XCTAssertTrue(outputs(events())[0].contains("INVALID_ARGUMENT"),outputs(events())[0])
+        let answer=try XCTUnwrap(outputs(events()).first);XCTAssertTrue(answer.contains("INVALID_ARGUMENT"),answer)
     }
     /// Finished arguments over the whole-call cap end the turn at once, as they always should have.
     func testOversizeFinishedArgumentsEndTheTurn()throws {

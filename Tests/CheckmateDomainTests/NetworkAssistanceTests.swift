@@ -27,7 +27,7 @@ final class NetworkAssistanceTests:XCTestCase {
         let net=try TestNetwork(assistance:hints)
         let guest=net.client(.seat,accepting:hints);try net.connect(guest)
         XCTAssertEqual(net.host.phase,.running);XCTAssertEqual(guest.receiver.installed?.assistance,hints);XCTAssertNil(guest.closedWith)
-        XCTAssertEqual(guest.received.first,.seated(credential:guest.receiver.credential!))
+        XCTAssertEqual(guest.received.first,.seated(credential:try XCTUnwrap(guest.receiver.credential)))
     }
     /// Other terms, `off` included, are refused before the seat is reserved: no `seated`, and the seat stays free.
     func testAGuestWithOtherTermsIsRefusedBeforeTheSeatIsReserved()throws {
@@ -142,7 +142,7 @@ final class NetworkAssistanceTests:XCTestCase {
                                        .moved(NetworkMoved(revision:4,uci:"e2e4",san:"e4",hash:"ab",clocks:clocks,receiptFor:command,assisted:true)),.bye(.assistanceChanged)]
         for message in messages {
             let data=try NetworkCodec.encode(message)
-            let legacy=try JSONDecoder().decode(Legacy10Wire.self,from:data)
+            let legacy=try Legacy10Wire.decode(data)
             XCTAssertEqual(legacy.protocol.major,1);XCTAssertEqual(legacy.type,message.type)
             switch message {
             case .hello:XCTAssertEqual(legacy.name,"Ben");XCTAssertEqual(legacy.claimID,claim);XCTAssertTrue(String(decoding:data,as:UTF8.self).contains(#""assistance":{"black":"insight","white":"guided"}"#))
@@ -152,6 +152,12 @@ final class NetworkAssistanceTests:XCTestCase {
             default:break
             }
         }
+        // The frozen rules are 1.0's whole decoder, not only its field types: every 1.0 fixture passes them, and a
+        // message missing a field 1.0 required does not.
+        for text in LegacyFixtures.messages {XCTAssertNoThrow(try Legacy10Wire.decode(Data(text.utf8)),text)}
+        for text in [#"{"commandID":"\#(command.text)","protocol":{"major":1,"minor":1},"revision":3,"type":"move","uci":"e2e4","assisted":true}"#,
+                     #"{"protocol":{"major":1,"minor":1},"revision":4,"san":"e4","type":"moved","uci":"e2e4","assisted":true}"#,
+                     #"{"protocol":{"major":1,"minor":1},"type":"teleport"}"#] {XCTAssertThrowsError(try Legacy10Wire.decode(Data(text.utf8)),text)}
         var record=try JSONDecoder().decode(NetworkPublicGame.self,from:Data(LegacyFixtures.record.utf8))
         record.assistance=NetworkAssistance(white:.hints,black:.off);record.assistedPlies=[1]
         let encoded=try record.encoded()
@@ -168,6 +174,11 @@ final class NetworkAssistanceTests:XCTestCase {
         }
         record.revision=0;record.assistedPlies=[]
         XCTAssertNoThrow(try JSONDecoder().decode(NetworkPublicGame.self,from:try record.encoded()),"revision 0 has no plies to check")
+        // A finished game: `ended` advanced the revision without a move, so two moves end at revision 3.
+        record.revision=3;record.outcome=NetworkOutcome(result:.whiteWins,termination:.resignation);record.assistedPlies=[2]
+        XCTAssertNoThrow(try JSONDecoder().decode(NetworkPublicGame.self,from:try record.encoded()),"the last move of a finished game")
+        record.assistedPlies=[3]
+        XCTAssertThrowsError(try JSONDecoder().decode(NetworkPublicGame.self,from:try record.encoded()),"the end itself is no move")
     }
     // MARK: A7, the assisted flags
     func testAssistedMovesReachTheGuestSpectatorsAndTheRecord()throws {

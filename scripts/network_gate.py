@@ -15,6 +15,7 @@ import shlex
 import subprocess
 import tempfile
 import time
+import uuid
 
 root = pathlib.Path(__file__).resolve().parents[1]
 HELPERS = ("pointer-helper", "ax-helper", "board-click-helper")
@@ -212,6 +213,13 @@ class Instance:
     def label(self, square):
         return self.run("pointer-helper", "label", square, check=False)
 
+    def read_label(self, square):
+        """The square's label, which must be a real read: an unreadable square fails instead of reading as empty, so a
+        check that something is absent cannot pass on a failed observation."""
+        text = self.run("pointer-helper", "label", square)
+        assert text.startswith(f"{square},"), f"{self.name}: {square} read as {text!r}, not as a board square"
+        return text
+
     def type_into(self, field, text):
         """Clicks the field, selects whatever it holds with Command-A, and types over it."""
         self.click(field)
@@ -219,10 +227,14 @@ class Instance:
         self.run("pointer-helper", "type", text)
 
     def write_fault(self, text):
+        """Writes the hook's file whole: written beside it and renamed over it, so the app's poll never reads it half
+        written and falls back to the default disconnect."""
+        partial = self.fault + ".partial"
         if self.mode == "pair":
-            on_pair(f"printf %s {shlex.quote(text)} > {shlex.quote(self.fault)}")
+            on_pair(f"printf %s {shlex.quote(text)} > {shlex.quote(partial)} && mv -f {shlex.quote(partial)} {shlex.quote(self.fault)}")
         else:
-            pathlib.Path(self.fault).write_text(text)
+            pathlib.Path(partial).write_text(text)
+            os.replace(partial, self.fault)
 
     def fault_taken(self):
         if self.mode == "pair":
@@ -230,16 +242,24 @@ class Instance:
         return not pathlib.Path(self.fault).exists()
 
     def capture(self, name):
+        """A screenshot kept as evidence. A capture or copy that fails fails the gate, never leaves an older picture in
+        its place; the pair's copy is taken under a name of its own and removed afterwards."""
         target = self.evidence / f"{name}-{self.name}.png"
+        target.unlink(missing_ok=True)
         if self.mode == "pair":
-            remote = f"/tmp/checkmate-network-shot-{os.getpid()}.png"
-            on_pair(f"screencapture -x {remote}", check=False)
+            remote = f"/tmp/checkmate-network-shot-{uuid.uuid4().hex}.png"
             try:
-                subprocess.run(["scp", "-q", "-o", "BatchMode=yes", "-o", "ConnectTimeout=5", f"{pair()}:{remote}", str(target)], check=False, timeout=60)
+                on_pair(f"screencapture -x {remote}")
+                subprocess.run(["scp", "-q", "-o", "BatchMode=yes", "-o", "ConnectTimeout=5", f"{pair()}:{remote}", str(target)], check=True, timeout=60)
             except subprocess.TimeoutExpired:
-                print(f"{self.name}: the screenshot could not be copied within 60 s")
+                raise AssertionError(f"{self.name}: the screenshot {name} could not be copied within 60 s") from None
+            except subprocess.CalledProcessError as error:
+                raise AssertionError(f"{self.name}: the screenshot {name} could not be copied ({error})") from None
+            finally:
+                on_pair(f"rm -f {remote}", check=False)
         else:
             subprocess.run(["screencapture", "-x", str(target)], check=False)
+        assert target.is_file() and target.stat().st_size > 0, f"{self.name}: the screenshot {name} was not captured"
 
     def connection_log(self):
         """This instance's network and app log lines since it started, kept with its evidence."""
@@ -281,9 +301,13 @@ class Instance:
 
 
 def permission(instance):
-    """The local-network permission state the instance shows: "denied" when it asks for access (D13), else "allowed"
-    (the spike showed a silent refusal never reaches a live game, so a game that went live was allowed)."""
-    return "denied" if instance.shows("network-access-needed") or instance.shows("network-permission-sheet") else "allowed"
+    """The local-network permission state the instance shows: "denied" when it asks for access (D13), "unknown" when its
+    window cannot be read, else "allowed" (the spike showed a silent refusal never reaches a live game, so a game that
+    went live was allowed; a failure diagnostic records what the window shows, nothing more)."""
+    listing = instance.listing()
+    if not listing:
+        return "unknown"
+    return "denied" if "network-access-needed" in listing or "network-permission-sheet" in listing else "allowed"
 
 
 def code(instance, identifier):
@@ -312,10 +336,16 @@ def host_game(host, name="Ana", assistance=None, handicap=None):
     host.click("network-host-button")
     wait(lambda: host.shows("network-host-sheet"), "the host sheet did not open")
     host.type_into("network-host-name", name)
+    # The Handicap switch's state is read from what it shows (a level for each side when on), since the sheet keeps
+    # the form between games: it is turned off for one level for both and on for a handicap, never toggled blindly.
+    if assistance and host.shows("network-host-assistance-white"):
+        host.click("network-host-handicap")
+        wait(lambda: host.shows("network-host-assistance") and not host.shows("network-host-assistance-white"), "the handicap switch did not turn off")
     if assistance:
         host.run("pointer-helper", "select-popup", "network-host-assistance", assistance)
     if handicap:
-        host.click("network-host-handicap")
+        if not host.shows("network-host-assistance-white"):
+            host.click("network-host-handicap")
         wait(lambda: host.shows("network-host-assistance-white"), "the handicap switch did not show a level for each side")
         host.run("pointer-helper", "select-popup", "network-host-assistance-white", handicap[0])
         host.run("pointer-helper", "select-popup", "network-host-assistance-black", handicap[1])
@@ -334,9 +364,10 @@ def game_row(instance, title):
     return None
 
 
-def join(instance, title, name, typed, watching=False, timeout=30, accept=False):
+def join(instance, title, name, typed, watching=False, timeout=30, accept=None):
     """Picks the game, types the name and code, and joins or watches. `accept`: the game has assistance, so the Accept
-    sheet appears (assistance plan A3) and is accepted."""
+    sheet appears (assistance plan A3), must say exactly these terms (the sheet's sentence, as NetworkWording.offer
+    words it), and is accepted: what the joiner agreed to is checked, not only the game's terms afterwards."""
     row = wait_for(lambda: game_row(instance, title), f"{instance.name} never listed {title}", timeout)
     instance.click(row)
     instance.type_into("network-name-field", name)
@@ -344,4 +375,6 @@ def join(instance, title, name, typed, watching=False, timeout=30, accept=False)
     instance.click("network-watch-button" if watching else "network-join-button")
     if accept:
         wait(lambda: instance.shows("network-accept-sheet"), f"{instance.name} was not asked to accept the assistance")
+        terms = instance.line("network-accept-terms") or ""
+        assert accept in terms, f"{instance.name} was asked to accept {terms!r}, not {accept!r}"
         instance.click("network-accept-assistance")

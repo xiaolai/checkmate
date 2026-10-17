@@ -53,6 +53,9 @@ public final class NetworkReceiver {
     /// The guest's seat credential, from `seated`. Held in memory only; redacted in every description.
     public private(set) var credential:NetworkSecret?
     private var assembler:NetworkSnapshotAssembler?,resyncRequested=false,acknowledgeAfterSnapshot=false
+    /// This connection was let in: `seated`, `resumed` or `watching` arrived. The host sends a snapshot only after one
+    /// of them (D5), so a snapshot before it breaks the protocol.
+    private var admitted=false
     private var clockSync:(clocks:NetworkClocks,at:NetworkInstant)?
     public init(gameID:NetworkGameID,role:NetworkReceiverRole,name:String,appVersion:String,rules:NetworkRulesFactory,hashing:NetworkHashing,random:NetworkRandom = .system,accepting accepted:NetworkAssistance = .off){self.gameID=gameID;self.role=role;self.name=name;self.appVersion=appVersion;factory=rules;self.hashing=hashing;self.random=random;self.accepted=accepted}
     /// The guest's side, once a snapshot says which side the host took.
@@ -66,7 +69,7 @@ public final class NetworkReceiver {
         }
     }
     /// The connection is gone. A reconnect clears the pending move; the board stays until the next snapshot.
-    public func connectionLost(){pendingMove=nil;assembler=nil;resyncRequested=false;acknowledgeAfterSnapshot=false}
+    public func connectionLost(){pendingMove=nil;assembler=nil;resyncRequested=false;acknowledgeAfterSnapshot=false;admitted=false}
     /// The live record, for the review hand-off and the crash file.
     public func publicGame(at now:NetworkInstant)throws -> NetworkPublicGame? {
         guard var game=installed,let rules,let revision else{return nil}
@@ -103,10 +106,11 @@ public final class NetworkReceiver {
         switch message {
         case .seated(let credential):
             guard case .guest=role,self.credential==nil || self.credential!.matches(credential) else{output.close = .malformed;break}
-            self.credential=credential;acknowledgeAfterSnapshot=true;output.events.append(.seated)
-        case .resumed:guard case .guest=role,credential != nil else{output.close = .malformed;break};output.events.append(.resumed)
-        case .watching:guard role == .spectator else{output.close = .malformed;break};output.events.append(.watching)
+            self.credential=credential;acknowledgeAfterSnapshot=true;admitted=true;output.events.append(.seated)
+        case .resumed:guard case .guest=role,credential != nil else{output.close = .malformed;break};admitted=true;output.events.append(.resumed)
+        case .watching:guard role == .spectator else{output.close = .malformed;break};admitted=true;output.events.append(.watching)
         case .snapshotBegin(let snapshotID,let revision,let hash,let totalBytes,let parts):
+            guard admitted else{output.close = .malformed;break}
             do{assembler=try NetworkSnapshotAssembler(snapshotID:snapshotID,revision:revision,hash:hash,totalBytes:totalBytes,parts:parts)}catch{output.close = .badSnapshot}
         case .snapshotPart,.snapshotEnd:output.close = .badSnapshot
         case .moved(let moved):try apply(moved,at:now,&output)
@@ -137,6 +141,10 @@ public final class NetworkReceiver {
         // A3: a guest plays only under the terms it accepted. Other terms are never installed, and a claim is never
         // acknowledged under them, so the reservation lapses (D4).
         if case .guest=role,result.game.assistance != accepted {acknowledgeAfterSnapshot=false;output.close = .assistanceChanged;return}
+        // The seats and the moves already shown never change: a later snapshot that swaps the host's side (and with it
+        // the guest's, and its agreed level) or goes back to an earlier revision is not this game.
+        if let installed,result.game.hostSide != installed.hostSide {output.close = .malformed;return}
+        if let current=revision,result.game.revision<current {output.close = .malformed;return}
         installed=result.game;assistedPlies=result.game.assistedPlies;rules=result.rules;fen=result.fen;revision=result.game.revision
         openOffer=result.game.openOffer;outcome=result.game.outcome;pendingMove=nil;resyncRequested=false
         clockSync=result.game.clocks.map{($0,now)}

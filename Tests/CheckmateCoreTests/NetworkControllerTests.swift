@@ -141,7 +141,10 @@ private final class ScriptedDiscovery:NetworkDiscovery {
 
         // D9: Review this game: the headers over the moves, as a draft through the import path.
         let record=try XCTUnwrap(ben.game.reviewRecord())
-        for header in ["[Event \"Checkmate network game\"]","[Date \"2026.10.16\"]","[White \"Ana\"]","[Black \"Ben\"]","[Result \"0-1\"]","[TimeControl \"-\"]","[Termination \"Checkmate\"]"] {XCTAssertTrue(record.contains(header),"\(header) in \(record)")}
+        // The record is dated in this Mac's own calendar, so the expected day is too: noon UTC is the 17th east of UTC+12.
+        let local=Calendar(identifier:.gregorian).dateComponents([.year,.month,.day],from:MemoryLAN.day)
+        let date=String(format:"%04d.%02d.%02d",local.year!,local.month!,local.day!)
+        for header in ["[Event \"Checkmate network game\"]","[Date \"\(date)\"]","[White \"Ana\"]","[Black \"Ben\"]","[Result \"0-1\"]","[TimeControl \"-\"]","[Termination \"Checkmate\"]"] {XCTAssertTrue(record.contains(header),"\(header) in \(record)")}
         XCTAssertTrue(record.hasSuffix("1. f3 e5 2. g4 Qh4# 0-1"),record)
         let review=try XCTUnwrap(PGNImporter.parse(Data(record.utf8)).first);XCTAssertEqual(review.result,"0-1");XCTAssertEqual(review.mainline.count,4)
         XCTAssertEqual(ana.game.reviewRecord(),record,"the host's record is the same game")
@@ -506,5 +509,35 @@ extension NetworkControllerTests {
         XCTAssertEqual(ana.heard.count("You played pawn to e4. You used a hint"),1)
         play(ben,"e7","e5",lan);XCTAssertEqual(ana.heard.count("Ben played pawn to e5"),1,"a move without a hint says nothing more")
         XCTAssertEqual(ana.game.record.map{NetworkWording.hintsUsed($0,players:ana.game.players)},"Hints used: Ana 1 · Ben 0")
+    }
+    /// A record whose moves cannot be shown leaves the board behind the game: no move and no help is taken from it until
+    /// a record that loads arrives, the same one again included.
+    func testARecordThatCannotBeShownStopsInputUntilOneCan()throws {
+        let lan=MemoryLAN(),ana=try hosting(lan){$0.assistance=NetworkAssistance(both:.insight)};_=try joining(lan,"Ben",ana,accepting:NetworkAssistance(both:.insight))
+        let good=try XCTUnwrap(ana.game.record);XCTAssertTrue(ana.game.canMove)
+        var broken=good;broken.pgn="1. e4 e5 2. Ke3 *"
+        ana.game.present(broken,at:lan.scheduler.now)
+        XCTAssertFalse(ana.game.canMove);XCTAssertFalse(ana.game.yourTurn);ana.game.click("e2");XCTAssertNil(ana.game.selected,"no input")
+        ana.game.present(good,at:lan.scheduler.now);XCTAssertTrue(ana.game.canMove,"the shown record arriving again is readable")
+    }
+    /// The clock announcements keep one alarm waiting, however many readings arrive before its threshold.
+    func testClockReadingsKeepOneAnnouncementAlarm()throws {
+        let lan=MemoryLAN(),ana=try hosting(lan){$0.timeControl = .threePlusTwo},ben=try joining(lan,"Ben",ana)
+        play(ana,"e2","e4",lan);XCTAssertEqual(ben.game.currentClocks?.active,.black)
+        lan.scheduler.advance(by:.seconds(1));let settled=lan.scheduler.pending
+        for _ in 0..<10 {lan.scheduler.advance(by:.seconds(1))}
+        XCTAssertLessThanOrEqual(lan.scheduler.pending,settled,"ten readings left no alarm behind")
+    }
+    /// Assistance plan A3: terms this guest finds changed in the host's snapshot stop the game with the same words as
+    /// the host's own refusal, not as a broken connection.
+    func testOtherTermsInTheHostsSnapshotReadAsChangedAssistance()throws {
+        let lan=MemoryLAN(),ana=try hosting(lan),ben=try joining(lan,"Ben",ana)
+        var forged=try XCTUnwrap(ben.game.record);forged.assistance=NetworkAssistance(both:.guided)
+        let snapshot=try NetworkSnapshot.capture(forged,fen:ben.game.rules.fen,hashing:NetworkHashing(reviewHash),random:.system)
+        let link=try XCTUnwrap(lan.transport.links.last{$0.key.role == .seat && $0.open && $0.connection != nil})
+        for message in snapshot.messages {lan.transport.deliverLate(.received(try NetworkCodec.encode(message)),to:link)}
+        lan.scheduler.run()
+        XCTAssertEqual(ben.game.link,.stopped);XCTAssertEqual(ben.game.stopMessage,"Ana's game has different assistance than the one you accepted.")
+        XCTAssertEqual(NetworkWording.stop(.assistanceChanged,game:"Ana's game",wasLive:true),NetworkWording.stop(.closedByHost(.assistanceChanged),game:"Ana's game",wasLive:true))
     }
 }

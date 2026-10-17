@@ -29,6 +29,21 @@ for folder in (local_evidence, pair_evidence):
 helpers = compile_helpers(evidence)
 results = {"steps": []}
 started = time.monotonic()
+# The pair's own scratch folder, made private (mktemp -d is 0700) for each run: the access check and the helpers are
+# copied into it and run from it, never from a shared, predictable /tmp path another account could plant first.
+remote_scratch = None
+# The pair's crash reports of the automation app, before the run, so a crash there fails the gate as one here does
+# (run-gates.py checks only this Mac's reports). The app quits by signal, so only its report shows a fault.
+CRASH_LISTING = "ls ~/Library/Logs/DiagnosticReports 2>/dev/null | grep -E '^CheckmateNative.*[.]ips$' || true"
+# The pair runs natively, without Rosetta's delayed reports; this is how long its ReportCrash is given after the run.
+PAIR_CRASH_SETTLE_SECONDS = 15
+
+
+def scratch():
+    global remote_scratch
+    if remote_scratch is None:
+        remote_scratch = on_pair("mktemp -d /tmp/checkmate-network-lan.XXXXXX")
+    return remote_scratch
 
 
 def step(name):
@@ -41,8 +56,9 @@ def access_problem():
     probe = evidence / "host-access"
     subprocess.run(["xcrun", "swiftc", str(root / "Tools/host-access.swift"), "-o", str(probe)], check=True, capture_output=True)
     local = subprocess.run([str(probe)], capture_output=True, text=True)
-    subprocess.run(["scp", "-q", "-o", "BatchMode=yes", "-o", "ConnectTimeout=5", str(probe), f"{pair()}:/tmp/checkmate-host-access"], check=True, timeout=120)
-    remote = subprocess.run(["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=5", pair(), "/tmp/checkmate-host-access"], capture_output=True, text=True, timeout=60)
+    copy = f"{scratch()}/host-access"
+    subprocess.run(["scp", "-q", "-o", "BatchMode=yes", "-o", "ConnectTimeout=5", str(probe), f"{pair()}:{shlex.quote(copy)}"], check=True, timeout=120)
+    remote = subprocess.run(["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=5", pair(), shlex.quote(copy)], capture_output=True, text=True, timeout=60)
     results["access"] = {"testHost": local.stdout.strip(), "pair": remote.stdout.strip()}
     problems = [f"{where}: {run.stdout.strip() or run.stderr.strip()}" for where, run in (("the test host", local), ("the LAN pair", remote)) if run.returncode != 0]
     return "; ".join(problems) or None
@@ -60,29 +76,33 @@ def pair_helpers():
     """The helpers built here, copied to the pair (it does not build)."""
     copies = {}
     for name, path in helpers.items():
-        copies[name] = f"/tmp/checkmate-network-lan-{name}"
+        copies[name] = f"{scratch()}/{name}"
         subprocess.run(["scp", "-q", "-o", "BatchMode=yes", "-o", "ConnectTimeout=5", str(path), f"{pair()}:{shlex.quote(copies[name])}"], check=True, timeout=120)
     return copies
 
 
 instances, failure = [], None
+pair_reports = set(on_pair(CRASH_LISTING).split())
 try:
     problem = access_problem()
     if problem:
         raise AssertionError("a Mac cannot be driven: " + problem)
     install()
     install(remote=True)
+    # Each instance is registered for cleanup as soon as it starts, so one that fails to start leaves none running.
     host = Instance("host", local_evidence, helpers, mode="installed")
+    instances.append(host)
     watcher = Instance("spectator", local_evidence, helpers, mode="installed")
+    instances.append(watcher)
     guest = Instance("guest", pair_evidence, helpers, mode="pair", remote_helpers=pair_helpers())
-    instances = [host, watcher, guest]
+    instances.append(guest)
     for instance in instances:
         open_network(instance)
     step("lobbies open on both Macs")
 
     play_code, watch_code = host_game(host, assistance="Hints on request")
     step("hosted on the test host, hints on request for both")
-    join(guest, "Ana's game", "Ben", play_code, accept=True)
+    join(guest, "Ana's game", "Ben", play_code, accept="Ana's game allows hints on request for both players.")
     wait(lambda: host.shows("Ben") and guest.shows("Ana"), "the pair never reached the game", 40)
     for instance in (host, guest):
         wait(lambda instance=instance: instance.shows("Assistance: hints on request for both players."), f"{instance.name} did not show the agreed terms")
@@ -130,6 +150,10 @@ try:
         wait(lambda instance=instance: instance.shows("network-review"), f"{instance.name} never saw the game end", 20)
         instance.capture("ended")
     results["result"] = {instance.name: instance.line("network-status") for instance in instances}
+    # Review is offered for an interrupted game too, so the result itself is checked: Black's queen mates on h4.
+    for instance in instances:
+        assert instance.read_label("h4").startswith("h4, Black, queen"), f"{instance.name} does not show the mating queen on h4"
+        assert "Checkmate" in (results["result"][instance.name] or ""), f"{instance.name} did not end in checkmate: {results['result'][instance.name]}"
     step("played to checkmate")
 
     for instance in (guest, host):
@@ -152,11 +176,22 @@ except Exception as error:
         except Exception as diagnostic:
             failure += f" (diagnostics for {instance.name} failed: {diagnostic})"
 finally:
+    # A diagnostic that fails never skips an instance's stop, nor the rest of the cleanup; its failure is kept.
     for instance in instances:
-        instance.connection_log()
-        instance.stop()
-    if instances:
-        on_pair("rm -f /tmp/checkmate-network-lan-* /tmp/checkmate-host-access", check=False)
+        try:
+            instance.connection_log()
+        except Exception as diagnostic:
+            results.setdefault("cleanupErrors", []).append(f"{instance.name} connection log: {diagnostic}")
+        finally:
+            instance.stop()
+    if remote_scratch:
+        on_pair(f"rm -rf {shlex.quote(remote_scratch)}", check=False)
+    time.sleep(PAIR_CRASH_SETTLE_SECONDS if instances else 0)
+    crashed = sorted(set(on_pair(CRASH_LISTING, check=False).split()) - pair_reports)
+    results["pairCrashReports"] = crashed
+    if crashed and results["passed"]:
+        results["passed"] = False
+        failure = f"the app crashed on the LAN pair: {', '.join(crashed)}"
 results["failure"] = failure
 results["networkLAN"] = results["passed"]
 (evidence / "network-lan-results.json").write_text(json.dumps(results, indent=2))

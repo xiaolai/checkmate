@@ -22,6 +22,8 @@ import CheckmateRules
         let fairness=FairnessPolicy(participation:mac.participation),engine=CountingEngine();engine.participation=mac.participation
         let session=try GameSession(engine:nil,fairness:fairness),voice=try VoiceCoach(session:session),assistant=NetworkAssistant(game:mac.game,fairness:fairness,engine:engine)
         voice.network=(mac.game,assistant);let events=Events();voice.automationOutbound={events.all.append($0)}
+        // A coach left connected keeps its renewal and timeout tasks, which would outlive this test.
+        addTeardownBlock{@MainActor in voice.disconnect();assistant.cancel()}
         return Coach(session:session,voice:voice,assistant:assistant,engine:engine,events:events)
     }
     /// Ana hosts as White under `terms`, Ben joins as Black accepting them, and Cy watches.
@@ -40,6 +42,12 @@ import CheckmateRules
     }
     private func refusedAny(_ work:()async throws->Any,_ message:String,file:StaticString=#filePath,line:UInt=#line)async {
         do{_ = try await work();XCTFail("\(message) ran",file:file,line:line)}catch{}
+    }
+    /// Runs everything already queued on the main queue, where the coach hears of network changes.
+    private func drainMain()async {await withCheckedContinuation{done in DispatchQueue.main.async{done.resume()}}}
+    private func outputs(_ coach:Coach)->[String:String] {
+        var found:[String:String]=[:];for event in coach.events.all where (event["item"] as? [String:Any])?["type"] as? String=="function_call_output"{let item=event["item"] as! [String:Any];found[item["call_id"] as? String ?? ""]=item["output"] as? String}
+        return found
     }
     private func settle(_ done:@escaping ()->Bool,_ message:String,file:StaticString=#filePath,line:UInt=#line)async throws {
         for _ in 0..<400 where !done(){try await Task.sleep(for:.milliseconds(5))};XCTAssertTrue(done(),message,file:file,line:line)
@@ -122,8 +130,21 @@ import CheckmateRules
             let sent=coach.events.all.map{String(decoding:(try? JSONSerialization.data(withJSONObject:$0)) ?? Data(),as:UTF8.self)}
             XCTAssertFalse(sent.isEmpty);XCTAssertFalse(sent.contains{$0.range(of:"\\b\(other)\\b",options:.regularExpression) != nil},"\(other)'s name reached the voice model")
         }
-        let board=try await anaCoach.voice.execute("get_board",args:[:],id:"board2")
-        XCTAssertFalse(String(decoding:try JSONSerialization.data(withJSONObject:board),as:UTF8.self).contains("Ben"),"the board tool carries no name")
+    }
+    /// The other Mac's name never reaches the model in a tool result: the calls run as the service makes them, and
+    /// what the coach sends back for each is scanned.
+    func testToolResultsSentToTheModelCarryNoPeerName()async throws {
+        let lan=MemoryLAN(),(ana,_,_)=try game(NetworkAssistance(both:.hints),lan),coach=try coach(ana)
+        try open(coach);coach.voice.ask("What should I play?")
+        let calls:[(String,[String:Any])]=[("get_board",[:]),("inspect_piece",["positionId":position(ana),"square":"e2","mode":"attacked"]),("get_hint",["positionId":position(ana)])]
+        for (index,(name,args)) in calls.enumerated() {
+            let arguments=String(decoding:try JSONSerialization.data(withJSONObject:args),as:UTF8.self)
+            coach.voice.receive(["type":"response.function_call_arguments.done","name":name,"call_id":"call-\(index)","arguments":arguments])
+            try await settle({self.outputs(coach)["call-\(index)"] != nil},"\(name) answered")
+            let output=try XCTUnwrap(outputs(coach)["call-\(index)"])
+            XCTAssertFalse(output.contains("\"error\""),"\(name) failed: \(output)");XCTAssertNil(output.range(of:#"\bBen\b"#,options:.regularExpression),"\(name) sent the other Mac's name")
+        }
+        XCTAssertEqual(coach.engine.calls,1,"the hint was the agreed search")
     }
 
     /// A10: under `guided` the coach speaks once, unprompted, at the start of each of the learner's moves; a turn still
@@ -133,14 +154,40 @@ import CheckmateRules
         let comments={(coach:Coach) in coach.events.responses.filter{(($0["response"] as? [String:Any])?["instructions"] as? String ?? "").contains(VoiceCoach.commentaryPrefix)}.count}
         try open(anaCoach);try open(benCoach)
         XCTAssertEqual(comments(anaCoach),1,"Ana's first move gets one comment");XCTAssertEqual(comments(benCoach),0,"Ben waits for his move")
-        ana.game.objectWillChange.send();try await Task.sleep(for:.milliseconds(20));XCTAssertEqual(comments(anaCoach),1,"once a move")
-        // Ana plays while her comment is still being made: it stops, and its cancellation is acknowledged.
-        NetworkControllerTests().play(ana,"e2","e4",lan);try await Task.sleep(for:.milliseconds(20))
-        XCTAssertTrue(anaCoach.events.all.contains{$0["type"] as? String=="response.cancel"},"the comment for the move played stops")
-        anaCoach.voice.receive(["type":"response.done","response":["status":"cancelled"]])
+        // Once that comment is finished and the coach is idle, more news about the same move asks for no other.
+        anaCoach.voice.receive(["type":"response.done","response":["status":"completed"]])
+        for _ in 0..<3{ana.game.objectWillChange.send()};await drainMain()
+        XCTAssertEqual(comments(anaCoach),1,"once a move");XCTAssertEqual(anaCoach.events.responses.count,1,"nothing else was asked")
+        // Reconnecting does not earn the same move a second comment.
+        anaCoach.voice.disconnect();try open(anaCoach);await drainMain();XCTAssertEqual(comments(anaCoach),1,"once a move, across a reconnection")
+        NetworkControllerTests().play(ana,"e2","e4",lan)
         try await settle({comments(benCoach)==1},"Ben's move gets its comment")
+        // Ben plays while his comment is still being made: it stops, and its cancellation is acknowledged.
         NetworkControllerTests().play(ben,"e7","e5",lan)
-        try await settle({comments(anaCoach)==2},"Ana's next move gets its comment");try await Task.sleep(for:.milliseconds(20));XCTAssertEqual(comments(anaCoach),2)
+        try await settle({benCoach.events.all.contains{$0["type"] as? String=="response.cancel"}},"the comment for the move played stops")
+        benCoach.voice.receive(["type":"response.done","response":["status":"cancelled"]])
+        try await settle({comments(anaCoach)==2},"Ana's next move gets its comment");await drainMain();XCTAssertEqual(comments(anaCoach),2)
+    }
+    /// A10: a practice conversation stays with practice. The network session opened after joining starts a fresh
+    /// transcript, so practice advice is neither shown beside the network board nor carried into its renewals.
+    func testANetworkSessionStartsAFreshTranscript()async throws {
+        let lan=MemoryLAN(),terms=NetworkAssistance(both:.hints),ana=try NetworkControllerTests().hosting(lan){$0.assistance=terms},coach=try coach(ana)
+        try open(coach);XCTAssertFalse(coach.voice.networkSession,"fixture: practice before anyone joins")
+        coach.voice.ask("Is my practice knight safe?");XCTAssertFalse(coach.voice.history.isEmpty,"fixture: practice has a transcript")
+        _ = try NetworkControllerTests().joining(lan,"Ben",ana,accepting:terms)
+        XCTAssertFalse(coach.voice.connected,"joining ended the practice session")
+        try open(coach);XCTAssertTrue(coach.voice.networkSession)
+        XCTAssertTrue(coach.voice.history.isEmpty,"practice's transcript is not the network game's");XCTAssertTrue(coach.voice.carriedSummary.isEmpty)
+    }
+    /// A10: the coach speaks only on the learner's move; a game paused for the other player is not their move, so a
+    /// turn in progress stops then, though no move was played.
+    func testAPausedGameStopsTheTurn()async throws {
+        let lan=MemoryLAN(),(ana,_,_)=try game(NetworkAssistance(both:.hints),lan),coach=try coach(ana)
+        try open(coach);coach.voice.ask("What should I play?");XCTAssertEqual(coach.events.responses.count,1)
+        let revision=ana.game.gameRevision
+        lan.transport.stallConnects=true;lan.transport.cut(try XCTUnwrap(lan.guestConnection));lan.scheduler.run()
+        XCTAssertFalse(ana.game.yourTurn,"fixture: the game is paused while Ben is away");XCTAssertEqual(ana.game.gameRevision,revision,"fixture: no move was played")
+        try await settle({coach.events.all.contains{$0["type"] as? String=="response.cancel"}},"the turn stops while the game is paused")
     }
 
     /// A10: leaving, or the game ending, ends the network session; the coach then follows D8 and practice again.

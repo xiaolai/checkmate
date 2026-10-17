@@ -164,8 +164,10 @@ import RealtimeConnection
     }
     /// The launch attempt waited while the app was hidden (Cmd-H during the check, or launched hidden); run it now.
     func resumeConnectionsIfDeferred(){connectionStartup?.resumeIfDeferred()}
-    /// Voice may take the session only in practice itself: never in a lesson, puzzle, review or the review workspace (TX-3).
-    var voiceMayConnect:Bool {session.activity == .at(.practice) && !session.suspended}
+    /// Voice may take the session only in practice itself: never in a lesson, puzzle, review or the review workspace (TX-3),
+    /// and never during a network game (D8). A coach for the network game is opened on its own page (assistance plan
+    /// A10); connecting from Practice then would open that one, so a practice session's resume waits for the game's end.
+    var voiceMayConnect:Bool {session.activity == .at(.practice) && !session.suspended && fairness.engineHelpAllowed}
     /// Away: the app hidden or its window minimised (TX-5). Agents and Stockfish wait, voice disconnects; on return the
     /// connection resumes and a launch check that waited runs.
     private(set) var away=false
@@ -177,6 +179,19 @@ import RealtimeConnection
     /// visible again, without a new greeting. Leaving while voice was off, or an MCP companion taking the session,
     /// leaves it off.
     private(set) var voiceResumeIntent=false
+    /// The voice history from before the learner first connected the coach to this network game (A10): Practice's, or
+    /// an earlier game's. The network page shows only what this game's coach said; a renewed or reconnected session
+    /// in the same game keeps showing it.
+    private var networkVoiceHidden:(game:NetworkGameID,ids:Set<String>)?
+    var networkVoiceHistory:[VoiceHistory] {
+        guard let game=network.record?.gameID,let hidden=networkVoiceHidden,hidden.game==game else{return []}
+        return voice.history.filter{!hidden.ids.contains($0.id)}
+    }
+    /// The network page's Connect Voice Coach.
+    func connectNetworkVoice(){
+        if let game=network.record?.gameID,networkVoiceHidden?.game != game{networkVoiceHidden=(game,Set(voice.history.map(\.id)))}
+        voice.connect()
+    }
     var reconnectVoice:()->Void={}
     private var claimsWhenVoiceLeft=0
     private func rememberVoice(){if !voice.networkSession,voice.connected || voice.connecting{voiceResumeIntent=true;claimsWhenVoiceLeft=session.companionClaims}}

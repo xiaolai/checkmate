@@ -23,13 +23,15 @@ import Foundation
     public let game:NetworkGameController,fairness:FairnessPolicy
     public var engine:EngineService?
     private var work:Task<Void,Never>?
+    /// The search in progress, for a caller that must wait for it to settle (tests); nil when none is.
+    var search:Task<Void,Never>? {work}
     /// The game revision the shown hint, or the search in progress, belongs to.
     private var turn:Int?
-    /// The revision whose automatic hint has already been started, so a guided turn starts one only once.
-    private var automaticTurn:Int?
+    /// The game and revision whose automatic hint has already been started, so a guided turn starts one only once.
+    /// A new game starts again at revision 0, so the game is part of it.
+    private var automaticTurn:String?
     /// Advances with every search started or cancelled, so a late result can only ever settle its own search.
     private var request=0
-    private static let startFEN="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
     public init(game:NetworkGameController,fairness:FairnessPolicy,engine:EngineService?){
         self.game=game;self.fairness=fairness;self.engine=engine
         game.onSettle={[weak self] in self?.sync()};sync()
@@ -55,17 +57,20 @@ import Foundation
     /// goes; a guided turn starts its automatic hint.
     public func sync(){
         if turn != nil,!(level >= .hints && game.yourTurn && turn==game.gameRevision){cancel()}
-        if level == .guided,game.yourTurn,let revision=game.gameRevision,automaticTurn != revision{automaticTurn=revision;start(automatic:true)}
+        if level == .guided,game.yourTurn,let revision=game.gameRevision,automaticTurn != turnKey(revision){automaticTurn=turnKey(revision);start(automatic:true)}
     }
-    /// Stops any search and clears what is shown.
+    private func turnKey(_ revision:Int)->String {"\(game.record?.gameID.text ?? "-")#\(revision)"}
+    /// Stops any search and clears what is shown. A guided turn cut short (a reconnect, a refused move) starts its
+    /// automatic hint again when the turn comes back.
     public func cancel(){
-        request+=1;work?.cancel();work=nil;turn=nil
+        request+=1;work?.cancel();work=nil;turn=nil;automaticTurn=nil
         if hint != nil{hint=nil};if thinking{thinking=false};if error != nil{error=nil}
     }
     private func start(automatic:Bool){
         guard !thinking,hint==nil,let engine,game.yourTurn,let revision=game.gameRevision,(try? fairness.requireNetworkHint()) != nil else{return}
         let epoch=fairness.participation.epoch,records=game.rules.records
-        let startFEN=records.first?.before ?? Self.startFEN,moves=records.map(\.uci)
+        // With no move yet the position is the record's own start, which a FEN tag may set.
+        let startFEN=records.first?.before ?? game.rules.fen,moves=records.map(\.uci)
         request+=1;let id=request
         thinking=true;error=nil;turn=revision
         work=Task{[weak self] in

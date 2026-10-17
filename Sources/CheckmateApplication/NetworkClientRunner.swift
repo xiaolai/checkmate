@@ -16,6 +16,9 @@ public enum NetworkClientStop:Equatable {
     case handshakeFailed
     /// The host negotiated something other than TLS 1.2 with suite 0xCCAC.
     case insecure
+    /// The game's assistance terms are not the ones this guest accepted (assistance plan A3), found by this Mac in the
+    /// host's snapshot; the host's own refusal arrives as `closedByHost(.assistanceChanged)`.
+    case assistanceChanged
     /// The host broke the protocol, or this Mac's own rules failed; the text is readable.
     case failed(String)
 }
@@ -164,6 +167,7 @@ public final class NetworkClientRunner {
         }
         if let reason=output.close {
             abandon(farewell:reason)
+            if reason == .assistanceChanged {return finish(.assistanceChanged)}
             return reason == .badSnapshot ? dropped(.lost):finish(.failed("The host sent a message that breaks the protocol (\(reason.rawValue))."))
         }
         if case .bye(let reason)=message {

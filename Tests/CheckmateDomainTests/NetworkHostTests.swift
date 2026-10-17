@@ -16,7 +16,8 @@ final class NetworkHostTests:XCTestCase {
         try net.hostPlays("e2e4")
         try net.send(.resync,on:id)
         try net.play(guest,"e7e5");try net.hostPlays("g1f3");try net.play(guest,"b8c6")
-        let before=net.host.queuedBytes(id) ?? -1
+        // Still open, with its queue known, right before the send completes: the part is what decides.
+        let before=try XCTUnwrap(net.host.queuedBytes(id),"the spectator is still open before the send completes");XCTAssertNil(net.closes[id])
         try net.completeSend(id)
         return (before,net.host.queuedBytes(id) ?? -1,net.closes[id])
     }
@@ -338,5 +339,25 @@ final class NetworkHostTests:XCTestCase {
         let (other,_)=try resigned.startGame()
         try resigned.command(other,other.receiver.resign())
         XCTAssertEqual(resigned.host.outcome,NetworkOutcome(result:.whiteWins,termination:.resignation))
+    }
+    /// Spectators learn the guest's name only from a snapshot: one watching before the guest arrives gets a fresh one
+    /// when a seat is reserved, and again when a reservation lapses, even while an earlier snapshot is on its way.
+    func testSpectatorsLearnTheGuestsNameWhenItChanges()throws {
+        let net=try TestNetwork()
+        let early=net.client(.watch,name:"Cy");try net.connect(early)
+        XCTAssertNil(early.receiver.installed?.blackName)
+        // A claim that is never acknowledged: Ben's name, then none once the reservation lapses.
+        let ben=net.client(.seat,name:"Ben");ben.lose=["seatedAck"];try net.connect(ben)
+        XCTAssertEqual(net.host.phase,.reserved);XCTAssertEqual(early.receiver.installed?.blackName,"Ben")
+        try net.advance(31);XCTAssertEqual(net.host.phase,.waiting);XCTAssertNil(early.receiver.installed?.blackName,"the lapsed claimant's name goes")
+        // Dee claims while the spectator's earlier snapshot is still on its way: a fresh one follows it.
+        let id=try XCTUnwrap(early.connection);net.stalled.insert(id)
+        try net.toHost(early,.resync);try net.settle()
+        let dee=net.client(.seat,name:"Dee");try net.connect(dee)
+        XCTAssertEqual(net.host.phase,.running)
+        net.stalled.remove(id)
+        for _ in 0..<64 where net.host.queuedBytes(id) != 0 {try net.completeSend(id);try net.settle()}
+        XCTAssertEqual(early.receiver.installed?.blackName,"Dee");XCTAssertNil(early.closedWith)
+        let late=net.client(.watch,name:"Late");try net.connect(late);XCTAssertEqual(late.receiver.installed?.blackName,"Dee")
     }
 }

@@ -208,6 +208,44 @@ import CheckmateCore
         XCTAssertFalse(model.voice.networkVoiceAvailable,"no coach without hints")
     }
 
+    /// A10: the squares of the segment the network game's coach is speaking light up on the learner's board, and go
+    /// when the coach stops.
+    func testTheCoachsSpokenSquaresShowOnTheNetworkBoard()async throws {
+        let model=try NativeModel(),game=GameWindow(model:model);defer{game.window?.delegate=nil;model.shutdown()}
+        let lan=LAN();model.network.form.assistance=NetworkAssistance(both:.hints)
+        _=try hostedGame(model,lan);model.playOnNetwork()
+        try model.voice.automationOpen();model.voice.receive(["type":"session.updated"]);XCTAssertTrue(model.voice.networkSession)
+        let position="network:\(model.network.gameRevision ?? -1)"
+        _ = try await model.voice.execute("speak_explanation",args:["positionId":position,"displayIdentity":position,"segments":[["text":"Your knight can develop.","squares":["g1"],"kind":"advice"]]],id:"s")
+        model.voice.receive(["type":"response.done","response":["status":"completed"]]);model.voice.audio.onPlaybackStart?()
+        XCTAssertEqual(model.voice.networkFocus,["g1"])
+        func lit()->Bool {game.board.highlights.contains{$0.sq=="g1" && $0.kind=="focus"}}
+        for _ in 0..<100 where !lit(){try await Task.sleep(for:.milliseconds(5))}
+        XCTAssertTrue(lit(),"the spoken square is lit without a manual refresh")
+        model.voice.stopTurn()
+        for _ in 0..<100 where lit(){try await Task.sleep(for:.milliseconds(5))}
+        XCTAssertFalse(lit(),"and goes when the coach stops")
+    }
+
+    /// D8 and A10: a practice coach the learner had connected is not reopened from Practice while their network game
+    /// goes on (connecting there would open the game's coach on the wrong page), and the network page shows only what
+    /// this game's coach said, not Practice's conversation.
+    func testPracticeVoiceWaitsForTheGameAndItsWordsStayOnPractice()throws {
+        let model=try NativeModel();defer{model.shutdown()}
+        model.practice();try model.voice.automationOpen();model.voice.receive(["type":"session.updated"])
+        XCTAssertTrue(model.voice.connected);XCTAssertFalse(model.voice.networkSession)
+        model.voice.receive(["type":"conversation.item.input_audio_transcription.completed","item_id":"practice-1","transcript":"How do knights move?"])
+        XCTAssertEqual(model.voice.history.map(\.id),["practice-1"])
+        model.playOnNetwork();XCTAssertFalse(model.voice.connected);XCTAssertTrue(model.voiceResumeIntent)
+        let lan=LAN();model.network.form.assistance=NetworkAssistance(both:.hints);_=try hostedGame(model,lan)
+        model.practice()
+        XCTAssertEqual(model.voice.connectRequests,[],"Practice does not reopen voice during the game");XCTAssertTrue(model.voiceResumeIntent,"the intent waits for the game's end")
+        model.playOnNetwork();XCTAssertTrue(model.networkVoiceHistory.isEmpty,"nothing from before this game's coach")
+        model.connectNetworkVoice();try model.voice.automationOpen();model.voice.receive(["type":"session.updated"]);XCTAssertTrue(model.voice.networkSession)
+        model.voice.receive(["type":"conversation.item.input_audio_transcription.completed","item_id":"network-1","transcript":"What now?"])
+        XCTAssertEqual(model.networkVoiceHistory.map(\.id),["network-1"],"Practice's words stay on Practice")
+    }
+
     /// D12: an isolated automation run with `CHECKMATE_NETWORK_LOOPBACK_DIR` gets loopback listeners and the shared
     /// directory's discovery, and its hosted games are published there; without it, a build declaring no Bonjour
     /// service type says it cannot browse.
