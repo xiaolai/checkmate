@@ -117,6 +117,13 @@ import CheckmateRules
         // A spoken turn alone, without a hint, still flags the move: everything the coach says counts (A7).
         _ = try await benCoach.voice.execute("speak_explanation",args:speech(ben,"Your e-pawn can take the centre."),id:"s");XCTAssertTrue(ben.game.assistedThisTurn)
         XCTAssertEqual(benCoach.engine.calls,0)
+        // The other Mac's name is untrusted text: no event either coach sends, instructions or tool results, carries it.
+        for (coach,other) in [(anaCoach,"Ben"),(benCoach,"Ana")] {
+            let sent=coach.events.all.map{String(decoding:(try? JSONSerialization.data(withJSONObject:$0)) ?? Data(),as:UTF8.self)}
+            XCTAssertFalse(sent.isEmpty);XCTAssertFalse(sent.contains{$0.range(of:"\\b\(other)\\b",options:.regularExpression) != nil},"\(other)'s name reached the voice model")
+        }
+        let board=try await anaCoach.voice.execute("get_board",args:[:],id:"board2")
+        XCTAssertFalse(String(decoding:try JSONSerialization.data(withJSONObject:board),as:UTF8.self).contains("Ben"),"the board tool carries no name")
     }
 
     /// A10: under `guided` the coach speaks once, unprompted, at the start of each of the learner's moves; a turn still
