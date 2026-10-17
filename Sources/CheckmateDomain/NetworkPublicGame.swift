@@ -30,9 +30,11 @@ public struct NetworkPublicGame:Codable,Equatable {
         timeControl=try c.decode(NetworkTimeControl.self,forKey:.timeControl);pgn=try c.decode(String.self,forKey:.pgn)
         clocks=try c.decodeIfPresent(NetworkClocks.self,forKey:.clocks);openOffer=try c.decodeIfPresent(NetworkDrawOffer.self,forKey:.openOffer);outcome=try c.decodeIfPresent(NetworkOutcome.self,forKey:.outcome)
         assistance=try c.decodeIfPresent(NetworkAssistance.self,forKey:.assistance) ?? .off;assistedPlies=try c.decodeIfPresent([Int].self,forKey:.assistedPlies) ?? []
-        // Moves and `ended` each advance the revision (D2), so the moves played are the revision less one once ended.
+        // The revision is a peer's number: it is range-checked before anything is derived from it. Moves and `ended`
+        // each advance it (D2), so the moves played are the revision less one once ended.
+        guard (0...NetworkLimits.maximumRevision).contains(revision),outcome==nil || revision>=1 else{throw DecodingError.dataCorrupted(.init(codingPath:decoder.codingPath,debugDescription:"Invalid public game revision."))}
         let plies=revision-(outcome==nil ? 0:1)
-        guard revision>=0,zip(assistedPlies,assistedPlies.dropFirst()).allSatisfy({$0<$1}),assistedPlies.allSatisfy({$0>=1 && $0<=plies}),[whiteName,blackName].allSatisfy({$0.map{NetworkText.valid($0)} ?? true}),clocks?.valid ?? true,(clocks==nil)==(timeControl == .untimed) else{throw DecodingError.dataCorrupted(.init(codingPath:decoder.codingPath,debugDescription:"Invalid public game."))}
+        guard zip(assistedPlies,assistedPlies.dropFirst()).allSatisfy({$0<$1}),assistedPlies.allSatisfy({$0>=1 && $0<=plies}),[whiteName,blackName].allSatisfy({$0.map{NetworkText.valid($0)} ?? true}),clocks?.valid ?? true,(clocks==nil)==(timeControl == .untimed) else{throw DecodingError.dataCorrupted(.init(codingPath:decoder.codingPath,debugDescription:"Invalid public game."))}
     }
     /// The 1.0 shape when nothing is assisted: the 1.1 keys are written only when they say something (A4).
     public func encode(to encoder:Encoder)throws {

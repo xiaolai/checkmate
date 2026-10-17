@@ -34,6 +34,8 @@ public struct ReviewMoment:Codable,Identifiable {public let id:Int,expectationLo
     private var selectedSearches:[UUID:Task<ReviewEvidence,Error>]=[:]
     private func cancelSelected(){for task in selectedSearches.values {task.cancel()};for task in selectedAnalyses.values {task.cancel()};selectedSearches=[:];selectedAnalyses=[:]}
     private var selectedAnalyses:[UUID:Task<EngineAnalysis,Error>]=[:]
+    /// The work runs in its own task, a scheduling hop after the caller's fairness check: work that reaches the engine
+    /// checks again itself, so a game joined in between stops it (D8).
     private func trackedAnalysis(_ work:@escaping ()async throws -> EngineAnalysis)async throws -> EngineAnalysis {
         let id=UUID(),task=Task{try await work()};selectedAnalyses[id]=task;defer{selectedAnalyses[id]=nil}
         // Cancelled by joining: the caller hears the readable reason, not a bare cancellation.
@@ -112,7 +114,7 @@ public struct ReviewMoment:Codable,Identifiable {public let id:Int,expectationLo
         let history=try document.history(to:root)+moves,rules=try document.rules(at:root)
         for move in moves{try rules.move(uci:move)}
         let engine=engine,start=document.startingFEN
-        let analysis=rules.over ? EngineAnalysis():try await trackedAnalysis{try await engine.analyzeHistory(startFEN:start,moves:history,profile:.skill(20),budget:ReviewPolicy.quickBudget,multiPv:3)}
+        let analysis=rules.over ? EngineAnalysis():try await trackedAnalysis{[fairness] in try fairness.requireEngineHelp();return try await engine.analyzeHistory(startFEN:start,moves:history,profile:.skill(20),budget:ReviewPolicy.quickBudget,multiPv:3)}
         try Task.checkCancellation();try fairness.requireEngineHelp()
         return ReviewEvidence(schemaVersion:1,documentID:document.id,documentHash:document.contentHash,nodeID:root,historyHash:reviewHash(Data((document.startingFEN+"|"+history.joined(separator:" ")).utf8)),revision:revision,engineVersion:engine.capabilities.name+" "+engine.binaryIdentity,options:AnalysisPolicy.options,budgetMs:ReviewPolicy.quickBudget,createdAt:Date(),root:analysis,played:nil,quality:"provisional",provisional:true)
     }

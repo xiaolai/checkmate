@@ -30,6 +30,7 @@ final class FakeRules:NetworkChessRules {
         guard list.allSatisfy(ChessNotation.validUCI) else{throw NetworkRulesError.unexpected("bad move")}
         moves=list
     }
+    func networkMoves()throws -> [String] {moves}
 }
 /// FNV-1a: deterministic and collision-free enough for tests. Production injects SHA-256.
 let testHashing=NetworkHashing{data in var hash:UInt64=0xcbf29ce484222325;for byte in data {hash^=UInt64(byte);hash=hash&*0x100000001b3};return String(hash,radix:16)}

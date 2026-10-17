@@ -6,48 +6,27 @@ public enum NetworkGameRecord {
     /// The review record: the D9 headers (Event, White, Black, Date, Result, TimeControl, Termination from `ended`, and
     /// Assistance when either side had any) over the game's moves, each assisted move followed by `{Hint shown}`
     /// (assistance plan A11). An interrupted game has the result `*`.
-    public static func reviewPGN(_ game:NetworkPublicGame,on date:Date,calendar:Calendar=Calendar(identifier:.gregorian))->String {
+    ///
+    /// `moves` is the game's SAN as this Mac's own rules replayed the record, never the record's text: a peer's PGN may
+    /// carry tags, comments or characters that a text scan would read as moves (a tag value spanning lines, a mark that
+    /// joins a comment's closing brace), and every network game starts from the initial position.
+    public static func reviewPGN(_ game:NetworkPublicGame,moves:[String],on date:Date,calendar:Calendar=Calendar(identifier:.gregorian))->String {
         let day=calendar.dateComponents([.year,.month,.day],from:date)
         let stamp=String(format:"%04d.%02d.%02d",day.year ?? 0,day.month ?? 0,day.day ?? 0)
-        // A record that starts from a set-up position keeps it, or Review would replay its moves from the usual start.
-        let start=game.pgn.split(separator:"\n").map{$0.trimmingCharacters(in:.whitespaces)}.filter{$0.hasPrefix("[SetUp ") || $0.hasPrefix("[FEN ")}
-        let headers=(game.recordHeaders(date:stamp).map{"[\($0.name) \"\(escaped($0.value))\"]"}+start).joined(separator:"\n")
-        return headers+"\n\n"+movetext(game.pgn,result:game.outcome?.result.rawValue ?? "*",assisted:Set(game.assistedPlies))
+        let headers=game.recordHeaders(date:stamp).map{"[\($0.name) \"\(escaped($0.value))\"]"}.joined(separator:"\n")
+        return headers+"\n\n"+movetext(moves,result:game.outcome?.result.rawValue ?? "*",assisted:Set(game.assistedPlies))
     }
     /// The comment after each assisted move (A11). Self-reported by the mover, as the game's wording says.
     static let assistedComment="{Hint shown}"
-    /// The moves of a record, without its own tag pairs or result, ending in `result`. The plies in `assisted`
-    /// (counted from 1) are followed by `assistedComment`.
-    static func movetext(_ pgn:String,result:String,assisted:Set<Int>=[])->String {
-        let body=pgn.split(separator:"\n",omittingEmptySubsequences:false).filter{!$0.trimmingCharacters(in:.whitespaces).hasPrefix("[")}
-        var tokens=moveTokens(body.joined(separator:"\n"))
-        if let last=tokens.last,["1-0","0-1","1/2-1/2","*"].contains(last){tokens.removeLast()}
-        // Move numbers ("12." or "12...") and SAN are left; only SAN counts as a ply.
-        var commented:[String]=[],ply=0
-        for token in tokens {
-            commented.append(token)
-            guard !token.allSatisfy({$0.isNumber || $0=="."}) else{continue}
-            ply+=1;if assisted.contains(ply){commented.append(assistedComment)}
+    /// Numbered movetext from White's first move, ending in `result`. The plies in `assisted` (counted from 1) are
+    /// followed by `assistedComment`.
+    static func movetext(_ moves:[String],result:String,assisted:Set<Int>=[])->String {
+        var tokens:[String]=[]
+        for (index,san) in moves.enumerated() {
+            if index%2==0 {tokens.append("\(index/2+1).")}
+            tokens.append(san);if assisted.contains(index+1){tokens.append(assistedComment)}
         }
-        return (commented+[result]).joined(separator:" ")
-    }
-    /// The movetext's tokens without comments (`{…}`, `;…`), variations (`(…)`, nested) or NAGs (`$1`). A record from
-    /// a peer is any PGN the rules replay, and chess.js keeps comments when it exports one, so a comment's words must
-    /// never be counted as moves.
-    static func moveTokens(_ text:String)->[String] {
-        var tokens:[String]=[],token="",depth=0,comment:Character?
-        func flush(){if !token.isEmpty,depth==0,!token.hasPrefix("$"){tokens.append(token)};token=""}
-        for c in text {
-            if let close=comment {if c==close{comment=nil};continue}
-            switch c {
-            case "{":flush();comment="}"
-            case ";":flush();comment="\n"
-            case "(":flush();depth+=1
-            case ")":flush();depth=max(0,depth-1)
-            default:if c.isWhitespace{flush()}else if depth==0{token.append(c)}
-            }
-        }
-        flush();return tokens
+        return (tokens+[result]).joined(separator:" ")
     }
     private static func escaped(_ value:String)->String {value.replacingOccurrences(of:"\\",with:"\\\\").replacingOccurrences(of:"\"",with:"\\\"")}
 }

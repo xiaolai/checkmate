@@ -135,6 +135,8 @@ import OSLog
     private var recordUnreadable=false
     /// The clock announcement waiting for its threshold; each reading replaces it, so one is ever pending.
     private var clockAlarm:NetworkScheduledWork?
+    /// What the waiting alarm is for: the side, the threshold it announces, and when.
+    private var clockAlarmTarget:(side:NetworkSide,threshold:Int,due:NetworkInstant)?
     /// The game revision of the turn in which a hint was shown to the learner (A7); their move in that turn says so.
     private var assistedTurn:Int?
     /// The record last written to the crash file, without its clocks.
@@ -407,17 +409,23 @@ import OSLog
     /// the board when the moves changed. Announces what a sighted player would see happen.
     func present(_ game:NetworkPublicGame,at instant:NetworkInstant){
         let previousOffer=openOffer,previousOutcome=outcome,plies=rules.history.count,first=record==nil
+        // The record is taken only once its moves load: one that cannot be shown leaves the last good record, revision
+        // and board in place (crash file, Review, help) and stops input until a record that loads arrives.
+        var reloaded=false
+        if game.pgn != shownPGN {
+            do{try load(game.pgn)}
+            catch{recordUnreadable=true;NativeLog.lifecycle.error("A network game record could not be shown: \(String(describing:error),privacy:.public)");resetInput();changed();return}
+            shownPGN=game.pgn;recordUnreadable=false;reloaded=true
+        }else if recordUnreadable{recordUnreadable=false;objectWillChange.send()}
         record=game;gameRevision=game.revision;clockSync=game.clocks.map{($0,instant)}
         update(\.whiteName,game.whiteName);update(\.blackName,game.blackName);update(\.timeControl,game.timeControl);update(\.openOffer,game.openOffer);update(\.outcome,game.outcome)
         if seat==nil,let mine=learnerSeat{seat=mine}
-        var moved=false
-        if game.pgn != shownPGN {
-            do{try load(game.pgn);shownPGN=game.pgn;moved=rules.history.count != plies;recordUnreadable=false}
-            catch{recordUnreadable=true;NativeLog.lifecycle.error("A network game record could not be shown: \(String(describing:error),privacy:.public)")}
+        let moved=reloaded && rules.history.count != plies
+        if reloaded {
             resetInput();changed()
             // A12: a move its mover made with a hint shown says so, as the hint count beside the names does.
             if rules.history.count>plies,let last=rules.records.last{let mover:NetworkSide=last.color=="b" ? .black:.white;announce(NetworkWording.move(last,players:players)+(game.assistedPlies.last==rules.history.count ? ". "+NetworkWording.usedHint(mover,players:players):""))}
-        }else if recordUnreadable{recordUnreadable=false;objectWillChange.send()}
+        }
         // A12: joining or watching a game with assistance announces its terms once, as the line under the names shows them.
         if first,part != .host,let terms=NetworkWording.terms(game.assistance,players:players){announce(terms)}
         if pending != nil,gameRevision != pendingRevision{clearPending()}
@@ -503,19 +511,29 @@ import OSLog
     /// re-arms it; a crossing seen late, between two readings, is still announced once. A threshold is announced again
     /// only after an increment has taken the clock clearly back above it, so a host reading a few milliseconds above
     /// the local countdown cannot repeat one.
+    ///
+    /// One alarm waits at a time, and a reading that points it at the same threshold at nearly the same moment keeps
+    /// it: the readings come every second, and replacing the alarm each time would leave a cancelled dispatch for
+    /// every reading until its deadline.
     private func watchClocks(){
-        clockWatch+=1
-        if let alarm=clockAlarm,let scheduler=services?.scheduler{clockAlarm=nil;scheduler.enqueue{alarm.cancel()}}
-        guard let services,countingDown,let clocks=clocks(at:services.scheduler.now),let side=clocks.active else{return}
+        guard let services,countingDown,let clocks=clocks(at:services.scheduler.now),let side=clocks.active else{return dropClockAlarm()}
         let left=clocks.remaining(side)
         if let announced=clockAnnounced[side],left>announced+Self.clockSlack{clockAnnounced[side]=nil}
         if let before=clockSeen[side],let crossed=NetworkWording.clockThresholds.filter({left<=$0 && $0<before && $0<(clockAnnounced[side] ?? .max)}).min(){
             clockAnnounced[side]=crossed;announce(NetworkWording.clock(side,threshold:crossed,players:players))
         }
         clockSeen[side]=left
-        guard let next=NetworkWording.nextClockThreshold(below:left) else{return}
-        let watch=clockWatch
-        clockAlarm=Self.alarm(services.scheduler,at:services.scheduler.now + .milliseconds(left-next),services.delivery){[weak self] in guard let self,self.clockWatch==watch else{return};self.watchClocks()}
+        guard let next=NetworkWording.nextClockThreshold(below:left) else{return dropClockAlarm()}
+        let due=services.scheduler.now + .milliseconds(left-next)
+        if clockAlarm != nil,let target=clockAlarmTarget,target.side==side,target.threshold==next,max(target.due-due,due-target.due) <= .milliseconds(Self.clockSlack) {return}
+        dropClockAlarm()
+        let watch=clockWatch;clockAlarmTarget=(side,next,due)
+        clockAlarm=Self.alarm(services.scheduler,at:due,services.delivery){[weak self] in guard let self,self.clockWatch==watch else{return};self.clockAlarm=nil;self.clockAlarmTarget=nil;self.watchClocks()}
+    }
+    /// Cancels the waiting clock alarm, if any, on the scheduler's queue; a late fire is ignored by its number.
+    private func dropClockAlarm(){
+        clockWatch+=1;clockAlarmTarget=nil
+        if let alarm=clockAlarm,let scheduler=services?.scheduler{clockAlarm=nil;scheduler.enqueue{alarm.cancel()}}
     }
 
     // MARK: Commands
@@ -591,7 +609,9 @@ import OSLog
     public func reviewRecord()->String? {
         guard canReview,let record else{return nil}
         if retryable{retryable=false;objectWillChange.send();settle()}
-        return NetworkGameRecord.reviewPGN(record,on:services?.today() ?? Date())
+        // The moves as this Mac's rules replayed the record (A11), not the record's text.
+        do{return NetworkGameRecord.reviewPGN(record,moves:try rules.moveHistory().map(\.san),on:services?.today() ?? Date())}
+        catch{NativeLog.lifecycle.error("A network game could not be prepared for Review: \(String(describing:error),privacy:.public)");return nil}
     }
     /// What the pane says under the players.
     public var statusText:String? {

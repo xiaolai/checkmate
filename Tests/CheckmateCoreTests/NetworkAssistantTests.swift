@@ -52,6 +52,9 @@ import CheckmateRules
         XCTAssertEqual(anaHelp.engine.limits,[.nodes(NetworkAssistance.hintNodes)]);XCTAssertEqual(anaHelp.engine.profiles,[.skill(20)]);XCTAssertEqual(anaHelp.engine.multiPvs,[1])
         XCTAssertEqual(anaHelp.engine.calls,1,"one search, nothing else");XCTAssertFalse(anaHelp.assistant.canAsk,"one hint a turn")
         let hint=try XCTUnwrap(anaHelp.assistant.hint);XCTAssertFalse(hint.automatic);XCTAssertTrue(ana.game.assistedThisTurn)
+        // Asking again, whatever `canAsk` says, starts no second search and keeps the hint shown.
+        for _ in 0..<3 {anaHelp.assistant.ask()};try await Task.sleep(for:.milliseconds(20))
+        XCTAssertEqual(anaHelp.engine.calls,1,"one search a turn");XCTAssertEqual(anaHelp.assistant.hint,hint)
         XCTAssertTrue(ana.game.rules.moves().contains{$0.uci==hint.uci});XCTAssertEqual(hint.from+hint.to,hint.uci)
         NetworkControllerTests().play(ana,hint.from,hint.to,lan)
         XCTAssertNil(anaHelp.assistant.hint,"the hint goes with the turn");XCTAssertFalse(ana.game.assistedThisTurn)
@@ -138,6 +141,24 @@ import CheckmateRules
     /// A7: once the move is sent its flag has gone with it, so the turn's help ends there. A search that finishes while
     /// the move waits for the host shows nothing, and nothing shown then flags the move, which the opponent's count and
     /// the record would otherwise miss.
+    /// A6 and A2's own-move rule: asking again while a search is held starts no second one.
+    func testAskingWhileSearchingStartsNothing()async throws {
+        let lan=MemoryLAN(),(ana,_,_)=try game(NetworkAssistance(both:.hints),lan),anaHelp=help(ana)
+        anaHelp.engine.holding=true;anaHelp.assistant.ask();try await settle({anaHelp.engine.held==1},"the search is held")
+        for _ in 0..<3 {anaHelp.assistant.ask()};XCTAssertEqual(anaHelp.engine.calls,1,"no second search while one runs")
+        let search=try XCTUnwrap(anaHelp.assistant.search);anaHelp.engine.releaseAll();await search.value
+        XCTAssertNotNil(anaHelp.assistant.hint);XCTAssertEqual(anaHelp.engine.calls,1)
+    }
+    /// A6: a search that fails after the move was sent says nothing: help for that turn has closed.
+    func testAFailureAfterTheMoveIsSentIsNotShown()async throws {
+        let lan=MemoryLAN(),(ana,_,_)=try game(NetworkAssistance(both:.hints),lan),anaHelp=help(ana)
+        anaHelp.engine.failures=1;anaHelp.engine.holding=true;anaHelp.assistant.ask();try await settle({anaHelp.engine.held==1},"the failing search is held")
+        let search=try XCTUnwrap(anaHelp.assistant.search)
+        ana.game.play(from:"e2",to:"e4");XCTAssertFalse(ana.game.yourTurn)
+        anaHelp.engine.releaseAll();await search.value
+        XCTAssertNil(anaHelp.assistant.error,"no failure shown for a turn already over");XCTAssertFalse(anaHelp.assistant.thinking);XCTAssertFalse(ana.game.assistedThisTurn)
+        lan.scheduler.run();XCTAssertEqual(ana.game.record?.assistedPlies,[])
+    }
     func testHelpEndsOnceTheMoveIsSent()async throws {
         let lan=MemoryLAN(),(ana,ben,_)=try game(NetworkAssistance(both:.hints),lan),benHelp=help(ben)
         NetworkControllerTests().play(ana,"e2","e4",lan)
@@ -184,6 +205,23 @@ import CheckmateRules
         try await settle({anaHelp.assistant.hint != nil},"the second game's own hint");XCTAssertEqual(anaHelp.engine.limits.count,2)
     }
 
+    /// A6: under `guided`, a turn whose automatic search was dropped because its move was sent starts its hint again
+    /// when the move is lost with the connection and the same turn comes back.
+    func testAGuidedTurnWhoseMoveWasLostStartsItsHintAgain()async throws {
+        let lan=MemoryLAN(),terms=NetworkAssistance(both:.guided)
+        let ana=try NetworkControllerTests().hosting(lan){$0.assistance=terms},ben=try Mac(lan,name:"Ben"),benHelp=help(ben)
+        ben.game.setShown(true);lan.scheduler.run()
+        XCTAssertTrue(ben.game.join(try XCTUnwrap(ben.game.games.first),code:ana.game.playCode!.grouped,accepting:terms));lan.scheduler.run()
+        benHelp.engine.holding=true
+        NetworkControllerTests().play(ana,"e2","e4",lan)
+        try await settle({benHelp.engine.held==1},"Black's automatic search is held");let search=try XCTUnwrap(benHelp.assistant.search)
+        ben.game.play(from:"e7",to:"e5");XCTAssertNotNil(ben.game.pending)
+        benHelp.engine.releaseAll();await search.value;XCTAssertNil(benHelp.assistant.hint,"dropped: the move was sent")
+        benHelp.engine.holding=false
+        lan.transport.cut(try XCTUnwrap(lan.guestConnection));lan.scheduler.run()
+        XCTAssertNil(ben.game.pending,"the move was lost");XCTAssertTrue(ben.game.yourTurn,"the same turn is back")
+        try await settle({benHelp.assistant.hint != nil},"the turn's automatic hint starts again");XCTAssertEqual(benHelp.engine.calls,2)
+    }
     /// A6: under `guided`, each player's turn starts its own hint, once, marked automatic; the other side's waits.
     func testGuidedStartsAHintAtTheStartOfEachTurn()async throws {
         let lan=MemoryLAN(),terms=NetworkAssistance(both:.guided)
@@ -217,7 +255,9 @@ import CheckmateRules
         var black=ApplicationState();black.settings.practiceSide="b"
         let opponent=try GameSession(engine:engine,state:black,fairness:anaHelp.fairness)
         XCTAssertNotEqual(opponent.rules.turn,opponent.humanSide,"the fixture has the engine to move")
-        opponent.reply();try await Task.sleep(for:.milliseconds(30));XCTAssertFalse(opponent.busy);XCTAssertEqual(opponent.rules.history,[])
+        // Busy is never set, not even for a moment before a later check refuses.
+        var wasBusy=false;let watch=opponent.$busy.sink{if $0{wasBusy=true}}
+        opponent.reply();try await Task.sleep(for:.milliseconds(30));XCTAssertFalse(opponent.busy);XCTAssertFalse(wasBusy,"no reply was started");XCTAssertEqual(opponent.rules.history,[]);watch.cancel()
         do{_ = try await practice.analyze();XCTFail("practice analysis ran")}catch{XCTAssertEqual(code(error),"NETWORK_GAME")}
         do{_ = try await practice.evaluateCandidate(from:"e2",to:"e4");XCTFail("a practice preview ran")}catch{XCTAssertEqual(code(error),"NETWORK_GAME")}
         // Review evidence is withheld.

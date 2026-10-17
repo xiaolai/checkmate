@@ -12,7 +12,8 @@ import time
 
 import test_host
 test_host.require("network Bonjour acceptance")
-from network_gate import Instance, compile_helpers, host_game, install, join, open_network, permission, wait  # noqa: E402
+from network_gate import (Instance, cleanup_failure, compile_helpers, host_game, install, join, open_network, permission,  # noqa: E402
+                          stop_all, wait)
 
 evidence = pathlib.Path(os.environ["CHECKMATE_EVIDENCE_DIR"])
 evidence.mkdir(parents=True, exist_ok=True)
@@ -70,15 +71,14 @@ except Exception as error:
     results["passed"] = False
     for instance in instances:
         try:
-            (evidence / f"failure-{instance.name}-ax.txt").write_text(instance.listing())
+            (evidence / f"failure-{instance.name}-ax.txt").write_text(instance.raw_listing())
             instance.capture("failure")
             results.setdefault("permission", {}).setdefault(instance.name, permission(instance))
         except Exception as diagnostic:
             failure += f" (diagnostics for {instance.name} failed: {diagnostic})"
 finally:
-    for instance in instances:
-        instance.connection_log()
-        instance.stop()
+    cleanup_errors = stop_all(instances, results, logs=True)
+failure = cleanup_failure(results, failure, cleanup_errors)
 results["failure"] = failure
 results["networkBonjour"] = results["passed"]
 (evidence / "network-bonjour-results.json").write_text(json.dumps(results, indent=2))

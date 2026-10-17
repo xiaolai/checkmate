@@ -39,12 +39,17 @@ for raw in sys.stdin:
     if os.path.exists(os.path.join(here,'release')):break
     time.sleep(.01)
   first,second=('e7e5','d7d5') if moved else ('e2e4','d2d4')
+  if ' searchmoves ' in s:first=s.split(' searchmoves ')[1].split()[0]
   print('info depth 4 multipv 1 score cp 40 lowerbound nodes 100 time 1 wdl 400 400 200 pv '+first,flush=True)
   print('info depth 4 multipv 2 score cp 20 nodes 100 time 1 wdl 300 400 300 pv '+second,flush=True)
   sys.stdout.write('info depth 5 multipv 1 score cp 50 nodes 200 time 2 pv '+first[:2]);sys.stdout.flush();time.sleep(.01);print(first[2:],flush=True)
   print('bestmove '+first,flush=True)
 """;try code.write(to:path,atomically:true,encoding:.utf8);try FileManager.default.setAttributes([.posixPermissions:0o700],ofItemAtPath:path.path);return (path,directory)}
-    func testBarriersReuseFragmentsAndCoherentDepth()async throws {let (path,directory)=try executable();defer{try? FileManager.default.removeItem(at:directory)};let e=NativeEngine(executable:path),r=try ChessRules();let a=try await e.analyze(fen:r.fen,skill:10,budget:100,multiPv:2);let b=try await e.analyze(fen:r.fen,skill:20,budget:100,multiPv:2);XCTAssertEqual(a.lines.map(\.depth),[4,4]);XCTAssertEqual(a.lines[0].score.bound,"lower");XCTAssertEqual(a.lines[0].wdl,[400,400,200]);XCTAssertEqual(b.bestMove,"e2e4");XCTAssertEqual(try String(contentsOf:directory.appendingPathComponent("launches"),encoding:.utf8),"launch\n")}
+    func testBarriersReuseFragmentsAndCoherentDepth()async throws {let (path,directory)=try executable();defer{try? FileManager.default.removeItem(at:directory)};let e=NativeEngine(executable:path),r=try ChessRules();let a=try await e.analyze(fen:r.fen,skill:10,budget:100,multiPv:2);let b=try await e.analyze(fen:r.fen,skill:20,budget:100,multiPv:2);XCTAssertEqual(a.lines.map(\.depth),[4,4]);let first=try XCTUnwrap(a.lines.first);XCTAssertEqual(first.score.bound,"lower");XCTAssertEqual(first.wdl,[400,400,200]);XCTAssertEqual(b.bestMove,"e2e4")
+        // One line: the depth-five line, which arrives in two fragments, is put back together whole.
+        let c=try await e.analyze(fen:r.fen,skill:20,budget:100,multiPv:1),deepest=try XCTUnwrap(c.lines.first)
+        XCTAssertEqual(deepest.depth,5);XCTAssertEqual(deepest.score.value,50);XCTAssertNil(deepest.score.bound);XCTAssertEqual(deepest.pv.first,"e2e4")
+        XCTAssertEqual(try String(contentsOf:directory.appendingPathComponent("launches"),encoding:.utf8),"launch\n")}
     private func file(_ directory:URL,_ name:String)->URL {directory.appendingPathComponent(name)}
     private func lines(_ directory:URL,_ name:String)throws -> [String] {try String(contentsOf:file(directory,name),encoding:.utf8).split(separator:"\n").map(String.init)}
     /// Waits up to the worker's own startup allowance for the fake to write `name`.
@@ -63,9 +68,11 @@ for raw in sys.stdin:
     }
     func testCancellationKillsStalledWorker()async throws {
         let (path,directory)=try executable(stall:true);defer{try? FileManager.default.removeItem(at:directory)}
-        let e=NativeEngine(executable:path),r=try ChessRules();let task=Task{try await e.analyze(fen:r.fen,skill:20,budget:100,multiPv:1)}
+        // A one-second search: the worker's own watchdog fires only after three seconds, so an end within two seconds
+        // of cancelling is the cancellation's doing.
+        let e=NativeEngine(executable:path),r=try ChessRules();let task=Task{try await e.analyze(fen:r.fen,skill:20,budget:1000,multiPv:1)}
         let searching=try await appears(directory,"searches");XCTAssertTrue(searching,"the search reached the engine before it was cancelled")
-        let start=Date(),pid=try XCTUnwrap(pid_t(try lines(directory,"pids").last ?? ""));task.cancel()
+        let start=Date(),pid=try XCTUnwrap(pid_t(try lines(directory,"pids").last ?? ""));XCTAssertEqual(kill(pid,0),0,"the search is still running when cancelled");task.cancel()
         do{_ = try await task.value;XCTFail("Cancelled search returned evidence")}catch{XCTAssertTrue(Self.endedByCancellation(error),"an unrelated failure: \(error)")}
         XCTAssertLessThan(Date().timeIntervalSince(start),2);let stopped=try await ended(pid);XCTAssertTrue(stopped,"the stalled process was killed")
     }
@@ -126,10 +133,12 @@ for raw in sys.stdin:
     /// which used to make the watchdog's cancellation a no-op and leave both waiting for good.
     func testAStalledStartupStopsEvenAfterANewerSearchReserves()async throws {
         let (path,directory)=try executable(handshakeStall:true);defer{try? FileManager.default.removeItem(at:directory)}
-        let worker=UCIWorker(executable:path,startupAllowance:1),fen=try ChessRules().fen,start=Date()
+        let allowance:TimeInterval=2,worker=UCIWorker(executable:path,startupAllowance:allowance),fen=try ChessRules().fen,start=Date()
         let preparing=Task.detached{try worker.prepare()}
         let handshaking=try await appears(directory,"handshakes");XCTAssertTrue(handshaking,"the handshake started")
-        let epoch=worker.reserve()
+        // The watchdog's timer starts after `start`, so a reservation made within the allowance lands while the
+        // preparation is still blocked in its handshake: the race this test is about, not a startup already failed.
+        let epoch=worker.reserve();XCTAssertNotNil(worker.startup,"the preparation is still starting");XCTAssertLessThan(Date().timeIntervalSince(start),allowance)
         let searching=Task.detached{try worker.search(startFEN:fen,moves:[],finalFEN:fen,profile:.skill(20),limit:.movetime(100),multiPv:1,searchMoves:[],epoch:epoch)}
         do{_ = try await preparing.value;XCTFail("a stalled handshake prepared the engine")}catch{}
         do{_ = try await searching.value;XCTFail("a stalled engine answered a search")}catch{}
@@ -137,12 +146,30 @@ for raw in sys.stdin:
         for pid in try lines(directory,"pids").compactMap({pid_t($0)}){let stopped=try await ended(pid);XCTAssertTrue(stopped,"process \(pid) was stopped")}
     }
 
+    /// A startup watchdog that fires late, after its own startup ended and a newer one began, stops nothing: it names
+    /// its own startup, and the newer one prepares the engine and keeps its process.
+    func testALateWatchdogCannotStopANewerStartup()async throws {
+        let (path,directory)=try executable(startupDelay:1);defer{try? FileManager.default.removeItem(at:directory)}
+        let worker=UCIWorker(executable:path,startupAllowance:5),epoch=worker.reserve()
+        let preparing=Task.detached{try worker.prepare()}
+        let launched=try await appears(directory,"pids");XCTAssertTrue(launched,"the newer startup launched")
+        let current=try XCTUnwrap(worker.startup,"the newer startup is in progress")
+        worker.abandonStartup(current-1,epoch:epoch)
+        _ = try await preparing.value
+        let pid=try XCTUnwrap(pid_t(try lines(directory,"pids").last ?? ""));XCTAssertEqual(kill(pid,0),0,"the newer startup's process is alive")
+        XCTAssertNil(worker.startup);XCTAssertEqual(try lines(directory,"launches"),["launch"])
+        worker.cancel()
+    }
+
     func testFailedHistoryCannotPoisonCachedRules()async throws {
         let (path,directory)=try executable();defer{try? FileManager.default.removeItem(at:directory)}
         let engine=NativeEngine(executable:path),fen=try ChessRules().fen
         _ = try await engine.analyzeHistory(startFEN:fen,moves:[],profile:.skill(20),budget:100,multiPv:1)
         do{_ = try await engine.analyzeHistory(startFEN:fen,moves:["e2e4","invalid"],profile:.skill(20),budget:100,multiPv:1);XCTFail("Invalid history accepted")}catch{}
-        _ = try await engine.analyzeHistory(startFEN:fen,moves:["d2d4"],profile:.skill(20),budget:100,multiPv:1,searchMoves:["d7d5"])
+        try await withoutCalibration {
+            let constrained=try await engine.analyzeHistory(startFEN:fen,moves:["d2d4"],profile:.skill(20),budget:100,multiPv:1,searchMoves:["d7d5"])
+            XCTAssertEqual(constrained.bestMove,"d7d5");XCTAssertEqual(try lines(directory,"searches").last,"go movetime 100 searchmoves d7d5")
+        }
     }
     /// A cold start (network load, first-run security scan, a slow Mac) is not charged to the search deadline.
     func testSlowStartupDoesNotFailAShortSearch()async throws {

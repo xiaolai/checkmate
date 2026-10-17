@@ -153,7 +153,11 @@ extension NativeModel {
         guard let rules=try? ChessRules(),(try? rules.restore(entry.game.pgn)) != nil else{return false}
         return !rules.history.isEmpty
     }
-    func reviewNetworkCrash(_ entry:NetworkCrashFile.Entry){importReviewData(Data(NetworkGameRecord.reviewPGN(entry.game,on:Date()).utf8))}
+    /// The moves are the ones the rules replay from the kept record, as for a game that just ended (A11).
+    func reviewNetworkCrash(_ entry:NetworkCrashFile.Entry){
+        do{let rules=try ChessRules();try rules.restore(entry.game.pgn);importReviewData(Data(NetworkGameRecord.reviewPGN(entry.game,moves:try rules.moveHistory().map(\.san),on:Date()).utf8))}
+        catch{NativeLog.storage.error("The network game kept at a crash could not be opened in Review: \(String(describing:error),privacy:.public)");storageError="The network game could not be opened in Review."}
+    }
     /// D11's help sheet button. Automation counts the request instead of opening System Settings.
     func openLocalNetworkSettings(){
         networkSettingsRequests+=1

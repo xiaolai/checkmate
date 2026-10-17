@@ -47,6 +47,17 @@ GATE_CHECK_SOURCE = (ROOT / 'scripts/gate_check.py').read_text()
 _checks = {'__name__': 'gate_check'}
 exec(compile(GATE_CHECK_SOURCE, str(ROOT / 'scripts/gate_check.py'), 'exec'), _checks)
 check_gate = _checks['check_gate']
+# The runner's own validation (crash attribution, ledger rules) and the Notification Center helper it runs before every
+# gate decide what a pass means as much as gate_check.py does, so they are fingerprinted with it: changing either makes
+# every gate stale. RUNNER_SOURCE is the text this process loaded; definition() compares it with the disk.
+RUNNER_FILES = ('scripts/run-gates.py', 'scripts/clear-notifications.applescript')
+
+
+def runner_source() -> str:
+    return ''.join((ROOT / path).read_text() for path in RUNNER_FILES)
+
+
+RUNNER_SOURCE = runner_source()
 MAP = json.loads((ROOT / 'scripts/gates.json').read_text())
 GATES = {gate['name']: gate for gate in MAP['gates']}
 ORDER = [gate['name'] for gate in MAP['gates']]
@@ -188,10 +199,12 @@ def inputs(gate: dict, hashes: dict) -> dict:
     return {path: digest for path, digest in hashes.items() if matches(path, patterns)}
 
 
-def definition(name: str, checks: str = None) -> str:
-    """Fingerprint of what a pass means: the gate's entry in the map, the shared inputs and the result checks
-    (gate_check.py as it is on disk now, unless the checks' source is given)."""
+def definition(name: str, checks: str = None, runner: str = None) -> str:
+    """Fingerprint of what a pass means: the gate's entry in the map, the shared inputs, the result checks and the
+    runner's own validation (gate_check.py, run-gates.py and clear-notifications.applescript as they are on disk now,
+    unless their source is given)."""
     material = json.dumps([GATES[name], MAP['shared']], sort_keys=True) + (checks if checks is not None else (ROOT / 'scripts/gate_check.py').read_text())
+    material += runner if runner is not None else runner_source()
     return hashlib.sha256(material.encode()).hexdigest()
 
 
@@ -343,13 +356,14 @@ def late_crashes(windows: list, seen: set, uuids: set, since: float) -> bool:
 def run(names: list, full: bool = False) -> int:
     test_host.require("acceptance gates")
     run_began = time.time()
-    evidence = pathlib.Path(os.environ.get('CHECKMATE_EVIDENCE_DIR') or tempfile.mkdtemp(prefix='checkmate-gates.', dir='/tmp'))
+    # Absolute, so the runner and every gate (each started in ROOT, some changing directory) use the same folder.
+    evidence = pathlib.Path(os.environ.get('CHECKMATE_EVIDENCE_DIR') or tempfile.mkdtemp(prefix='checkmate-gates.', dir='/tmp')).expanduser().resolve()
     evidence.mkdir(parents=True, exist_ok=True)
     environment = {**os.environ, 'CHECKMATE_EVIDENCE_DIR': str(evidence)}
     # Inputs and gate definitions are fixed before anything is built: a source, gate command or check edited during the
     # build or any gate fails the gate, so a pass never certifies sources or checks newer than what actually ran.
     # The definitions fingerprint the checks this process loaded; each gate's end compares them with the disk.
-    start, definitions = tree(), {name: definition(name, GATE_CHECK_SOURCE) for name in ORDER}
+    start, definitions = tree(), {name: definition(name, GATE_CHECK_SOURCE, RUNNER_SOURCE) for name in ORDER}
     if full:
         # Record the tree before anything is built; the aggregate rejects a run whose sources changed underneath it.
         (evidence / 'source-hashes-start.json').write_text(json.dumps(start, indent=1, sort_keys=True))
@@ -368,40 +382,51 @@ def run(names: list, full: bool = False) -> int:
                            env={**environment, 'CHECKMATE_BUNDLE_ID': 'ai.xiaolai.checkmate.native-automation', 'CHECKMATE_APP_NAME': 'CheckmateAutomation'})
     # A crash report from this checkout's apps fails the gate it came from, however the gate itself exited.
     seen_reports, uuids, windows = crash_reports(), set(), []
-    for name in names:
-        gate = GATES[name]
-        before = inputs(gate, start)
-        (evidence / gate['result']).unlink(missing_ok=True)
-        started, began = time.monotonic(), time.time()
-        print(f'== {name}', flush=True)
-        clear_notifications()
-        # Each gate gets its own TMPDIR: whatever it leaves there is a leak, reported instead of piling up in /tmp.
-        scratch = pathlib.Path(tempfile.mkdtemp(prefix=f'checkmate-gate-{name}.'))
-        completed = subprocess.run(['bash', '-c', 'set -euo pipefail; ' + gate['run']], cwd=ROOT, env={**environment, 'TMPDIR': str(scratch) + '/'})
-        seconds = time.monotonic() - started
-        windows.append((name, began, time.time()))
-        leftovers = temporary_leftovers(scratch)
-        shutil.rmtree(scratch, ignore_errors=True)
-        uuids |= built_uuids()
-        fresh = crash_reports() - seen_reports
-        blamed, seen_reports = attribute(windows, crashes(fresh, uuids), run_began), seen_reports | fresh
-        try:
-            assert completed.returncode == 0, f'exit {completed.returncode}'
-            assert not blamed, 'an app crashed: ' + '; '.join(f"during {source}: {', '.join(reports)}" for source, reports in blamed.items())
-            assert not leftovers, f'left temporary files: {leftovers[:10]}'
-            check_gate(evidence, gate)
-            after = inputs(gate, tree())
-            assert after == before, f"inputs changed since the run started: {sorted(k for k in after.keys() | before.keys() if after.get(k) != before.get(k))[:10]}"
-            assert definition(name) == definitions[name], 'the gate definition or its result checks changed since the run started'
-        except (AssertionError, FileNotFoundError, json.JSONDecodeError) as failure:
-            update_ledger({name: None, **{source: None for source in blamed}})
-            print(f'FAILED {name} after {seconds:.0f}s: {failure}', flush=True)
-            late_crashes(windows, seen_reports, uuids, run_began)
+    # Passes recorded by this run are provisional until the final late-crash check: a run that ends any other way (an
+    # exception from a check, a failed dwarfdump, an interruption) forgets them and the gate it was on, then re-raises.
+    passed, current = [], None
+    try:
+        for name in names:
+            current, gate, blamed = name, GATES[name], {}
+            before = inputs(gate, start)
+            (evidence / gate['result']).unlink(missing_ok=True)
+            started, began = time.monotonic(), time.time()
+            print(f'== {name}', flush=True)
+            clear_notifications()
+            # Each gate gets its own TMPDIR: whatever it leaves there is a leak, reported instead of piling up in /tmp.
+            scratch = pathlib.Path(tempfile.mkdtemp(prefix=f'checkmate-gate-{name}.'))
+            completed = subprocess.run(['bash', '-c', 'set -euo pipefail; ' + gate['run']], cwd=ROOT, env={**environment, 'TMPDIR': str(scratch) + '/'})
+            seconds = time.monotonic() - started
+            windows.append((name, began, time.time()))
+            leftovers = temporary_leftovers(scratch)
+            shutil.rmtree(scratch, ignore_errors=True)
+            try:
+                uuids |= built_uuids()
+                fresh = crash_reports() - seen_reports
+                blamed, seen_reports = attribute(windows, crashes(fresh, uuids), run_began), seen_reports | fresh
+                assert completed.returncode == 0, f'exit {completed.returncode}'
+                assert not blamed, 'an app crashed: ' + '; '.join(f"during {source}: {', '.join(reports)}" for source, reports in blamed.items())
+                assert not leftovers, f'left temporary files: {leftovers[:10]}'
+                check_gate(evidence, gate)
+                after = inputs(gate, tree())
+                assert after == before, f"inputs changed since the run started: {sorted(k for k in after.keys() | before.keys() if after.get(k) != before.get(k))[:10]}"
+                assert definition(name) == definitions[name], 'the gate definition or its result checks changed since the run started'
+            except Exception as failure:  # noqa: BLE001 - any failed check fails the gate, never escapes with its pass kept
+                update_ledger({name: None, **{source: None for source in blamed}})
+                print(f'FAILED {name} after {seconds:.0f}s: {failure}', flush=True)
+                current = None
+                late_crashes(windows, seen_reports, uuids, run_began)
+                return 1
+            update_ledger({name: {'inputs': before, 'definition': definitions[name], 'passedAt': time.time(), 'evidence': str(evidence), 'full': False}})
+            passed.append(name)
+            current = None
+            print(f'PASSED {name} in {seconds:.0f}s', flush=True)
+        if late_crashes(windows, seen_reports, uuids, run_began):
             return 1
-        update_ledger({name: {'inputs': before, 'definition': definitions[name], 'passedAt': time.time(), 'evidence': str(evidence), 'full': False}})
-        print(f'PASSED {name} in {seconds:.0f}s', flush=True)
-    if late_crashes(windows, seen_reports, uuids, run_began):
-        return 1
+    except BaseException:
+        update_ledger({name: None for name in passed + ([current] if current else [])})
+        print(f"Run ended abnormally; passes not kept: {', '.join(passed + ([current] if current else [])) or 'none'}", flush=True)
+        raise
     if full:
         subprocess.run([sys.executable, str(ROOT / 'scripts/aggregate-evidence.py'), str(evidence)], cwd=ROOT, check=True)
         return record(evidence)
@@ -466,15 +491,12 @@ def main() -> int:
         return 0
     ledger = load_ledger()
     if arguments.list:
-        stale = [name for name in ORDER if stale_reason(name, hashes, ledger) is not None]
-        # Listing is read-only and runs on any Mac; the prerequisite checks compile a probe and reach the LAN pair, so
-        # they run only where the gates themselves may.
-        blocked = unmet(stale) if 'test' in test_host.host_roles() else {}
-        if 'test' not in test_host.host_roles():
-            print('(not the test host: prerequisites are not checked here)')
+        # Listing is read-only: it runs nothing, so it never checks prerequisites (they compile a probe, reach the LAN
+        # pair and unlock a keychain). A stale gate with prerequisites names them; --changed or --only checks them.
         for name in ORDER:
             reason = stale_reason(name, hashes, ledger)
-            status = 'current' if reason is None else (f"UNVERIFIED: needs {', '.join(r for r, _ in blocked[name])}; " if name in blocked else 'RUN: ') + reason
+            needs = GATES[name].get('prerequisites', [])
+            status = 'current' if reason is None else 'RUN: ' + reason + (f"; needs {', '.join(needs)} (not checked by --list)" if needs else '')
             print(f"{name:17} {status}")
         return 0
     if arguments.only:

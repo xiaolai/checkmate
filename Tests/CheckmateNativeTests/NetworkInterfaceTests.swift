@@ -183,6 +183,12 @@ import CheckmateCore
         game.refresh();XCTAssertEqual(game.board.arrows,[["g1","f3"]],"the hint's arrow");XCTAssertTrue(model.network.assistedThisTurn)
         model.network.click("g1");model.network.click("f3");lan.scheduler.run();game.refresh()
         XCTAssertEqual(ben.record.map{NetworkWording.hintsUsed($0,players:ben.players)},"Hints used: Ana 1 · Ben 0");XCTAssertEqual(game.board.arrows,[],"the hint goes with the turn")
+        // The inspector reads the network board, not Practice's: the knight now on f3 stands on an empty square there,
+        // so only the network position has the pawns that protect it.
+        game.select("f3");game.toggleRelationship(.protected)
+        XCTAssertEqual(game.relationships.report?.square,"f3","the network board's knight is inspected")
+        XCTAssertEqual(Set(game.board.relationshipConnectors.filter{$0.target=="f3"}.map(\.source)),["e2","g2"],"the pawns protecting it on the network board")
+        game.dismissInspection()
         // Off: the same clicks and keys inspect nothing.
         model.network.leave();lan.scheduler.run()
         let plain=LAN();model.network.form.assistance = .off
@@ -230,7 +236,7 @@ import CheckmateCore
     /// D8 and A10: a practice coach the learner had connected is not reopened from Practice while their network game
     /// goes on (connecting there would open the game's coach on the wrong page), and the network page shows only what
     /// this game's coach said, not Practice's conversation.
-    func testPracticeVoiceWaitsForTheGameAndItsWordsStayOnPractice()throws {
+    func testPracticeVoiceWaitsForTheGameAndItsWordsStayOnPractice()async throws {
         let model=try NativeModel();defer{model.shutdown()}
         model.practice();try model.voice.automationOpen();model.voice.receive(["type":"session.updated"])
         XCTAssertTrue(model.voice.connected);XCTAssertFalse(model.voice.networkSession)
@@ -239,12 +245,26 @@ import CheckmateCore
         model.playOnNetwork();XCTAssertFalse(model.voice.connected);XCTAssertTrue(model.voiceResumeIntent)
         let lan=LAN();model.network.form.assistance=NetworkAssistance(both:.hints);_=try hostedGame(model,lan)
         model.practice()
+        // The resume runs on the next main-loop turn: let it, while still in Practice, before asserting it did nothing.
+        await drainMain()
         XCTAssertEqual(model.voice.connectRequests,[],"Practice does not reopen voice during the game");XCTAssertTrue(model.voiceResumeIntent,"the intent waits for the game's end")
         model.playOnNetwork();XCTAssertTrue(model.networkVoiceHistory.isEmpty,"nothing from before this game's coach")
-        model.connectNetworkVoice();try model.voice.automationOpen();model.voice.receive(["type":"session.updated"]);XCTAssertTrue(model.voice.networkSession)
+        // Connected from Settings, not the network page's button: the page still shows this game's conversation.
+        model.voice.connect();try model.voice.automationOpen();model.voice.receive(["type":"session.updated"]);XCTAssertTrue(model.voice.networkSession)
         model.voice.receive(["type":"conversation.item.input_audio_transcription.completed","item_id":"network-1","transcript":"What now?"])
         XCTAssertEqual(model.networkVoiceHistory.map(\.id),["network-1"],"Practice's words stay on Practice")
+        // Reconnecting through the page keeps what this game's coach already said.
+        model.voice.disconnect();model.connectNetworkVoice();try model.voice.automationOpen();model.voice.receive(["type":"session.updated"])
+        XCTAssertEqual(model.networkVoiceHistory.map(\.id),["network-1"],"a reconnection in the same game hides nothing")
+        model.voice.disconnect()
+        // The game ends while Practice is on screen: the practice coach the learner had connected comes back.
+        model.practice();await drainMain();let before=model.voice.connectRequests.count
+        model.network.leave();lan.scheduler.run();await drainMain()
+        XCTAssertNil(model.fairness.participation.role,"the game is over for this Mac")
+        XCTAssertEqual(model.voice.connectRequests.count,before+1,"the waiting practice coach reconnects once the game ends");XCTAssertFalse(model.voiceResumeIntent)
     }
+    /// Lets work queued on the main queue run.
+    private func drainMain()async {for _ in 0..<3 {await withCheckedContinuation{done in DispatchQueue.main.async{done.resume()}}}}
 
     /// D12: an isolated automation run with `CHECKMATE_NETWORK_LOOPBACK_DIR` gets loopback listeners and the shared
     /// directory's discovery, and its hosted games are published there; without it, a build declaring no Bonjour

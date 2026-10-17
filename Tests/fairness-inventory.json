@@ -7,6 +7,7 @@
                {"file": "Sources/CheckmateApplication/GameSession.swift", "function": "evaluateCandidate"}]},
   {"file": "Sources/CheckmateApplication/BeginnerOpponent.swift", "function": "choose", "calls": 2, "kind": "delegated",
    "callPattern": "BeginnerOpponent\\.choose\\(",
+   "referencePattern": "\\bBeginnerOpponent\\s*\\.\\s*(?:self|Type|choose)\\b",
    "callers": [{"file": "Sources/CheckmateApplication/GameSession.swift", "function": "chooseOpponentMove"},
                {"file": "Sources/CheckmateApplication/LessonAttemptController.swift", "function": "scheduleReply"}]},
   {"file": "Sources/CheckmateApplication/LessonAttemptController.swift", "function": "hint", "calls": 1, "kind": "guarded"},

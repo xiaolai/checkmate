@@ -26,23 +26,23 @@ BUILT = root / "build/CheckmateAutomation.app"
 
 
 def wait(predicate, message, timeout=15):
-    deadline = time.monotonic() + timeout
-    while time.monotonic() < deadline:
-        if predicate():
-            return
-        time.sleep(0.25)
-    raise AssertionError(message)
+    """Polls `predicate` until it holds. An observation that fails (an unreadable listing raises AssertionError) is
+    "not yet", and the last such failure is named if the wait times out."""
+    wait_for(lambda: True if predicate() else None, message, timeout)
 
 
 def wait_for(produce, message, timeout=15):
     """The first value `produce` returns that is not None, polled until `timeout`."""
-    deadline = time.monotonic() + timeout
+    deadline, unreadable = time.monotonic() + timeout, None
     while time.monotonic() < deadline:
-        value = produce()
+        try:
+            value = produce()
+        except AssertionError as error:
+            value, unreadable = None, error
         if value is not None:
             return value
         time.sleep(0.25)
-    raise AssertionError(message)
+    raise AssertionError(message + (f" (last observation failed: {unreadable})" if unreadable else ""))
 
 
 def compile_helpers(evidence):
@@ -67,6 +67,16 @@ def on_pair(command, check=True, timeout=60):
     return result.stdout.strip()
 
 
+def private_remote_dir(prefix):
+    """A fresh directory on the pair that only this account can use: mktemp -d makes it 0700, and it is checked to be a
+    real directory owned by this account with that mode before anything is copied into it, so nothing another account
+    planted in /tmp is ever extracted, run or launched."""
+    path = on_pair(f"mktemp -d /tmp/{prefix}.XXXXXX")
+    quoted = shlex.quote(path)
+    on_pair(f"test -d {quoted} && test ! -L {quoted} && test -O {quoted} && test \"$(stat -f %Lp {quoted})\" = 700")
+    return path
+
+
 def registered_paths(remote=False):
     """Every path LaunchServices holds for the automation bundle ID."""
     dump = on_pair(f"{LSREGISTER} -dump 2>/dev/null", check=False) if remote else subprocess.run([LSREGISTER, "-dump"], capture_output=True, text=True).stdout
@@ -85,28 +95,31 @@ def install(remote=False, source=BUILT):
     the automation app is this one (spike (c)). The build folder's copy is left as built."""
     target = INSTALLED if not remote else "~/Applications/CheckmateAutomation.app"
     stage = pathlib.Path(tempfile.mkdtemp(prefix="checkmate-install-")) / source.name
+    remote_stage = private_remote_dir("checkmate-install") if remote else None
     try:
-        _install(remote, source, stage)
+        _install(remote, source, stage, remote_stage)
     finally:
         subprocess.run(["rm", "-rf", str(stage.parent)], check=False)
-        if remote:
-            on_pair("rm -rf /tmp/checkmate-automation-app /tmp/checkmate-automation-app.tgz", check=False)
+        if remote_stage:
+            on_pair(f"rm -rf {shlex.quote(remote_stage)}", check=False)
     time.sleep(2)  # nehelper refreshes the registered executable's UUIDs after the registration notice
     return target
 
 
-def _install(remote, source, stage):
+def _install(remote, source, stage, remote_stage):
     subprocess.run(["ditto", str(source), str(stage)], check=True)
     subprocess.run(["bash", str(root / "scripts/automation-identity.sh"), "sign", str(stage)], check=True, capture_output=True)
     if remote:
         archive = stage.parent / "app.tgz"
         subprocess.run(["tar", "czf", str(archive), "-C", str(stage.parent), stage.name], check=True)
-        subprocess.run(["scp", "-q", "-o", "BatchMode=yes", "-o", "ConnectTimeout=5", str(archive), f"{pair()}:/tmp/checkmate-automation-app.tgz"], check=True, timeout=600)
+        # Copied, extracted and installed only inside the pair's private directory (row 60/80 of the audit).
+        remote_archive, extracted = f"{remote_stage}/app.tgz", f"{remote_stage}/app"
+        subprocess.run(["scp", "-q", "-o", "BatchMode=yes", "-o", "ConnectTimeout=5", str(archive), f"{pair()}:{shlex.quote(remote_archive)}"], check=True, timeout=600)
         for path in registered_paths(remote=True):
             on_pair(f"{LSREGISTER} -u {shlex.quote(path)}", check=False)
-        on_pair("rm -rf /tmp/checkmate-automation-app ~/Applications/CheckmateAutomation.app && mkdir -p ~/Applications /tmp/checkmate-automation-app"
-                f" && tar xzf /tmp/checkmate-automation-app.tgz -C /tmp/checkmate-automation-app && ditto /tmp/checkmate-automation-app/{stage.name} ~/Applications/CheckmateAutomation.app"
-                f" && rm -rf /tmp/checkmate-automation-app /tmp/checkmate-automation-app.tgz && {LSREGISTER} -f ~/Applications/CheckmateAutomation.app")
+        on_pair(f"rm -rf ~/Applications/CheckmateAutomation.app && mkdir -p ~/Applications {shlex.quote(extracted)}"
+                f" && tar xzf {shlex.quote(remote_archive)} -C {shlex.quote(extracted)} && ditto {shlex.quote(extracted + '/' + stage.name)} ~/Applications/CheckmateAutomation.app"
+                f" && {LSREGISTER} -f ~/Applications/CheckmateAutomation.app")
     else:
         for path in registered_paths():
             if path != str(INSTALLED):
@@ -135,8 +148,17 @@ class Instance:
         if mode == "direct":
             env = {key: value for key, value in os.environ.items() if key != "CHECKMATE_AUTOMATION"}
             env.update(environment)
-            self.process = subprocess.Popen([str(BUILT / "Contents/MacOS/CheckmateNative"), *app_arguments], env=env,
-                                            stdout=open(evidence / f"app-{name}.log", "w"), stderr=subprocess.STDOUT)
+            log = None
+            try:
+                log = open(evidence / f"app-{name}.log", "w")
+                self.process = subprocess.Popen([str(BUILT / "Contents/MacOS/CheckmateNative"), *app_arguments], env=env, stdout=log, stderr=subprocess.STDOUT)
+            except BaseException:
+                # No instance reaches the caller to be stopped, so its data goes now.
+                if log:
+                    log.close()
+                subprocess.run(["rm", "-rf", self.data], check=False)
+                raise
+            log.close()  # the child holds its own descriptor
             self.pid = self.process.pid
             return
         # Opened through LaunchServices, so the app runs as the registered app in the Aqua session.
@@ -182,15 +204,38 @@ class Instance:
             raise AssertionError(f"{self.name}: {helper} {' '.join(arguments)} failed: {result.stderr.strip() or result.stdout.strip()}")
         return result.stdout.strip()
 
-    def listing(self):
+    def raw_listing(self):
+        """Whatever the accessibility helper prints, unchecked: for failure diagnostics only."""
         return self.run("ax-helper", "list", check=False)
+
+    def listing(self):
+        """The app's accessibility listing, which must be a real read: a helper failure, an empty listing or one
+        without the main window raises AssertionError, so an absence check can never pass on a failed observation
+        (wait and wait_for treat that as "not yet")."""
+        text = self.run("ax-helper", "list")
+        assert re.search(r"^AXWindow: .*\bmain\b", text, re.M), f"{self.name}: the accessibility listing did not include the main window"
+        return text
 
     def shows(self, text):
         return text in self.listing()
 
+    def absent(self, text, within):
+        """True when `text` is not shown in a listing that does show `within`, an element of the view being checked
+        (such as "network-status"): the absence is observed on the right view, not on a sheet or another page."""
+        listing = self.listing()
+        assert within in listing, f"{self.name}: {within} is not showing, so the absence of {text!r} cannot be checked"
+        return text not in listing
+
     def line(self, identifier):
         """The accessibility listing's line for one element, or None."""
         return next((line for line in self.listing().splitlines() if identifier in line), None)
+
+    def names(self, identifier):
+        """The names the listing gives the element with this identifier (its title, description and value), or None."""
+        line = self.line(identifier)
+        if line is None:
+            return None
+        return [part for part in line.split(": ", 1)[-1].split(" | ") if part != identifier]
 
     def activate(self):
         for _ in range(3):
@@ -217,7 +262,8 @@ class Instance:
         """The square's label, which must be a real read: an unreadable square fails instead of reading as empty, so a
         check that something is absent cannot pass on a failed observation."""
         text = self.run("pointer-helper", "label", square)
-        assert text.startswith(f"{square},"), f"{self.name}: {square} read as {text!r}, not as a board square"
+        # BoardView labels a square with its name, then ", "-joined facts; an empty square with no marks is the bare name.
+        assert text == square or text.startswith(f"{square},"), f"{self.name}: {square} read as {text!r}, not as a board square"
         return text
 
     def type_into(self, field, text):
@@ -247,7 +293,7 @@ class Instance:
         target = self.evidence / f"{name}-{self.name}.png"
         target.unlink(missing_ok=True)
         if self.mode == "pair":
-            remote = f"/tmp/checkmate-network-shot-{uuid.uuid4().hex}.png"
+            remote = f"{self.data}/shot-{uuid.uuid4().hex}.png"
             try:
                 on_pair(f"screencapture -x {remote}")
                 subprocess.run(["scp", "-q", "-o", "BatchMode=yes", "-o", "ConnectTimeout=5", f"{pair()}:{remote}", str(target)], check=True, timeout=60)
@@ -258,8 +304,16 @@ class Instance:
             finally:
                 on_pair(f"rm -f {remote}", check=False)
         else:
-            subprocess.run(["screencapture", "-x", str(target)], check=False)
-        assert target.is_file() and target.stat().st_size > 0, f"{self.name}: the screenshot {name} was not captured"
+            try:
+                subprocess.run(["screencapture", "-x", str(target)], check=True, timeout=60, capture_output=True)
+            except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as error:
+                target.unlink(missing_ok=True)
+                raise AssertionError(f"{self.name}: the screenshot {name} could not be captured ({error})") from None
+        with open(target, "rb") as picture:
+            header = picture.read(8)
+        if header != b"\x89PNG\r\n\x1a\n":
+            target.unlink(missing_ok=True)
+            raise AssertionError(f"{self.name}: the screenshot {name} is not a picture")
 
     def connection_log(self):
         """This instance's network and app log lines since it started, kept with its evidence."""
@@ -275,11 +329,21 @@ class Instance:
         (self.evidence / f"connection-{self.name}.log").write_text(text)
 
     def stop(self):
-        """Stops the instance and removes its data; a stalled SSH connection is reported, never left to end cleanup."""
+        """Stops the instance, confirms it is gone and removes its data. A stop that times out or leaves the app running
+        raises AssertionError, so the gate cannot pass with an automation app left behind to disturb the next one."""
         try:
             self._stop()
         except subprocess.TimeoutExpired as error:
-            print(f"{self.name} may still be running: stopping it timed out ({error})")
+            raise AssertionError(f"{self.name} may still be running: stopping it timed out ({error})") from None
+        if self._alive():
+            raise AssertionError(f"{self.name} (pid {self.pid}) was still running after it was stopped")
+
+    def _alive(self):
+        if self.mode == "direct":
+            return self.process.poll() is None
+        if self.mode == "pair":
+            return on_pair(f"kill -0 {self.pid} 2>/dev/null && echo alive || echo gone", timeout=30) == "alive"
+        return subprocess.run(["kill", "-0", str(self.pid)], capture_output=True).returncode == 0
 
     def _stop(self):
         if self.mode == "direct":
@@ -291,23 +355,56 @@ class Instance:
                     self.process.kill()
                     self.process.wait(timeout=5)
         elif self.mode == "pair":
-            on_pair(f"kill {self.pid} 2>/dev/null; sleep 2; kill -9 {self.pid} 2>/dev/null; rm -rf {shlex.quote(self.data)}", check=False)
+            on_pair(f"kill {self.pid} 2>/dev/null; sleep 2; kill -9 {self.pid} 2>/dev/null; sleep 0.5; rm -rf {shlex.quote(self.data)}", timeout=60)
         else:
             subprocess.run(["kill", str(self.pid)], check=False)
             time.sleep(2)
             subprocess.run(["kill", "-9", str(self.pid)], check=False, capture_output=True)
+            time.sleep(0.5)
         if self.mode != "pair":
             subprocess.run(["rm", "-rf", self.data], check=False)
 
 
+def stop_all(instances, results, logs=False):
+    """Stops every instance whatever happens to the others; with `logs`, keeps each one's connection log first. Every
+    failure is recorded in results["cleanupErrors"] and returned, so the caller fails a gate that left an app running
+    or could not confirm it stopped."""
+    errors = []
+    for instance in instances:
+        if logs:
+            try:
+                instance.connection_log()
+            except Exception as error:  # noqa: BLE001 - a log that cannot be read never skips the stop
+                errors.append(f"{instance.name} connection log: {error}")
+        try:
+            instance.stop()
+        except Exception as error:  # noqa: BLE001 - every instance is stopped; each failure is kept
+            errors.append(f"{instance.name}: {error}")
+    if errors:
+        results.setdefault("cleanupErrors", []).extend(errors)
+    return errors
+
+
+def cleanup_failure(results, failure, errors):
+    """The gate's failure once cleanup is done: a run that passed fails when cleanup did not finish."""
+    if errors and results.get("passed"):
+        results["passed"] = False
+        return "cleanup failed: " + "; ".join(errors)
+    return failure
+
+
 def permission(instance):
-    """The local-network permission state the instance shows: "denied" when it asks for access (D13), "unknown" when its
-    window cannot be read, else "allowed" (the spike showed a silent refusal never reaches a live game, so a game that
-    went live was allowed; a failure diagnostic records what the window shows, nothing more)."""
-    listing = instance.listing()
-    if not listing:
+    """The local-network permission state the instance shows: "denied" when it asks for access (D13); "allowed" only
+    when its game is live (a network status line with a game's code or clocks: the spike showed a silent refusal never
+    reaches a live game); otherwise "unknown", including a window that cannot be read. Nothing is inferred from the
+    absence of the denial UI alone."""
+    try:
+        listing = instance.listing()
+    except AssertionError:
         return "unknown"
-    return "denied" if "network-access-needed" in listing or "network-permission-sheet" in listing else "allowed"
+    if "network-access-needed" in listing or "network-permission-sheet" in listing:
+        return "denied"
+    return "allowed" if re.search(r"network-(play-code|status)\b", listing) else "unknown"
 
 
 def code(instance, identifier):
@@ -355,12 +452,14 @@ def host_game(host, name="Ana", assistance=None, handicap=None):
 
 
 def game_row(instance, title):
-    """The identifier of the lobby row whose text starts with `title` ("Ana's game · K7QD")."""
+    """The identifier of the lobby row named `title`: the row's label is the title, its game-ID suffix and an optional
+    badge ("Ana's game · K7QD", "Dee's game · WA48, Hints"), never a longer name that merely contains the title
+    ("Not Ana's game · K7QD")."""
+    exact = re.compile(re.escape(title) + r"(?: · [0-9A-Z]{4})?(?:, (?:Board insight|Hints|Guided|Handicap))?")
     for line in instance.listing().splitlines():
-        if title in line:
-            found = re.search(r"(network-game-[0-9A-Z]{26})", line)
-            if found:
-                return found.group(1)
+        found = re.search(r"(network-game-[0-9A-Z]{26})", line)
+        if found and any(exact.fullmatch(part) for part in line.split(": ", 1)[-1].split(" | ")):
+            return found.group(1)
     return None
 
 
@@ -375,6 +474,6 @@ def join(instance, title, name, typed, watching=False, timeout=30, accept=None):
     instance.click("network-watch-button" if watching else "network-join-button")
     if accept:
         wait(lambda: instance.shows("network-accept-sheet"), f"{instance.name} was not asked to accept the assistance")
-        terms = instance.line("network-accept-terms") or ""
-        assert accept in terms, f"{instance.name} was asked to accept {terms!r}, not {accept!r}"
+        terms = instance.names("network-accept-terms") or []
+        assert accept in terms, f"{instance.name} was asked to accept {terms!r}, not exactly {accept!r}"
         instance.click("network-accept-assistance")

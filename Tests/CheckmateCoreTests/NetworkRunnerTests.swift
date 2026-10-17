@@ -29,9 +29,9 @@ final class MemoryNetworkGame {
     let hashing=NetworkHashing(reviewHash)
     let hostLog=NetworkEventLog<NetworkHostRunner.Event>()
     let runner:NetworkHostRunner
-    init(hostSide:NetworkSide = .white,timeControl:NetworkTimeControl = .untimed,spectators:Bool=true,limits:NetworkHostLimits = .standard,rules:NetworkRulesFactory=NetworkRulesFactory{try ChessRules()})throws {
+    init(hostSide:NetworkSide = .white,timeControl:NetworkTimeControl = .untimed,spectators:Bool=true,limits:NetworkHostLimits = .standard,assistance:NetworkAssistance = .off,rules:NetworkRulesFactory=NetworkRulesFactory{try ChessRules()})throws {
         transport=NetworkMemoryTransport(scheduler:scheduler)
-        let host=try NetworkHost(gameID:gameID,runEpoch:.random(using:.system),settings:NetworkHostSettings(hostName:"Ana",hostSide:hostSide,timeControl:timeControl,allowSpectators:spectators),rules:rules,hashing:hashing,limits:limits,at:scheduler.now)
+        let host=try NetworkHost(gameID:gameID,runEpoch:.random(using:.system),settings:NetworkHostSettings(hostName:"Ana",hostSide:hostSide,timeControl:timeControl,allowSpectators:spectators,assistance:assistance),rules:rules,hashing:hashing,limits:limits,at:scheduler.now)
         let configuration=NetworkHostingConfiguration(gameID:gameID,seatCode:seatCode,watchCode:spectators ? watchCode:nil,serviceName:"Ana's game")
         let log=hostLog
         runner=NetworkHostRunner(host:host,configuration:configuration,transport:transport,scheduler:scheduler){log.append($0)}
@@ -42,8 +42,8 @@ final class MemoryNetworkGame {
     var endpoints:[NetworkListenerRole:NetworkEndpoint] {for case .listening(let endpoints) in hostLog.events {return endpoints};return [:]}
     /// The guest's open connection, found by the key it used.
     var guestLink:NetworkMemoryLink? {transport.links.last{$0.key.role == .seat && $0.open && $0.connection != nil}}
-    func join(_ role:NetworkListenerRole,name:String="Ben",code:NetworkCode?=nil,reconnect:NetworkReconnectPolicy? = .standard)->MemoryNetworkClient {
-        let receiver=NetworkReceiver(gameID:gameID,role:role == .seat ? .guest(claimID:.random(using:.system)):.spectator,name:name,appVersion:"0.8.0",rules:NetworkRulesFactory{try ChessRules()},hashing:hashing)
+    func join(_ role:NetworkListenerRole,name:String="Ben",code:NetworkCode?=nil,accepting:NetworkAssistance = .off,reconnect:NetworkReconnectPolicy? = .standard)->MemoryNetworkClient {
+        let receiver=NetworkReceiver(gameID:gameID,role:role == .seat ? .guest(claimID:.random(using:.system)):.spectator,name:name,appVersion:"0.8.0",rules:NetworkRulesFactory{try ChessRules()},hashing:hashing,accepting:accepting)
         let log=NetworkEventLog<NetworkClientRunner.Event>()
         let key=NetworkAccessKey(gameID:gameID,role:role,code:code ?? (role == .seat ? seatCode:watchCode))
         let runner=NetworkClientRunner(receiver:receiver,endpoint:endpoints[role]!,key:key,transport:transport,scheduler:scheduler,reconnect:reconnect){log.append($0)}
@@ -103,6 +103,35 @@ final class NetworkRunnerTests:XCTestCase {
             XCTAssertEqual(game.transport.connectAttempts,3,"the guest twice and the rival once")
         }
     }
+    /// Assistance plan A3 through the runners: terms other than the ones accepted stop the guest with that reason, both
+    /// when the host refuses the claim and when a host's snapshot on resume states other terms than were accepted.
+    func testOtherTermsStopTheGuestOnJoiningAndOnResuming()throws {
+        let refusing=try MemoryNetworkGame(assistance:NetworkAssistance(both:.hints))
+        let joiner=refusing.join(.seat,accepting:.off,reconnect:nil)
+        XCTAssertEqual(joiner.link,.stopped(.closedByHost(.assistanceChanged)),"the host refuses a claim under other terms")
+        XCTAssertNil(joiner.receiver.credential);XCTAssertEqual(refusing.host.phase,.waiting)
+        // A host whose snapshot on resume states other terms (the hash covers only the position, so it still matches).
+        let terms=NetworkAssistance(both:.hints),game=try MemoryNetworkGame(assistance:terms)
+        let guest=game.join(.seat,accepting:terms,reconnect:NetworkReconnectPolicy(delays:[.seconds(1)],window:.seconds(120)))
+        XCTAssertEqual(guest.link,.live);game.hostPlays("e2e4")
+        var payload=Data()
+        game.transport.rewritesToLink={data in
+            guard let message=try? NetworkCodec.decode(data) else{return [data]}
+            switch message {
+            case .snapshotBegin:payload=Data();return []
+            case .snapshotPart(_,_,let part):payload.append(part);return []
+            case .snapshotEnd:
+                guard var forged=try? JSONDecoder().decode(NetworkPublicGame.self,from:payload) else{return [data]};let fen=game.host.fen
+                forged.assistance = .off
+                let snapshot=NetworkSnapshot(snapshotID:.random(using:.system),revision:forged.revision,hash:game.hashing.positionHash(fen:fen,revision:forged.revision),payload:try! JSONEncoder().encode(forged))
+                return snapshot.messages.map{try! NetworkCodec.encode($0)}
+            default:return [data]
+            }
+        }
+        game.transport.cut(try XCTUnwrap(game.guestLink?.connection));game.scheduler.advance(by:.seconds(1))
+        XCTAssertEqual(guest.link,.stopped(.assistanceChanged),"the guest stops under terms it did not accept, with that reason")
+        XCTAssertEqual(guest.receiver.installed?.assistance,terms,"the forged terms were never installed")
+    }
     /// The reconnect window is absolute: an attempt still connecting when it ends is closed then, not at its own deadline.
     func testAReconnectAttemptStillConnectingWhenTheWindowEndsIsClosedThen()throws {
         let game=try MemoryNetworkGame()
@@ -119,6 +148,21 @@ final class NetworkRunnerTests:XCTestCase {
         game.transport.stallConnects=false
         game.scheduler.advance(by:.seconds(30))
         XCTAssertEqual(guest.link,.stopped(.couldNotReach));XCTAssertEqual(game.transport.connectAttempts,2,"nothing after the stop")
+    }
+    /// The window holds after a sleep too: waking starts it afresh and arms it, so an attempt that stalls on waking stops
+    /// when the window ends, not at its own connect deadline.
+    func testAStalledAttemptOnWakingStopsWhenTheWindowEnds()throws {
+        let game=try MemoryNetworkGame()
+        let guest=game.join(.seat,reconnect:NetworkReconnectPolicy(delays:[.seconds(1)],window:.seconds(3)))
+        XCTAssertEqual(guest.link,.live)
+        guest.runner.suspend();game.scheduler.run();game.scheduler.advance(by:.seconds(60))
+        XCTAssertNotEqual(guest.link,.stopped(.couldNotReach),"asleep, the window does not run")
+        game.transport.stallConnects=true
+        guest.runner.wake();game.scheduler.run()
+        XCTAssertEqual(guest.link,.reconnecting)
+        game.scheduler.advance(by:.milliseconds(2990));XCTAssertEqual(guest.link,.reconnecting)
+        game.scheduler.advance(by:.milliseconds(10))
+        XCTAssertEqual(guest.link,.stopped(.couldNotReach),"stopped at the end of the window counted from waking")
     }
     /// D5: a host speaking another major version closes the guest with that reason, which reads as a version mismatch.
     func testAnotherMajorVersionStopsTheGuestWithAReadableReason()throws {
@@ -349,7 +393,10 @@ final class NetworkRunnerTests:XCTestCase {
         for client in [guest,watcher] {XCTAssertEqual(client.link,.stopped(.closedByHost(.hostLeft)));XCTAssertNil(client.receiver.outcome,"interrupted, no result")}
     }
     func testDiscoveryPairsListenersByGameIDNeverByName()throws {
-        let a=NetworkGameID.random(using:.system),b=NetworkGameID.random(using:.system),c=NetworkGameID.random(using:.system)
+        // Two games with the same name are told apart by their IDs' last characters: draw until those differ, so the
+        // test never fails on a one-in-a-million collision of correct IDs.
+        let a=NetworkGameID.random(using:.system),c=NetworkGameID.random(using:.system)
+        var b=NetworkGameID.random(using:.system);while b.displaySuffix==a.displaySuffix {b=NetworkGameID.random(using:.system)}
         func record(_ name:String,_ txt:[String:String],_ endpoint:String)->NetworkServiceRecord {NetworkServiceRecord(name:name,txt:txt,endpoint:NetworkEndpoint(endpoint,description:endpoint))}
         let records=[
             record("Ana's game",["game":a.text,"role":"seat"],"a-seat"),
@@ -390,4 +437,5 @@ private final class FailingRules:NetworkChessRules {
     func networkHasOnlyKing(_ side:NetworkSide)throws -> Bool {try rules.networkHasOnlyKing(side)}
     func networkPGN()throws -> String {try rules.networkPGN()}
     func networkLoad(pgn:String)throws {try rules.networkLoad(pgn:pgn)}
+    func networkMoves()throws -> [String] {try rules.networkMoves()}
 }

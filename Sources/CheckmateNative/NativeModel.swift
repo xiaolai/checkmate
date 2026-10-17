@@ -86,8 +86,12 @@ import RealtimeConnection
         }
         lessonLanguages.language=state.settings.lessonLanguage;lessonLanguages.voice=state.settings.lessonVoice
         wireLessonLanguages();wireAgentTools();wirePersistence();wireSounds();loadSavedReviews();observeSession()
-        // Views that hide engine output during a network game redraw when it begins or ends.
-        fairness.participation.observe{[weak self] _ in self?.objectWillChange.send()}
+        // Views that hide engine output during a network game redraw when it begins or ends; a practice coach that
+        // waited out the game (D8) reconnects once it ends, if Practice is on screen then.
+        fairness.participation.observe{[weak self] role in self?.objectWillChange.send();if role==nil{DispatchQueue.main.async{self?.resumeVoiceIfIntended()}}}
+        // Whose conversation the coach's history is: it is cleared whenever the coach opens for another one (practice,
+        // or another network game), so the game it last opened for, however it was connected, owns what it holds.
+        voice.$connected.filter{$0}.sink{[weak self] _ in guard let self else{return};self.networkVoiceGame=self.voice.networkSession ? self.network.record?.gameID:nil}.store(in:&observations)
         // The lobby browses only while the network place is on screen (D1); the game itself carries on elsewhere (D9).
         session.$activity.removeDuplicates().sink{[weak self] activity in self?.network.setShown(activity == .at(.network))}.store(in:&observations)
         // A host whose Mac sleeps stops its game as interrupted (D9).
@@ -179,19 +183,16 @@ import RealtimeConnection
     /// visible again, without a new greeting. Leaving while voice was off, or an MCP companion taking the session,
     /// leaves it off.
     private(set) var voiceResumeIntent=false
-    /// The voice history from before the learner first connected the coach to this network game (A10): Practice's, or
-    /// an earlier game's. The network page shows only what this game's coach said; a renewed or reconnected session
-    /// in the same game keeps showing it.
-    private var networkVoiceHidden:(game:NetworkGameID,ids:Set<String>)?
+    /// The network game the coach last opened for, or nil when it last opened for Practice (A10).
+    private var networkVoiceGame:NetworkGameID?
+    /// The network page shows only what this game's coach said: never Practice's conversation or an earlier game's. A
+    /// renewed or reconnected session in the same game keeps it, whether it was connected here or from Settings.
     var networkVoiceHistory:[VoiceHistory] {
-        guard let game=network.record?.gameID,let hidden=networkVoiceHidden,hidden.game==game else{return []}
-        return voice.history.filter{!hidden.ids.contains($0.id)}
+        guard let game=network.record?.gameID,networkVoiceGame==game else{return []}
+        return voice.history
     }
     /// The network page's Connect Voice Coach.
-    func connectNetworkVoice(){
-        if let game=network.record?.gameID,networkVoiceHidden?.game != game{networkVoiceHidden=(game,Set(voice.history.map(\.id)))}
-        voice.connect()
-    }
+    func connectNetworkVoice(){voice.connect()}
     var reconnectVoice:()->Void={}
     private var claimsWhenVoiceLeft=0
     private func rememberVoice(){if !voice.networkSession,voice.connected || voice.connecting{voiceResumeIntent=true;claimsWhenVoiceLeft=session.companionClaims}}

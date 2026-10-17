@@ -531,7 +531,9 @@ public final class NetworkHost:CustomReflectable {
     }
     private func pump(_ id:NetworkConnectionID)throws {
         guard peers[id] != nil else{return}
-        if peers[id]!.snapshotStale,!peers[id]!.outbox.snapshotPending {peers[id]!.snapshotStale=false;try requestSnapshot(id);return}
+        // A refresh owed to a spectator is sent once its snapshot in flight finishes; when leaving there is none to
+        // send (`requestSnapshot` makes none), so the queue drains on to the result and the close instead.
+        if peers[id]!.snapshotStale,!peers[id]!.outbox.snapshotPending {peers[id]!.snapshotStale=false;if !leaving {try requestSnapshot(id);return}}
         defer{releaseIdleCapture()}
         if let message=try peers[id]!.outbox.next() {
             // A snapshot part is only made when it is sent, so its bytes meet both budgets here (D7).

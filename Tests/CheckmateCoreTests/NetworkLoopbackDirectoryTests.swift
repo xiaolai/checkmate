@@ -16,21 +16,28 @@ final class NetworkLoopbackDirectoryTests:XCTestCase {
         let configuration=NetworkHostingConfiguration(gameID:.random(using:.system),seatCode:.random(using:.system),watchCode:.random(using:.system),serviceName:"Ana's game",assistance:NetworkAssistance(white:.insight,black:.guided))
         shared.publish(configuration,[.seat:NWNetworkTransport.loopbackEndpoint(port:50_001),.watch:NWNetworkTransport.loopbackEndpoint(port:50_002)])
         let discovery=shared.discovery(interval:.milliseconds(20))
-        let lock=NSLock();var updates:[[NetworkDiscoveredGame]]=[]
-        let found=expectation(description:"found"),gone=expectation(description:"gone"),repeated=expectation(description:"an unchanged poll reported")
-        repeated.isInverted=true
+        let lock=NSLock();var updates:[[NetworkDiscoveredGame]]=[],looks=0
+        let found=expectation(description:"found"),gone=expectation(description:"gone"),unchanged=expectation(description:"five looks after the first find")
+        shared.looked={lock.lock();if !updates.isEmpty {looks+=1};let count=looks;lock.unlock();if count==5 {unchanged.fulfill()}}
         scheduler.enqueue{discovery.start{update in
             guard case .games(let games)=update else{return}
             lock.lock();updates.append(games);let count=updates.count;lock.unlock()
-            if count==1{found.fulfill()}else if count==2{repeated.fulfill();gone.fulfill()}
+            if count==1{found.fulfill()}else if count==2{gone.fulfill()}
         }}
         wait(for:[found],timeout:5)
+        // Five looks at the unchanged directory, each one confirmed, report nothing new.
+        wait(for:[unchanged],timeout:5)
         lock.lock();let snapshot=updates;lock.unlock()
+        XCTAssertEqual(snapshot.count,1,"unchanged looks report nothing")
         let first=try XCTUnwrap(snapshot.first)
-        // Fifteen polls of the unchanged directory report nothing new.
-        wait(for:[repeated],timeout:0.3)
         XCTAssertEqual(first.count,1);XCTAssertEqual(first.first?.gameID,configuration.gameID);XCTAssertEqual(first.first?.name,"Ana's game")
         XCTAssertEqual(first.first?.assistance,NetworkAssistance(white:.insight,black:.guided),"the terms are published for the list (assistance plan A3)")
+        // Each listener's record carries the terms itself: either alone lists the game with them.
+        for role in [NetworkListenerRole.seat,.watch] {
+            XCTAssertEqual(first.first?.record(role)?.txt["assist"],"ig","the \(role) record's own terms")
+            let alone=NetworkDiscoveredGame.pair(shared.records().filter{$0.txt["role"]==role.rawValue})
+            XCTAssertEqual(alone.first?.assistance,NetworkAssistance(white:.insight,black:.guided),"the \(role) record alone")
+        }
         XCTAssertEqual(first.first?.record(.seat)?.endpoint,NWNetworkTransport.loopbackEndpoint(port:50_001));XCTAssertEqual(first.first?.record(.watch)?.endpoint,NWNetworkTransport.loopbackEndpoint(port:50_002))
         shared.withdraw(configuration.gameID)
         wait(for:[gone],timeout:5)
@@ -77,7 +84,11 @@ final class NetworkLoopbackDirectoryTests:XCTestCase {
         let away=NWEndpoint.hostPort(host:"203.0.113.5",port:50_005)
         shared.publish(configuration,[.seat:NetworkEndpoint(away,description:"\(away)")])
         XCTAssertFalse(FileManager.default.fileExists(atPath:directory.appendingPathComponent(configuration.gameID.text+".json").path))
-        XCTAssertTrue(NetworkLoopbackDirectory.loopback("127.0.0.1"));XCTAssertTrue(NetworkLoopbackDirectory.loopback("::1"));XCTAssertFalse(NetworkLoopbackDirectory.loopback("203.0.113.5"))
+        // Discovery rewrites every record to 127.0.0.1, so only exactly that address is published.
+        XCTAssertTrue(NetworkLoopbackDirectory.loopback("127.0.0.1"))
+        for other in ["::1","127.0.0.2","localhost","203.0.113.5"] as [NWEndpoint.Host] {XCTAssertFalse(NetworkLoopbackDirectory.loopback(other),"\(other)")}
+        shared.publish(configuration,[.seat:NetworkEndpoint(NWEndpoint.hostPort(host:"::1",port:50_005),description:"[::1]:50005")])
+        XCTAssertFalse(FileManager.default.fileExists(atPath:directory.appendingPathComponent(configuration.gameID.text+".json").path),"a listener on ::1 is not advertised at 127.0.0.1")
     }
     /// Only small regular files are read: a FIFO would block discovery, a huge file would fill memory.
     func testOnlySmallRegularRecordFilesAreRead()throws {
@@ -90,6 +101,28 @@ final class NetworkLoopbackDirectoryTests:XCTestCase {
         try Data((big+String(repeating:" ",count:NetworkLoopbackDirectory.maximumRecordBytes)).utf8).write(to:directory.appendingPathComponent("huge.json"))
         let configuration=NetworkHostingConfiguration(gameID:.random(using:.system),seatCode:.random(using:.system),watchCode:nil,serviceName:"Ana's game")
         shared.publish(configuration,[.seat:NWNetworkTransport.loopbackEndpoint(port:50_006)])
-        XCTAssertEqual(shared.records().compactMap{$0.txt["game"]},[configuration.gameID.text],"the FIFO and the huge file are skipped, without blocking")
+        // Read off the test's thread with a deadline: a regression that blocks on the FIFO fails here rather than
+        // hanging the whole run.
+        XCTAssertEqual(try withinDeadline{shared.records().compactMap{$0.txt["game"]}},[configuration.gameID.text],"the FIFO and the huge file are skipped, without blocking")
+    }
+    /// The checks hold for the file actually read: a link is not followed, and a FIFO is not waited on.
+    func testARecordIsReadThroughOneDescriptorWithoutFollowingLinks()throws {
+        try FileManager.default.createDirectory(at:directory,withIntermediateDirectories:true)
+        let target=directory.appendingPathComponent("target.txt"),link=directory.appendingPathComponent("link.json"),fifo=directory.appendingPathComponent("fifo.json")
+        try Data("[]".utf8).write(to:target);try FileManager.default.createSymbolicLink(at:link,withDestinationURL:target)
+        XCTAssertEqual(NetworkLoopbackDirectory.contents(target),Data("[]".utf8))
+        XCTAssertNil(NetworkLoopbackDirectory.contents(link),"a link is not followed")
+        XCTAssertEqual(mkfifo(fifo.path,0o600),0)
+        XCTAssertNil(try withinDeadline{NetworkLoopbackDirectory.contents(fifo)},"a FIFO is not read, and not waited on")
+        try Data(repeating:0x20,count:NetworkLoopbackDirectory.maximumRecordBytes+1).write(to:target)
+        XCTAssertNil(NetworkLoopbackDirectory.contents(target),"one byte over the limit is not read")
+    }
+    private struct Blocked:Error,CustomStringConvertible {var description:String {"the read blocked for 5 s"}}
+    /// Runs `work` on another thread and fails, rather than waiting forever, if it does not finish within 5 s.
+    private func withinDeadline<T>(_ work:@escaping ()->T)throws -> T {
+        let done=DispatchSemaphore(value:0),lock=NSLock();var result:T?
+        Thread.detachNewThread{let value=work();lock.lock();result=value;lock.unlock();done.signal()}
+        guard done.wait(timeout:.now()+5) == .success else{throw Blocked()}
+        lock.lock();defer{lock.unlock()};return result!
     }
 }

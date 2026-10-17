@@ -56,6 +56,15 @@ public final class NetworkReceiver {
     /// This connection was let in: `seated`, `resumed` or `watching` arrived. The host sends a snapshot only after one
     /// of them (D5), so a snapshot before it breaks the protocol.
     private var admitted=false
+    /// This connection's snapshot is installed. The host sends a newly admitted peer its snapshot before anything else
+    /// about the game (D5), so game news before it, on a connection whose earlier board is only remembered, is refused.
+    private var synced=false
+    /// The host's messages that neither advance the game nor answer this Mac: at most D7's 20 a second, so a host
+    /// cannot flood this Mac with valid but pointless frames (clocks, duplicates) that each cost a status, a record
+    /// export and a delivery. A move or result that advances the game is bounded by the game itself, and a snapshot,
+    /// an admission or the answer to a pending move by what this Mac asked for; a burst of them is ordinary, such as
+    /// the moves held behind a snapshot arriving together after it.
+    private var inboundRate=NetworkRateWindow()
     private var clockSync:(clocks:NetworkClocks,at:NetworkInstant)?
     public init(gameID:NetworkGameID,role:NetworkReceiverRole,name:String,appVersion:String,rules:NetworkRulesFactory,hashing:NetworkHashing,random:NetworkRandom = .system,accepting accepted:NetworkAssistance = .off){self.gameID=gameID;self.role=role;self.name=name;self.appVersion=appVersion;factory=rules;self.hashing=hashing;self.random=random;self.accepted=accepted}
     /// The guest's side, once a snapshot says which side the host took.
@@ -69,7 +78,7 @@ public final class NetworkReceiver {
         }
     }
     /// The connection is gone. A reconnect clears the pending move; the board stays until the next snapshot.
-    public func connectionLost(){pendingMove=nil;assembler=nil;resyncRequested=false;acknowledgeAfterSnapshot=false;admitted=false}
+    public func connectionLost(){pendingMove=nil;assembler=nil;resyncRequested=false;acknowledgeAfterSnapshot=false;admitted=false;synced=false}
     /// The live record, for the review hand-off and the crash file.
     public func publicGame(at now:NetworkInstant)throws -> NetworkPublicGame? {
         guard var game=installed,let rules,let revision else{return nil}
@@ -92,6 +101,12 @@ public final class NetworkReceiver {
     public func receive(message:NetworkMessage,at now:NetworkInstant)throws -> NetworkReceiverOutput {
         var output=NetworkReceiverOutput()
         if case .bye(let reason)=message {output.events.append(.closedByHost(reason));return output}
+        guard !counted(message) || inboundRate.admit(at:now) else{output.close = .rateLimited;return output}
+        // Game news belongs to the board this connection's snapshot installed (D5); before it, the host broke the order.
+        switch message {
+        case .moved,.ended,.drawOffered,.drawDeclined,.clock,.rejected:guard synced else{output.close = .malformed;return output}
+        default:break
+        }
         // Every other message for this peer waits behind the snapshot's end at the host, so anything else arriving
         // mid-snapshot breaks the protocol.
         if assembler != nil {
@@ -113,17 +128,19 @@ public final class NetworkReceiver {
             guard admitted else{output.close = .malformed;break}
             do{assembler=try NetworkSnapshotAssembler(snapshotID:snapshotID,revision:revision,hash:hash,totalBytes:totalBytes,parts:parts)}catch{output.close = .badSnapshot}
         case .snapshotPart,.snapshotEnd:output.close = .badSnapshot
-        case .moved(let moved):try apply(moved,at:now,&output)
+        case .moved(let moved):guard clocksFit(moved.clocks) else{output.close = .malformed;break};try apply(moved,at:now,&output)
         case .ended(let ended):
             guard let current=revision else{requestResync(&output);break}
             if ended.revision<=current {break}
+            // A game ends once: a further result, or clocks the game's time control has no place for, is not this game.
+            guard outcome==nil,clocksFit(ended.clocks) else{output.close = .malformed;break}
             guard ended.revision==current+1 else{requestResync(&output);break}
             revision=ended.revision;outcome=ended.outcome;openOffer=nil;pendingMove=nil
             if let clocks=ended.clocks {clockSync=(clocks,now)}
             output.events.append(.ended(ended.outcome))
         case .drawOffered(let offer):guard revision != nil,outcome==nil else{break};openOffer=offer;output.events.append(.offered(offer))
         case .drawDeclined(let offerID):if openOffer?.offerID==offerID {openOffer=nil;output.events.append(.offerCleared(offerID))}
-        case .clock(let clocks):clockSync=(clocks,now)
+        case .clock(let clocks):guard clocksFit(clocks) else{output.close = .malformed;break};clockSync=(clocks,now)
         case .rejected(let commandID,let reason):
             if pendingMove?.commandID==commandID {pendingMove=nil}
             output.events.append(.rejected(commandID:commandID,reason:reason))
@@ -132,6 +149,18 @@ public final class NetworkReceiver {
         }
         return output
     }
+    /// Whether `message` counts toward the inbound rate: everything that neither advances the game nor answers this Mac.
+    private func counted(_ message:NetworkMessage)->Bool {
+        switch message {
+        case .seated,.resumed,.watching,.snapshotBegin,.snapshotPart,.snapshotEnd:return false
+        case .moved(let moved):return revision.map{moved.revision != $0+1} ?? true
+        case .ended(let ended):return revision.map{ended.revision != $0+1} ?? true
+        case .rejected(let commandID,_):return pendingMove?.commandID != commandID
+        default:return true
+        }
+    }
+    /// Clocks exactly when the installed game is timed (D4: an untimed game has none), the rule a public game decodes by.
+    private func clocksFit(_ clocks:NetworkClocks?)->Bool {(clocks==nil)==(installed?.timeControl == .untimed)}
     private func requestResync(_ output:inout NetworkReceiverOutput){guard !resyncRequested else{return};resyncRequested=true;output.send.append(.resync)}
     private func finishSnapshot(_ snapshotID:NetworkID,at now:NetworkInstant,_ output:inout NetworkReceiverOutput)throws {
         let assembled=assembler!;assembler=nil
@@ -145,7 +174,13 @@ public final class NetworkReceiver {
         // the guest's, and its agreed level) or goes back to an earlier revision is not this game.
         if let installed,result.game.hostSide != installed.hostSide {output.close = .malformed;return}
         if let current=revision,result.game.revision<current {output.close = .malformed;return}
-        installed=result.game;assistedPlies=result.game.assistedPlies;rules=result.rules;fen=result.fen;revision=result.game.revision
+        // What this Mac already verified stays as it was: the new record extends the moves shown, never replaces them,
+        // and keeps the assisted flags of those moves (A7).
+        if let rules {
+            let shown=try rules.networkMoves()
+            guard result.moves.count>=shown.count,Array(result.moves.prefix(shown.count))==shown,result.game.assistedPlies.filter({$0<=shown.count})==assistedPlies.filter({$0<=shown.count}) else{output.close = .malformed;return}
+        }
+        installed=result.game;assistedPlies=result.game.assistedPlies;rules=result.rules;fen=result.fen;revision=result.game.revision;synced=true
         openOffer=result.game.openOffer;outcome=result.game.outcome;pendingMove=nil;resyncRequested=false
         clockSync=result.game.clocks.map{($0,now)}
         output.events.append(.installed(revision:result.game.revision))
@@ -174,7 +209,7 @@ public final class NetworkReceiver {
         output.events.append(.applied(moved,by:mover))
     }
     // Guest commands: each carries the game, a fresh 128-bit commandID and the current revision (D2).
-    private var playable:Bool {if case .guest=role,revision != nil,outcome==nil,assembler==nil,!resyncRequested {return true};return false}
+    private var playable:Bool {if case .guest=role,synced,revision != nil,outcome==nil,assembler==nil,!resyncRequested {return true};return false}
     /// The move to send, or nil when the press is ignored: a move is already pending, it is not the guest's turn, or
     /// there is no game to play.
     /// `assisted`: a hint was shown to this player during this turn (A7).

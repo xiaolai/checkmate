@@ -116,10 +116,12 @@ public final class NetworkClientRunner {
         if link != nil {abandon(farewell:.leaving);dropped(.lost)}
         publishStatus()
     }}
-    /// The Mac woke: reconnect now, with the reconnect window counted from here.
+    /// The Mac woke: reconnect now, with the reconnect window counted from here, and armed from here too, so an
+    /// attempt that stalls still gives up when the window ends rather than at its own connect deadline.
     public func wake(){scheduler.enqueue{[self] in
         guard stop==nil,suspended else{return}
         suspended=false;lostAt=nil;retries=0
+        if everAdmitted || receiver.credential != nil,let policy=reconnect {lostAt=scheduler.now;armExpiry(since:scheduler.now,policy:policy)}
         if link==nil {connect()}
     }}
     /// Bytes this side holds, on the scheduler's queue: messages queued or in flight, plus the link's buffers.
@@ -192,12 +194,7 @@ public final class NetworkClientRunner {
         let now=scheduler.now
         let since=lostAt ?? now;lostAt=since
         guard now-since<policy.window else{return finish(.couldNotReach)}
-        if expiryWork==nil {
-            expiryWork=scheduler.schedule(at:since+policy.window){[weak self] in
-                guard let self,self.stop==nil,!self.admitted,!self.suspended else{return}
-                self.finish(.couldNotReach)
-            }
-        }
+        armExpiry(since:since,policy:policy)
         let delay=policy.delays.isEmpty ? Duration.zero:policy.delays[min(retries,policy.delays.count-1)]
         retries+=1
         retryWork=scheduler.schedule(at:now+delay){[weak self] in
@@ -205,6 +202,14 @@ public final class NetworkClientRunner {
             // The window is absolute: a retry falling due after it gives up rather than starting late.
             if let since=self.lostAt,self.scheduler.now-since>=policy.window {self.finish(.couldNotReach);return}
             self.connect()
+        }
+    }
+    /// Gives up when the reconnect window that began at `since` ends without a snapshot installed. Armed once.
+    private func armExpiry(since:NetworkInstant,policy:NetworkReconnectPolicy){
+        guard expiryWork==nil else{return}
+        expiryWork=scheduler.schedule(at:since+policy.window){[weak self] in
+            guard let self,self.stop==nil,!self.admitted,!self.suspended else{return}
+            self.finish(.couldNotReach)
         }
     }
     /// Joining failed. A deadline gets one fresh retry (spike finding (c)). A TLS failure is final: most likely the code

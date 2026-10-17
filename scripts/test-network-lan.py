@@ -10,6 +10,7 @@ both hints, and Review on both Macs shows the Assistance line. The pair's connec
 is never cut (N13). A real cable or Wi-Fi loss is not automated. Evidence is kept per Mac, in test-host/ and pair/:
 screenshots, permission states and connection logs.
 """
+import datetime
 import json
 import os
 import pathlib
@@ -19,8 +20,8 @@ import time
 
 import test_host
 test_host.require("two-Mac network acceptance")
-from network_gate import (Instance, compile_helpers, host_game, install, join, on_pair, open_network, pair,  # noqa: E402
-                          permission, root, wait, wait_for)
+from network_gate import (BUILT, Instance, cleanup_failure, compile_helpers, host_game, install, join, on_pair,  # noqa: E402
+                          open_network, pair, permission, private_remote_dir, root, stop_all, wait, wait_for)
 
 evidence = pathlib.Path(os.environ["CHECKMATE_EVIDENCE_DIR"])
 local_evidence, pair_evidence = evidence / "test-host", evidence / "pair"
@@ -29,12 +30,15 @@ for folder in (local_evidence, pair_evidence):
 helpers = compile_helpers(evidence)
 results = {"steps": []}
 started = time.monotonic()
-# The pair's own scratch folder, made private (mktemp -d is 0700) for each run: the access check and the helpers are
-# copied into it and run from it, never from a shared, predictable /tmp path another account could plant first.
+# The pair's own scratch folder, private (0700, owned by this account, checked) for each run: the access check and
+# the helpers are copied into it and run from it, never from a shared, predictable /tmp path another account could
+# plant first.
 remote_scratch = None
-# The pair's crash reports of the automation app, before the run, so a crash there fails the gate as one here does
-# (run-gates.py checks only this Mac's reports). The app quits by signal, so only its report shows a fault.
-CRASH_LISTING = "ls ~/Library/Logs/DiagnosticReports 2>/dev/null | grep -E '^CheckmateNative.*[.]ips$' || true"
+# The pair's crash reports, read the way run-gates.py reads this Mac's: a crash there fails the gate as one here does.
+# The listing must succeed (its sentinel line proves the command ran), so an SSH failure fails the gate instead of
+# reading as "no reports". The app quits by signal, so only its report shows a fault.
+CRASH_DIRECTORY = "~/Library/Logs/DiagnosticReports"
+CRASH_LISTING = f"if [ -d {CRASH_DIRECTORY} ]; then ls -1 {CRASH_DIRECTORY}; fi; echo listed"
 # The pair runs natively, without Rosetta's delayed reports; this is how long its ReportCrash is given after the run.
 PAIR_CRASH_SETTLE_SECONDS = 15
 
@@ -42,8 +46,40 @@ PAIR_CRASH_SETTLE_SECONDS = 15
 def scratch():
     global remote_scratch
     if remote_scratch is None:
-        remote_scratch = on_pair("mktemp -d /tmp/checkmate-network-lan.XXXXXX")
+        remote_scratch = private_remote_dir("checkmate-network-lan")
     return remote_scratch
+
+
+def pair_reports_now():
+    """The pair's .ips report names, from a listing that must have run."""
+    lines = on_pair(CRASH_LISTING, timeout=60).splitlines()
+    assert lines and lines[-1] == "listed", "the LAN pair's crash reports could not be listed"
+    return {name for name in lines[:-1] if name.endswith(".ips")}
+
+
+def built_uuids():
+    """The LC_UUIDs of the app this run installed on the pair: signing keeps them, so its report names one."""
+    listed = subprocess.run(["dwarfdump", "--uuid", str(BUILT / "Contents/MacOS/CheckmateNative")], capture_output=True, text=True, check=True, timeout=60).stdout
+    return {line.split()[1].lower() for line in listed.splitlines() if line.startswith("UUID: ")}
+
+
+def pair_crashes(before, since, uuids):
+    """New reports on the pair of the executable this run installed, captured once the run began (`since`, the pair's
+    own clock): another build's crash, or one captured earlier and written late, is not this run's."""
+    found = []
+    for name in sorted(pair_reports_now() - before):
+        text = on_pair(f"cat {CRASH_DIRECTORY}/{shlex.quote(name)}", timeout=60)
+        header, _, body = text.partition("\n")
+        try:
+            meta, detail = json.loads(header), json.loads(body)
+        except json.JSONDecodeError:
+            continue  # Not a crash report this check understands; anything ReportCrash writes for a crash parses.
+        if meta.get("app_name") != "CheckmateNative" or str(meta.get("slice_uuid", "")).lower() not in uuids:
+            continue
+        captured = datetime.datetime.strptime(detail["captureTime"], "%Y-%m-%d %H:%M:%S.%f %z").timestamp()
+        if captured >= since:
+            found.append(name)
+    return found
 
 
 def step(name):
@@ -82,7 +118,7 @@ def pair_helpers():
 
 
 instances, failure = [], None
-pair_reports = set(on_pair(CRASH_LISTING).split())
+pair_reports, pair_began = pair_reports_now(), float(on_pair("date +%s"))
 try:
     problem = access_problem()
     if problem:
@@ -153,7 +189,9 @@ try:
     # Review is offered for an interrupted game too, so the result itself is checked: Black's queen mates on h4.
     for instance in instances:
         assert instance.read_label("h4").startswith("h4, Black, queen"), f"{instance.name} does not show the mating queen on h4"
-        assert "Checkmate" in (results["result"][instance.name] or ""), f"{instance.name} did not end in checkmate: {results['result'][instance.name]}"
+        # Black, the pair's Ben, mates: his own Mac says he won, the others that Ben did.
+        expected = "Checkmate. You win." if instance is guest else "Checkmate. Ben wins."
+        assert expected in (results["result"][instance.name] or ""), f"{instance.name} did not show {expected!r}: {results['result'][instance.name]}"
     step("played to checkmate")
 
     for instance in (guest, host):
@@ -170,28 +208,32 @@ except Exception as error:
     results["passed"] = False
     for instance in instances:
         try:
-            (instance.evidence / f"failure-{instance.name}-ax.txt").write_text(instance.listing())
+            (instance.evidence / f"failure-{instance.name}-ax.txt").write_text(instance.raw_listing())
             instance.capture("failure")
             results.setdefault("permission", {}).setdefault(instance.name, permission(instance))
         except Exception as diagnostic:
             failure += f" (diagnostics for {instance.name} failed: {diagnostic})"
 finally:
-    # A diagnostic that fails never skips an instance's stop, nor the rest of the cleanup; its failure is kept.
-    for instance in instances:
-        try:
-            instance.connection_log()
-        except Exception as diagnostic:
-            results.setdefault("cleanupErrors", []).append(f"{instance.name} connection log: {diagnostic}")
-        finally:
-            instance.stop()
-    if remote_scratch:
-        on_pair(f"rm -rf {shlex.quote(remote_scratch)}", check=False)
-    time.sleep(PAIR_CRASH_SETTLE_SECONDS if instances else 0)
-    crashed = sorted(set(on_pair(CRASH_LISTING, check=False).split()) - pair_reports)
-    results["pairCrashReports"] = crashed
-    if crashed and results["passed"]:
-        results["passed"] = False
-        failure = f"the app crashed on the LAN pair: {', '.join(crashed)}"
+    # Every step here runs whatever the others do, and each failure is kept: a stalled SSH connection or an unreadable
+    # crash report fails the gate, and the result is still written below.
+    cleanup_errors = stop_all(instances, results, logs=True)
+    try:
+        if remote_scratch:
+            on_pair(f"rm -rf {shlex.quote(remote_scratch)}", timeout=60)
+    except Exception as error:  # noqa: BLE001 - kept as a cleanup failure
+        cleanup_errors.append(f"the pair's scratch folder could not be removed: {error}")
+    try:
+        time.sleep(PAIR_CRASH_SETTLE_SECONDS if instances else 0)
+        crashed = pair_crashes(pair_reports, pair_began, built_uuids())
+        results["pairCrashReports"] = crashed
+        if crashed and results["passed"]:
+            results["passed"] = False
+            failure = f"the app crashed on the LAN pair: {', '.join(crashed)}"
+    except Exception as error:  # noqa: BLE001 - an unchecked pair fails the gate
+        cleanup_errors.append(f"the pair's crash reports could not be checked: {error}")
+    if cleanup_errors:
+        results["cleanupErrors"] = cleanup_errors
+failure = cleanup_failure(results, failure, cleanup_errors)
 results["failure"] = failure
 results["networkLAN"] = results["passed"]
 (evidence / "network-lan-results.json").write_text(json.dumps(results, indent=2))

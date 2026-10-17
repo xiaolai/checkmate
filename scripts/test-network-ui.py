@@ -23,7 +23,8 @@ import time
 
 import test_host
 test_host.require("network UI acceptance")
-from network_gate import Instance, compile_helpers, game_row, host_game, join, open_network, wait, wait_for  # noqa: E402
+from network_gate import (Instance, cleanup_failure, compile_helpers, game_row, host_game, join, open_network, stop_all,  # noqa: E402
+                          wait, wait_for)
 
 evidence = pathlib.Path(os.environ["CHECKMATE_EVIDENCE_DIR"])
 evidence.mkdir(parents=True, exist_ok=True)
@@ -63,8 +64,11 @@ def shut(instance, square, message):
 
 
 def suggested(instance):
-    """The hint's arrow as the board's squares read it: (from, to), from the square labelled "suggested move to"."""
-    for line in instance.listing().splitlines():
+    """The hint's arrow as the board's squares read it: (from, to), from the square labelled "suggested move to". None
+    only from a listing that shows the board's squares, so a missing arrow is never read off another view."""
+    listing = instance.listing()
+    assert re.search(r"^AXButton: [a-h][1-8],", listing, re.M), f"{instance.name}: the board's squares are not in the listing"
+    for line in listing.splitlines():
         found = re.search(r"AXButton: ([a-h][1-8]),.*suggested move to ([a-h][1-8])", line)
         if found:
             return found.group(1), found.group(2)
@@ -114,7 +118,7 @@ try:
     wait(guest.fault_taken, "the guest never took the stall hook")
     guest.square("e5")
     wait(lambda: guest.shows("Sending…"), "the guest's move did not show as pending", 3)
-    assert not host.label("e5").startswith("e5, Black, pawn"), "a pending move reached the host early"
+    assert not host.read_label("e5").startswith("e5, Black, pawn"), "a pending move reached the host early"
     guest.capture("pending")
     for instance in instances:
         wait(lambda instance=instance: instance.label("e5").startswith("e5, Black, pawn"), f"{instance.name} never showed 1... e5")
@@ -132,7 +136,7 @@ try:
     wait(lambda: guest.shows("network-status") and not guest.shows("Reconnecting to"), "the guest never came back from the disconnect", 40)
     wait(lambda: host.shows("Your move."), "the host never saw the guest return", 20)
     # A game without assistance offers no Hint on a player's own move, where the turn would otherwise show one.
-    assert not host.shows("network-hint-button"), "the host was offered a hint on its move in a game without assistance"
+    assert host.absent("network-hint-button", within="network-status"), "the host was offered a hint on its move in a game without assistance"
     step("dropped and resumed")
     host.square("g1")
     host.square("f3")
@@ -142,8 +146,8 @@ try:
 
     # Assistance plan A1 and A12 in a game without assistance, on the guest's own move: no Hint button, no voice
     # coach, and P inspects nothing.
-    assert not guest.shows("network-hint-button") and not host.shows("network-terms"), "a game without assistance offered help"
-    assert not any(instance.shows("network-voice-connect") for instance in instances), "a game without assistance offered the voice coach"
+    assert guest.absent("network-hint-button", within="network-status") and host.absent("network-terms", within="network-status"), "a game without assistance offered help"
+    assert all(instance.absent("network-voice-connect", within="network-status") for instance in instances), "a game without assistance offered the voice coach"
     inspect(guest, "d7", expected=False)
     guest.run("pointer-helper", "key", KEY_ESCAPE)
     step("no assistance: no Hint and no inspector")
@@ -207,11 +211,12 @@ try:
     guest.type_into("network-code-field", play_code)
     guest.click("network-join-button")
     wait(lambda: guest.shows("network-accept-sheet"), "joining a game with assistance did not ask first")
-    assert "allows hints on request for both players" in guest.listing(), "the Accept sheet did not say what is agreed"
+    offered = guest.names("network-accept-terms") or []
+    assert "Dee's game allows hints on request for both players." in offered, f"the Accept sheet did not say exactly what is agreed: {offered}"
     guest.capture("accept-sheet")
     guest.click("network-decline-assistance")
     wait(lambda: not guest.shows("network-accept-sheet") and guest.shows("network-join-button"), "Decline did not return to the list")
-    assert not host.shows("Eve"), "declining still joined"
+    assert host.absent("Eve", within="network-status"), "declining still joined"
     step("assistance declined once")
     guest.click("network-join-button")
     wait(lambda: guest.shows("network-accept-sheet"), "the Accept sheet did not come back")
@@ -263,7 +268,7 @@ try:
     # The earlier phases' hosts were stopped by a signal: their games went with them, as a Bonjour one would.
     stale = [title for title in ("Ana's game", "Dee's game") if game_row(guest, title)]
     assert not stale, f"a stopped instance's game is still listed: {stale}"
-    join(guest, "Fay's game", "Gil", play_code, accept="Handicap: White gets hints on request, Black gets no help.")
+    join(guest, "Fay's game", "Gil", play_code, accept="Handicap: White gets hints on request, Black gets no help. You see which side you play once you join.")
     wait(lambda: host.shows("Gil") and guest.shows("network-terms"), "the handicap game did not start", 30)
     for instance in instances:
         assert instance.shows("Handicap:"), f"{instance.name} did not call the terms a handicap"
@@ -272,8 +277,8 @@ try:
     host.square("e2")
     host.square("e4")
     wait(lambda: guest.label("e4").startswith("e4, White, pawn"), "the guest never showed 1. e4")
-    assert not guest.shows("network-hint-button"), "Black, without help, was offered a hint"
-    assert not guest.shows("network-voice-connect"), "Black, without help, was offered the voice coach"
+    assert guest.absent("network-hint-button", within="network-status"), "Black, without help, was offered a hint"
+    assert guest.absent("network-voice-connect", within="network-status"), "Black, without help, was offered the voice coach"
     inspect(guest, "d7", expected=False)
     guest.capture("handicap-guest")
     step("handicap shown on both; the side without help gets none")
@@ -283,14 +288,14 @@ except Exception as error:
     results["passed"] = False
     for instance in instances:
         try:
-            (evidence / f"failure-{instance.name}-ax.txt").write_text(instance.listing())
+            (evidence / f"failure-{instance.name}-ax.txt").write_text(instance.raw_listing())
             instance.capture("failure")
         except Exception as diagnostic:
             failure += f" (diagnostics for {instance.name} failed: {diagnostic})"
 finally:
-    for instance in instances:
-        instance.stop()
+    cleanup_errors = stop_all(instances, results)
     shutil.rmtree(shared, ignore_errors=True)
+failure = cleanup_failure(results, failure, cleanup_errors)
 results["failure"] = failure
 results["networkUI"] = results["passed"]
 (evidence / "network-ui-results.json").write_text(json.dumps(results, indent=2))

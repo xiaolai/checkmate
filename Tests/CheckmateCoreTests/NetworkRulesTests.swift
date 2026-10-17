@@ -75,6 +75,28 @@ final class NetworkRulesTests:XCTestCase {
         }
         XCTAssertEqual(net.host.positionHash.count,64,"SHA-256 in hex");XCTAssertNoThrow(try NetworkCodec.encode(.snapshotBegin(snapshotID:NetworkID.random(using:.system),revision:5,hash:net.host.positionHash,totalBytes:1,parts:1)))
     }
+    /// A snapshot is this game only if its record extends the receiver's own start, here the initial position, and its
+    /// revision counts exactly its moves (and the end): a record that sets up another position, or a revision that
+    /// would misplace assisted plies, is refused before anything is installed.
+    func testASnapshotMustExtendTheStartAndCountItsMoves()throws {
+        let standard=NetworkRulesFactory{try ChessRules()},gameID=NetworkGameID.random(using:.system)
+        func install(_ rules:ChessRules,revision:Int,outcome:NetworkOutcome?=nil)throws {
+            let pgn=try rules.networkPGN(),hash=hashing.positionHash(fen:try rules.networkFEN(),revision:revision)
+            let game=NetworkPublicGame(gameID:gameID,revision:revision,hostSide:.white,whiteName:"Ana",blackName:"Ben",timeControl:.untimed,pgn:pgn,clocks:nil,openOffer:nil,outcome:outcome)
+            _ = try NetworkSnapshotInstaller.install(try JSONEncoder().encode(game),revision:revision,hash:hash,gameID:gameID,rules:standard,hashing:hashing)
+        }
+        func refused(_ reason:String,_ work:()throws->Void,file:StaticString=#filePath,line:UInt=#line){
+            XCTAssertThrowsError(try work(),file:file,line:line){XCTAssertEqual($0 as? NetworkSnapshotError,.badSnapshot(reason),file:file,line:line)}
+        }
+        let played=try ChessRules();_ = try played.networkPlay(uci:"e2e4")
+        XCTAssertNoThrow(try install(played,revision:1),"one move at revision 1")
+        refused("revision"){try install(played,revision:2)}
+        refused("revision"){try install(played,revision:1,outcome:NetworkOutcome(result:.whiteWins,termination:.resignation))}
+        XCTAssertNoThrow(try install(played,revision:2,outcome:NetworkOutcome(result:.whiteWins,termination:.resignation)),"and the end at revision 2")
+        let setUp=try ChessRules(fen:"4k3/8/8/8/8/8/4P3/4K3 w - - 0 1");_ = try setUp.networkPlay(uci:"e2e4")
+        XCTAssertTrue(try setUp.networkPGN().contains("[FEN "),"a set-up record names its start")
+        refused("start"){try install(setUp,revision:1)}
+    }
     func testATwoThousandPlySnapshotRoundTrips()throws {
         let pgn=try Self.longGame(plies:2_000)
         let built=try ChessRules();try built.networkLoad(pgn:pgn)
@@ -106,12 +128,14 @@ final class NetworkRulesTests:XCTestCase {
 /// a test says so.
 private final class RulesNetwork {
     let host:NetworkHost,gameID:NetworkGameID,hashing:NetworkHashing
+    /// The game's start, for the host and every receiver alike: a snapshot extends the receiver's own new game.
+    let rules:NetworkRulesFactory
     var now=NetworkInstant.origin
     var receivers:[NetworkReceiver]=[],connections:[NetworkConnectionID]=[],cursors:[Int]=[]
     var sent:[NetworkConnectionID:[Data]]=[:]
     init(fen:String?=nil,pgn:String?=nil,hostSide:NetworkSide = .white,timeControl:NetworkTimeControl = .untimed,hashing:NetworkHashing)throws {
         self.hashing=hashing;gameID=NetworkGameID.random(using:.system)
-        let rules=NetworkRulesFactory{let rules=try ChessRules(fen:fen);if let pgn {try rules.networkLoad(pgn:pgn)};return rules}
+        let rules=NetworkRulesFactory{let rules=try ChessRules(fen:fen);if let pgn {try rules.networkLoad(pgn:pgn)};return rules};self.rules=rules
         host=try NetworkHost(gameID:gameID,runEpoch:NetworkID.random(using:.system),settings:NetworkHostSettings(hostName:"Ana",hostSide:hostSide,timeControl:timeControl),rules:rules,hashing:hashing,at:now)
     }
     func take(_ effects:[NetworkHostEffect])throws {
@@ -119,7 +143,7 @@ private final class RulesNetwork {
         while !pending.isEmpty {if case .transmit(let id,let data)=pending.removeFirst() {sent[id,default:[]].append(data);pending+=try host.sendCompleted(id,at:now)}}
     }
     func join(_ role:NetworkReceiverRole,name:String)throws -> Int {
-        let receiver=NetworkReceiver(gameID:gameID,role:role,name:name,appVersion:"0.8.0",rules:NetworkRulesFactory{try ChessRules()},hashing:hashing)
+        let receiver=NetworkReceiver(gameID:gameID,role:role,name:name,appVersion:"0.8.0",rules:rules,hashing:hashing)
         let accepted=try host.accept(role == .spectator ? .watch:.seat,at:now)
         receivers.append(receiver);connections.append(accepted.connection);cursors.append(0)
         try take(accepted.effects);try toHost(receivers.count-1,receiver.opening());return receivers.count-1

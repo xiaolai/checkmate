@@ -61,15 +61,45 @@ struct Legacy10Wire:Decodable {
         "snapshotBegin":["snapshotID","revision","hash","totalBytes","parts"],"snapshotPart":["snapshotID","index","data"],"snapshotEnd":["snapshotID"],
         "moved":["revision","uci","san","hash"],"rejected":["commandID","reason"],"drawOffered":["offerID","by"],"drawDeclined":["offerID"],
         "clock":["clocks"],"ended":["result","termination","revision"],"ping":["nonce"]]
-    enum Refusal:Error {case notOneZero,unknownType(String),missing(String,Set<String>)}
-    /// 1.0's decoding as a whole: its major, a type it knew, every field that type required, each of its declared type.
+    enum Refusal:Error {case tooLarge,notOneZero,unknownType(String),missing(String,Set<String>),invalid(String)}
+    /// 1.0's limits as 1.0 had them, written out here so that a later change to `NetworkLimits` cannot move them.
+    static let maximumMessageBytes=16*1024,maximumNameBytes=64,maximumSANBytes=16,maximumHashBytes=128
+    static let maximumSnapshotBytes=1024*1024,maximumSnapshotPartBytes=9*1024,maximumClockMilliseconds=1_000_000_000
+    static var maximumSnapshotParts:Int {(maximumSnapshotBytes+maximumSnapshotPartBytes-1)/maximumSnapshotPartBytes}
+    /// 1.0's decoding as a whole, as de55b54's `NetworkCodec.decode` did it: the 16 KiB limit, its major, a type it
+    /// knew, every field that type required, each of its declared type, and every value check it made (names, UCI,
+    /// SAN, hashes, revisions, clocks, snapshot sizes and parts).
     static func decode(_ data:Data)throws -> Legacy10Wire {
+        guard data.count<=maximumMessageBytes else{throw Refusal.tooLarge}
         let wire=try JSONDecoder().decode(Legacy10Wire.self,from:data)
         guard wire.protocol.major==1 else{throw Refusal.notOneZero}
         guard let fields=required[wire.type] else{throw Refusal.unknownType(wire.type)}
         let present=Set(((try JSONSerialization.jsonObject(with:data)) as? [String:Any] ?? [:]).filter{!($0.value is NSNull)}.keys)
         guard fields.isSubset(of:present) else{throw Refusal.missing(wire.type,fields.subtracting(present))}
+        try wire.validate()
         return wire
+    }
+    /// 1.0's free-string rule: 1 to `maximumBytes` bytes of UTF-8 with no control character.
+    static func text(_ value:String,_ maximumBytes:Int=maximumNameBytes)->Bool {!value.isEmpty && value.utf8.count<=maximumBytes && !value.unicodeScalars.contains{$0.properties.generalCategory == .control}}
+    private func validate()throws {
+        func check(_ condition:Bool,_ field:String)throws {guard condition else{throw Refusal.invalid(field)}}
+        func clocksValid(_ clocks:NetworkClocks?)->Bool {clocks.map{(0...Self.maximumClockMilliseconds).contains($0.white) && (0...Self.maximumClockMilliseconds).contains($0.black)} ?? true}
+        func hashValid(_ hash:String?)->Bool {hash.map{!$0.isEmpty && $0.utf8.count<=Self.maximumHashBytes && $0.utf8.allSatisfy{(0x21...0x7E).contains($0)}} ?? false}
+        switch type {
+        case "hello":try check(Self.text(name!),"name");try check(Self.text(appVersion!),"appVersion")
+        case "move":try check(revision!>=0,"revision");try check(ChessNotation.validUCI(uci!),"uci")
+        case "drawOffer","claimDraw":try check(revision!>=0,"revision")
+        case "snapshotBegin":
+            try check(revision!>=0,"revision");try check(hashValid(hash),"hash")
+            try check((1...Self.maximumSnapshotBytes).contains(totalBytes!),"totalBytes");try check(parts!==(totalBytes!+Self.maximumSnapshotPartBytes-1)/Self.maximumSnapshotPartBytes,"parts")
+        case "snapshotPart":
+            try check((0..<Self.maximumSnapshotParts).contains(index!),"index")
+            guard let bytes=Data(base64Encoded:data!),!bytes.isEmpty,bytes.count<=Self.maximumSnapshotPartBytes else{throw Refusal.invalid("data")}
+        case "moved":try check(Self.text(san!,Self.maximumSANBytes),"san");try check(revision!>=0,"revision");try check(ChessNotation.validUCI(uci!),"uci");try check(hashValid(hash),"hash");try check(clocksValid(clocks),"clocks")
+        case "clock":try check(clocksValid(clocks),"clocks")
+        case "ended":try check(revision!>=0,"revision");try check(clocksValid(clocks),"clocks")
+        default:break
+        }
     }
     /// 1.0's own reading of a `bye` reason: one it does not know is `unknown`.
     static let byeReasons:Set<String>=["seatTaken","badSnapshot","slow","protocolVersion","malformed","timeout","rateLimited","notAllowed","full","busy","replaced","badCredential","gameOver","hostLeft","leaving","unknown"]

@@ -50,10 +50,14 @@ private final class ScriptedDiscovery:NetworkDiscovery {
     private let scheduler:any NetworkScheduler
     private var updates:((NetworkDiscoveryUpdate)->Void)?
     private(set) var starts=0,stops=0
+    /// The callback the last `start` was given, kept after `stop`: a real browser's update can still be in flight.
+    private(set) var lastUpdates:((NetworkDiscoveryUpdate)->Void)?
     init(scheduler:any NetworkScheduler){self.scheduler=scheduler}
-    func start(_ updates:@escaping (NetworkDiscoveryUpdate)->Void){starts+=1;self.updates=updates}
+    func start(_ updates:@escaping (NetworkDiscoveryUpdate)->Void){starts+=1;self.updates=updates;lastUpdates=updates}
     func stop(){stops+=1;updates=nil}
     func send(_ update:NetworkDiscoveryUpdate){scheduler.enqueue{[weak self] in self?.updates?(update)}}
+    /// Delivers through the callback a browser had before it stopped, as an update already on its way would arrive.
+    func sendLate(_ update:NetworkDiscoveryUpdate){let late=lastUpdates;scheduler.enqueue{late?(update)}}
 }
 
 /// The network game's controller (LAN-play plan D9, D10) over the in-memory transport and a manual scheduler: hosting,
@@ -423,7 +427,8 @@ private final class ScriptedDiscovery:NetworkDiscovery {
         discovery.send(.failed("The browser failed."));lan.scheduler.run();XCTAssertEqual(ben.game.lobbyMessage,"Couldn't look for games on your network.")
         discovery.send(.games([]));lan.scheduler.run();XCTAssertFalse(ben.game.permissionHelp,"access came back: the help goes");XCTAssertNil(ben.game.lobbyMessage)
         ben.game.setShown(false);lan.scheduler.run();XCTAssertEqual(discovery.stops,1);XCTAssertFalse(ben.game.browsing)
-        discovery.send(.denied);lan.scheduler.run();XCTAssertFalse(ben.game.permissionHelp,"updates after stopping are dropped");XCTAssertFalse(ben.game.localNetworkDenied)
+        // A late update through the callback the stopped browser still held reaches the controller, which ignores it.
+        discovery.sendLate(.denied);lan.scheduler.run();XCTAssertFalse(ben.game.permissionHelp,"updates after stopping are dropped");XCTAssertFalse(ben.game.localNetworkDenied)
     }
 
     /// D9: quitting cleanly leaves the game (a seated player resigns, after the quit's own confirmation) and keeps no
@@ -515,8 +520,10 @@ extension NetworkControllerTests {
     func testARecordThatCannotBeShownStopsInputUntilOneCan()throws {
         let lan=MemoryLAN(),ana=try hosting(lan){$0.assistance=NetworkAssistance(both:.insight)};_=try joining(lan,"Ben",ana,accepting:NetworkAssistance(both:.insight))
         let good=try XCTUnwrap(ana.game.record);XCTAssertTrue(ana.game.canMove)
-        var broken=good;broken.pgn="1. e4 e5 2. Ke3 *"
+        var broken=good;broken.pgn="1. e4 e5 2. Ke3 *";broken.revision=good.revision+3
+        let revision=ana.game.gameRevision
         ana.game.present(broken,at:lan.scheduler.now)
+        XCTAssertEqual(ana.game.record,good,"the unreadable record is not kept");XCTAssertEqual(ana.game.gameRevision,revision,"nor its revision")
         XCTAssertFalse(ana.game.canMove);XCTAssertFalse(ana.game.yourTurn);ana.game.click("e2");XCTAssertNil(ana.game.selected,"no input")
         ana.game.present(good,at:lan.scheduler.now);XCTAssertTrue(ana.game.canMove,"the shown record arriving again is readable")
     }

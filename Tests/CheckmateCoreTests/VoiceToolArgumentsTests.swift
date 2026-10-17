@@ -39,6 +39,22 @@ import CheckmateCore
             if name != "demonstrate_moves"{XCTAssertLessThan(limit ?? .max,VoiceToolArguments.maximumBytes,name)}
         }
     }
+    /// A draft-07 tuple (`items` as an array, as the arrow tools use) and an enum are bounded at their escaped size: a
+    /// valid call written with every character escaped still fits.
+    func testTuplesAndEnumsAreBoundedAtTheirEscapedSize()throws {
+        let square:[String:Any]=["type":"string","pattern":"^[a-h][1-8]$"]
+        let arrow:[String:Any]=["type":"array","items":[square,square],"additionalItems":false,"minItems":2,"maxItems":2]
+        let escapedArrow=#"["\u0061\u0031","\u0062\u0032"]"#
+        XCTAssertGreaterThanOrEqual(try XCTUnwrap(VoiceToolArguments.limit(schema:arrow)),escapedArrow.utf8.count)
+        let promotion:[String:Any]=["type":"string","enum":["q","r","b","n"]]
+        XCTAssertGreaterThanOrEqual(try XCTUnwrap(VoiceToolArguments.limit(schema:promotion)),#""\u0071""#.utf8.count)
+        XCTAssertGreaterThanOrEqual(try XCTUnwrap(VoiceToolArguments.limit(schema:["enum":[12,true]])),"12".utf8.count,"a non-string enum keeps its own width")
+        // The arrow tool, every square escaped, fits its own bound.
+        let schema=try definitions.first{$0["name"] as? String=="highlight_squares"}!["parameters"] as! [String:Any]
+        let text=#"{"positionId":"p","squares":[],"arrows":["#+Array(repeating:escapedArrow,count:4).joined(separator:",")+"]}"
+        var arguments=VoiceToolArguments(limit:try XCTUnwrap(VoiceToolArguments.limit(schema:schema)));arguments.append(text)
+        XCTAssertTrue(arguments.withinBounds,"\(text.utf8.count) bytes against \(arguments.limit)")
+    }
     /// The largest valid speech, pretty-printed and in characters JSON must escape, still fits its bound: no
     /// legitimate call is cut.
     func testTheLargestValidSpeechFits()throws {
@@ -102,13 +118,16 @@ import CheckmateCore
     }
     /// A call streamed in ordinary pieces runs exactly as before.
     func testAnOrdinaryStreamedCallRuns()async throws {
-        let (_,v,events)=try connected();defer{v.disconnect()}
+        let (s,v,events)=try connected();defer{v.disconnect()}
         respond(v,events);call(v,"get_board")
         for piece in ["{","}"]{delta(v,piece)}
         v.receive(["type":"response.function_call_arguments.done","response_id":"resp-1","name":"get_board","call_id":"call-1","arguments":"{}"])
         try await until("the board result"){outputs(events()).count==1}
         let board=try XCTUnwrap(try JSONSerialization.jsonObject(with:Data(XCTUnwrap(outputs(events()).first).utf8)) as? [String:Any])
-        XCTAssertNil(board["error"],"the call succeeded");XCTAssertNotNil(board["state"],"it returned the board")
+        XCTAssertNil(board["error"],"the call succeeded")
+        let state=try XCTUnwrap(board["state"] as? [String:Any],"it returned the board"),display=try XCTUnwrap(state["display"] as? [String:Any])
+        XCTAssertEqual(state["positionId"] as? String,s.positionId);XCTAssertEqual(display["fen"] as? String,s.displayFen,"the live board's own position")
+        XCTAssertFalse((board["legalMoves"] as? [Any] ?? []).isEmpty,"with its legal moves")
         XCTAssertEqual(cancels(events()),0);XCTAssertNotEqual(v.status,VoiceCoach.turnFailure)
     }
     /// A turn stopped after a call arrived but before its task ran: the call never runs, so a move the coach was asked

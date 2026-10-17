@@ -118,58 +118,70 @@ import SaidGuard
         print("Live voice acceptance: \(report["passed"] as? Bool==true ? "PASS":"FAIL"); microphone and speaker were not used.")
         if report["passed"] as? Bool != true{exit(1)}
     }
-    @MainActor static func voicePreview(model:String)async throws -> [String:Any] {
-        let directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);defer{try? FileManager.default.removeItem(at:directory)}
-        let preview=VoicePreview(),ledger=UsageLedger(directory:directory);preview.usageLedger=ledger;preview.audio.headless=true
+    /// Runs `body` with a usage ledger in a temporary directory, then waits for the ledger's last write before removing
+    /// the directory, so a write still queued cannot recreate it afterwards. `body` disconnects what it started.
+    @MainActor static func withTemporaryLedger(_ body:@MainActor (UsageLedger)async throws -> [String:Any])async throws -> [String:Any] {
+        let directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString),ledger=UsageLedger(directory:directory)
+        do{let result=try await body(ledger);try? await ledger.flush();try? FileManager.default.removeItem(at:directory);return result}
+        catch{try? await ledger.flush();try? FileManager.default.removeItem(at:directory);throw error}
+    }
+    /// Every coach response so far has finished (none still running), and at least one exists.
+    @MainActor static func responsesFinished(_ ledger:UsageLedger)->Bool {let coach=ledger.records.filter{$0.activity == .voiceCoach};return !coach.isEmpty && !coach.contains{$0.status == .running}}
+    /// Every coach response finished as completed: none failed, was cancelled or was left incomplete.
+    @MainActor static func responsesCompleted(_ ledger:UsageLedger)->Bool {responsesFinished(ledger) && ledger.records.filter{$0.activity == .voiceCoach}.allSatisfy{$0.status == .completed}}
+    @MainActor static func voicePreview(model:String)async throws -> [String:Any] {try await withTemporaryLedger{ledger in
+        let preview=VoicePreview();preview.usageLedger=ledger;preview.audio.headless=true
         let started=Date();preview.play(voice:"marin",language:"English",model:model,volume:1)
         let end=Date().addingTimeInterval(30);while preview.playing,Date()<end{try? await Task.sleep(for:.milliseconds(100))}
         let record=ledger.records.first
         let passed = !preview.playing && preview.status.isEmpty && record?.status == .completed && (record?.durationSeconds ?? 0)>0 && record?.voice=="marin"
         return ["passed":passed,"seconds":Date().timeIntervalSince(started),"status":preview.status,"usageStatus":record?.status.rawValue ?? "none","audioSeconds":record?.durationSeconds ?? 0]
-    }
+    }}
     /// A coach connected in an open review, as in the app (no microphone or speaker), narrates the selected move's
     /// verified facts: every segment is narrated and verified, none unverified.
-    @MainActor static func reviewNarration()async throws -> [String:Any] {
-        let directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);defer{try? FileManager.default.removeItem(at:directory)}
+    @MainActor static func reviewNarration()async throws -> [String:Any] {try await withTemporaryLedger{ledger in
         let session=try GameSession(engine:nil);session.state.settings.coachingMode="quiet";session.state.settings.voiceMicrophone=false;session.state.settings.voiceLanguage="en"
         let review=ReviewController();session.reviewController=review
-        let coach=try VoiceCoach(session:session),ledger=UsageLedger(directory:directory);coach.usageLedger=ledger;coach.audio.headless=true;coach.attachReview(review)
+        let coach=try VoiceCoach(session:session);coach.usageLedger=ledger;coach.audio.headless=true;coach.attachReview(review)
         defer{coach.disconnect()}
         let document=try PGNImporter.parse(Data("1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 *".utf8))[0]
         review.open(document,practice:session);try review.select(document.mainline.last!)
         guard let explanation=review.explanation else{return ["passed":false,"failure":"no verified explanation"]}
         let expected=ReviewVoiceScript.segments(explanation).count
-        func wait(_ seconds:Double,_ condition:()->Bool)async -> Bool {let end=Date().addingTimeInterval(seconds);while Date()<end{if condition(){return true};try? await Task.sleep(for:.milliseconds(100))};return condition()}
+        @MainActor func wait(_ seconds:Double,_ condition:@MainActor ()->Bool)async -> Bool {let end=Date().addingTimeInterval(seconds);while Date()<end{if condition(){return true};try? await Task.sleep(for:.milliseconds(100))};return condition()}
         let started=Date();coach.connect()
         guard await wait(40,{coach.connected}) else{return ["passed":false,"failure":"not connected in review: \(coach.status)"]}
         coach.narrateReview()
-        func settled()->Int {let c=ledger.narrationCounts();return (c[.verified] ?? 0)+(c[.unverified] ?? 0)+(c[.interrupted] ?? 0)}
-        let finished=await wait(120,{settled()>=expected})
-        let counts=ledger.narrationCounts()
-        let passed=finished && expected>0 && coach.connected && (counts[.verified] ?? 0)==expected && (counts[.unverified] ?? 0)==0 && review.document?.contentHash==document.contentHash
-        return ["passed":passed,"seconds":Date().timeIntervalSince(started),"model":coach.selectedModel,"expectedSegments":expected,"verifiedSegments":counts[.verified] ?? 0,"unverifiedSegments":counts[.unverified] ?? 0,"interruptedSegments":counts[.interrupted] ?? 0,"status":coach.status]
-    }
+        @MainActor func settled()->Int {let c=ledger.narrationCounts();return (c[.verified] ?? 0)+(c[.unverified] ?? 0)+(c[.interrupted] ?? 0)}
+        // Every segment settled and every response behind it done: a last transcript marked verified before its
+        // response.done is not yet a pass.
+        let finished=await wait(120,{settled()>=expected && responsesFinished(ledger) && !coach.canStopTurn})
+        let counts=ledger.narrationCounts(),completed=responsesCompleted(ledger)
+        let passed=finished && completed && expected>0 && coach.connected && (counts[.verified] ?? 0)==expected && (counts[.unverified] ?? 0)==0 && (counts[.interrupted] ?? 0)==0 && review.document?.contentHash==document.contentHash
+        return ["passed":passed,"seconds":Date().timeIntervalSince(started),"model":coach.selectedModel,"expectedSegments":expected,"verifiedSegments":counts[.verified] ?? 0,"unverifiedSegments":counts[.unverified] ?? 0,"interruptedSegments":counts[.interrupted] ?? 0,"responsesCompleted":completed,"status":coach.status]
+    }}
     /// A coach connected as in the app, without microphone or speaker, answers one typed question.
-    @MainActor static func coachTurn(language:String,question:String)async throws -> [String:Any] {
-        let directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);defer{try? FileManager.default.removeItem(at:directory)}
+    @MainActor static func coachTurn(language:String,question:String)async throws -> [String:Any] {try await withTemporaryLedger{ledger in
         let session=try GameSession(engine:nil);session.state.settings.coachingMode="quiet";session.state.settings.voiceMicrophone=false;session.state.settings.voiceLanguage=language
-        let coach=try VoiceCoach(session:session),ledger=UsageLedger(directory:directory);coach.usageLedger=ledger;coach.audio.headless=true
+        let coach=try VoiceCoach(session:session);coach.usageLedger=ledger;coach.audio.headless=true
         defer{coach.disconnect()}
-        func wait(_ seconds:Double,_ condition:()->Bool)async -> Bool {let end=Date().addingTimeInterval(seconds);while Date()<end{if condition(){return true};try? await Task.sleep(for:.milliseconds(100))};return condition()}
+        @MainActor func wait(_ seconds:Double,_ condition:@MainActor ()->Bool)async -> Bool {let end=Date().addingTimeInterval(seconds);while Date()<end{if condition(){return true};try? await Task.sleep(for:.milliseconds(100))};return condition()}
         let started=Date();coach.connect()
         guard await wait(40,{coach.connected}) else{return ["language":language,"passed":false,"failure":"not connected: \(coach.status)"]}
         coach.ask(question)
-        let answered=await wait(120,{!coach.canStopTurn && coach.history.contains{$0.role=="coach"} && !coach.status.hasPrefix("Coach is thinking")})
-        let counts=ledger.narrationCounts(),coachLines=coach.history.filter{$0.role=="coach"}.map(\.text)
+        // Settled means every response is done, not only that Stop is unavailable: Stop is also unavailable while a
+        // cancellation awaits its acknowledgement, with the ready status shown before the failure arrives.
+        let answered=await wait(120,{!coach.canStopTurn && responsesFinished(ledger) && coach.history.contains{$0.role=="coach"} && !coach.status.hasPrefix("Coach is thinking")})
+        let counts=ledger.narrationCounts(),coachLines=coach.history.filter{$0.role=="coach"}.map(\.text),completed=responsesCompleted(ledger)
         let failures:Set<String>=[VoiceCoach.turnFailure,VoiceCoach.turnTimeout,VoiceCoach.turnUnfinished]
-        let passed=answered && coach.connected && (counts[.verified] ?? 0)>0 && (counts[.unverified] ?? 0)==0 && !failures.contains(coach.status)
-        return ["language":language,"passed":passed,"seconds":Date().timeIntervalSince(started),"model":coach.selectedModel,"verifiedSegments":counts[.verified] ?? 0,"unverifiedSegments":counts[.unverified] ?? 0,"interruptedSegments":counts[.interrupted] ?? 0,"coachTranscript":coachLines,"status":coach.status]
-    }
+        let passed=answered && completed && coach.connected && (counts[.verified] ?? 0)>0 && (counts[.unverified] ?? 0)==0 && (counts[.interrupted] ?? 0)==0 && !failures.contains(coach.status)
+        return ["language":language,"passed":passed,"seconds":Date().timeIntervalSince(started),"model":coach.selectedModel,"verifiedSegments":counts[.verified] ?? 0,"unverifiedSegments":counts[.unverified] ?? 0,"interruptedSegments":counts[.interrupted] ?? 0,"responsesCompleted":completed,"coachTranscript":coachLines,"status":coach.status]
+    }}
     /// Assistance plan A10: a coach connected to the learner's network game at `hints` (an in-memory LAN, the real
     /// engine) answers a typed question on the learner's own move with the network game's tools only, every segment
-    /// narrated and verified, and what it said flags that move as assisted (A7).
-    @MainActor static func networkCoachTurn()async throws -> [String:Any] {
-        let directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);defer{try? FileManager.default.removeItem(at:directory)}
+    /// narrated and verified, and what it said flags that move as assisted (A7). A second move is asked about with no
+    /// engine to hint from, so only the coach's speech can flag it.
+    @MainActor static func networkCoachTurn()async throws -> [String:Any] {try await withTemporaryLedger{ledger in
         let scheduler=NetworkManualScheduler(),transport=NetworkMemoryTransport(scheduler:scheduler),discovery=NetworkFixedDiscovery(scheduler:scheduler)
         let services={NetworkServices(transport:transport,discovery:discovery,scheduler:scheduler,delivery:.immediate,rules:NetworkRulesFactory{try ChessRules()},hashing:NetworkHashing(reviewHash),appVersion:"probe",listenersReady:{configuration,endpoints in discovery.publish(configuration.roles.compactMap{role in endpoints[role].map{NetworkServiceRecord.published(configuration,role,at:$0)}})})}
         let fairness=FairnessPolicy(),terms=NetworkAssistance(both:.hints)
@@ -181,21 +193,38 @@ import SaidGuard
         let session=try GameSession(engine:nil,fairness:fairness);session.state.settings.voiceMicrophone=false;session.state.settings.voiceLanguage="en"
         // Practice stands elsewhere (1. d4, Black to move), so advice drawn from it could not pass for the network game's.
         try session.playWhite(from:"d2",to:"d4");guard session.rules.fen != ana.rules.fen else{return ["passed":false,"failure":"the practice and network boards match"]}
-        let coach=try VoiceCoach(session:session),ledger=UsageLedger(directory:directory),assistant=NetworkAssistant(game:ana,fairness:fairness,engine:NativeEngine())
+        let coach=try VoiceCoach(session:session),assistant=NetworkAssistant(game:ana,fairness:fairness,engine:NativeEngine())
         coach.usageLedger=ledger;coach.audio.headless=true;coach.network=(ana,assistant)
         defer{coach.disconnect();ana.leave();scheduler.run()}
-        func wait(_ seconds:Double,_ condition:()->Bool)async -> Bool {let end=Date().addingTimeInterval(seconds);while Date()<end{if condition(){return true};try? await Task.sleep(for:.milliseconds(100))};return condition()}
+        @MainActor func wait(_ seconds:Double,_ condition:@MainActor ()->Bool)async -> Bool {let end=Date().addingTimeInterval(seconds);while Date()<end{if condition(){return true};try? await Task.sleep(for:.milliseconds(100))};return condition()}
         let started=Date();coach.connect()
         guard await wait(40,{coach.connected}) else{return ["passed":false,"failure":"not connected: \(coach.status)"]}
-        coach.ask("Use the agreed hint: which move does it suggest here, and why?")
-        let answered=await wait(120,{!coach.canStopTurn && coach.history.contains{$0.role=="coach"} && !coach.status.hasPrefix("Coach is thinking")})
-        let counts=ledger.narrationCounts(),coachLines=coach.history.filter{$0.role=="coach"}.map(\.text)
         let failures:Set<String>=[VoiceCoach.turnFailure,VoiceCoach.turnTimeout,VoiceCoach.turnUnfinished]
-        // The hint came from the engine both players agreed to, searched on the network game's position.
-        let hinted=assistant.hint.map{hint in ana.rules.moves().contains{$0.uci==hint.uci}} ?? false
-        let passed=answered && coach.connected && coach.networkSession && (counts[.verified] ?? 0)>0 && (counts[.unverified] ?? 0)==0 && !failures.contains(coach.status) && ana.assistedThisTurn && hinted
-        return ["passed":passed,"hintLegalOnNetworkBoard":hinted,"seconds":Date().timeIntervalSince(started),"model":coach.selectedModel,"networkSession":coach.networkSession,"assistedFlagged":ana.assistedThisTurn,"hintShown":assistant.hint?.uci ?? NSNull(),"verifiedSegments":counts[.verified] ?? 0,"unverifiedSegments":counts[.unverified] ?? 0,"coachTranscript":coachLines,"status":coach.status]
-    }
+        // One question, settled only once every response behind it is done.
+        @MainActor func turn(_ question:String)async -> Bool {
+            let before=coach.history.filter{$0.role=="coach"}.count;coach.ask(question)
+            return await wait(120,{!coach.canStopTurn && responsesFinished(ledger) && coach.history.filter{$0.role=="coach"}.count>before && !coach.status.hasPrefix("Coach is thinking")})
+        }
+        let answered=await turn("Use the agreed hint: which move does it suggest here, and why?")
+        // The hint is a move for the network game's side to move (White) and impossible on the practice board, where
+        // Black moves: it can only have come from a search of the network game's position.
+        let hint=assistant.hint,hinted=hint.map{hint in ana.rules.moves().contains{$0.uci==hint.uci} && !session.rules.moves().contains{$0.uci==hint.uci}} ?? false
+        let hintAssisted=ana.assistedThisTurn,firstHealthy=coach.connected && !failures.contains(coach.status)
+        // Ana plays the hinted move and Ben replies, so Ana's next move begins; that move has no engine to hint from.
+        var speechAssisted=false,speechOnly=false
+        if let hint,answered {
+            ana.play(from:hint.from,to:hint.to);scheduler.run()
+            if let reply=ben.rules.moves().first{ben.play(from:reply.from,to:reply.to);scheduler.run()}
+            assistant.engine=nil
+            if ana.yourTurn,!ana.assistedThisTurn,await turn("Without an engine hint, what is one idea for my move here?") {speechOnly=assistant.hint==nil;speechAssisted=ana.assistedThisTurn}
+        }
+        let counts=ledger.narrationCounts(),coachLines=coach.history.filter{$0.role=="coach"}.map(\.text),completed=responsesCompleted(ledger)
+        let passed=answered && firstHealthy && completed && coach.connected && coach.networkSession && (counts[.verified] ?? 0)>0 && (counts[.unverified] ?? 0)==0 && (counts[.interrupted] ?? 0)==0 && !failures.contains(coach.status) && hintAssisted && hinted && speechOnly && speechAssisted
+        return ["passed":passed,"hintOnlyOnNetworkBoard":hinted,"seconds":Date().timeIntervalSince(started),"model":coach.selectedModel,"networkSession":coach.networkSession,"assistedFlagged":hintAssisted,"speechOnlyTurn":speechOnly,"speechFlaggedAssisted":speechAssisted,"hintShown":hint?.uci ?? NSNull(),"verifiedSegments":counts[.verified] ?? 0,"unverifiedSegments":counts[.unverified] ?? 0,"interruptedSegments":counts[.interrupted] ?? 0,"responsesCompleted":completed,"coachTranscript":coachLines,"status":coach.status]
+    }}
+    /// What the downgrade fixture records before the downgrade, to compare with what the older app leaves behind. A
+    /// malformed manifest fails to decode, which reports the fixture as failed instead of trapping.
+    struct DowngradeManifest:Codable {let reviewID:UUID,originalHash:String,practicePGN:String,skill:Int,elo:Int,answered:[String],branchRoot:Int,branchMoves:[String],exportedMoves:[[String]]}
     /// A document's main line as UCI moves, for comparing what was exported with what is read back.
     static func mainlineMoves(_ document:GameDocument)->[String] {document.mainline.compactMap{document.nodes[$0].uci}}
     @MainActor static func downgradeFixture(_ root:URL,prepare:Bool)throws {
@@ -211,12 +240,13 @@ import SaidGuard
             try PGNExporter.withIdeas(document,branches:[idea]).write(to:root.appendingPathComponent("exported-original-and-ideas.pgn"),options:.atomic)
             try FileManager.default.copyItem(at:store.directory,to:root.appendingPathComponent("BeforeDowngrade"))
             let exported=try PGNImporter.parse(Data(contentsOf:root.appendingPathComponent("exported-original-and-ideas.pgn"))).map(mainlineMoves)
-            try JSONSerialization.data(withJSONObject:["reviewID":document.id.uuidString,"originalHash":document.contentHash,"practicePGN":state.practice.pgn,"skill":17,"elo":1800,"answered":state.course.answered,"branchRoot":idea.root,"branchMoves":idea.moves,"exportedMoves":exported],options:[.prettyPrinted,.sortedKeys]).write(to:manifest,options:.atomic)
+            let encoder=JSONEncoder();encoder.outputFormatting=[.prettyPrinted,.sortedKeys]
+            try encoder.encode(DowngradeManifest(reviewID:document.id,originalHash:document.contentHash,practicePGN:state.practice.pgn,skill:17,elo:1800,answered:state.course.answered,branchRoot:idea.root,branchMoves:idea.moves,exportedMoves:exported)).write(to:manifest,options:.atomic)
         } else {
-            let expected=try JSONSerialization.jsonObject(with:Data(contentsOf:manifest)) as! [String:Any],state=try store.load(),review=try reviews.load(UUID(uuidString:expected["reviewID"] as! String)!)
-            guard state.settings.skill==17,state.settings.opponentElo==1800,state.practice.pgn==expected["practicePGN"] as? String,state.course.completed==["intro","board"],state.course.answered==expected["answered"] as? [String],review.document.contentHash==expected["originalHash"] as? String,review.cursor==2,review.branches.count==1,review.branches[0].root==expected["branchRoot"] as? Int,review.branches[0].moves==expected["branchMoves"] as? [String] else{throw CheckmateError.invalid("Downgrade fixture lost data")}
+            let expected=try JSONDecoder().decode(DowngradeManifest.self,from:Data(contentsOf:manifest)),state=try store.load(),review=try reviews.load(expected.reviewID)
+            guard state.settings.skill==expected.skill,state.settings.opponentElo==expected.elo,state.practice.pgn==expected.practicePGN,state.course.completed==["intro","board"],state.course.answered==expected.answered,review.document.contentHash==expected.originalHash,review.cursor==2,review.branches.count==1,review.branches[0].root==expected.branchRoot,review.branches[0].moves==expected.branchMoves else{throw CheckmateError.invalid("Downgrade fixture lost data")}
             let exported=try PGNImporter.parse(Data(contentsOf:root.appendingPathComponent("exported-original-and-ideas.pgn"))).map(mainlineMoves)
-            guard exported.count==2,exported==expected["exportedMoves"] as? [[String]] else{throw CheckmateError.invalid("Export lost an imagined line")}
+            guard exported.count==2,exported==expected.exportedMoves else{throw CheckmateError.invalid("Export lost an imagined line")}
         }
     }
 

@@ -162,7 +162,7 @@ public enum NetworkCodec {
         }
         private func need<T>(_ value:T?,_ field:String)throws -> T {guard let value else{throw NetworkCodecError.malformed("missing \(field)")};return value}
         private func check(_ condition:Bool,_ field:String)throws {guard condition else{throw NetworkCodecError.malformed("invalid \(field)")}}
-        private func revisionValue()throws -> Int {let value=try need(revision,"revision");try check(value>=0,"revision");return value}
+        private func revisionValue()throws -> Int {let value=try need(revision,"revision");try check((0...NetworkLimits.maximumRevision).contains(value),"revision");return value}
         private func uciValue()throws -> String {let value=try need(uci,"uci");try check(ChessNotation.validUCI(value),"uci");return value}
         private func clocksValue()throws -> NetworkClocks? {try check(clocks?.valid ?? true,"clocks");return clocks}
         private func hashValue()throws -> String {let value=try need(hash,"hash");try check(!value.isEmpty && value.utf8.count<=NetworkLimits.maximumHashBytes && value.utf8.allSatisfy{(0x21...0x7E).contains($0)},"hash");return value}

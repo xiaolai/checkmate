@@ -40,9 +40,6 @@ import CheckmateRules
     private func refused(_ code:String,_ work:()async throws->Any,_ message:String,file:StaticString=#filePath,line:UInt=#line)async {
         do{_ = try await work();XCTFail("\(message) ran",file:file,line:line)}catch{XCTAssertEqual(self.code(error),code,message,file:file,line:line)}
     }
-    private func refusedAny(_ work:()async throws->Any,_ message:String,file:StaticString=#filePath,line:UInt=#line)async {
-        do{_ = try await work();XCTFail("\(message) ran",file:file,line:line)}catch{}
-    }
     /// Runs everything already queued on the main queue, where the coach hears of network changes.
     private func drainMain()async {await withCheckedContinuation{done in DispatchQueue.main.async{done.resume()}}}
     private func outputs(_ coach:Coach)->[String:String] {
@@ -168,16 +165,39 @@ import CheckmateRules
         benCoach.voice.receive(["type":"response.done","response":["status":"cancelled"]])
         try await settle({comments(anaCoach)==2},"Ana's next move gets its comment");await drainMain();XCTAssertEqual(comments(anaCoach),2)
     }
+    /// A10: a learner's move that begins while the session renews still gets its one guided comment once the renewed
+    /// session is ready; renewal is not a greeting, and the comment is still once a move.
+    func testAMoveBegunDuringRenewalGetsItsComment()async throws {
+        let lan=MemoryLAN(),(ana,ben,_)=try game(NetworkAssistance(both:.guided),lan),benCoach=try coach(ben)
+        let comments={benCoach.events.responses.filter{(($0["response"] as? [String:Any])?["instructions"] as? String ?? "").contains(VoiceCoach.commentaryPrefix)}.count}
+        try open(benCoach);XCTAssertEqual(comments(),0,"fixture: Ben waits for his move")
+        // The session ends to renew; Ben's move begins while no session is ready.
+        benCoach.voice.disconnect();NetworkControllerTests().play(ana,"e2","e4",lan);await drainMain();XCTAssertEqual(comments(),0)
+        try benCoach.voice.automationOpen(greet:false);benCoach.voice.receive(["type":"session.updated"])
+        XCTAssertEqual(comments(),1,"the renewed session comments on the move begun meanwhile")
+        // Renewing again within the same move asks for no second comment.
+        benCoach.voice.receive(["type":"response.done","response":["status":"completed"]])
+        try benCoach.voice.automationRenew();benCoach.voice.receive(["type":"session.updated"]);await drainMain()
+        XCTAssertEqual(comments(),1,"still once a move")
+    }
     /// A10: a practice conversation stays with practice. The network session opened after joining starts a fresh
     /// transcript, so practice advice is neither shown beside the network board nor carried into its renewals.
     func testANetworkSessionStartsAFreshTranscript()async throws {
         let lan=MemoryLAN(),terms=NetworkAssistance(both:.hints),ana=try NetworkControllerTests().hosting(lan){$0.assistance=terms},coach=try coach(ana)
         try open(coach);XCTAssertFalse(coach.voice.networkSession,"fixture: practice before anyone joins")
         coach.voice.ask("Is my practice knight safe?");XCTAssertFalse(coach.voice.history.isEmpty,"fixture: practice has a transcript")
+        // A practice renewal carries its summary, so there is one for the network session to leave behind.
+        try coach.voice.automationRenew();coach.voice.receive(["type":"session.updated"])
+        XCTAssertTrue(coach.voice.carriedSummary.contains("practice knight"),"fixture: practice carries a renewal summary")
         _ = try NetworkControllerTests().joining(lan,"Ben",ana,accepting:terms)
         XCTAssertFalse(coach.voice.connected,"joining ended the practice session")
-        try open(coach);XCTAssertTrue(coach.voice.networkSession)
+        // Opened as a renewal would be (no greeting, which would clear the summary itself), so only the transcript's
+        // scope keeps practice's summary out of the network session.
+        let before=coach.events.all.count
+        try coach.voice.automationOpen(greet:false);coach.voice.receive(["type":"session.updated"]);XCTAssertTrue(coach.voice.networkSession)
         XCTAssertTrue(coach.voice.history.isEmpty,"practice's transcript is not the network game's");XCTAssertTrue(coach.voice.carriedSummary.isEmpty)
+        let sent=coach.events.all.dropFirst(before).map{String(decoding:(try? JSONSerialization.data(withJSONObject:$0)) ?? Data(),as:UTF8.self)}
+        XCTAssertFalse(sent.isEmpty);XCTAssertFalse(sent.contains{$0.contains("practice knight")},"the network session is told nothing of practice")
     }
     /// A10: the coach speaks only on the learner's move; a game paused for the other player is not their move, so a
     /// turn in progress stops then, though no move was played.
@@ -195,12 +215,18 @@ import CheckmateRules
         let lan=MemoryLAN(),(ana,ben,_)=try game(NetworkAssistance(both:.hints),lan),anaCoach=try coach(ana),benCoach=try coach(ben)
         try open(anaCoach);try open(benCoach);XCTAssertTrue(anaCoach.voice.connected)
         NetworkControllerTests().play(ana,"e2","e4",lan);XCTAssertTrue(benCoach.voice.connected,"the coach follows the game through its moves")
-        ana.game.leave();lan.scheduler.run()
+        // Ben's coach asks for a hint; its search is still running when the game ends.
+        await drainMain();benCoach.engine.holding=true
+        let late=Task{try await benCoach.voice.execute("get_hint",args:["positionId":self.position(ben)],id:"late")}
+        try await settle({benCoach.engine.held==1},"the hint's search is in flight");let sentBefore=benCoach.events.all.count
+        ana.game.leave();lan.scheduler.run();benCoach.engine.releaseAll()
+        do{_ = try await late.value;XCTFail("a hint begun before the game ended answered after it")}catch{}
+        XCTAssertNil(benCoach.assistant.hint,"no hint is shown");XCTAssertFalse(ben.game.assistedThisTurn,"nothing counts as help")
+        XCTAssertFalse(benCoach.events.all.dropFirst(sentBefore).contains{["response.create","conversation.item.create"].contains($0["type"] as? String ?? "")},"nothing more reaches the model")
         for coach in [anaCoach,benCoach] {
             XCTAssertFalse(coach.voice.connected,"the game ended for both");XCTAssertFalse(coach.voice.networkSession);XCTAssertFalse(coach.voice.networkVoiceAvailable)
-            await refusedAny({try await coach.voice.execute("get_hint",args:["positionId":"network:1"],id:"late")},"a late hint after the game")
             let before=coach.events.responses.count;coach.voice.ask("Still there?");XCTAssertEqual(coach.events.responses.count,before)
         }
-        XCTAssertEqual(anaCoach.engine.calls+benCoach.engine.calls,0)
+        XCTAssertEqual(anaCoach.engine.calls,0);XCTAssertEqual(benCoach.engine.calls,1,"only the search begun during the game")
     }
 }

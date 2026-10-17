@@ -106,7 +106,7 @@ final class NetworkCodecTests:XCTestCase {
         let size=try NetworkCodec.encode(part).count
         XCTAssertLessThanOrEqual(size,NetworkLimits.maximumMessageBytes);XCTAssertGreaterThan(size,12*1024,"12 KiB of Base64, no slash escaping")
         XCTAssertThrowsError(try NetworkCodec.encode(.snapshotPart(snapshotID:id,index:0,data:Data(count:NetworkLimits.maximumSnapshotPartBytes+1))))
-        let begin=NetworkMessage.snapshotBegin(snapshotID:id,revision:Int.max,hash:String(repeating:"f",count:NetworkLimits.maximumHashBytes),totalBytes:NetworkLimits.maximumSnapshotBytes,parts:NetworkLimits.maximumSnapshotParts)
+        let begin=NetworkMessage.snapshotBegin(snapshotID:id,revision:NetworkLimits.maximumRevision,hash:String(repeating:"f",count:NetworkLimits.maximumHashBytes),totalBytes:NetworkLimits.maximumSnapshotBytes,parts:NetworkLimits.maximumSnapshotParts)
         XCTAssertLessThanOrEqual(try NetworkCodec.encode(begin).count,NetworkLimits.maximumMessageBytes)
         XCTAssertThrowsError(try NetworkCodec.encode(.snapshotBegin(snapshotID:id,revision:0,hash:"h",totalBytes:NetworkLimits.maximumSnapshotBytes+1,parts:NetworkLimits.maximumSnapshotParts+1)))
         // Names that escape to the most JSON stay far below the limit.

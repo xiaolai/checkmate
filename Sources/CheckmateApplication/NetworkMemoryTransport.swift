@@ -14,6 +14,9 @@ public final class NetworkMemoryTransport:NetworkTransport {
     public var stallConnects=false
     /// Messages from a link to the host lost on the way; the sender still sees `sent`, as with a failing link.
     public var losesToHost:(Data)->Bool={_ in false}
+    /// What a connecting side receives in place of each message from the host: none, itself, or others. Tests stand in
+    /// a host that breaks the protocol (a forged snapshot) without one existing.
+    public var rewritesToLink:(Data)->[Data]={[$0]}
     public private(set) var connectAttempts=0
     public private(set) var hostings:[NetworkMemoryHosting]=[]
     public private(set) var links:[NetworkMemoryLink]=[]
@@ -164,7 +167,7 @@ public final class NetworkMemoryLink:NetworkLink {
     }
     fileprivate func receive(_ message:Data,from pipe:NetworkMemoryPipe){
         guard open else{return}
-        transport.record(pipe.connection,toHost:false,message);deliver(.received(message))
+        for message in transport.rewritesToLink(message) {transport.record(pipe.connection,toHost:false,message);deliver(.received(message))}
     }
     fileprivate func fail(_ failure:NetworkLinkFailure){guard open,pipe==nil else{return};deliver(.closed(failure))}
     public func send(_ message:Data){

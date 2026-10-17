@@ -94,6 +94,10 @@ assert gates.GATE_CHECK_SOURCE == (root / 'scripts/gate_check.py').read_text(), 
 assert gates.check_gate.__code__.co_filename == str(root / 'scripts/gate_check.py')
 assert gates.definition('unit', gates.GATE_CHECK_SOURCE) == gates.definition('unit')
 assert gates.definition('unit', gates.GATE_CHECK_SOURCE + '#') != gates.definition('unit'), 'An edited check must change the definition'
+# The runner's own validation and its Notification Center helper are part of what a pass means, for every gate.
+assert gates.RUNNER_SOURCE == gates.runner_source(), 'run-gates.py or clear-notifications.applescript changed while the self-test ran'
+assert gates.definition('unit', gates.GATE_CHECK_SOURCE, gates.RUNNER_SOURCE) == gates.definition('unit')
+assert gates.definition('pointer', gates.GATE_CHECK_SOURCE, gates.RUNNER_SOURCE + '#') != gates.definition('pointer'), 'An edited runner must change every gate\'s definition'
 # Acceptance runs only on the Mac whose marker names it the test host: a Mac without a marker, or the build host, is
 # refused, and a marker naming an unknown role stops the run instead of passing as "not a test host".
 import test_host
@@ -219,4 +223,67 @@ try:
         assert 'WARNING: could not clear Notification Center' in printed.getvalue(), printed.getvalue()
 finally:
     gates.subprocess.run = saved_run
-print(f'Gate selection self-test passed ({len(cases) + 22} cases).')
+# A helper that exits non-zero (it could not read Notification Center, or an alert's action failed) is a warning too.
+try:
+    gates.subprocess.run = lambda *arguments, **options: gates.subprocess.CompletedProcess(arguments, 1, '', 'Notification Center could not be read: changed')
+    printed = io.StringIO()
+    with contextlib.redirect_stdout(printed):
+        gates.clear_notifications()
+    assert 'WARNING: could not clear Notification Center: Notification Center could not be read' in printed.getvalue(), printed.getvalue()
+finally:
+    gates.subprocess.run = saved_run
+# --list runs nothing: no prerequisite check (they compile a probe and reach the LAN pair), only what each one needs.
+saved = (gates.PREREQUISITES.copy(), gates.stale_reason, list(sys.argv), gates.test_host.require)
+try:
+    def forbidden():
+        raise AssertionError('--list ran a prerequisite check')
+    gates.PREREQUISITES.update({name: forbidden for name in gates.PREREQUISITES})
+    gates.stale_reason = lambda name, hashes, ledger: 'never passed'
+    sys.argv, printed = ['run-gates.py', '--list'], io.StringIO()
+    with contextlib.redirect_stdout(printed):
+        assert gates.main() == 0
+    assert 'needs bonjour-ready, bonjour-ready-pair, lan-pair (not checked by --list)' in printed.getvalue(), printed.getvalue()
+finally:
+    gates.PREREQUISITES.clear(); gates.PREREQUISITES.update(saved[0]); gates.stale_reason = saved[1]; sys.argv[:] = saved[2]
+# A run's passes are provisional: a failed check of any kind fails its gate and keeps no pass, and a run that ends
+# abnormally (here an interruption during the second gate's checks) forgets every pass it recorded, then re-raises.
+# The evidence folder is made absolute first, so a relative one means the same folder to the runner and each gate.
+saved = {name: getattr(gates, name) for name in ('tree', 'inputs', 'clear_notifications', 'check_gate', 'built_uuids', 'crash_reports', 'update_ledger', 'late_crashes', 'GATES', 'ORDER')}
+saved_require, saved_environment, saved_cwd = gates.test_host.require, dict(os.environ), os.getcwd()
+with tempfile.TemporaryDirectory() as work:
+    try:
+        os.chdir(work)
+        os.environ['CHECKMATE_EVIDENCE_DIR'] = 'relative-evidence'
+        ledger, checked = [], []
+        gates.test_host.require = lambda *arguments, **options: None
+        gates.GATES = {name: {'name': name, 'run': 'true', 'result': 'none.json', 'key': 'none', 'inputs': []} for name in ('first', 'second', 'third')}
+        gates.ORDER = ['first', 'second', 'third']
+        gates.tree, gates.inputs = (lambda: {}), (lambda gate, hashes: {})
+        gates.clear_notifications, gates.crash_reports, gates.late_crashes = (lambda: None), (lambda directory=None: set()), (lambda *arguments: False)
+        gates.update_ledger = ledger.append
+        def check(evidence, gate):
+            checked.append(evidence)
+            if gate['name'] == 'second':
+                raise KeyboardInterrupt
+        gates.check_gate, gates.built_uuids = check, (lambda root=None: set())
+        try:
+            with contextlib.redirect_stdout(io.StringIO()):
+                gates.run(['first', 'second', 'third'])
+            raise AssertionError('an interrupted run returned')
+        except KeyboardInterrupt:
+            pass
+        assert checked and all(evidence.is_absolute() and evidence == pathlib.Path(work).resolve() / 'relative-evidence' for evidence in checked), checked
+        assert ledger[-1] == {'first': None, 'second': None}, f'an interrupted run kept a pass: {ledger}'
+        ledger.clear()
+        def failed_dwarfdump(root=None):
+            raise gates.subprocess.CalledProcessError(1, 'dwarfdump')
+        gates.built_uuids = failed_dwarfdump
+        with contextlib.redirect_stdout(io.StringIO()) as printed:
+            assert gates.run(['first']) == 1, 'a failed crash check passed the gate'
+        assert ledger == [{'first': None}] and 'FAILED first' in printed.getvalue(), (ledger, printed.getvalue())
+    finally:
+        for name, value in saved.items():
+            setattr(gates, name, value)
+        gates.test_host.require = saved_require
+        os.environ.clear(); os.environ.update(saved_environment); os.chdir(saved_cwd)
+print(f'Gate selection self-test passed ({len(cases) + 27} cases).')

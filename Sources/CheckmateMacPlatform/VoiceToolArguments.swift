@@ -28,16 +28,19 @@ struct VoiceToolArguments {
         }
     }
     /// The most bytes any arguments valid under `schema` can take, every string character escaped as `\uXXXX`; nil
-    /// when a string or array in it has no bound, so only the whole-call cap applies.
+    /// when a string or array in it has no bound, so only the whole-call cap applies. A number is the exception: JSON
+    /// lets `0.` be followed by any count of zeros, so a numeral is allowed the 24 bytes of the longest one a serializer
+    /// writes for a 64-bit value, and a longer numeral counts as a runaway, which keeps every tool bounded.
     static func limit(schema:[String:Any])->Int? {
-        if let values=schema["enum"] as? [Any] {return values.map{(try? JSONSerialization.data(withJSONObject:$0,options:[.fragmentsAllowed]).count) ?? 0}.max()}
+        if let values=schema["enum"] as? [Any] {return values.map{value in (value as? String).map{$0.count*6+2} ?? (try? JSONSerialization.data(withJSONObject:value,options:[.fragmentsAllowed]).count) ?? 0}.max()}
         switch schema["type"] as? String {
         case "string":if let length=schema["maxLength"] as? Int{return length*6+2};return schema["pattern"] == nil ? nil:64
         case "integer","number":return 24
         case "boolean":return 5
         case "array":
             guard let count=schema["maxItems"] as? Int else{return nil}
-            let items=(schema["prefixItems"] as? [[String:Any]] ?? [])+((schema["items"] as? [String:Any]).map{[$0]} ?? [])
+            // Draft 2020-12 writes a tuple as `prefixItems`, draft 07 as an `items` array; either may sit beside one schema.
+            let items=(schema["prefixItems"] as? [[String:Any]] ?? [])+(schema["items"] as? [[String:Any]] ?? [])+((schema["items"] as? [String:Any]).map{[$0]} ?? [])
             guard let item=items.isEmpty ? 0:items.map({limit(schema:$0)}).reduce(Optional(0),{a,b in a.flatMap{a in b.map{max(a,$0)}}}) else{return nil}
             return 2+count*(item+1)
         default:

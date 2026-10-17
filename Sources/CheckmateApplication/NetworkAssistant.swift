@@ -68,9 +68,12 @@ import Foundation
     }
     private func start(automatic:Bool){
         guard !thinking,hint==nil,let engine,game.yourTurn,let revision=game.gameRevision,(try? fairness.requireNetworkHint()) != nil else{return}
-        let epoch=fairness.participation.epoch,records=game.rules.records
-        // With no move yet the position is the record's own start, which a FEN tag may set.
-        let startFEN=records.first?.before ?? game.rules.fen,moves=records.map(\.uci)
+        let epoch=fairness.participation.epoch
+        // The throwing reads: a rules failure is an unavailable hint, never a search of some other position. With no
+        // move yet the position is the record's own start.
+        let records:[MoveRecord],startFEN:String
+        do{records=try game.rules.moveHistory();startFEN=try records.first?.before ?? game.rules.currentFEN()}catch{self.error=Self.unavailable;return}
+        let moves=records.map(\.uci)
         request+=1;let id=request
         thinking=true;error=nil;turn=revision
         work=Task{[weak self] in
@@ -85,11 +88,13 @@ import Foundation
             }catch{
                 guard let self else{return}
                 guard self.request==id else{return}
-                guard !Task.isCancelled,self.fairness.participation.epoch==epoch,self.fairness.networkAssistance >= .hints,self.game.gameRevision==revision else{return self.dropped(id)}
+                // A failure is news only to the same turn: once the move is sent, help for it has closed.
+                guard !Task.isCancelled,self.fairness.participation.epoch==epoch,self.fairness.networkAssistance >= .hints,self.game.gameRevision==revision,self.game.yourTurn else{return self.dropped(id)}
                 self.work=nil;self.thinking=false;self.error=Self.unavailable
             }
         }
     }
-    /// A result that arrived for another turn or under other terms: nothing of it is shown.
-    private func dropped(_ id:Int){guard request==id else{return};work=nil;turn=nil;if thinking{thinking=false}}
+    /// A result that arrived for another turn or under other terms: nothing of it is shown. A guided turn whose search
+    /// was dropped (its move pending, then refused or lost) starts its automatic hint again if the turn comes back.
+    private func dropped(_ id:Int){guard request==id else{return};work=nil;turn=nil;automaticTurn=nil;if thinking{thinking=false}}
 }

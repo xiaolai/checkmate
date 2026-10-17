@@ -5,9 +5,9 @@ import XCTest
 final class NetworkHostTests:XCTestCase {
     private func freshID(_ net:TestNetwork)->NetworkID {NetworkID.random(using:net.random.source)}
     private func isSnapshot(_ message:NetworkMessage)->Bool {if case .snapshotBegin=message {return true};return false}
-    /// A stalled spectator asks for a snapshot, then moves are held behind it; when the send in flight completes, the
-    /// first snapshot part is made. Returns the peer's queued bytes just before and just after that part, and whether
-    /// the host closed it, for a host whose per-peer cap is `cap`.
+    /// A stalled spectator asks for a snapshot, then moves are held behind it. Its sends complete one at a time until
+    /// the snapshot's begin is the frame in flight; completing that makes the first snapshot part. Returns the peer's
+    /// queued bytes just before and just after that part, and whether the host closed it, for a per-peer cap `cap`.
     private func snapshotBehindHeldMoves(cap:Int)throws -> (before:Int,after:Int,closed:NetworkByeReason?) {
         var limits=NetworkHostLimits.standard;limits.peerQueueBytes=cap
         let net=try TestNetwork(limits:limits)
@@ -16,9 +16,14 @@ final class NetworkHostTests:XCTestCase {
         try net.hostPlays("e2e4")
         try net.send(.resync,on:id)
         try net.play(guest,"e7e5");try net.hostPlays("g1f3");try net.play(guest,"b8c6")
-        // Still open, with its queue known, right before the send completes: the part is what decides.
+        // Send by send until the begin is in flight: only completing that one makes a part.
+        func inFlight()->NetworkMessage? {(net.sent[id]?.last).flatMap{try? NetworkCodec.decode($0)}}
+        for _ in 0..<8 where !{if case .snapshotBegin?=inFlight() {return true};return false}() && net.closes[id]==nil {try net.completeSend(id)}
+        guard case .snapshotBegin?=inFlight() else{XCTFail("the begin never went out: \(String(describing:inFlight()))");return (0,0,net.closes[id])}
+        // Still open, with its queue known, right before the begin's send completes: the part is what decides.
         let before=try XCTUnwrap(net.host.queuedBytes(id),"the spectator is still open before the send completes");XCTAssertNil(net.closes[id])
         try net.completeSend(id)
+        if net.closes[id]==nil {guard case .snapshotPart?=inFlight() else{XCTFail("the next frame is a part: \(String(describing:inFlight()))");return (0,0,nil)}}
         return (before,net.host.queuedBytes(id) ?? -1,net.closes[id])
     }
     func testADuplicateIsAnsweredBeforeTheRevisionCheck()throws {
@@ -64,7 +69,7 @@ final class NetworkHostTests:XCTestCase {
         // 65 refused commands, spaced under the inbound rate: the first receipt is forgotten.
         net.script.illegal=["a2a3"]
         let ids=(0..<65).map{_ in freshID(net)}
-        for id in ids {try net.toHost(guest,.move(gameID:net.gameID,commandID:id,revision:0,uci:"a2a3"));try net.advance(0.06)}
+        for id in ids {try net.toHost(guest,.move(gameID:net.gameID,commandID:id,revision:0,uci:"a2a3"));try net.settle();try net.advance(0.06)}
         XCTAssertNil(guest.closedWith);XCTAssertEqual(net.host.storedReceipts,64)
         net.script.illegal=[]
         try net.toHost(guest,.move(gameID:net.gameID,commandID:ids[1],revision:0,uci:"a2a3"));try net.settle()
@@ -281,6 +286,23 @@ final class NetworkHostTests:XCTestCase {
         let empty=try TestNetwork()
         let watcher=empty.client(.watch);try empty.connect(watcher);try empty.perform(.leave);try empty.settle()
         XCTAssertNil(empty.host.outcome);XCTAssertEqual(empty.host.phase,.ended);XCTAssertEqual(watcher.closedWith,.hostLeft)
+    }
+    /// A spectator owed a refresh while its snapshot is still going out, when the host leaves: no refresh is made, and
+    /// the queue drains on to the result and the close rather than stalling until the runner gives up.
+    func testLeavingDuringASpectatorsStaleSnapshotStillEndsAndCloses()throws {
+        let net=try TestNetwork()
+        let watcher=net.client(.watch);try net.connect(watcher);let id=try XCTUnwrap(watcher.connection)
+        net.stalled.insert(id);try net.send(.resync,on:id)
+        // The guest's arrival names it, so the spectator is owed a refresh behind the snapshot it is still being sent.
+        let guest=net.client(.seat);try net.connect(guest);try net.hostPlays("e2e4")
+        try net.perform(.leave)
+        net.stalled.remove(id)
+        for _ in 0..<64 where net.closes[id]==nil {try net.completeSend(id)}
+        XCTAssertEqual(net.closes[id],.hostLeft,"the spectator is closed once its queue drains")
+        let tail=net.messages(id).filter{if case .ping=$0 {return false};return true}
+        guard case .ended(let ended)?=tail.last else{return XCTFail("the result is the last thing sent: \(String(describing:tail.last))")}
+        XCTAssertEqual(ended.outcome,net.host.outcome)
+        XCTAssertEqual(tail.filter{if case .snapshotBegin=$0 {return true};return false}.count,2,"the first snapshot and the resync's; no refresh after leaving")
     }
     func testCrossingOffersAreAgreement()throws {
         let net=try TestNetwork()

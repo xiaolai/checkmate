@@ -12,7 +12,10 @@ final class NetworkAssistanceTests:XCTestCase {
         XCTAssertEqual(NetworkAssistanceLevel.allCases,[.off,.insight,.hints,.guided])
         XCTAssertTrue(NetworkAssistanceLevel.off < .insight && NetworkAssistanceLevel.insight < .hints && NetworkAssistanceLevel.hints < .guided)
         XCTAssertEqual(NetworkAssistanceLevel.allCases.map(\.title),["Off","Board insight","Hints on request","Guided"])
-        for level in NetworkAssistanceLevel.allCases {XCTAssertEqual(NetworkAssistanceLevel(letter:level.letter),level)}
+        // The letters are wire values other Macs read: pinned literally, both ways.
+        let letters:[(NetworkAssistanceLevel,Character)]=[(.off,"o"),(.insight,"i"),(.hints,"h"),(.guided,"g")]
+        for (level,letter) in letters {XCTAssertEqual(level.letter,letter,"\(level)");XCTAssertEqual(NetworkAssistanceLevel(letter:letter),level,"\(letter)")}
+        XCTAssertNil(NetworkAssistanceLevel(letter:"x"))
         let handicap=NetworkAssistance(white:.hints,black:.off)
         XCTAssertEqual(handicap.txt,"ho");XCTAssertEqual(NetworkAssistance(txt:"ho"),handicap);XCTAssertEqual(NetworkAssistance.off.txt,"oo")
         for bad in ["","h","hhh","hx","HO"] {XCTAssertNil(NetworkAssistance(txt:bad),bad)}
@@ -158,6 +161,18 @@ final class NetworkAssistanceTests:XCTestCase {
         for text in [#"{"commandID":"\#(command.text)","protocol":{"major":1,"minor":1},"revision":3,"type":"move","uci":"e2e4","assisted":true}"#,
                      #"{"protocol":{"major":1,"minor":1},"revision":4,"san":"e4","type":"moved","uci":"e2e4","assisted":true}"#,
                      #"{"protocol":{"major":1,"minor":1},"type":"teleport"}"#] {XCTAssertThrowsError(try Legacy10Wire.decode(Data(text.utf8)),text)}
+        // Its value checks too: each of these breaks one rule the 1.0 decoder enforced, and 1.1 refuses it as well.
+        let gameText=game.text,commandText=command.text
+        for text in [#"{"appVersion":"0.8.1","name":"","protocol":{"major":1,"minor":0},"type":"hello"}"#,
+                     #"{"commandID":"\#(commandText)","gameID":"\#(gameText)","protocol":{"major":1,"minor":0},"revision":-1,"type":"move","uci":"e2e4"}"#,
+                     #"{"commandID":"\#(commandText)","gameID":"\#(gameText)","protocol":{"major":1,"minor":0},"revision":3,"type":"move","uci":"e2e9"}"#,
+                     #"{"hash":"","protocol":{"major":1,"minor":0},"revision":6,"san":"Nc6","type":"moved","uci":"b8c6"}"#,
+                     #"{"clocks":{"active":"b","black":-1,"white":180000},"protocol":{"major":1,"minor":0},"type":"clock"}"#,
+                     #"{"hash":"abc","parts":2,"protocol":{"major":1,"minor":0},"revision":2,"snapshotID":"\#(commandText)","totalBytes":10,"type":"snapshotBegin"}"#,
+                     #"{"data":"","index":0,"protocol":{"major":1,"minor":0},"snapshotID":"\#(commandText)","type":"snapshotPart"}"#] {
+            XCTAssertThrowsError(try Legacy10Wire.decode(Data(text.utf8)),"1.0 refused \(text)");XCTAssertThrowsError(try NetworkCodec.decode(Data(text.utf8)),"1.1 refuses \(text)")
+        }
+        XCTAssertThrowsError(try Legacy10Wire.decode(Data(repeating:0x20,count:Legacy10Wire.maximumMessageBytes+1)),"over 1.0's 16 KiB")
         var record=try JSONDecoder().decode(NetworkPublicGame.self,from:Data(LegacyFixtures.record.utf8))
         record.assistance=NetworkAssistance(white:.hints,black:.off);record.assistedPlies=[1]
         let encoded=try record.encoded()

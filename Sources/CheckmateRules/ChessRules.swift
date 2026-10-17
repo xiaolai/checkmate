@@ -94,6 +94,8 @@ public final class ChessRules {
     // Throwing queries (plan rule 4). The convenience properties above fall back to empty or false values; training must
     // never grade on those, so a runtime failure here is an error, not "no legal moves" or "not in check".
     public func currentFEN()throws -> String {try text("game.fen()")}
+    /// The moves played since the start of the record, as `records` but throwing on a runtime failure.
+    public func moveHistory()throws -> [MoveRecord] {try decoded("game.history({verbose:true})",[MoveRecord].self)}
     public func currentTurn()throws -> String {let value=try text("game.turn()");guard ["w","b"].contains(value) else{throw CheckmateError.invalid("Invalid chess operation.")};return value}
     public func isCheck()throws -> Bool {try flag("game.isCheck()")}
     public func isCheckmate()throws -> Bool {try flag("game.isCheckmate()")}

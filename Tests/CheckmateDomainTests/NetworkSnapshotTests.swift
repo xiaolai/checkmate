@@ -210,7 +210,8 @@ final class NetworkSnapshotTests:XCTestCase {
         var broken=try messages(game,hash:hash)
         if case .snapshotPart(let snapshotID,let index,var data)=broken[1],let range=data.range(of:Data("e7e5".utf8)) {data[range.lowerBound+3]=UInt8(ascii:"6");broken[1] = .snapshotPart(snapshotID:snapshotID,index:index,data:data)}else{XCTFail()}
         XCTAssertEqual(try close(broken),.badSnapshot,"a forged part")
-        var long=game;long.pgn="[Fake]\n"+Array(repeating:"g1f3",count:4000).joined(separator:" ")
+        // A long record that extends the moves shown, at the revision that counts them.
+        var long=game;long.pgn=game.pgn+" "+Array(repeating:"g1f3",count:3998).joined(separator:" ");long.revision=4000
         // The long record's own hash, so each corruption below is the only thing wrong with it.
         let longRules=FakeRules(script:net.script);try longRules.networkLoad(pgn:long.pgn)
         let longHash=testHashing.positionHash(fen:try longRules.networkFEN(),revision:long.revision)
@@ -222,8 +223,8 @@ final class NetworkSnapshotTests:XCTestCase {
         var mixed=parts;mixed[2]=foreign[2]
         for list in [swapped,missing,interrupted,mixed] {XCTAssertEqual(try close(list),.badSnapshot)}
         XCTAssertEqual(watcher.fen,fen);XCTAssertEqual(watcher.revision,2,"every failure left the board as it was")
-        XCTAssertNil(try close(parts),"the long record itself installs: only the corruptions failed")
         XCTAssertNil(try close(try messages(game,hash:hash)));XCTAssertEqual(watcher.revision,2)
+        XCTAssertNil(try close(parts),"the long record itself installs: only the corruptions failed");XCTAssertEqual(watcher.revision,4000)
         // One byte over the limit, with the part count those bytes need, so only the byte limit refuses it; and a part
         // count that does not match the bytes, on its own.
         let over=NetworkLimits.maximumSnapshotBytes+1,needed=(over+NetworkLimits.maximumSnapshotPartBytes-1)/NetworkLimits.maximumSnapshotPartBytes
@@ -237,7 +238,8 @@ final class NetworkSnapshotTests:XCTestCase {
             let hostRules=NetworkRulesFactory{let rules=FakeRules(script:script);try rules.networkLoad(pgn:"[Fake]\n"+moves.joined(separator:" "));return rules}
             let gameID=NetworkGameID.random(using:random.source)
             let host=try NetworkHost(gameID:gameID,runEpoch:NetworkID.random(using:random.source),settings:NetworkHostSettings(hostName:"Ana",hostSide:.white),rules:hostRules,hashing:testHashing,random:random.source,at:.origin)
-            let receiver=NetworkReceiver(gameID:gameID,role:.spectator,name:"Cy",appVersion:"1",rules:NetworkRulesFactory{FakeRules(script:script)},hashing:testHashing,random:random.source)
+            // The receiver's games start where the host's do: the preloaded moves are the start, not moves of the game.
+            let receiver=NetworkReceiver(gameID:gameID,role:.spectator,name:"Cy",appVersion:"1",rules:hostRules,hashing:testHashing,random:random.source)
             let accepted=try host.accept(.watch,at:.origin)
             var effects=accepted.effects+(try host.receive(try NetworkCodec.encode(receiver.opening()),from:accepted.connection,at:.origin))
             var parts=0,installed=false
@@ -312,9 +314,9 @@ final class NetworkSnapshotTests:XCTestCase {
         XCTAssertThrowsError(try JSONDecoder().decode(NetworkPublicGame.self,from:try invalid.encoded()),"an untimed game has no clocks")
     }
     /// A record at `revision` over `moves`, on the fake rules, as a snapshot a host would send.
-    private func snapshot(_ gameID:NetworkGameID,revision:Int,moves:[String],hostSide:NetworkSide = .white,script:FakeScript)throws -> [NetworkMessage] {
+    private func snapshot(_ gameID:NetworkGameID,revision:Int,moves:[String],hostSide:NetworkSide = .white,assisted:[Int]=[],outcome:NetworkOutcome?=nil,script:FakeScript)throws -> [NetworkMessage] {
         let rules=FakeRules(script:script),pgn="[Fake]\n"+moves.joined(separator:" ");try rules.networkLoad(pgn:pgn)
-        let game=NetworkPublicGame(gameID:gameID,revision:revision,hostSide:hostSide,whiteName:"Ana",blackName:"Ben",timeControl:.untimed,pgn:pgn,clocks:nil,openOffer:nil,outcome:nil)
+        let game=NetworkPublicGame(gameID:gameID,revision:revision,hostSide:hostSide,whiteName:"Ana",blackName:"Ben",timeControl:.untimed,pgn:pgn,clocks:nil,openOffer:nil,outcome:outcome,assistedPlies:assisted)
         return try NetworkSnapshot.capture(game,fen:try rules.networkFEN(),hashing:testHashing,random:random.source).messages
     }
     private func deliver(_ receiver:NetworkReceiver,_ messages:[NetworkMessage])throws -> NetworkByeReason? {
@@ -347,5 +349,90 @@ final class NetworkSnapshotTests:XCTestCase {
         XCTAssertNil(try deliver(guest,try snapshot(gameID,revision:2,moves:["e2e4","e7e5"],script:script)),"the same revision again installs")
         guest.connectionLost()
         XCTAssertEqual(try deliver(guest,[.resumed]+(try snapshot(gameID,revision:1,moves:["e2e4"],script:script))),.malformed,"nor after reconnecting")
+    }
+    /// A guest seated on the fake rules with `moves` shown, at the revision that counts them.
+    private func seated(_ moves:[String],assisted:[Int]=[])throws -> (NetworkReceiver,NetworkGameID,FakeScript) {
+        let script=FakeScript(),gameID=NetworkGameID.random(using:random.source),factory=NetworkRulesFactory{FakeRules(script:script)}
+        let guest=NetworkReceiver(gameID:gameID,role:.guest(claimID:.random(using:random.source)),name:"Ben",appVersion:"1",rules:factory,hashing:testHashing,random:random.source)
+        XCTAssertNil(try deliver(guest,[.seated(credential:.random(using:random.source))]+(try snapshot(gameID,revision:moves.count,moves:moves,assisted:assisted,script:script))))
+        return (guest,gameID,script)
+    }
+    /// What this Mac verified stays: a later snapshot extends the moves shown and keeps their assisted flags. One that
+    /// replaces a move, at the same revision or a later one, or drops or adds a flag on a move already shown, is not
+    /// this game. A record whose revision does not count its moves is not a snapshot at all.
+    func testALaterSnapshotExtendsWhatWasVerified()throws {
+        let (guest,gameID,script)=try seated(["e2e4","e7e5"],assisted:[1])
+        XCTAssertEqual(try deliver(guest,try snapshot(gameID,revision:2,moves:["d2d4","d7d5"],script:script)),.malformed,"another history at the same revision")
+        XCTAssertEqual(try deliver(guest,try snapshot(gameID,revision:3,moves:["d2d4","d7d5","g1f3"],script:script)),.malformed,"another history at a later revision")
+        XCTAssertEqual(try deliver(guest,try snapshot(gameID,revision:2,moves:["e2e4","e7e5"],assisted:[],script:script)),.malformed,"an assisted flag removed")
+        XCTAssertEqual(try deliver(guest,try snapshot(gameID,revision:2,moves:["e2e4","e7e5"],assisted:[1,2],script:script)),.malformed,"an assisted flag added to a move shown")
+        XCTAssertEqual(try guest.publicGame(at:.origin)?.pgn,"[Fake]\ne2e4 e7e5");XCTAssertEqual(guest.assistedPlies,[1])
+        XCTAssertEqual(try deliver(guest,try snapshot(gameID,revision:2,moves:["e2e4"],script:script)),.badSnapshot,"a revision that does not count its moves")
+        XCTAssertNil(try deliver(guest,try snapshot(gameID,revision:3,moves:["e2e4","e7e5","g1f3"],assisted:[1,3],script:script)),"an extension with its own new flag")
+        XCTAssertEqual(guest.assistedPlies,[1,3])
+    }
+    /// Game news before this connection's snapshot is refused: after a reconnect the board is only remembered, and a
+    /// move or a result could otherwise be applied to it before the host's own record arrives.
+    func testNewsBeforeTheConnectionsSnapshotIsRefused()throws {
+        let (guest,_,_)=try seated(["e2e4"])
+        guest.connectionLost()
+        let news:[NetworkMessage]=[.moved(NetworkMoved(revision:2,uci:"e7e5",san:"e5",hash:"x",clocks:nil,receiptFor:nil)),.ended(NetworkEnded(outcome:NetworkOutcome(result:.whiteWins,termination:.resignation),revision:2,clocks:nil)),.clock(NetworkClocks(white:1,black:1,active:nil)),.drawOffered(NetworkDrawOffer(offerID:.random(using:random.source),by:.white))]
+        for message in news {
+            XCTAssertEqual(try guest.receive(message:message,at:.origin).close,.malformed,"\(message.type) before the snapshot")
+            guest.connectionLost()
+        }
+        XCTAssertEqual(guest.revision,1);XCTAssertNil(guest.outcome);XCTAssertNil(try guest.submitMove(uci:"e7e5"),"no command before the snapshot either")
+    }
+    /// A game ends once, and clocks only belong to a timed game.
+    func testAGameEndsOnceAndAnUntimedGameHasNoClocks()throws {
+        let (guest,_,_)=try seated(["e2e4"])
+        let result=NetworkOutcome(result:.whiteWins,termination:.resignation)
+        XCTAssertNil(try guest.receive(message:.ended(NetworkEnded(outcome:result,revision:2,clocks:nil)),at:.origin).close);XCTAssertEqual(guest.outcome,result)
+        XCTAssertNil(try guest.receive(message:.ended(NetworkEnded(outcome:result,revision:2,clocks:nil)),at:.origin).close,"the same result again is a duplicate")
+        XCTAssertEqual(try guest.receive(message:.ended(NetworkEnded(outcome:NetworkOutcome(result:.draw,termination:.agreement),revision:3,clocks:nil)),at:.origin).close,.malformed,"a second result")
+        XCTAssertEqual(guest.outcome,result);XCTAssertEqual(guest.revision,2)
+        let (untimed,_,_)=try seated(["e2e4"])
+        XCTAssertEqual(try untimed.receive(message:.clock(NetworkClocks(white:1,black:1,active:.black)),at:.origin).close,.malformed,"a clock in an untimed game")
+        let (moving,_,_)=try seated(["e2e4"])
+        XCTAssertEqual(try moving.receive(message:.moved(NetworkMoved(revision:2,uci:"e7e5",san:"e5",hash:"x",clocks:NetworkClocks(white:1,black:1,active:.white),receiptFor:nil)),at:.origin).close,.malformed,"a move carrying clocks in an untimed game")
+        XCTAssertNil(untimed.clocks(at:.origin))
+    }
+    /// D7's rate on the host's own messages: a flood of valid frames is cut off at 20 a second; snapshot parts, which
+    /// a long record legitimately sends in a burst, do not count.
+    func testAFloodFromTheHostIsCutOff()throws {
+        let (guest,_,_)=try seated(["e2e4"])
+        var closed:NetworkByeReason?,sent=0
+        // Past the window of the seating messages, so the count starts from nothing.
+        for _ in 0..<100 where closed==nil {sent+=1;closed=try guest.receive(message:.ping(nonce:.random(using:random.source)),at:.origin+(.seconds(10))).close}
+        XCTAssertEqual(closed,.rateLimited);XCTAssertEqual(sent,NetworkLimits.inboundMessagesPerWindow+1)
+        let (paced,_,_)=try seated(["e2e4"])
+        for second in 0..<5 {for _ in 0..<10 {XCTAssertNil(try paced.receive(message:.ping(nonce:.random(using:random.source)),at:.origin+(.seconds(second))).close)}}
+    }
+    /// A revision is a peer's number: an out-of-range one is refused when decoded, before any arithmetic on it, so an
+    /// `Int.min` with a result cannot trap, nor an `Int.max` make `revision+1` overflow later.
+    func testAnOutOfRangeRevisionIsRefusedBeforeAnyArithmetic()throws {
+        let game=NetworkPublicGame(gameID:NetworkGameID.random(using:random.source),revision:0,hostSide:.white,whiteName:"Ana",blackName:"Ben",timeControl:.untimed,pgn:"[Fake]\n",clocks:nil,openOffer:nil,outcome:NetworkOutcome(result:.whiteWins,termination:.resignation))
+        for revision in [Int.min,-1,0,NetworkLimits.maximumRevision+1,Int.max] {
+            var invalid=game;invalid.revision=revision
+            XCTAssertThrowsError(try JSONDecoder().decode(NetworkPublicGame.self,from:try JSONEncoder().encode(invalid)),"revision \(revision) with a result")
+        }
+        var valid=game;valid.revision=1;XCTAssertNoThrow(try JSONDecoder().decode(NetworkPublicGame.self,from:try JSONEncoder().encode(valid)))
+        // Every message that carries one refuses it at the codec, and the receiver's board is untouched.
+        let (guest,_,_)=try seated(["e2e4"])
+        let carriers:[NetworkMessage]=[.snapshotBegin(snapshotID:.random(using:random.source),revision:2,hash:"abc",totalBytes:10,parts:1),.moved(NetworkMoved(revision:2,uci:"e7e5",san:"e5",hash:"abc",clocks:nil,receiptFor:nil)),.ended(NetworkEnded(outcome:NetworkOutcome(result:.whiteWins,termination:.resignation),revision:2,clocks:nil))]
+        for message in carriers {
+            for revision in [Int.min,-1,NetworkLimits.maximumRevision+1,Int.max] {
+                var object=try XCTUnwrap(JSONSerialization.jsonObject(with:try NetworkCodec.encode(message)) as? [String:Any]);object["revision"]=revision
+                let wire=try JSONSerialization.data(withJSONObject:object)
+                XCTAssertThrowsError(try NetworkCodec.decode(wire),"\(message.type) at \(revision)")
+                XCTAssertNotNil(try guest.receive(wire,at:.origin).close,"\(message.type) at \(revision) closes the connection")
+            }
+        }
+        XCTAssertEqual(guest.revision,1);XCTAssertNil(guest.outcome)
+    }
+    /// A name is one line: control characters and Unicode's line and paragraph separators are refused.
+    func testANameCannotBreakALine(){
+        for name in ["Ben\u{2028}Smith","Ben\u{2029}Smith","Ben\nSmith","Ben\u{85}Smith"] {XCTAssertFalse(NetworkText.valid(name),name.debugDescription)}
+        XCTAssertTrue(NetworkText.valid("Ben Smith"));XCTAssertTrue(NetworkText.valid("Zoë"))
     }
 }

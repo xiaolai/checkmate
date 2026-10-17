@@ -71,7 +71,9 @@ public final class NWNetworkHosting:NetworkHosting {
     private var listeners:[NetworkListenerRole:NWListener]=[:],ports:[NetworkListenerRole:UInt16]=[:]
     private var slots:[NetworkListenerRole:NetworkSlots]=[:]
     private var failures:NetworkHandshakeFailures
-    private struct Handshake {let role:NetworkListenerRole,address:String,connection:NWConnection,deadline:NetworkScheduledWork}
+    /// `due`: when the handshake deadline passes. Readiness processed after it, behind a busy queue or a sleep, is too
+    /// late, though its timer has not run yet.
+    private struct Handshake {let role:NetworkListenerRole,address:String,connection:NWConnection,deadline:NetworkScheduledWork,due:NetworkInstant}
     private var handshakes:[UInt64:Handshake]=[:]
     private var connections:[UInt64:NWFramedConnection]=[:],closing:[UInt64:NWFramedConnection]=[:]
     private var nextNumber:UInt64=1,announced=false,stopped=false
@@ -130,7 +132,7 @@ public final class NWNetworkHosting:NetworkHosting {
         guard slots[role]!.acquire() else{diagnostics.refusedBusy+=1;return connection.cancel()}
         let number=nextNumber;nextNumber+=1
         let deadline=scheduler.schedule(at:now+limits.handshakeDeadline){[weak self] in self?.handshakeFailed(number,timedOut:true)}
-        handshakes[number]=Handshake(role:role,address:address,connection:connection,deadline:deadline)
+        handshakes[number]=Handshake(role:role,address:address,connection:connection,deadline:deadline,due:now+limits.handshakeDeadline)
         connection.stateUpdateHandler={[weak self] state in self?.handshakeChanged(number,state)}
         connection.start(queue:scheduler.queue)
     }
@@ -138,6 +140,7 @@ public final class NWNetworkHosting:NetworkHosting {
         guard let handshake=handshakes[number] else{return}
         switch state {
         case .ready:
+            guard scheduler.now<handshake.due else{return handshakeFailed(number,timedOut:true)}
             endHandshake(number)
             let negotiated=NetworkTLS.negotiated(handshake.connection)
             diagnostics.lastNegotiated=negotiated
@@ -208,6 +211,8 @@ public final class NWNetworkLink:NetworkLink {
     public private(set) var negotiated:NetworkTLS.Negotiated?
     private let connection:NWConnection?,scheduler:NetworkQueueScheduler,limits:NetworkTransportLimits,events:(NetworkLinkEvent)->Void
     private var framed:NWFramedConnection?,deadline:NetworkScheduledWork?
+    /// When the connect deadline passes; nil while denial suspends it.
+    private var due:NetworkInstant?
     private var open=true,denied=false
     init(_ endpoint:NWEndpoint?,key:NetworkAccessKey,scheduler:NetworkQueueScheduler,limits:NetworkTransportLimits,events:@escaping (NetworkLinkEvent)->Void){
         connection=endpoint.map{NWConnection(to:$0,using:NetworkTLS.parameters(key,loopback:false))}
@@ -226,8 +231,8 @@ public final class NWNetworkLink:NetworkLink {
     }
     public var bufferedBytes:Int {framed?.bufferedBytes ?? 0}
     private func armDeadline(){
-        deadline?.cancel()
-        deadline=scheduler.schedule(at:scheduler.now+limits.connectDeadline){[weak self] in self?.fail(.timedOut)}
+        deadline?.cancel();due=scheduler.now+limits.connectDeadline
+        deadline=scheduler.schedule(at:due!){[weak self] in self?.fail(.timedOut)}
     }
     private func changed(_ state:NWConnection.State){
         guard open,framed==nil,let connection else{return}
@@ -237,8 +242,11 @@ public final class NWNetworkLink:NetworkLink {
             // Denial waits for access (D11); a TLS error while waiting is fatal, and so is any other refusal.
             guard NetworkTLS.deniesLocalNetwork(error,path:connection.currentPath) else{return fail(NetworkTLS.failure(error))}
             guard !denied else{return}
-            denied=true;deadline?.cancel();events(.denied)
+            denied=true;deadline?.cancel();due=nil;events(.denied)
         case .ready:
+            // Ready after the deadline, before its timer ran, is still too late. While local network access is denied
+            // no deadline runs (D11), so `due` is nil then.
+            if let due,scheduler.now>=due {return fail(.timedOut)}
             deadline?.cancel()
             negotiated=NetworkTLS.negotiated(connection)
             guard negotiated?.pinned==true else{return fail(.insecure)}

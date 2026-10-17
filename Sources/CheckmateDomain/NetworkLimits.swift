@@ -35,6 +35,10 @@ public enum NetworkLimits {
     public static let maximumSnapshotBytes=1024*1024
     public static let maximumSnapshotParts=(maximumSnapshotBytes+maximumSnapshotPartBytes-1)/maximumSnapshotPartBytes
     public static let maximumSANBytes=16,maximumHashBytes=128
+    /// The highest revision a peer may state. Each move and the end advance it by one (D2), and the 75-move rule and
+    /// fivefold repetition end every game well under 20,000 plies, so this leaves room while keeping `revision+1`, and
+    /// every count derived from a revision, far from overflow whatever a peer sends.
+    public static let maximumRevision=1_000_000
     public static let maximumSpectators=8
     /// Outbound queue caps: bytes queued, held behind a snapshot, or handed to the transport and not yet completed.
     public static let peerQueueBytes=64*1024,spectatorQueuesBytes=512*1024
@@ -47,10 +51,11 @@ public enum NetworkLimits {
     public static let reservationDuration=Duration.seconds(30),holdDuration=Duration.seconds(120)
     public static let clockMessageInterval=Duration.seconds(1)
 }
-/// Free strings on the wire: 1 to 64 bytes of UTF-8 with no control characters (no newlines in a name tag). Public so
+/// Free strings on the wire: 1 to 64 bytes of UTF-8 with no control characters and no line or paragraph separators
+/// (no line breaks in a name tag, U+2028 and U+2029 included). Public so
 /// the host sheet refuses a name by the same rule the host and receivers apply.
 public enum NetworkText {
     public static func valid(_ text:String,maximumBytes:Int=NetworkLimits.maximumNameBytes)->Bool {
-        !text.isEmpty && text.utf8.count<=maximumBytes && !text.unicodeScalars.contains{$0.properties.generalCategory == .control}
+        !text.isEmpty && text.utf8.count<=maximumBytes && !text.unicodeScalars.contains{[.control,.lineSeparator,.paragraphSeparator].contains($0.properties.generalCategory)}
     }
 }

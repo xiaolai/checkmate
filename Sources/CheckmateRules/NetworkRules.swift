@@ -43,4 +43,5 @@ extension ChessRules:NetworkChessRules {
     /// so an empty one is that failure.
     public func networkPGN()throws -> String {let record=pgn;guard !record.isEmpty else{throw NetworkRulesError.unexpected("The game record could not be read.")};return record}
     public func networkLoad(pgn:String)throws {try restore(pgn)}
+    public func networkMoves()throws -> [String] {try moveHistory().map(\.uci)}
 }

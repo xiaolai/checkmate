@@ -43,7 +43,7 @@ def shell(command, check=False):
 def asks_for_local_network(owner):
     """Whether the dialog UserNotificationCenter shows is this app's local-network prompt, so no other prompt is ever
     answered for it."""
-    text = shell(f"{tools['ax-helper']} {owner} list 2>/dev/null")
+    text = shell(f"{shlex.quote(tools['ax-helper'])} {owner} list 2>/dev/null")
     return "Checkmate" in text and "local network" in text
 
 
@@ -61,12 +61,14 @@ prompt = "not shown"
 try:
     helpers = gate.compile_helpers(work)
     gate.install(remote=remote)
-    tools = {name: (f"/tmp/checkmate-prepare-{name}" if remote else str(helpers[name])) for name in ("pointer-helper", "ax-helper")}
+    # The app's data folder is private (on the pair, checked to be 0700 and this account's); the pair's helpers are
+    # copied into it and run from it, never from a predictable /tmp path another account could plant first.
+    data = gate.private_remote_dir("checkmate-prepare-bonjour") if remote else shell("mktemp -d /tmp/checkmate-prepare-bonjour.XXXXXX", check=True)
+    tools = {name: (f"{data}/{name}" if remote else str(helpers[name])) for name in ("pointer-helper", "ax-helper")}
     if remote:
         for name, path in tools.items():
-            subprocess.run(["scp", "-q", "-o", "BatchMode=yes", "-o", "ConnectTimeout=5", str(helpers[name]), f"{gate.pair()}:{path}"], check=True, timeout=120)
-    helper = tools["pointer-helper"]
-    data = shell("mktemp -d /tmp/checkmate-prepare-bonjour.XXXXXX", check=True)
+            subprocess.run(["scp", "-q", "-o", "BatchMode=yes", "-o", "ConnectTimeout=5", str(helpers[name]), f"{gate.pair()}:{shlex.quote(path)}"], check=True, timeout=120)
+    helper = shlex.quote(tools["pointer-helper"])
     verdict = f"{data}/self-check.json"
     app = "~/Applications/CheckmateAutomation.app" if remote else shlex.quote(str(gate.INSTALLED))
     shell(f"open -n -a {app} --args --automation --data-dir {shlex.quote(data)} --bonjour-self-check {shlex.quote(verdict)}", check=True)

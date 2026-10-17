@@ -9,10 +9,12 @@ final class UCIWorker:@unchecked Sendable {
     let executable:URL
     private let lifecycle=NSLock(),serial=NSLock()
     private var process:Process?,input:FileHandle?,output:FileHandle?,pending="",generation=0
-    /// The process whose launch and handshake are in progress. Its startup watchdog stops it even when a later search
-    /// has reserved a newer generation meanwhile, which would make `cancel(expected:)` a no-op and leave the handshake,
-    /// and every search waiting behind it, blocked.
-    private var starting:Process?
+    /// The process whose launch and handshake are in progress, and the startup it belongs to. Its startup watchdog stops
+    /// it even when a later search has reserved a newer generation meanwhile, which would make `cancel(expected:)` a
+    /// no-op and leave the handshake, and every search waiting behind it, blocked. The watchdog names its own startup,
+    /// so one that fires late, after a newer startup began, can never stop that newer process.
+    private var starting:Process?,startups=0
+    private(set) var startup:Int?
     private(set) var capabilities=EngineCapabilities()
     init(executable:URL,startupAllowance:TimeInterval=10){self.executable=executable;self.startupAllowance=startupAllowance}
     deinit{cancel()}
@@ -28,11 +30,16 @@ final class UCIWorker:@unchecked Sendable {
     /// is never charged to a search's deadline. Ten seconds in the app; tests shorten it.
     private let startupAllowance:TimeInterval
     private func startWithinAllowance(epoch:Int)throws {
-        let timeout=DispatchWorkItem{[weak self] in self?.cancel(expected:epoch);self?.stopStarting()};DispatchQueue.global().asyncAfter(deadline:.now()+startupAllowance,execute:timeout);defer{timeout.cancel()}
-        do{try start(epoch:epoch)}catch{cancel(expected:epoch);stopStarting();throw error}
+        lifecycle.lock();startups+=1;let token=startups;startup=token;lifecycle.unlock()
+        let timeout=DispatchWorkItem{[weak self] in self?.abandonStartup(token,epoch:epoch)};DispatchQueue.global().asyncAfter(deadline:.now()+startupAllowance,execute:timeout);defer{timeout.cancel()}
+        do{try start(epoch:epoch)}catch{abandonStartup(token,epoch:epoch);throw error}
+        lifecycle.lock();if startup==token{startup=nil};lifecycle.unlock()
     }
-    private func stopStarting(){
-        lifecycle.lock();let process=starting;starting=nil;if self.process===process{self.process=nil};lifecycle.unlock()
+    /// Ends startup `token`, in one step under the lock, if it is still the startup in progress: it stops the process
+    /// being started, and ends `epoch` if nothing newer has been reserved. A late or repeated call is a no-op.
+    func abandonStartup(_ token:Int,epoch:Int){
+        lifecycle.lock();guard startup==token else{lifecycle.unlock();return}
+        startup=nil;let process=starting;starting=nil;if self.process===process{self.process=nil};if generation==epoch{generation+=1};lifecycle.unlock()
         guard let process,process.isRunning else{return};process.terminate();DispatchQueue.global().asyncAfter(deadline:.now()+0.3){if process.isRunning{kill(process.processIdentifier,SIGKILL)}}
     }
     private func send(_ command:String)throws {guard let input=input else{throw CheckmateError.unavailable("Engine pipe unavailable.")};try input.write(contentsOf:Data((command+"\n").utf8))}

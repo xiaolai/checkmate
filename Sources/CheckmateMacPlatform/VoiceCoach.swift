@@ -181,7 +181,10 @@ import SaidGuard
         if scope != historyScope{history=[];carriedSummary=""};historyScope=scope
     }
     /// Opens the session as a connection would once its socket is ready, without one: tests drive the turns that follow.
-    func automationOpen()throws {try open(network:session.fairness.participation.role != nil);configure()}
+    /// `greet` is `connect`'s: false for a session resuming a conversation, as renewal opens one.
+    func automationOpen(greet:Bool=true)throws {try open(network:session.fairness.participation.role != nil);greetOnReady=greet;if greet{carriedSummary=""};configure()}
+    /// Renews the session as `renew` does, without a socket: the old session ends and a new one opens carrying its summary.
+    func automationRenew()throws {let summary=renewalSummary();disconnect();carriedSummary=summary;try automationOpen(greet:false)}
     /// Whether the learner can connect the coach to their network game now (A10).
     public var networkVoiceAvailable:Bool {network != nil && session.fairness.voiceAllowed(network:true)}
     private func resolveModel(refresh:Bool=false)async throws->String {let settings=session.state.settings;return try await modelSelection.resolve(effort:settings.coachReasoningEffort,refresh:refresh){[gateway,definitions] model in try await gateway.supportsCoach(model:model,effort:settings.coachReasoningEffort,voice:settings.coachVoice,tools:definitions)}}
@@ -247,11 +250,13 @@ import SaidGuard
         // A connection that could not be made now (a lesson recording) would end coaching; renewal waits instead.
         guard !connectionBlocked() else{return}
         renewalDue=false;renewals+=1
-        let summary=history.suffix(8).map{($0.role=="learner" ? "Learner: ":"Coach: ")+$0.text.prefix(240)}.joined(separator:" | ")
+        let summary=renewalSummary()
         NativeLog.voice.notice("Renewing the voice session before its time limit")
         // The old session closes first: connect() never replaces a live socket.
-        disconnect();carriedSummary=String(summary.prefix(2000));connect(greet:false);if connecting{status="Renewing the voice session…"}
+        disconnect();carriedSummary=summary;connect(greet:false);if connecting{status="Renewing the voice session…"}
     }
+    /// What a renewed session is told of the conversation so far: its last eight lines, each and all bounded.
+    private func renewalSummary()->String {String(history.suffix(8).map{($0.role=="learner" ? "Learner: ":"Coach: ")+$0.text.prefix(240)}.joined(separator:" | ").prefix(2000))}
     private func narration(_ outcome:NarrationOutcome){guard let operation=narrationOperation else{return};narrationOperation=nil;NativeLog.voice.notice("Narrated segment \(outcome.rawValue, privacy: .public)");usageLedger?.markNarration(operationID:operation,outcome:outcome)}
     private func pruneToolItems(){for (call,entry) in toolItems where entry.exchange<exchange{guard let callItem=entry.call,let output=entry.output else{continue};for item in [output,callItem]{send(["type":"conversation.item.delete","item_id":item,"event_id":Self.prunePrefix+item])};toolItems[call]=nil}}
     /// D1: the learner spoke over the narration. The rest of the explanation and its highlights stop; a response still
@@ -259,11 +264,12 @@ import SaidGuard
     func bargeIn(){NativeLog.voice.notice("The learner interrupted the coach");if !gate.generatingResponse{audio.stopOutput();gate.reset()};stopTurn(release:false,keepLearnerTurn:true);status="I hear you — go ahead"}
     /// Ends the current turn without its answer and keeps listening; a learner turn waiting behind it still runs.
     private func endTurn(_ message:String){NativeLog.voice.notice("Voice turn ended: \(message, privacy: .public)");turnMessage=message;stopTurn(release:false,keepLearnerTurn:true);if !awaitingCancellation{settled()}}
-    /// Only while voice is fully disconnected: a test during connecting would stop the live session's capture.
+    /// After an audio route change, reopens the microphone of a session connected or connecting with the microphone on.
     private func restartMicrophoneAfterRouteChange(){
         guard connected || connecting,session.state.settings.voiceMicrophone else{return};microphoneUpdate?.cancel();let generation=epoch
         microphoneUpdate=Task{do{try Task.checkCancellation();try await startInput(session.state.settings.voiceInputDevice);guard generation==epoch,!Task.isCancelled else{return};microphoneProblem=nil}catch{guard generation==epoch,!Task.isCancelled,!(error is CancellationError) else{return};microphoneProblem=userFacingMessage(error,fallback:"The microphone changed and could not restart. Select an available input device.")};syncMic();if ready,gate.ready,calls.isEmpty,!awaitingCancellation{status=readyStatus}}
     }
+    /// Only while voice is fully disconnected: a test during connecting would stop the live session's capture.
     public func testMicrophone(){guard !connected,!connecting,socket==nil else{return};microphoneTest?.cancel();status="Opening microphone…";let generation=epoch;microphoneTest=Task{do{try Task.checkCancellation();try await startInput(session.state.settings.voiceInputDevice);guard generation==epoch,!Task.isCancelled else{return};audio.listening=true;status="Microphone test — speak for five seconds";try await Task.sleep(nanoseconds:5_000_000_000);audio.stopCapture();status="Disconnected"}catch{if generation==epoch,!Task.isCancelled,!(error is CancellationError){audio.stopCapture();status="Microphone unavailable. Check permissions and input device."}}}}
     /// A typed learner turn, answered exactly as a spoken one (used by the live acceptance probe).
     public func ask(_ text:String){let question=String(text.trimmingCharacters(in:.whitespacesAndNewlines).prefix(2000));guard session.fairness.voiceAllowed(network:networkSession),ready,!question.isEmpty else{return};guard ownMove else{status=Self.networkOwnMove;return};send(["type":"conversation.item.create","item":["type":"message","role":"user","content":[["type":"input_text","text":question]]]]);addHistory("typed-"+UUID().uuidString,"learner",question);request("Respond to the learner’s latest typed question.",user:true)}
@@ -331,7 +337,9 @@ import SaidGuard
         accountUsage(event)
         let type=event["type"] as? String ?? "",response=event["response"] as? [String:Any] ?? [:],id=event["response_id"] as? String ?? response["id"] as? String ?? "";if awaitingCancellation,type=="response.done",cancelling.isEmpty || id==cancelling{awaitingCancellation=false;cancelling="";settled();return};if ignored.contains(id){return}
         switch type {
-        case "session.updated":if ready{effortConfirmed(event)};if !ready{confirmedEffort=Self.effort(of:event) ?? appliedSettings.coachReasoningEffort;if session.state.settings.coachReasoningEffort != confirmedEffort{pendingEffort=session.state.settings.coachReasoningEffort};scheduleRenewal();ready=true;connecting=false;connected=true;availability="Connected to live voice";timeout?.cancel();position=currentPosition;if !networkSession{session.holdVoice(session.state.settings.coachingMode=="guided")};if greetOnReady,session.reviewController?.active != true,session.fairness.voiceAllowed(network:networkSession),networkSession ? networkCommentaryDue():session.state.settings.coachingMode=="guided"{request(networkSession ? Self.networkCommentary(after:network?.game.rules.records.last):"Introduce yourself briefly and help this beginner make their first decision. For a game already underway explain this position instead.",user:false)}else{settled()}}
+        // A network game's guided comment is not a greeting: a renewed session still owes the learner's move its one
+        // comment if that move began while it renewed (`networkCommentaryDue` keeps it to one per move).
+        case "session.updated":if ready{effortConfirmed(event)};if !ready{confirmedEffort=Self.effort(of:event) ?? appliedSettings.coachReasoningEffort;if session.state.settings.coachReasoningEffort != confirmedEffort{pendingEffort=session.state.settings.coachReasoningEffort};scheduleRenewal();ready=true;connecting=false;connected=true;availability="Connected to live voice";timeout?.cancel();position=currentPosition;if !networkSession{session.holdVoice(session.state.settings.coachingMode=="guided")};if session.reviewController?.active != true,session.fairness.voiceAllowed(network:networkSession),networkSession ? networkCommentaryDue():greetOnReady && session.state.settings.coachingMode=="guided"{request(networkSession ? Self.networkCommentary(after:network?.game.rules.records.last):"Introduce yourself briefly and help this beginner make their first decision. For a game already underway explain this position instead.",user:false)}else{settled()}}
         case "response.created":guard (response["metadata"] as? [String:String])?["checkmate_turn"]==String(turn) else{ignored.insert(id);return};responseID=id
         case "input_audio_buffer.speech_started":if gate.ready{status="I hear you — go ahead"}else if audio.echoCancelled,segment != nil{bargeIn()}
         case "input_audio_buffer.committed":if let item=event["item_id"] as? String,!item.isEmpty{committedLearner.insert(item);addHistory(item,"learner","…")};if session.fairness.voiceAllowed(network:networkSession){if ownMove{request(queued?.1==true ? Self.learnerTurns:Self.learnerTurn,user:true)}else{status=Self.networkOwnMove}}
