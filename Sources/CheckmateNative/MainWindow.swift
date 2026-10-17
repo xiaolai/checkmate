@@ -41,7 +41,7 @@ final class BoardTitleView:NSView {
     private(set) var barFrames:[String:CGRect]=[:]
     var sidebarItem:NSSplitViewItem!,boardItem:NSSplitViewItem!,inspectorItem:NSSplitViewItem!,controls:NSHostingView<TransportContent>!,welcome:NSHostingView<WelcomeContent>!,puzzles:NSHostingView<PuzzleLibraryContent>!
     private var playbackLineView:NSView?
-    private var reviewWorkspaceView:NSHostingView<ReviewWorkspaceContent>!
+    private(set) var reviewWorkspaceView:NSHostingView<ReviewWorkspaceContent>!
     private var workspaceAboveControls:NSLayoutConstraint!,workspaceFill:NSLayoutConstraint!
     private(set) var trainingLibraryView:NSHostingView<TrainingLibraryHost>!
     var leftExtent:CGFloat {Metrics.left+split.splitView.dividerThickness}
