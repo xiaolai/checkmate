@@ -165,7 +165,8 @@ count (`go nodes`), so every Mac searches the same amount. A move made after a h
 
 The protocol is 1.1. Its additions are optional fields a 1.0 peer ignores, so a game without assistance stays open
 to a 1.0 guest; a guest that states no terms is refused, as another version, by a host whose game has assistance.
-Byte fixtures from the 1.0 codec (`NetworkLegacyFixtures`) keep both directions honest.
+Byte fixtures from the 1.0 codec (`NetworkLegacyFixtures`) keep both directions honest. A 1.0 spectator may still
+watch a game with assistance and does not see its terms; it cannot play, so this is stated rather than prevented.
 
 `NetworkParticipation` still turns engine help off everywhere else while participating:
 `FairnessPolicy.engineHelpAllowed` is unchanged, and the scoped `networkAssistance` level opens only the network

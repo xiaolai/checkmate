@@ -197,9 +197,9 @@ struct NetworkAcceptSheet:View {
     let accept:()->Void,decline:()->Void
     var body:some View {
         VStack(alignment:.leading,spacing:Metrics.padding){
-            Text("Join \(game.displayName)?").font(.title2.bold())
+            Text(NetworkWording.joinQuestion(game.displayName)).font(.title2.bold())
             Text(NetworkWording.offer(game.assistance,game:game.name)).fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("network-accept-terms")
-            Text("The assistance stays the same for the whole game, and each Mac counts the hints its player uses.").font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
+            Text(NetworkWording.termsFixed).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
             HStack {
                 Spacer()
                 Button("Decline"){decline()}.keyboardShortcut(.cancelAction).accessibilityIdentifier("network-decline-assistance")

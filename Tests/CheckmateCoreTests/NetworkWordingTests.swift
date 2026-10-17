@@ -43,6 +43,7 @@ final class NetworkWordingTests:XCTestCase {
         XCTAssertEqual(NetworkWording.hintsUsed(game,players:ben),"Hints used: Ben 2 · Ana 0")
         XCTAssertEqual(NetworkWording.usedHint(.white,players:ben),"Ben used a hint");XCTAssertEqual(NetworkWording.usedHint(.black,players:ben),"You used a hint")
         XCTAssertEqual(NetworkWording.hint(san:"Nf3",uci:"g1f3",automatic:false),"Hint: Nf3");XCTAssertEqual(NetworkWording.hint(san:nil,uci:"g1f3",automatic:true),"Guided hint: g1f3")
+        XCTAssertEqual(NetworkWording.joinQuestion("Ana's game"),"Join Ana's game?");XCTAssertTrue(NetworkWording.termsFixed.contains("the whole game"))
         XCTAssertEqual(NetworkWording.stop(.closedByHost(.assistanceChanged),game:"Ana's game",wasLive:false),"Ana's game has different assistance than the one you accepted.")
     }
     func testClocksAreAnnouncedAtSixtyThirtyAndTen(){

@@ -61,6 +61,9 @@ public enum NetworkWording {
     /// itself.
     public static func hint(san:String?,uci:String,automatic:Bool)->String {(automatic ? "Guided hint: ":"Hint: ")+(san ?? uci)}
     public static let findingHint="Finding a hint…"
+    /// The Accept sheet's title and its note under the terms (A3).
+    public static func joinQuestion(_ game:String)->String {"Join \(game)?"}
+    public static let termsFixed="The assistance stays the same for the whole game, and each Mac counts the hints its player uses."
     /// Remaining time at which VoiceOver announces a running clock (D10), in milliseconds.
     public static let clockThresholds=[60_000,30_000,10_000]
     /// The next announcement a clock with `remaining` milliseconds will reach, if any: the highest threshold below it.

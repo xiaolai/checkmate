@@ -102,6 +102,18 @@ import CheckmateRules
         }
     }
 
+    /// A6: a hint is thinking time. The asker's clock keeps running while it searches and after it is shown; nothing
+    /// pauses or credits it.
+    func testAHintUsesTheAskersOwnClock()async throws {
+        let lan=MemoryLAN(),terms=NetworkAssistance(both:.hints)
+        let ana=try NetworkControllerTests().hosting(lan){$0.timeControl = .threePlusTwo;$0.assistance=terms},ben=try NetworkControllerTests().joining(lan,"Ben",ana,accepting:terms),benHelp=help(ben)
+        NetworkControllerTests().play(ana,"e2","e4",lan);XCTAssertEqual(ana.game.currentClocks?.active,.black)
+        benHelp.engine.holding=true;benHelp.assistant.ask();try await settle({benHelp.engine.held==1},"the search is held")
+        lan.scheduler.advance(by:.seconds(5));XCTAssertEqual(ana.game.currentClocks?.black,175_000,"Black's clock runs while his hint searches");XCTAssertEqual(ana.game.currentClocks?.active,.black)
+        benHelp.engine.releaseAll();try await settle({benHelp.assistant.hint != nil},"the hint is shown")
+        lan.scheduler.advance(by:.seconds(5));XCTAssertEqual(ana.game.currentClocks?.black,170_000,"and after it is shown");XCTAssertEqual(ana.game.currentClocks?.white,180_000)
+    }
+
     /// A8 after the await, on its own: participation ending with no game event to follow it (so nothing cancels the
     /// search) still drops the result, because the level is checked again when it arrives.
     func testTheLevelIsCheckedAgainWhenTheResultArrives()async throws {

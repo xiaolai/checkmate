@@ -57,6 +57,9 @@ final class NetworkGameRecordTests:XCTestCase {
         XCTAssertEqual(permissions,0o600)
         let text=try String(contentsOf:file.url,encoding:.utf8)
         for forbidden in ["credential","claimID","epoch"]{XCTAssertFalse(text.contains(forbidden),forbidden)}
+        // A11: the crash file keeps the terms and the assisted moves, through the public record alone.
+        var assisted=entry.game;assisted.assistance=NetworkAssistance(white:.guided,black:.insight);assisted.assistedPlies=[1]
+        try file.save(NetworkCrashFile.Entry(game:assisted,part:.black));XCTAssertEqual(file.pending()?.game.assistance,assisted.assistance);XCTAssertEqual(file.pending()?.game.assistedPlies,[1])
         file.clear();XCTAssertNil(file.pending())
         try FileManager.default.createDirectory(at:file.url.deletingLastPathComponent(),withIntermediateDirectories:true)
         try Data("not json".utf8).write(to:file.url);XCTAssertNil(file.pending());XCTAssertFalse(FileManager.default.fileExists(atPath:file.url.path))
