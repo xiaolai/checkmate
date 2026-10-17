@@ -1,3 +1,26 @@
+# Checkmate 0.8.1
+
+Voice, lesson recording and lesson translation now get your Codex sign-in
+through sayso, a package Checkmate shares with other apps, instead of
+reading Codex's sign-in file themselves. Codex is asked for the sign-in and
+renews it before it runs out, so you no longer need to open Codex to refresh
+it. A sign-in that Codex keeps in the keychain works, and so does a Codex
+home set with CODEX_HOME. Lesson translation no longer copies Codex's
+sign-in file at all: its private copy of Codex is signed in from the token
+alone, without the token that would let it renew your sign-in. An API-key
+sign-in is still refused, and each sign-in problem now says how to fix it.
+
+Narration and lesson recordings are checked against their script in the
+lesson's own language. In a language other than English, a number has to be
+read as written or in that language's words.
+
+Automated acceptance covered every gate on the test Mac, including the Intel
+build under Rosetta. A live check, with no microphone or speaker, ran a real
+coach turn in English, Chinese and Spanish with every narrated segment
+verified, and a voice preview. Another translated a lesson into Chinese and
+recorded a clip from it through a real Codex sign-in kept in a file. A
+sign-in kept in the keychain was tested only with stand-in tokens.
+
 # Checkmate 0.8.0
 
 Play on Network lets two people on the same local network play each other.
