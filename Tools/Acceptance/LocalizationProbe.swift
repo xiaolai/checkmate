@@ -13,11 +13,15 @@ extension AcceptanceProbe {
     /// one clip; never opens the microphone, speaker or released app's data.
     @MainActor static func localizationProbe(_ destination: URL) async {
         guard !NativePolicy.silent else { print("Live localization is disabled during automation."); exit(2) }
-        let root = destination.deletingLastPathComponent(), dataDirectory = root.appendingPathComponent("isolated-data")
+        // Each report gets its own data folder, emptied first: a translation or clip left by an earlier run would make
+        // this run's clip belong to another run's lesson pack, which then refuses it.
+        let root = destination.deletingLastPathComponent()
+        let dataDirectory = root.appendingPathComponent(destination.deletingPathExtension().lastPathComponent + "-data")
         var report: [String: Any] = ["passed": false, "microphoneUsed": false, "speakerUsed": false,
                                    "locale": "zh-Hans", "voice": "cedar", "humanLanguageAcceptance": false]
         do {
             try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+            if FileManager.default.fileExists(atPath: dataDirectory.path) { try FileManager.default.removeItem(at: dataDirectory) }
             let initialAuthHash = LessonTranslation.hash(try Data(contentsOf: VoiceGateway.credentialURL))
             let library = try CourseLibrary(), source = LessonTranslation.source(library: library, index: 0)
             let usage = UsageLedger(directory: dataDirectory.appendingPathComponent("Usage"))
