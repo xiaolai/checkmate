@@ -104,7 +104,7 @@ import RealtimeConnection
     var networkSettingsRequests=0
     /// Lesson languages share the one narration channel and the voice coach's connection.
     private func wireLessonLanguages(){
-        learning.packs=lessonLanguages.store;voice.usageLedger=usage;voice.connectionBlocked={[weak self] in self?.lessonLanguages.recording==true || self?.audio.isNarrationPlaying==true || self?.voicePreview.playing==true}
+        learning.packs=lessonLanguages.store;voice.usageLedger=usage;voice.network=(network,networkAssistant);voice.connectionBlocked={[weak self] in self?.lessonLanguages.recording==true || self?.audio.isNarrationPlaying==true || self?.voicePreview.playing==true}
         voice.connectionBlockReason={[weak self] in self?.lessonLanguages.recording==true ? "Finish or cancel lesson recording before connecting the voice coach.":self?.voicePreview.playing==true ? "Wait for the voice preview to finish before connecting the voice coach.":"Stop lesson or preview playback before connecting the voice coach."}
         reconnectVoice={[weak self] in self?.voice.connect(greet:false)}
         voicePreview.usageLedger=usage;voicePreview.onPlayingChanged={[weak self] playing in self?.voice.externalPlayback=playing}
@@ -179,7 +179,7 @@ import RealtimeConnection
     private(set) var voiceResumeIntent=false
     var reconnectVoice:()->Void={}
     private var claimsWhenVoiceLeft=0
-    private func rememberVoice(){if voice.connected || voice.connecting{voiceResumeIntent=true;claimsWhenVoiceLeft=session.companionClaims}}
+    private func rememberVoice(){if !voice.networkSession,voice.connected || voice.connecting{voiceResumeIntent=true;claimsWhenVoiceLeft=session.companionClaims}}
     func resumeVoiceIfIntended(){
         guard voiceResumeIntent,!away,!shuttingDown,voiceMayConnect else{return}
         if session.companionEnabled || session.companionClaims != claimsWhenVoiceLeft{voiceResumeIntent=false;return}
@@ -512,8 +512,11 @@ import RealtimeConnection
         cancelMoveSounds();voicePreview.cancel()
         switch next {
         case .returnToGame:break
-        case .practice:if !reviewing{learning.pause()};audio.stop()
-        case .lesson,.puzzles,.network:rememberVoice();voice.disconnect();audio.stop()
+        // A coach opened for the network game (assistance plan A10) coaches it only on its own page; the network page
+        // itself keeps it, and ends a practice session.
+        case .practice:if !reviewing{learning.pause()};if voice.networkSession{voice.disconnect()};audio.stop()
+        case .network:if !voice.networkSession{rememberVoice();voice.disconnect()};audio.stop()
+        case .lesson,.puzzles:rememberVoice();voice.disconnect();audio.stop()
         case .reviewWorkspace,.review:learning.pause();rememberVoice();voice.disconnect();audio.stopAll()
         case .importProgress:saveTask?.cancel();voice.disconnect();usage.flushForShutdown();companion.disable();learning.pause();audio.stopAll()
         case .practiceFork:session.cancelWork()

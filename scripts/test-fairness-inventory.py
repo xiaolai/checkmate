@@ -10,6 +10,9 @@ must appear in Tests/fairness-inventory.json as one of:
   assisted   the network game's own hints (assistance plan A8), allowed only in NetworkAssistant.swift: the function
              checks FairnessPolicy.requireNetworkHint() before its first call and again after its last, and gives a
              reason. The scoped check cannot classify any other site, so practice, Review and MCP stay closed.
+  voice      a voice-coach turn entry (assistance plan A10), allowed only in VoiceCoach.swift: the function checks
+             FairnessPolicy.voiceAllowed(network:) before its first call and gives a reason. That check is D8's for a
+             practice session and the learner's agreed level for a network session, so no engine site can use it.
 A new call site, in a new function or as one more call in a listed one, fails until it is classified; so does an entry
 whose site is gone. The self-test copies the sources, adds unguarded calls to a listed file and requires failures.
 """
@@ -29,6 +32,8 @@ VOICE_CALL = re.compile(r'(?<![.\w])(?<!func )request\(')
 CHECK = re.compile(r'fairness\.(?:engineHelpAllowed|requireEngineHelp\(\))')
 ASSIST_CHECK = re.compile(r'fairness\.requireNetworkHint\(\)')
 ASSIST_FILES = {'Sources/CheckmateApplication/NetworkAssistant.swift'}
+VOICE_CHECK = re.compile(r'fairness\.voiceAllowed\(network:')
+VOICE_FILES = {'Sources/CheckmateMacPlatform/VoiceCoach.swift'}
 DECLARATION = re.compile(r'\bfunc\s+(\w+)|\b(init)\s*[(<]|\bvar\s+(\w+)\s*:[^={\n]*\{')
 NO_BODY = re.compile(r'(?:func|var|let|init|case|struct|class|enum|extension)\b|\}')
 
@@ -185,6 +190,13 @@ def check(root, inventory):
                     problems.append(f'{key[0]} {key[1]} is listed assisted but does not check requireNetworkHint before its first call')
                 if not ASSIST_CHECK.search(code, max(offsets), end):
                     problems.append(f'{key[0]} {key[1]} is listed assisted but does not check requireNetworkHint again after its last call')
+        elif kind == 'voice':
+            if key[0] not in VOICE_FILES:
+                problems.append(f'{key[0]} {key[1]} is listed voice, which only the voice coach may be')
+            elif not (entry.get('reason') or '').strip():
+                problems.append(f'{key[0]} {key[1]} is voice without a reason')
+            elif not VOICE_CHECK.search(code, start, min(offsets)):
+                problems.append(f'{key[0]} {key[1]} is listed voice but does not check voiceAllowed before its first call')
         elif kind == 'exempt':
             if not (entry.get('reason') or '').strip():
                 problems.append(f'{key[0]} {key[1]} is exempt without a reason')
@@ -233,6 +245,18 @@ def self_test(inventory):
             if entry['function'] == 'chooseOpponentMove':
                 entry.update(kind='assisted', reason='sneaking practice through the scoped check')
         assert any('only the network assistant' in p for p in check(fixture, widened)), 'a practice site listed assisted passed'
+        # A voice turn entry without its check fails; so does an engine site listed as voice.
+        coach = fixture / 'Sources/CheckmateMacPlatform/VoiceCoach.swift'
+        voice, guard = coach.read_text(), 'public func recheck(){guard session.fairness.voiceAllowed(network:networkSession) else{return};'
+        assert guard in voice, 'the fixture marker moved; update the self-test'
+        coach.write_text(voice.replace(guard, 'public func recheck(){', 1))
+        assert any('recheck' in p and 'voiceAllowed' in p for p in check(fixture, inventory)), 'a voice entry without its check passed'
+        coach.write_text(voice)
+        widened = json.loads(json.dumps(inventory))
+        for entry in widened['sites']:
+            if entry['function'] == 'chooseOpponentMove':
+                entry.update(kind='voice', reason='sneaking practice through the voice check')
+        assert any('only the voice coach' in p for p in check(fixture, widened)), 'an engine site listed voice passed'
 
 
 if __name__ == '__main__':

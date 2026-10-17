@@ -39,6 +39,18 @@ import Foundation
     /// The Hint button: hints allowed, the learner's move, nothing searching and no hint shown yet this turn.
     public var canAsk:Bool {level >= .hints && game.yourTurn && engine != nil && !thinking && hint==nil}
     public func ask(){start(automatic:false)}
+    /// The voice coach's hint (A10): this turn's hint, searched as the Hint button's is if none is shown or searching,
+    /// and shown on the board the same way, so it flags the turn as assisted (A7). Refused off the learner's move or
+    /// below `hints`; a search that ends without a hint for this turn is an error.
+    public func coachHint()async throws -> Hint {
+        try fairness.requireNetworkHint()
+        guard game.yourTurn else{throw CheckmateError.invalid("NOT_YOUR_MOVE")}
+        if hint==nil,!thinking{start(automatic:false)}
+        let search=work;await search?.value
+        try fairness.requireNetworkHint()
+        guard let hint,game.yourTurn else{throw CheckmateError.unavailable(Self.unavailable)}
+        return hint
+    }
     /// Follows the game after every event (A6): a hint or search from another turn, or one the level no longer allows,
     /// goes; a guided turn starts its automatic hint.
     public func sync(){

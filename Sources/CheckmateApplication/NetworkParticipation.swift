@@ -40,6 +40,10 @@ import Foundation
     public var networkAssistance:NetworkAssistanceLevel {participation.role == .player ? participation.assistance:.off}
     /// Refuses a network hint unless the learner's agreed level allows hints (A8).
     public func requireNetworkHint()throws {guard networkAssistance >= .hints else{throw CheckmateError.invalid(Self.refusal)}}
+    /// Whether a voice-coach session may act (A10, amending D8). A session opened for practice (`network` false) acts
+    /// only outside a network game, as D8 says; one opened for the learner's network game acts only while they play it
+    /// at `hints` or `guided`. Each kind ends when the other's condition starts, so neither carries into the other.
+    public func voiceAllowed(network:Bool)->Bool {network ? networkAssistance >= .hints:engineHelpAllowed}
     /// The error code MCP tools and refused calls carry while participating (D15).
     public static let refusal="NETWORK_GAME"
     public static let practicePaused="Paused during your network game"

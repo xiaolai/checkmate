@@ -9,6 +9,7 @@ struct NetworkDetail:View {
     @ObservedObject var model:NativeModel
     @ObservedObject var game:NetworkGameController
     @ObservedObject var assistant:NetworkAssistant
+    @ObservedObject var voice:VoiceCoach
     @State private var chosen:String?
     /// The game whose assistance the Accept sheet asks about (A3).
     @State private var offered:NetworkDiscoveredGame?
@@ -66,7 +67,7 @@ struct NetworkDetail:View {
     // MARK: Session
     @ViewBuilder private var session:some View {
         if game.part == .host,game.outcome==nil,game.sessionOpen,let play=game.playCode {codes(play)}
-        if game.seat != nil {players;assistance}
+        if game.seat != nil {players;assistance;voiceCoach}
         if let status=game.statusText{Text(status).fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("network-status")}
         if game.part == .host,game.holdExpired {
             HStack {
@@ -117,6 +118,21 @@ struct NetworkDetail:View {
             else if assistant.thinking {ProgressView(NetworkWording.findingHint).controlSize(.small).accessibilityIdentifier("network-hint-thinking")}
             else if game.yourTurn {Button("Hint"){assistant.ask()}.disabled(!assistant.canAsk).accessibilityIdentifier("network-hint-button")}
             if let error=assistant.error {Text(error).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("network-hint-error")}
+        }
+    }
+    /// The voice coach for this network game (A10): offered only while the learner's level allows hints. The
+    /// microphone follows Settings, as in Practice.
+    @ViewBuilder private var voiceCoach:some View {
+        if voice.networkVoiceAvailable,game.outcome==nil {
+            if voice.connected,voice.networkSession {
+                Text(voice.status).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("network-voice-status")
+                HStack {
+                    Button("Stop Speaking"){voice.stopTurn()}.disabled(!voice.canStopTurn).accessibilityIdentifier("network-voice-stop")
+                    Button("Disconnect Coach"){voice.disconnect()}.accessibilityIdentifier("network-voice-disconnect")
+                }
+                ForEach(Array(voice.history.suffix(3).reversed())){entry in Text((entry.role=="learner" ? "You: ":"Coach: ")+entry.text).font(.caption).fixedSize(horizontal:false,vertical:true)}
+            } else if voice.connecting {Button("Cancel Voice Coach"){voice.disconnect()}.accessibilityIdentifier("network-voice-cancel")}
+            else {Button("Connect Voice Coach"){voice.connect()}.accessibilityIdentifier("network-voice-connect")}
         }
     }
     private var leaveTitle:String {

@@ -191,6 +191,23 @@ import CheckmateCore
         XCTAssertNil(game.relationships.mode,"P does nothing without assistance");XCTAssertNil(game.relationships.selectedLabel)
     }
 
+    /// Assistance plan A10: the app hands the coach its network game, and offers it at `hints`. A session opened for the
+    /// game stays while the network page is chosen again, ends when the learner goes to Practice and is not resumed
+    /// there; at `off` it is not offered.
+    func testTheVoiceCoachFollowsTheNetworkPage()throws {
+        let model=try NativeModel();defer{model.shutdown()}
+        let lan=LAN();model.network.form.assistance=NetworkAssistance(both:.hints)
+        _=try hostedGame(model,lan);model.playOnNetwork()
+        XCTAssertTrue(model.voice.network?.game===model.network);XCTAssertTrue(model.voice.network?.assistant===model.networkAssistant);XCTAssertTrue(model.voice.networkVoiceAvailable)
+        try model.voice.automationOpen();model.voice.receive(["type":"session.updated"])
+        XCTAssertTrue(model.voice.networkSession);XCTAssertTrue(model.voice.connected)
+        model.playOnNetwork();XCTAssertTrue(model.voice.connected,"choosing the network page again keeps the coach")
+        try model.transition(.practice);XCTAssertFalse(model.voice.connected,"the game's coach stays on the game's page");XCTAssertFalse(model.voiceResumeIntent,"and is not resumed in Practice")
+        model.network.leave();lan.scheduler.run()
+        let plain=LAN();model.network.form.assistance = .off;_=try hostedGame(model,plain)
+        XCTAssertFalse(model.voice.networkVoiceAvailable,"no coach without hints")
+    }
+
     /// D12: an isolated automation run with `CHECKMATE_NETWORK_LOOPBACK_DIR` gets loopback listeners and the shared
     /// directory's discovery, and its hosted games are published there; without it, a build declaring no Bonjour
     /// service type says it cannot browse.

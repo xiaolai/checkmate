@@ -100,6 +100,9 @@ import SaidGuard
             // Review narration through the production coach: the review's verified facts, each segment narrated and verified.
             let narration=try await reviewNarration();report["reviewNarration"]=narration
             guard narration["passed"] as? Bool==true else{throw CheckmateError.unavailable("Live review narration failed")}
+            // Assistance plan A10: a coach connected to the learner's network game at hints answers with that game's tools.
+            let network=try await networkCoachTurn();report["networkCoachTurn"]=network
+            guard network["passed"] as? Bool==true else{throw CheckmateError.unavailable("The live network-game coach turn failed")}
             // D6: the Settings preview in another voice, through its own session, ends by itself and records its usage.
             let preview=try await voicePreview(model:report["selectedModel"] as? String ?? VoiceSessionConfiguration.model);report["preview"]=preview
             guard preview["passed"] as? Bool==true else{throw CheckmateError.unavailable("The voice preview failed")}
@@ -161,6 +164,33 @@ import SaidGuard
         let failures:Set<String>=[VoiceCoach.turnFailure,VoiceCoach.turnTimeout,VoiceCoach.turnUnfinished]
         let passed=answered && coach.connected && (counts[.verified] ?? 0)>0 && (counts[.unverified] ?? 0)==0 && !failures.contains(coach.status)
         return ["language":language,"passed":passed,"seconds":Date().timeIntervalSince(started),"model":coach.selectedModel,"verifiedSegments":counts[.verified] ?? 0,"unverifiedSegments":counts[.unverified] ?? 0,"interruptedSegments":counts[.interrupted] ?? 0,"coachTranscript":coachLines,"status":coach.status]
+    }
+    /// Assistance plan A10: a coach connected to the learner's network game at `hints` (an in-memory LAN, the real
+    /// engine) answers a typed question on the learner's own move with the network game's tools only, every segment
+    /// narrated and verified, and what it said flags that move as assisted (A7).
+    @MainActor static func networkCoachTurn()async throws -> [String:Any] {
+        let directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);defer{try? FileManager.default.removeItem(at:directory)}
+        let scheduler=NetworkManualScheduler(),transport=NetworkMemoryTransport(scheduler:scheduler),discovery=NetworkFixedDiscovery(scheduler:scheduler)
+        let services={NetworkServices(transport:transport,discovery:discovery,scheduler:scheduler,delivery:.immediate,rules:NetworkRulesFactory{try ChessRules()},hashing:NetworkHashing(reviewHash),appVersion:"probe",listenersReady:{configuration,endpoints in discovery.publish(configuration.roles.compactMap{role in endpoints[role].map{NetworkServiceRecord.published(configuration,role,at:$0)}})})}
+        let fairness=FairnessPolicy(),terms=NetworkAssistance(both:.hints)
+        let ana=try NetworkGameController(services:services(),participation:fairness.participation,playerName:"Ana"),ben=try NetworkGameController(services:services(),participation:NetworkParticipation(),playerName:"Ben")
+        ana.form.assistance=terms;guard ana.host() else{return ["passed":false,"failure":"the game could not be hosted"]};scheduler.run()
+        ben.setShown(true);scheduler.run()
+        guard let entry=ben.games.first,let code=ana.playCode,ben.join(entry,code:code.grouped,accepting:terms) else{return ["passed":false,"failure":"the game could not be joined"]};scheduler.run()
+        guard fairness.networkAssistance == .hints,ana.yourTurn else{return ["passed":false,"failure":"the game did not start at hints"]}
+        let session=try GameSession(engine:nil,fairness:fairness);session.state.settings.voiceMicrophone=false;session.state.settings.voiceLanguage="en"
+        let coach=try VoiceCoach(session:session),ledger=UsageLedger(directory:directory),assistant=NetworkAssistant(game:ana,fairness:fairness,engine:NativeEngine())
+        coach.usageLedger=ledger;coach.audio.headless=true;coach.network=(ana,assistant)
+        defer{coach.disconnect();ana.leave();scheduler.run()}
+        func wait(_ seconds:Double,_ condition:()->Bool)async -> Bool {let end=Date().addingTimeInterval(seconds);while Date()<end{if condition(){return true};try? await Task.sleep(for:.milliseconds(100))};return condition()}
+        let started=Date();coach.connect()
+        guard await wait(40,{coach.connected}) else{return ["passed":false,"failure":"not connected: \(coach.status)"]}
+        coach.ask("Which move should I consider here, and why?")
+        let answered=await wait(120,{!coach.canStopTurn && coach.history.contains{$0.role=="coach"} && !coach.status.hasPrefix("Coach is thinking")})
+        let counts=ledger.narrationCounts(),coachLines=coach.history.filter{$0.role=="coach"}.map(\.text)
+        let failures:Set<String>=[VoiceCoach.turnFailure,VoiceCoach.turnTimeout,VoiceCoach.turnUnfinished]
+        let passed=answered && coach.connected && coach.networkSession && (counts[.verified] ?? 0)>0 && (counts[.unverified] ?? 0)==0 && !failures.contains(coach.status) && ana.assistedThisTurn
+        return ["passed":passed,"seconds":Date().timeIntervalSince(started),"model":coach.selectedModel,"networkSession":coach.networkSession,"assistedFlagged":ana.assistedThisTurn,"hintShown":assistant.hint?.uci ?? NSNull(),"verifiedSegments":counts[.verified] ?? 0,"unverifiedSegments":counts[.unverified] ?? 0,"coachTranscript":coachLines,"status":coach.status]
     }
     @MainActor static func downgradeFixture(_ root:URL,prepare:Bool)throws {
         let store=StateStore(directory:root.appendingPathComponent("Data")),reviews=ReviewStore(directory:store.directory.appendingPathComponent("Reviews"))
