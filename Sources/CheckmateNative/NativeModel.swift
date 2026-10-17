@@ -14,6 +14,8 @@ import RealtimeConnection
     let reviewStore:ReviewStore,reviewAnalyzer:ReviewAnalyzer
     /// The network-game fairness check every engine and voice component shares (LAN-play plan D8), and the network game.
     let fairness:FairnessPolicy,network:NetworkGameController
+    /// The network game's own hints, under its agreed terms (assistance plan A8).
+    let networkAssistant:NetworkAssistant
     @Published var reviews:[ReviewIndexEntry]=[]
     /// The review workspace and a draft review are part of the session's activity (B8.2), not flags of their own.
     var reviewWorkspace:Bool {session.activity.inReviewWorkspace}
@@ -72,7 +74,7 @@ import RealtimeConnection
         // One fairness check for every component that can reach the engine or the voice coach (LAN-play plan D8).
         let engine=NativeEngine(),fairness=FairnessPolicy();self.fairness=fairness;reviewAnalyzer=ReviewAnalyzer(engine:engine,cacheDirectory:store.directory.appendingPathComponent("ReviewAnalysis"),fairness:fairness);reviewStore=ReviewStore(directory:store.directory.appendingPathComponent("Reviews"))
         reviewSaves=ReviewSaveCoordinator(store:reviewStore)
-        session=try GameSession(engine:engine,state:state,fairness:fairness);review.fairness=fairness;network=try NetworkGameController(services:Self.networkServices(directory:store.directory),participation:fairness.participation,playerName:Self.defaultPlayerName);session.network=network;learning=try LearningPlayer(session:session);audio=NativeAudio(scores:learning.library.sounds);learning.audio=audio
+        session=try GameSession(engine:engine,state:state,fairness:fairness);review.fairness=fairness;network=try NetworkGameController(services:Self.networkServices(directory:store.directory),participation:fairness.participation,playerName:Self.defaultPlayerName);session.network=network;networkAssistant=NetworkAssistant(game:network,fairness:fairness,engine:engine);learning=try LearningPlayer(session:session);audio=NativeAudio(scores:learning.library.sounds);learning.audio=audio
         training=TrainingRolloutPolicy.enabled ? TrainingController(session:session,learning:learning):nil;training?.games.engine=engine;training?.games.fairness=fairness
         companion=try CompanionBroker(session:session,directory:store.directory.appendingPathComponent("companion"));voice=try VoiceCoach(session:session)
         usage=UsageLedger(directory:store.directory.appendingPathComponent("Usage"))

@@ -20,7 +20,7 @@ for raw in sys.stdin:
   print('id name Fake UCI',flush=True);print('option name Skill Level type spin default 20 min 0 max 20',flush=True);print('option name UCI_LimitStrength type check default false',flush=True);print('uciok',flush=True)
  elif s=='isready':print('readyok',flush=True)
  elif s.startswith('go'):
-  with open(os.path.join(os.path.dirname(__file__),'searches'),'a') as f:f.write('go\\n')
+  with open(os.path.join(os.path.dirname(__file__),'searches'),'a') as f:f.write(s+'\\n')
   time.sleep(\(delay))
   if \(stall ? "True":"False"):time.sleep(30)
   print('info depth 4 multipv 1 score cp 40 lowerbound nodes 100 time 1 wdl 400 400 200 pv e2e4',flush=True)
@@ -33,16 +33,30 @@ for raw in sys.stdin:
     func testCancelledReservedEpochDoesNotLaunch()throws {
         let (path,directory)=try executable();defer{try? FileManager.default.removeItem(at:directory)}
         let worker=UCIWorker(executable:path),epoch=worker.reserve(),fen=try ChessRules().fen;worker.cancel(expected:epoch)
-        XCTAssertThrowsError(try worker.search(startFEN:fen,moves:[],finalFEN:fen,profile:.skill(20),budget:100,multiPv:1,searchMoves:[],epoch:epoch))
+        XCTAssertThrowsError(try worker.search(startFEN:fen,moves:[],finalFEN:fen,profile:.skill(20),limit:.movetime(100),multiPv:1,searchMoves:[],epoch:epoch))
         XCTAssertFalse(FileManager.default.fileExists(atPath:directory.appendingPathComponent("launches").path))
     }
     func testOldEpochCancellationCannotKillNewSearch()async throws {
         let (path,directory)=try executable(delay:0.2);defer{try? FileManager.default.removeItem(at:directory)}
         let worker=UCIWorker(executable:path),old=worker.reserve(),fen=try ChessRules().fen;worker.cancel(expected:old);let current=worker.reserve()
-        let task=Task.detached{try worker.search(startFEN:fen,moves:[],finalFEN:fen,profile:.skill(20),budget:500,multiPv:1,searchMoves:[],epoch:current)}
+        let task=Task.detached{try worker.search(startFEN:fen,moves:[],finalFEN:fen,profile:.skill(20),limit:.movetime(500),multiPv:1,searchMoves:[],epoch:current)}
         for _ in 0..<100 where !FileManager.default.fileExists(atPath:directory.appendingPathComponent("searches").path){try await Task.sleep(for:.milliseconds(10))}
         XCTAssertTrue(FileManager.default.fileExists(atPath:directory.appendingPathComponent("searches").path));worker.cancel(expected:old)
         let result=try await task.value;XCTAssertEqual(result.bestMove,"e2e4");XCTAssertEqual(try String(contentsOf:directory.appendingPathComponent("launches"),encoding:.utf8),"launch\n")
+    }
+
+    /// Assistance plan A5: a node limit reaches the engine as `go nodes`, bounded, with no time budget; a time is still
+    /// `go movetime`.
+    func testANodeLimitIsSentAsGoNodes()async throws {
+        let (path,directory)=try executable();defer{try? FileManager.default.removeItem(at:directory)}
+        let engine=NativeEngine(executable:path),fen=try ChessRules().fen
+        let nodes=try await engine.analyzeHistory(startFEN:fen,moves:["e2e4"],profile:.skill(20),limit:.nodes(NetworkAssistance.hintNodes),multiPv:1)
+        XCTAssertEqual(nodes.budgetMs,0);XCTAssertEqual(nodes.bestMove,"e2e4")
+        _ = try await engine.analyzeHistory(startFEN:fen,moves:[],profile:.skill(20),limit:.nodes(1),multiPv:1)
+        _ = try await engine.analyzeHistory(startFEN:fen,moves:[],profile:.skill(20),limit:.movetime(350),multiPv:1)
+        _ = try await engine.analyzeHistory(startFEN:fen,moves:[],profile:.skill(20),budget:350,multiPv:1)
+        let searches=try String(contentsOf:directory.appendingPathComponent("searches"),encoding:.utf8).split(separator:"\n").map(String.init)
+        XCTAssertEqual(searches,["go nodes 400000","go nodes 1000","go movetime 350","go movetime 350"])
     }
 
     func testFailedHistoryCannotPoisonCachedRules()async throws {

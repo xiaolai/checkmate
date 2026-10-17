@@ -4,11 +4,11 @@ import XCTest
 import CheckmateRules
 import CheckmateSupport
 
-/// What one Mac's VoiceOver was asked to say, in order.
-private final class Heard {var lines:[String]=[];func count(_ line:String)->Int {lines.filter{$0==line}.count}}
+/// What one Mac's VoiceOver was asked to say, in order. Shared with the network assistant's tests.
+final class Heard {var lines:[String]=[];func count(_ line:String)->Int {lines.filter{$0==line}.count}}
 /// Several Macs on one local network, in memory: one manual scheduler and transport, and each Mac's own discovery fed
 /// with the records a host publishes when its listeners are ready, as the loopback gate does (D12).
-private final class MemoryLAN {
+final class MemoryLAN {
     let scheduler=NetworkManualScheduler()
     let transport:NetworkMemoryTransport
     let root=FileManager.default.temporaryDirectory.appendingPathComponent("checkmate-lan-\(UUID().uuidString)",isDirectory:true)
@@ -34,7 +34,7 @@ private final class MemoryLAN {
     var guestConnection:NetworkTransportConnection? {transport.links.last{$0.key.role == .seat && $0.open && $0.connection != nil}?.connection}
 }
 /// One Mac's Checkmate: its network game, its participation (D8), its crash file (D9) and what VoiceOver heard.
-@MainActor private final class Mac {
+@MainActor final class Mac {
     let game:NetworkGameController,participation=NetworkParticipation(),heard=Heard(),crashFile:NetworkCrashFile
     /// Every change of participation, in order.
     private(set) var roles:[NetworkParticipation.Role?]=[]
@@ -60,22 +60,22 @@ private final class ScriptedDiscovery:NetworkDiscovery {
 /// joining and watching from the lobby, the shown game on every Mac, pending moves, participation and the crash file,
 /// leaving, the hold, draws, clocks and what VoiceOver hears, and the review record.
 @MainActor final class NetworkControllerTests:XCTestCase {
-    private func hosting(_ lan:MemoryLAN,_ name:String="Ana",file:StaticString=#filePath,line:UInt=#line,_ settings:(inout NetworkHostForm)->Void={_ in})throws -> Mac {
+    func hosting(_ lan:MemoryLAN,_ name:String="Ana",file:StaticString=#filePath,line:UInt=#line,_ settings:(inout NetworkHostForm)->Void={_ in})throws -> Mac {
         let mac=try Mac(lan,name:name);settings(&mac.game.form)
         XCTAssertTrue(mac.game.host(),"the game is hosted",file:file,line:line);lan.scheduler.run()
         return mac
     }
     /// A Mac that opens the network place, picks the only game found and types the host's code.
-    private func joining(_ lan:MemoryLAN,_ name:String,_ host:Mac,watching:Bool=false,file:StaticString=#filePath,line:UInt=#line)throws -> Mac {
+    func joining(_ lan:MemoryLAN,_ name:String,_ host:Mac,watching:Bool=false,accepting:NetworkAssistance?=nil,file:StaticString=#filePath,line:UInt=#line)throws -> Mac {
         let mac=try Mac(lan,name:name);mac.game.setShown(true);lan.scheduler.run()
         let entry=try XCTUnwrap(mac.game.games.first,"the hosted game is found",file:file,line:line)
         let code=try XCTUnwrap(watching ? host.game.watchCode:host.game.playCode,file:file,line:line)
-        XCTAssertTrue(mac.game.join(entry,code:code.grouped.lowercased(),watching:watching),file:file,line:line);lan.scheduler.run()
+        XCTAssertTrue(mac.game.join(entry,code:code.grouped.lowercased(),watching:watching,accepting:accepting),file:file,line:line);lan.scheduler.run()
         XCTAssertEqual(mac.game.link,.live,"\(name) is in the game",file:file,line:line)
         return mac
     }
     /// A move made on the board with two clicks: pending until the game answers, then on every board.
-    private func play(_ mac:Mac,_ from:String,_ to:String,_ lan:MemoryLAN,file:StaticString=#filePath,line:UInt=#line){
+    func play(_ mac:Mac,_ from:String,_ to:String,_ lan:MemoryLAN,file:StaticString=#filePath,line:UInt=#line){
         let piece=mac.game.board[from]
         mac.game.click(from);mac.game.click(to)
         XCTAssertEqual(mac.game.pending?.uci,from+to,"the move is pending",file:file,line:line);XCTAssertEqual(mac.game.notice,NetworkGameController.sendingNotice,file:file,line:line)

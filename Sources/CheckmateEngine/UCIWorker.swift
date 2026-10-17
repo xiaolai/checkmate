@@ -38,11 +38,15 @@ final class UCIWorker:@unchecked Sendable {
         try process.run();lifecycle.lock();guard generation==epoch else{lifecycle.unlock();process.terminate();throw CheckmateError.cancelled};self.process=process;lifecycle.unlock();input=inPipe.fileHandleForWriting;output=outPipe.fileHandleForReading
         try send("uci");try barrier("uciok");try send("isready");try barrier("readyok")
     }
-    func search(startFEN:String,moves:[String],finalFEN:String,profile:OpponentProfile,budget:Int,multiPv:Int,searchMoves:[String],epoch:Int)throws -> EngineAnalysis {
+    /// `limit` is a time in milliseconds or a node count (A5); the calibration nodes of a silent run replace either.
+    func search(startFEN:String,moves:[String],finalFEN:String,profile:OpponentProfile,limit:EngineSearchLimit,multiPv:Int,searchMoves:[String],epoch:Int)throws -> EngineAnalysis {
         serial.lock();defer{serial.unlock()}
         guard isCurrent(epoch) else{throw CheckmateError.cancelled}
         try startWithinAllowance(epoch:epoch)
-        let timeout=DispatchWorkItem{[weak self] in self?.cancel(expected:epoch)};DispatchQueue.global().asyncAfter(deadline:.now()+Double(budget)/1000+2,execute:timeout);defer{timeout.cancel()}
+        // A node search has no time of its own; ten seconds is far beyond any node count the app asks for.
+        let budget:Int,go:String
+        switch limit {case .movetime(let milliseconds):budget=milliseconds;go="go movetime \(milliseconds)";case .nodes(let nodes):budget=0;go="go nodes \(nodes)"}
+        let timeout=DispatchWorkItem{[weak self] in self?.cancel(expected:epoch)};DispatchQueue.global().asyncAfter(deadline:.now()+(budget>0 ? Double(budget)/1000+2:10),execute:timeout);defer{timeout.cancel()}
         do {
             guard isCurrent(epoch) else{throw CheckmateError.cancelled};try send("ucinewgame")
             var options=AnalysisPolicy.options;for (key,value) in profile.options{options[key]=value};options["MultiPV"]=String(multiPv)
@@ -52,7 +56,7 @@ final class UCIWorker:@unchecked Sendable {
             try send("isready");try barrier("readyok")
             try send("position fen \(startFEN)"+(moves.isEmpty ? "":" moves "+moves.joined(separator:" ")))
             let calibrationNodes=NativePolicy.silent ? Int(ProcessInfo.processInfo.environment["CHECKMATE_CALIBRATION_NODES"] ?? ""):nil
-            let command=calibrationNodes.map{"go nodes \(max(100,min(100000,$0)))"} ?? "go movetime \(budget)"
+            let command=calibrationNodes.map{"go nodes \(max(100,min(100000,$0)))"} ?? go
             try send(command+(searchMoves.isEmpty ? "":" searchmoves "+searchMoves.joined(separator:" ")))
             var snapshots:[Int:[Int:AnalysisLine]]=[:],best:String?,finished=false
             let sign=finalFEN.split(separator:" ")[1]=="w" ? 1:-1

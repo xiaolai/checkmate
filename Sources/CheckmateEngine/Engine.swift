@@ -28,6 +28,15 @@ import Combine
         try await analyzeHistory(startFEN:fen,moves:[],profile:.skill(max(0,min(20,skill))),budget:max(100,min(1000,budget)),multiPv:max(1,min(3,multiPv)))
     }
     public func analyzeHistory(startFEN:String,moves:[String],profile:OpponentProfile,budget:Int,multiPv:Int,searchMoves:[String]=[])async throws -> EngineAnalysis {
+        try await search(startFEN:startFEN,moves:moves,profile:profile,limit:.movetime(max(100,min(3000,budget))),multiPv:multiPv,searchMoves:searchMoves)
+    }
+    /// A node-limited search searches exactly as far on every Mac (assistance plan A5).
+    public func analyzeHistory(startFEN:String,moves:[String],profile:OpponentProfile,limit:EngineSearchLimit,multiPv:Int)async throws -> EngineAnalysis {
+        let bounded:EngineSearchLimit
+        switch limit {case .movetime(let budget):bounded = .movetime(max(100,min(3000,budget)));case .nodes(let nodes):bounded = .nodes(max(1000,min(5_000_000,nodes)))}
+        return try await search(startFEN:startFEN,moves:moves,profile:profile,limit:bounded,multiPv:multiPv,searchMoves:[])
+    }
+    private func search(startFEN:String,moves:[String],profile:OpponentProfile,limit:EngineSearchLimit,multiPv:Int,searchMoves:[String])async throws -> EngineAnalysis {
         if binaryIdentity.isEmpty{binaryIdentity=try await identityTask.value}
         guard waiting<8 else{throw CheckmateError.unavailable("BUSY")};waiting+=1;defer{waiting-=1}
         // A clock that stops while the Mac sleeps: waking must not turn a short wait into a false "BUSY".
@@ -44,7 +53,7 @@ import Combine
         let legal=rules.moves()
         guard searchMoves.allSatisfy({uci in legal.contains{$0.uci==uci}}) else{throw CheckmateError.invalid("Illegal searchmoves constraint.")}
         let worker=worker,fen=rules.fen,epoch=worker.reserve(),lines=max(1,min(16,multiPv,max(1,searchMoves.isEmpty ? legal.count:searchMoves.count)))
-        var result=try await withTaskCancellationHandler(operation:{try await Task.detached(priority:.userInitiated){try worker.search(startFEN:startFEN,moves:canonical,finalFEN:fen,profile:profile,budget:max(100,min(3000,budget)),multiPv:lines,searchMoves:searchMoves,epoch:epoch)}.value},onCancel:{worker.cancel(expected:epoch)})
+        var result=try await withTaskCancellationHandler(operation:{try await Task.detached(priority:.userInitiated){try worker.search(startFEN:startFEN,moves:canonical,finalFEN:fen,profile:profile,limit:limit,multiPv:lines,searchMoves:searchMoves,epoch:epoch)}.value},onCancel:{worker.cancel(expected:epoch)})
         capabilities=worker.metadata()
         result.lines=try result.lines.compactMap{line in try autoreleasepool{var line=line;let replay=try ChessRules(fen:fen);do{line.san=try line.pv.map{try replay.move(uci:$0).san};return line}catch{return nil}}}
         return result

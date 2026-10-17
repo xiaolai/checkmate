@@ -6,7 +6,10 @@ must appear in Tests/fairness-inventory.json as one of:
   guarded    the enclosing function checks FairnessPolicy itself, before its first such call;
   delegated  a helper called only by its listed callers, each of which checks FairnessPolicy before calling it; before
              each of the helper's calls that follows an earlier `await`, it checks FairnessPolicy again (R5-2);
-  exempt     a stated reason, such as the package check, which runs no session.
+  exempt     a stated reason, such as the package check, which runs no session;
+  assisted   the network game's own hints (assistance plan A8), allowed only in NetworkAssistant.swift: the function
+             checks FairnessPolicy.requireNetworkHint() before its first call and again after its last, and gives a
+             reason. The scoped check cannot classify any other site, so practice, Review and MCP stay closed.
 A new call site, in a new function or as one more call in a listed one, fails until it is classified; so does an entry
 whose site is gone. The self-test copies the sources, adds unguarded calls to a listed file and requires failures.
 """
@@ -24,6 +27,8 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 ENGINE_CALL = re.compile(r'\.analyze\(fen:|(?<!func )\banalyzeHistory\(startFEN:|\b\w*[Ee]ngine\)?\??\.prepare\(\)')
 VOICE_CALL = re.compile(r'(?<![.\w])(?<!func )request\(')
 CHECK = re.compile(r'fairness\.(?:engineHelpAllowed|requireEngineHelp\(\))')
+ASSIST_CHECK = re.compile(r'fairness\.requireNetworkHint\(\)')
+ASSIST_FILES = {'Sources/CheckmateApplication/NetworkAssistant.swift'}
 DECLARATION = re.compile(r'\bfunc\s+(\w+)|\b(init)\s*[(<]|\bvar\s+(\w+)\s*:[^={\n]*\{')
 NO_BODY = re.compile(r'(?:func|var|let|init|case|struct|class|enum|extension)\b|\}')
 
@@ -169,6 +174,17 @@ def check(root, inventory):
                 earlier = [m.start() for m in re.finditer(r'\bawait\b', code[start:offset - 40])]
                 if earlier and not CHECK.search(code, start + earlier[-1], offset):
                     problems.append(f'{key[0]} {key[1]}: a call after an earlier await has no FairnessPolicy check before it')
+        elif kind == 'assisted':
+            if key[0] not in ASSIST_FILES:
+                problems.append(f'{key[0]} {key[1]} is listed assisted, which only the network assistant may be')
+            elif not (entry.get('reason') or '').strip():
+                problems.append(f'{key[0]} {key[1]} is assisted without a reason')
+            else:
+                end = max(span[2] for span in spans)
+                if not ASSIST_CHECK.search(code, start, min(offsets)):
+                    problems.append(f'{key[0]} {key[1]} is listed assisted but does not check requireNetworkHint before its first call')
+                if not ASSIST_CHECK.search(code, max(offsets), end):
+                    problems.append(f'{key[0]} {key[1]} is listed assisted but does not check requireNetworkHint again after its last call')
         elif kind == 'exempt':
             if not (entry.get('reason') or '').strip():
                 problems.append(f'{key[0]} {key[1]} is exempt without a reason')
@@ -204,6 +220,19 @@ def self_test(inventory):
         assert guard in original, 'the fixture marker moved; update the self-test'
         session.write_text(original.replace(guard, guard.replace('try fairness.requireEngineHelp()', ''), 1))
         assert any('chooseOpponentMove' in p for p in check(fixture, inventory)), 'a guarded function without its guard passed'
+        session.write_text(original)
+        # The network assistant without its check after the search fails; so does a practice site listed as assisted.
+        assistant = fixture / 'Sources/CheckmateApplication/NetworkAssistant.swift'
+        hint, after = assistant.read_text(), 'try self.fairness.requireNetworkHint()'
+        assert after in hint, 'the fixture marker moved; update the self-test'
+        assistant.write_text(hint.replace(after, '', 1))
+        assert any('again after its last call' in p for p in check(fixture, inventory)), 'an assistant without its re-check passed'
+        assistant.write_text(hint)
+        widened = json.loads(json.dumps(inventory))
+        for entry in widened['sites']:
+            if entry['function'] == 'chooseOpponentMove':
+                entry.update(kind='assisted', reason='sneaking practice through the scoped check')
+        assert any('only the network assistant' in p for p in check(fixture, widened)), 'a practice site listed assisted passed'
 
 
 if __name__ == '__main__':

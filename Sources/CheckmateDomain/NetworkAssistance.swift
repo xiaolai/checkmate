@@ -19,6 +19,10 @@ public struct NetworkAssistance:Codable,Hashable,CustomStringConvertible {
     /// The same level for both sides: the default shape of the terms.
     public init(both level:NetworkAssistanceLevel){self.init(white:level,black:level)}
     public static let off=NetworkAssistance(both:.off)
+    /// Every network hint's search (A5): full strength, one line, and a fixed node count, so both Macs get the same
+    /// engine whatever their speed. 400,000 nodes took at most about 250 ms on the test host (2026-10-17), leaving room
+    /// for a Mac half as fast to answer within half a second.
+    public static let hintSkill=20,hintNodes=400_000
     public func level(_ side:NetworkSide)->NetworkAssistanceLevel {side == .white ? white:black}
     /// Anything but the same level for both sides is a handicap, and the interface always calls it one (A2).
     public var symmetric:Bool {white==black}

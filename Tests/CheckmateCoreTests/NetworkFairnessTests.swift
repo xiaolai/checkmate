@@ -30,6 +30,15 @@ import CheckmateCore
             let legal=searchMoves.isEmpty ? rules.moves().map(\.uci).sorted():searchMoves
             return EngineAnalysis(bestMove:legal.first,lines:legal.prefix(max(1,multiPv)).enumerated().map{AnalysisLine(depth:12,multiPv:$0.offset+1,score:AnalysisScore(kind:"cp",value:-$0.offset*5),pv:[$0.element],san:[])})
         }
+        /// Node-limited searches (assistance plan A5), which only the network assistant asks for, and their profiles.
+        private(set) var limits:[EngineSearchLimit]=[],profiles:[OpponentProfile]=[],multiPvs:[Int]=[]
+        private(set) var nodeCallsWhileParticipating=0
+        /// Calls made while participating by anything but the network assistant: always zero (A8).
+        var otherCallsWhileParticipating:Int {callsWhileParticipating-nodeCallsWhileParticipating}
+        func analyzeHistory(startFEN:String,moves:[String],profile:OpponentProfile,limit:EngineSearchLimit,multiPv:Int)async throws -> EngineAnalysis {
+            limits.append(limit);profiles.append(profile);multiPvs.append(multiPv);if participation?.role != nil{nodeCallsWhileParticipating+=1}
+            return try await analyzeHistory(startFEN:startFEN,moves:moves,profile:profile,budget:0,multiPv:multiPv,searchMoves:[])
+        }
         private func record(){calls+=1;if participation?.role != nil{callsWhileParticipating+=1}}
         /// Lets the oldest held call finish; later ones stay held.
         func releaseFirst(){guard !waiting.isEmpty else{return};waiting.removeFirst().resume()}

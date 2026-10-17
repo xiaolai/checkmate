@@ -6,6 +6,8 @@ import XCTest
 final class NetworkAssistanceTests:XCTestCase {
     private let hints=NetworkAssistance(both:.hints)
     private func isSeated(_ message:NetworkMessage)->Bool {if case .seated=message {return true};return false}
+    /// A5: every network hint searches at one fixed profile, the same on every Mac.
+    func testTheHintProfileIsPinned(){XCTAssertEqual(NetworkAssistance.hintSkill,20);XCTAssertEqual(NetworkAssistance.hintNodes,400_000)}
     func testTheTermsHaveOrderedLevelsAndOneLetterEach(){
         XCTAssertEqual(NetworkAssistanceLevel.allCases,[.off,.insight,.hints,.guided])
         XCTAssertTrue(NetworkAssistanceLevel.off < .insight && NetworkAssistanceLevel.insight < .hints && NetworkAssistanceLevel.hints < .guided)

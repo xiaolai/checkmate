@@ -112,6 +112,9 @@ import OSLog
     public let participation:NetworkParticipation?
     /// VoiceOver: the window posts each announcement (D10).
     public var announce:(String)->Void={_ in}
+    /// Runs after every event has settled participation and the shown game: the network assistant follows the turn here
+    /// (assistance plan A6).
+    public var onSettle:()->Void={}
 
     private enum Runner {case host(NetworkHostRunner,NetworkHostingConfiguration),client(NetworkClientRunner)}
     private var runner:Runner?
@@ -126,6 +129,9 @@ import OSLog
     /// How far above an announced threshold a reading must be to count as an increment, not a re-sync.
     private static let clockSlack=500
     private var participating:NetworkParticipation.Role?
+    private var participatingAssistance:NetworkAssistanceLevel = .off
+    /// The game revision of the turn in which a hint was shown to the learner (A7); their move in that turn says so.
+    private var assistedTurn:Int?
     /// The record last written to the crash file, without its clocks.
     private var savedRecord:NetworkPublicGame?
     private var leaveCompletions:[@MainActor ()->Void]=[]
@@ -194,10 +200,10 @@ import OSLog
         guard canMove,let move=rules.moves(from).first(where:{$0.to==to && ($0.promotion==nil || $0.promotion==promotion)}) else{return}
         pending=PendingMove(from:from,to:to,uci:move.uci);pendingRevision=gameRevision;pendingSeen=false
         selected=nil;destinations=[];notice=Self.sendingNotice;objectWillChange.send()
-        let uci=move.uci,session=sessionNumber
+        let uci=move.uci,session=sessionNumber,assisted=assistedThisTurn
         switch runner {
-        case .host(let runner,_)?:runner.perform(.move(uci:uci))
-        case .client(let runner)?:runner.submitMove(uci:uci)
+        case .host(let runner,_)?:runner.perform(.move(uci:uci,assisted:assisted))
+        case .client(let runner)?:runner.submitMove(uci:uci,assisted:assisted)
         case nil:submit(uci);return
         }
         // By now the queue has handled the move and its answer has been delivered: a press it ignored (the game moved
@@ -329,7 +335,7 @@ import OSLog
         pending=nil;pendingRevision=nil;pendingSeen=false;shownPGN=nil;clockSync=nil;clockSeen=[:];clockAnnounced=[:];record=nil;gameRevision=nil
         gameName="";link = .stopped;hostPhase=nil;playCode=nil;watchCode=nil;whiteName=nil;blackName=nil;timeControl = .untimed
         openOffer=nil;outcome=nil;holdExpired=false;spectators=[];stopMessage=nil;learnerSide=nil;flipped=false;notice=nil;selected=nil;destinations=[]
-        resumable=nil;retryable=false;sleptWhileHosting=false
+        resumable=nil;retryable=false;sleptWhileHosting=false;assistedTurn=nil
     }
     /// Back to the lobby: the session is over and forgotten.
     private func endSession(){
@@ -407,7 +413,7 @@ import OSLog
     /// Sets a published value only when it changes, so a clock-only status redraws nothing.
     private func update<Value:Equatable>(_ key:ReferenceWritableKeyPath<NetworkGameController,Value>,_ value:Value){if self[keyPath:key] != value{self[keyPath:key]=value}}
     /// After every event: participation, the crash file, the clock announcements and the title follow the state.
-    private func settle(){updateParticipation();saveCrashFile();watchClocks();updateTitle()}
+    private func settle(){updateParticipation();saveCrashFile();watchClocks();updateTitle();onSettle()}
     private func updateTitle(){
         guard part != nil || !detached else{return}
         let next:String
@@ -429,12 +435,26 @@ import OSLog
         case .spectator:return watching ? .spectator:nil
         }
     }
-    private func updateParticipation(){
-        let wanted=wantedParticipation
-        guard wanted != participating else{return}
-        participating=wanted
-        if let wanted{participation?.begin(wanted)}else{participation?.end();services?.crashFile?.clear();savedRecord=nil}
+    /// The learner's own side's level, from terms the game verified (A3): the host's own settings, or the snapshot a
+    /// guest checked against what it accepted. Nothing before the record arrives.
+    private var wantedAssistance:NetworkAssistanceLevel {
+        guard wantedParticipation == .player,let record,let learnerSide else{return .off}
+        return record.assistance.level(learnerSide)
     }
+    private func updateParticipation(){
+        let wanted=wantedParticipation,level=wantedAssistance
+        guard wanted != participating || level != participatingAssistance else{return}
+        participating=wanted;participatingAssistance=level
+        if let wanted{participation?.begin(wanted,assistance:level)}else{participation?.end();services?.crashFile?.clear();savedRecord=nil}
+    }
+
+    // MARK: Assistance (assistance plan A1, A7)
+    /// The game's terms, as verified (A3); `off` before any record.
+    public var assistance:NetworkAssistance {record?.assistance ?? .off}
+    /// A hint was shown to the learner on their move: the move they make this turn is flagged `assisted` (A7).
+    public func hintShown(){guard yourTurn,let gameRevision else{return};assistedTurn=gameRevision}
+    /// Whether a hint was shown during the learner's current turn.
+    public var assistedThisTurn:Bool {assistedTurn != nil && assistedTurn==gameRevision && yourTurn}
     /// Writes the record whenever it changes while participating; a clock reading alone changes nothing the notice or
     /// Review use, so it is not rewritten every second.
     private func saveCrashFile(){
