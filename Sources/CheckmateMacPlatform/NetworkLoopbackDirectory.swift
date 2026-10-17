@@ -12,13 +12,14 @@ public final class NetworkLoopbackDirectory {
     public let directory:URL
     private let scheduler:NetworkQueueScheduler
     public init(directory:URL,scheduler:NetworkQueueScheduler){self.directory=directory;self.scheduler=scheduler}
-    private struct Entry:Codable {let name:String,game:String,role:String,port:UInt16}
+    /// `assist` is the TXT value of the same name (assistance plan A3); absent in a record written before it existed.
+    private struct Entry:Codable {let name:String,game:String,role:String,port:UInt16;var assist:String?}
     private func file(_ gameID:NetworkGameID)->URL {directory.appendingPathComponent(gameID.text+".json")}
     /// Writes a hosted game's records, replacing any earlier ones for it.
     public func publish(_ configuration:NetworkHostingConfiguration,_ endpoints:[NetworkListenerRole:NetworkEndpoint]){
         let entries=endpoints.compactMap{role,endpoint->Entry? in
             guard case .hostPort(_,let port)?=endpoint.value as? NWEndpoint else{return nil}
-            return Entry(name:configuration.serviceName(for:role),game:configuration.gameID.text,role:role.rawValue,port:port.rawValue)
+            return Entry(name:configuration.serviceName(for:role),game:configuration.gameID.text,role:role.rawValue,port:port.rawValue,assist:configuration.assistance.txt)
         }.sorted{$0.role<$1.role}
         do{
             guard entries.count==endpoints.count else{throw CheckmateError.invalid("A listener is not on loopback.")}
@@ -32,7 +33,7 @@ public final class NetworkLoopbackDirectory {
         let files=((try? FileManager.default.contentsOfDirectory(at:directory,includingPropertiesForKeys:nil)) ?? []).filter{$0.pathExtension=="json"}.sorted{$0.lastPathComponent<$1.lastPathComponent}
         return files.flatMap{url->[NetworkServiceRecord] in
             guard let data=try? Data(contentsOf:url),let entries=try? JSONDecoder().decode([Entry].self,from:data) else{return []}
-            return entries.map{NetworkServiceRecord(name:$0.name,txt:["game":$0.game,"role":$0.role],endpoint:NWNetworkTransport.loopbackEndpoint(port:$0.port))}
+            return entries.map{entry in var txt=["game":entry.game,"role":entry.role];txt["assist"]=entry.assist;return NetworkServiceRecord(name:entry.name,txt:txt,endpoint:NWNetworkTransport.loopbackEndpoint(port:entry.port))}
         }
     }
     /// A discovery that reads the directory now and every `interval` while browsing. Calls and updates are on the

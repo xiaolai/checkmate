@@ -82,7 +82,7 @@ public final class NWNetworkHosting:NetworkHosting {
         for role in configuration.roles {
             let listener=try NWListener(using:NetworkTLS.parameters(configuration.key(role)!,loopback:transport.loopbackOnly))
             if let type=transport.serviceType {
-                listener.service=NWListener.Service(name:configuration.serviceName(for:role),type:type,domain:nil,txtRecord:NWTXTRecord(["game":configuration.gameID.text,"role":role.rawValue]))
+                listener.service=NWListener.Service(name:configuration.serviceName(for:role),type:type,domain:nil,txtRecord:NWTXTRecord(configuration.txt(role)))
             }
             listeners[role]=listener;slots[role]=NetworkSlots(limit:transport.limits.handshakesPerListener)
         }

@@ -441,3 +441,42 @@ private final class ScriptedDiscovery:NetworkDiscovery {
         ben.game.flip();XCTAssertTrue(ben.game.blackAtBottom)
     }
 }
+/// Assistance plan A2 and A3 through the controller: the host's terms reach the list, a seat is joined only under
+/// terms accepted, and a forged list entry is caught inside TLS.
+extension NetworkControllerTests {
+    func testTheTermsAreAdvertisedAndMustBeAcceptedToJoin()throws {
+        let lan=MemoryLAN(),hints=NetworkAssistance(both:.hints)
+        let ana=try hosting(lan){$0.assistance=hints}
+        XCTAssertEqual(lan.records.map{$0.txt["assist"]},["hh","hh"])
+        let ben=try Mac(lan,name:"Ben");ben.game.setShown(true);lan.scheduler.run()
+        let entry=try XCTUnwrap(ben.game.games.first);XCTAssertEqual(entry.assistance,hints)
+        let code=ana.game.playCode!.grouped
+        XCTAssertFalse(ben.game.join(entry,code:code));XCTAssertEqual(ben.game.lobbyMessage,NetworkGameController.assistanceNeeded);XCTAssertNil(ben.game.part)
+        XCTAssertFalse(ben.game.join(entry,code:code,accepting:NetworkAssistance(both:.guided)));XCTAssertEqual(ben.game.lobbyMessage,NetworkGameController.assistanceNeeded)
+        XCTAssertTrue(ben.game.join(entry,code:code,accepting:hints));lan.scheduler.run()
+        XCTAssertEqual(ben.game.link,.live);XCTAssertEqual(ben.game.record?.assistance,hints);XCTAssertEqual(ana.game.record?.assistance,hints)
+        // A spectator accepts nothing.
+        let cy=try joining(lan,"Cy",ana,watching:true);XCTAssertEqual(cy.game.record?.assistance,hints)
+    }
+    /// A forged list entry advertising no assistance: the guest accepts `off`, and the host's check inside TLS refuses it.
+    func testAForgedEntryIsRefusedByTheHost()throws {
+        let lan=MemoryLAN()
+        let ana=try hosting(lan){$0.assistance=NetworkAssistance(white:.off,black:.guided)}
+        let forged=lan.records.map{record->NetworkServiceRecord in var txt=record.txt;txt["assist"]="oo";return NetworkServiceRecord(name:record.name,txt:txt,endpoint:record.endpoint)}
+        let ben=try Mac(lan,name:"Ben",discovery:NetworkFixedDiscovery(records:forged,scheduler:lan.scheduler));ben.game.setShown(true);lan.scheduler.run()
+        let entry=try XCTUnwrap(ben.game.games.first);XCTAssertEqual(entry.assistance,.off)
+        XCTAssertTrue(ben.game.join(entry,code:ana.game.playCode!.grouped));lan.scheduler.run()
+        XCTAssertEqual(ben.game.link,.stopped);XCTAssertEqual(ben.game.stopMessage,"Ana's game has different assistance than the one you accepted.")
+        XCTAssertTrue(ben.roles.isEmpty,"never seated, so never participating");XCTAssertEqual(ana.game.hostPhase,.waiting,"the seat is still free")
+    }
+    /// A 1.0 host advertises no terms: its games read as without assistance and are joined as before.
+    func testAnEntryWithoutTermsReadsAsUnassisted()throws {
+        let lan=MemoryLAN(),ana=try hosting(lan)
+        let old=lan.records.map{record->NetworkServiceRecord in var txt=record.txt;txt["assist"]=nil;return NetworkServiceRecord(name:record.name,txt:txt,endpoint:record.endpoint)}
+        let ben=try Mac(lan,name:"Ben",discovery:NetworkFixedDiscovery(records:old,scheduler:lan.scheduler));ben.game.setShown(true);lan.scheduler.run()
+        let entry=try XCTUnwrap(ben.game.games.first);XCTAssertEqual(entry.assistance,.off)
+        XCTAssertTrue(ben.game.join(entry,code:ana.game.playCode!.grouped));lan.scheduler.run();XCTAssertEqual(ben.game.link,.live)
+        let garbled=NetworkDiscoveredGame.pair([NetworkServiceRecord(name:"X",txt:["game":entry.gameID.text,"role":"seat","assist":"zz"],endpoint:old[0].endpoint)])
+        XCTAssertEqual(garbled.first?.assistance,.off,"an unreadable value shows as none; the check inside TLS decides")
+    }
+}

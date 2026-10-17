@@ -12,10 +12,12 @@ public struct NetworkServiceRecord:Equatable {
     public init(name:String,txt:[String:String],endpoint:NetworkEndpoint){self.name=name;self.txt=txt;self.endpoint=endpoint}
     /// What a hosted game publishes for one listener.
     public static func published(_ configuration:NetworkHostingConfiguration,_ role:NetworkListenerRole,at endpoint:NetworkEndpoint)->NetworkServiceRecord {
-        NetworkServiceRecord(name:configuration.serviceName(for:role),txt:["game":configuration.gameID.text,"role":role.rawValue],endpoint:endpoint)
+        NetworkServiceRecord(name:configuration.serviceName(for:role),txt:configuration.txt(role),endpoint:endpoint)
     }
     var gameID:NetworkGameID? {txt["game"].flatMap(NetworkGameID.init)}
     var role:NetworkListenerRole? {txt["role"].flatMap(NetworkListenerRole.init(rawValue:))}
+    /// The terms as advertised (A3): nil when absent (a 1.0 host, whose games have none) or unreadable.
+    var assistance:NetworkAssistance? {txt["assist"].flatMap(NetworkAssistance.init(txt:))}
 }
 /// A game as the joiner sees it: its two listeners' records paired by the game ID in their TXT, never by name (D3). The
 /// joiner then types only the code; the game ID, and so the key's salt and identity, comes from the record chosen.
@@ -30,6 +32,10 @@ public struct NetworkDiscoveredGame:Equatable {
     }
     /// "Ana's game · K7QD": two hosts with the same name are told apart by the game ID's last four symbols.
     public var displayName:String {"\(name) · \(gameID.displaySuffix)"}
+    /// The terms the list shows (A3), from the seat record, else the watch record; `off` when neither states any, as
+    /// a 1.0 host's never do. Untrusted: the join sheet asks the person to accept these, and the host and the guest
+    /// then check the real terms inside TLS.
+    public var assistance:NetworkAssistance {seat?.assistance ?? watch?.assistance ?? .off}
     public func record(_ role:NetworkListenerRole)->NetworkServiceRecord? {role == .seat ? seat:watch}
     public func key(_ role:NetworkListenerRole,code:NetworkCode)->NetworkAccessKey {NetworkAccessKey(gameID:gameID,role:role,code:code)}
     /// Games in order of first appearance. A record without a valid `game` and `role` is ignored. The first record for

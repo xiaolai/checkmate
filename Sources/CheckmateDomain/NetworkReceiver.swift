@@ -39,24 +39,29 @@ public enum NetworkReceiverRole:Equatable {
 public final class NetworkReceiver {
     public let gameID:NetworkGameID,role:NetworkReceiverRole
     private let name:String,appVersion:String,factory:NetworkRulesFactory,hashing:NetworkHashing,random:NetworkRandom
+    /// The terms a guest accepted before joining (assistance plan A3), stated in `hello` and checked against every
+    /// snapshot. A spectator accepts nothing: it never gets assistance.
+    public let accepted:NetworkAssistance
     /// The record as last installed; the live position is `rules`, and `revision`, `openOffer`, `outcome` are current.
     public private(set) var installed:NetworkPublicGame?
     private var rules:(any NetworkChessRules)?
     public private(set) var revision:Int?,fen:String?
     public private(set) var openOffer:NetworkDrawOffer?,outcome:NetworkOutcome?
     public private(set) var pendingMove:NetworkPendingMove?
+    /// The plies whose mover said a hint was shown that turn (A7), as installed and then applied.
+    public private(set) var assistedPlies:[Int]=[]
     /// The guest's seat credential, from `seated`. Held in memory only; redacted in every description.
     public private(set) var credential:NetworkSecret?
     private var assembler:NetworkSnapshotAssembler?,resyncRequested=false,acknowledgeAfterSnapshot=false
     private var clockSync:(clocks:NetworkClocks,at:NetworkInstant)?
-    public init(gameID:NetworkGameID,role:NetworkReceiverRole,name:String,appVersion:String,rules:NetworkRulesFactory,hashing:NetworkHashing,random:NetworkRandom = .system){self.gameID=gameID;self.role=role;self.name=name;self.appVersion=appVersion;factory=rules;self.hashing=hashing;self.random=random}
+    public init(gameID:NetworkGameID,role:NetworkReceiverRole,name:String,appVersion:String,rules:NetworkRulesFactory,hashing:NetworkHashing,random:NetworkRandom = .system,accepting accepted:NetworkAssistance = .off){self.gameID=gameID;self.role=role;self.name=name;self.appVersion=appVersion;factory=rules;self.hashing=hashing;self.random=random;self.accepted=accepted}
     /// The guest's side, once a snapshot says which side the host took.
     public var side:NetworkSide? {guard case .guest=role else{return nil};return installed?.hostSide.opponent}
     /// The first message on every new connection: a guest holding a credential always resumes (R4-4); otherwise it
     /// claims with its `claimID`. A spectator says hello without one.
     public func opening()->NetworkMessage {
         switch role {
-        case .guest(let claimID):return credential.map{.resume(gameID:gameID,credential:$0)} ?? .hello(name:name,appVersion:appVersion,claimID:claimID)
+        case .guest(let claimID):return credential.map{.resume(gameID:gameID,credential:$0)} ?? .hello(name:name,appVersion:appVersion,claimID:claimID,assistance:accepted)
         case .spectator:return .hello(name:name,appVersion:appVersion,claimID:nil)
         }
     }
@@ -65,7 +70,7 @@ public final class NetworkReceiver {
     /// The live record, for the review hand-off and the crash file.
     public func publicGame(at now:NetworkInstant)throws -> NetworkPublicGame? {
         guard var game=installed,let rules,let revision else{return nil}
-        game.revision=revision;game.pgn=try rules.networkPGN();game.clocks=clocks(at:now);game.openOffer=openOffer;game.outcome=outcome
+        game.revision=revision;game.pgn=try rules.networkPGN();game.clocks=clocks(at:now);game.openOffer=openOffer;game.outcome=outcome;game.assistedPlies=assistedPlies
         return game
     }
     /// Both clocks counting down locally from the last value the host sent (cosmetic, D6).
@@ -129,7 +134,10 @@ public final class NetworkReceiver {
         let result:NetworkSnapshotInstaller.Installed
         do{result=try NetworkSnapshotInstaller.install(try assembled.finish(snapshotID:snapshotID),revision:assembled.revision,hash:assembled.hash,gameID:gameID,rules:factory,hashing:hashing)}
         catch is NetworkSnapshotError{output.close = .badSnapshot;return}
-        installed=result.game;rules=result.rules;fen=result.fen;revision=result.game.revision
+        // A3: a guest plays only under the terms it accepted. Other terms are never installed, and a claim is never
+        // acknowledged under them, so the reservation lapses (D4).
+        if case .guest=role,result.game.assistance != accepted {acknowledgeAfterSnapshot=false;output.close = .assistanceChanged;return}
+        installed=result.game;assistedPlies=result.game.assistedPlies;rules=result.rules;fen=result.fen;revision=result.game.revision
         openOffer=result.game.openOffer;outcome=result.game.outcome;pendingMove=nil;resyncRequested=false
         clockSync=result.game.clocks.map{($0,now)}
         output.events.append(.installed(revision:result.game.revision))
@@ -151,6 +159,7 @@ public final class NetworkReceiver {
         // last agreed game until the snapshot the resync brings replaces it.
         guard hashing.positionHash(fen:fen,revision:moved.revision)==moved.hash else{try rules.networkLoad(pgn:before);requestResync(&output);return}
         self.fen=fen;revision=moved.revision
+        if moved.assisted {assistedPlies.append(moved.revision)}
         if let offer=openOffer,offer.by != mover {openOffer=nil}
         if let receipt=moved.receiptFor,pendingMove?.commandID==receipt {pendingMove=nil}
         if let clocks=moved.clocks {clockSync=(clocks,now)}
@@ -160,10 +169,11 @@ public final class NetworkReceiver {
     private var playable:Bool {if case .guest=role,revision != nil,outcome==nil,assembler==nil,!resyncRequested {return true};return false}
     /// The move to send, or nil when the press is ignored: a move is already pending, it is not the guest's turn, or
     /// there is no game to play.
-    public func submitMove(uci:String)throws -> NetworkMessage? {
+    /// `assisted`: a hint was shown to this player during this turn (A7).
+    public func submitMove(uci:String,assisted:Bool=false)throws -> NetworkMessage? {
         guard playable,pendingMove==nil,ChessNotation.validUCI(uci),let revision,let rules,let side,try rules.networkSideToMove()==side else{return nil}
         let commandID=NetworkID.random(using:random);pendingMove=NetworkPendingMove(commandID:commandID,uci:uci,revision:revision)
-        return .move(gameID:gameID,commandID:commandID,revision:revision,uci:uci)
+        return .move(gameID:gameID,commandID:commandID,revision:revision,uci:uci,assisted:assisted)
     }
     public func resign()->NetworkMessage? {guard playable else{return nil};return .resign(gameID:gameID,commandID:.random(using:random))}
     public func offerDraw()->NetworkMessage? {guard playable,let revision else{return nil};return .drawOffer(gameID:gameID,commandID:.random(using:random),revision:revision)}

@@ -95,7 +95,8 @@ public final class NetworkClientRunner {
     }
     public func start(){scheduler.enqueue{[self] in guard generation==0,stop==nil else{return};connect()}}
     /// Ignored unless live, while a move is pending, or when it is not this guest's turn (D2).
-    public func submitMove(uci:String){command{try $0.submitMove(uci:uci)}}
+    /// `assisted`: a hint was shown to this player during this turn (assistance plan A7).
+    public func submitMove(uci:String,assisted:Bool=false){command{try $0.submitMove(uci:uci,assisted:assisted)}}
     public func resign(){command{$0.resign()}}
     public func offerDraw(){command{$0.offerDraw()}}
     public func answerDraw(accept:Bool){command{$0.answerDraw(accept:accept)}}

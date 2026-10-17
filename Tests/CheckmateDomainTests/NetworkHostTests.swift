@@ -24,7 +24,7 @@ final class NetworkHostTests:XCTestCase {
         let net=try TestNetwork(hostSide:.black)
         let (guest,_)=try net.startGame()
         let first=try XCTUnwrap(try guest.receiver.submitMove(uci:"e2e4"))
-        guard case .move(_,let commandID,_,_)=first else{return XCTFail()}
+        guard case .move(_,let commandID,_,_,_)=first else{return XCTFail()}
         try net.toHost(guest,first);try net.settle();try net.hostPlays("e7e5")
         XCTAssertEqual(net.host.revision,2)
         // The same command again, now two revisions old: the stored receipt, and nothing else.
@@ -143,7 +143,7 @@ final class NetworkHostTests:XCTestCase {
         let guest=net.client(.seat);guest.lose=["seatedAck"];try net.connect(guest)
         XCTAssertEqual(net.host.phase,.reserved)
         let move=try XCTUnwrap(try guest.receiver.submitMove(uci:"e2e4"))
-        guard case .move(_,let commandID,_,_)=move else{return XCTFail()}
+        guard case .move(_,let commandID,_,_,_)=move else{return XCTFail()}
         try net.toHost(guest,move);try net.settle()
         XCTAssertEqual(guest.received.last,.rejected(commandID:commandID,reason:.notRunning));XCTAssertNil(guest.receiver.pendingMove)
         try net.hostPlays("e7e5");XCTAssertEqual(net.refusals,[.notRunning],"the host has no shortcut either")

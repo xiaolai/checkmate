@@ -101,6 +101,8 @@ public enum NetworkWording {
             case .notAllowed:return "\(game) doesn't allow spectators."
             case .full:return "\(game) has as many spectators as it allows."
             case .protocolVersion:return "\(game) uses a different version of Checkmate."
+            // Assistance plan A3: the terms the guest accepted are not the game's.
+            case .assistanceChanged:return "\(game) has different assistance than the one you accepted."
             case .badCredential,.replaced:return "\(game) no longer holds your seat."
             case .badSnapshot,.slow,.malformed,.timeout,.rateLimited,.busy,.leaving,.unknown:return lost
             }

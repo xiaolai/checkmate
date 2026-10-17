@@ -12,7 +12,7 @@ final class NetworkLoopbackDirectoryTests:XCTestCase {
 
     func testPublishedListenersAreFoundAndWithdrawn()throws {
         let scheduler=NetworkQueueScheduler(),shared=NetworkLoopbackDirectory(directory:directory,scheduler:scheduler)
-        let configuration=NetworkHostingConfiguration(gameID:.random(using:.system),seatCode:.random(using:.system),watchCode:.random(using:.system),serviceName:"Ana's game")
+        let configuration=NetworkHostingConfiguration(gameID:.random(using:.system),seatCode:.random(using:.system),watchCode:.random(using:.system),serviceName:"Ana's game",assistance:NetworkAssistance(white:.insight,black:.guided))
         shared.publish(configuration,[.seat:NWNetworkTransport.loopbackEndpoint(port:50_001),.watch:NWNetworkTransport.loopbackEndpoint(port:50_002)])
         let discovery=shared.discovery(interval:.milliseconds(20))
         let lock=NSLock();var updates:[[NetworkDiscoveredGame]]=[]
@@ -25,6 +25,7 @@ final class NetworkLoopbackDirectoryTests:XCTestCase {
         wait(for:[found],timeout:5)
         lock.lock();let first=updates[0];lock.unlock()
         XCTAssertEqual(first.count,1);XCTAssertEqual(first.first?.gameID,configuration.gameID);XCTAssertEqual(first.first?.name,"Ana's game")
+        XCTAssertEqual(first.first?.assistance,NetworkAssistance(white:.insight,black:.guided),"the terms are published for the list (assistance plan A3)")
         XCTAssertEqual(first.first?.record(.seat)?.endpoint,NWNetworkTransport.loopbackEndpoint(port:50_001));XCTAssertEqual(first.first?.record(.watch)?.endpoint,NWNetworkTransport.loopbackEndpoint(port:50_002))
         shared.withdraw(configuration.gameID)
         wait(for:[gone],timeout:5)

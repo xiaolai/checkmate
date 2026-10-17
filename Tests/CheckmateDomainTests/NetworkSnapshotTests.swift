@@ -170,7 +170,7 @@ final class NetworkSnapshotTests:XCTestCase {
         let net=try TestNetwork(hostSide:.black)
         let (guest,_)=try net.startGame()
         let move=try XCTUnwrap(try guest.receiver.submitMove(uci:"e2e4"))
-        guard case .move(_,let commandID,_,_)=move else{return XCTFail()}
+        guard case .move(_,let commandID,_,_,_)=move else{return XCTFail()}
         let unrelated=NetworkMoved(revision:0,uci:"a2a3",san:"a3",hash:"0",clocks:nil,receiptFor:id)
         XCTAssertEqual(try guest.receiver.receive(message:.moved(unrelated),at:net.now),NetworkReceiverOutput());XCTAssertNotNil(guest.receiver.pendingMove)
         _ = try guest.receiver.receive(message:.moved(NetworkMoved(revision:0,uci:"a2a3",san:"a3",hash:"0",clocks:nil,receiptFor:commandID)),at:net.now)
@@ -290,7 +290,7 @@ final class NetworkSnapshotTests:XCTestCase {
     }
     func testThePublicRecordIsFieldByFieldAndNamesItsReviewHeaders()throws {
         var game=NetworkPublicGame(gameID:NetworkGameID.random(using:random.source),revision:41,hostSide:.white,whiteName:"Ana",blackName:"Ben",timeControl:.tenPlusFive,pgn:"",clocks:NetworkClocks(white:1,black:0,active:nil),openOffer:nil,outcome:NetworkOutcome(result:.blackWins,termination:.time))
-        XCTAssertEqual(Mirror(reflecting:game).children.compactMap(\.label),["gameID","revision","hostSide","whiteName","blackName","timeControl","pgn","clocks","openOffer","outcome"],"no field could hold a credential, a claim or app state")
+        XCTAssertEqual(Mirror(reflecting:game).children.compactMap(\.label),["gameID","revision","hostSide","whiteName","blackName","timeControl","pgn","clocks","openOffer","outcome","assistance","assistedPlies"],"no field could hold a credential, a claim or app state; the last two are the assistance terms and the assisted plies (assistance plan A2, A7)")
         let headers=game.recordHeaders(date:"2026.10.16")
         XCTAssertEqual(headers.map(\.name),["Event","Site","Date","Round","White","Black","Result","TimeControl","Termination"])
         XCTAssertEqual(headers.map(\.value),["Checkmate network game","?","2026.10.16","?","Ana","Ben","0-1","600+5","Time forfeit"])

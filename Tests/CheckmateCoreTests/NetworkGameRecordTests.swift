@@ -32,6 +32,18 @@ final class NetworkGameRecordTests:XCTestCase {
         let record=NetworkGameRecord.reviewPGN(game(pgn:"1. d4 d5",outcome:nil),on:day,calendar:utc)
         XCTAssertTrue(record.contains("[Result \"*\"]"));XCTAssertFalse(record.contains("Termination"));XCTAssertTrue(record.hasSuffix("1. d4 d5 *"))
     }
+    /// Assistance plan A11: the terms as a header, and each assisted move followed by its comment, which Review's
+    /// importer reads as a comment, not a move.
+    func testAnAssistedGameNamesItsTermsAndMarksAssistedMoves()throws {
+        var assisted=game(pgn:"[Event \"?\"]\n\n1. e4 e5 2. Qh5 Nc6 3. Bc4 Nf6 4. Qxf7# 1-0",outcome:NetworkOutcome(result:.whiteWins,termination:.checkmate))
+        assisted.revision=8;assisted.assistance=NetworkAssistance(white:.hints,black:.off);assisted.assistedPlies=[1,5,7]
+        let record=NetworkGameRecord.reviewPGN(assisted,on:day,calendar:utc)
+        XCTAssertTrue(record.contains("[TimeControl \"600+5\"]\n[Assistance \"White: Hints on request; Black: Off\"]\n[Termination \"Checkmate\"]"),record)
+        XCTAssertTrue(record.hasSuffix("1. e4 {Hint shown} e5 2. Qh5 Nc6 3. Bc4 {Hint shown} Nf6 4. Qxf7# {Hint shown} 1-0"),record)
+        let documents=try PGNImporter.parse(Data(record.utf8))
+        XCTAssertEqual(documents.count,1);XCTAssertEqual(documents.first?.mainline.count,7,"the comments are not moves")
+        XCTAssertFalse(NetworkGameRecord.reviewPGN(game(pgn:"1. d4 d5",outcome:nil),on:day,calendar:utc).contains("Assistance"),"no header without assistance")
+    }
     /// The crash file round-trips, names the other player, is private to the user, and an unreadable one is removed.
     func testTheCrashFileHoldsThePublicRecordOnly()throws {
         let directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);defer{try? FileManager.default.removeItem(at:directory)}

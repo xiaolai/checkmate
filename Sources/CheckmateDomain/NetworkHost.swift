@@ -47,7 +47,8 @@ public enum NetworkHostEffect:Equatable {
 }
 /// The host's own commands. They pass the same rules as the guest's (D5), so the host has no shortcut.
 public enum NetworkHostAction:Equatable {
-    case move(uci:String),resign,offerDraw,answerDraw(accept:Bool),claimDraw
+    /// `assisted`: a hint was shown to the host this turn (assistance plan A7).
+    case move(uci:String,assisted:Bool=false),resign,offerDraw,answerDraw(accept:Bool),claimDraw
     /// After the hold expires with the guest away: Claim Win (Abandoned), or Keep Waiting another 120 s.
     case claimWin,keepWaiting
     /// Leave or quit normally (R3-2): a started game is resigned and `ended(resignation)` reaches everyone before
@@ -56,7 +57,9 @@ public enum NetworkHostAction:Equatable {
 }
 public struct NetworkHostSettings:Equatable {
     public var hostName:String,hostSide:NetworkSide,timeControl:NetworkTimeControl,allowSpectators:Bool
-    public init(hostName:String,hostSide:NetworkSide,timeControl:NetworkTimeControl = .untimed,allowSpectators:Bool=true){self.hostName=hostName;self.hostSide=hostSide;self.timeControl=timeControl;self.allowSpectators=allowSpectators}
+    /// Fixed for the whole game (assistance plan A2): nothing the host does or receives changes it.
+    public let assistance:NetworkAssistance
+    public init(hostName:String,hostSide:NetworkSide,timeControl:NetworkTimeControl = .untimed,allowSpectators:Bool=true,assistance:NetworkAssistance = .off){self.hostName=hostName;self.hostSide=hostSide;self.timeControl=timeControl;self.allowSpectators=allowSpectators;self.assistance=assistance}
 }
 /// D7's numbers for one host. Always `standard` in the app; tests shrink them to reach a bound quickly.
 public struct NetworkHostLimits:Equatable {
@@ -103,6 +106,8 @@ public final class NetworkHost:CustomReflectable {
     /// The hold in effect while the guest is away; once it passes, `holdExpired` offers Claim Win or Keep Waiting.
     public private(set) var holdDeadline:NetworkInstant?
     public private(set) var holdExpired=false
+    /// The plies whose mover said a hint was shown that turn (A7), in order.
+    public private(set) var assistedPlies:[Int]=[]
     /// Every pending timer, as last scheduled.
     public private(set) var scheduled:[NetworkTimer:NetworkInstant]=[:]
     private var seat:Seat?
@@ -165,7 +170,7 @@ public final class NetworkHost:CustomReflectable {
     /// The public record at `now`: what a snapshot carries and the crash file keeps (D9). Never a secret.
     public func publicGame(at now:NetworkInstant)throws -> NetworkPublicGame {
         let host=settings.hostSide
-        return NetworkPublicGame(gameID:gameID,revision:revision,hostSide:host,whiteName:host == .white ? settings.hostName:guestName,blackName:host == .black ? settings.hostName:guestName,timeControl:settings.timeControl,pgn:try rules.networkPGN(),clocks:clock?.clocks(at:now),openOffer:openOffer,outcome:outcome)
+        return NetworkPublicGame(gameID:gameID,revision:revision,hostSide:host,whiteName:host == .white ? settings.hostName:guestName,blackName:host == .black ? settings.hostName:guestName,timeControl:settings.timeControl,pgn:try rules.networkPGN(),clocks:clock?.clocks(at:now),openOffer:openOffer,outcome:outcome,assistance:settings.assistance,assistedPlies:assistedPlies)
     }
     // MARK: Events
     /// A connection finished TLS on `listener`. It holds an admission slot until `hello` or `resume`, for at most 5 s.
@@ -215,7 +220,7 @@ public final class NetworkHost:CustomReflectable {
             case .move,.offerDraw,.answerDraw,.claimDraw:
                 guard phase == .running else{try refuse(.host,phase == .ended ? .gameOver:.notRunning);return}
                 switch action {
-                case .move(let uci):guard sideToMove==side else{try refuse(.host,.notYourTurn);return};try play(uci,by:side,.host)
+                case .move(let uci,let assisted):guard sideToMove==side else{try refuse(.host,.notYourTurn);return};try play(uci,by:side,assisted:assisted,.host)
                 case .answerDraw(let accept):try answerDraw(nil,accept:accept,by:side,.host)
                 case .claimDraw:guard sideToMove==side else{try refuse(.host,.notYourTurn);return};try claimDraw(.host)
                 case .offerDraw:try offerDraw(side,.host)
@@ -310,11 +315,14 @@ public final class NetworkHost:CustomReflectable {
     }
     private func admit(_ message:NetworkMessage,from id:NetworkConnectionID)throws {
         switch (peers[id]!.listener,message) {
-        case (.watch,.hello(let name,_,_)):
+        // A spectator's stated terms, if any, change nothing: spectators never get assistance (A1).
+        case (.watch,.hello(let name,_,_,_)):
             guard spectators.count<limits.maximumSpectators else{try close(id,.full);return}
             peers[id]!.role = .spectator;peers[id]!.name=name
             try send(.watching,to:id);try requestSnapshot(id)
-        case (.seat,.hello(let name,_,let claimID?)):
+        case (.seat,.hello(let name,_,let claimID?,let accepted)):
+            // A3: the terms the guest accepted are checked before the seat is reserved or the claim answered again.
+            if phase == .waiting || phase == .reserved && seat?.claimID.matches(claimID)==true,let refusal=termsRefusal(accepted) {try close(id,refusal);return}
             switch phase {
             case .waiting:
                 seat=Seat(claimID:claimID,credential:.random(using:random),gameID:gameID,epoch:runEpoch)
@@ -327,6 +335,13 @@ public final class NetworkHost:CustomReflectable {
         case (.seat,.resume(let game,let credential)):try resume(game,credential,from:id)
         default:try close(id,.malformed)
         }
+    }
+    /// A3's table: the same terms are admitted; other terms are `assistanceChanged`; none stated (a 1.0 guest) is
+    /// admitted only to a game without assistance, and otherwise refused as another version, which a 1.0 guest words
+    /// as "update Checkmate".
+    private func termsRefusal(_ accepted:NetworkAssistance?)->NetworkByeReason? {
+        guard let accepted else{return settings.assistance == .off ? nil:.protocolVersion}
+        return accepted==settings.assistance ? nil:.assistanceChanged
     }
     private func sendSeated(_ id:NetworkConnectionID)throws {try send(.seated(credential:seat!.credential),to:id);try requestSnapshot(id)}
     /// The recovery table (R4-4): a valid credential while reserved counts as the ack; while running it replaces the
@@ -356,7 +371,7 @@ public final class NetworkHost:CustomReflectable {
     }
     private static func header(_ message:NetworkMessage)->(game:NetworkGameID,command:NetworkID,revision:Int?)? {
         switch message {
-        case .move(let game,let command,let revision,_),.drawOffer(let game,let command,let revision),.claimDraw(let game,let command,let revision):return (game,command,revision)
+        case .move(let game,let command,let revision,_,_),.drawOffer(let game,let command,let revision),.claimDraw(let game,let command,let revision):return (game,command,revision)
         case .resign(let game,let command),.drawAnswer(let game,let command,_,_):return (game,command,nil)
         default:return nil
         }
@@ -377,7 +392,7 @@ public final class NetworkHost:CustomReflectable {
         let origin=Origin.guest(id,commandID:commandID)
         if let verdict {try refuse(origin,verdict);return}
         switch message {
-        case .move(_,_,_,let uci):try play(uci,by:guestSide,origin)
+        case .move(_,_,_,let uci,let assisted):try play(uci,by:guestSide,assisted:assisted,origin)
         case .resign:try resign(guestSide,origin)
         case .drawOffer:try offerDraw(guestSide,origin)
         case .drawAnswer(_,_,let offerID,let accept):try answerDraw(offerID,accept:accept,by:guestSide,origin)
@@ -397,15 +412,17 @@ public final class NetworkHost:CustomReflectable {
     }
     private func answered(_ origin:Origin,_ receipt:NetworkMessage?){if case .guest(_,let commandID)=origin,let receipt {receipts.store([receipt],for:commandID)}}
     // MARK: Game
-    private func play(_ uci:String,by side:NetworkSide,_ origin:Origin)throws {
+    private func play(_ uci:String,by side:NetworkSide,assisted:Bool,_ origin:Origin)throws {
         let played:NetworkPlayedMove
         do{played=try rules.networkPlay(uci:uci)}catch NetworkRulesError.illegalMove{try refuse(origin,.illegal);return}
         sideToMove=side.opponent;revision+=1;fen=try rules.networkFEN()
+        // The revision is the ply count until the game ends: only moves advance it before `ended`.
+        if assisted {assistedPlies.append(revision)}
         clock?.moveApplied(by:side)
         // An offer lapses when the player it was made to moves.
         if let offer=openOffer,offer.by != side {openOffer=nil}
         var receiptFor:NetworkID?;if case .guest(_,let commandID)=origin {receiptFor=commandID}
-        let moved=NetworkMoved(revision:revision,uci:played.uci,san:played.san,hash:positionHash,clocks:clock?.clocks(at:now),receiptFor:receiptFor)
+        let moved=NetworkMoved(revision:revision,uci:played.uci,san:played.san,hash:positionHash,clocks:clock?.clocks(at:now),receiptFor:receiptFor,assisted:assisted)
         answered(origin,.moved(moved))
         try broadcast{[self] id in .moved(peers[id]?.role == .guest ? moved:moved.withoutReceipt())}
         if let ending=try rules.networkAutomaticEnding() {try end(ending.outcome)}

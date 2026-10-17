@@ -19,7 +19,8 @@ extension Duration {
 public struct NetworkProtocolVersion:Codable,Hashable,CustomStringConvertible {
     public let major:Int,minor:Int
     public init(major:Int,minor:Int){self.major=major;self.minor=minor}
-    public static let current=NetworkProtocolVersion(major:1,minor:0)
+    /// 1.1 adds the assistance terms and the assisted flags (assistance plan A4); a 1.0 peer ignores them.
+    public static let current=NetworkProtocolVersion(major:1,minor:1)
     public var description:String {"\(major).\(minor)"}
 }
 /// Every bound of D5 and D7, fixed in advance. Tests assert these values.

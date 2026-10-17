@@ -375,7 +375,7 @@ final class NetworkRunnerTests:XCTestCase {
         discovery.stop();discovery.publish([]);scheduler.run();XCTAssertEqual(updates.count,1,"nothing after stop")
         let long=NetworkHostingConfiguration(gameID:a,seatCode:.random(using:.system),watchCode:.random(using:.system),serviceName:String(repeating:"é",count:40))
         XCTAssertLessThanOrEqual(long.serviceName(for:.watch).utf8.count,63);XCTAssertTrue(long.serviceName(for:.watch).hasSuffix(NetworkHostingConfiguration.watchSuffix))
-        XCTAssertEqual(NetworkServiceRecord.published(long,.seat,at:NetworkEndpoint("x",description:"x")).txt,["game":a.text,"role":"seat"])
+        XCTAssertEqual(NetworkServiceRecord.published(long,.seat,at:NetworkEndpoint("x",description:"x")).txt,["game":a.text,"role":"seat","assist":"oo"],"the terms, for display only (assistance plan A3)")
     }
 }
 /// The real rules, except that one move fails as a runtime failure would.

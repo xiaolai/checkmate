@@ -60,5 +60,7 @@ public struct NetworkHostForm:Equatable {
     public var side:NetworkSideChoice = .white
     public var timeControl:NetworkTimeControl = .untimed
     public var allowSpectators=true
+    /// The terms the host offers (assistance plan A2); fixed once the game is hosted.
+    public var assistance:NetworkAssistance = .off
     public init(){}
 }

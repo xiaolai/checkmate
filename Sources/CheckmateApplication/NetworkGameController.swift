@@ -42,6 +42,8 @@ import OSLog
     public static let lobbyTitle="Play on Network"
     public static let nameNeeded="Type your name first, up to 64 characters."
     public static let codeNeeded="Type the 8-character code shown on the host's Mac."
+    /// Joining a game with assistance needs the person to accept its terms first (assistance plan A3).
+    public static let assistanceNeeded="Accept this game's assistance to join it."
     public static let leaveConfirmation="Leave the game? It counts as a resignation."
     public static let watchingNotice="You're watching"
     public static let sendingNotice="Sending…"
@@ -272,9 +274,9 @@ import OSLog
         let random=services.random,side=form.side.resolved(using:random)
         let gameID=NetworkGameID.random(using:random),seatCode=NetworkCode.random(using:random),watch=form.allowSpectators ? NetworkCode.random(using:random):nil
         let host:NetworkHost
-        do{host=try NetworkHost(gameID:gameID,runEpoch:services.runEpoch,settings:NetworkHostSettings(hostName:name,hostSide:side,timeControl:form.timeControl,allowSpectators:form.allowSpectators),rules:services.rules,hashing:services.hashing,random:random,at:services.scheduler.now)}
+        do{host=try NetworkHost(gameID:gameID,runEpoch:services.runEpoch,settings:NetworkHostSettings(hostName:name,hostSide:side,timeControl:form.timeControl,allowSpectators:form.allowSpectators,assistance:form.assistance),rules:services.rules,hashing:services.hashing,random:random,at:services.scheduler.now)}
         catch{NativeLog.lifecycle.error("A network game could not be set up: \(String(describing:error),privacy:.public)");lobbyMessage="The game could not be set up.";return false}
-        let configuration=NetworkHostingConfiguration(gameID:gameID,seatCode:seatCode,watchCode:watch,serviceName:Self.gameName(host:name))
+        let configuration=NetworkHostingConfiguration(gameID:gameID,seatCode:seatCode,watchCode:watch,serviceName:Self.gameName(host:name),assistance:form.assistance)
         beginSession(.host,name:configuration.serviceName)
         playCode=seatCode;watchCode=watch;learnerSide=side;timeControl=form.timeControl;hostPhase = .waiting
         if side == .white{whiteName=name}else{blackName=name}
@@ -286,14 +288,19 @@ import OSLog
     }
     /// Joins a found game's seat with its play code, or watches it with its watch code (D3: only the code is typed;
     /// everything else comes from the chosen record). False, with `lobbyMessage`, if it cannot start.
-    @discardableResult public func join(_ game:NetworkDiscoveredGame,code typed:String,watching:Bool=false)->Bool {
+    ///
+    /// A seat is joined only under terms the person accepted (assistance plan A3): `accepting` must be the terms the
+    /// game advertises, unless it advertises none. The guest states them in `hello`, and both sides check them again.
+    @discardableResult public func join(_ game:NetworkDiscoveredGame,code typed:String,watching:Bool=false,accepting:NetworkAssistance?=nil)->Bool {
         guard part==nil,let services else{return false}
         let role:NetworkListenerRole=watching ? .watch:.seat,name=game.name.isEmpty ? "the host's game":game.name
         guard let record=game.record(role) else{lobbyMessage=watching ? "\(name) doesn't allow spectators.":"\(name) has no seat to join.";return false}
         guard let player=Self.validName(playerName) else{lobbyMessage=Self.nameNeeded;return false}
         guard let code=NetworkCode(typed:typed) else{lobbyMessage=Self.codeNeeded;return false}
+        let accepted=accepting ?? .off
+        guard watching || accepted==game.assistance else{lobbyMessage=Self.assistanceNeeded;return false}
         beginSession(watching ? .spectator:.guest,name:name)
-        let receiver=NetworkReceiver(gameID:game.gameID,role:watching ? .spectator:.guest(claimID:.random(using:services.random)),name:player,appVersion:services.appVersion,rules:services.rules,hashing:services.hashing,random:services.random)
+        let receiver=NetworkReceiver(gameID:game.gameID,role:watching ? .spectator:.guest(claimID:.random(using:services.random)),name:player,appVersion:services.appVersion,rules:services.rules,hashing:services.hashing,random:services.random,accepting:watching ? .off:accepted)
         connect(receiver,endpoint:record.endpoint,key:game.key(role,code:code),services:services)
         return true
     }

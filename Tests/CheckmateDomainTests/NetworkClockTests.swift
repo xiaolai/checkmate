@@ -67,7 +67,7 @@ final class NetworkClockTests:XCTestCase {
         XCTAssertEqual(net.host.clock?.flagDeadline,instant(182),"180 s and Black's increment")
         net.jump(183)
         let mate=try XCTUnwrap(try guest.receiver.submitMove(uci:"d8h4"))
-        guard case .move(_,let commandID,_,_)=mate else{return XCTFail()}
+        guard case .move(_,let commandID,_,_,_)=mate else{return XCTFail()}
         try net.toHost(guest,mate);try net.settle()
         XCTAssertEqual(net.host.outcome,NetworkOutcome(result:.whiteWins,termination:.time))
         XCTAssertEqual(net.hostMoves,["f2f3","e7e5","g2g4"],"the mating move was never applied")
