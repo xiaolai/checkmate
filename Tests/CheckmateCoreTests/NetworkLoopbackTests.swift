@@ -131,7 +131,7 @@ final class NetworkLoopbackTests:XCTestCase {
     }
     func testEachListenerAdmitsOnlyItsOwnRolesKey()throws {
         let transport=makeTransport(),configuration=makeConfiguration()
-        let (_,hostLog)=try startHosting(transport,configuration)
+        let (hosting,hostLog)=try startHosting(transport,configuration)
         let seat=configuration.key(.seat)!,watch=configuration.key(.watch)!
         let cases:[(listener:NetworkListenerRole,key:NetworkAccessKey,admitted:Bool,why:String)]=[
             (.seat,watch,false,"the watch key on the seat listener"),
@@ -143,7 +143,9 @@ final class NetworkLoopbackTests:XCTestCase {
         for item in cases {
             let (_,log)=connect(transport,hostLog.endpoints![item.listener]!,item.key)
             eventually(item.why){log.ready || log.closed != nil}
-            XCTAssertEqual(onQueue{log.ready},item.admitted,item.why)
+            // A wrong outcome names how the link ended and what the host counted: a refusal before TLS and a failed
+            // handshake look the same from the outcome alone.
+            XCTAssertEqual(onQueue{log.ready},item.admitted,"\(item.why); link ended \(String(describing:onQueue{log.closed})); host \(onQueue{hosting.diagnostics})")
         }
         eventually("two admitted"){hostLog.accepted.count==2}
         XCTAssertEqual(onQueue{hostLog.accepted.map(\.role)},[.seat,.watch],"the role comes from the listener")
