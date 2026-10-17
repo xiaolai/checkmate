@@ -1,4 +1,4 @@
-# Unreleased
+# Checkmate 0.8.2
 
 A network game can now be played with help, if both players agree to it.
 When hosting, choose the assistance for both players: Board insight shows
@@ -18,6 +18,24 @@ game's Review. Practice, other reviews and companions stay paused during a
 network game at every level, as before. A game without assistance can still
 be joined from Checkmate 0.8, but a game with assistance needs this version
 on both Macs.
+
+Network games are also harder to disrupt. A Mac in a game now refuses a
+record from the other Mac that is out of range, longer than any game can
+be, or sent again and again, and closes that connection instead of crashing
+or stalling. The voice coach never receives the other player's name, which
+that player chooses. A voice turn whose tool call keeps streaming now ends
+at once with a message, instead of waiting out the turn. Checkmate now uses
+sayso 0.4.0.
+
+Automated acceptance covered every gate on the test Mac, including the Intel
+build under Rosetta: three copies of the app playing a game with hints and a
+handicap game, the voice coach connected to a network game through a silent
+test double, real Bonjour discovery, and a game with hints for both players
+between two Macs, played to checkmate with real pointer clicks, with the hint
+counts and the recorded terms checked on both. A live check, with no
+microphone or speaker, ran a real coach turn in a network game with hints,
+besides the English, Chinese and Spanish turns. No person has yet played a
+network game with assistance, or heard the voice coach in one.
 
 # Checkmate 0.8.1
 
