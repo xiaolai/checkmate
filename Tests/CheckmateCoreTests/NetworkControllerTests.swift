@@ -479,4 +479,32 @@ extension NetworkControllerTests {
         let garbled=NetworkDiscoveredGame.pair([NetworkServiceRecord(name:"X",txt:["game":entry.gameID.text,"role":"seat","assist":"zz"],endpoint:old[0].endpoint)])
         XCTAssertEqual(garbled.first?.assistance,.off,"an unreadable value shows as none; the check inside TLS decides")
     }
+    /// Assistance plan A1: at board insight a player picks any piece to inspect, on either turn, and is never shown dots
+    /// for a move they cannot make; without it, and for a spectator, clicks work exactly as before.
+    func testBoardInsightPicksAnyPieceToInspect()throws {
+        let lan=MemoryLAN(),terms=NetworkAssistance(white:.insight,black:.off)
+        let ana=try hosting(lan){$0.assistance=terms},ben=try joining(lan,"Ben",ana,accepting:terms),cy=try joining(lan,"Cy",ana,watching:true)
+        XCTAssertTrue(ana.game.inspectable);XCTAssertFalse(ben.game.inspectable,"Black's level is off");XCTAssertFalse(cy.game.inspectable,"spectators never")
+        ana.game.click("e7");XCTAssertEqual(ana.game.selected,"e7","an opponent's piece on her own move");XCTAssertEqual(ana.game.destinations,[])
+        ana.game.click("e2");XCTAssertEqual(ana.game.selected,"e2");XCTAssertFalse(ana.game.destinations.isEmpty,"her own piece still shows its moves")
+        ana.game.click("e5");XCTAssertNil(ana.game.selected,"an empty square clears the selection")
+        ben.game.click("e7");XCTAssertNil(ben.game.selected,"off Ben's move, a click does nothing, as before")
+        play(ana,"e2","e4",lan)
+        ana.game.click("g1");XCTAssertEqual(ana.game.selected,"g1","off her move she may still inspect");XCTAssertEqual(ana.game.destinations,[])
+        ben.game.click("e4");XCTAssertNil(ben.game.selected,"at off an opponent's piece is not selected")
+        ben.game.resign();lan.scheduler.run();XCTAssertFalse(ana.game.inspectable,"the inspector goes with the game")
+    }
+    /// A12 in VoiceOver: a guest and a spectator hear the terms on joining; everyone hears that a move was made with a
+    /// hint shown, by name, and the learner's own as "You".
+    func testTheTermsAndHintedMovesAreAnnounced()throws {
+        let lan=MemoryLAN(),terms=NetworkAssistance(both:.hints)
+        let ana=try hosting(lan){$0.assistance=terms},ben=try joining(lan,"Ben",ana,accepting:terms),cy=try joining(lan,"Cy",ana,watching:true)
+        let line="Assistance: hints on request for both players."
+        XCTAssertEqual(ben.heard.count(line),1);XCTAssertEqual(cy.heard.count(line),1);XCTAssertEqual(ana.heard.count(line),0,"the host chose them")
+        ana.game.hintShown();play(ana,"e2","e4",lan)
+        XCTAssertEqual(ben.heard.count("Ana played pawn to e4. Ana used a hint"),1);XCTAssertEqual(cy.heard.count("Ana played pawn to e4. Ana used a hint"),1)
+        XCTAssertEqual(ana.heard.count("You played pawn to e4. You used a hint"),1)
+        play(ben,"e7","e5",lan);XCTAssertEqual(ana.heard.count("Ben played pawn to e5"),1,"a move without a hint says nothing more")
+        XCTAssertEqual(ana.game.record.map{NetworkWording.hintsUsed($0,players:ana.game.players)},"Hints used: Ana 1 · Ben 0")
+    }
 }

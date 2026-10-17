@@ -6,6 +6,12 @@ or key event: host, join, watch, play, a refused spectator click, a pending move
 automation-only hook, Review hiding engine output while the spectator browses a library game, a draw offer and its
 decline, a resignation, and Review on both players. The guest runs in dark
 appearance and the others in light, and each window is captured at the key moments.
+
+Then agreed assistance (assistance plan, Verification: network-ui): that first game, without assistance, shows no Hint
+button and P inspects nothing. A second pair plays under hints for both: the list shows the badge, the guest declines
+the Accept sheet once and then accepts, presses Hint, the arrow appears on its board, plays the hinted move and the host
+counts it; P on the host's board shows protection. A third pair plays a handicap, which both players see as one, and
+the side without help gets no Hint button and no inspector.
 """
 import json
 import os
@@ -17,7 +23,7 @@ import time
 
 import test_host
 test_host.require("network UI acceptance")
-from network_gate import Instance, compile_helpers, host_game, join, open_network, wait  # noqa: E402
+from network_gate import Instance, compile_helpers, game_row, host_game, join, open_network, wait, wait_for  # noqa: E402
 
 evidence = pathlib.Path(os.environ["CHECKMATE_EVIDENCE_DIR"])
 evidence.mkdir(parents=True, exist_ok=True)
@@ -25,11 +31,30 @@ helpers = compile_helpers(evidence)
 shared = tempfile.mkdtemp(prefix="checkmate-network-ui-shared-")
 results = {"steps": []}
 ANALYSIS_HIDDEN = "Analysis is hidden during your network game"
+KEY_P, KEY_ESCAPE = "35", "53"
 started = time.monotonic()
 
 
 def step(name):
     results["steps"].append({"step": name, "at": round(time.monotonic() - started, 2)})
+
+
+def inspect(instance, square):
+    """Selects a piece with a real click and presses P with the board focused: the square's VoiceOver label then says
+    what protects it, if the inspector opened (assistance plan A1)."""
+    instance.square(square)
+    instance.run("pointer-helper", "key", KEY_P)
+    time.sleep(0.5)
+    return instance.label(square)
+
+
+def suggested(instance):
+    """The hint's arrow as the board's squares read it: (from, to), from the square labelled "suggested move to"."""
+    for line in instance.listing().splitlines():
+        found = re.search(r"AXButton: ([a-h][1-8]),.*suggested move to ([a-h][1-8])", line)
+        if found:
+            return found.group(1), found.group(2)
+    return None
 
 
 instances, failure = [], None
@@ -96,6 +121,13 @@ try:
         wait(lambda instance=instance: instance.label("f3").startswith("f3, White, knight"), f"{instance.name} never showed 2. Nf3")
     step("play continued after resuming")
 
+    # Assistance plan A1 and A12 in a game without assistance: no Hint button, and P inspects nothing.
+    assert not host.shows("network-hint-button") and not host.shows("network-terms"), "a game without assistance offered help"
+    label = inspect(guest, "d7")
+    assert "protected by" not in label, f"P inspected a piece in a game without assistance: {label}"
+    guest.run("pointer-helper", "key", KEY_ESCAPE)
+    step("no assistance: no Hint and no inspector")
+
     # D8 in Review: the spectator leaves the game's page for a library game; the review panes hide engine output while
     # it watches, and the game carries on meanwhile.
     watcher.click("Review game")
@@ -135,6 +167,87 @@ try:
         wait(lambda instance=instance: instance.shows("review-document-actions"), f"{instance.name} did not open the game in Review")
         instance.capture("review")
     step("reviewed")
+    for instance in instances:
+        instance.stop()
+    instances = []
+
+    # Hints on request for both (A3, A6, A7, A12): a light host, a dark guest.
+    host = Instance("assisted-host", evidence, helpers, environment=loopback)
+    guest = Instance("assisted-guest", evidence, helpers, environment=loopback, arguments=["--dark-appearance"])
+    instances = [host, guest]
+    for instance in instances:
+        open_network(instance)
+    play_code, _ = host_game(host, "Dee", assistance="Hints on request")
+    row = wait_for(lambda: game_row(guest, "Dee's game"), "the guest never listed Dee's game", 30)
+    assert "Hints" in guest.line(row), f"the list showed no badge: {guest.line(row)}"
+    guest.capture("assisted-lobby")
+    guest.click(row)
+    guest.type_into("network-name-field", "Eve")
+    guest.type_into("network-code-field", play_code)
+    guest.click("network-join-button")
+    wait(lambda: guest.shows("network-accept-sheet"), "joining a game with assistance did not ask first")
+    assert "allows hints on request for both players" in guest.listing(), "the Accept sheet did not say what is agreed"
+    guest.capture("accept-sheet")
+    guest.click("network-decline-assistance")
+    wait(lambda: not guest.shows("network-accept-sheet") and guest.shows("network-join-button"), "Decline did not return to the list")
+    assert not host.shows("Eve"), "declining still joined"
+    step("assistance declined once")
+    guest.click("network-join-button")
+    wait(lambda: guest.shows("network-accept-sheet"), "the Accept sheet did not come back")
+    guest.click("network-accept-assistance")
+    wait(lambda: host.shows("Eve") and guest.shows("network-terms"), "accepting did not join the game", 30)
+    assert host.shows("Assistance: hints on request for both players."), "the host did not show the terms"
+    step("assistance accepted")
+
+    host.square("e2")
+    host.square("e4")
+    wait(lambda: guest.label("e4").startswith("e4, White, pawn"), "the guest never showed 1. e4")
+    wait(lambda: guest.shows("network-hint-button"), "the guest was not offered a hint on its move")
+    guest.click("network-hint-button")
+    arrow = wait_for(lambda: suggested(guest), "the hint's arrow never appeared", 20)
+    assert guest.shows("network-hint-text"), "the hint was not described"
+    assert suggested(host) is None, "the guest's hint reached the host's board"
+    guest.capture("hint-dark")
+    step("guest asked for a hint")
+    guest.square(arrow[0])
+    guest.square(arrow[1])
+    wait(lambda: host.shows("Hints used: Dee 0 · Eve 1"), "the host did not count the guest's hint", 20)
+    wait(lambda: guest.shows("Hints used: Dee 0 · Eve 1") and suggested(guest) is None, "the guest's board kept the hint after the move")
+    step("the hinted move was counted")
+
+    label = inspect(host, "d2")
+    assert "protected by" in label, f"P did not show what protects d2: {label}"
+    host.capture("inspector-light")
+    host.run("pointer-helper", "key", KEY_ESCAPE)
+    wait(lambda: "protected by" not in host.label("d2"), "Escape did not dismiss the inspector")
+    step("P showed protection on the network board")
+    for instance in instances:
+        instance.stop()
+    instances = []
+
+    # A handicap (A2, A12): White gets hints, Black none; both see it called a handicap.
+    host = Instance("handicap-host", evidence, helpers, environment=loopback)
+    guest = Instance("handicap-guest", evidence, helpers, environment=loopback)
+    instances = [host, guest]
+    for instance in instances:
+        open_network(instance)
+    play_code, _ = host_game(host, "Fay", handicap=("Hints on request", "Off"))
+    row = wait_for(lambda: game_row(guest, "Fay's game"), "the guest never listed Fay's game", 30)
+    assert "Handicap" in guest.line(row), f"the list did not call it a handicap: {guest.line(row)}"
+    join(guest, "Fay's game", "Gil", play_code, accept=True)
+    wait(lambda: host.shows("Gil") and guest.shows("network-terms"), "the handicap game did not start", 30)
+    for instance in instances:
+        assert instance.shows("Handicap:"), f"{instance.name} did not call the terms a handicap"
+    assert host.shows("network-hint-button"), "White, with hints, was not offered one"
+    host.capture("handicap-host")
+    host.square("e2")
+    host.square("e4")
+    wait(lambda: guest.label("e4").startswith("e4, White, pawn"), "the guest never showed 1. e4")
+    assert not guest.shows("network-hint-button"), "Black, without help, was offered a hint"
+    label = inspect(guest, "d7")
+    assert "protected by" not in label, f"P inspected for the side without help: {label}"
+    guest.capture("handicap-guest")
+    step("handicap shown on both; the side without help gets none")
     results["passed"] = True
 except Exception as error:
     failure = str(error)

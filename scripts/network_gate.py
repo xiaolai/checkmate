@@ -306,10 +306,19 @@ def open_network(instance):
     wait(lambda: instance.shows("network-host-button"), f"{instance.name} did not open the network lobby")
 
 
-def host_game(host, name="Ana"):
+def host_game(host, name="Ana", assistance=None, handicap=None):
+    """Hosts from the sheet. `assistance` picks one level for both sides; `handicap` is (White's, Black's) levels,
+    set through the Handicap switch (assistance plan A2). Each is a level's title, such as "Hints on request"."""
     host.click("network-host-button")
     wait(lambda: host.shows("network-host-sheet"), "the host sheet did not open")
     host.type_into("network-host-name", name)
+    if assistance:
+        host.run("pointer-helper", "select-popup", "network-host-assistance", assistance)
+    if handicap:
+        host.click("network-host-handicap")
+        wait(lambda: host.shows("network-host-assistance-white"), "the handicap switch did not show a level for each side")
+        host.run("pointer-helper", "select-popup", "network-host-assistance-white", handicap[0])
+        host.run("pointer-helper", "select-popup", "network-host-assistance-black", handicap[1])
     host.click("network-host-start")
     wait(lambda: host.shows("network-play-code"), "hosting did not start")
     return code(host, "network-play-code"), code(host, "network-watch-code")
@@ -325,9 +334,14 @@ def game_row(instance, title):
     return None
 
 
-def join(instance, title, name, typed, watching=False, timeout=30):
+def join(instance, title, name, typed, watching=False, timeout=30, accept=False):
+    """Picks the game, types the name and code, and joins or watches. `accept`: the game has assistance, so the Accept
+    sheet appears (assistance plan A3) and is accepted."""
     row = wait_for(lambda: game_row(instance, title), f"{instance.name} never listed {title}", timeout)
     instance.click(row)
     instance.type_into("network-name-field", name)
     instance.type_into("network-code-field", typed)
     instance.click("network-watch-button" if watching else "network-join-button")
+    if accept:
+        wait(lambda: instance.shows("network-accept-sheet"), f"{instance.name} was not asked to accept the assistance")
+        instance.click("network-accept-assistance")

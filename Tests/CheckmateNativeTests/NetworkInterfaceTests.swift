@@ -1,3 +1,4 @@
+import CheckmateTestSupport
 import XCTest
 import AppKit
 @testable import CheckmateNative
@@ -36,7 +37,7 @@ import CheckmateCore
         let ben=try NetworkGameController(services:lan.services(crashFile:nil),participation:NetworkParticipation(),playerName:"Ben")
         ben.setShown(true);lan.scheduler.run()
         let entry=try XCTUnwrap(ben.games.first,file:file,line:line)
-        XCTAssertTrue(ben.join(entry,code:model.network.playCode!.grouped),file:file,line:line);lan.scheduler.run()
+        XCTAssertTrue(ben.join(entry,code:model.network.playCode!.grouped,accepting:model.network.form.assistance),file:file,line:line);lan.scheduler.run()
         XCTAssertEqual(model.network.hostPhase,.running,file:file,line:line);XCTAssertEqual(ben.link,.live,file:file,line:line)
         return ben
     }
@@ -53,6 +54,9 @@ import CheckmateCore
         XCTAssertEqual(visible(),["New Game…","Take Back Move","Restore Previous Game","Claim Draw","Resign…","—","Protected by","Attacked by","Dismiss Piece Inspection"]);XCTAssertFalse(lesson.isHidden)
         GameWindow.syncMenus(menu,lesson:lesson,network:true);GameWindow.syncMenus(menu,lesson:lesson,network:true)
         XCTAssertEqual(visible(),["Offer Draw","Claim Draw","Resign…","Flip Board","Leave Game…"],"repeated syncs change nothing")
+        // Assistance plan A1: at board insight the network game's menu also shows the piece inspector.
+        GameWindow.syncMenus(menu,lesson:lesson,network:true,inspector:true)
+        XCTAssertEqual(Set(visible()),["Offer Draw","Claim Draw","Resign…","Flip Board","Leave Game…","Protected by","Attacked by","Dismiss Piece Inspection"])
     }
 
     /// The network items follow the network game; outside network mode the shared items keep the window's own rules.
@@ -153,6 +157,38 @@ import CheckmateCore
         XCTAssertEqual(NetworkDetail.spokenClock(65_000),"1 minute 5 seconds");XCTAssertEqual(NetworkDetail.spokenClock(120_000),"2 minutes");XCTAssertEqual(NetworkDetail.spokenClock(1_000),"1 second");XCTAssertEqual(NetworkDetail.spokenClock(0),"0 seconds")
         let code=try XCTUnwrap(NetworkCode(typed:"K7QD2M9X"));XCTAssertEqual(code.grouped,"K7QD-2M9X");XCTAssertEqual(NetworkDetail.spelled(code),"K 7 Q D, 2 M 9 X")
         XCTAssertEqual(NetworkGameController.gameName(host:"Ana"),"Ana's game")
+    }
+
+    /// A position-only engine whose every hint is Nf3.
+    @MainActor private final class KnightEngine:TestEngineService {
+        func analyze(fen:String,skill:Int,budget:Int,multiPv:Int)async throws -> EngineAnalysis {EngineAnalysis(bestMove:"g1f3")}
+        func analyzeHistory(startFEN:String,moves:[String],profile:OpponentProfile,limit:EngineSearchLimit,multiPv:Int)async throws -> EngineAnalysis {EngineAnalysis(bestMove:"g1f3")}
+    }
+    /// Assistance plan A1, A6 and A12 in the window: under hints for both, P inspects the network board's pieces (an
+    /// opponent's too), Escape dismisses it, the Hint's arrow is drawn and the pane shows the terms and counts. Without
+    /// assistance P does nothing and the inspector stays out of the Game menu.
+    func testTheInspectorAndTheHintOnTheNetworkBoard()async throws {
+        let model=try NativeModel(),game=GameWindow(model:model);defer{game.window?.delegate=nil;model.shutdown()}
+        let lan=LAN();model.network.form.assistance=NetworkAssistance(both:.hints)
+        let ben=try hostedGame(model,lan);model.playOnNetwork();game.refresh()
+        XCTAssertTrue(model.network.inspectable);XCTAssertEqual(model.fairness.networkAssistance,.hints)
+        game.select("e2");XCTAssertEqual(game.board.selected,"e2")
+        game.toggleRelationship(.protected)
+        XCTAssertEqual(game.relationships.report?.mode,.protected);XCTAssertEqual(game.relationships.report?.square,"e2")
+        XCTAssertTrue(game.board.relationshipConnectors.contains{$0.source=="e1" && $0.target=="e2"},"the king protects the pawn")
+        game.select("d7");XCTAssertEqual(game.relationships.report?.square,"d7","an opponent's piece is inspected too");XCTAssertEqual(model.network.selected,"d7")
+        game.dismissInspection();XCTAssertNil(game.relationships.mode)
+        model.networkAssistant.engine=KnightEngine();model.networkAssistant.ask()
+        for _ in 0..<200 where model.networkAssistant.hint==nil{try await Task.sleep(for:.milliseconds(5))}
+        game.refresh();XCTAssertEqual(game.board.arrows,[["g1","f3"]],"the hint's arrow");XCTAssertTrue(model.network.assistedThisTurn)
+        model.network.click("g1");model.network.click("f3");lan.scheduler.run();game.refresh()
+        XCTAssertEqual(ben.record.map{NetworkWording.hintsUsed($0,players:ben.players)},"Hints used: Ana 1 · Ben 0");XCTAssertEqual(game.board.arrows,[],"the hint goes with the turn")
+        // Off: the same clicks and keys inspect nothing.
+        model.network.leave();lan.scheduler.run()
+        let plain=LAN();model.network.form.assistance = .off
+        _=try hostedGame(model,plain);game.refresh()
+        XCTAssertFalse(model.network.inspectable);game.select("e2");game.toggleRelationship(.protected)
+        XCTAssertNil(game.relationships.mode,"P does nothing without assistance");XCTAssertNil(game.relationships.selectedLabel)
     }
 
     /// D12: an isolated automation run with `CHECKMATE_NETWORK_LOOPBACK_DIR` gets loopback listeners and the shared

@@ -188,11 +188,18 @@ import OSLog
     public func click(_ square:String){
         guard ChessRules.validSquare(square),seat != nil else{return}
         if seat == .spectator{flash(Self.watchingNotice);return}
-        guard canMove else{return}
+        // Board insight (assistance plan A1) lets the learner pick any piece to inspect, also off their turn; it never
+        // shows dots for a move they cannot make.
+        guard canMove else{guard inspectable,pending==nil else{return};selected=rules.piece(square)==nil ? nil:square;destinations=[];objectWillChange.send();return}
         if let from=selected,destinations.contains(square){play(from:from,to:square);return}
-        if rules.piece(square)?.color==side{selected=square;destinations=Array(Set(rules.moves(square).map(\.to))).sorted()}else{selected=nil;destinations=[]}
+        if rules.piece(square)?.color==side{selected=square;destinations=Array(Set(rules.moves(square).map(\.to))).sorted()}
+        else if inspectable,rules.piece(square) != nil{selected=square;destinations=[]}
+        else{selected=nil;destinations=[]}
         objectWillChange.send()
     }
+    /// The piece inspector (Protected by / Attacked by) works on this board (A1, A8): a seated player whose agreed level
+    /// is board insight or more. Never a spectator, and never once the game is over.
+    public var inspectable:Bool {side != nil && participation?.role == .player && (participation?.assistance ?? .off) >= .insight}
     /// Escape on the board: the selected piece and its dots go, so a later click on a former dot plays nothing.
     public func clearSelection(){guard selected != nil || !destinations.isEmpty else{return};selected=nil;destinations=[];objectWillChange.send()}
     /// Submits one move; anything illegal, or a second move while one is pending, is ignored.
@@ -391,7 +398,7 @@ import OSLog
     /// A public record, from the host's own game or a verified snapshot: names, clocks, the open offer, the result, and
     /// the board when the moves changed. Announces what a sighted player would see happen.
     private func present(_ game:NetworkPublicGame,at instant:NetworkInstant){
-        let previousOffer=openOffer,previousOutcome=outcome,plies=rules.history.count
+        let previousOffer=openOffer,previousOutcome=outcome,plies=rules.history.count,first=record==nil
         record=game;gameRevision=game.revision;clockSync=game.clocks.map{($0,instant)}
         update(\.whiteName,game.whiteName);update(\.blackName,game.blackName);update(\.timeControl,game.timeControl);update(\.openOffer,game.openOffer);update(\.outcome,game.outcome)
         if seat==nil,let mine=learnerSeat{seat=mine}
@@ -400,8 +407,11 @@ import OSLog
             do{try load(game.pgn);shownPGN=game.pgn;moved=rules.history.count != plies}
             catch{NativeLog.lifecycle.error("A network game record could not be shown: \(String(describing:error),privacy:.public)")}
             resetInput();changed()
-            if rules.history.count>plies,let last=rules.records.last{announce(NetworkWording.move(last,players:players))}
+            // A12: a move its mover made with a hint shown says so, as the hint count beside the names does.
+            if rules.history.count>plies,let last=rules.records.last{let mover:NetworkSide=last.color=="b" ? .black:.white;announce(NetworkWording.move(last,players:players)+(game.assistedPlies.last==rules.history.count ? ". "+NetworkWording.usedHint(mover,players:players):""))}
         }
+        // A12: joining or watching a game with assistance announces its terms once, as the line under the names shows them.
+        if first,part != .host,let terms=NetworkWording.terms(game.assistance,players:players){announce(terms)}
         if pending != nil,gameRevision != pendingRevision{clearPending()}
         if let offer=openOffer,offer != previousOffer,offer.by != learnerSide{announce("\(players.name(offer.by)) offers a draw")}
         if let offer=previousOffer,openOffer==nil,outcome==nil,!moved,offer.by==learnerSide{announce("\(opponentName) declined the draw")}

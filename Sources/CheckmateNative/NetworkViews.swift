@@ -3,11 +3,15 @@ import CheckmateCore
 /// The Play on Network pane beside the board (LAN-play plan D10): the lobby — Host a Game, and one list of found games
 /// for Join and Watch — then the game's own chrome: the codes to share, names and clocks, the status, draw and hold
 /// controls, Leave, and Review this game. The board area keeps its square board and centred title; nothing here is a
-/// toolbar item.
+/// toolbar item. A game with assistance shows its terms, each side's hint count and, when allowed, the Hint button
+/// (assistance plan A12).
 struct NetworkDetail:View {
     @ObservedObject var model:NativeModel
     @ObservedObject var game:NetworkGameController
+    @ObservedObject var assistant:NetworkAssistant
     @State private var chosen:String?
+    /// The game whose assistance the Accept sheet asks about (A3).
+    @State private var offered:NetworkDiscoveredGame?
     @State private var code=""
     @State private var hosting=false
     var body:some View {
@@ -17,6 +21,9 @@ struct NetworkDetail:View {
             if let notice=game.notice{Text(notice).foregroundStyle(.secondary).accessibilityIdentifier("network-notice")}
         }
         .sheet(isPresented:$hosting){NetworkHostSheet(game:game,close:{hosting=false})}
+        .sheet(item:Binding(get:{offered.map(OfferedGame.init)},set:{if $0==nil{offered=nil}})){shown in
+            NetworkAcceptSheet(game:shown.game,accept:{offered=nil;game.join(shown.game,code:code,accepting:shown.game.assistance)},decline:{offered=nil})
+        }
     }
 
     // MARK: Lobby
@@ -34,15 +41,21 @@ struct NetworkDetail:View {
         // Join and Watch share this one list (D10).
         ForEach(game.games,id:\.gameID.text){entry in
             let selected=chosen==entry.gameID.text
+            let badge=NetworkWording.badge(entry.assistance)
             Button{chosen=entry.gameID.text}label:{
-                Label(entry.displayName,systemImage:selected ? "largecircle.fill.circle":"circle").frame(maxWidth:.infinity,alignment:.leading).contentShape(Rectangle())
-            }.buttonStyle(.plain).accessibilityAddTraits(selected ? .isSelected:[]).accessibilityIdentifier("network-game-"+entry.gameID.text)
+                HStack(spacing:Metrics.smallGap){
+                    Label(entry.displayName,systemImage:selected ? "largecircle.fill.circle":"circle")
+                    // A12: the advertised assistance, from the TXT record, for display only; joining checks the terms.
+                    if let badge{Text(badge).font(.caption).padding(.horizontal,6).padding(.vertical,1).background(Capsule().fill(.quaternary))}
+                }.frame(maxWidth:.infinity,alignment:.leading).contentShape(Rectangle())
+            }.buttonStyle(.plain).accessibilityLabel(entry.displayName+(badge.map{", "+$0} ?? "")).accessibilityAddTraits(selected ? .isSelected:[]).accessibilityIdentifier("network-game-"+entry.gameID.text)
         }
         if let entry=game.games.first(where:{$0.gameID.text==chosen}) {
             TextField("Your name",text:$game.playerName).textFieldStyle(.roundedBorder).accessibilityIdentifier("network-name-field")
             TextField("Code",text:$code).textFieldStyle(.roundedBorder).accessibilityIdentifier("network-code-field")
             HStack {
-                Button("Join"){game.join(entry,code:code)}.disabled(entry.record(.seat)==nil || code.isEmpty).accessibilityIdentifier("network-join-button")
+                // A3: a seat in a game with assistance is joined only after its terms are accepted.
+                Button("Join"){if entry.assistance == .off{game.join(entry,code:code)}else{offered=entry}}.disabled(entry.record(.seat)==nil || code.isEmpty).accessibilityIdentifier("network-join-button")
                 Button("Watch"){game.join(entry,code:code,watching:true)}.disabled(entry.record(.watch)==nil || code.isEmpty).accessibilityIdentifier("network-watch-button")
             }
             Text("Join with the play code, or watch with the watch code.").font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
@@ -53,7 +66,7 @@ struct NetworkDetail:View {
     // MARK: Session
     @ViewBuilder private var session:some View {
         if game.part == .host,game.outcome==nil,game.sessionOpen,let play=game.playCode {codes(play)}
-        if game.seat != nil {players}
+        if game.seat != nil {players;assistance}
         if let status=game.statusText{Text(status).fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("network-status")}
         if game.part == .host,game.holdExpired {
             HStack {
@@ -91,6 +104,19 @@ struct NetworkDetail:View {
             Button(leaveTitle){model.leaveNetworkGame()}.accessibilityIdentifier("network-leave")
         }else{
             Button("Back to Games"){game.leave()}.accessibilityIdentifier("network-back-to-games")
+        }
+    }
+    /// The agreed terms, both sides' hint counts, and the learner's own Hint (A6, A7, A12).
+    @ViewBuilder private var assistance:some View {
+        if let record=game.record,let terms=NetworkWording.terms(record.assistance,players:game.players) {
+            Text(terms).font(.callout).fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("network-terms")
+            if record.assistance.white >= .hints || record.assistance.black >= .hints {Text(NetworkWording.hintsUsed(record,players:game.players)).font(.caption).foregroundStyle(.secondary).accessibilityIdentifier("network-hints-used")}
+        }
+        if assistant.level >= .hints,game.outcome==nil {
+            if let hint=assistant.hint {Text(NetworkWording.hint(san:hint.san,uci:hint.uci,automatic:hint.automatic)).font(.headline).accessibilityIdentifier("network-hint-text")}
+            else if assistant.thinking {ProgressView(NetworkWording.findingHint).controlSize(.small).accessibilityIdentifier("network-hint-thinking")}
+            else if game.yourTurn {Button("Hint"){assistant.ask()}.disabled(!assistant.canAsk).accessibilityIdentifier("network-hint-button")}
+            if let error=assistant.error {Text(error).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("network-hint-error")}
         }
     }
     private var leaveTitle:String {
@@ -143,10 +169,35 @@ struct NetworkDetail:View {
         return [minutes>0 ? "\(minutes) minute\(minutes==1 ? "":"s")":nil,rest>0 || minutes==0 ? "\(rest) second\(rest==1 ? "":"s")":nil].compactMap{$0}.joined(separator:" ")
     }
 }
-/// The host sheet (D10): your name, side, time control and Allow Spectators.
+/// A discovered game as a sheet's item: the Accept sheet is tied to the game it was opened for.
+private struct OfferedGame:Identifiable {
+    let game:NetworkDiscoveredGame
+    var id:String {game.gameID.text}
+}
+/// The Accept sheet (assistance plan A3): a seat in a game with assistance is taken only after its terms are accepted.
+/// Decline goes back to the list.
+struct NetworkAcceptSheet:View {
+    let game:NetworkDiscoveredGame
+    let accept:()->Void,decline:()->Void
+    var body:some View {
+        VStack(alignment:.leading,spacing:Metrics.padding){
+            Text("Join \(game.displayName)?").font(.title2.bold())
+            Text(NetworkWording.offer(game.assistance,game:game.name)).fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("network-accept-terms")
+            Text("The assistance stays the same for the whole game, and each Mac counts the hints its player uses.").font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
+            HStack {
+                Spacer()
+                Button("Decline"){decline()}.keyboardShortcut(.cancelAction).accessibilityIdentifier("network-decline-assistance")
+                Button("Accept and Join"){accept()}.keyboardShortcut(.defaultAction).accessibilityIdentifier("network-accept-assistance")
+            }
+        }.padding(Metrics.sectionGap).frame(width:380).accessibilityElement(children:.contain).accessibilityIdentifier("network-accept-sheet")
+    }
+}
+/// The host sheet (D10): your name, side, time control and Allow Spectators, and the assistance both players agree to
+/// (assistance plan A2): one level for both, or a handicap with a level for each side.
 struct NetworkHostSheet:View {
     @ObservedObject var game:NetworkGameController
     let close:()->Void
+    @State private var handicap=false
     var body:some View {
         VStack(alignment:.leading,spacing:Metrics.padding){
             Text("Host a Game").font(.title2.bold())
@@ -155,6 +206,14 @@ struct NetworkHostSheet:View {
                 Picker("Your side",selection:$game.form.side){Text("White").tag(NetworkSideChoice.white);Text("Black").tag(NetworkSideChoice.black);Text("Random").tag(NetworkSideChoice.random)}.accessibilityIdentifier("network-host-side")
                 Picker("Time control",selection:$game.form.timeControl){ForEach(NetworkTimeControl.allCases,id:\.self){control in Text(Self.label(control)).tag(control)}}.accessibilityIdentifier("network-host-time-control")
                 Toggle("Allow spectators",isOn:$game.form.allowSpectators).accessibilityIdentifier("network-host-allow-spectators")
+                if handicap {
+                    levels("White's assistance",\.white,"network-host-assistance-white")
+                    levels("Black's assistance",\.black,"network-host-assistance-black")
+                }else{
+                    Picker("Assistance",selection:Binding(get:{game.form.assistance.white},set:{game.form.assistance=NetworkAssistance(both:$0)})){ForEach(NetworkAssistanceLevel.allCases,id:\.self){level in Text(level.title).tag(level)}}.accessibilityIdentifier("network-host-assistance")
+                }
+                // Turning the handicap off gives Black White's level again: the terms are one level for both by default.
+                Toggle("Handicap: different assistance for each side",isOn:Binding(get:{handicap},set:{handicap=$0;if !$0{game.form.assistance=NetworkAssistance(both:game.form.assistance.white)}})).accessibilityIdentifier("network-host-handicap")
             }
             if let message=game.lobbyMessage{Text(message).fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("network-host-message")}
             HStack {
@@ -162,7 +221,10 @@ struct NetworkHostSheet:View {
                 Button("Cancel"){close()}.keyboardShortcut(.cancelAction).accessibilityIdentifier("network-host-cancel")
                 Button("Host"){if game.host(){close()}}.keyboardShortcut(.defaultAction).disabled(!game.nameValid).accessibilityIdentifier("network-host-start")
             }
-        }.padding(Metrics.sectionGap).frame(width:380).accessibilityElement(children:.contain).accessibilityIdentifier("network-host-sheet")
+        }.padding(Metrics.sectionGap).frame(width:380).accessibilityElement(children:.contain).accessibilityIdentifier("network-host-sheet").onAppear{handicap=game.form.assistance.handicap}
+    }
+    private func levels(_ title:String,_ side:WritableKeyPath<NetworkAssistance,NetworkAssistanceLevel>,_ identifier:String)->some View {
+        Picker(title,selection:Binding(get:{game.form.assistance[keyPath:side]},set:{game.form.assistance[keyPath:side]=$0})){ForEach(NetworkAssistanceLevel.allCases,id:\.self){level in Text(level.title).tag(level)}}.accessibilityIdentifier(identifier)
     }
     /// "Untimed", "5 + 3": minutes, plus seconds added per move.
     static func label(_ control:NetworkTimeControl)->String {

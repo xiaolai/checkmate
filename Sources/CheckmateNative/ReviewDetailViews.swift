@@ -40,6 +40,9 @@ enum ReviewFormat {
         for value in [known(d.header("Event")),known(d.header("Site")),date(d.header("Date"))].compactMap({$0}) where !parts.contains(where:{value.hasPrefix($0) || $0.hasPrefix(value)}){parts.append(value)}
         return parts.isEmpty ? nil:parts.joined(separator:" · ")
     }
+    /// A network game's agreed assistance (assistance plan A11): "Assistance: White: Hints on request; Black: Off". Nil
+    /// for a record without the tag, which every game without assistance is.
+    static func assistance(_ d:GameDocument)->String? {known(d.header("Assistance")).map{"Assistance: "+$0}}
     static func result(_ result:String)->String {switch result{case "1-0":return "1–0";case "0-1":return "0–1";case "1/2-1/2":return "½–½";default:return "Unfinished"}}
     /// A score from White's side: "+0.8", "−1.4", "0.0", "M3" (White mates), "−M2" (Black mates); a bound is marked.
     static func score(_ s:AnalysisScore)->String {
@@ -114,6 +117,7 @@ struct ReviewHeader:View {
                 // Imported header text is shown as written, never interpreted as Markdown.
                 Text(verbatim:ReviewFormat.players(document)).font(.title3.bold()).fixedSize(horizontal:false,vertical:true)
                 if let details=ReviewFormat.details(document){Text(verbatim:details).font(.subheadline).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)}
+                if let assistance=ReviewFormat.assistance(document){Text(verbatim:assistance).font(.subheadline).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("review-assistance")}
             }
             Spacer(minLength:0)
             Text(ReviewFormat.result(document.result)).font(.caption.weight(.semibold)).monospacedDigit().padding(.horizontal,6).padding(.vertical,2)
