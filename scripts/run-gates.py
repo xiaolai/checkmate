@@ -296,6 +296,17 @@ def attribute(windows: list, found: list) -> dict:
     return blamed
 
 
+def clear_notifications() -> None:
+    """Dismisses Notification Center's alerts before a gate, so a banner cannot cover a pointer click. The `intel` gate's
+    Rosetta launch makes macOS post one ("App Update Required") that sat over later gates' controls. A failure to
+    clear is printed, never hidden; the pointer helper still refuses a covered click, so it cannot pass quietly."""
+    completed = subprocess.run(['osascript', str(ROOT / 'scripts/clear-notifications.applescript')], capture_output=True, text=True, timeout=60)
+    if completed.returncode != 0:
+        print(f'WARNING: could not clear Notification Center: {completed.stderr.strip()}', flush=True)
+    elif completed.stdout.strip() != 'dismissed 0':
+        print(f'Notification Center: {completed.stdout.strip()}', flush=True)
+
+
 def run(names: list, full: bool = False) -> int:
     test_host.require("acceptance gates")
     evidence = pathlib.Path(os.environ.get('CHECKMATE_EVIDENCE_DIR') or tempfile.mkdtemp(prefix='checkmate-gates.', dir='/tmp'))
@@ -329,6 +340,7 @@ def run(names: list, full: bool = False) -> int:
         (evidence / gate['result']).unlink(missing_ok=True)
         started, began = time.monotonic(), time.time()
         print(f'== {name}', flush=True)
+        clear_notifications()
         # Each gate gets its own TMPDIR: whatever it leaves there is a leak, reported instead of piling up in /tmp.
         scratch = pathlib.Path(tempfile.mkdtemp(prefix=f'checkmate-gate-{name}.'))
         completed = subprocess.run(['bash', '-c', 'set -euo pipefail; ' + gate['run']], cwd=ROOT, env={**environment, 'TMPDIR': str(scratch) + '/'})

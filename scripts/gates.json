@@ -554,6 +554,7 @@
     "Tools/provenance.py",
     "scripts/test-run-gates.py",
     "scripts/run-gates.py",
+    "scripts/clear-notifications.applescript",
     "scripts/gates.json",
     "scripts/gate_check.py",
     "Content/*",
