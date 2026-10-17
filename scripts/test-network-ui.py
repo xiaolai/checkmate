@@ -234,6 +234,9 @@ try:
     play_code, _ = host_game(host, "Fay", handicap=("Hints on request", "Off"))
     row = wait_for(lambda: game_row(guest, "Fay's game"), "the guest never listed Fay's game", 30)
     assert "Handicap" in guest.line(row), f"the list did not call it a handicap: {guest.line(row)}"
+    # The earlier phases' hosts were stopped by a signal: their games went with them, as a Bonjour one would.
+    stale = [title for title in ("Ana's game", "Dee's game") if game_row(guest, title)]
+    assert not stale, f"a stopped instance's game is still listed: {stale}"
     join(guest, "Fay's game", "Gil", play_code, accept=True)
     wait(lambda: host.shows("Gil") and guest.shows("network-terms"), "the handicap game did not start", 30)
     for instance in instances:

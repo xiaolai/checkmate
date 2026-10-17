@@ -1,3 +1,24 @@
+# Unreleased
+
+A network game can now be played with help, if both players agree to it.
+When hosting, choose the assistance for both players: Board insight shows
+what protects and attacks a piece (P and A, as in practice), Hints on
+request adds a Hint button on your move, and Guided also shows a hint by
+itself at the start of each of your moves. A handicap gives each side its
+own level, and is always called one. Before joining a game with
+assistance, the other player sees what is allowed and accepts or declines
+it; nothing can change it once the game starts. Both players get the same
+hints, from a search of the same size on any Mac, and a hint uses your
+own clock. Beside the names, everyone in the game sees how many hints each
+player was shown. The count comes from each player's own Mac, so it shows
+what was reported, not what was proved. At Hints on request or Guided,
+the voice coach can also help with that game, and only with that game, on
+your own move. The terms and the moves with a hint shown are kept in the
+game's Review. Practice, other reviews and companions stay paused during a
+network game at every level, as before. A game without assistance can still
+be joined from Checkmate 0.8, but a game with assistance needs this version
+on both Macs.
+
 # Checkmate 0.8.1
 
 Voice, lesson recording and lesson translation now get your Codex sign-in

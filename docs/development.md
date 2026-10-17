@@ -153,13 +153,35 @@ stays in `preparing` and no prompt appears. Bonjour browsing is not gated, so a 
 Bonjour gates therefore install one signed copy at `~/Applications/CheckmateAutomation.app`, unregister every other
 copy of the automation bundle ID, register it and open it through LaunchServices (`scripts/network_gate.py`).
 
+A game may be played with agreed assistance (`NetworkAssistance` in the domain): one level per side, `off`,
+`insight` (Protected by / Attacked by on the network board), `hints` (a Hint button on the player's own move) or
+`guided` (a hint shown at the start of each of the player's moves). At `hints` and `guided` the voice coach may also
+connect to that game, with four network-only tools. The host fixes the terms when hosting; the guest accepts them
+before joining, the host checks the accepted terms inside TLS before reserving the seat, and the guest checks them
+again in every snapshot before acknowledging. The Bonjour TXT value `assist` is for display only. Spectators never
+get help. Hints come only from `NetworkAssistant`, on the network game's own position, at skill 20 with a fixed node
+count (`go nodes`), so every Mac searches the same amount. A move made after a hint or a voice turn carries
+`assisted`, which every player and spectator counts and Review records.
+
+The protocol is 1.1. Its additions are optional fields a 1.0 peer ignores, so a game without assistance stays open
+to a 1.0 guest; a guest that states no terms is refused, as another version, by a host whose game has assistance.
+Byte fixtures from the 1.0 codec (`NetworkLegacyFixtures`) keep both directions honest.
+
+`NetworkParticipation` still turns engine help off everywhere else while participating:
+`FairnessPolicy.engineHelpAllowed` is unchanged, and the scoped `networkAssistance` level opens only the network
+game's hint and voice coach. `Tests/fairness-inventory.json` lists every engine call and voice entry by kind:
+`guarded` (checks `engineHelpAllowed`), `delegated`, `exempt`, `assisted` (only `NetworkAssistant`, which checks
+`requireNetworkHint()` before and after its search) and `voice` (only `VoiceCoach`, which checks
+`voiceAllowed(network:)` first). `scripts/test-fairness-inventory.py` fails an unlisted call, and a site listed under
+a kind whose check it lacks.
+
 Three gates cover the interface, each with real pointer and key events:
 
 | Gate | Where | What |
 |---|---|---|
-| `network-ui` | test host, loopback | host, guest and spectator; pending move, refused spectator click, drop and resume, draw offer, resign, Review; light and dark |
+| `network-ui` | test host, loopback | host, guest and spectator; pending move, refused spectator click, drop and resume, draw offer, resign, Review; assistance: no help without it, the list badge, Decline then Accept, a hint counted on both boards, the inspector, a handicap; light and dark |
 | `network-bonjour` | test host | two installed copies find each other over Bonjour, join, play, resign and review; permission state recorded |
-| `network-lan` | test host and LAN pair | the test host hosts and watches, the pair joins, the pair drops and resumes, play to checkmate, Review on both |
+| `network-lan` | test host and LAN pair | the test host hosts a game with hints for both and watches, the pair accepts and joins, each player asks for a hint and every Mac counts both, the pair drops and resumes, play to checkmate, Review on both with the Assistance line |
 
 The last two need evidence prepared once per Mac, checked before anything builds; a missing or stale record makes
 the gate UNVERIFIED, never skipped. `bash scripts/automation-identity.sh create` makes the stable local signing
@@ -171,7 +193,8 @@ destination; it needs the same Accessibility, Screen Recording and unlocked cons
 builds: it runs the app the test host built and signed.
 
 Two switches exist only in isolated automation. `CHECKMATE_NETWORK_LOOPBACK_DIR` replaces Bonjour with a shared
-folder, for `network-ui`. `CHECKMATE_NETWORK_FAULT_FILE` names a file the app polls: `10` drops its connections and
+folder, for `network-ui`. Each record there names its publisher's process, and a record whose process has ended is
+dropped, as a Bonjour registration is, so an instance stopped by a signal leaves no game behind in the list. `CHECKMATE_NETWORK_FAULT_FILE` names a file the app polls: `10` drops its connections and
 refuses reconnecting for 10 seconds, and `stall 4` holds its outgoing messages for 4 seconds. A gate writes the file
 over SSH, so the control channel is never cut. A real cable or Wi-Fi loss is not automated, and neither is a real
 local-network denial: unit tests drive the denial path (help sheet, no timeout, recovery once granted) through the

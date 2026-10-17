@@ -4,7 +4,9 @@ bonjour-ready-pair and lan-pair).
 The test host hosts and runs a spectator; the LAN pair, reached over SSH (CHECKMATE_LAN_PAIR), joins. Both run the
 automation app the test host built and signed, installed at its fixed path and opened through LaunchServices. Every
 step is a real pointer or key event on the Mac it concerns: discover, join with the code, play to checkmate, Review on
-both. The pair's connection is cut through the automation-only hook (a file written over SSH), so the control channel
+both. The game is played under agreed assistance, hints on request for both (assistance plan, Verification:
+network-lan): the pair accepts the terms before joining, each player asks for a hint on one move, every Mac counts
+both hints, and Review on both Macs shows the Assistance line. The pair's connection is cut through the automation-only hook (a file written over SSH), so the control channel
 is never cut (N13). A real cable or Wi-Fi loss is not automated. Evidence is kept per Mac, in test-host/ and pair/:
 screenshots, permission states and connection logs.
 """
@@ -18,7 +20,7 @@ import time
 import test_host
 test_host.require("two-Mac network acceptance")
 from network_gate import (Instance, compile_helpers, host_game, install, join, on_pair, open_network, pair,  # noqa: E402
-                          permission, root, wait)
+                          permission, root, wait, wait_for)
 
 evidence = pathlib.Path(os.environ["CHECKMATE_EVIDENCE_DIR"])
 local_evidence, pair_evidence = evidence / "test-host", evidence / "pair"
@@ -46,6 +48,14 @@ def access_problem():
     return "; ".join(problems) or None
 
 
+def ask_hint(player):
+    """Presses Hint on the player's own move and waits for the hint's words (A6)."""
+    wait(lambda: player.shows("network-hint-button"), f"{player.name} was not offered a hint on its move", 20)
+    player.click("network-hint-button")
+    wait(lambda: player.shows("network-hint-text"), f"{player.name}'s hint never arrived", 20)
+    player.capture("hint")
+
+
 def pair_helpers():
     """The helpers built here, copied to the pair (it does not build)."""
     copies = {}
@@ -70,10 +80,13 @@ try:
         open_network(instance)
     step("lobbies open on both Macs")
 
-    play_code, watch_code = host_game(host)
-    step("hosted on the test host")
-    join(guest, "Ana's game", "Ben", play_code)
+    play_code, watch_code = host_game(host, assistance="Hints on request")
+    step("hosted on the test host, hints on request for both")
+    join(guest, "Ana's game", "Ben", play_code, accept=True)
     wait(lambda: host.shows("Ben") and guest.shows("Ana"), "the pair never reached the game", 40)
+    for instance in (host, guest):
+        wait(lambda instance=instance: instance.shows("Assistance: hints on request for both players."), f"{instance.name} did not show the agreed terms")
+    step("the pair accepted the terms and joined")
     join(watcher, "Ana's game", "Cy", watch_code, watching=True)
     wait(lambda: host.shows("Cy is watching."), "the host never saw its spectator")
     results["permission"] = {instance.name: permission(instance) for instance in instances}
@@ -84,11 +97,15 @@ try:
     host.square("f2")
     host.square("f3")
     wait(lambda: guest.label("f3").startswith("f3, White, pawn"), "the pair never showed 1. f3")
+    # A hint shown counts whether or not it is followed (A7): the pair asks, then plays the scripted move.
+    ask_hint(guest)
     guest.square("e7")
     guest.square("e5")
     for instance in (host, watcher):
         wait(lambda instance=instance: instance.label("e5").startswith("e5, Black, pawn"), f"{instance.name} never showed 1... e5")
-    step("first moves crossed the LAN")
+    for instance in instances:
+        wait(lambda instance=instance: instance.shows("Hints used: Ana 0 · Ben 1"), f"{instance.name} did not count the pair's hint", 20)
+    step("first moves crossed the LAN; the pair's hint counted on every Mac")
 
     # The disconnect hook on the pair cuts its game connection and refuses reconnecting for 10 s; SSH is untouched.
     guest.write_fault("10")
@@ -101,8 +118,11 @@ try:
     wait(lambda: host.shows("Your move."), "the host never saw the pair return", 20)
     step("the pair dropped and resumed")
 
+    ask_hint(host)
     host.square("g2")
     host.square("g4")
+    for instance in instances:
+        wait(lambda instance=instance: instance.shows("Hints used: Ana 1 · Ben 1"), f"{instance.name} did not count the host's hint", 20)
     wait(lambda: guest.label("g4").startswith("g4, White, pawn"), "the pair never showed 2. g4")
     guest.square("d8")
     guest.square("h4")
@@ -115,8 +135,11 @@ try:
     for instance in (guest, host):
         instance.click("network-review")
         wait(lambda instance=instance: instance.shows("review-document-actions"), f"{instance.name} did not open the game in Review")
+        line = wait_for(lambda instance=instance: instance.line("review-assistance"), f"{instance.name} showed no Assistance line in Review")
+        assert "White: Hints on request; Black: Hints on request" in line, f"{instance.name} reviewed the wrong terms: {line}"
         instance.capture("review")
-    step("reviewed on both Macs")
+    results["reviewAssistance"] = True
+    step("reviewed on both Macs, with the agreed assistance")
     results["passed"] = True
 except Exception as error:
     failure = str(error)
