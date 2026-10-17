@@ -11,7 +11,9 @@ Then agreed assistance (assistance plan, Verification: network-ui): that first g
 button and P inspects nothing. A second pair plays under hints for both: the list shows the badge, the guest declines
 the Accept sheet once and then accepts, presses Hint, the arrow appears on its board, plays the hinted move and the host
 counts it; P on the host's board shows protection. A third pair plays a handicap, which both players see as one, and
-the side without help gets no Hint button and no inspector.
+the side without help gets no Hint button and no inspector. A fourth pair plays Guided, with the host's voice coach
+connected to the automation-only silent double (`--voice-double`: no audio, no network): Connect, Stop Speaking and
+Disconnect Coach are clicked with real pointer events, and the coach's status is read after each.
 """
 import json
 import os
@@ -33,6 +35,10 @@ shared = tempfile.mkdtemp(prefix="checkmate-network-ui-shared-")
 results = {"steps": []}
 ANALYSIS_HIDDEN = "Analysis is hidden during your network game"
 KEY_P, KEY_ESCAPE = "35", "53"
+# VoiceCoach's status lines: a requested turn, and the ready line with no microphone running, which the double never
+# starts ("off" when Settings turns the microphone off, "unavailable" when it is on).
+VOICE_THINKING = "Coach is thinking…"
+VOICE_READY = ("Ready — microphone unavailable", "Ready — microphone off")
 started = time.monotonic()
 
 
@@ -61,6 +67,12 @@ def shut(instance, square, message):
     for _ in range(4):
         time.sleep(0.5)
         assert "protected by" not in instance.read_label(square), message
+
+
+def voice_status(instance):
+    """The voice coach's status line (network-voice-status), or None while it is not shown."""
+    names = instance.names("network-voice-status")
+    return None if names is None else " | ".join(names)
 
 
 def suggested(instance):
@@ -223,8 +235,8 @@ try:
     guest.click("network-accept-assistance")
     wait(lambda: host.shows("Eve") and guest.shows("network-terms"), "accepting did not join the game", 30)
     assert host.shows("Assistance: hints on request for both players."), "the host did not show the terms"
-    # Hints on request allow the voice coach (A10): each player is offered it. Connecting needs live credentials, so
-    # the gate checks the control is offered, not a session.
+    # Hints on request allow the voice coach (A10): each player is offered it. The session itself is driven in the
+    # Guided phase, against the silent double.
     for instance in instances:
         wait(lambda instance=instance: instance.shows("network-voice-connect"), f"{instance.name} was not offered the voice coach at hints on request")
     step("assistance accepted")
@@ -282,6 +294,37 @@ try:
     inspect(guest, "d7", expected=False)
     guest.capture("handicap-guest")
     step("handicap shown on both; the side without help gets none")
+    for instance in instances:
+        instance.stop()
+    instances = []
+
+    # Guided (A10): the coach speaks on the learner's move unprompted, so on the host's first move Connect starts a
+    # turn, Stop Speaking ends it, and Disconnect Coach ends the session. The host's coach is the silent double.
+    host = Instance("guided-host", evidence, helpers, environment=loopback, arguments=["--voice-double"])
+    instances.append(host)
+    guest = Instance("guided-guest", evidence, helpers, environment=loopback)
+    instances.append(guest)
+    for instance in instances:
+        open_network(instance)
+    play_code, _ = host_game(host, "Hal", assistance="Guided")
+    join(guest, "Hal's game", "Ivy", play_code, accept="Hal's game allows guided hints for both players.")
+    wait(lambda: host.shows("Ivy") and host.shows("network-voice-connect"), "the guided game did not start with the voice coach offered", 30)
+    host.click("network-voice-connect")
+    wait(lambda: voice_status(host) == VOICE_THINKING and host.shows("network-voice-stop"), f"Connect did not start the coach's turn: {voice_status(host)!r}", 20)
+    # The double leaves the turn generating, so it ends only through Stop Speaking.
+    time.sleep(1)
+    assert voice_status(host) == VOICE_THINKING, f"the coach's turn ended before Stop Speaking: {voice_status(host)!r}"
+    host.capture("guided-voice-speaking")
+    step("guided voice connected and speaking")
+    # Stop Speaking draws even when disabled; only its effect shows the click reached an enabled button.
+    host.click("network-voice-stop")
+    wait(lambda: voice_status(host) in VOICE_READY, f"Stop Speaking did not end the coach's turn: {voice_status(host)!r}")
+    assert host.shows("network-voice-disconnect"), "stopping the turn ended the voice session"
+    step("guided voice stopped speaking")
+    host.click("network-voice-disconnect")
+    wait(lambda: host.shows("network-voice-connect") and voice_status(host) is None, f"Disconnect Coach did not end the session: {voice_status(host)!r}")
+    assert host.absent("network-voice-stop", within="network-status"), "Stop Speaking stayed after Disconnect Coach"
+    step("guided voice disconnected")
     results["passed"] = True
 except Exception as error:
     failure = str(error)

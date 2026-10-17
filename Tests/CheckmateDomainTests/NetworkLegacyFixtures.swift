@@ -79,6 +79,12 @@ struct Legacy10Wire:Decodable {
         try wire.validate()
         return wire
     }
+    /// 1.0's UCI rule, as `ChessNotation.validUCI` read at 1.0: four characters naming two squares, or five ending in
+    /// a promotion piece. Written out so a later change to the production rule cannot move the oracle.
+    static func uci(_ s:String)->Bool {
+        func square(_ text:Substring)->Bool {text.count==2 && "abcdefgh".contains(text.first!) && "12345678".contains(text.last!)}
+        return (s.count==4 || s.count==5) && square(s.prefix(2)) && square(s.dropFirst(2).prefix(2)) && (s.count==4 || "qrbn".contains(s.last!))
+    }
     /// 1.0's free-string rule: 1 to `maximumBytes` bytes of UTF-8 with no control character.
     static func text(_ value:String,_ maximumBytes:Int=maximumNameBytes)->Bool {!value.isEmpty && value.utf8.count<=maximumBytes && !value.unicodeScalars.contains{$0.properties.generalCategory == .control}}
     private func validate()throws {
@@ -87,7 +93,7 @@ struct Legacy10Wire:Decodable {
         func hashValid(_ hash:String?)->Bool {hash.map{!$0.isEmpty && $0.utf8.count<=Self.maximumHashBytes && $0.utf8.allSatisfy{(0x21...0x7E).contains($0)}} ?? false}
         switch type {
         case "hello":try check(Self.text(name!),"name");try check(Self.text(appVersion!),"appVersion")
-        case "move":try check(revision!>=0,"revision");try check(ChessNotation.validUCI(uci!),"uci")
+        case "move":try check(revision!>=0,"revision");try check(Self.uci(uci!),"uci")
         case "drawOffer","claimDraw":try check(revision!>=0,"revision")
         case "snapshotBegin":
             try check(revision!>=0,"revision");try check(hashValid(hash),"hash")
@@ -95,7 +101,7 @@ struct Legacy10Wire:Decodable {
         case "snapshotPart":
             try check((0..<Self.maximumSnapshotParts).contains(index!),"index")
             guard let bytes=Data(base64Encoded:data!),!bytes.isEmpty,bytes.count<=Self.maximumSnapshotPartBytes else{throw Refusal.invalid("data")}
-        case "moved":try check(Self.text(san!,Self.maximumSANBytes),"san");try check(revision!>=0,"revision");try check(ChessNotation.validUCI(uci!),"uci");try check(hashValid(hash),"hash");try check(clocksValid(clocks),"clocks")
+        case "moved":try check(Self.text(san!,Self.maximumSANBytes),"san");try check(revision!>=0,"revision");try check(Self.uci(uci!),"uci");try check(hashValid(hash),"hash");try check(clocksValid(clocks),"clocks")
         case "clock":try check(clocksValid(clocks),"clocks")
         case "ended":try check(revision!>=0,"revision");try check(clocksValid(clocks),"clocks")
         default:break
@@ -116,6 +122,6 @@ struct Legacy10PublicGame:Decodable,Equatable {
         whiteName=try c.decodeIfPresent(String.self,forKey:.whiteName);blackName=try c.decodeIfPresent(String.self,forKey:.blackName)
         timeControl=try c.decode(NetworkTimeControl.self,forKey:.timeControl);pgn=try c.decode(String.self,forKey:.pgn)
         clocks=try c.decodeIfPresent(NetworkClocks.self,forKey:.clocks);openOffer=try c.decodeIfPresent(NetworkDrawOffer.self,forKey:.openOffer);outcome=try c.decodeIfPresent(NetworkOutcome.self,forKey:.outcome)
-        guard revision>=0,[whiteName,blackName].allSatisfy({$0.map{NetworkText.valid($0)} ?? true}),clocks?.valid ?? true,(clocks==nil)==(timeControl == .untimed) else{throw DecodingError.dataCorrupted(.init(codingPath:decoder.codingPath,debugDescription:"Invalid public game."))}
+        guard revision>=0,[whiteName,blackName].allSatisfy({$0.map{Legacy10Wire.text($0)} ?? true}),clocks?.valid ?? true,(clocks==nil)==(timeControl == .untimed) else{throw DecodingError.dataCorrupted(.init(codingPath:decoder.codingPath,debugDescription:"Invalid public game."))}
     }
 }

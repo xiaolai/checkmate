@@ -36,14 +36,17 @@ public struct ReviewMoment:Codable,Identifiable {public let id:Int,expectationLo
     private var selectedAnalyses:[UUID:Task<EngineAnalysis,Error>]=[:]
     /// The work runs in its own task, a scheduling hop after the caller's fairness check: work that reaches the engine
     /// checks again itself, so a game joined in between stops it (D8).
+    /// Runs first in each search's own task, before its work: tests hold searches there to begin a network game in
+    /// the hop between the call's check and the task's.
+    var searchTaskStarted:(()async->Void)?
     private func trackedAnalysis(_ work:@escaping ()async throws -> EngineAnalysis)async throws -> EngineAnalysis {
-        let id=UUID(),task=Task{try await work()};selectedAnalyses[id]=task;defer{selectedAnalyses[id]=nil}
+        let started=searchTaskStarted,id=UUID(),task=Task{await started?();return try await work()};selectedAnalyses[id]=task;defer{selectedAnalyses[id]=nil}
         // Cancelled by joining: the caller hears the readable reason, not a bare cancellation.
         do{return try await withTaskCancellationHandler(operation:{try await task.value},onCancel:{task.cancel()})}
         catch{try fairness.requireEngineHelp();throw error}
     }
     private func tracked(_ work:@escaping ()async throws -> ReviewEvidence)async throws -> ReviewEvidence {
-        let id=UUID(),task=Task{try await work()};selectedSearches[id]=task;defer{selectedSearches[id]=nil}
+        let started=searchTaskStarted,id=UUID(),task=Task{await started?();return try await work()};selectedSearches[id]=task;defer{selectedSearches[id]=nil}
         // Cancelled by joining: the caller hears the readable reason, not a bare cancellation.
         do{return try await withTaskCancellationHandler(operation:{try await task.value},onCancel:{task.cancel()})}
         catch{try fairness.requireEngineHelp();throw error}

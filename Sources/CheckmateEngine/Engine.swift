@@ -22,7 +22,10 @@ import Combine
     public func prepare()async throws {
         if binaryIdentity.isEmpty{binaryIdentity=try await identityTask.value}
         guard capabilities.name=="Unknown engine" else{return}
-        let worker=worker;capabilities=try await Task.detached{try worker.prepare()}.value
+        // A cancelled preparation (a Review request withdrawn during a cold start) stops its own startup, so it does not
+        // hold the worker until the startup watchdog while an allowed search waits behind it.
+        let worker=worker,ticket=worker.preparationTicket();defer{worker.forgetPreparation(ticket)}
+        capabilities=try await withTaskCancellationHandler(operation:{try await Task.detached{try worker.prepare(ticket:ticket)}.value},onCancel:{worker.cancelPreparation(ticket)})
     }
     public func analyze(fen:String,skill:Int=20,budget:Int=350,multiPv:Int=3) async throws -> EngineAnalysis {
         try await analyzeHistory(startFEN:fen,moves:[],profile:.skill(max(0,min(20,skill))),budget:max(100,min(1000,budget)),multiPv:max(1,min(3,multiPv)))
@@ -56,6 +59,8 @@ import Combine
         guard searchMoves.allSatisfy({uci in legal.contains{$0.uci==uci}}) else{throw CheckmateError.invalid("Illegal searchmoves constraint.")}
         let worker=worker,fen=rules.fen,epoch=worker.reserve(),lines=max(1,min(16,multiPv,max(1,searchMoves.isEmpty ? legal.count:searchMoves.count)))
         var result=try await withTaskCancellationHandler(operation:{try await Task.detached(priority:.userInitiated){try worker.search(startFEN:start,moves:canonical,finalFEN:fen,profile:profile,limit:limit,multiPv:lines,searchMoves:searchMoves,epoch:epoch)}.value},onCancel:{worker.cancel(expected:epoch)})
+        // Cancelling cannot take back a search that finished before the cancellation: its result is dropped here.
+        try Task.checkCancellation()
         capabilities=worker.metadata()
         result.lines=try result.lines.compactMap{line in try autoreleasepool{var line=line;let replay=try ChessRules(fen:fen);do{line.san=try line.pv.map{try replay.move(uci:$0).san};return line}catch{return nil}}}
         return result

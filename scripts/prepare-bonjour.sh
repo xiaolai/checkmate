@@ -34,30 +34,74 @@ remote = os.environ["CHECKMATE_PREPARE_TARGET"] == "pair"
 work = pathlib.Path(tempfile.mkdtemp(prefix="checkmate-prepare-bonjour-"))
 
 
-def shell(command, check=False):
+def shell(command, check=False, timeout=30):
+    """One command on the target, bounded: a stalled helper or LaunchServices call fails instead of hanging the run."""
     if remote:
-        return gate.on_pair(command, check=check)
-    return subprocess.run(command, shell=True, capture_output=True, text=True, check=check).stdout.strip()
+        return gate.on_pair(command, check=check, timeout=timeout)
+    return subprocess.run(command, shell=True, capture_output=True, text=True, check=check, timeout=timeout).stdout.strip()
+
+
+def remaining(deadline, cap=30):
+    """A call's timeout within the polling deadline: never past it, never under one second."""
+    return max(1, min(cap, int(deadline - time.monotonic())))
 
 
 def asks_for_local_network(owner):
     """Whether the dialog UserNotificationCenter shows is this app's local-network prompt, so no other prompt is ever
     answered for it."""
-    text = shell(f"{shlex.quote(tools['ax-helper'])} {owner} list 2>/dev/null")
+    text = shell(f"{shlex.quote(tools['ax-helper'])} {owner} list 2>/dev/null", timeout=remaining(deadline))
     return "Checkmate" in text and "local network" in text
 
 
+def only_this_checkmate():
+    """True when the one Checkmate process running is this self-check's. Every Checkmate build (released, development,
+    automation) is named Checkmate and runs CheckmateNative, so the prompt cannot say which one asks; with no other
+    running, it can only be this one's."""
+    running = shell("pgrep -x CheckmateNative", timeout=remaining(deadline)).split()
+    ours = shell(f"pgrep -f {shlex.quote(gate.process_pattern(data))}", timeout=remaining(deadline)).split()
+    return len(running) == 1 and running == ours
+
+
+def stop_app():
+    """Stops the self-check's app and confirms it is gone: SIGTERM, a wait, then SIGKILL. Raises if it stays."""
+    pattern = shlex.quote(gate.process_pattern(data))
+    shell(f"pkill -f {pattern}", timeout=30)
+    for _ in range(20):
+        if not shell(f"pgrep -f {pattern}", timeout=30):
+            return
+        time.sleep(0.5)
+    shell(f"pkill -KILL -f {pattern}", timeout=30)
+    time.sleep(1)
+    if shell(f"pgrep -f {pattern}", timeout=30):
+        raise RuntimeError("the self-check's app is still running after SIGKILL")
+
+
+def remove_data():
+    shell(f"rm -rf {shlex.quote(data)} && test ! -e {shlex.quote(data)}", check=True, timeout=60)
+
+
+cleanup_errors = []
+
+
 def cleanly(step, *args):
-    """One cleanup step; a failure or timeout in it never skips the steps after it."""
+    """One cleanup step; a failure or timeout in it never skips the steps after it, and fails the preparation."""
     try:
         step(*args)
-    except Exception as error:  # noqa: BLE001 - cleanup reports and carries on
+    except Exception as error:  # noqa: BLE001 - every step runs; each failure is kept and fails the run
+        cleanup_errors.append(f"{getattr(step, '__name__', step)}: {error}")
         print(f"cleanup step failed: {error}", file=sys.stderr)
+
+
+# The old evidence goes before anything else: a preparation that fails must not leave an earlier pass standing for the
+# gates' prerequisite check, which compares only the identity, app, account and system it names.
+RECORD = "~/.config/checkmate/bonjour-ready.json"
+shell(f"rm -f {RECORD} && test ! -e {RECORD}", check=True)
 
 
 tools = {}
 data = None
 prompt = "not shown"
+deadline = time.monotonic() + 600
 try:
     helpers = gate.compile_helpers(work)
     gate.install(remote=remote)
@@ -74,28 +118,33 @@ try:
     shell(f"open -n -a {app} --args --automation --data-dir {shlex.quote(data)} --bonjour-self-check {shlex.quote(verdict)}", check=True)
     deadline = time.monotonic() + 90
     while time.monotonic() < deadline:
-        if shell(f"test -s {shlex.quote(verdict)} && echo done") == "done":
+        if shell(f"test -s {shlex.quote(verdict)} && echo done", timeout=remaining(deadline)) == "done":
             break
         # The macOS prompt belongs to UserNotificationCenter. Once it shows the local-network question naming this
         # app, a real click on Allow answers it, as a person would; the button is looked up only inside the window
         # that names both Checkmate and the local network, so another prompt is never answered.
         if prompt == "not shown":
-            owner = shell("pgrep -x UserNotificationCenter")
+            owner = shell("pgrep -x UserNotificationCenter", timeout=remaining(deadline))
             if owner and asks_for_local_network(owner):
-                shell(f"{helper} {owner} dialog-click Checkmate Allow 'local network'", check=True)
+                if not only_this_checkmate():
+                    # Another Checkmate is running, so the prompt may be its: never answered for it.
+                    prompt = "refused: another Checkmate was running, so the prompt could not be attributed"
+                    break
+                shell(f"{helper} {owner} dialog-click Checkmate Allow 'local network'", check=True, timeout=remaining(deadline))
                 prompt = "answered Allow"
         time.sleep(0.5)
     try:
-        result = json.loads(shell(f"cat {shlex.quote(verdict)} 2>/dev/null") or "{}")
+        result = json.loads(shell(f"cat {shlex.quote(verdict)} 2>/dev/null", timeout=30) or "{}")
     except json.JSONDecodeError as error:
         result = {"passed": False, "message": f"the self-check wrote no readable verdict ({error})"}
 finally:
-    # The app, its data and the helpers go whatever happened above.
+    # The app, and its data folder with the pair's helpers inside it, go whatever happened above, and are confirmed gone.
     if data:
-        cleanly(shell, f"pkill -f {shlex.quote('data-dir ' + data)}; rm -rf {shlex.quote(data)}")
-    if remote and tools:
-        cleanly(shell, "rm -f " + " ".join(shlex.quote(path) for path in tools.values()))
-    cleanly(subprocess.run, ["rm", "-rf", str(work)])
+        cleanly(stop_app)
+        cleanly(remove_data)
+    cleanly(lambda: subprocess.run(["rm", "-rf", str(work)], check=True, timeout=60))
+if cleanup_errors:
+    raise SystemExit(f"Bonjour preparation could not confirm its cleanup on the {'LAN pair' if remote else 'test host'}: {'; '.join(cleanup_errors)}")
 if not result.get("passed"):
     raise SystemExit(f"Bonjour self-check failed on the {'LAN pair' if remote else 'test host'}: {json.dumps(result)} (prompt {prompt})")
 evidence = {"fingerprint": os.environ["CHECKMATE_IDENTITY_FINGERPRINT"], "bundleID": gate.AUTOMATION_BUNDLE,

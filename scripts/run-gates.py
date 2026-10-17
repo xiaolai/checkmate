@@ -18,6 +18,7 @@ quietly; with --only the run stops at once; a full run treats every prerequisite
 $CHECKMATE_GATE_LEDGER (default ~/Library/Caches/checkmate-gates/<checkout hash>.json).
 """
 import argparse
+import contextlib
 import datetime
 import fcntl
 import fnmatch
@@ -27,6 +28,7 @@ import os
 import pathlib
 import shlex
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -34,11 +36,19 @@ import time
 
 import test_host
 
+
+
+def evidence_path(value: str) -> pathlib.Path:
+    """The one reading of CHECKMATE_EVIDENCE_DIR: `~` expanded and made absolute, so the certificate removed here, the
+    folder the runner writes and the folder every gate is told about are always the same folder."""
+    return pathlib.Path(value).expanduser().resolve()
+
+
 # First, before anything that can fail (even loading the gate map): a full run's reused evidence directory must not keep
 # an earlier run's certificate, since only this run's aggregate may write one. Without the variable a run uses a fresh
 # temporary directory.
 if '--full' in sys.argv[1:] and os.environ.get('CHECKMATE_EVIDENCE_DIR'):
-    (pathlib.Path(os.environ['CHECKMATE_EVIDENCE_DIR']) / 'acceptance.json').unlink(missing_ok=True)
+    (evidence_path(os.environ['CHECKMATE_EVIDENCE_DIR']) / 'acceptance.json').unlink(missing_ok=True)
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 # The result checks run from exactly the text that fingerprints them: an edit to gate_check.py after this process
@@ -309,6 +319,44 @@ def crashes(reports: set, uuids: set) -> list:
     return found
 
 
+def unfinished(reports: set, uuids: set) -> set:
+    """Reports whose header names one of these executables but whose body does not parse yet: ReportCrash writes the
+    header first, so such a report is a crash still being written, to be read again rather than set aside."""
+    pending = set()
+    for report in reports:
+        header, _, body = report.read_text(errors='replace').partition('\n')
+        try:
+            meta = json.loads(header)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(meta, dict) or meta.get('app_name') not in CRASHABLE or str(meta.get('slice_uuid', '')).lower() not in uuids:
+            continue
+        try:
+            json.loads(body)
+        except json.JSONDecodeError:
+            pending.add(report)
+    return pending
+
+
+def run_gate_process(command: str, environment: dict) -> int:
+    """Runs a gate's command in its own process group and returns its exit status. A run that ends while the gate is
+    running (an interruption, an error) stops the whole group before it re-raises, so no automation is left driving
+    the shared test host."""
+    process = subprocess.Popen(['bash', '-c', command], cwd=ROOT, env=environment, start_new_session=True)
+    try:
+        return process.wait()
+    except BaseException:
+        with contextlib.suppress(ProcessLookupError):
+            os.killpg(process.pid, signal.SIGTERM)
+        try:
+            process.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            with contextlib.suppress(ProcessLookupError):
+                os.killpg(process.pid, signal.SIGKILL)
+            process.wait()
+        raise
+
+
 def attribute(windows: list, found: list, since: float = None) -> dict:
     """Each crash goes to the last gate that had started when it happened: the gate whose apps were running; one before
     any gate began (the run's own build) goes to the first. A report captured before the run itself began (`since`) is
@@ -345,7 +393,9 @@ def late_crashes(windows: list, seen: set, uuids: set, since: float) -> bool:
     if not windows:
         return False
     time.sleep(max(0.0, windows[-1][2] + CRASH_SETTLE_SECONDS - time.time()))
-    late = attribute(windows, crashes(crash_reports() - seen, uuids | built_uuids()), since)
+    remaining, known = crash_reports() - seen, uuids | built_uuids()
+    # A matching report still unreadable after the settle is a crash all the same, dated by when it was written.
+    late = attribute(windows, crashes(remaining, known) + [(report.stat().st_mtime, report) for report in sorted(unfinished(remaining, known))], since)
     if late:
         update_ledger({name: None for name in late})
         for name, reports in late.items():
@@ -357,7 +407,15 @@ def run(names: list, full: bool = False) -> int:
     test_host.require("acceptance gates")
     run_began = time.time()
     # Absolute, so the runner and every gate (each started in ROOT, some changing directory) use the same folder.
-    evidence = pathlib.Path(os.environ.get('CHECKMATE_EVIDENCE_DIR') or tempfile.mkdtemp(prefix='checkmate-gates.', dir='/tmp')).expanduser().resolve()
+    evidence = evidence_path(os.environ.get('CHECKMATE_EVIDENCE_DIR') or tempfile.mkdtemp(prefix='checkmate-gates.', dir='/tmp'))
+    if full:
+        (evidence / 'acceptance.json').unlink(missing_ok=True)
+    elif (evidence / 'acceptance.json').exists():
+        # A targeted run would replace a certified run's results while its certificate stayed, and release packaging
+        # trusts that certificate: refuse before anything in the folder changes.
+        print(f'{evidence} holds a full run\'s acceptance.json; a targeted run would replace the evidence it certifies. '
+              'Set CHECKMATE_EVIDENCE_DIR to another folder.', file=sys.stderr)
+        return 2
     evidence.mkdir(parents=True, exist_ok=True)
     environment = {**os.environ, 'CHECKMATE_EVIDENCE_DIR': str(evidence)}
     # Inputs and gate definitions are fixed before anything is built: a source, gate command or check edited during the
@@ -377,9 +435,17 @@ def run(names: list, full: bool = False) -> int:
     first_needing = next((i for i, name in enumerate(names) if GATES[name].get('prebuilt')), None)
     if first_needing is not None and not any(GATES[name].get('builds') for name in names[:first_needing]):
         print('Building CheckmateAutomation.app', flush=True)
-        with open(evidence / 'build.log', 'w') as log:
-            subprocess.run(['bash', 'build.sh'], cwd=ROOT, check=True, stdout=log, stderr=subprocess.STDOUT,
-                           env={**environment, 'CHECKMATE_BUNDLE_ID': 'ai.xiaolai.checkmate.native-automation', 'CHECKMATE_APP_NAME': 'CheckmateAutomation'})
+        try:
+            with open(evidence / 'build.log', 'w') as log:
+                subprocess.run(['bash', 'build.sh'], cwd=ROOT, check=True, stdout=log, stderr=subprocess.STDOUT,
+                               env={**environment, 'CHECKMATE_BUNDLE_ID': 'ai.xiaolai.checkmate.native-automation', 'CHECKMATE_APP_NAME': 'CheckmateAutomation'})
+        except BaseException as failure:
+            # Every selected gate was to be verified on this build, so none keeps an earlier pass once it fails.
+            update_ledger({name: None for name in names})
+            if not isinstance(failure, subprocess.CalledProcessError):
+                raise
+            print(f"FAILED building CheckmateAutomation.app (see {evidence / 'build.log'}); passes not kept: {', '.join(names)}", flush=True)
+            return 1
     # A crash report from this checkout's apps fails the gate it came from, however the gate itself exited.
     seen_reports, uuids, windows = crash_reports(), set(), []
     # Passes recorded by this run are provisional until the final late-crash check: a run that ends any other way (an
@@ -395,16 +461,19 @@ def run(names: list, full: bool = False) -> int:
             clear_notifications()
             # Each gate gets its own TMPDIR: whatever it leaves there is a leak, reported instead of piling up in /tmp.
             scratch = pathlib.Path(tempfile.mkdtemp(prefix=f'checkmate-gate-{name}.'))
-            completed = subprocess.run(['bash', '-c', 'set -euo pipefail; ' + gate['run']], cwd=ROOT, env={**environment, 'TMPDIR': str(scratch) + '/'})
-            seconds = time.monotonic() - started
-            windows.append((name, began, time.time()))
-            leftovers = temporary_leftovers(scratch)
-            shutil.rmtree(scratch, ignore_errors=True)
+            try:
+                returncode = run_gate_process('set -euo pipefail; ' + gate['run'], {**environment, 'TMPDIR': str(scratch) + '/'})
+                seconds = time.monotonic() - started
+                windows.append((name, began, time.time()))
+                leftovers = temporary_leftovers(scratch)
+            finally:
+                shutil.rmtree(scratch, ignore_errors=True)
             try:
                 uuids |= built_uuids()
                 fresh = crash_reports() - seen_reports
-                blamed, seen_reports = attribute(windows, crashes(fresh, uuids), run_began), seen_reports | fresh
-                assert completed.returncode == 0, f'exit {completed.returncode}'
+                # A matching report ReportCrash is still writing stays unseen, so a later look reads it whole.
+                blamed, seen_reports = attribute(windows, crashes(fresh, uuids), run_began), seen_reports | (fresh - unfinished(fresh, uuids))
+                assert returncode == 0, f'exit {returncode}'
                 assert not blamed, 'an app crashed: ' + '; '.join(f"during {source}: {', '.join(reports)}" for source, reports in blamed.items())
                 assert not leftovers, f'left temporary files: {leftovers[:10]}'
                 check_gate(evidence, gate)
@@ -499,11 +568,11 @@ def main() -> int:
             status = 'current' if reason is None else 'RUN: ' + reason + (f"; needs {', '.join(needs)} (not checked by --list)" if needs else '')
             print(f"{name:17} {status}")
         return 0
-    if arguments.only:
+    if arguments.only is not None:
         names = [name.strip() for name in arguments.only.split(',') if name.strip()]
         unknown = [name for name in names if name not in GATES]
         if unknown or not names:
-            print(f"Unknown gate(s) {unknown}; gates are: {', '.join(ORDER)}", file=sys.stderr)
+            print(f"{'Unknown gate(s) ' + str(unknown) if unknown else 'No gate named'}; gates are: {', '.join(ORDER)}", file=sys.stderr)
             return 2
         names = [name for name in ORDER if name in names]
         blocked = unmet(names)

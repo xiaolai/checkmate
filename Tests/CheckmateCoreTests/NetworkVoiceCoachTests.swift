@@ -83,9 +83,17 @@ import CheckmateRules
         for name in ["analyze_position","test_move","highlight_squares","demonstrate_moves","control_demonstration","play_requested_move"] {
             await refused(FairnessPolicy.refusal,{try await coach.voice.execute(name,args:["positionId":self.position(ana)],id:name)},name)
         }
-        let board=try await coach.voice.execute("get_board",args:[:],id:"board") as? [String:Any]
-        XCTAssertEqual((board?["state"] as? [String:Any])?["mode"] as? String,"network");XCTAssertEqual((board?["network"] as? [String:Any])?["fen"] as? String,ana.game.rules.fen)
-        XCTAssertEqual((board?["state"] as? [String:Any])?["positionId"] as? String,position(ana))
+        // The network game moves on while Practice stays at the start, so a tool that read Practice would be caught.
+        NetworkControllerTests().play(ana,"e2","e4",lan);await drainMain()
+        XCTAssertNotEqual(ana.game.rules.fen,coach.session.rules.fen,"fixture: the network board and Practice's differ");XCTAssertNil(coach.session.rules.piece("e4"),"fixture: e4 is empty in Practice")
+        let board=try await coach.voice.execute("get_board",args:[:],id:"board") as? [String:Any],network=board?["network"] as? [String:Any]
+        XCTAssertEqual((board?["state"] as? [String:Any])?["mode"] as? String,"network");XCTAssertEqual(network?["fen"] as? String,ana.game.rules.fen);XCTAssertEqual(network?["moves"] as? [String],["e4"])
+        XCTAssertEqual((board?["state"] as? [String:Any])?["positionId"] as? String,position(ana));XCTAssertEqual((board?["state"] as? [String:Any])?["turn"] as? String,"b")
+        let legal=Set((board?["legalMoves"] as? [[String:Any]] ?? []).compactMap{$0["uci"] as? String})
+        XCTAssertEqual(legal,Set(ana.game.rules.moves().map(\.uci)));XCTAssertTrue(legal.contains("e7e5"));XCTAssertFalse(legal.contains("e2e4"),"Practice's moves are not the game's")
+        // The inspector reads the game's pawn on e4.
+        let inspected=try await coach.voice.execute("inspect_piece",args:["positionId":position(ana),"square":"e4","mode":"attacked"],id:"inspect") as? [String:Any]
+        XCTAssertEqual(inspected?["square"] as? String,"e4");XCTAssertEqual(inspected?["piece"] as? String,"p");XCTAssertEqual(inspected?["color"] as? String,"w")
         // A9: the voice coach's tools never reopen the MCP surface.
         let mcp=try CompanionTools(session:coach.session);coach.session.setConnection(enabled:true,role:"coach",lease:"fixture")
         do{_ = try await mcp.call("play_move",args:["sessionId":coach.session.sessionId,"revision":coach.session.revision,"requestId":"one"],lease:"fixture");XCTFail("MCP answered during the game")}catch{XCTAssertEqual(code(error),FairnessPolicy.refusal)}
@@ -119,8 +127,10 @@ import CheckmateRules
         // A stale position is refused; Ben's own move is now his to ask about.
         await refused("STALE_STATE",{try await anaCoach.voice.execute("inspect_piece",args:["positionId":"network:-5","square":"e2","mode":"attacked"],id:"x")},"a tool bound to an earlier move")
         benCoach.voice.ask("And now?");XCTAssertEqual(benCoach.events.responses.count,1)
-        // A spoken turn alone, without a hint, still flags the move: everything the coach says counts (A7).
-        _ = try await benCoach.voice.execute("speak_explanation",args:speech(ben,"Your e-pawn can take the centre."),id:"s");XCTAssertTrue(ben.game.assistedThisTurn)
+        // A spoken turn alone, without a hint, still flags the move once the learner hears it: everything the coach says
+        // counts (A7), from the moment it is said.
+        _ = try await benCoach.voice.execute("speak_explanation",args:speech(ben,"Your e-pawn can take the centre."),id:"s");XCTAssertFalse(ben.game.assistedThisTurn,"queued speech is not yet advice")
+        benCoach.voice.receive(["type":"response.done","response":["status":"completed"]]);benCoach.voice.audio.onPlaybackStart?();XCTAssertTrue(ben.game.assistedThisTurn)
         XCTAssertEqual(benCoach.engine.calls,0)
         // The other Mac's name is untrusted text: no event either coach sends, instructions or tool results, carries it.
         for (coach,other) in [(anaCoach,"Ben"),(benCoach,"Ana")] {
@@ -217,10 +227,15 @@ import CheckmateRules
         NetworkControllerTests().play(ana,"e2","e4",lan);XCTAssertTrue(benCoach.voice.connected,"the coach follows the game through its moves")
         // Ben's coach asks for a hint; its search is still running when the game ends.
         await drainMain();benCoach.engine.holding=true
-        let late=Task{try await benCoach.voice.execute("get_hint",args:["positionId":self.position(ben)],id:"late")}
+        // The call arrives as the service sends it, so its result would go back to the model through the coach's own path.
+        benCoach.voice.ask("Should I use the hint?")
+        let arguments=String(decoding:try JSONSerialization.data(withJSONObject:["positionId":position(ben)]),as:UTF8.self)
+        benCoach.voice.receive(["type":"response.function_call_arguments.done","name":"get_hint","call_id":"late","arguments":arguments])
         try await settle({benCoach.engine.held==1},"the hint's search is in flight");let sentBefore=benCoach.events.all.count
         ana.game.leave();lan.scheduler.run();benCoach.engine.releaseAll()
-        do{_ = try await late.value;XCTFail("a hint begun before the game ended answered after it")}catch{}
+        // The handler runs to its end: its search returns, and what it would answer goes nowhere.
+        try await settle({benCoach.engine.held==0},"the held search was released");for _ in 0..<5{await drainMain();try await Task.sleep(for:.milliseconds(10))}
+        XCTAssertNil(outputs(benCoach)["late"],"no tool result for the late hint reaches the model")
         XCTAssertNil(benCoach.assistant.hint,"no hint is shown");XCTAssertFalse(ben.game.assistedThisTurn,"nothing counts as help")
         XCTAssertFalse(benCoach.events.all.dropFirst(sentBefore).contains{["response.create","conversation.item.create"].contains($0["type"] as? String ?? "")},"nothing more reaches the model")
         for coach in [anaCoach,benCoach] {
@@ -228,5 +243,70 @@ import CheckmateRules
             let before=coach.events.responses.count;coach.voice.ask("Still there?");XCTAssertEqual(coach.events.responses.count,before)
         }
         XCTAssertEqual(anaCoach.engine.calls,0);XCTAssertEqual(benCoach.engine.calls,1,"only the search begun during the game")
+    }
+
+    /// A7: speech counts as help once it reaches the learner, as audio or, when its narration cannot be verified, as
+    /// text. An explanation stopped before it is heard gave no advice, so the move stays unassisted.
+    func testSpeechCountsOnlyOnceItReachesTheLearner()async throws {
+        let lan=MemoryLAN(),(ana,_,_)=try game(NetworkAssistance(both:.hints),lan),coach=try coach(ana)
+        try open(coach);coach.voice.ask("What should I play?")
+        _ = try await coach.voice.execute("speak_explanation",args:speech(ana),id:"s");coach.voice.receive(["type":"response.done","response":["status":"completed"]])
+        XCTAssertFalse(ana.game.assistedThisTurn,"queued, not yet heard")
+        coach.voice.stopTurn();coach.voice.receive(["type":"response.done","response":["status":"cancelled"]])
+        XCTAssertFalse(ana.game.assistedThisTurn,"stopped before it was heard: no advice was given")
+        // Narration that cannot be verified is shown as text instead, which reaches the learner.
+        coach.voice.ask("And now?");_ = try await coach.voice.execute("speak_explanation",args:speech(ana),id:"t")
+        coach.voice.receive(["type":"response.done","response":["status":"completed"]])
+        coach.voice.receive(["type":"response.output_audio_transcript.done","transcript":"Something else entirely."])
+        XCTAssertTrue(ana.game.assistedThisTurn,"the explanation shown as text counts")
+    }
+    /// One explanation a turn: a second speak_explanation is refused and the first is the one narrated, never silently
+    /// replaced. The same holds in Practice.
+    func testASecondExplanationInOneTurnIsRefusedAndTheFirstKept()async throws {
+        let lan=MemoryLAN(),(ana,_,_)=try game(NetworkAssistance(both:.hints),lan),coach=try coach(ana)
+        try open(coach);coach.voice.ask("What should I play?")
+        let first=try await coach.voice.execute("speak_explanation",args:speech(ana,"Develop your knight."),id:"a") as? [String:Any];XCTAssertEqual(first?["queued"] as? Int,1)
+        await refused("SPEECH_QUEUED",{try await coach.voice.execute("speak_explanation",args:self.speech(ana,"Push a pawn."),id:"b")},"a second explanation in the turn")
+        let before=coach.events.all.count;coach.voice.receive(["type":"response.done","response":["status":"completed"]])
+        let narrated=coach.events.all.dropFirst(before).map{String(decoding:(try? JSONSerialization.data(withJSONObject:$0)) ?? Data(),as:UTF8.self)}
+        XCTAssertTrue(narrated.contains{$0.contains("Develop your knight.")},"the first explanation is narrated");XCTAssertFalse(narrated.contains{$0.contains("Push a pawn.")})
+        let s=try GameSession(engine:nil),v=try VoiceCoach(session:s);_ = try s.openVoice();v.receive(["type":"session.updated"]);addTeardownBlock{@MainActor in v.disconnect()}
+        func practiceSpeech(_ text:String)->[String:Any] {["positionId":s.positionId,"displayIdentity":s.displayIdentity,"segments":[["text":text,"squares":["e2"],"kind":"observation"]]]}
+        _ = try await v.execute("speak_explanation",args:practiceSpeech("Your pawn is on e2."),id:"a")
+        await refused("SPEECH_QUEUED",{try await v.execute("speak_explanation",args:practiceSpeech("Your king is on e1."),id:"b")},"a second explanation in a practice turn")
+    }
+    /// A10: guided commentary nobody asked for speaks one segment, in the network game too; an answer the learner asked
+    /// for may speak several.
+    func testGuidedNetworkCommentarySpeaksOneSegment()async throws {
+        let lan=MemoryLAN(),(ana,_,_)=try game(NetworkAssistance(both:.guided),lan),coach=try coach(ana)
+        try open(coach);XCTAssertEqual(coach.events.responses.count,1,"fixture: Ana's move gets its comment")
+        let two:[String:Any]=["positionId":position(ana),"displayIdentity":position(ana),"segments":[["text":"Develop a knight.","squares":["g1"],"kind":"advice"],["text":"Or take the centre.","squares":["e2"],"kind":"advice"]]]
+        await refused("PROACTIVE_LIMIT",{try await coach.voice.execute("speak_explanation",args:two,id:"long")},"two segments of commentary")
+        let one=try await coach.voice.execute("speak_explanation",args:speech(ana),id:"one") as? [String:Any];XCTAssertEqual(one?["queued"] as? Int,1)
+        coach.voice.stopTurn();coach.voice.receive(["type":"response.done","response":["status":"cancelled"]])
+        coach.voice.ask("What are my ideas?");XCTAssertEqual(coach.events.responses.count,2,"fixture: the learner's question is asked")
+        let answer=try await coach.voice.execute("speak_explanation",args:two,id:"answer") as? [String:Any];XCTAssertEqual(answer?["queued"] as? Int,2)
+    }
+    /// A board whose rules cannot be read is never sent as verified board data: every read throws instead of standing
+    /// in a default (an empty position, White to move, no legal moves).
+    func testABoardThatCannotBeReadIsNeverSentAsVerified()throws {
+        let runtime=try FailingChessRuntime(),rules=try ChessRules(runtimeFactory:{runtime})
+        XCTAssertNoThrow(try VoiceCoach.networkContext(rules,side:"w",learnersMove:true,position:"network:0",level:.hints))
+        runtime.failing=true
+        XCTAssertThrowsError(try VoiceCoach.networkContext(rules,side:"w",learnersMove:true,position:"network:0",level:.hints),"a runtime failure is not read as a position")
+    }
+    /// UI automation's voice double (`--voice-double`): Connect opens a session with no socket, a turn it is asked for
+    /// stays generating until Stop Speaking, whose cancellation it acknowledges, and Disconnect ends it. Nothing is
+    /// played or captured.
+    func testTheVoiceDoubleConnectsStopsAndDisconnectsSilently()async throws {
+        let lan=MemoryLAN(),(ana,_,_)=try game(NetworkAssistance(both:.guided),lan),coach=try coach(ana)
+        coach.voice.voiceDouble=true;coach.voice.connect();XCTAssertTrue(coach.voice.connecting)
+        try await settle({coach.voice.connected},"the double opens a session");XCTAssertTrue(coach.voice.networkSession)
+        // Ana's move asks for its guided comment, which the double leaves generating: there is a turn to stop.
+        try await settle({coach.voice.canStopTurn},"a turn is in progress");XCTAssertFalse(coach.voice.turnIdle)
+        coach.voice.stopTurn();try await settle({coach.voice.turnIdle && !coach.voice.canStopTurn},"the cancellation is acknowledged")
+        coach.voice.disconnect();XCTAssertFalse(coach.voice.connected);XCTAssertFalse(coach.voice.audio.capturing,"no microphone")
+        XCTAssertFalse(coach.events.all.contains{$0["type"] as? String=="input_audio_buffer.append"},"nothing from a microphone")
+        XCTAssertTrue(coach.events.all.contains{$0["type"] as? String=="response.cancel"},"Stop Speaking cancelled the turn")
     }
 }

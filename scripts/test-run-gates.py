@@ -235,9 +235,11 @@ finally:
 # --list runs nothing: no prerequisite check (they compile a probe and reach the LAN pair), only what each one needs.
 saved = (gates.PREREQUISITES.copy(), gates.stale_reason, list(sys.argv), gates.test_host.require)
 try:
-    def forbidden():
-        raise AssertionError('--list ran a prerequisite check')
+    def forbidden(*arguments, **options):
+        raise AssertionError('--list ran a prerequisite check or required the test host')
     gates.PREREQUISITES.update({name: forbidden for name in gates.PREREQUISITES})
+    # Listing works on any Mac: requiring the test host role here would break it on the main Mac.
+    gates.test_host.require = forbidden
     gates.stale_reason = lambda name, hashes, ledger: 'never passed'
     sys.argv, printed = ['run-gates.py', '--list'], io.StringIO()
     with contextlib.redirect_stdout(printed):
@@ -245,6 +247,7 @@ try:
     assert 'needs bonjour-ready, bonjour-ready-pair, lan-pair (not checked by --list)' in printed.getvalue(), printed.getvalue()
 finally:
     gates.PREREQUISITES.clear(); gates.PREREQUISITES.update(saved[0]); gates.stale_reason = saved[1]; sys.argv[:] = saved[2]
+    gates.test_host.require = saved[3]
 # A run's passes are provisional: a failed check of any kind fails its gate and keeps no pass, and a run that ends
 # abnormally (here an interruption during the second gate's checks) forgets every pass it recorded, then re-raises.
 # The evidence folder is made absolute first, so a relative one means the same folder to the runner and each gate.
@@ -281,9 +284,134 @@ with tempfile.TemporaryDirectory() as work:
         with contextlib.redirect_stdout(io.StringIO()) as printed:
             assert gates.run(['first']) == 1, 'a failed crash check passed the gate'
         assert ledger == [{'first': None}] and 'FAILED first' in printed.getvalue(), (ledger, printed.getvalue())
+        gates.built_uuids = lambda root=None: set()
+        # A gate that fails after another passed still runs the late-crash check, which can take the earlier pass back.
+        ledger.clear()
+        late_calls = []
+        def late(windows, seen, uuids, since):
+            late_calls.append([name for name, _, _ in windows])
+            gates.update_ledger({'first': None})
+            return True
+        def second_fails(evidence, gate):
+            assert gate['name'] != 'second', 'second failed'
+        gates.late_crashes, gates.check_gate = late, second_fails
+        with contextlib.redirect_stdout(io.StringIO()):
+            assert gates.run(['first', 'second']) == 1
+        assert late_calls == [['first', 'second']], f'a failed gate skipped the late-crash check: {late_calls}'
+        assert {'second': None} in ledger and {'first': None} in ledger, f'a late crash left a pass: {ledger}'
+        gates.late_crashes, gates.check_gate = (lambda *arguments: False), (lambda evidence, gate: None)
+        # The evidence folder has one reading, `~` included: the certificate a full run removes is the one it would write.
+        home = pathlib.Path(work) / 'home'
+        os.environ['HOME'], os.environ['CHECKMATE_EVIDENCE_DIR'] = str(home), '~/evidence'
+        assert gates.evidence_path('~/evidence') == (home / 'evidence').resolve()
+        certified = home / 'evidence'
+        certified.mkdir(parents=True)
+        (certified / 'acceptance.json').write_text('{}')
+        (certified / 'none.json').write_text('kept')
+        # A targeted run never touches a folder a full run certified: it refuses before anything there changes.
+        ledger.clear()
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()) as errors:
+            assert gates.run(['first']) == 2
+        assert (certified / 'acceptance.json').exists() and (certified / 'none.json').read_text() == 'kept' and ledger == [], ledger
+        assert 'holds a full run' in errors.getvalue(), errors.getvalue()
+        # A full run removes the earlier certificate first, even when it then fails.
+        gates.check_gate = lambda evidence, gate: (_ for _ in ()).throw(AssertionError('failed'))
+        with contextlib.redirect_stdout(io.StringIO()):
+            assert gates.run(['first'], full=True) == 1
+        assert not (certified / 'acceptance.json').exists(), 'a failed full run under a ~ path kept the earlier certificate'
+        gates.check_gate = lambda evidence, gate: None
+        os.environ['CHECKMATE_EVIDENCE_DIR'] = 'relative-evidence'
+        # A failed preliminary build fails every selected gate that was to run on it; no earlier pass survives.
+        gates.GATES['first']['prebuilt'] = True
+        ledger.clear()
+        saved_subprocess_run = gates.subprocess.run
+        def build_fails(command, *arguments, **options):
+            if command[:2] == ['bash', 'build.sh']:
+                raise gates.subprocess.CalledProcessError(1, command)
+            return saved_subprocess_run(command, *arguments, **options)
+        gates.subprocess.run = build_fails
+        try:
+            with contextlib.redirect_stdout(io.StringIO()) as printed:
+                assert gates.run(['first', 'second']) == 1
+        finally:
+            gates.subprocess.run = saved_subprocess_run
+            del gates.GATES['first']['prebuilt']
+        assert ledger == [{'first': None, 'second': None}] and 'FAILED building' in printed.getvalue(), (ledger, printed.getvalue())
+        # An interruption while a gate runs stops the gate's whole process group and still removes its scratch folder.
+        ledger.clear()
+        signals, scratches = [], []
+        class Interrupted:
+            def __init__(self, command, **options):
+                self.pid, self.waits = 4242, 0
+                scratches.append(pathlib.Path(options['env']['TMPDIR']))
+            def wait(self, timeout=None):
+                self.waits += 1
+                if self.waits == 1:
+                    raise KeyboardInterrupt
+                return -15
+        saved_popen, saved_killpg = gates.subprocess.Popen, gates.os.killpg
+        gates.subprocess.Popen, gates.os.killpg = Interrupted, (lambda pid, number: signals.append((pid, number)))
+        try:
+            with contextlib.redirect_stdout(io.StringIO()):
+                gates.run(['first'])
+            raise AssertionError('an interrupted gate returned')
+        except KeyboardInterrupt:
+            pass
+        finally:
+            gates.subprocess.Popen, gates.os.killpg = saved_popen, saved_killpg
+        assert signals == [(4242, gates.signal.SIGTERM)], f'the gate\'s process group was not stopped: {signals}'
+        assert scratches and not scratches[0].exists(), 'an interrupted gate left its scratch folder'
+        assert ledger[-1] == {'first': None}, ledger
+        # A matching report still being written when a gate ends is not set aside as seen: the late check reads it again.
+        uuid = '1dba8679-7997-3af0-99bc-741872b92f67'
+        writing = pathlib.Path(work) / 'CheckmateNative-writing.ips'
+        writing.write_text(json.dumps({'app_name': 'CheckmateNative', 'slice_uuid': uuid}) + '\n{"captureTime": "2026-10')
+        seen_by_late = []
+        # It appears during the gate: the run's first look, before any gate, finds nothing.
+        looks = []
+        gates.crash_reports = lambda directory=None: looks.append(1) or ({writing} if len(looks) > 1 else set())
+        gates.built_uuids = lambda root=None: {uuid}
+        gates.late_crashes = lambda windows, seen, uuids, since: seen_by_late.append(set(seen)) or False
+        with contextlib.redirect_stdout(io.StringIO()):
+            assert gates.run(['first']) == 0
+        assert seen_by_late and writing not in seen_by_late[0], f'a report still being written was set aside as seen: {seen_by_late}'
+        gates.crash_reports, gates.built_uuids, gates.late_crashes = (lambda directory=None: set()), (lambda root=None: set()), (lambda *arguments: False)
     finally:
         for name, value in saved.items():
             setattr(gates, name, value)
         gates.test_host.require = saved_require
         os.environ.clear(); os.environ.update(saved_environment); os.chdir(saved_cwd)
-print(f'Gate selection self-test passed ({len(cases) + 27} cases).')
+# `--only ''` (an empty shell variable) is an empty selection, refused, never read as --changed.
+saved = (list(sys.argv), gates.run, gates.test_host.require)
+try:
+    gates.run, gates.test_host.require = (lambda names, full=False: (_ for _ in ()).throw(AssertionError(f'ran {names}'))), (lambda *arguments, **options: None)
+    for empty in ('', ' , '):
+        sys.argv = ['run-gates.py', '--only', empty]
+        with contextlib.redirect_stderr(io.StringIO()) as errors, contextlib.redirect_stdout(io.StringIO()):
+            assert gates.main() == 2, f'--only {empty!r} was not refused'
+        assert 'No gate named' in errors.getvalue(), errors.getvalue()
+finally:
+    sys.argv[:], gates.run, gates.test_host.require = saved
+# A matching crash report still being written (header whole, body cut short) is read again, never set aside as seen;
+# one still unreadable after the settle counts as a crash. A report whose header is not this checkout's is ignored.
+with tempfile.TemporaryDirectory() as reports:
+    reports = pathlib.Path(reports)
+    ours = '1dba8679-7997-3af0-99bc-741872b92f67'
+    (reports / 'CheckmateNative-writing.ips').write_text(json.dumps({'app_name': 'CheckmateNative', 'slice_uuid': ours}) + '\n{"captureTime": "2026-10')
+    (reports / 'Other-writing.ips').write_text(json.dumps({'app_name': 'CheckmateNative', 'slice_uuid': '0'}) + '\n{"capt')
+    (reports / 'Junk.ips').write_text('not a report')
+    every_report = gates.crash_reports(reports)
+    assert gates.crashes(every_report, {ours}) == []
+    assert gates.unfinished(every_report, {ours}) == {reports / 'CheckmateNative-writing.ips'}, gates.unfinished(every_report, {ours})
+    saved = (gates.crash_reports, gates.built_uuids, gates.update_ledger, gates.time.sleep)
+    cleared = []
+    try:
+        gates.crash_reports, gates.built_uuids = (lambda directory=None: every_report), (lambda root=None: set())
+        gates.update_ledger, gates.time.sleep = cleared.append, (lambda seconds: None)
+        written = (reports / 'CheckmateNative-writing.ips').stat().st_mtime
+        with contextlib.redirect_stdout(io.StringIO()):
+            assert gates.late_crashes([('intel', written - 5, written + 5)], set(), {ours}, written - 10), 'an unreadable matching report passed'
+        assert cleared == [{'intel': None}], cleared
+    finally:
+        gates.crash_reports, gates.built_uuids, gates.update_ledger, gates.time.sleep = saved
+print(f'Gate selection self-test passed ({len(cases) + 35} cases).')

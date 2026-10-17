@@ -6,7 +6,10 @@ public enum NetworkServiceType {
     public static let release="_checkmate._tcp",development="_checkmate-dev._tcp",automation="_checkmate-auto._tcp"
     public static let all:Set<String>=[release,development,automation]
 }
-/// One service instance as found. Untrusted: a forged record only yields the wrong key, so the handshake fails closed.
+/// One service instance as found. Unauthenticated: the key covers only the game ID, so a forged game ID or role only
+/// yields the wrong key and the handshake fails closed, while the name and the advertised terms are display only. The
+/// terms are checked inside TLS afterwards (A3): by the host against what the guest accepted, and by the guest against
+/// every snapshot.
 public struct NetworkServiceRecord:Equatable {
     public let name:String,txt:[String:String],endpoint:NetworkEndpoint
     public init(name:String,txt:[String:String],endpoint:NetworkEndpoint){self.name=name;self.txt=txt;self.endpoint=endpoint}
@@ -39,13 +42,16 @@ public struct NetworkDiscoveredGame:Equatable {
     public func record(_ role:NetworkListenerRole)->NetworkServiceRecord? {role == .seat ? seat:watch}
     public func key(_ role:NetworkListenerRole,code:NetworkCode)->NetworkAccessKey {NetworkAccessKey(gameID:gameID,role:role,code:code)}
     /// Games in order of first appearance. A record without a valid `game` and `role` is ignored. The first record for
-    /// a game and role wins: one service seen on two interfaces is reported twice, and either reaches it.
+    /// a game and role wins: one service seen on two interfaces is reported twice, and either reaches it. Pairing is
+    /// linear in the records, and at most `maximumGames` games are listed: advertisements are unauthenticated, so a
+    /// flood of them costs bounded work on every update.
+    public static let maximumGames=256
     public static func pair(_ records:[NetworkServiceRecord])->[NetworkDiscoveredGame] {
-        var games:[NetworkDiscoveredGame]=[]
+        var games:[NetworkDiscoveredGame]=[],positions:[NetworkGameID:Int]=[:]
         for record in records {
             guard let gameID=record.gameID,let role=record.role else{continue}
-            var index=games.firstIndex{$0.gameID==gameID}
-            if index==nil {games.append(NetworkDiscoveredGame(gameID:gameID));index=games.count-1}
+            var index=positions[gameID]
+            if index==nil {guard games.count<maximumGames else{continue};games.append(NetworkDiscoveredGame(gameID:gameID));index=games.count-1;positions[gameID]=index}
             switch role {
             case .seat where games[index!].seat==nil:games[index!].seat=record
             case .watch where games[index!].watch==nil:games[index!].watch=record

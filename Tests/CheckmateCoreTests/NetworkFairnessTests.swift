@@ -138,13 +138,25 @@ import CheckmateCore
         // Before joining: the authored words, then the engine; that search is held across joining.
         engine.holding=true
         let held=try lesson();held.hint();held.hint();XCTAssertEqual(engine.calls,0,"the two authored hints are words")
-        held.hint();try await settle({engine.held==1},"the engine hint is held")
-        s.fairness.participation.begin(.player);engine.holding=false;engine.releaseAll();try await Task.sleep(for:.milliseconds(30))
+        held.hint();try await settle({engine.held==1},"the engine hint is held");let search=try XCTUnwrap(held.search)
+        s.fairness.participation.begin(.player);engine.holding=false;engine.releaseAll()
+        // The released search's whole task, delivery included, has finished before the arrow is checked.
+        await search.value
         XCTAssertNil(held.hintArrow,"the late engine hint shows no arrow")
         // While participating: no search at all.
         let refused=try lesson();refused.hint();refused.hint();refused.hint();try await Task.sleep(for:.milliseconds(30))
         XCTAssertEqual(engine.calls,1,"only the search started before joining");XCTAssertNil(refused.hintArrow)
         XCTAssertEqual(refused.notice,FairnessPolicy.destinationUnavailable+".")
+    }
+    /// D8 where the search starts: joining between the hint's call and its task's first run reaches no engine.
+    func testALessonsEngineHintAskedJustBeforeJoiningReachesNoEngine()async throws {
+        let (s,engine)=try session()
+        let open=LessonPractice(fen:castleFEN,goal:"Castle kingside.",beat:"test:0",hints:["Tuck the king away.","Look at the h1 rook."])
+        let lesson=try LessonAttemptController(session:s);lesson.replyDelay={.zero};lesson.open(lessonID:"test",practice:open)
+        lesson.hint();lesson.hint();lesson.hint();let search=try XCTUnwrap(lesson.search)
+        s.fairness.participation.begin(.player);defer{s.fairness.participation.end()}
+        await search.value
+        XCTAssertEqual(engine.calls,0,"the task checked before searching");XCTAssertNil(lesson.hintArrow)
     }
     /// Training's defender: a reply asked for before joining is dropped when it arrives; none is asked while participating.
     func testTrainingDefenderRepliesAreDroppedAndRefused()async throws {
@@ -158,6 +170,25 @@ import CheckmateCore
         defender.release();try await Task.sleep(for:.milliseconds(50))
         XCTAssertEqual(controller.exercise?.line,["d3d2"],"the reply that arrived after joining did not land")
         controller.games.cancel();controller.requestReply();XCTAssertEqual(defender.requests.count,1,"no reply is asked for while participating")
+    }
+    /// D8 where the search starts: joining between asking Training's defender (a reply, or the third hint's move) and
+    /// that task's first run reaches no engine.
+    func testTrainingSearchesAskedJustBeforeJoiningReachNoEngine()async throws {
+        setenv("CHECKMATE_TRAINING_ENABLED","1",1);setenv("CHECKMATE_TRAINING_B","1",1);defer{unsetenv("CHECKMATE_TRAINING_ENABLED");unsetenv("CHECKMATE_TRAINING_B")}
+        let defender=ScriptedDefender()
+        let (session,player,controller)=try TrainingEndgameTests.fixture([TrainingEndgameTests.ending("8/8/8/8/K7/3Q4/8/k7 w - - 0 1")],defender:defender);defer{player.shutdown()}
+        controller.games.fairness=session.fairness
+        controller.begin(try controller.prepare(entry:"finish-the-game"))
+        XCTAssertTrue(controller.hint());XCTAssertTrue(controller.hint());XCTAssertTrue(controller.hint())
+        let hint=try XCTUnwrap(controller.games.hintWork)
+        session.fairness.participation.begin(.player)
+        await hint.value
+        XCTAssertEqual(defender.requests.count,0,"the hint's task checked before searching")
+        session.fairness.participation.end()
+        controller.attempt(from:"d3",to:"d2",promotion:nil);let reply=try XCTUnwrap(controller.games.work)
+        session.fairness.participation.begin(.player);defer{session.fairness.participation.end()}
+        await reply.value
+        XCTAssertEqual(defender.requests.count,0,"the reply's task checked before searching")
     }
 
     /// R5-2: MCP play_move with the beginner opponent. Its first search is held, participation begins, and the result
@@ -265,16 +296,19 @@ import CheckmateCore
     }
 
     /// A review search runs in its own task, a hop after the call's check: a game joined in between is caught inside
-    /// that task, so nothing reaches the engine. The main actor runs its jobs in order: the call runs up to its
-    /// search's task and suspends, and the test, yielding once behind it, joins before that task starts.
+    /// that task, so nothing reaches the engine. Each search is held at the start of its own task, after the call's
+    /// check passed, and the game is joined only once both are there.
     func testAGameJoinedBeforeAReviewSearchStartsStopsIt()async throws {
         let (s,engine)=try session()
         let analyzer=ReviewAnalyzer(engine:engine,fairness:s.fairness),document=try XCTUnwrap(PGNImporter.parse(Data("1. e4 e5 2. Nf3 *".utf8)).first)
+        var waiting:[CheckedContinuation<Void,Never>]=[]
+        analyzer.searchTaskStarted={await withCheckedContinuation{waiting.append($0)}}
         let searches:[(String,Task<ReviewEvidence,Error>)]=[
             ("analyzeBranch",Task{try await analyzer.analyzeBranch(document:document,root:1,moves:["e7e5"],revision:0)}),
             ("analyze",Task{try await analyzer.analyze(document:document,node:1,revision:0)})]
-        await Task.yield()
-        XCTAssertEqual(engine.calls,0,"the searches' own tasks have not started yet");s.fairness.participation.begin(.player)
+        try await settle({waiting.count==2},"both searches passed their calls' checks and wait in their own tasks")
+        XCTAssertEqual(engine.calls,0,"the searches' own work has not started yet");s.fairness.participation.begin(.player)
+        for continuation in waiting {continuation.resume()}
         for (name,task) in searches {do{_ = try await task.value;XCTFail("\(name) delivered during a network game")}catch{XCTAssertEqual(code(error),"NETWORK_GAME",name)}}
         XCTAssertEqual(engine.calls,0,"nothing reached the engine");XCTAssertEqual(engine.callsWhileParticipating,0)
         s.fairness.participation.end()

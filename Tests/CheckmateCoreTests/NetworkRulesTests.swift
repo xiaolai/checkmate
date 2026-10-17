@@ -109,6 +109,38 @@ final class NetworkRulesTests:XCTestCase {
         XCTAssertTrue(frames.allSatisfy{$0.count<=NetworkLimits.maximumMessageBytes})
         XCTAssertGreaterThan(frames.filter{if case .snapshotPart?=try? NetworkCodec.decode($0) {return true};return false}.count,1,"more than one part")
     }
+    /// The same long record sent to a receiver whose own game starts at the initial position: every one of its 2,000
+    /// moves is replayed and installed, not preloaded.
+    func testATwoThousandPlySnapshotInstallsOnAFreshReceiver()throws {
+        let pgn=try Self.longGame(plies:2_000),built=try ChessRules();try built.networkLoad(pgn:pgn)
+        let gameID=NetworkGameID.random(using:.system),fen=try built.networkFEN()
+        let game=NetworkPublicGame(gameID:gameID,revision:2_000,hostSide:.white,whiteName:"Ana",blackName:"Ben",timeControl:.untimed,pgn:pgn,clocks:nil,openOffer:nil,outcome:nil)
+        let installed=try NetworkSnapshotInstaller.install(try JSONEncoder().encode(game),revision:2_000,hash:hashing.positionHash(fen:fen,revision:2_000),gameID:gameID,rules:NetworkRulesFactory{try ChessRules()},hashing:hashing)
+        XCTAssertEqual(installed.game.revision,2_000);XCTAssertEqual(installed.fen,fen);XCTAssertEqual(try installed.rules.networkFEN(),fen)
+        XCTAssertEqual(try installed.rules.networkMoves(),try built.networkMoves(),"all 2,000 moves, played afresh");XCTAssertEqual(installed.moves.count,2_000)
+    }
+    /// A record that sets up another start can reach the same position by the same squares while claiming other moves:
+    /// here a knight "captures" a queen that the real start never had. The board installed is the one played from the
+    /// receiver's own start, so the invented capture never reaches the record, Review or the coach.
+    func testARecordFromAnotherStartKeepsOnlyTheMovesPlayedFromThisOne()throws {
+        let forgedStart=try ChessRules(fen:"rnbqkbnr/pppppppp/8/8/8/2q5/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
+        _ = try forgedStart.networkPlay(uci:"b1c3");_ = try forgedStart.networkPlay(uci:"e7e5")
+        let honest=try ChessRules();_ = try honest.networkPlay(uci:"b1c3");_ = try honest.networkPlay(uci:"e7e5")
+        XCTAssertEqual(try forgedStart.networkFEN(),try honest.networkFEN(),"the two starts converge");XCTAssertTrue(try forgedStart.networkPGN().contains("Nxc3"))
+        let gameID=NetworkGameID.random(using:.system),pgn=try forgedStart.networkPGN()
+        let game=NetworkPublicGame(gameID:gameID,revision:2,hostSide:.white,whiteName:"Ana",blackName:"Ben",timeControl:.untimed,pgn:pgn,clocks:nil,openOffer:nil,outcome:nil)
+        let installed=try NetworkSnapshotInstaller.install(try JSONEncoder().encode(game),revision:2,hash:hashing.positionHash(fen:try honest.networkFEN(),revision:2),gameID:gameID,rules:NetworkRulesFactory{try ChessRules()},hashing:hashing)
+        let record=try installed.rules.networkPGN()
+        XCTAssertFalse(record.contains("Nxc3"),"no invented capture");XCTAssertFalse(record.contains("[FEN "),"no other start");XCTAssertTrue(record.contains("Nc3"))
+    }
+    /// A draw by threefold repetition is claimable when the position has stood three times. An en passant square the
+    /// pawn cannot take, because it is pinned to its king, does not make the first of those positions a different one.
+    func testThreefoldIgnoresAnEnPassantCaptureThePinForbids()throws {
+        let rules=try ChessRules(fen:"1n2r1k1/3p4/8/4P3/8/8/8/4K1N1 b - - 0 1")
+        for uci in ["d7d5","g1f3","b8c6","f3g1","c6b8","g1f3","b8c6","f3g1","c6b8"] {_ = try rules.networkPlay(uci:uci)}
+        XCTAssertEqual(try rules.networkClaimableDraw(),.repetition,"the position after d5 has stood three times")
+        XCTAssertTrue(rules.threefoldRepetition)
+    }
     /// A legal 2,000-ply game, still in progress: a seeded walk in chess.js that tries one random move at a time, avoids
     /// mate, stalemate, insufficient material and a third repetition, and pushes a pawn or captures well inside every 75
     /// moves.

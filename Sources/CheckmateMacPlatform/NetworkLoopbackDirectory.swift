@@ -60,12 +60,14 @@ public final class NetworkLoopbackDirectory {
     /// directory, such as a FIFO that would block the read or a huge file, is skipped. The checks are made on the one
     /// descriptor that is read, opened without following a link or waiting on a FIFO, so a file swapped or grown after
     /// it was listed cannot get past them, and the read stops one byte past the limit whatever the file's size.
-    static func contents(_ url:URL)->Data? {
+    /// `checked`: runs once the descriptor has passed its checks, before the read; tests swap or grow the file there.
+    static func contents(_ url:URL,checked:()->Void={})->Data? {
         let descriptor=open(url.path,O_RDONLY|O_NOFOLLOW|O_NONBLOCK|O_CLOEXEC)
         guard descriptor>=0 else{return nil}
         defer{close(descriptor)}
         var status=stat()
         guard fstat(descriptor,&status)==0,status.st_mode & S_IFMT==S_IFREG,status.st_size<=maximumRecordBytes else{return nil}
+        checked()
         var data=Data(count:maximumRecordBytes+1),total=0
         while total<data.count {
             let count=data.withUnsafeMutableBytes{read(descriptor,$0.baseAddress!+total,$0.count-total)}
@@ -77,14 +79,23 @@ public final class NetworkLoopbackDirectory {
         guard total<=maximumRecordBytes else{return nil}
         return data.prefix(total)
     }
+    /// Directory entries looked at in one poll, valid or not: the directory is shared, so its size bounds nothing.
+    static let maximumExaminedEntries=4*maximumRecordFiles
     /// Every record in the directory now, in file-name order so pairing's "first record wins" is the same every time.
+    /// The listing is read lazily and stops after `maximumExaminedEntries`, so a huge directory costs a bounded look;
+    /// only files that hold records count toward `maximumRecordFiles`, so unreadable ones cannot hide later games.
     func records()->[NetworkServiceRecord] {
-        let files=((try? FileManager.default.contentsOfDirectory(at:directory,includingPropertiesForKeys:nil)) ?? []).filter{$0.pathExtension=="json"}.sorted{$0.lastPathComponent<$1.lastPathComponent}.prefix(Self.maximumRecordFiles)
-        return files.flatMap{url->[NetworkServiceRecord] in
-            guard let data=Self.contents(url),let entries=try? JSONDecoder().decode([Entry].self,from:data) else{return []}
-            guard entries.allSatisfy({started($0.pid)==$0.started}) else{try? FileManager.default.removeItem(at:url);return []}
-            return entries.map{entry in var txt=["game":entry.game,"role":entry.role];txt["assist"]=entry.assist;return NetworkServiceRecord(name:entry.name,txt:txt,endpoint:NWNetworkTransport.loopbackEndpoint(port:entry.port))}
+        guard let listing=FileManager.default.enumerator(at:directory,includingPropertiesForKeys:nil,options:[.skipsSubdirectoryDescendants,.skipsPackageDescendants]) else{return []}
+        var names:[URL]=[]
+        for case let url as URL in listing {names.append(url);if names.count>=Self.maximumExaminedEntries {break}}
+        var found:[NetworkServiceRecord]=[],files=0
+        for url in names.filter({$0.pathExtension=="json"}).sorted(by:{$0.lastPathComponent<$1.lastPathComponent}) where files<Self.maximumRecordFiles {
+            guard let data=Self.contents(url),let entries=try? JSONDecoder().decode([Entry].self,from:data),!entries.isEmpty else{continue}
+            guard entries.allSatisfy({started($0.pid)==$0.started}) else{try? FileManager.default.removeItem(at:url);continue}
+            files+=1
+            found+=entries.map{entry in var txt=["game":entry.game,"role":entry.role];txt["assist"]=entry.assist;return NetworkServiceRecord(name:entry.name,txt:txt,endpoint:NWNetworkTransport.loopbackEndpoint(port:entry.port))}
         }
+        return found
     }
     /// A discovery that reads the directory now and every `interval` while browsing. Calls and updates are on the
     /// scheduler's queue, as with Bonjour.

@@ -72,12 +72,16 @@ import Foundation
         // The throwing reads: a rules failure is an unavailable hint, never a search of some other position. With no
         // move yet the position is the record's own start.
         let records:[MoveRecord],startFEN:String
-        do{records=try game.rules.moveHistory();startFEN=try records.first?.before ?? game.rules.currentFEN()}catch{self.error=Self.unavailable;return}
+        // The failure belongs to this turn, so `sync` clears it when the turn ends or the learner leaves.
+        do{records=try game.rules.moveHistory();startFEN=try records.first?.before ?? game.rules.currentFEN()}catch{turn=revision;self.error=Self.unavailable;return}
         let moves=records.map(\.uci)
         request+=1;let id=request
         thinking=true;error=nil;turn=revision
-        work=Task{[weak self] in
+        work=Task{[weak self,fairness] in
             do {
+                // A6 and A8 where the search starts too: the terms or the turn may have changed before this task ran.
+                try fairness.requireNetworkHint()
+                guard fairness.participation.epoch==epoch else{throw CancellationError()}
                 let analysis=try await engine.analyzeHistory(startFEN:startFEN,moves:moves,profile:.skill(NetworkAssistance.hintSkill),limit:.nodes(NetworkAssistance.hintNodes),multiPv:1)
                 guard let self,self.request==id else{return}
                 // A6 and A8, again after the await: the result is shown only to the same turn under the same terms.

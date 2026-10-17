@@ -7,6 +7,8 @@ final class FakeScript {
     var illegal:Set<String>=[],mating:Set<String>=[]
     var claimable:NetworkTermination?
     var bareKing:Set<NetworkSide>=[]
+    /// Records loaded, so a test can tell a record refused unread from one replayed and then refused.
+    var loads=0
 }
 /// Chess without chess: any well-formed UCI is legal unless scripted otherwise; the position is the move list.
 final class FakeRules:NetworkChessRules {
@@ -25,6 +27,7 @@ final class FakeRules:NetworkChessRules {
     func networkHasOnlyKing(_ side:NetworkSide)throws -> Bool {script.bareKing.contains(side)}
     func networkPGN()throws -> String {"[Fake]\n"+moves.joined(separator:" ")}
     func networkLoad(pgn:String)throws {
+        script.loads+=1
         guard pgn.hasPrefix("[Fake]\n") else{throw NetworkRulesError.unexpected("not a fake record")}
         let list=pgn.dropFirst(7).split(separator:" ").map(String.init)
         guard list.allSatisfy(ChessNotation.validUCI) else{throw NetworkRulesError.unexpected("bad move")}

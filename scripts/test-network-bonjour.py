@@ -30,9 +30,14 @@ def step(name):
 instances, failure = [], None
 try:
     install()
-    host = Instance("host", evidence, helpers, mode="installed")
-    guest = Instance("guest", evidence, helpers, mode="installed")
-    instances = [host, guest]
+    # Real Bonjour only: an empty loopback directory is the app's "no loopback" (NativeNetwork.swift), stated outright so
+    # a variable left in this shell can never turn this gate into a second loopback run.
+    bonjour_only = {"CHECKMATE_NETWORK_LOOPBACK_DIR": ""}
+    # Each instance is kept the moment it starts, so a later start that fails still stops the earlier one.
+    host = Instance("host", evidence, helpers, mode="installed", environment=bonjour_only)
+    instances.append(host)
+    guest = Instance("guest", evidence, helpers, mode="installed", environment=bonjour_only)
+    instances.append(guest)
     for instance in instances:
         open_network(instance)
     step("two lobbies open")

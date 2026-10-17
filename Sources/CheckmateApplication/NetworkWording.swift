@@ -61,6 +61,8 @@ public enum NetworkWording {
     /// itself.
     public static func hint(san:String?,uci:String,automatic:Bool)->String {(automatic ? "Guided hint: ":"Hint: ")+(san ?? uci)}
     public static let findingHint="Finding a hint…"
+    /// A verified record this Mac's rules could not show, after one more try (input stays off meanwhile).
+    public static let recordUnreadable="This Mac couldn't show the game's latest position. Leave the game and join again."
     /// The Accept sheet's title and its note under the terms (A3).
     public static func joinQuestion(_ game:String)->String {"Join \(game)?"}
     public static let termsFixed="The assistance stays the same for the whole game, and each Mac counts the hints its player uses."

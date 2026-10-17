@@ -48,7 +48,12 @@ import CheckmateCore
         XCTAssertGreaterThanOrEqual(try XCTUnwrap(VoiceToolArguments.limit(schema:arrow)),escapedArrow.utf8.count)
         let promotion:[String:Any]=["type":"string","enum":["q","r","b","n"]]
         XCTAssertGreaterThanOrEqual(try XCTUnwrap(VoiceToolArguments.limit(schema:promotion)),#""\u0071""#.utf8.count)
-        XCTAssertGreaterThanOrEqual(try XCTUnwrap(VoiceToolArguments.limit(schema:["enum":[12,true]])),"12".utf8.count,"a non-string enum keeps its own width")
+        // Each non-string value keeps its own width, and the widest bounds the enum.
+        XCTAssertGreaterThanOrEqual(try XCTUnwrap(VoiceToolArguments.limit(schema:["enum":[12]])),"12".utf8.count)
+        XCTAssertGreaterThanOrEqual(try XCTUnwrap(VoiceToolArguments.limit(schema:["enum":[true]])),"true".utf8.count)
+        XCTAssertGreaterThanOrEqual(try XCTUnwrap(VoiceToolArguments.limit(schema:["enum":[12,true]])),"true".utf8.count,"the widest value bounds the enum")
+        // An astral character is two UTF-16 units, each escaped on its own.
+        XCTAssertGreaterThanOrEqual(try XCTUnwrap(VoiceToolArguments.limit(schema:["type":"string","enum":["😀"]])),#""\ud83d\ude00""#.utf8.count)
         // The arrow tool, every square escaped, fits its own bound.
         let schema=try definitions.first{$0["name"] as? String=="highlight_squares"}!["parameters"] as! [String:Any]
         let text=#"{"positionId":"p","squares":[],"arrows":["#+Array(repeating:escapedArrow,count:4).joined(separator:",")+"]}"
@@ -107,7 +112,11 @@ import CheckmateCore
             XCTAssertLessThan(limit,VoiceToolArguments.maximumBytes,"fixture: speech has its own bound")
             while cancels(events())==0 && sent<20000 {delta(v,runaway);sent+=1}
             XCTAssertEqual(cancels(events()),1,"\(runaway.debugDescription): the response is cancelled")
-            XCTAssertLessThanOrEqual(sent*runaway.utf8.count,max(limit,2*VoiceToolArguments.maximumWhitespace)+runaway.utf8.count,"cut at its bound, not later")
+            // Whitespace is cut the moment its run passes the allowance; speech the moment the call's significant bytes,
+            // its opening included, pass the call's bound. Exactly then, not later.
+            let opening=("{\"positionId\":\"x\","+prefix).utf8.count
+            let expected=runaway=="\n" ? VoiceToolArguments.maximumWhitespace+1:(limit-opening)/runaway.utf8.count+1
+            XCTAssertEqual(sent,expected,"\(runaway.debugDescription): cut at its bound, not later")
             // The rest of the stream and its end are ignored: the call never runs.
             delta(v,"\"}");v.receive(["type":"response.function_call_arguments.done","response_id":"resp-1","name":"speak_explanation","call_id":"call-1","arguments":"{}"])
             try await Task.sleep(nanoseconds:50_000_000)
@@ -148,6 +157,22 @@ import CheckmateCore
         respond(v,events);v.receive(["type":"response.function_call_arguments.done","response_id":"resp-1","name":"get_board","call_id":"call-1","arguments":"{\"unterminated"])
         try await until("an answer"){outputs(events()).count==1}
         let answer=try XCTUnwrap(outputs(events()).first);XCTAssertTrue(answer.contains("INVALID_ARGUMENT"),answer)
+    }
+    /// A schema bounds a value, not its spelling: `12.` followed by thousands of zeros parses as the valid ply 12 (a
+    /// leading-zero fraction stops parsing near 130 bytes; this spelling does not). Padding past the allowances ends the
+    /// turn whether the call streams or arrives whole, and the plain spelling runs.
+    func testPaddedValidArgumentsArriveWholeAndAreRefused()async throws {
+        let base="{\"positionId\":\"p\",\"demonstrationId\":\"d\",\"action\":\"seek\",\"ply\":"
+        let padded=base+"12."+String(repeating:"0",count:2000)+"}"
+        let schema=try definitions.first{$0["name"] as? String=="control_demonstration"}!["parameters"] as! [String:Any]
+        let value=try XCTUnwrap(try JSONSerialization.jsonObject(with:Data(padded.utf8)) as? [String:Any])
+        XCTAssertNoThrow(try ToolSchemas.validateValue(value,schema:schema),"fixture: the padded spelling is a valid value")
+        let (_,v,events)=try connected();defer{v.disconnect()}
+        respond(v,events);v.receive(["type":"response.function_call_arguments.done","response_id":"resp-1","name":"control_demonstration","call_id":"call-1","arguments":padded])
+        XCTAssertEqual(cancels(events()),1,"the padded call ends its turn");try await Task.sleep(nanoseconds:50_000_000);XCTAssertTrue(outputs(events()).isEmpty,"and never runs")
+        let (_,plain,plainEvents)=try connected();defer{plain.disconnect()}
+        respond(plain,plainEvents);plain.receive(["type":"response.function_call_arguments.done","response_id":"resp-1","name":"control_demonstration","call_id":"call-1","arguments":base+"0}"])
+        try await until("an answer to the plain call"){outputs(plainEvents()).count==1};XCTAssertEqual(cancels(plainEvents()),0)
     }
     /// Finished arguments over the whole-call cap end the turn at once, as they always should have.
     func testOversizeFinishedArgumentsEndTheTurn()throws {

@@ -57,21 +57,47 @@ public enum NetworkSnapshotInstaller {
         let game:NetworkPublicGame
         do{game=try JSONDecoder().decode(NetworkPublicGame.self,from:payload)}catch{throw NetworkSnapshotError.badSnapshot("record")}
         guard game.gameID==gameID,game.revision==revision else{throw NetworkSnapshotError.badSnapshot("game")}
-        // Making the scratch game is the receiver's own rules failing, not the snapshot's fault: it propagates.
-        let rules=try factory.newGame()
+        // Making the scratch games is the receiver's own rules failing, not the snapshot's fault: it propagates.
+        let rules=try factory.newGame(),start=try factory.newGame(),opening=try start.networkMoves()
+        // The work a replay costs is bounded before any is done (D7): no real game holds more than `maximumPlies`
+        // moves, a record holds no more moves than its start's and its revision counts (D2), and its size is bounded by
+        // that count, so a longer one is refused unread.
+        guard revision<=NetworkLimits.maximumPlies+1,game.pgn.utf8.count<=NetworkLimits.maximumRecordBytes(moves:opening.count+revision),moveTokens(game.pgn,limit:opening.count+revision)<=opening.count+revision else{throw NetworkSnapshotError.badSnapshot("length")}
         let fen:String,moves:[String]
         do{try rules.networkLoad(pgn:game.pgn);fen=try rules.networkFEN();moves=try rules.networkMoves()}catch{throw NetworkSnapshotError.badSnapshot("replay")}
         guard hashing.positionHash(fen:fen,revision:revision)==hash else{throw NetworkSnapshotError.badSnapshot("hash")}
         // The game starts where the rules factory's new game stands: the initial position in the app, where every
         // network game starts. The record must extend that game, and its moves played afresh from it must reach the
         // same position, so a record that sets up another start (a SetUp/FEN header) is not this game.
-        let start=try factory.newGame(),opening=try start.networkMoves()
         guard moves.count>=opening.count,Array(moves.prefix(opening.count))==opening else{throw NetworkSnapshotError.badSnapshot("start")}
         // The revision counts each move from the start and the end (D2), so it states how many moves the record holds;
         // one that disagrees would misplace every assisted ply (A7).
         guard revision==moves.count-opening.count+(game.outcome==nil ? 0:1) else{throw NetworkSnapshotError.badSnapshot("revision")}
         do{for move in moves.dropFirst(opening.count) {_ = try start.networkPlay(uci:move)};guard try start.networkFEN()==fen else{throw NetworkSnapshotError.badSnapshot("start")}}catch{throw NetworkSnapshotError.badSnapshot("start")}
-        return Installed(game:game,rules:rules,fen:fen,moves:moves)
+        // The board kept is the one played afresh from the start, not the record's own: a record that sets up another
+        // start can reach the same position by the same squares while claiming other captures, and those never reach
+        // the board, the review record or the coach.
+        return Installed(game:game,rules:start,fen:fen,moves:moves)
+    }
+    /// The move tokens in a record's movetext, counted up to `limit + 1`: every token outside tag pairs, comments and
+    /// variations that is not a move number, a result or an annotation. A cheap upper bound on the moves a replay
+    /// would play, so an overlong record is refused before the rules see it.
+    static func moveTokens(_ pgn:String,limit:Int)->Int {
+        var count=0,depth=0,comment=false
+        for line in pgn.split(whereSeparator:\.isNewline) where !line.drop(while:{$0.isWhitespace}).hasPrefix("[") {
+            for token in line.split(whereSeparator:\.isWhitespace) {
+                var word=Substring(token)
+                if comment {guard let close=word.firstIndex(of:"}") else{continue};comment=false;word=word[word.index(after:close)...]}
+                if word.hasPrefix("{") {if !word.contains("}") {comment=true};continue}
+                if word.hasPrefix(";") {break}
+                if word.hasPrefix("(") {depth+=word.filter{$0=="("}.count-word.filter{$0==")"}.count;continue}
+                if depth>0 {depth=max(0,depth+word.filter{$0=="("}.count-word.filter{$0==")"}.count);continue}
+                let move=word.drop{$0.isNumber || $0=="."}
+                guard !move.isEmpty,!["1-0","0-1","1/2-1/2","*"].contains(String(word)),!move.hasPrefix("$") else{continue}
+                count+=1;if count>limit {return count}
+            }
+        }
+        return count
     }
 }
 /// One peer's outbound queue (D5 ordering, D7 outbound). Frames reach the transport one at a time: the next is handed

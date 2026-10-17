@@ -67,6 +67,12 @@ def on_pair(command, check=True, timeout=60):
     return result.stdout.strip()
 
 
+def process_pattern(data):
+    """The pgrep/pkill pattern for the app started with `--data-dir data`. Its first letter is bracketed, so the shell
+    on the pair running `pkill -f` (whose own command line holds the pattern text) never matches it and kills itself."""
+    return "[d]ata-dir " + data
+
+
 def private_remote_dir(prefix):
     """A fresh directory on the pair that only this account can use: mktemp -d makes it 0700, and it is checked to be a
     real directory owned by this account with that mode before anything is copied into it, so nothing another account
@@ -95,8 +101,9 @@ def install(remote=False, source=BUILT):
     the automation app is this one (spike (c)). The build folder's copy is left as built."""
     target = INSTALLED if not remote else "~/Applications/CheckmateAutomation.app"
     stage = pathlib.Path(tempfile.mkdtemp(prefix="checkmate-install-")) / source.name
-    remote_stage = private_remote_dir("checkmate-install") if remote else None
+    remote_stage = None
     try:
+        remote_stage = private_remote_dir("checkmate-install") if remote else None
         _install(remote, source, stage, remote_stage)
     finally:
         subprocess.run(["rm", "-rf", str(stage.parent)], check=False)
@@ -173,16 +180,16 @@ class Instance:
             self.pid = wait_for(self._find_pid, f"{name} never started", 30)
         except (AssertionError, subprocess.TimeoutExpired, subprocess.CalledProcessError):
             # No instance reaches the caller to be stopped, so whatever did start, and its data, go now.
-            pattern = shlex.quote("data-dir " + self.data)
             if mode == "pair":
-                on_pair(f"pkill -f {pattern}; rm -rf {shlex.quote(self.data)}", check=False)
+                on_pair(f"pkill -f {shlex.quote(process_pattern(self.data))}", check=False)
+                on_pair(f"rm -rf {shlex.quote(self.data)}", check=False)
             else:
-                subprocess.run(["pkill", "-f", "data-dir " + self.data], check=False)
+                subprocess.run(["pkill", "-f", process_pattern(self.data)], check=False)
                 subprocess.run(["rm", "-rf", self.data], check=False)
             raise
 
     def _find_pid(self):
-        pattern = "data-dir " + self.data
+        pattern = process_pattern(self.data)
         if self.mode == "pair":
             text = on_pair(f"pgrep -n -f {shlex.quote(pattern)}", check=False)
         else:
@@ -209,10 +216,18 @@ class Instance:
         return self.run("ax-helper", "list", check=False)
 
     def listing(self):
-        """The app's accessibility listing, which must be a real read: a helper failure, an empty listing or one
-        without the main window raises AssertionError, so an absence check can never pass on a failed observation
-        (wait and wait_for treat that as "not yet")."""
-        text = self.run("ax-helper", "list")
+        """The app's accessibility listing, which must be a complete read: a helper failure, a walk cut short or a child
+        list that could not be read (ax-helper's `list-complete` exits non-zero), or a listing without the main window
+        raises AssertionError, so an absence check can never pass on a partial observation (wait and wait_for treat
+        that as "not yet"). A read the app interrupted is tried again twice first."""
+        for attempt in range(3):
+            try:
+                text = self.run("ax-helper", "list-complete")
+                break
+            except AssertionError:
+                if attempt == 2:
+                    raise
+                time.sleep(0.3)
         assert re.search(r"^AXWindow: .*\bmain\b", text, re.M), f"{self.name}: the accessibility listing did not include the main window"
         return text
 
@@ -319,14 +334,17 @@ class Instance:
         """This instance's network and app log lines since it started, kept with its evidence."""
         predicate = f'processID == {self.pid} AND (subsystem == "com.apple.network" OR subsystem == "ai.xiaolai.checkmate")'
         command = ["/usr/bin/log", "show", "--style", "compact", "--last", f"{int(time.monotonic() - self.started) + 30}s", "--predicate", predicate]
+        target = self.evidence / f"connection-{self.name}.log"
+        target.unlink(missing_ok=True)
+        call = ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=5", pair(), " ".join(shlex.quote(part) for part in command)] if self.mode == "pair" else command
         try:
-            if self.mode == "pair":
-                text = on_pair(" ".join(shlex.quote(part) for part in command), check=False, timeout=120)
-            else:
-                text = subprocess.run(command, capture_output=True, text=True, timeout=120).stdout
+            result = subprocess.run(call, capture_output=True, text=True, timeout=120)
         except subprocess.TimeoutExpired:
-            text = "(the log could not be read within 120 s)"
-        (self.evidence / f"connection-{self.name}.log").write_text(text)
+            raise AssertionError(f"{self.name}: its connection log could not be read within 120 s") from None
+        # Evidence that was never collected fails cleanup (stop_all records it), instead of passing as an empty log.
+        if result.returncode != 0:
+            raise AssertionError(f"{self.name}: its connection log could not be read: {result.stderr.strip() or result.returncode}")
+        target.write_text(result.stdout)
 
     def stop(self):
         """Stops the instance, confirms it is gone and removes its data. A stop that times out or leaves the app running
@@ -395,16 +413,18 @@ def cleanup_failure(results, failure, errors):
 
 def permission(instance):
     """The local-network permission state the instance shows: "denied" when it asks for access (D13); "allowed" only
-    when its game is live (a network status line with a game's code or clocks: the spike showed a silent refusal never
-    reaches a live game); otherwise "unknown", including a window that cannot be read. Nothing is inferred from the
-    absence of the denial UI alone."""
+    when a connection is established, which the status line shows by naming whose move it is ("Your move.", "Ana's
+    move.": NetworkGameController.statusText's live state; the spike showed a silent refusal never reaches it);
+    otherwise "unknown": connecting, waiting, reconnecting, stopped, or a window that cannot be read. Nothing is
+    inferred from the absence of the denial UI, or from a status line or play code alone."""
     try:
         listing = instance.listing()
     except AssertionError:
         return "unknown"
     if "network-access-needed" in listing or "network-permission-sheet" in listing:
         return "denied"
-    return "allowed" if re.search(r"network-(play-code|status)\b", listing) else "unknown"
+    status = next((line for line in listing.splitlines() if "network-status" in line), "")
+    return "allowed" if re.search(r"(?:^|[|:] )(?:Your move|.+'s move)\.(?: \||$)", status) else "unknown"
 
 
 def code(instance, identifier):

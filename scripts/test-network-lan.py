@@ -38,7 +38,10 @@ remote_scratch = None
 # The listing must succeed (its sentinel line proves the command ran), so an SSH failure fails the gate instead of
 # reading as "no reports". The app quits by signal, so only its report shows a fault.
 CRASH_DIRECTORY = "~/Library/Logs/DiagnosticReports"
-CRASH_LISTING = f"if [ -d {CRASH_DIRECTORY} ]; then ls -1 {CRASH_DIRECTORY}; fi; echo listed"
+# The sentinel follows only a listing that succeeded, or a folder that does not exist yet (no reports at all).
+CRASH_LISTING = f"if [ -d {CRASH_DIRECTORY} ]; then ls -1 {CRASH_DIRECTORY} && echo listed; else echo listed; fi"
+# A report of this run's app whose body ReportCrash is still writing is read again for this long, then counts as a crash.
+PAIR_REPORT_READ_SECONDS = 20
 # The pair runs natively, without Rosetta's delayed reports; this is how long its ReportCrash is given after the run.
 PAIR_CRASH_SETTLE_SECONDS = 15
 
@@ -68,17 +71,27 @@ def pair_crashes(before, since, uuids):
     own clock): another build's crash, or one captured earlier and written late, is not this run's."""
     found = []
     for name in sorted(pair_reports_now() - before):
-        text = on_pair(f"cat {CRASH_DIRECTORY}/{shlex.quote(name)}", timeout=60)
-        header, _, body = text.partition("\n")
-        try:
-            meta, detail = json.loads(header), json.loads(body)
-        except json.JSONDecodeError:
-            continue  # Not a crash report this check understands; anything ReportCrash writes for a crash parses.
-        if meta.get("app_name") != "CheckmateNative" or str(meta.get("slice_uuid", "")).lower() not in uuids:
-            continue
-        captured = datetime.datetime.strptime(detail["captureTime"], "%Y-%m-%d %H:%M:%S.%f %z").timestamp()
-        if captured >= since:
-            found.append(name)
+        deadline = time.monotonic() + PAIR_REPORT_READ_SECONDS
+        while True:
+            header, _, body = on_pair(f"cat {CRASH_DIRECTORY}/{shlex.quote(name)}", timeout=60).partition("\n")
+            try:
+                meta = json.loads(header)
+            except json.JSONDecodeError:
+                meta = None  # Not a crash report this check understands: ReportCrash writes its header whole first.
+            if not isinstance(meta, dict) or meta.get("app_name") != "CheckmateNative" or str(meta.get("slice_uuid", "")).lower() not in uuids:
+                break
+            try:
+                detail = json.loads(body)
+            except json.JSONDecodeError:
+                # This run's app, its body still being written: read it again; one still unreadable is a crash all the same.
+                if time.monotonic() < deadline:
+                    time.sleep(1)
+                    continue
+                found.append(name)
+                break
+            if datetime.datetime.strptime(detail["captureTime"], "%Y-%m-%d %H:%M:%S.%f %z").timestamp() >= since:
+                found.append(name)
+            break
     return found
 
 
@@ -126,11 +139,13 @@ try:
     install()
     install(remote=True)
     # Each instance is registered for cleanup as soon as it starts, so one that fails to start leaves none running.
-    host = Instance("host", local_evidence, helpers, mode="installed")
+    # Real Bonjour only: an empty loopback directory is the app's "no loopback" (NativeNetwork.swift), stated outright.
+    bonjour_only = {"CHECKMATE_NETWORK_LOOPBACK_DIR": ""}
+    host = Instance("host", local_evidence, helpers, mode="installed", environment=bonjour_only)
     instances.append(host)
-    watcher = Instance("spectator", local_evidence, helpers, mode="installed")
+    watcher = Instance("spectator", local_evidence, helpers, mode="installed", environment=bonjour_only)
     instances.append(watcher)
-    guest = Instance("guest", pair_evidence, helpers, mode="pair", remote_helpers=pair_helpers())
+    guest = Instance("guest", pair_evidence, helpers, mode="pair", environment=bonjour_only, remote_helpers=pair_helpers())
     instances.append(guest)
     for instance in instances:
         open_network(instance)

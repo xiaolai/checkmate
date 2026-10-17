@@ -65,9 +65,14 @@ public struct NetworkHostSettings:Equatable {
 public struct NetworkHostLimits:Equatable {
     public var peerQueueBytes=NetworkLimits.peerQueueBytes,spectatorQueuesBytes=NetworkLimits.spectatorQueuesBytes
     public var maximumSpectators=NetworkLimits.maximumSpectators,pendingPerListener=NetworkLimits.pendingConnectionsPerListener
-    /// Distinct snapshot records held for spectators still sending them. Queue budgets do not count these payloads, so
-    /// spectators asking at many different positions are bounded here; the guest's own snapshot is never refused.
-    public var retainedCaptureBytes=2*NetworkLimits.maximumSnapshotBytes
+    /// Distinct snapshot records held for peers still sending them. Queue budgets do not count these payloads, so they
+    /// get what D7's 1 MiB leaves once every other buffer is at its worst: all queues full, every admitted connection's
+    /// send in flight counted again by the transport, and a partial frame on every connection the host may hold. That
+    /// is about 32 KB, a record of some 2,800 moves. A spectator asking past it is closed as slow; the guest's own
+    /// snapshot is never refused, so spectators sending other records are closed to make room for it, and only a guest
+    /// in a game longer than anyone plays (a record over the whole budget) takes the total past 1 MiB, by that record.
+    public var retainedCaptureBytes=NetworkLimits.hostBufferBytes-NetworkLimits.spectatorQueuesBytes-NetworkLimits.peerQueueBytes-(1+NetworkLimits.maximumSpectators)*Self.frameBytes-(1+NetworkLimits.maximumSpectators+2*NetworkLimits.pendingConnectionsPerListener)*(Self.frameBytes-1)-1
+    static let frameBytes=NetworkFraming.headerBytes+NetworkLimits.maximumMessageBytes
     public init(){}
     public static let standard=NetworkHostLimits()
 }
@@ -499,8 +504,9 @@ public final class NetworkHost:CustomReflectable {
         if peers[id]!.outbox.enqueue(data) == .overflow {try close(id,.slow);return}
         try pump(id)
     }
-    private func requestSnapshot(_ id:NetworkConnectionID)throws {
-        guard !leaving,let peer=peers[id],!peer.outbox.snapshotPending else{return}
+    /// `owed`: the refresh a stale flag was waiting to send, which leaving still sends; leaving starts no other.
+    private func requestSnapshot(_ id:NetworkConnectionID,owed:Bool=false)throws {
+        guard !leaving || owed,let peer=peers[id],!peer.outbox.snapshotPending else{return}
         let game=try publicGame(at:now)
         let capture:NetworkSnapshot
         // Shared while only the clock reading differs: clocks in a snapshot are cosmetic, and the next clock message
@@ -508,10 +514,15 @@ public final class NetworkHost:CustomReflectable {
         if let last=lastCapture,Self.samePosition(last.game,game) {capture=last.capture}
         else{
             capture=try NetworkSnapshot.capture(game,fen:fen,hashing:hashing,random:random)
-            if peer.role == .spectator,snapshotBytes+capture.payload.count>limits.retainedCaptureBytes {try close(id,.slow);return}
+            if snapshotBytes+capture.payload.count>limits.retainedCaptureBytes {
+                if peer.role == .spectator {try close(id,.slow);return}
+                // D7: the guest's snapshot is never refused; spectators still sending other records make room for it.
+                for other in spectators where peers[other]?.outbox.pendingSnapshot != nil && snapshotBytes+capture.payload.count>limits.retainedCaptureBytes {try close(other,.slow)}
+            }
             lastCapture=(game,capture)
         }
-        _ = peers[id]!.outbox.requestSnapshot(capture)
+        // A capture of the current game is the refresh a stale flag was waiting to send.
+        if peers[id]!.outbox.requestSnapshot(capture) == .queued {peers[id]!.snapshotStale=false}
         try pump(id)
     }
     /// The cached capture goes once no peer still has it to send: it holds a whole record.
@@ -531,9 +542,9 @@ public final class NetworkHost:CustomReflectable {
     }
     private func pump(_ id:NetworkConnectionID)throws {
         guard peers[id] != nil else{return}
-        // A refresh owed to a spectator is sent once its snapshot in flight finishes; when leaving there is none to
-        // send (`requestSnapshot` makes none), so the queue drains on to the result and the close instead.
-        if peers[id]!.snapshotStale,!peers[id]!.outbox.snapshotPending {peers[id]!.snapshotStale=false;if !leaving {try requestSnapshot(id);return}}
+        // A refresh owed to a spectator is sent once its snapshot in flight finishes, even when leaving: it carries what
+        // changed meanwhile (the guest's name, which `ended` does not), after whatever was queued, and the close follows.
+        if peers[id]!.snapshotStale,!peers[id]!.outbox.snapshotPending {peers[id]!.snapshotStale=false;try requestSnapshot(id,owed:true);return}
         defer{releaseIdleCapture()}
         if let message=try peers[id]!.outbox.next() {
             // A snapshot part is only made when it is sent, so its bytes meet both budgets here (D7).

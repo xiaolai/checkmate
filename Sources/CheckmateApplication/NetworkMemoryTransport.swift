@@ -37,7 +37,8 @@ public final class NetworkMemoryTransport:NetworkTransport {
             listeners[name]=(hosting,role);endpoints[role]=NetworkEndpoint(name,description:name)
         }
         nextHosting+=1
-        scheduler.enqueue{[weak hosting] in hosting?.deliver(.listening(endpoints))}
+        // As the real transport does, a hosting stopped before it was ready never reports listening.
+        scheduler.enqueue{[weak hosting] in if let hosting,hosting.listening {hosting.deliver(.listening(endpoints))}}
         return hosting
     }
     public func connect(to endpoint:NetworkEndpoint,key:NetworkAccessKey,events:@escaping (NetworkLinkEvent)->Void)->any NetworkLink {
@@ -103,6 +104,8 @@ final class NetworkMemoryPipe {
     var severed=false,stalledToLink=false
     var hostSending=false,linkSending=false
     var stalledBytes=0
+    /// Framed bytes handed over and not yet completed, each way, as the real transport counts them (D7).
+    var hostInFlight=0,linkInFlight=0
     init(connection:NetworkTransportConnection,hosting:NetworkMemoryHosting,link:NetworkMemoryLink){self.connection=connection;self.hosting=hosting;self.link=link}
     var crosses:Bool {!severed}
     /// The host hears that the connection closed: its last event.
@@ -121,23 +124,25 @@ public final class NetworkMemoryHosting:NetworkHosting {
     fileprivate init(transport:NetworkMemoryTransport,configuration:NetworkHostingConfiguration,events:@escaping (NetworkHostingEvent)->Void){self.transport=transport;self.configuration=configuration;self.events=events}
     private var scheduler:any NetworkScheduler {transport.scheduler}
     public var connections:[NetworkTransportConnection] {pipes.keys.sorted{$0.number<$1.number}}
-    public var bufferedBytes:Int {pipes.values.reduce(0){$0+$1.stalledBytes}}
+    public var bufferedBytes:Int {pipes.values.reduce(0){$0+$1.stalledBytes+$1.hostInFlight}}
     fileprivate func deliver(_ event:NetworkHostingEvent){if !stopped {events(event)}}
     public func send(_ message:Data,on connection:NetworkTransportConnection){
         guard !stopped,let pipe=pipes[connection],pipe.hostOpen else{return}
         precondition(!pipe.hostSending,"One send at a time per connection.")
         pipe.hostSending=true
-        if pipe.stalledToLink && pipe.crosses {pipe.stalledBytes+=message.count;return}
+        let framed=NetworkFraming.headerBytes+message.count
+        if pipe.stalledToLink && pipe.crosses {pipe.stalledBytes+=framed;return}
+        pipe.hostInFlight=framed
         scheduler.enqueue{[weak pipe] in if let pipe,pipe.crosses {pipe.link?.receive(message,from:pipe)}}
         scheduler.enqueue{[weak self,weak pipe] in
             guard let self,let pipe,pipe.hostOpen else{return}
-            pipe.hostSending=false;self.deliver(.sent(pipe.connection))
+            pipe.hostSending=false;pipe.hostInFlight=0;self.deliver(.sent(pipe.connection))
         }
     }
     public func close(_ connection:NetworkTransportConnection,farewell:Data?){
         guard let pipe=pipes.removeValue(forKey:connection),pipe.hostOpen else{return}
         pipe.hostOpen=false
-        let delivered=pipe.crosses && !pipe.stalledToLink;pipe.stalledBytes=0
+        let delivered=pipe.crosses && !pipe.stalledToLink;pipe.stalledBytes=0;pipe.hostInFlight=0
         if let farewell,delivered {scheduler.enqueue{[weak pipe] in if let pipe,pipe.crosses {pipe.link?.receive(farewell,from:pipe)}}}
         if pipe.crosses {scheduler.enqueue{[weak pipe] in pipe?.link?.deliver(.closed(.lost))}}
     }
@@ -159,33 +164,35 @@ public final class NetworkMemoryLink:NetworkLink {
     public private(set) var open=true
     fileprivate init(transport:NetworkMemoryTransport,key:NetworkAccessKey,events:@escaping (NetworkLinkEvent)->Void){self.transport=transport;self.key=key;self.events=events}
     public var connection:NetworkTransportConnection? {pipe?.connection}
-    public var bufferedBytes:Int {0}
+    public var bufferedBytes:Int {pipe?.linkInFlight ?? 0}
     fileprivate func deliver(_ event:NetworkLinkEvent){
         guard open else{return}
         if case .closed=event {open=false;deadline?.cancel()}
         events(event)
     }
     fileprivate func receive(_ message:Data,from pipe:NetworkMemoryPipe){
-        guard open else{return}
-        for message in transport.rewritesToLink(message) {transport.record(pipe.connection,toHost:false,message);deliver(.received(message))}
+        // Each replacement is its own delivery: a close or a cut made while handling one stops the rest.
+        for message in transport.rewritesToLink(message) {guard open,pipe.crosses else{return};transport.record(pipe.connection,toHost:false,message);deliver(.received(message))}
     }
     fileprivate func fail(_ failure:NetworkLinkFailure){guard open,pipe==nil else{return};deliver(.closed(failure))}
     public func send(_ message:Data){
         guard open,let pipe else{return}
         precondition(!pipe.linkSending,"One send at a time per connection.")
-        pipe.linkSending=true
+        pipe.linkSending=true;pipe.linkInFlight=NetworkFraming.headerBytes+message.count
         let lost=transport.losesToHost(message)
         transport.scheduler.enqueue{[weak transport=self.transport,weak pipe] in
             guard let transport,let pipe,pipe.crosses,pipe.hostOpen,!lost,let hosting=pipe.hosting,!hosting.stopped else{return}
             transport.record(pipe.connection,toHost:true,message);hosting.deliver(.received(pipe.connection,message))
         }
-        transport.scheduler.enqueue{[weak self,weak pipe] in guard let self,let pipe,self.open else{return};pipe.linkSending=false;self.deliver(.sent)}
+        transport.scheduler.enqueue{[weak self,weak pipe] in guard let self,let pipe,self.open else{return};pipe.linkSending=false;pipe.linkInFlight=0;self.deliver(.sent)}
     }
     public func close(farewell:Data?){
         guard open else{return}
         open=false;deadline?.cancel()
         guard let pipe else{return}
-        if let farewell {transport.scheduler.enqueue{[weak transport=self.transport,weak pipe] in
+        pipe.linkInFlight=0
+        // A farewell is a message like any other: a configured loss toward the host loses it too.
+        if let farewell,!transport.losesToHost(farewell) {transport.scheduler.enqueue{[weak transport=self.transport,weak pipe] in
             guard let transport,let pipe,pipe.crosses,pipe.hostOpen,let hosting=pipe.hosting,!hosting.stopped else{return}
             transport.record(pipe.connection,toHost:true,farewell);hosting.deliver(.received(pipe.connection,farewell))
         }}

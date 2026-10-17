@@ -363,7 +363,11 @@ import RealtimeConnection
         panel.begin {response in
             guard response == .OK,let url=panel.url else{return}
             do {
-                let archive=try Data(contentsOf:url);var state=self.session.state
+                // Read no more than an archive may hold, so an oversized file is refused without loading it whole.
+                let handle=try FileHandle(forReadingFrom:url);defer{try? handle.close()}
+                let archive=try handle.read(upToCount:StateStore.maximumBytes+1) ?? Data()
+                guard archive.count<=StateStore.maximumBytes else{throw CheckmateError.invalid("Invalid progress archive.")}
+                var state=self.session.state
                 let report=try LegacyImporter.apply(archive,to:&state,course:self.learning.library)
                 let alert=NSAlert()
                 if report.duplicate {alert.messageText="Already imported";alert.informativeText=report.summary;alert.runModal();return}
@@ -531,7 +535,8 @@ import RealtimeConnection
         // A coach opened for the network game (assistance plan A10) coaches it only on its own page; the network page
         // itself keeps it, and ends a practice session.
         case .practice:if !reviewing{learning.pause()};if voice.networkSession{voice.disconnect()};audio.stop()
-        case .network:if !voice.networkSession{rememberVoice();voice.disconnect()};audio.stop()
+        // A lesson's player is paused too: its timer would otherwise narrate and auto-advance into a lesson (D8).
+        case .network:learning.pause();if !voice.networkSession{rememberVoice();voice.disconnect()};audio.stop()
         case .lesson,.puzzles:rememberVoice();voice.disconnect();audio.stop()
         case .reviewWorkspace,.review:learning.pause();rememberVoice();voice.disconnect();audio.stopAll()
         case .importProgress:saveTask?.cancel();voice.disconnect();usage.flushForShutdown();companion.disable();learning.pause();audio.stopAll()

@@ -48,13 +48,17 @@ if not __debug__:
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 # Every mention counts, called or not: an EngineService method passed as a value is a call site too. Argument labels are
 # part of a Swift call, so `analyze(fen:` names the engine's method; whitespace is allowed anywhere Swift allows it.
-ENGINE_CALL = re.compile(r'\.analyze\s*\(\s*fen\s*:|(?<![\w.])(?<!func )analyze\s*\(\s*fen\s*:|(?<!func )\banalyzeHistory\b|\.prepare\s*\(\s*\)|\.analyze\b(?!\s*\()')
+# A declaration's own name is not a mention: those offsets are removed using the declaration parser (DECLARATION), so
+# `func  analyzeHistory(` with any spacing or a line break is still a declaration.
+ENGINE_CALL = re.compile(r'\.analyze\s*\(\s*fen\s*:|(?<![\w.])analyze\s*\(\s*fen\s*:|\banalyzeHistory\b|\.prepare\s*\(\s*\)|\.prepare\b(?!\s*\()|\.analyze\b(?!\s*\()')
 # Any mention of `request` in VoiceCoach.swift, through any receiver (`self.request(`, `coach.request(`) or as a value.
-VOICE_CALL = re.compile(r'(?<!func )\brequest\b')
+VOICE_CALL = re.compile(r'\brequest\b')
 AWAIT = re.compile(r'\bawait\b')
 # A `case` or `default` label starting a statement: a check in one arm of a switch never covers another arm.
-LABEL = re.compile(r'(?:^|(?<=[;{\n]))[ \t]*(?:case\b|default\s*:)')
-RECEIVER = r'(?:\w+[?!]?\s*\.\s*)*'
+LABEL = re.compile(r'(?:^|(?<=[;{}\n]))[ \t]*(?:case\b|default\s*:)')
+# A check runs through a plain or force-unwrapped receiver chain only: `owner?.fairness.requireX()` runs nothing when
+# `owner` is nil, so an optional chain is no check.
+RECEIVER = r'(?:\w+!?\s*\.\s*)*'
 CHECK = re.compile(RECEIVER + r'fairness\s*\.\s*(?:engineHelpAllowed\b|requireEngineHelp\s*\(\s*\))')
 ASSIST_CHECK = re.compile(RECEIVER + r'fairness\s*\.\s*requireNetworkHint\s*\(\s*\)')
 ASSIST_FILES = {'Sources/CheckmateApplication/NetworkAssistant.swift'}
@@ -69,6 +73,11 @@ CONDITIONAL, ELSE = re.compile(r'\b(guard|if)\b'), re.compile(r'\belse\b')
 IF_ELSE = re.compile(r'(?:\s*else\s*if\b[^{};]*\{[^{}]*\})*\s*else\s*(?:if\b[^{};]*)?')
 
 
+class Unlexable(Exception):
+    """Source this lexer cannot read with certainty (an unterminated literal or comment, as a regex literal holding a
+    quote would leave it): the file fails the inventory instead of having code silently blanked."""
+
+
 def comment_end(text, i):
     """The end of the block comment opening at text[i]; Swift block comments nest."""
     depth, k, n = 0, i, len(text)
@@ -81,7 +90,7 @@ def comment_end(text, i):
                 return k
         else:
             k += 1
-    return n
+    raise Unlexable(f'an unterminated block comment at offset {i}')
 
 
 LITERAL = re.compile(r'(#*)("""|")')
@@ -96,7 +105,8 @@ def literal(text, i):
     k, n, spans = m.end(), len(text), []
     while k < n:
         if quote == '"' and text[k] == '\n':
-            return k, spans  # an unterminated one-line literal ends at its line
+            # Compiling Swift has no unterminated literal: a quote inside a regex literal (`#/"/#`) reads as one.
+            raise Unlexable(f'an unterminated string literal at offset {i}')
         if text.startswith(close, k):
             return k + len(close), spans
         if text.startswith(interpolation, k):
@@ -109,7 +119,7 @@ def literal(text, i):
             k += len(escape) + 1
             continue
         k += 1
-    return n, spans
+    raise Unlexable(f'an unterminated string literal at offset {i}')
 
 
 def code_end(text, k):
@@ -133,7 +143,7 @@ def code_end(text, k):
             if depth == 0:
                 return k
         k += 1
-    return n
+    raise Unlexable(f'an unterminated interpolation at offset {k}')
 
 
 def blank(text):
@@ -200,8 +210,19 @@ def matching(code, i):
     return len(code)
 
 
+# What a block's header (the code between the previous `;`, `{` or `}` and its `{`) starts with when the block is
+# control flow or a declaration's body, after attributes and modifiers. Any other block is a closure, which may run
+# later (a Task) or more than once: a check outside it never covers a call inside it.
+MODIFIERS = re.compile(r'(?:@\w+(?:\([^()]*\))?\s*|(?:public|private|fileprivate|internal|open|static|class|final|override|mutating|nonmutating|nonisolated|convenience|required|lazy|weak|unowned|indirect|dynamic|optional)\b\s*)*')
+CONTROL = re.compile(r'(?:\w+\s*:\s*)?(?:if|guard|else|for|while|repeat|switch|do|catch|defer|func|init|deinit|subscript|get|set|willSet|didSet|struct|enum|extension|protocol|actor|class)\b')
+LOOP = re.compile(r'(?:\w+\s*:\s*)?(?:for|while|repeat)\b')
+CONTINUES = re.compile(r'(?:[.,)\]?:+*/%<>=!&|-]|else\b|where\b|throws\b|rethrows\b|async\b)')
+CONTINUED = re.compile(r'(?:[,(\[=+*/%<>!&|?:-]|\bin|\bwhere)$')
+
+
 class Structure:
-    """The braces of one file's blanked code: the innermost block around an offset, and the switch arms in a block."""
+    """The braces of one file's blanked code: the innermost block around an offset, the switch arms in a block, and
+    which blocks are closures or loop bodies."""
 
     def __init__(self, code):
         self.code, self.blocks, stack = code, [], []
@@ -211,6 +232,46 @@ class Structure:
             elif c == '}' and stack:
                 self.blocks.append((stack.pop(), j))
         self.blocks.sort()
+        self.closures, self.loops = set(), set()
+        for block in self.blocks:
+            header = self.header(block[0])
+            if LOOP.match(header):
+                self.loops.add(block)
+            elif not CONTROL.match(header) and not re.match(r'(?:var|let)\b[^=]*$', header):
+                self.closures.add(block)
+
+    def header(self, opening):
+        """The code before the `{` at `opening` back to the previous `;`, `{` or `}` at its own depth, modifiers removed."""
+        depth, k = 0, opening - 1
+        while k >= 0:
+            c = self.code[k]
+            if c in ')]':
+                depth += 1
+            elif c in '([':
+                if depth == 0:
+                    break
+                depth -= 1
+            elif depth == 0 and c in ';{}':
+                break
+            k -= 1
+        # Newlines also end statements: the header is the last line, joined with the lines it continues (one starting or
+        # ending with an operator, `,`, `.`, `else` or a bracket), so `guard a,\n b else {` reads as the guard it is.
+        lines = [line.strip() for line in self.code[k + 1:opening].split('\n')]
+        lines = [line for line in lines if line] or ['']
+        start = len(lines) - 1
+        while start > 0 and (CONTINUES.match(lines[start]) or CONTINUED.search(lines[start - 1])):
+            start -= 1
+        text = ' '.join(lines[start:])
+        return text[MODIFIERS.match(text).end():]
+
+    def deferred(self, check, offset):
+        """Whether a closure holds the call at `offset` but not the check at `check`: the check runs, the closure later."""
+        return any(b[0] < offset < b[1] and not b[0] < check < b[1] for b in self.closures)
+
+    def loop(self, offset):
+        """The innermost loop body around `offset`, or None."""
+        inside = [b for b in self.loops if b[0] < offset < b[1]]
+        return min(inside, key=lambda b: b[1] - b[0]) if inside else None
 
     def block(self, offset):
         inside = [b for b in self.blocks if b[0] < offset < b[1]]
@@ -232,7 +293,8 @@ class Structure:
         # Where each side enters the innermost block they share: its own position, or the child block holding it.
         enter_a = a[common][0] if common < len(a) else earlier
         enter_c = c[common][0] if common < len(c) else offset
-        if self.arm(enter_a) != self.arm(enter_c):
+        # Switch arms are exclusive unless one falls through into the next.
+        if self.arm(enter_a) != self.arm(enter_c) and not re.search(r'\bfallthrough\b', self.code[parent[0]:parent[1]]):
             return False
         if common < len(a) and common < len(c) and IF_ELSE.fullmatch(self.code[a[common][1] + 1:c[common][0]]):
             return False
@@ -276,7 +338,8 @@ def coverage(structure, match):
     code, s, e = structure.code, match.start(), match.end()
     head = code[max(0, s - 200):s]
     statement = re.search(r'(?:^|[;{}\n]|\bin)\s*try\s+$', head)
-    if statement and 'require' in match.group(0) and re.match(r'\s*(?:[;}\n]|$)', code[e:]):
+    # A statement stands at its block's top level: inside ( ) or [ ] (`_ = try? (\ntry …\n)`) it is part of an expression.
+    if statement and 'require' in match.group(0) and re.match(r'\s*(?:[;}\n]|$)', code[e:]) and not open_brackets(code[structure.block(s)[0] + 1:s]):
         arm = structure.arm(s)
         return (e, arm[1])
     block = structure.block(s)
@@ -330,6 +393,17 @@ def top_level(code, start, pattern):
     return None
 
 
+def open_brackets(text):
+    """Whether `text` leaves a ( or [ open."""
+    depth = 0
+    for c in text:
+        if c in '([':
+            depth += 1
+        elif c in ')]':
+            depth = max(0, depth - 1)
+    return depth > 0
+
+
 def blank_parens(text):
     """`text` with everything inside ( ) and [ ] blanked, so only its top level reads."""
     out, depth = list(text), 0
@@ -347,7 +421,7 @@ def covered(pattern, structure, low, offset):
     """Whether an enforced check matching `pattern`, starting at or after `low`, covers the call at `offset`."""
     for match in pattern.finditer(structure.code, max(0, low), offset):
         region = coverage(structure, match)
-        if region and region[0] <= offset < region[1]:
+        if region and region[0] <= offset < region[1] and not structure.deferred(match.start(), offset):
             return True
     return False
 
@@ -373,7 +447,14 @@ def rechecked(pattern, structure, start, offset):
     """True unless an earlier suspension in the declaration, on a path to the call, precedes the call with no enforced
     check covering the call since it."""
     earlier = [m.start() for m in AWAIT.finditer(structure.code, start, own_await(structure.code, start, offset)) if structure.reaches(m.start(), offset)]
-    return not earlier or covered(pattern, structure, earlier[-1], offset)
+    if earlier and not covered(pattern, structure, earlier[-1], offset):
+        return False
+    # In a loop whose body suspends (the call's own await included), the next iteration's call follows a suspension:
+    # it needs a check inside the loop body, before it.
+    body = structure.loop(offset)
+    if body and AWAIT.search(structure.code, body[0], body[1]) and not covered(pattern, structure, body[0], offset):
+        return False
+    return True
 
 
 def argument_await(code, offset):
@@ -381,31 +462,52 @@ def argument_await(code, offset):
     return bool(AWAIT.search(code, offset, call_end(code, offset)))
 
 
+def declaration_names(code):
+    """The offsets of every declared function or computed var's own name, which are declarations, not mentions."""
+    return {m.start(g) for m in DECLARATION.finditer(code) for g in (1, 3) if m.group(g)}
+
+
+def name_at(code, offset):
+    """The offset of the name a match at `offset` starts with (after a leading `.`)."""
+    return offset + 1 if code.startswith('.', offset) else offset
+
+
 def scan(root):
     """({(file, function): [call offsets]}, {file: blanked code}, {(file, offset) of each engine call},
-    {(file, offset): the declaration's (name, body start, body end) it sits in})."""
-    sites, codes, engine, enclosing = {}, {}, set(), {}
+    {(file, offset): the declaration's (name, body start, body end) it sits in}, [files that could not be lexed])."""
+    sites, codes, engine, enclosing, unlexable = {}, {}, set(), {}, []
     for path in sorted((root / 'Sources').rglob('*.swift')):
         relative = str(path.relative_to(root))
-        code = codes[relative] = blank(path.read_text())
-        calls = [m.start() for m in ENGINE_CALL.finditer(code)]
+        try:
+            code = codes[relative] = blank(path.read_text())
+        except Unlexable as error:
+            unlexable.append(f'{relative} cannot be read with certainty ({error}); the inventory fails closed')
+            continue
+        declared = declaration_names(code)
+        calls = [m.start() for m in ENGINE_CALL.finditer(code) if name_at(code, m.start()) not in declared]
         engine |= {(relative, offset) for offset in calls}
         if path.name == 'VoiceCoach.swift':
-            calls += [m.start() for m in VOICE_CALL.finditer(code)]
+            calls += [m.start() for m in VOICE_CALL.finditer(code) if m.start() not in declared]
         spans = functions(code)
         for offset in calls:
             inside = [span for span in spans if span[1] < offset < span[2]]
             span = min(inside, key=lambda span: span[2] - span[1]) if inside else ('<top level>', 0, len(code))
             enclosing[(relative, offset)] = span
             sites.setdefault((relative, span[0]), []).append(offset)
-    return sites, codes, engine, enclosing
+    return sites, codes, engine, enclosing, unlexable
+
+
+def reference(code, offset):
+    """Whether the engine mention at `offset` names the method without calling it (`let search = engine.analyzeHistory`):
+    its later uses, after any suspension, cannot be followed, so only an exempt site may do it."""
+    name = re.compile(r'\w+').match(code, name_at(code, offset))
+    return not re.match(r'\s*\(', code[name.end():]) if name else False
 
 
 def check(root, inventory):
-    sites, codes, engine, enclosing = scan(root)
+    sites, codes, engine, enclosing, problems = scan(root)
     structures = {file: Structure(code) for file, code in codes.items()}
     entries = {(entry['file'], entry['function']): entry for entry in inventory['sites']}
-    problems = []
     for key, offsets in sorted(sites.items()):
         entry = entries.get(key)
         if entry is None:
@@ -420,6 +522,8 @@ def check(root, inventory):
             declarations.setdefault(enclosing[(key[0], offset)], []).append(offset)
         if kind in ('guarded', 'delegated', 'assisted') and any(argument_await(code, offset) for offset in offsets if (key[0], offset) in engine):
             problems.append(f'{key[0]} {key[1]}: an engine call suspends while its arguments are evaluated, after its check')
+        if kind != 'exempt' and any(reference(code, offset) for offset in offsets if (key[0], offset) in engine):
+            problems.append(f'{key[0]} {key[1]}: an engine method is passed as a value, so its later calls cannot be checked')
         if kind == 'guarded':
             for (_, start, _), calls in declarations.items():
                 if not all(covered(CHECK, structure, start, offset) for offset in calls):
@@ -461,16 +565,67 @@ def check(root, inventory):
     return problems
 
 
-def delivered(structure, last, end):
-    """After the last assisted search ends, an enforced requireNetworkHint on its path (its block holds the search, or
-    holds the block that does), and none of the declaration's later `await`s without such a check after it: a result is
-    only delivered under the terms that allowed it."""
+def only_exits(code, a, b):
+    """Whether code[a:b] holds nothing but `guard … else {return …}` / `{throw …}` statements that do not suspend: code
+    that can only stop, never deliver a result, before the check that must come first."""
+    k = a
+    while True:
+        while k < b and code[k] in ' \t\n;':
+            k += 1
+        if k >= b:
+            return True
+        if not re.match(r'guard\b', code[k:b]):
+            return False
+        found = top_level(code, k + 5, ELSE)
+        opening = code.find('{', found + 4) if found is not None else -1
+        if found is None or opening < 0 or opening >= b or code[found + 4:opening].strip() or AWAIT.search(code, k, opening):
+            return False
+        close = matching(code, opening)
+        if close >= b or not re.match(r'\s*(?:return|throw)\b', code[opening + 1:close]):
+            return False
+        k = close + 1
+
+
+def next_check(structure, after, end, search):
+    """Whether, after offset `after`, the first requireNetworkHint is an enforced statement or guard that covers the rest
+    of its arm, in a block holding the search, with nothing but exits before it: nothing can deliver a result first."""
     code = structure.code
-    finish = call_end(code, last)
-    later = [m for m in ASSIST_CHECK.finditer(code, finish, end) if coverage(structure, m) and structure.block(m.start())[0] < last < structure.block(m.start())[1]]
-    if not later:
+    for m in ASSIST_CHECK.finditer(code, after, end):
+        region = coverage(structure, m)
+        if not region:
+            return False
+        # A statement check covers from its own end; a guard's from the end of its else block (an if covers only its body).
+        begin = code.rfind('try', after, m.start()) if region[0] == m.end() else code.rfind('guard', after, m.start())
+        block = structure.block(m.start())
+        return begin >= after and region[1] == structure.arm(m.start())[1] and block[0] < search < block[1] and only_exits(code, after, begin)
+    return False
+
+
+def statement_end(code, k):
+    """The end of the statement holding offset k: the next `;` or line break outside brackets, or its block's `}`."""
+    depth = 0
+    while k < len(code):
+        c = code[k]
+        if c in '([{':
+            depth += 1
+        elif c in ')]}':
+            if depth == 0:
+                return k
+            depth -= 1
+        elif depth == 0 and c in ';\n':
+            return k
+        k += 1
+    return k
+
+
+def delivered(structure, last, end):
+    """Right after the last assisted search ends, before anything but exits, an enforced requireNetworkHint whose block
+    holds the search; and after each of the declaration's later `await`s, before anything but exits, another: a result
+    is delivered only under the terms that allowed it, never after a suspension that could have changed them."""
+    code = structure.code
+    if not next_check(structure, statement_end(code, call_end(code, last)), end, last):
         return False
-    return all(any(m.start() > suspension.start() for m in later) for suspension in AWAIT.finditer(code, finish, end))
+    return all(next_check(structure, statement_end(code, suspension.start()), end, last) for suspension in AWAIT.finditer(code, call_end(code, last), end))
 
 
 def delegated(key, entry, codes, structures, declarations):
@@ -482,7 +637,7 @@ def delegated(key, entry, codes, structures, declarations):
         problems.append(f'{key[0]} {key[1]} is delegated without callers')
     # How callers name the helper (BeginnerOpponent.choose), so an unrelated function of the same name never counts.
     call = re.compile(entry.get('callPattern') or r'(?:(?<![\w.])|(?<=\bself\.)|(?<=\bSelf\.))' + re.escape(key[1]) + r'\s*\(')
-    reference = re.compile(entry.get('referencePattern') or r'(?<!func )\b' + re.escape(key[1]) + r'\b')
+    reference = re.compile(entry.get('referencePattern') or r'\b' + re.escape(key[1]) + r'\b')
     listed = {(c['file'], c['function']) for c in callers}
     for caller in callers:
         caller_code, structure = codes.get(caller['file'], ''), structures.get(caller['file'])
@@ -491,11 +646,14 @@ def delegated(key, entry, codes, structures, declarations):
             problems.append(f'{key[0]} {key[1]}: listed caller {caller["file"]} {caller["function"]} does not call it')
         elif not all(covered(CHECK, structure, body, at) and rechecked(CHECK, structure, body, at) for body, at in calls):
             problems.append(f'{key[0]} {key[1]}: listed caller {caller["file"]} {caller["function"]} does not check FairnessPolicy before calling it')
+        elif any(argument_await(caller_code, at) for _, at in calls):
+            # The helper's first engine call relies on the caller's check, which a suspension in the arguments outlives.
+            problems.append(f'{key[0]} {key[1]}: listed caller {caller["file"]} {caller["function"]} suspends in its arguments, after its check')
     helper = [span for span in functions(codes[key[0]]) if span[0] == key[1]]
     for file, other in codes.items():
-        spans = functions(other)
+        spans, declared = functions(other), declaration_names(other)
         for m in reference.finditer(other):
-            if file == key[0] and any(s[1] <= m.start() <= s[2] for s in helper):
+            if m.start() in declared or (file == key[0] and any(s[1] <= m.start() <= s[2] for s in helper)):
                 continue
             inside = [s for s in spans if s[1] < m.start() < s[2]]
             owner = max(inside, key=lambda s: s[1]) if inside else None
@@ -610,7 +768,7 @@ def self_test(inventory):
                 entry['calls'] += 1
         assert any('before its first call' in p for p in check(fixture, widened)), 'an unguarded overload passed on another declaration\'s guard'
         assistant.write_text(hint)
-        fail_closed(fixture, inventory, original, text, hint, voice)
+        fail_closed(fixture, inventory, original, hint, voice)
 
 
 def widen(inventory, file, function, **changes):
@@ -624,7 +782,7 @@ def widen(inventory, file, function, **changes):
     return widened
 
 
-def fail_closed(fixture, inventory, session_text, beginner_text, hint, voice):
+def fail_closed(fixture, inventory, session_text, hint, voice):
     """Shapes the scanner must refuse (audit rounds 1 and 2), and the exclusive branches it must still accept."""
     session = fixture / 'Sources/CheckmateApplication/GameSession.swift'
     assistant = fixture / 'Sources/CheckmateApplication/NetworkAssistant.swift'
@@ -703,6 +861,38 @@ def fail_closed(fixture, inventory, session_text, beginner_text, hint, voice):
                        ('sneakyRaw', 'print(#"\\#(try await engine!.analyze(fen:"",skill:20,budget:100,multiPv:1))"#)')]:
         fails(session, session_text + f'\nextension GameSession {{func {name}()async throws {{{body}}}}}\n', (name,), f'{name}: a call in an interpolation was missed')
     fails(session, session_text + '\n/* outer /* inner */ " */\nextension GameSession {func sneakyNested()async throws {_ = try await engine?.analyze(fen:"",skill:20,budget:100,multiPv:1)}}\n', ('sneakyNested',), 'code after a nested comment was missed')
+    session.write_text(session_text)
+    # Audit round 3. The re-check after the search must come before anything that could deliver: an empty `if`, a
+    # result published first, or a publication between a later suspension and the check, are refused.
+    fails(assistant, hint.replace(after, 'if (try? self.fairness.requireNetworkHint()) != nil {}', 1), ('again after its last call',), 'an empty if passed as the re-check')
+    fails(assistant, hint.replace(after, 'self.thinking=false;' + after, 1), ('again after its last call',), 'a result published before the re-check passed')
+    fails(assistant, hint.replace(after, after + ';await Task.yield();self.thinking=false;' + after, 1), ('again after its last call',), 'a publication between a suspension and its re-check passed')
+    # A check outside a closure never covers a call inside it (a Task runs later); one inside it does.
+    later_call = '_ = try? await self.engine?.analyze(fen:"",skill:20,budget:100,multiPv:1)'
+    one = widen(inventory, 'CheckmateApplication/GameSession.swift', 'sneakyLater', kind='guarded', calls=1)
+    fails(session, session_text + '\nextension GameSession {func sneakyLater(){try? fairness.requireEngineHelp();guard fairness.engineHelpAllowed else{return};Task{%s}}}\n' % later_call, ('sneakyLater', 'before its first call'), 'a check outside a Task covered the call inside it', one)
+    passes(session, session_text + '\nextension GameSession {func sneakyLater(){Task{[fairness] in guard fairness.engineHelpAllowed else{return};%s}}}\n' % later_call, 'a check inside the Task failed', one)
+    # A loop whose body suspends needs its check inside the loop, before the call.
+    loop = widen(inventory, 'CheckmateApplication/GameSession.swift', 'sneakyLoop', kind='guarded', calls=1)
+    fails(session, session_text + '\nextension GameSession {func sneakyLoop()async throws {try fairness.requireEngineHelp();for _ in 0..<2 {try await engine!.prepare()}}}\n', ('sneakyLoop', 'after an earlier await'), 'a second iteration after a suspension passed', loop)
+    passes(session, session_text + '\nextension GameSession {func sneakyLoop()async throws {for _ in 0..<2 {try fairness.requireEngineHelp();try await engine!.prepare()}}}\n', 'a check inside the loop failed', loop)
+    # A listed caller that suspends in the helper's arguments outlives its check.
+    fails(session, session_text.replace(listed, listed.replace('analyzeGame(e,', 'analyzeGame(e,then:await self.loadMoves(),'), 1), ('suspends in its arguments',), 'a caller suspending in its arguments passed')
+    # An engine method taken as a value, through any name, is refused unless exempt; prepare included.
+    fails(session, session_text + '\nextension GameSession {func sneakyRef()async throws {try fairness.requireEngineHelp();let search=engine!.analyzeHistory;_ = search}}\n', ('sneakyRef', 'passed as a value'), 'an engine method passed as a value passed', widen(inventory, 'CheckmateApplication/GameSession.swift', 'sneakyRef', kind='guarded', calls=1))
+    fails(session, session_text + '\nextension GameSession {func sneakyWarm()async throws {let warm=engine!.prepare;try await warm()}}\n', ('sneakyWarm',), 'a prepare reference went uncounted')
+    # A check through an optional chain runs nothing when the chain is nil.
+    fails(session, session_text + '\nextension GameSession {func sneakyOptional(_ owner:GameSession?)async throws {try owner?.fairness.requireEngineHelp();_ = try await engine?.analyze(fen:"",skill:20,budget:100,multiPv:1)}}\n', ('sneakyOptional', 'before its first call'), 'an optional-chain check passed', widen(inventory, 'CheckmateApplication/GameSession.swift', 'sneakyOptional', kind='guarded', calls=1))
+    # An arm that falls through is not exclusive: its suspension reaches the next arm's call.
+    fails(session, session_text + branches.replace('sneakyBranches', 'sneakyFall') % f'switch x {{case true:await Task.yield();fallthrough\ndefault:{call}}}', ('sneakyFall', 'after an earlier await'), 'a suspension falling through to a call passed', widen(inventory, 'CheckmateApplication/GameSession.swift', 'sneakyFall', kind='guarded', calls=1))
+    # A regex literal holding a quote cannot be lexed with certainty: the file fails rather than hiding the code after it.
+    fails(session, session_text + '\nextension GameSession {func sneakyRegex()async throws {let pattern=#/"/#;_ = pattern;_ = try await engine?.analyze(fen:"",skill:20,budget:100,multiPv:1)}}\n', ('cannot be read with certainty',), 'a regex literal hid the call after it')
+    # A declaration with any spacing is a declaration, not a call site.
+    passes(session, session_text + '\nextension GameSession {func  analyzeHistory(_ unused:Int){}\nfunc\n    request(_ unused:Int){}}\n', 'a declaration spelled with extra spaces counted as a call')
+    # A check wrapped in an expression is no statement, whatever its line breaks.
+    fails(session, session_text.replace(guard, guard.replace('try fairness.requireEngineHelp()', '_ = try? (\ntry fairness.requireEngineHelp()\n)'), 1), ('chooseOpponentMove',), 'a parenthesised check passed as a statement')
+    # A `} default:` on the arm's own line is a label: the case's guard never covers it.
+    fails(coach, voice + '\nextension VoiceCoach {func sneakyLabel(_ x:Int){switch x {case 1:guard session.fairness.voiceAllowed(network:networkSession) else{return};request("a",user:false);if x>0{} default:request("b",user:false)}}}\n', ('sneakyLabel', 'in its own case'), 'a same-line default borrowed the case\'s check', widen(inventory, 'CheckmateMacPlatform/VoiceCoach.swift', 'sneakyLabel', kind='voice', calls=2, reason='fixture'))
     session.write_text(session_text)
 
 

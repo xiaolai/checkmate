@@ -41,6 +41,8 @@ public struct LessonAttemptProjection:Codable,Equatable {
     /// How long the computer waits before playing, on top of its search.
     public var replyDelay:()->Duration={MiniGameOpponent.replyDelay}
     private var work:Task<Void,Never>?,generation=0
+    /// The engine hint or reply in flight, for tests that wait for its whole task.
+    var search:Task<Void,Never>? {work}
 
     public var active:Bool {practice != nil}
     public var phase:LessonAttemptJudgement.Phase? {judgement?.phase}
@@ -144,7 +146,9 @@ public struct LessonAttemptProjection:Codable,Equatable {
         guard session.fairness.engineHelpAllowed else{notice=FairnessPolicy.destinationUnavailable+".";onChange();return}
         guard let engine=session.engine,let practice else{notice="A move cannot be shown right now.";onChange();return}
         let token=generation,moves=record.moves
-        work=Task{[weak self] in
+        work=Task{[weak self,fairness=session.fairness] in
+            // D8, again where the search starts: participation may have begun before this task first ran.
+            guard fairness.engineHelpAllowed else{return}
             let best=try? await engine.analyzeHistory(startFEN:practice.fen,moves:moves,profile:.skill(20),budget:300,multiPv:1).bestMove
             guard let self,!Task.isCancelled,self.generation==token,self.record?.moves==moves,self.session.fairness.engineHelpAllowed else{return}
             self.work=nil

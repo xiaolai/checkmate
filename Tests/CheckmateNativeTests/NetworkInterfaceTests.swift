@@ -141,9 +141,10 @@ import CheckmateCore
         try file.save(NetworkCrashFile.Entry(game:game,part:.white))
         let entry=try XCTUnwrap(model.takeNetworkCrashNotice())
         XCTAssertEqual(entry.notice,"Your network game with Ben ended when Checkmate closed.");XCTAssertNil(file.pending(),"read once, then deleted");XCTAssertNil(model.takeNetworkCrashNotice())
-        XCTAssertTrue(NativeModel.reviewable(entry))
-        var empty=game;empty.pgn="";XCTAssertFalse(NativeModel.reviewable(NetworkCrashFile.Entry(game:empty,part:.black)),"no moves, nothing to review")
-        model.reviewNetworkCrash(entry)
+        let moves=try XCTUnwrap(NativeModel.replayedMoves(entry));XCTAssertEqual(moves,["e4","e5"],"replayed once, for the notice and Review")
+        var empty=game;empty.pgn="";XCTAssertEqual(NativeModel.replayedMoves(NetworkCrashFile.Entry(game:empty,part:.black)) ?? [],[],"no moves, nothing to review")
+        var long=game;long.revision=NetworkLimits.maximumPlies+2;XCTAssertNil(NativeModel.replayedMoves(NetworkCrashFile.Entry(game:long,part:.black)),"a record longer than any game is not replayed")
+        model.reviewNetworkCrash(entry,moves:moves)
         for _ in 0..<300 where !model.review.active{try await Task.sleep(for:.milliseconds(10))}
         let document=try XCTUnwrap(model.review.document);XCTAssertEqual(document.result,"*","an interrupted game");XCTAssertEqual(document.mainline.count,2)
         XCTAssertEqual(model.session.activity.review?.draft,true)
@@ -214,6 +215,16 @@ import CheckmateCore
         XCTAssertFalse(model.voice.networkVoiceAvailable,"no coach without hints")
     }
 
+    /// D8: a lesson playing when the learner opens the network page stops, timer and all, so its auto-advance cannot
+    /// narrate on or open the next lesson behind the game.
+    func testOpeningTheNetworkPageStopsALessonsPlayback()throws {
+        let model=try NativeModel();defer{model.shutdown()}
+        model.lesson(0);model.learning.play();XCTAssertTrue(model.learning.playing)
+        model.playOnNetwork();let network=model.session.activity
+        XCTAssertFalse(model.learning.playing,"playback stopped")
+        model.learning.advance(by:1_000_000)
+        XCTAssertFalse(model.learning.playing,"and nothing advances it");XCTAssertEqual(model.session.activity,network,"no lesson was reopened")
+    }
     /// A10: the squares of the segment the network game's coach is speaking light up on the learner's board, and go
     /// when the coach stops.
     func testTheCoachsSpokenSquaresShowOnTheNetworkBoard()async throws {
@@ -223,9 +234,12 @@ import CheckmateCore
         try model.voice.automationOpen();model.voice.receive(["type":"session.updated"]);XCTAssertTrue(model.voice.networkSession)
         let position="network:\(model.network.gameRevision ?? -1)"
         _ = try await model.voice.execute("speak_explanation",args:["positionId":position,"displayIdentity":position,"segments":[["text":"Your knight can develop.","squares":["g1"],"kind":"advice"]]],id:"s")
-        model.voice.receive(["type":"response.done","response":["status":"completed"]]);model.voice.audio.onPlaybackStart?()
-        XCTAssertEqual(model.voice.networkFocus,["g1"])
         func lit()->Bool {game.board.highlights.contains{$0.sq=="g1" && $0.kind=="focus"}}
+        // The refresh the finished response queues runs first, so only the playback below can light the square.
+        model.voice.receive(["type":"response.done","response":["status":"completed"]]);await drainMain()
+        XCTAssertFalse(lit(),"nothing is lit before the coach speaks")
+        model.voice.audio.onPlaybackStart?()
+        XCTAssertEqual(model.voice.networkFocus,["g1"])
         for _ in 0..<100 where !lit(){try await Task.sleep(for:.milliseconds(5))}
         XCTAssertTrue(lit(),"the spoken square is lit without a manual refresh")
         model.voice.stopTurn()
@@ -254,7 +268,10 @@ import CheckmateCore
         model.voice.receive(["type":"conversation.item.input_audio_transcription.completed","item_id":"network-1","transcript":"What now?"])
         XCTAssertEqual(model.networkVoiceHistory.map(\.id),["network-1"],"Practice's words stay on Practice")
         // Reconnecting through the page keeps what this game's coach already said.
-        model.voice.disconnect();model.connectNetworkVoice();try model.voice.automationOpen();model.voice.receive(["type":"session.updated"])
+        let requested=model.voice.connectRequests.count
+        model.voice.disconnect();model.connectNetworkVoice()
+        XCTAssertEqual(model.voice.connectRequests.count,requested+1,"the page's button asks the coach to connect, once")
+        try model.voice.automationOpen();model.voice.receive(["type":"session.updated"])
         XCTAssertEqual(model.networkVoiceHistory.map(\.id),["network-1"],"a reconnection in the same game hides nothing")
         model.voice.disconnect()
         // The game ends while Practice is on screen: the practice coach the learner had connected comes back.

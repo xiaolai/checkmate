@@ -5,6 +5,12 @@ import Foundation
 /// - an unending stream of whitespace, which OpenAI's JSON-mode documentation warns a model can produce. Whitespace
 ///   outside strings is insignificant, so one unbroken run of it longer than `maximumWhitespace` is a runaway. Layout
 ///   is not: indentation comes in short runs between fields, however many fields a long call has.
+///
+/// The contract: a call is accepted when its schema accepts its values and its insignificant padding is within these
+/// allowances. A schema bounds values, not their spelling: JSON writes the value 12 as `12.000…` with any count of
+/// zeros (Foundation parses thousands) and as `1.2e1`, and pads with any whitespace. So padding beyond the allowances
+/// is refused even when the value it spells is valid, the same way for a streamed call and a finished one
+/// (`VoiceCoach.runTool`).
 struct VoiceToolArguments {
     /// The whole-call cap `runTool` has always applied to finished arguments.
     static let maximumBytes=65536
@@ -27,12 +33,12 @@ struct VoiceToolArguments {
             run=0
         }
     }
-    /// The most bytes any arguments valid under `schema` can take, every string character escaped as `\uXXXX`; nil
-    /// when a string or array in it has no bound, so only the whole-call cap applies. A number is the exception: JSON
-    /// lets `0.` be followed by any count of zeros, so a numeral is allowed the 24 bytes of the longest one a serializer
-    /// writes for a 64-bit value, and a longer numeral counts as a runaway, which keeps every tool bounded.
+    /// The most bytes any arguments valid under `schema` can take, every string escaped as `\uXXXX` per UTF-16 unit (the
+    /// unit `ToolSchemas` counts lengths in; an astral character is two); nil when a string or array in it has no
+    /// bound, so only the whole-call cap applies. A numeral is allowed 24 bytes, the longest a serializer writes for any
+    /// 64-bit value; the only numbers the offered tools take are small integers, so any longer spelling is padding.
     static func limit(schema:[String:Any])->Int? {
-        if let values=schema["enum"] as? [Any] {return values.map{value in (value as? String).map{$0.count*6+2} ?? (try? JSONSerialization.data(withJSONObject:value,options:[.fragmentsAllowed]).count) ?? 0}.max()}
+        if let values=schema["enum"] as? [Any] {return values.map{value in (value as? String).map{$0.utf16.count*6+2} ?? (try? JSONSerialization.data(withJSONObject:value,options:[.fragmentsAllowed]).count) ?? 0}.max()}
         switch schema["type"] as? String {
         case "string":if let length=schema["maxLength"] as? Int{return length*6+2};return schema["pattern"] == nil ? nil:64
         case "integer","number":return 24

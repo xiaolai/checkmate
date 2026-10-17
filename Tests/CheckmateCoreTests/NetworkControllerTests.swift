@@ -279,6 +279,44 @@ private final class ScriptedDiscovery:NetworkDiscovery {
         XCTAssertEqual(ben.participation.role,.player);XCTAssertEqual(ben.game.board["e4"],"wp")
         play(ben,"e7","e5",lan);XCTAssertEqual(ana.game.board["e5"],"bp")
     }
+    /// The clocks a guest saw when its link dropped stay frozen through Try Again: the new connection attempt, still
+    /// stalled, does not count the time it was away against the side to move.
+    func testTryAgainKeepsTheFrozenClocks()throws {
+        let lan=MemoryLAN(),ana=try hosting(lan){$0.timeControl = .threePlusTwo},ben=try joining(lan,"Ben",ana)
+        play(ana,"e2","e4",lan)
+        lan.transport.stallConnects=true;lan.transport.cut(try XCTUnwrap(lan.guestConnection));lan.scheduler.run()
+        let frozen=try XCTUnwrap(ben.game.clocks(at:lan.scheduler.now))
+        lan.scheduler.advance(by:NetworkLimits.holdDuration + .seconds(1))
+        ana.game.keepWaiting();lan.scheduler.run()
+        lan.scheduler.advance(by:.seconds(30))
+        XCTAssertTrue(ben.game.canTryAgain)
+        ben.game.tryAgain();lan.scheduler.run();lan.scheduler.advance(by:.seconds(5))
+        XCTAssertNotEqual(ben.game.link,.live,"the new attempt is still stalled")
+        let shown=try XCTUnwrap(ben.game.clocks(at:lan.scheduler.now))
+        XCTAssertEqual(shown.black,frozen.black,"black's clock did not run while Ben was away");XCTAssertEqual(shown.white,frozen.white);XCTAssertNil(shown.active)
+    }
+    /// A refusal of another command does not reopen a move still pending: the refused draw claim here arrives while
+    /// Ben's move is unanswered, and Ben's turn stays closed until the game answers the move itself (A7).
+    func testARefusedClaimKeepsTheMoveStillPending()throws {
+        let lan=MemoryLAN(),ana=try hosting(lan),ben=try joining(lan,"Ben",ana)
+        play(ana,"e2","e4",lan)
+        lan.transport.losesToHost={(try? NetworkCodec.decode($0))?.type=="move"}
+        ben.game.claimDraw();ben.game.click("e7");ben.game.click("e5")
+        XCTAssertEqual(ben.game.pending?.uci,"e7e5")
+        lan.scheduler.run()
+        XCTAssertEqual(ben.game.pending?.uci,"e7e5","the refused claim was not the move");XCTAssertFalse(ben.game.yourTurn,"so the turn stays closed")
+        XCTAssertEqual(ben.game.board["e7"],"bp","nothing played yet")
+    }
+    /// Assistance follows the turn at once: sending a move tells the assistant before any answer arrives, so a hint
+    /// shown for the turn just ended goes with it.
+    func testSendingAMoveSettlesTheAssistantAtOnce()throws {
+        let lan=MemoryLAN(),ana=try hosting(lan),_=try joining(lan,"Ben",ana)
+        var settled=0;ana.game.onSettle={settled+=1}
+        ana.game.click("e2");settled=0;ana.game.click("e4")
+        XCTAssertNotNil(ana.game.pending);XCTAssertGreaterThan(settled,0,"told before the scheduler ran");XCTAssertFalse(ana.game.yourTurn)
+        let before=settled;lan.scheduler.run()
+        XCTAssertNil(ana.game.pending);XCTAssertGreaterThan(settled,before,"and again when the answer cleared it")
+    }
     /// D11: a connection denied local-network access waits without timing out, shows the permission help, and goes on
     /// by itself once access is granted.
     func testADeniedConnectionShowsTheHelpAndGoesOnOnceAccessIsGranted()throws {
@@ -477,7 +515,9 @@ extension NetworkControllerTests {
         XCTAssertEqual(ben.game.link,.stopped);XCTAssertEqual(ben.game.stopMessage,"Ana's game has different assistance than the one you accepted.")
         XCTAssertTrue(ben.roles.isEmpty,"never seated, so never participating");XCTAssertEqual(ana.game.hostPhase,.waiting,"the seat is still free")
     }
-    /// A 1.0 host advertises no terms: its games read as without assistance and are joined as before.
+    /// An entry that advertises no terms, as a 1.0 host's do, reads as without assistance and is joined as before. Both
+    /// sides here speak 1.1; this checks the missing discovery terms, not a 1.0 handshake (NetworkAssistanceTests has
+    /// the 1.0 wire).
     func testAnEntryWithoutTermsReadsAsUnassisted()throws {
         let lan=MemoryLAN(),ana=try hosting(lan)
         let old=lan.records.map{record->NetworkServiceRecord in var txt=record.txt;txt["assist"]=nil;return NetworkServiceRecord(name:record.name,txt:txt,endpoint:record.endpoint)}
@@ -521,18 +561,25 @@ extension NetworkControllerTests {
         let lan=MemoryLAN(),ana=try hosting(lan){$0.assistance=NetworkAssistance(both:.insight)};_=try joining(lan,"Ben",ana,accepting:NetworkAssistance(both:.insight))
         let good=try XCTUnwrap(ana.game.record);XCTAssertTrue(ana.game.canMove)
         var broken=good;broken.pgn="1. e4 e5 2. Ke3 *";broken.revision=good.revision+3
-        let revision=ana.game.gameRevision
+        let revision=ana.game.gameRevision,fen=ana.game.rules.fen,history=ana.game.rules.history
         ana.game.present(broken,at:lan.scheduler.now)
         XCTAssertEqual(ana.game.record,good,"the unreadable record is not kept");XCTAssertEqual(ana.game.gameRevision,revision,"nor its revision")
+        XCTAssertEqual(ana.game.rules.fen,fen,"the board is the last good one");XCTAssertEqual(ana.game.rules.history,history,"none of the broken record's moves stayed")
         XCTAssertFalse(ana.game.canMove);XCTAssertFalse(ana.game.yourTurn);ana.game.click("e2");XCTAssertNil(ana.game.selected,"no input")
-        ana.game.present(good,at:lan.scheduler.now);XCTAssertTrue(ana.game.canMove,"the shown record arriving again is readable")
+        // The record is tried once more after the queue has run; failing again, the learner is told.
+        lan.scheduler.run();XCTAssertEqual(ana.game.notice,NetworkWording.recordUnreadable);XCTAssertEqual(ana.heard.count(NetworkWording.recordUnreadable),1)
+        ana.game.present(good,at:lan.scheduler.now);XCTAssertTrue(ana.game.canMove,"the shown record arriving again is readable");XCTAssertNil(ana.game.notice)
+        XCTAssertEqual(ana.game.rules.fen,fen);XCTAssertEqual(ana.game.rules.history,history)
+        play(ana,"e2","e4",lan);XCTAssertEqual(ana.game.rules.history,history+["e4"],"a move from the original position")
     }
     /// The clock announcements keep one alarm waiting, however many readings arrive before its threshold.
     func testClockReadingsKeepOneAnnouncementAlarm()throws {
         let lan=MemoryLAN(),ana=try hosting(lan){$0.timeControl = .threePlusTwo},ben=try joining(lan,"Ben",ana)
         play(ana,"e2","e4",lan);XCTAssertEqual(ben.game.currentClocks?.active,.black)
-        lan.scheduler.advance(by:.seconds(1));let settled=lan.scheduler.pending
+        lan.scheduler.advance(by:.seconds(1));let settled=lan.scheduler.pending,alarms=ben.game.clockAlarmsScheduled
+        XCTAssertGreaterThan(alarms,0,"an alarm waits for the next threshold")
         for _ in 0..<10 {lan.scheduler.advance(by:.seconds(1))}
+        XCTAssertEqual(ben.game.clockAlarmsScheduled,alarms,"ten readings scheduled no alarm: the waiting one is reused")
         XCTAssertLessThanOrEqual(lan.scheduler.pending,settled,"ten readings left no alarm behind")
     }
     /// Assistance plan A3: terms this guest finds changed in the host's snapshot stop the game with the same words as

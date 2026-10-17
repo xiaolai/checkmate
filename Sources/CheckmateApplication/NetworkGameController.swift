@@ -132,7 +132,7 @@ import OSLog
     private var participatingAssistance:NetworkAssistanceLevel = .off
     /// The last record's moves could not be shown: the board is behind the game, so it takes no move and no help
     /// until a record that loads arrives.
-    private var recordUnreadable=false
+    private var recordUnreadable=false,retryingRecord=false
     /// The clock announcement waiting for its threshold; each reading replaces it, so one is ever pending.
     private var clockAlarm:NetworkScheduledWork?
     /// What the waiting alarm is for: the side, the threshold it announces, and when.
@@ -218,6 +218,8 @@ import OSLog
         let uci=move.uci,session=sessionNumber,assisted=assistedThisTurn
         pending=PendingMove(from:from,to:to,uci:move.uci);pendingRevision=gameRevision;pendingSeen=false
         selected=nil;destinations=[];notice=Self.sendingNotice;objectWillChange.send()
+        // The turn's help ends now (A7): the assistant drops its hint and search without waiting for the runner.
+        onSettle()
         switch runner {
         case .host(let runner,_)?:runner.perform(.move(uci:uci,assisted:assisted))
         case .client(let runner)?:runner.submitMove(uci:uci,assisted:assisted)
@@ -232,6 +234,7 @@ import OSLog
     }
     private func clearPending(){
         guard pending != nil else{return}
+        defer{onSettle()}
         pending=nil;pendingRevision=nil;pendingSeen=false;if notice==Self.sendingNotice{notice=nil}
     }
     /// The board area's centred title, with the notice after it while one shows ("Ana vs Ben · You're watching"), so
@@ -381,7 +384,9 @@ import OSLog
         switch event {
         case .receiver(.seated),.receiver(.resumed):seated=true
         case .receiver(.watching):watching=true
-        case .receiver(.rejected(_,let reason)):clearPending();flash(NetworkWording.refusal(reason))
+        // The refusal says why; whether it was this Mac's pending move follows from the status, which clears the move
+        // only when the receiver let it go, so a refused draw offer never reopens a move already sent (A7).
+        case .receiver(.rejected(_,let reason)):flash(NetworkWording.refusal(reason))
         case .receiver:break
         case .status(let status):
             switch status.link {
@@ -414,9 +419,16 @@ import OSLog
         var reloaded=false
         if game.pgn != shownPGN {
             do{try load(game.pgn)}
-            catch{recordUnreadable=true;NativeLog.lifecycle.error("A network game record could not be shown: \(String(describing:error),privacy:.public)");resetInput();changed();return}
+            catch{
+                recordUnreadable=true;NativeLog.lifecycle.error("A network game record could not be shown: \(String(describing:error),privacy:.public)");resetInput()
+                // An unchanged record is not sent again, so the same one gets one more try once the queue has run; if
+                // that fails too, the learner is told rather than left on a board that takes no input.
+                if retryingRecord{notice=NetworkWording.recordUnreadable;announce(NetworkWording.recordUnreadable)}
+                else{let session=sessionNumber;afterQueue{[weak self] in guard let self,self.sessionNumber==session,self.recordUnreadable,self.shownPGN != game.pgn else{return};self.retryingRecord=true;defer{self.retryingRecord=false};self.present(game,at:instant)}}
+                changed();return
+            }
             shownPGN=game.pgn;recordUnreadable=false;reloaded=true
-        }else if recordUnreadable{recordUnreadable=false;objectWillChange.send()}
+        }else if recordUnreadable{recordUnreadable=false;if notice==NetworkWording.recordUnreadable{notice=nil};objectWillChange.send()}
         record=game;gameRevision=game.revision;clockSync=game.clocks.map{($0,instant)}
         update(\.whiteName,game.whiteName);update(\.blackName,game.blackName);update(\.timeControl,game.timeControl);update(\.openOffer,game.openOffer);update(\.outcome,game.outcome)
         if seat==nil,let mine=learnerSeat{seat=mine}
@@ -515,6 +527,8 @@ import OSLog
     /// One alarm waits at a time, and a reading that points it at the same threshold at nearly the same moment keeps
     /// it: the readings come every second, and replacing the alarm each time would leave a cancelled dispatch for
     /// every reading until its deadline.
+    /// Alarms scheduled so far: tests check that readings which change nothing reuse the one waiting.
+    private(set) var clockAlarmsScheduled=0
     private func watchClocks(){
         guard let services,countingDown,let clocks=clocks(at:services.scheduler.now),let side=clocks.active else{return dropClockAlarm()}
         let left=clocks.remaining(side)
@@ -527,7 +541,7 @@ import OSLog
         let due=services.scheduler.now + .milliseconds(left-next)
         if clockAlarm != nil,let target=clockAlarmTarget,target.side==side,target.threshold==next,max(target.due-due,due-target.due) <= .milliseconds(Self.clockSlack) {return}
         dropClockAlarm()
-        let watch=clockWatch;clockAlarmTarget=(side,next,due)
+        let watch=clockWatch;clockAlarmTarget=(side,next,due);clockAlarmsScheduled+=1
         clockAlarm=Self.alarm(services.scheduler,at:due,services.delivery){[weak self] in guard let self,self.clockWatch==watch else{return};self.clockAlarm=nil;self.clockAlarmTarget=nil;self.watchClocks()}
     }
     /// Cancels the waiting clock alarm, if any, on the scheduler's queue; a late fire is ignored by its number.

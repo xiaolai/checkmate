@@ -10,21 +10,30 @@ import CheckmateCore
 
 @MainActor final class UCIWorkerTests:XCTestCase {
     /// A fake engine. `hold` keeps each search waiting until the test writes `release`; `handshakeStall` never answers
-    /// `uci`. It records every launch (with its process ID), every position and every search.
-    private func executable(stall:Bool=false,delay:Double=0,startupDelay:Double=0,hold:Bool=false,handshakeStall:Bool=false)throws -> (URL,URL){let directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);try FileManager.default.createDirectory(at:directory,withIntermediateDirectories:true);let path=directory.appendingPathComponent("fake.py");let code="""
+    /// `uci`; `handshakeHold` answers it only once the test writes `handshake-release`; `ignoreTerm` ignores SIGTERM and
+    /// lingers before reading anything, so only SIGKILL ends it soon. It records every launch (with its process ID),
+    /// every handshake, every position and every search.
+    private func executable(stall:Bool=false,delay:Double=0,startupDelay:Double=0,hold:Bool=false,handshakeStall:Bool=false,handshakeHold:Bool=false,ignoreTerm:Bool=false)throws -> (URL,URL){let directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);try FileManager.default.createDirectory(at:directory,withIntermediateDirectories:true);let path=directory.appendingPathComponent("fake.py");let code="""
 #!/usr/bin/python3
-import sys,time,os
+import sys,time,os,signal
 here=os.path.dirname(__file__)
+if \(ignoreTerm ? "True":"False"):signal.signal(signal.SIGTERM,signal.SIG_IGN)
 def note(name,text):
  with open(os.path.join(here,name),'a') as f:f.write(text+'\\n')
 note('launches','launch')
 note('pids',str(os.getpid()))
+if \(ignoreTerm ? "True":"False"):time.sleep(30)
 time.sleep(\(startupDelay))
 moved=False
 for raw in sys.stdin:
  s=raw.strip()
  if s=='uci' and \(handshakeStall ? "True":"False"):
   note('handshakes','uci');time.sleep(30);sys.exit(0)
+ if s=='uci' and \(handshakeHold ? "True":"False"):
+  note('handshakes','uci')
+  for _ in range(3000):
+   if os.path.exists(os.path.join(here,'handshake-release')):break
+   time.sleep(.01)
  if s.startswith('position'):
   note('positions',s);moved=' moves ' in s
  elif s=='uci':
@@ -68,13 +77,59 @@ for raw in sys.stdin:
     }
     func testCancellationKillsStalledWorker()async throws {
         let (path,directory)=try executable(stall:true);defer{try? FileManager.default.removeItem(at:directory)}
-        // A one-second search: the worker's own watchdog fires only after three seconds, so an end within two seconds
-        // of cancelling is the cancellation's doing.
-        let e=NativeEngine(executable:path),r=try ChessRules();let task=Task{try await e.analyze(fen:r.fen,skill:20,budget:1000,multiPv:1)}
+        // A three-second search: the worker's own watchdog fires five seconds after the search starts, and the search
+        // cannot start before `created`. So an end within 4.5 s of `created` cannot be the watchdog's doing, however
+        // late the polling below notices the search; a slow run fails instead of passing on the watchdog.
+        let e=NativeEngine(executable:path),r=try ChessRules(),created=Date()
+        let task=Task{try await e.analyzeHistory(startFEN:r.fen,moves:[],profile:.skill(20),budget:3000,multiPv:1)}
         let searching=try await appears(directory,"searches");XCTAssertTrue(searching,"the search reached the engine before it was cancelled")
         let start=Date(),pid=try XCTUnwrap(pid_t(try lines(directory,"pids").last ?? ""));XCTAssertEqual(kill(pid,0),0,"the search is still running when cancelled");task.cancel()
         do{_ = try await task.value;XCTFail("Cancelled search returned evidence")}catch{XCTAssertTrue(Self.endedByCancellation(error),"an unrelated failure: \(error)")}
-        XCTAssertLessThan(Date().timeIntervalSince(start),2);let stopped=try await ended(pid);XCTAssertTrue(stopped,"the stalled process was killed")
+        XCTAssertLessThan(Date().timeIntervalSince(start),2);XCTAssertLessThan(Date().timeIntervalSince(created),4.5,"ended before the watchdog could fire")
+        let stopped=try await ended(pid);XCTAssertTrue(stopped,"the stalled process was killed")
+    }
+    /// A search that finished just before its caller was cancelled delivers nothing: the result is dropped where the
+    /// caller resumes. The main actor is kept busy while the search ends and the cancellation lands, so the caller
+    /// resumes only afterwards.
+    func testACancellationAfterTheSearchEndsDeliversNothing()async throws {
+        let (path,directory)=try executable(hold:true);defer{try? FileManager.default.removeItem(at:directory)}
+        let e=NativeEngine(executable:path),fen=try ChessRules().fen
+        try await withoutCalibration {
+            let task=Task{try await e.analyzeHistory(startFEN:fen,moves:[],profile:.skill(20),budget:2000,multiPv:1)}
+            let searching=try await appears(directory,"searches");XCTAssertTrue(searching,"the search started")
+            // From here until `await task.value` nothing yields the main actor: the search ends, then the caller cancels.
+            try Data().write(to:file(directory,"release"));usleep(1_000_000);task.cancel()
+            do{_ = try await task.value;XCTFail("a search cancelled after it finished delivered its result")}catch{XCTAssertTrue(error is CancellationError,"\(error)")}
+        }
+    }
+    /// Cancelling a preparation (a Review request withdrawn during a cold start) stops its own startup at once, rather
+    /// than holding the worker until the ten-second startup watchdog.
+    func testCancellingAPreparationStopsItsStartup()async throws {
+        let (path,directory)=try executable(handshakeStall:true);defer{try? FileManager.default.removeItem(at:directory)}
+        let e=NativeEngine(executable:path),task=Task{try await e.prepare()}
+        let handshaking=try await appears(directory,"handshakes");XCTAssertTrue(handshaking,"the handshake started")
+        let start=Date(),pid=try XCTUnwrap(pid_t(try lines(directory,"pids").last ?? ""));task.cancel()
+        do{try await task.value;XCTFail("a cancelled preparation prepared the engine")}catch{}
+        XCTAssertLessThan(Date().timeIntervalSince(start),2,"well within the ten-second watchdog")
+        let stopped=try await ended(pid);XCTAssertTrue(stopped,"the preparation's process was stopped")
+    }
+    /// A preparation cancelled before it reaches the worker never starts the engine.
+    func testAPreparationCancelledBeforeItStartsLaunchesNothing()throws {
+        let (path,directory)=try executable();defer{try? FileManager.default.removeItem(at:directory)}
+        let worker=UCIWorker(executable:path),ticket=worker.preparationTicket();worker.cancelPreparation(ticket)
+        XCTAssertThrowsError(try worker.prepare(ticket:ticket));worker.forgetPreparation(ticket)
+        XCTAssertFalse(FileManager.default.fileExists(atPath:file(directory,"launches").path))
+    }
+    /// A cancellation between a process's launch and its registration stops even a process that ignores SIGTERM: the
+    /// stop escalates to SIGKILL, as every other stop does.
+    func testACancellationBeforeRegistrationStopsAProcessThatIgnoresTerm()async throws {
+        let (path,directory)=try executable(ignoreTerm:true);defer{try? FileManager.default.removeItem(at:directory)}
+        let worker=UCIWorker(executable:path),pids=file(directory,"pids")
+        // Cancel once the fake ignores SIGTERM (it writes its pid after installing that), before the worker registers it.
+        worker.afterLaunch={for _ in 0..<300 where !FileManager.default.fileExists(atPath:pids.path){Thread.sleep(forTimeInterval:0.01)};worker.cancel()}
+        XCTAssertThrowsError(try worker.prepare())
+        let pid=try XCTUnwrap(pid_t(try lines(directory,"pids").last ?? ""))
+        let stopped=try await ended(pid);XCTAssertTrue(stopped,"the unregistered process was killed")
     }
     func testCancelledReservedEpochDoesNotLaunch()throws {
         let (path,directory)=try executable();defer{try? FileManager.default.removeItem(at:directory)}
@@ -149,16 +204,36 @@ for raw in sys.stdin:
     /// A startup watchdog that fires late, after its own startup ended and a newer one began, stops nothing: it names
     /// its own startup, and the newer one prepares the engine and keeps its process.
     func testALateWatchdogCannotStopANewerStartup()async throws {
-        let (path,directory)=try executable(startupDelay:1);defer{try? FileManager.default.removeItem(at:directory)}
-        let worker=UCIWorker(executable:path,startupAllowance:5),epoch=worker.reserve()
-        let preparing=Task.detached{try worker.prepare()}
-        let launched=try await appears(directory,"pids");XCTAssertTrue(launched,"the newer startup launched")
-        let current=try XCTUnwrap(worker.startup,"the newer startup is in progress")
-        worker.abandonStartup(current-1,epoch:epoch)
-        _ = try await preparing.value
+        // Each handshake waits for the test's release, so a startup stays in progress for exactly as long as needed.
+        let (path,directory)=try executable(handshakeHold:true);defer{try? FileManager.default.removeItem(at:directory)}
+        let worker=UCIWorker(executable:path,startupAllowance:20)
+        func handshakes()->Int {(try? lines(directory,"handshakes").count) ?? 0}
+        // A first startup, ended by its own watchdog's call while it is in progress.
+        let firstEpoch=worker.reserve(),first=Task.detached{try worker.prepare()}
+        for _ in 0..<500 where handshakes()<1{try await Task.sleep(for:.milliseconds(10))};XCTAssertEqual(handshakes(),1,"the first startup is handshaking")
+        let firstToken=try XCTUnwrap(worker.startup,"the first startup is in progress")
+        worker.abandonStartup(firstToken,epoch:firstEpoch);do{_ = try await first.value;XCTFail("an abandoned startup prepared the engine")}catch{}
+        // A second, newer startup: the first one's watchdog, firing late with its own token and epoch, stops nothing.
+        let second=Task.detached{try worker.prepare()}
+        for _ in 0..<500 where handshakes()<2{try await Task.sleep(for:.milliseconds(10))};XCTAssertEqual(handshakes(),2,"the second startup is handshaking")
+        let secondToken=try XCTUnwrap(worker.startup,"the second startup is in progress");XCTAssertNotEqual(secondToken,firstToken)
+        worker.abandonStartup(firstToken,epoch:firstEpoch)
+        XCTAssertEqual(worker.startup,secondToken,"the late watchdog left the newer startup alone")
+        try Data().write(to:file(directory,"handshake-release"));_ = try await second.value
         let pid=try XCTUnwrap(pid_t(try lines(directory,"pids").last ?? ""));XCTAssertEqual(kill(pid,0),0,"the newer startup's process is alive")
-        XCTAssertNil(worker.startup);XCTAssertEqual(try lines(directory,"launches"),["launch"])
+        XCTAssertNil(worker.startup);XCTAssertEqual(try lines(directory,"launches"),["launch","launch"])
         worker.cancel()
+    }
+    /// A line the engine writes in pieces is returned whole, however its reads split it; reads are fed one piece at a
+    /// time, so the split is the test's, not the pipe's.
+    func testALineSplitAcrossReadsIsReturnedWhole()throws {
+        var lines=UCILines()
+        try lines.append(Data("info depth 5 multipv 1 score cp 50 pv e2".utf8));XCTAssertNil(lines.next(),"no line until it ends")
+        try lines.append(Data("e4\nbest".utf8));XCTAssertEqual(lines.next(),"info depth 5 multipv 1 score cp 50 pv e2e4");XCTAssertNil(lines.next())
+        try lines.append(Data("move e2e4\n".utf8));XCTAssertEqual(lines.next(),"bestmove e2e4")
+        let name=Array("id name Café\n".utf8),split=name.firstIndex(of:0xC3)!+1
+        try lines.append(Data(name[..<split]));try lines.append(Data(name[split...]));XCTAssertEqual(lines.next(),"id name Café","a character split across reads is decoded whole")
+        var flood=UCILines();XCTAssertThrowsError(try flood.append(Data(repeating:0x61,count:UCILines.limit)),"a line that never ends is bounded")
     }
 
     func testFailedHistoryCannotPoisonCachedRules()async throws {

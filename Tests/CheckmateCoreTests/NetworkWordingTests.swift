@@ -84,9 +84,8 @@ final class NetworkWordingTests:XCTestCase {
         XCTAssertEqual(stop(.closedByHost(.protocolVersion)),"Ana's game uses a different version of Checkmate.")
         XCTAssertEqual(stop(.closedByHost(.badCredential)),"Ana's game no longer holds your seat.")
         for reason in NetworkByeReason.allCases {
-            let text=stop(.closedByHost(reason))
-            XCTAssertNotNil(text,"\(reason)")
-            for guess in ["firewall","Wi-Fi","router","permission"] {XCTAssertFalse(text!.localizedCaseInsensitiveContains(guess),"\(reason) guesses at a cause")}
+            guard let text=stop(.closedByHost(reason)) else{XCTFail("\(reason) has no wording");continue}
+            for guess in ["firewall","Wi-Fi","router","permission"] {XCTAssertFalse(text.localizedCaseInsensitiveContains(guess),"\(reason) guesses at a cause")}
         }
         for reason in NetworkRejectReason.allCases {XCTAssertFalse(NetworkWording.refusal(reason).isEmpty)}
     }

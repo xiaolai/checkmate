@@ -172,7 +172,20 @@ final class NetworkAssistanceTests:XCTestCase {
                      #"{"data":"","index":0,"protocol":{"major":1,"minor":0},"snapshotID":"\#(commandText)","type":"snapshotPart"}"#] {
             XCTAssertThrowsError(try Legacy10Wire.decode(Data(text.utf8)),"1.0 refused \(text)");XCTAssertThrowsError(try NetworkCodec.decode(Data(text.utf8)),"1.1 refuses \(text)")
         }
-        XCTAssertThrowsError(try Legacy10Wire.decode(Data(repeating:0x20,count:Legacy10Wire.maximumMessageBytes+1)),"over 1.0's 16 KiB")
+        // The size limit itself: an otherwise valid message padded to exactly 16 KiB decodes, one byte more is too large.
+        let hello=#"{"appVersion":"0.8.1","name":"Ben","protocol":{"major":1,"minor":0},"type":"hello"}"#
+        let atLimit=Data((hello+String(repeating:" ",count:Legacy10Wire.maximumMessageBytes-hello.utf8.count)).utf8)
+        XCTAssertNoThrow(try Legacy10Wire.decode(atLimit),"exactly 16 KiB")
+        XCTAssertThrowsError(try Legacy10Wire.decode(atLimit+Data(" ".utf8)),"over 1.0's 16 KiB"){error in
+            guard case Legacy10Wire.Refusal.tooLarge = error else{return XCTFail("refused as \(error), not as too large")}
+        }
+        // 1.0 read names by its own rule, which allowed Unicode's line and paragraph separators; 1.1 refuses them.
+        for separator in ["\u{2028}","\u{2029}"] {
+            let named=LegacyFixtures.record.replacingOccurrences(of:#""whiteName":"Ana""#,with:#""whiteName":"Ana"#+separator+#"Smith""#)
+            XCTAssertNotEqual(named,LegacyFixtures.record,"the fixture names White Ana")
+            XCTAssertNoThrow(try JSONDecoder().decode(Legacy10PublicGame.self,from:Data(named.utf8)),"1.0 read \(separator.debugDescription)")
+            XCTAssertThrowsError(try JSONDecoder().decode(NetworkPublicGame.self,from:Data(named.utf8)),"1.1 refuses \(separator.debugDescription)")
+        }
         var record=try JSONDecoder().decode(NetworkPublicGame.self,from:Data(LegacyFixtures.record.utf8))
         record.assistance=NetworkAssistance(white:.hints,black:.off);record.assistedPlies=[1]
         let encoded=try record.encoded()

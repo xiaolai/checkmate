@@ -85,6 +85,10 @@ public final class NetworkClientRunner {
     private var pausedAt:NetworkInstant?
     private var timedOutRetried=false,joinRetries=0,lostAt:NetworkInstant?,retries=0,suspended=false
     private var retryWork:NetworkScheduledWork?,silenceWork:NetworkScheduledWork?,leaveWork:NetworkScheduledWork?
+    /// From TLS ready, the host has as long as a seat reservation lasts (D4) to admit this connection and install its
+    /// snapshot. Pings keep a connection alive but never extend this, so a host that answers pings and withholds the
+    /// game cannot keep this Mac connecting forever.
+    private var admissionWork:NetworkScheduledWork?
     /// The end of the reconnect window, absolute: an attempt still running then is closed, whatever state it is in.
     private var expiryWork:NetworkScheduledWork?
     private var lastHeard=NetworkInstant.origin
@@ -141,6 +145,10 @@ public final class NetworkClientRunner {
         case .denied:denied=true
         case .ready:
             denied=false;ready=true;lastHeard=now;armSilence()
+            admissionWork?.cancel();admissionWork=scheduler.schedule(at:now+NetworkLimits.reservationDuration){[weak self] in
+                guard let self,self.stop==nil,self.generation==from,self.link != nil,!self.admitted else{return}
+                self.dropped(.timedOut)
+            }
             send(receiver.opening())
         case .received(let data):lastHeard=now;inbound(data,at:now)
         case .sent:inFlight=nil;pump()
@@ -164,7 +172,7 @@ public final class NetworkClientRunner {
         // A snapshot landing as the window ends, before its timer runs, is too late as well.
         if output.events.contains(where:{if case .installed=$0 {return true};return false}),let since=lostAt,let policy=reconnect,now-since>=policy.window {abandon(farewell:.leaving);return finish(.couldNotReach)}
         for event in output.events {
-            if case .installed=event {admitted=true;everAdmitted=true;lostAt=nil;pausedAt=nil;retries=0;installs+=1;expiryWork?.cancel();expiryWork=nil}
+            if case .installed=event {admitted=true;everAdmitted=true;lostAt=nil;pausedAt=nil;retries=0;installs+=1;expiryWork?.cancel();expiryWork=nil;admissionWork?.cancel();admissionWork=nil}
             events(.receiver(event))
         }
         if let reason=output.close {
@@ -229,11 +237,11 @@ public final class NetworkClientRunner {
     }
     /// Closes the current connection locally (no event follows) and forgets everything tied to it.
     private func abandon(farewell reason:NetworkByeReason?){
-        silenceWork?.cancel();silenceWork=nil
+        silenceWork?.cancel();silenceWork=nil;admissionWork?.cancel();admissionWork=nil
         if let link {link.close(farewell:reason.flatMap{try? NetworkCodec.encode(.bye($0))})}
         if admitted {pausedAt=scheduler.now}
         link=nil;ready=false;admitted=false;outbox=[];inFlight=nil
-        receiver.connectionLost()
+        receiver.connectionLost(at:scheduler.now)
     }
     private func armSilence(){
         silenceWork?.cancel()

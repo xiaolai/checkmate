@@ -407,7 +407,8 @@ playbackLineView?.isHidden=model.reviewWorkspace
         a.addButton(withTitle:"New Game");a.addButton(withTitle:"Cancel");a.beginSheetModal(for:window!){r in guard r == .alertFirstButtonReturn,self.stillShowing(shown) else{return};self.board.cancelAnimation();self.model.session.newGame(side:side.indexOfSelectedItem==1 ? "b":"w")}}
     @objc func claimDraw(){if model.session.mode == .network{model.network.claimDraw();return};guard !model.review.active,model.session.mode == .practice else{return};model.session.claimDraw();refresh()}
     // MARK: The network game's menu items (LAN-play plan D9)
-    /// The Game menu in network mode: Resign, Offer Draw, Claim Draw, Flip Board and Leave Game, nothing else.
+    /// The Game menu's base items in network mode: Resign, Offer Draw, Claim Draw, Flip Board and Leave Game. The only
+    /// others it shows are `inspectorActions`, and those only at board insight or more.
     static let networkActions:Set<Selector>=[#selector(resign),#selector(offerDraw),#selector(claimDraw),#selector(flipBoard),#selector(leaveGame)]
     /// The piece inspector's items, shown in network mode only when the agreed level allows it (assistance plan A1).
     static let inspectorActions:Set<Selector>=[#selector(showProtection),#selector(showAttacks),#selector(dismissInspection)]
@@ -465,12 +466,12 @@ playbackLineView?.isHidden=model.reviewWorkspace
     /// the game has moves. The file is gone once read.
     func offerNetworkCrashReview(){
         guard let entry=model.takeNetworkCrashNotice(),let window else{return}
-        let reviewable=NativeModel.reviewable(entry)
+        let moves=NativeModel.replayedMoves(entry) ?? [],reviewable = !moves.isEmpty
         let alert=NSAlert();alert.messageText=entry.notice;alert.informativeText=reviewable ? "You can review the moves that were played.":"No moves were played."
         if reviewable{alert.addButton(withTitle:"Review").setAccessibilityIdentifier("network-crash-review")}
         alert.addButton(withTitle:reviewable ? "Not Now":"OK").setAccessibilityIdentifier("network-crash-dismiss")
         alert.window.setAccessibilityIdentifier("network-crash-notice")
-        alert.beginSheetModal(for:window){[weak self] response in MainActor.assumeIsolated{if reviewable,response == .alertFirstButtonReturn{self?.model.reviewNetworkCrash(entry)}}}
+        alert.beginSheetModal(for:window){[weak self] response in MainActor.assumeIsolated{if reviewable,response == .alertFirstButtonReturn{self?.model.reviewNetworkCrash(entry,moves:moves)}}}
     }
     @objc func resign(){
         if model.session.mode == .network{model.resignNetworkGame();return}

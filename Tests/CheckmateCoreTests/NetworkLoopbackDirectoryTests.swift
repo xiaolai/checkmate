@@ -103,7 +103,19 @@ final class NetworkLoopbackDirectoryTests:XCTestCase {
         shared.publish(configuration,[.seat:NWNetworkTransport.loopbackEndpoint(port:50_006)])
         // Read off the test's thread with a deadline: a regression that blocks on the FIFO fails here rather than
         // hanging the whole run.
-        XCTAssertEqual(try withinDeadline{shared.records().compactMap{$0.txt["game"]}},[configuration.gameID.text],"the FIFO and the huge file are skipped, without blocking")
+        XCTAssertEqual(try withinDeadline(unblocking:[directory.appendingPathComponent("fifo.json")]){shared.records().compactMap{$0.txt["game"]}},[configuration.gameID.text],"the FIFO and the huge file are skipped, without blocking")
+    }
+    /// Unreadable files cost a look but take no slot: a game listed after more than `maximumRecordFiles` of them is
+    /// still found, and the look stops after `maximumExaminedEntries` entries however big the directory is.
+    func testUnreadableFilesDoNotHideALaterGame()throws {
+        let shared=NetworkLoopbackDirectory(directory:directory,scheduler:NetworkQueueScheduler())
+        try FileManager.default.createDirectory(at:directory,withIntermediateDirectories:true)
+        for index in 0..<(NetworkLoopbackDirectory.maximumRecordFiles+8) {try Data("not json".utf8).write(to:directory.appendingPathComponent(String(format:"0-%03d.json",index)))}
+        let configuration=NetworkHostingConfiguration(gameID:.random(using:.system),seatCode:.random(using:.system),watchCode:nil,serviceName:"Ana's game")
+        shared.publish(configuration,[.seat:NWNetworkTransport.loopbackEndpoint(port:50_008)])
+        XCTAssertEqual(shared.records().compactMap{$0.txt["game"]},[configuration.gameID.text],"the game after \(NetworkLoopbackDirectory.maximumRecordFiles+8) unreadable files")
+        for index in 0..<NetworkLoopbackDirectory.maximumExaminedEntries {try Data("x".utf8).write(to:directory.appendingPathComponent(String(format:"pad-%04d.txt",index)))}
+        XCTAssertLessThanOrEqual(shared.records().count,1,"a directory past the budget is looked at only up to it")
     }
     /// The checks hold for the file actually read: a link is not followed, and a FIFO is not waited on.
     func testARecordIsReadThroughOneDescriptorWithoutFollowingLinks()throws {
@@ -113,16 +125,33 @@ final class NetworkLoopbackDirectoryTests:XCTestCase {
         XCTAssertEqual(NetworkLoopbackDirectory.contents(target),Data("[]".utf8))
         XCTAssertNil(NetworkLoopbackDirectory.contents(link),"a link is not followed")
         XCTAssertEqual(mkfifo(fifo.path,0o600),0)
-        XCTAssertNil(try withinDeadline{NetworkLoopbackDirectory.contents(fifo)},"a FIFO is not read, and not waited on")
+        XCTAssertNil(try withinDeadline(unblocking:[fifo]){NetworkLoopbackDirectory.contents(fifo)},"a FIFO is not read, and not waited on")
         try Data(repeating:0x20,count:NetworkLoopbackDirectory.maximumRecordBytes+1).write(to:target)
         XCTAssertNil(NetworkLoopbackDirectory.contents(target),"one byte over the limit is not read")
+        // After the checks: the path swapped for a FIFO is not reopened, and a file grown past the limit is not read.
+        try Data("[1]".utf8).write(to:target)
+        let swapped=try withinDeadline(unblocking:[target]){NetworkLoopbackDirectory.contents(target){
+            try? FileManager.default.removeItem(at:target);_ = mkfifo(target.path,0o600)
+        }}
+        XCTAssertEqual(swapped,Data("[1]".utf8),"the descriptor checked is the one read");try FileManager.default.removeItem(at:target)
+        try Data("[]".utf8).write(to:target)
+        XCTAssertNil(NetworkLoopbackDirectory.contents(target){
+            guard let handle=try? FileHandle(forWritingTo:target) else{return XCTFail("the file opens for writing")}
+            _ = try? handle.seekToEnd();try? handle.write(contentsOf:Data(repeating:0x20,count:NetworkLoopbackDirectory.maximumRecordBytes));try? handle.close()
+        },"a file grown after its checks stops one byte past the limit and is not read")
     }
     private struct Blocked:Error,CustomStringConvertible {var description:String {"the read blocked for 5 s"}}
-    /// Runs `work` on another thread and fails, rather than waiting forever, if it does not finish within 5 s.
-    private func withinDeadline<T>(_ work:@escaping ()->T)throws -> T {
+    /// Runs `work` on another thread and fails, rather than waiting forever, if it does not finish within 5 s. A read
+    /// blocked on one of `fifos` is then released, by opening the FIFO for writing and closing it (the reader's open
+    /// returns, and its read sees the end), so a failing test leaves no thread behind.
+    private func withinDeadline<T>(unblocking fifos:[URL]=[],_ work:@escaping ()->T)throws -> T {
         let done=DispatchSemaphore(value:0),lock=NSLock();var result:T?
         Thread.detachNewThread{let value=work();lock.lock();result=value;lock.unlock();done.signal()}
-        guard done.wait(timeout:.now()+5) == .success else{throw Blocked()}
+        guard done.wait(timeout:.now()+5) == .success else{
+            for fifo in fifos {let writer=open(fifo.path,O_WRONLY|O_NONBLOCK);if writer>=0 {close(writer)}}
+            _ = done.wait(timeout:.now()+5)
+            throw Blocked()
+        }
         lock.lock();defer{lock.unlock()};return result!
     }
 }

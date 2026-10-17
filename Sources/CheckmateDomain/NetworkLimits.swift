@@ -39,9 +39,26 @@ public enum NetworkLimits {
     /// fivefold repetition end every game well under 20,000 plies, so this leaves room while keeping `revision+1`, and
     /// every count derived from a revision, far from overflow whatever a peer sends.
     public static let maximumRevision=1_000_000
+    /// The most moves a network game can hold. The host's rules end every game automatically at the 75-move rule: 150
+    /// plies with no capture and no pawn move. A game has at most 126 plies that capture or move a pawn (30 captures,
+    /// two kings never taken; 16 pawns of at most 6 moves each), so at most 127 stretches of under 150 plies: fewer
+    /// than 127 × 150 = 19,050 plies. 20,000 adds a margin. A snapshot claiming more is refused before any replay, so
+    /// the work one snapshot can cost a receiver is bounded by a game that could really be played.
+    public static let maximumPlies=20_000
+    /// The longest record a snapshot of `moves` plies may carry. The host's record is its rules' own export: movetext of
+    /// move numbers and SAN, at most about 12 bytes a ply ("1234. Qa1xh8+ Qh8xa1+" is 21 bytes for two), with no tag
+    /// pairs of its own. 16 bytes a ply plus 4 KiB for tags is a margin over any record a host writes, and it bounds the
+    /// replay's work by size, whatever the layout: movetext hidden on a tag line or in a comment counts too.
+    public static func maximumRecordBytes(moves:Int)->Int {4096+16*moves}
+    /// Snapshots a receiver did not ask for (D5: a spectator's refresh when the guest's name changes) in any window of
+    /// `unsolicitedSnapshotWindow`. A refresh is rare, so a host replaying snapshots at a receiver is cut off.
+    public static let unsolicitedSnapshotsPerWindow=4,unsolicitedSnapshotWindow=Duration.seconds(10)
     public static let maximumSpectators=8
     /// Outbound queue caps: bytes queued, held behind a snapshot, or handed to the transport and not yet completed.
     public static let peerQueueBytes=64*1024,spectatorQueuesBytes=512*1024
+    /// D7: everything the host buffers stays under this: queues, sends in flight, partial inbound frames and the
+    /// records held for snapshots (`NetworkHostLimits.retainedCaptureBytes` is what is left for those).
+    public static let hostBufferBytes=1024*1024
     public static let handshakesPerListener=4,pendingConnectionsPerListener=4
     public static let handshakeDeadline=Duration.seconds(5),admissionDeadline=Duration.seconds(5),partialFrameDeadline=Duration.seconds(5)
     public static let failedHandshakesPerAddress=5,failedHandshakeWindow=Duration.seconds(60)

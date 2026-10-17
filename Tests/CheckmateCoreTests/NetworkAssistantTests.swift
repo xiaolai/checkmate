@@ -138,15 +138,23 @@ import CheckmateRules
         anaHelp.engine.releaseAll();await search.value
         XCTAssertNil(anaHelp.assistant.hint);XCTAssertFalse(anaHelp.assistant.thinking);XCTAssertFalse(ana.game.assistedThisTurn)
     }
-    /// A7: once the move is sent its flag has gone with it, so the turn's help ends there. A search that finishes while
-    /// the move waits for the host shows nothing, and nothing shown then flags the move, which the opponent's count and
-    /// the record would otherwise miss.
+    /// A8 where the search starts: a participation that changes between asking and the search task's first run (here a
+    /// new one, with the same terms, turn and revision) reaches no engine at all.
+    func testAParticipationChangedBeforeTheSearchRunsReachesNoEngine()async throws {
+        let lan=MemoryLAN(),(ana,_,_)=try game(NetworkAssistance(both:.hints),lan),anaHelp=help(ana)
+        anaHelp.assistant.ask();let search=try XCTUnwrap(anaHelp.assistant.search)
+        ana.participation.end();ana.participation.begin(.player,assistance:.hints)
+        await search.value
+        XCTAssertEqual(anaHelp.engine.calls,0,"the task checked before searching");XCTAssertNil(anaHelp.assistant.hint)
+    }
     /// A6 and A2's own-move rule: asking again while a search is held starts no second one.
     func testAskingWhileSearchingStartsNothing()async throws {
         let lan=MemoryLAN(),(ana,_,_)=try game(NetworkAssistance(both:.hints),lan),anaHelp=help(ana)
         anaHelp.engine.holding=true;anaHelp.assistant.ask();try await settle({anaHelp.engine.held==1},"the search is held")
-        for _ in 0..<3 {anaHelp.assistant.ask()};XCTAssertEqual(anaHelp.engine.calls,1,"no second search while one runs")
-        let search=try XCTUnwrap(anaHelp.assistant.search);anaHelp.engine.releaseAll();await search.value
+        // The search held is captured first, so a regression that queued another could not leave this test waiting on it.
+        let search=try XCTUnwrap(anaHelp.assistant.search)
+        for _ in 0..<3 {anaHelp.assistant.ask()};XCTAssertEqual(anaHelp.engine.calls,1,"no second search while one runs");XCTAssertEqual(anaHelp.assistant.search,search,"the same search")
+        anaHelp.engine.holding=false;anaHelp.engine.releaseAll();try await settle({!anaHelp.assistant.thinking},"the search settles")
         XCTAssertNotNil(anaHelp.assistant.hint);XCTAssertEqual(anaHelp.engine.calls,1)
     }
     /// A6: a search that fails after the move was sent says nothing: help for that turn has closed.
@@ -159,6 +167,9 @@ import CheckmateRules
         XCTAssertNil(anaHelp.assistant.error,"no failure shown for a turn already over");XCTAssertFalse(anaHelp.assistant.thinking);XCTAssertFalse(ana.game.assistedThisTurn)
         lan.scheduler.run();XCTAssertEqual(ana.game.record?.assistedPlies,[])
     }
+    /// A7: once the move is sent its flag has gone with it, so the turn's help ends there. A search that finishes while
+    /// the move waits for the host shows nothing, and nothing shown then flags the move, which the opponent's count and
+    /// the record would otherwise miss.
     func testHelpEndsOnceTheMoveIsSent()async throws {
         let lan=MemoryLAN(),(ana,ben,_)=try game(NetworkAssistance(both:.hints),lan),benHelp=help(ben)
         NetworkControllerTests().play(ana,"e2","e4",lan)
