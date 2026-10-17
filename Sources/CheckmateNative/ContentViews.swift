@@ -67,7 +67,7 @@ struct DetailContent:View {
             Text("Explore a single board position. Earlier moves and repetition history are not included.").foregroundStyle(.secondary)
         } else if model.review.active{ReviewDetailContent(review:model.review,model:model)}else {
         if let label=relationships.selectedLabel{RelationshipContent(relationships:relationships,label:label,inspect:inspect);Divider()}
-        if session.mode == .network {NetworkDetail(model:model,game:model.network)}
+        if session.mode == .network {NetworkDetail(model:model,game:model.network,assistant:model.networkAssistant,voice:voice)}
         else if session.mode == .practice {practiceDetail}
         else if relationships.report==nil {
             if learning.mini {miniDetail}

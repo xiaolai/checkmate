@@ -7,6 +7,8 @@ final class FakeScript {
     var illegal:Set<String>=[],mating:Set<String>=[]
     var claimable:NetworkTermination?
     var bareKing:Set<NetworkSide>=[]
+    /// Records loaded, so a test can tell a record refused unread from one replayed and then refused.
+    var loads=0
 }
 /// Chess without chess: any well-formed UCI is legal unless scripted otherwise; the position is the move list.
 final class FakeRules:NetworkChessRules {
@@ -25,11 +27,13 @@ final class FakeRules:NetworkChessRules {
     func networkHasOnlyKing(_ side:NetworkSide)throws -> Bool {script.bareKing.contains(side)}
     func networkPGN()throws -> String {"[Fake]\n"+moves.joined(separator:" ")}
     func networkLoad(pgn:String)throws {
+        script.loads+=1
         guard pgn.hasPrefix("[Fake]\n") else{throw NetworkRulesError.unexpected("not a fake record")}
         let list=pgn.dropFirst(7).split(separator:" ").map(String.init)
         guard list.allSatisfy(ChessNotation.validUCI) else{throw NetworkRulesError.unexpected("bad move")}
         moves=list
     }
+    func networkMoves()throws -> [String] {moves}
 }
 /// FNV-1a: deterministic and collision-free enough for tests. Production injects SHA-256.
 let testHashing=NetworkHashing{data in var hash:UInt64=0xcbf29ce484222325;for byte in data {hash^=UInt64(byte);hash=hash&*0x100000001b3};return String(hash,radix:16)}
@@ -73,9 +77,9 @@ final class TestNetwork {
     /// Connections whose sends never complete: a peer that stopped reading.
     var stalled:Set<NetworkConnectionID>=[]
     var clients:[TestClient]=[]
-    init(hostSide:NetworkSide = .white,timeControl:NetworkTimeControl = .untimed,spectators:Bool=true,limits:NetworkHostLimits = .standard,epoch:NetworkID?=nil)throws {
+    init(hostSide:NetworkSide = .white,timeControl:NetworkTimeControl = .untimed,spectators:Bool=true,limits:NetworkHostLimits = .standard,epoch:NetworkID?=nil,assistance:NetworkAssistance = .off)throws {
         gameID=NetworkGameID.random(using:random.source)
-        host=try NetworkHost(gameID:gameID,runEpoch:epoch ?? NetworkID.random(using:random.source),settings:NetworkHostSettings(hostName:"Ana",hostSide:hostSide,timeControl:timeControl,allowSpectators:spectators),rules:factory,hashing:testHashing,random:random.source,limits:limits,at:now)
+        host=try NetworkHost(gameID:gameID,runEpoch:epoch ?? NetworkID.random(using:random.source),settings:NetworkHostSettings(hostName:"Ana",hostSide:hostSide,timeControl:timeControl,allowSpectators:spectators,assistance:assistance),rules:factory,hashing:testHashing,random:random.source,limits:limits,at:now)
     }
     var factory:NetworkRulesFactory {let script=script;return NetworkRulesFactory{FakeRules(script:script)}}
     var hostMoves:[String] {(try? host.publicGame(at:now).pgn).map{$0.dropFirst(7).split(separator:" ").map(String.init)} ?? []}
@@ -99,9 +103,10 @@ final class TestNetwork {
     func perform(_ action:NetworkHostAction)throws {try take(try host.perform(action,at:now))}
     func completeSend(_ id:NetworkConnectionID)throws {try take(try host.sendCompleted(id,at:now))}
     // Clients.
-    func client(_ listener:NetworkListenerRole,name:String="Ben",claimID:NetworkSecret?=nil)->TestClient {
+    /// `accepting`: the assistance terms a guest accepted before joining (assistance plan A3).
+    func client(_ listener:NetworkListenerRole,name:String="Ben",claimID:NetworkSecret?=nil,accepting:NetworkAssistance = .off)->TestClient {
         let role:NetworkReceiverRole=listener == .seat ? .guest(claimID:claimID ?? NetworkSecret.random(using:random.source)):.spectator
-        let client=TestClient(receiver:NetworkReceiver(gameID:gameID,role:role,name:name,appVersion:"0.8.0",rules:factory,hashing:testHashing,random:random.source),listener:listener)
+        let client=TestClient(receiver:NetworkReceiver(gameID:gameID,role:role,name:name,appVersion:"0.8.0",rules:factory,hashing:testHashing,random:random.source,accepting:accepting),listener:listener)
         clients.append(client);return client
     }
     func connect(_ client:TestClient)throws {
@@ -157,11 +162,11 @@ final class TestNetwork {
     func jump(_ seconds:Double){now=now + .milliseconds(Int((seconds*1000).rounded()))}
     /// A guest seated and acknowledged, plus `spectators` watchers, all current.
     func startGame(spectators:Int=0)throws -> (guest:TestClient,watchers:[TestClient]) {
-        let guest=client(.seat);try connect(guest)
+        let guest=client(.seat,accepting:host.settings.assistance);try connect(guest)
         let watchers=try (0..<spectators).map{index->TestClient in let watcher=client(.watch,name:"Watcher \(index)");try connect(watcher);return watcher}
         return (guest,watchers)
     }
-    func play(_ client:TestClient,_ uci:String)throws {guard let message=try client.receiver.submitMove(uci:uci) else{return XCTFail("move \(uci) ignored")};try toHost(client,message);try settle()}
+    func play(_ client:TestClient,_ uci:String,assisted:Bool=false)throws {guard let message=try client.receiver.submitMove(uci:uci,assisted:assisted) else{return XCTFail("move \(uci) ignored")};try toHost(client,message);try settle()}
     func command(_ client:TestClient,_ message:NetworkMessage?)throws {guard let message else{return XCTFail("command unavailable")};try toHost(client,message);try settle()}
-    func hostPlays(_ uci:String)throws {try perform(.move(uci:uci));try settle()}
+    func hostPlays(_ uci:String,assisted:Bool=false)throws {try perform(.move(uci:uci,assisted:assisted));try settle()}
 }

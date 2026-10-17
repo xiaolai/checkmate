@@ -5,9 +5,9 @@ import XCTest
 final class NetworkHostTests:XCTestCase {
     private func freshID(_ net:TestNetwork)->NetworkID {NetworkID.random(using:net.random.source)}
     private func isSnapshot(_ message:NetworkMessage)->Bool {if case .snapshotBegin=message {return true};return false}
-    /// A stalled spectator asks for a snapshot, then moves are held behind it; when the send in flight completes, the
-    /// first snapshot part is made. Returns the peer's queued bytes just before and just after that part, and whether
-    /// the host closed it, for a host whose per-peer cap is `cap`.
+    /// A stalled spectator asks for a snapshot, then moves are held behind it. Its sends complete one at a time until
+    /// the snapshot's begin is the frame in flight; completing that makes the first snapshot part. Returns the peer's
+    /// queued bytes just before and just after that part, and whether the host closed it, for a per-peer cap `cap`.
     private func snapshotBehindHeldMoves(cap:Int)throws -> (before:Int,after:Int,closed:NetworkByeReason?) {
         var limits=NetworkHostLimits.standard;limits.peerQueueBytes=cap
         let net=try TestNetwork(limits:limits)
@@ -16,15 +16,21 @@ final class NetworkHostTests:XCTestCase {
         try net.hostPlays("e2e4")
         try net.send(.resync,on:id)
         try net.play(guest,"e7e5");try net.hostPlays("g1f3");try net.play(guest,"b8c6")
-        let before=net.host.queuedBytes(id) ?? -1
+        // Send by send until the begin is in flight: only completing that one makes a part.
+        func inFlight()->NetworkMessage? {(net.sent[id]?.last).flatMap{try? NetworkCodec.decode($0)}}
+        for _ in 0..<8 where !{if case .snapshotBegin?=inFlight() {return true};return false}() && net.closes[id]==nil {try net.completeSend(id)}
+        guard case .snapshotBegin?=inFlight() else{XCTFail("the begin never went out: \(String(describing:inFlight()))");return (0,0,net.closes[id])}
+        // Still open, with its queue known, right before the begin's send completes: the part is what decides.
+        let before=try XCTUnwrap(net.host.queuedBytes(id),"the spectator is still open before the send completes");XCTAssertNil(net.closes[id])
         try net.completeSend(id)
+        if net.closes[id]==nil {guard case .snapshotPart?=inFlight() else{XCTFail("the next frame is a part: \(String(describing:inFlight()))");return (0,0,nil)}}
         return (before,net.host.queuedBytes(id) ?? -1,net.closes[id])
     }
     func testADuplicateIsAnsweredBeforeTheRevisionCheck()throws {
         let net=try TestNetwork(hostSide:.black)
         let (guest,_)=try net.startGame()
         let first=try XCTUnwrap(try guest.receiver.submitMove(uci:"e2e4"))
-        guard case .move(_,let commandID,_,_)=first else{return XCTFail()}
+        guard case .move(_,let commandID,_,_,_)=first else{return XCTFail()}
         try net.toHost(guest,first);try net.settle();try net.hostPlays("e7e5")
         XCTAssertEqual(net.host.revision,2)
         // The same command again, now two revisions old: the stored receipt, and nothing else.
@@ -63,7 +69,7 @@ final class NetworkHostTests:XCTestCase {
         // 65 refused commands, spaced under the inbound rate: the first receipt is forgotten.
         net.script.illegal=["a2a3"]
         let ids=(0..<65).map{_ in freshID(net)}
-        for id in ids {try net.toHost(guest,.move(gameID:net.gameID,commandID:id,revision:0,uci:"a2a3"));try net.advance(0.06)}
+        for id in ids {try net.toHost(guest,.move(gameID:net.gameID,commandID:id,revision:0,uci:"a2a3"));try net.settle();try net.advance(0.06)}
         XCTAssertNil(guest.closedWith);XCTAssertEqual(net.host.storedReceipts,64)
         net.script.illegal=[]
         try net.toHost(guest,.move(gameID:net.gameID,commandID:ids[1],revision:0,uci:"a2a3"));try net.settle()
@@ -134,16 +140,18 @@ final class NetworkHostTests:XCTestCase {
         try net.take(try net.host.sendCompleted(old,at:net.now))
         XCTAssertEqual(net.host.phase,.running);XCTAssertEqual(net.host.guestConnection,new);XCTAssertNil(net.host.outcome)
         // A lost `resumed` is safe to retry, from a new connection or from the current holder.
+        // The holder's retry is sent raw: its receiver, which did get the first `resumed`, takes one per connection.
         try net.cut(guest,tell:false);try net.connect(guest)
-        try net.toHost(guest,guest.receiver.opening());try net.settle()
-        XCTAssertEqual(guest.received.filter{$0 == .resumed}.count,3);XCTAssertEqual(net.host.phase,.running);XCTAssertNil(guest.closedWith)
+        let holder=try XCTUnwrap(guest.connection);try net.send(guest.receiver.opening(),on:holder)
+        XCTAssertEqual(guest.received.filter{$0 == .resumed}.count,2);XCTAssertEqual(net.messages(holder).filter{$0 == .resumed}.count,2,"the retry is answered again")
+        XCTAssertEqual(net.host.phase,.running);XCTAssertNil(net.closes[holder]);XCTAssertNil(guest.closedWith)
     }
     func testNoMoveWhileReserved()throws {
         let net=try TestNetwork(hostSide:.black)
         let guest=net.client(.seat);guest.lose=["seatedAck"];try net.connect(guest)
         XCTAssertEqual(net.host.phase,.reserved)
         let move=try XCTUnwrap(try guest.receiver.submitMove(uci:"e2e4"))
-        guard case .move(_,let commandID,_,_)=move else{return XCTFail()}
+        guard case .move(_,let commandID,_,_,_)=move else{return XCTFail()}
         try net.toHost(guest,move);try net.settle()
         XCTAssertEqual(guest.received.last,.rejected(commandID:commandID,reason:.notRunning));XCTAssertNil(guest.receiver.pendingMove)
         try net.hostPlays("e7e5");XCTAssertEqual(net.refusals,[.notRunning],"the host has no shortcut either")
@@ -235,10 +243,12 @@ final class NetworkHostTests:XCTestCase {
     }
     func testTwentyOneMessagesInASecondCloseThePeer()throws {
         let net=try TestNetwork()
-        let (_,watchers)=try net.startGame(spectators:1)
-        for _ in 0..<19 {try net.toHost(watchers[0],.resync)}
-        try net.settle();XCTAssertNil(watchers[0].closedWith,"hello and 19 more: twenty")
-        try net.toHost(watchers[0],.resync);try net.settle();XCTAssertEqual(watchers[0].closedWith,.rateLimited)
+        _ = try net.startGame()
+        // Sent raw: a receiver given snapshots it never asked for closes first, on its own bound.
+        let watcher=net.client(.watch),id=try net.open(.watch);try net.send(watcher.receiver.opening(),on:id)
+        for _ in 0..<19 {try net.send(.resync,on:id)}
+        XCTAssertNil(net.closes[id],"hello and 19 more: twenty")
+        try net.send(.resync,on:id);XCTAssertEqual(net.closes[id],.rateLimited)
     }
     func testTheHoldOffersClaimWinOrKeepWaiting()throws {
         let net=try TestNetwork(timeControl:.tenPlusFive)
@@ -280,6 +290,44 @@ final class NetworkHostTests:XCTestCase {
         let empty=try TestNetwork()
         let watcher=empty.client(.watch);try empty.connect(watcher);try empty.perform(.leave);try empty.settle()
         XCTAssertNil(empty.host.outcome);XCTAssertEqual(empty.host.phase,.ended);XCTAssertEqual(watcher.closedWith,.hostLeft)
+    }
+    /// A resync that arrives once the last part is handed over but before its send completes starts the one fresh
+    /// snapshot that also pays the refresh already owed: no third copy follows it.
+    func testAResyncAfterTheLastPartPaysTheRefreshOwed()throws {
+        let net=try TestNetwork()
+        let id=try net.open(.watch);net.stalled.insert(id);try net.send(net.client(.watch,name:"Cy").receiver.opening(),on:id)
+        // The guest's arrival names it, so the spectator is owed a refresh behind the snapshot it is still being sent.
+        let guest=net.client(.seat);try net.connect(guest)
+        func last()->NetworkMessage? {net.messages(id).last}
+        for _ in 0..<64 {if case .snapshotEnd?=last() {break};try net.completeSend(id)}
+        guard case .snapshotEnd?=last() else{return XCTFail("the first snapshot's end is handed over")}
+        try net.send(.resync,on:id)
+        net.stalled.remove(id);for _ in 0..<64 {try net.completeSend(id)}
+        XCTAssertEqual(net.messages(id).filter{if case .snapshotBegin=$0 {return true};return false}.count,2,"the first snapshot and the resync's, which carries the guest's name")
+        XCTAssertNil(net.closes[id])
+    }
+    /// A spectator owed a refresh while its snapshot is still going out, when the host leaves: the result queued behind
+    /// that snapshot goes, then the refresh still goes, carrying the guest's name that `ended` cannot, then the close,
+    /// rather than stalling until the runner gives up.
+    func testLeavingDuringASpectatorsStaleSnapshotStillEndsAndCloses()throws {
+        let net=try TestNetwork()
+        let watcher=net.client(.watch);try net.connect(watcher);let id=try XCTUnwrap(watcher.connection)
+        net.stalled.insert(id);try net.send(.resync,on:id)
+        // The guest's arrival names it, so the spectator is owed a refresh behind the snapshot it is still being sent.
+        let guest=net.client(.seat);try net.connect(guest);try net.hostPlays("e2e4")
+        try net.perform(.leave)
+        net.stalled.remove(id)
+        for _ in 0..<64 where net.closes[id]==nil {try net.completeSend(id)}
+        XCTAssertEqual(net.closes[id],.hostLeft,"the spectator is closed once its queue drains")
+        let tail=net.messages(id).filter{if case .ping=$0 {return false};return true}
+        guard let ending=tail.lastIndex(where:{if case .ended=$0 {return true};return false}),case .ended(let ended)=tail[ending] else{return XCTFail("the result is sent")}
+        XCTAssertEqual(ended.outcome,net.host.outcome)
+        XCTAssertTrue(tail[ending...].contains{if case .snapshotBegin=$0 {return true};return false},"the refresh follows the result");XCTAssertEqual(tail.last.map{if case .snapshotEnd=$0 {return true};return false},true,"and is the last thing sent")
+        XCTAssertEqual(tail.filter{if case .snapshotBegin=$0 {return true};return false}.count,3,"the first snapshot, the resync's, and the refresh owed")
+        try net.settle()
+        let shown=try XCTUnwrap(watcher.receiver.publicGame(at:net.now)),hosted=try net.host.publicGame(at:net.now)
+        XCTAssertEqual(shown.blackName,hosted.blackName,"the spectator's record names the guest");XCTAssertEqual(shown.whiteName,hosted.whiteName)
+        XCTAssertEqual(shown.outcome,hosted.outcome);XCTAssertEqual(shown.revision,hosted.revision)
     }
     func testCrossingOffersAreAgreement()throws {
         let net=try TestNetwork()
@@ -338,5 +386,25 @@ final class NetworkHostTests:XCTestCase {
         let (other,_)=try resigned.startGame()
         try resigned.command(other,other.receiver.resign())
         XCTAssertEqual(resigned.host.outcome,NetworkOutcome(result:.whiteWins,termination:.resignation))
+    }
+    /// Spectators learn the guest's name only from a snapshot: one watching before the guest arrives gets a fresh one
+    /// when a seat is reserved, and again when a reservation lapses, even while an earlier snapshot is on its way.
+    func testSpectatorsLearnTheGuestsNameWhenItChanges()throws {
+        let net=try TestNetwork()
+        let early=net.client(.watch,name:"Cy");try net.connect(early)
+        XCTAssertNil(early.receiver.installed?.blackName)
+        // A claim that is never acknowledged: Ben's name, then none once the reservation lapses.
+        let ben=net.client(.seat,name:"Ben");ben.lose=["seatedAck"];try net.connect(ben)
+        XCTAssertEqual(net.host.phase,.reserved);XCTAssertEqual(early.receiver.installed?.blackName,"Ben")
+        try net.advance(31);XCTAssertEqual(net.host.phase,.waiting);XCTAssertNil(early.receiver.installed?.blackName,"the lapsed claimant's name goes")
+        // Dee claims while the spectator's earlier snapshot is still on its way: a fresh one follows it.
+        let id=try XCTUnwrap(early.connection);net.stalled.insert(id)
+        try net.toHost(early,.resync);try net.settle()
+        let dee=net.client(.seat,name:"Dee");try net.connect(dee)
+        XCTAssertEqual(net.host.phase,.running)
+        net.stalled.remove(id)
+        for _ in 0..<64 where net.host.queuedBytes(id) != 0 {try net.completeSend(id);try net.settle()}
+        XCTAssertEqual(early.receiver.installed?.blackName,"Dee");XCTAssertNil(early.closedWith)
+        let late=net.client(.watch,name:"Late");try net.connect(late);XCTAssertEqual(late.receiver.installed?.blackName,"Dee")
     }
 }

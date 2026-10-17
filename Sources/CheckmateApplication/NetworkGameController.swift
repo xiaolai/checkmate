@@ -42,6 +42,8 @@ import OSLog
     public static let lobbyTitle="Play on Network"
     public static let nameNeeded="Type your name first, up to 64 characters."
     public static let codeNeeded="Type the 8-character code shown on the host's Mac."
+    /// Joining a game with assistance needs the person to accept its terms first (assistance plan A3).
+    public static let assistanceNeeded="Accept this game's assistance to join it."
     public static let leaveConfirmation="Leave the game? It counts as a resignation."
     public static let watchingNotice="You're watching"
     public static let sendingNotice="Sending…"
@@ -110,6 +112,9 @@ import OSLog
     public let participation:NetworkParticipation?
     /// VoiceOver: the window posts each announcement (D10).
     public var announce:(String)->Void={_ in}
+    /// Runs after every event has settled participation and the shown game: the network assistant follows the turn here
+    /// (assistance plan A6).
+    public var onSettle:()->Void={}
 
     private enum Runner {case host(NetworkHostRunner,NetworkHostingConfiguration),client(NetworkClientRunner)}
     private var runner:Runner?
@@ -124,6 +129,16 @@ import OSLog
     /// How far above an announced threshold a reading must be to count as an increment, not a re-sync.
     private static let clockSlack=500
     private var participating:NetworkParticipation.Role?
+    private var participatingAssistance:NetworkAssistanceLevel = .off
+    /// The last record's moves could not be shown: the board is behind the game, so it takes no move and no help
+    /// until a record that loads arrives.
+    private var recordUnreadable=false,retryingRecord=false
+    /// The clock announcement waiting for its threshold; each reading replaces it, so one is ever pending.
+    private var clockAlarm:NetworkScheduledWork?
+    /// What the waiting alarm is for: the side, the threshold it announces, and when.
+    private var clockAlarmTarget:(side:NetworkSide,threshold:Int,due:NetworkInstant)?
+    /// The game revision of the turn in which a hint was shown to the learner (A7); their move in that turn says so.
+    private var assistedTurn:Int?
     /// The record last written to the crash file, without its clocks.
     private var savedRecord:NetworkPublicGame?
     private var leaveCompletions:[@MainActor ()->Void]=[]
@@ -144,12 +159,12 @@ import OSLog
     /// Shows a game: the seat the learner holds and the position (a record the host's game has already verified).
     /// Moves go to `submit`.
     public func show(seat:Seat,title:String,pgn:String)throws {
-        try load(pgn);self.seat=seat;self.title=title;detached=true;pending=nil
+        try load(pgn);recordUnreadable=false;self.seat=seat;self.title=title;detached=true;pending=nil
         if case .player(let side)=seat{learnerSide=NetworkSide(rawValue:side)}else{learnerSide=nil}
         resetInput();changed()
     }
     /// The lobby again: no game on the board.
-    public func clear(){seat=nil;detached=false;title=Self.lobbyTitle;try? load("");resetInput();changed()}
+    public func clear(){seat=nil;detached=false;title=Self.lobbyTitle;try? load("");recordUnreadable=false;resetInput();changed()}
     /// A move the game applied, the learner's own or the opponent's. It clears a pending move it answers.
     public func applied(uci:String)throws {try rules.move(uci:uci);if pending?.uci==uci{pending=nil};resetInput();changed()}
     /// The game refused the pending move: the piece goes back, nothing else changes.
@@ -161,6 +176,7 @@ import OSLog
     // MARK: Input
     /// Moves are taken only in a running game: the host's once the guest is seated, a guest's while live (D4).
     private var inputOpen:Bool {
+        guard !recordUnreadable else{return false}
         switch part {
         case nil:return detached
         case .host?:return runner != nil && hostPhase == .running && outcome==nil && !leaving
@@ -168,10 +184,11 @@ import OSLog
         case .spectator?:return false
         }
     }
-    /// It is the learner's move in a running game, whether or not one is already on its way.
-    public var yourTurn:Bool {guard let side,inputOpen,!rules.over else{return false};return rules.turn==side}
+    /// It is the learner's move in a running game, with none already on its way. Once a move is sent the turn is
+    /// over for help too (assistance plan A7): its `assisted` flag went with it, so no hint or coach turn may follow.
+    public var yourTurn:Bool {guard pending==nil,let side,inputOpen,!rules.over else{return false};return rules.turn==side}
     /// Whether it is the learner's move now, with nothing pending.
-    public var canMove:Bool {pending==nil && yourTurn}
+    public var canMove:Bool {yourTurn}
     /// "Network game · your move", for the sidebar while the learner is elsewhere.
     public var badge:String? {yourTurn ? Self.yourMoveBadge:nil}
     public func canDrag(_ square:String)->Bool {canMove && rules.piece(square)?.color==side}
@@ -180,22 +197,32 @@ import OSLog
     public func click(_ square:String){
         guard ChessRules.validSquare(square),seat != nil else{return}
         if seat == .spectator{flash(Self.watchingNotice);return}
-        guard canMove else{return}
+        // Board insight (assistance plan A1) lets the learner pick any piece to inspect, also off their turn; it never
+        // shows dots for a move they cannot make.
+        guard canMove else{guard inspectable,pending==nil else{return};selected=rules.piece(square)==nil ? nil:square;destinations=[];objectWillChange.send();return}
         if let from=selected,destinations.contains(square){play(from:from,to:square);return}
-        if rules.piece(square)?.color==side{selected=square;destinations=Array(Set(rules.moves(square).map(\.to))).sorted()}else{selected=nil;destinations=[]}
+        if rules.piece(square)?.color==side{selected=square;destinations=Array(Set(rules.moves(square).map(\.to))).sorted()}
+        else if inspectable,rules.piece(square) != nil{selected=square;destinations=[]}
+        else{selected=nil;destinations=[]}
         objectWillChange.send()
     }
+    /// The piece inspector (Protected by / Attacked by) works on this board (A1, A8): a seated player whose agreed level
+    /// is board insight or more. Never a spectator, never once the game is over, and never on a board behind its record.
+    public var inspectable:Bool {side != nil && !recordUnreadable && participation?.role == .player && (participation?.assistance ?? .off) >= .insight}
     /// Escape on the board: the selected piece and its dots go, so a later click on a former dot plays nothing.
     public func clearSelection(){guard selected != nil || !destinations.isEmpty else{return};selected=nil;destinations=[];objectWillChange.send()}
     /// Submits one move; anything illegal, or a second move while one is pending, is ignored.
     public func play(from:String,to:String,promotion:String="q"){
         guard canMove,let move=rules.moves(from).first(where:{$0.to==to && ($0.promotion==nil || $0.promotion==promotion)}) else{return}
+        // A7: read before the move is pending, which ends the turn's help.
+        let uci=move.uci,session=sessionNumber,assisted=assistedThisTurn
         pending=PendingMove(from:from,to:to,uci:move.uci);pendingRevision=gameRevision;pendingSeen=false
         selected=nil;destinations=[];notice=Self.sendingNotice;objectWillChange.send()
-        let uci=move.uci,session=sessionNumber
+        // The turn's help ends now (A7): the assistant drops its hint and search without waiting for the runner.
+        onSettle()
         switch runner {
-        case .host(let runner,_)?:runner.perform(.move(uci:uci))
-        case .client(let runner)?:runner.submitMove(uci:uci)
+        case .host(let runner,_)?:runner.perform(.move(uci:uci,assisted:assisted))
+        case .client(let runner)?:runner.submitMove(uci:uci,assisted:assisted)
         case nil:submit(uci);return
         }
         // By now the queue has handled the move and its answer has been delivered: a press it ignored (the game moved
@@ -207,6 +234,7 @@ import OSLog
     }
     private func clearPending(){
         guard pending != nil else{return}
+        defer{onSettle()}
         pending=nil;pendingRevision=nil;pendingSeen=false;if notice==Self.sendingNotice{notice=nil}
     }
     /// The board area's centred title, with the notice after it while one shows ("Ana vs Ben · You're watching"), so
@@ -228,7 +256,7 @@ import OSLog
     // main-actor method would be isolated to the main actor wherever it runs.
     nonisolated private static func relay<Event>(_ delivery:NetworkDelivery,_ handle:@escaping @MainActor (Event)->Void)->(Event)->Void {{event in delivery{handle(event)}}}
     nonisolated private static func after(_ scheduler:any NetworkScheduler,_ delivery:NetworkDelivery,_ work:@escaping @MainActor ()->Void){scheduler.enqueue{delivery(work)}}
-    nonisolated private static func alarm(_ scheduler:any NetworkScheduler,at deadline:NetworkInstant,_ delivery:NetworkDelivery,_ work:@escaping @MainActor ()->Void){_ = scheduler.schedule(at:deadline){delivery(work)}}
+    @discardableResult nonisolated private static func alarm(_ scheduler:any NetworkScheduler,at deadline:NetworkInstant,_ delivery:NetworkDelivery,_ work:@escaping @MainActor ()->Void)->NetworkScheduledWork {scheduler.schedule(at:deadline){delivery(work)}}
     nonisolated private static func browse(_ discovery:any NetworkDiscovery,on scheduler:any NetworkScheduler,_ updates:@escaping (NetworkDiscoveryUpdate)->Void){scheduler.enqueue{discovery.start(updates)}}
     nonisolated private static func stopBrowsing(_ discovery:any NetworkDiscovery,on scheduler:any NetworkScheduler){scheduler.enqueue{discovery.stop()}}
 
@@ -272,9 +300,9 @@ import OSLog
         let random=services.random,side=form.side.resolved(using:random)
         let gameID=NetworkGameID.random(using:random),seatCode=NetworkCode.random(using:random),watch=form.allowSpectators ? NetworkCode.random(using:random):nil
         let host:NetworkHost
-        do{host=try NetworkHost(gameID:gameID,runEpoch:services.runEpoch,settings:NetworkHostSettings(hostName:name,hostSide:side,timeControl:form.timeControl,allowSpectators:form.allowSpectators),rules:services.rules,hashing:services.hashing,random:random,at:services.scheduler.now)}
+        do{host=try NetworkHost(gameID:gameID,runEpoch:services.runEpoch,settings:NetworkHostSettings(hostName:name,hostSide:side,timeControl:form.timeControl,allowSpectators:form.allowSpectators,assistance:form.assistance),rules:services.rules,hashing:services.hashing,random:random,at:services.scheduler.now)}
         catch{NativeLog.lifecycle.error("A network game could not be set up: \(String(describing:error),privacy:.public)");lobbyMessage="The game could not be set up.";return false}
-        let configuration=NetworkHostingConfiguration(gameID:gameID,seatCode:seatCode,watchCode:watch,serviceName:Self.gameName(host:name))
+        let configuration=NetworkHostingConfiguration(gameID:gameID,seatCode:seatCode,watchCode:watch,serviceName:Self.gameName(host:name),assistance:form.assistance)
         beginSession(.host,name:configuration.serviceName)
         playCode=seatCode;watchCode=watch;learnerSide=side;timeControl=form.timeControl;hostPhase = .waiting
         if side == .white{whiteName=name}else{blackName=name}
@@ -286,14 +314,19 @@ import OSLog
     }
     /// Joins a found game's seat with its play code, or watches it with its watch code (D3: only the code is typed;
     /// everything else comes from the chosen record). False, with `lobbyMessage`, if it cannot start.
-    @discardableResult public func join(_ game:NetworkDiscoveredGame,code typed:String,watching:Bool=false)->Bool {
+    ///
+    /// A seat is joined only under terms the person accepted (assistance plan A3): `accepting` must be the terms the
+    /// game advertises, unless it advertises none. The guest states them in `hello`, and both sides check them again.
+    @discardableResult public func join(_ game:NetworkDiscoveredGame,code typed:String,watching:Bool=false,accepting:NetworkAssistance?=nil)->Bool {
         guard part==nil,let services else{return false}
         let role:NetworkListenerRole=watching ? .watch:.seat,name=game.name.isEmpty ? "the host's game":game.name
         guard let record=game.record(role) else{lobbyMessage=watching ? "\(name) doesn't allow spectators.":"\(name) has no seat to join.";return false}
         guard let player=Self.validName(playerName) else{lobbyMessage=Self.nameNeeded;return false}
         guard let code=NetworkCode(typed:typed) else{lobbyMessage=Self.codeNeeded;return false}
+        let accepted=accepting ?? .off
+        guard watching || accepted==game.assistance else{lobbyMessage=Self.assistanceNeeded;return false}
         beginSession(watching ? .spectator:.guest,name:name)
-        let receiver=NetworkReceiver(gameID:game.gameID,role:watching ? .spectator:.guest(claimID:.random(using:services.random)),name:player,appVersion:services.appVersion,rules:services.rules,hashing:services.hashing,random:services.random)
+        let receiver=NetworkReceiver(gameID:game.gameID,role:watching ? .spectator:.guest(claimID:.random(using:services.random)),name:player,appVersion:services.appVersion,rules:services.rules,hashing:services.hashing,random:services.random,accepting:watching ? .off:accepted)
         connect(receiver,endpoint:record.endpoint,key:game.key(role,code:code),services:services)
         return true
     }
@@ -322,7 +355,7 @@ import OSLog
         pending=nil;pendingRevision=nil;pendingSeen=false;shownPGN=nil;clockSync=nil;clockSeen=[:];clockAnnounced=[:];record=nil;gameRevision=nil
         gameName="";link = .stopped;hostPhase=nil;playCode=nil;watchCode=nil;whiteName=nil;blackName=nil;timeControl = .untimed
         openOffer=nil;outcome=nil;holdExpired=false;spectators=[];stopMessage=nil;learnerSide=nil;flipped=false;notice=nil;selected=nil;destinations=[]
-        resumable=nil;retryable=false;sleptWhileHosting=false
+        resumable=nil;retryable=false;sleptWhileHosting=false;assistedTurn=nil
     }
     /// Back to the lobby: the session is over and forgotten.
     private func endSession(){
@@ -351,7 +384,9 @@ import OSLog
         switch event {
         case .receiver(.seated),.receiver(.resumed):seated=true
         case .receiver(.watching):watching=true
-        case .receiver(.rejected(_,let reason)):clearPending();flash(NetworkWording.refusal(reason))
+        // The refusal says why; whether it was this Mac's pending move follows from the status, which clears the move
+        // only when the receiver let it go, so a refused draw offer never reopens a move already sent (A7).
+        case .receiver(.rejected(_,let reason)):flash(NetworkWording.refusal(reason))
         case .receiver:break
         case .status(let status):
             switch status.link {
@@ -377,18 +412,34 @@ import OSLog
     }
     /// A public record, from the host's own game or a verified snapshot: names, clocks, the open offer, the result, and
     /// the board when the moves changed. Announces what a sighted player would see happen.
-    private func present(_ game:NetworkPublicGame,at instant:NetworkInstant){
-        let previousOffer=openOffer,previousOutcome=outcome,plies=rules.history.count
+    func present(_ game:NetworkPublicGame,at instant:NetworkInstant){
+        let previousOffer=openOffer,previousOutcome=outcome,plies=rules.history.count,first=record==nil
+        // The record is taken only once its moves load: one that cannot be shown leaves the last good record, revision
+        // and board in place (crash file, Review, help) and stops input until a record that loads arrives.
+        var reloaded=false
+        if game.pgn != shownPGN {
+            do{try load(game.pgn)}
+            catch{
+                recordUnreadable=true;NativeLog.lifecycle.error("A network game record could not be shown: \(String(describing:error),privacy:.public)");resetInput()
+                // An unchanged record is not sent again, so the same one gets one more try once the queue has run; if
+                // that fails too, the learner is told rather than left on a board that takes no input.
+                if retryingRecord{notice=NetworkWording.recordUnreadable;announce(NetworkWording.recordUnreadable)}
+                else{let session=sessionNumber;afterQueue{[weak self] in guard let self,self.sessionNumber==session,self.recordUnreadable,self.shownPGN != game.pgn else{return};self.retryingRecord=true;defer{self.retryingRecord=false};self.present(game,at:instant)}}
+                changed();return
+            }
+            shownPGN=game.pgn;recordUnreadable=false;reloaded=true
+        }else if recordUnreadable{recordUnreadable=false;if notice==NetworkWording.recordUnreadable{notice=nil};objectWillChange.send()}
         record=game;gameRevision=game.revision;clockSync=game.clocks.map{($0,instant)}
         update(\.whiteName,game.whiteName);update(\.blackName,game.blackName);update(\.timeControl,game.timeControl);update(\.openOffer,game.openOffer);update(\.outcome,game.outcome)
         if seat==nil,let mine=learnerSeat{seat=mine}
-        var moved=false
-        if game.pgn != shownPGN {
-            do{try load(game.pgn);shownPGN=game.pgn;moved=rules.history.count != plies}
-            catch{NativeLog.lifecycle.error("A network game record could not be shown: \(String(describing:error),privacy:.public)")}
+        let moved=reloaded && rules.history.count != plies
+        if reloaded {
             resetInput();changed()
-            if rules.history.count>plies,let last=rules.records.last{announce(NetworkWording.move(last,players:players))}
+            // A12: a move its mover made with a hint shown says so, as the hint count beside the names does.
+            if rules.history.count>plies,let last=rules.records.last{let mover:NetworkSide=last.color=="b" ? .black:.white;announce(NetworkWording.move(last,players:players)+(game.assistedPlies.last==rules.history.count ? ". "+NetworkWording.usedHint(mover,players:players):""))}
         }
+        // A12: joining or watching a game with assistance announces its terms once, as the line under the names shows them.
+        if first,part != .host,let terms=NetworkWording.terms(game.assistance,players:players){announce(terms)}
         if pending != nil,gameRevision != pendingRevision{clearPending()}
         if let offer=openOffer,offer != previousOffer,offer.by != learnerSide{announce("\(players.name(offer.by)) offers a draw")}
         if let offer=previousOffer,openOffer==nil,outcome==nil,!moved,offer.by==learnerSide{announce("\(opponentName) declined the draw")}
@@ -400,7 +451,7 @@ import OSLog
     /// Sets a published value only when it changes, so a clock-only status redraws nothing.
     private func update<Value:Equatable>(_ key:ReferenceWritableKeyPath<NetworkGameController,Value>,_ value:Value){if self[keyPath:key] != value{self[keyPath:key]=value}}
     /// After every event: participation, the crash file, the clock announcements and the title follow the state.
-    private func settle(){updateParticipation();saveCrashFile();watchClocks();updateTitle()}
+    private func settle(){updateParticipation();saveCrashFile();watchClocks();updateTitle();onSettle()}
     private func updateTitle(){
         guard part != nil || !detached else{return}
         let next:String
@@ -422,12 +473,26 @@ import OSLog
         case .spectator:return watching ? .spectator:nil
         }
     }
-    private func updateParticipation(){
-        let wanted=wantedParticipation
-        guard wanted != participating else{return}
-        participating=wanted
-        if let wanted{participation?.begin(wanted)}else{participation?.end();services?.crashFile?.clear();savedRecord=nil}
+    /// The learner's own side's level, from terms the game verified (A3): the host's own settings, or the snapshot a
+    /// guest checked against what it accepted. Nothing before the record arrives.
+    private var wantedAssistance:NetworkAssistanceLevel {
+        guard wantedParticipation == .player,let record,let learnerSide else{return .off}
+        return record.assistance.level(learnerSide)
     }
+    private func updateParticipation(){
+        let wanted=wantedParticipation,level=wantedAssistance
+        guard wanted != participating || level != participatingAssistance else{return}
+        participating=wanted;participatingAssistance=level
+        if let wanted{participation?.begin(wanted,assistance:level)}else{participation?.end();services?.crashFile?.clear();savedRecord=nil}
+    }
+
+    // MARK: Assistance (assistance plan A1, A7)
+    /// The game's terms, as verified (A3); `off` before any record.
+    public var assistance:NetworkAssistance {record?.assistance ?? .off}
+    /// A hint was shown to the learner on their move: the move they make this turn is flagged `assisted` (A7).
+    public func hintShown(){guard yourTurn,let gameRevision else{return};assistedTurn=gameRevision}
+    /// Whether a hint was shown during the learner's current turn.
+    public var assistedThisTurn:Bool {assistedTurn != nil && assistedTurn==gameRevision && yourTurn}
     /// Writes the record whenever it changes while participating; a clock reading alone changes nothing the notice or
     /// Review use, so it is not rewritten every second.
     private func saveCrashFile(){
@@ -458,18 +523,31 @@ import OSLog
     /// re-arms it; a crossing seen late, between two readings, is still announced once. A threshold is announced again
     /// only after an increment has taken the clock clearly back above it, so a host reading a few milliseconds above
     /// the local countdown cannot repeat one.
+    ///
+    /// One alarm waits at a time, and a reading that points it at the same threshold at nearly the same moment keeps
+    /// it: the readings come every second, and replacing the alarm each time would leave a cancelled dispatch for
+    /// every reading until its deadline.
+    /// Alarms scheduled so far: tests check that readings which change nothing reuse the one waiting.
+    private(set) var clockAlarmsScheduled=0
     private func watchClocks(){
-        clockWatch+=1
-        guard let services,countingDown,let clocks=clocks(at:services.scheduler.now),let side=clocks.active else{return}
+        guard let services,countingDown,let clocks=clocks(at:services.scheduler.now),let side=clocks.active else{return dropClockAlarm()}
         let left=clocks.remaining(side)
         if let announced=clockAnnounced[side],left>announced+Self.clockSlack{clockAnnounced[side]=nil}
         if let before=clockSeen[side],let crossed=NetworkWording.clockThresholds.filter({left<=$0 && $0<before && $0<(clockAnnounced[side] ?? .max)}).min(){
             clockAnnounced[side]=crossed;announce(NetworkWording.clock(side,threshold:crossed,players:players))
         }
         clockSeen[side]=left
-        guard let next=NetworkWording.nextClockThreshold(below:left) else{return}
-        let watch=clockWatch
-        Self.alarm(services.scheduler,at:services.scheduler.now + .milliseconds(left-next),services.delivery){[weak self] in guard let self,self.clockWatch==watch else{return};self.watchClocks()}
+        guard let next=NetworkWording.nextClockThreshold(below:left) else{return dropClockAlarm()}
+        let due=services.scheduler.now + .milliseconds(left-next)
+        if clockAlarm != nil,let target=clockAlarmTarget,target.side==side,target.threshold==next,max(target.due-due,due-target.due) <= .milliseconds(Self.clockSlack) {return}
+        dropClockAlarm()
+        let watch=clockWatch;clockAlarmTarget=(side,next,due);clockAlarmsScheduled+=1
+        clockAlarm=Self.alarm(services.scheduler,at:due,services.delivery){[weak self] in guard let self,self.clockWatch==watch else{return};self.clockAlarm=nil;self.clockAlarmTarget=nil;self.watchClocks()}
+    }
+    /// Cancels the waiting clock alarm, if any, on the scheduler's queue; a late fire is ignored by its number.
+    private func dropClockAlarm(){
+        clockWatch+=1;clockAlarmTarget=nil
+        if let alarm=clockAlarm,let scheduler=services?.scheduler{clockAlarm=nil;scheduler.enqueue{alarm.cancel()}}
     }
 
     // MARK: Commands
@@ -545,7 +623,9 @@ import OSLog
     public func reviewRecord()->String? {
         guard canReview,let record else{return nil}
         if retryable{retryable=false;objectWillChange.send();settle()}
-        return NetworkGameRecord.reviewPGN(record,on:services?.today() ?? Date())
+        // The moves as this Mac's rules replayed the record (A11), not the record's text.
+        do{return NetworkGameRecord.reviewPGN(record,moves:try rules.moveHistory().map(\.san),on:services?.today() ?? Date())}
+        catch{NativeLog.lifecycle.error("A network game could not be prepared for Review: \(String(describing:error),privacy:.public)");return nil}
     }
     /// What the pane says under the players.
     public var statusText:String? {

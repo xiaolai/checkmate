@@ -19,6 +19,9 @@ public struct OpponentProfile:Codable,Equatable {
     public var options:[String:String] {mode=="elo" ? ["UCI_LimitStrength":"true","UCI_Elo":String(value),"Skill Level":"20"]:["UCI_LimitStrength":"false","Skill Level":String(mode=="beginner" ? 0:value)]}
     public static func settings(_ settings:AppSettings)->Self {switch settings.opponentPreset{case "first_steps":return ReviewRolloutPolicy.beginnerOpponentEnabled ? .beginner:.skill(settings.skill);case "gentle":return .skill(0);case "club":return .skill(10);default:break};return settings.opponentMode=="elo" ? .elo(settings.opponentElo):settings.opponentMode=="beginner" && ReviewRolloutPolicy.beginnerOpponentEnabled ? .beginner:.skill(settings.skill)}
 }
+/// How far a search goes (assistance plan A5): for a time, as every practice and review search does, or for a fixed
+/// number of nodes, so a faster Mac searches no further than a slower one.
+public enum EngineSearchLimit:Equatable {case movetime(Int),nodes(Int)}
 public enum AnalysisPolicy {public static let version=1;public static let options=["UCI_LimitStrength":"false","Skill Level":"20","Threads":"1","Hash":"32","UCI_ShowWDL":"true"]}
 public enum ReviewQualityPolicy {
     public static let version=1,nearBestCp=50,stableCpTolerance=80,minimumDepth=12

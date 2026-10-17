@@ -37,7 +37,10 @@ final class NetworkCodecTests:XCTestCase {
                 .move(gameID:game,commandID:id,revision:3,uci:"e7e8q"),.resign(gameID:game,commandID:id),.drawOffer(gameID:game,commandID:id,revision:4),.drawAnswer(gameID:game,commandID:id,offerID:id,accept:true),.claimDraw(gameID:game,commandID:id,revision:5),.pong(nonce:id),.bye(.slow),
                 .seated(credential:secret),.resumed,.watching,.snapshotBegin(snapshotID:id,revision:9,hash:"ab12",totalBytes:9217,parts:2),.snapshotPart(snapshotID:id,index:1,data:Data([1,2,3])),.snapshotEnd(snapshotID:id),
                 .moved(NetworkMoved(revision:6,uci:"g1f3",san:"Nf3",hash:"cd34",clocks:clocks,receiptFor:id)),.moved(NetworkMoved(revision:7,uci:"g8f6",san:"Nf6",hash:"ef56",clocks:nil,receiptFor:nil)),
-                .rejected(commandID:id,reason:.stale),.drawOffered(NetworkDrawOffer(offerID:id,by:.white)),.drawDeclined(offerID:id),.clock(clocks),.ended(NetworkEnded(outcome:NetworkOutcome(result:.draw,termination:.agreement),revision:8,clocks:clocks)),.ping(nonce:id)]
+                .rejected(commandID:id,reason:.stale),.drawOffered(NetworkDrawOffer(offerID:id,by:.white)),.drawDeclined(offerID:id),.clock(clocks),.ended(NetworkEnded(outcome:NetworkOutcome(result:.draw,termination:.agreement),revision:8,clocks:clocks)),.ping(nonce:id),
+                // 1.1's additions (assistance plan A4), so the fuzzer mutates them too.
+                .hello(name:"Dee",appVersion:"0.9.0",claimID:secret,assistance:NetworkAssistance(white:.hints,black:.off)),.move(gameID:game,commandID:id,revision:3,uci:"e2e4",assisted:true),
+                .moved(NetworkMoved(revision:8,uci:"b1c3",san:"Nc3",hash:"ab90",clocks:nil,receiptFor:id,assisted:true))]
     }
     func testEveryMessageRoundTripsWithItsTypeAndProtocol()throws {
         let messages=everyMessage
@@ -46,7 +49,7 @@ final class NetworkCodecTests:XCTestCase {
             let data=try NetworkCodec.encode(message)
             XCTAssertEqual(try NetworkCodec.decode(data),message)
             let object=try XCTUnwrap(try JSONSerialization.jsonObject(with:data) as? [String:Any])
-            XCTAssertEqual(object["type"] as? String,message.type);XCTAssertEqual(object["protocol"] as? [String:Int],["major":1,"minor":0])
+            XCTAssertEqual(object["type"] as? String,message.type);XCTAssertEqual(object["protocol"] as? [String:Int],["major":1,"minor":1])
         }
     }
     func testUnknownFieldsAreIgnoredAndAMajorMismatchIsReadable()throws {
@@ -55,13 +58,18 @@ final class NetworkCodecTests:XCTestCase {
         XCTAssertThrowsError(try NetworkCodec.decode(json(#"{"type":"hello","protocol":{"major":2,"minor":0},"name":42}"#))){error in
             XCTAssertEqual(error as? NetworkCodecError,.protocolMismatch(peer:NetworkProtocolVersion(major:2,minor:0)))
             XCTAssertEqual((error as? NetworkCodecError)?.byeReason,.protocolVersion)
-            XCTAssertTrue("\(error)".contains("2.0") && "\(error)".contains("1.0"),"\(error)")
+            XCTAssertTrue("\(error)".contains("2.0") && "\(error)".contains("1.1"),"\(error)")
         }
         let malformed=[#"{"type":"resync"}"#,#"{"type":"teleport","protocol":{"major":1,"minor":0}}"#,#"{"type":"move","protocol":{"major":1,"minor":0}}"#,"[]","not json",
                        #"{"type":"move","protocol":{"major":1,"minor":0},"gameID":"x","commandID":"y","revision":0,"uci":"e2e4"}"#,
                        #"{"type":"move","protocol":{"major":1,"minor":0},"gameID":"\#(game.text)","commandID":"\#(id.text)","revision":-1,"uci":"e2e4"}"#,
                        #"{"type":"move","protocol":{"major":1,"minor":0},"gameID":"\#(game.text)","commandID":"\#(id.text)","revision":1,"uci":"e2e9"}"#,
-                       #"{"type":"clock","protocol":{"major":1,"minor":0},"clocks":{"white":-5,"black":0}}"#]
+                       #"{"type":"clock","protocol":{"major":1,"minor":0},"clocks":{"white":-5,"black":0}}"#,
+                       // 1.1's fields (A4): terms missing a side, an unknown level, and a flag that is not a Boolean.
+                       #"{"type":"hello","protocol":{"major":1,"minor":1},"name":"Ben","appVersion":"1","assistance":{"white":"hints"}}"#,
+                       #"{"type":"hello","protocol":{"major":1,"minor":1},"name":"Ben","appVersion":"1","assistance":{"white":"turbo","black":"off"}}"#,
+                       #"{"type":"move","protocol":{"major":1,"minor":1},"gameID":"\#(game.text)","commandID":"\#(id.text)","revision":1,"uci":"e2e4","assisted":"yes"}"#,
+                       #"{"type":"moved","protocol":{"major":1,"minor":1},"revision":1,"uci":"e2e4","san":"e4","hash":"ab","assisted":1}"#]
         for text in malformed {XCTAssertThrowsError(try NetworkCodec.decode(json(text)),text){XCTAssertEqual(($0 as? NetworkCodecError)?.byeReason,.malformed,text)}}
         let command=id
         XCTAssertEqual(try NetworkCodec.decode(json(#"{"type":"bye","protocol":{"major":1,"minor":3},"reason":"solarFlare"}"#)),.bye(.unknown))
@@ -98,7 +106,7 @@ final class NetworkCodecTests:XCTestCase {
         let size=try NetworkCodec.encode(part).count
         XCTAssertLessThanOrEqual(size,NetworkLimits.maximumMessageBytes);XCTAssertGreaterThan(size,12*1024,"12 KiB of Base64, no slash escaping")
         XCTAssertThrowsError(try NetworkCodec.encode(.snapshotPart(snapshotID:id,index:0,data:Data(count:NetworkLimits.maximumSnapshotPartBytes+1))))
-        let begin=NetworkMessage.snapshotBegin(snapshotID:id,revision:Int.max,hash:String(repeating:"f",count:NetworkLimits.maximumHashBytes),totalBytes:NetworkLimits.maximumSnapshotBytes,parts:NetworkLimits.maximumSnapshotParts)
+        let begin=NetworkMessage.snapshotBegin(snapshotID:id,revision:NetworkLimits.maximumRevision,hash:String(repeating:"f",count:NetworkLimits.maximumHashBytes),totalBytes:NetworkLimits.maximumSnapshotBytes,parts:NetworkLimits.maximumSnapshotParts)
         XCTAssertLessThanOrEqual(try NetworkCodec.encode(begin).count,NetworkLimits.maximumMessageBytes)
         XCTAssertThrowsError(try NetworkCodec.encode(.snapshotBegin(snapshotID:id,revision:0,hash:"h",totalBytes:NetworkLimits.maximumSnapshotBytes+1,parts:NetworkLimits.maximumSnapshotParts+1)))
         // Names that escape to the most JSON stay far below the limit.
@@ -150,7 +158,7 @@ final class NetworkCodecTests:XCTestCase {
     }
     private func assertWithinLimits(_ message:NetworkMessage){
         switch message {
-        case .hello(let name,let version,_):XCTAssertLessThanOrEqual(name.utf8.count,64);XCTAssertLessThanOrEqual(version.utf8.count,64)
+        case .hello(let name,let version,_,_):XCTAssertLessThanOrEqual(name.utf8.count,64);XCTAssertLessThanOrEqual(version.utf8.count,64)
         case .snapshotPart(_,let index,let data):XCTAssertLessThanOrEqual(data.count,NetworkLimits.maximumSnapshotPartBytes);XCTAssertLessThan(index,NetworkLimits.maximumSnapshotParts)
         case .snapshotBegin(_,_,let hash,let total,_):XCTAssertLessThanOrEqual(hash.utf8.count,NetworkLimits.maximumHashBytes);XCTAssertLessThanOrEqual(total,NetworkLimits.maximumSnapshotBytes)
         case .moved(let moved):XCTAssertLessThanOrEqual(moved.san.utf8.count,NetworkLimits.maximumSANBytes)

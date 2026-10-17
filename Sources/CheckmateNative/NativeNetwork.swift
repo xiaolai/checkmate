@@ -123,7 +123,8 @@ extension NativeModel {
         let alert=NSAlert();alert.messageText=NetworkGameController.leaveConfirmation
         alert.informativeText="\(network.opponentName) wins the game. Checkmate quits once your resignation has gone out."
         let quit=alert.addButton(withTitle:"Leave and Quit");quit.hasDestructiveAction=true;quit.setAccessibilityIdentifier("network-quit-confirm")
-        alert.addButton(withTitle:"Cancel").setAccessibilityIdentifier("network-quit-cancel")
+        // Return must never resign: Cancel is the default, as in the other resignation confirmations.
+        quit.keyEquivalent="";let cancel=alert.addButton(withTitle:"Cancel");cancel.keyEquivalent="\r";cancel.setAccessibilityIdentifier("network-quit-cancel")
         return alert.runModal() == .alertFirstButtonReturn
     }
     /// Leaves an open session before the app closes, so the resignation, or the host's `ended`, goes out before the
@@ -148,12 +149,16 @@ extension NativeModel {
         guard let file=network.services?.crashFile,let entry=file.pending() else{return nil}
         file.clear();return entry
     }
-    /// Whether the crash file's game has moves to review.
-    static func reviewable(_ entry:NetworkCrashFile.Entry)->Bool {
-        guard let rules=try? ChessRules(),(try? rules.restore(entry.game.pgn)) != nil else{return false}
-        return !rules.history.isEmpty
+    /// The crash file's game replayed once: its moves in SAN, or nil when the record does not replay. Empty when no
+    /// move was played. The notice and Review both use this one replay.
+    static func replayedMoves(_ entry:NetworkCrashFile.Entry)->[String]? {
+        guard entry.game.revision<=NetworkLimits.maximumPlies+1,let rules=try? ChessRules(),(try? rules.restore(entry.game.pgn)) != nil else{return nil}
+        return try? rules.moveHistory().map(\.san)
     }
-    func reviewNetworkCrash(_ entry:NetworkCrashFile.Entry){importReviewData(Data(NetworkGameRecord.reviewPGN(entry.game,on:Date()).utf8))}
+    /// The moves are the ones the rules replayed from the kept record, as for a game that just ended (A11).
+    func reviewNetworkCrash(_ entry:NetworkCrashFile.Entry,moves:[String]){
+        importReviewData(Data(NetworkGameRecord.reviewPGN(entry.game,moves:moves,on:Date()).utf8))
+    }
     /// D11's help sheet button. Automation counts the request instead of opening System Settings.
     func openLocalNetworkSettings(){
         networkSettingsRequests+=1

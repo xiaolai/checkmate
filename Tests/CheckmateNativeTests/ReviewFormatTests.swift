@@ -30,6 +30,9 @@ import CheckmateCore
         XCTAssertEqual(ReviewFormat.players(try PGNImporter.parse(Data("1. e4 *".utf8),provenance:"Current game")[0]),"Current game")
         XCTAssertEqual(ReviewFormat.players(try game("8/8/8/4k3/8/8/8/4K3 w - - 0 1")),"Imported position")
         XCTAssertEqual(["1-0","0-1","1/2-1/2","*"].map(ReviewFormat.result),["1–0","0–1","½–½","Unfinished"])
+        // Assistance plan A11: a network game's agreed assistance is a line of its own; a record without the tag has none.
+        let assisted=try game("[Event \"Checkmate network game\"]\n[Assistance \"White: Hints on request; Black: Off\"]\n\n1. e4 {Hint shown} *")
+        XCTAssertEqual(ReviewFormat.assistance(assisted),"Assistance: White: Hints on request; Black: Off");XCTAssertNil(ReviewFormat.assistance(full))
     }
     func testScoresReadFromWhitesSide() {
         func cp(_ v:Int,_ bound:String?=nil)->String {ReviewFormat.score(AnalysisScore(kind:"cp",value:v,bound:bound))}

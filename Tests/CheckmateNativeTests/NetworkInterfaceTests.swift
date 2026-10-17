@@ -1,3 +1,4 @@
+import CheckmateTestSupport
 import XCTest
 import AppKit
 @testable import CheckmateNative
@@ -36,7 +37,7 @@ import CheckmateCore
         let ben=try NetworkGameController(services:lan.services(crashFile:nil),participation:NetworkParticipation(),playerName:"Ben")
         ben.setShown(true);lan.scheduler.run()
         let entry=try XCTUnwrap(ben.games.first,file:file,line:line)
-        XCTAssertTrue(ben.join(entry,code:model.network.playCode!.grouped),file:file,line:line);lan.scheduler.run()
+        XCTAssertTrue(ben.join(entry,code:model.network.playCode!.grouped,accepting:model.network.form.assistance),file:file,line:line);lan.scheduler.run()
         XCTAssertEqual(model.network.hostPhase,.running,file:file,line:line);XCTAssertEqual(ben.link,.live,file:file,line:line)
         return ben
     }
@@ -53,6 +54,9 @@ import CheckmateCore
         XCTAssertEqual(visible(),["New Game…","Take Back Move","Restore Previous Game","Claim Draw","Resign…","—","Protected by","Attacked by","Dismiss Piece Inspection"]);XCTAssertFalse(lesson.isHidden)
         GameWindow.syncMenus(menu,lesson:lesson,network:true);GameWindow.syncMenus(menu,lesson:lesson,network:true)
         XCTAssertEqual(visible(),["Offer Draw","Claim Draw","Resign…","Flip Board","Leave Game…"],"repeated syncs change nothing")
+        // Assistance plan A1: at board insight the network game's menu also shows the piece inspector.
+        GameWindow.syncMenus(menu,lesson:lesson,network:true,inspector:true)
+        XCTAssertEqual(Set(visible()),["Offer Draw","Claim Draw","Resign…","Flip Board","Leave Game…","Protected by","Attacked by","Dismiss Piece Inspection"])
     }
 
     /// The network items follow the network game; outside network mode the shared items keep the window's own rules.
@@ -137,9 +141,10 @@ import CheckmateCore
         try file.save(NetworkCrashFile.Entry(game:game,part:.white))
         let entry=try XCTUnwrap(model.takeNetworkCrashNotice())
         XCTAssertEqual(entry.notice,"Your network game with Ben ended when Checkmate closed.");XCTAssertNil(file.pending(),"read once, then deleted");XCTAssertNil(model.takeNetworkCrashNotice())
-        XCTAssertTrue(NativeModel.reviewable(entry))
-        var empty=game;empty.pgn="";XCTAssertFalse(NativeModel.reviewable(NetworkCrashFile.Entry(game:empty,part:.black)),"no moves, nothing to review")
-        model.reviewNetworkCrash(entry)
+        let moves=try XCTUnwrap(NativeModel.replayedMoves(entry));XCTAssertEqual(moves,["e4","e5"],"replayed once, for the notice and Review")
+        var empty=game;empty.pgn="";XCTAssertEqual(NativeModel.replayedMoves(NetworkCrashFile.Entry(game:empty,part:.black)) ?? [],[],"no moves, nothing to review")
+        var long=game;long.revision=NetworkLimits.maximumPlies+2;XCTAssertNil(NativeModel.replayedMoves(NetworkCrashFile.Entry(game:long,part:.black)),"a record longer than any game is not replayed")
+        model.reviewNetworkCrash(entry,moves:moves)
         for _ in 0..<300 where !model.review.active{try await Task.sleep(for:.milliseconds(10))}
         let document=try XCTUnwrap(model.review.document);XCTAssertEqual(document.result,"*","an interrupted game");XCTAssertEqual(document.mainline.count,2)
         XCTAssertEqual(model.session.activity.review?.draft,true)
@@ -154,6 +159,129 @@ import CheckmateCore
         let code=try XCTUnwrap(NetworkCode(typed:"K7QD2M9X"));XCTAssertEqual(code.grouped,"K7QD-2M9X");XCTAssertEqual(NetworkDetail.spelled(code),"K 7 Q D, 2 M 9 X")
         XCTAssertEqual(NetworkGameController.gameName(host:"Ana"),"Ana's game")
     }
+
+    /// A position-only engine whose every hint is Nf3.
+    @MainActor private final class KnightEngine:TestEngineService {
+        func analyze(fen:String,skill:Int,budget:Int,multiPv:Int)async throws -> EngineAnalysis {EngineAnalysis(bestMove:"g1f3")}
+        func analyzeHistory(startFEN:String,moves:[String],profile:OpponentProfile,limit:EngineSearchLimit,multiPv:Int)async throws -> EngineAnalysis {EngineAnalysis(bestMove:"g1f3")}
+    }
+    /// Assistance plan A1, A6 and A12 in the window: under hints for both, P inspects the network board's pieces (an
+    /// opponent's too), Escape dismisses it, the Hint's arrow is drawn and the pane shows the terms and counts. Without
+    /// assistance P does nothing and the inspector stays out of the Game menu.
+    func testTheInspectorAndTheHintOnTheNetworkBoard()async throws {
+        let model=try NativeModel(),game=GameWindow(model:model);defer{game.window?.delegate=nil;model.shutdown()}
+        let lan=LAN();model.network.form.assistance=NetworkAssistance(both:.hints)
+        let ben=try hostedGame(model,lan);model.playOnNetwork();game.refresh()
+        XCTAssertTrue(model.network.inspectable);XCTAssertEqual(model.fairness.networkAssistance,.hints)
+        game.select("e2");XCTAssertEqual(game.board.selected,"e2")
+        game.toggleRelationship(.protected)
+        XCTAssertEqual(game.relationships.report?.mode,.protected);XCTAssertEqual(game.relationships.report?.square,"e2")
+        XCTAssertTrue(game.board.relationshipConnectors.contains{$0.source=="e1" && $0.target=="e2"},"the king protects the pawn")
+        game.select("d7");XCTAssertEqual(game.relationships.report?.square,"d7","an opponent's piece is inspected too");XCTAssertEqual(model.network.selected,"d7")
+        game.dismissInspection();XCTAssertNil(game.relationships.mode)
+        model.networkAssistant.engine=KnightEngine();model.networkAssistant.ask()
+        for _ in 0..<200 where model.networkAssistant.hint==nil{try await Task.sleep(for:.milliseconds(5))}
+        game.refresh();XCTAssertEqual(game.board.arrows,[["g1","f3"]],"the hint's arrow");XCTAssertTrue(model.network.assistedThisTurn)
+        model.network.click("g1");model.network.click("f3");lan.scheduler.run();game.refresh()
+        XCTAssertEqual(ben.record.map{NetworkWording.hintsUsed($0,players:ben.players)},"Hints used: Ana 1 · Ben 0");XCTAssertEqual(game.board.arrows,[],"the hint goes with the turn")
+        // The inspector reads the network board, not Practice's: the knight now on f3 stands on an empty square there,
+        // so only the network position has the pawns that protect it.
+        game.select("f3");game.toggleRelationship(.protected)
+        XCTAssertEqual(game.relationships.report?.square,"f3","the network board's knight is inspected")
+        XCTAssertEqual(Set(game.board.relationshipConnectors.filter{$0.target=="f3"}.map(\.source)),["e2","g2"],"the pawns protecting it on the network board")
+        game.dismissInspection()
+        // Off: the same clicks and keys inspect nothing.
+        model.network.leave();lan.scheduler.run()
+        let plain=LAN();model.network.form.assistance = .off
+        _=try hostedGame(model,plain);game.refresh()
+        XCTAssertFalse(model.network.inspectable);game.select("e2");game.toggleRelationship(.protected)
+        XCTAssertNil(game.relationships.mode,"P does nothing without assistance");XCTAssertNil(game.relationships.selectedLabel)
+    }
+
+    /// Assistance plan A10: the app hands the coach its network game, and offers it at `hints`. A session opened for the
+    /// game stays while the network page is chosen again, ends when the learner goes to Practice and is not resumed
+    /// there; at `off` it is not offered.
+    func testTheVoiceCoachFollowsTheNetworkPage()throws {
+        let model=try NativeModel();defer{model.shutdown()}
+        let lan=LAN();model.network.form.assistance=NetworkAssistance(both:.hints)
+        _=try hostedGame(model,lan);model.playOnNetwork()
+        XCTAssertTrue(model.voice.network?.game===model.network);XCTAssertTrue(model.voice.network?.assistant===model.networkAssistant);XCTAssertTrue(model.voice.networkVoiceAvailable)
+        try model.voice.automationOpen();model.voice.receive(["type":"session.updated"])
+        XCTAssertTrue(model.voice.networkSession);XCTAssertTrue(model.voice.connected)
+        model.playOnNetwork();XCTAssertTrue(model.voice.connected,"choosing the network page again keeps the coach")
+        try model.transition(.practice);XCTAssertFalse(model.voice.connected,"the game's coach stays on the game's page");XCTAssertFalse(model.voiceResumeIntent,"and is not resumed in Practice")
+        model.network.leave();lan.scheduler.run()
+        let plain=LAN();model.network.form.assistance = .off;_=try hostedGame(model,plain)
+        XCTAssertFalse(model.voice.networkVoiceAvailable,"no coach without hints")
+    }
+
+    /// D8: a lesson playing when the learner opens the network page stops, timer and all, so its auto-advance cannot
+    /// narrate on or open the next lesson behind the game.
+    func testOpeningTheNetworkPageStopsALessonsPlayback()throws {
+        let model=try NativeModel();defer{model.shutdown()}
+        model.lesson(0);model.learning.play();XCTAssertTrue(model.learning.playing)
+        model.playOnNetwork();let network=model.session.activity
+        XCTAssertFalse(model.learning.playing,"playback stopped")
+        model.learning.advance(by:1_000_000)
+        XCTAssertFalse(model.learning.playing,"and nothing advances it");XCTAssertEqual(model.session.activity,network,"no lesson was reopened")
+    }
+    /// A10: the squares of the segment the network game's coach is speaking light up on the learner's board, and go
+    /// when the coach stops.
+    func testTheCoachsSpokenSquaresShowOnTheNetworkBoard()async throws {
+        let model=try NativeModel(),game=GameWindow(model:model);defer{game.window?.delegate=nil;model.shutdown()}
+        let lan=LAN();model.network.form.assistance=NetworkAssistance(both:.hints)
+        _=try hostedGame(model,lan);model.playOnNetwork()
+        try model.voice.automationOpen();model.voice.receive(["type":"session.updated"]);XCTAssertTrue(model.voice.networkSession)
+        let position="network:\(model.network.gameRevision ?? -1)"
+        _ = try await model.voice.execute("speak_explanation",args:["positionId":position,"displayIdentity":position,"segments":[["text":"Your knight can develop.","squares":["g1"],"kind":"advice"]]],id:"s")
+        func lit()->Bool {game.board.highlights.contains{$0.sq=="g1" && $0.kind=="focus"}}
+        // The refresh the finished response queues runs first, so only the playback below can light the square.
+        model.voice.receive(["type":"response.done","response":["status":"completed"]]);await drainMain()
+        XCTAssertFalse(lit(),"nothing is lit before the coach speaks")
+        model.voice.audio.onPlaybackStart?()
+        XCTAssertEqual(model.voice.networkFocus,["g1"])
+        for _ in 0..<100 where !lit(){try await Task.sleep(for:.milliseconds(5))}
+        XCTAssertTrue(lit(),"the spoken square is lit without a manual refresh")
+        model.voice.stopTurn()
+        for _ in 0..<100 where lit(){try await Task.sleep(for:.milliseconds(5))}
+        XCTAssertFalse(lit(),"and goes when the coach stops")
+    }
+
+    /// D8 and A10: a practice coach the learner had connected is not reopened from Practice while their network game
+    /// goes on (connecting there would open the game's coach on the wrong page), and the network page shows only what
+    /// this game's coach said, not Practice's conversation.
+    func testPracticeVoiceWaitsForTheGameAndItsWordsStayOnPractice()async throws {
+        let model=try NativeModel();defer{model.shutdown()}
+        model.practice();try model.voice.automationOpen();model.voice.receive(["type":"session.updated"])
+        XCTAssertTrue(model.voice.connected);XCTAssertFalse(model.voice.networkSession)
+        model.voice.receive(["type":"conversation.item.input_audio_transcription.completed","item_id":"practice-1","transcript":"How do knights move?"])
+        XCTAssertEqual(model.voice.history.map(\.id),["practice-1"])
+        model.playOnNetwork();XCTAssertFalse(model.voice.connected);XCTAssertTrue(model.voiceResumeIntent)
+        let lan=LAN();model.network.form.assistance=NetworkAssistance(both:.hints);_=try hostedGame(model,lan)
+        model.practice()
+        // The resume runs on the next main-loop turn: let it, while still in Practice, before asserting it did nothing.
+        await drainMain()
+        XCTAssertEqual(model.voice.connectRequests,[],"Practice does not reopen voice during the game");XCTAssertTrue(model.voiceResumeIntent,"the intent waits for the game's end")
+        model.playOnNetwork();XCTAssertTrue(model.networkVoiceHistory.isEmpty,"nothing from before this game's coach")
+        // Connected from Settings, not the network page's button: the page still shows this game's conversation.
+        model.voice.connect();try model.voice.automationOpen();model.voice.receive(["type":"session.updated"]);XCTAssertTrue(model.voice.networkSession)
+        model.voice.receive(["type":"conversation.item.input_audio_transcription.completed","item_id":"network-1","transcript":"What now?"])
+        XCTAssertEqual(model.networkVoiceHistory.map(\.id),["network-1"],"Practice's words stay on Practice")
+        // Reconnecting through the page keeps what this game's coach already said.
+        let requested=model.voice.connectRequests.count
+        model.voice.disconnect();model.connectNetworkVoice()
+        XCTAssertEqual(model.voice.connectRequests.count,requested+1,"the page's button asks the coach to connect, once")
+        try model.voice.automationOpen();model.voice.receive(["type":"session.updated"])
+        XCTAssertEqual(model.networkVoiceHistory.map(\.id),["network-1"],"a reconnection in the same game hides nothing")
+        model.voice.disconnect()
+        // The game ends while Practice is on screen: the practice coach the learner had connected comes back.
+        model.practice();await drainMain();let before=model.voice.connectRequests.count
+        model.network.leave();lan.scheduler.run();await drainMain()
+        XCTAssertNil(model.fairness.participation.role,"the game is over for this Mac")
+        XCTAssertEqual(model.voice.connectRequests.count,before+1,"the waiting practice coach reconnects once the game ends");XCTAssertFalse(model.voiceResumeIntent)
+    }
+    /// Lets work queued on the main queue run.
+    private func drainMain()async {for _ in 0..<3 {await withCheckedContinuation{done in DispatchQueue.main.async{done.resume()}}}}
 
     /// D12: an isolated automation run with `CHECKMATE_NETWORK_LOOPBACK_DIR` gets loopback listeners and the shared
     /// directory's discovery, and its hosted games are published there; without it, a build declaring no Bonjour

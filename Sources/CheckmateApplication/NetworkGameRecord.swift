@@ -3,19 +3,29 @@ import Foundation
 /// What a finished or interrupted network game leaves behind (LAN-play plan D9): the record handed to Review, and the
 /// crash file that lets the next launch say the game ended when Checkmate closed.
 public enum NetworkGameRecord {
-    /// The review record: the D9 headers (Event, White, Black, Date, Result, TimeControl, Termination from `ended`)
-    /// over the game's moves. An interrupted game has the result `*`.
-    public static func reviewPGN(_ game:NetworkPublicGame,on date:Date,calendar:Calendar=Calendar(identifier:.gregorian))->String {
+    /// The review record: the D9 headers (Event, White, Black, Date, Result, TimeControl, Termination from `ended`, and
+    /// Assistance when either side had any) over the game's moves, each assisted move followed by `{Hint shown}`
+    /// (assistance plan A11). An interrupted game has the result `*`.
+    ///
+    /// `moves` is the game's SAN as this Mac's own rules replayed the record, never the record's text: a peer's PGN may
+    /// carry tags, comments or characters that a text scan would read as moves (a tag value spanning lines, a mark that
+    /// joins a comment's closing brace), and every network game starts from the initial position.
+    public static func reviewPGN(_ game:NetworkPublicGame,moves:[String],on date:Date,calendar:Calendar=Calendar(identifier:.gregorian))->String {
         let day=calendar.dateComponents([.year,.month,.day],from:date)
         let stamp=String(format:"%04d.%02d.%02d",day.year ?? 0,day.month ?? 0,day.day ?? 0)
         let headers=game.recordHeaders(date:stamp).map{"[\($0.name) \"\(escaped($0.value))\"]"}.joined(separator:"\n")
-        return headers+"\n\n"+movetext(game.pgn,result:game.outcome?.result.rawValue ?? "*")
+        return headers+"\n\n"+movetext(moves,result:game.outcome?.result.rawValue ?? "*",assisted:Set(game.assistedPlies))
     }
-    /// The moves of a record, without its own tag pairs or result, ending in `result`.
-    static func movetext(_ pgn:String,result:String)->String {
-        let body=pgn.split(separator:"\n",omittingEmptySubsequences:false).filter{!$0.trimmingCharacters(in:.whitespaces).hasPrefix("[")}
-        var tokens=body.joined(separator:" ").split(whereSeparator:\.isWhitespace).map(String.init)
-        if let last=tokens.last,["1-0","0-1","1/2-1/2","*"].contains(last){tokens.removeLast()}
+    /// The comment after each assisted move (A11). Self-reported by the mover, as the game's wording says.
+    static let assistedComment="{Hint shown}"
+    /// Numbered movetext from White's first move, ending in `result`. The plies in `assisted` (counted from 1) are
+    /// followed by `assistedComment`.
+    static func movetext(_ moves:[String],result:String,assisted:Set<Int>=[])->String {
+        var tokens:[String]=[]
+        for (index,san) in moves.enumerated() {
+            if index%2==0 {tokens.append("\(index/2+1).")}
+            tokens.append(san);if assisted.contains(index+1){tokens.append(assistedComment)}
+        }
         return (tokens+[result]).joined(separator:" ")
     }
     private static func escaped(_ value:String)->String {value.replacingOccurrences(of:"\\",with:"\\\\").replacingOccurrences(of:"\"",with:"\\\"")}

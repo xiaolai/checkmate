@@ -29,10 +29,10 @@ final class MemoryNetworkGame {
     let hashing=NetworkHashing(reviewHash)
     let hostLog=NetworkEventLog<NetworkHostRunner.Event>()
     let runner:NetworkHostRunner
-    init(hostSide:NetworkSide = .white,timeControl:NetworkTimeControl = .untimed,spectators:Bool=true,limits:NetworkHostLimits = .standard,rules:NetworkRulesFactory=NetworkRulesFactory{try ChessRules()})throws {
+    init(hostSide:NetworkSide = .white,timeControl:NetworkTimeControl = .untimed,spectators:Bool=true,limits:NetworkHostLimits = .standard,assistance:NetworkAssistance = .off,rules:NetworkRulesFactory=NetworkRulesFactory{try ChessRules()})throws {
         transport=NetworkMemoryTransport(scheduler:scheduler)
-        let host=try NetworkHost(gameID:gameID,runEpoch:.random(using:.system),settings:NetworkHostSettings(hostName:"Ana",hostSide:hostSide,timeControl:timeControl,allowSpectators:spectators),rules:rules,hashing:hashing,limits:limits,at:scheduler.now)
-        let configuration=NetworkHostingConfiguration(gameID:gameID,seatCode:seatCode,watchCode:spectators ? watchCode:nil,serviceName:"Ana's game")
+        let host=try NetworkHost(gameID:gameID,runEpoch:.random(using:.system),settings:NetworkHostSettings(hostName:"Ana",hostSide:hostSide,timeControl:timeControl,allowSpectators:spectators,assistance:assistance),rules:rules,hashing:hashing,limits:limits,at:scheduler.now)
+        let configuration=NetworkHostingConfiguration(gameID:gameID,seatCode:seatCode,watchCode:spectators ? watchCode:nil,serviceName:"Ana's game",assistance:assistance)
         let log=hostLog
         runner=NetworkHostRunner(host:host,configuration:configuration,transport:transport,scheduler:scheduler){log.append($0)}
         runner.start();scheduler.run()
@@ -42,8 +42,8 @@ final class MemoryNetworkGame {
     var endpoints:[NetworkListenerRole:NetworkEndpoint] {for case .listening(let endpoints) in hostLog.events {return endpoints};return [:]}
     /// The guest's open connection, found by the key it used.
     var guestLink:NetworkMemoryLink? {transport.links.last{$0.key.role == .seat && $0.open && $0.connection != nil}}
-    func join(_ role:NetworkListenerRole,name:String="Ben",code:NetworkCode?=nil,reconnect:NetworkReconnectPolicy? = .standard)->MemoryNetworkClient {
-        let receiver=NetworkReceiver(gameID:gameID,role:role == .seat ? .guest(claimID:.random(using:.system)):.spectator,name:name,appVersion:"0.8.0",rules:NetworkRulesFactory{try ChessRules()},hashing:hashing)
+    func join(_ role:NetworkListenerRole,name:String="Ben",code:NetworkCode?=nil,accepting:NetworkAssistance = .off,reconnect:NetworkReconnectPolicy? = .standard)->MemoryNetworkClient {
+        let receiver=NetworkReceiver(gameID:gameID,role:role == .seat ? .guest(claimID:.random(using:.system)):.spectator,name:name,appVersion:"0.8.0",rules:NetworkRulesFactory{try ChessRules()},hashing:hashing,accepting:accepting)
         let log=NetworkEventLog<NetworkClientRunner.Event>()
         let key=NetworkAccessKey(gameID:gameID,role:role,code:code ?? (role == .seat ? seatCode:watchCode))
         let runner=NetworkClientRunner(receiver:receiver,endpoint:endpoints[role]!,key:key,transport:transport,scheduler:scheduler,reconnect:reconnect){log.append($0)}
@@ -103,6 +103,65 @@ final class NetworkRunnerTests:XCTestCase {
             XCTAssertEqual(game.transport.connectAttempts,3,"the guest twice and the rival once")
         }
     }
+    /// Assistance plan A3 through the runners: terms other than the ones accepted stop the guest with that reason: when
+    /// the host refuses the claim, and when a host's snapshot states other terms than were accepted, on joining and on
+    /// resuming.
+    func testOtherTermsStopTheGuestOnJoiningAndOnResuming()throws {
+        let refusing=try MemoryNetworkGame(assistance:NetworkAssistance(both:.hints))
+        let joiner=refusing.join(.seat,accepting:.off,reconnect:nil)
+        XCTAssertEqual(joiner.link,.stopped(.closedByHost(.assistanceChanged)),"the host refuses a claim under other terms")
+        XCTAssertNil(joiner.receiver.credential);XCTAssertEqual(refusing.host.phase,.waiting)
+        // A host whose snapshot states other terms (the hash covers only the position, so it still matches).
+        let terms=NetworkAssistance(both:.hints)
+        func forgeTerms(_ game:MemoryNetworkGame){
+            var payload=Data()
+            let hashing=game.hashing,fen={[unowned game] in game.host.fen}
+            game.transport.rewritesToLink={data in
+                guard let message=try? NetworkCodec.decode(data) else{return [data]}
+                switch message {
+                case .snapshotBegin:payload=Data();return []
+                case .snapshotPart(_,_,let part):payload.append(part);return []
+                case .snapshotEnd:
+                    guard var forged=try? JSONDecoder().decode(NetworkPublicGame.self,from:payload) else{return [data]}
+                    forged.assistance = .off
+                    let snapshot=NetworkSnapshot(snapshotID:.random(using:.system),revision:forged.revision,hash:hashing.positionHash(fen:fen(),revision:forged.revision),payload:try! JSONEncoder().encode(forged))
+                    return snapshot.messages.map{try! NetworkCodec.encode($0)}
+                default:return [data]
+                }
+            }
+        }
+        let joining=try MemoryNetworkGame(assistance:terms);defer{joining.transport.rewritesToLink={[$0]}}
+        XCTAssertEqual(joining.runner.configuration.assistance,joining.host.settings.assistance,"the list shows the terms the host enforces")
+        forgeTerms(joining)
+        let first=joining.join(.seat,accepting:terms,reconnect:nil)
+        XCTAssertEqual(first.link,.stopped(.assistanceChanged),"a joining snapshot under other terms stops the guest, with that reason")
+        XCTAssertNil(first.receiver.installed,"the forged terms were never installed")
+        let game=try MemoryNetworkGame(assistance:terms);defer{game.transport.rewritesToLink={[$0]}}
+        let guest=game.join(.seat,accepting:terms,reconnect:NetworkReconnectPolicy(delays:[.seconds(1)],window:.seconds(120)))
+        XCTAssertEqual(guest.link,.live);game.hostPlays("e2e4")
+        forgeTerms(game)
+        game.transport.cut(try XCTUnwrap(game.guestLink?.connection));game.scheduler.advance(by:.seconds(1))
+        XCTAssertEqual(guest.link,.stopped(.assistanceChanged),"the guest stops under terms it did not accept, with that reason")
+        XCTAssertEqual(guest.receiver.installed?.assistance,terms,"the forged terms were never installed")
+    }
+    /// A host that keeps the link alive with pings but never admits the joiner does not hold it connecting forever:
+    /// admission has its own deadline, which pings do not extend, and a join that misses it twice stops.
+    func testAHostThatPingsButNeverAdmitsIsGivenUpOn()throws {
+        let game=try MemoryNetworkGame();defer{game.transport.rewritesToLink={[$0]}}
+        game.transport.rewritesToLink={data in
+            guard let message=try? NetworkCodec.decode(data) else{return [data]}
+            switch message {case .watching,.snapshotBegin,.snapshotPart,.snapshotEnd:return [];default:return [data]}
+        }
+        let watcher=game.join(.watch,name:"Cy",reconnect:nil)
+        XCTAssertEqual(game.host.spectators.count,1,"the host admitted it; the joiner never heard")
+        game.scheduler.advance(by:NetworkLimits.reservationDuration - .seconds(1))
+        XCTAssertTrue(game.messages(on:try XCTUnwrap(game.hosting.connections.first),toHost:true).contains(where:isPong),"the host's pings were answered")
+        XCTAssertEqual(game.transport.connectAttempts,1)
+        game.scheduler.advance(by:.seconds(1))
+        XCTAssertEqual(game.transport.connectAttempts,2,"one fresh retry at the deadline")
+        game.scheduler.advance(by:NetworkLimits.reservationDuration)
+        XCTAssertEqual(watcher.link,.stopped(.couldNotReach),"then it stops, however often the host pings")
+    }
     /// The reconnect window is absolute: an attempt still connecting when it ends is closed then, not at its own deadline.
     func testAReconnectAttemptStillConnectingWhenTheWindowEndsIsClosedThen()throws {
         let game=try MemoryNetworkGame()
@@ -119,6 +178,21 @@ final class NetworkRunnerTests:XCTestCase {
         game.transport.stallConnects=false
         game.scheduler.advance(by:.seconds(30))
         XCTAssertEqual(guest.link,.stopped(.couldNotReach));XCTAssertEqual(game.transport.connectAttempts,2,"nothing after the stop")
+    }
+    /// The window holds after a sleep too: waking starts it afresh and arms it, so an attempt that stalls on waking stops
+    /// when the window ends, not at its own connect deadline.
+    func testAStalledAttemptOnWakingStopsWhenTheWindowEnds()throws {
+        let game=try MemoryNetworkGame()
+        let guest=game.join(.seat,reconnect:NetworkReconnectPolicy(delays:[.seconds(1)],window:.seconds(3)))
+        XCTAssertEqual(guest.link,.live)
+        guest.runner.suspend();game.scheduler.run();game.scheduler.advance(by:.seconds(60))
+        XCTAssertNotEqual(guest.link,.stopped(.couldNotReach),"asleep, the window does not run")
+        game.transport.stallConnects=true
+        guest.runner.wake();game.scheduler.run()
+        XCTAssertEqual(guest.link,.reconnecting)
+        game.scheduler.advance(by:.milliseconds(2990));XCTAssertEqual(guest.link,.reconnecting)
+        game.scheduler.advance(by:.milliseconds(10))
+        XCTAssertEqual(guest.link,.stopped(.couldNotReach),"stopped at the end of the window counted from waking")
     }
     /// D5: a host speaking another major version closes the guest with that reason, which reads as a version mismatch.
     func testAnotherMajorVersionStopsTheGuestWithAReadableReason()throws {
@@ -331,7 +405,8 @@ final class NetworkRunnerTests:XCTestCase {
         let frame=NetworkFraming.headerBytes+NetworkLimits.maximumMessageBytes
         let admitted=1+NetworkLimits.maximumSpectators,pending=2*NetworkLimits.pendingConnectionsPerListener
         let outbound=NetworkLimits.spectatorQueuesBytes+NetworkLimits.peerQueueBytes,inFlight=admitted*frame,inbound=(admitted+pending)*(frame-1)
-        XCTAssertLessThan(outbound+inFlight+inbound,1024*1024)
+        XCTAssertLessThan(outbound+inFlight+inbound+NetworkHostLimits.standard.retainedCaptureBytes,1024*1024,"with every retained capture a spectator may hold")
+        XCTAssertEqual(NetworkLimits.hostBufferBytes,1024*1024);XCTAssertGreaterThan(NetworkHostLimits.standard.retainedCaptureBytes,16*1024,"room for a long game's record")
     }
     func testTheStandardTransportLimitsAreD7s(){
         let limits=NetworkTransportLimits.standard
@@ -349,7 +424,10 @@ final class NetworkRunnerTests:XCTestCase {
         for client in [guest,watcher] {XCTAssertEqual(client.link,.stopped(.closedByHost(.hostLeft)));XCTAssertNil(client.receiver.outcome,"interrupted, no result")}
     }
     func testDiscoveryPairsListenersByGameIDNeverByName()throws {
-        let a=NetworkGameID.random(using:.system),b=NetworkGameID.random(using:.system),c=NetworkGameID.random(using:.system)
+        // Two games with the same name are told apart by their IDs' last characters: draw until those differ, so the
+        // test never fails on a one-in-a-million collision of correct IDs.
+        let a=NetworkGameID.random(using:.system),c=NetworkGameID.random(using:.system)
+        var b=NetworkGameID.random(using:.system);while b.displaySuffix==a.displaySuffix {b=NetworkGameID.random(using:.system)}
         func record(_ name:String,_ txt:[String:String],_ endpoint:String)->NetworkServiceRecord {NetworkServiceRecord(name:name,txt:txt,endpoint:NetworkEndpoint(endpoint,description:endpoint))}
         let records=[
             record("Ana's game",["game":a.text,"role":"seat"],"a-seat"),
@@ -375,7 +453,7 @@ final class NetworkRunnerTests:XCTestCase {
         discovery.stop();discovery.publish([]);scheduler.run();XCTAssertEqual(updates.count,1,"nothing after stop")
         let long=NetworkHostingConfiguration(gameID:a,seatCode:.random(using:.system),watchCode:.random(using:.system),serviceName:String(repeating:"é",count:40))
         XCTAssertLessThanOrEqual(long.serviceName(for:.watch).utf8.count,63);XCTAssertTrue(long.serviceName(for:.watch).hasSuffix(NetworkHostingConfiguration.watchSuffix))
-        XCTAssertEqual(NetworkServiceRecord.published(long,.seat,at:NetworkEndpoint("x",description:"x")).txt,["game":a.text,"role":"seat"])
+        XCTAssertEqual(NetworkServiceRecord.published(long,.seat,at:NetworkEndpoint("x",description:"x")).txt,["game":a.text,"role":"seat","assist":"oo"],"the terms, for display only (assistance plan A3)")
     }
 }
 /// The real rules, except that one move fails as a runtime failure would.
@@ -390,4 +468,5 @@ private final class FailingRules:NetworkChessRules {
     func networkHasOnlyKing(_ side:NetworkSide)throws -> Bool {try rules.networkHasOnlyKing(side)}
     func networkPGN()throws -> String {try rules.networkPGN()}
     func networkLoad(pgn:String)throws {try rules.networkLoad(pgn:pgn)}
+    func networkMoves()throws -> [String] {try rules.networkMoves()}
 }

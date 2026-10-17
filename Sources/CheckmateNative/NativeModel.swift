@@ -14,6 +14,8 @@ import RealtimeConnection
     let reviewStore:ReviewStore,reviewAnalyzer:ReviewAnalyzer
     /// The network-game fairness check every engine and voice component shares (LAN-play plan D8), and the network game.
     let fairness:FairnessPolicy,network:NetworkGameController
+    /// The network game's own hints, under its agreed terms (assistance plan A8).
+    let networkAssistant:NetworkAssistant
     @Published var reviews:[ReviewIndexEntry]=[]
     /// The review workspace and a draft review are part of the session's activity (B8.2), not flags of their own.
     var reviewWorkspace:Bool {session.activity.inReviewWorkspace}
@@ -72,7 +74,7 @@ import RealtimeConnection
         // One fairness check for every component that can reach the engine or the voice coach (LAN-play plan D8).
         let engine=NativeEngine(),fairness=FairnessPolicy();self.fairness=fairness;reviewAnalyzer=ReviewAnalyzer(engine:engine,cacheDirectory:store.directory.appendingPathComponent("ReviewAnalysis"),fairness:fairness);reviewStore=ReviewStore(directory:store.directory.appendingPathComponent("Reviews"))
         reviewSaves=ReviewSaveCoordinator(store:reviewStore)
-        session=try GameSession(engine:engine,state:state,fairness:fairness);review.fairness=fairness;network=try NetworkGameController(services:Self.networkServices(directory:store.directory),participation:fairness.participation,playerName:Self.defaultPlayerName);session.network=network;learning=try LearningPlayer(session:session);audio=NativeAudio(scores:learning.library.sounds);learning.audio=audio
+        session=try GameSession(engine:engine,state:state,fairness:fairness);review.fairness=fairness;network=try NetworkGameController(services:Self.networkServices(directory:store.directory),participation:fairness.participation,playerName:Self.defaultPlayerName);session.network=network;networkAssistant=NetworkAssistant(game:network,fairness:fairness,engine:engine);learning=try LearningPlayer(session:session);audio=NativeAudio(scores:learning.library.sounds);learning.audio=audio
         training=TrainingRolloutPolicy.enabled ? TrainingController(session:session,learning:learning):nil;training?.games.engine=engine;training?.games.fairness=fairness
         companion=try CompanionBroker(session:session,directory:store.directory.appendingPathComponent("companion"));voice=try VoiceCoach(session:session)
         usage=UsageLedger(directory:store.directory.appendingPathComponent("Usage"))
@@ -84,8 +86,12 @@ import RealtimeConnection
         }
         lessonLanguages.language=state.settings.lessonLanguage;lessonLanguages.voice=state.settings.lessonVoice
         wireLessonLanguages();wireAgentTools();wirePersistence();wireSounds();loadSavedReviews();observeSession()
-        // Views that hide engine output during a network game redraw when it begins or ends.
-        fairness.participation.observe{[weak self] _ in self?.objectWillChange.send()}
+        // Views that hide engine output during a network game redraw when it begins or ends; a practice coach that
+        // waited out the game (D8) reconnects once it ends, if Practice is on screen then.
+        fairness.participation.observe{[weak self] role in self?.objectWillChange.send();if role==nil{DispatchQueue.main.async{self?.resumeVoiceIfIntended()}}}
+        // Whose conversation the coach's history is: it is cleared whenever the coach opens for another one (practice,
+        // or another network game), so the game it last opened for, however it was connected, owns what it holds.
+        voice.$connected.filter{$0}.sink{[weak self] _ in guard let self else{return};self.networkVoiceGame=self.voice.networkSession ? self.network.record?.gameID:nil}.store(in:&observations)
         // The lobby browses only while the network place is on screen (D1); the game itself carries on elsewhere (D9).
         session.$activity.removeDuplicates().sink{[weak self] activity in self?.network.setShown(activity == .at(.network))}.store(in:&observations)
         // A host whose Mac sleeps stops its game as interrupted (D9).
@@ -102,7 +108,7 @@ import RealtimeConnection
     var networkSettingsRequests=0
     /// Lesson languages share the one narration channel and the voice coach's connection.
     private func wireLessonLanguages(){
-        learning.packs=lessonLanguages.store;voice.usageLedger=usage;voice.connectionBlocked={[weak self] in self?.lessonLanguages.recording==true || self?.audio.isNarrationPlaying==true || self?.voicePreview.playing==true}
+        learning.packs=lessonLanguages.store;voice.usageLedger=usage;voice.network=(network,networkAssistant);voice.connectionBlocked={[weak self] in self?.lessonLanguages.recording==true || self?.audio.isNarrationPlaying==true || self?.voicePreview.playing==true}
         voice.connectionBlockReason={[weak self] in self?.lessonLanguages.recording==true ? "Finish or cancel lesson recording before connecting the voice coach.":self?.voicePreview.playing==true ? "Wait for the voice preview to finish before connecting the voice coach.":"Stop lesson or preview playback before connecting the voice coach."}
         reconnectVoice={[weak self] in self?.voice.connect(greet:false)}
         voicePreview.usageLedger=usage;voicePreview.onPlayingChanged={[weak self] playing in self?.voice.externalPlayback=playing}
@@ -162,8 +168,10 @@ import RealtimeConnection
     }
     /// The launch attempt waited while the app was hidden (Cmd-H during the check, or launched hidden); run it now.
     func resumeConnectionsIfDeferred(){connectionStartup?.resumeIfDeferred()}
-    /// Voice may take the session only in practice itself: never in a lesson, puzzle, review or the review workspace (TX-3).
-    var voiceMayConnect:Bool {session.activity == .at(.practice) && !session.suspended}
+    /// Voice may take the session only in practice itself: never in a lesson, puzzle, review or the review workspace (TX-3),
+    /// and never during a network game (D8). A coach for the network game is opened on its own page (assistance plan
+    /// A10); connecting from Practice then would open that one, so a practice session's resume waits for the game's end.
+    var voiceMayConnect:Bool {session.activity == .at(.practice) && !session.suspended && fairness.engineHelpAllowed}
     /// Away: the app hidden or its window minimised (TX-5). Agents and Stockfish wait, voice disconnects; on return the
     /// connection resumes and a launch check that waited runs.
     private(set) var away=false
@@ -175,9 +183,19 @@ import RealtimeConnection
     /// visible again, without a new greeting. Leaving while voice was off, or an MCP companion taking the session,
     /// leaves it off.
     private(set) var voiceResumeIntent=false
+    /// The network game the coach last opened for, or nil when it last opened for Practice (A10).
+    private var networkVoiceGame:NetworkGameID?
+    /// The network page shows only what this game's coach said: never Practice's conversation or an earlier game's. A
+    /// renewed or reconnected session in the same game keeps it, whether it was connected here or from Settings.
+    var networkVoiceHistory:[VoiceHistory] {
+        guard let game=network.record?.gameID,networkVoiceGame==game else{return []}
+        return voice.history
+    }
+    /// The network page's Connect Voice Coach.
+    func connectNetworkVoice(){voice.connect()}
     var reconnectVoice:()->Void={}
     private var claimsWhenVoiceLeft=0
-    private func rememberVoice(){if voice.connected || voice.connecting{voiceResumeIntent=true;claimsWhenVoiceLeft=session.companionClaims}}
+    private func rememberVoice(){if !voice.networkSession,voice.connected || voice.connecting{voiceResumeIntent=true;claimsWhenVoiceLeft=session.companionClaims}}
     func resumeVoiceIfIntended(){
         guard voiceResumeIntent,!away,!shuttingDown,voiceMayConnect else{return}
         if session.companionEnabled || session.companionClaims != claimsWhenVoiceLeft{voiceResumeIntent=false;return}
@@ -345,7 +363,11 @@ import RealtimeConnection
         panel.begin {response in
             guard response == .OK,let url=panel.url else{return}
             do {
-                let archive=try Data(contentsOf:url);var state=self.session.state
+                // Read no more than an archive may hold, so an oversized file is refused without loading it whole.
+                let handle=try FileHandle(forReadingFrom:url);defer{try? handle.close()}
+                let archive=try handle.read(upToCount:StateStore.maximumBytes+1) ?? Data()
+                guard archive.count<=StateStore.maximumBytes else{throw CheckmateError.invalid("Invalid progress archive.")}
+                var state=self.session.state
                 let report=try LegacyImporter.apply(archive,to:&state,course:self.learning.library)
                 let alert=NSAlert()
                 if report.duplicate {alert.messageText="Already imported";alert.informativeText=report.summary;alert.runModal();return}
@@ -510,8 +532,12 @@ import RealtimeConnection
         cancelMoveSounds();voicePreview.cancel()
         switch next {
         case .returnToGame:break
-        case .practice:if !reviewing{learning.pause()};audio.stop()
-        case .lesson,.puzzles,.network:rememberVoice();voice.disconnect();audio.stop()
+        // A coach opened for the network game (assistance plan A10) coaches it only on its own page; the network page
+        // itself keeps it, and ends a practice session.
+        case .practice:if !reviewing{learning.pause()};if voice.networkSession{voice.disconnect()};audio.stop()
+        // A lesson's player is paused too: its timer would otherwise narrate and auto-advance into a lesson (D8).
+        case .network:learning.pause();if !voice.networkSession{rememberVoice();voice.disconnect()};audio.stop()
+        case .lesson,.puzzles:rememberVoice();voice.disconnect();audio.stop()
         case .reviewWorkspace,.review:learning.pause();rememberVoice();voice.disconnect();audio.stopAll()
         case .importProgress:saveTask?.cancel();voice.disconnect();usage.flushForShutdown();companion.disable();learning.pause();audio.stopAll()
         case .practiceFork:session.cancelWork()

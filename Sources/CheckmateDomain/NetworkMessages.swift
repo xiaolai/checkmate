@@ -1,7 +1,10 @@
 import Foundation
 /// Why a connection is closed. Sent in `bye`; an unknown reason from a newer peer reads as `unknown`.
 public enum NetworkByeReason:String,Codable,CaseIterable {
-    case seatTaken,badSnapshot,slow,protocolVersion,malformed,timeout,rateLimited,notAllowed,full,busy,replaced,badCredential,gameOver,hostLeft,leaving,unknown
+    case seatTaken,badSnapshot,slow,protocolVersion,malformed,timeout,rateLimited,notAllowed,full,busy,replaced,badCredential,gameOver,hostLeft,leaving
+    /// The guest accepted other assistance terms than the game's (assistance plan A3). A 1.0 peer reads it as `unknown`.
+    case assistanceChanged
+    case unknown
     public init(from decoder:Decoder)throws {self=NetworkByeReason(rawValue:try decoder.singleValueContainer().decode(String.self)) ?? .unknown}
 }
 /// Why a command was refused (D2, D5). Sent in `rejected`; an unknown reason from a newer peer reads as `unknown`.
@@ -24,8 +27,10 @@ public enum NetworkRejectReason:String,Codable,CaseIterable {
 public struct NetworkMoved:Equatable {
     public let revision:Int,uci:String,san:String,hash:String
     public let clocks:NetworkClocks?,receiptFor:NetworkID?
-    public init(revision:Int,uci:String,san:String,hash:String,clocks:NetworkClocks?,receiptFor:NetworkID?){self.revision=revision;self.uci=uci;self.san=san;self.hash=hash;self.clocks=clocks;self.receiptFor=receiptFor}
-    func withoutReceipt()->NetworkMoved {NetworkMoved(revision:revision,uci:uci,san:san,hash:hash,clocks:clocks,receiptFor:nil)}
+    /// The mover said a hint was shown to them this turn (assistance plan A7). Goes to the guest and to spectators.
+    public let assisted:Bool
+    public init(revision:Int,uci:String,san:String,hash:String,clocks:NetworkClocks?,receiptFor:NetworkID?,assisted:Bool=false){self.revision=revision;self.uci=uci;self.san=san;self.hash=hash;self.clocks=clocks;self.receiptFor=receiptFor;self.assisted=assisted}
+    func withoutReceipt()->NetworkMoved {NetworkMoved(revision:revision,uci:uci,san:san,hash:hash,clocks:clocks,receiptFor:nil,assisted:assisted)}
 }
 /// The only result a network game has (D5). It advances `revision`, like an applied move.
 public struct NetworkEnded:Equatable {
@@ -34,12 +39,14 @@ public struct NetworkEnded:Equatable {
 }
 /// Every message of D5's table. Guest/spectator → host first, then host → guest/spectator.
 public enum NetworkMessage:Equatable {
-    /// A spectator's carries no `claimID`; a guest's always does.
-    case hello(name:String,appVersion:String,claimID:NetworkSecret?)
+    /// A spectator's carries no `claimID`; a guest's always does. A 1.1 guest also states the assistance terms it
+    /// accepted (assistance plan A3); a 1.0 guest and a spectator state none.
+    case hello(name:String,appVersion:String,claimID:NetworkSecret?,assistance:NetworkAssistance?=nil)
     case seatedAck
     case resume(gameID:NetworkGameID,credential:NetworkSecret)
     case resync
-    case move(gameID:NetworkGameID,commandID:NetworkID,revision:Int,uci:String)
+    /// `assisted`: a hint was shown to the mover this turn (A7).
+    case move(gameID:NetworkGameID,commandID:NetworkID,revision:Int,uci:String,assisted:Bool=false)
     /// Valid at any revision, so it carries none.
     case resign(gameID:NetworkGameID,commandID:NetworkID)
     case drawOffer(gameID:NetworkGameID,commandID:NetworkID,revision:Int)
@@ -120,6 +127,9 @@ public enum NetworkCodec {
         var commandID,offerID,snapshotID,nonce,receiptFor:NetworkID?
         var revision,totalBytes,parts,index:Int?
         var accept:Bool?
+        /// 1.1 (A4): written only when they say something, so a message without assistance has the 1.0 shape.
+        var assistance:NetworkAssistance?
+        var assisted:Bool?
         var by:NetworkSide?
         var clocks:NetworkClocks?
         var reason:String?
@@ -129,10 +139,10 @@ public enum NetworkCodec {
         init(_ message:NetworkMessage){
             self.init(type:message.type)
             switch message {
-            case .hello(let name,let appVersion,let claimID):self.name=name;self.appVersion=appVersion;self.claimID=claimID
+            case .hello(let name,let appVersion,let claimID,let assistance):self.name=name;self.appVersion=appVersion;self.claimID=claimID;self.assistance=assistance
             case .seatedAck,.resync,.resumed,.watching:break
             case .resume(let gameID,let credential):self.gameID=gameID;self.credential=credential
-            case .move(let gameID,let commandID,let revision,let uci):self.gameID=gameID;self.commandID=commandID;self.revision=revision;self.uci=uci
+            case .move(let gameID,let commandID,let revision,let uci,let assisted):self.gameID=gameID;self.commandID=commandID;self.revision=revision;self.uci=uci;self.assisted=assisted ? true:nil
             case .resign(let gameID,let commandID):self.gameID=gameID;self.commandID=commandID
             case .drawOffer(let gameID,let commandID,let revision),.claimDraw(let gameID,let commandID,let revision):self.gameID=gameID;self.commandID=commandID;self.revision=revision
             case .drawAnswer(let gameID,let commandID,let offerID,let accept):self.gameID=gameID;self.commandID=commandID;self.offerID=offerID;self.accept=accept
@@ -142,7 +152,7 @@ public enum NetworkCodec {
             case .snapshotBegin(let snapshotID,let revision,let hash,let totalBytes,let parts):self.snapshotID=snapshotID;self.revision=revision;self.hash=hash;self.totalBytes=totalBytes;self.parts=parts
             case .snapshotPart(let snapshotID,let index,let data):self.snapshotID=snapshotID;self.index=index;self.data=data.base64EncodedString()
             case .snapshotEnd(let snapshotID):self.snapshotID=snapshotID
-            case .moved(let moved):revision=moved.revision;uci=moved.uci;san=moved.san;hash=moved.hash;clocks=moved.clocks;receiptFor=moved.receiptFor
+            case .moved(let moved):revision=moved.revision;uci=moved.uci;san=moved.san;hash=moved.hash;clocks=moved.clocks;receiptFor=moved.receiptFor;assisted=moved.assisted ? true:nil
             case .rejected(let commandID,let reason):self.commandID=commandID;self.reason=reason.rawValue
             case .drawOffered(let offer):offerID=offer.offerID;by=offer.by
             case .drawDeclined(let offerID):self.offerID=offerID
@@ -152,7 +162,7 @@ public enum NetworkCodec {
         }
         private func need<T>(_ value:T?,_ field:String)throws -> T {guard let value else{throw NetworkCodecError.malformed("missing \(field)")};return value}
         private func check(_ condition:Bool,_ field:String)throws {guard condition else{throw NetworkCodecError.malformed("invalid \(field)")}}
-        private func revisionValue()throws -> Int {let value=try need(revision,"revision");try check(value>=0,"revision");return value}
+        private func revisionValue()throws -> Int {let value=try need(revision,"revision");try check((0...NetworkLimits.maximumRevision).contains(value),"revision");return value}
         private func uciValue()throws -> String {let value=try need(uci,"uci");try check(ChessNotation.validUCI(value),"uci");return value}
         private func clocksValue()throws -> NetworkClocks? {try check(clocks?.valid ?? true,"clocks");return clocks}
         private func hashValue()throws -> String {let value=try need(hash,"hash");try check(!value.isEmpty && value.utf8.count<=NetworkLimits.maximumHashBytes && value.utf8.allSatisfy{(0x21...0x7E).contains($0)},"hash");return value}
@@ -160,11 +170,11 @@ public enum NetworkCodec {
             switch type {
             case "hello":
                 let name=try need(self.name,"name"),appVersion=try need(self.appVersion,"appVersion");try check(NetworkText.valid(name),"name");try check(NetworkText.valid(appVersion),"appVersion")
-                return .hello(name:name,appVersion:appVersion,claimID:claimID)
+                return .hello(name:name,appVersion:appVersion,claimID:claimID,assistance:assistance)
             case "seatedAck":return .seatedAck
             case "resume":return .resume(gameID:try need(gameID,"gameID"),credential:try need(credential,"credential"))
             case "resync":return .resync
-            case "move":return .move(gameID:try need(gameID,"gameID"),commandID:try need(commandID,"commandID"),revision:try revisionValue(),uci:try uciValue())
+            case "move":return .move(gameID:try need(gameID,"gameID"),commandID:try need(commandID,"commandID"),revision:try revisionValue(),uci:try uciValue(),assisted:assisted ?? false)
             case "resign":return .resign(gameID:try need(gameID,"gameID"),commandID:try need(commandID,"commandID"))
             case "drawOffer":return .drawOffer(gameID:try need(gameID,"gameID"),commandID:try need(commandID,"commandID"),revision:try revisionValue())
             case "drawAnswer":return .drawAnswer(gameID:try need(gameID,"gameID"),commandID:try need(commandID,"commandID"),offerID:try need(offerID,"offerID"),accept:try need(accept,"accept"))
@@ -186,7 +196,7 @@ public enum NetworkCodec {
             case "snapshotEnd":return .snapshotEnd(snapshotID:try need(snapshotID,"snapshotID"))
             case "moved":
                 let san=try need(self.san,"san");try check(NetworkText.valid(san,maximumBytes:NetworkLimits.maximumSANBytes),"san")
-                return .moved(NetworkMoved(revision:try revisionValue(),uci:try uciValue(),san:san,hash:try hashValue(),clocks:try clocksValue(),receiptFor:receiptFor))
+                return .moved(NetworkMoved(revision:try revisionValue(),uci:try uciValue(),san:san,hash:try hashValue(),clocks:try clocksValue(),receiptFor:receiptFor,assisted:assisted ?? false))
             case "rejected":return .rejected(commandID:try need(commandID,"commandID"),reason:NetworkRejectReason(rawValue:try need(reason,"reason")) ?? .unknown)
             case "drawOffered":return .drawOffered(NetworkDrawOffer(offerID:try need(offerID,"offerID"),by:try need(by,"by")))
             case "drawDeclined":return .drawDeclined(offerID:try need(offerID,"offerID"))

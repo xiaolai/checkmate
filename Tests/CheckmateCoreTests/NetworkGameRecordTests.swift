@@ -1,6 +1,7 @@
 import XCTest
 @testable import CheckmateApplication
 @testable import CheckmateDomain
+import CheckmateRules
 
 /// LAN-play plan D9: the review record a network game hands to Review, and the crash file the next launch reads.
 final class NetworkGameRecordTests:XCTestCase {
@@ -10,9 +11,12 @@ final class NetworkGameRecordTests:XCTestCase {
     private let day=DateComponents(calendar:Calendar(identifier:.gregorian),timeZone:TimeZone(identifier:"UTC"),year:2026,month:10,day:6).date!
     private var utc:Calendar {var calendar=Calendar(identifier:.gregorian);calendar.timeZone=TimeZone(identifier:"UTC")!;return calendar}
 
+    /// The SAN this Mac's rules replay from a record: what the controller hands to `reviewPGN`.
+    private func moves(_ pgn:String)throws -> [String] {let rules=try ChessRules();try rules.restore(pgn);return try rules.moveHistory().map(\.san)}
+
     /// The headers come from `ended`, the game's own tags are dropped, and the movetext ends in the real result.
-    func testAFinishedGameCarriesTheEndedHeaders(){
-        let record=NetworkGameRecord.reviewPGN(game(pgn:"[Event \"?\"]\n[Result \"*\"]\n\n1. e4 e5 2. Qh5 Nc6 *",outcome:NetworkOutcome(result:.blackWins,termination:.resignation)),on:day,calendar:utc)
+    func testAFinishedGameCarriesTheEndedHeaders()throws {
+        let record=NetworkGameRecord.reviewPGN(game(pgn:"",outcome:NetworkOutcome(result:.blackWins,termination:.resignation)),moves:try moves("[Event \"?\"]\n[Result \"*\"]\n\n1. e4 e5 2. Qh5 Nc6 *"),on:day,calendar:utc)
         XCTAssertEqual(record,"""
         [Event "Checkmate network game"]
         [Site "?"]
@@ -29,8 +33,36 @@ final class NetworkGameRecordTests:XCTestCase {
     }
     /// An interrupted game has no result and no Termination.
     func testAnInterruptedGameEndsInAStar(){
-        let record=NetworkGameRecord.reviewPGN(game(pgn:"1. d4 d5",outcome:nil),on:day,calendar:utc)
+        let record=NetworkGameRecord.reviewPGN(game(pgn:"",outcome:nil),moves:["d4","d5"],on:day,calendar:utc)
         XCTAssertTrue(record.contains("[Result \"*\"]"));XCTAssertFalse(record.contains("Termination"));XCTAssertTrue(record.hasSuffix("1. d4 d5 *"))
+        XCTAssertTrue(NetworkGameRecord.reviewPGN(game(pgn:"",outcome:nil),moves:["d4"],on:day,calendar:utc).hasSuffix("1. d4 *"),"an odd number of plies")
+    }
+    /// Assistance plan A11: the terms as a header, and each assisted move followed by its comment, which Review's
+    /// importer reads as a comment, not a move.
+    func testAnAssistedGameNamesItsTermsAndMarksAssistedMoves()throws {
+        var assisted=game(pgn:"",outcome:NetworkOutcome(result:.whiteWins,termination:.checkmate))
+        assisted.revision=8;assisted.assistance=NetworkAssistance(white:.hints,black:.off);assisted.assistedPlies=[1,5,7]
+        let record=NetworkGameRecord.reviewPGN(assisted,moves:["e4","e5","Qh5","Nc6","Bc4","Nf6","Qxf7#"],on:day,calendar:utc)
+        XCTAssertTrue(record.contains("[TimeControl \"600+5\"]\n[Assistance \"White: Hints on request; Black: Off\"]\n[Termination \"Checkmate\"]"),record)
+        XCTAssertTrue(record.hasSuffix("1. e4 {Hint shown} e5 2. Qh5 Nc6 3. Bc4 {Hint shown} Nf6 4. Qxf7# {Hint shown} 1-0"),record)
+        let documents=try PGNImporter.parse(Data(record.utf8)),document=try XCTUnwrap(documents.first)
+        XCTAssertEqual(documents.count,1);XCTAssertEqual(document.mainline.count,7,"the comments are not moves")
+        for (index,node) in document.mainline.enumerated() {XCTAssertEqual(document.nodes[node].commentsAfter,[1,5,7].contains(index+1) ? ["Hint shown"]:[],"ply \(index+1)")}
+        XCTAssertFalse(NetworkGameRecord.reviewPGN(game(pgn:"",outcome:nil),moves:["d4","d5"],on:day,calendar:utc).contains("Assistance"),"no header without assistance")
+    }
+    /// The record's text never becomes moves: the moves are what the rules replayed. A tag value spanning lines that
+    /// looks like movetext, comments, a variation, a NAG, and a mark that joins a comment's closing brace (U+0600) all
+    /// leave the reviewed game exactly as played, with each assisted comment after its own move.
+    func testOnlyTheReplayedMovesReachTheRecord()throws {
+        for pgn in ["[Event \"x\n1. d4 {\"]\n\n1. e4 e5 2. Nf3 Nc6 *","1. e4 {note\u{0600}} e5 2. Nf3 Nc6 *","1. e4 {note here} e5 (1... c5 {a variation} 2. Nf3) 2. Nf3 $1 ; to the end of the line\nNc6 *"] {
+            var commented=game(pgn:pgn,outcome:nil);commented.assistedPlies=[2,4]
+            let replayed=try moves(pgn);XCTAssertEqual(replayed,["e4","e5","Nf3","Nc6"],"the rules' own reading of \(pgn.debugDescription)")
+            let record=NetworkGameRecord.reviewPGN(commented,moves:replayed,on:day,calendar:utc)
+            XCTAssertTrue(record.hasSuffix("1. e4 e5 {Hint shown} 2. Nf3 Nc6 {Hint shown} *"),record)
+            let document=try XCTUnwrap(PGNImporter.parse(Data(record.utf8)).first)
+            XCTAssertEqual(document.mainline.map{document.nodes[$0].san},["e4","e5","Nf3","Nc6"])
+            let second=try XCTUnwrap(document.mainline.dropFirst().first);XCTAssertEqual(document.nodes[second].commentsAfter,["Hint shown"])
+        }
     }
     /// The crash file round-trips, names the other player, is private to the user, and an unreadable one is removed.
     func testTheCrashFileHoldsThePublicRecordOnly()throws {
@@ -45,6 +77,9 @@ final class NetworkGameRecordTests:XCTestCase {
         XCTAssertEqual(permissions,0o600)
         let text=try String(contentsOf:file.url,encoding:.utf8)
         for forbidden in ["credential","claimID","epoch"]{XCTAssertFalse(text.contains(forbidden),forbidden)}
+        // A11: the crash file keeps the terms and the assisted moves, through the public record alone.
+        var assisted=entry.game;assisted.assistance=NetworkAssistance(white:.guided,black:.insight);assisted.assistedPlies=[1]
+        try file.save(NetworkCrashFile.Entry(game:assisted,part:.black));XCTAssertEqual(file.pending()?.game.assistance,assisted.assistance);XCTAssertEqual(file.pending()?.game.assistedPlies,[1])
         file.clear();XCTAssertNil(file.pending())
         try FileManager.default.createDirectory(at:file.url.deletingLastPathComponent(),withIntermediateDirectories:true)
         try Data("not json".utf8).write(to:file.url);XCTAssertNil(file.pending());XCTAssertFalse(FileManager.default.fileExists(atPath:file.url.path))

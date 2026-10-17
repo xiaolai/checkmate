@@ -33,7 +33,7 @@ public final class ChessRules {
     public var automaticDraw:Bool {(try? ruleDrawReason()) != nil}
     public var draw:Bool {stalemate || insufficientMaterial || automaticDraw}
     /// Claimable, not automatic: threefold repetition, or 50 moves by each side without a capture or pawn move.
-    public var threefoldRepetition:Bool {(try? flag("game.isThreefoldRepetition()")) ?? false}
+    public var threefoldRepetition:Bool {((try? positionRepetitions()) ?? 0)>=3}
     public var fiftyMoveClaim:Bool {(try? fiftyMoveRuleReached()) ?? false}
     /// How the game ended by the rules, or nil while it continues.
     public var ending:(result:String,reason:String)? {try? rulesEnding()}
@@ -94,6 +94,8 @@ public final class ChessRules {
     // Throwing queries (plan rule 4). The convenience properties above fall back to empty or false values; training must
     // never grade on those, so a runtime failure here is an error, not "no legal moves" or "not in check".
     public func currentFEN()throws -> String {try text("game.fen()")}
+    /// The moves played since the start of the record, as `records` but throwing on a runtime failure.
+    public func moveHistory()throws -> [MoveRecord] {try decoded("game.history({verbose:true})",[MoveRecord].self)}
     public func currentTurn()throws -> String {let value=try text("game.turn()");guard ["w","b"].contains(value) else{throw CheckmateError.invalid("Invalid chess operation.")};return value}
     public func isCheck()throws -> Bool {try flag("game.isCheck()")}
     public func isCheckmate()throws -> Bool {try flag("game.isCheckmate()")}
@@ -108,8 +110,16 @@ public final class ChessRules {
     }
     /// The 75-move rule or fivefold repetition, whichever ends the game now; nil while neither does.
     private func ruleDrawReason()throws -> String? {
-        let value=try text("(()=>{const f=game.fen().split(' ');if(Number(f[4])>=150&&!game.isCheckmate())return 'the 75-move rule';const h=game.history({verbose:true}),key=fen=>fen.split(' ').slice(0,4).join(' '),current=key(game.fen()),positions=[h.length?h[0].before:game.fen(),...h.map(m=>m.after)];return positions.filter(fen=>key(fen)===current).length>=5?'fivefold repetition':''})()")
-        return value.isEmpty ? nil:value
+        if try flag("Number(game.fen().split(' ')[4])>=150&&!game.isCheckmate()"){return "the 75-move rule"}
+        return try positionRepetitions()>=5 ? "fivefold repetition":nil
+    }
+    /// How often the current position has stood in this game, this time included. Positions are the same when their
+    /// placement, side to move, castling rights and en passant square are: `fen()` names an en passant square only when
+    /// the capture is legal, so a pawn pinned to its king cannot make two positions differ. chess.js's own repetition
+    /// count hashes the square whenever an enemy pawn stands beside it, pinned or not, so it is not used.
+    private func positionRepetitions()throws -> Int {
+        guard let count=Int(try text("(()=>{const h=game.history({verbose:true}),key=fen=>fen.split(' ').slice(0,4).join(' '),current=key(game.fen()),positions=[h.length?h[0].before:game.fen(),...h.map(m=>m.after)];return String(positions.filter(fen=>key(fen)===current).length)})()")) else{throw CheckmateError.invalid("Invalid chess operation.")}
+        return count
     }
     /// Automatic draws other than stalemate: insufficient material, the 75-move rule or fivefold repetition.
     public func automaticDrawReason()throws -> String? {
@@ -118,7 +128,7 @@ public final class ChessRules {
     }
     /// Claimable, not automatic: threefold repetition, or 50 moves by each side without a capture or pawn move.
     public func claimableDrawReason()throws -> String? {
-        if try flag("game.isThreefoldRepetition()"){return "threefold repetition"}
+        if try positionRepetitions()>=3{return "threefold repetition"}
         return try fiftyMoveRuleReached() ? "the 50-move rule":nil
     }
     /// 100 plies (50 moves by each side) without a capture or pawn move: claimable, not automatic.

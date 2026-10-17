@@ -18,6 +18,8 @@ public protocol NetworkChessRules:AnyObject {
     func networkPGN()throws -> String
     /// Replaces this game with the record's, only once the whole record has loaded.
     func networkLoad(pgn:String)throws
+    /// The moves played since the start of the record, in UCI, in order.
+    func networkMoves()throws -> [String]
 }
 public struct NetworkPlayedMove:Equatable {
     public let uci:String,san:String

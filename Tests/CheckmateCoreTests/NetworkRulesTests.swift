@@ -75,6 +75,28 @@ final class NetworkRulesTests:XCTestCase {
         }
         XCTAssertEqual(net.host.positionHash.count,64,"SHA-256 in hex");XCTAssertNoThrow(try NetworkCodec.encode(.snapshotBegin(snapshotID:NetworkID.random(using:.system),revision:5,hash:net.host.positionHash,totalBytes:1,parts:1)))
     }
+    /// A snapshot is this game only if its record extends the receiver's own start, here the initial position, and its
+    /// revision counts exactly its moves (and the end): a record that sets up another position, or a revision that
+    /// would misplace assisted plies, is refused before anything is installed.
+    func testASnapshotMustExtendTheStartAndCountItsMoves()throws {
+        let standard=NetworkRulesFactory{try ChessRules()},gameID=NetworkGameID.random(using:.system)
+        func install(_ rules:ChessRules,revision:Int,outcome:NetworkOutcome?=nil)throws {
+            let pgn=try rules.networkPGN(),hash=hashing.positionHash(fen:try rules.networkFEN(),revision:revision)
+            let game=NetworkPublicGame(gameID:gameID,revision:revision,hostSide:.white,whiteName:"Ana",blackName:"Ben",timeControl:.untimed,pgn:pgn,clocks:nil,openOffer:nil,outcome:outcome)
+            _ = try NetworkSnapshotInstaller.install(try JSONEncoder().encode(game),revision:revision,hash:hash,gameID:gameID,rules:standard,hashing:hashing)
+        }
+        func refused(_ reason:String,_ work:()throws->Void,file:StaticString=#filePath,line:UInt=#line){
+            XCTAssertThrowsError(try work(),file:file,line:line){XCTAssertEqual($0 as? NetworkSnapshotError,.badSnapshot(reason),file:file,line:line)}
+        }
+        let played=try ChessRules();_ = try played.networkPlay(uci:"e2e4")
+        XCTAssertNoThrow(try install(played,revision:1),"one move at revision 1")
+        refused("revision"){try install(played,revision:2)}
+        refused("revision"){try install(played,revision:1,outcome:NetworkOutcome(result:.whiteWins,termination:.resignation))}
+        XCTAssertNoThrow(try install(played,revision:2,outcome:NetworkOutcome(result:.whiteWins,termination:.resignation)),"and the end at revision 2")
+        let setUp=try ChessRules(fen:"4k3/8/8/8/8/8/4P3/4K3 w - - 0 1");_ = try setUp.networkPlay(uci:"e2e4")
+        XCTAssertTrue(try setUp.networkPGN().contains("[FEN "),"a set-up record names its start")
+        refused("start"){try install(setUp,revision:1)}
+    }
     func testATwoThousandPlySnapshotRoundTrips()throws {
         let pgn=try Self.longGame(plies:2_000)
         let built=try ChessRules();try built.networkLoad(pgn:pgn)
@@ -86,6 +108,38 @@ final class NetworkRulesTests:XCTestCase {
         let frames=net.sent.values.joined()
         XCTAssertTrue(frames.allSatisfy{$0.count<=NetworkLimits.maximumMessageBytes})
         XCTAssertGreaterThan(frames.filter{if case .snapshotPart?=try? NetworkCodec.decode($0) {return true};return false}.count,1,"more than one part")
+    }
+    /// The same long record sent to a receiver whose own game starts at the initial position: every one of its 2,000
+    /// moves is replayed and installed, not preloaded.
+    func testATwoThousandPlySnapshotInstallsOnAFreshReceiver()throws {
+        let pgn=try Self.longGame(plies:2_000),built=try ChessRules();try built.networkLoad(pgn:pgn)
+        let gameID=NetworkGameID.random(using:.system),fen=try built.networkFEN()
+        let game=NetworkPublicGame(gameID:gameID,revision:2_000,hostSide:.white,whiteName:"Ana",blackName:"Ben",timeControl:.untimed,pgn:pgn,clocks:nil,openOffer:nil,outcome:nil)
+        let installed=try NetworkSnapshotInstaller.install(try JSONEncoder().encode(game),revision:2_000,hash:hashing.positionHash(fen:fen,revision:2_000),gameID:gameID,rules:NetworkRulesFactory{try ChessRules()},hashing:hashing)
+        XCTAssertEqual(installed.game.revision,2_000);XCTAssertEqual(installed.fen,fen);XCTAssertEqual(try installed.rules.networkFEN(),fen)
+        XCTAssertEqual(try installed.rules.networkMoves(),try built.networkMoves(),"all 2,000 moves, played afresh");XCTAssertEqual(installed.moves.count,2_000)
+    }
+    /// A record that sets up another start can reach the same position by the same squares while claiming other moves:
+    /// here a knight "captures" a queen that the real start never had. The board installed is the one played from the
+    /// receiver's own start, so the invented capture never reaches the record, Review or the coach.
+    func testARecordFromAnotherStartKeepsOnlyTheMovesPlayedFromThisOne()throws {
+        let forgedStart=try ChessRules(fen:"rnbqkbnr/pppppppp/8/8/8/2q5/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
+        _ = try forgedStart.networkPlay(uci:"b1c3");_ = try forgedStart.networkPlay(uci:"e7e5")
+        let honest=try ChessRules();_ = try honest.networkPlay(uci:"b1c3");_ = try honest.networkPlay(uci:"e7e5")
+        XCTAssertEqual(try forgedStart.networkFEN(),try honest.networkFEN(),"the two starts converge");XCTAssertTrue(try forgedStart.networkPGN().contains("Nxc3"))
+        let gameID=NetworkGameID.random(using:.system),pgn=try forgedStart.networkPGN()
+        let game=NetworkPublicGame(gameID:gameID,revision:2,hostSide:.white,whiteName:"Ana",blackName:"Ben",timeControl:.untimed,pgn:pgn,clocks:nil,openOffer:nil,outcome:nil)
+        let installed=try NetworkSnapshotInstaller.install(try JSONEncoder().encode(game),revision:2,hash:hashing.positionHash(fen:try honest.networkFEN(),revision:2),gameID:gameID,rules:NetworkRulesFactory{try ChessRules()},hashing:hashing)
+        let record=try installed.rules.networkPGN()
+        XCTAssertFalse(record.contains("Nxc3"),"no invented capture");XCTAssertFalse(record.contains("[FEN "),"no other start");XCTAssertTrue(record.contains("Nc3"))
+    }
+    /// A draw by threefold repetition is claimable when the position has stood three times. An en passant square the
+    /// pawn cannot take, because it is pinned to its king, does not make the first of those positions a different one.
+    func testThreefoldIgnoresAnEnPassantCaptureThePinForbids()throws {
+        let rules=try ChessRules(fen:"1n2r1k1/3p4/8/4P3/8/8/8/4K1N1 b - - 0 1")
+        for uci in ["d7d5","g1f3","b8c6","f3g1","c6b8","g1f3","b8c6","f3g1","c6b8"] {_ = try rules.networkPlay(uci:uci)}
+        XCTAssertEqual(try rules.networkClaimableDraw(),.repetition,"the position after d5 has stood three times")
+        XCTAssertTrue(rules.threefoldRepetition)
     }
     /// A legal 2,000-ply game, still in progress: a seeded walk in chess.js that tries one random move at a time, avoids
     /// mate, stalemate, insufficient material and a third repetition, and pushes a pawn or captures well inside every 75
@@ -106,12 +160,14 @@ final class NetworkRulesTests:XCTestCase {
 /// a test says so.
 private final class RulesNetwork {
     let host:NetworkHost,gameID:NetworkGameID,hashing:NetworkHashing
+    /// The game's start, for the host and every receiver alike: a snapshot extends the receiver's own new game.
+    let rules:NetworkRulesFactory
     var now=NetworkInstant.origin
     var receivers:[NetworkReceiver]=[],connections:[NetworkConnectionID]=[],cursors:[Int]=[]
     var sent:[NetworkConnectionID:[Data]]=[:]
     init(fen:String?=nil,pgn:String?=nil,hostSide:NetworkSide = .white,timeControl:NetworkTimeControl = .untimed,hashing:NetworkHashing)throws {
         self.hashing=hashing;gameID=NetworkGameID.random(using:.system)
-        let rules=NetworkRulesFactory{let rules=try ChessRules(fen:fen);if let pgn {try rules.networkLoad(pgn:pgn)};return rules}
+        let rules=NetworkRulesFactory{let rules=try ChessRules(fen:fen);if let pgn {try rules.networkLoad(pgn:pgn)};return rules};self.rules=rules
         host=try NetworkHost(gameID:gameID,runEpoch:NetworkID.random(using:.system),settings:NetworkHostSettings(hostName:"Ana",hostSide:hostSide,timeControl:timeControl),rules:rules,hashing:hashing,at:now)
     }
     func take(_ effects:[NetworkHostEffect])throws {
@@ -119,7 +175,7 @@ private final class RulesNetwork {
         while !pending.isEmpty {if case .transmit(let id,let data)=pending.removeFirst() {sent[id,default:[]].append(data);pending+=try host.sendCompleted(id,at:now)}}
     }
     func join(_ role:NetworkReceiverRole,name:String)throws -> Int {
-        let receiver=NetworkReceiver(gameID:gameID,role:role,name:name,appVersion:"0.8.0",rules:NetworkRulesFactory{try ChessRules()},hashing:hashing)
+        let receiver=NetworkReceiver(gameID:gameID,role:role,name:name,appVersion:"0.8.0",rules:rules,hashing:hashing)
         let accepted=try host.accept(role == .spectator ? .watch:.seat,at:now)
         receivers.append(receiver);connections.append(accepted.connection);cursors.append(0)
         try take(accepted.effects);try toHost(receivers.count-1,receiver.opening());return receivers.count-1

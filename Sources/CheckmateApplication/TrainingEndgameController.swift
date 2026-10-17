@@ -102,7 +102,9 @@ extension TrainingController {
         let attempt=state.snapshot.id,revision=state.snapshot.revision,start=state.scenario.fen ?? "",moves=(state.scenario.prelude ?? [])+state.line,profile=TrainingEndgameController.profile(for:state.scenario.check)
         games.cancel();games.thinking=true;objectWillChange.send();publish()
         let ticket=games.generation
-        games.work=Task{[weak self] in
+        games.work=Task{[weak self,fairness=games.fairness] in
+            // D8, again where the search starts: participation may have begun before this task first ran.
+            guard fairness.engineHelpAllowed else{return}
             // A cancelled request may end in any error, or none: only the current request's answer or failure applies.
             do {
                 let result=try await engine.analyzeHistory(startFEN:start,moves:moves,profile:profile,budget:TrainingEndgameController.budget,multiPv:1)
@@ -192,7 +194,9 @@ extension TrainingController {
         guard let engine=games.engine,games.fairness.engineHelpAllowed else{stepBackHint();return true}
         let attempt=saved.snapshot.id,revision=saved.snapshot.revision,start=state.scenario.fen ?? "",moves=(state.scenario.prelude ?? [])+state.line,ticket=games.generation
         games.hintWork?.cancel()
-        games.hintWork=Task{[weak self] in
+        games.hintWork=Task{[weak self,fairness=games.fairness] in
+            // D8, again where the search starts: participation may have begun before this task first ran.
+            guard fairness.engineHelpAllowed else{return}
             let result=try? await engine.analyzeHistory(startFEN:start,moves:moves,profile:TrainingEndgameController.profile,budget:TrainingEndgameController.budget,multiPv:1)
             guard !Task.isCancelled,let self,self.games.generation==ticket,self.games.fairness.engineHelpAllowed,self.interactive,var shown=self.exercise,shown.snapshot.id==attempt,shown.snapshot.revision==revision else{return}
             self.games.hintWork=nil

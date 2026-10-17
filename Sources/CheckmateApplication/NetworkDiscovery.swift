@@ -6,16 +6,21 @@ public enum NetworkServiceType {
     public static let release="_checkmate._tcp",development="_checkmate-dev._tcp",automation="_checkmate-auto._tcp"
     public static let all:Set<String>=[release,development,automation]
 }
-/// One service instance as found. Untrusted: a forged record only yields the wrong key, so the handshake fails closed.
+/// One service instance as found. Unauthenticated: the key covers only the game ID, so a forged game ID or role only
+/// yields the wrong key and the handshake fails closed, while the name and the advertised terms are display only. The
+/// terms are checked inside TLS afterwards (A3): by the host against what the guest accepted, and by the guest against
+/// every snapshot.
 public struct NetworkServiceRecord:Equatable {
     public let name:String,txt:[String:String],endpoint:NetworkEndpoint
     public init(name:String,txt:[String:String],endpoint:NetworkEndpoint){self.name=name;self.txt=txt;self.endpoint=endpoint}
     /// What a hosted game publishes for one listener.
     public static func published(_ configuration:NetworkHostingConfiguration,_ role:NetworkListenerRole,at endpoint:NetworkEndpoint)->NetworkServiceRecord {
-        NetworkServiceRecord(name:configuration.serviceName(for:role),txt:["game":configuration.gameID.text,"role":role.rawValue],endpoint:endpoint)
+        NetworkServiceRecord(name:configuration.serviceName(for:role),txt:configuration.txt(role),endpoint:endpoint)
     }
     var gameID:NetworkGameID? {txt["game"].flatMap(NetworkGameID.init)}
     var role:NetworkListenerRole? {txt["role"].flatMap(NetworkListenerRole.init(rawValue:))}
+    /// The terms as advertised (A3): nil when absent (a 1.0 host, whose games have none) or unreadable.
+    var assistance:NetworkAssistance? {txt["assist"].flatMap(NetworkAssistance.init(txt:))}
 }
 /// A game as the joiner sees it: its two listeners' records paired by the game ID in their TXT, never by name (D3). The
 /// joiner then types only the code; the game ID, and so the key's salt and identity, comes from the record chosen.
@@ -30,16 +35,23 @@ public struct NetworkDiscoveredGame:Equatable {
     }
     /// "Ana's game · K7QD": two hosts with the same name are told apart by the game ID's last four symbols.
     public var displayName:String {"\(name) · \(gameID.displaySuffix)"}
+    /// The terms the list shows (A3), from the seat record, else the watch record; `off` when neither states any, as
+    /// a 1.0 host's never do. Untrusted: the join sheet asks the person to accept these, and the host and the guest
+    /// then check the real terms inside TLS.
+    public var assistance:NetworkAssistance {seat?.assistance ?? watch?.assistance ?? .off}
     public func record(_ role:NetworkListenerRole)->NetworkServiceRecord? {role == .seat ? seat:watch}
     public func key(_ role:NetworkListenerRole,code:NetworkCode)->NetworkAccessKey {NetworkAccessKey(gameID:gameID,role:role,code:code)}
     /// Games in order of first appearance. A record without a valid `game` and `role` is ignored. The first record for
-    /// a game and role wins: one service seen on two interfaces is reported twice, and either reaches it.
+    /// a game and role wins: one service seen on two interfaces is reported twice, and either reaches it. Pairing is
+    /// linear in the records, and at most `maximumGames` games are listed: advertisements are unauthenticated, so a
+    /// flood of them costs bounded work on every update.
+    public static let maximumGames=256
     public static func pair(_ records:[NetworkServiceRecord])->[NetworkDiscoveredGame] {
-        var games:[NetworkDiscoveredGame]=[]
+        var games:[NetworkDiscoveredGame]=[],positions:[NetworkGameID:Int]=[:]
         for record in records {
             guard let gameID=record.gameID,let role=record.role else{continue}
-            var index=games.firstIndex{$0.gameID==gameID}
-            if index==nil {games.append(NetworkDiscoveredGame(gameID:gameID));index=games.count-1}
+            var index=positions[gameID]
+            if index==nil {guard games.count<maximumGames else{continue};games.append(NetworkDiscoveredGame(gameID:gameID));index=games.count-1;positions[gameID]=index}
             switch role {
             case .seat where games[index!].seat==nil:games[index!].seat=record
             case .watch where games[index!].watch==nil:games[index!].watch=record

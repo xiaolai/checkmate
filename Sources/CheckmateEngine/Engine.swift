@@ -12,8 +12,8 @@ import Combine
     private let identityTask:Task<String,Error>
     @Published public private(set) var capabilities=EngineCapabilities()
     private var searching=false,waiting=0
-    /// Start FEN, caller moves, replayed rules and their validated canonical UCI.
-    private var validationCache:(String,[String],ChessRules,[String])?
+    /// Start FEN, caller moves, replayed rules, their validated canonical UCI, and the start FEN as the rules write it.
+    private var validationCache:(String,[String],ChessRules,[String],String)?
     public init(executable:URL?=nil){self.executable=executable ?? NativeResources.url("stockfish");worker=UCIWorker(executable:self.executable);let file=self.executable;let bundled=executable==nil;identityTask=Task.detached{
             let binary=try reviewFileHash(file),network=file.deletingLastPathComponent().appendingPathComponent(EngineRuntimePolicy.networkFile)
             if FileManager.default.fileExists(atPath:network.path){let hash=try reviewFileHash(network);guard !bundled || hash==EngineRuntimePolicy.networkSHA256 else{throw CheckmateError.unavailable("The bundled engine network is invalid.")};return binary+":network:"+hash}
@@ -22,12 +22,24 @@ import Combine
     public func prepare()async throws {
         if binaryIdentity.isEmpty{binaryIdentity=try await identityTask.value}
         guard capabilities.name=="Unknown engine" else{return}
-        let worker=worker;capabilities=try await Task.detached{try worker.prepare()}.value
+        // A cancelled preparation (a Review request withdrawn during a cold start) stops its own startup, so it does not
+        // hold the worker until the startup watchdog while an allowed search waits behind it.
+        let worker=worker,ticket=worker.preparationTicket();defer{worker.forgetPreparation(ticket)}
+        capabilities=try await withTaskCancellationHandler(operation:{try await Task.detached{try worker.prepare(ticket:ticket)}.value},onCancel:{worker.cancelPreparation(ticket)})
     }
     public func analyze(fen:String,skill:Int=20,budget:Int=350,multiPv:Int=3) async throws -> EngineAnalysis {
         try await analyzeHistory(startFEN:fen,moves:[],profile:.skill(max(0,min(20,skill))),budget:max(100,min(1000,budget)),multiPv:max(1,min(3,multiPv)))
     }
     public func analyzeHistory(startFEN:String,moves:[String],profile:OpponentProfile,budget:Int,multiPv:Int,searchMoves:[String]=[])async throws -> EngineAnalysis {
+        try await search(startFEN:startFEN,moves:moves,profile:profile,limit:.movetime(max(100,min(3000,budget))),multiPv:multiPv,searchMoves:searchMoves)
+    }
+    /// A node-limited search searches exactly as far on every Mac (assistance plan A5).
+    public func analyzeHistory(startFEN:String,moves:[String],profile:OpponentProfile,limit:EngineSearchLimit,multiPv:Int)async throws -> EngineAnalysis {
+        let bounded:EngineSearchLimit
+        switch limit {case .movetime(let budget):bounded = .movetime(max(100,min(3000,budget)));case .nodes(let nodes):bounded = .nodes(max(1000,min(5_000_000,nodes)))}
+        return try await search(startFEN:startFEN,moves:moves,profile:profile,limit:bounded,multiPv:multiPv,searchMoves:[])
+    }
+    private func search(startFEN:String,moves:[String],profile:OpponentProfile,limit:EngineSearchLimit,multiPv:Int,searchMoves:[String])async throws -> EngineAnalysis {
         if binaryIdentity.isEmpty{binaryIdentity=try await identityTask.value}
         guard waiting<8 else{throw CheckmateError.unavailable("BUSY")};waiting+=1;defer{waiting-=1}
         // A clock that stops while the Mac sleeps: waking must not turn a short wait into a false "BUSY".
@@ -36,15 +48,19 @@ import Combine
         try Task.checkCancellation();searching=true;defer{searching=false}
         // Validate on the main actor and send the validated canonical moves: the bundled Stockfish 19
         // rejects a non-canonical token such as e7e8 ("CRITICAL ERROR ... Illegal move") and exits.
-        let rules:ChessRules,canonical:[String]
+        // The start FEN goes to the engine as the rules write it, too: chess.js accepts fields separated by a line
+        // break, which would cut Stockfish's line-based position command short.
+        let rules:ChessRules,canonical:[String],start:String
         let previous=validationCache;validationCache=nil
-        if let cached=previous,cached.0==startFEN,moves.starts(with:cached.1){rules=cached.2;var validated=cached.3;for move in moves.dropFirst(cached.1.count){validated.append(try rules.move(uci:move).uci)};canonical=validated}
-        else{rules=try ChessRules(fen:startFEN);var validated:[String]=[];for move in moves{validated.append(try rules.move(uci:move).uci)};canonical=validated}
-        validationCache=(startFEN,moves,rules,canonical)
+        if let cached=previous,cached.0==startFEN,moves.starts(with:cached.1){rules=cached.2;start=cached.4;var validated=cached.3;for move in moves.dropFirst(cached.1.count){validated.append(try rules.move(uci:move).uci)};canonical=validated}
+        else{rules=try ChessRules(fen:startFEN);start=rules.fen;var validated:[String]=[];for move in moves{validated.append(try rules.move(uci:move).uci)};canonical=validated}
+        validationCache=(startFEN,moves,rules,canonical,start)
         let legal=rules.moves()
         guard searchMoves.allSatisfy({uci in legal.contains{$0.uci==uci}}) else{throw CheckmateError.invalid("Illegal searchmoves constraint.")}
         let worker=worker,fen=rules.fen,epoch=worker.reserve(),lines=max(1,min(16,multiPv,max(1,searchMoves.isEmpty ? legal.count:searchMoves.count)))
-        var result=try await withTaskCancellationHandler(operation:{try await Task.detached(priority:.userInitiated){try worker.search(startFEN:startFEN,moves:canonical,finalFEN:fen,profile:profile,budget:max(100,min(3000,budget)),multiPv:lines,searchMoves:searchMoves,epoch:epoch)}.value},onCancel:{worker.cancel(expected:epoch)})
+        var result=try await withTaskCancellationHandler(operation:{try await Task.detached(priority:.userInitiated){try worker.search(startFEN:start,moves:canonical,finalFEN:fen,profile:profile,limit:limit,multiPv:lines,searchMoves:searchMoves,epoch:epoch)}.value},onCancel:{worker.cancel(expected:epoch)})
+        // Cancelling cannot take back a search that finished before the cancellation: its result is dropped here.
+        try Task.checkCancellation()
         capabilities=worker.metadata()
         result.lines=try result.lines.compactMap{line in try autoreleasepool{var line=line;let replay=try ChessRules(fen:fen);do{line.san=try line.pv.map{try replay.move(uci:$0).san};return line}catch{return nil}}}
         return result

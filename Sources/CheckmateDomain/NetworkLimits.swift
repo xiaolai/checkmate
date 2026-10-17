@@ -19,7 +19,8 @@ extension Duration {
 public struct NetworkProtocolVersion:Codable,Hashable,CustomStringConvertible {
     public let major:Int,minor:Int
     public init(major:Int,minor:Int){self.major=major;self.minor=minor}
-    public static let current=NetworkProtocolVersion(major:1,minor:0)
+    /// 1.1 adds the assistance terms and the assisted flags (assistance plan A4); a 1.0 peer ignores them.
+    public static let current=NetworkProtocolVersion(major:1,minor:1)
     public var description:String {"\(major).\(minor)"}
 }
 /// Every bound of D5 and D7, fixed in advance. Tests assert these values.
@@ -34,9 +35,30 @@ public enum NetworkLimits {
     public static let maximumSnapshotBytes=1024*1024
     public static let maximumSnapshotParts=(maximumSnapshotBytes+maximumSnapshotPartBytes-1)/maximumSnapshotPartBytes
     public static let maximumSANBytes=16,maximumHashBytes=128
+    /// The highest revision a peer may state. Each move and the end advance it by one (D2), and the 75-move rule and
+    /// fivefold repetition end every game well under 20,000 plies, so this leaves room while keeping `revision+1`, and
+    /// every count derived from a revision, far from overflow whatever a peer sends.
+    public static let maximumRevision=1_000_000
+    /// The most moves a network game can hold. The host's rules end every game automatically at the 75-move rule: 150
+    /// plies with no capture and no pawn move. A game has at most 126 plies that capture or move a pawn (30 captures,
+    /// two kings never taken; 16 pawns of at most 6 moves each), so at most 127 stretches of under 150 plies: fewer
+    /// than 127 × 150 = 19,050 plies. 20,000 adds a margin. A snapshot claiming more is refused before any replay, so
+    /// the work one snapshot can cost a receiver is bounded by a game that could really be played.
+    public static let maximumPlies=20_000
+    /// The longest record a snapshot of `moves` plies may carry. The host's record is its rules' own export: movetext of
+    /// move numbers and SAN, at most about 12 bytes a ply ("1234. Qa1xh8+ Qh8xa1+" is 21 bytes for two), with no tag
+    /// pairs of its own. 16 bytes a ply plus 4 KiB for tags is a margin over any record a host writes, and it bounds the
+    /// replay's work by size, whatever the layout: movetext hidden on a tag line or in a comment counts too.
+    public static func maximumRecordBytes(moves:Int)->Int {4096+16*moves}
+    /// Snapshots a receiver did not ask for (D5: a spectator's refresh when the guest's name changes) in any window of
+    /// `unsolicitedSnapshotWindow`. A refresh is rare, so a host replaying snapshots at a receiver is cut off.
+    public static let unsolicitedSnapshotsPerWindow=4,unsolicitedSnapshotWindow=Duration.seconds(10)
     public static let maximumSpectators=8
     /// Outbound queue caps: bytes queued, held behind a snapshot, or handed to the transport and not yet completed.
     public static let peerQueueBytes=64*1024,spectatorQueuesBytes=512*1024
+    /// D7: everything the host buffers stays under this: queues, sends in flight, partial inbound frames and the
+    /// records held for snapshots (`NetworkHostLimits.retainedCaptureBytes` is what is left for those).
+    public static let hostBufferBytes=1024*1024
     public static let handshakesPerListener=4,pendingConnectionsPerListener=4
     public static let handshakeDeadline=Duration.seconds(5),admissionDeadline=Duration.seconds(5),partialFrameDeadline=Duration.seconds(5)
     public static let failedHandshakesPerAddress=5,failedHandshakeWindow=Duration.seconds(60)
@@ -46,10 +68,11 @@ public enum NetworkLimits {
     public static let reservationDuration=Duration.seconds(30),holdDuration=Duration.seconds(120)
     public static let clockMessageInterval=Duration.seconds(1)
 }
-/// Free strings on the wire: 1 to 64 bytes of UTF-8 with no control characters (no newlines in a name tag). Public so
+/// Free strings on the wire: 1 to 64 bytes of UTF-8 with no control characters and no line or paragraph separators
+/// (no line breaks in a name tag, U+2028 and U+2029 included). Public so
 /// the host sheet refuses a name by the same rule the host and receivers apply.
 public enum NetworkText {
     public static func valid(_ text:String,maximumBytes:Int=NetworkLimits.maximumNameBytes)->Bool {
-        !text.isEmpty && text.utf8.count<=maximumBytes && !text.unicodeScalars.contains{$0.properties.generalCategory == .control}
+        !text.isEmpty && text.utf8.count<=maximumBytes && !text.unicodeScalars.contains{[.control,.lineSeparator,.paragraphSeparator].contains($0.properties.generalCategory)}
     }
 }

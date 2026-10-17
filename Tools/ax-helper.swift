@@ -13,16 +13,27 @@ if action=="quit" {exit(NSRunningApplication(processIdentifier:pid)?.terminate()
 func get(_ e:AXUIElement,_ k:String)->CFTypeRef?{var v:CFTypeRef?;AXUIElementCopyAttributeValue(e,k as CFString,&v);return v}
 var found=false
 var visited=0
+// `list-complete` lists like `list`, then exits 3 if the walk was cut short (its depth or size bound) or a child list
+// could not be read, so a caller checking that something is absent never trusts a partial read.
+let listing=action=="list" || action=="list-complete"
+var incomplete:[String]=[]
+/// An element's name attribute as text. For `list-complete`, a read that failed for any reason but the attribute being
+/// absent or the element gone is a gap in the listing, so text the element shows can never be missed silently.
+func named(_ e:AXUIElement,_ k:String)->String?{
+ var v:CFTypeRef?;let read=AXUIElementCopyAttributeValue(e,k as CFString,&v)
+ if action=="list-complete" && ![.success,.noValue,.attributeUnsupported,.notImplemented,.invalidUIElement].contains(read){incomplete.append("\(k): AXError \(read.rawValue)")}
+ return v as? String
+}
 func walk(_ e:AXUIElement,_ depth:Int=0){
- if depth>35 || found || visited>=5000{return}
+ if depth>35 || found || visited>=5000{if action=="list-complete"{incomplete.append(depth>35 ? "deeper than 35":"more than 5000 elements")};return}
  visited += 1
  let role=get(e,kAXRoleAttribute) as? String ?? ""
  if depth>0 && role=="AXApplication" {return}
  let label=get(e,kAXTitleUIElementAttribute)
  let labelElement=label.map{$0 as! AXUIElement}
  let linkedNames=labelElement.map{[get($0,kAXTitleAttribute) as? String,get($0,kAXDescriptionAttribute) as? String,get($0,kAXValueAttribute) as? String]} ?? []
- let names=([get(e,kAXTitleAttribute) as? String,get(e,kAXDescriptionAttribute) as? String,get(e,kAXValueAttribute) as? String,get(e,kAXIdentifierAttribute) as? String]+linkedNames).compactMap{$0}.filter{!$0.isEmpty}
- if action=="list" && !names.isEmpty {print("\(role): \(names.joined(separator:" | "))")}
+ let names=([named(e,kAXTitleAttribute),named(e,kAXDescriptionAttribute),named(e,kAXValueAttribute),named(e,kAXIdentifierAttribute)]+linkedNames).compactMap{$0}.filter{!$0.isEmpty}
+ if listing && !names.isEmpty {print("\(role): \(names.joined(separator:" | "))")}
  if action=="select" && names.contains(target) {
   var row=e
   for _ in 0..<12 {
@@ -35,7 +46,10 @@ func walk(_ e:AXUIElement,_ depth:Int=0){
  }
  if action=="focus" && names.contains(target){let result=AXUIElementSetAttributeValue(e,kAXFocusedAttribute as CFString,kCFBooleanTrue);print("focus \(target): \(result.rawValue)");found=result == .success;return}
  if action=="press" && names.contains(target) && ["AXButton","AXCheckBox","AXSwitch","AXPopUpButton","AXMenuButton","AXMenuItem","AXRadioButton"].contains(role) {let result=AXUIElementPerformAction(e,kAXPressAction as CFString);print("press \(target): \(result.rawValue)");found=result == .success;return}
- for c in get(e,kAXChildrenAttribute) as? [AXUIElement] ?? [] {walk(c,depth+1)}
+ var children:CFTypeRef?;let read=AXUIElementCopyAttributeValue(e,kAXChildrenAttribute as CFString,&children)
+ // No children, none supported, or an element that went away mid-read: nothing unread. Anything else is a gap.
+ if action=="list-complete" && ![.success,.noValue,.attributeUnsupported,.notImplemented,.invalidUIElement].contains(read){incomplete.append("\(role) children: AXError \(read.rawValue)")}
+ for c in children as? [AXUIElement] ?? [] {walk(c,depth+1)}
 }
 if action=="fullscreen" {guard let first=getWindows().first else{exit(1)};let current=get(first,"AXFullScreen") as? Bool ?? false;exit(AXUIElementSetAttributeValue(first,"AXFullScreen" as CFString,current ? kCFBooleanFalse:kCFBooleanTrue) == .success ? 0:1)}
 if action=="position-x" {guard let first=getWindows().first,let raw=get(first,kAXPositionAttribute) else{exit(1)};var point=CGPoint.zero;AXValueGetValue(raw as! AXValue,.cgPoint,&point);print(point.x);exit(0)}
@@ -55,3 +69,4 @@ if action=="close-main" || action=="close-settings" {
 }
 if windowName.isEmpty {walk(app)} else {for w in get(app,kAXWindowsAttribute) as? [AXUIElement] ?? [] {if get(w,kAXTitleAttribute) as? String==windowName {walk(w)}}}
 if ["press","focus","select"].contains(action) && !found {fputs("Control not found: \(target)\n",stderr);exit(1)}
+if action=="list-complete" && !incomplete.isEmpty {fputs("Incomplete accessibility listing: \(incomplete.prefix(5).joined(separator:"; "))\n",stderr);exit(3)}

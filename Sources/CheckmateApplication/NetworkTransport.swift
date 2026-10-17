@@ -36,7 +36,8 @@ public struct NetworkTransportLimits:Equatable {
     public static let standard=NetworkTransportLimits()
 }
 /// One hosted game's listeners (D3): the seat listener keyed from the play code and, when spectators are allowed, the
-/// watch listener keyed from the watch code, each advertised with TXT `game=<id>` and `role=seat|watch`.
+/// watch listener keyed from the watch code, each advertised with TXT `game=<id>`, `role=seat|watch` and the
+/// assistance terms as `assist=<w><b>` (assistance plan A3; display only).
 public struct NetworkHostingConfiguration:Equatable {
     public let gameID:NetworkGameID
     public let seatCode:NetworkCode
@@ -45,7 +46,11 @@ public struct NetworkHostingConfiguration:Equatable {
     /// The seat instance's Bonjour name ("Ana's game"); the watch instance adds " · watch". Untrusted on the other
     /// side, where games are told apart by game ID.
     public let serviceName:String
-    public init(gameID:NetworkGameID,seatCode:NetworkCode,watchCode:NetworkCode?,serviceName:String){self.gameID=gameID;self.seatCode=seatCode;self.watchCode=watchCode;self.serviceName=serviceName}
+    /// The game's terms, published for the list to show. The key does not cover them, so they decide nothing (A3).
+    public let assistance:NetworkAssistance
+    public init(gameID:NetworkGameID,seatCode:NetworkCode,watchCode:NetworkCode?,serviceName:String,assistance:NetworkAssistance = .off){self.gameID=gameID;self.seatCode=seatCode;self.watchCode=watchCode;self.serviceName=serviceName;self.assistance=assistance}
+    /// Every TXT entry one listener publishes.
+    public func txt(_ role:NetworkListenerRole)->[String:String] {["game":gameID.text,"role":role.rawValue,"assist":assistance.txt]}
     public var roles:[NetworkListenerRole] {watchCode==nil ? [.seat]:[.seat,.watch]}
     public func key(_ role:NetworkListenerRole)->NetworkAccessKey? {
         switch role {case .seat:return NetworkAccessKey(gameID:gameID,role:.seat,code:seatCode);case .watch:return watchCode.map{NetworkAccessKey(gameID:gameID,role:.watch,code:$0)}}

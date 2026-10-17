@@ -118,6 +118,11 @@ final class BoardTitleView:NSView {
     private func observeModel(){
         model.objectWillChange.sink{[weak self] _ in DispatchQueue.main.async{self?.refresh()}}.store(in:&observations)
         model.network.objectWillChange.sink{[weak self] _ in DispatchQueue.main.async{self?.refresh()}}.store(in:&observations)
+        // The agreed hint's arrow follows the assistant (assistance plan A6). The inspector follows the agreed level
+        // through the model, which redraws on every participation change.
+        model.networkAssistant.objectWillChange.sink{[weak self] _ in DispatchQueue.main.async{self?.refresh()}}.store(in:&observations)
+        // The squares the network game's coach is speaking about (A10) light up as it speaks, and go when it stops.
+        model.voice.$networkFocus.removeDuplicates().dropFirst().receive(on:RunLoop.main).sink{[weak self] _ in self?.refresh()}.store(in:&observations)
         // VoiceOver hears the network game's moves, offers, result and clocks (LAN-play plan D10).
         model.network.announce={[weak self] text in self?.announce(text)}
         // D11: the permission help appears only on the two denial signals, and goes once access comes back.
@@ -200,9 +205,13 @@ final class BoardTitleView:NSView {
         if model.review.active{if let from=model.review.selected,model.review.displayRules?.moves(from).contains(where:{$0.to==sq && $0.promotion != nil})==true{let shown=reviewPromotionKey;showPromotionMenu(at:sq,action:#selector(promoteReview(_:))){[sq,$0,from,shown]};return};do{try model.review.selectSquare(sq)}catch{showError(error)};refresh();return}
 
         let s=model.session
-        // The network game takes its own input (LAN-play plan D9): no practice, lesson or relationship handling.
+        // The network game takes its own input (LAN-play plan D9): no practice or lesson handling, and the piece
+        // inspector only at the level both players agreed (assistance plan A1).
         if s.mode == .network {
             let game=model.network
+            // Board insight (assistance plan A1): while inspecting, a click picks the piece to inspect, except a dot of
+            // the selected piece, which leaves inspection and plays, as in practice.
+            if relationships.mode != nil{let plays=game.canMove && game.selected != sq && game.destinations.contains(sq);if plays{relationships.dismiss()}else{game.click(sq);relationships.select(board.position[sq] == nil ? nil:sq);refresh();return}}
             if let from=game.selected,game.destinations.contains(sq),game.needsPromotion(from:from,to:sq){let shown=game.revision;showPromotionMenu(at:sq,action:#selector(promoteNetwork(_:))){NetworkPromotion(from:from,to:sq,piece:$0,revision:shown)};return}
             game.click(sq);refresh();return
         }
@@ -259,7 +268,7 @@ final class BoardTitleView:NSView {
     struct PracticePromotion {let from:String,to:String,piece:String,game:(generation:Int,position:Int,history:[String])}
     /// The menu's run loop lets an agent replace the game meanwhile; an identical position in another game is not this one.
     @objc func promote(_ item:NSMenuItem){guard let choice=item.representedObject as? PracticePromotion,stillShowing(choice.game,exactly:true) else{refresh();return};do{try model.session.playWhite(from:choice.from,to:choice.to,promotion:choice.piece)}catch{showError(error)};refresh()}
-    func toggleRelationship(_ mode:RelationshipMode){guard !model.review.active,!model.reviewWorkspace,model.session.mode != .network,trainingExercise==nil,let selected=board.selected,board.position[selected] != nil else{return};relationships.toggle(mode,selected:selected);refresh();if relationships.mode != nil{showDetails()}}
+    func toggleRelationship(_ mode:RelationshipMode){guard !model.review.active,!model.reviewWorkspace,model.session.mode != .network || model.network.inspectable,trainingExercise==nil,let selected=board.selected,board.position[selected] != nil else{return};relationships.toggle(mode,selected:selected);refresh();if relationships.mode != nil{showDetails()}}
     @objc func showProtection(){toggleRelationship(.protected)}
     @objc func showAttacks(){toggleRelationship(.attacked)}
     @objc func dismissInspection(){relationships.dismiss();refresh()}
@@ -301,7 +310,10 @@ playbackLineView?.isHidden=model.reviewWorkspace
         // An exercise's own presentation replaces the activity's before relationships read the selection; it offers no inspection.
         var shown=s.mode == .network ? networkPresentation():trainingExercise.map(trainingPresentation) ?? activityPresentation()
         if trainingExercise != nil{relationships.dismiss()}
-        relationships.update(board:shown.position,fen:s.mode == .practice ? s.displayFen:l.attemptStep ? l.attempt.rules.fen:nil,selected:trainingExercise==nil && s.mode != .network ? shown.selected:nil,identity:s.displayIdentity)
+        // The network board offers inspection only at board insight or more (assistance plan A1), from its own position.
+        let network=s.mode == .network,inspectable=network && model.network.inspectable
+        if network && !inspectable{relationships.dismiss()}
+        relationships.update(board:shown.position,fen:network ? model.network.fen:s.mode == .practice ? s.displayFen:l.attemptStep ? l.attempt.rules.fen:nil,selected:trainingExercise==nil && (!network || inspectable) ? shown.selected:nil,identity:network ? model.network.identity:s.displayIdentity)
         if let report=relationships.report{shown.selected=report.square;shown.destinations=[];shown.attacked=[];shown.arrows=[];shown.guards=[];shown.highlights.removeAll{$0.kind != "check" && $0.kind != "no"}}
         applyBoard(shown)
         board.relationshipMode=relationships.report?.mode
@@ -347,6 +359,10 @@ playbackLineView?.isHidden=model.reviewWorkspace
         if let last=rules.records.last{p.highlights=[Highlight(sq:last.from,kind:"last"),Highlight(sq:last.to,kind:"last")]}
         if rules.check,let king=rules.board.first(where:{$0.value==rules.turn+"k"})?.key{p.highlights.append(Highlight(sq:king,kind:"check"))}
         if let pending=game.pending{p.highlights.append(Highlight(sq:pending.to,kind:"target"))}
+        // The agreed hint (assistance plan A6), on the learner's own board only: an arrow from the piece to its square.
+        if let hint=model.networkAssistant.hint{p.arrows=[[hint.from,hint.to]];p.highlights.append(Highlight(sq:hint.from,kind:"focus"))}
+        // The coach's segment being spoken, on the learner's own board (A10).
+        p.highlights += model.voice.networkFocus.map{Highlight(sq:$0,kind:"focus")}
         return p
     }
     /// An exercise shows only what the learner did: no legal-move dots or hidden answers, except a hint asked for.
@@ -376,7 +392,7 @@ playbackLineView?.isHidden=model.reviewWorkspace
             if let exercise=trainingExercise{return model.training.map{ControlBarModel.canTakeBack($0,exercise)} ?? false}
             if item.action == #selector(undo as () -> Void){item.title=model.learning.mini ? "Undo Turn":"Take Back Move"}
         }
-        if [#selector(showProtection),#selector(showAttacks),#selector(dismissInspection)].contains(item.action){if item.action == #selector(dismissInspection){return relationships.mode != nil};item.state=(item.action == #selector(showProtection) && relationships.mode == .protected || item.action == #selector(showAttacks) && relationships.mode == .attacked) ? .on:.off;return !model.review.active && trainingExercise==nil && board.selected.flatMap{board.position[$0]} != nil && !board.isHidden};guard [#selector(newGame),#selector(undo as () -> Void),NSSelectorFromString("undo:"),#selector(restorePrevious),#selector(claimDraw),#selector(resign)].contains(item.action) else{return true};guard !model.review.active,!model.reviewWorkspace else{return false};if model.learning.mini,![#selector(restorePrevious),#selector(claimDraw),#selector(resign)].contains(item.action){return item.action == #selector(newGame) || model.learning.miniGame?.history.isEmpty == false};guard model.session.mode == .practice else{return false};if item.action == #selector(undo as () -> Void) || item.action == NSSelectorFromString("undo:"){return model.session.canTakeBack};if item.action == #selector(claimDraw){return model.session.claimableDraw != nil};if item.action == #selector(resign){return !model.session.finished && !model.session.rules.history.isEmpty};if item.action == #selector(restorePrevious){return !model.session.state.practice.previousGame.isEmpty};return true}
+        if [#selector(showProtection),#selector(showAttacks),#selector(dismissInspection)].contains(item.action){if item.action == #selector(dismissInspection){return relationships.mode != nil};item.state=(item.action == #selector(showProtection) && relationships.mode == .protected || item.action == #selector(showAttacks) && relationships.mode == .attacked) ? .on:.off;return !model.review.active && trainingExercise==nil && (model.session.mode != .network || model.network.inspectable) && board.selected.flatMap{board.position[$0]} != nil && !board.isHidden};guard [#selector(newGame),#selector(undo as () -> Void),NSSelectorFromString("undo:"),#selector(restorePrevious),#selector(claimDraw),#selector(resign)].contains(item.action) else{return true};guard !model.review.active,!model.reviewWorkspace else{return false};if model.learning.mini,![#selector(restorePrevious),#selector(claimDraw),#selector(resign)].contains(item.action){return item.action == #selector(newGame) || model.learning.miniGame?.history.isEmpty == false};guard model.session.mode == .practice else{return false};if item.action == #selector(undo as () -> Void) || item.action == NSSelectorFromString("undo:"){return model.session.canTakeBack};if item.action == #selector(claimDraw){return model.session.claimableDraw != nil};if item.action == #selector(resign){return !model.session.finished && !model.session.rules.history.isEmpty};if item.action == #selector(restorePrevious){return !model.session.state.practice.previousGame.isEmpty};return true}
     @objc func newGame(){
         guard !model.review.active,!model.reviewWorkspace else{return}
         if model.learning.mini {
@@ -391,20 +407,24 @@ playbackLineView?.isHidden=model.reviewWorkspace
         a.addButton(withTitle:"New Game");a.addButton(withTitle:"Cancel");a.beginSheetModal(for:window!){r in guard r == .alertFirstButtonReturn,self.stillShowing(shown) else{return};self.board.cancelAnimation();self.model.session.newGame(side:side.indexOfSelectedItem==1 ? "b":"w")}}
     @objc func claimDraw(){if model.session.mode == .network{model.network.claimDraw();return};guard !model.review.active,model.session.mode == .practice else{return};model.session.claimDraw();refresh()}
     // MARK: The network game's menu items (LAN-play plan D9)
-    /// The Game menu in network mode: Resign, Offer Draw, Claim Draw, Flip Board and Leave Game, nothing else.
+    /// The Game menu's base items in network mode: Resign, Offer Draw, Claim Draw, Flip Board and Leave Game. The only
+    /// others it shows are `inspectorActions`, and those only at board insight or more.
     static let networkActions:Set<Selector>=[#selector(resign),#selector(offerDraw),#selector(claimDraw),#selector(flipBoard),#selector(leaveGame)]
+    /// The piece inspector's items, shown in network mode only when the agreed level allows it (assistance plan A1).
+    static let inspectorActions:Set<Selector>=[#selector(showProtection),#selector(showAttacks),#selector(dismissInspection)]
     /// Items that exist only for the network game, hidden elsewhere.
     static let networkOnlyActions:Set<Selector>=[#selector(offerDraw),#selector(flipBoard),#selector(leaveGame)]
     /// The Game menu and the Lesson menu's bar item, from `AppDelegate.installMenus`.
     weak var gameMenu:NSMenu?
     weak var lessonMenuItem:NSMenuItem?
-    func syncMenus(){if let gameMenu{Self.syncMenus(gameMenu,lesson:lessonMenuItem,network:model.session.mode == .network)}}
+    func syncMenus(){if let gameMenu{Self.syncMenus(gameMenu,lesson:lessonMenuItem,network:model.session.mode == .network,inspector:model.network.inspectable)}}
     /// In network mode the Game menu shows only the network items and the Lesson menu hides; elsewhere the network-only
     /// items hide. Hidden items take no key equivalents either, so a practice or lesson shortcut cannot reach the
     /// network place.
-    static func syncMenus(_ gameMenu:NSMenu,lesson:NSMenuItem?,network:Bool){
+    /// `inspector`: the network game allows Protected by / Attacked by (assistance plan A1), so those items show too.
+    static func syncMenus(_ gameMenu:NSMenu,lesson:NSMenuItem?,network:Bool,inspector:Bool=false){
         for item in gameMenu.items {
-            let hidden=item.isSeparatorItem ? network:item.action.map{network ? !networkActions.contains($0):networkOnlyActions.contains($0)} ?? false
+            let hidden=item.isSeparatorItem ? network:item.action.map{network ? !(networkActions.contains($0) || inspector && inspectorActions.contains($0)):networkOnlyActions.contains($0)} ?? false
             if item.isHidden != hidden{item.isHidden=hidden}
         }
         if let lesson,lesson.isHidden != network{lesson.isHidden=network}
@@ -446,12 +466,12 @@ playbackLineView?.isHidden=model.reviewWorkspace
     /// the game has moves. The file is gone once read.
     func offerNetworkCrashReview(){
         guard let entry=model.takeNetworkCrashNotice(),let window else{return}
-        let reviewable=NativeModel.reviewable(entry)
+        let moves=NativeModel.replayedMoves(entry) ?? [],reviewable = !moves.isEmpty
         let alert=NSAlert();alert.messageText=entry.notice;alert.informativeText=reviewable ? "You can review the moves that were played.":"No moves were played."
         if reviewable{alert.addButton(withTitle:"Review").setAccessibilityIdentifier("network-crash-review")}
         alert.addButton(withTitle:reviewable ? "Not Now":"OK").setAccessibilityIdentifier("network-crash-dismiss")
         alert.window.setAccessibilityIdentifier("network-crash-notice")
-        alert.beginSheetModal(for:window){[weak self] response in MainActor.assumeIsolated{if reviewable,response == .alertFirstButtonReturn{self?.model.reviewNetworkCrash(entry)}}}
+        alert.beginSheetModal(for:window){[weak self] response in MainActor.assumeIsolated{if reviewable,response == .alertFirstButtonReturn{self?.model.reviewNetworkCrash(entry,moves:moves)}}}
     }
     @objc func resign(){
         if model.session.mode == .network{model.resignNetworkGame();return}
