@@ -1,0 +1,47 @@
+{
+  "about": "Frozen with release-decoder.json: scenario-bearing training records and how the WI-026 release reads each (readable, newer or damaged). The newer ones are shaped as WI-017's plan describes (a positionGame objective with checkmate and promoteAndHold goals, keep, a frozen opponent beside the scenario). Do not edit or regenerate them.",
+  "records": [
+    {"name": "this release's movement drill, queued", "kind": "retry", "verdict": "readable", "json":
+      {"id": "retry-drill", "entry": "reach-target", "reason": "Not solved last time.", "addedAt": 813000000, "notBefore": "2026-10-11", "afterAttempt": 0,
+       "scenario": {"id": "drill-rook-1", "entry": "reach-target", "variant": "rook", "tier": 1, "cluster": "rook-open", "learner": "w", "prompt": "Move the rook to h8.", "explanation": "A rook moves along open lines.", "hints": ["Go along the edge."],
+         "drill": {"piece": "wr", "start": "a1", "target": "h8", "pieces": {"d4": "bp"}}, "budget": 2, "generation": {"generator": "reach-target", "version": 1, "seed": "1f", "candidates": 3}}}},
+    {"name": "this release's finish-the-game attempt in progress", "kind": "active", "verdict": "readable", "json":
+      {"id": "attempt-kqk", "entry": "finish-the-game", "freshness": "new", "revision": 4, "startedAt": 813000000, "recordedHelp": false, "retry": false,
+       "actions": [{"move": {"from": "d1", "to": "d7"}}, {"reply": {"_0": "e8f8"}}],
+       "scenario": {"id": "kqk-edge-1", "entry": "finish-the-game", "variant": "kqk", "tier": 1, "cluster": "kqk-edge", "learner": "w", "prompt": "Checkmate the lone king.", "explanation": "Push the king to the edge.", "hints": ["Take squares away from the king."],
+         "fen": "4k3/8/4K3/8/8/8/8/3Q4 w - - 0 1", "review": {"author": "checkmate", "reviewer": null, "validatorVersion": 1}, "check": "ending"}}},
+    {"name": "a Gentle finish-the-game attempt: its opponent sits beside the scenario, so this release continues it", "kind": "active", "verdict": "readable", "json":
+      {"id": "attempt-kqk-gentle", "entry": "finish-the-game", "freshness": "new", "revision": 2, "startedAt": 813000000, "recordedHelp": false, "retry": false,
+       "actions": [{"move": {"from": "d1", "to": "d7"}}],
+       "opponent": {"attempt": "attempt-kqk-gentle", "strategy": "beginner", "profile": "gentle", "limit": {"nodes": 20000}, "seed": "9a", "policyVersion": 1, "severeStreak": 0, "witness": 2},
+       "scenario": {"id": "kqk-edge-1", "entry": "finish-the-game", "variant": "kqk", "tier": 1, "cluster": "kqk-edge", "learner": "w", "prompt": "Checkmate the lone king.", "explanation": "Push the king to the edge.", "hints": ["Take squares away from the king."],
+         "fen": "4k3/8/4K3/8/8/8/8/3Q4 w - - 0 1", "review": {"author": "checkmate", "reviewer": null, "validatorVersion": 1}, "check": "ending"}}},
+    {"name": "a pawn race queued after a failed run", "kind": "retry", "verdict": "newer", "json":
+      {"id": "retry-pawn-race", "entry": "pawn-race", "reason": "Not solved last time.", "addedAt": 813000000, "notBefore": "2026-10-11", "afterAttempt": 0,
+       "scenario": {"id": "pawn-race-e", "entry": "pawn-race", "variant": "kpk", "tier": 1, "cluster": "kpk-e", "learner": "w", "prompt": "Promote the pawn and keep the new piece.", "explanation": "Lead the pawn with the king.", "hints": ["Keep the king in front of the pawn."],
+         "fen": "4k3/8/8/8/8/8/4P3/4K3 w - - 0 1", "review": {"author": "checkmate", "reviewer": null, "validatorVersion": 2}, "check": "positionGame", "goal": {"kind": "promoteAndHold", "threshold": 0}}}},
+    {"name": "a two-bishop mate in progress against Gentle", "kind": "active", "verdict": "newer", "json":
+      {"id": "attempt-bishops", "entry": "two-bishop-mate", "freshness": "new", "revision": 3, "startedAt": 813000000, "recordedHelp": false, "retry": false,
+       "actions": [{"move": {"from": "c1", "to": "e3"}}, {"reply": {"_0": "e8d7"}}],
+       "opponent": {"attempt": "attempt-bishops", "strategy": "beginner", "profile": "gentle", "limit": {"nodes": 20000}, "seed": "3c", "policyVersion": 1, "severeStreak": 0, "witness": 3},
+       "scenario": {"id": "kbbk-1", "entry": "two-bishop-mate", "variant": "kbbk", "tier": 1, "cluster": "kbbk-centre", "learner": "w", "prompt": "Checkmate with the two bishops.", "explanation": "The bishops work side by side.", "hints": ["Keep the bishops next to each other."],
+         "fen": "4k3/8/8/8/8/8/8/2B1KB2 w - - 0 1", "review": {"author": "checkmate", "reviewer": null, "validatorVersion": 2}, "check": "positionGame", "goal": {"kind": "checkmate", "threshold": 0}, "keep": ["b"]}}},
+    {"name": "a known check and goal with a new keep rule, queued", "kind": "retry", "verdict": "newer", "json":
+      {"id": "retry-kqk-keep", "entry": "finish-the-game", "reason": "Not solved last time.", "addedAt": 813000000, "notBefore": "2026-10-11", "afterAttempt": 0,
+       "scenario": {"id": "kqk-edge-1", "entry": "finish-the-game", "variant": "kqk", "tier": 1, "cluster": "kqk-edge", "learner": "w", "prompt": "Checkmate the lone king.", "explanation": "Push the king to the edge.", "hints": ["Take squares away from the king."],
+         "fen": "4k3/8/4K3/8/8/8/8/3Q4 w - - 0 1", "review": {"author": "checkmate", "reviewer": null, "validatorVersion": 2}, "check": "ending", "keep": ["q"]}}},
+    {"name": "a retry item with a new field of its own", "kind": "retry", "verdict": "newer", "json":
+      {"id": "retry-with-level", "entry": "reach-target", "reason": "Not solved last time.", "addedAt": 813000000, "notBefore": "2026-10-11", "afterAttempt": 0, "level": "steady",
+       "scenario": {"id": "drill-rook-1", "entry": "reach-target", "variant": "rook", "tier": 1, "cluster": "rook-open", "learner": "w", "prompt": "Move the rook to h8.", "explanation": "A rook moves along open lines.", "hints": ["Go along the edge."],
+         "drill": {"piece": "wr", "start": "a1", "target": "h8", "pieces": {"d4": "bp"}}, "budget": 2, "generation": {"generator": "reach-target", "version": 1, "seed": "1f", "candidates": 3}}}},
+    {"name": "an attempt with an action this release does not know", "kind": "active", "verdict": "newer", "json":
+      {"id": "attempt-voice", "entry": "finish-the-game", "freshness": "new", "revision": 2, "startedAt": 813000000, "recordedHelp": true, "retry": false,
+       "actions": [{"coachHelp": {"segment": 1}}],
+       "scenario": {"id": "kqk-edge-1", "entry": "finish-the-game", "variant": "kqk", "tier": 1, "cluster": "kqk-edge", "learner": "w", "prompt": "Checkmate the lone king.", "explanation": "Push the king to the edge.", "hints": ["Take squares away from the king."],
+         "fen": "4k3/8/4K3/8/8/8/8/3Q4 w - - 0 1", "review": {"author": "checkmate", "reviewer": null, "validatorVersion": 1}, "check": "ending"}}},
+    {"name": "a retry item that is not an object", "kind": "retry", "verdict": "damaged", "json": 42},
+    {"name": "an attempt without its scenario", "kind": "active", "verdict": "damaged", "json": {"id": "attempt-cut", "entry": "finish-the-game", "revision": 1}},
+    {"name": "a retry item with a number for its identifier", "kind": "retry", "verdict": "damaged", "json":
+      {"id": 7, "entry": "reach-target", "scenario": {"id": "drill-rook-1"}}}
+  ]
+}

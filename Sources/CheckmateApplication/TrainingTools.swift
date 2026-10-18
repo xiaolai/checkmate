@@ -105,6 +105,6 @@ import Foundation
         let entries=(controller.catalog?.entries ?? []).filter{Self.offered($0) && controller.provider?.available($0) != false}.map{entry->[String:Any] in
             ["id":entry.id,"title":entry.title,"summary":entry.summary,"objective":entry.objective.rawValue,"ruleMode":entry.ruleMode.rawValue,"origin":entry.origin.rawValue,"rules":entry.rules,"progress":TrainingRecommendation.progress(entry.id,in:training).lines]
         }
-        return ["schemaVersion":1,"entries":entries,"resumableEntryId":controller.resumable?.entry as Any? ?? NSNull()]
+        return ["schemaVersion":1,"entries":entries,"resumableEntryId":controller.resumable?.entry as Any? ?? NSNull(),"keptForNewerVersion":["activeAttempt":training.newerActive != nil,"suggestions":training.newerRetryCount]]
     }
 }

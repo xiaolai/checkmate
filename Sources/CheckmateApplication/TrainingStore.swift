@@ -103,9 +103,10 @@ public enum TrainingStore {
         training[keyPath:records].removeFirst(low)
     }
     /// Whether `snapshot` can be saved as the active attempt within the training budget, after pruning disposable
-    /// records. Never makes room by touching the real practice game.
+    /// records. Never makes room by touching the real practice game. While a newer version's attempt holds the slot,
+    /// `snapshot` is never saved (`TrainingController.save`), so only the record as it stands must fit.
     public static func fits(_ snapshot:TrainingSessionSnapshot,in training:TrainingState)->Bool {
-        var trial=training;trial.active=snapshot;prune(&trial)
+        var trial=training;if trial.newerActive==nil{trial.active=snapshot};prune(&trial)
         return withinBudget(trial)
     }
     /// Whether the record encodes within its byte budget; a record that cannot be encoded does not fit.

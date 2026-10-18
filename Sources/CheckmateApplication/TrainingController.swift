@@ -87,8 +87,17 @@ public struct PreparedTrainingExercise {
     // MARK: Navigation
     /// Shows the library. An unfinished exercise stays saved for Continue.
     public func openLibrary(){learning.pause();games.cancel();exercise=nil;guidedReview=nil;go(.trainingLibrary);publish()}
-    /// The saved unfinished exercise the library offers as Continue, if training records are writable.
+    /// The saved unfinished exercise the library offers as Continue, if training records are writable. One from a newer
+    /// version (`TrainingState.newerActive`) is never offered.
     public var resumable:TrainingSessionSnapshot? {session.state.trainingWritable ? training.active:nil}
+    /// What the library says about records kept for a newer version of Checkmate; empty when there are none.
+    public var keptForNewerVersion:[String] {
+        let training=training,retries=training.newerRetryCount
+        var lines:[String]=[]
+        if training.newerActive != nil{lines.append("An unfinished exercise from a newer version of Checkmate is kept for it. Until it is finished there, an exercise started here cannot be continued after you leave it.")}
+        if retries>0{lines.append(retries==1 ? "A suggested board from a newer version of Checkmate is kept for it.":"\(retries) suggested boards from a newer version of Checkmate are kept for it.")}
+        return lines
+    }
     /// Stages a new exercise for `entry`. Throws (and changes nothing) when the content is unavailable or invalid.
     /// `generatedTier` applies to generated drills only; curated content is chosen regardless of its descriptive tier.
     public func prepare(entry id:String,generatedTier:Int=1,variant:String?=nil)throws -> PreparedTrainingExercise {
@@ -397,7 +406,7 @@ public struct PreparedTrainingExercise {
     }
     /// A new scenario for the same entry; a generated drill keeps the current one's tier unless another is named.
     public func next(generatedTier:Int?=nil){guard interactive,let state=exercise else{return};do{begin(try prepare(entry:state.definition.id,generatedTier:generatedTier ?? state.scenario.tier))}catch{refuse(userFacing(error))}}
-    /// Back to the library; an unfinished attempt stays saved for Continue.
+    /// Back to the library; an unfinished attempt stays saved for Continue, unless a newer version's attempt holds its slot.
     public func leave(){guard showing else{return};openLibrary()}
     // MARK: Evaluation
     private func correctSquares(_ state:Exercise)throws -> Set<String> {
@@ -455,7 +464,8 @@ public struct PreparedTrainingExercise {
         let writable=session.state.trainingWritable
         guard let snapshot=Self.nextSaved(candidate.snapshot,in:training,writable:writable) else{refuse("This attempt has grown too long to save, so that was not recorded. Finish it, or start again.");return false}
         var state=candidate;state.snapshot=snapshot
-        if writable{var record=training;record.active=state.snapshot;TrainingStore.prune(&record);session.state.training=record}
+        // A newer version's attempt keeps the active slot: this one is shown and finished, but not saved for Continue.
+        if writable,training.newerActive==nil{var record=training;record.active=state.snapshot;TrainingStore.prune(&record);session.state.training=record}
         exercise=state;publish();session.emit(semantic:false,save:true);return true
     }
     /// `snapshot` as the next save writes it (its revision advanced), or nil when no save may write it: more actions

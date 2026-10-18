@@ -60,6 +60,7 @@ struct TrainingLibraryView:View {
         Text("Short exercises for the basics. This is foundational practice, not a complete beginner course.").foregroundStyle(.secondary)
         if let error=training.contentError{Text(error).foregroundStyle(Color(nsColor:NativeColors.error))}
         if let notice=training.notice{Text(notice).accessibilityIdentifier("training-notice")}
+        ForEach(training.keptForNewerVersion,id:\.self){Text($0).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("training-newer-version")}
         if let active=training.resumable,offered(active.entry),let definition=training.catalog?.entry(active.entry) {
             Button{model.resumeTraining()}label:{Label("Continue \(definition.title)",systemImage:"play.fill")}.controlSize(.large).accessibilityIdentifier("training-continue")
         }

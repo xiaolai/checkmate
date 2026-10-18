@@ -1,0 +1,43 @@
+{
+  "about": "Frozen before WI-017 added any value: how the WI-026 release reads the training records that embed a scenario. Do not edit or regenerate it; a later build models this release with it (FrozenTrainingDecoder). A record without a string id, a string entry and a scenario object is damaged. A record is from a newer version when any field it holds is not listed here, or a closed vocabulary holds a value not listed here; the active attempt alone tolerates unknown fields at its top level (kept by path, and it resumes). Null is no field. 'value' is any JSON value: types and required fields are not modelled.",
+  "records": {
+    "active": {
+      "toleratesUnknownFields": true,
+      "fields": {"id": "value", "entry": "value", "scenario": "scenario", "freshness": "value", "revision": "value", "startedAt": "value", "actions": {"array": "action"}, "recordedHelp": "value", "retry": "value"}
+    },
+    "retry": {
+      "toleratesUnknownFields": false,
+      "fields": {"id": "value", "entry": "value", "scenario": "scenario", "reason": "value", "addedAt": "value", "notBefore": "value", "afterAttempt": "value"}
+    }
+  },
+  "shapes": {
+    "scenario": {"object": {
+      "id": "value", "entry": "value", "variant": "value", "tier": "value", "cluster": "value", "learner": "value",
+      "prompt": "value", "explanation": "value", "hints": "value", "fen": "value", "prelude": "value",
+      "diagram": "value", "target": "value", "drill": "drill", "budget": "value", "shortest": "value", "choices": "value",
+      "expected": "expected", "noAction": "value", "reserve": "value", "review": "review", "generation": "generation",
+      "check": {"enum": ["defense", "material", "exchange", "castle", "castleReason", "promotion", "enPassant", "enPassantChoice", "forks", "pins", "mateThreatCreate", "mateThreatPrevent", "kingSquares", "status", "diagnosis", "ending", "guidedGame", "moment"]},
+      "goal": "goal", "plies": "value", "nodes": {"array": "node"}, "stated": "value", "askColor": "value", "focus": "value",
+      "skills": {"array": "skill"}, "primarySkill": "skill", "source": "value",
+      "bridge": {"enum": ["pawn-duel", "rook-sweep", "rooks-and-pawns", "bishop-sweep", "bishops-and-pawns", "queen-vs-pawns", "knight-capture", "knight-corners"]},
+      "workflow": "value"
+    }},
+    "skill": {"enum": ["movement", "attackProtection", "threatResponse", "captureExchange", "checkMateDraw", "specialRules", "elementaryTactics", "convertingWin", "gameHabits", "diagnosis"]},
+    "goal": {"object": {"kind": {"enum": ["survive", "gain", "hold"]}, "threshold": "value", "target": "value", "drawOK": "value"}},
+    "expected": {"object": {"squares": "value", "moves": "value", "choice": "value", "distance": "value", "choices": "value", "wrong": "value"}},
+    "review": {"object": {"author": "value", "reviewer": "value", "validatorVersion": "value"}},
+    "generation": {"object": {"generator": "value", "version": "value", "seed": "value", "candidates": "value"}},
+    "drill": {"object": {"piece": "value", "start": "value", "target": "value", "pieces": "value"}},
+    "node": {"object": {"fingerprint": "value", "accepted": "value", "replies": "value", "next": "value"}},
+    "action": {"oneOf": {
+      "move": {"from": "value", "to": "value", "promotion": "value"},
+      "submit": {"squares": "value"},
+      "choose": {"_0": "value"},
+      "hint": {"level": "value"},
+      "reveal": {},
+      "undo": {},
+      "reply": {"_0": "value"},
+      "claim": {"_0": "value"}
+    }}
+  }
+}
