@@ -168,3 +168,26 @@ struct Legacy10PublicGame:Decodable,Equatable {
         guard revision>=0,[whiteName,blackName].allSatisfy({$0.map{Legacy10Wire.text($0)} ?? true}),clocks?.valid ?? true,(clocks==nil)==(timeControl == .untimed) else{throw DecodingError.dataCorrupted(.init(codingPath:decoder.codingPath,debugDescription:"Invalid public game."))}
     }
 }
+/// Mini-games plan WI-024 (D7, L2): protocol 1.3 against 1.2. The exact bytes the 1.2 codec wrote, captured from it
+/// at bf7c181 before any 1.3 change: `hello` with and without terms and a spectator's, each stating 1.2's capabilities,
+/// `resume`, `move`, `moved`, `ended` and `bye`, and a hosted game's record from a declared start (the Game of the
+/// Century after 40. Kb1, the host Black, 40... Nc3+ 41. Kc1 on the real chess rules), with its position and hash. Do
+/// not regenerate them: they are what a 1.2 peer still sends.
+enum Legacy12Fixtures {
+    static let messages:[String]=[
+        #"{"appVersion":"0.8.3","assistance":{"black":"hints","white":"hints"},"capabilities":["start"],"claimID":"ZJ8T55DJHWM81E63X4ARZJW9QDQ2FPBGBS8TW1JZXE2ZKEY5VZA0","name":"Ben","protocol":{"major":1,"minor":2},"type":"hello"}"#,
+        #"{"appVersion":"0.8.3","assistance":{"black":"off","white":"off"},"capabilities":["start"],"claimID":"ZJ8T55DJHWM81E63X4ARZJW9QDQ2FPBGBS8TW1JZXE2ZKEY5VZA0","name":"Ben","protocol":{"major":1,"minor":2},"type":"hello"}"#,
+        #"{"appVersion":"0.8.3","capabilities":["start"],"name":"Cy","protocol":{"major":1,"minor":2},"type":"hello"}"#,
+        #"{"capabilities":["start"],"credential":"NC72YK32R2ACBCAHKJ0M3RAKTJGKFZ7FZ577XM62JHW6VKMZ0M00","gameID":"9HZF8WCHXP8XZ1PFNQ7ZJWA96C","protocol":{"major":1,"minor":2},"type":"resume"}"#,
+        #"{"commandID":"9TZYQ9YVAYY2TESD6MAB0JB088","gameID":"9HZF8WCHXP8XZ1PFNQ7ZJWA96C","protocol":{"major":1,"minor":2},"revision":3,"type":"move","uci":"e2e4"}"#,
+        #"{"hash":"abc123","protocol":{"major":1,"minor":2},"receiptFor":"A59T0XHYRX64W7C7YVRZ18WWRR","revision":5,"san":"Nf3","type":"moved","uci":"g1f3"}"#,
+        #"{"protocol":{"major":1,"minor":2},"result":"0-1","revision":7,"termination":"checkmate","type":"ended"}"#,
+        #"{"protocol":{"major":1,"minor":2},"reason":"protocolVersion","type":"bye"}"#,
+    ]
+    static let record=#"{"blackName":"Ana","gameID":"41K5PPY6VDQ7TASTDE538YB37M","hostSide":"b","pgn":"[Event \"?\"]\n[Site \"?\"]\n[Date \"????.??.??\"]\n[Round \"?\"]\n[White \"?\"]\n[Black \"?\"]\n[Result \"*\"]\n[SetUp \"1\"]\n[FEN \"1Q6/5pk1/2p3p1/1p2N2p/1b5P/1b6/r3n1P1/1K6 b - - 13 40\"]\n\n40. ... Nc3+ 41. Kc1 *","revision":2,"startFEN":"1Q6/5pk1/2p3p1/1p2N2p/1b5P/1b6/r3n1P1/1K6 b - - 13 40","timeControl":"untimed","whiteName":"Ben"}"#
+    static let fen="1Q6/5pk1/2p3p1/1p2N2p/1b5P/1bn5/r5P1/2K5 b - - 15 41"
+    static let hash="1a09ee4aed8ed96d49f7e22b6acefa420cf8ded2598ae418fbec56c5a34e01dc"
+    /// 1.2's terminations, written out so a later case cannot move them: an `ended` naming any other is malformed to a
+    /// 1.2 decoder (its `NetworkTermination` has no such case).
+    static let terminations:Set<String>=["checkmate","stalemate","resignation","time","agreement","repetition","fiftyMoves","seventyFiveMoves","fivefold","insufficientMaterial","abandoned"]
+}

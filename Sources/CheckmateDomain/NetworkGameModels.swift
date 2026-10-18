@@ -15,8 +15,14 @@ public enum NetworkGameResult:String,Codable,CaseIterable {
 /// How a network game ended (D5). A game whose host vanished before `ended` has none: it is interrupted.
 public enum NetworkTermination:String,Codable,CaseIterable {
     case checkmate,stalemate,resignation,time,agreement,repetition,fiftyMoves,seventyFiveMoves,fivefold,insufficientMaterial,abandoned
-    /// The PGN `Termination` value for the review record (D9).
-    public var pgnValue:String {switch self{case .checkmate:return "Checkmate";case .stalemate:return "Stalemate";case .resignation:return "Resignation";case .time:return "Time forfeit";case .agreement:return "Draw by agreement";case .repetition:return "Threefold repetition";case .fiftyMoves:return "Fifty-move rule";case .seventyFiveMoves:return "Seventy-five-move rule";case .fivefold:return "Fivefold repetition";case .insufficientMaterial:return "Insufficient material";case .abandoned:return "Abandoned"}}
+    /// A mini-game's own endings (protocol 1.3, `docs/network-protocol-1.3.md`), sent only on a connection that stated
+    /// the game's ruleset: a 1.2 decoder has no such case.
+    case farRank,allCaptured,noMoves,miniRepetition,miniNoProgress,unreachableTargets
+    /// The values protocol 1.2 knows; every other one arises only in a ruleset game.
+    public var inProtocol12:Bool {switch self{case .farRank,.allCaptured,.noMoves,.miniRepetition,.miniNoProgress,.unreachableTargets:return false;default:return true}}
+    /// The PGN `Termination` value for the review record (D9). A mini-game has no PGN record; its values are named for
+    /// completeness.
+    public var pgnValue:String {switch self{case .checkmate:return "Checkmate";case .stalemate:return "Stalemate";case .resignation:return "Resignation";case .time:return "Time forfeit";case .agreement:return "Draw by agreement";case .repetition:return "Threefold repetition";case .fiftyMoves:return "Fifty-move rule";case .seventyFiveMoves:return "Seventy-five-move rule";case .fivefold:return "Fivefold repetition";case .insufficientMaterial:return "Insufficient material";case .abandoned:return "Abandoned";case .farRank:return "Far rank";case .allCaptured:return "All captured";case .noMoves:return "No moves";case .miniRepetition:return "Repeated position";case .miniNoProgress:return "No progress";case .unreachableTargets:return "Targets unreachable"}}
 }
 public struct NetworkOutcome:Codable,Equatable {
     public let result:NetworkGameResult,termination:NetworkTermination

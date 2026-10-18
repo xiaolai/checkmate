@@ -65,5 +65,9 @@ public struct NetworkHostForm:Equatable {
     /// The game-library position the game starts from (mini-games plan D7), or nil for the standard start. Offered
     /// only with `NetworkPolicy.positionsEnabled`; hosting ignores it otherwise.
     public var start:NetworkLibraryStart?
+    /// The simplified mini-game to play instead of chess (protocol 1.3), or nil for chess. Offered only with
+    /// `NetworkPolicy.miniGamesEnabled`, and only the competitive kinds (`NetworkRuleset.supported`); hosting ignores it
+    /// otherwise. A mini-game has its own start and no assistance, so those choices are set aside while one is chosen.
+    public var miniGame:MiniGameKind?
     public init(){}
 }

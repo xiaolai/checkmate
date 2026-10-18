@@ -143,7 +143,8 @@ public final class NetworkReceiver {
             guard admitted else{output.close = .malformed;break}
             do{assembler=try NetworkSnapshotAssembler(snapshotID:snapshotID,revision:revision,hash:hash,totalBytes:totalBytes,parts:parts)}catch{output.close = .badSnapshot}
         case .snapshotPart,.snapshotEnd:output.close = .badSnapshot
-        case .moved(let moved):guard clocksFit(moved.clocks) else{output.close = .malformed;break};try apply(moved,at:now,&output)
+        // A ruleset game has no assistance (protocol 1.3): a move said to be assisted is not this game's.
+        case .moved(let moved):guard clocksFit(moved.clocks),!(moved.assisted && installed?.ruleset != nil) else{output.close = .malformed;break};try apply(moved,at:now,&output)
         case .ended(let ended):
             guard let current=revision else{requestResync(&output);break}
             // A game ends once: the same result again is a duplicate; any other result at or before the current revision,
@@ -151,6 +152,8 @@ public final class NetworkReceiver {
             if ended.revision<=current {if ended.revision != current || ended.outcome != outcome {output.close = .malformed};break}
             guard outcome==nil,clocksFit(ended.clocks) else{output.close = .malformed;break}
             guard ended.revision==current+1 else{requestResync(&output);break}
+            // Protocol 1.3: an ending the rules decide is the one this Mac's own game shows, or it is not this game.
+            guard let rules,try NetworkSnapshotInstaller.verified(ended.outcome,on:rules,ruleset:installed?.ruleset != nil) else{output.close = .malformed;break}
             revision=ended.revision;outcome=ended.outcome;openOffer=nil;pendingMove=nil
             if let clocks=ended.clocks {clockSync=(clocks,now)}
             output.events.append(.ended(ended.outcome))
@@ -183,7 +186,8 @@ public final class NetworkReceiver {
     private func finishSnapshot(_ snapshotID:NetworkID,at now:NetworkInstant,_ output:inout NetworkReceiverOutput)throws {
         let assembled=assembler!;assembler=nil
         let result:NetworkSnapshotInstaller.Installed
-        do{result=try NetworkSnapshotInstaller.install(try assembled.finish(snapshotID:snapshotID),revision:assembled.revision,hash:assembled.hash,gameID:gameID,rules:factory,hashing:hashing)}
+        do{result=try NetworkSnapshotInstaller.install(try assembled.finish(snapshotID:snapshotID),revision:assembled.revision,hash:assembled.hash,gameID:gameID,rules:factory,hashing:hashing,pinned:pinnedStart,stated:capabilities)}
+        catch NetworkSnapshotError.pinMismatch{output.close = .malformed;return}
         catch is NetworkSnapshotError{output.close = .badSnapshot;return}
         // A3: a guest plays only under the terms it accepted. Other terms are never installed, and a claim is never
         // acknowledged under them, so the reservation lapses (D4).

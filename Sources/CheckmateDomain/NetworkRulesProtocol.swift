@@ -34,8 +34,11 @@ public struct NetworkPlayedMove:Equatable {
 }
 public enum NetworkAutomaticEnding:Equatable {
     case checkmate(winner:NetworkSide),stalemate,insufficientMaterial,seventyFiveMoves,fivefold
+    /// A mini-game's referee ended it (protocol 1.3): won by `winner`, or drawn when nil, by `termination`.
+    case mini(winner:NetworkSide?,NetworkTermination)
     public var outcome:NetworkOutcome {
         switch self {
+        case .mini(let winner,let termination):return NetworkOutcome(result:winner.map{.win(for:$0)} ?? .draw,termination:termination)
         case .checkmate(let winner):return NetworkOutcome(result:.win(for:winner),termination:.checkmate)
         case .stalemate:return NetworkOutcome(result:.draw,termination:.stalemate)
         case .insufficientMaterial:return NetworkOutcome(result:.draw,termination:.insufficientMaterial)
@@ -48,14 +51,21 @@ public enum NetworkRulesError:Error,Equatable {
     case illegalMove
     /// A start no game could have reached (D7); see `networkLoad(start:)`.
     case illegalStart
+    /// A ruleset record that is not exactly the record grammar, or over its limits (protocol 1.3).
+    case badRecord
     case unexpected(String)
 }
 /// Makes fresh games: the host's own network game (never `session.rules`, D9), and each scratch game a receiver
 /// replays a snapshot into before trusting it.
 public struct NetworkRulesFactory {
     private let make:()throws -> any NetworkChessRules
-    public init(_ make:@escaping ()throws -> any NetworkChessRules){self.make=make}
+    private let makeRuleset:(NetworkRuleset)throws -> any NetworkChessRules
+    /// `ruleset` makes a game of a mini-game's rules (protocol 1.3); the referee's own adapter unless a test counts it.
+    public init(_ make:@escaping ()throws -> any NetworkChessRules,ruleset:@escaping (NetworkRuleset)throws -> any NetworkChessRules={NetworkMiniGame($0)}){self.make=make;makeRuleset=ruleset}
+    /// A chess game.
     public func newGame()throws -> any NetworkChessRules {try make()}
+    /// A game of `ruleset`'s rules, or chess when nil.
+    public func newGame(_ ruleset:NetworkRuleset?)throws -> any NetworkChessRules {try ruleset.map(makeRuleset) ?? make()}
 }
 /// The position hash (D2): SHA-256 of the canonical FEN and the revision. The domain imports no cryptography, so the
 /// digest is injected; production passes CheckmateSupport's `reviewHash` (SHA-256, lower-case hex).

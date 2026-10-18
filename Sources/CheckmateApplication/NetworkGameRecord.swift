@@ -54,19 +54,33 @@ public struct NetworkCrashFile {
             }
         }
     }
+    /// A chess game's entry: the file every build since 1.0 reads.
     public let url:URL
-    public init(dataDirectory:URL){url=dataDirectory.appendingPathComponent("NetworkGames",isDirectory:true).appendingPathComponent("current.json")}
+    /// A mini-game's entry (protocol 1.3): a file of its own, which no 1.2 build reads, so an older build never takes
+    /// its record for a chess one.
+    public let rulesetURL:URL
+    public init(dataDirectory:URL){
+        let folder=dataDirectory.appendingPathComponent("NetworkGames",isDirectory:true)
+        url=folder.appendingPathComponent("current.json");rulesetURL=folder.appendingPathComponent("current-ruleset.json")
+    }
+    /// Writes the entry to its own game's file and removes the other, so one game in progress is ever kept.
     public func save(_ entry:Entry)throws {
-        try FileManager.default.createDirectory(at:url.deletingLastPathComponent(),withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])
+        let (target,other)=entry.game.ruleset==nil ? (url,rulesetURL):(rulesetURL,url)
+        try FileManager.default.createDirectory(at:target.deletingLastPathComponent(),withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])
         let encoder=JSONEncoder();encoder.outputFormatting=[.sortedKeys]
-        try encoder.encode(entry).write(to:url,options:[.atomic])
-        try FileManager.default.setAttributes([.posixPermissions:0o600],ofItemAtPath:url.path)
+        try encoder.encode(entry).write(to:target,options:[.atomic])
+        try FileManager.default.setAttributes([.posixPermissions:0o600],ofItemAtPath:target.path)
+        try? FileManager.default.removeItem(at:other)
     }
-    /// The entry a previous run left, if any. An unreadable file is removed, so it can't nag on every launch.
+    /// The entry a previous run left, if any: the chess file's, else the mini-game file's. An unreadable file is
+    /// removed, so it can't nag on every launch; so is a chess file holding a mini-game, which no build writes.
     public func pending()->Entry? {
-        guard let data=try? Data(contentsOf:url) else{return nil}
-        guard let entry=try? JSONDecoder().decode(Entry.self,from:data) else{clear();return nil}
-        return entry
+        for (file,ruleset) in [(url,false),(rulesetURL,true)] {
+            guard let data=try? Data(contentsOf:file) else{continue}
+            guard let entry=try? JSONDecoder().decode(Entry.self,from:data),(entry.game.ruleset != nil)==ruleset else{try? FileManager.default.removeItem(at:file);continue}
+            return entry
+        }
+        return nil
     }
-    public func clear(){try? FileManager.default.removeItem(at:url)}
+    public func clear(){try? FileManager.default.removeItem(at:url);try? FileManager.default.removeItem(at:rulesetURL)}
 }

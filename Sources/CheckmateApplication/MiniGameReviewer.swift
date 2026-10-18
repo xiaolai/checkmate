@@ -31,21 +31,39 @@ import Combine
 
     public func start(_ game:MiniGameState){
         guard !game.kind.solo,game.isFinished else{return}
-        cancel();generation+=1;let epoch=generation,reviewed=Identity(game),budget=budget,clock=cpuSeconds
-        identity=reviewed;status = .running
-        let worker=Task.detached(priority:.utility){MiniGameReview.run(game,budget:budget,cpuSeconds:clock,stop:{Task.isCancelled})}
+        cancel();generation+=1;let reviewed=Identity(game),budget=budget,clock=cpuSeconds
+        identity=reviewed
+        launch(Task.detached(priority:.utility){MiniGameReview.run(game,budget:budget,cpuSeconds:clock,stop:{Task.isCancelled})},opens:true){[weak self] in self?.current().map(Identity.init)==reviewed}
+    }
+    /// A network game's moves from its kind's start, while it is shown (protocol 1.3): `start(kind:moves:)` shows a
+    /// result only for the same session's same moves.
+    public var currentNetwork:()->(session:Int,kind:MiniGameKind,moves:[MiniGameMove])?={nil}
+    /// Reviews a network mini-game whose result has been verified, whatever ended it (the referee, a resignation, an
+    /// agreement, a flag, abandonment), over every move from the start (`MiniGameReview.run(kind:moves:)`). The sheet
+    /// opens only when asked (`showSheet`): a network game's result is announced first.
+    public func start(session:Int,kind:MiniGameKind,moves:[MiniGameMove]){
+        guard !kind.solo,!moves.isEmpty else{return}
+        cancel();generation+=1;let budget=budget,clock=cpuSeconds
+        launch(Task.detached(priority:.utility){MiniGameReview.run(kind:kind,moves:moves,budget:budget,cpuSeconds:clock,stop:{Task.isCancelled})},opens:false){[weak self] in
+            guard let shown=self?.currentNetwork() else{return false};return shown.session==session && shown.kind==kind && shown.moves==moves
+        }
+    }
+    private var openWhenReady=false
+    private func launch(_ worker:Task<MiniGameReview,Never>,opens:Bool,stillShown:@escaping @MainActor ()->Bool){
+        let epoch=generation;status = .running;openWhenReady=opens
         task=Task{[weak self] in
             let review=await withTaskCancellationHandler(operation:{await worker.value},onCancel:{worker.cancel()})
             guard let self,!Task.isCancelled,self.generation==epoch else{return}
             self.task=nil
-            guard let shown=self.current(),Identity(shown)==reviewed,review.consistent else{self.status = .idle;self.identity=nil;return}
-            self.status = .ready(review);self.sheetOpen=true
+            guard stillShown(),review.consistent else{self.status = .idle;self.identity=nil;return}
+            self.status = .ready(review);if self.openWhenReady{self.sheetOpen=true}
         }
     }
     /// Restart, undo, a change of opponent and leaving the game end the review; nothing from it is shown afterwards.
     public func cancel(){generation+=1;task?.cancel();task=nil;identity=nil;if status != .idle{status = .idle};if sheetOpen{sheetOpen=false}}
     public func dismissSheet(){sheetOpen=false}
-    public func showSheet(){if case .ready=status{sheetOpen=true}}
+    /// Opens the sheet now, or as soon as the review running is ready.
+    public func showSheet(){if case .ready=status{sheetOpen=true}else if status == .running{openWhenReady=true}}
     public var review:MiniGameReview? {if case .ready(let review)=status{return review};return nil}
     /// What voice may read aloud at `activity` (plan D5): this review of the game shown, while its sheet is open, its
     /// facts proved and the learner still at that mini-game. Nil during play, before or without a result, and once

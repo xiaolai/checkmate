@@ -95,10 +95,10 @@ final class TestNetwork {
     var stalled:Set<NetworkConnectionID>=[]
     var clients:[TestClient]=[]
     /// `prepare` scripts the rules before the host sets up its start.
-    init(hostSide:NetworkSide = .white,timeControl:NetworkTimeControl = .untimed,spectators:Bool=true,limits:NetworkHostLimits = .standard,epoch:NetworkID?=nil,assistance:NetworkAssistance = .off,start:String?=nil,prepare:(FakeScript)->Void={_ in})throws {
+    init(hostSide:NetworkSide = .white,timeControl:NetworkTimeControl = .untimed,spectators:Bool=true,limits:NetworkHostLimits = .standard,epoch:NetworkID?=nil,assistance:NetworkAssistance = .off,start:String?=nil,ruleset:NetworkRuleset?=nil,prepare:(FakeScript)->Void={_ in})throws {
         gameID=NetworkGameID.random(using:random.source)
         prepare(script)
-        host=try NetworkHost(gameID:gameID,runEpoch:epoch ?? NetworkID.random(using:random.source),settings:NetworkHostSettings(hostName:"Ana",hostSide:hostSide,timeControl:timeControl,allowSpectators:spectators,assistance:assistance,startFEN:start),rules:factory,hashing:testHashing,random:random.source,limits:limits,at:now)
+        host=try NetworkHost(gameID:gameID,runEpoch:epoch ?? NetworkID.random(using:random.source),settings:NetworkHostSettings(hostName:"Ana",hostSide:hostSide,timeControl:timeControl,allowSpectators:spectators,assistance:assistance,startFEN:start,ruleset:ruleset),rules:factory,hashing:testHashing,random:random.source,limits:limits,at:now)
     }
     var factory:NetworkRulesFactory {let script=script;return NetworkRulesFactory{FakeRules(script:script)}}
     var hostMoves:[String] {(try? host.publicGame(at:now).pgn).map{record in let fake=FakeRules(script:FakeScript());try? fake.networkLoad(pgn:record);return fake.moves} ?? []}

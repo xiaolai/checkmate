@@ -11,5 +11,9 @@ public enum NetworkPolicy {
     /// Off by default, so hosting uses the standard start exactly as protocol 1.1 does. Joining and watching a game
     /// from a declared start need no flag: every 1.2 build replays one.
     public static var positionsEnabled:Bool {ProcessInfo.processInfo.environment["CHECKMATE_NETWORK_POSITIONS"]=="1"}
+    /// A host may choose a simplified mini-game (mini-games plan D7, L2, protocol 1.3): `CHECKMATE_NETWORK_MINI_GAMES=1`.
+    /// Off by default, so hosting is chess exactly as protocol 1.2 hosts it. Joining and watching a mini-game need no
+    /// flag: every 1.3 build plays and verifies each ruleset it states.
+    public static var miniGamesEnabled:Bool {ProcessInfo.processInfo.environment["CHECKMATE_NETWORK_MINI_GAMES"]=="1"}
     public static var availableHere:Bool {available(onMajor:ProcessInfo.processInfo.operatingSystemVersion.majorVersion)}
 }

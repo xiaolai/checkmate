@@ -42,7 +42,8 @@ struct NetworkDetail:View {
         // Join and Watch share this one list (D10).
         ForEach(game.games,id:\.gameID.text){entry in
             let selected=chosen==entry.gameID.text
-            let badge=NetworkWording.badge(entry.assistance)
+            // Protocol 1.3: the advertised mini-game, from the TXT record, for display only; the snapshot decides the game.
+            let badge=entry.variant.map(\.title) ?? NetworkWording.badge(entry.assistance)
             Button{chosen=entry.gameID.text}label:{
                 HStack(spacing:Metrics.smallGap){
                     Label(entry.displayName,systemImage:selected ? "largecircle.fill.circle":"circle")
@@ -68,6 +69,7 @@ struct NetworkDetail:View {
     @ViewBuilder private var session:some View {
         if game.part == .host,game.outcome==nil,game.sessionOpen,let play=game.playCode {codes(play)}
         if game.seat != nil {players;assistance;voiceCoach}
+        if let kind=game.ruleset?.kind {Text(NetworkWording.miniGame(kind)).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("network-mini-game")}
         if game.declaredStart {Text(NetworkWording.declaredStart).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("network-declared-start")}
         if let status=game.statusText{Text(status).fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("network-status")}
         if game.part == .host,game.holdExpired {
@@ -102,6 +104,7 @@ struct NetworkDetail:View {
             Text(NetworkWording.seatHeld).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("network-seat-held")
         }
         if game.canReview{Button("Review this game"){model.reviewNetworkGame()}.controlSize(.large).accessibilityIdentifier("network-review")}
+        if game.ruleset != nil,game.canReview,game.miniReview.status == .running {ProgressView(MiniGameReviewWording.running).controlSize(.small).accessibilityIdentifier("network-mini-review-running")}
         if game.sessionOpen && game.outcome==nil {
             Button(leaveTitle){model.leaveNetworkGame()}.accessibilityIdentifier("network-leave")
         }else{
@@ -231,21 +234,31 @@ struct NetworkHostSheet:View {
                 Picker("Your side",selection:$game.form.side){Text("White").tag(NetworkSideChoice.white);Text("Black").tag(NetworkSideChoice.black);Text("Random").tag(NetworkSideChoice.random)}.accessibilityIdentifier("network-host-side")
                 Picker("Time control",selection:$game.form.timeControl){ForEach(NetworkTimeControl.allCases,id:\.self){control in Text(Self.label(control)).tag(control)}}.accessibilityIdentifier("network-host-time-control")
                 Toggle("Allow spectators",isOn:$game.form.allowSpectators).accessibilityIdentifier("network-host-allow-spectators")
-                if handicap {
+                // Protocol 1.3: a simplified mini-game instead of chess; it has its own start and no assistance.
+                if NetworkPolicy.miniGamesEnabled {
+                    Picker("Game",selection:$game.form.miniGame){
+                        Text("Chess").tag(MiniGameKind?.none)
+                        ForEach(NetworkRuleset.supported.map(\.kind),id:\.self){kind in Text(kind.title).tag(MiniGameKind?.some(kind))}
+                    }.accessibilityIdentifier("network-host-game")
+                }
+                if miniGame {Text(NetworkWording.miniGameNote).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("network-host-mini-note")}
+                else if handicap {
                     levels("White's assistance",\.white,"network-host-assistance-white")
                     levels("Black's assistance",\.black,"network-host-assistance-black")
                 }else{
                     Picker("Assistance",selection:Binding(get:{game.form.assistance.white},set:{game.form.assistance=NetworkAssistance(both:$0)})){ForEach(NetworkAssistanceLevel.allCases,id:\.self){level in Text(level.title).tag(level)}}.accessibilityIdentifier("network-host-assistance")
                 }
-                // Turning the handicap off gives Black White's level again: the terms are one level for both by default.
-                Toggle("Handicap: different assistance for each side",isOn:Binding(get:{handicap},set:{handicap=$0;if !$0{game.form.assistance=NetworkAssistance(both:game.form.assistance.white)}})).accessibilityIdentifier("network-host-handicap")
-                if NetworkPolicy.positionsEnabled {start}
+                if !miniGame {
+                    // Turning the handicap off gives Black White's level again: the terms are one level for both by default.
+                    Toggle("Handicap: different assistance for each side",isOn:Binding(get:{handicap},set:{handicap=$0;if !$0{game.form.assistance=NetworkAssistance(both:game.form.assistance.white)}})).accessibilityIdentifier("network-host-handicap")
+                    if NetworkPolicy.positionsEnabled {start}
+                }
             }
             if let message=game.lobbyMessage{Text(message).fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("network-host-message")}
             HStack {
                 Spacer()
                 Button("Cancel"){close()}.keyboardShortcut(.cancelAction).accessibilityIdentifier("network-host-cancel")
-                Button("Host"){if game.host(){close()}}.keyboardShortcut(.defaultAction).disabled(!game.nameValid || NetworkPolicy.positionsEnabled && fromLibrary && game.form.start==nil).accessibilityIdentifier("network-host-start")
+                Button("Host"){if game.host(){close()}}.keyboardShortcut(.defaultAction).disabled(!game.nameValid || !miniGame && NetworkPolicy.positionsEnabled && fromLibrary && game.form.start==nil).accessibilityIdentifier("network-host-start")
             }
         }.padding(Metrics.sectionGap).frame(width:380).accessibilityElement(children:.contain).accessibilityIdentifier("network-host-sheet").onAppear{
             handicap=game.form.assistance.handicap
@@ -253,6 +266,8 @@ struct NetworkHostSheet:View {
             if NetworkPolicy.positionsEnabled,let chosen=game.form.start {fromLibrary=true;libraryGame=chosen.gameID;loadLibrary(keeping:chosen)}
         }
     }
+    /// A mini-game is chosen (protocol 1.3), so the start and assistance choices are set aside.
+    private var miniGame:Bool {NetworkPolicy.miniGamesEnabled && game.form.miniGame != nil}
     /// The start (D7): the standard position, or a library game's position after one of its moves.
     @ViewBuilder private var start:some View {
         Picker("Start",selection:Binding(get:{fromLibrary},set:{fromLibrary=$0;if $0{loadLibrary(keeping:nil)}else{game.form.start=nil}})){

@@ -11,8 +11,10 @@ public struct NetworkCapabilities:Hashable,CustomStringConvertible {
         self.tokens=tokens.sorted()
     }
     public static let none=NetworkCapabilities([])!
-    /// What this build states: it replays a record from a declared start and pins it (L1).
-    public static let supported=NetworkCapabilities([NetworkStart.capability])!
+    /// What this build states: it replays a record from a declared start and pins it (L1), and it plays and verifies
+    /// each mini-game ruleset (L2, protocol 1.3). Eight tokens, 1.2's bound: one more fails here, at launch and in tests,
+    /// rather than truncating what is stated (`docs/network-protocol-1.3.md`, the capability budget).
+    public static let supported=NetworkCapabilities([NetworkStart.capability]+NetworkRuleset.supported.map(\.capability))!
     public func contains(_ token:String)->Bool {tokens.contains(token)}
     public func isSubset(of other:NetworkCapabilities)->Bool {tokens.allSatisfy(other.contains)}
     public var description:String {tokens.joined(separator:",")}

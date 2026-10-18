@@ -11,6 +11,7 @@ import Foundation
 public protocol NetworkBoardModel:AnyObject {
     /// The pieces by square ("e2":"wp").
     var board:Position {get}
+    var ruleset:NetworkRuleset? {get}
     /// The side to move: "w" or "b".
     var turn:String {get}
     /// The side to move is in check, so its king is marked; never true in a game without check.
@@ -49,6 +50,8 @@ public protocol NetworkBoardModel:AnyObject {
     func relationships(_ square:String,mode:RelationshipMode,diagram:Position?)throws -> RelationshipInspection
 }
 public extension NetworkBoardModel {
+    /// The mini-game ruleset the game is played by (protocol 1.3); nil for chess.
+    var ruleset:NetworkRuleset? {nil}
     /// Every legal move of the side to move.
     func moves()->[MoveRecord] {moves(nil)}
 }

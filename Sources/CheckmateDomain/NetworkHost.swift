@@ -62,8 +62,11 @@ public struct NetworkHostSettings:Equatable {
     /// The declared start (mini-games plan D7); nil for the standard start. Fixed for the whole game. The host's own
     /// settings hold it canonical: `NetworkHost` replaces a given FEN by the one its rules write back.
     public let startFEN:String?
-    public init(hostName:String,hostSide:NetworkSide,timeControl:NetworkTimeControl = .untimed,allowSpectators:Bool=true,assistance:NetworkAssistance = .off,startFEN:String?=nil){self.hostName=hostName;self.hostSide=hostSide;self.timeControl=timeControl;self.allowSpectators=allowSpectators;self.assistance=assistance;self.startFEN=startFEN}
-    func starting(at fen:String?)->NetworkHostSettings {NetworkHostSettings(hostName:hostName,hostSide:hostSide,timeControl:timeControl,allowSpectators:allowSpectators,assistance:assistance,startFEN:fen)}
+    /// The mini-game ruleset the game is played by (protocol 1.3), or nil for chess. Fixed for the whole game; a
+    /// ruleset game has its kind's own start and no assistance.
+    public let ruleset:NetworkRuleset?
+    public init(hostName:String,hostSide:NetworkSide,timeControl:NetworkTimeControl = .untimed,allowSpectators:Bool=true,assistance:NetworkAssistance = .off,startFEN:String?=nil,ruleset:NetworkRuleset?=nil){self.hostName=hostName;self.hostSide=hostSide;self.timeControl=timeControl;self.allowSpectators=allowSpectators;self.assistance=assistance;self.startFEN=startFEN;self.ruleset=ruleset}
+    func starting(at fen:String?)->NetworkHostSettings {NetworkHostSettings(hostName:hostName,hostSide:hostSide,timeControl:timeControl,allowSpectators:allowSpectators,assistance:assistance,startFEN:fen,ruleset:ruleset)}
 }
 /// D7's numbers for one host. Always `standard` in the app; tests shrink them to reach a bound quickly.
 public struct NetworkHostLimits:Equatable {
@@ -87,6 +90,8 @@ public enum NetworkHostError:Error,Equatable {
     case illegalStart
     /// The game is already over at the start: checkmate, stalemate or an automatic draw (D7).
     case startOver
+    /// A mini-game is played without assistance (protocol 1.3).
+    case assistanceNotAllowed
 }
 /// Receipts for the last 64 commands (D2): a repeated `commandID` gets its stored replies again and nothing else.
 struct NetworkReceipts {
@@ -159,7 +164,12 @@ public final class NetworkHost:CustomReflectable {
     /// `runEpoch` is made once per app launch; `gameID` is the one published in both TXT records.
     public init(gameID:NetworkGameID,runEpoch:NetworkID,settings:NetworkHostSettings,rules factory:NetworkRulesFactory,hashing:NetworkHashing,random:NetworkRandom = .system,limits:NetworkHostLimits = .standard,at now:NetworkInstant)throws {
         guard NetworkText.valid(settings.hostName) else{throw NetworkHostError.invalidName}
-        var rules=try factory.newGame(),settings=settings
+        // Protocol 1.3: a ruleset game starts from its kind's own board, with no declared start and no assistance.
+        if settings.ruleset != nil {
+            guard settings.startFEN==nil else{throw NetworkHostError.illegalStart}
+            guard settings.assistance == .off else{throw NetworkHostError.assistanceNotAllowed}
+        }
+        var rules=try factory.newGame(settings.ruleset),settings=settings
         // D7: the start is set up once, here, and kept as the rules write it back. The standard start, however it was
         // written, is no declared start: the game is then exactly a 1.1 game.
         if let given=settings.startFEN {
@@ -180,7 +190,11 @@ public final class NetworkHost:CustomReflectable {
     public var guestSide:NetworkSide {settings.hostSide.opponent}
     /// What every guest and spectator must state in `hello` and `resume` to be admitted (D7): `start` for a declared
     /// start, nothing for the standard start.
-    public var requiredCapabilities:NetworkCapabilities {settings.startFEN==nil ? .none:NetworkCapabilities([NetworkStart.capability])!}
+    /// A ruleset game requires its ruleset's token instead (protocol 1.3).
+    public var requiredCapabilities:NetworkCapabilities {
+        if let ruleset=settings.ruleset {return NetworkCapabilities([ruleset.capability])!}
+        return settings.startFEN==nil ? .none:NetworkCapabilities([NetworkStart.capability])!
+    }
     public var positionHash:String {hashing.positionHash(fen:fen,revision:revision)}
     public var guestConnection:NetworkConnectionID? {seat?.connection}
     public var spectators:[NetworkConnectionID] {peers.filter{$0.value.role == .spectator}.map(\.key).sorted()}
@@ -205,7 +219,7 @@ public final class NetworkHost:CustomReflectable {
     /// The public record at `now`: what a snapshot carries and the crash file keeps (D9). Never a secret.
     public func publicGame(at now:NetworkInstant)throws -> NetworkPublicGame {
         let host=settings.hostSide
-        return NetworkPublicGame(gameID:gameID,revision:revision,hostSide:host,whiteName:host == .white ? settings.hostName:guestName,blackName:host == .black ? settings.hostName:guestName,timeControl:settings.timeControl,pgn:try rules.networkPGN(),clocks:clock?.clocks(at:now),openOffer:openOffer,outcome:outcome,assistance:settings.assistance,assistedPlies:assistedPlies,startFEN:settings.startFEN)
+        return NetworkPublicGame(gameID:gameID,revision:revision,hostSide:host,whiteName:host == .white ? settings.hostName:guestName,blackName:host == .black ? settings.hostName:guestName,timeControl:settings.timeControl,pgn:try rules.networkPGN(),clocks:clock?.clocks(at:now),openOffer:openOffer,outcome:outcome,assistance:settings.assistance,assistedPlies:assistedPlies,startFEN:settings.startFEN,ruleset:settings.ruleset?.descriptor)
     }
     // MARK: Events
     /// A connection finished TLS on `listener`. It holds an admission slot until `hello` or `resume`, for at most 5 s.
@@ -460,6 +474,8 @@ public final class NetworkHost:CustomReflectable {
         let played:NetworkPlayedMove
         do{played=try rules.networkPlay(uci:uci)}catch NetworkRulesError.illegalMove{try refuse(origin,.illegal);return}
         sideToMove=side.opponent;revision+=1;fen=try rules.networkFEN()
+        // A ruleset game has no assistance (protocol 1.3): a mover's `assisted` is dropped, never recorded or sent.
+        let assisted=assisted && settings.ruleset==nil
         // The revision is the ply count until the game ends: only moves advance it before `ended`.
         if assisted {assistedPlies.append(revision)}
         clock?.moveApplied(by:side)

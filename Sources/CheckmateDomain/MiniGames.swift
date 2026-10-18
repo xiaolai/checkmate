@@ -40,6 +40,13 @@ public enum MiniGameKind:String,Codable,CaseIterable {
     public func canMove(_ piece:String)->Bool {switch self{case .rookSweep:return piece.hasSuffix("r");case .bishopSweep:return piece.hasSuffix("b");case .knightCapture,.knightCorners:return piece.hasSuffix("n");case .pawnDuel:return piece.hasSuffix("p");case .rooksAndPawns:return piece.hasSuffix("p") || piece.hasSuffix("r");case .bishopsAndPawns:return piece.hasSuffix("p") || piece.hasSuffix("b");case .queenVsPawns:return piece.hasSuffix("p") || piece.hasSuffix("q")}}
     var delayedFinish:Bool {self == .rooksAndPawns || self == .bishopsAndPawns || self == .queenVsPawns}
 }
+/// The rule by which a competitive mini-game was won (`MiniGameState.victory`).
+public enum MiniGameVictory:String,CaseIterable {case farRank,allCaptured,noMoves}
+/// The rule by which a mini-game was drawn (`MiniGameState.draw`); `text` is the referee's sentence for it.
+public enum MiniGameDraw:String,CaseIterable {
+    case unreachableTargets,repetition,noProgress
+    public var text:String {switch self{case .unreachableTargets:return "No remaining targets can be reached.";case .repetition:return "The same position appeared three times.";case .noProgress:return "No capture or pawn move for 40 turns."}}
+}
 public struct MiniGameMove:Codable,Equatable {public let from:String,to:String;public init(from:String,to:String){self.from=from;self.to=to}}
 public struct MiniGameSnapshot:Codable,Equatable {
     public var board:Position,turn:String,pendingFinish:String?,cornerIndex:Int,lastMove:MiniGameMove?
@@ -89,32 +96,42 @@ public struct MiniGameState:Codable,Equatable {
     public mutating func stampWitness(){if runLevel != nil{let current=witness;level?.witness=current}}
     public var winner:String? {
         if kind.solo{return snapshot.cornerIndex==MiniGameRules.corners.count ? "w":nil}
+        return victory?.side
+    }
+    /// Who has won a competitive game and by which rule, in the referee's own order: White's far rank, then every
+    /// target of White's taken, then the same for Black, then the side to move left without a move. `winner` is its
+    /// side, so the two never disagree. Nil for the solo game, whose finish is a route, not a win over anyone.
+    public var victory:(side:String,reason:MiniGameVictory)? {
+        guard !kind.solo else{return nil}
         for side in ["w","b"] {
             let far=side=="w" ? "8":"1",atEnd=board.contains{$0.value==side+"p" && $0.key.hasSuffix(far)}
-            if atEnd && (kind == .pawnDuel || kind.delayedFinish && turn==side){return side}
+            if atEnd && (kind == .pawnDuel || kind.delayedFinish && turn==side){return (side,.farRank)}
             let other=side=="w" ? "b":"w"
             let targets=board.values.filter{$0.hasPrefix(other) && (!(kind == .rookSweep || kind == .bishopSweep) || $0.hasSuffix("p"))}
-            if targets.isEmpty{return side}
+            if targets.isEmpty{return (side,.allCaptured)}
         }
-        return MiniGameRules.moves(board:board,kind:kind,side:turn).isEmpty ? (turn=="w" ? "b":"w"):nil
+        return MiniGameRules.moves(board:board,kind:kind,side:turn).isEmpty ? (turn=="w" ? "b":"w",.noMoves):nil
     }
     /// Mini-game variant rules: three identical positions, or 80 plies without a capture/pawn move, draw.
     /// Derived from snapshots so old saves and undo need no new counters.
-    public var drawReason:String? {guard !kind.solo,winner==nil else{return nil};return drawReasonWithoutWinner}
+    public var drawReason:String? {draw?.text}
+    /// The rule that drew the game, when it is drawn; `drawReason` is its sentence.
+    public var draw:MiniGameDraw? {guard !kind.solo,winner==nil else{return nil};return drawWithoutWinner}
     /// `drawReason` for a competitive position already known to have no winner (the proof search asks `winner` once).
-    var drawReasonWithoutWinner:String? {
+    var drawReasonWithoutWinner:String? {drawWithoutWinner?.text}
+    var drawWithoutWinner:MiniGameDraw? {
         if kind == .bishopSweep {
             func colour(_ square:String)->Int {(Int(square.utf8.first!)-97+Int(square.suffix(1))!-1)%2}
             let bishops=board.filter{$0.value.hasSuffix("b")}
             let anyReachable=bishops.contains{from,piece in board.contains{to,target in target.first != piece.first && colour(from)==colour(to)}}
-            if !anyReachable{return "No remaining targets can be reached."}
+            if !anyReachable{return .unreachableTargets}
         }
         func same(_ a:MiniGameSnapshot,_ b:MiniGameSnapshot)->Bool {a.board==b.board && a.turn==b.turn && a.pendingFinish==b.pendingFinish}
-        if history.filter({same($0,snapshot)}).count>=Self.repetitionCount-1{return "The same position appeared three times."}
+        if history.filter({same($0,snapshot)}).count>=Self.repetitionCount-1{return .repetition}
         if history.count>=Self.noProgressPlies {
             let recent=history.suffix(Self.noProgressPlies)
             let pawns=board.filter{$0.value.hasSuffix("p")}
-            if recent.allSatisfy({$0.board.count==board.count && $0.board.filter{$0.value.hasSuffix("p")}==pawns}) {return "No capture or pawn move for 40 turns."}
+            if recent.allSatisfy({$0.board.count==board.count && $0.board.filter{$0.value.hasSuffix("p")}==pawns}) {return .noProgress}
         }
         return nil
     }
@@ -140,8 +157,11 @@ public struct MiniGameState:Codable,Equatable {
     public mutating func undo(){guard let previous=history.popLast() else{return};snapshot=previous;if computer,snapshot.turn=="b",let whiteTurn=history.popLast(){snapshot=whiteTurn}}
 }
 public enum MiniGameRules {
-    /// The referee's rules version (`MiniGameState.winner`, `drawReason`, `play` and `moves`). Bump it whenever any of
-    /// them changes, so a proof computed under the old rules is never taken for one under the new.
+    /// The referee's rules version (`MiniGameState.winner`, `victory`, `drawReason`, `play`, `advance` and `moves`). Bump
+    /// it whenever any of them changes, or anything they read (`canMove`, `delayedFinish`, `CourseLibrary.pawnMoves`, the
+    /// repetition and no-progress constants), or a kind's `initialBoard`: so a proof computed under the old rules is never
+    /// taken for one under the new, and two Macs naming the same network ruleset (`NetworkRuleset`, protocol 1.3) play
+    /// the same game. `NetworkRulesetTests` freezes each kind's start and a finished trace to catch a change without it.
     public static let version=1
     public static let corners=["a8","h8","h1","a1"]
     private static let straight=[(1,0),(-1,0),(0,1),(0,-1)],diagonal=[(1,1),(1,-1),(-1,1),(-1,-1)]

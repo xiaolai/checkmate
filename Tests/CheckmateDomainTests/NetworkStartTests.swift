@@ -234,9 +234,10 @@ final class NetworkStartTests:XCTestCase {
     }
 
     // MARK: The compatibility promise (D7), against the bytes 1.1 wrote
-    /// 1. A 1.2 Mac decodes every frozen 1.1 message, and re-encodes it to the same bytes but for the minor version.
+    /// 1. A 1.2 Mac (and a 1.3 one, protocol 1.3's promise) decodes every frozen 1.1 message, and re-encodes it to the
+    /// same bytes but for the minor version.
     func testEveryFrozen11MessageDecodesAndKeepsItsBytes()throws {
-        XCTAssertEqual(NetworkProtocolVersion.current,NetworkProtocolVersion(major:1,minor:2))
+        XCTAssertEqual(NetworkProtocolVersion.current,NetworkProtocolVersion(major:1,minor:3))
         XCTAssertEqual(Set(try Legacy11Fixtures.messages.map{try NetworkCodec.decode(Data($0.utf8)).type}).count,24,"every message type")
         for text in Legacy11Fixtures.messages {
             let message=try NetworkCodec.decode(Data(text.utf8))
@@ -244,7 +245,7 @@ final class NetworkStartTests:XCTestCase {
             case .hello(_,_,_,_,let capabilities),.resume(_,_,let capabilities):XCTAssertNil(capabilities,"a 1.1 Mac states none")
             default:break
             }
-            XCTAssertEqual(String(decoding:try NetworkCodec.encode(message),as:UTF8.self),text.replacingOccurrences(of:#""minor":1"#,with:#""minor":2"#))
+            XCTAssertEqual(String(decoding:try NetworkCodec.encode(message),as:UTF8.self),text.replacingOccurrences(of:#""minor":1"#,with:#""minor":3"#))
         }
     }
     /// 2. A standard-start game's record is 1.1's, byte for byte, both ways.
@@ -265,13 +266,13 @@ final class NetworkStartTests:XCTestCase {
         let receiver=NetworkReceiver(gameID:gameID,role:.guest(claimID:.random(using:random.source)),name:"Ben",appVersion:"0.9.0",rules:NetworkRulesFactory{FakeRules(script:FakeScript())},hashing:testHashing,random:random.source,accepting:NetworkAssistance(both:.hints))
         let opening=try NetworkCodec.encode(receiver.opening())
         var object=try XCTUnwrap(try JSONSerialization.jsonObject(with:opening) as? [String:Any])
-        XCTAssertEqual(object.removeValue(forKey:"capabilities") as? [String],[NetworkStart.capability],"a 1.2 guest states it")
+        XCTAssertEqual(object.removeValue(forKey:"capabilities") as? [String],NetworkCapabilities.supported.tokens,"a guest states it, and since 1.3 its rulesets too")
         XCTAssertEqual(Set(object.keys),["appVersion","assistance","claimID","name","protocol","type"],"the rest is the 1.1 hello")
         XCTAssertNoThrow(try Legacy10Wire.decode(opening),"the frozen decoder reads it")
         let spectator=NetworkReceiver(gameID:gameID,role:.spectator,name:"Cy",appVersion:"0.9.0",rules:NetworkRulesFactory{FakeRules(script:FakeScript())},hashing:testHashing)
         XCTAssertEqual(spectator.opening(),.hello(name:"Cy",appVersion:"0.9.0",claimID:nil,capabilities:.supported))
         let old=NetworkReceiver(gameID:gameID,role:.spectator,name:"Cy",appVersion:"0.9.0",rules:NetworkRulesFactory{FakeRules(script:FakeScript())},hashing:testHashing,capabilities:.none)
-        XCTAssertEqual(String(decoding:try NetworkCodec.encode(old.opening()),as:UTF8.self),#"{"appVersion":"0.9.0","name":"Cy","protocol":{"major":1,"minor":2},"type":"hello"}"#,"stating nothing is the 1.1 shape")
+        XCTAssertEqual(String(decoding:try NetworkCodec.encode(old.opening()),as:UTF8.self),#"{"appVersion":"0.9.0","name":"Cy","protocol":{"major":1,"minor":3},"type":"hello"}"#,"stating nothing is the 1.1 shape")
     }
 }
 private extension NetworkPublicGame {

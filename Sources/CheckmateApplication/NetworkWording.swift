@@ -16,6 +16,10 @@ public enum NetworkWording {
     public static let startNote="The game is ordinary chess from this position: checkmate wins, and stalemate is a draw. Training goals stay in Training."
     /// Under the names, in a game from a declared start.
     public static let declaredStart="This game starts from a set-up position."
+    /// The host sheet's note on a mini-game (protocol 1.3): its own rules, and no assistance.
+    public static let miniGameNote="The game is played by the mini-game's own rules, with no assistance. Review afterwards shows what a proof search found."
+    /// Under the names in a mini-game, and the lobby's label: "Pawn Duel: Reach the far rank, …".
+    public static func miniGame(_ kind:MiniGameKind)->String {"\(kind.title): \(kind.rules)"}
     static let pieces=["p":"pawn","n":"knight","b":"bishop","r":"rook","q":"queen","k":"king"]
     /// A move that just landed (D10): "Ben played knight to f3", "You castled kingside", "Ana played pawn to e8,
     /// capturing a rook, promoting to a queen, check".
@@ -92,13 +96,21 @@ public enum NetworkWording {
             case .insufficientMaterial:return "Draw: neither side can checkmate."
             // D6: the flag fell against a side that has only its king, which can never checkmate.
             case .time:return "Time ran out against a lone king. Draw."
-            case .checkmate,.resignation,.abandoned:return "Draw."
+            // A mini-game's own draws (protocol 1.3), in its rules' words.
+            case .miniRepetition:return "Draw: the same position appeared three times."
+            case .miniNoProgress:return "Draw: 40 turns without a capture or pawn move."
+            case .unreachableTargets:return "Draw: no remaining target can be reached."
+            case .checkmate,.resignation,.abandoned,.farRank,.allCaptured,.noMoves:return "Draw."
             }
         }
         let winner:NetworkSide=outcome.result == .whiteWins ? .white:.black,loser=winner.opponent
         let wins=players.subject(winner)+(winner==players.learner ? " win.":" wins.")
         switch outcome.termination {
         case .checkmate:return "Checkmate. "+wins
+        // A mini-game's own wins (protocol 1.3).
+        case .farRank:return "\(players.subject(winner)) reached the far rank. "+wins
+        case .allCaptured:return "Every piece there was to capture is taken. "+wins
+        case .noMoves:return "\(players.subject(loser)) \(loser==players.learner ? "have":"has") no move. "+wins
         case .resignation:return "\(players.subject(loser)) resigned. "+wins
         case .time:return "\(players.subject(loser)) ran out of time. "+wins
         // D4: the host claimed the win after the guest stayed away past the hold.

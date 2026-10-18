@@ -319,7 +319,7 @@ final class NetworkSnapshotTests:XCTestCase {
     }
     func testThePublicRecordIsFieldByFieldAndNamesItsReviewHeaders()throws {
         var game=NetworkPublicGame(gameID:NetworkGameID.random(using:random.source),revision:41,hostSide:.white,whiteName:"Ana",blackName:"Ben",timeControl:.tenPlusFive,pgn:"",clocks:NetworkClocks(white:1,black:0,active:nil),openOffer:nil,outcome:NetworkOutcome(result:.blackWins,termination:.time))
-        XCTAssertEqual(Mirror(reflecting:game).children.compactMap(\.label),["gameID","revision","hostSide","whiteName","blackName","timeControl","pgn","clocks","openOffer","outcome","assistance","assistedPlies","startFEN"],"no field could hold a credential, a claim or app state; the last three are the assistance terms, the assisted plies (assistance plan A2, A7) and the declared start (mini-games plan D7)")
+        XCTAssertEqual(Mirror(reflecting:game).children.compactMap(\.label),["gameID","revision","hostSide","whiteName","blackName","timeControl","pgn","clocks","openOffer","outcome","assistance","assistedPlies","startFEN","ruleset"],"no field could hold a credential, a claim or app state; the last four are the assistance terms, the assisted plies (assistance plan A2, A7), the declared start (mini-games plan D7) and the mini-game ruleset (protocol 1.3)")
         let headers=game.recordHeaders(date:"2026.10.16")
         XCTAssertEqual(headers.map(\.name),["Event","Site","Date","Round","White","Black","Result","TimeControl","Termination"])
         XCTAssertEqual(headers.map(\.value),["Checkmate network game","?","2026.10.16","?","Ana","Ben","0-1","600+5","Time forfeit"])

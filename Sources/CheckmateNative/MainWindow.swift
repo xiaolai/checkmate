@@ -146,12 +146,15 @@ final class BoardTitleView:NSView {
         board.refusedDrop={[weak self] from,to in guard let self,self.model.learning.attemptStep,!self.model.review.active else{return};self.model.learning.attempt.refused(from:from,to:to)}
         let miniReset=model.learning.onMiniReset;model.learning.onMiniReset={[weak self] in miniReset?();self?.board.cancelAnimation()}
         model.learning.miniReview.objectWillChange.sink{[weak self] _ in DispatchQueue.main.async{self?.syncMiniReviewSheet()}}.store(in:&observations)
+        // A network mini-game's review (protocol 1.3) uses the same sheet, opened from the network pane.
+        model.network.miniReview.objectWillChange.sink{[weak self] _ in DispatchQueue.main.async{self?.syncMiniReviewSheet()}}.store(in:&observations)
     }
     /// The finished mini-game's review sheet follows its reviewer: shown when a result arrives, gone when it is
     /// dismissed or the review ends (restart, undo, leaving the game).
     private var miniReviewSheet:NSWindow?
     private func syncMiniReviewSheet(){
-        let reviewer=model.learning.miniReview
+        // The lesson's or library's game, or the network game's: at most one of them asks for the sheet at a time.
+        let reviewer=model.network.miniReview.sheetOpen ? model.network.miniReview:model.learning.miniReview
         if reviewer.sheetOpen,let review=reviewer.review {
             guard miniReviewSheet==nil,let window else{return}
             let sheet=NSWindow(contentViewController:NSHostingController(rootView:MiniGameReviewSheet(review:review,voice:model.voice,close:{[weak reviewer] in reviewer?.dismissSheet()})))
@@ -482,7 +485,7 @@ playbackLineView?.isHidden=model.reviewWorkspace
     func offerNetworkCrashReview(){
         guard let entry=model.takeNetworkCrashNotice(),let window else{return}
         let moves=NativeModel.replayedMoves(entry) ?? [],reviewable = !moves.isEmpty
-        let alert=NSAlert();alert.messageText=entry.notice;alert.informativeText=reviewable ? "You can review the moves that were played.":"No moves were played."
+        let alert=NSAlert();alert.messageText=entry.notice;alert.informativeText=NativeModel.crashDetail(entry,moves:moves)
         if reviewable{alert.addButton(withTitle:"Review").setAccessibilityIdentifier("network-crash-review")}
         alert.addButton(withTitle:reviewable ? "Not Now":"OK").setAccessibilityIdentifier("network-crash-dismiss")
         alert.window.setAccessibilityIdentifier("network-crash-notice")

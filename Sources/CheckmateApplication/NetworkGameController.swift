@@ -1,6 +1,7 @@
 import CheckmateDomain
 import CheckmateRules
 import CheckmateSupport
+import Combine
 import Foundation
 import OSLog
 /// The network game (LAN-play plan D9, D10): one session at a time — hosting, a guest's seat, or watching — and the
@@ -149,9 +150,22 @@ import OSLog
 
     public init(services:NetworkServices?=nil,participation:NetworkParticipation?=nil,playerName:String="")throws {
         rules=try Self.newBoard();self.services=services;self.participation=participation;self.playerName=playerName
+        miniReview.currentNetwork={[weak self] in
+            guard let self,let game=self.rules as? NetworkMiniGame,let ruleset=game.ruleset,self.outcome != nil else{return nil}
+            return (self.sessionNumber,ruleset.kind,(try? game.networkMoves())?.map{MiniGameMove(from:String($0.prefix(2)),to:String($0.suffix(2)))} ?? [])
+        }
+        // The pane shows the review's progress, so a change of it is a change of this game's.
+        reviewWatch=miniReview.objectWillChange.sink{[weak self] _ in self?.objectWillChange.send()}
     }
-    /// The shown game's model: chess, the only one so far. The crash notice's Review replays its record on one too.
-    nonisolated public static func newBoard()throws -> any NetworkBoardModel {try ChessRules()}
+    private var reviewWatch:AnyCancellable?
+    /// The shown game's model: chess, or a mini-game's referee for a ruleset game (protocol 1.3). The crash notice's
+    /// Review replays its record on one too.
+    nonisolated public static func newBoard(_ ruleset:NetworkRuleset?=nil)throws -> any NetworkBoardModel {try ruleset.map{NetworkMiniGame($0)} ?? ChessRules()}
+    /// The mini-game the shown game is played by, as verified; nil for chess.
+    public var ruleset:NetworkRuleset? {rules.ruleset}
+    /// The review of a finished network mini-game (protocol 1.3, WI-018's proof search): it starts when the verified
+    /// result arrives and its sheet opens when the learner asks. The network place's own, never the lesson's.
+    public let miniReview=MiniGameReviewer()
     public var fen:String? {seat==nil ? nil:rules.fen}
     public var identity:String {seat==nil ? "lobby":"game:\(revision)"}
     public var blackAtBottom:Bool {(seat == .player(side:"b")) != flipped}
@@ -164,17 +178,23 @@ import OSLog
     /// Shows a game: the seat the learner holds and the position (a record the host's game has already verified).
     /// Moves go to `submit`.
     public func show(seat:Seat,title:String,pgn:String)throws {
-        try load(pgn);recordUnreadable=false;self.seat=seat;self.title=title;detached=true;pending=nil
+        try load(pgn,ruleset:nil);recordUnreadable=false;self.seat=seat;self.title=title;detached=true;pending=nil
         if case .player(let side)=seat{learnerSide=NetworkSide(rawValue:side)}else{learnerSide=nil}
         resetInput();changed()
     }
     /// The lobby again: no game on the board.
-    public func clear(){seat=nil;detached=false;title=Self.lobbyTitle;try? load("");recordUnreadable=false;resetInput();changed()}
+    public func clear(){seat=nil;detached=false;title=Self.lobbyTitle;try? load("",ruleset:nil);recordUnreadable=false;resetInput();changed()}
     /// A move the game applied, the learner's own or the opponent's. It clears a pending move it answers.
     public func applied(uci:String)throws {try rules.move(uci:uci);if pending?.uci==uci{pending=nil};resetInput();changed()}
     /// The game refused the pending move: the piece goes back, nothing else changes.
     public func rejected(){pending=nil;notice=nil;selected=nil;destinations=[];objectWillChange.send()}
-    private func load(_ pgn:String)throws {if pgn.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty{try rules.loadStart()}else{try rules.restore(pgn)}}
+    /// Loads a record on the board model of its game: chess, or the ruleset's referee. A record that does not load leaves
+    /// the board as it was, whichever model it needed.
+    private func load(_ pgn:String,ruleset:NetworkRuleset?)throws {
+        let board=ruleset==rules.ruleset ? rules:try Self.newBoard(ruleset)
+        if pgn.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty{try board.loadStart()}else{try board.restore(pgn)}
+        rules=board
+    }
     private func resetInput(){selected=nil;destinations=[];if pending==nil{notice=nil}else{notice=Self.sendingNotice}}
     private func changed(){revision+=1;board=seat==nil ? [:]:rules.board;objectWillChange.send()}
 
@@ -305,18 +325,20 @@ import OSLog
         let random=services.random,side=form.side.resolved(using:random)
         let gameID=NetworkGameID.random(using:random),seatCode=NetworkCode.random(using:random),watch=form.allowSpectators ? NetworkCode.random(using:random):nil
         let host:NetworkHost
+        // Protocol 1.3: a mini-game only while its feature is on; it has its own start and no assistance.
+        let ruleset=NetworkPolicy.miniGamesEnabled ? form.miniGame.flatMap(NetworkRuleset.init):nil
         // D7: a declared start only while the feature is on; otherwise the standard start, exactly as 1.1 hosts.
-        let start=NetworkPolicy.positionsEnabled ? form.start?.fen:nil
-        do{host=try NetworkHost(gameID:gameID,runEpoch:services.runEpoch,settings:NetworkHostSettings(hostName:name,hostSide:side,timeControl:form.timeControl,allowSpectators:form.allowSpectators,assistance:form.assistance,startFEN:start),rules:services.rules,hashing:services.hashing,random:random,at:services.scheduler.now)}
+        let start=ruleset==nil && NetworkPolicy.positionsEnabled ? form.start?.fen:nil,assistance=ruleset==nil ? form.assistance:.off
+        do{host=try NetworkHost(gameID:gameID,runEpoch:services.runEpoch,settings:NetworkHostSettings(hostName:name,hostSide:side,timeControl:form.timeControl,allowSpectators:form.allowSpectators,assistance:assistance,startFEN:start,ruleset:ruleset),rules:services.rules,hashing:services.hashing,random:random,at:services.scheduler.now)}
         catch NetworkHostError.startOver{lobbyMessage=Self.startOver;return false}
         catch NetworkHostError.illegalStart{lobbyMessage=Self.startIllegal;return false}
         catch{NativeLog.lifecycle.error("A network game could not be set up: \(String(describing:error),privacy:.public)");lobbyMessage="The game could not be set up.";return false}
-        let configuration=NetworkHostingConfiguration(gameID:gameID,seatCode:seatCode,watchCode:watch,serviceName:Self.gameName(host:name),assistance:form.assistance)
+        let configuration=NetworkHostingConfiguration(gameID:gameID,seatCode:seatCode,watchCode:watch,serviceName:Self.gameName(host:name),assistance:assistance,variant:ruleset?.descriptor)
         beginSession(.host,name:configuration.serviceName)
         playCode=seatCode;watchCode=watch;learnerSide=side;timeControl=form.timeControl;hostPhase = .waiting
         if side == .white{whiteName=name}else{blackName=name}
         // The board shows the game's own start at once, before the first status: the standard one, or the declared one.
-        try? load((try? host.publicGame(at:services.scheduler.now).pgn) ?? "");seat = .player(side:side.rawValue);changed()
+        try? load((try? host.publicGame(at:services.scheduler.now).pgn) ?? "",ruleset:ruleset);seat = .player(side:side.rawValue);changed()
         let session=sessionNumber
         let runner=NetworkHostRunner(host:host,configuration:configuration,transport:services.transport,scheduler:services.scheduler,events:Self.relay(services.delivery){[weak self] (event:NetworkHostRunner.Event) in self?.hosted(event,session:session)})
         self.runner = .host(runner,configuration);runner.start();settle()
@@ -365,11 +387,11 @@ import OSLog
         pending=nil;pendingRevision=nil;pendingSeen=false;shownPGN=nil;clockSync=nil;clockSeen=[:];clockAnnounced=[:];record=nil;gameRevision=nil
         gameName="";link = .stopped;hostPhase=nil;playCode=nil;watchCode=nil;whiteName=nil;blackName=nil;timeControl = .untimed
         openOffer=nil;outcome=nil;holdExpired=false;spectators=[];stopMessage=nil;learnerSide=nil;flipped=false;notice=nil;selected=nil;destinations=[]
-        resumable=nil;retryable=false;sleptWhileHosting=false;assistedTurn=nil
+        resumable=nil;retryable=false;sleptWhileHosting=false;assistedTurn=nil;miniReview.cancel()
     }
     /// Back to the lobby: the session is over and forgotten.
     private func endSession(){
-        sessionNumber+=1;runner=nil;resetSession();part=nil;seat=nil;title=Self.lobbyTitle;try? load("");changed();settle();refreshBrowsing()
+        sessionNumber+=1;runner=nil;resetSession();part=nil;seat=nil;title=Self.lobbyTitle;try? load("",ruleset:nil);changed();settle();refreshBrowsing()
     }
 
     // MARK: Events
@@ -427,8 +449,10 @@ import OSLog
         // The record is taken only once its moves load: one that cannot be shown leaves the last good record, revision
         // and board in place (crash file, Review, help) and stops input until a record that loads arrives.
         var reloaded=false
-        if game.pgn != shownPGN {
-            do{try load(game.pgn)}
+        // The record's ruleset is verified (the host's own settings, or a snapshot this Mac checked and pinned).
+        let ruleset=game.ruleset.flatMap{NetworkRuleset(descriptor:$0)}
+        if game.pgn != shownPGN || ruleset != rules.ruleset {
+            do{try load(game.pgn,ruleset:ruleset)}
             catch{
                 recordUnreadable=true;NativeLog.lifecycle.error("A network game record could not be shown: \(String(describing:error),privacy:.public)");resetInput()
                 // An unchanged record is not sent again, so the same one gets one more try once the queue has run; if
@@ -453,7 +477,11 @@ import OSLog
         if pending != nil,gameRevision != pendingRevision{clearPending()}
         if let offer=openOffer,offer != previousOffer,offer.by != learnerSide{announce("\(players.name(offer.by)) offers a draw")}
         if let offer=previousOffer,openOffer==nil,outcome==nil,!moved,offer.by==learnerSide{announce("\(opponentName) declined the draw")}
-        if let outcome,previousOutcome==nil{announce(NetworkWording.result(outcome,players:players))}
+        if let outcome,previousOutcome==nil{
+            announce(NetworkWording.result(outcome,players:players))
+            // Protocol 1.3: a finished mini-game is reviewed by the proof search, whatever ended it.
+            if let game=rules as? NetworkMiniGame,let kind=game.ruleset?.kind,let moves=try? game.networkMoves(),!moves.isEmpty {miniReview.start(session:sessionNumber,kind:kind,moves:moves.map{MiniGameMove(from:String($0.prefix(2)),to:String($0.suffix(2)))})}
+        }
     }
     private var learnerSeat:Seat? {
         switch part {case .host?,.guest?:return learnerSide.map{.player(side:$0.rawValue)};case .spectator?:return .spectator;case nil:return nil}
@@ -629,11 +657,14 @@ import OSLog
 
     // MARK: Review (D9)
     /// A game that ended, or stopped without a result, can be reviewed once it has a move.
-    public var canReview:Bool {record != nil && !rules.history.isEmpty && (outcome != nil || link == .stopped)}
+    /// A mini-game is reviewed only once it has a result (protocol 1.3): an interrupted one has no review.
+    public var canReview:Bool {record != nil && !rules.history.isEmpty && (outcome != nil || link == .stopped && ruleset==nil)}
+    /// Review this game, for a mini-game: its proof-search review, now or as soon as it is ready.
+    public func showMiniReview(){guard canReview,ruleset != nil else{return};miniReview.showSheet()}
     /// The review record: D9's headers over the game's moves; `*` for an interrupted game.
     /// Opening Review gives up Try Again, so engine help returns only once the seat is let go (D8).
     public func reviewRecord()->String? {
-        guard canReview,let record else{return nil}
+        guard canReview,let record,ruleset==nil else{return nil}
         if retryable{retryable=false;objectWillChange.send();settle()}
         // The moves as this Mac's rules replayed the record (A11), not the record's text.
         do{return NetworkGameRecord.reviewPGN(record,moves:try rules.moveHistory().map(\.san),on:services?.today() ?? Date())}

@@ -49,7 +49,7 @@ final class NetworkCodecTests:XCTestCase {
             let data=try NetworkCodec.encode(message)
             XCTAssertEqual(try NetworkCodec.decode(data),message)
             let object=try XCTUnwrap(try JSONSerialization.jsonObject(with:data) as? [String:Any])
-            XCTAssertEqual(object["type"] as? String,message.type);XCTAssertEqual(object["protocol"] as? [String:Int],["major":1,"minor":2])
+            XCTAssertEqual(object["type"] as? String,message.type);XCTAssertEqual(object["protocol"] as? [String:Int],["major":1,"minor":3])
         }
     }
     func testUnknownFieldsAreIgnoredAndAMajorMismatchIsReadable()throws {
@@ -58,7 +58,7 @@ final class NetworkCodecTests:XCTestCase {
         XCTAssertThrowsError(try NetworkCodec.decode(json(#"{"type":"hello","protocol":{"major":2,"minor":0},"name":42}"#))){error in
             XCTAssertEqual(error as? NetworkCodecError,.protocolMismatch(peer:NetworkProtocolVersion(major:2,minor:0)))
             XCTAssertEqual((error as? NetworkCodecError)?.byeReason,.protocolVersion)
-            XCTAssertTrue("\(error)".contains("2.0") && "\(error)".contains("1.2"),"\(error)")
+            XCTAssertTrue("\(error)".contains("2.0") && "\(error)".contains("1.3"),"\(error)")
         }
         let malformed=[#"{"type":"resync"}"#,#"{"type":"teleport","protocol":{"major":1,"minor":0}}"#,#"{"type":"move","protocol":{"major":1,"minor":0}}"#,"[]","not json",
                        #"{"type":"move","protocol":{"major":1,"minor":0},"gameID":"x","commandID":"y","revision":0,"uci":"e2e4"}"#,

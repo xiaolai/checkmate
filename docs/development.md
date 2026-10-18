@@ -187,6 +187,20 @@ moves), and only with `CHECKMATE_NETWORK_POSITIONS=1`; otherwise hosting uses th
 decodes every 1.1 message, and a standard-start game writes its record, crash file, review record and TXT entries
 byte for byte as 1.1 did.
 
+Protocol 1.3 (`docs/network-protocol-1.3.md`, mini-games plan WI-024, L2) adds the competitive mini-games, played by
+their referee (`MiniGameState`) through `NetworkMiniGame`, the same `NetworkChessRules` and `NetworkBoardModel` seam a
+chess game uses. The record names a ruleset, `mini:<kind>@<rules version>`, and carries the move list; the game
+requires that ruleset's capability, so a peer without it is refused before it is attached. The hashed state is the
+board, the side to move, the pending finish and every position since the last capture or pawn move, so equal boards
+with different histories hash differently. Receivers check every rules-decided ending against their own replay, and
+a ruleset this build does not support, an unstated one or one that changes mid-game is refused before any replay.
+Solo kinds are never offered or accepted, and a mini-game has no assistance. The host's Game picker appears only with
+`CHECKMATE_NETWORK_MINI_GAMES=1`; with the flag off, hosting is chess exactly as 1.2. The TXT `variant` entry is only
+the lobby's badge. A mini-game's crash file is its own (`current-ruleset.json`), which no 1.2 build reads, and Review
+is the proof-search review over the whole game rather than a chess record. `Legacy12Fixtures` and
+`Legacy12CoreFixtures`, frozen from the 1.2 code, hold the compatibility promise for 1.2 messages and for a chess
+game from a declared start.
+
 `NetworkParticipation` still turns engine help off everywhere else while participating:
 `FairnessPolicy.engineHelpAllowed` is unchanged, and the scoped `networkAssistance` level opens only the network
 game's hint and voice coach. `Tests/fairness-inventory.json` lists every engine call and voice entry by kind:
@@ -201,7 +215,7 @@ Three gates cover the interface, each with real pointer and key events:
 |---|---|---|
 | `network-ui` | test host, loopback | host, guest and spectator; pending move, refused spectator click, drop and resume, draw offer, resign, Review; assistance: no help without it, the list badge, Decline then Accept, a hint counted on both boards, the inspector, a handicap; light and dark |
 | `network-bonjour` | test host | two installed copies find each other over Bonjour, join, play, resign and review; permission state recorded |
-| `network-lan` | test host and LAN pair | a game from a game-library position (Légal's mate after 5. Nxe5, Black to move) played to mate and watched, reviewed from its start; then the test host hosts a game with hints for both and watches, the pair accepts and joins, each player asks for a hint and every Mac counts both, the pair drops and resumes, play to checkmate, Review on both with the Assistance line |
+| `network-lan` | test host and LAN pair | a game from a game-library position (Légal's mate after 5. Nxe5, Black to move) played to mate and watched, reviewed from its start; Pawn Duel listed with its badge, played to a far-rank win and watched, its proof-search review opened on both Macs; then the test host hosts a game with hints for both and watches, the pair accepts and joins, each player asks for a hint and every Mac counts both, the pair drops and resumes, play to checkmate, Review on both with the Assistance line |
 
 The last two need evidence prepared once per Mac, checked before anything builds; a missing or stale record makes
 the gate UNVERIFIED, never skipped. `bash scripts/automation-identity.sh create` makes the stable local signing
