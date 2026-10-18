@@ -100,8 +100,9 @@ public struct MiniGameState:Codable,Equatable {
     }
     /// Mini-game variant rules: three identical positions, or 80 plies without a capture/pawn move, draw.
     /// Derived from snapshots so old saves and undo need no new counters.
-    public var drawReason:String? {
-        guard !kind.solo,winner==nil else{return nil}
+    public var drawReason:String? {guard !kind.solo,winner==nil else{return nil};return drawReasonWithoutWinner}
+    /// `drawReason` for a competitive position already known to have no winner (the proof search asks `winner` once).
+    var drawReasonWithoutWinner:String? {
         if kind == .bishopSweep {
             func colour(_ square:String)->Int {(Int(square.utf8.first!)-97+Int(square.suffix(1))!-1)%2}
             let bishops=board.filter{$0.value.hasSuffix("b")}
@@ -120,7 +121,13 @@ public struct MiniGameState:Codable,Equatable {
     public var isFinished:Bool {winner != nil || drawReason != nil}
     public func destinations(from:String)->[String] {guard !isFinished,board[from]?.hasPrefix(turn)==true else{return []};return MiniGameRules.moves(board:board,kind:kind,side:turn).filter{$0.from==from}.map(\.to)}
     @discardableResult public mutating func play(_ move:MiniGameMove,remember:Bool=true)->Bool {
-        guard destinations(from:move.from).contains(move.to),let piece=board[move.from] else{return false}
+        guard destinations(from:move.from).contains(move.to),board[move.from] != nil else{return false}
+        advance(move,remember:remember);return true
+    }
+    /// Applies a move `destinations` allows here, unchecked: `play` checks it first, and the proof search plays only
+    /// moves it has just generated for an unfinished position.
+    mutating func advance(_ move:MiniGameMove,remember:Bool){
+        let piece=board[move.from]!
         if remember{history.append(snapshot);if history.count>Self.maximumHistory{history.removeFirst()}}
         snapshot.board.removeValue(forKey:move.from);snapshot.board[move.to]=piece;snapshot.lastMove=move
         if kind.solo {if snapshot.cornerIndex<MiniGameRules.corners.count,move.to==MiniGameRules.corners[snapshot.cornerIndex]{snapshot.cornerIndex+=1}}
@@ -129,11 +136,13 @@ public struct MiniGameState:Codable,Equatable {
             if kind.delayedFinish,piece.hasSuffix("p"),move.to.hasSuffix(turn=="w" ? "8":"1"){snapshot.pendingFinish=turn}
             snapshot.turn=turn=="w" ? "b":"w"
         }
-        return true
     }
     public mutating func undo(){guard let previous=history.popLast() else{return};snapshot=previous;if computer,snapshot.turn=="b",let whiteTurn=history.popLast(){snapshot=whiteTurn}}
 }
 public enum MiniGameRules {
+    /// The referee's rules version (`MiniGameState.winner`, `drawReason`, `play` and `moves`). Bump it whenever any of
+    /// them changes, so a proof computed under the old rules is never taken for one under the new.
+    public static let version=1
     public static let corners=["a8","h8","h1","a1"]
     private static let straight=[(1,0),(-1,0),(0,1),(0,-1)],diagonal=[(1,1),(1,-1),(-1,1),(-1,-1)]
     private static let jumps=[(1,2),(2,1),(-1,2),(-2,1),(1,-2),(2,-1),(-1,-2),(-2,-1)]

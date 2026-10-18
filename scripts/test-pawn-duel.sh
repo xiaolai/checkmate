@@ -1,5 +1,6 @@
 #!/bin/bash
-# Silent test-host acceptance: every lesson mini-game takes a clicked move and the computer replies.
+# Silent test-host acceptance: every lesson mini-game takes a clicked move and the computer replies, and a game won by
+# a clicked move opens its post-game review sheet (WI-018).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 python3 "$(dirname "$0")/test_host.py" "native UI tests" || exit 1
@@ -21,5 +22,5 @@ for ((i=0;i<120;i++)); do
 done
 python3 - "$checkmate_evidence/pawn-duel-results.json" <<'PY'
 import json,sys
-result=json.load(open(sys.argv[1]));print(json.dumps({"passed":result["passed"],"games":result["games"]}));assert result['passed'],result
+result=json.load(open(sys.argv[1]));print(json.dumps({"passed":result["passed"],"games":result["games"],"review":result.get("review")}));assert result['passed'],result
 PY

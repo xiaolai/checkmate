@@ -505,8 +505,26 @@ import CheckmateCore
                     try? await game.capture(directory+"/"+kind.rawValue+".png")
                 } else {games.append(["id":kind.rawValue,"passed":false])}
             }
-            let allPlayed=passed && games.count==MiniGameKind.allCases.count && games.allSatisfy{$0["passed"] as? Bool==true}
-            try? JSONSerialization.data(withJSONObject:["passed":allPlayed,"games":games,"clicks":clicks,"board":board],options:.prettyPrinted).write(to:URL(fileURLWithPath:directory+"/pawn-duel-results.json"))
+            // WI-018: a game won by a clicked move opens its review sheet with the proved fact; Return closes it, and a
+            // new game shows none.
+            var almost=MiniGameState(kind:.rookSweep);almost.snapshot.board=["a1":"wr","h2":"wp","e5":"br","a7":"bp"]
+            model.session.state.miniGames?[MiniGameKind.rookSweep.rawValue]=almost
+            if let lesson=model.learning.library.lessons.firstIndex(where:{$0.id==MiniGameKind.rookSweep.lessonID}){model.lesson(lesson)}
+            model.learning.startMini(.rookSweep);game.refresh();try? await Task.sleep(for:.milliseconds(100))
+            await click("a1");await click("a7")
+            for _ in 0..<150 where !game.miniReviewSheetShown{try? await Task.sleep(for:.milliseconds(40))}
+            let sheetShown=game.miniReviewSheetShown,facts=model.learning.miniReview.review?.facts.map(\.text) ?? []
+            if let sheet=game.window?.attachedSheet {
+                try? await GameWindow.captureWindow(sheet,path:directory+"/mini-review.png")
+                for type in [NSEvent.EventType.keyDown,.keyUp] {if let event=NSEvent.keyEvent(with:type,location:.zero,modifierFlags:[],timestamp:ProcessInfo.processInfo.systemUptime,windowNumber:sheet.windowNumber,context:nil,characters:"\r",charactersIgnoringModifiers:"\r",isARepeat:false,keyCode:36){NSApp.sendEvent(event)}}
+            }
+            for _ in 0..<75 where game.miniReviewSheetShown{try? await Task.sleep(for:.milliseconds(40))}
+            let closed = !game.miniReviewSheetShown && !model.learning.miniReview.sheetOpen
+            model.learning.restartMini();try? await Task.sleep(for:.milliseconds(300))
+            let review:[String:Any]=["sheetShown":sheetShown,"facts":facts,"closedByReturn":closed,"noneAfterRestart":!game.miniReviewSheetShown && model.learning.miniReview.status == .idle]
+            let reviewed=sheetShown && facts==["Move 1: you had a forced win in 1 move here."] && closed && review["noneAfterRestart"] as? Bool==true
+            let allPlayed=passed && games.count==MiniGameKind.allCases.count && games.allSatisfy{$0["passed"] as? Bool==true} && reviewed
+            try? JSONSerialization.data(withJSONObject:["passed":allPlayed,"games":games,"clicks":clicks,"board":board,"review":review],options:.prettyPrinted).write(to:URL(fileURLWithPath:directory+"/pawn-duel-results.json"))
             NSApp.terminate(nil)
         }
     }

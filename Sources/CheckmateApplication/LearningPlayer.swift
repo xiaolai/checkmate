@@ -50,6 +50,9 @@ import Combine
     public var onMiniMove:((MoveRecord)->Void)?
     @Published public private(set) var miniGame:MiniGameState?
     @Published public private(set) var miniThinking=false
+    /// The post-game review of the mini-game shown (WI-018). It starts when a game finishes, never during play, and ends
+    /// on restart, undo, a change of opponent or leaving the game.
+    public let miniReview=MiniGameReviewer()
     private var miniTask:Task<Void,Never>?,miniGeneration=UUID()
     public var miniKind:MiniGameKind {miniGame?.kind ?? .pawnDuel}
     public var miniStatus:String {if let reason=miniGame?.drawReason{return "Draw. "+reason};if let winner=winner{return miniKind.solo ? "Route complete!":miniGame?.computer==true ? (winner=="w" ? "You win!":"Computer wins. Try again!"):(winner=="w" ? "White wins!":"Black wins!")};if miniKind.solo{return "Next corner: \(MiniGameRules.corners[miniGame?.snapshot.cornerIndex ?? 0])"};return miniGame?.computer==true ? (miniTurn=="w" ? "Your turn · White":"Computer’s turn · Black"):(miniTurn=="w" ? "White to move":"Black to move")}
@@ -114,7 +117,11 @@ import Combine
         // A saved lesson this course no longer has opens the first lesson at its start, never at a step derived from the
         // unknown lesson's transcript position.
         if let index=library.lessons.firstIndex(where:{$0.id==session.state.course.lessonID}){lastLessonIndex=index;step=library.resumeStep(in:library.lessons[index],progress:session.state.course)}else{lastLessonIndex=0;step=0};if let filters=session.state.puzzleFilters {query=filters["query"] ?? "";topic=filters["topic"] ?? "All topics";level=filters["level"] ?? "All levels";filter=filters["status"] ?? "All"}
-        activityObservation=session.$activity.removeDuplicates().sink{[weak self] _ in self?.objectWillChange.send()}
+        activityObservation=session.$activity.removeDuplicates().sink{[weak self] activity in
+            // Navigating anywhere but this game (a review over it keeps its place) ends its post-game review.
+            switch activity.place{case .miniGame:break;default:self?.miniReview.cancel()}
+            self?.objectWillChange.send()}
+        miniReview.current={[weak self] in self?.mini==true ? self?.miniGame:nil}
         attempt=try LessonAttemptController(session:session)
         attempt.onChange={[weak self] in self?.attemptChanged()}
         attempt.onLearnerMove={[weak self] in self?.pauseNarration()}
@@ -203,7 +210,7 @@ import Combine
     /// the library never moves the course bookmark or starts narration. A new run, fresh or restarted, freezes the
     /// level the learner prefers for this game now; a resumed run keeps its own (`MiniGameState.settleLevel`).
     public func startMini(_ kind:MiniGameKind,restart:Bool=false,computer:Bool=true,fromLibrary:Bool=false){
-        pause();var game = !restart ? session.state.miniGames?[kind.rawValue] ?? MiniGameState(kind:kind,computer:computer):MiniGameState(kind:kind,computer:computer)
+        pause();miniReview.cancel();var game = !restart ? session.state.miniGames?[kind.rawValue] ?? MiniGameState(kind:kind,computer:computer):MiniGameState(kind:kind,computer:computer)
         game.settleLevel(adopting:MiniGameOffering.level(for:kind,settings:session.state.settings));miniGame=game
         go(.miniGame(lessonIndex:fromLibrary ? nil:lessonIndex,kind:kind,fromTraining:!fromLibrary && lessonFromTraining));picked=[];feedback=""
         syncMini();scheduleMiniOpponent()
@@ -234,10 +241,10 @@ import Combine
         var settings=session.state.settings;settings.miniOpponentProfiles[miniKind.rawValue]=level;session.updateSettings(settings)
         if miniGame?.history.isEmpty != false,miniLevel != level{restartMini()}
     }
-    public func setMiniComputer(_ enabled:Bool){cancelMiniOpponent();miniGame?.computer=enabled && !miniKind.solo;picked=[];syncMini();scheduleMiniOpponent()}
-    public func undoMini(){onMiniReset?();cancelMiniOpponent();miniGame?.undo();picked=[];feedback="";syncMini();scheduleMiniOpponent()}
+    public func setMiniComputer(_ enabled:Bool){cancelMiniOpponent();miniReview.cancel();miniGame?.computer=enabled && !miniKind.solo;picked=[];syncMini();scheduleMiniOpponent()}
+    public func undoMini(){onMiniReset?();cancelMiniOpponent();miniReview.cancel();miniGame?.undo();picked=[];feedback="";syncMini();scheduleMiniOpponent()}
     /// Back to where the game was opened: its lesson, or the training library.
-    public func leaveMini(){onMiniReset?();cancelMiniOpponent();picked=[];feedback="";if miniFromLibrary{go(.trainingLibrary);session.setTraining(.library);return};go(miniLesson);rebuild()}
+    public func leaveMini(){onMiniReset?();cancelMiniOpponent();miniReview.cancel();picked=[];feedback="";if miniFromLibrary{go(.trainingLibrary);session.setTraining(.library);return};go(miniLesson);rebuild()}
     private func clickMini(_ square:String){
         guard let game=miniGame,!game.isFinished,!miniThinking,!(game.computer && game.turn=="b") else{return}
         if let from=picked.first,game.destinations(from:from).contains(square){applyMini(MiniGameMove(from:from,to:square));scheduleMiniOpponent();return}
@@ -255,6 +262,7 @@ import Combine
         // the board (syncMini). It never changes the game or its result; a loaded finished board adds nothing.
         if !wasFinished,game.isFinished{TrainingStore.recordLegacyCompletion(game,origin:miniFromLibrary ? "library":"lesson",in:&session.state,now:now(),calendar:calendar)}
         syncMini()
+        if !wasFinished,game.isFinished{miniReview.start(game)}
         onMiniMove?(MoveRecord(color:color,from:move.from,to:move.to,piece:String(piece.suffix(1)),flags:captured==nil ? "n":"c",san:move.from+"–"+move.to,before:"",after:"",captured:captured.map{String($0.suffix(1))},promotion:nil))
     }
     /// Every save of the board rewrites its level's witness, so a later mismatch can only come from another build.
@@ -335,5 +343,5 @@ import Combine
         let finished=miniGame?.isFinished==true
         session.setTraining(TrainingProjection(view:"legacy_game",entryId:miniKind.rawValue,title:miniKind.title,objective:TrainingObjectiveKind.legacyGame.rawValue,ruleMode:TrainingRuleMode.simplifiedVariant.rawValue,rules:miniRules,pieces:frame.board,turn:miniTurn,learnerSide:"w",status:finished ? "finished":"active",winner:winner,drawReason:miniGame?.drawReason))
     }
-    public func shutdown(){packReloadTask?.cancel();packGeneration=UUID();pause();attempt.close();audio?.stop()}
+    public func shutdown(){packReloadTask?.cancel();packGeneration=UUID();pause();miniReview.cancel();attempt.close();audio?.stop()}
 }

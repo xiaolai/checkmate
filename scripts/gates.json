@@ -322,6 +322,8 @@
     "scripts/test-pawn-duel.sh",
     "Sources/CheckmateDomain/MiniGame*.swift",
     "Sources/CheckmateApplication/LearningPlayer.swift",
+    "Sources/CheckmateApplication/MiniGameReviewer.swift",
+    "Sources/CheckmateNative/MiniGameReviewViews.swift",
     "Sources/CheckmateDomain/Course.swift",
     "Sources/CheckmateCore/Resources/course*.json",
     "Sources/CheckmateCore/Resources/course/*",

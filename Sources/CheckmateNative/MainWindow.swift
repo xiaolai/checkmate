@@ -144,7 +144,21 @@ final class BoardTitleView:NSView {
         let attemptReset=model.learning.onAttemptReset;model.learning.onAttemptReset={[weak self] in attemptReset?();self?.board.cancelAnimation()}
         board.refusedDrop={[weak self] from,to in guard let self,self.model.learning.attemptStep,!self.model.review.active else{return};self.model.learning.attempt.refused(from:from,to:to)}
         let miniReset=model.learning.onMiniReset;model.learning.onMiniReset={[weak self] in miniReset?();self?.board.cancelAnimation()}
+        model.learning.miniReview.objectWillChange.sink{[weak self] _ in DispatchQueue.main.async{self?.syncMiniReviewSheet()}}.store(in:&observations)
     }
+    /// The finished mini-game's review sheet follows its reviewer: shown when a result arrives, gone when it is
+    /// dismissed or the review ends (restart, undo, leaving the game).
+    private var miniReviewSheet:NSWindow?
+    private func syncMiniReviewSheet(){
+        let reviewer=model.learning.miniReview
+        if reviewer.sheetOpen,let review=reviewer.review {
+            guard miniReviewSheet==nil,let window else{return}
+            let sheet=NSWindow(contentViewController:NSHostingController(rootView:MiniGameReviewSheet(review:review,close:{[weak reviewer] in reviewer?.dismissSheet()})))
+            sheet.title="\(review.kind.title) review";miniReviewSheet=sheet;window.beginSheet(sheet)
+        } else if let sheet=miniReviewSheet {miniReviewSheet=nil;window?.endSheet(sheet)}
+    }
+    /// The open mini-game review sheet's content, for the acceptance scenario.
+    var miniReviewSheetShown:Bool {miniReviewSheet?.sheetParent != nil}
     func toolbarDefaultItemIdentifiers(_ t:NSToolbar)->[NSToolbarItem.Identifier]{[.flexibleSpace,sidebarID,.sidebarTrackingSeparator,.flexibleSpace,titleID,.flexibleSpace,settingsID,.inspectorTrackingSeparator,inspectorID,.flexibleSpace]}
     func toolbarAllowedItemIdentifiers(_ t:NSToolbar)->[NSToolbarItem.Identifier]{toolbarDefaultItemIdentifiers(t)}
     func toolbar(_ t:NSToolbar,itemForItemIdentifier id:NSToolbarItem.Identifier,willBeInsertedIntoToolbar:Bool)->NSToolbarItem? {
