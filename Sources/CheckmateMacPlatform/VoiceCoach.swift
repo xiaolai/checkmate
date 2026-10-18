@@ -460,11 +460,11 @@ import SaidGuard
     /// Every value is the network game's own rules output; nothing the other Mac typed, such as its name, is included.
     /// Every read throws on a rules failure, so a runtime fault never reaches the model as "verified" board data with a
     /// guessed default (an empty position, White to move, no legal moves).
-    static func networkContext(_ rules:ChessRules,side:String?,learnersMove:Bool,position:String,level:NetworkAssistanceLevel)throws -> [String:Any] {
-        let over=try rules.isCheckmate() || rules.isStalemate() || rules.automaticDrawReason() != nil
+    static func networkContext(_ rules:any NetworkBoardModel,side:String?,learnersMove:Bool,position:String,level:NetworkAssistanceLevel)throws -> [String:Any] {
+        let over=try rules.endedByRules()
         return ["state":["mode":"network","positionId":position,"display":["identity":position],"learnerSide":side as Any? ?? NSNull(),"turn":try rules.currentTurn(),"learnersMove":learnersMove,"assistance":level.rawValue],
          "network":["fen":try rules.currentFEN(),"moves":try rules.moveHistory().map(\.san),"over":over],
-         "legalMoves":try rules.legalMoves().map{["from":$0.from,"to":$0.to,"san":$0.san,"uci":$0.uci]},"coordinatePerspective":"White"]
+         "legalMoves":try rules.legalMoves(from:nil).map{["from":$0.from,"to":$0.to,"san":$0.san,"uci":$0.uci]},"coordinatePerspective":"White"]
     }
     /// A network session's tool definitions (A10): practice's board and speech, plus the agreed hint and the piece
     /// inspector. No practice tool is offered.
@@ -489,7 +489,7 @@ import SaidGuard
             return ["uci":hint.uci,"from":hint.from,"to":hint.to,"san":hint.san as Any? ?? NSNull(),"source":"agreed_engine"]
         case "inspect_piece":
             guard let square=a["square"] as? String,game.rules.piece(square) != nil,let mode=RelationshipMode(rawValue:a["mode"] as? String ?? "") else{throw ProtocolFailure("INVALID_ARGUMENT")}
-            return jsonObject(try game.rules.relationships(square,mode:mode))
+            return jsonObject(try game.rules.relationships(square,mode:mode,diagram:nil))
         case "speak_explanation":
             guard game.yourTurn else{throw ProtocolFailure("NOT_YOUR_MOVE")}
             guard a["displayIdentity"] as? String==currentDisplay else{throw ProtocolFailure("STALE_STATE")}

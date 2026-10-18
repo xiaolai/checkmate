@@ -4,7 +4,7 @@ import CheckmateSupport
 import Foundation
 import OSLog
 /// The network game (LAN-play plan D9, D10): one session at a time — hosting, a guest's seat, or watching — and the
-/// game it shows, on its own `ChessRules`, never practice's, with its own input. Board clicks, drags and the promotion
+/// game it shows, on its own board model (`NetworkBoardModel`, chess so far), never practice's, with its own input. Board clicks, drags and the promotion
 /// choice in the network place come here; practice, lessons and reviews never see them.
 ///
 /// The host runner or the client runner does the networking on the services' queue; their events reach this controller
@@ -49,7 +49,8 @@ import OSLog
     public static let sendingNotice="Sending…"
 
     // MARK: The shown game
-    public private(set) var rules:ChessRules
+    /// The shown game (mini-games plan WI-022): this controller and the views read it only through the board model.
+    public private(set) var rules:any NetworkBoardModel
     @Published public private(set) var seat:Seat?
     @Published public private(set) var board:Position=[:]
     @Published public private(set) var selected:String?
@@ -142,11 +143,12 @@ import OSLog
     /// The record last written to the crash file, without its clocks.
     private var savedRecord:NetworkPublicGame?
     private var leaveCompletions:[@MainActor ()->Void]=[]
-    private static let startFEN="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 
     public init(services:NetworkServices?=nil,participation:NetworkParticipation?=nil,playerName:String="")throws {
-        rules=try ChessRules();self.services=services;self.participation=participation;self.playerName=playerName
+        rules=try Self.newBoard();self.services=services;self.participation=participation;self.playerName=playerName
     }
+    /// The shown game's model: chess, the only one so far. The crash notice's Review replays its record on one too.
+    nonisolated public static func newBoard()throws -> any NetworkBoardModel {try ChessRules()}
     public var fen:String? {seat==nil ? nil:rules.fen}
     public var identity:String {seat==nil ? "lobby":"game:\(revision)"}
     public var blackAtBottom:Bool {(seat == .player(side:"b")) != flipped}
@@ -169,7 +171,7 @@ import OSLog
     public func applied(uci:String)throws {try rules.move(uci:uci);if pending?.uci==uci{pending=nil};resetInput();changed()}
     /// The game refused the pending move: the piece goes back, nothing else changes.
     public func rejected(){pending=nil;notice=nil;selected=nil;destinations=[];objectWillChange.send()}
-    private func load(_ pgn:String)throws {if pgn.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty{try rules.load(Self.startFEN)}else{try rules.restore(pgn)}}
+    private func load(_ pgn:String)throws {if pgn.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty{try rules.loadStart()}else{try rules.restore(pgn)}}
     private func resetInput(){selected=nil;destinations=[];if pending==nil{notice=nil}else{notice=Self.sendingNotice}}
     private func changed(){revision+=1;board=seat==nil ? [:]:rules.board;objectWillChange.send()}
 
@@ -192,10 +194,10 @@ import OSLog
     /// "Network game · your move", for the sidebar while the learner is elsewhere.
     public var badge:String? {yourTurn ? Self.yourMoveBadge:nil}
     public func canDrag(_ square:String)->Bool {canMove && rules.piece(square)?.color==side}
-    public func needsPromotion(from:String,to:String)->Bool {rules.moves(from).contains{$0.to==to && $0.promotion != nil}}
+    public func needsPromotion(from:String,to:String)->Bool {rules.needsPromotion(from:from,to:to)}
     /// A click: a spectator is told they are watching; a player selects a piece of theirs, or plays to a dot.
     public func click(_ square:String){
-        guard ChessRules.validSquare(square),seat != nil else{return}
+        guard ChessNotation.validSquare(square),seat != nil else{return}
         if seat == .spectator{flash(Self.watchingNotice);return}
         // Board insight (assistance plan A1) lets the learner pick any piece to inspect, also off their turn; it never
         // shows dots for a move they cannot make.
@@ -559,7 +561,7 @@ import OSLog
     /// The other player's offer is open: Accept or Decline.
     public var canAnswerDraw:Bool {playing && openOffer != nil && openOffer?.by != learnerSide}
     /// Threefold repetition or fifty moves, on the learner's move; the host checks again on its own rules (D5).
-    public var canClaimDraw:Bool {yourTurn && (rules.threefoldRepetition || rules.fiftyMoveClaim)}
+    public var canClaimDraw:Bool {yourTurn && rules.drawClaimable}
     /// The host may resign while the guest is away; a guest while connected.
     public var canResign:Bool {
         guard runner != nil,!leaving,outcome==nil else{return false}

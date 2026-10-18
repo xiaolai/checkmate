@@ -150,9 +150,9 @@ extension NativeModel {
         file.clear();return entry
     }
     /// The crash file's game replayed once: its moves in SAN, or nil when the record does not replay. Empty when no
-    /// move was played. The notice and Review both use this one replay.
+    /// move was played. The notice and Review both use this one replay, on the network game's own board model.
     static func replayedMoves(_ entry:NetworkCrashFile.Entry)->[String]? {
-        guard entry.game.revision<=NetworkLimits.maximumPlies+1,let rules=try? ChessRules(),(try? rules.restore(entry.game.pgn)) != nil else{return nil}
+        guard entry.game.revision<=NetworkLimits.maximumPlies+1,let rules=try? NetworkGameController.newBoard(),(try? rules.restore(entry.game.pgn)) != nil else{return nil}
         return try? rules.moveHistory().map(\.san)
     }
     /// The moves are the ones the rules replayed from the kept record, as for a game that just ended (A11).
