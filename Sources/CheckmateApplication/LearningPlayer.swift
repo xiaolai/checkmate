@@ -267,7 +267,9 @@ import Combine
     }
     private func cancelMiniOpponent(){miniGeneration=UUID();miniTask?.cancel();miniTask=nil;miniThinking=false}
     /// The opponent profile the pending reply is searching with.
-    private var miniProfile=""
+    /// The level the latest computer reply was searched at, so tests can observe it without re-running a search
+    /// whose time limit makes its move depend on machine load.
+    private(set) var miniProfile=""
     /// How many computer replies have been requested, so tests can tell a request left alone from a replaced one.
     private(set) var miniReplyRequests=0
     /// A review keeps the place (and mode) of the game but owns the board: no computer reply is queued or played behind it.
