@@ -447,16 +447,31 @@ def open_network(instance):
     wait(lambda: instance.shows("network-host-button"), f"{instance.name} did not open the network lobby")
 
 
-def host_game(host, name="Ana", assistance=None, handicap=None, side=None, start=None):
+# The lobby's badge for an advertised mini-game (protocol 1.3): each competitive kind's title, as MiniGameKind words it.
+MINI_GAME_TITLES = ("Pawn Duel", "Rook Sweep", "Rooks and Pawns", "Bishop Sweep", "Bishops and Pawns", "Queen Against Pawns", "Knight Capture")
+
+
+def host_game(host, name="Ana", assistance=None, handicap=None, side=None, start=None, mini_game=None):
     """Hosts from the sheet. `assistance` picks one level for both sides; `handicap` is (White's, Black's) levels,
     set through the Handicap switch (assistance plan A2). Each is a level's title, such as "Hints on request".
     `side` picks the host's side by its title ("White", "Black"). `start` is a game-library position, (the game's
     title, the move it follows, such as "After 5. Nxe5"), each the menu item's whole title, chosen in the sheet's start picker (mini-games plan
     D7; the app runs with CHECKMATE_NETWORK_POSITIONS=1). Without one, a start picker the sheet shows is set back to the
-    standard position, since the sheet keeps the form between games."""
+    standard position, since the sheet keeps the form between games. `mini_game` is a mini-game's title, chosen in the
+    sheet's Game picker (protocol 1.3; the app runs with CHECKMATE_NETWORK_MINI_GAMES=1); it has its own start and no
+    assistance, so it takes neither `start` nor an assistance choice. Without one, a Game picker the sheet shows is set
+    back to Chess."""
+    assert not (mini_game and (start or assistance or handicap)), "a mini-game has its own start and no assistance"
     host.click("network-host-button")
     wait(lambda: host.shows("network-host-sheet"), "the host sheet did not open")
     host.type_into("network-host-name", name)
+    if mini_game:
+        host.run("pointer-helper", "select-popup", "network-host-game", mini_game)
+        wait(lambda: host.shows("network-host-mini-note"), f"the sheet did not choose {mini_game}")
+        assert not host.shows("network-host-assistance") and not host.shows("network-host-start-position"), "the sheet still offers assistance or a start for a mini-game"
+    elif host.shows("network-host-game"):
+        host.run("pointer-helper", "select-popup", "network-host-game", "Chess")
+        wait(lambda: not host.shows("network-host-mini-note"), "the Game picker did not go back to chess")
     if side:
         host.run("pointer-helper", "select-popup", "network-host-side", side)
     if start:
@@ -491,9 +506,10 @@ def host_game(host, name="Ana", assistance=None, handicap=None, side=None, start
 
 def game_row(instance, title):
     """The identifier of the lobby row named `title`: the row's label is the title, its game-ID suffix and an optional
-    badge ("Ana's game · K7QD", "Dee's game · WA48, Hints"), never a longer name that merely contains the title
-    ("Not Ana's game · K7QD")."""
-    exact = re.compile(re.escape(title) + r"(?: · [0-9A-Z]{4})?(?:, (?:Board insight|Hints|Guided|Handicap))?")
+    badge ("Ana's game · K7QD", "Dee's game · WA48, Hints", "Ana's game · K7QD, Pawn Duel"), never a longer name that
+    merely contains the title ("Not Ana's game · K7QD")."""
+    badges = "|".join(re.escape(badge) for badge in ("Board insight", "Hints", "Guided", "Handicap") + MINI_GAME_TITLES)
+    exact = re.compile(re.escape(title) + r"(?: · [0-9A-Z]{4})?(?:, (?:" + badges + r"))?")
     for line in instance.listing().splitlines():
         found = re.search(r"(network-game-[0-9A-Z]{26})", line)
         if found and any(exact.fullmatch(part) for part in line.split(": ", 1)[-1].split(" | ")):

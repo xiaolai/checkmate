@@ -516,6 +516,8 @@
     "Tools/pointer-helper.swift",
     "Tools/ax-helper.swift",
     "Tools/board-click-helper.swift",
+    "Sources/CheckmateApplication/MiniGameReviewer.swift",
+    "Sources/CheckmateNative/MiniGameReviewViews.swift",
     "Sources/CheckmateApplication/Network*.swift",
     "Sources/CheckmateDomain/Network*.swift",
     "Sources/CheckmateMacPlatform/Network*.swift",
