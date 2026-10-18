@@ -24,6 +24,8 @@ extension MiniOpponentPolicyTests {
 
 }
 @MainActor final class MiniProfileCancellationTests:XCTestCase {
+    override func setUp(){MiniGameOffering.testTable=MiniGameLevelPlayerTests.allLevels}
+    override func tearDown(){MiniGameOffering.testTable=nil}
     /// WI-015: the run's level is frozen, so a level change during a pending reply leaves that reply (and the run's
     /// level) alone and produces exactly one reply; a restart still cancels a pending reply.
     func testLevelChangeKeepsPendingReplyAndResetCancelsIt()async throws {

@@ -1,8 +1,12 @@
 import XCTest
-import CheckmateDomain
+@testable import CheckmateDomain
 
 /// WI-015: a mini-game's opponent level is preferred per game, frozen per run, and verified against the run it names.
+/// These tests are of the mechanism, so every competitive game offers all three levels here, whatever calibration
+/// (WI-016, `MiniGameCalibrationTests`) withdrew.
 final class MiniGameLevelTests:XCTestCase {
+    override func setUp(){MiniGameOffering.testTable=Dictionary(uniqueKeysWithValues:MiniGameKind.allCases.filter{!$0.solo}.map{($0,MiniOpponentPolicy.profiles)})}
+    override func tearDown(){MiniGameOffering.testTable=nil}
     private func settings(_ raw:[String:Any])->AppSettings {AppSettings(raw:raw)}
     func testPerGamePreferenceOverridesTheGlobalOne(){
         let s=settings(["miniOpponentProfile":"beginner","miniOpponentProfiles":["pawn-duel":"challenging"]])
@@ -20,11 +24,11 @@ final class MiniGameLevelTests:XCTestCase {
         var s=AppSettings();s.miniOpponentProfiles=["bishop-sweep":"beginner"]
         XCTAssertEqual(try JSONDecoder().decode(AppSettings.self,from:JSONEncoder().encode(s)).miniOpponentProfiles,["bishop-sweep":"beginner"])
     }
-    func testTheOfferingKeepsTodaysLevelsUntilCalibrationPublishes(){
-        for kind in MiniGameKind.allCases {
-            XCTAssertEqual(MiniGameOffering.levels(for:kind),kind.solo ? []:["beginner","standard","challenging"],kind.rawValue)
-            XCTAssertEqual(MiniGameOffering.offersChoice(kind),!kind.solo)
-        }
+    func testAPreferenceTheGameDoesNotOfferFallsThrough(){
+        MiniGameOffering.testTable=[.pawnDuel:["standard"],.rookSweep:["beginner","standard"]]
+        XCTAssertFalse(MiniGameOffering.offersChoice(.pawnDuel),"one level is no choice");XCTAssertTrue(MiniGameOffering.offersChoice(.rookSweep))
+        XCTAssertFalse(MiniGameOffering.offersChoice(.knightCorners));XCTAssertEqual(MiniGameOffering.levels(for:.bishopSweep),[],"a game missing from the table offers nothing")
+        XCTAssertEqual(MiniGameOffering.level(for:.pawnDuel,settings:settings(["miniOpponentProfiles":["pawn-duel":"challenging"]])),"standard","a withdrawn preference plays the fallback")
         // A preference the game does not offer falls through to the global one, then to the fallback.
         let s=settings(["miniOpponentProfile":"beginner","miniOpponentProfiles":["pawn-duel":"challenging"]])
         XCTAssertEqual(MiniGameOffering.level(for:.pawnDuel,settings:s,offered:["beginner","standard"]),"beginner")

@@ -5,13 +5,18 @@ import Foundation
 public enum MiniGameOffering {
     /// The level a game plays when it offers no choice, or the learner's preference is not offered: today's default.
     public static let fallbackLevel="standard"
-    private static let today=MiniOpponentPolicy.profiles
-    /// The levels each game offers, weakest first. Until calibration (WI-016) publishes which levels separate for which
-    /// game, every competitive game keeps today's three, so nothing visible changes; WI-016 replaces this table with
-    /// its results. A game missing here offers no choice. Knight Corners has no opponent.
-    static let table:[MiniGameKind:[String]]=[
-        .pawnDuel:today,.rookSweep:today,.rooksAndPawns:today,.bishopSweep:today,.bishopsAndPawns:today,.queenVsPawns:today,.knightCapture:today,
+    /// The levels each game offers, weakest first: calibration's verdicts (WI-016,
+    /// `Content/calibration/mini-game-results.json`), which a unit test keeps equal to this table. A level that did not
+    /// separate from Steady against the greedy reference, or a Gentle that is not accessible, is withdrawn; the fallback
+    /// level is always offered. A run already frozen at a withdrawn level finishes at it, labelled. Knight Corners has
+    /// no opponent.
+    static let calibrated:[MiniGameKind:[String]]=[
+        .pawnDuel:["beginner","standard"],.rookSweep:["beginner","standard"],.rooksAndPawns:["beginner","standard"],.bishopSweep:["beginner","standard"],
+        .bishopsAndPawns:["beginner","standard"],.queenVsPawns:["beginner","standard"],.knightCapture:["beginner","standard"],
     ]
+    /// Replaces the calibrated table in tests of the level mechanism, which need levels calibration may withdraw.
+    static var testTable:[MiniGameKind:[String]]?
+    static var table:[MiniGameKind:[String]] {testTable ?? calibrated}
     public static func levels(for kind:MiniGameKind)->[String] {kind.solo ? []:table[kind] ?? []}
     /// Whether the game shows a level picker: only when there is a choice to make.
     public static func offersChoice(_ kind:MiniGameKind)->Bool {levels(for:kind).count>1}
@@ -21,6 +26,6 @@ public enum MiniGameOffering {
         let allowed=offered ?? levels(for:kind)
         return [settings.miniOpponentProfiles[kind.rawValue],settings.miniOpponentProfile].compactMap{$0}.first{allowed.contains($0)} ?? fallbackLevel
     }
-    /// The name a level is shown by.
-    public static func title(_ level:String)->String {["beginner":"Beginner","standard":"Standard","challenging":"Challenging"][level] ?? level.capitalized}
+    /// The name a level is shown by (plan D4); the stored profile names stay as they are.
+    public static func title(_ level:String)->String {["beginner":"Gentle","standard":"Steady","challenging":"Strong"][level] ?? level.capitalized}
 }

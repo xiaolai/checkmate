@@ -72,7 +72,9 @@ import CheckmateCore
     }
     /// WI-015: the drawer's level picker is per game. Choosing a level while a game is in progress keeps that game at
     /// its level, with its pending reply, and offers a new game at the chosen one; the offer starts it there.
+    /// The mechanism is tested with every level offered, whatever calibration (WI-016) withdrew.
     func testTheLevelPickerIsPerGameAndOffersANewGameAtTheChosenLevel()async throws {
+        MiniGameOffering.testTable=Dictionary(uniqueKeysWithValues:MiniGameKind.allCases.filter{!$0.solo}.map{($0,MiniOpponentPolicy.profiles)});defer{MiniGameOffering.testTable=nil}
         let model=try NativeModel();defer{model.shutdown()};try await quiet(model)
         model.playTrainingGame(.rookSweep);model.learning.restartMini();let rookLevel=model.learning.miniLevel
         model.playTrainingGame(.pawnDuel);model.learning.restartMini();XCTAssertEqual(model.learning.miniLevel,"standard")

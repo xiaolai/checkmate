@@ -114,8 +114,8 @@ struct DetailContent:View {
                 Picker("Difficulty",selection:Binding(get:{learning.miniPreferredLevel},set:{learning.setMiniLevel($0)})){ForEach(MiniGameOffering.levels(for:learning.miniKind),id:\.self){Text(MiniGameOffering.title($0)).tag($0)}}.accessibilityIdentifier("mini-difficulty")
             }
             if learning.miniNewLevelOffered,let level=learning.miniLevel {
-                Text("This game continues at \(MiniGameOffering.title(level)).").foregroundStyle(.secondary)
-                Button("Start a new game at this level"){learning.restartMini()}.accessibilityIdentifier("mini-new-level")
+                Text(learning.miniLevelWithdrawn ? "This game continues at \(MiniGameOffering.title(level)), a level this game no longer offers.":"This game continues at \(MiniGameOffering.title(level)).").foregroundStyle(.secondary).accessibilityIdentifier("mini-level-continues")
+                Button("Start a new game at \(MiniGameOffering.title(learning.miniPreferredLevel))"){learning.restartMini()}.accessibilityIdentifier("mini-new-level")
             }
             Text(learning.miniGame?.computer==true ? "You play White. Select a piece, then its destination. The computer plays Black.":"Take turns moving White and Black on this device.")
         }

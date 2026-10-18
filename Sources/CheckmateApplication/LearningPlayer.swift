@@ -233,7 +233,11 @@ import Combine
     public var miniLevel:String? {miniGame?.runLevel?.profile}
     /// Whether the picker names another level than the unfinished game in progress plays at. That game keeps its
     /// level, and the drawer offers a new game at the chosen one.
-    public var miniNewLevelOffered:Bool {guard let game=miniGame,!game.isFinished,!game.history.isEmpty,let level=miniLevel else{return false};return level != miniPreferredLevel}
+    /// A game at a withdrawn level offers a new game at the preferred one even before its first move.
+    public var miniNewLevelOffered:Bool {guard let game=miniGame,!game.isFinished,let level=miniLevel else{return false};return level != miniPreferredLevel && (!game.history.isEmpty || miniLevelWithdrawn)}
+    /// Whether the game shown plays the computer at a level its game no longer offers (calibration withdrew it after the
+    /// run started). The run finishes at that level, labelled; new runs take an offered one.
+    public var miniLevelWithdrawn:Bool {guard let game=miniGame,game.computer,let level=miniLevel else{return false};return !MiniGameOffering.levels(for:game.kind).contains(level)}
     /// Chooses the level of this game's next runs. A game with no move yet restarts at it, losing nothing; a game in
     /// progress keeps its level (`miniNewLevelOffered`).
     public func setMiniLevel(_ level:String){

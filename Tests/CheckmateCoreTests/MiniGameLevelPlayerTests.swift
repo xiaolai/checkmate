@@ -48,8 +48,10 @@ enum Release082 {
 /// afterwards, and a level an older build could have invalidated is never trusted.
 @MainActor final class MiniGameLevelPlayerTests:XCTestCase {
     private var directory:URL!
-    override func setUp(){directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)}
-    override func tearDown(){try? FileManager.default.removeItem(at:directory)}
+    /// The mechanism is tested with every level offered, whatever calibration withdrew; `testAWithdrawnLevel…` withdraws one.
+    static let allLevels=Dictionary(uniqueKeysWithValues:MiniGameKind.allCases.filter{!$0.solo}.map{($0,MiniOpponentPolicy.profiles)})
+    override func setUp(){directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);MiniGameOffering.testTable=Self.allLevels}
+    override func tearDown(){try? FileManager.default.removeItem(at:directory);MiniGameOffering.testTable=nil}
     private func fixture(_ state:ApplicationState=ApplicationState())throws -> (GameSession,LearningPlayer) {
         let session=try GameSession(engine:nil,state:state),player=try LearningPlayer(session:session)
         session.state.settings.pieceDuration=0;player.settingsChanged();return (session,player)
@@ -90,6 +92,24 @@ enum Release082 {
         session.state.settings.miniOpponentProfiles["pawn-duel"]="challenging";player.startMini(.pawnDuel,fromLibrary:true)
         XCTAssertEqual(player.miniLevel,"beginner","resuming keeps the run's level");XCTAssertEqual(player.miniGame?.runLevel?.exact,true)
         player.startMini(.knightCorners,fromLibrary:true);XCTAssertNil(player.miniLevel,"a solo game has no opponent level");XCTAssertFalse(player.miniNewLevelOffered)
+    }
+    /// WI-016 (plan D4): a run frozen at a level calibration later withdraws finishes at that level, labelled, and is
+    /// recorded at it; new runs take the fallback. Also before its first move: nothing forces the run onto another level.
+    func testAWithdrawnLevelFinishesItsRunLabelledAndNewRunsUseTheFallback()async throws {
+        var state=ApplicationState();state.miniGames=["pawn-duel":nearlyWon()];state.settings.miniOpponentProfiles=["pawn-duel":"challenging","rook-sweep":"challenging"]
+        let (session,player)=try fixture(state);defer{player.shutdown()}
+        player.startMini(.pawnDuel,fromLibrary:true);player.startMini(.rookSweep,fromLibrary:true)
+        XCTAssertEqual(player.miniLevel,"challenging");XCTAssertFalse(player.miniLevelWithdrawn);XCTAssertFalse(player.miniNewLevelOffered)
+        MiniGameOffering.testTable=[.pawnDuel:["standard"],.rookSweep:["standard"]]  // calibration withdraws Strong
+        player.startMini(.rookSweep,fromLibrary:true)
+        XCTAssertEqual(player.miniLevel,"challenging","the run keeps its level");XCTAssertTrue(player.miniLevelWithdrawn,"labelled")
+        XCTAssertEqual(player.miniPreferredLevel,"standard");XCTAssertTrue(player.miniNewLevelOffered,"a new game at the fallback is offered before any move")
+        player.startMini(.pawnDuel,fromLibrary:true);XCTAssertEqual(player.miniLevel,"challenging");XCTAssertTrue(player.miniLevelWithdrawn)
+        try await move(player,"a6","a7");XCTAssertEqual(player.miniGame?.runLevel?.profile,"challenging","the reply was searched in the run")
+        player.click("a7");player.click("a8");XCTAssertTrue(player.miniGame?.isFinished ?? false);XCTAssertFalse(player.miniNewLevelOffered,"a finished game offers Play again")
+        let event=try XCTUnwrap(session.state.training?.events.last);XCTAssertEqual(event.level,"challenging");XCTAssertEqual(event.levelExact,true)
+        player.restartMini();XCTAssertEqual(player.miniLevel,"standard","the new run plays the fallback");XCTAssertFalse(player.miniLevelWithdrawn)
+        player.setMiniLevel("challenging");XCTAssertEqual(player.miniLevel,"standard","a withdrawn level cannot be chosen")
     }
     func testVolumeOrLanguageChangesLeaveAPendingReplyAlone()async throws {
         let (session,player)=try fixture();defer{player.shutdown()}

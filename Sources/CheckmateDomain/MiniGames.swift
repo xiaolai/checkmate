@@ -196,14 +196,22 @@ public enum MiniGameOpponent {
     /// The node budget makes a choice deterministic for a seed; the time limit only guards responsiveness on a slow or
     /// loaded machine, where it can stop the search earlier and so choose differently. Pass `timeLimited:false` to
     /// examine the search itself.
-    public static func choose(in state:MiniGameState,profile:String="standard",seed:UInt64=1,timeLimited:Bool=true)->MiniGameMove? {
+    public static func choose(in state:MiniGameState,profile:String="standard",seed:UInt64=1,timeLimited:Bool=true)->MiniGameMove? {decide(in:state,profile:profile,seed:seed,timeLimited:timeLimited).move}
+    /// One search's choice and what bounded it. `deadlineCut` says the time limit stopped the search before its node
+    /// budget did, the case in which a loaded machine can choose differently from the reproducible search; calibration
+    /// (WI-016) counts it. The choice is exactly `choose`'s.
+    public struct Decision:Equatable {public let move:MiniGameMove?,nodes:Int,completedDepth:Int,deadlineCut:Bool}
+    public static func decide(in state:MiniGameState,profile:String="standard",seed:UInt64=1,timeLimited:Bool=true)->Decision {
         let policy=MiniOpponentPolicy.forGame(state.kind,profile:profile),maximumDepth=policy.maximumDepth,nodeBudget=policy.nodeBudget
         let deadline=timeLimited ? Date().addingTimeInterval(Double(policy.milliseconds)/1000):Date.distantFuture
-        var random=seed
+        var random=seed,deadlineCut=false,completedDepth=0
         func pick(_ moves:[MiniGameMove])->MiniGameMove {random=random &* 6364136223846793005 &+ 1442695040888963407;return moves[Int((random >> 32) % UInt64(moves.count))]}
-        func exhausted()->Bool {nodes>=nodeBudget || Task.isCancelled || Date()>=deadline}
-        guard !state.kind.solo,!state.isFinished else{return nil}
-        let legal=ordered(state);guard var best=legal.first else{return nil}
+        func exhausted()->Bool {
+            if nodes>=nodeBudget || Task.isCancelled{return true}
+            if Date()>=deadline{deadlineCut=true;return true};return false
+        }
+        guard !state.kind.solo,!state.isFinished else{return Decision(move:nil,nodes:0,completedDepth:0,deadlineCut:false)}
+        let legal=ordered(state);guard var best=legal.first else{return Decision(move:nil,nodes:0,completedDepth:0,deadlineCut:false)}
         var nodes=0
         func evaluate(_ s:MiniGameState)->Int {
             var score=0
@@ -237,9 +245,9 @@ public enum MiniGameOpponent {
                 if state.turn=="w" ? score>value:score<value{candidates=[move];value=score}else if score==value{candidates.append(move)}
                 if exhausted(){complete=false;break}
             }
-            if complete,!candidates.isEmpty{best=pick(candidates)}else{break}
+            if complete,!candidates.isEmpty{best=pick(candidates);completedDepth=depth}else{break}
         }
-        return Task.isCancelled ? nil:best
+        return Decision(move:Task.isCancelled ? nil:best,nodes:nodes,completedDepth:completedDepth,deadlineCut:deadlineCut)
     }
     private static func ordered(_ state:MiniGameState)->[MiniGameMove] {MiniGameRules.moves(board:state.board,kind:state.kind,side:state.turn).sorted{a,b in
         func priority(_ m:MiniGameMove)->Int {(state.board[m.to] != nil ? 10:0)+(m.to.hasSuffix(state.turn=="w" ? "8":"1") ? 5:0)}

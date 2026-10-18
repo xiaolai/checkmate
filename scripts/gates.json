@@ -535,6 +535,7 @@
     "Sources/*",
     "Tests/*",
     "Tools/Acceptance/*",
+    "Tools/MiniGameCalibration/*",
     "Tools/legacy-store-test.swift",
     "Tools/legacy-export.js",
     "companion/*",

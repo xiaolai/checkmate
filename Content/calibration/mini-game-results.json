@@ -1,0 +1,1959 @@
+{
+  "deadline" : [
+    {
+      "changedByDeadline" : 0,
+      "changedRate" : 0,
+      "cutRate" : 0,
+      "deadlineCuts" : 0,
+      "decisions" : 486,
+      "game" : "pawn-duel",
+      "games" : 40,
+      "level" : "beginner",
+      "milliseconds" : 650
+    },
+    {
+      "changedByDeadline" : 0,
+      "changedRate" : 0,
+      "cutRate" : 0,
+      "deadlineCuts" : 0,
+      "decisions" : 369,
+      "game" : "pawn-duel",
+      "games" : 40,
+      "level" : "standard",
+      "milliseconds" : 650
+    },
+    {
+      "changedByDeadline" : 7,
+      "changedRate" : 0.01856763925729443,
+      "cutRate" : 0.0636604774535809,
+      "deadlineCuts" : 24,
+      "decisions" : 377,
+      "game" : "pawn-duel",
+      "games" : 40,
+      "level" : "challenging",
+      "milliseconds" : 650
+    },
+    {
+      "changedByDeadline" : 0,
+      "changedRate" : 0,
+      "cutRate" : 0,
+      "deadlineCuts" : 0,
+      "decisions" : 285,
+      "game" : "rook-sweep",
+      "games" : 40,
+      "level" : "beginner",
+      "milliseconds" : 650
+    },
+    {
+      "changedByDeadline" : 0,
+      "changedRate" : 0,
+      "cutRate" : 0,
+      "deadlineCuts" : 0,
+      "decisions" : 365,
+      "game" : "rook-sweep",
+      "games" : 40,
+      "level" : "standard",
+      "milliseconds" : 650
+    },
+    {
+      "changedByDeadline" : 0,
+      "changedRate" : 0,
+      "cutRate" : 0,
+      "deadlineCuts" : 0,
+      "decisions" : 333,
+      "game" : "rook-sweep",
+      "games" : 40,
+      "level" : "challenging",
+      "milliseconds" : 650
+    },
+    {
+      "changedByDeadline" : 0,
+      "changedRate" : 0,
+      "cutRate" : 0,
+      "deadlineCuts" : 0,
+      "decisions" : 592,
+      "game" : "rooks-and-pawns",
+      "games" : 40,
+      "level" : "beginner",
+      "milliseconds" : 650
+    },
+    {
+      "changedByDeadline" : 0,
+      "changedRate" : 0,
+      "cutRate" : 0,
+      "deadlineCuts" : 0,
+      "decisions" : 474,
+      "game" : "rooks-and-pawns",
+      "games" : 40,
+      "level" : "standard",
+      "milliseconds" : 650
+    },
+    {
+      "changedByDeadline" : 6,
+      "changedRate" : 0.01263157894736842,
+      "cutRate" : 0.5389473684210526,
+      "deadlineCuts" : 256,
+      "decisions" : 475,
+      "game" : "rooks-and-pawns",
+      "games" : 40,
+      "level" : "challenging",
+      "milliseconds" : 650
+    },
+    {
+      "changedByDeadline" : 0,
+      "changedRate" : 0,
+      "cutRate" : 0,
+      "deadlineCuts" : 0,
+      "decisions" : 484,
+      "game" : "bishop-sweep",
+      "games" : 40,
+      "level" : "beginner",
+      "milliseconds" : 650
+    },
+    {
+      "changedByDeadline" : 0,
+      "changedRate" : 0,
+      "cutRate" : 0,
+      "deadlineCuts" : 0,
+      "decisions" : 336,
+      "game" : "bishop-sweep",
+      "games" : 40,
+      "level" : "standard",
+      "milliseconds" : 650
+    },
+    {
+      "changedByDeadline" : 0,
+      "changedRate" : 0,
+      "cutRate" : 0,
+      "deadlineCuts" : 0,
+      "decisions" : 404,
+      "game" : "bishop-sweep",
+      "games" : 40,
+      "level" : "challenging",
+      "milliseconds" : 650
+    },
+    {
+      "changedByDeadline" : 0,
+      "changedRate" : 0,
+      "cutRate" : 0,
+      "deadlineCuts" : 0,
+      "decisions" : 732,
+      "game" : "bishops-and-pawns",
+      "games" : 40,
+      "level" : "beginner",
+      "milliseconds" : 650
+    },
+    {
+      "changedByDeadline" : 0,
+      "changedRate" : 0,
+      "cutRate" : 0.01757469244288225,
+      "deadlineCuts" : 10,
+      "decisions" : 569,
+      "game" : "bishops-and-pawns",
+      "games" : 40,
+      "level" : "standard",
+      "milliseconds" : 650
+    },
+    {
+      "changedByDeadline" : 10,
+      "changedRate" : 0.016722408026755852,
+      "cutRate" : 0.45819397993311034,
+      "deadlineCuts" : 274,
+      "decisions" : 598,
+      "game" : "bishops-and-pawns",
+      "games" : 40,
+      "level" : "challenging",
+      "milliseconds" : 650
+    },
+    {
+      "changedByDeadline" : 0,
+      "changedRate" : 0,
+      "cutRate" : 0,
+      "deadlineCuts" : 0,
+      "decisions" : 291,
+      "game" : "queen-vs-pawns",
+      "games" : 40,
+      "level" : "beginner",
+      "milliseconds" : 650
+    },
+    {
+      "changedByDeadline" : 0,
+      "changedRate" : 0,
+      "cutRate" : 0,
+      "deadlineCuts" : 0,
+      "decisions" : 256,
+      "game" : "queen-vs-pawns",
+      "games" : 40,
+      "level" : "standard",
+      "milliseconds" : 650
+    },
+    {
+      "changedByDeadline" : 0,
+      "changedRate" : 0,
+      "cutRate" : 0,
+      "deadlineCuts" : 0,
+      "decisions" : 283,
+      "game" : "queen-vs-pawns",
+      "games" : 40,
+      "level" : "challenging",
+      "milliseconds" : 650
+    },
+    {
+      "changedByDeadline" : 0,
+      "changedRate" : 0,
+      "cutRate" : 0,
+      "deadlineCuts" : 0,
+      "decisions" : 313,
+      "game" : "knight-capture",
+      "games" : 40,
+      "level" : "beginner",
+      "milliseconds" : 650
+    },
+    {
+      "changedByDeadline" : 0,
+      "changedRate" : 0,
+      "cutRate" : 0,
+      "deadlineCuts" : 0,
+      "decisions" : 1180,
+      "game" : "knight-capture",
+      "games" : 40,
+      "level" : "standard",
+      "milliseconds" : 650
+    },
+    {
+      "changedByDeadline" : 0,
+      "changedRate" : 0,
+      "cutRate" : 0,
+      "deadlineCuts" : 0,
+      "decisions" : 1186,
+      "game" : "knight-capture",
+      "games" : 40,
+      "level" : "challenging",
+      "milliseconds" : 650
+    }
+  ],
+  "entries" : [
+    {
+      "game" : "pawn-duel",
+      "pairings" : [
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 64,
+            "plies" : 4290,
+            "wins" : 136
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 53,
+            "plies" : 4199,
+            "wins" : 147
+          },
+          "level" : "beginner",
+          "reference" : "random"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 87,
+            "plies" : 4855,
+            "wins" : 113
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 81,
+            "plies" : 4799,
+            "wins" : 119
+          },
+          "level" : "beginner",
+          "reference" : "greedy"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 6,
+            "plies" : 3666,
+            "wins" : 194
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 6,
+            "plies" : 3558,
+            "wins" : 194
+          },
+          "level" : "standard",
+          "reference" : "random"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 18,
+            "plies" : 4006,
+            "wins" : 182
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 5,
+            "plies" : 3863,
+            "wins" : 195
+          },
+          "level" : "standard",
+          "reference" : "greedy"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 30,
+            "plies" : 3926,
+            "wins" : 170
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 33,
+            "plies" : 3997,
+            "wins" : 167
+          },
+          "level" : "standard",
+          "reference" : "level-below"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 1,
+            "plies" : 3387,
+            "wins" : 199
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 0,
+            "plies" : 3240,
+            "wins" : 200
+          },
+          "level" : "challenging",
+          "reference" : "random"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 3,
+            "plies" : 3713,
+            "wins" : 197
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 1,
+            "plies" : 3467,
+            "wins" : 199
+          },
+          "level" : "challenging",
+          "reference" : "greedy"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 65,
+            "plies" : 4235,
+            "wins" : 135
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 82,
+            "plies" : 4328,
+            "wins" : 118
+          },
+          "level" : "challenging",
+          "reference" : "level-below"
+        }
+      ],
+      "policies" : {
+        "beginner" : {
+          "maximumDepth" : 1,
+          "milliseconds" : 650,
+          "nodeBudget" : 400,
+          "version" : 2
+        },
+        "challenging" : {
+          "maximumDepth" : 5,
+          "milliseconds" : 650,
+          "nodeBudget" : 12000,
+          "version" : 2
+        },
+        "standard" : {
+          "maximumDepth" : 4,
+          "milliseconds" : 650,
+          "nodeBudget" : 7000,
+          "version" : 2
+        }
+      }
+    },
+    {
+      "game" : "rook-sweep",
+      "pairings" : [
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 2,
+            "games" : 200,
+            "losses" : 22,
+            "plies" : 3630,
+            "wins" : 176
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 15,
+            "plies" : 3387,
+            "wins" : 185
+          },
+          "level" : "beginner",
+          "reference" : "random"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 92,
+            "plies" : 3020,
+            "wins" : 108
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 106,
+            "plies" : 2902,
+            "wins" : 94
+          },
+          "level" : "beginner",
+          "reference" : "greedy"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 2,
+            "games" : 200,
+            "losses" : 0,
+            "plies" : 5004,
+            "wins" : 198
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 0,
+            "plies" : 4902,
+            "wins" : 200
+          },
+          "level" : "standard",
+          "reference" : "random"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 2,
+            "games" : 200,
+            "losses" : 0,
+            "plies" : 2654,
+            "wins" : 198
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 0,
+            "plies" : 2776,
+            "wins" : 200
+          },
+          "level" : "standard",
+          "reference" : "greedy"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 0,
+            "plies" : 2918,
+            "wins" : 200
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 0,
+            "plies" : 2674,
+            "wins" : 200
+          },
+          "level" : "standard",
+          "reference" : "level-below"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 0,
+            "plies" : 4930,
+            "wins" : 200
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 0,
+            "plies" : 5134,
+            "wins" : 200
+          },
+          "level" : "challenging",
+          "reference" : "random"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 1,
+            "games" : 200,
+            "losses" : 5,
+            "plies" : 3826,
+            "wins" : 194
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 3,
+            "plies" : 4407,
+            "wins" : 197
+          },
+          "level" : "challenging",
+          "reference" : "greedy"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 17,
+            "games" : 200,
+            "losses" : 29,
+            "plies" : 9815,
+            "wins" : 154
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 17,
+            "games" : 200,
+            "losses" : 12,
+            "plies" : 9703,
+            "wins" : 171
+          },
+          "level" : "challenging",
+          "reference" : "level-below"
+        }
+      ],
+      "policies" : {
+        "beginner" : {
+          "maximumDepth" : 1,
+          "milliseconds" : 650,
+          "nodeBudget" : 400,
+          "version" : 2
+        },
+        "challenging" : {
+          "maximumDepth" : 4,
+          "milliseconds" : 650,
+          "nodeBudget" : 7000,
+          "version" : 2
+        },
+        "standard" : {
+          "maximumDepth" : 3,
+          "milliseconds" : 650,
+          "nodeBudget" : 3500,
+          "version" : 2
+        }
+      }
+    },
+    {
+      "game" : "rooks-and-pawns",
+      "pairings" : [
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 31,
+            "plies" : 4935,
+            "wins" : 169
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 40,
+            "plies" : 4887,
+            "wins" : 160
+          },
+          "level" : "beginner",
+          "reference" : "random"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 91,
+            "plies" : 6230,
+            "wins" : 109
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 91,
+            "plies" : 6163,
+            "wins" : 109
+          },
+          "level" : "beginner",
+          "reference" : "greedy"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 0,
+            "plies" : 4686,
+            "wins" : 200
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 0,
+            "plies" : 4421,
+            "wins" : 200
+          },
+          "level" : "standard",
+          "reference" : "random"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 0,
+            "plies" : 4785,
+            "wins" : 200
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 1,
+            "plies" : 4709,
+            "wins" : 199
+          },
+          "level" : "standard",
+          "reference" : "greedy"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 2,
+            "plies" : 5210,
+            "wins" : 198
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 3,
+            "plies" : 5108,
+            "wins" : 197
+          },
+          "level" : "standard",
+          "reference" : "level-below"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 0,
+            "plies" : 4549,
+            "wins" : 200
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 0,
+            "plies" : 4425,
+            "wins" : 200
+          },
+          "level" : "challenging",
+          "reference" : "random"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 0,
+            "plies" : 4790,
+            "wins" : 200
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 0,
+            "plies" : 4686,
+            "wins" : 200
+          },
+          "level" : "challenging",
+          "reference" : "greedy"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 131,
+            "games" : 200,
+            "losses" : 34,
+            "plies" : 18285,
+            "wins" : 35
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 123,
+            "games" : 200,
+            "losses" : 23,
+            "plies" : 18008,
+            "wins" : 54
+          },
+          "level" : "challenging",
+          "reference" : "level-below"
+        }
+      ],
+      "policies" : {
+        "beginner" : {
+          "maximumDepth" : 1,
+          "milliseconds" : 650,
+          "nodeBudget" : 400,
+          "version" : 2
+        },
+        "challenging" : {
+          "maximumDepth" : 5,
+          "milliseconds" : 650,
+          "nodeBudget" : 12000,
+          "version" : 2
+        },
+        "standard" : {
+          "maximumDepth" : 4,
+          "milliseconds" : 650,
+          "nodeBudget" : 7000,
+          "version" : 2
+        }
+      }
+    },
+    {
+      "game" : "bishop-sweep",
+      "pairings" : [
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 26,
+            "games" : 200,
+            "losses" : 2,
+            "plies" : 8357,
+            "wins" : 172
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 20,
+            "games" : 200,
+            "losses" : 2,
+            "plies" : 7594,
+            "wins" : 178
+          },
+          "level" : "beginner",
+          "reference" : "random"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 32,
+            "games" : 200,
+            "losses" : 89,
+            "plies" : 5516,
+            "wins" : 79
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 32,
+            "games" : 200,
+            "losses" : 76,
+            "plies" : 5958,
+            "wins" : 92
+          },
+          "level" : "beginner",
+          "reference" : "greedy"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 0,
+            "plies" : 6146,
+            "wins" : 200
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 0,
+            "plies" : 6612,
+            "wins" : 200
+          },
+          "level" : "standard",
+          "reference" : "random"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 0,
+            "plies" : 3184,
+            "wins" : 200
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 0,
+            "plies" : 3390,
+            "wins" : 200
+          },
+          "level" : "standard",
+          "reference" : "greedy"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 0,
+            "plies" : 3174,
+            "wins" : 200
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 0,
+            "plies" : 3054,
+            "wins" : 200
+          },
+          "level" : "standard",
+          "reference" : "level-below"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 0,
+            "plies" : 6362,
+            "wins" : 200
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 0,
+            "plies" : 6246,
+            "wins" : 200
+          },
+          "level" : "challenging",
+          "reference" : "random"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 1,
+            "games" : 200,
+            "losses" : 3,
+            "plies" : 4043,
+            "wins" : 196
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 4,
+            "plies" : 3876,
+            "wins" : 196
+          },
+          "level" : "challenging",
+          "reference" : "greedy"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 3,
+            "games" : 200,
+            "losses" : 100,
+            "plies" : 9447,
+            "wins" : 97
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 19,
+            "games" : 200,
+            "losses" : 64,
+            "plies" : 11933,
+            "wins" : 117
+          },
+          "level" : "challenging",
+          "reference" : "level-below"
+        }
+      ],
+      "policies" : {
+        "beginner" : {
+          "maximumDepth" : 1,
+          "milliseconds" : 650,
+          "nodeBudget" : 400,
+          "version" : 2
+        },
+        "challenging" : {
+          "maximumDepth" : 4,
+          "milliseconds" : 650,
+          "nodeBudget" : 7000,
+          "version" : 2
+        },
+        "standard" : {
+          "maximumDepth" : 3,
+          "milliseconds" : 650,
+          "nodeBudget" : 3500,
+          "version" : 2
+        }
+      }
+    },
+    {
+      "game" : "bishops-and-pawns",
+      "pairings" : [
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 10,
+            "plies" : 5362,
+            "wins" : 190
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 9,
+            "plies" : 5236,
+            "wins" : 191
+          },
+          "level" : "beginner",
+          "reference" : "random"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 18,
+            "games" : 200,
+            "losses" : 62,
+            "plies" : 7927,
+            "wins" : 120
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 12,
+            "games" : 200,
+            "losses" : 59,
+            "plies" : 7364,
+            "wins" : 129
+          },
+          "level" : "beginner",
+          "reference" : "greedy"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 0,
+            "plies" : 5301,
+            "wins" : 200
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 0,
+            "plies" : 5180,
+            "wins" : 200
+          },
+          "level" : "standard",
+          "reference" : "random"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 1,
+            "plies" : 5640,
+            "wins" : 199
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 1,
+            "plies" : 5404,
+            "wins" : 199
+          },
+          "level" : "standard",
+          "reference" : "greedy"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 3,
+            "plies" : 5219,
+            "wins" : 197
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 3,
+            "plies" : 4906,
+            "wins" : 197
+          },
+          "level" : "standard",
+          "reference" : "level-below"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 0,
+            "plies" : 5160,
+            "wins" : 200
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 1,
+            "plies" : 5110,
+            "wins" : 199
+          },
+          "level" : "challenging",
+          "reference" : "random"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 0,
+            "plies" : 5415,
+            "wins" : 200
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 1,
+            "plies" : 5421,
+            "wins" : 199
+          },
+          "level" : "challenging",
+          "reference" : "greedy"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 193,
+            "games" : 200,
+            "losses" : 7,
+            "plies" : 20058,
+            "wins" : 0
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 175,
+            "games" : 200,
+            "losses" : 4,
+            "plies" : 17563,
+            "wins" : 21
+          },
+          "level" : "challenging",
+          "reference" : "level-below"
+        }
+      ],
+      "policies" : {
+        "beginner" : {
+          "maximumDepth" : 1,
+          "milliseconds" : 650,
+          "nodeBudget" : 400,
+          "version" : 2
+        },
+        "challenging" : {
+          "maximumDepth" : 5,
+          "milliseconds" : 650,
+          "nodeBudget" : 12000,
+          "version" : 2
+        },
+        "standard" : {
+          "maximumDepth" : 4,
+          "milliseconds" : 650,
+          "nodeBudget" : 7000,
+          "version" : 2
+        }
+      }
+    },
+    {
+      "game" : "queen-vs-pawns",
+      "pairings" : [
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 63,
+            "plies" : 3526,
+            "wins" : 137
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 0,
+            "plies" : 3045,
+            "wins" : 200
+          },
+          "level" : "beginner",
+          "reference" : "random"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 154,
+            "plies" : 2347,
+            "wins" : 46
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 88,
+            "plies" : 3716,
+            "wins" : 112
+          },
+          "level" : "beginner",
+          "reference" : "greedy"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 0,
+            "plies" : 4490,
+            "wins" : 200
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 0,
+            "plies" : 2797,
+            "wins" : 200
+          },
+          "level" : "standard",
+          "reference" : "random"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 0,
+            "plies" : 4640,
+            "wins" : 200
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 0,
+            "plies" : 600,
+            "wins" : 200
+          },
+          "level" : "standard",
+          "reference" : "greedy"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 0,
+            "plies" : 3598,
+            "wins" : 200
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 0,
+            "plies" : 600,
+            "wins" : 200
+          },
+          "level" : "standard",
+          "reference" : "level-below"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 0,
+            "plies" : 4538,
+            "wins" : 200
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 0,
+            "plies" : 2666,
+            "wins" : 200
+          },
+          "level" : "challenging",
+          "reference" : "random"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 0,
+            "plies" : 4568,
+            "wins" : 200
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 0,
+            "plies" : 600,
+            "wins" : 200
+          },
+          "level" : "challenging",
+          "reference" : "greedy"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 22,
+            "plies" : 5877,
+            "wins" : 178
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 52,
+            "plies" : 7667,
+            "wins" : 148
+          },
+          "level" : "challenging",
+          "reference" : "level-below"
+        }
+      ],
+      "policies" : {
+        "beginner" : {
+          "maximumDepth" : 1,
+          "milliseconds" : 650,
+          "nodeBudget" : 400,
+          "version" : 2
+        },
+        "challenging" : {
+          "maximumDepth" : 4,
+          "milliseconds" : 650,
+          "nodeBudget" : 7000,
+          "version" : 2
+        },
+        "standard" : {
+          "maximumDepth" : 3,
+          "milliseconds" : 650,
+          "nodeBudget" : 3500,
+          "version" : 2
+        }
+      }
+    },
+    {
+      "game" : "knight-capture",
+      "pairings" : [
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 4,
+            "games" : 200,
+            "losses" : 0,
+            "plies" : 2741,
+            "wins" : 196
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 13,
+            "games" : 200,
+            "losses" : 187,
+            "plies" : 12281,
+            "wins" : 0
+          },
+          "level" : "beginner",
+          "reference" : "random"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 0,
+            "plies" : 2430,
+            "wins" : 200
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 1,
+            "games" : 200,
+            "losses" : 199,
+            "plies" : 2943,
+            "wins" : 0
+          },
+          "level" : "beginner",
+          "reference" : "greedy"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 0,
+            "plies" : 2068,
+            "wins" : 200
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 194,
+            "games" : 200,
+            "losses" : 6,
+            "plies" : 37170,
+            "wins" : 0
+          },
+          "level" : "standard",
+          "reference" : "random"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 0,
+            "plies" : 1500,
+            "wins" : 200
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 193,
+            "games" : 200,
+            "losses" : 7,
+            "plies" : 23722,
+            "wins" : 0
+          },
+          "level" : "standard",
+          "reference" : "greedy"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 0,
+            "plies" : 1638,
+            "wins" : 200
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 184,
+            "games" : 200,
+            "losses" : 16,
+            "plies" : 22434,
+            "wins" : 0
+          },
+          "level" : "standard",
+          "reference" : "level-below"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 0,
+            "plies" : 1888,
+            "wins" : 200
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 200,
+            "games" : 200,
+            "losses" : 0,
+            "plies" : 37176,
+            "wins" : 0
+          },
+          "level" : "challenging",
+          "reference" : "random"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 0,
+            "plies" : 1548,
+            "wins" : 200
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 200,
+            "games" : 200,
+            "losses" : 0,
+            "plies" : 22918,
+            "wins" : 0
+          },
+          "level" : "challenging",
+          "reference" : "greedy"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 186,
+            "games" : 200,
+            "losses" : 0,
+            "plies" : 11299,
+            "wins" : 14
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 200,
+            "games" : 200,
+            "losses" : 0,
+            "plies" : 25718,
+            "wins" : 0
+          },
+          "level" : "challenging",
+          "reference" : "level-below"
+        }
+      ],
+      "policies" : {
+        "beginner" : {
+          "maximumDepth" : 1,
+          "milliseconds" : 650,
+          "nodeBudget" : 400,
+          "version" : 2
+        },
+        "challenging" : {
+          "maximumDepth" : 4,
+          "milliseconds" : 650,
+          "nodeBudget" : 7000,
+          "version" : 2
+        },
+        "standard" : {
+          "maximumDepth" : 3,
+          "milliseconds" : 650,
+          "nodeBudget" : 3500,
+          "version" : 2
+        }
+      }
+    }
+  ],
+  "identity" : {
+    "binarySHA256" : "a173e58ee06127daf5542a820ae2ade644576e0a24d0e0f518dae16d807bf62b",
+    "cores" : 12,
+    "cpu" : "Apple M6",
+    "date" : "2026-10-18T04:50:40Z",
+    "os" : "Version 27.0.1 (Build 26A434)",
+    "sourceSHA256" : {
+      "Content\/calibration\/mini-game-manifest.json" : "fb3de1e3d614ac299a86b4c31ab4806b8840d713a86ff2586a1892be7779e538",
+      "Sources\/CheckmateDomain\/Course.swift" : "cc4b3a0f97ae5b19789fee662ebb855fc6535b89115ed36d21e3de28ebdc43e4",
+      "Sources\/CheckmateDomain\/MiniGameCalibration.swift" : "4fe3930b523561740b18d9a00dae0027cc09ea7d897802ed05063d8ff4bae971",
+      "Sources\/CheckmateDomain\/MiniGames.swift" : "81aec6602df24ec22351b22e1f155b6cf32425719261eb8a42f7145e6a74cb53",
+      "Tools\/MiniGameCalibration\/main.swift" : "7f2219efe846a801979337cc7b42ba056dfa6e4fb270596c0360fcafc9055911"
+    }
+  },
+  "manifest" : {
+    "deadline" : {
+      "gamesPerLevel" : 40,
+      "loadThreadsPerCore" : 1,
+      "reference" : "greedy"
+    },
+    "drawScore" : 0.5,
+    "entries" : [
+      {
+        "accessibility" : {
+          "minimumReferenceScore" : 0.3,
+          "reference" : "greedy"
+        },
+        "game" : "pawn-duel",
+        "kind" : "simplified",
+        "start" : "initial"
+      },
+      {
+        "accessibility" : {
+          "minimumReferenceScore" : 0.3,
+          "reference" : "greedy"
+        },
+        "game" : "rook-sweep",
+        "kind" : "simplified",
+        "start" : "initial"
+      },
+      {
+        "accessibility" : {
+          "minimumReferenceScore" : 0.3,
+          "reference" : "greedy"
+        },
+        "game" : "rooks-and-pawns",
+        "kind" : "simplified",
+        "start" : "initial"
+      },
+      {
+        "accessibility" : {
+          "minimumReferenceScore" : 0.3,
+          "reference" : "greedy"
+        },
+        "game" : "bishop-sweep",
+        "kind" : "simplified",
+        "start" : "initial"
+      },
+      {
+        "accessibility" : {
+          "minimumReferenceScore" : 0.3,
+          "reference" : "greedy"
+        },
+        "game" : "bishops-and-pawns",
+        "kind" : "simplified",
+        "start" : "initial"
+      },
+      {
+        "accessibility" : {
+          "minimumReferenceScore" : 0.3,
+          "reference" : "greedy"
+        },
+        "game" : "queen-vs-pawns",
+        "kind" : "simplified",
+        "start" : "initial"
+      },
+      {
+        "accessibility" : {
+          "minimumReferenceScore" : 0.3,
+          "reference" : "greedy"
+        },
+        "game" : "knight-capture",
+        "kind" : "simplified",
+        "start" : "initial"
+      }
+    ],
+    "gamesPerPairing" : 400,
+    "levels" : [
+      "beginner",
+      "standard",
+      "challenging"
+    ],
+    "maximumPlies" : 600,
+    "passRule" : {
+      "confidence" : 0.95,
+      "minimumDifference" : 0.1,
+      "reference" : "greedy"
+    },
+    "references" : [
+      "random",
+      "greedy",
+      "level-below"
+    ],
+    "schema" : 1,
+    "seed" : "c0ffee0016",
+    "sides" : [
+      "w",
+      "b"
+    ]
+  },
+  "notes" : [
+    "Scores are the level's points per game (a draw is half a point), counted from the level's side; asWhite and asBlack split each pairing evenly.",
+    "Intervals are 95% Wilson score intervals on the score; with draws the true variance is lower, so they are conservative.",
+    "The deterministic run has the search deadline off; the deadline run plays with the production limit under load and does not feed the verdicts."
+  ],
+  "outcomesDigest" : "69ae948e650dc210",
+  "requiredGamesPerPairing" : 386,
+  "smoke" : false,
+  "timing" : {
+    "deadlineSeconds" : 198.9910010099411,
+    "deterministicSeconds" : 2642.534702897072,
+    "gameThreads" : 12,
+    "loadThreads" : 12
+  },
+  "verdicts" : [
+    {
+      "game" : "pawn-duel",
+      "gentleAccessible" : true,
+      "offered" : [
+        "beginner",
+        "standard"
+      ],
+      "pairs" : [
+        {
+          "differs" : true,
+          "higher" : "standard",
+          "higherInterval" : [
+            0.9151991622718807,
+            0.9613824572422669
+          ],
+          "higherScore" : 0.9425,
+          "lower" : "beginner",
+          "lowerInterval" : [
+            0.5310957511319983,
+            0.6273822817745143
+          ],
+          "lowerScore" : 0.58,
+          "separated" : true
+        },
+        {
+          "differs" : false,
+          "higher" : "challenging",
+          "higherInterval" : [
+            0.9745734353473804,
+            0.996104516205009
+          ],
+          "higherScore" : 0.99,
+          "lower" : "standard",
+          "lowerInterval" : [
+            0.9151991622718807,
+            0.9613824572422669
+          ],
+          "lowerScore" : 0.9425,
+          "separated" : true
+        }
+      ],
+      "referenceScoreAgainstGentle" : 0.42000000000000004
+    },
+    {
+      "game" : "rook-sweep",
+      "gentleAccessible" : true,
+      "offered" : [
+        "beginner",
+        "standard"
+      ],
+      "pairs" : [
+        {
+          "differs" : true,
+          "higher" : "standard",
+          "higherInterval" : [
+            0.9859767149241766,
+            0.9995585522131983
+          ],
+          "higherScore" : 0.9975,
+          "lower" : "beginner",
+          "lowerInterval" : [
+            0.45618935783904724,
+            0.5537155192176098
+          ],
+          "lowerScore" : 0.505,
+          "separated" : true
+        },
+        {
+          "differs" : false,
+          "higher" : "challenging",
+          "higherInterval" : [
+            0.9594115420370906,
+            0.9889804361378205
+          ],
+          "higherScore" : 0.97875,
+          "lower" : "standard",
+          "lowerInterval" : [
+            0.9859767149241766,
+            0.9995585522131983
+          ],
+          "lowerScore" : 0.9975,
+          "separated" : false
+        }
+      ],
+      "referenceScoreAgainstGentle" : 0.495
+    },
+    {
+      "game" : "rooks-and-pawns",
+      "gentleAccessible" : true,
+      "offered" : [
+        "beginner",
+        "standard"
+      ],
+      "pairs" : [
+        {
+          "differs" : true,
+          "higher" : "standard",
+          "higherInterval" : [
+            0.9859767149241766,
+            0.9995585522131983
+          ],
+          "higherScore" : 0.9975,
+          "lower" : "beginner",
+          "lowerInterval" : [
+            0.496002466449648,
+            0.5931414270602654
+          ],
+          "lowerScore" : 0.545,
+          "separated" : true
+        },
+        {
+          "differs" : false,
+          "higher" : "challenging",
+          "higherInterval" : [
+            0.9904877056657034,
+            0.9999999999999999
+          ],
+          "higherScore" : 1,
+          "lower" : "standard",
+          "lowerInterval" : [
+            0.9859767149241766,
+            0.9995585522131983
+          ],
+          "lowerScore" : 0.9975,
+          "separated" : false
+        }
+      ],
+      "referenceScoreAgainstGentle" : 0.45499999999999996
+    },
+    {
+      "game" : "bishop-sweep",
+      "gentleAccessible" : true,
+      "offered" : [
+        "beginner",
+        "standard"
+      ],
+      "pairs" : [
+        {
+          "differs" : true,
+          "higher" : "standard",
+          "higherInterval" : [
+            0.9904877056657034,
+            0.9999999999999999
+          ],
+          "higherScore" : 1,
+          "lower" : "beginner",
+          "lowerInterval" : [
+            0.45866859619769573,
+            0.5561887193872896
+          ],
+          "lowerScore" : 0.5075,
+          "separated" : true
+        },
+        {
+          "differs" : false,
+          "higher" : "challenging",
+          "higherInterval" : [
+            0.9626733680722559,
+            0.9906710486309835
+          ],
+          "higherScore" : 0.98125,
+          "lower" : "standard",
+          "lowerInterval" : [
+            0.9904877056657034,
+            0.9999999999999999
+          ],
+          "lowerScore" : 1,
+          "separated" : false
+        }
+      ],
+      "referenceScoreAgainstGentle" : 0.49250000000000005
+    },
+    {
+      "game" : "bishops-and-pawns",
+      "gentleAccessible" : true,
+      "offered" : [
+        "beginner",
+        "standard"
+      ],
+      "pairs" : [
+        {
+          "differs" : true,
+          "higher" : "standard",
+          "higherInterval" : [
+            0.9819550815637568,
+            0.9986277470452896
+          ],
+          "higherScore" : 0.995,
+          "lower" : "beginner",
+          "lowerInterval" : [
+            0.6122516850900368,
+            0.7047043807229885
+          ],
+          "lowerScore" : 0.66,
+          "separated" : true
+        },
+        {
+          "differs" : false,
+          "higher" : "challenging",
+          "higherInterval" : [
+            0.9859767149241766,
+            0.9995585522131983
+          ],
+          "higherScore" : 0.9975,
+          "lower" : "standard",
+          "lowerInterval" : [
+            0.9819550815637568,
+            0.9986277470452896
+          ],
+          "lowerScore" : 0.995,
+          "separated" : false
+        }
+      ],
+      "referenceScoreAgainstGentle" : 0.33999999999999997
+    },
+    {
+      "game" : "queen-vs-pawns",
+      "gentleAccessible" : true,
+      "offered" : [
+        "beginner",
+        "standard"
+      ],
+      "pairs" : [
+        {
+          "differs" : true,
+          "higher" : "standard",
+          "higherInterval" : [
+            0.9904877056657034,
+            0.9999999999999999
+          ],
+          "higherScore" : 1,
+          "lower" : "beginner",
+          "lowerInterval" : [
+            0.3483102375425738,
+            0.4436873442676285
+          ],
+          "lowerScore" : 0.395,
+          "separated" : true
+        },
+        {
+          "differs" : false,
+          "higher" : "challenging",
+          "higherInterval" : [
+            0.9904877056657034,
+            0.9999999999999999
+          ],
+          "higherScore" : 1,
+          "lower" : "standard",
+          "lowerInterval" : [
+            0.9904877056657034,
+            0.9999999999999999
+          ],
+          "lowerScore" : 1,
+          "separated" : false
+        }
+      ],
+      "referenceScoreAgainstGentle" : 0.605
+    },
+    {
+      "game" : "knight-capture",
+      "gentleAccessible" : true,
+      "offered" : [
+        "beginner",
+        "standard"
+      ],
+      "pairs" : [
+        {
+          "differs" : true,
+          "higher" : "standard",
+          "higherInterval" : [
+            0.6961800554196694,
+            0.7817302625640324
+          ],
+          "higherScore" : 0.74125,
+          "lower" : "beginner",
+          "lowerInterval" : [
+            0.4524727647446,
+            0.5500034545195642
+          ],
+          "lowerScore" : 0.50125,
+          "separated" : true
+        },
+        {
+          "differs" : false,
+          "higher" : "challenging",
+          "higherInterval" : [
+            0.7053228670693259,
+            0.7899209857635259
+          ],
+          "higherScore" : 0.75,
+          "lower" : "standard",
+          "lowerInterval" : [
+            0.6961800554196694,
+            0.7817302625640324
+          ],
+          "lowerScore" : 0.74125,
+          "separated" : false
+        }
+      ],
+      "referenceScoreAgainstGentle" : 0.49875
+    }
+  ]
+}

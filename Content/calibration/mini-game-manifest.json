@@ -1,0 +1,21 @@
+{
+  "schema": 1,
+  "levels": ["beginner", "standard", "challenging"],
+  "references": ["random", "greedy", "level-below"],
+  "sides": ["w", "b"],
+  "gamesPerPairing": 400,
+  "drawScore": 0.5,
+  "maximumPlies": 600,
+  "seed": "c0ffee0016",
+  "passRule": {"reference": "greedy", "minimumDifference": 0.10, "confidence": 0.95},
+  "deadline": {"reference": "greedy", "gamesPerLevel": 40, "loadThreadsPerCore": 1},
+  "entries": [
+    {"kind": "simplified", "game": "pawn-duel", "start": "initial", "accessibility": {"reference": "greedy", "minimumReferenceScore": 0.30}},
+    {"kind": "simplified", "game": "rook-sweep", "start": "initial", "accessibility": {"reference": "greedy", "minimumReferenceScore": 0.30}},
+    {"kind": "simplified", "game": "rooks-and-pawns", "start": "initial", "accessibility": {"reference": "greedy", "minimumReferenceScore": 0.30}},
+    {"kind": "simplified", "game": "bishop-sweep", "start": "initial", "accessibility": {"reference": "greedy", "minimumReferenceScore": 0.30}},
+    {"kind": "simplified", "game": "bishops-and-pawns", "start": "initial", "accessibility": {"reference": "greedy", "minimumReferenceScore": 0.30}},
+    {"kind": "simplified", "game": "queen-vs-pawns", "start": "initial", "accessibility": {"reference": "greedy", "minimumReferenceScore": 0.30}},
+    {"kind": "simplified", "game": "knight-capture", "start": "initial", "accessibility": {"reference": "greedy", "minimumReferenceScore": 0.30}}
+  ]
+}
