@@ -44,8 +44,12 @@ for gate in spec['gates']:
             continue
         text = (root / script).read_text()
         tokens = set(re.findall(r'[\w.-]+', text))  # a helper is named with or without its extension
+        # A Swift executable's main.swift is named by its target's directory, never by the word "main".
+        def names(path):
+            p = pathlib.PurePath(path)
+            return {p.parent.name} if p.name == 'main.swift' else {p.name, p.stem}
         named = {path for path in hashes if (path.startswith('Tools/') or (path.startswith('scripts/') and path.endswith('.py'))) and path != script and path not in RUNNER and not gates.matches(path, list(spec['untested']))
-                 and ({pathlib.PurePath(path).name, pathlib.PurePath(path).stem} & tokens)}
+                 and (names(path) & tokens)}
         missing = sorted(path for path in named if path not in gates.inputs(gate, hashes))
         assert not missing, f"{gate['name']}: {script} uses {missing}, which are not inputs of the gate"
 
