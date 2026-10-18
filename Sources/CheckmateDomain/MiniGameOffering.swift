@@ -6,13 +6,13 @@ public enum MiniGameOffering {
     /// The level a game plays when it offers no choice, or the learner's preference is not offered: today's default.
     public static let fallbackLevel="standard"
     /// The levels each game offers, weakest first: calibration's verdicts (WI-016,
-    /// `Content/calibration/mini-game-results.json`), which a unit test keeps equal to this table. A level that did not
-    /// separate from Steady against the greedy reference, or a Gentle that is not accessible, is withdrawn; the fallback
-    /// level is always offered. A run already frozen at a withdrawn level finishes at it, labelled. Knight Corners has
+    /// `Content/calibration/mini-game-results.json`), which a unit test keeps equal to this table. A level whose pair with
+    /// Steady fails the pass rule (`MiniGameCalibration.pair`: against greedy, or head-to-head once greedy is saturated),
+    /// or a Gentle that is not accessible, is withdrawn; the fallback level is always offered. A run already frozen at a withdrawn level finishes at it, labelled. Knight Corners has
     /// no opponent.
     static let calibrated:[MiniGameKind:[String]]=[
-        .pawnDuel:["beginner","standard"],.rookSweep:["beginner","standard"],.rooksAndPawns:["beginner","standard"],.bishopSweep:["beginner","standard"],
-        .bishopsAndPawns:["beginner","standard"],.queenVsPawns:["beginner","standard"],.knightCapture:["beginner","standard"],
+        .pawnDuel:["beginner","standard","challenging"],.rookSweep:["beginner","standard","challenging"],.rooksAndPawns:["beginner","standard"],.bishopSweep:["beginner","standard"],
+        .bishopsAndPawns:["beginner","standard"],.queenVsPawns:["beginner","standard","challenging"],.knightCapture:["beginner","standard"],
     ]
     /// Replaces the calibrated table in tests of the level mechanism, which need levels calibration may withdraw.
     static var testTable:[MiniGameKind:[String]]?

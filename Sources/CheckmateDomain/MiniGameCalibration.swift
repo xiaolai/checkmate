@@ -9,6 +9,9 @@ public enum MiniGameCalibration {
     /// join after WI-017 as a second kind with their own references and identity, and are refused until then.
     public static let entryKinds=["simplified"]
     public static let references=["random","greedy","level-below"]
+    /// The files, relative to the package root, whose contents decide a calibration game or its verdict. The harness
+    /// records their SHA-256 beside the manifest's, and a unit test re-hashes them, so results of older sources fail.
+    public static let sourceFiles=["Sources/CheckmateDomain/MiniGames.swift","Sources/CheckmateDomain/MiniGameCalibration.swift","Sources/CheckmateDomain/Course.swift","Sources/CheckmateDomain/ChessNotation.swift","Tools/MiniGameCalibration/main.swift"]
     /// One side of a calibration game: a level of the mini-game search, or a reference player.
     public enum Player:Equatable {
         case level(String),random,greedy
@@ -29,6 +32,14 @@ public enum MiniGameCalibration {
         /// The reference every level plays for the pass rule, the least difference of score against it between adjacent
         /// levels, and the two-sided confidence of the Wilson intervals that must not overlap.
         public var reference:String,minimumDifference:Double,confidence:Double
+        /// The second branch, for a pair whose lower level already beats the reference almost always.
+        public var headToHead:HeadToHeadRule
+    }
+    public struct HeadToHeadRule:Codable,Equatable {
+        /// The reference is saturated for a level that scores at least `saturatedScore` against it; the upper level then
+        /// passes by scoring at least `minimumScore` against the lower one with its interval's lower bound above
+        /// `lowerBoundAbove`.
+        public var saturatedScore:Double,minimumScore:Double,lowerBoundAbove:Double
     }
     public struct Accessibility:Codable,Equatable {
         /// Gentle (the weakest level) is accessible when `reference` scores at least `minimumReferenceScore` against it.
@@ -67,6 +78,7 @@ public enum MiniGameCalibration {
         require(rule.reference=="greedy","the pass rule plays greedy")
         require(rule.minimumDifference==0.10,"the pass rule needs at least 10 points of difference")
         require(rule.confidence==0.95,"the pass rule uses 95% Wilson intervals")
+        require(rule.headToHead==HeadToHeadRule(saturatedScore:0.90,minimumScore:0.60,lowerBoundAbove:0.50),"the head-to-head branch needs greedy saturated at 90%, then at least 60% against the level below with the lower bound above 50%")
         let needed=requiredGames(minimumDifference:rule.minimumDifference,confidence:rule.confidence)
         require(manifest.gamesPerPairing%manifest.sides.count==0,"gamesPerPairing must split evenly between the sides")
         require(manifest.gamesPerPairing>=needed,"gamesPerPairing \(manifest.gamesPerPairing) is below the \(needed) games at which a \(Int(rule.minimumDifference*100))-point difference always separates the intervals")
@@ -185,21 +197,35 @@ public enum MiniGameCalibration {
         public init(game:String,pairings:[Pairing],policies:[String:MiniOpponentPolicy]){self.game=game;self.pairings=pairings;self.policies=policies}
     }
     public struct PairVerdict:Codable,Equatable {
+        /// Scores against the pass rule's reference (greedy), and branch (a)'s two tests on them.
         public var lower:String,higher:String,lowerScore:Double,higherScore:Double,lowerInterval:[Double],higherInterval:[Double],differs:Bool,separated:Bool
-        public var passed:Bool {differs && separated}
+        /// Branch (b): whether greedy is saturated for the lower level, and the higher level's score against it head-to-head.
+        public var saturated:Bool,headToHeadScore:Double,headToHeadInterval:[Double],headToHeadSeparated:Bool
+        public var passedAgainstReference:Bool {differs && separated}
+        public var passedHeadToHead:Bool {saturated && headToHeadSeparated}
+        public var passed:Bool {passedAgainstReference || passedHeadToHead}
     }
     public struct Verdict:Codable,Equatable {
         public var game:String,pairs:[PairVerdict],referenceScoreAgainstGentle:Double,gentleAccessible:Bool
-        /// The levels the game offers, weakest first: always the fallback level, Gentle when it separates from Steady
-        /// and is accessible, Strong when it separates from Steady.
+        /// The levels the game offers, weakest first: always the fallback level, Gentle when its pair with Steady passes
+        /// and it is accessible, Strong when its pair with Steady passes.
         public var offered:[String]
     }
-    /// The pass rule for one adjacent pair: against the rule's reference the higher level scores at least
-    /// `minimumDifference` more, and the two intervals are disjoint.
-    public static func pair(lower:String,_ lowerTally:Tally,higher:String,_ higherTally:Tally,rule:PassRule,draw:Double)->PairVerdict {
-        let a=lowerTally.score(draw:draw),b=higherTally.score(draw:draw)
-        let ia=wilson(score:a,games:lowerTally.games,confidence:rule.confidence),ib=wilson(score:b,games:higherTally.games,confidence:rule.confidence)
-        return PairVerdict(lower:lower,higher:higher,lowerScore:a,higherScore:b,lowerInterval:[ia.lowerBound,ia.upperBound],higherInterval:[ib.lowerBound,ib.upperBound],differs:b-a>=rule.minimumDifference-1e-9,separated:ia.upperBound<ib.lowerBound)
+    /// The pass rule for one adjacent pair, which passes by either branch:
+    /// (a) against the rule's reference the higher level scores at least `minimumDifference` more, and the two intervals
+    ///     are disjoint;
+    /// (b) the reference is saturated for the lower level (it scores at least `headToHead.saturatedScore` against it),
+    ///     and the higher level scores at least `headToHead.minimumScore` against the lower one head-to-head, with that
+    ///     score's interval lower bound above `headToHead.lowerBoundAbove`.
+    /// Branch (b) is the orchestrator's decision after the first full run (2026-10-18): Steady already scored 94% to
+    /// 100% against greedy in every game, so greedy could not separate Steady from Strong and (a) alone withdrew Strong
+    /// everywhere, although Strong beat Steady clearly head-to-head in some games. The plan's third reference, the next
+    /// level down, decides once greedy has nothing left to measure; while greedy still discriminates, only (a) can pass.
+    public static func pair(lower:String,_ lowerTally:Tally,higher:String,_ higherTally:Tally,headToHead:Tally,rule:PassRule,draw:Double)->PairVerdict {
+        let a=lowerTally.score(draw:draw),b=higherTally.score(draw:draw),h=headToHead.score(draw:draw)
+        let ia=wilson(score:a,games:lowerTally.games,confidence:rule.confidence),ib=wilson(score:b,games:higherTally.games,confidence:rule.confidence),ih=wilson(score:h,games:headToHead.games,confidence:rule.confidence)
+        return PairVerdict(lower:lower,higher:higher,lowerScore:a,higherScore:b,lowerInterval:[ia.lowerBound,ia.upperBound],higherInterval:[ib.lowerBound,ib.upperBound],differs:b-a>=rule.minimumDifference-1e-9,separated:ia.upperBound<ib.lowerBound,
+            saturated:a>=rule.headToHead.saturatedScore-1e-9,headToHeadScore:h,headToHeadInterval:[ih.lowerBound,ih.upperBound],headToHeadSeparated:h>=rule.headToHead.minimumScore-1e-9 && ih.lowerBound>rule.headToHead.lowerBoundAbove)
     }
     /// What a game's results allow it to offer under `manifest`. Fails loudly on results that do not answer the manifest.
     public static func verdict(_ result:EntryResult,manifest:Manifest)throws -> Verdict {
@@ -211,7 +237,7 @@ public enum MiniGameCalibration {
             return pairing.total
         }
         let rule=manifest.passRule,levels=manifest.levels
-        let pairs=try zip(levels,levels.dropFirst()).map{try pair(lower:$0,tally($0,rule.reference),higher:$1,tally($1,rule.reference),rule:rule,draw:manifest.drawScore)}
+        let pairs=try zip(levels,levels.dropFirst()).map{try pair(lower:$0,tally($0,rule.reference),higher:$1,tally($1,rule.reference),headToHead:tally($1,"level-below"),rule:rule,draw:manifest.drawScore)}
         let against=1-(try tally(levels[0],entry.accessibility.reference)).score(draw:manifest.drawScore)
         let accessible=against>=entry.accessibility.minimumReferenceScore-1e-9
         let fallback=MiniGameOffering.fallbackLevel,middle=levels.firstIndex(of:fallback)!

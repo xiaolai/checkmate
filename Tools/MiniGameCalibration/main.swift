@@ -98,7 +98,7 @@ let deadlineRows=entries.flatMap{entry in manifest.levels.map{level->DeadlineRow
 func sha256(_ data:Data)->String {SHA256.hash(data:data).map{String(format:"%02x",$0)}.joined()}
 let executable=URL(fileURLWithPath:CommandLine.arguments[0]).resolvingSymlinksInPath()
 guard let binary=FileManager.default.contents(atPath:executable.path) else{fail("Cannot read this binary at \(executable.path)")}
-let sourceFiles=["Sources/CheckmateDomain/MiniGames.swift","Sources/CheckmateDomain/MiniGameCalibration.swift","Sources/CheckmateDomain/Course.swift","Tools/MiniGameCalibration/main.swift",manifestPath]
+let sourceFiles=MiniGameCalibration.sourceFiles+[manifestPath]
 let sources=Dictionary(uniqueKeysWithValues:sourceFiles.map{path->(String,String) in guard let data=FileManager.default.contents(atPath:path) else{fail("Missing source \(path)")};return (path,sha256(data))})
 func sysctl(_ name:String)->String {var size=0;sysctlbyname(name,nil,&size,nil,0);var bytes=[CChar](repeating:0,count:max(1,size));sysctlbyname(name,&bytes,&size,nil,0);return String(cString:bytes)}
 struct Identity:Encodable {let binarySHA256:String,sourceSHA256:[String:String],os:String,cpu:String,cores:Int,date:String}
@@ -120,5 +120,5 @@ let encoder=JSONEncoder();encoder.outputFormatting=[.prettyPrinted,.sortedKeys]
 let data=try encoder.encode(output)
 try FileManager.default.createDirectory(at:URL(fileURLWithPath:outputPath).deletingLastPathComponent(),withIntermediateDirectories:true)
 try data.write(to:URL(fileURLWithPath:outputPath),options:.atomic)
-for verdict in verdicts {log("\(verdict.game): offers \(verdict.offered) (pairs \(verdict.pairs.map{"\($0.lower)-\($0.higher) \(String(format:"%.3f",$0.lowerScore))/\(String(format:"%.3f",$0.higherScore)) \($0.passed ? "pass":"fail")"}), greedy vs Gentle \(String(format:"%.3f",verdict.referenceScoreAgainstGentle)))")}
+for verdict in verdicts {log("\(verdict.game): offers \(verdict.offered) (pairs \(verdict.pairs.map{"\($0.lower)-\($0.higher) \(String(format:"%.3f",$0.lowerScore))/\(String(format:"%.3f",$0.higherScore)) \($0.passedAgainstReference ? "pass (greedy)":$0.passedHeadToHead ? "pass (head-to-head \(String(format:"%.3f",$0.headToHeadScore)))":"fail")"}), greedy vs Gentle \(String(format:"%.3f",verdict.referenceScoreAgainstGentle)))")}
 log("wrote \(outputPath)\(smoke ? " (smoke run)":"")")

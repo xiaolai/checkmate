@@ -23,11 +23,11 @@
       "milliseconds" : 650
     },
     {
-      "changedByDeadline" : 7,
-      "changedRate" : 0.01856763925729443,
-      "cutRate" : 0.0636604774535809,
-      "deadlineCuts" : 24,
-      "decisions" : 377,
+      "changedByDeadline" : 14,
+      "changedRate" : 0.037333333333333336,
+      "cutRate" : 0.12,
+      "deadlineCuts" : 45,
+      "decisions" : 375,
       "game" : "pawn-duel",
       "games" : 40,
       "level" : "challenging",
@@ -89,11 +89,11 @@
       "milliseconds" : 650
     },
     {
-      "changedByDeadline" : 6,
-      "changedRate" : 0.01263157894736842,
-      "cutRate" : 0.5389473684210526,
-      "deadlineCuts" : 256,
-      "decisions" : 475,
+      "changedByDeadline" : 2,
+      "changedRate" : 0.0041753653444676405,
+      "cutRate" : 0.44676409185803756,
+      "deadlineCuts" : 214,
+      "decisions" : 479,
       "game" : "rooks-and-pawns",
       "games" : 40,
       "level" : "challenging",
@@ -146,8 +146,8 @@
     {
       "changedByDeadline" : 0,
       "changedRate" : 0,
-      "cutRate" : 0.01757469244288225,
-      "deadlineCuts" : 10,
+      "cutRate" : 0.0035149384885764497,
+      "deadlineCuts" : 2,
       "decisions" : 569,
       "game" : "bishops-and-pawns",
       "games" : 40,
@@ -155,11 +155,11 @@
       "milliseconds" : 650
     },
     {
-      "changedByDeadline" : 10,
-      "changedRate" : 0.016722408026755852,
-      "cutRate" : 0.45819397993311034,
-      "deadlineCuts" : 274,
-      "decisions" : 598,
+      "changedByDeadline" : 11,
+      "changedRate" : 0.01926444833625219,
+      "cutRate" : 0.4168126094570928,
+      "deadlineCuts" : 238,
+      "decisions" : 571,
       "game" : "bishops-and-pawns",
       "games" : 40,
       "level" : "challenging",
@@ -1530,17 +1530,18 @@
     }
   ],
   "identity" : {
-    "binarySHA256" : "a173e58ee06127daf5542a820ae2ade644576e0a24d0e0f518dae16d807bf62b",
+    "binarySHA256" : "3d2bc8eeac24ede731262c0b3d9fa1630d48aa96bb14d7698a59eed705bbd07f",
     "cores" : 12,
     "cpu" : "Apple M6",
-    "date" : "2026-10-18T04:50:40Z",
+    "date" : "2026-10-18T06:24:38Z",
     "os" : "Version 27.0.1 (Build 26A434)",
     "sourceSHA256" : {
-      "Content\/calibration\/mini-game-manifest.json" : "fb3de1e3d614ac299a86b4c31ab4806b8840d713a86ff2586a1892be7779e538",
+      "Content\/calibration\/mini-game-manifest.json" : "ec47b2da020482efbd3b11ad078a97f547433e6c998bc1b656e8c5cc60ad474c",
+      "Sources\/CheckmateDomain\/ChessNotation.swift" : "eb3ac1a569cda5896981f054093d313b99b614c47af7d112edf5ac07eb1c75f6",
       "Sources\/CheckmateDomain\/Course.swift" : "cc4b3a0f97ae5b19789fee662ebb855fc6535b89115ed36d21e3de28ebdc43e4",
-      "Sources\/CheckmateDomain\/MiniGameCalibration.swift" : "4fe3930b523561740b18d9a00dae0027cc09ea7d897802ed05063d8ff4bae971",
-      "Sources\/CheckmateDomain\/MiniGames.swift" : "81aec6602df24ec22351b22e1f155b6cf32425719261eb8a42f7145e6a74cb53",
-      "Tools\/MiniGameCalibration\/main.swift" : "7f2219efe846a801979337cc7b42ba056dfa6e4fb270596c0360fcafc9055911"
+      "Sources\/CheckmateDomain\/MiniGameCalibration.swift" : "1c7bd89e56e8fad94a7823f93e1ac4aced1c4fbb508bd2508fe438adacec6fae",
+      "Sources\/CheckmateDomain\/MiniGames.swift" : "aa6adeb75a8e662c56ed25bd9ceeaeafe87f284e8ec4228dc0cb8e7595687715",
+      "Tools\/MiniGameCalibration\/main.swift" : "e0ed49f4c3feebe7e9ea43890bd375664600e34d7caf99e3a77f1e84d0eb9957"
     }
   },
   "manifest" : {
@@ -1624,6 +1625,11 @@
     "maximumPlies" : 600,
     "passRule" : {
       "confidence" : 0.95,
+      "headToHead" : {
+        "lowerBoundAbove" : 0.5,
+        "minimumScore" : 0.6,
+        "saturatedScore" : 0.9
+      },
       "minimumDifference" : 0.1,
       "reference" : "greedy"
     },
@@ -1648,8 +1654,8 @@
   "requiredGamesPerPairing" : 386,
   "smoke" : false,
   "timing" : {
-    "deadlineSeconds" : 198.9910010099411,
-    "deterministicSeconds" : 2642.534702897072,
+    "deadlineSeconds" : 194.63043296337128,
+    "deterministicSeconds" : 2667.501704931259,
     "gameThreads" : 12,
     "loadThreads" : 12
   },
@@ -1659,11 +1665,18 @@
       "gentleAccessible" : true,
       "offered" : [
         "beginner",
-        "standard"
+        "standard",
+        "challenging"
       ],
       "pairs" : [
         {
           "differs" : true,
+          "headToHeadInterval" : [
+            0.8035652075632727,
+            0.8749188708177342
+          ],
+          "headToHeadScore" : 0.8425,
+          "headToHeadSeparated" : true,
           "higher" : "standard",
           "higherInterval" : [
             0.9151991622718807,
@@ -1676,10 +1689,17 @@
             0.6273822817745143
           ],
           "lowerScore" : 0.58,
+          "saturated" : false,
           "separated" : true
         },
         {
           "differs" : false,
+          "headToHeadInterval" : [
+            0.5842006805216781,
+            0.6782785614797332
+          ],
+          "headToHeadScore" : 0.6325,
+          "headToHeadSeparated" : true,
           "higher" : "challenging",
           "higherInterval" : [
             0.9745734353473804,
@@ -1692,6 +1712,7 @@
             0.9613824572422669
           ],
           "lowerScore" : 0.9425,
+          "saturated" : true,
           "separated" : true
         }
       ],
@@ -1702,11 +1723,18 @@
       "gentleAccessible" : true,
       "offered" : [
         "beginner",
-        "standard"
+        "standard",
+        "challenging"
       ],
       "pairs" : [
         {
           "differs" : true,
+          "headToHeadInterval" : [
+            0.9904877056657034,
+            0.9999999999999999
+          ],
+          "headToHeadScore" : 1,
+          "headToHeadSeparated" : true,
           "higher" : "standard",
           "higherInterval" : [
             0.9859767149241766,
@@ -1719,10 +1747,17 @@
             0.5537155192176098
           ],
           "lowerScore" : 0.505,
+          "saturated" : false,
           "separated" : true
         },
         {
           "differs" : false,
+          "headToHeadInterval" : [
+            0.8171167606818923,
+            0.8861295103407572
+          ],
+          "headToHeadScore" : 0.855,
+          "headToHeadSeparated" : true,
           "higher" : "challenging",
           "higherInterval" : [
             0.9594115420370906,
@@ -1735,6 +1770,7 @@
             0.9995585522131983
           ],
           "lowerScore" : 0.9975,
+          "saturated" : true,
           "separated" : false
         }
       ],
@@ -1750,6 +1786,12 @@
       "pairs" : [
         {
           "differs" : true,
+          "headToHeadInterval" : [
+            0.9710762638040326,
+            0.9946492492200284
+          ],
+          "headToHeadScore" : 0.9875,
+          "headToHeadSeparated" : true,
           "higher" : "standard",
           "higherInterval" : [
             0.9859767149241766,
@@ -1762,10 +1804,17 @@
             0.5931414270602654
           ],
           "lowerScore" : 0.545,
+          "saturated" : false,
           "separated" : true
         },
         {
           "differs" : false,
+          "headToHeadInterval" : [
+            0.49100882332475854,
+            0.5882301931284978
+          ],
+          "headToHeadScore" : 0.54,
+          "headToHeadSeparated" : false,
           "higher" : "challenging",
           "higherInterval" : [
             0.9904877056657034,
@@ -1778,6 +1827,7 @@
             0.9995585522131983
           ],
           "lowerScore" : 0.9975,
+          "saturated" : true,
           "separated" : false
         }
       ],
@@ -1793,6 +1843,12 @@
       "pairs" : [
         {
           "differs" : true,
+          "headToHeadInterval" : [
+            0.9904877056657034,
+            0.9999999999999999
+          ],
+          "headToHeadScore" : 1,
+          "headToHeadSeparated" : true,
           "higher" : "standard",
           "higherInterval" : [
             0.9904877056657034,
@@ -1805,10 +1861,17 @@
             0.5561887193872896
           ],
           "lowerScore" : 0.5075,
+          "saturated" : false,
           "separated" : true
         },
         {
           "differs" : false,
+          "headToHeadInterval" : [
+            0.5135188136473868,
+            0.6102921495608261
+          ],
+          "headToHeadScore" : 0.5625,
+          "headToHeadSeparated" : false,
           "higher" : "challenging",
           "higherInterval" : [
             0.9626733680722559,
@@ -1821,6 +1884,7 @@
             0.9999999999999999
           ],
           "lowerScore" : 1,
+          "saturated" : true,
           "separated" : false
         }
       ],
@@ -1836,6 +1900,12 @@
       "pairs" : [
         {
           "differs" : true,
+          "headToHeadInterval" : [
+            0.9676653664151732,
+            0.9931077080805591
+          ],
+          "headToHeadScore" : 0.985,
+          "headToHeadSeparated" : true,
           "higher" : "standard",
           "higherInterval" : [
             0.9819550815637568,
@@ -1848,10 +1918,17 @@
             0.7047043807229885
           ],
           "lowerScore" : 0.66,
+          "saturated" : false,
           "separated" : true
         },
         {
           "differs" : false,
+          "headToHeadInterval" : [
+            0.4636306970848221,
+            0.5611314955568205
+          ],
+          "headToHeadScore" : 0.5125,
+          "headToHeadSeparated" : false,
           "higher" : "challenging",
           "higherInterval" : [
             0.9859767149241766,
@@ -1864,6 +1941,7 @@
             0.9986277470452896
           ],
           "lowerScore" : 0.995,
+          "saturated" : true,
           "separated" : false
         }
       ],
@@ -1874,11 +1952,18 @@
       "gentleAccessible" : true,
       "offered" : [
         "beginner",
-        "standard"
+        "standard",
+        "challenging"
       ],
       "pairs" : [
         {
           "differs" : true,
+          "headToHeadInterval" : [
+            0.9904877056657034,
+            0.9999999999999999
+          ],
+          "headToHeadScore" : 1,
+          "headToHeadSeparated" : true,
           "higher" : "standard",
           "higherInterval" : [
             0.9904877056657034,
@@ -1891,10 +1976,17 @@
             0.4436873442676285
           ],
           "lowerScore" : 0.395,
+          "saturated" : false,
           "separated" : true
         },
         {
           "differs" : false,
+          "headToHeadInterval" : [
+            0.7740142283989209,
+            0.8499930261704722
+          ],
+          "headToHeadScore" : 0.815,
+          "headToHeadSeparated" : true,
           "higher" : "challenging",
           "higherInterval" : [
             0.9904877056657034,
@@ -1907,6 +1999,7 @@
             0.9999999999999999
           ],
           "lowerScore" : 1,
+          "saturated" : true,
           "separated" : false
         }
       ],
@@ -1922,6 +2015,12 @@
       "pairs" : [
         {
           "differs" : true,
+          "headToHeadInterval" : [
+            0.684457128728908,
+            0.7711672158773156
+          ],
+          "headToHeadScore" : 0.73,
+          "headToHeadSeparated" : true,
           "higher" : "standard",
           "higherInterval" : [
             0.6961800554196694,
@@ -1934,10 +2033,17 @@
             0.5500034545195642
           ],
           "lowerScore" : 0.50125,
+          "saturated" : false,
           "separated" : true
         },
         {
           "differs" : false,
+          "headToHeadInterval" : [
+            0.46859763274320027,
+            0.5660694369550994
+          ],
+          "headToHeadScore" : 0.5175,
+          "headToHeadSeparated" : false,
           "higher" : "challenging",
           "higherInterval" : [
             0.7053228670693259,
@@ -1950,6 +2056,7 @@
             0.7817302625640324
           ],
           "lowerScore" : 0.74125,
+          "saturated" : false,
           "separated" : false
         }
       ],

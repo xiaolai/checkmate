@@ -259,9 +259,9 @@ try:
     if "mini-difficulty" not in listing():
         pointer("click", "Toggle Game Details")
     wait(lambda: "mini-difficulty" in listing(), "The mini-game drawer did not show the level picker")
-    # Calibration (WI-016) decides the levels; Pawn Duel offers Gentle (stored as beginner) beside Steady.
+    # Calibration (WI-016) decides the levels; Pawn Duel offers Gentle (stored as beginner), Steady and Strong.
     offered = next(v["offered"] for v in json.loads((root / "Content/calibration/mini-game-results.json").read_text())["verdicts"] if v["game"] == "pawn-duel")
-    assert offered == ["beginner", "standard"], f"Pawn Duel's calibrated levels changed to {offered}: update this gate"
+    assert offered == ["beginner", "standard", "challenging"], f"Pawn Duel's calibrated levels changed to {offered}: update this gate"
     pointer("select-popup", "mini-difficulty", "Gentle")
     wait(lambda: "mini-new-level" in listing(), "Choosing a level during a game did not offer a new game at it")
     assert "Start a new game at Gentle" in listing() and "This game continues at Steady." in listing(), "The offer does not name the levels as shown"

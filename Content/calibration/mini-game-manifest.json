@@ -7,7 +7,8 @@
   "drawScore": 0.5,
   "maximumPlies": 600,
   "seed": "c0ffee0016",
-  "passRule": {"reference": "greedy", "minimumDifference": 0.10, "confidence": 0.95},
+  "passRule": {"reference": "greedy", "minimumDifference": 0.10, "confidence": 0.95,
+               "headToHead": {"saturatedScore": 0.90, "minimumScore": 0.60, "lowerBoundAbove": 0.50}},
   "deadline": {"reference": "greedy", "gamesPerLevel": 40, "loadThreadsPerCore": 1},
   "entries": [
     {"kind": "simplified", "game": "pawn-duel", "start": "initial", "accessibility": {"reference": "greedy", "minimumReferenceScore": 0.30}},

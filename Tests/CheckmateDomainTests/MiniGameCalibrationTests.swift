@@ -1,4 +1,5 @@
 import XCTest
+import CryptoKit
 @testable import CheckmateDomain
 
 /// WI-016: the calibration manifest is fixed and checked before any game, the pass rule separates only levels that
@@ -39,6 +40,7 @@ final class MiniGameCalibrationTests:XCTestCase {
         refuses({$0.entries[0].accessibility.reference="level-below"},"fixed reference");refuses({$0.entries[0].accessibility.minimumReferenceScore=0},"inside (0, 1)")
         refuses({$0.levels=["standard","beginner","challenging"]},"weakest first");refuses({$0.sides=["w"]},"sides");refuses({$0.drawScore=0},"half a point")
         refuses({$0.passRule.minimumDifference=0.05},"10 points");refuses({$0.passRule.reference="random"},"greedy");refuses({$0.passRule.confidence=0.9},"95%")
+        refuses({$0.passRule.headToHead.saturatedScore=0.8},"saturated at 90%");refuses({$0.passRule.headToHead.minimumScore=0.55},"at least 60%");refuses({$0.passRule.headToHead.lowerBoundAbove=0.4},"above 50%")
         refuses({$0.seed="not-hex"},"hexadecimal");refuses({$0.deadline.gamesPerLevel=3},"even number")
     }
     func testWilsonIntervalsAndTheSampleSizeTheRuleNeeds(){
@@ -51,25 +53,32 @@ final class MiniGameCalibrationTests:XCTestCase {
         XCTAssertGreaterThanOrEqual(MiniGameCalibration.wilson(score:0.45,games:n-2,confidence:0.95).upperBound,MiniGameCalibration.wilson(score:0.55,games:n-2,confidence:0.95).lowerBound)
         XCTAssertLessThan(MiniGameCalibration.wilson(score:0.45,games:n,confidence:0.95).upperBound,MiniGameCalibration.wilson(score:0.55,games:n,confidence:0.95).lowerBound)
     }
-    /// The identical-profiles test: one profile entered as all three levels never separates, so the game offers only
-    /// its fallback. First with equal tallies, then with real games of one profile under different seeds.
+    /// The identical-profiles test: one profile entered as all three levels never separates under either branch, so the
+    /// game offers only its fallback. First with equal tallies, then with real games of one profile under different seeds.
     func testIdenticalProfilesFailThePassRule()throws {
         var m=try manifest();let same=tally(240,40,of:400)
         let verdict=try MiniGameCalibration.verdict(result("pawn-duel",["beginner":same,"standard":same,"challenging":same]),manifest:m)
         XCTAssertEqual(verdict.pairs.map(\.passed),[false,false]);XCTAssertEqual(verdict.pairs.map(\.differs),[false,false]);XCTAssertEqual(verdict.offered,["standard"])
+        // Greedy saturated for all three, and each level even with itself head-to-head: branch (b) applies and fails too.
+        let saturated=tally(380,0,of:400),even=tally(180,40,of:400)
+        let ceiling=try MiniGameCalibration.verdict(result("pawn-duel",["beginner":saturated,"standard":saturated,"challenging":saturated],references:["standard|level-below":even,"challenging|level-below":even]),manifest:m)
+        XCTAssertEqual(ceiling.pairs.map(\.saturated),[true,true]);XCTAssertEqual(ceiling.pairs.map(\.headToHeadScore),[0.5,0.5])
+        XCTAssertEqual(ceiling.pairs.map(\.passedAgainstReference),[false,false]);XCTAssertEqual(ceiling.pairs.map(\.passedHeadToHead),[false,false]);XCTAssertEqual(ceiling.offered,["standard"])
         m.gamesPerPairing=40;let seed=UInt64(m.seed,radix:16)!
-        func play(_ stream:String)->MiniGameCalibration.Tally {
+        func play(_ stream:String,against opponent:MiniGameCalibration.Player = .greedy)->MiniGameCalibration.Tally {
             var t=MiniGameCalibration.Tally()
             for index in 0..<m.gamesPerPairing {
                 let white=index<m.gamesPerPairing/2,me=MiniGameCalibration.Player.level("beginner")
-                let game=MiniGameCalibration.play(.rookSweep,white:white ? me:.greedy,black:white ? .greedy:me,seed:MiniGameCalibration.seed(seed,.rookSweep,stream,index),maximumPlies:m.maximumPlies)
+                let game=MiniGameCalibration.play(.rookSweep,white:white ? me:opponent,black:white ? opponent:me,seed:MiniGameCalibration.seed(seed,.rookSweep,stream,index),maximumPlies:m.maximumPlies)
                 t.add(game,side:white ? "w":"b")
             }
             return t
         }
         let a=play("a"),b=play("b"),c=play("c");XCTAssertFalse(a==b && b==c,"premise: the seeds give different games")
-        let real=try MiniGameCalibration.verdict(result("rook-sweep",["beginner":a,"standard":b,"challenging":c]),manifest:m)
+        let d=play("d",against:.level("beginner")),e=play("e",against:.level("beginner"))
+        let real=try MiniGameCalibration.verdict(result("rook-sweep",["beginner":a,"standard":b,"challenging":c],references:["standard|level-below":d,"challenging|level-below":e]),manifest:m)
         XCTAssertEqual(real.pairs.map(\.passed),[false,false],"\(real.pairs)");XCTAssertEqual(real.offered,["standard"])
+        XCTAssertEqual(real.pairs.map(\.headToHeadSeparated),[false,false],"real games of one profile against itself do not separate head-to-head either: \(real.pairs)")
     }
     func testSeparatedLevelsPassAndGentleNeedsToBeAccessible()throws {
         let m=try manifest()
@@ -82,10 +91,46 @@ final class MiniGameCalibrationTests:XCTestCase {
         // Greedy scoring under 30% against Gentle withdraws Gentle, even though it separates from Steady.
         let hard=try MiniGameCalibration.verdict(result("pawn-duel",apart,references:["beginner|greedy":tally(300,0,of:400),"standard|greedy":tally(380,20,of:400),"challenging|greedy":tally(400,0,of:400)]),manifest:m)
         XCTAssertEqual(hard.pairs[0].passed,true);XCTAssertFalse(hard.gentleAccessible);XCTAssertEqual(hard.referenceScoreAgainstGentle,0.25,accuracy:1e-9)
-        XCTAssertEqual(hard.offered,["standard"],"Strong at 100% does not separate from Steady at 97.5%: the ceiling")
+        XCTAssertFalse(hard.pairs[1].passedAgainstReference,"Strong at 100% does not separate from Steady at 97.5% against greedy: the ceiling")
+        XCTAssertTrue(hard.pairs[1].saturated);XCTAssertTrue(hard.pairs[1].passedHeadToHead,"head-to-head (80%) decides once greedy is saturated")
+        XCTAssertEqual(hard.offered,["standard","challenging"])
         // A result missing games does not answer the manifest.
         var short=result("pawn-duel",apart);short.pairings[short.pairings.firstIndex{$0.reference=="greedy"}!].asWhite.games-=1
         XCTAssertThrowsError(try MiniGameCalibration.verdict(short,manifest:m))
+    }
+    /// Branch (b), the head-to-head rule: once greedy is saturated for the lower level (at least 90%), the higher level
+    /// passes by scoring at least 60% against it head-to-head with the interval's lower bound above 50%.
+    func testHeadToHeadDecidesOnlyOnceGreedyIsSaturated()throws {
+        let m=try manifest(),rule=m.passRule,saturated=tally(370,20,of:400),top=tally(390,10,of:400)
+        func pair(_ lower:MiniGameCalibration.Tally,_ higher:MiniGameCalibration.Tally,_ headToHead:MiniGameCalibration.Tally)->MiniGameCalibration.PairVerdict {
+            MiniGameCalibration.pair(lower:"standard",lower,higher:"challenging",higher,headToHead:headToHead,rule:rule,draw:m.drawScore)
+        }
+        // Rook Sweep's first run: Strong scored .855 against Steady head-to-head.
+        let apart=pair(saturated,top,tally(332,20,of:400))
+        XCTAssertTrue(apart.saturated);XCTAssertFalse(apart.passedAgainstReference);XCTAssertTrue(apart.passedHeadToHead);XCTAssertTrue(apart.passed)
+        XCTAssertEqual(apart.headToHeadScore,0.855,accuracy:1e-9);XCTAssertGreaterThan(apart.headToHeadInterval[0],0.5)
+        // Identical profiles: even head-to-head fails, saturated or not.
+        XCTAssertFalse(pair(saturated,saturated,tally(190,20,of:400)).passed)
+        // Bishop Sweep's .562 is under 60%; 60% at 40 games has its lower bound under 50%.
+        XCTAssertFalse(pair(saturated,top,tally(215,20,of:400)).passed)
+        XCTAssertFalse(pair(saturated,top,tally(24,0,of:40)).passedHeadToHead);XCTAssertEqual(pair(saturated,top,tally(24,0,of:40)).headToHeadScore,0.6,accuracy:1e-9)
+        XCTAssertTrue(pair(saturated,top,tally(240,0,of:400)).passedHeadToHead,"60% at 400 games: lower bound .551")
+        // Greedy not saturated (89.5%) and (a) failing: a clear head-to-head win does not pass.
+        let open=pair(tally(350,16,of:400),tally(360,40,of:400),tally(340,0,of:400))
+        XCTAssertFalse(open.saturated);XCTAssertFalse(open.passedAgainstReference);XCTAssertTrue(open.headToHeadSeparated);XCTAssertFalse(open.passed)
+        // Unsaturated and separated against greedy: (a) passes whatever the head-to-head says.
+        XCTAssertTrue(pair(tally(200,0,of:400),tally(300,0,of:400),tally(200,0,of:400)).passedAgainstReference)
+    }
+    /// The published results name the sources they were played from; re-hashing the same files (exactly those the
+    /// harness records) must give the same digests, so results of older sources cannot stand unnoticed.
+    func testThePublishedResultsArePlayedFromTheseSources()throws {
+        struct Recorded:Decodable {struct Identity:Decodable {let sourceSHA256:[String:String]};let identity:Identity}
+        let recorded=try JSONDecoder().decode(Recorded.self,from:Data(contentsOf:Self.root.appendingPathComponent("Content/calibration/mini-game-results.json"))).identity.sourceSHA256
+        XCTAssertEqual(Set(recorded.keys),Set(MiniGameCalibration.sourceFiles+["Content/calibration/mini-game-manifest.json"]),"the results record exactly the harness's source files")
+        for (path,digest) in recorded.sorted(by:{$0.key<$1.key}) {
+            let data=try Data(contentsOf:Self.root.appendingPathComponent(path))
+            XCTAssertEqual(SHA256.hash(data:data).map{String(format:"%02x",$0)}.joined(),digest,"\(path) changed after calibration; calibrate again on the test host")
+        }
     }
     func testReferencePlayersAndGamesAreReproducible(){
         var state=MiniGameState(kind:.rooksAndPawns,computer:false);state.snapshot.board=["a1":"wr","a5":"bp","h1":"wr","h5":"br","d4":"wp","d8":"bq"]
