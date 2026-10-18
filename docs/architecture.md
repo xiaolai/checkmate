@@ -77,7 +77,7 @@ Consumers of `Place` and `NativeMode`, and their training behaviour:
 | `GameSession.setLesson` / `setTraining` | Each writes only in its own mode, so a late lesson publish cannot paint over training. Leaving training clears its projection. |
 | `CompanionTools` practice tools (`get_legal_moves`, `inspect_piece`, `analyze_position`, `preview_move`, `demonstrate_line`, `play_move`, `get_turn_brief`) | `UNSUPPORTED_MODE`: they require practice. |
 | `CompanionTools` `show_annotation` / `clear_annotations` | `UNSUPPORTED_MODE`: the training activity has no lesson board, so unrecorded agent help cannot reach an assessment. |
-| `GameSession.openVoice`, `VoiceCoach.changed`, `NativeModel.voiceMayConnect` | Voice requires practice: it cannot connect in training and disconnects on entering it. |
+| `GameSession.openVoice`, `VoiceCoach.changed`, `NativeModel.voiceMayConnect` | Voice requires practice: it cannot connect in training and disconnects on entering it. The one exception is reading a finished mini-game's review aloud (plan D5): `GameSession.openMiniGameReviewVoice` grants a lease only for that review's scope, and the session speaks only its facts' exact text. |
 | `LearningPlayer` mini-game scheduling, restart, profile change, reply callbacks | Keyed to the mini-game place, not lesson mode, so library-launched games keep the original opponent and rules. `leaveMini` returns to the opening lesson or the library. |
 | Native sidebar, details drawer, transport, menus, drag rules | Training branches (WI-004). |
 

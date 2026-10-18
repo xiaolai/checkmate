@@ -130,7 +130,8 @@ final class BoardTitleView:NSView {
         // The network place's lobby and game chrome live in the details drawer: open it on arrival, as a lesson or review does.
         model.session.$activity.removeDuplicates().filter{$0 == .at(.network)}.receive(on:RunLoop.main).sink{[weak self] _ in self?.showDetails()}.store(in:&observations)
         model.session.objectWillChange.sink{[weak self] _ in DispatchQueue.main.async{self?.refresh()}}.store(in:&observations);model.learning.objectWillChange.sink{[weak self] _ in DispatchQueue.main.async{self?.refresh()}}.store(in:&observations)
-        model.voice.$connected.removeDuplicates().filter{$0}.receive(on:RunLoop.main).sink{[weak self] _ in self?.showDetails()}.store(in:&observations)
+        // A review read aloud keeps to its sheet: the drawer stays as it is.
+        model.voice.$connected.removeDuplicates().filter{$0}.receive(on:RunLoop.main).sink{[weak self] _ in guard let self,self.model.voice.miniReviewSession==nil else{return};self.showDetails()}.store(in:&observations)
         // These messages are shown only in the details drawer, which starts closed; open it when one appears.
         model.session.$error.removeDuplicates().compactMap{$0}.receive(on:RunLoop.main).sink{[weak self] _ in self?.showDetails()}.store(in:&observations)
         model.session.$preview.map{$0?.error}.removeDuplicates().compactMap{$0}.receive(on:RunLoop.main).sink{[weak self] _ in self?.showDetails()}.store(in:&observations)
@@ -153,7 +154,7 @@ final class BoardTitleView:NSView {
         let reviewer=model.learning.miniReview
         if reviewer.sheetOpen,let review=reviewer.review {
             guard miniReviewSheet==nil,let window else{return}
-            let sheet=NSWindow(contentViewController:NSHostingController(rootView:MiniGameReviewSheet(review:review,close:{[weak reviewer] in reviewer?.dismissSheet()})))
+            let sheet=NSWindow(contentViewController:NSHostingController(rootView:MiniGameReviewSheet(review:review,voice:model.voice,close:{[weak reviewer] in reviewer?.dismissSheet()})))
             sheet.title="\(review.kind.title) review";miniReviewSheet=sheet;window.beginSheet(sheet)
         } else if let sheet=miniReviewSheet {miniReviewSheet=nil;window?.endSheet(sheet)}
     }

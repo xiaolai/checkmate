@@ -25,7 +25,9 @@ struct MiniGameReviewSection:View {
 }
 /// The sheet shown over the board when a finished game's review is ready.
 struct MiniGameReviewSheet:View {
-    let review:MiniGameReview,close:()->Void
+    let review:MiniGameReview
+    @ObservedObject var voice:VoiceCoach
+    let close:()->Void
     var body:some View {
         VStack(alignment:.leading,spacing:Metrics.sectionGap) {
             Text("\(review.kind.title) review").font(.title2.bold())
@@ -33,7 +35,21 @@ struct MiniGameReviewSheet:View {
             if review.facts.isEmpty {Text(MiniGameReviewWording.noFacts).accessibilityIdentifier("mini-review-none")}
             else {ForEach(Array(review.facts.enumerated()),id:\.offset){Text($0.element.text).fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("mini-review-fact")}}
             if !review.complete {Text(MiniGameReviewWording.incomplete).font(.caption).foregroundStyle(.secondary)}
-            HStack {Spacer();Button("Done",action:close).keyboardShortcut(.defaultAction).accessibilityIdentifier("mini-review-done")}
+            HStack {MiniGameReviewReadAloud(voice:voice);Spacer();Button("Done",action:close).keyboardShortcut(.defaultAction).accessibilityIdentifier("mini-review-done")}
         }.padding(Metrics.sectionGap*1.5).frame(width:420,alignment:.leading)
+    }
+}
+/// D5: with a sign-in, the facts are read aloud word for word, and nothing else is said or heard. Without one the
+/// review stays text only. Closing the sheet ends the reading.
+struct MiniGameReviewReadAloud:View {
+    @ObservedObject var voice:VoiceCoach
+    var body:some View {
+        if voice.miniReviewSession != nil,voice.connected || voice.connecting {
+            Button("Stop Reading"){voice.disconnect()}.accessibilityIdentifier("mini-review-stop")
+            Text(voice.status).font(.caption).foregroundStyle(.secondary).accessibilityIdentifier("mini-review-voice-status")
+        } else if voice.miniReviewReadable {
+            Button("Read Aloud"){voice.readMiniReviewAloud()}.accessibilityIdentifier("mini-review-read-aloud")
+            if let problem=voice.miniReviewProblem {Text(problem).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)}
+        }
     }
 }

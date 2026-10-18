@@ -122,6 +122,7 @@ import Combine
             switch activity.place{case .miniGame:break;default:self?.miniReview.cancel()}
             self?.objectWillChange.send()}
         miniReview.current={[weak self] in self?.mini==true ? self?.miniGame:nil}
+        session.finishedMiniGameReview={[weak self] in guard let self,let scope=miniReview.voiceScope(at:self.session.activity),let review=miniReview.review else{return nil};return (scope,review)}
         attempt=try LessonAttemptController(session:session)
         attempt.onChange={[weak self] in self?.attemptChanged()}
         attempt.onLearnerMove={[weak self] in self?.pauseNarration()}

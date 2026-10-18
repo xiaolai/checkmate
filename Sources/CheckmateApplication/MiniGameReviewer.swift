@@ -47,6 +47,19 @@ import Combine
     public func dismissSheet(){sheetOpen=false}
     public func showSheet(){if case .ready=status{sheetOpen=true}}
     public var review:MiniGameReview? {if case .ready(let review)=status{return review};return nil}
+    /// What voice may read aloud at `activity` (plan D5): this review of the game shown, while its sheet is open, its
+    /// facts proved and the learner still at that mini-game. Nil during play, before or without a result, and once
+    /// the sheet closes or anything else is shown.
+    public func voiceScope(at activity:Activity)->MiniGameReviewVoiceScope? {
+        guard sheetOpen,let review,!review.facts.isEmpty,let identity,case .at(let place)=activity,case .miniGame(_,let kind,_)=place,kind==identity.kind,let shown=current(),Identity(shown)==identity else{return nil}
+        return MiniGameReviewVoiceScope(place:place,identity:identity,generation:generation)
+    }
+}
+/// What reading a finished game's review aloud is bound to (plan D5): the mini-game place shown, the game reviewed
+/// and that review's generation. A restart, undo, new review, closed sheet or another place is another scope.
+public struct MiniGameReviewVoiceScope:Equatable {
+    public let place:Place,identity:MiniGameReviewer.Identity,generation:Int
+    public var kind:MiniGameKind {identity.kind}
 }
 /// What a mini-game review may say aloud: only its facts' exact text, with their own square cues, like
 /// `ReviewVoiceScript` for a game review. The game is over, so nothing is assessed.

@@ -126,7 +126,7 @@ import RealtimeConnection
     }
     /// The review and training tools agents call, and when an agent may open a review.
     private func wireAgentTools(){
-        session.reviewController=review;voice.attachReview(review)
+        session.reviewController=review;voice.attachReview(review);voice.attachMiniReview(learning.miniReview)
         let reviewTools=ReviewTools(review:review,session:session,store:reviewStore,analyzer:reviewAnalyzer);reviewTools.onOpen={[weak self] document,saved in self?.openReview(document,saved:saved,stillWanted:{!Task.isCancelled}) ?? false};reviewTools.onPractice={[weak self] in self?.practiceFromReview()};companion.tools.reviewTools=reviewTools;self.reviewTools=reviewTools
         reviewTools.activityGeneration={[weak self] in self?.reviewOpenGeneration ?? -1}
         if let training{let tools=TrainingTools(session:session,controller:training);tools.onStart={[weak self] entry,resume in guard let self else{return false};let kind=training.catalog?.entry(entry)?.legacyKind;let next:Navigation=resume ? .trainingResume:kind.map{.trainingLegacy($0,restart:false)} ?? .trainingExercise(entry:entry);return (try? self.transition(next)) ?? false};companion.tools.trainingTools=tools}
@@ -195,7 +195,7 @@ import RealtimeConnection
     func connectNetworkVoice(){voice.connect()}
     var reconnectVoice:()->Void={}
     private var claimsWhenVoiceLeft=0
-    private func rememberVoice(){if !voice.networkSession,voice.connected || voice.connecting{voiceResumeIntent=true;claimsWhenVoiceLeft=session.companionClaims}}
+    private func rememberVoice(){if !voice.networkSession,voice.miniReviewSession==nil,voice.connected || voice.connecting{voiceResumeIntent=true;claimsWhenVoiceLeft=session.companionClaims}}
     func resumeVoiceIfIntended(){
         guard voiceResumeIntent,!away,!shuttingDown,voiceMayConnect else{return}
         if session.companionEnabled || session.companionClaims != claimsWhenVoiceLeft{voiceResumeIntent=false;return}
@@ -534,7 +534,7 @@ import RealtimeConnection
         case .returnToGame:break
         // A coach opened for the network game (assistance plan A10) coaches it only on its own page; the network page
         // itself keeps it, and ends a practice session.
-        case .practice:if !reviewing{learning.pause()};if voice.networkSession{voice.disconnect()};audio.stop()
+        case .practice:if !reviewing{learning.pause()};if voice.networkSession || voice.miniReviewSession != nil{voice.disconnect()};audio.stop()
         // A lesson's player is paused too: its timer would otherwise narrate and auto-advance into a lesson (D8).
         case .network:learning.pause();if !voice.networkSession{rememberVoice();voice.disconnect()};audio.stop()
         case .lesson,.puzzles:rememberVoice();voice.disconnect();audio.stop()

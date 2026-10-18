@@ -45,6 +45,23 @@ import CheckmateCore
         session.setLesson(LessonProjection(mode:"lesson",pieces:["e4":"wp"],title:"Stale",lessonId:"stale",step:0,prompt:nil,choices:nil,playing:false,narrationActive:false,moving:false,turn:nil,winner:nil,rules:nil))
         XCTAssertNil(session.lesson);XCTAssertEqual(session.displayBoard,MiniGameKind.queenVsPawns.initialBoard)
     }
+    /// Plan D5: voice stays refused during play in both origins; once a game is finished, only its review's own lease
+    /// may be opened, to read its facts aloud, and `openVoice` still cannot seize training or a lesson game.
+    func testVoiceIsRefusedDuringPlayAndAllowedOnlyForAFinishedGamesReview()async throws {
+        for library in [true,false] {
+            let (session,player,_)=try fixture();defer{player.shutdown()};session.setConnection(enabled:false,role:"coach")
+            session.state.settings.pieceDuration=0;session.state.miniGames=[MiniGameKind.rookSweep.rawValue:MiniGameReviewerTests.almostWon()]
+            if library{player.startMini(.rookSweep,fromLibrary:true)}else{player.openLesson(index:try XCTUnwrap(player.library.lessons.firstIndex{$0.id=="rook-practice"}));player.startMini(.rookSweep)}
+            XCTAssertThrowsError(try session.openVoice(),"voice cannot seize a mini-game during play")
+            XCTAssertNil(session.finishedMiniGameReview(),"no review to read during play")
+            player.click("a1");player.click("a7");XCTAssertEqual(player.miniGame?.winner,"w")
+            for _ in 0..<200 where session.finishedMiniGameReview()==nil {try await Task.sleep(for:.milliseconds(20))}
+            let scope=try XCTUnwrap(session.finishedMiniGameReview()?.scope)
+            XCTAssertThrowsError(try session.openVoice(),"voice cannot seize training, even once the game is over")
+            XCTAssertNoThrow(try session.openMiniGameReviewVoice(scope),"the finished game's review may be read aloud");session.closeVoice()
+            player.restartMini();XCTAssertThrowsError(try session.openMiniGameReviewVoice(scope),"a restarted game's old review is not");XCTAssertNil(session.voiceLease)
+        }
+    }
     func testLessonGameKeepsItsExistingPayload()throws {
         let (session,player,_)=try fixture();defer{player.shutdown()}
         let index=try XCTUnwrap(player.library.lessons.firstIndex{$0.id=="pawn-duel"})

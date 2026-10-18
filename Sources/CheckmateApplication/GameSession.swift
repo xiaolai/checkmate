@@ -276,6 +276,12 @@ public struct LessonProjection:Codable {
     public private(set) var companionClaims=0
     public func setConnection(enabled:Bool,role:String,lease:String?=nil,suspended:Bool=false){if enabled,!companionEnabled{companionClaims+=1};let ownershipChanged=companionEnabled != enabled || companionRole != role || self.suspended != suspended; if ownershipChanged {cancelWork();clearAnnotations()};if companionRole=="opponent",companionEnabled,(!enabled || companionLease != nil && lease==nil){pausedOpponent=true};companionEnabled=enabled;companionRole=role;companionLease=lease;if enabled,role=="opponent",lease != nil{pausedOpponent=false};self.suspended=suspended;emit();if !pausedOpponent{reply()}}
     public func openVoice() throws -> String {try fairness.requireEngineHelp();let reviewing=reviewController?.active==true;guard (!reviewing || ReviewRolloutPolicy.reviewVoiceEnabled),(mode == .practice && !reviewSuspended || reviewing),!companionEnabled else{throw CheckmateError.invalid("SESSION_IN_USE")};voiceLease=UUID().uuidString;return voiceLease!}
+    /// The finished mini-game review shown now, which voice may read aloud (plan D5); nil during play, without proved
+    /// facts, once its sheet closes and anywhere but that game. Set by the learning player.
+    public var finishedMiniGameReview:()->(scope:MiniGameReviewVoiceScope,review:MiniGameReview)?={nil}
+    /// The voice lease for reading that review aloud, and nothing else: no practice, lesson, puzzle or training
+    /// attempt, only the review whose scope is still the one shown. `openVoice` keeps refusing every other activity.
+    public func openMiniGameReviewVoice(_ scope:MiniGameReviewVoiceScope) throws -> String {try fairness.requireEngineHelp();guard !companionEnabled else{throw CheckmateError.invalid("SESSION_IN_USE")};guard finishedMiniGameReview()?.scope==scope else{throw CheckmateError.invalid("UNSUPPORTED_MODE")};voiceLease=UUID().uuidString;return voiceLease!}
     public func closeVoice(){voiceLease=nil;voiceHold=false;voiceFocus=[];emit(semantic:false);reply()}
     /// A hold also stops a reply already being searched, so none commits while the coach speaks; release restarts it.
     public func holdVoice(_ value:Bool){if value,busyReason=="opponent"{cancelWork()};voiceHold=value;emit(semantic:false);if !value{reply()}}
