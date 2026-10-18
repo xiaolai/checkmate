@@ -2,7 +2,7 @@
 
 Every action is a posted mouse event (accessibility presses bypass hit-testing): the library entries, square
 selection with Submit and None, a clicked and a dragged move, Hint, Try again, Back to training, and Pawn Duel
-opened from the library. The app runs with its own automation identifier and data directory, training enabled.
+opened from the library with its level picker and "Start a new game at this level". The app runs with its own automation identifier and data directory, training enabled.
 """
 import atexit
 import json
@@ -249,6 +249,23 @@ try:
     pointer("click-square", "e2")
     pointer("click-square", "e4")
     wait(lambda: label("e4").startswith("e4, White, pawn"), "A clicked Pawn Duel move did not land")
+
+    # The level picker is per game: another level keeps the game in progress at its own and offers a new game at it.
+    def duel():
+        return (saved().get("miniGames") or {}).get("pawn-duel") or {}
+    wait(lambda: len(duel().get("history", [])) == 2, "The computer did not reply in Pawn Duel")
+    wait(lambda: (duel().get("level") or {}).get("profile") == "standard", "The Pawn Duel run did not freeze its level")
+    if "mini-difficulty" not in listing():
+        pointer("click", "Toggle Game Details")
+    wait(lambda: "mini-difficulty" in listing(), "The mini-game drawer did not show the level picker")
+    pointer("select-popup", "mini-difficulty", "Challenging")
+    wait(lambda: "mini-new-level" in listing(), "Choosing a level during a game did not offer a new game at it")
+    wait(lambda: (saved().get("settings") or {}).get("miniOpponentProfiles", {}).get("pawn-duel") == "challenging", "The per-game level was not saved")
+    assert (duel().get("level") or {}).get("profile") == "standard" and len(duel().get("history", [])) == 2, "The game in progress changed level"
+    pointer("click", "mini-new-level")
+    wait(lambda: (duel().get("level") or {}).get("profile") == "challenging" and not duel().get("history"), "Start a new game at this level did not start one at it")
+    wait(lambda: "mini-new-level" not in listing(), "The new game still offered another one")
+    level_picker = True
     pointer("click", "Back to training")
     wait(lambda: "training-entry-pawn-duel" in listing(), "Back to training did not return to the library")
     legacy_from_library = True
@@ -287,7 +304,7 @@ try:
     resumed_after_quit = True
 
     result = {"passed": True, "pilotEntries": pilot, "drillDragAndClick": drill_dragged, "selectionSubmit": selection_submitted,
-              "hintRecordedHelp": hint_recorded, "legacyFromLibrary": legacy_from_library, "suggestionPractised": suggestion_practised, "resumedAfterQuit": resumed_after_quit}
+              "hintRecordedHelp": hint_recorded, "legacyFromLibrary": legacy_from_library, "levelPicker": level_picker, "suggestionPractised": suggestion_practised, "resumedAfterQuit": resumed_after_quit}
     (evidence / "training-pointer-results.json").write_text(json.dumps(result, indent=2))
     print(json.dumps(result))
 except Exception:

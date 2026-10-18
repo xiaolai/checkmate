@@ -40,9 +40,14 @@ public struct TrainingAttempt:Codable,Equatable,Identifiable {
 }
 /// A finished existing mini-game, observed as it finished (never inferred from a loaded board). `winner` is the side
 /// that won, or nil for a draw; `computer` says whether the learner played the computer as White.
+/// Against the computer, `level` and `levelPolicy` are the run's frozen level and the search policy it names, and
+/// `levelExact` is false when an older build moved the run's board (the level is not exact). All three are absent
+/// from a two-player or solo game, and from events an older build saved: it re-encodes events without them, so after
+/// a downgrade-and-save the level is not recorded.
 public struct TrainingCompletionEvent:Codable,Equatable,Identifiable {
     public let id:String,kind:String,run:String,winner:String?,drawReason:String?,computer:Bool,origin:String,at:Date
-    public init(id:String,kind:String,run:String,winner:String?,drawReason:String?,computer:Bool,origin:String,at:Date){self.id=id;self.kind=kind;self.run=run;self.winner=winner;self.drawReason=drawReason;self.computer=computer;self.origin=origin;self.at=at}
+    public let level:String?,levelPolicy:String?,levelExact:Bool?
+    public init(id:String,kind:String,run:String,winner:String?,drawReason:String?,computer:Bool,origin:String,at:Date,level:MiniGameLevel?=nil){self.id=id;self.kind=kind;self.run=run;self.winner=winner;self.drawReason=drawReason;self.computer=computer;self.origin=origin;self.at=at;self.level=level?.profile;levelPolicy=level.flatMap{level in MiniGameKind(rawValue:kind).map{level.policy($0)}};levelExact=level?.exact}
 }
 /// Descriptive per-entry counters. They are never pruned; the bounded event and attempt lists behind them are.
 public struct TrainingEntrySummary:Codable,Equatable {

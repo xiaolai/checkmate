@@ -75,7 +75,7 @@ import CheckmateCore
         for _ in 0..<80 where player.miniGame?.history.count != 2 {try await Task.sleep(for:.milliseconds(25))}
         XCTAssertEqual(player.miniGame?.history.count,2);XCTAssertEqual(player.miniTurn,"w")
         XCTAssertEqual(session.training?.turn,"w");XCTAssertEqual(session.mode,.training)
-        // A profile change restarts the pending reply in training mode too.
+        // A profile change leaves the pending reply in training mode too: it still arrives.
         player.click("d2");player.click("d4");XCTAssertTrue(player.miniThinking)
         session.state.settings.miniOpponentProfile="beginner";player.settingsChanged();XCTAssertTrue(player.miniThinking)
         for _ in 0..<80 where player.miniGame?.history.count != 4 {try await Task.sleep(for:.milliseconds(25))}

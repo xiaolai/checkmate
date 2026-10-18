@@ -50,9 +50,43 @@ public struct MiniGameState:Codable,Equatable {
     public static let drawRules="Three repeated positions or 40 turns without a capture or pawn move draw this mini-game."
     public var kind:MiniGameKind,computer:Bool,snapshot:MiniGameSnapshot,history:[MiniGameSnapshot]=[]
     public var opponentSeed:String?
+    /// The opponent level this run plays at (plan D4); absent from older saves and from solo games. Read it through
+    /// `runLevel`, which ignores a level of another run.
+    public var level:MiniGameLevel?
     public init(kind:MiniGameKind,computer:Bool=true){self.kind=kind;self.computer=computer && !kind.solo;opponentSeed=String(UInt64.random(in:UInt64.min...UInt64.max),radix:16);snapshot=MiniGameSnapshot(board:kind.initialBoard,turn:"w",pendingFinish:nil,cornerIndex:0,lastMove:nil)}
+    private enum CodingKeys:String,CodingKey {case kind,computer,snapshot,history,opponentSeed,level}
+    /// As the synthesized decoder, except that a level this build cannot use (damaged, or of a shape a newer build
+    /// wrote) reads as none: the run is then unverified, never the whole saved state unreadable.
+    public init(from decoder:Decoder)throws {
+        let c=try decoder.container(keyedBy:CodingKeys.self)
+        kind=try c.decode(MiniGameKind.self,forKey:.kind);computer=try c.decode(Bool.self,forKey:.computer);snapshot=try c.decode(MiniGameSnapshot.self,forKey:.snapshot);history=try c.decode([MiniGameSnapshot].self,forKey:.history)
+        opponentSeed=try c.decodeIfPresent(String.self,forKey:.opponentSeed);level=(try? c.decodeIfPresent(MiniGameLevel.self,forKey:.level)).flatMap{$0}.flatMap{$0.valid ? $0:nil}
+    }
     public var board:Position {snapshot.board}
     public var turn:String {snapshot.turn}
+    /// The run's identity, shared by its level and its completion event: a restart makes a new one. Saves from before
+    /// seeds form one run until the game restarts.
+    public var run:String {opponentSeed ?? "unseeded"}
+    /// A stable digest of the board and how many positions precede it: 64-bit FNV-1a, as 16 hex digits.
+    public var witness:String {
+        let move=snapshot.lastMove.map{$0.from+$0.to} ?? "-",text="mini-witness-v1|"+board.keys.sorted().map{$0+"="+board[$0]!}.joined(separator:",")+"|\(turn)|\(snapshot.pendingFinish ?? "-")|\(snapshot.cornerIndex)|\(move)|\(history.count)"
+        var hash:UInt64=0xcbf29ce484222325;for byte in text.utf8{hash=(hash ^ UInt64(byte)) &* 0x100000001b3}
+        return String(format:"%016llx",hash)
+    }
+    /// The stored level when it belongs to this run; nil when there is none, or it names another run (an older build
+    /// restarted the game and wrote the unknown field back).
+    public var runLevel:MiniGameLevel? {level.flatMap{$0.run==run ? $0:nil}}
+    /// Settles the run's level as the game is opened, before its first save here. The run's own level is kept, marked
+    /// not exact if the board moved since this build last saved it (an older build continued the run). Without one,
+    /// the run takes `profile` from now on, exact only if no move has been played: earlier moves had an unknown level.
+    /// A solo game has no opponent and no level.
+    public mutating func settleLevel(adopting profile:String) {
+        guard !kind.solo else{level=nil;return}
+        if var own=runLevel {if own.witness != witness{own.exact=false};own.witness=witness;level=own}
+        else {level=MiniGameLevel(profile:profile,run:run,witness:witness,exact:history.isEmpty)}
+    }
+    /// Records the board in the run's level, as every save by this build does.
+    public mutating func stampWitness(){if runLevel != nil{let current=witness;level?.witness=current}}
     public var winner:String? {
         if kind.solo{return snapshot.cornerIndex==MiniGameRules.corners.count ? "w":nil}
         for side in ["w","b"] {
@@ -124,8 +158,21 @@ public enum MiniGameRules {
         return result
     }
 }
+/// The opponent level one run of a mini-game plays at, frozen when the run starts (plan D4). `run` is the state's
+/// `run`, so a level an older build carried through a restart names another run and is ignored. `witness` is the
+/// state's `witness` at this build's last save: an older build that continued the run moved the board without
+/// rewriting it, and the run is then marked not exact for good. The run keeps playing at its level either way.
+public struct MiniGameLevel:Codable,Equatable {
+    public var profile:String,run:String,witness:String,exact:Bool
+    public init(profile:String,run:String,witness:String,exact:Bool=true){self.profile=profile;self.run=run;self.witness=witness;self.exact=exact}
+    var valid:Bool {MiniOpponentPolicy.profiles.contains(profile) && (1...64).contains(run.count) && witness.count<=64}
+    /// The completion event's name for the policy this level searched with.
+    public func policy(_ kind:MiniGameKind)->String {"mini-search-v\(MiniOpponentPolicy.forGame(kind,profile:profile).version)"}
+}
 public struct MiniOpponentPolicy:Codable,Equatable {
     public let version:Int,maximumDepth:Int,nodeBudget:Int,milliseconds:Int
+    /// Every profile the search knows, weakest first. Which of them a game offers is `MiniGameOffering`'s decision.
+    public static let profiles=["beginner","standard","challenging"]
     public static func forGame(_ kind:MiniGameKind,profile:String)->Self {
         let complex = kind == .pawnDuel || kind == .rooksAndPawns || kind == .bishopsAndPawns
         let depth = profile == "beginner" ? 1 : profile == "challenging" ? (complex ? 5:4) : (complex ? 4:3)

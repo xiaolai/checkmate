@@ -66,8 +66,25 @@ import CheckmateCore
         let board=model.learning.miniGame?.board;model.lesson(3);model.learning.startMini(.pawnDuel)
         XCTAssertEqual(model.learning.miniGame?.board,board);XCTAssertEqual(model.session.activity,.at(.miniGame(lessonIndex:3,kind:.pawnDuel)))
         // Changing the difficulty in a library game restarts no lesson and keeps the library origin.
-        model.playTrainingGame(.pawnDuel);var settings=model.session.state.settings;settings.miniOpponentProfile="beginner";model.session.updateSettings(settings);try await Task.sleep(for:.milliseconds(100))
+        model.playTrainingGame(.pawnDuel);model.learning.setMiniLevel("beginner");try await Task.sleep(for:.milliseconds(100))
         XCTAssertEqual(model.session.activity,.at(.miniGame(lessonIndex:nil,kind:.pawnDuel)))
         model.learning.restartMini();XCTAssertEqual(model.session.activity,.at(.miniGame(lessonIndex:nil,kind:.pawnDuel)),"restart keeps the library origin")
+    }
+    /// WI-015: the drawer's level picker is per game. Choosing a level while a game is in progress keeps that game at
+    /// its level, with its pending reply, and offers a new game at the chosen one; the offer starts it there.
+    func testTheLevelPickerIsPerGameAndOffersANewGameAtTheChosenLevel()async throws {
+        let model=try NativeModel();defer{model.shutdown()};try await quiet(model)
+        model.playTrainingGame(.rookSweep);model.learning.restartMini();let rookLevel=model.learning.miniLevel
+        model.playTrainingGame(.pawnDuel);model.learning.restartMini();XCTAssertEqual(model.learning.miniLevel,"standard")
+        XCTAssertTrue(MiniGameOffering.offersChoice(.pawnDuel),"the picker is shown");XCTAssertFalse(MiniGameOffering.offersChoice(.knightCorners))
+        model.learning.click("e2");model.learning.click("e4");XCTAssertTrue(model.learning.miniThinking);let requests=model.learning.miniReplyRequests
+        model.learning.setMiniLevel("challenging");try await Task.sleep(for:.milliseconds(50))  // the settings observer runs
+        XCTAssertEqual(model.learning.miniReplyRequests,requests,"the pending reply is kept");XCTAssertEqual(model.learning.miniLevel,"standard")
+        for _ in 0..<60 where model.learning.miniGame?.history.count != 2{try await Task.sleep(for:.milliseconds(50))}
+        XCTAssertEqual(model.learning.miniGame?.history.count,2);XCTAssertEqual(model.learning.miniPreferredLevel,"challenging");XCTAssertTrue(model.learning.miniNewLevelOffered)
+        model.learning.restartMini()  // Start a new game at this level
+        XCTAssertEqual(model.learning.miniLevel,"challenging");XCTAssertEqual(model.learning.miniGame?.history.count,0);XCTAssertFalse(model.learning.miniNewLevelOffered)
+        XCTAssertEqual(model.session.state.miniGames?["pawn-duel"]?.runLevel?.profile,"challenging")
+        model.playTrainingGame(.rookSweep);XCTAssertEqual(model.learning.miniLevel,rookLevel,"another game keeps its own level");XCTAssertEqual(model.learning.miniPreferredLevel,"standard")
     }
 }

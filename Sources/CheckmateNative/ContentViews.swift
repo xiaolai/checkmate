@@ -108,7 +108,15 @@ struct DetailContent:View {
         Text(learning.miniStatus).font(.title2.bold())
         if !learning.miniKind.solo {
             Picker("Opponent",selection:Binding(get:{learning.miniGame?.computer ?? true},set:{learning.setMiniComputer($0)})){Text("Computer").tag(true);Text("Two players on this device").tag(false)}
-            Picker("Difficulty",selection:Binding(get:{session.state.settings.miniOpponentProfile},set:{var settings=session.state.settings;settings.miniOpponentProfile=$0;session.updateSettings(settings)})){Text("Beginner").tag("beginner");Text("Standard").tag("standard");Text("Challenging").tag("challenging")}
+            // Per game, and only the levels this game offers. The game in progress keeps the level its run started with,
+            // labelled while it differs (also when that level is no longer offered).
+            if MiniGameOffering.offersChoice(learning.miniKind) {
+                Picker("Difficulty",selection:Binding(get:{learning.miniPreferredLevel},set:{learning.setMiniLevel($0)})){ForEach(MiniGameOffering.levels(for:learning.miniKind),id:\.self){Text(MiniGameOffering.title($0)).tag($0)}}.accessibilityIdentifier("mini-difficulty")
+            }
+            if learning.miniNewLevelOffered,let level=learning.miniLevel {
+                Text("This game continues at \(MiniGameOffering.title(level)).").foregroundStyle(.secondary)
+                Button("Start a new game at this level"){learning.restartMini()}.accessibilityIdentifier("mini-new-level")
+            }
             Text(learning.miniGame?.computer==true ? "You play White. Select a piece, then its destination. The computer plays Black.":"Take turns moving White and Black on this device.")
         }
         if learning.miniGame?.isFinished==true {Button {learning.restartMini()} label:{Label("Play again",systemImage:"arrow.counterclockwise")}.accessibilityIdentifier("mini-play-again")}

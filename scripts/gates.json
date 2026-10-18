@@ -181,7 +181,7 @@
     "Sources/CheckmateDomain/Course.swift",
     "Sources/CheckmateContent/Lesson*.swift",
     "Sources/CheckmateDomain/Lesson*.swift",
-    "Sources/CheckmateDomain/MiniGames.swift",
+    "Sources/CheckmateDomain/MiniGame*.swift",
     "Sources/CheckmateDomain/Activity.swift",
     "Sources/CheckmateCore/Resources/course*.json",
     "Sources/CheckmateCore/Resources/projections.json"
@@ -255,11 +255,13 @@
     "selectionSubmit",
     "hintRecordedHelp",
     "legacyFromLibrary",
+    "levelPicker",
     "resumedAfterQuit",
     "suggestionPractised"
    ],
    "inputs": [
     "scripts/test-training-pointer.py",
+    "Sources/CheckmateDomain/MiniGame*.swift",
     "Tools/pointer-helper.swift",
     "Tools/ax-helper.swift",
     "Sources/CheckmateNative/Training*.swift",
@@ -318,7 +320,7 @@
    "key": "miniGames",
    "inputs": [
     "scripts/test-pawn-duel.sh",
-    "Sources/CheckmateDomain/MiniGames.swift",
+    "Sources/CheckmateDomain/MiniGame*.swift",
     "Sources/CheckmateApplication/LearningPlayer.swift",
     "Sources/CheckmateDomain/Course.swift",
     "Sources/CheckmateCore/Resources/course*.json",

@@ -60,13 +60,14 @@ public enum TrainingStore {
     }
     /// Records a legacy mini-game that has just finished, unless this run was already credited (undo and replay within
     /// a run never add another event). Old saves without an opponent seed form one run until the game restarts.
-    /// Nothing is recorded when the retained records would no longer fit the training budget.
+    /// Nothing is recorded when the retained records would no longer fit the training budget. A game against the
+    /// computer records its run's level and whether it is exact.
     @discardableResult public static func recordLegacyCompletion(_ game:MiniGameState,origin:String,in state:inout ApplicationState,now:Date,calendar:Calendar)->TrainingCompletionEvent? {
         guard state.trainingWritable,game.isFinished else{return nil}
         var training=state.training ?? TrainingState()
-        let run=game.opponentSeed ?? "unseeded"
+        let run=game.run
         guard training.creditedRuns[game.kind.rawValue] != run else{return nil}
-        let winner=game.winner,event=TrainingCompletionEvent(id:UUID().uuidString,kind:game.kind.rawValue,run:run,winner:winner,drawReason:game.drawReason,computer:game.computer,origin:origin,at:now)
+        let winner=game.winner,event=TrainingCompletionEvent(id:UUID().uuidString,kind:game.kind.rawValue,run:run,winner:winner,drawReason:game.drawReason,computer:game.computer,origin:origin,at:now,level:game.computer ? game.runLevel:nil)
         training.events.append(event);training.creditedRuns[game.kind.rawValue]=run
         var summary=training.summaries[game.kind.rawValue] ?? TrainingEntrySummary()
         // A solo game finishes only by completing its route, which counts in `legacyWins` (see TrainingEntrySummary).
