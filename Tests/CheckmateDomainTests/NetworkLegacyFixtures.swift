@@ -35,6 +35,49 @@ enum LegacyFixtures {
     ]
     static let record=#"{"blackName":"Ben","clocks":{"active":"b","black":179000,"white":180000},"gameID":"J734ZR3TJN1BFYNH4ABKMKSBX8","hostSide":"w","openOffer":{"by":"b","offerID":"P9MA2RYD4AMBEHW1QYH3YAW6XR"},"pgn":"[Fake]\ne2e4 e7e5","revision":2,"timeControl":"3+2","whiteName":"Ana"}"#
 }
+/// Mini-games plan WI-023 (D7): protocol 1.2 against 1.1. The exact bytes the 1.1 codec wrote, captured from it at
+/// e35e5ef before any 1.2 change: every message type, the 1.1 additions (terms in `hello`, `assisted`, the
+/// `assistanceChanged` reason), and a hosted standard-start game's record with and without assistance, made by the host
+/// on the real chess rules (e4 e5 Nf3, the host White). Do not regenerate them: they are what a 1.1 peer still sends.
+enum Legacy11Fixtures {
+    static let messages:[String]=[
+        #"{"appVersion":"0.8.2","assistance":{"black":"guided","white":"hints"},"claimID":"EMR5N842M0R0SWP9F3YH957RSQXMTAF0YVAMQXEQTETM8C1E5GK0","name":"Ben","protocol":{"major":1,"minor":1},"type":"hello"}"#,
+        #"{"appVersion":"0.8.2","assistance":{"black":"off","white":"off"},"claimID":"EMR5N842M0R0SWP9F3YH957RSQXMTAF0YVAMQXEQTETM8C1E5GK0","name":"Ben","protocol":{"major":1,"minor":1},"type":"hello"}"#,
+        #"{"appVersion":"0.8.2","name":"Cy","protocol":{"major":1,"minor":1},"type":"hello"}"#,
+        #"{"protocol":{"major":1,"minor":1},"type":"seatedAck"}"#,
+        #"{"credential":"NCYQ0262J52F314B2RGBAB95CAYKZ900AEM490CMAS3MYSHJBFRG","gameID":"HSVGS8Y61V7W3A3DFXX1NTV2AG","protocol":{"major":1,"minor":1},"type":"resume"}"#,
+        #"{"protocol":{"major":1,"minor":1},"type":"resync"}"#,
+        #"{"commandID":"GY7DBSCD94CDHYB1ABY0KJE78G","gameID":"HSVGS8Y61V7W3A3DFXX1NTV2AG","protocol":{"major":1,"minor":1},"revision":3,"type":"move","uci":"e2e4"}"#,
+        #"{"assisted":true,"commandID":"3PGQBZPCB9NSQX6FVVD5PGGPFR","gameID":"HSVGS8Y61V7W3A3DFXX1NTV2AG","protocol":{"major":1,"minor":1},"revision":4,"type":"move","uci":"e7e8q"}"#,
+        #"{"commandID":"MDWZQVM5TFWPJXBP8QD1H52C7M","gameID":"HSVGS8Y61V7W3A3DFXX1NTV2AG","protocol":{"major":1,"minor":1},"type":"resign"}"#,
+        #"{"commandID":"8QWB6NG9AG9PZMPJ2V7FC8VEGR","gameID":"HSVGS8Y61V7W3A3DFXX1NTV2AG","protocol":{"major":1,"minor":1},"revision":3,"type":"drawOffer"}"#,
+        #"{"accept":false,"commandID":"D9XYCKGZ99EBVMPYX8DYYN5M8M","gameID":"HSVGS8Y61V7W3A3DFXX1NTV2AG","offerID":"CGYE7ASRAPN14CHJ77KJ60TKQW","protocol":{"major":1,"minor":1},"type":"drawAnswer"}"#,
+        #"{"commandID":"HTYG133KWYJZ8SK0NR148V08C0","gameID":"HSVGS8Y61V7W3A3DFXX1NTV2AG","protocol":{"major":1,"minor":1},"revision":4,"type":"claimDraw"}"#,
+        #"{"nonce":"TSBPV8YVKT82MNYBJSV050KGBC","protocol":{"major":1,"minor":1},"type":"pong"}"#,
+        #"{"protocol":{"major":1,"minor":1},"reason":"seatTaken","type":"bye"}"#,
+        #"{"protocol":{"major":1,"minor":1},"reason":"assistanceChanged","type":"bye"}"#,
+        #"{"credential":"NCYQ0262J52F314B2RGBAB95CAYKZ900AEM490CMAS3MYSHJBFRG","protocol":{"major":1,"minor":1},"type":"seated"}"#,
+        #"{"protocol":{"major":1,"minor":1},"type":"resumed"}"#,
+        #"{"protocol":{"major":1,"minor":1},"type":"watching"}"#,
+        #"{"hash":"abc123","parts":1,"protocol":{"major":1,"minor":1},"revision":2,"snapshotID":"3TMN8K5GW5KWBFY8NJG3QR6PDG","totalBytes":10,"type":"snapshotBegin"}"#,
+        #"{"data":"MDEyMzQ1Njc4OQ==","index":0,"protocol":{"major":1,"minor":1},"snapshotID":"QBTTNEC908BWA8GK2HFKFWJNW4","type":"snapshotPart"}"#,
+        #"{"protocol":{"major":1,"minor":1},"snapshotID":"JAQXF3YXDCYM8GC9599S2MHJXR","type":"snapshotEnd"}"#,
+        #"{"assisted":true,"clocks":{"active":"b","black":179000,"white":180000},"hash":"abc123","protocol":{"major":1,"minor":1},"receiptFor":"891R0H8QX36PEEPJ2HF1HBYPGW","revision":5,"san":"Nf3","type":"moved","uci":"g1f3"}"#,
+        #"{"hash":"def456","protocol":{"major":1,"minor":1},"revision":6,"san":"Nc6","type":"moved","uci":"b8c6"}"#,
+        #"{"commandID":"TPDVYHZFA17R17B2SQ7X9SKQQM","protocol":{"major":1,"minor":1},"reason":"stale","type":"rejected"}"#,
+        #"{"by":"w","offerID":"SMYZK37X59HDWTET9E2ZJDHKHW","protocol":{"major":1,"minor":1},"type":"drawOffered"}"#,
+        #"{"offerID":"BMB9BWFKYSW569RB48TD8ETFHM","protocol":{"major":1,"minor":1},"type":"drawDeclined"}"#,
+        #"{"clocks":{"active":"b","black":179000,"white":180000},"protocol":{"major":1,"minor":1},"type":"clock"}"#,
+        #"{"clocks":{"active":"b","black":179000,"white":180000},"protocol":{"major":1,"minor":1},"result":"0-1","revision":7,"termination":"resignation","type":"ended"}"#,
+        #"{"nonce":"M374AKWV9PQBX6WCEQJF642TTR","protocol":{"major":1,"minor":1},"type":"ping"}"#,
+    ]
+    /// White had hints and used one on 1. e4.
+    static let assistedRecord=#"{"assistance":{"black":"off","white":"hints"},"assistedPlies":[1],"blackName":"Ben","gameID":"5QVHHR37H3BVYSNN9EN96BYBBC","hostSide":"w","pgn":"[Event \"?\"]\n[Site \"?\"]\n[Date \"????.??.??\"]\n[Round \"?\"]\n[White \"?\"]\n[Black \"?\"]\n[Result \"*\"]\n\n1. e4 e5 2. Nf3 *","revision":3,"timeControl":"untimed","whiteName":"Ana"}"#
+    static let record=#"{"blackName":"Ben","gameID":"27BTBDZ9A8Z6WAJ8Z3YB46856C","hostSide":"w","pgn":"[Event \"?\"]\n[Site \"?\"]\n[Date \"????.??.??\"]\n[Round \"?\"]\n[White \"?\"]\n[Black \"?\"]\n[Result \"*\"]\n\n1. e4 e5 2. Nf3 *","revision":3,"timeControl":"untimed","whiteName":"Ana"}"#
+    /// Both records' position after 1. e4 e5 2. Nf3, and its revision-3 hash (SHA-256), as the 1.1 host computed them.
+    static let fen="rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2"
+    static let hash="88c1e1ddcf759d87542e375e9cdc89930d39ffc93f7fb66062f3fbbf2749b62b"
+}
 /// The 1.0 decode rules, frozen: the flat wire object as 1.0 declared it, and the 1.0 public game decoder. Synthesised
 /// decoding ignores keys it does not know, which is the whole of 1.0's tolerance for 1.1's additions.
 struct Legacy10Wire:Decodable {
