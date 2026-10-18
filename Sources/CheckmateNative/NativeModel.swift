@@ -597,6 +597,14 @@ import RealtimeConnection
         let data:Data;do{data=previous ? try ReviewRecordSource.data(previousGame:session.state.practice.previousGame,result:session.state.practice.previousEnding?.result):try ReviewRecordSource.data(session.rules,result:session.state.practice.ending?.result)}catch{storageError=userFacingMessage(error,fallback:fallback);return}
         parseForReview(data,provenance:provenance,fallback:fallback){documents,_ in self.openReview(documents[0],draft:true)}
     }
+    /// The finished training game shown, as a draft review (mini-games plan D6): read from the attempt's own start and
+    /// actions, never the practice game. The review covers the training entry, so Return to game leads back to it.
+    func reviewTraining(){
+        reviewOpenGeneration+=1;cancelReviewImport();let fallback="This game could not be opened for review. Your training is unchanged."
+        guard let training else{return}
+        let data:Data;do{data=try training.reviewRecord()}catch{storageError=userFacingMessage(error,fallback:fallback);return}
+        parseForReview(data,provenance:"Training game",fallback:fallback){documents,_ in self.openReview(documents[0],draft:true)}
+    }
     /// The review workspace's game library (bundled games and imported collections), in the data directory's own
     /// `Library/` folder, apart from `Reviews/`.
     lazy var library:ReviewLibraryController={let controller=ReviewLibraryController(directory:store.directory.appendingPathComponent("Library"));controller.model=self;return controller}()

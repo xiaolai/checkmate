@@ -3,7 +3,7 @@
 Every action is a posted mouse event (accessibility presses bypass hit-testing): the Beginner skills section and a
 subskill chip, the promotion chooser cancelled and then answered, a normal-chess bridge opened from an existing game,
 a Finish the Game move answered by the bundled offline Stockfish defender, then taken back, a mixed case whose topic
-appears only after the answer, a guided game played and ended, and a related lesson read and left for training. The app runs with its
+appears only after the answer, a guided game played, ended and reviewed, and a related lesson read and left for training. The app runs with its
 own automation identifier and data directory, with training and its B preview enabled.
 """
 import atexit
@@ -248,6 +248,17 @@ try:
     wait(lambda: "Game ended · not counted" in listing(), "Ending the guided game did not show its neutral result")
     guided_game = True
 
+    # Review this game opens the guided game itself as a draft review, never the practice game, and leads back here.
+    time.sleep(SAVE_SETTLE)
+    practice = saved().get("practice")
+    pointer("click", "training-review-game")
+    wait(lambda: "review-document-actions" in listing() and "Gentle opponent" in listing(), "Review this game did not open the guided game in Review")
+    pointer("click", "Return to game")
+    wait(lambda: "Game ended · not counted" in listing() and "training-review-game" in listing(), "Return to game did not lead back to the finished guided game")
+    time.sleep(SAVE_SETTLE)
+    assert saved().get("practice") == practice, "Reviewing a training game changed the practice game"
+    guided_review = True
+
     # A related lesson opens without moving the course bookmark, and leads back to training.
     bookmark = (saved().get("course") or {}).get("lessonID")
     open_library()
@@ -261,7 +272,7 @@ try:
 
     result = {"passed": True, "beginnerLibrary": beginner_library, "variantChip": variant_chip, "promotionCancelled": promotion_cancelled,
               "promotionChosen": promotion_chosen, "bridgeOpened": bridge_opened, "endingReply": ending_reply, "endingTakeBack": ending_take_back, "barAndCommandZTakeBack": bar_and_command_z_take_back,
-              "mixedTopicAfterAnswer": mixed_topic_after_answer, "guidedGame": guided_game, "lessonLink": lesson_link}
+              "mixedTopicAfterAnswer": mixed_topic_after_answer, "guidedGame": guided_game, "guidedReview": guided_review, "lessonLink": lesson_link}
     (evidence / "training-b-pointer-results.json").write_text(json.dumps(result, indent=2))
     print(json.dumps(result))
 except Exception:

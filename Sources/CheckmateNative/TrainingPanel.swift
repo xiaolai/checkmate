@@ -73,6 +73,8 @@ struct TrainingPanel:View {
                 if scenario.check == .guidedGame{Button("End game"){training.endGuidedGame()}.accessibilityIdentifier("training-end-game")}
             }
         }
+        // A finished game opens in Review from its own start and moves, never the practice game; Return to game leads back here.
+        if training.canReview(exercise){Button("Review this game"){model.reviewTraining()}.accessibilityIdentifier("training-review-game")}
         // After the game: up to two exact moments to try again.
         if exercise.finished,!exercise.moments.isEmpty {
             Text("Moments to review").font(.headline)
