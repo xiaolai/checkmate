@@ -194,7 +194,7 @@ requires that ruleset's capability, so a peer without it is refused before it is
 board, the side to move, the pending finish and every position since the last capture or pawn move, so equal boards
 with different histories hash differently. Receivers check every rules-decided ending against their own replay, and
 a ruleset this build does not support, an unstated one or one that changes mid-game is refused before any replay.
-Solo kinds are never offered or accepted, and a mini-game has no assistance. The host's Game picker appears only with
+Solo kinds are never offered or accepted, and a mini-game has no assistance. The host's Play picker appears only with
 `CHECKMATE_NETWORK_MINI_GAMES=1`; with the flag off, hosting is chess exactly as 1.2. The TXT `variant` entry is only
 the lobby's badge. A mini-game's crash file is its own (`current-ruleset.json`), which no 1.2 build reads, and Review
 is the proof-search review over the whole game rather than a chess record. `Legacy12Fixtures` and

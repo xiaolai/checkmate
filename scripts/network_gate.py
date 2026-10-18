@@ -458,8 +458,8 @@ def host_game(host, name="Ana", assistance=None, handicap=None, side=None, start
     title, the move it follows, such as "After 5. Nxe5"), each the menu item's whole title, chosen in the sheet's start picker (mini-games plan
     D7; the app runs with CHECKMATE_NETWORK_POSITIONS=1). Without one, a start picker the sheet shows is set back to the
     standard position, since the sheet keeps the form between games. `mini_game` is a mini-game's title, chosen in the
-    sheet's Game picker (protocol 1.3; the app runs with CHECKMATE_NETWORK_MINI_GAMES=1); it has its own start and no
-    assistance, so it takes neither `start` nor an assistance choice. Without one, a Game picker the sheet shows is set
+    sheet's Play picker (protocol 1.3; the app runs with CHECKMATE_NETWORK_MINI_GAMES=1); it has its own start and no
+    assistance, so it takes neither `start` nor an assistance choice. Without one, a Play picker the sheet shows is set
     back to Chess."""
     assert not (mini_game and (start or assistance or handicap)), "a mini-game has its own start and no assistance"
     host.click("network-host-button")
@@ -471,7 +471,7 @@ def host_game(host, name="Ana", assistance=None, handicap=None, side=None, start
         assert not host.shows("network-host-assistance") and not host.shows("network-host-start-position"), "the sheet still offers assistance or a start for a mini-game"
     elif host.shows("network-host-game"):
         host.run("pointer-helper", "select-popup", "network-host-game", "Chess")
-        wait(lambda: not host.shows("network-host-mini-note"), "the Game picker did not go back to chess")
+        wait(lambda: not host.shows("network-host-mini-note"), "the Play picker did not go back to chess")
     if side:
         host.run("pointer-helper", "select-popup", "network-host-side", side)
     if start:

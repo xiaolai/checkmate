@@ -236,7 +236,7 @@ struct NetworkHostSheet:View {
                 Toggle("Allow spectators",isOn:$game.form.allowSpectators).accessibilityIdentifier("network-host-allow-spectators")
                 // Protocol 1.3: a simplified mini-game instead of chess; it has its own start and no assistance.
                 if NetworkPolicy.miniGamesEnabled {
-                    Picker("Game",selection:$game.form.miniGame){
+                    Picker("Play",selection:$game.form.miniGame){
                         Text("Chess").tag(MiniGameKind?.none)
                         ForEach(NetworkRuleset.supported.map(\.kind),id:\.self){kind in Text(kind.title).tag(MiniGameKind?.some(kind))}
                     }.accessibilityIdentifier("network-host-game")
