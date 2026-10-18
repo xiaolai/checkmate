@@ -22,6 +22,12 @@ Engineering work on Increment B is complete, but it is not a release. Increment 
 
 The later legacy variations and advanced objectives depend on a verified Increment B release, so they wait on both steps.
 
+Exception, decided by the product owner on 2026-10-18: the position games of
+`dev-docs/codex-plans/20261018-mini-game-opponents-voice-lan.md` (WI-017, WI-019, WI-020) may be built before
+Increment B is verified. Their content ships behind `CHECKMATE_POSITION_GAMES`, labelled machine-checked, and is
+offered to learners only after the same editorial review and beginner observation. The other later items still
+wait.
+
 ## Deliberate deferrals
 
 | Change | Why it waits | What it needs before it starts |
