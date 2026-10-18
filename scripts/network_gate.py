@@ -450,8 +450,8 @@ def open_network(instance):
 def host_game(host, name="Ana", assistance=None, handicap=None, side=None, start=None):
     """Hosts from the sheet. `assistance` picks one level for both sides; `handicap` is (White's, Black's) levels,
     set through the Handicap switch (assistance plan A2). Each is a level's title, such as "Hints on request".
-    `side` picks the host's side by its title ("White", "Black"). `start` is a game-library position, (part of the
-    game's title, the move it follows, such as "After 5. Nxe5"), chosen in the sheet's start picker (mini-games plan
+    `side` picks the host's side by its title ("White", "Black"). `start` is a game-library position, (the game's
+    title, the move it follows, such as "After 5. Nxe5"), each the menu item's whole title, chosen in the sheet's start picker (mini-games plan
     D7; the app runs with CHECKMATE_NETWORK_POSITIONS=1). Without one, a start picker the sheet shows is set back to the
     standard position, since the sheet keeps the form between games."""
     host.click("network-host-button")
@@ -461,12 +461,12 @@ def host_game(host, name="Ana", assistance=None, handicap=None, side=None, start
         host.run("pointer-helper", "select-popup", "network-host-side", side)
     if start:
         game, move = start
-        host.run("pointer-helper", "select-popup", "network-host-start-position", "A library game")
+        host.run("pointer-helper", "select-popup", "network-host-start-position", "A library game's position")
         wait(lambda: host.shows("network-host-library-game"), "the host sheet offered no library games", 30)
         host.run("pointer-helper", "select-popup", "network-host-library-game", game)
         wait(lambda: host.shows("network-host-library-move"), f"{game} offered no positions", 30)
         host.run("pointer-helper", "select-popup", "network-host-library-move", move)
-        wait(lambda: any(move in part for part in host.names("network-host-library-move") or []), f"the sheet did not choose {move}")
+        wait(lambda: move in (host.names("network-host-library-move") or []), f"the sheet did not choose {move}")
         assert host.shows("network-host-start-note"), "the sheet did not say the game is ordinary chess from the position"
     elif host.shows("network-host-start-position"):
         host.run("pointer-helper", "select-popup", "network-host-start-position", "Standard position")

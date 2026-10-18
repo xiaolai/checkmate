@@ -136,7 +136,7 @@ def play_position_game():
     mate after 5. Nxe5 as Black, which moves first there, at move 5; the pair joins as White and the spectator watches.
     The game's own last moves are played to the real mate: every Mac shows the declared start and the result, the host's
     Review numbers the moves from the start, and everyone goes back to the lobby."""
-    play_code, watch_code = host_game(host, side="Black", start=("gal's mate", "After 5. Nxe5"))
+    play_code, watch_code = host_game(host, side="Black", start=("Légal's mate", "After 5. Nxe5"))
     join(guest, "Ana's game", "Ben", play_code)
     wait(lambda: host.shows("Ben") and guest.shows("Ana"), "the pair never reached the position game", 40)
     join(watcher, "Ana's game", "Cy", watch_code, watching=True)
