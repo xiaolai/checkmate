@@ -160,9 +160,50 @@ struct FrozenTrainingDecoder {
         let base=try Self.json(TrainingSessionSnapshot(id:"a",entry:known.entry,scenario:known,freshness:"new",startedAt:day))
         try check(Self.setting(base,["actions"],to:.array([.object([Self.laterValue:.object([:])])])),"active",.newer,"an unknown action")
         try check(Self.setting(base,["actions"],to:.array([.object(["move":.object(["from":.string("a1"),"to":.string("a2"),Self.laterValue:.bool(true)])])])),"active",.newer,"an unknown action field")
-        try check(Self.setting(base,["opponent"],to:.object(["strategy":later])),"active",.readable,"configuration beside the scenario is kept by path, and the attempt resumes")
+        // Configuration beside the scenario: the frozen release keeps it by path and resumes the attempt. Since WI-017
+        // this build reads `opponent` itself, so a strategy it does not know sets the attempt aside here (plan D8).
+        let unknownStrategy=Self.setting(base,["opponent"],to:.object(["strategy":later]))
+        XCTAssertEqual(frozen.verdict(try Self.any(unknownStrategy),as:"active"),.readable,"the frozen release keeps it by path, and the attempt resumes there")
+        XCTAssertEqual(Self.live(unknownStrategy,as:"active"),.newer,"an unknown strategy is from a newer version here")
         try check(Self.setting(Self.retryJSON("r",scenario:scenario,entry:known.entry,day:day),["level"],to:later),"retry",.newer,"an unknown retry field")
         try check(.integer(3),"retry",.damaged,"not an object");try check(.object(["id":.string("x"),"entry":.string("y")]),"active",.damaged,"no scenario")
+    }
+
+    /// WI-017's own values, as this build writes them, read by the frozen WI-026 release: a position game, active or
+    /// queued, is set aside there as from a newer version, never damaged; an existing game's frozen opponent, of every
+    /// level and legacy, sits beside its scenario, so that release keeps it by path and continues the attempt.
+    func testTheFrozenReleaseSetsAsideThisBuildsPositionGamesAndKeepsTheirOpponentsByPath()throws {
+        let frozen=try FrozenTrainingDecoder()
+        func verdicts(_ record:JSONValue,_ kind:String)throws -> (frozen:FrozenTrainingDecoder.Verdict,live:FrozenTrainingDecoder.Verdict) {(frozen.verdict(try Self.any(record),as:kind),Self.live(record,as:kind))}
+        let review=TrainingReview(author:"test",reviewer:nil,validatorVersion:TrainingValidationService.validatorVersion)
+        let race=TrainingScenario(id:"race-e",entry:"pawn-race",variant:"kpk",tier:1,cluster:"kpk-e",learner:"w",prompt:"Promote and keep the new piece.",explanation:"Lead with the king.",hints:["Keep the king in front."],fen:"4k3/8/8/8/8/8/4P3/4K3 w - - 0 1",review:review,check:.positionGame,goal:TrainingGoal(kind:.promoteAndHold,threshold:0))
+        let bishops=TrainingScenario(id:"kbbk-1",entry:"two-bishop-mate",variant:"kbbk",tier:1,cluster:"kbbk",learner:"w",prompt:"Checkmate with the two bishops.",explanation:"Side by side.",hints:["Keep them together."],fen:"4k3/8/8/8/8/8/8/2B1KB2 w - - 0 1",review:review,check:.positionGame,goal:TrainingGoal(kind:.checkmate,threshold:0),keep:["b"])
+        for scenario in [race,bishops] {
+            for level in TrainingOpponentLevel.allCases {
+                let active=try Self.json(TrainingSessionSnapshot(id:"a-"+scenario.id,entry:scenario.entry,scenario:scenario,freshness:"new",revision:3,startedAt:day,actions:[.move(from:"e1",to:"d2",promotion:nil),.reply("e8d7")],opponent:.frozen(level,attempt:"a-"+scenario.id,seed:0x3c,revision:3)))
+                let read=try verdicts(active,"active")
+                XCTAssertEqual(read.frozen,.newer,"set aside there, not broken: \(scenario.id) \(level)");XCTAssertEqual(read.live,.readable,"and read here")
+            }
+            let retry=try verdicts(try Self.retryJSON("r-"+scenario.id,scenario:Self.json(scenario),entry:scenario.entry,day:day),"retry")
+            XCTAssertEqual(retry.frozen,.newer,scenario.id);XCTAssertEqual(retry.live,.readable,scenario.id)
+        }
+        let provider=try TrainingScenarioProvider.bundled()
+        for scenario in provider.scenarios(for:"finish-the-game")+provider.scenarios(for:"guided-games").filter({$0.check == .guidedGame}) {
+            var opponents=TrainingOpponentLevel.allCases.map{TrainingOpponentConfiguration.frozen($0,attempt:"a",seed:9,revision:2)}+[.legacy(attempt:"a",revision:2)]
+            var mixed=opponents[0];mixed.mixed=true;mixed.severeStreak=1;opponents.append(mixed)
+            for opponent in opponents {
+                let active=try Self.json(TrainingSessionSnapshot(id:"a",entry:scenario.entry,scenario:scenario,freshness:"new",revision:2,startedAt:day,opponent:opponent))
+                let read=try verdicts(active,"active")
+                XCTAssertEqual(read.frozen,.readable,"kept by path there, and continued: \(scenario.id) \(opponent.profile)");XCTAssertEqual(read.live,.readable)
+            }
+        }
+        // Such a state, read as the frozen release reads it, keeps the rest of training writable: the set-aside
+        // mechanism itself is the one the tests below drive with a value no build defines.
+        guard case .object(var record)=try Self.json(TrainingState()) else{return XCTFail("no record")}
+        record["active"]=try Self.json(TrainingSessionSnapshot(id:"a",entry:race.entry,scenario:race,freshness:"new",startedAt:day,opponent:.frozen(.gentle,attempt:"a",seed:1)))
+        record["retryQueue"] = .array([try Self.retryJSON("r",scenario:Self.json(bishops),entry:bishops.entry,day:day)])
+        let here=try state(training:.object(record))
+        XCTAssertTrue(here.trainingWritable);XCTAssertEqual(here.training?.active?.scenario,race,"this build reads its own position game");XCTAssertEqual(here.training?.retryQueue.first?.scenario,bishops)
     }
 
     // MARK: A newer retry item, no active attempt

@@ -21,6 +21,13 @@ import CheckmateRules
         case .guidedGame:
             guard scenario.workflow=="guided-game" else{try fail("a guided game belongs to the guided-game workflow")}
             guard try legality.status() == .neither else{try fail("a guided game starts quietly, not in check")}
+        // A position game (mini-game plan D3): every piece type it keeps is the learner's at the start, and a pawn race
+        // has exactly one learner pawn, the one followed until it promotes.
+        case .positionGame:
+            guard let goal=scenario.goal?.kind,goal.positionGame else{try fail("a position game names its goal")}
+            let mine=board.values.filter{$0.first==learner}
+            guard (scenario.keep ?? []).allSatisfy({kept in mine.contains{String($0.last!)==kept}}) else{try fail("a position game keeps only piece types the learner has")}
+            if goal == .promoteAndHold{guard mine.filter({$0.last=="p"}).count==1 else{try fail("a pawn race starts with exactly one learner pawn")}}
         default:try fail("not a game objective")
         }
     }

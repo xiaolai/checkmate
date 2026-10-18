@@ -2,9 +2,10 @@
 
 Every action is a posted mouse event (accessibility presses bypass hit-testing): the Beginner skills section and a
 subskill chip, the promotion chooser cancelled and then answered, a normal-chess bridge opened from an existing game,
-a Finish the Game move answered by the bundled offline Stockfish defender, then taken back, a mixed case whose topic
+a Finish the Game move answered by the bundled offline Stockfish defender, then taken back, the opponent level
+picker (a game with no move takes the level, one in progress keeps its own and offers a new game at it), a mixed case whose topic
 appears only after the answer, a guided game played, ended and reviewed, and a related lesson read and left for training. The app runs with its
-own automation identifier and data directory, with training and its B preview enabled.
+own automation identifier and data directory, with training, its B preview and position games enabled.
 """
 import atexit
 import json
@@ -30,6 +31,8 @@ command = [str(root / "build/CheckmateAutomation.app/Contents/MacOS/CheckmateNat
 environment = {key: value for key, value in os.environ.items() if key != "CHECKMATE_AUTOMATION"}
 environment["CHECKMATE_TRAINING_ENABLED"] = "1"
 environment["CHECKMATE_TRAINING_B"] = "1"
+# Position games and opponent levels (mini-game plan WI-017), default off for users.
+environment["CHECKMATE_POSITION_GAMES"] = "1"
 process = None
 PIECES = {"n": "knight", "b": "bishop", "r": "rook", "q": "queen"}
 COLOURS = {"w": "White", "b": "Black"}
@@ -223,6 +226,37 @@ try:
         wait(lambda: sum("undo" in action for action in active()["actions"]) > undone, f"The {how} take-back was not recorded")
         wait(lambda: label(piece).startswith(f"{piece}, {COLOURS[learner]}, {PIECES[kind]}"), f"The {how} take-back did not restore the start")
     bar_and_command_z_take_back = True
+    # The stalemate trap offers only Strong: its attempt froze it, and there is no picker.
+    assert (active().get("opponent") or {}).get("profile") == "strong", "The king-and-queen ending did not freeze Strong"
+    assert "training-level" not in listing(), "The stalemate trap offered a level choice"
+
+    # The level picker (mini-game plan D4): a game with no move takes the chosen level; a game in progress keeps its
+    # own and offers a new game at the other.
+    open_library()
+    pointer("click", "training-variant-finish-the-game-krk")
+    wait(lambda: active() is not None and active()["scenario"]["variant"] == "krk" and not active()["actions"], "The King and rook chip did not start an ending")
+    show_details()
+    wait(lambda: "training-level" in listing(), "The rook ending did not show the level picker")
+    first = active()["id"]
+    pointer("select-popup", "training-level", "Gentle")
+    wait(lambda: (saved().get("settings") or {}).get("positionGameLevels", {}).get("finish-the-game") == "gentle", "The chosen level was not saved")
+    wait(lambda: (active().get("opponent") or {}).get("profile") == "gentle" and active()["id"] == first, "A game with no move did not take the chosen level")
+    scenario = active()["scenario"]
+    learner = scenario["learner"]
+    piece, to, kind = quiet_move(scenario["fen"], learner)
+    pointer("drag-square", piece, to)
+    wait(lambda: any("reply" in action for action in active()["actions"]), "Gentle did not answer", timeout=30)
+    wait(lambda: "Your move." in listing(), "The board did not return to the learner after Gentle's reply")
+    assert active()["opponent"]["strategy"] == "beginner" and active()["opponent"]["limit"].get("nodes"), "Gentle is not the node-limited beginner opponent"
+    pointer("select-popup", "training-level", "Strong")
+    wait(lambda: (saved().get("settings") or {}).get("positionGameLevels", {}).get("finish-the-game") == "strong", "Choosing Strong during a game was not saved")
+    wait(lambda: "training-new-level" in listing(), "Choosing a level during a game did not offer a new game at it")
+    assert active()["opponent"]["profile"] == "gentle" and active()["id"] == first, "The game in progress changed level"
+    pointer("click", "training-new-level")
+    wait(lambda: active()["id"] != first and (active().get("opponent") or {}).get("profile") == "strong" and not active()["actions"], "Start a new game at this level did not start one at it")
+    assert attempts()[-1]["outcome"] == "abandoned" and attempts()[-1].get("level") == "gentle", "The game left was not recorded at its own level"
+    wait(lambda: "training-new-level" not in listing(), "The new game still offered another one")
+    level_picker = True
 
     # Mixed practice: no topic before the answer; after it, the topic is shown.
     open_library()
@@ -271,7 +305,7 @@ try:
     lesson_link = True
 
     result = {"passed": True, "beginnerLibrary": beginner_library, "variantChip": variant_chip, "promotionCancelled": promotion_cancelled,
-              "promotionChosen": promotion_chosen, "bridgeOpened": bridge_opened, "endingReply": ending_reply, "endingTakeBack": ending_take_back, "barAndCommandZTakeBack": bar_and_command_z_take_back,
+              "promotionChosen": promotion_chosen, "bridgeOpened": bridge_opened, "endingReply": ending_reply, "endingTakeBack": ending_take_back, "barAndCommandZTakeBack": bar_and_command_z_take_back, "levelPicker": level_picker,
               "mixedTopicAfterAnswer": mixed_topic_after_answer, "guidedGame": guided_game, "guidedReview": guided_review, "lessonLink": lesson_link}
     (evidence / "training-b-pointer-results.json").write_text(json.dumps(result, indent=2))
     print(json.dumps(result))

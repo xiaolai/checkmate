@@ -26,7 +26,10 @@ public enum TrainingStore {
         guard state.trainingWritable else{throw CheckmateError.unavailable("Training progress is read-only until its saved record is recovered.")}
         var training=state.training ?? TrainingState()
         let scenario=snapshot.scenario,firstTry=outcome == .correct && !snapshot.retry && !snapshot.recordedHelp
-        let attempt=TrainingAttempt(id:UUID().uuidString,entry:snapshot.entry,scenarioID:scenario.id,cluster:scenario.cluster,tier:scenario.tier,learner:scenario.learner,startedAt:snapshot.startedAt,finishedAt:now,outcome:outcome,firstTryNoRecordedHelp:firstTry,recordedHelp:snapshot.recordedHelp,retry:snapshot.retry,freshness:snapshot.freshness)
+        // A game records the level it was played at (mini-game plan D4), settled as a resume settles it: an attempt
+        // left unopened since an older build played on is mixed, and one begun before levels is legacy.
+        let opponent=snapshot.settledOpponent
+        let attempt=TrainingAttempt(id:UUID().uuidString,entry:snapshot.entry,scenarioID:scenario.id,cluster:scenario.cluster,tier:scenario.tier,learner:scenario.learner,startedAt:snapshot.startedAt,finishedAt:now,outcome:outcome,firstTryNoRecordedHelp:firstTry,recordedHelp:snapshot.recordedHelp,retry:snapshot.retry,freshness:snapshot.freshness,opponent:opponent)
         // Retry spacing counts exercises actually done, so opening and leaving boards never makes a retry due.
         training.attempts.append(attempt);if outcome != .abandoned{training.finishedAttempts=training.finishedAttempts+1}
         var summary=training.summaries[snapshot.entry] ?? TrainingEntrySummary()

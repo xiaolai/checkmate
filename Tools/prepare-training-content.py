@@ -47,6 +47,7 @@ OBJECTIVES = {
     'finishTheGame': ('standardChess', 'selectionCorrection', ['playMove']),
     'mixedPractice': ('standardChess', 'selectionCorrection', ['playMove', 'chooseOption', 'selectSquares']),
     'guidedGame': ('standardChess', 'selectionCorrection', ['playMove']),
+    'positionGame': ('standardChess', 'selectionCorrection', ['playMove']),
 }
 GENERATED = {'reachTarget', 'findAttackers', 'findDefenders'}
 LEGACY = {'pawn-duel', 'rook-sweep', 'rooks-and-pawns', 'bishop-sweep', 'bishops-and-pawns', 'queen-vs-pawns', 'knight-capture', 'knight-corners'}
@@ -55,11 +56,16 @@ CONTEXTS = ['guidedExample', 'focusedPractice', 'noHintPractice', 'mixedApplicat
 # Every field TrainingScenario decodes: anything else would be ignored by the app and must not steer validation here.
 SCENARIO_FIELDS = {'id', 'entry', 'variant', 'tier', 'cluster', 'learner', 'prompt', 'explanation', 'hints', 'fen', 'prelude', 'diagram', 'target',
                    'drill', 'budget', 'shortest', 'choices', 'expected', 'noAction', 'reserve', 'review', 'generation', 'check', 'goal', 'plies',
-                   'nodes', 'stated', 'askColor', 'focus', 'skills', 'primarySkill', 'source', 'bridge', 'workflow'}
+                   'nodes', 'stated', 'askColor', 'focus', 'skills', 'primarySkill', 'source', 'bridge', 'workflow', 'keep'}
 # TrainingCheck and TrainingGoal.Kind raw values: anything else fails to decode in the app.
 CHECKS = {'defense', 'material', 'exchange', 'castle', 'castleReason', 'promotion', 'enPassant', 'enPassantChoice', 'forks', 'pins',
-          'mateThreatCreate', 'mateThreatPrevent', 'kingSquares', 'status', 'diagnosis', 'ending', 'guidedGame', 'moment'}
-GOAL_KINDS = {'survive', 'gain', 'hold'}
+          'mateThreatCreate', 'mateThreatPrevent', 'kingSquares', 'status', 'diagnosis', 'ending', 'guidedGame', 'moment', 'positionGame'}
+# A position game's goals (mini-game plan D3) and the piece types it may keep: never the king.
+POSITION_GOALS = {'checkmate', 'promoteAndHold'}
+KEEPABLE = ('q', 'r', 'b', 'n', 'p')
+GOAL_KINDS = {'survive', 'gain', 'hold'} | POSITION_GOALS
+# The evaluators whose scenario is where a playable game starts: a position only, with no oracle answer.
+GAME_CHECKS = ('ending', 'guidedGame', 'positionGame')
 
 
 class ContentError(Exception):
@@ -129,7 +135,7 @@ DECODED = {
     'check': one_of(CHECKS), 'goal': is_goal, 'plies': is_int, 'nodes': lambda nodes: isinstance(nodes, list) and all(map(is_node, nodes)),
     'stated': strings, 'askColor': lambda color: isinstance(color, str), 'focus': strings,
     'skills': lambda skills: isinstance(skills, list) and all(map(one_of(SKILLS), skills)), 'primarySkill': one_of(SKILLS), 'source': is_text,
-    'bridge': one_of(LEGACY), 'workflow': lambda workflow: isinstance(workflow, str),
+    'bridge': one_of(LEGACY), 'workflow': lambda workflow: isinstance(workflow, str), 'keep': strings,
 }
 EXPECTED_DECODED = {'squares': strings, 'moves': strings, 'choices': strings, 'wrong': strings,
                     'choice': lambda choice: isinstance(choice, str), 'distance': is_int}
@@ -240,7 +246,7 @@ def context_moves(scenario):
 # the learner acts for, the evaluator and its goal and search horizon, the stated line, asked colour, target and
 # options, and the diagram, drill and move budget of the other rule modes. Explanations, hints, focus squares, the
 # teaching graph and the oracle answer describe or grade the question rather than define it.
-EXERCISE_FIELDS = ('learner', 'check', 'goal', 'plies', 'stated', 'askColor', 'target', 'choices', 'diagram', 'drill', 'budget', 'shortest')
+EXERCISE_FIELDS = ('learner', 'check', 'goal', 'plies', 'stated', 'askColor', 'target', 'choices', 'diagram', 'drill', 'budget', 'shortest', 'keep')
 
 
 def position_key(scenario):
@@ -313,7 +319,7 @@ def check_oracle(name, scenario):
     if scenario.get('expected') is not None and not isinstance(scenario['expected'], dict):
         fail(f'{name}: expected is an object or null, found {scenario["expected"]!r}')
     expected = scenario.get('expected') or {}
-    if scenario.get('check') in ('ending', 'guidedGame'):
+    if scenario.get('check') in GAME_CHECKS:
         if expected or scenario.get('nodes'):
             fail(f'{name}: a game start is a position only')
     elif not (expected or scenario.get('nodes')):
@@ -331,7 +337,30 @@ def check_scenario(name, scenario, entry):
     check_position(name, scenario)
     check_presentation(name, scenario)
     check_decoded(name, scenario, check_oracle(name, scenario))
+    check_position_game(name, scenario)
     check_review(name, scenario.get('review'))
+
+
+def check_position_game(name, scenario):
+    """A position game (mini-game plan D3): a checkmate or promoteAndHold goal with threshold 0 and nothing else, the piece
+    types it keeps the learner's at the start, and a pawn race's one learner pawn. Only a position game uses either.
+    Legality and who moves are re-derived by the Swift validators."""
+    goal, keep = scenario.get('goal'), scenario.get('keep')
+    if scenario.get('check') != 'positionGame':
+        if isinstance(goal, dict) and goal.get('kind') in POSITION_GOALS:
+            fail(f'{name}: a {goal["kind"]} goal belongs to a position game')
+        if keep is not None:
+            fail(f'{name}: only a position game keeps piece types')
+        return
+    if not isinstance(goal, dict) or goal.get('kind') not in POSITION_GOALS or goal.get('threshold') != 0 or isinstance(goal.get('threshold'), bool) \
+            or goal.get('target') is not None or goal.get('drawOK') is not None or scenario.get('plies') is not None:
+        fail(f'{name}: a position game\'s goal is checkmate or promoteAndHold, with threshold 0 and no target, draw rule or horizon')
+    placement = scenario['fen'].split()[0]
+    mine = [piece.lower() for piece in placement if piece.isalpha() and (piece.isupper() == (scenario['learner'] == 'w'))]
+    if keep is not None and (not keep or len(set(keep)) != len(keep) or any(kept not in KEEPABLE or kept not in mine for kept in keep)):
+        fail(f'{name}: a position game keeps piece types the learner has, each of {KEEPABLE} at most once')
+    if goal['kind'] == 'promoteAndHold' and mine.count('p') != 1:
+        fail(f'{name}: a pawn race starts with exactly one learner pawn')
 
 
 def check_decoded(name, scenario, expected):

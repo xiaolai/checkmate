@@ -17,7 +17,7 @@ import CheckmateRules
         case .findAttackers,.findDefenders:try validateRecognition(scenario,objective:definition.objective,expected:expected,fail:fail)
         case .mateInOne,.escapeCheck,.kingSafeSquares,.classifyStatus:try validatePosition(scenario,objective:definition.objective,expected:expected,runtimeFactory:runtimeFactory,fail:fail)
         case .legacyGame:try fail("existing games have no scenarios")
-        case .saveYourPiece,.captureWisely,.specialMoves,.simpleTactics,.finishTheGame,.mixedPractice,.guidedGame:
+        case .saveYourPiece,.captureWisely,.specialMoves,.simpleTactics,.finishTheGame,.mixedPractice,.guidedGame,.positionGame:
             try validateBeginner(scenario,definition:definition,runtimeFactory:runtimeFactory,deep:deep)
         }
     }

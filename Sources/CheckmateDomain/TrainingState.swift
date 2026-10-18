@@ -26,7 +26,10 @@ public struct TrainingSessionSnapshot:Codable,Equatable {
     public var recordedHelp:Bool
     /// The learner has attempted this exact position before: this attempt is practice, not first-try evidence.
     public var retry:Bool
-    public init(id:String,entry:String,scenario:TrainingScenario,freshness:String,revision:Int=0,startedAt:Date,actions:[TrainingAction]=[],recordedHelp:Bool=false,retry:Bool=false){self.id=id;self.entry=entry;self.scenario=scenario;self.freshness=freshness;self.revision=revision;self.startedAt=startedAt;self.actions=actions;self.recordedHelp=recordedHelp;self.retry=retry}
+    /// A playable game's opponent, frozen when the attempt started (mini-game plan D4); read it through `boundOpponent`.
+    /// Absent from attempts saved before levels existed, and from every attempt while position games are off.
+    public var opponent:TrainingOpponentConfiguration?
+    public init(id:String,entry:String,scenario:TrainingScenario,freshness:String,revision:Int=0,startedAt:Date,actions:[TrainingAction]=[],recordedHelp:Bool=false,retry:Bool=false,opponent:TrainingOpponentConfiguration?=nil){self.id=id;self.entry=entry;self.scenario=scenario;self.freshness=freshness;self.revision=revision;self.startedAt=startedAt;self.actions=actions;self.recordedHelp=recordedHelp;self.retry=retry;self.opponent=opponent}
 }
 /// One finished attempt, kept (bounded) for descriptive progress and the retry queue.
 public struct TrainingAttempt:Codable,Equatable,Identifiable {
@@ -36,7 +39,11 @@ public struct TrainingAttempt:Codable,Equatable,Identifiable {
     /// "first try · no recorded help". External help is unobservable, so this never means unassisted.
     public let firstTryNoRecordedHelp:Bool
     public let recordedHelp:Bool,retry:Bool,freshness:String
-    public init(id:String,entry:String,scenarioID:String,cluster:String,tier:Int,learner:String,startedAt:Date,finishedAt:Date,outcome:TrainingOutcome,firstTryNoRecordedHelp:Bool,recordedHelp:Bool,retry:Bool,freshness:String){self.id=id;self.entry=entry;self.scenarioID=scenarioID;self.cluster=cluster;self.tier=tier;self.learner=learner;self.startedAt=startedAt;self.finishedAt=finishedAt;self.outcome=outcome;self.firstTryNoRecordedHelp=firstTryNoRecordedHelp;self.recordedHelp=recordedHelp;self.retry=retry;self.freshness=freshness}
+    /// A playable game's opponent level and the search policy it names (`TrainingOpponentConfiguration.policy`),
+    /// copied from the attempt's frozen opponent. Absent when it had none, and from attempts an older build saved:
+    /// it re-encodes attempts without them, so after a downgrade-and-save the level is not recorded (`levelLabel`).
+    public let level:String?,levelPolicy:String?
+    public init(id:String,entry:String,scenarioID:String,cluster:String,tier:Int,learner:String,startedAt:Date,finishedAt:Date,outcome:TrainingOutcome,firstTryNoRecordedHelp:Bool,recordedHelp:Bool,retry:Bool,freshness:String,opponent:TrainingOpponentConfiguration?=nil){self.id=id;self.entry=entry;self.scenarioID=scenarioID;self.cluster=cluster;self.tier=tier;self.learner=learner;self.startedAt=startedAt;self.finishedAt=finishedAt;self.outcome=outcome;self.firstTryNoRecordedHelp=firstTryNoRecordedHelp;self.recordedHelp=recordedHelp;self.retry=retry;self.freshness=freshness;level=opponent?.profile;levelPolicy=opponent?.policy}
 }
 /// A finished existing mini-game, observed as it finished (never inferred from a loaded board). `winner` is the side
 /// that won, or nil for a draw; `computer` says whether the learner played the computer as White.
@@ -73,7 +80,7 @@ public struct TrainingRetryItem:Codable,Equatable,Identifiable {
 /// It never holds a second copy of a legacy mini-game board.
 ///
 /// Records from a newer version (WI-026). The persisted records that embed a scenario or an opponent configuration are:
-/// - `active` (`TrainingSessionSnapshot.scenario`, and the opponent configuration a later build adds beside it);
+/// - `active` (`TrainingSessionSnapshot.scenario`, and beside it the frozen `opponent`, which WI-026 kept by path);
 /// - each `retryQueue` item (`TrainingRetryItem.scenario`);
 /// - outside this object, `miniGames` (a later build's per-run level), which this build never decodes: it is kept by
 ///   path as an unknown field (`ApplicationState.unknownNestedFields`), so it cannot fail a load.

@@ -7,8 +7,14 @@ public enum TrainingRolloutPolicy {
     /// Increment B stays off for users until its content has editorial review and B coverage is verified (plan:
     /// rollout); development and automation enable it separately.
     public static var beginnerEnabled:Bool {enabled && ProcessInfo.processInfo.environment["CHECKMATE_TRAINING_B"] == "1"}
-    /// Whether an entry is offered: Increment A always, Increment B only with its preview enabled.
-    public static func offered(_ definition:TrainingEntryDefinition)->Bool {definition.increment == .foundations || beginnerEnabled}
+    /// Position games and the opponent levels of standard-rule games (mini-game plan WI-017) stay off until their
+    /// content has editorial review and a beginner observation, and until a release that reads their records has
+    /// shipped (plan D8): `CHECKMATE_POSITION_GAMES=1`, on top of Increment B, turns them on. While it is off nothing
+    /// writes their values: no position-game entry is offered and no attempt freezes an opponent level.
+    public static var positionGamesEnabled:Bool {beginnerEnabled && ProcessInfo.processInfo.environment["CHECKMATE_POSITION_GAMES"] == "1"}
+    /// Whether an entry is offered: Increment A always, Increment B only with its preview enabled, position games only
+    /// with theirs.
+    public static func offered(_ definition:TrainingEntryDefinition)->Bool {definition.objective == .positionGame ? positionGamesEnabled:definition.increment == .foundations || beginnerEnabled}
 }
 /// How an entry's moves are judged. Every entry declares one and shows its plain rules (plan rule 2).
 public enum TrainingRuleMode:String,Codable,CaseIterable {
@@ -46,10 +52,13 @@ public enum TrainingObjectiveKind:String,Codable,CaseIterable {
     case saveYourPiece,captureWisely,specialMoves,simpleTactics,finishTheGame,mixedPractice
     /// A legal game from a reviewed start against the practice defender, with review moments afterwards.
     case guidedGame
+    /// A standard-chess game from a position against the practice defender, to a declared goal (checkmate, or promote
+    /// and hold) under a closed outcome matrix (mini-game plan D3).
+    case positionGame
     /// The increment whose evaluators grade this objective; a catalog entry belongs to exactly this one.
     public var increment:TrainingIncrement {switch self {
         case .reachTarget,.findAttackers,.findDefenders,.kingSafeSquares,.mateInOne,.escapeCheck,.classifyStatus,.legacyGame:return .foundations
-        case .saveYourPiece,.captureWisely,.specialMoves,.simpleTactics,.finishTheGame,.mixedPractice,.guidedGame:return .beginner
+        case .saveYourPiece,.captureWisely,.specialMoves,.simpleTactics,.finishTheGame,.mixedPractice,.guidedGame,.positionGame:return .beginner
     }}
     public var ruleMode:TrainingRuleMode {switch self {
         case .reachTarget:return .movementDrill
@@ -60,7 +69,7 @@ public enum TrainingObjectiveKind:String,Codable,CaseIterable {
     public var actions:[TrainingActionKind] {switch self {
         case .findAttackers,.findDefenders,.kingSafeSquares:return [.selectSquares]
         case .classifyStatus:return [.chooseOption]
-        case .reachTarget,.mateInOne,.escapeCheck,.legacyGame,.saveYourPiece,.finishTheGame,.guidedGame:return [.playMove]
+        case .reachTarget,.mateInOne,.escapeCheck,.legacyGame,.saveYourPiece,.finishTheGame,.guidedGame,.positionGame:return [.playMove]
         case .captureWisely,.specialMoves,.simpleTactics,.mixedPractice:return [.playMove,.chooseOption,.selectSquares]
     }}
     /// Special moves and check evasion grade a raw illegal attempt as a rule error; everything else ignores it.

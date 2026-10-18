@@ -290,6 +290,7 @@
     "endingReply",
     "endingTakeBack",
     "barAndCommandZTakeBack",
+    "levelPicker",
     "mixedTopicAfterAnswer",
     "guidedGame",
     "guidedReview",

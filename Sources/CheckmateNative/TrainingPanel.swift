@@ -56,7 +56,17 @@ struct TrainingPanel:View {
     @ViewBuilder private func gameControls(_ exercise:TrainingController.Exercise)->some View {
         let scenario=exercise.scenario
         Text(exercise.finished ? "Game over.":exercise.paused != nil ? "Game paused.":training.games.thinking ? "The defender is thinking…":"Your move.").accessibilityIdentifier("training-game-status")
-        Text(TrainingEndgameController.note(for:scenario.check)).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
+        // The opponent level (mini-game plan D4): only the levels this game offers, and only when there is a choice. The
+        // game in progress keeps the level it started with, labelled while it differs, with a new game offered at the other.
+        let levels=training.gameLevels(exercise)
+        if levels.count>1 {
+            Picker("Opponent",selection:Binding(get:{training.preferredGameLevel(exercise)},set:{training.setGameLevel($0)})){ForEach(levels,id:\.self){Text($0.title).tag($0)}}.accessibilityIdentifier("training-level")
+        }
+        if training.gameNewLevelOffered(exercise),let level=exercise.snapshot.opponent?.level {
+            Text("This game continues at \(level.title).").foregroundStyle(.secondary)
+            Button("Start a new game at this level"){training.startGameAtChosenLevel()}.accessibilityIdentifier("training-new-level")
+        }
+        Text(TrainingEndgameController.note(for:scenario.check,opponent:exercise.snapshot.opponent)).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("training-opponent-note")
         if let habit=exercise.habit,!exercise.finished{Label(habit,systemImage:"magnifyingglass").fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("training-habit")}
         // A finished game cannot be kept going, so the reminder belongs only to one still in play.
         if exercise.reminder,!exercise.finished {
@@ -87,6 +97,7 @@ struct TrainingPanel:View {
     /// A finished attempt's result, its topic (mixed practice hides it until the learner has answered) and related lessons.
     @ViewBuilder private func result(_ exercise:TrainingController.Exercise)->some View {
         Text(Self.resultLabel(exercise)).font(.headline).accessibilityIdentifier("training-result")
+        if let opponent=exercise.snapshot.opponent{Text("Opponent: "+opponent.label).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("training-opponent-level")}
         if let skill=exercise.scenario.primarySkill{Text("This one was about "+TrainingLabels.skill(skill)+".").font(.caption).foregroundStyle(.secondary).accessibilityIdentifier("training-topic")}
         TrainingLessonLinks(model:model,entry:exercise.definition)
     }

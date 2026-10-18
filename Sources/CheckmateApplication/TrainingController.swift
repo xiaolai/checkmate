@@ -44,6 +44,8 @@ public struct PreparedTrainingExercise {
         public internal(set) var habit:String?,moments:[TrainingMoment]=[]
         /// Games: the parity of the learner's plies in the line, from the validated start (0 when the learner moves first).
         var parity=0
+        /// A `promoteAndHold` game's tracked pawn (mini-game plan D3): at the start, then after each ply of the line.
+        var pawns:[PositionGamePawn]=[]
         /// How the learner answers now.
         public var task:TrainingTask {
             if let check=scenario.check{return check == .diagnosis && stage==1 ? .move:check.task}
@@ -163,8 +165,8 @@ public struct PreparedTrainingExercise {
                 do{try TrainingStore.finish(old,outcome:.abandoned,in:&staged,now:now(),calendar:calendar);abandoning=true}
                 catch{throw CheckmateError.unavailable("The unfinished exercise could not be recorded: "+userFacing(error)+" Your progress is unchanged.")}
             }
-            let retry=prepared.retry || TrainingStore.attempted(prepared.scenario,in:training)
-            let snapshot=TrainingSessionSnapshot(id:UUID().uuidString,entry:prepared.definition.id,scenario:prepared.scenario,freshness:prepared.freshness.rawValue,startedAt:now(),retry:retry)
+            let retry=prepared.retry || TrainingStore.attempted(prepared.scenario,in:training),id=UUID().uuidString
+            let snapshot=TrainingSessionSnapshot(id:id,entry:prepared.definition.id,scenario:prepared.scenario,freshness:prepared.freshness.rawValue,startedAt:now(),retry:retry,opponent:frozenOpponent(prepared.scenario,attempt:id))
             do{state=try initial(prepared.definition,snapshot:snapshot,legality:prepared.legality)}catch{throw CheckmateError.unavailable("This exercise could not be started: "+userFacing(error)+" Your progress is unchanged.")}
         }
         // `begin(staged:)` saves `state` first, after the workspace is left: the same rule `save` applies is checked
@@ -203,11 +205,16 @@ public struct PreparedTrainingExercise {
         let board=try scenario.drill.map{$0.board($0.initial)} ?? scenario.diagram ?? legality?.board() ?? [:]
         var state=Exercise(definition:definition,snapshot:snapshot,legality:legality,board:board,drillState:scenario.drill?.initial)
         if scenario.check != nil{state.current=legality;if state.task == .game{state.claimable=try legality?.claimableDraw();state.parity=try legality?.turn()==scenario.learner ? 0:1}}
+        // Validation admitted exactly one learner pawn: it is the pawn followed.
+        if scenario.check == .positionGame,scenario.goal?.kind == .promoteAndHold {
+            guard let square=board.first(where:{$0.value==scenario.learner+"p"})?.key else{throw CheckmateError.invalid("A pawn race needs its pawn.")}
+            state.pawns=[.pawn(square)]
+        }
         return state
     }
     /// Rebuilds an attempt from its actions on the concrete scenario; any action that no longer applies fails it.
     private func replay(_ snapshot:TrainingSessionSnapshot,definition:TrainingEntryDefinition,legality:TrainingLegality?)throws -> Exercise {
-        var state=try initial(definition,snapshot:TrainingSessionSnapshot(id:snapshot.id,entry:snapshot.entry,scenario:snapshot.scenario,freshness:snapshot.freshness,revision:0,startedAt:snapshot.startedAt,retry:snapshot.retry),legality:legality)
+        var state=try initial(definition,snapshot:TrainingSessionSnapshot(id:snapshot.id,entry:snapshot.entry,scenario:snapshot.scenario,freshness:snapshot.freshness,revision:0,startedAt:snapshot.startedAt,retry:snapshot.retry,opponent:snapshot.settledOpponent),legality:legality)
         var path=state.scenario.drill.map{[$0.initial]} ?? []
         for action in snapshot.actions {
             switch action {
@@ -448,7 +455,7 @@ public struct PreparedTrainingExercise {
     @discardableResult func finish(_ candidate:Exercise,_ outcome:TrainingOutcome)->Bool {
         var state=candidate
         state.status=outcome == .correct ? .correct:outcome == .revealed ? .revealed:outcome == .abandoned ? .ended:.incorrect
-        state.snapshot.revision+=1
+        state.snapshot.revision+=1;state.snapshot.opponent?.witness=state.snapshot.revision
         var staged=session.state
         do{try TrainingStore.finish(state.snapshot,outcome:outcome,in:&staged,now:now(),calendar:calendar);session.state.training=staged.training}
         catch where session.state.trainingWritable{refuse("This result could not be recorded, so the exercise is still open: "+userFacing(error));return false}
@@ -472,8 +479,9 @@ public struct PreparedTrainingExercise {
     /// than are kept, a revision past the bound the loader accepts, or, where training is writable, an attempt that no
     /// longer fits `record`'s storage budget. The one rule `save` applies and `stage` checks ahead of `begin(staged:)`,
     /// so a staged exercise's first save is never refused.
+    /// Every save stamps the frozen opponent's witness with the revision it writes (mini-game plan D4).
     static func nextSaved(_ snapshot:TrainingSessionSnapshot,in record:TrainingState,writable:Bool)->TrainingSessionSnapshot? {
-        var next=snapshot;next.revision+=1
+        var next=snapshot;next.revision+=1;next.opponent?.witness=next.revision
         guard next.actions.count<=maximumSavedActions,next.revision<=TrainingState.maximumCount,!writable || TrainingStore.fits(next,in:record) else{return nil}
         return next
     }

@@ -10,16 +10,22 @@ import Foundation
     /// Reached only through callers that check `fairness` themselves (native `reply` and MCP `play_move`, both through
     /// `GameSession.chooseOpponentMove`, and the lesson exercise's defender). It checks again before each further search
     /// after an `await`, so a choice in flight when a network game begins makes no more engine calls (LAN-play plan D8).
-    public static func choose(rules:ChessRules,engine:any EngineService,seed:UInt64,severeStreak:Int=0,fairness:FairnessPolicy?=nil)async throws -> EngineAnalysis {
+    /// Practice searches for `budgetMs` each. `limit` replaces that for every search, the root and each constrained
+    /// one alike (a training game's Gentle searches a fixed number of nodes, mini-game plan D4); with a node limit,
+    /// `decisionNodes` caps the whole decision, so a constrained search that would pass it is not made.
+    public static func choose(rules:ChessRules,engine:any EngineService,seed:UInt64,severeStreak:Int=0,fairness:FairnessPolicy?=nil,limit:EngineSearchLimit?=nil,decisionNodes:Int?=nil)async throws -> EngineAnalysis {
         let fairness=fairness ?? FairnessPolicy();try fairness.requireEngineHelp()
         let position=try rules.copy(),legal=position.moves();guard !legal.isEmpty else{return EngineAnalysis()}
         let start=position.records.first?.before ?? position.fen,history=position.records.map(\.uci),sign=position.turn=="w" ? 1:-1
-        let root=try await engine.analyzeHistory(startFEN:start,moves:history,profile:.skill(20),budget:budgetMs,multiPv:min(candidateCount,legal.count))
-        var rng=SeededReviewRandom(seed:seed),measured=root.lines
+        let search=limit ?? .movetime(budgetMs),cost:Int={if case .nodes(let nodes)=search{return nodes};return 0}()
+        let root=try await engine.analyzeHistory(startFEN:start,moves:history,profile:.skill(20),limit:search,multiPv:min(candidateCount,legal.count),searchMoves:[])
+        var rng=SeededReviewRandom(seed:seed),measured=root.lines,spent=cost
         let leading=Set(measured.compactMap{$0.pv.first}),others=legal.filter{!leading.contains($0.uci)}.shuffled(using:&rng)
         for move in others.prefix(BeginnerPolicy.explorationCount) {
+            if let decisionNodes,spent+cost>decisionNodes{break}
             try Task.checkCancellation();try fairness.requireEngineHelp()
-            let constrained=try await engine.analyzeHistory(startFEN:start,moves:history,profile:.skill(20),budget:budgetMs,multiPv:1,searchMoves:[move.uci])
+            let constrained=try await engine.analyzeHistory(startFEN:start,moves:history,profile:.skill(20),limit:search,multiPv:1,searchMoves:[move.uci])
+            spent+=cost
             if let line=constrained.lines.first{measured.append(line)}
         }
         let best=root.lines.first?.score

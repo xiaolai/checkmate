@@ -100,6 +100,72 @@ def complete_and_withdrawn():
         assert any(not row['met'] and 'escape-check' in json.dumps(row['requirement']) for row in report['requirements']), 'the lost requirement is not reported'
 
 
+# A position game (mini-game plan D3) in a fixture entry: the catalog has none until its content is written (WI-020).
+POSITION_ENTRY = {
+    'id': 'pawn-race', 'title': 'Pawn race', 'summary': 'Promote the pawn and keep the new piece.', 'rules': ['A normal chess game from this position.'],
+    'objective': 'positionGame', 'ruleMode': 'standardChess', 'illegalInput': 'selectionCorrection', 'actions': ['playMove'], 'increment': 'B',
+    'delivery': 'pilot', 'origin': 'new', 'skills': ['convertingWin'], 'variants': ['kpk', 'kbbk'], 'lessonLinks': [], 'tiers': 1,
+}
+POSITION = {
+    'id': 'race-fixture-1', 'entry': 'pawn-race', 'variant': 'kpk', 'tier': 1, 'learner': 'w', 'cluster': 'race-fixture-a',
+    'fen': '4k3/8/8/8/8/8/4P3/4K3 w - - 0 1', 'prompt': 'Promote the pawn and keep the new piece.', 'explanation': 'The king leads the pawn.',
+    'hints': ['Keep your king in front of the pawn.'], 'check': 'positionGame', 'goal': {'kind': 'promoteAndHold', 'threshold': 0},
+    'review': {'author': 'fixture', 'reviewer': None, 'validatorVersion': tool.VALIDATOR_VERSION},
+}
+
+
+def with_position_entry(mutate):
+    """The mutation, after adding the position-game fixture entry to the catalog."""
+    def apply(catalog, coverage, scenarios):
+        catalog['entries'].append(copy.deepcopy(POSITION_ENTRY))
+        mutate(catalog, coverage, scenarios)
+    return apply
+
+
+def position_games():
+    """The objective publishes, with both goals and `keep`; each malformed position game stops publication for its own
+    reason, and neither its goals nor `keep` may be borrowed by another evaluator. Returns the negative fixtures run."""
+    bishops = {'id': 'bishops-fixture-1', 'variant': 'kbbk', 'cluster': 'bishops-fixture-a', 'fen': '4k3/8/8/8/8/8/8/2B1KB2 w - - 0 1',
+               'goal': {'kind': 'checkmate', 'threshold': 0}, 'keep': ['b']}
+    files, _ = build_fixture(with_position_entry(lambda c, v, s: s.append(dict(copy.deepcopy(s[0]), **bishops))), POSITION)
+    assert json.loads(files['manifest.json'])['counts']['pawn-race'] == {'kpk': 1, 'kbbk': 1}, 'both goals must publish'
+    cases = {
+        'no goal': ("goal is checkmate or promoteAndHold", lambda c, v, s: s[0].pop('goal')),
+        'a threshold': ("goal is checkmate or promoteAndHold", lambda c, v, s: s[0]['goal'].update(threshold=1)),
+        'a boolean threshold': ("invalid goal", lambda c, v, s: s[0]['goal'].update(threshold=False)),
+        'a horizon': ("goal is checkmate or promoteAndHold", lambda c, v, s: s[0].update(plies=3)),
+        'a search goal': ("goal is checkmate or promoteAndHold", lambda c, v, s: s[0].update(goal={'kind': 'gain', 'threshold': 1})),
+        'an unknown goal': ("invalid goal", lambda c, v, s: s[0].update(goal={'kind': 'holdDraw', 'threshold': 0})),
+        'two learner pawns': ('exactly one learner pawn', lambda c, v, s: s[0].update(fen='4k3/8/8/8/8/8/3PP3/4K3 w - - 0 1')),
+        'no learner pawn': ('exactly one learner pawn', lambda c, v, s: s[0].update(fen='4k3/8/8/8/8/8/4p3/4K3 w - - 0 1')),
+        'keeping what the learner lacks': ('keeps piece types the learner has', lambda c, v, s: s[0].update(keep=['q'])),
+        'keeping the king': ('keeps piece types the learner has', lambda c, v, s: s[0].update(keep=['k'])),
+        'keeping a type twice': ('keeps piece types the learner has', lambda c, v, s: s[0].update(keep=['p', 'p'])),
+        'keeping nothing': ('keeps piece types the learner has', lambda c, v, s: s[0].update(keep=[])),
+        'keep that is not a list': ("invalid keep 'p'", lambda c, v, s: s[0].update(keep='p')),
+        'an oracle answer': ('a game start is a position only', lambda c, v, s: s[0].update(expected={'moves': ['e2e4']})),
+    }
+    for label, (reason, mutate) in cases.items():
+        try:
+            build_fixture(with_position_entry(mutate), POSITION)
+        except tool.ContentError as error:
+            assert reason in str(error), f'{label}: failed for another reason: {error}'
+            continue
+        raise AssertionError(f'invalid position game was published: {label}')
+    borrowed = {
+        'keep on another evaluator': ('only a position game keeps piece types', SCENARIO, lambda c, v, s: s[0].update(keep=['r'])),
+        "a position game's goal on a search": ('goal belongs to a position game', SEARCHED, lambda c, v, s: s[0].update(goal={'kind': 'checkmate', 'threshold': 0})),
+    }
+    for label, (reason, base, mutate) in borrowed.items():
+        try:
+            build_fixture(mutate, base)
+        except tool.ContentError as error:
+            assert reason in str(error), f'{label}: failed for another reason: {error}'
+            continue
+        raise AssertionError(f'a borrowed position-game field was published: {label}')
+    return len(cases) + len(borrowed)
+
+
 class Interrupted(Exception):
     """Stands in for a process stopped part way through publication."""
 
@@ -306,8 +372,9 @@ def main():
     }
     for label, (reason, mutate) in cases.items():
         expect_failure(label, reason, mutate)
+    positional = position_games()
     publication()
-    print(json.dumps({'passed': True, 'negativeFixtures': len(cases)}))
+    print(json.dumps({'passed': True, 'negativeFixtures': len(cases) + positional}))
 
 
 if __name__ == '__main__':
