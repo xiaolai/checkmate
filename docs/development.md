@@ -163,10 +163,21 @@ get help. Hints come only from `NetworkAssistant`, on the network game's own pos
 count (`go nodes`), so every Mac searches the same amount. A move made after a hint or a voice turn carries
 `assisted`, which every player and spectator counts and Review records.
 
-The protocol is 1.1. Its additions are optional fields a 1.0 peer ignores, so a game without assistance stays open
+Protocol 1.1's additions are optional fields a 1.0 peer ignores, so a game without assistance stays open
 to a 1.0 guest; a guest that states no terms is refused, as another version, by a host whose game has assistance.
 Byte fixtures from the 1.0 codec (`NetworkLegacyFixtures`) keep both directions honest. A 1.0 spectator may still
 watch a game with assistance and does not see its terms; it cannot play, so this is stated rather than prevented.
+
+Protocol 1.2 (`docs/network-protocol-1.2.md`, mini-games plan D7, L1) adds a declared start: ordinary chess from a
+chosen position. Every `hello` and `resume` states the peer's `capabilities`; a game from a declared start requires
+`start`, and the host refuses a connection that does not state it with `bye(protocolVersion)` before attaching it,
+unpausing clocks or sending a snapshot. The record carries `startFEN` only when the start is not the standard one, a
+receiver pins the start at its first snapshot and refuses any other later, and hosting refuses a start that is
+illegal or already over. The host picks only a game-library position (the position after one of a library game's
+moves), and only with `CHECKMATE_NETWORK_POSITIONS=1`; otherwise hosting uses the standard start exactly as 1.1 does.
+`Legacy11Fixtures` and `Legacy11CoreFixtures`, frozen from the 1.1 code, hold the compatibility promise: a 1.2 Mac
+decodes every 1.1 message, and a standard-start game writes its record, crash file, review record and TXT entries
+byte for byte as 1.1 did.
 
 `NetworkParticipation` still turns engine help off everywhere else while participating:
 `FairnessPolicy.engineHelpAllowed` is unchanged, and the scoped `networkAssistance` level opens only the network
@@ -182,7 +193,7 @@ Three gates cover the interface, each with real pointer and key events:
 |---|---|---|
 | `network-ui` | test host, loopback | host, guest and spectator; pending move, refused spectator click, drop and resume, draw offer, resign, Review; assistance: no help without it, the list badge, Decline then Accept, a hint counted on both boards, the inspector, a handicap; light and dark |
 | `network-bonjour` | test host | two installed copies find each other over Bonjour, join, play, resign and review; permission state recorded |
-| `network-lan` | test host and LAN pair | the test host hosts a game with hints for both and watches, the pair accepts and joins, each player asks for a hint and every Mac counts both, the pair drops and resumes, play to checkmate, Review on both with the Assistance line |
+| `network-lan` | test host and LAN pair | a game from a game-library position (Légal's mate after 5. Nxe5, Black to move) played to mate and watched, reviewed from its start; then the test host hosts a game with hints for both and watches, the pair accepts and joins, each player asks for a hint and every Mac counts both, the pair drops and resumes, play to checkmate, Review on both with the Assistance line |
 
 The last two need evidence prepared once per Mac, checked before anything builds; a missing or stale record makes
 the gate UNVERIFIED, never skipped. `bash scripts/automation-identity.sh create` makes the stable local signing

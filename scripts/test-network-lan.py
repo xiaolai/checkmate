@@ -4,7 +4,8 @@ bonjour-ready-pair and lan-pair).
 The test host hosts and runs a spectator; the LAN pair, reached over SSH (CHECKMATE_LAN_PAIR), joins. Both run the
 automation app the test host built and signed, installed at its fixed path and opened through LaunchServices. Every
 step is a real pointer or key event on the Mac it concerns: discover, join with the code, play to checkmate, Review on
-both. The game is played under agreed assistance, hints on request for both (assistance plan, Verification:
+both. First a game from a game-library position (mini-games plan WI-023, D7): Légal's mate after 5. Nxe5, Black to
+move, played to its mate with a spectator watching, and reviewed from its start. The game is played under agreed assistance, hints on request for both (assistance plan, Verification:
 network-lan): the pair accepts the terms before joining, each player asks for a hint on one move, every Mac counts
 both hints, and Review on both Macs shows the Assistance line. The pair's connection is cut through the automation-only hook (a file written over SSH), so the control channel
 is never cut (N13). A real cable or Wi-Fi loss is not automated. Evidence is kept per Mac, in test-host/ and pair/:
@@ -20,7 +21,7 @@ import time
 
 import test_host
 test_host.require("two-Mac network acceptance")
-from network_gate import (BUILT, Instance, cleanup_failure, compile_helpers, host_game, install, join, on_pair,  # noqa: E402
+from network_gate import (BUILT, Instance, cleanup_failure, compile_helpers, game_row, host_game, install, join, on_pair,  # noqa: E402
                           open_network, pair, permission, private_remote_dir, root, stop_all, wait, wait_for)
 
 evidence = pathlib.Path(os.environ["CHECKMATE_EVIDENCE_DIR"])
@@ -130,6 +131,50 @@ def pair_helpers():
     return copies
 
 
+def play_position_game():
+    """Mini-games plan WI-023 (D7, L1): a game from a game-library position over the LAN. The test host hosts Légal's
+    mate after 5. Nxe5 as Black, which moves first there, at move 5; the pair joins as White and the spectator watches.
+    The game's own last moves are played to the real mate: every Mac shows the declared start and the result, the host's
+    Review numbers the moves from the start, and everyone goes back to the lobby."""
+    play_code, watch_code = host_game(host, side="Black", start=("gal's mate", "After 5. Nxe5"))
+    join(guest, "Ana's game", "Ben", play_code)
+    wait(lambda: host.shows("Ben") and guest.shows("Ana"), "the pair never reached the position game", 40)
+    join(watcher, "Ana's game", "Cy", watch_code, watching=True)
+    wait(lambda: host.shows("Cy is watching."), "the host never saw its spectator in the position game")
+    for instance in instances:
+        wait(lambda instance=instance: instance.shows("network-declared-start"), f"{instance.name} did not say the game starts from a set-up position")
+        # The start, not the standard position: White's knight on e5, Black's bishop on g4, Black to move.
+        wait(lambda instance=instance: instance.label("e5").startswith("e5, White, knight"), f"{instance.name} did not show the declared start")
+        assert instance.read_label("g4").startswith("g4, Black, bishop"), f"{instance.name} does not show Black's bishop on g4"
+        instance.capture("position-start")
+    for mover, others, (origin, target), shown in [(host, (guest, watcher), ("g4", "d1"), "d1, Black, bishop"), (guest, (host, watcher), ("c4", "f7"), "f7, White, bishop"),
+                                                   (host, (guest, watcher), ("e8", "e7"), "e7, Black, king"), (guest, (host, watcher), ("c3", "d5"), "d5, White, knight")]:
+        mover.square(origin)
+        mover.square(target)
+        for instance in others:
+            wait(lambda instance=instance: instance.label(target).startswith(shown), f"{instance.name} never showed {origin}-{target}", 20)
+    for instance in instances:
+        wait(lambda instance=instance: instance.shows("network-review"), f"{instance.name} never saw the position game end", 20)
+        line = instance.line("network-status") or ""
+        expected = "Checkmate. You win." if instance is guest else "Checkmate. Ben wins."
+        assert expected in line, f"{instance.name} did not show {expected!r} after the position game: {line}"
+        instance.capture("position-ended")
+    results["positionGame"] = {"start": "Légal's mate after 5. Nxe5", "result": {instance.name: instance.line("network-status") for instance in instances}}
+    host.click("network-review")
+    wait(lambda: host.shows("review-document-actions"), "the host did not open the position game in Review")
+    wait(lambda: host.shows("Nd5#"), "Review did not show the position game's moves")
+    host.capture("position-review")
+    for instance in instances:
+        if instance is host:
+            instance.click("Play on Network")
+        wait(lambda instance=instance: instance.shows("network-back-to-games"), f"{instance.name} offered no way back to the lobby")
+        instance.click("network-back-to-games")
+        wait(lambda instance=instance: instance.shows("network-host-button"), f"{instance.name} did not go back to the lobby")
+    # The finished game's listing goes before the next game is hosted under the same name.
+    for instance in (guest, watcher):
+        wait(lambda instance=instance: game_row(instance, "Ana's game") is None, f"{instance.name} still lists the finished position game", 30)
+
+
 instances, failure = [], None
 pair_reports, pair_began = pair_reports_now(), float(on_pair("date +%s"))
 try:
@@ -140,7 +185,8 @@ try:
     install(remote=True)
     # Each instance is registered for cleanup as soon as it starts, so one that fails to start leaves none running.
     # Real Bonjour only: an empty loopback directory is the app's "no loopback" (NativeNetwork.swift), stated outright.
-    bonjour_only = {"CHECKMATE_NETWORK_LOOPBACK_DIR": ""}
+    # Every Mac may host from a game-library position (mini-games plan D7).
+    bonjour_only = {"CHECKMATE_NETWORK_LOOPBACK_DIR": "", "CHECKMATE_NETWORK_POSITIONS": "1"}
     host = Instance("host", local_evidence, helpers, mode="installed", environment=bonjour_only)
     instances.append(host)
     watcher = Instance("spectator", local_evidence, helpers, mode="installed", environment=bonjour_only)
@@ -151,7 +197,10 @@ try:
         open_network(instance)
     step("lobbies open on both Macs")
 
-    play_code, watch_code = host_game(host, assistance="Hints on request")
+    play_position_game()
+    step("a game from a library position, played to mate on both Macs and watched")
+
+    play_code, watch_code = host_game(host, assistance="Hints on request", side="White")
     step("hosted on the test host, hints on request for both")
     join(guest, "Ana's game", "Ben", play_code, accept="Ana's game allows hints on request for both players.")
     wait(lambda: host.shows("Ben") and guest.shows("Ana"), "the pair never reached the game", 40)

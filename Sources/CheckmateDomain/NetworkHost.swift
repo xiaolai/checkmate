@@ -59,7 +59,11 @@ public struct NetworkHostSettings:Equatable {
     public var hostName:String,hostSide:NetworkSide,timeControl:NetworkTimeControl,allowSpectators:Bool
     /// Fixed for the whole game (assistance plan A2): nothing the host does or receives changes it.
     public let assistance:NetworkAssistance
-    public init(hostName:String,hostSide:NetworkSide,timeControl:NetworkTimeControl = .untimed,allowSpectators:Bool=true,assistance:NetworkAssistance = .off){self.hostName=hostName;self.hostSide=hostSide;self.timeControl=timeControl;self.allowSpectators=allowSpectators;self.assistance=assistance}
+    /// The declared start (mini-games plan D7); nil for the standard start. Fixed for the whole game. The host's own
+    /// settings hold it canonical: `NetworkHost` replaces a given FEN by the one its rules write back.
+    public let startFEN:String?
+    public init(hostName:String,hostSide:NetworkSide,timeControl:NetworkTimeControl = .untimed,allowSpectators:Bool=true,assistance:NetworkAssistance = .off,startFEN:String?=nil){self.hostName=hostName;self.hostSide=hostSide;self.timeControl=timeControl;self.allowSpectators=allowSpectators;self.assistance=assistance;self.startFEN=startFEN}
+    func starting(at fen:String?)->NetworkHostSettings {NetworkHostSettings(hostName:hostName,hostSide:hostSide,timeControl:timeControl,allowSpectators:allowSpectators,assistance:assistance,startFEN:fen)}
 }
 /// D7's numbers for one host. Always `standard` in the app; tests shrink them to reach a bound quickly.
 public struct NetworkHostLimits:Equatable {
@@ -76,7 +80,14 @@ public struct NetworkHostLimits:Equatable {
     public init(){}
     public static let standard=NetworkHostLimits()
 }
-public enum NetworkHostError:Error,Equatable {case invalidName}
+public enum NetworkHostError:Error,Equatable {
+    case invalidName
+    /// The start is no position a game could reach (D7: `NetworkChessRules.networkLoad(start:)`), or its FEN is not
+    /// one a record may declare (`NetworkStart.wellFormed`).
+    case illegalStart
+    /// The game is already over at the start: checkmate, stalemate or an automatic draw (D7).
+    case startOver
+}
 /// Receipts for the last 64 commands (D2): a repeated `commandID` gets its stored replies again and nothing else.
 struct NetworkReceipts {
     private var replies:[NetworkID:[NetworkMessage]]=[:],order:[NetworkID]=[]
@@ -148,12 +159,28 @@ public final class NetworkHost:CustomReflectable {
     /// `runEpoch` is made once per app launch; `gameID` is the one published in both TXT records.
     public init(gameID:NetworkGameID,runEpoch:NetworkID,settings:NetworkHostSettings,rules factory:NetworkRulesFactory,hashing:NetworkHashing,random:NetworkRandom = .system,limits:NetworkHostLimits = .standard,at now:NetworkInstant)throws {
         guard NetworkText.valid(settings.hostName) else{throw NetworkHostError.invalidName}
+        var rules=try factory.newGame(),settings=settings
+        // D7: the start is set up once, here, and kept as the rules write it back. The standard start, however it was
+        // written, is no declared start: the game is then exactly a 1.1 game.
+        if let given=settings.startFEN {
+            do{try rules.networkLoad(start:given)}catch NetworkRulesError.illegalStart{throw NetworkHostError.illegalStart}
+            let canonical=try rules.networkFEN()
+            if try rules.networkStartFEN()==NetworkStart.standard {rules=try factory.newGame();settings=settings.starting(at:nil)}
+            else{
+                guard NetworkStart.wellFormed(canonical) else{throw NetworkHostError.illegalStart}
+                guard try rules.networkAutomaticEnding()==nil else{throw NetworkHostError.startOver}
+                settings=settings.starting(at:canonical)
+            }
+        }
         self.gameID=gameID;self.runEpoch=runEpoch;self.settings=settings;self.hashing=hashing;self.random=random;self.limits=limits;self.now=now
-        rules=try factory.newGame();sideToMove=try rules.networkSideToMove();fen=try rules.networkFEN()
+        self.rules=rules;sideToMove=try rules.networkSideToMove();fen=try rules.networkFEN()
         clock=NetworkClock(timeControl:settings.timeControl,at:now)
     }
     public var customMirror:Mirror {Mirror(self,children:["gameID":gameID,"phase":phase,"revision":revision])}
     public var guestSide:NetworkSide {settings.hostSide.opponent}
+    /// What every guest and spectator must state in `hello` and `resume` to be admitted (D7): `start` for a declared
+    /// start, nothing for the standard start.
+    public var requiredCapabilities:NetworkCapabilities {settings.startFEN==nil ? .none:NetworkCapabilities([NetworkStart.capability])!}
     public var positionHash:String {hashing.positionHash(fen:fen,revision:revision)}
     public var guestConnection:NetworkConnectionID? {seat?.connection}
     public var spectators:[NetworkConnectionID] {peers.filter{$0.value.role == .spectator}.map(\.key).sorted()}
@@ -178,7 +205,7 @@ public final class NetworkHost:CustomReflectable {
     /// The public record at `now`: what a snapshot carries and the crash file keeps (D9). Never a secret.
     public func publicGame(at now:NetworkInstant)throws -> NetworkPublicGame {
         let host=settings.hostSide
-        return NetworkPublicGame(gameID:gameID,revision:revision,hostSide:host,whiteName:host == .white ? settings.hostName:guestName,blackName:host == .black ? settings.hostName:guestName,timeControl:settings.timeControl,pgn:try rules.networkPGN(),clocks:clock?.clocks(at:now),openOffer:openOffer,outcome:outcome,assistance:settings.assistance,assistedPlies:assistedPlies)
+        return NetworkPublicGame(gameID:gameID,revision:revision,hostSide:host,whiteName:host == .white ? settings.hostName:guestName,blackName:host == .black ? settings.hostName:guestName,timeControl:settings.timeControl,pgn:try rules.networkPGN(),clocks:clock?.clocks(at:now),openOffer:openOffer,outcome:outcome,assistance:settings.assistance,assistedPlies:assistedPlies,startFEN:settings.startFEN)
     }
     // MARK: Events
     /// A connection finished TLS on `listener`. It holds an admission slot until `hello` or `resume`, for at most 5 s.
@@ -314,7 +341,7 @@ public final class NetworkHost:CustomReflectable {
         case .guest:
             switch message {
             case .seatedAck:if phase == .reserved,seat?.connection==id {phase = .running;reservationDeadline=nil}
-            case .resume(let game,let credential):try resume(game,credential,from:id)
+            case .resume(let game,let credential,let stated):try resume(game,credential,stating:stated,from:id)
             case .resync:try requestSnapshot(id)
             case .pong(let nonce):try pong(nonce,from:id)
             default:try close(id,.malformed)
@@ -322,13 +349,16 @@ public final class NetworkHost:CustomReflectable {
         }
     }
     private func admit(_ message:NetworkMessage,from id:NetworkConnectionID)throws {
+        // D7: a hello that does not state what the game requires is refused first, before a seat is reserved, a claim
+        // answered again, a spectator let in or a snapshot sent. A `resume` is checked the same way in `resume`.
+        if case .hello(_,_,_,_,let stated)=message,!capable(stated) {try close(id,.protocolVersion);return}
         switch (peers[id]!.listener,message) {
         // A spectator's stated terms, if any, change nothing: spectators never get assistance (A1).
-        case (.watch,.hello(let name,_,_,_)):
+        case (.watch,.hello(let name,_,_,_,_)):
             guard spectators.count<limits.maximumSpectators else{try close(id,.full);return}
             peers[id]!.role = .spectator;peers[id]!.name=name
             try send(.watching,to:id);try requestSnapshot(id)
-        case (.seat,.hello(let name,_,let claimID?,let accepted)):
+        case (.seat,.hello(let name,_,let claimID?,let accepted,_)):
             // A3: the terms the guest accepted are checked before the seat is reserved or the claim answered again.
             if phase == .waiting || phase == .reserved && seat?.claimID.matches(claimID)==true,let refusal=termsRefusal(accepted) {try close(id,refusal);return}
             switch phase {
@@ -340,7 +370,7 @@ public final class NetworkHost:CustomReflectable {
             case .reserved,.running,.disconnected:try close(id,.seatTaken)
             case .ended:try close(id,.gameOver)
             }
-        case (.seat,.resume(let game,let credential)):try resume(game,credential,from:id)
+        case (.seat,.resume(let game,let credential,let stated)):try resume(game,credential,stating:stated,from:id)
         default:try close(id,.malformed)
         }
     }
@@ -351,10 +381,16 @@ public final class NetworkHost:CustomReflectable {
         guard let accepted else{return settings.assistance == .off ? nil:.protocolVersion}
         return accepted==settings.assistance ? nil:.assistanceChanged
     }
+    /// Whether a connection's stated capabilities cover what the game requires (D7). A 1.1 peer states none.
+    private func capable(_ stated:NetworkCapabilities?)->Bool {requiredCapabilities.isSubset(of:stated ?? .none)}
     private func sendSeated(_ id:NetworkConnectionID)throws {try send(.seated(credential:seat!.credential),to:id);try requestSnapshot(id)}
     /// The recovery table (R4-4): a valid credential while reserved counts as the ack; while running it replaces the
     /// guest's connection; while disconnected it ends the hold. Resuming the current holder just answers again.
-    private func resume(_ game:NetworkGameID,_ credential:NetworkSecret,from id:NetworkConnectionID)throws {
+    ///
+    /// A connection that does not state what the game requires (D7) is refused before any of it: the seat, the hold, the
+    /// clocks and the current connection stay as they were, and no snapshot is sent.
+    private func resume(_ game:NetworkGameID,_ credential:NetworkSecret,stating stated:NetworkCapabilities?,from id:NetworkConnectionID)throws {
+        guard capable(stated) else{try close(id,.protocolVersion);return}
         guard phase != .ended else{try close(id,.gameOver);return}
         guard let seat,seat.valid,game==gameID,seat.gameID==gameID,seat.epoch==runEpoch,seat.credential.matches(credential) else{try close(id,.badCredential);return}
         let wasDisconnected=phase == .disconnected

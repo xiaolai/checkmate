@@ -68,6 +68,7 @@ struct NetworkDetail:View {
     @ViewBuilder private var session:some View {
         if game.part == .host,game.outcome==nil,game.sessionOpen,let play=game.playCode {codes(play)}
         if game.seat != nil {players;assistance;voiceCoach}
+        if game.declaredStart {Text(NetworkWording.declaredStart).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("network-declared-start")}
         if let status=game.statusText{Text(status).fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("network-status")}
         if game.part == .host,game.holdExpired {
             HStack {
@@ -210,11 +211,18 @@ struct NetworkAcceptSheet:View {
     }
 }
 /// The host sheet (D10): your name, side, time control and Allow Spectators, and the assistance both players agree to
-/// (assistance plan A2): one level for both, or a handicap with a level for each side.
+/// (assistance plan A2): one level for both, or a handicap with a level for each side. With
+/// `CHECKMATE_NETWORK_POSITIONS=1`, the start too (mini-games plan D7): the standard position, or the position after a
+/// chosen move of a game-library game. There is no free FEN entry.
 struct NetworkHostSheet:View {
     @ObservedObject var game:NetworkGameController
     let close:()->Void
     @State private var handicap=false
+    @State private var fromLibrary=false
+    @State private var library:GameLibrary?
+    @State private var libraryProblem:String?
+    @State private var libraryGame=""
+    @State private var positions:[NetworkLibraryStart]=[]
     var body:some View {
         VStack(alignment:.leading,spacing:Metrics.padding){
             Text("Host a Game").font(.title2.bold())
@@ -231,14 +239,64 @@ struct NetworkHostSheet:View {
                 }
                 // Turning the handicap off gives Black White's level again: the terms are one level for both by default.
                 Toggle("Handicap: different assistance for each side",isOn:Binding(get:{handicap},set:{handicap=$0;if !$0{game.form.assistance=NetworkAssistance(both:game.form.assistance.white)}})).accessibilityIdentifier("network-host-handicap")
+                if NetworkPolicy.positionsEnabled {start}
             }
             if let message=game.lobbyMessage{Text(message).fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("network-host-message")}
             HStack {
                 Spacer()
                 Button("Cancel"){close()}.keyboardShortcut(.cancelAction).accessibilityIdentifier("network-host-cancel")
-                Button("Host"){if game.host(){close()}}.keyboardShortcut(.defaultAction).disabled(!game.nameValid).accessibilityIdentifier("network-host-start")
+                Button("Host"){if game.host(){close()}}.keyboardShortcut(.defaultAction).disabled(!game.nameValid || NetworkPolicy.positionsEnabled && fromLibrary && game.form.start==nil).accessibilityIdentifier("network-host-start")
             }
-        }.padding(Metrics.sectionGap).frame(width:380).accessibilityElement(children:.contain).accessibilityIdentifier("network-host-sheet").onAppear{handicap=game.form.assistance.handicap}
+        }.padding(Metrics.sectionGap).frame(width:380).accessibilityElement(children:.contain).accessibilityIdentifier("network-host-sheet").onAppear{
+            handicap=game.form.assistance.handicap
+            // The form keeps a chosen start between games; the sheet shows it again with its game's moves.
+            if NetworkPolicy.positionsEnabled,let chosen=game.form.start {fromLibrary=true;libraryGame=chosen.gameID;loadLibrary(keeping:chosen)}
+        }
+    }
+    /// The start (D7): the standard position, or a library game's position after one of its moves.
+    @ViewBuilder private var start:some View {
+        Picker("Start",selection:Binding(get:{fromLibrary},set:{fromLibrary=$0;if $0{loadLibrary(keeping:nil)}else{game.form.start=nil}})){
+            Text("Standard position").tag(false);Text("A library game's position").tag(true)
+        }.accessibilityIdentifier("network-host-start-position")
+        if fromLibrary {
+            if let library {
+                Picker("Game",selection:Binding(get:{libraryGame},set:{choose($0,in:library,keeping:nil)})){
+                    Text("Choose a game").tag("")
+                    // The famous classic games first, then the World Championship games in the library's order.
+                    ForEach(library.games.filter{$0.category=="classic"}+library.games.filter{$0.category != "classic"}){entry in Text(entry.title).tag(entry.id)}
+                }.accessibilityIdentifier("network-host-library-game")
+                if !positions.isEmpty {
+                    Picker("Start after",selection:Binding(get:{game.form.start?.ply ?? 0},set:{ply in game.form.start=positions.first{$0.ply==ply}})){
+                        ForEach(positions,id:\.ply){position in Text(position.move).tag(position.ply)}
+                    }.accessibilityIdentifier("network-host-library-move")
+                }
+            }else if libraryProblem==nil {ProgressView().controlSize(.small)}
+            if let libraryProblem {Text(libraryProblem).fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("network-host-library-problem")}
+            Text(NetworkWording.startNote).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("network-host-start-note")
+        }
+    }
+    /// Reads the bundled library once, off the main actor; a damaged bundle says so and offers nothing.
+    private func loadLibrary(keeping chosen:NetworkLibraryStart?){
+        guard library==nil else{return}
+        Task{
+            switch await Task.detached(operation:{Result{try GameLibrary.load()}}).value {
+            case .success(let loaded):library=loaded;if !libraryGame.isEmpty{choose(libraryGame,in:loaded,keeping:chosen)}
+            case .failure(let error):libraryProblem="The game library could not be read: \(error)"
+            }
+        }
+    }
+    /// The chosen game's positions, one per move, read and checked against the manifest; the middle one is preselected.
+    private func choose(_ id:String,in library:GameLibrary,keeping chosen:NetworkLibraryStart?){
+        libraryGame=id;positions=[];game.form.start=nil
+        guard let entry=library.games.first(where:{$0.id==id}) else{return}
+        Task{
+            let read=await Task.detached(operation:{Result{try NetworkLibraryStart.positions(of:entry,in:library)}}).value
+            guard libraryGame==id else{return}
+            switch read {
+            case .success(let found):positions=found;game.form.start=chosen.flatMap{kept in found.first{$0==kept}} ?? found[found.count/2]
+            case .failure(let error):libraryProblem="This library game could not be read: \(error)"
+            }
+        }
     }
     private func levels(_ title:String,_ side:WritableKeyPath<NetworkAssistance,NetworkAssistanceLevel>,_ identifier:String)->some View {
         Picker(title,selection:Binding(get:{game.form.assistance[keyPath:side]},set:{game.form.assistance[keyPath:side]=$0})){ForEach(NetworkAssistanceLevel.allCases,id:\.self){level in Text(level.title).tag(level)}}.accessibilityIdentifier(identifier)

@@ -7,5 +7,9 @@ public enum NetworkPolicy {
     public static let minimumMacOS=26
     public static let verifiedOlderMajors:Set<Int>=[14]
     public static func available(onMajor major:Int)->Bool {major>=minimumMacOS || verifiedOlderMajors.contains(major)}
+    /// A host may choose a game-library position to start from (mini-games plan D7, L1): `CHECKMATE_NETWORK_POSITIONS=1`.
+    /// Off by default, so hosting uses the standard start exactly as protocol 1.1 does. Joining and watching a game
+    /// from a declared start need no flag: every 1.2 build replays one.
+    public static var positionsEnabled:Bool {ProcessInfo.processInfo.environment["CHECKMATE_NETWORK_POSITIONS"]=="1"}
     public static var availableHere:Bool {available(onMajor:ProcessInfo.processInfo.operatingSystemVersion.majorVersion)}
 }

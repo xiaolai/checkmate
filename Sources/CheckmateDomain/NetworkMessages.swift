@@ -40,10 +40,11 @@ public struct NetworkEnded:Equatable {
 /// Every message of D5's table. Guest/spectator → host first, then host → guest/spectator.
 public enum NetworkMessage:Equatable {
     /// A spectator's carries no `claimID`; a guest's always does. A 1.1 guest also states the assistance terms it
-    /// accepted (assistance plan A3); a 1.0 guest and a spectator state none.
-    case hello(name:String,appVersion:String,claimID:NetworkSecret?,assistance:NetworkAssistance?=nil)
+    /// accepted (assistance plan A3); a 1.0 guest and a spectator state none. A 1.2 guest or spectator states its
+    /// capabilities in every `hello` and `resume` (mini-games plan D7); a 1.1 one states none.
+    case hello(name:String,appVersion:String,claimID:NetworkSecret?,assistance:NetworkAssistance?=nil,capabilities:NetworkCapabilities?=nil)
     case seatedAck
-    case resume(gameID:NetworkGameID,credential:NetworkSecret)
+    case resume(gameID:NetworkGameID,credential:NetworkSecret,capabilities:NetworkCapabilities?=nil)
     case resync
     /// `assisted`: a hint was shown to the mover this turn (A7).
     case move(gameID:NetworkGameID,commandID:NetworkID,revision:Int,uci:String,assisted:Bool=false)
@@ -130,6 +131,8 @@ public enum NetworkCodec {
         /// 1.1 (A4): written only when they say something, so a message without assistance has the 1.0 shape.
         var assistance:NetworkAssistance?
         var assisted:Bool?
+        /// 1.2 (D7): written only when non-empty, sorted; bounded on decoding.
+        var capabilities:[String]?
         var by:NetworkSide?
         var clocks:NetworkClocks?
         var reason:String?
@@ -139,9 +142,9 @@ public enum NetworkCodec {
         init(_ message:NetworkMessage){
             self.init(type:message.type)
             switch message {
-            case .hello(let name,let appVersion,let claimID,let assistance):self.name=name;self.appVersion=appVersion;self.claimID=claimID;self.assistance=assistance
+            case .hello(let name,let appVersion,let claimID,let assistance,let capabilities):self.name=name;self.appVersion=appVersion;self.claimID=claimID;self.assistance=assistance;self.capabilities=Self.wire(capabilities)
             case .seatedAck,.resync,.resumed,.watching:break
-            case .resume(let gameID,let credential):self.gameID=gameID;self.credential=credential
+            case .resume(let gameID,let credential,let capabilities):self.gameID=gameID;self.credential=credential;self.capabilities=Self.wire(capabilities)
             case .move(let gameID,let commandID,let revision,let uci,let assisted):self.gameID=gameID;self.commandID=commandID;self.revision=revision;self.uci=uci;self.assisted=assisted ? true:nil
             case .resign(let gameID,let commandID):self.gameID=gameID;self.commandID=commandID
             case .drawOffer(let gameID,let commandID,let revision),.claimDraw(let gameID,let commandID,let revision):self.gameID=gameID;self.commandID=commandID;self.revision=revision
@@ -160,6 +163,12 @@ public enum NetworkCodec {
             case .ended(let ended):result=ended.outcome.result;termination=ended.outcome.termination;revision=ended.revision;clocks=ended.clocks
             }
         }
+        private static func wire(_ capabilities:NetworkCapabilities?)->[String]? {capabilities.flatMap{$0.tokens.isEmpty ? nil:$0.tokens}}
+        private func capabilitiesValue()throws -> NetworkCapabilities? {
+            guard let capabilities else{return nil}
+            guard let value=NetworkCapabilities(capabilities) else{throw NetworkCodecError.malformed("invalid capabilities")}
+            return value
+        }
         private func need<T>(_ value:T?,_ field:String)throws -> T {guard let value else{throw NetworkCodecError.malformed("missing \(field)")};return value}
         private func check(_ condition:Bool,_ field:String)throws {guard condition else{throw NetworkCodecError.malformed("invalid \(field)")}}
         private func revisionValue()throws -> Int {let value=try need(revision,"revision");try check((0...NetworkLimits.maximumRevision).contains(value),"revision");return value}
@@ -170,9 +179,9 @@ public enum NetworkCodec {
             switch type {
             case "hello":
                 let name=try need(self.name,"name"),appVersion=try need(self.appVersion,"appVersion");try check(NetworkText.valid(name),"name");try check(NetworkText.valid(appVersion),"appVersion")
-                return .hello(name:name,appVersion:appVersion,claimID:claimID,assistance:assistance)
+                return .hello(name:name,appVersion:appVersion,claimID:claimID,assistance:assistance,capabilities:try capabilitiesValue())
             case "seatedAck":return .seatedAck
-            case "resume":return .resume(gameID:try need(gameID,"gameID"),credential:try need(credential,"credential"))
+            case "resume":return .resume(gameID:try need(gameID,"gameID"),credential:try need(credential,"credential"),capabilities:try capabilitiesValue())
             case "resync":return .resync
             case "move":return .move(gameID:try need(gameID,"gameID"),commandID:try need(commandID,"commandID"),revision:try revisionValue(),uci:try uciValue(),assisted:assisted ?? false)
             case "resign":return .resign(gameID:try need(gameID,"gameID"),commandID:try need(commandID,"commandID"))

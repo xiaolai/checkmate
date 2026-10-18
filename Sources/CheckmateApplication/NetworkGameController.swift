@@ -46,6 +46,9 @@ import OSLog
     public static let assistanceNeeded="Accept this game's assistance to join it."
     public static let leaveConfirmation="Leave the game? It counts as a resignation."
     public static let watchingNotice="You're watching"
+    /// Hosting refused the chosen start (mini-games plan D7).
+    public static let startOver="That position is already over. Choose a different move."
+    public static let startIllegal="That position can't start a game. Choose a different move."
     public static let sendingNotice="Sending…"
 
     // MARK: The shown game
@@ -302,13 +305,18 @@ import OSLog
         let random=services.random,side=form.side.resolved(using:random)
         let gameID=NetworkGameID.random(using:random),seatCode=NetworkCode.random(using:random),watch=form.allowSpectators ? NetworkCode.random(using:random):nil
         let host:NetworkHost
-        do{host=try NetworkHost(gameID:gameID,runEpoch:services.runEpoch,settings:NetworkHostSettings(hostName:name,hostSide:side,timeControl:form.timeControl,allowSpectators:form.allowSpectators,assistance:form.assistance),rules:services.rules,hashing:services.hashing,random:random,at:services.scheduler.now)}
+        // D7: a declared start only while the feature is on; otherwise the standard start, exactly as 1.1 hosts.
+        let start=NetworkPolicy.positionsEnabled ? form.start?.fen:nil
+        do{host=try NetworkHost(gameID:gameID,runEpoch:services.runEpoch,settings:NetworkHostSettings(hostName:name,hostSide:side,timeControl:form.timeControl,allowSpectators:form.allowSpectators,assistance:form.assistance,startFEN:start),rules:services.rules,hashing:services.hashing,random:random,at:services.scheduler.now)}
+        catch NetworkHostError.startOver{lobbyMessage=Self.startOver;return false}
+        catch NetworkHostError.illegalStart{lobbyMessage=Self.startIllegal;return false}
         catch{NativeLog.lifecycle.error("A network game could not be set up: \(String(describing:error),privacy:.public)");lobbyMessage="The game could not be set up.";return false}
         let configuration=NetworkHostingConfiguration(gameID:gameID,seatCode:seatCode,watchCode:watch,serviceName:Self.gameName(host:name),assistance:form.assistance)
         beginSession(.host,name:configuration.serviceName)
         playCode=seatCode;watchCode=watch;learnerSide=side;timeControl=form.timeControl;hostPhase = .waiting
         if side == .white{whiteName=name}else{blackName=name}
-        try? load("");seat = .player(side:side.rawValue);changed()
+        // The board shows the game's own start at once, before the first status: the standard one, or the declared one.
+        try? load((try? host.publicGame(at:services.scheduler.now).pgn) ?? "");seat = .player(side:side.rawValue);changed()
         let session=sessionNumber
         let runner=NetworkHostRunner(host:host,configuration:configuration,transport:services.transport,scheduler:services.scheduler,events:Self.relay(services.delivery){[weak self] (event:NetworkHostRunner.Event) in self?.hosted(event,session:session)})
         self.runner = .host(runner,configuration);runner.start();settle()
@@ -491,6 +499,8 @@ import OSLog
     // MARK: Assistance (assistance plan A1, A7)
     /// The game's terms, as verified (A3); `off` before any record.
     public var assistance:NetworkAssistance {record?.assistance ?? .off}
+    /// The shown game starts from a declared start (mini-games plan D7), as verified.
+    public var declaredStart:Bool {record?.startFEN != nil}
     /// A hint was shown to the learner on their move: the move they make this turn is flagged `assisted` (A7).
     public func hintShown(){guard yourTurn,let gameRevision else{return};assistedTurn=gameRevision}
     /// Whether a hint was shown during the learner's current turn.

@@ -20,6 +20,13 @@ public protocol NetworkChessRules:AnyObject {
     func networkLoad(pgn:String)throws
     /// The moves played since the start of the record, in UCI, in order.
     func networkMoves()throws -> [String]
+    /// Replaces this game with a new one from `fen`, with no moves (mini-games plan D7): it then stands at the FEN its
+    /// rules write back, the canonical start, and its record declares that start. A position the rules refuse, one
+    /// whose side not to move is in check, or one failing `NetworkStart.consistent` throws
+    /// `NetworkRulesError.illegalStart` and leaves the game as it was; any other error is a rules failure.
+    func networkLoad(start fen:String)throws
+    /// The start the loaded record declares: its FEN header, or the standard start when it has none.
+    func networkStartFEN()throws -> String
 }
 public struct NetworkPlayedMove:Equatable {
     public let uci:String,san:String
@@ -37,7 +44,12 @@ public enum NetworkAutomaticEnding:Equatable {
         }
     }
 }
-public enum NetworkRulesError:Error,Equatable {case illegalMove,unexpected(String)}
+public enum NetworkRulesError:Error,Equatable {
+    case illegalMove
+    /// A start no game could have reached (D7); see `networkLoad(start:)`.
+    case illegalStart
+    case unexpected(String)
+}
 /// Makes fresh games: the host's own network game (never `session.rules`, D9), and each scratch game a receiver
 /// replays a snapshot into before trusting it.
 public struct NetworkRulesFactory {

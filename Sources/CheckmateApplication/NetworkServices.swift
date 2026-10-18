@@ -62,5 +62,8 @@ public struct NetworkHostForm:Equatable {
     public var allowSpectators=true
     /// The terms the host offers (assistance plan A2); fixed once the game is hosted.
     public var assistance:NetworkAssistance = .off
+    /// The game-library position the game starts from (mini-games plan D7), or nil for the standard start. Offered
+    /// only with `NetworkPolicy.positionsEnabled`; hosting ignores it otherwise.
+    public var start:NetworkLibraryStart?
     public init(){}
 }

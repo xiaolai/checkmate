@@ -51,24 +51,33 @@ public struct NetworkSnapshotAssembler {
 /// Installs a reassembled snapshot (D2): replay its record on a fresh game, check the result reaches the hash, and
 /// only then hand back a game to replace the receiver's board. Any failure leaves the receiver's board untouched.
 public enum NetworkSnapshotInstaller {
-    /// `moves`: the record's moves in UCI, which replay from the initial position to `fen`.
-    public struct Installed {public let game:NetworkPublicGame,rules:any NetworkChessRules,fen:String,moves:[String]}
+    /// `moves`: the record's moves in UCI, which replay from `start` to `fen`. `start`: the canonical start the record
+    /// declares (mini-games plan D7), the standard start when it declares none; the receiver pins it.
+    public struct Installed {public let game:NetworkPublicGame,rules:any NetworkChessRules,fen:String,moves:[String],start:String}
     public static func install(_ payload:Data,revision:Int,hash:String,gameID:NetworkGameID,rules factory:NetworkRulesFactory,hashing:NetworkHashing)throws -> Installed {
         let game:NetworkPublicGame
         do{game=try JSONDecoder().decode(NetworkPublicGame.self,from:payload)}catch{throw NetworkSnapshotError.badSnapshot("record")}
         guard game.gameID==gameID,game.revision==revision else{throw NetworkSnapshotError.badSnapshot("game")}
         // Making the scratch games is the receiver's own rules failing, not the snapshot's fault: it propagates.
-        let rules=try factory.newGame(),start=try factory.newGame(),opening=try start.networkMoves()
+        let rules=try factory.newGame(),start=try factory.newGame()
+        // D7: the declared start is set up first, on the game the moves are played afresh on. One the rules refuse, or
+        // write back otherwise (not canonical), is not a start any 1.2 host declares.
+        if let declared=game.startFEN {
+            do{try start.networkLoad(start:declared)}catch NetworkRulesError.illegalStart{throw NetworkSnapshotError.badSnapshot("start")}
+            guard try start.networkFEN()==declared else{throw NetworkSnapshotError.badSnapshot("start")}
+        }
+        let opening=try start.networkMoves()
         // The work a replay costs is bounded before any is done (D7): no real game holds more than `maximumPlies`
         // moves, a record holds no more moves than its start's and its revision counts (D2), and its size is bounded by
         // that count, so a longer one is refused unread.
         guard revision<=NetworkLimits.maximumPlies+1,game.pgn.utf8.count<=NetworkLimits.maximumRecordBytes(moves:opening.count+revision),moveTokens(game.pgn,limit:opening.count+revision)<=opening.count+revision else{throw NetworkSnapshotError.badSnapshot("length")}
-        let fen:String,moves:[String]
-        do{try rules.networkLoad(pgn:game.pgn);fen=try rules.networkFEN();moves=try rules.networkMoves()}catch{throw NetworkSnapshotError.badSnapshot("replay")}
+        let fen:String,moves:[String],recordStart:String
+        do{try rules.networkLoad(pgn:game.pgn);fen=try rules.networkFEN();moves=try rules.networkMoves();recordStart=try rules.networkStartFEN()}catch{throw NetworkSnapshotError.badSnapshot("replay")}
         guard hashing.positionHash(fen:fen,revision:revision)==hash else{throw NetworkSnapshotError.badSnapshot("hash")}
-        // The game starts where the rules factory's new game stands: the initial position in the app, where every
-        // network game starts. The record must extend that game, and its moves played afresh from it must reach the
-        // same position, so a record that sets up another start (a SetUp/FEN header) is not this game.
+        // The record's own start (its FEN header) is the declared one (D7): the standard start, with no header, when
+        // none is declared. The record must extend the game set up there, and its moves played afresh from it must
+        // reach the same position, so a record that sets up another start is not this game.
+        guard recordStart==game.start else{throw NetworkSnapshotError.badSnapshot("start")}
         guard moves.count>=opening.count,Array(moves.prefix(opening.count))==opening else{throw NetworkSnapshotError.badSnapshot("start")}
         // The revision counts each move from the start and the end (D2), so it states how many moves the record holds;
         // one that disagrees would misplace every assisted ply (A7).
@@ -77,7 +86,7 @@ public enum NetworkSnapshotInstaller {
         // The board kept is the one played afresh from the start, not the record's own: a record that sets up another
         // start can reach the same position by the same squares while claiming other captures, and those never reach
         // the board, the review record or the coach.
-        return Installed(game:game,rules:start,fen:fen,moves:moves)
+        return Installed(game:game,rules:start,fen:fen,moves:moves,start:game.start)
     }
     /// The move tokens in a record's movetext, counted up to `limit + 1`: every token outside tag pairs, comments and
     /// variations that is not a move number, a result or an annotation. A cheap upper bound on the moves a replay

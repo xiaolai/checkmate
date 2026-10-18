@@ -40,7 +40,8 @@ for a guest's seat and a spectator alike. A connection that does not state them 
 before the host attaches it, reserves or re-answers a seat, replaces the guest's connection, ends a hold, resumes the
 clocks, refreshes spectators or sends a snapshot. Nothing about the game changes: a reserved seat stays reserved
 until its own deadline, a disconnected guest's hold and paused clocks stay as they were, and a running guest's
-connection stays attached.
+connection stays attached. Only a `resume` on the guest's own connection that withdraws a capability closes that
+connection, as any refusal on it does: the guest has dropped, and the hold begins.
 
 This covers the first join, a reservation's recovery by `hello` with the same claim, and `resume` while reserved,
 running or disconnected, for guests and spectators, with the capability present, missing (a 1.1 Mac) or withdrawn (a

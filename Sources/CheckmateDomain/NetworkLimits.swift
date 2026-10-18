@@ -19,8 +19,10 @@ extension Duration {
 public struct NetworkProtocolVersion:Codable,Hashable,CustomStringConvertible {
     public let major:Int,minor:Int
     public init(major:Int,minor:Int){self.major=major;self.minor=minor}
-    /// 1.1 adds the assistance terms and the assisted flags (assistance plan A4); a 1.0 peer ignores them.
-    public static let current=NetworkProtocolVersion(major:1,minor:1)
+    /// 1.1 adds the assistance terms and the assisted flags (assistance plan A4); a 1.0 peer ignores them. 1.2 adds the
+    /// capabilities on `hello` and `resume` and a declared start (mini-games plan D7, `docs/network-protocol-1.2.md`);
+    /// a 1.1 peer ignores them, and a game it could not replay refuses it before anything is sent.
+    public static let current=NetworkProtocolVersion(major:1,minor:2)
     public var description:String {"\(major).\(minor)"}
 }
 /// Every bound of D5 and D7, fixed in advance. Tests assert these values.

@@ -9,21 +9,25 @@ public enum NetworkGameRecord {
     ///
     /// `moves` is the game's SAN as this Mac's own rules replayed the record, never the record's text: a peer's PGN may
     /// carry tags, comments or characters that a text scan would read as moves (a tag value spanning lines, a mark that
-    /// joins a comment's closing brace), and every network game starts from the initial position.
+    /// joins a comment's closing brace). A declared start (mini-games plan D7) is written as SetUp/FEN, and the moves
+    /// are numbered from it.
     public static func reviewPGN(_ game:NetworkPublicGame,moves:[String],on date:Date,calendar:Calendar=Calendar(identifier:.gregorian))->String {
         let day=calendar.dateComponents([.year,.month,.day],from:date)
         let stamp=String(format:"%04d.%02d.%02d",day.year ?? 0,day.month ?? 0,day.day ?? 0)
         let headers=game.recordHeaders(date:stamp).map{"[\($0.name) \"\(escaped($0.value))\"]"}.joined(separator:"\n")
-        return headers+"\n\n"+movetext(moves,result:game.outcome?.result.rawValue ?? "*",assisted:Set(game.assistedPlies))
+        return headers+"\n\n"+movetext(moves,result:game.outcome?.result.rawValue ?? "*",assisted:Set(game.assistedPlies),start:game.start)
     }
     /// The comment after each assisted move (A11). Self-reported by the mover, as the game's wording says.
     static let assistedComment="{Hint shown}"
-    /// Numbered movetext from White's first move, ending in `result`. The plies in `assisted` (counted from 1) are
-    /// followed by `assistedComment`.
-    static func movetext(_ moves:[String],result:String,assisted:Set<Int>=[])->String {
+    /// Numbered movetext from the start's first move, ending in `result`: "37... Kd7 38. Ke5" when Black moves first at
+    /// move 37. The plies in `assisted` (counted from 1) are followed by `assistedComment`.
+    static func movetext(_ moves:[String],result:String,assisted:Set<Int>=[],start:String=NetworkStart.standard)->String {
         var tokens:[String]=[]
+        // Plies counted from White's move of the start's first full move: Black first is ply 1 of that count.
+        let offset=NetworkStart.side(start) == .black ? 1:0,first=NetworkStart.fullmove(start)
         for (index,san) in moves.enumerated() {
-            if index%2==0 {tokens.append("\(index/2+1).")}
+            let ply=index+offset
+            if ply%2==0 {tokens.append("\(first+ply/2).")}else if index==0 {tokens.append("\(first)...")}
             tokens.append(san);if assisted.contains(index+1){tokens.append(assistedComment)}
         }
         return (tokens+[result]).joined(separator:" ")

@@ -12,6 +12,10 @@ public enum NetworkWording {
         public func name(_ side:NetworkSide)->String {(side == .white ? white:black) ?? (side == .white ? "White":"Black")}
         public func subject(_ side:NetworkSide)->String {side==learner ? "You":name(side)}
     }
+    /// The host sheet's note on a declared start (mini-games plan D7): the game is chess from there, never a training goal.
+    public static let startNote="The game is ordinary chess from this position: checkmate wins, and stalemate is a draw. Training goals stay in Training."
+    /// Under the names, in a game from a declared start.
+    public static let declaredStart="This game starts from a set-up position."
     static let pieces=["p":"pawn","n":"knight","b":"bishop","r":"rook","q":"queen","k":"king"]
     /// A move that just landed (D10): "Ben played knight to f3", "You castled kingside", "Ana played pawn to e8,
     /// capturing a rook, promoting to a queen, check".

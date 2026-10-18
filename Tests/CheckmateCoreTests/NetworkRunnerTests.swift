@@ -469,4 +469,6 @@ private final class FailingRules:NetworkChessRules {
     func networkPGN()throws -> String {try rules.networkPGN()}
     func networkLoad(pgn:String)throws {try rules.networkLoad(pgn:pgn)}
     func networkMoves()throws -> [String] {try rules.networkMoves()}
+    func networkLoad(start fen:String)throws {try rules.networkLoad(start:fen)}
+    func networkStartFEN()throws -> String {try rules.networkStartFEN()}
 }

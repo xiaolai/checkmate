@@ -42,6 +42,11 @@ public final class NetworkReceiver {
     /// The terms a guest accepted before joining (assistance plan A3), stated in `hello` and checked against every
     /// snapshot. A spectator accepts nothing: it never gets assistance.
     public let accepted:NetworkAssistance
+    /// What this Mac states in every `hello` and `resume` (mini-games plan D7).
+    public let capabilities:NetworkCapabilities
+    /// The start the first installed snapshot declared (D7), canonical; every later snapshot must declare the same one.
+    /// Kept across reconnects, like the board.
+    public private(set) var pinnedStart:String?
     /// The record as last installed; the live position is `rules`, and `revision`, `openOffer`, `outcome` are current.
     public private(set) var installed:NetworkPublicGame?
     private var rules:(any NetworkChessRules)?
@@ -68,17 +73,19 @@ public final class NetworkReceiver {
     /// Snapshots this Mac did not ask for: each costs a full replay, so they have their own, much smaller, bound.
     private var unsolicitedSnapshots=NetworkRateWindow(limit:NetworkLimits.unsolicitedSnapshotsPerWindow,window:NetworkLimits.unsolicitedSnapshotWindow)
     private var clockSync:(clocks:NetworkClocks,at:NetworkInstant)?
-    public init(gameID:NetworkGameID,role:NetworkReceiverRole,name:String,appVersion:String,rules:NetworkRulesFactory,hashing:NetworkHashing,random:NetworkRandom = .system,accepting accepted:NetworkAssistance = .off){self.gameID=gameID;self.role=role;self.name=name;self.appVersion=appVersion;factory=rules;self.hashing=hashing;self.random=random;self.accepted=accepted}
+    public init(gameID:NetworkGameID,role:NetworkReceiverRole,name:String,appVersion:String,rules:NetworkRulesFactory,hashing:NetworkHashing,random:NetworkRandom = .system,accepting accepted:NetworkAssistance = .off,capabilities:NetworkCapabilities = .supported){self.gameID=gameID;self.role=role;self.name=name;self.appVersion=appVersion;factory=rules;self.hashing=hashing;self.random=random;self.accepted=accepted;self.capabilities=capabilities}
     /// The guest's side, once a snapshot says which side the host took.
     public var side:NetworkSide? {guard case .guest=role else{return nil};return installed?.hostSide.opponent}
     /// The first message on every new connection: a guest holding a credential always resumes (R4-4); otherwise it
     /// claims with its `claimID`. A spectator says hello without one.
     public func opening()->NetworkMessage {
         switch role {
-        case .guest(let claimID):return credential.map{.resume(gameID:gameID,credential:$0)} ?? .hello(name:name,appVersion:appVersion,claimID:claimID,assistance:accepted)
-        case .spectator:return .hello(name:name,appVersion:appVersion,claimID:nil)
+        case .guest(let claimID):return credential.map{.resume(gameID:gameID,credential:$0,capabilities:stated)} ?? .hello(name:name,appVersion:appVersion,claimID:claimID,assistance:accepted,capabilities:stated)
+        case .spectator:return .hello(name:name,appVersion:appVersion,claimID:nil,capabilities:stated)
         }
     }
+    /// None is written as no field at all, as a 1.1 peer sends.
+    private var stated:NetworkCapabilities? {capabilities.tokens.isEmpty ? nil:capabilities}
     /// The connection is gone. A reconnect clears the pending move; the board stays until the next snapshot. The host
     /// pauses the clocks when it loses this peer (D6), so given `now` the clocks freeze at their reading then: however
     /// long the reconnecting takes, and whichever runner does it, they show that reading until a snapshot replaces it.
@@ -186,6 +193,8 @@ public final class NetworkReceiver {
         // The terms (A2) and the time control are fixed when the game is hosted, for every receiver, spectators too.
         if let installed,result.game.hostSide != installed.hostSide || result.game.timeControl != installed.timeControl || result.game.assistance != installed.assistance {output.close = .malformed;return}
         if let current=revision,result.game.revision<current {output.close = .malformed;return}
+        // D7: the start is pinned by the first snapshot installed; any other start, at any revision, is another game.
+        if let pinnedStart,result.start != pinnedStart {output.close = .malformed;return}
         // A game ends once: after its result, a snapshot repeats that game exactly, never another result or more moves.
         if let outcome,result.game.outcome != outcome || result.game.revision != revision {output.close = .malformed;return}
         // What this Mac already verified stays as it was: the new record extends the moves shown, never replaces them,
@@ -194,7 +203,7 @@ public final class NetworkReceiver {
             let shown=try rules.networkMoves()
             guard result.moves.count>=shown.count,Array(result.moves.prefix(shown.count))==shown,result.game.assistedPlies.filter({$0<=shown.count})==assistedPlies.filter({$0<=shown.count}) else{output.close = .malformed;return}
         }
-        installed=result.game;assistedPlies=result.game.assistedPlies;rules=result.rules;fen=result.fen;revision=result.game.revision;synced=true
+        pinnedStart=result.start;installed=result.game;assistedPlies=result.game.assistedPlies;rules=result.rules;fen=result.fen;revision=result.game.revision;synced=true
         openOffer=result.game.openOffer;outcome=result.game.outcome;pendingMove=nil;resyncRequested=false
         clockSync=result.game.clocks.map{($0,now)}
         output.events.append(.installed(revision:result.game.revision))
