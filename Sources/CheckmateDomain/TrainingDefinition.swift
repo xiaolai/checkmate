@@ -12,6 +12,10 @@ public enum TrainingRolloutPolicy {
     /// shipped (plan D8): `CHECKMATE_POSITION_GAMES=1`, on top of Increment B, turns them on. While it is off nothing
     /// writes their values: no position-game entry is offered and no attempt freezes an opponent level.
     public static var positionGamesEnabled:Bool {beginnerEnabled && ProcessInfo.processInfo.environment["CHECKMATE_POSITION_GAMES"] == "1"}
+    /// The voice coach in a standard-rule training game (mini-game plan WI-021), through its own adapter and only after
+    /// the attempt's help is recorded: `CHECKMATE_TRAINING_VOICE=1`, on top of training. While it is off the coach
+    /// cannot connect in training at all, as before.
+    public static var trainingVoiceEnabled:Bool {enabled && ProcessInfo.processInfo.environment["CHECKMATE_TRAINING_VOICE"] == "1"}
     /// Whether an entry is offered: Increment A always, Increment B only with its preview enabled, position games only
     /// with theirs.
     public static func offered(_ definition:TrainingEntryDefinition)->Bool {definition.objective == .positionGame ? positionGamesEnabled:definition.increment == .foundations || beginnerEnabled}

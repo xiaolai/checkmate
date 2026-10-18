@@ -18,6 +18,8 @@
   {"file": "Sources/CheckmateApplication/TrainingEndgameController.swift", "function": "gameHint", "calls": 1, "kind": "guarded"},
   {"file": "Sources/CheckmateApplication/TrainingOpponent.swift", "function": "choose", "calls": 1, "kind": "guarded",
    "reason": "A training game's opponent (mini-game plan D4): TrainingEndgameController.requestReply checks engineHelpAllowed before asking and again in its task; choose checks requireEngineHelp before its search or the beginner opponent's, which checks again before each further search."},
+  {"file": "Sources/CheckmateApplication/TrainingVoiceAdapter.swift", "function": "search", "calls": 1, "kind": "guarded",
+   "reason": "The training game's voice coach (mini-game plan WI-021): its coaching search checks requireEngineHelp in its task before the search and again after it, searches only the training game's own history, is refused while the defender thinks and is cancelled when the defender starts."},
   {"file": "Sources/CheckmateMacPlatform/VoiceCoach.swift", "function": "ask", "calls": 1, "kind": "voice",
    "reason": "A voice turn starts only under voiceAllowed(network:): D8 for a practice session, the agreed level for a network session (assistance plan A10)."},
   {"file": "Sources/CheckmateMacPlatform/VoiceCoach.swift", "function": "recheck", "calls": 1, "kind": "voice",

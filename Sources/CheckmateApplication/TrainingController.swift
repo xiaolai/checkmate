@@ -296,14 +296,36 @@ public struct PreparedTrainingExercise {
         case .legal:break
         }
     }
-    /// An agent's submission or hint on the learner's behalf: the attempt is recorded as helped before it applies.
-    /// Refused while the defender is thinking: saving would advance the revision its pending reply was asked for.
-    /// Returns whether the shown attempt is recorded as helped (already, or by this save). When false nothing was
-    /// recorded and the caller must not apply the help: graded, it would count as the learner's unassisted work.
-    @discardableResult public func recordAgentHelp()->Bool {
-        guard interactive,var state=exercise,!state.finished,!games.thinking else{return false}
-        guard !state.snapshot.recordedHelp else{return true}
-        state.snapshot.recordedHelp=true;return save(state)
+    /// What recording an agent's help did (mini-game plan D5). Only `recorded` and `alreadyRecorded` leave the shown
+    /// attempt recorded as helped (`helped`); every other outcome recorded nothing, and the caller must not apply or
+    /// disclose the help: graded, it would count as the learner's unassisted work.
+    public enum AgentHelpOutcome:String,Equatable,CaseIterable {
+        /// Saved now: the attempt's revision advanced by one.
+        case recorded
+        /// The attempt was already recorded as helped; nothing was saved.
+        case alreadyRecorded
+        /// The defender is choosing its reply: saving would advance the revision its reply was asked for.
+        case defenderThinking
+        /// The attempt has ended.
+        case finished
+        /// No attempt is shown, or a review over it owns the board.
+        case stale
+        /// The attempt could no longer be saved: too many actions, the revision bound, or the storage budget.
+        case storageFull
+        /// Training records are read-only, so no help can be recorded.
+        case unwritable
+        public var helped:Bool {self == .recorded || self == .alreadyRecorded}
+    }
+    /// An agent's submission, hint or coaching on the learner's behalf: the attempt is recorded as helped before it
+    /// applies. Refused while the defender is thinking: saving would advance the revision its pending reply was asked
+    /// for. An exercise starts and resumes only while training is writable, so `unwritable` is a guard, not a path.
+    @discardableResult public func recordAgentHelp()->AgentHelpOutcome {
+        guard interactive,var state=exercise else{return .stale}
+        guard !state.finished else{return .finished}
+        guard !games.thinking else{return .defenderThinking}
+        guard session.state.trainingWritable else{return .unwritable}
+        guard !state.snapshot.recordedHelp else{return .alreadyRecorded}
+        state.snapshot.recordedHelp=true;return save(state) ? .recorded:.storageFull
     }
     /// Replaces the selected squares, as an agent relaying the learner's choice does. Never grades.
     public func replaceSelection(_ squares:[String]){guard interactive,var state=exercise,!state.finished,state.task == .select else{return};state.selection=Array(Set(squares.filter(ChessNotation.validSquare))).sorted();exercise=state;publish()}

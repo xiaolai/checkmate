@@ -193,7 +193,7 @@ import CheckmateCore
         let atBound=session.state.training?.active
         XCTAssertFalse(controller.hint(),"a hint that cannot be saved is reported as not given")
         XCTAssertEqual(controller.exercise?.hintLevel,0);XCTAssertEqual(session.state.training?.active,atBound)
-        XCTAssertFalse(controller.recordAgentHelp(),"help that cannot be saved is reported as not recorded")
+        XCTAssertEqual(controller.recordAgentHelp(),.storageFull,"help that cannot be saved is reported as not recorded")
         XCTAssertEqual(controller.exercise?.snapshot.recordedHelp,false);XCTAssertEqual(session.state.training?.active,atBound)
     }
     /// A Continue prepared before newer progress was saved is refused: its replay lacks that progress, and entering it

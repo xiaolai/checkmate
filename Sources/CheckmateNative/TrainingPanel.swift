@@ -15,7 +15,7 @@ struct TrainingPanel:View {
             ForEach(definition.rules,id:\.self){Text($0).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)}
             if scenario.drill != nil {Text(scenario.budget.map{"Moves: \(exercise.movesUsed) of \($0)"} ?? "Moves: \(exercise.movesUsed)").accessibilityIdentifier("training-moves")}
             answerControls(exercise)
-            if exercise.task == .game {gameControls(exercise)}
+            if exercise.task == .game {gameControls(exercise);if model.voice.training != nil{TrainingVoiceCoach(voice:model.voice)}}
             // A moment retried from a finished guided game leads back to that game's review.
             if training.guidedReview != nil,scenario.check == .moment{Button("Back to your game"){training.returnToGuidedGame()}.accessibilityIdentifier("training-back-to-game")}
             // A finished attempt refuses a promotion, so its chooser is not offered.
@@ -118,6 +118,26 @@ struct TrainingPanel:View {
         case .suspended:return "Withdrawn · not counted"
         case .ended:return "Game ended · not counted"
         case .active:return ""
+        }
+    }
+}
+/// The training game's voice coach (mini-game plan WI-021, behind its flag), as practice shows it: its status, its
+/// controls and the latest of what was said. Connecting records nothing; the attempt is marked helped only once the
+/// coach first tells the learner something about the board.
+struct TrainingVoiceCoach:View {
+    @ObservedObject var voice:VoiceCoach
+    var body:some View {
+        if voice.trainingSession || voice.trainingVoiceAvailable || !voice.history.isEmpty && voice.status != "Disconnected" {
+            Divider();Text("Voice coach").font(.headline)
+            if voice.status != "Disconnected" || voice.connected {Text(voice.status).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("training-voice-status")}
+            if voice.connected,voice.trainingSession {
+                HStack {
+                    Button("Stop Speaking"){voice.stopTurn()}.disabled(!voice.canStopTurn).accessibilityIdentifier("training-voice-stop")
+                    Button("Disconnect Coach"){voice.disconnect()}.accessibilityIdentifier("training-voice-disconnect")
+                }
+            } else if voice.connecting {Button("Cancel Voice Coach"){voice.disconnect()}.accessibilityIdentifier("training-voice-cancel")}
+            else if voice.trainingVoiceAvailable {Button("Connect Voice Coach"){voice.connectTraining()}.accessibilityIdentifier("training-voice-connect")}
+            if voice.trainingSession || voice.history.last?.context=="Training game" {ForEach(Array(voice.history.suffix(3).reversed())){entry in Text((entry.role=="learner" ? "You: ":"Coach: ")+entry.text).font(.caption).fixedSize(horizontal:false,vertical:true)}}
         }
     }
 }

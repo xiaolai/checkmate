@@ -3,9 +3,11 @@
 Every action is a posted mouse event (accessibility presses bypass hit-testing): the Beginner skills section and a
 subskill chip, the promotion chooser cancelled and then answered, a normal-chess bridge opened from an existing game,
 a Finish the Game move answered by the bundled offline Stockfish defender, then taken back, the opponent level
-picker (a game with no move takes the level, one in progress keeps its own and offers a new game at it), a mixed case whose topic
-appears only after the answer, a guided game played, ended and reviewed, and a related lesson read and left for training. The app runs with its
-own automation identifier and data directory, with training, its B preview and position games enabled.
+picker (a game with no move takes the level, one in progress keeps its own and offers a new game at it), the training
+game's voice coach connected from the bar and disconnected from the drawer with the silent voice double (connecting records
+no help), a mixed case whose topic appears only after the answer, a guided game played, ended and reviewed, and a related
+lesson read and left for training. The app runs with its own automation identifier and data directory, with training, its
+B preview, position games and the training voice coach enabled.
 """
 import atexit
 import json
@@ -27,12 +29,15 @@ helper = evidence / "training-b-pointer-helper"
 lister = evidence / "training-b-pointer-ax-helper"
 subprocess.run(["xcrun", "swiftc", str(root / "Tools/pointer-helper.swift"), "-o", str(helper)], check=True)
 subprocess.run(["xcrun", "swiftc", str(root / "Tools/ax-helper.swift"), "-o", str(lister)], check=True)
-command = [str(root / "build/CheckmateAutomation.app/Contents/MacOS/CheckmateNative"), "--automation", "--data-dir", str(state)]
+# The silent voice double stands in for the realtime service: nothing leaves the Mac, no audio plays, no microphone opens.
+command = [str(root / "build/CheckmateAutomation.app/Contents/MacOS/CheckmateNative"), "--automation", "--data-dir", str(state), "--voice-double"]
 environment = {key: value for key, value in os.environ.items() if key != "CHECKMATE_AUTOMATION"}
 environment["CHECKMATE_TRAINING_ENABLED"] = "1"
 environment["CHECKMATE_TRAINING_B"] = "1"
 # Position games and opponent levels (mini-game plan WI-017), default off for users.
 environment["CHECKMATE_POSITION_GAMES"] = "1"
+# The voice coach in a standard-rule training game (mini-game plan WI-021), default off for users.
+environment["CHECKMATE_TRAINING_VOICE"] = "1"
 process = None
 PIECES = {"n": "knight", "b": "bishop", "r": "rook", "q": "queen"}
 COLOURS = {"w": "White", "b": "Black"}
@@ -258,6 +263,19 @@ try:
     wait(lambda: "training-new-level" not in listing(), "The new game still offered another one")
     level_picker = True
 
+    # The training game's voice coach (mini-game plan WI-021), on this fresh game: the bar's microphone connects it,
+    # connecting records no help, and the drawer's Disconnect Coach ends it.
+    assert not active().get("recordedHelp"), "fixture: the new game already had recorded help"
+    pointer("click", "bar-voiceConnect")
+    wait(lambda: "training-voice-disconnect" in listing() and "training-voice-status" in listing(), "Connecting the training coach did not open its session")
+    time.sleep(SAVE_SETTLE)
+    assert not active().get("recordedHelp") and not active()["actions"], "Connecting the coach recorded help"
+    pointer("click", "training-voice-disconnect")
+    wait(lambda: "training-voice-connect" in listing() and "training-voice-disconnect" not in listing(), "Disconnect Coach did not end the session")
+    time.sleep(SAVE_SETTLE)
+    assert not active().get("recordedHelp"), "The coach's session recorded help"
+    training_voice = True
+
     # Mixed practice: no topic before the answer; after it, the topic is shown.
     open_library()
     pointer("click", "training-entry-mixed-practice")
@@ -305,7 +323,7 @@ try:
     lesson_link = True
 
     result = {"passed": True, "beginnerLibrary": beginner_library, "variantChip": variant_chip, "promotionCancelled": promotion_cancelled,
-              "promotionChosen": promotion_chosen, "bridgeOpened": bridge_opened, "endingReply": ending_reply, "endingTakeBack": ending_take_back, "barAndCommandZTakeBack": bar_and_command_z_take_back, "levelPicker": level_picker,
+              "promotionChosen": promotion_chosen, "bridgeOpened": bridge_opened, "endingReply": ending_reply, "endingTakeBack": ending_take_back, "barAndCommandZTakeBack": bar_and_command_z_take_back, "levelPicker": level_picker, "trainingVoice": training_voice,
               "mixedTopicAfterAnswer": mixed_topic_after_answer, "guidedGame": guided_game, "guidedReview": guided_review, "lessonLink": lesson_link}
     (evidence / "training-b-pointer-results.json").write_text(json.dumps(result, indent=2))
     print(json.dumps(result))

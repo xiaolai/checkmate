@@ -11,6 +11,8 @@ import RealtimeConnection
     let review=ReviewController()
     /// The training library and its exercises; nil while training is not enabled for this build (plan: rollout flag).
     let training:TrainingController?
+    /// The voice coach's door into a standard-rule training game (mini-game plan WI-021); nil unless its flag is on.
+    let trainingVoice:TrainingVoiceAdapter?
     let reviewStore:ReviewStore,reviewAnalyzer:ReviewAnalyzer
     /// The network-game fairness check every engine and voice component shares (LAN-play plan D8), and the network game.
     let fairness:FairnessPolicy,network:NetworkGameController
@@ -76,6 +78,7 @@ import RealtimeConnection
         reviewSaves=ReviewSaveCoordinator(store:reviewStore)
         session=try GameSession(engine:engine,state:state,fairness:fairness);review.fairness=fairness;network=try NetworkGameController(services:Self.networkServices(directory:store.directory),participation:fairness.participation,playerName:Self.defaultPlayerName);session.network=network;networkAssistant=NetworkAssistant(game:network,fairness:fairness,engine:engine);learning=try LearningPlayer(session:session);audio=NativeAudio(scores:learning.library.sounds);learning.audio=audio
         training=TrainingRolloutPolicy.enabled ? TrainingController(session:session,learning:learning):nil;training?.games.engine=engine;training?.games.fairness=fairness
+        if TrainingRolloutPolicy.trainingVoiceEnabled,let training{trainingVoice=TrainingVoiceAdapter(session:session,controller:training)}else{trainingVoice=nil}
         companion=try CompanionBroker(session:session,directory:store.directory.appendingPathComponent("companion"));voice=try VoiceCoach(session:session)
         usage=UsageLedger(directory:store.directory.appendingPathComponent("Usage"))
         if NativePolicy.silent,ProcessInfo.processInfo.environment["CHECKMATE_LESSON_FIXTURE"]=="1" {
@@ -108,7 +111,7 @@ import RealtimeConnection
     var networkSettingsRequests=0
     /// Lesson languages share the one narration channel and the voice coach's connection.
     private func wireLessonLanguages(){
-        learning.packs=lessonLanguages.store;voice.usageLedger=usage;voice.network=(network,networkAssistant);voice.connectionBlocked={[weak self] in self?.lessonLanguages.recording==true || self?.audio.isNarrationPlaying==true || self?.voicePreview.playing==true}
+        learning.packs=lessonLanguages.store;voice.usageLedger=usage;voice.network=(network,networkAssistant);voice.training=trainingVoice;voice.connectionBlocked={[weak self] in self?.lessonLanguages.recording==true || self?.audio.isNarrationPlaying==true || self?.voicePreview.playing==true}
         voice.connectionBlockReason={[weak self] in self?.lessonLanguages.recording==true ? "Finish or cancel lesson recording before connecting the voice coach.":self?.voicePreview.playing==true ? "Wait for the voice preview to finish before connecting the voice coach.":"Stop lesson or preview playback before connecting the voice coach."}
         reconnectVoice={[weak self] in self?.voice.connect(greet:false)}
         voicePreview.usageLedger=usage;voicePreview.onPlayingChanged={[weak self] playing in self?.voice.externalPlayback=playing}
@@ -195,7 +198,7 @@ import RealtimeConnection
     func connectNetworkVoice(){voice.connect()}
     var reconnectVoice:()->Void={}
     private var claimsWhenVoiceLeft=0
-    private func rememberVoice(){if !voice.networkSession,voice.miniReviewSession==nil,voice.connected || voice.connecting{voiceResumeIntent=true;claimsWhenVoiceLeft=session.companionClaims}}
+    private func rememberVoice(){if !voice.networkSession,voice.miniReviewSession==nil,!voice.trainingSession,voice.connected || voice.connecting{voiceResumeIntent=true;claimsWhenVoiceLeft=session.companionClaims}}
     func resumeVoiceIfIntended(){
         guard voiceResumeIntent,!away,!shuttingDown,voiceMayConnect else{return}
         if session.companionEnabled || session.companionClaims != claimsWhenVoiceLeft{voiceResumeIntent=false;return}
@@ -534,7 +537,7 @@ import RealtimeConnection
         case .returnToGame:break
         // A coach opened for the network game (assistance plan A10) coaches it only on its own page; the network page
         // itself keeps it, and ends a practice session.
-        case .practice:if !reviewing{learning.pause()};if voice.networkSession || voice.miniReviewSession != nil{voice.disconnect()};audio.stop()
+        case .practice:if !reviewing{learning.pause()};if voice.networkSession || voice.miniReviewSession != nil || voice.trainingSession{voice.disconnect()};audio.stop()
         // A lesson's player is paused too: its timer would otherwise narrate and auto-advance into a lesson (D8).
         case .network:learning.pause();if !voice.networkSession{rememberVoice();voice.disconnect()};audio.stop()
         case .lesson,.puzzles:rememberVoice();voice.disconnect();audio.stop()

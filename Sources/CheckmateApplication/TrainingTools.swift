@@ -48,7 +48,7 @@ import Foundation
                 try learnerMayAct(exercise)
             }
             // Help that could not be recorded is never applied: graded, it would count as the learner's own work.
-            guard controller.recordAgentHelp() else{throw ProtocolFailure("UNAVAILABLE",refusal("The help could not be recorded, so nothing was done."))}
+            guard controller.recordAgentHelp().helped else{throw ProtocolFailure("UNAVAILABLE",refusal("The help could not be recorded, so nothing was done."))}
             switch kind {
             case "select":controller.replaceSelection(a["squares"] as! [String])
             case "submit":controller.submit()

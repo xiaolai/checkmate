@@ -212,10 +212,12 @@ struct TransportContent:View {
     var voiceState:ControlBarVoice {
         if voice.connecting{return .connecting(voice.status)}
         if voice.connected{return .on(microphone:session.state.settings.voiceMicrophone,canStop:voice.canStopTurn)}
-        return .off(available:!session.companionEnabled)
+        return .off(available:session.mode == .training ? voice.trainingVoiceAvailable:!session.companionEnabled)
     }
+    /// The training game's coach is offered: its flag, and a game being played or a session open for it.
+    var trainingVoice:Bool {voice.training != nil && (voice.trainingSession || voice.trainingVoiceAvailable)}
     /// The bar for what is shown now; the Lesson menu reads the same model, so menu and bar always agree.
-    var barModel:ControlBarModel {ControlBarModel.make(session:session,learning:learning,review:review,training:training,voice:voiceState)}
+    var barModel:ControlBarModel {ControlBarModel.make(session:session,learning:learning,review:review,training:training,voice:voiceState,trainingVoice:trainingVoice)}
     var body:some View {ControlBarView(model:barModel,perform:perform,rowsChanged:rowsChanged,framesChanged:framesChanged)}
     /// What each control does; the model decides only which controls show and whether they can act.
     func perform(_ action:ControlBarAction){
@@ -243,7 +245,7 @@ struct TransportContent:View {
         case .demoPrevious:if let d=session.demonstration{try? session.seekDemo(line:d.line,ply:max(0,d.ply-1))}
         case .demoPlayPause:if let d=session.demonstration{d.playing ? session.pauseDemo():session.playDemo()}
         case .demoNext:if let d=session.demonstration{try? session.seekDemo(line:d.line,ply:min(d.lines[d.line].frames.count-1,d.ply+1))}
-        case .voiceConnect:voice.connect()
+        case .voiceConnect:if session.mode == .training{voice.connectTraining()}else{voice.connect()}
         case .voiceCancel,.voiceDisconnect:voice.disconnect()
         case .voiceMicrophone:var settings=session.state.settings;settings.voiceMicrophone.toggle();session.updateSettings(settings)
         case .voiceStop:voice.stopTurn()

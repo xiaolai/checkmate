@@ -291,6 +291,7 @@
     "endingTakeBack",
     "barAndCommandZTakeBack",
     "levelPicker",
+    "trainingVoice",
     "mixedTopicAfterAnswer",
     "guidedGame",
     "guidedReview",
@@ -311,7 +312,8 @@
     "Sources/CheckmateCore/Resources/training/*",
     "Sources/CheckmateCore/Resources/training-search.js",
     "Sources/CheckmateEngine/*",
-    "Sources/CheckmateDomain/Activity.swift"
+    "Sources/CheckmateDomain/Activity.swift",
+    "Sources/CheckmateMacPlatform/VoiceCoach.swift"
    ]
   },
   {
