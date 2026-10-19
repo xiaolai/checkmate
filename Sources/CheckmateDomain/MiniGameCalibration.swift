@@ -5,8 +5,9 @@ import Foundation
 /// and writes `Content/calibration/mini-game-results.json`, from which `verdict` derives each game's offered levels.
 /// `MiniGameOffering.table` holds them, and a unit test keeps the two equal.
 public enum MiniGameCalibration {
-    /// The entry kinds the harness plays. Simplified games use the mini-game search; standard-rule entries (Stockfish)
-    /// join after WI-017 as a second kind with their own references and identity, and are refused until then.
+    /// The entry kinds this manifest holds: simplified games, played with the mini-game search. Standard-rule entries
+    /// (Stockfish) are the second kind, `standard`, with their own manifest, references and identity
+    /// (`PositionGameCalibration`), so they are refused here.
     public static let entryKinds=["simplified"]
     public static let references=["random","greedy","level-below"]
     /// The files, relative to the package root, whose contents decide a calibration game or its verdict. The harness
@@ -88,7 +89,7 @@ public enum MiniGameCalibration {
         let competitive=MiniGameKind.allCases.filter{!$0.solo}.map(\.rawValue)
         require(manifest.entries.map(\.game).sorted()==competitive.sorted(),"entries must name every competitive game exactly once: \(competitive)")
         for entry in manifest.entries {
-            require(entryKinds.contains(entry.kind),"\(entry.game): entry kind \(entry.kind) is not played yet (standard-rule entries follow WI-017)")
+            require(entryKinds.contains(entry.kind),"\(entry.game): entry kind \(entry.kind) is not played here (standard-rule entries belong in position-game-manifest.json)")
             require(entry.start=="initial","\(entry.game): the only start is the game's initial position")
             require(references.contains(entry.accessibility.reference) && entry.accessibility.reference != "level-below","\(entry.game): accessibility is measured against a fixed reference")
             require(entry.accessibility.minimumReferenceScore>0 && entry.accessibility.minimumReferenceScore<1,"\(entry.game): accessibility threshold must be inside (0, 1)")

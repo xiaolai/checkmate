@@ -1,0 +1,373 @@
+{
+ "schema": 1,
+ "levels": [
+  "gentle",
+  "steady",
+  "strong"
+ ],
+ "references": [
+  "random",
+  "greedy",
+  "level-below"
+ ],
+ "gamesPerPairing": 100,
+ "drawScore": 0.5,
+ "maximumPlies": 400,
+ "seed": "c0ffee0020",
+ "passRule": {
+  "reference": "greedy",
+  "minimumDifference": 0.1,
+  "confidence": 0.95,
+  "headToHead": {
+   "saturatedScore": 0.9,
+   "minimumScore": 0.6,
+   "lowerBoundAbove": 0.5
+  }
+ },
+ "opponent": {
+  "policyVersion": 1,
+  "gentleSearchNodes": 60000,
+  "gentleDecisionNodes": 300000,
+  "engineNodes": 250000,
+  "steadySkill": 3,
+  "strongSkill": 20
+ },
+ "entries": [
+  {
+   "kind": "standard",
+   "entry": "pawn-race",
+   "variant": "kpk",
+   "check": "positionGame",
+   "learner": "w",
+   "starts": [
+    {
+     "scenario": "pr-a4",
+     "fen": "8/8/8/8/P7/8/6k1/K7 w - - 0 1"
+    },
+    {
+     "scenario": "pr-c4",
+     "fen": "8/8/7k/8/2P5/8/8/K7 w - - 0 1"
+    },
+    {
+     "scenario": "pr-h2",
+     "fen": "8/8/8/8/8/8/k6P/6K1 w - - 0 1"
+    },
+    {
+     "scenario": "pr-c5",
+     "fen": "2k5/8/2K5/2P5/8/8/8/8 w - - 0 1"
+    },
+    {
+     "scenario": "pr-e2",
+     "fen": "4k3/8/8/8/8/4K3/4P3/8 w - - 0 1"
+    },
+    {
+     "scenario": "pr-g2",
+     "fen": "8/8/8/8/1k6/8/5KP1/8 w - - 0 1"
+    },
+    {
+     "scenario": "pr-d2",
+     "fen": "8/8/3k4/8/8/3K4/3P4/8 w - - 0 1"
+    },
+    {
+     "scenario": "pr-b2",
+     "fen": "8/8/1k6/8/1K6/8/1P6/8 w - - 0 1"
+    },
+    {
+     "scenario": "pr-f2",
+     "fen": "8/8/k7/8/8/8/5P2/6K1 w - - 0 1"
+    }
+   ],
+   "sides": [
+    "b"
+   ],
+   "references": [
+    "random",
+    "greedy"
+   ],
+   "scoring": "goal",
+   "accessibility": {
+    "reference": "greedy",
+    "minimumReferenceScore": 0.3
+   }
+  },
+  {
+   "kind": "standard",
+   "entry": "pawn-war",
+   "variant": "pawns",
+   "check": "positionGame",
+   "learner": "w",
+   "starts": [
+    {
+     "scenario": "pw-pawns",
+     "fen": "4k3/pppppppp/8/8/8/8/PPPPPPPP/4K3 w - - 0 1"
+    }
+   ],
+   "sides": [
+    "w",
+    "b"
+   ],
+   "references": [
+    "random",
+    "greedy",
+    "level-below"
+   ],
+   "scoring": "chess",
+   "accessibility": {
+    "reference": "greedy",
+    "minimumReferenceScore": 0.3
+   }
+  },
+  {
+   "kind": "standard",
+   "entry": "cut-down-chess",
+   "variant": "knights",
+   "check": "positionGame",
+   "learner": "w",
+   "starts": [
+    {
+     "scenario": "cd-knights",
+     "fen": "1n2k1n1/pppppppp/8/8/8/8/PPPPPPPP/1N2K1N1 w - - 0 1"
+    }
+   ],
+   "sides": [
+    "w",
+    "b"
+   ],
+   "references": [
+    "random",
+    "greedy",
+    "level-below"
+   ],
+   "scoring": "chess",
+   "accessibility": {
+    "reference": "greedy",
+    "minimumReferenceScore": 0.3
+   }
+  },
+  {
+   "kind": "standard",
+   "entry": "cut-down-chess",
+   "variant": "bishops",
+   "check": "positionGame",
+   "learner": "w",
+   "starts": [
+    {
+     "scenario": "cd-bishops",
+     "fen": "2b1kb2/pppppppp/8/8/8/8/PPPPPPPP/2B1KB2 w - - 0 1"
+    }
+   ],
+   "sides": [
+    "w",
+    "b"
+   ],
+   "references": [
+    "random",
+    "greedy",
+    "level-below"
+   ],
+   "scoring": "chess",
+   "accessibility": {
+    "reference": "greedy",
+    "minimumReferenceScore": 0.3
+   }
+  },
+  {
+   "kind": "standard",
+   "entry": "cut-down-chess",
+   "variant": "rooks",
+   "check": "positionGame",
+   "learner": "w",
+   "starts": [
+    {
+     "scenario": "cd-rooks",
+     "fen": "r3k2r/pppppppp/8/8/8/8/PPPPPPPP/R3K2R w KQkq - 0 1"
+    }
+   ],
+   "sides": [
+    "w",
+    "b"
+   ],
+   "references": [
+    "random",
+    "greedy",
+    "level-below"
+   ],
+   "scoring": "chess",
+   "accessibility": {
+    "reference": "greedy",
+    "minimumReferenceScore": 0.3
+   }
+  },
+  {
+   "kind": "standard",
+   "entry": "cut-down-chess",
+   "variant": "queens",
+   "check": "positionGame",
+   "learner": "w",
+   "starts": [
+    {
+     "scenario": "cd-queens",
+     "fen": "3qk3/pppppppp/8/8/8/8/PPPPPPPP/3QK3 w - - 0 1"
+    }
+   ],
+   "sides": [
+    "w",
+    "b"
+   ],
+   "references": [
+    "random",
+    "greedy",
+    "level-below"
+   ],
+   "scoring": "chess",
+   "accessibility": {
+    "reference": "greedy",
+    "minimumReferenceScore": 0.3
+   }
+  },
+  {
+   "kind": "standard",
+   "entry": "cut-down-chess",
+   "variant": "minor-pieces",
+   "check": "positionGame",
+   "learner": "w",
+   "starts": [
+    {
+     "scenario": "cd-minor-pieces",
+     "fen": "1nb1kbn1/pppppppp/8/8/8/8/PPPPPPPP/1NB1KBN1 w - - 0 1"
+    }
+   ],
+   "sides": [
+    "w",
+    "b"
+   ],
+   "references": [
+    "random",
+    "greedy",
+    "level-below"
+   ],
+   "scoring": "chess",
+   "accessibility": {
+    "reference": "greedy",
+    "minimumReferenceScore": 0.3
+   }
+  },
+  {
+   "kind": "standard",
+   "entry": "cut-down-chess",
+   "variant": "major-pieces",
+   "check": "positionGame",
+   "learner": "w",
+   "starts": [
+    {
+     "scenario": "cd-major-pieces",
+     "fen": "r2qk2r/pppppppp/8/8/8/8/PPPPPPPP/R2QK2R w KQkq - 0 1"
+    }
+   ],
+   "sides": [
+    "w",
+    "b"
+   ],
+   "references": [
+    "random",
+    "greedy",
+    "level-below"
+   ],
+   "scoring": "chess",
+   "accessibility": {
+    "reference": "greedy",
+    "minimumReferenceScore": 0.3
+   }
+  },
+  {
+   "kind": "standard",
+   "entry": "two-bishop-mate",
+   "variant": "kbbk",
+   "check": "positionGame",
+   "learner": "w",
+   "starts": [
+    {
+     "scenario": "tb-g8",
+     "fen": "6k1/8/4K3/8/3BB3/8/8/8 w - - 0 1"
+    },
+    {
+     "scenario": "tb-b6",
+     "fen": "k7/8/1K6/8/8/8/3BB3/8 w - - 0 1"
+    },
+    {
+     "scenario": "tb-d5",
+     "fen": "8/8/8/3k4/8/8/8/2B1KB2 w - - 0 1"
+    },
+    {
+     "scenario": "tb-c6",
+     "fen": "8/8/2k5/8/8/3K4/2BB4/8 w - - 0 1"
+    },
+    {
+     "scenario": "tb-e6",
+     "fen": "8/8/4k3/8/8/8/8/B3K2B w - - 0 1"
+    },
+    {
+     "scenario": "tb-f7",
+     "fen": "8/5k2/8/8/8/8/8/1BB1K3 w - - 0 1"
+    }
+   ],
+   "sides": [
+    "b"
+   ],
+   "references": [
+    "random",
+    "greedy"
+   ],
+   "scoring": "goal",
+   "accessibility": {
+    "reference": "greedy",
+    "minimumReferenceScore": 0.3
+   }
+  },
+  {
+   "kind": "standard",
+   "entry": "finish-the-game",
+   "variant": "krk",
+   "check": "ending",
+   "learner": "w",
+   "starts": [
+    {
+     "scenario": "fg-krk-w-1",
+     "fen": "k7/8/8/3K4/8/8/8/5R2 w - - 0 1"
+    },
+    {
+     "scenario": "fg-krk-w-2",
+     "fen": "8/5R2/8/8/8/4K3/7k/8 w - - 0 1"
+    },
+    {
+     "scenario": "fg-krk-w-3",
+     "fen": "8/8/8/8/8/1k6/5R2/3K4 w - - 0 1"
+    },
+    {
+     "scenario": "fg-krk-w-4",
+     "fen": "7K/8/8/6R1/8/8/1k6/8 w - - 0 1"
+    },
+    {
+     "scenario": "fg-krk-w-5",
+     "fen": "8/8/8/2k5/6R1/8/8/5K2 w - - 0 1"
+    },
+    {
+     "scenario": "fg-krk-w-6",
+     "fen": "K7/8/5k2/R7/8/8/8/8 w - - 0 1"
+    }
+   ],
+   "sides": [
+    "b"
+   ],
+   "references": [
+    "random",
+    "greedy"
+   ],
+   "scoring": "goal",
+   "accessibility": {
+    "reference": "greedy",
+    "minimumReferenceScore": 0.3
+   }
+  }
+ ]
+}

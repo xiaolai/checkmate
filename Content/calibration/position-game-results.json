@@ -1,0 +1,3408 @@
+{
+  "endings" : {
+    "cut-down-chess\/bishops|gentle|greedy" : {
+      "automaticDraw" : 46,
+      "learnerGaveMate" : 3,
+      "learnerMated" : 4,
+      "plyCap" : 19,
+      "stalemate" : 28
+    },
+    "cut-down-chess\/bishops|gentle|random" : {
+      "automaticDraw" : 8,
+      "learnerGaveMate" : 49,
+      "learnerMated" : 42,
+      "plyCap" : 1
+    },
+    "cut-down-chess\/bishops|steady|greedy" : {
+      "automaticDraw" : 1,
+      "learnerGaveMate" : 50,
+      "learnerMated" : 49
+    },
+    "cut-down-chess\/bishops|steady|level-below" : {
+      "learnerGaveMate" : 50,
+      "learnerMated" : 50
+    },
+    "cut-down-chess\/bishops|steady|random" : {
+      "learnerGaveMate" : 50,
+      "learnerMated" : 50
+    },
+    "cut-down-chess\/bishops|strong|greedy" : {
+      "learnerGaveMate" : 50,
+      "learnerMated" : 50
+    },
+    "cut-down-chess\/bishops|strong|level-below" : {
+      "learnerGaveMate" : 50,
+      "learnerMated" : 50
+    },
+    "cut-down-chess\/bishops|strong|random" : {
+      "learnerGaveMate" : 50,
+      "learnerMated" : 50
+    },
+    "cut-down-chess\/knights|gentle|greedy" : {
+      "automaticDraw" : 45,
+      "learnerGaveMate" : 4,
+      "learnerMated" : 5,
+      "plyCap" : 21,
+      "stalemate" : 25
+    },
+    "cut-down-chess\/knights|gentle|random" : {
+      "automaticDraw" : 12,
+      "learnerGaveMate" : 40,
+      "learnerMated" : 44,
+      "plyCap" : 3,
+      "stalemate" : 1
+    },
+    "cut-down-chess\/knights|steady|greedy" : {
+      "automaticDraw" : 1,
+      "learnerGaveMate" : 50,
+      "learnerMated" : 49
+    },
+    "cut-down-chess\/knights|steady|level-below" : {
+      "learnerGaveMate" : 50,
+      "learnerMated" : 50
+    },
+    "cut-down-chess\/knights|steady|random" : {
+      "learnerGaveMate" : 50,
+      "learnerMated" : 50
+    },
+    "cut-down-chess\/knights|strong|greedy" : {
+      "learnerGaveMate" : 50,
+      "learnerMated" : 50
+    },
+    "cut-down-chess\/knights|strong|level-below" : {
+      "learnerGaveMate" : 50,
+      "learnerMated" : 50
+    },
+    "cut-down-chess\/knights|strong|random" : {
+      "learnerGaveMate" : 50,
+      "learnerMated" : 50
+    },
+    "cut-down-chess\/major-pieces|gentle|greedy" : {
+      "automaticDraw" : 2,
+      "learnerGaveMate" : 46,
+      "learnerMated" : 48,
+      "plyCap" : 2,
+      "stalemate" : 2
+    },
+    "cut-down-chess\/major-pieces|gentle|random" : {
+      "learnerGaveMate" : 50,
+      "learnerMated" : 50
+    },
+    "cut-down-chess\/major-pieces|steady|greedy" : {
+      "learnerGaveMate" : 50,
+      "learnerMated" : 50
+    },
+    "cut-down-chess\/major-pieces|steady|level-below" : {
+      "learnerGaveMate" : 50,
+      "learnerMated" : 50
+    },
+    "cut-down-chess\/major-pieces|steady|random" : {
+      "learnerGaveMate" : 50,
+      "learnerMated" : 50
+    },
+    "cut-down-chess\/major-pieces|strong|greedy" : {
+      "learnerGaveMate" : 50,
+      "learnerMated" : 50
+    },
+    "cut-down-chess\/major-pieces|strong|level-below" : {
+      "learnerGaveMate" : 50,
+      "learnerMated" : 50
+    },
+    "cut-down-chess\/major-pieces|strong|random" : {
+      "learnerGaveMate" : 50,
+      "learnerMated" : 50
+    },
+    "cut-down-chess\/minor-pieces|gentle|greedy" : {
+      "automaticDraw" : 25,
+      "learnerGaveMate" : 4,
+      "learnerMated" : 2,
+      "plyCap" : 32,
+      "stalemate" : 37
+    },
+    "cut-down-chess\/minor-pieces|gentle|random" : {
+      "automaticDraw" : 9,
+      "learnerGaveMate" : 45,
+      "learnerMated" : 45,
+      "plyCap" : 1
+    },
+    "cut-down-chess\/minor-pieces|steady|greedy" : {
+      "automaticDraw" : 4,
+      "learnerGaveMate" : 48,
+      "learnerMated" : 47,
+      "plyCap" : 1
+    },
+    "cut-down-chess\/minor-pieces|steady|level-below" : {
+      "learnerGaveMate" : 50,
+      "learnerMated" : 50
+    },
+    "cut-down-chess\/minor-pieces|steady|random" : {
+      "learnerGaveMate" : 50,
+      "learnerMated" : 50
+    },
+    "cut-down-chess\/minor-pieces|strong|greedy" : {
+      "learnerGaveMate" : 50,
+      "learnerMated" : 50
+    },
+    "cut-down-chess\/minor-pieces|strong|level-below" : {
+      "learnerGaveMate" : 50,
+      "learnerMated" : 50
+    },
+    "cut-down-chess\/minor-pieces|strong|random" : {
+      "learnerGaveMate" : 50,
+      "learnerMated" : 50
+    },
+    "cut-down-chess\/queens|gentle|greedy" : {
+      "automaticDraw" : 7,
+      "learnerGaveMate" : 47,
+      "learnerMated" : 45,
+      "plyCap" : 1
+    },
+    "cut-down-chess\/queens|gentle|random" : {
+      "learnerGaveMate" : 50,
+      "learnerMated" : 50
+    },
+    "cut-down-chess\/queens|steady|greedy" : {
+      "learnerGaveMate" : 50,
+      "learnerMated" : 50
+    },
+    "cut-down-chess\/queens|steady|level-below" : {
+      "learnerGaveMate" : 50,
+      "learnerMated" : 50
+    },
+    "cut-down-chess\/queens|steady|random" : {
+      "learnerGaveMate" : 50,
+      "learnerMated" : 50
+    },
+    "cut-down-chess\/queens|strong|greedy" : {
+      "learnerGaveMate" : 50,
+      "learnerMated" : 50
+    },
+    "cut-down-chess\/queens|strong|level-below" : {
+      "learnerGaveMate" : 50,
+      "learnerMated" : 50
+    },
+    "cut-down-chess\/queens|strong|random" : {
+      "learnerGaveMate" : 50,
+      "learnerMated" : 50
+    },
+    "cut-down-chess\/rooks|gentle|greedy" : {
+      "automaticDraw" : 51,
+      "learnerGaveMate" : 9,
+      "learnerMated" : 11,
+      "plyCap" : 11,
+      "stalemate" : 18
+    },
+    "cut-down-chess\/rooks|gentle|random" : {
+      "automaticDraw" : 1,
+      "learnerGaveMate" : 50,
+      "learnerMated" : 49
+    },
+    "cut-down-chess\/rooks|steady|greedy" : {
+      "automaticDraw" : 1,
+      "learnerGaveMate" : 50,
+      "learnerMated" : 49
+    },
+    "cut-down-chess\/rooks|steady|level-below" : {
+      "learnerGaveMate" : 50,
+      "learnerMated" : 50
+    },
+    "cut-down-chess\/rooks|steady|random" : {
+      "learnerGaveMate" : 50,
+      "learnerMated" : 50
+    },
+    "cut-down-chess\/rooks|strong|greedy" : {
+      "learnerGaveMate" : 50,
+      "learnerMated" : 50
+    },
+    "cut-down-chess\/rooks|strong|level-below" : {
+      "learnerGaveMate" : 50,
+      "learnerMated" : 50
+    },
+    "cut-down-chess\/rooks|strong|random" : {
+      "learnerGaveMate" : 50,
+      "learnerMated" : 50
+    },
+    "finish-the-game\/krk|gentle|greedy" : {
+      "automaticDraw" : 100
+    },
+    "finish-the-game\/krk|gentle|random" : {
+      "automaticDraw" : 98,
+      "learnerGaveMate" : 2
+    },
+    "finish-the-game\/krk|steady|greedy" : {
+      "automaticDraw" : 100
+    },
+    "finish-the-game\/krk|steady|random" : {
+      "automaticDraw" : 100
+    },
+    "finish-the-game\/krk|strong|greedy" : {
+      "automaticDraw" : 100
+    },
+    "finish-the-game\/krk|strong|random" : {
+      "automaticDraw" : 100
+    },
+    "pawn-race\/kpk|gentle|greedy" : {
+      "automaticDraw" : 54,
+      "promotedPieceHeld" : 46
+    },
+    "pawn-race\/kpk|gentle|random" : {
+      "automaticDraw" : 60,
+      "promotedPieceHeld" : 40
+    },
+    "pawn-race\/kpk|steady|greedy" : {
+      "automaticDraw" : 99,
+      "promotedPieceHeld" : 1
+    },
+    "pawn-race\/kpk|steady|random" : {
+      "automaticDraw" : 99,
+      "promotedPieceHeld" : 1
+    },
+    "pawn-race\/kpk|strong|greedy" : {
+      "automaticDraw" : 99,
+      "promotedPieceHeld" : 1
+    },
+    "pawn-race\/kpk|strong|random" : {
+      "automaticDraw" : 100
+    },
+    "pawn-war\/pawns|gentle|greedy" : {
+      "automaticDraw" : 49,
+      "learnerGaveMate" : 11,
+      "learnerMated" : 4,
+      "plyCap" : 14,
+      "stalemate" : 22
+    },
+    "pawn-war\/pawns|gentle|random" : {
+      "automaticDraw" : 15,
+      "learnerGaveMate" : 41,
+      "learnerMated" : 40,
+      "plyCap" : 4
+    },
+    "pawn-war\/pawns|steady|greedy" : {
+      "automaticDraw" : 1,
+      "learnerGaveMate" : 49,
+      "learnerMated" : 50
+    },
+    "pawn-war\/pawns|steady|level-below" : {
+      "learnerGaveMate" : 50,
+      "learnerMated" : 50
+    },
+    "pawn-war\/pawns|steady|random" : {
+      "learnerGaveMate" : 50,
+      "learnerMated" : 50
+    },
+    "pawn-war\/pawns|strong|greedy" : {
+      "learnerGaveMate" : 50,
+      "learnerMated" : 50
+    },
+    "pawn-war\/pawns|strong|level-below" : {
+      "learnerGaveMate" : 50,
+      "learnerMated" : 50
+    },
+    "pawn-war\/pawns|strong|random" : {
+      "learnerGaveMate" : 50,
+      "learnerMated" : 50
+    },
+    "two-bishop-mate\/kbbk|gentle|greedy" : {
+      "automaticDraw" : 96,
+      "stalemate" : 4
+    },
+    "two-bishop-mate\/kbbk|gentle|random" : {
+      "automaticDraw" : 94,
+      "stalemate" : 6
+    },
+    "two-bishop-mate\/kbbk|steady|greedy" : {
+      "automaticDraw" : 92,
+      "stalemate" : 8
+    },
+    "two-bishop-mate\/kbbk|steady|random" : {
+      "automaticDraw" : 99,
+      "stalemate" : 1
+    },
+    "two-bishop-mate\/kbbk|strong|greedy" : {
+      "automaticDraw" : 99,
+      "stalemate" : 1
+    },
+    "two-bishop-mate\/kbbk|strong|random" : {
+      "automaticDraw" : 97,
+      "stalemate" : 3
+    }
+  },
+  "entries" : [
+    {
+      "entry" : "pawn-race",
+      "pairings" : [
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 100,
+            "losses" : 40,
+            "plies" : 5412,
+            "wins" : 60
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 0,
+            "losses" : 0,
+            "plies" : 0,
+            "wins" : 0
+          },
+          "level" : "gentle",
+          "reference" : "random"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 100,
+            "losses" : 46,
+            "plies" : 5518,
+            "wins" : 54
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 0,
+            "losses" : 0,
+            "plies" : 0,
+            "wins" : 0
+          },
+          "level" : "gentle",
+          "reference" : "greedy"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 100,
+            "losses" : 1,
+            "plies" : 3361,
+            "wins" : 99
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 0,
+            "losses" : 0,
+            "plies" : 0,
+            "wins" : 0
+          },
+          "level" : "steady",
+          "reference" : "random"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 100,
+            "losses" : 1,
+            "plies" : 2772,
+            "wins" : 99
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 0,
+            "losses" : 0,
+            "plies" : 0,
+            "wins" : 0
+          },
+          "level" : "steady",
+          "reference" : "greedy"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 100,
+            "losses" : 0,
+            "plies" : 1218,
+            "wins" : 100
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 0,
+            "losses" : 0,
+            "plies" : 0,
+            "wins" : 0
+          },
+          "level" : "strong",
+          "reference" : "random"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 100,
+            "losses" : 1,
+            "plies" : 1259,
+            "wins" : 99
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 0,
+            "losses" : 0,
+            "plies" : 0,
+            "wins" : 0
+          },
+          "level" : "strong",
+          "reference" : "greedy"
+        }
+      ],
+      "variant" : "kpk"
+    },
+    {
+      "entry" : "pawn-war",
+      "pairings" : [
+        {
+          "asBlack" : {
+            "adjudicated" : 3,
+            "draws" : 10,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 8253,
+            "wins" : 40
+          },
+          "asWhite" : {
+            "adjudicated" : 1,
+            "draws" : 9,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 7780,
+            "wins" : 41
+          },
+          "level" : "gentle",
+          "reference" : "random"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 8,
+            "draws" : 45,
+            "games" : 50,
+            "losses" : 2,
+            "plies" : 12500,
+            "wins" : 3
+          },
+          "asWhite" : {
+            "adjudicated" : 6,
+            "draws" : 40,
+            "games" : 50,
+            "losses" : 1,
+            "plies" : 12497,
+            "wins" : 9
+          },
+          "level" : "gentle",
+          "reference" : "greedy"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 3266,
+            "wins" : 50
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 3094,
+            "wins" : 50
+          },
+          "level" : "steady",
+          "reference" : "random"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 4032,
+            "wins" : 50
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 1,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 4540,
+            "wins" : 49
+          },
+          "level" : "steady",
+          "reference" : "greedy"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 3400,
+            "wins" : 50
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 3500,
+            "wins" : 50
+          },
+          "level" : "steady",
+          "reference" : "level-below"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 1684,
+            "wins" : 50
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 1642,
+            "wins" : 50
+          },
+          "level" : "strong",
+          "reference" : "random"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 2184,
+            "wins" : 50
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 2036,
+            "wins" : 50
+          },
+          "level" : "strong",
+          "reference" : "greedy"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 2790,
+            "wins" : 50
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 2872,
+            "wins" : 50
+          },
+          "level" : "strong",
+          "reference" : "level-below"
+        }
+      ],
+      "variant" : "pawns"
+    },
+    {
+      "entry" : "cut-down-chess",
+      "pairings" : [
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 7,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 8496,
+            "wins" : 43
+          },
+          "asWhite" : {
+            "adjudicated" : 3,
+            "draws" : 9,
+            "games" : 50,
+            "losses" : 1,
+            "plies" : 8031,
+            "wins" : 40
+          },
+          "level" : "gentle",
+          "reference" : "random"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 10,
+            "draws" : 45,
+            "games" : 50,
+            "losses" : 2,
+            "plies" : 14267,
+            "wins" : 3
+          },
+          "asWhite" : {
+            "adjudicated" : 11,
+            "draws" : 46,
+            "games" : 50,
+            "losses" : 2,
+            "plies" : 13473,
+            "wins" : 2
+          },
+          "level" : "gentle",
+          "reference" : "greedy"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 3650,
+            "wins" : 50
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 3888,
+            "wins" : 50
+          },
+          "level" : "steady",
+          "reference" : "random"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 1,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 5628,
+            "wins" : 49
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 5746,
+            "wins" : 50
+          },
+          "level" : "steady",
+          "reference" : "greedy"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 3648,
+            "wins" : 50
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 4112,
+            "wins" : 50
+          },
+          "level" : "steady",
+          "reference" : "level-below"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 2206,
+            "wins" : 50
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 2138,
+            "wins" : 50
+          },
+          "level" : "strong",
+          "reference" : "random"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 2590,
+            "wins" : 50
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 2598,
+            "wins" : 50
+          },
+          "level" : "strong",
+          "reference" : "greedy"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 3326,
+            "wins" : 50
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 3286,
+            "wins" : 50
+          },
+          "level" : "strong",
+          "reference" : "level-below"
+        }
+      ],
+      "variant" : "knights"
+    },
+    {
+      "entry" : "cut-down-chess",
+      "pairings" : [
+        {
+          "asBlack" : {
+            "adjudicated" : 1,
+            "draws" : 8,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 7952,
+            "wins" : 42
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 1,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 7171,
+            "wins" : 49
+          },
+          "level" : "gentle",
+          "reference" : "random"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 11,
+            "draws" : 47,
+            "games" : 50,
+            "losses" : 2,
+            "plies" : 13834,
+            "wins" : 1
+          },
+          "asWhite" : {
+            "adjudicated" : 8,
+            "draws" : 46,
+            "games" : 50,
+            "losses" : 3,
+            "plies" : 12748,
+            "wins" : 1
+          },
+          "level" : "gentle",
+          "reference" : "greedy"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 3014,
+            "wins" : 50
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 2766,
+            "wins" : 50
+          },
+          "level" : "steady",
+          "reference" : "random"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 1,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 5601,
+            "wins" : 49
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 5306,
+            "wins" : 50
+          },
+          "level" : "steady",
+          "reference" : "greedy"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 3152,
+            "wins" : 50
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 3204,
+            "wins" : 50
+          },
+          "level" : "steady",
+          "reference" : "level-below"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 1836,
+            "wins" : 50
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 1658,
+            "wins" : 50
+          },
+          "level" : "strong",
+          "reference" : "random"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 2190,
+            "wins" : 50
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 2044,
+            "wins" : 50
+          },
+          "level" : "strong",
+          "reference" : "greedy"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 3326,
+            "wins" : 50
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 3150,
+            "wins" : 50
+          },
+          "level" : "strong",
+          "reference" : "level-below"
+        }
+      ],
+      "variant" : "bishops"
+    },
+    {
+      "entry" : "cut-down-chess",
+      "pairings" : [
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 1,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 4894,
+            "wins" : 49
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 6010,
+            "wins" : 50
+          },
+          "level" : "gentle",
+          "reference" : "random"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 7,
+            "draws" : 39,
+            "games" : 50,
+            "losses" : 1,
+            "plies" : 10949,
+            "wins" : 10
+          },
+          "asWhite" : {
+            "adjudicated" : 4,
+            "draws" : 41,
+            "games" : 50,
+            "losses" : 1,
+            "plies" : 11484,
+            "wins" : 8
+          },
+          "level" : "gentle",
+          "reference" : "greedy"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 2834,
+            "wins" : 50
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 2472,
+            "wins" : 50
+          },
+          "level" : "steady",
+          "reference" : "random"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 1,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 3821,
+            "wins" : 49
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 3498,
+            "wins" : 50
+          },
+          "level" : "steady",
+          "reference" : "greedy"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 3472,
+            "wins" : 50
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 3236,
+            "wins" : 50
+          },
+          "level" : "steady",
+          "reference" : "level-below"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 1782,
+            "wins" : 50
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 1612,
+            "wins" : 50
+          },
+          "level" : "strong",
+          "reference" : "random"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 1866,
+            "wins" : 50
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 1810,
+            "wins" : 50
+          },
+          "level" : "strong",
+          "reference" : "greedy"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 3078,
+            "wins" : 50
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 2984,
+            "wins" : 50
+          },
+          "level" : "strong",
+          "reference" : "level-below"
+        }
+      ],
+      "variant" : "rooks"
+    },
+    {
+      "entry" : "cut-down-chess",
+      "pairings" : [
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 4142,
+            "wins" : 50
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 3762,
+            "wins" : 50
+          },
+          "level" : "gentle",
+          "reference" : "random"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 1,
+            "draws" : 5,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 7424,
+            "wins" : 45
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 3,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 7245,
+            "wins" : 47
+          },
+          "level" : "gentle",
+          "reference" : "greedy"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 2230,
+            "wins" : 50
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 2092,
+            "wins" : 50
+          },
+          "level" : "steady",
+          "reference" : "random"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 3708,
+            "wins" : 50
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 3404,
+            "wins" : 50
+          },
+          "level" : "steady",
+          "reference" : "greedy"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 5390,
+            "wins" : 50
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 4740,
+            "wins" : 50
+          },
+          "level" : "steady",
+          "reference" : "level-below"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 950,
+            "wins" : 50
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 876,
+            "wins" : 50
+          },
+          "level" : "strong",
+          "reference" : "random"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 1282,
+            "wins" : 50
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 1112,
+            "wins" : 50
+          },
+          "level" : "strong",
+          "reference" : "greedy"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 3198,
+            "wins" : 50
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 2872,
+            "wins" : 50
+          },
+          "level" : "strong",
+          "reference" : "level-below"
+        }
+      ],
+      "variant" : "queens"
+    },
+    {
+      "entry" : "cut-down-chess",
+      "pairings" : [
+        {
+          "asBlack" : {
+            "adjudicated" : 1,
+            "draws" : 5,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 8113,
+            "wins" : 45
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 5,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 7415,
+            "wins" : 45
+          },
+          "level" : "gentle",
+          "reference" : "random"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 17,
+            "draws" : 45,
+            "games" : 50,
+            "losses" : 4,
+            "plies" : 15327,
+            "wins" : 1
+          },
+          "asWhite" : {
+            "adjudicated" : 15,
+            "draws" : 49,
+            "games" : 50,
+            "losses" : 1,
+            "plies" : 14060,
+            "wins" : 0
+          },
+          "level" : "gentle",
+          "reference" : "greedy"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 3362,
+            "wins" : 50
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 3214,
+            "wins" : 50
+          },
+          "level" : "steady",
+          "reference" : "random"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 3,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 7519,
+            "wins" : 47
+          },
+          "asWhite" : {
+            "adjudicated" : 1,
+            "draws" : 2,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 6445,
+            "wins" : 48
+          },
+          "level" : "steady",
+          "reference" : "greedy"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 3678,
+            "wins" : 50
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 3830,
+            "wins" : 50
+          },
+          "level" : "steady",
+          "reference" : "level-below"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 1948,
+            "wins" : 50
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 1882,
+            "wins" : 50
+          },
+          "level" : "strong",
+          "reference" : "random"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 2532,
+            "wins" : 50
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 2612,
+            "wins" : 50
+          },
+          "level" : "strong",
+          "reference" : "greedy"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 3382,
+            "wins" : 50
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 3474,
+            "wins" : 50
+          },
+          "level" : "strong",
+          "reference" : "level-below"
+        }
+      ],
+      "variant" : "minor-pieces"
+    },
+    {
+      "entry" : "cut-down-chess",
+      "pairings" : [
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 2970,
+            "wins" : 50
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 3146,
+            "wins" : 50
+          },
+          "level" : "gentle",
+          "reference" : "random"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 1,
+            "draws" : 3,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 4645,
+            "wins" : 47
+          },
+          "asWhite" : {
+            "adjudicated" : 1,
+            "draws" : 3,
+            "games" : 50,
+            "losses" : 1,
+            "plies" : 5177,
+            "wins" : 46
+          },
+          "level" : "gentle",
+          "reference" : "greedy"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 2064,
+            "wins" : 50
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 1808,
+            "wins" : 50
+          },
+          "level" : "steady",
+          "reference" : "random"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 2118,
+            "wins" : 50
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 2182,
+            "wins" : 50
+          },
+          "level" : "steady",
+          "reference" : "greedy"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 3764,
+            "wins" : 50
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 3504,
+            "wins" : 50
+          },
+          "level" : "steady",
+          "reference" : "level-below"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 1320,
+            "wins" : 50
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 1196,
+            "wins" : 50
+          },
+          "level" : "strong",
+          "reference" : "random"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 1212,
+            "wins" : 50
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 1368,
+            "wins" : 50
+          },
+          "level" : "strong",
+          "reference" : "greedy"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 3124,
+            "wins" : 50
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 50,
+            "losses" : 0,
+            "plies" : 3294,
+            "wins" : 50
+          },
+          "level" : "strong",
+          "reference" : "level-below"
+        }
+      ],
+      "variant" : "major-pieces"
+    },
+    {
+      "entry" : "two-bishop-mate",
+      "pairings" : [
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 100,
+            "losses" : 0,
+            "plies" : 9368,
+            "wins" : 100
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 0,
+            "losses" : 0,
+            "plies" : 0,
+            "wins" : 0
+          },
+          "level" : "gentle",
+          "reference" : "random"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 100,
+            "losses" : 0,
+            "plies" : 9180,
+            "wins" : 100
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 0,
+            "losses" : 0,
+            "plies" : 0,
+            "wins" : 0
+          },
+          "level" : "gentle",
+          "reference" : "greedy"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 100,
+            "losses" : 0,
+            "plies" : 3279,
+            "wins" : 100
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 0,
+            "losses" : 0,
+            "plies" : 0,
+            "wins" : 0
+          },
+          "level" : "steady",
+          "reference" : "random"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 100,
+            "losses" : 0,
+            "plies" : 3228,
+            "wins" : 100
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 0,
+            "losses" : 0,
+            "plies" : 0,
+            "wins" : 0
+          },
+          "level" : "steady",
+          "reference" : "greedy"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 100,
+            "losses" : 0,
+            "plies" : 1651,
+            "wins" : 100
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 0,
+            "losses" : 0,
+            "plies" : 0,
+            "wins" : 0
+          },
+          "level" : "strong",
+          "reference" : "random"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 100,
+            "losses" : 0,
+            "plies" : 1533,
+            "wins" : 100
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 0,
+            "losses" : 0,
+            "plies" : 0,
+            "wins" : 0
+          },
+          "level" : "strong",
+          "reference" : "greedy"
+        }
+      ],
+      "variant" : "kbbk"
+    },
+    {
+      "entry" : "finish-the-game",
+      "pairings" : [
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 100,
+            "losses" : 2,
+            "plies" : 7984,
+            "wins" : 98
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 0,
+            "losses" : 0,
+            "plies" : 0,
+            "wins" : 0
+          },
+          "level" : "gentle",
+          "reference" : "random"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 100,
+            "losses" : 0,
+            "plies" : 7724,
+            "wins" : 100
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 0,
+            "losses" : 0,
+            "plies" : 0,
+            "wins" : 0
+          },
+          "level" : "gentle",
+          "reference" : "greedy"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 100,
+            "losses" : 0,
+            "plies" : 2890,
+            "wins" : 100
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 0,
+            "losses" : 0,
+            "plies" : 0,
+            "wins" : 0
+          },
+          "level" : "steady",
+          "reference" : "random"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 100,
+            "losses" : 0,
+            "plies" : 2896,
+            "wins" : 100
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 0,
+            "losses" : 0,
+            "plies" : 0,
+            "wins" : 0
+          },
+          "level" : "steady",
+          "reference" : "greedy"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 100,
+            "losses" : 0,
+            "plies" : 2050,
+            "wins" : 100
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 0,
+            "losses" : 0,
+            "plies" : 0,
+            "wins" : 0
+          },
+          "level" : "strong",
+          "reference" : "random"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 100,
+            "losses" : 0,
+            "plies" : 2152,
+            "wins" : 100
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 0,
+            "losses" : 0,
+            "plies" : 0,
+            "wins" : 0
+          },
+          "level" : "strong",
+          "reference" : "greedy"
+        }
+      ],
+      "variant" : "krk"
+    }
+  ],
+  "identity" : {
+    "cores" : 12,
+    "cpu" : "Apple M6",
+    "date" : "2026-10-18T11:22:18Z",
+    "engine" : "211a45adbf52a7e82567c46d75e6322671fdb9cc29d3a57c5cfb6733aea008ff:network:1a298aa575a085434d29027978dc36867fe9c5bcea9376654b7a8eba1e52dfc2",
+    "engineName" : "Stockfish 19",
+    "nodeLimits" : {
+      "gentle" : "beginner-v3-nodes-60000x5",
+      "steady" : "skill-3-nodes-250000",
+      "strong" : "skill-20-nodes-250000"
+    },
+    "options" : {
+      "Hash" : "32",
+      "Skill Level" : "20",
+      "Threads" : "1",
+      "UCI_LimitStrength" : "false",
+      "UCI_ShowWDL" : "true"
+    },
+    "os" : "Version 27.0.1 (Build 26A434)",
+    "sourceSHA256" : {
+      "Content\/calibration\/position-game-manifest.json" : "91350f9fc0cc2a1d4f659bed3d12dd4537fe3afa928c0cfa076d34b9ade0d5af",
+      "Sources\/CheckmateApplication\/BeginnerOpponent.swift" : "b29e7435ace13d005f14497a9bdd8ee8d01f666c7cca97dfd6becf4a5ca57a7b",
+      "Sources\/CheckmateApplication\/PositionGameMatch.swift" : "070ad8e5bf5bcb8ab15f812600e9c8731db0cc4fec169978c0372348b469fc5c",
+      "Sources\/CheckmateApplication\/TrainingOpponent.swift" : "3ecda26db52b50917e382d8c54cb8dd21efba9db0a92aaf8659ab6da1aa67003",
+      "Sources\/CheckmateDomain\/BeginnerPolicy.swift" : "0825df338316987fd0e589dc8da3572d516179041e3ef5634a189c078e760b6d",
+      "Sources\/CheckmateDomain\/MiniGameCalibration.swift" : "54666e106b797b6f0caa8766e3783658c5a2c3d154ef1159b54fabfcda64cf38",
+      "Sources\/CheckmateDomain\/OpponentPolicy.swift" : "523b01cfd8fc60c41b50f893a72e9f6de53d7b6a65ef661ff268c1f574d75d6c",
+      "Sources\/CheckmateDomain\/PositionGameCalibration.swift" : "4de28df1eb67914a2cc6ee8a223897d8371db9e51b2f8473da12dd0500212160",
+      "Sources\/CheckmateDomain\/PositionGames.swift" : "b5dfce696f213e28d357b7d2bbeceb71567502eed515fde992ab177eb0dda0d3",
+      "Tools\/PositionGameCalibration\/main.swift" : "980002049da8510834ab73312418c807409eef4575ca56e47edb086c813ed548"
+    },
+    "workers" : 11
+  },
+  "manifest" : {
+    "drawScore" : 0.5,
+    "entries" : [
+      {
+        "accessibility" : {
+          "minimumReferenceScore" : 0.3,
+          "reference" : "greedy"
+        },
+        "check" : "positionGame",
+        "entry" : "pawn-race",
+        "kind" : "standard",
+        "learner" : "w",
+        "references" : [
+          "random",
+          "greedy"
+        ],
+        "scoring" : "goal",
+        "sides" : [
+          "b"
+        ],
+        "starts" : [
+          {
+            "fen" : "8\/8\/8\/8\/P7\/8\/6k1\/K7 w - - 0 1",
+            "scenario" : "pr-a4"
+          },
+          {
+            "fen" : "8\/8\/7k\/8\/2P5\/8\/8\/K7 w - - 0 1",
+            "scenario" : "pr-c4"
+          },
+          {
+            "fen" : "8\/8\/8\/8\/8\/8\/k6P\/6K1 w - - 0 1",
+            "scenario" : "pr-h2"
+          },
+          {
+            "fen" : "2k5\/8\/2K5\/2P5\/8\/8\/8\/8 w - - 0 1",
+            "scenario" : "pr-c5"
+          },
+          {
+            "fen" : "4k3\/8\/8\/8\/8\/4K3\/4P3\/8 w - - 0 1",
+            "scenario" : "pr-e2"
+          },
+          {
+            "fen" : "8\/8\/8\/8\/1k6\/8\/5KP1\/8 w - - 0 1",
+            "scenario" : "pr-g2"
+          },
+          {
+            "fen" : "8\/8\/3k4\/8\/8\/3K4\/3P4\/8 w - - 0 1",
+            "scenario" : "pr-d2"
+          },
+          {
+            "fen" : "8\/8\/1k6\/8\/1K6\/8\/1P6\/8 w - - 0 1",
+            "scenario" : "pr-b2"
+          },
+          {
+            "fen" : "8\/8\/k7\/8\/8\/8\/5P2\/6K1 w - - 0 1",
+            "scenario" : "pr-f2"
+          }
+        ],
+        "variant" : "kpk"
+      },
+      {
+        "accessibility" : {
+          "minimumReferenceScore" : 0.3,
+          "reference" : "greedy"
+        },
+        "check" : "positionGame",
+        "entry" : "pawn-war",
+        "kind" : "standard",
+        "learner" : "w",
+        "references" : [
+          "random",
+          "greedy",
+          "level-below"
+        ],
+        "scoring" : "chess",
+        "sides" : [
+          "w",
+          "b"
+        ],
+        "starts" : [
+          {
+            "fen" : "4k3\/pppppppp\/8\/8\/8\/8\/PPPPPPPP\/4K3 w - - 0 1",
+            "scenario" : "pw-pawns"
+          }
+        ],
+        "variant" : "pawns"
+      },
+      {
+        "accessibility" : {
+          "minimumReferenceScore" : 0.3,
+          "reference" : "greedy"
+        },
+        "check" : "positionGame",
+        "entry" : "cut-down-chess",
+        "kind" : "standard",
+        "learner" : "w",
+        "references" : [
+          "random",
+          "greedy",
+          "level-below"
+        ],
+        "scoring" : "chess",
+        "sides" : [
+          "w",
+          "b"
+        ],
+        "starts" : [
+          {
+            "fen" : "1n2k1n1\/pppppppp\/8\/8\/8\/8\/PPPPPPPP\/1N2K1N1 w - - 0 1",
+            "scenario" : "cd-knights"
+          }
+        ],
+        "variant" : "knights"
+      },
+      {
+        "accessibility" : {
+          "minimumReferenceScore" : 0.3,
+          "reference" : "greedy"
+        },
+        "check" : "positionGame",
+        "entry" : "cut-down-chess",
+        "kind" : "standard",
+        "learner" : "w",
+        "references" : [
+          "random",
+          "greedy",
+          "level-below"
+        ],
+        "scoring" : "chess",
+        "sides" : [
+          "w",
+          "b"
+        ],
+        "starts" : [
+          {
+            "fen" : "2b1kb2\/pppppppp\/8\/8\/8\/8\/PPPPPPPP\/2B1KB2 w - - 0 1",
+            "scenario" : "cd-bishops"
+          }
+        ],
+        "variant" : "bishops"
+      },
+      {
+        "accessibility" : {
+          "minimumReferenceScore" : 0.3,
+          "reference" : "greedy"
+        },
+        "check" : "positionGame",
+        "entry" : "cut-down-chess",
+        "kind" : "standard",
+        "learner" : "w",
+        "references" : [
+          "random",
+          "greedy",
+          "level-below"
+        ],
+        "scoring" : "chess",
+        "sides" : [
+          "w",
+          "b"
+        ],
+        "starts" : [
+          {
+            "fen" : "r3k2r\/pppppppp\/8\/8\/8\/8\/PPPPPPPP\/R3K2R w KQkq - 0 1",
+            "scenario" : "cd-rooks"
+          }
+        ],
+        "variant" : "rooks"
+      },
+      {
+        "accessibility" : {
+          "minimumReferenceScore" : 0.3,
+          "reference" : "greedy"
+        },
+        "check" : "positionGame",
+        "entry" : "cut-down-chess",
+        "kind" : "standard",
+        "learner" : "w",
+        "references" : [
+          "random",
+          "greedy",
+          "level-below"
+        ],
+        "scoring" : "chess",
+        "sides" : [
+          "w",
+          "b"
+        ],
+        "starts" : [
+          {
+            "fen" : "3qk3\/pppppppp\/8\/8\/8\/8\/PPPPPPPP\/3QK3 w - - 0 1",
+            "scenario" : "cd-queens"
+          }
+        ],
+        "variant" : "queens"
+      },
+      {
+        "accessibility" : {
+          "minimumReferenceScore" : 0.3,
+          "reference" : "greedy"
+        },
+        "check" : "positionGame",
+        "entry" : "cut-down-chess",
+        "kind" : "standard",
+        "learner" : "w",
+        "references" : [
+          "random",
+          "greedy",
+          "level-below"
+        ],
+        "scoring" : "chess",
+        "sides" : [
+          "w",
+          "b"
+        ],
+        "starts" : [
+          {
+            "fen" : "1nb1kbn1\/pppppppp\/8\/8\/8\/8\/PPPPPPPP\/1NB1KBN1 w - - 0 1",
+            "scenario" : "cd-minor-pieces"
+          }
+        ],
+        "variant" : "minor-pieces"
+      },
+      {
+        "accessibility" : {
+          "minimumReferenceScore" : 0.3,
+          "reference" : "greedy"
+        },
+        "check" : "positionGame",
+        "entry" : "cut-down-chess",
+        "kind" : "standard",
+        "learner" : "w",
+        "references" : [
+          "random",
+          "greedy",
+          "level-below"
+        ],
+        "scoring" : "chess",
+        "sides" : [
+          "w",
+          "b"
+        ],
+        "starts" : [
+          {
+            "fen" : "r2qk2r\/pppppppp\/8\/8\/8\/8\/PPPPPPPP\/R2QK2R w KQkq - 0 1",
+            "scenario" : "cd-major-pieces"
+          }
+        ],
+        "variant" : "major-pieces"
+      },
+      {
+        "accessibility" : {
+          "minimumReferenceScore" : 0.3,
+          "reference" : "greedy"
+        },
+        "check" : "positionGame",
+        "entry" : "two-bishop-mate",
+        "kind" : "standard",
+        "learner" : "w",
+        "references" : [
+          "random",
+          "greedy"
+        ],
+        "scoring" : "goal",
+        "sides" : [
+          "b"
+        ],
+        "starts" : [
+          {
+            "fen" : "6k1\/8\/4K3\/8\/3BB3\/8\/8\/8 w - - 0 1",
+            "scenario" : "tb-g8"
+          },
+          {
+            "fen" : "k7\/8\/1K6\/8\/8\/8\/3BB3\/8 w - - 0 1",
+            "scenario" : "tb-b6"
+          },
+          {
+            "fen" : "8\/8\/8\/3k4\/8\/8\/8\/2B1KB2 w - - 0 1",
+            "scenario" : "tb-d5"
+          },
+          {
+            "fen" : "8\/8\/2k5\/8\/8\/3K4\/2BB4\/8 w - - 0 1",
+            "scenario" : "tb-c6"
+          },
+          {
+            "fen" : "8\/8\/4k3\/8\/8\/8\/8\/B3K2B w - - 0 1",
+            "scenario" : "tb-e6"
+          },
+          {
+            "fen" : "8\/5k2\/8\/8\/8\/8\/8\/1BB1K3 w - - 0 1",
+            "scenario" : "tb-f7"
+          }
+        ],
+        "variant" : "kbbk"
+      },
+      {
+        "accessibility" : {
+          "minimumReferenceScore" : 0.3,
+          "reference" : "greedy"
+        },
+        "check" : "ending",
+        "entry" : "finish-the-game",
+        "kind" : "standard",
+        "learner" : "w",
+        "references" : [
+          "random",
+          "greedy"
+        ],
+        "scoring" : "goal",
+        "sides" : [
+          "b"
+        ],
+        "starts" : [
+          {
+            "fen" : "k7\/8\/8\/3K4\/8\/8\/8\/5R2 w - - 0 1",
+            "scenario" : "fg-krk-w-1"
+          },
+          {
+            "fen" : "8\/5R2\/8\/8\/8\/4K3\/7k\/8 w - - 0 1",
+            "scenario" : "fg-krk-w-2"
+          },
+          {
+            "fen" : "8\/8\/8\/8\/8\/1k6\/5R2\/3K4 w - - 0 1",
+            "scenario" : "fg-krk-w-3"
+          },
+          {
+            "fen" : "7K\/8\/8\/6R1\/8\/8\/1k6\/8 w - - 0 1",
+            "scenario" : "fg-krk-w-4"
+          },
+          {
+            "fen" : "8\/8\/8\/2k5\/6R1\/8\/8\/5K2 w - - 0 1",
+            "scenario" : "fg-krk-w-5"
+          },
+          {
+            "fen" : "K7\/8\/5k2\/R7\/8\/8\/8\/8 w - - 0 1",
+            "scenario" : "fg-krk-w-6"
+          }
+        ],
+        "variant" : "krk"
+      }
+    ],
+    "gamesPerPairing" : 100,
+    "levels" : [
+      "gentle",
+      "steady",
+      "strong"
+    ],
+    "maximumPlies" : 400,
+    "opponent" : {
+      "engineNodes" : 250000,
+      "gentleDecisionNodes" : 300000,
+      "gentleSearchNodes" : 60000,
+      "policyVersion" : 1,
+      "steadySkill" : 3,
+      "strongSkill" : 20
+    },
+    "passRule" : {
+      "confidence" : 0.95,
+      "headToHead" : {
+        "lowerBoundAbove" : 0.5,
+        "minimumScore" : 0.6,
+        "saturatedScore" : 0.9
+      },
+      "minimumDifference" : 0.1,
+      "reference" : "greedy"
+    },
+    "references" : [
+      "random",
+      "greedy",
+      "level-below"
+    ],
+    "schema" : 1,
+    "seed" : "c0ffee0020"
+  },
+  "notes" : [
+    "Scores are the level's points per game, counted from the level's side; asWhite and asBlack hold the games it played with each colour.",
+    "Chess scoring: a win is a point and a draw half of one. Goal scoring: the learner's side scores a point only for a success row, as the app counts a draw as a failed goal, and the level scores the rest.",
+    "Intervals are 95% Wilson score intervals on the score; with draws the true variance is lower, so they are conservative.",
+    "Steady is Stockfish at skill 3, which uses its own unseeded randomness: its games are not reproducible move for move. Gentle (seeded), Strong (skill 20, one thread, a fresh hash per search) and the references (seeded) are.",
+    "A level that only defends has no head-to-head game with the level below as the learner's side, so its pairs are decided by branch (a) alone."
+  ],
+  "requiredGamesPerPairing" : 98,
+  "separatingDifference" : 0.2000000000000001,
+  "smoke" : false,
+  "timing" : {
+    "perEntry" : {
+      "cut-down-chess\/bishops" : {
+        "gameSeconds" : 17259.829148888588,
+        "games" : 800,
+        "plies" : 78952
+      },
+      "cut-down-chess\/knights" : {
+        "gameSeconds" : 19218.504310131073,
+        "games" : 800,
+        "plies" : 87083
+      },
+      "cut-down-chess\/major-pieces" : {
+        "gameSeconds" : 12725.240293264389,
+        "games" : 800,
+        "plies" : 42892
+      },
+      "cut-down-chess\/minor-pieces" : {
+        "gameSeconds" : 21341.39848804474,
+        "games" : 800,
+        "plies" : 88793
+      },
+      "cut-down-chess\/queens" : {
+        "gameSeconds" : 13739.91766178608,
+        "games" : 800,
+        "plies" : 54427
+      },
+      "cut-down-chess\/rooks" : {
+        "gameSeconds" : 16179.390486836433,
+        "games" : 800,
+        "plies" : 65802
+      },
+      "finish-the-game\/krk" : {
+        "gameSeconds" : 2035.1620063781738,
+        "games" : 600,
+        "plies" : 25696
+      },
+      "pawn-race\/kpk" : {
+        "gameSeconds" : 1492.6783039569855,
+        "games" : 600,
+        "plies" : 19540
+      },
+      "pawn-war\/pawns" : {
+        "gameSeconds" : 13964.258377671242,
+        "games" : 800,
+        "plies" : 76070
+      },
+      "two-bishop-mate\/kbbk" : {
+        "gameSeconds" : 2586.067176938057,
+        "games" : 600,
+        "plies" : 28239
+      }
+    },
+    "seconds" : 11421.397940039635
+  },
+  "verdicts" : [
+    {
+      "decisions" : [
+        {
+          "differs" : false,
+          "headToHeadInterval" : [
+            0,
+            1
+          ],
+          "headToHeadScore" : 0,
+          "headToHeadSeparated" : false,
+          "higher" : "strong",
+          "higherInterval" : [
+            0.9455138038212946,
+            0.9982325679358593
+          ],
+          "higherScore" : 0.99,
+          "lower" : "steady",
+          "lowerInterval" : [
+            0.9455138038212946,
+            0.9982325679358593
+          ],
+          "lowerScore" : 0.99,
+          "saturated" : true,
+          "separated" : false
+        },
+        {
+          "differs" : true,
+          "headToHeadInterval" : [
+            0,
+            1
+          ],
+          "headToHeadScore" : 0,
+          "headToHeadSeparated" : false,
+          "higher" : "strong",
+          "higherInterval" : [
+            0.9455138038212946,
+            0.9982325679358593
+          ],
+          "higherScore" : 0.99,
+          "lower" : "gentle",
+          "lowerInterval" : [
+            0.44264860323368227,
+            0.6343919169097589
+          ],
+          "lowerScore" : 0.54,
+          "saturated" : false,
+          "separated" : true
+        }
+      ],
+      "entry" : "pawn-race",
+      "gentleAccessible" : true,
+      "offered" : [
+        "gentle",
+        "strong"
+      ],
+      "pairs" : [
+        {
+          "differs" : true,
+          "headToHeadInterval" : [
+            0,
+            1
+          ],
+          "headToHeadScore" : 0,
+          "headToHeadSeparated" : false,
+          "higher" : "steady",
+          "higherInterval" : [
+            0.9455138038212946,
+            0.9982325679358593
+          ],
+          "higherScore" : 0.99,
+          "lower" : "gentle",
+          "lowerInterval" : [
+            0.44264860323368227,
+            0.6343919169097589
+          ],
+          "lowerScore" : 0.54,
+          "saturated" : false,
+          "separated" : true
+        },
+        {
+          "differs" : false,
+          "headToHeadInterval" : [
+            0,
+            1
+          ],
+          "headToHeadScore" : 0,
+          "headToHeadSeparated" : false,
+          "higher" : "strong",
+          "higherInterval" : [
+            0.9455138038212946,
+            0.9982325679358593
+          ],
+          "higherScore" : 0.99,
+          "lower" : "steady",
+          "lowerInterval" : [
+            0.9455138038212946,
+            0.9982325679358593
+          ],
+          "lowerScore" : 0.99,
+          "saturated" : true,
+          "separated" : false
+        }
+      ],
+      "referenceScoreAgainstGentle" : 0.45999999999999996,
+      "variant" : "kpk"
+    },
+    {
+      "decisions" : [
+        {
+          "differs" : false,
+          "headToHeadInterval" : [
+            0.9630065017930143,
+            1
+          ],
+          "headToHeadScore" : 1,
+          "headToHeadSeparated" : true,
+          "higher" : "strong",
+          "higherInterval" : [
+            0.9630065017930143,
+            1
+          ],
+          "higherScore" : 1,
+          "lower" : "steady",
+          "lowerInterval" : [
+            0.9538986593878135,
+            0.9994777773872704
+          ],
+          "lowerScore" : 0.995,
+          "saturated" : true,
+          "separated" : false
+        },
+        {
+          "differs" : true,
+          "headToHeadInterval" : [
+            0.9630065017930143,
+            1
+          ],
+          "headToHeadScore" : 1,
+          "headToHeadSeparated" : true,
+          "higher" : "steady",
+          "higherInterval" : [
+            0.9538986593878135,
+            0.9994777773872704
+          ],
+          "higherScore" : 0.995,
+          "lower" : "gentle",
+          "lowerInterval" : [
+            0.44754263122988497,
+            0.6391279539314865
+          ],
+          "lowerScore" : 0.545,
+          "saturated" : false,
+          "separated" : true
+        }
+      ],
+      "entry" : "pawn-war",
+      "gentleAccessible" : true,
+      "offered" : [
+        "gentle",
+        "steady",
+        "strong"
+      ],
+      "pairs" : [
+        {
+          "differs" : true,
+          "headToHeadInterval" : [
+            0.9630065017930143,
+            1
+          ],
+          "headToHeadScore" : 1,
+          "headToHeadSeparated" : true,
+          "higher" : "steady",
+          "higherInterval" : [
+            0.9538986593878135,
+            0.9994777773872704
+          ],
+          "higherScore" : 0.995,
+          "lower" : "gentle",
+          "lowerInterval" : [
+            0.44754263122988497,
+            0.6391279539314865
+          ],
+          "lowerScore" : 0.545,
+          "saturated" : false,
+          "separated" : true
+        },
+        {
+          "differs" : false,
+          "headToHeadInterval" : [
+            0.9630065017930143,
+            1
+          ],
+          "headToHeadScore" : 1,
+          "headToHeadSeparated" : true,
+          "higher" : "strong",
+          "higherInterval" : [
+            0.9630065017930143,
+            1
+          ],
+          "higherScore" : 1,
+          "lower" : "steady",
+          "lowerInterval" : [
+            0.9538986593878135,
+            0.9994777773872704
+          ],
+          "lowerScore" : 0.995,
+          "saturated" : true,
+          "separated" : false
+        }
+      ],
+      "referenceScoreAgainstGentle" : 0.45499999999999996,
+      "variant" : "pawns"
+    },
+    {
+      "decisions" : [
+        {
+          "differs" : false,
+          "headToHeadInterval" : [
+            0.9630065017930143,
+            1
+          ],
+          "headToHeadScore" : 1,
+          "headToHeadSeparated" : true,
+          "higher" : "strong",
+          "higherInterval" : [
+            0.9630065017930143,
+            1
+          ],
+          "higherScore" : 1,
+          "lower" : "steady",
+          "lowerInterval" : [
+            0.9538986593878135,
+            0.9994777773872704
+          ],
+          "lowerScore" : 0.995,
+          "saturated" : true,
+          "separated" : false
+        },
+        {
+          "differs" : true,
+          "headToHeadInterval" : [
+            0.9630065017930143,
+            1
+          ],
+          "headToHeadScore" : 1,
+          "headToHeadSeparated" : true,
+          "higher" : "steady",
+          "higherInterval" : [
+            0.9538986593878135,
+            0.9994777773872704
+          ],
+          "higherScore" : 0.995,
+          "lower" : "gentle",
+          "lowerInterval" : [
+            0.4086511935295234,
+            0.6009788714884068
+          ],
+          "lowerScore" : 0.505,
+          "saturated" : false,
+          "separated" : true
+        }
+      ],
+      "entry" : "cut-down-chess",
+      "gentleAccessible" : true,
+      "offered" : [
+        "gentle",
+        "steady",
+        "strong"
+      ],
+      "pairs" : [
+        {
+          "differs" : true,
+          "headToHeadInterval" : [
+            0.9630065017930143,
+            1
+          ],
+          "headToHeadScore" : 1,
+          "headToHeadSeparated" : true,
+          "higher" : "steady",
+          "higherInterval" : [
+            0.9538986593878135,
+            0.9994777773872704
+          ],
+          "higherScore" : 0.995,
+          "lower" : "gentle",
+          "lowerInterval" : [
+            0.4086511935295234,
+            0.6009788714884068
+          ],
+          "lowerScore" : 0.505,
+          "saturated" : false,
+          "separated" : true
+        },
+        {
+          "differs" : false,
+          "headToHeadInterval" : [
+            0.9630065017930143,
+            1
+          ],
+          "headToHeadScore" : 1,
+          "headToHeadSeparated" : true,
+          "higher" : "strong",
+          "higherInterval" : [
+            0.9630065017930143,
+            1
+          ],
+          "higherScore" : 1,
+          "lower" : "steady",
+          "lowerInterval" : [
+            0.9538986593878135,
+            0.9994777773872704
+          ],
+          "lowerScore" : 0.995,
+          "saturated" : true,
+          "separated" : false
+        }
+      ],
+      "referenceScoreAgainstGentle" : 0.495,
+      "variant" : "knights"
+    },
+    {
+      "decisions" : [
+        {
+          "differs" : false,
+          "headToHeadInterval" : [
+            0.9630065017930143,
+            1
+          ],
+          "headToHeadScore" : 1,
+          "headToHeadSeparated" : true,
+          "higher" : "strong",
+          "higherInterval" : [
+            0.9630065017930143,
+            1
+          ],
+          "higherScore" : 1,
+          "lower" : "steady",
+          "lowerInterval" : [
+            0.9538986593878135,
+            0.9994777773872704
+          ],
+          "lowerScore" : 0.995,
+          "saturated" : true,
+          "separated" : false
+        },
+        {
+          "differs" : true,
+          "headToHeadInterval" : [
+            0.9630065017930143,
+            1
+          ],
+          "headToHeadScore" : 1,
+          "headToHeadSeparated" : true,
+          "higher" : "steady",
+          "higherInterval" : [
+            0.9538986593878135,
+            0.9994777773872704
+          ],
+          "higherScore" : 0.995,
+          "lower" : "gentle",
+          "lowerInterval" : [
+            0.38942811676066924,
+            0.5816816881855403
+          ],
+          "lowerScore" : 0.485,
+          "saturated" : false,
+          "separated" : true
+        }
+      ],
+      "entry" : "cut-down-chess",
+      "gentleAccessible" : true,
+      "offered" : [
+        "gentle",
+        "steady",
+        "strong"
+      ],
+      "pairs" : [
+        {
+          "differs" : true,
+          "headToHeadInterval" : [
+            0.9630065017930143,
+            1
+          ],
+          "headToHeadScore" : 1,
+          "headToHeadSeparated" : true,
+          "higher" : "steady",
+          "higherInterval" : [
+            0.9538986593878135,
+            0.9994777773872704
+          ],
+          "higherScore" : 0.995,
+          "lower" : "gentle",
+          "lowerInterval" : [
+            0.38942811676066924,
+            0.5816816881855403
+          ],
+          "lowerScore" : 0.485,
+          "saturated" : false,
+          "separated" : true
+        },
+        {
+          "differs" : false,
+          "headToHeadInterval" : [
+            0.9630065017930143,
+            1
+          ],
+          "headToHeadScore" : 1,
+          "headToHeadSeparated" : true,
+          "higher" : "strong",
+          "higherInterval" : [
+            0.9630065017930143,
+            1
+          ],
+          "higherScore" : 1,
+          "lower" : "steady",
+          "lowerInterval" : [
+            0.9538986593878135,
+            0.9994777773872704
+          ],
+          "lowerScore" : 0.995,
+          "saturated" : true,
+          "separated" : false
+        }
+      ],
+      "referenceScoreAgainstGentle" : 0.515,
+      "variant" : "bishops"
+    },
+    {
+      "decisions" : [
+        {
+          "differs" : false,
+          "headToHeadInterval" : [
+            0.9630065017930143,
+            1
+          ],
+          "headToHeadScore" : 1,
+          "headToHeadSeparated" : true,
+          "higher" : "strong",
+          "higherInterval" : [
+            0.9630065017930143,
+            1
+          ],
+          "higherScore" : 1,
+          "lower" : "steady",
+          "lowerInterval" : [
+            0.9538986593878135,
+            0.9994777773872704
+          ],
+          "lowerScore" : 0.995,
+          "saturated" : true,
+          "separated" : false
+        },
+        {
+          "differs" : true,
+          "headToHeadInterval" : [
+            0.9630065017930143,
+            1
+          ],
+          "headToHeadScore" : 1,
+          "headToHeadSeparated" : true,
+          "higher" : "steady",
+          "higherInterval" : [
+            0.9538986593878135,
+            0.9994777773872704
+          ],
+          "higherScore" : 0.995,
+          "lower" : "gentle",
+          "lowerInterval" : [
+            0.4820648670304296,
+            0.6720161732564526
+          ],
+          "lowerScore" : 0.58,
+          "saturated" : false,
+          "separated" : true
+        }
+      ],
+      "entry" : "cut-down-chess",
+      "gentleAccessible" : true,
+      "offered" : [
+        "gentle",
+        "steady",
+        "strong"
+      ],
+      "pairs" : [
+        {
+          "differs" : true,
+          "headToHeadInterval" : [
+            0.9630065017930143,
+            1
+          ],
+          "headToHeadScore" : 1,
+          "headToHeadSeparated" : true,
+          "higher" : "steady",
+          "higherInterval" : [
+            0.9538986593878135,
+            0.9994777773872704
+          ],
+          "higherScore" : 0.995,
+          "lower" : "gentle",
+          "lowerInterval" : [
+            0.4820648670304296,
+            0.6720161732564526
+          ],
+          "lowerScore" : 0.58,
+          "saturated" : false,
+          "separated" : true
+        },
+        {
+          "differs" : false,
+          "headToHeadInterval" : [
+            0.9630065017930143,
+            1
+          ],
+          "headToHeadScore" : 1,
+          "headToHeadSeparated" : true,
+          "higher" : "strong",
+          "higherInterval" : [
+            0.9630065017930143,
+            1
+          ],
+          "higherScore" : 1,
+          "lower" : "steady",
+          "lowerInterval" : [
+            0.9538986593878135,
+            0.9994777773872704
+          ],
+          "lowerScore" : 0.995,
+          "saturated" : true,
+          "separated" : false
+        }
+      ],
+      "referenceScoreAgainstGentle" : 0.42000000000000004,
+      "variant" : "rooks"
+    },
+    {
+      "decisions" : [
+        {
+          "differs" : false,
+          "headToHeadInterval" : [
+            0.9630065017930143,
+            1
+          ],
+          "headToHeadScore" : 1,
+          "headToHeadSeparated" : true,
+          "higher" : "strong",
+          "higherInterval" : [
+            0.9630065017930143,
+            1
+          ],
+          "higherScore" : 1,
+          "lower" : "steady",
+          "lowerInterval" : [
+            0.9630065017930143,
+            1
+          ],
+          "lowerScore" : 1,
+          "saturated" : true,
+          "separated" : false
+        },
+        {
+          "differs" : false,
+          "headToHeadInterval" : [
+            0.9630065017930143,
+            1
+          ],
+          "headToHeadScore" : 1,
+          "headToHeadSeparated" : true,
+          "higher" : "steady",
+          "higherInterval" : [
+            0.9630065017930143,
+            1
+          ],
+          "higherScore" : 1,
+          "lower" : "gentle",
+          "lowerInterval" : [
+            0.9016292856411208,
+            0.9843366960084523
+          ],
+          "lowerScore" : 0.96,
+          "saturated" : true,
+          "separated" : false
+        }
+      ],
+      "entry" : "cut-down-chess",
+      "gentleAccessible" : false,
+      "offered" : [
+        "steady",
+        "strong"
+      ],
+      "pairs" : [
+        {
+          "differs" : false,
+          "headToHeadInterval" : [
+            0.9630065017930143,
+            1
+          ],
+          "headToHeadScore" : 1,
+          "headToHeadSeparated" : true,
+          "higher" : "steady",
+          "higherInterval" : [
+            0.9630065017930143,
+            1
+          ],
+          "higherScore" : 1,
+          "lower" : "gentle",
+          "lowerInterval" : [
+            0.9016292856411208,
+            0.9843366960084523
+          ],
+          "lowerScore" : 0.96,
+          "saturated" : true,
+          "separated" : false
+        },
+        {
+          "differs" : false,
+          "headToHeadInterval" : [
+            0.9630065017930143,
+            1
+          ],
+          "headToHeadScore" : 1,
+          "headToHeadSeparated" : true,
+          "higher" : "strong",
+          "higherInterval" : [
+            0.9630065017930143,
+            1
+          ],
+          "higherScore" : 1,
+          "lower" : "steady",
+          "lowerInterval" : [
+            0.9630065017930143,
+            1
+          ],
+          "lowerScore" : 1,
+          "saturated" : true,
+          "separated" : false
+        }
+      ],
+      "referenceScoreAgainstGentle" : 0.040000000000000036,
+      "variant" : "queens"
+    },
+    {
+      "decisions" : [
+        {
+          "differs" : false,
+          "headToHeadInterval" : [
+            0.9630065017930143,
+            1
+          ],
+          "headToHeadScore" : 1,
+          "headToHeadSeparated" : true,
+          "higher" : "strong",
+          "higherInterval" : [
+            0.9630065017930143,
+            1
+          ],
+          "higherScore" : 1,
+          "lower" : "steady",
+          "lowerInterval" : [
+            0.9226360116994958,
+            0.9922201650038676
+          ],
+          "lowerScore" : 0.975,
+          "saturated" : true,
+          "separated" : false
+        },
+        {
+          "differs" : true,
+          "headToHeadInterval" : [
+            0.9630065017930143,
+            1
+          ],
+          "headToHeadScore" : 1,
+          "headToHeadSeparated" : true,
+          "higher" : "steady",
+          "higherInterval" : [
+            0.9226360116994958,
+            0.9922201650038676
+          ],
+          "higherScore" : 0.975,
+          "lower" : "gentle",
+          "lowerInterval" : [
+            0.384645517580519,
+            0.5768342223477603
+          ],
+          "lowerScore" : 0.48,
+          "saturated" : false,
+          "separated" : true
+        }
+      ],
+      "entry" : "cut-down-chess",
+      "gentleAccessible" : true,
+      "offered" : [
+        "gentle",
+        "steady",
+        "strong"
+      ],
+      "pairs" : [
+        {
+          "differs" : true,
+          "headToHeadInterval" : [
+            0.9630065017930143,
+            1
+          ],
+          "headToHeadScore" : 1,
+          "headToHeadSeparated" : true,
+          "higher" : "steady",
+          "higherInterval" : [
+            0.9226360116994958,
+            0.9922201650038676
+          ],
+          "higherScore" : 0.975,
+          "lower" : "gentle",
+          "lowerInterval" : [
+            0.384645517580519,
+            0.5768342223477603
+          ],
+          "lowerScore" : 0.48,
+          "saturated" : false,
+          "separated" : true
+        },
+        {
+          "differs" : false,
+          "headToHeadInterval" : [
+            0.9630065017930143,
+            1
+          ],
+          "headToHeadScore" : 1,
+          "headToHeadSeparated" : true,
+          "higher" : "strong",
+          "higherInterval" : [
+            0.9630065017930143,
+            1
+          ],
+          "higherScore" : 1,
+          "lower" : "steady",
+          "lowerInterval" : [
+            0.9226360116994958,
+            0.9922201650038676
+          ],
+          "lowerScore" : 0.975,
+          "saturated" : true,
+          "separated" : false
+        }
+      ],
+      "referenceScoreAgainstGentle" : 0.52,
+      "variant" : "minor-pieces"
+    },
+    {
+      "decisions" : [
+        {
+          "differs" : false,
+          "headToHeadInterval" : [
+            0.9630065017930143,
+            1
+          ],
+          "headToHeadScore" : 1,
+          "headToHeadSeparated" : true,
+          "higher" : "strong",
+          "higherInterval" : [
+            0.9630065017930143,
+            1
+          ],
+          "higherScore" : 1,
+          "lower" : "steady",
+          "lowerInterval" : [
+            0.9630065017930143,
+            1
+          ],
+          "lowerScore" : 1,
+          "saturated" : true,
+          "separated" : false
+        },
+        {
+          "differs" : false,
+          "headToHeadInterval" : [
+            0.9630065017930143,
+            1
+          ],
+          "headToHeadScore" : 1,
+          "headToHeadSeparated" : true,
+          "higher" : "steady",
+          "higherInterval" : [
+            0.9630065017930143,
+            1
+          ],
+          "higherScore" : 1,
+          "lower" : "gentle",
+          "lowerInterval" : [
+            0.9016292856411208,
+            0.9843366960084523
+          ],
+          "lowerScore" : 0.96,
+          "saturated" : true,
+          "separated" : false
+        }
+      ],
+      "entry" : "cut-down-chess",
+      "gentleAccessible" : false,
+      "offered" : [
+        "steady",
+        "strong"
+      ],
+      "pairs" : [
+        {
+          "differs" : false,
+          "headToHeadInterval" : [
+            0.9630065017930143,
+            1
+          ],
+          "headToHeadScore" : 1,
+          "headToHeadSeparated" : true,
+          "higher" : "steady",
+          "higherInterval" : [
+            0.9630065017930143,
+            1
+          ],
+          "higherScore" : 1,
+          "lower" : "gentle",
+          "lowerInterval" : [
+            0.9016292856411208,
+            0.9843366960084523
+          ],
+          "lowerScore" : 0.96,
+          "saturated" : true,
+          "separated" : false
+        },
+        {
+          "differs" : false,
+          "headToHeadInterval" : [
+            0.9630065017930143,
+            1
+          ],
+          "headToHeadScore" : 1,
+          "headToHeadSeparated" : true,
+          "higher" : "strong",
+          "higherInterval" : [
+            0.9630065017930143,
+            1
+          ],
+          "higherScore" : 1,
+          "lower" : "steady",
+          "lowerInterval" : [
+            0.9630065017930143,
+            1
+          ],
+          "lowerScore" : 1,
+          "saturated" : true,
+          "separated" : false
+        }
+      ],
+      "referenceScoreAgainstGentle" : 0.040000000000000036,
+      "variant" : "major-pieces"
+    },
+    {
+      "decisions" : [
+        {
+          "differs" : false,
+          "headToHeadInterval" : [
+            0,
+            1
+          ],
+          "headToHeadScore" : 0,
+          "headToHeadSeparated" : false,
+          "higher" : "strong",
+          "higherInterval" : [
+            0.9630065017930143,
+            1
+          ],
+          "higherScore" : 1,
+          "lower" : "steady",
+          "lowerInterval" : [
+            0.9630065017930143,
+            1
+          ],
+          "lowerScore" : 1,
+          "saturated" : true,
+          "separated" : false
+        },
+        {
+          "differs" : false,
+          "headToHeadInterval" : [
+            0,
+            1
+          ],
+          "headToHeadScore" : 0,
+          "headToHeadSeparated" : false,
+          "higher" : "strong",
+          "higherInterval" : [
+            0.9630065017930143,
+            1
+          ],
+          "higherScore" : 1,
+          "lower" : "gentle",
+          "lowerInterval" : [
+            0.9630065017930143,
+            1
+          ],
+          "lowerScore" : 1,
+          "saturated" : true,
+          "separated" : false
+        }
+      ],
+      "entry" : "two-bishop-mate",
+      "gentleAccessible" : false,
+      "offered" : [
+        "strong"
+      ],
+      "pairs" : [
+        {
+          "differs" : false,
+          "headToHeadInterval" : [
+            0,
+            1
+          ],
+          "headToHeadScore" : 0,
+          "headToHeadSeparated" : false,
+          "higher" : "steady",
+          "higherInterval" : [
+            0.9630065017930143,
+            1
+          ],
+          "higherScore" : 1,
+          "lower" : "gentle",
+          "lowerInterval" : [
+            0.9630065017930143,
+            1
+          ],
+          "lowerScore" : 1,
+          "saturated" : true,
+          "separated" : false
+        },
+        {
+          "differs" : false,
+          "headToHeadInterval" : [
+            0,
+            1
+          ],
+          "headToHeadScore" : 0,
+          "headToHeadSeparated" : false,
+          "higher" : "strong",
+          "higherInterval" : [
+            0.9630065017930143,
+            1
+          ],
+          "higherScore" : 1,
+          "lower" : "steady",
+          "lowerInterval" : [
+            0.9630065017930143,
+            1
+          ],
+          "lowerScore" : 1,
+          "saturated" : true,
+          "separated" : false
+        }
+      ],
+      "referenceScoreAgainstGentle" : 0,
+      "variant" : "kbbk"
+    },
+    {
+      "decisions" : [
+        {
+          "differs" : false,
+          "headToHeadInterval" : [
+            0,
+            1
+          ],
+          "headToHeadScore" : 0,
+          "headToHeadSeparated" : false,
+          "higher" : "strong",
+          "higherInterval" : [
+            0.9630065017930143,
+            1
+          ],
+          "higherScore" : 1,
+          "lower" : "steady",
+          "lowerInterval" : [
+            0.9630065017930143,
+            1
+          ],
+          "lowerScore" : 1,
+          "saturated" : true,
+          "separated" : false
+        },
+        {
+          "differs" : false,
+          "headToHeadInterval" : [
+            0,
+            1
+          ],
+          "headToHeadScore" : 0,
+          "headToHeadSeparated" : false,
+          "higher" : "strong",
+          "higherInterval" : [
+            0.9630065017930143,
+            1
+          ],
+          "higherScore" : 1,
+          "lower" : "gentle",
+          "lowerInterval" : [
+            0.9630065017930143,
+            1
+          ],
+          "lowerScore" : 1,
+          "saturated" : true,
+          "separated" : false
+        }
+      ],
+      "entry" : "finish-the-game",
+      "gentleAccessible" : false,
+      "offered" : [
+        "strong"
+      ],
+      "pairs" : [
+        {
+          "differs" : false,
+          "headToHeadInterval" : [
+            0,
+            1
+          ],
+          "headToHeadScore" : 0,
+          "headToHeadSeparated" : false,
+          "higher" : "steady",
+          "higherInterval" : [
+            0.9630065017930143,
+            1
+          ],
+          "higherScore" : 1,
+          "lower" : "gentle",
+          "lowerInterval" : [
+            0.9630065017930143,
+            1
+          ],
+          "lowerScore" : 1,
+          "saturated" : true,
+          "separated" : false
+        },
+        {
+          "differs" : false,
+          "headToHeadInterval" : [
+            0,
+            1
+          ],
+          "headToHeadScore" : 0,
+          "headToHeadSeparated" : false,
+          "higher" : "strong",
+          "higherInterval" : [
+            0.9630065017930143,
+            1
+          ],
+          "higherScore" : 1,
+          "lower" : "steady",
+          "lowerInterval" : [
+            0.9630065017930143,
+            1
+          ],
+          "lowerScore" : 1,
+          "saturated" : true,
+          "separated" : false
+        }
+      ],
+      "referenceScoreAgainstGentle" : 0,
+      "variant" : "krk"
+    }
+  ]
+}

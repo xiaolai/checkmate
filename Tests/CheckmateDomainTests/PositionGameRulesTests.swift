@@ -149,8 +149,14 @@ final class PositionGameRulesTests:XCTestCase {
         let s=AppSettings(raw:["positionGameLevels":["finish-the-game":"gentle"]])
         XCTAssertEqual(MiniGameOffering.level(entry:"finish-the-game",variant:"krk",check:.ending,settings:s),.strong,"a preference that is not offered falls back")
     }
-    func testThePreviewOffersThreeLevelsAndTheStalemateTrapOnlyStrong(){
+    /// The preview offers what calibration passed (WI-020), an uncalibrated game only its fallback, and the stalemate
+    /// trap only Strong even where a table would offer more.
+    func testThePreviewOffersTheCalibratedLevelsAndTheStalemateTrapOnlyStrong(){
         positionGames(true)
+        XCTAssertEqual(MiniGameOffering.levels(entry:"finish-the-game",variant:"krk",check:.ending),MiniGameOffering.positionGames["finish-the-game/krk"])
+        XCTAssertEqual(MiniGameOffering.levels(entry:"guided-games",variant:"initial-setup",check:.guidedGame),[.steady],"not calibrated: its fallback alone")
+        XCTAssertEqual(MiniGameOffering.levels(entry:"no-such-entry",variant:"x",check:.positionGame),[.strong])
+        MiniGameOffering.testPositionGames=["finish-the-game/krk":TrainingOpponentLevel.allCases,"finish-the-game/kqk":TrainingOpponentLevel.allCases];defer{MiniGameOffering.testPositionGames=nil}
         XCTAssertEqual(MiniGameOffering.levels(entry:"finish-the-game",variant:"krk",check:.ending),[.gentle,.steady,.strong])
         XCTAssertEqual(MiniGameOffering.levels(entry:"finish-the-game",variant:"kqk",check:.ending),[.strong],"a weaker defender rarely heads for the stalemate")
         let s=AppSettings(raw:["positionGameLevels":["finish-the-game":"gentle"]])

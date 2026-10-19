@@ -37,8 +37,9 @@ enum Release026 {
 /// continuing or replacing the attempt, and the record says which level played.
 @MainActor final class TrainingOpponentLevelTests:XCTestCase {
     private static let flags=["CHECKMATE_TRAINING_ENABLED","CHECKMATE_TRAINING_B","CHECKMATE_POSITION_GAMES"]
-    override func setUp(){Self.flags.forEach{setenv($0,"1",1)}}
-    override func tearDown(){Self.flags.forEach{unsetenv($0)}}
+    /// The mechanism needs a game with every level: the rook ending offers all three here, whatever calibration says.
+    override func setUp(){Self.flags.forEach{setenv($0,"1",1)};MiniGameOffering.testPositionGames=["finish-the-game/krk":TrainingOpponentLevel.allCases]}
+    override func tearDown(){Self.flags.forEach{unsetenv($0)};MiniGameOffering.testPositionGames=nil}
     /// A rook ending whose lone king has eight moves, so the beginner opponent has candidates to explore.
     private let open="8/8/8/3k4/8/8/8/K6R w - - 0 1"
     private func fixture(_ defender:ScriptedDefender,level:TrainingOpponentLevel?,fen:String?=nil,state:ApplicationState?=nil)throws -> (GameSession,LearningPlayer,TrainingController) {

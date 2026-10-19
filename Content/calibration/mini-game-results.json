@@ -23,11 +23,11 @@
       "milliseconds" : 650
     },
     {
-      "changedByDeadline" : 14,
-      "changedRate" : 0.037333333333333336,
-      "cutRate" : 0.12,
-      "deadlineCuts" : 45,
-      "decisions" : 375,
+      "changedByDeadline" : 1,
+      "changedRate" : 0.0026954177897574125,
+      "cutRate" : 0.03773584905660377,
+      "deadlineCuts" : 14,
+      "decisions" : 371,
       "game" : "pawn-duel",
       "games" : 40,
       "level" : "challenging",
@@ -89,10 +89,10 @@
       "milliseconds" : 650
     },
     {
-      "changedByDeadline" : 2,
-      "changedRate" : 0.0041753653444676405,
-      "cutRate" : 0.44676409185803756,
-      "deadlineCuts" : 214,
+      "changedByDeadline" : 1,
+      "changedRate" : 0.0020876826722338203,
+      "cutRate" : 0.3987473903966597,
+      "deadlineCuts" : 191,
       "decisions" : 479,
       "game" : "rooks-and-pawns",
       "games" : 40,
@@ -146,8 +146,8 @@
     {
       "changedByDeadline" : 0,
       "changedRate" : 0,
-      "cutRate" : 0.0035149384885764497,
-      "deadlineCuts" : 2,
+      "cutRate" : 0,
+      "deadlineCuts" : 0,
       "decisions" : 569,
       "game" : "bishops-and-pawns",
       "games" : 40,
@@ -155,11 +155,11 @@
       "milliseconds" : 650
     },
     {
-      "changedByDeadline" : 11,
-      "changedRate" : 0.01926444833625219,
-      "cutRate" : 0.4168126094570928,
-      "deadlineCuts" : 238,
-      "decisions" : 571,
+      "changedByDeadline" : 7,
+      "changedRate" : 0.012302284710017574,
+      "cutRate" : 0.4235500878734622,
+      "deadlineCuts" : 241,
+      "decisions" : 569,
       "game" : "bishops-and-pawns",
       "games" : 40,
       "level" : "challenging",
@@ -1530,17 +1530,17 @@
     }
   ],
   "identity" : {
-    "binarySHA256" : "3d2bc8eeac24ede731262c0b3d9fa1630d48aa96bb14d7698a59eed705bbd07f",
+    "binarySHA256" : "80497f0c6fd5c9d8422ec0addbd447d968243ce05f6be898de357db80cf4fc2c",
     "cores" : 12,
     "cpu" : "Apple M6",
-    "date" : "2026-10-18T06:24:38Z",
+    "date" : "2026-10-18T08:11:56Z",
     "os" : "Version 27.0.1 (Build 26A434)",
     "sourceSHA256" : {
       "Content\/calibration\/mini-game-manifest.json" : "ec47b2da020482efbd3b11ad078a97f547433e6c998bc1b656e8c5cc60ad474c",
       "Sources\/CheckmateDomain\/ChessNotation.swift" : "eb3ac1a569cda5896981f054093d313b99b614c47af7d112edf5ac07eb1c75f6",
       "Sources\/CheckmateDomain\/Course.swift" : "cc4b3a0f97ae5b19789fee662ebb855fc6535b89115ed36d21e3de28ebdc43e4",
-      "Sources\/CheckmateDomain\/MiniGameCalibration.swift" : "1c7bd89e56e8fad94a7823f93e1ac4aced1c4fbb508bd2508fe438adacec6fae",
-      "Sources\/CheckmateDomain\/MiniGames.swift" : "aa6adeb75a8e662c56ed25bd9ceeaeafe87f284e8ec4228dc0cb8e7595687715",
+      "Sources\/CheckmateDomain\/MiniGameCalibration.swift" : "54666e106b797b6f0caa8766e3783658c5a2c3d154ef1159b54fabfcda64cf38",
+      "Sources\/CheckmateDomain\/MiniGames.swift" : "738fb34b93fa0a0d1af6632b607fa19cd7fdd1f336388f6f7559bcb8849f4bb9",
       "Tools\/MiniGameCalibration\/main.swift" : "e0ed49f4c3feebe7e9ea43890bd375664600e34d7caf99e3a77f1e84d0eb9957"
     }
   },
@@ -1654,8 +1654,8 @@
   "requiredGamesPerPairing" : 386,
   "smoke" : false,
   "timing" : {
-    "deadlineSeconds" : 194.63043296337128,
-    "deterministicSeconds" : 2667.501704931259,
+    "deadlineSeconds" : 185.7505009174347,
+    "deterministicSeconds" : 2393.0150760412216,
     "gameThreads" : 12,
     "loadThreads" : 12
   },

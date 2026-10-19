@@ -32,14 +32,25 @@ public enum MiniGameOffering {
     /// The level a standard-rule game plays when it offers no choice: today's coded strength (plan D4), Steady for a
     /// guided game (`.skill(3)`), Strong for an ending or a position game (`.skill(20)`).
     public static func fallbackLevel(for check:TrainingCheck?)->TrainingOpponentLevel {check == .guidedGame ? .steady:.strong}
-    /// The levels a standard-rule game offers, weakest first. Calibration (WI-016) has published nothing for them yet,
-    /// so with position games off each plays its fallback and shows no picker: nothing visible changes. Their preview
-    /// (`CHECKMATE_POSITION_GAMES`) offers all three, uncalibrated, for development and calibration only, except the
-    /// stalemate trap (`finish-the-game` kqk): it offers only Strong, because a weaker defender rarely heads for the
-    /// stalemate the drill is about.
+    /// The levels each calibrated standard-rule game offers, weakest first, by `entry/variant`: calibration's verdicts
+    /// (WI-020, `Content/calibration/position-game-results.json`), which a unit test keeps equal to this table. A game
+    /// not listed was not calibrated and offers only its fallback.
+    static let positionGames:[String:[TrainingOpponentLevel]]=[
+        "pawn-race/kpk":[.gentle,.strong],"pawn-war/pawns":[.gentle,.steady,.strong],
+        "cut-down-chess/knights":[.gentle,.steady,.strong],"cut-down-chess/bishops":[.gentle,.steady,.strong],"cut-down-chess/rooks":[.gentle,.steady,.strong],
+        "cut-down-chess/queens":[.steady,.strong],"cut-down-chess/minor-pieces":[.gentle,.steady,.strong],"cut-down-chess/major-pieces":[.steady,.strong],
+        "two-bishop-mate/kbbk":[.strong],"finish-the-game/krk":[.strong],
+    ]
+    /// Replaces the calibrated table in tests of the level mechanism, which need levels calibration may withdraw.
+    static var testPositionGames:[String:[TrainingOpponentLevel]]?
+    /// The levels a standard-rule game offers, weakest first. With position games off each plays its fallback and shows
+    /// no picker, so nothing visible changes. With them on (`CHECKMATE_POSITION_GAMES`), a game offers the levels its
+    /// calibration passed (`positionGames`), and an uncalibrated one only its fallback. The stalemate trap
+    /// (`finish-the-game` kqk) offers only Strong whatever calibration says, because a weaker defender rarely heads for
+    /// the stalemate the drill is about.
     public static func levels(entry:String,variant:String,check:TrainingCheck?)->[TrainingOpponentLevel] {
         guard TrainingRolloutPolicy.positionGamesEnabled,!(entry=="finish-the-game" && variant=="kqk") else{return [fallbackLevel(for:check)]}
-        return TrainingOpponentLevel.allCases
+        return (testPositionGames ?? positionGames)[PositionGameCalibration.key(entry:entry,variant:variant)] ?? [fallbackLevel(for:check)]
     }
     /// The level a new attempt freezes: the learner's preference for this entry when offered, else the fallback.
     /// `offered` replaces the table (tests).

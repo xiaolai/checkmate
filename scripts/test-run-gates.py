@@ -179,7 +179,7 @@ finally:
     gates.run, gates.stale_reason = saved[3], saved[4]
     os.environ.clear(); os.environ.update(saved[5]); sys.argv[:] = saved[6]
 # The Swift guards cannot import test_host, so each reads the marker itself; none may drift from it.
-for guard in ['Tools/ReviewScenario.swift', 'Tools/Acceptance/Probe.swift', 'Tools/calibrate-opponents.swift', 'Tools/MiniGameCalibration/main.swift', 'Tools/lan-vm.swift', 'Tools/lan-vm-input.swift']:
+for guard in ['Tools/ReviewScenario.swift', 'Tools/Acceptance/Probe.swift', 'Tools/calibrate-opponents.swift', 'Tools/MiniGameCalibration/main.swift', 'Tools/PositionGameCalibration/main.swift', 'Tools/lan-vm.swift', 'Tools/lan-vm-input.swift']:
     assert test_host.ROLE_FILE in (root / guard).read_text(), f'{guard} does not read ~/{test_host.ROLE_FILE}'
 # A crash report of this checkout's app fails the gate whose apps were running, even when that gate exited 0 and the report
 # arrives during a later gate; another checkout's build, another program, and a report that is not JSON are not blamed.

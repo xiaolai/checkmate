@@ -542,6 +542,7 @@
     "Tests/*",
     "Tools/Acceptance/*",
     "Tools/MiniGameCalibration/*",
+    "Tools/PositionGameCalibration/*",
     "Tools/legacy-store-test.swift",
     "Tools/legacy-export.js",
     "companion/*",

@@ -35,7 +35,7 @@ final class MiniGameCalibrationTests:XCTestCase {
         refuses({$0.gamesPerPairing=200},"is below the");refuses({$0.gamesPerPairing=401},"split evenly")
         refuses({$0.entries.removeLast()},"every competitive game");refuses({$0.entries.append($0.entries[0])},"every competitive game")
         refuses({$0.entries[0].game="knight-corners"},"every competitive game")
-        refuses({$0.entries[0].kind="standard-rule"},"follow WI-017")
+        refuses({$0.entries[0].kind="standard"},"position-game-manifest.json")
         refuses({$0.entries[0].start="random-opening"},"initial position")
         refuses({$0.entries[0].accessibility.reference="level-below"},"fixed reference");refuses({$0.entries[0].accessibility.minimumReferenceScore=0},"inside (0, 1)")
         refuses({$0.levels=["standard","beginner","challenging"]},"weakest first");refuses({$0.sides=["w"]},"sides");refuses({$0.drawScore=0},"half a point")
