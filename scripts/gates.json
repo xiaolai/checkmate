@@ -292,6 +292,8 @@
     "barAndCommandZTakeBack",
     "levelPicker",
     "trainingVoice",
+    "positionGamesListed",
+    "positionGameReply",
     "mixedTopicAfterAnswer",
     "guidedGame",
     "guidedReview",
@@ -299,6 +301,7 @@
    ],
    "inputs": [
     "scripts/test-training-b-pointer.py",
+    "Content/calibration/position-game-results.json",
     "Tools/pointer-helper.swift",
     "Tools/ax-helper.swift",
     "Sources/CheckmateNative/Training*.swift",

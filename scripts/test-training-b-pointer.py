@@ -2,12 +2,14 @@
 
 Every action is a posted mouse event (accessibility presses bypass hit-testing): the Beginner skills section and a
 subskill chip, the promotion chooser cancelled and then answered, a normal-chess bridge opened from an existing game,
-a Finish the Game move answered by the bundled offline Stockfish defender, then taken back, the opponent level
-picker (a game with no move takes the level, one in progress keeps its own and offers a new game at it), the training
-game's voice coach connected from the bar and disconnected from the drawer with the silent voice double (connecting records
-no help), a mixed case whose topic appears only after the answer, a guided game played, ended and reviewed, and a related
-lesson read and left for training. The app runs with its own automation identifier and data directory, with training, its
-B preview, position games and the training voice coach enabled.
+a Finish the Game move answered by the bundled offline Stockfish defender, then taken back, the position games listed
+under the preview caption and one of them played, its move answered by Stockfish, the opponent level picker on a game
+whose calibration offers several levels (a game with no move takes the level, one in progress keeps its own and offers
+a new game at it) and none on one whose calibration offers one, the training game's voice coach connected from the bar
+and disconnected from the drawer with the silent voice double (connecting records no help), a mixed case whose topic
+appears only after the answer, a guided game played, ended and reviewed, and a related lesson read and left for
+training. The app runs with its own automation identifier and data directory, with training, its B preview, position
+games and the training voice coach enabled.
 """
 import atexit
 import json
@@ -41,6 +43,10 @@ environment["CHECKMATE_TRAINING_VOICE"] = "1"
 process = None
 PIECES = {"n": "knight", "b": "bishop", "r": "rook", "q": "queen"}
 COLOURS = {"w": "White", "b": "Black"}
+# The position games (mini-game plan WI-020) and the levels calibration lets each offer, from its published results.
+POSITION_ENTRIES = ("pawn-race", "pawn-war", "cut-down-chess", "two-bishop-mate")
+OFFERED = {f"{v['entry']}/{v['variant']}": v["offered"] for v in json.loads((root / "Content/calibration/position-game-results.json").read_text())["verdicts"]}
+TITLES = {"gentle": "Gentle", "steady": "Steady", "strong": "Strong"}
 
 
 def pointer(action, *arguments):
@@ -235,31 +241,47 @@ try:
     assert (active().get("opponent") or {}).get("profile") == "strong", "The king-and-queen ending did not freeze Strong"
     assert "training-level" not in listing(), "The stalemate trap offered a level choice"
 
-    # The level picker (mini-game plan D4): a game with no move takes the chosen level; a game in progress keeps its
-    # own and offers a new game at the other.
+    # The rook ending offers exactly the levels its calibration passed: no picker when that is one.
     open_library()
     pointer("click", "training-variant-finish-the-game-krk")
     wait(lambda: active() is not None and active()["scenario"]["variant"] == "krk" and not active()["actions"], "The King and rook chip did not start an ending")
     show_details()
-    wait(lambda: "training-level" in listing(), "The rook ending did not show the level picker")
+    time.sleep(SAVE_SETTLE)
+    assert ("training-level" in listing()) == (len(OFFERED["finish-the-game/krk"]) > 1), "The rook ending's picker does not match its calibration"
+    assert (active().get("opponent") or {}).get("profile") == "strong", "The rook ending did not freeze its fallback, Strong"
+
+    # The position games (mini-game plan WI-020), listed under the preview caption, which says they are machine-checked.
+    open_library()
+    tree = listing()
+    position_games_listed = all("training-entry-" + entry in tree for entry in POSITION_ENTRIES) and "Preview: these exercises" in tree
+    assert position_games_listed, "The position games are not listed under the preview caption"
+
+    # A cut-down game with several calibrated levels: a dragged pawn move answered by Stockfish, then the level picker.
+    # A game with no move takes the chosen level; a game in progress keeps its own and offers a new game at the other.
+    variant = next(key.split("/")[1] for key, levels in OFFERED.items() if key.startswith("cut-down-chess/") and len(levels) > 1)
+    low, high = OFFERED["cut-down-chess/" + variant][0], OFFERED["cut-down-chess/" + variant][-1]
+    pointer("click", f"training-variant-cut-down-chess-{variant}")
+    wait(lambda: active() is not None and active()["entry"] == "cut-down-chess" and active()["scenario"]["variant"] == variant and not active()["actions"], f"The {variant} chip did not start a cut-down game")
+    show_details()
+    wait(lambda: "training-level" in listing(), "The cut-down game did not show the level picker")
     first = active()["id"]
-    pointer("select-popup", "training-level", "Gentle")
-    wait(lambda: (saved().get("settings") or {}).get("positionGameLevels", {}).get("finish-the-game") == "gentle", "The chosen level was not saved")
-    wait(lambda: (active().get("opponent") or {}).get("profile") == "gentle" and active()["id"] == first, "A game with no move did not take the chosen level")
-    scenario = active()["scenario"]
-    learner = scenario["learner"]
-    piece, to, kind = quiet_move(scenario["fen"], learner)
-    pointer("drag-square", piece, to)
-    wait(lambda: any("reply" in action for action in active()["actions"]), "Gentle did not answer", timeout=30)
-    wait(lambda: "Your move." in listing(), "The board did not return to the learner after Gentle's reply")
-    assert active()["opponent"]["strategy"] == "beginner" and active()["opponent"]["limit"].get("nodes"), "Gentle is not the node-limited beginner opponent"
-    pointer("select-popup", "training-level", "Strong")
-    wait(lambda: (saved().get("settings") or {}).get("positionGameLevels", {}).get("finish-the-game") == "strong", "Choosing Strong during a game was not saved")
+    pointer("select-popup", "training-level", TITLES[low])
+    wait(lambda: (saved().get("settings") or {}).get("positionGameLevels", {}).get("cut-down-chess") == low, "The chosen level was not saved")
+    wait(lambda: (active().get("opponent") or {}).get("profile") == low and active()["id"] == first, "A game with no move did not take the chosen level")
+    pointer("drag-square", "e2", "e4")
+    wait(lambda: label("e4").startswith("e4, White, pawn"), "The dragged pawn move did not land")
+    wait(lambda: any("reply" in action for action in active()["actions"]), f"{TITLES[low]} did not answer", timeout=30)
+    wait(lambda: "Your move." in listing(), "The board did not return to the learner after the reply")
+    opponent = active()["opponent"]
+    assert opponent["limit"].get("nodes") and opponent["strategy"] == ("beginner" if low == "gentle" else "engine"), f"{TITLES[low]} is not its node-limited strategy"
+    position_game_reply = True
+    pointer("select-popup", "training-level", TITLES[high])
+    wait(lambda: (saved().get("settings") or {}).get("positionGameLevels", {}).get("cut-down-chess") == high, "Choosing another level during a game was not saved")
     wait(lambda: "training-new-level" in listing(), "Choosing a level during a game did not offer a new game at it")
-    assert active()["opponent"]["profile"] == "gentle" and active()["id"] == first, "The game in progress changed level"
+    assert active()["opponent"]["profile"] == low and active()["id"] == first, "The game in progress changed level"
     pointer("click", "training-new-level")
-    wait(lambda: active()["id"] != first and (active().get("opponent") or {}).get("profile") == "strong" and not active()["actions"], "Start a new game at this level did not start one at it")
-    assert attempts()[-1]["outcome"] == "abandoned" and attempts()[-1].get("level") == "gentle", "The game left was not recorded at its own level"
+    wait(lambda: active()["id"] != first and (active().get("opponent") or {}).get("profile") == high and not active()["actions"], "Start a new game at this level did not start one at it")
+    assert attempts()[-1]["outcome"] == "abandoned" and attempts()[-1].get("level") == low, "The game left was not recorded at its own level"
     wait(lambda: "training-new-level" not in listing(), "The new game still offered another one")
     level_picker = True
 
@@ -324,6 +346,7 @@ try:
 
     result = {"passed": True, "beginnerLibrary": beginner_library, "variantChip": variant_chip, "promotionCancelled": promotion_cancelled,
               "promotionChosen": promotion_chosen, "bridgeOpened": bridge_opened, "endingReply": ending_reply, "endingTakeBack": ending_take_back, "barAndCommandZTakeBack": bar_and_command_z_take_back, "levelPicker": level_picker, "trainingVoice": training_voice,
+              "positionGamesListed": position_games_listed, "positionGameReply": position_game_reply,
               "mixedTopicAfterAnswer": mixed_topic_after_answer, "guidedGame": guided_game, "guidedReview": guided_review, "lessonLink": lesson_link}
     (evidence / "training-b-pointer-results.json").write_text(json.dumps(result, indent=2))
     print(json.dumps(result))

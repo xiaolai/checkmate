@@ -706,6 +706,136 @@
     "rules-review"
    ],
    "tiers": 1
+  },
+  {
+   "id": "pawn-race",
+   "title": "Pawn Race",
+   "summary": "Promote your one pawn against the lone king, and keep the new piece.",
+   "rules": [
+    "This is a normal chess game against a computer defender that plays legal moves.",
+    "Win by promoting your pawn and keeping the new piece: it must still be on the board after your opponent's reply. A promotion that gives checkmate wins at once.",
+    "Losing the pawn, a stalemate, a draw, or a new piece captured at once ends the task."
+   ],
+   "objective": "positionGame",
+   "ruleMode": "standardChess",
+   "illegalInput": "selectionCorrection",
+   "actions": [
+    "playMove"
+   ],
+   "increment": "B",
+   "delivery": "release",
+   "origin": "new",
+   "skills": [
+    "convertingWin",
+    "specialRules"
+   ],
+   "variants": [
+    "kpk"
+   ],
+   "lessonLinks": [
+    "pawn",
+    "promotion-en-passant"
+   ],
+   "tiers": 3
+  },
+  {
+   "id": "pawn-war",
+   "title": "Pawn War with Kings",
+   "summary": "Kings and eight pawns each: make a passed pawn, promote it and give checkmate.",
+   "rules": [
+    "This is a normal chess game with only kings and pawns, against a computer opponent.",
+    "Win only by checkmate: promote a pawn to get a piece that can give mate. Stalemate and every other draw end the task.",
+    "Threefold repetition and the 50-move rule can be claimed as draws; fivefold repetition and the 75-move rule end the game automatically."
+   ],
+   "objective": "positionGame",
+   "ruleMode": "standardChess",
+   "illegalInput": "selectionCorrection",
+   "actions": [
+    "playMove"
+   ],
+   "increment": "B",
+   "delivery": "release",
+   "origin": "new",
+   "skills": [
+    "convertingWin",
+    "checkMateDraw"
+   ],
+   "variants": [
+    "pawns"
+   ],
+   "lessonLinks": [
+    "pawn",
+    "promotion-en-passant",
+    "check-and-checkmate"
+   ],
+   "tiers": 1
+  },
+  {
+   "id": "cut-down-chess",
+   "title": "Cut-Down Chess",
+   "summary": "Kings, pawns and one kind of piece each: play a whole game to checkmate.",
+   "rules": [
+    "This is a normal chess game with kings, pawns and one kind of piece for each side, against a computer opponent.",
+    "Win only by checkmate. Stalemate and every other draw end the task. Castling and en passant follow the normal rules.",
+    "Threefold repetition and the 50-move rule can be claimed as draws; fivefold repetition and the 75-move rule end the game automatically."
+   ],
+   "objective": "positionGame",
+   "ruleMode": "standardChess",
+   "illegalInput": "selectionCorrection",
+   "actions": [
+    "playMove"
+   ],
+   "increment": "B",
+   "delivery": "release",
+   "origin": "new",
+   "skills": [
+    "captureExchange",
+    "checkMateDraw"
+   ],
+   "variants": [
+    "knights",
+    "bishops",
+    "rooks",
+    "queens",
+    "minor-pieces",
+    "major-pieces"
+   ],
+   "lessonLinks": [
+    "piece-values",
+    "check-and-checkmate"
+   ],
+   "tiers": 1
+  },
+  {
+   "id": "two-bishop-mate",
+   "title": "Two-Bishop Mate",
+   "summary": "Checkmate a lone king with your king and two bishops.",
+   "rules": [
+    "This is a normal chess game against a computer defender that plays legal moves.",
+    "Win only by checkmate. Stalemate is a draw, and losing a bishop ends the task: one bishop cannot mate.",
+    "Threefold repetition and the 50-move rule can be claimed as draws; fivefold repetition and the 75-move rule end the game automatically."
+   ],
+   "objective": "positionGame",
+   "ruleMode": "standardChess",
+   "illegalInput": "selectionCorrection",
+   "actions": [
+    "playMove"
+   ],
+   "increment": "B",
+   "delivery": "release",
+   "origin": "new",
+   "skills": [
+    "convertingWin",
+    "checkMateDraw"
+   ],
+   "variants": [
+    "kbbk"
+   ],
+   "lessonLinks": [
+    "bishop",
+    "check-and-checkmate"
+   ],
+   "tiers": 3
   }
  ]
 }

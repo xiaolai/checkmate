@@ -62,6 +62,13 @@ import CheckmateCore
         // The original games keep their fixed start, White to move.
         for kind in MiniGameKind.allCases {let game=MiniGameState(kind:kind);XCTAssertEqual(game.turn,"w");XCTAssertEqual(game.board,kind.initialBoard)}
     }
+    /// Increment B: seven exercises and the four position games of mini-game plan D2 (WI-020), all new.
+    func testIncrementBIsSevenExercisesAndTheFourPositionGames()throws {
+        let beginner=try TrainingCatalog.bundled().entries(in:.beginner)
+        XCTAssertEqual(beginner.count,11);XCTAssertTrue(beginner.allSatisfy{$0.origin == .new})
+        XCTAssertEqual(beginner.filter{$0.objective == .positionGame}.map(\.id),["pawn-race","pawn-war","cut-down-chess","two-bishop-mate"])
+        XCTAssertEqual(Set(beginner.filter{$0.objective != .positionGame}.map(\.objective)),[.saveYourPiece,.captureWisely,.specialMoves,.simpleTactics,.finishTheGame,.mixedPractice,.guidedGame])
+    }
     func testEveryCuratedPoolMeetsItsContract()throws {
         let provider=try TrainingScenarioProvider.bundled()
         for entry in ["mate-in-one","king-safe-squares","escape-check","check-mate-stalemate"] {

@@ -19,6 +19,9 @@ public enum TrainingRolloutPolicy {
     /// Whether an entry is offered: Increment A always, Increment B only with its preview enabled, position games only
     /// with theirs.
     public static func offered(_ definition:TrainingEntryDefinition)->Bool {definition.objective == .positionGame ? positionGamesEnabled:definition.increment == .foundations || beginnerEnabled}
+    /// Whether the library lists an entry under its preview heading, labelled machine-checked but not yet reviewed: an
+    /// offered Increment B entry. A position game needs its own flag on top of Increment B's.
+    public static func preview(_ definition:TrainingEntryDefinition)->Bool {definition.increment == .beginner && offered(definition)}
 }
 /// How an entry's moves are judged. Every entry declares one and shows its plain rules (plan rule 2).
 public enum TrainingRuleMode:String,Codable,CaseIterable {

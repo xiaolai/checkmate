@@ -1,0 +1,173 @@
+{
+ "entry": "two-bishop-mate",
+ "scenarios": [
+  {
+   "id": "tb-g8",
+   "entry": "two-bishop-mate",
+   "variant": "kbbk",
+   "tier": 1,
+   "cluster": "tb-g8",
+   "learner": "w",
+   "fen": "6k1/8/4K3/8/3BB3/8/8/8 w - - 0 1",
+   "prompt": "White to move. Checkmate the lone king with your king and two bishops. Every legal move is allowed; the computer defends.",
+   "explanation": "The two bishops side by side make a wall the enemy king cannot cross. Push the king towards a corner with the bishops, bring your own king up to take the squares beside it, and mate in the corner. Leave the enemy king a move until the mate, or it is stalemate; and keep both bishops, because one bishop cannot mate.",
+   "hints": [
+    "Put the bishops next to each other: together they cut off two diagonals at once.",
+    "Mate happens in a corner: drive the king there, and bring your king close before the last checks."
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "positionGame",
+   "goal": {
+    "kind": "checkmate",
+    "threshold": 0
+   },
+   "keep": [
+    "b"
+   ]
+  },
+  {
+   "id": "tb-b6",
+   "entry": "two-bishop-mate",
+   "variant": "kbbk",
+   "tier": 1,
+   "cluster": "tb-b6",
+   "learner": "w",
+   "fen": "k7/8/1K6/8/8/8/3BB3/8 w - - 0 1",
+   "prompt": "White to move. Checkmate the lone king with your king and two bishops. Every legal move is allowed; the computer defends.",
+   "explanation": "The two bishops side by side make a wall the enemy king cannot cross. Push the king towards a corner with the bishops, bring your own king up to take the squares beside it, and mate in the corner. Leave the enemy king a move until the mate, or it is stalemate; and keep both bishops, because one bishop cannot mate.",
+   "hints": [
+    "Put the bishops next to each other: together they cut off two diagonals at once.",
+    "Mate happens in a corner: drive the king there, and bring your king close before the last checks."
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "positionGame",
+   "goal": {
+    "kind": "checkmate",
+    "threshold": 0
+   },
+   "keep": [
+    "b"
+   ]
+  },
+  {
+   "id": "tb-d5",
+   "entry": "two-bishop-mate",
+   "variant": "kbbk",
+   "tier": 2,
+   "cluster": "tb-d5",
+   "learner": "w",
+   "fen": "8/8/8/3k4/8/8/8/2B1KB2 w - - 0 1",
+   "prompt": "White to move. Checkmate the lone king with your king and two bishops. Every legal move is allowed; the computer defends.",
+   "explanation": "The two bishops side by side make a wall the enemy king cannot cross. Push the king towards a corner with the bishops, bring your own king up to take the squares beside it, and mate in the corner. Leave the enemy king a move until the mate, or it is stalemate; and keep both bishops, because one bishop cannot mate.",
+   "hints": [
+    "Put the bishops next to each other: together they cut off two diagonals at once.",
+    "Mate happens in a corner: drive the king there, and bring your king close before the last checks."
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "positionGame",
+   "goal": {
+    "kind": "checkmate",
+    "threshold": 0
+   },
+   "keep": [
+    "b"
+   ]
+  },
+  {
+   "id": "tb-c6",
+   "entry": "two-bishop-mate",
+   "variant": "kbbk",
+   "tier": 2,
+   "cluster": "tb-c6",
+   "learner": "w",
+   "fen": "8/8/2k5/8/8/3K4/2BB4/8 w - - 0 1",
+   "prompt": "White to move. Checkmate the lone king with your king and two bishops. Every legal move is allowed; the computer defends.",
+   "explanation": "The two bishops side by side make a wall the enemy king cannot cross. Push the king towards a corner with the bishops, bring your own king up to take the squares beside it, and mate in the corner. Leave the enemy king a move until the mate, or it is stalemate; and keep both bishops, because one bishop cannot mate.",
+   "hints": [
+    "Put the bishops next to each other: together they cut off two diagonals at once.",
+    "Mate happens in a corner: drive the king there, and bring your king close before the last checks."
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "positionGame",
+   "goal": {
+    "kind": "checkmate",
+    "threshold": 0
+   },
+   "keep": [
+    "b"
+   ]
+  },
+  {
+   "id": "tb-e6",
+   "entry": "two-bishop-mate",
+   "variant": "kbbk",
+   "tier": 3,
+   "cluster": "tb-e6",
+   "learner": "w",
+   "fen": "8/8/4k3/8/8/8/8/B3K2B w - - 0 1",
+   "prompt": "White to move. Checkmate the lone king with your king and two bishops. Every legal move is allowed; the computer defends.",
+   "explanation": "The two bishops side by side make a wall the enemy king cannot cross. Push the king towards a corner with the bishops, bring your own king up to take the squares beside it, and mate in the corner. Leave the enemy king a move until the mate, or it is stalemate; and keep both bishops, because one bishop cannot mate.",
+   "hints": [
+    "Put the bishops next to each other: together they cut off two diagonals at once.",
+    "Mate happens in a corner: drive the king there, and bring your king close before the last checks."
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "positionGame",
+   "goal": {
+    "kind": "checkmate",
+    "threshold": 0
+   },
+   "keep": [
+    "b"
+   ]
+  },
+  {
+   "id": "tb-f7",
+   "entry": "two-bishop-mate",
+   "variant": "kbbk",
+   "tier": 3,
+   "cluster": "tb-f7",
+   "learner": "w",
+   "fen": "8/5k2/8/8/8/8/8/1BB1K3 w - - 0 1",
+   "prompt": "White to move. Checkmate the lone king with your king and two bishops. Every legal move is allowed; the computer defends.",
+   "explanation": "The two bishops side by side make a wall the enemy king cannot cross. Push the king towards a corner with the bishops, bring your own king up to take the squares beside it, and mate in the corner. Leave the enemy king a move until the mate, or it is stalemate; and keep both bishops, because one bishop cannot mate.",
+   "hints": [
+    "Put the bishops next to each other: together they cut off two diagonals at once.",
+    "Mate happens in a corner: drive the king there, and bring your king close before the last checks."
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "positionGame",
+   "goal": {
+    "kind": "checkmate",
+    "threshold": 0
+   },
+   "keep": [
+    "b"
+   ]
+  }
+ ]
+}

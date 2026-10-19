@@ -39,13 +39,21 @@ def isolated(temporary):
     shutil.copytree(tool.SOURCE, source)
     for path in (source / 'scenarios').glob('*.json'):
         path.unlink()
+    (source / 'position-game-evidence.json').write_text(json.dumps(NO_EVIDENCE))
     return source
 
 
-def build_fixture(mutate, scenario=SCENARIO):
-    """Builds the isolated sources after one mutation of the catalog, the coverage and the fixture's scenario list."""
+# The position-game evidence of an isolated source: no scenario of the real content is published there.
+NO_EVIDENCE = {'schemaVersion': 1, 'engine': 'fixture-engine', 'mates': {}}
+
+
+def build_fixture(mutate, scenario=SCENARIO, mates=None):
+    """Builds the isolated sources after one mutation of the catalog, the coverage and the fixture's scenario list, with
+    `mates` as the position-game evidence's engine mates."""
     with tempfile.TemporaryDirectory(prefix='checkmate-training-content-') as temporary:
         source = isolated(temporary)
+        if mates is not None:
+            (source / 'position-game-evidence.json').write_text(json.dumps(dict(NO_EVIDENCE, mates=mates)))
         catalog = json.loads((source / 'catalog.json').read_text())
         coverage = json.loads((source / 'coverage.json').read_text())
         scenarios = [copy.deepcopy(scenario)]
@@ -100,35 +108,57 @@ def complete_and_withdrawn():
         assert any(not row['met'] and 'escape-check' in json.dumps(row['requirement']) for row in report['requirements']), 'the lost requirement is not reported'
 
 
-# A position game (mini-game plan D3) in a fixture entry: the catalog has none until its content is written (WI-020).
-POSITION_ENTRY = {
-    'id': 'pawn-race', 'title': 'Pawn race', 'summary': 'Promote the pawn and keep the new piece.', 'rules': ['A normal chess game from this position.'],
-    'objective': 'positionGame', 'ruleMode': 'standardChess', 'illegalInput': 'selectionCorrection', 'actions': ['playMove'], 'increment': 'B',
-    'delivery': 'pilot', 'origin': 'new', 'skills': ['convertingWin'], 'variants': ['kpk', 'kbbk'], 'lessonLinks': [], 'tiers': 1,
-}
+# Position games (mini-game plan D3) in the catalog's own entries: a pawn race (an exact promoteAndHold success by the
+# KPK oracle, White's king outside the black king's reach of the a-pawn) and a two-bishop mate with its engine mate.
 POSITION = {
     'id': 'race-fixture-1', 'entry': 'pawn-race', 'variant': 'kpk', 'tier': 1, 'learner': 'w', 'cluster': 'race-fixture-a',
-    'fen': '4k3/8/8/8/8/8/4P3/4K3 w - - 0 1', 'prompt': 'Promote the pawn and keep the new piece.', 'explanation': 'The king leads the pawn.',
-    'hints': ['Keep your king in front of the pawn.'], 'check': 'positionGame', 'goal': {'kind': 'promoteAndHold', 'threshold': 0},
+    'fen': '8/8/8/8/P7/8/6k1/K7 w - - 0 1', 'prompt': 'Promote the pawn and keep the new piece.', 'explanation': 'The pawn runs.',
+    'hints': ['Count the moves to the last rank.'], 'check': 'positionGame', 'goal': {'kind': 'promoteAndHold', 'threshold': 0},
     'review': {'author': 'fixture', 'reviewer': None, 'validatorVersion': tool.VALIDATOR_VERSION},
 }
+BISHOPS = dict(POSITION, id='bishops-fixture-1', entry='two-bishop-mate', variant='kbbk', cluster='bishops-fixture-a', fen='4k3/8/8/8/8/8/8/2B1KB2 w - - 0 1',
+               goal={'kind': 'checkmate', 'threshold': 0}, keep=['b'])
+MATE = {'line': [], 'nodes': 2000000, 'mate': 18}
 
 
 def with_position_entry(mutate):
-    """The mutation, after adding the position-game fixture entry to the catalog."""
-    def apply(catalog, coverage, scenarios):
-        catalog['entries'].append(copy.deepcopy(POSITION_ENTRY))
-        mutate(catalog, coverage, scenarios)
-    return apply
+    """The mutation, on the catalog that already has the position-game entries."""
+    return mutate
 
 
 def position_games():
-    """The objective publishes, with both goals and `keep`; each malformed position game stops publication for its own
-    reason, and neither its goals nor `keep` may be borrowed by another evaluator. Returns the negative fixtures run."""
-    bishops = {'id': 'bishops-fixture-1', 'variant': 'kbbk', 'cluster': 'bishops-fixture-a', 'fen': '4k3/8/8/8/8/8/8/2B1KB2 w - - 0 1',
-               'goal': {'kind': 'checkmate', 'threshold': 0}, 'keep': ['b']}
-    files, _ = build_fixture(with_position_entry(lambda c, v, s: s.append(dict(copy.deepcopy(s[0]), **bishops))), POSITION)
-    assert json.loads(files['manifest.json'])['counts']['pawn-race'] == {'kpk': 1, 'kbbk': 1}, 'both goals must publish'
+    """The objective publishes, with both goals and `keep`, its reachable goal recorded in the manifest; each malformed
+    position game stops publication for its own reason, and neither its goals nor `keep` may be borrowed by another
+    evaluator. Returns the negative fixtures run."""
+    files, _ = build_fixture(lambda c, v, s: None, POSITION)
+    manifest = json.loads(files['manifest.json'])
+    assert manifest['counts']['pawn-race'] == {'kpk': 1}, 'a pawn race publishes'
+    oracle = manifest['positionGames']['race-fixture-1']['oracle']
+    assert oracle['promoteAndHold'] == 'success' and oracle['fen'] == POSITION['fen'] and oracle['generator']['tool'] == 'kpk-oracle' and len(oracle['generator']['sourceHash']) == 64, oracle
+    files, _ = build_fixture(lambda c, v, s: None, BISHOPS, mates={'bishops-fixture-1': MATE})
+    manifest = json.loads(files['manifest.json'])
+    assert manifest['counts']['two-bishop-mate'] == {'kbbk': 1}, 'a two-bishop mate publishes'
+    assert manifest['positionGames']['bishops-fixture-1'] == dict(MATE, goal='checkmate', engine='fixture-engine'), manifest['positionGames']
+    evidence = {
+        'a drawn pawn race': ('exact promoteAndHold success', POSITION, None, lambda c, v, s: s[0].update(fen='8/8/8/4k3/8/4K3/4P3/8 w - - 0 1')),
+        'a pawn race the oracle cannot read': ('the KPK oracle cannot judge this start', POSITION, None, lambda c, v, s: s[0].update(fen='4k3/8/8/8/8/8/4P3/4K3 w - - 3 1')),
+        'a mate without evidence': ('names its engine mate', BISHOPS, {}, lambda c, v, s: None),
+        'evidence for an unpublished game': ('not published checkmate position games', BISHOPS, {'bishops-fixture-1': MATE, 'tb-nowhere': MATE}, lambda c, v, s: None),
+        'evidence for a pawn race': ('not published checkmate position games', POSITION, {'race-fixture-1': MATE}, lambda c, v, s: None),
+        'too few nodes': ('1000 to 5000000 nodes', BISHOPS, {'bishops-fixture-1': dict(MATE, nodes=10)}, lambda c, v, s: None),
+        'a mate for the defender': ('a mate in 1 to 100 moves', BISHOPS, {'bishops-fixture-1': dict(MATE, mate=-3)}, lambda c, v, s: None),
+        'an evidence line that is not UCI': ('at most 400 moves in UCI', BISHOPS, {'bishops-fixture-1': dict(MATE, line=['Bd3'])}, lambda c, v, s: None),
+        'an evidence field too many': ('a line, a node count and a mate distance', BISHOPS, {'bishops-fixture-1': dict(MATE, score=1)}, lambda c, v, s: None),
+        'a position game removed': ('the position games', POSITION, None, lambda c, v, s: c['entries'].remove(entry(c, 'pawn-war'))),
+        'a position game variant added': ('the position games', POSITION, None, lambda c, v, s: entry(c, 'cut-down-chess')['variants'].append('kings')),
+    }
+    for label, (reason, base, mates, mutate) in evidence.items():
+        try:
+            build_fixture(mutate, base, mates)
+        except tool.ContentError as error:
+            assert reason in str(error), f'{label}: failed for another reason: {error}'
+            continue
+        raise AssertionError(f'unproved position game was published: {label}')
     cases = {
         'no goal': ("goal is checkmate or promoteAndHold", lambda c, v, s: s[0].pop('goal')),
         'a threshold': ("goal is checkmate or promoteAndHold", lambda c, v, s: s[0]['goal'].update(threshold=1)),
@@ -163,7 +193,7 @@ def position_games():
             assert reason in str(error), f'{label}: failed for another reason: {error}'
             continue
         raise AssertionError(f'a borrowed position-game field was published: {label}')
-    return len(cases) + len(borrowed)
+    return len(cases) + len(borrowed) + len(evidence)
 
 
 class Interrupted(Exception):

@@ -8,10 +8,11 @@ final class TrainingDefinitionTests:XCTestCase {
         let catalog=try TrainingCatalog.bundled()
         let a=catalog.entries(in:.foundations),b=catalog.entries(in:.beginner)
         XCTAssertEqual(a.count,15);XCTAssertEqual(a.filter{$0.origin == .existing}.count,8);XCTAssertEqual(a.filter{$0.origin == .new}.count,7)
-        XCTAssertEqual(b.count,7,"B adds six groups, each one library entry with variants, and the guided-game workflow");XCTAssertTrue(b.allSatisfy{$0.origin == .new})
+        XCTAssertEqual(b.count,11,"B adds six groups, each one library entry with variants, the guided-game workflow and the four position games");XCTAssertTrue(b.allSatisfy{$0.origin == .new})
         XCTAssertEqual(Set(catalog.entries.compactMap(\.legacyKind)),Set(MiniGameKind.allCases),"every existing game is a library entry exactly once")
         XCTAssertEqual(Set(a.filter{$0.origin == .new}.map(\.objective)),[.reachTarget,.findAttackers,.findDefenders,.kingSafeSquares,.mateInOne,.escapeCheck,.classifyStatus])
-        XCTAssertEqual(Set(b.map(\.objective)),[.saveYourPiece,.captureWisely,.specialMoves,.simpleTactics,.finishTheGame,.mixedPractice,.guidedGame])
+        XCTAssertEqual(Set(b.map(\.objective)),[.saveYourPiece,.captureWisely,.specialMoves,.simpleTactics,.finishTheGame,.mixedPractice,.guidedGame,.positionGame])
+        XCTAssertEqual(b.filter{$0.objective == .positionGame}.count,4,"the four position games of mini-game plan D2")
         XCTAssertEqual(Set(catalog.entries.filter{$0.delivery == .pilot}.map(\.id)),["reach-target","find-attackers","mate-in-one","pawn-duel"],"the four-entry pilot")
         // Every coverage-matrix row has at least one entry practising it.
         XCTAssertEqual(Set(catalog.entries.flatMap(\.skills)),Set(TrainingSkill.allCases))
