@@ -50,6 +50,11 @@ struct MiniGameReviewReadAloud:View {
         } else if voice.miniReviewReadable {
             Button("Read Aloud"){voice.readMiniReviewAloud()}.accessibilityIdentifier("mini-review-read-aloud")
             if let problem=voice.miniReviewProblem {Text(problem).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)}
+        } else if voice.miniReviewNeedsSignIn {
+            // The review stays readable as text without a sign-in; this says why, and offers the check in place.
+            Button("Read Aloud"){voice.readMiniReviewAloudAfterSignIn()}.disabled(voice.checkingAvailability).accessibilityIdentifier("mini-review-read-aloud")
+            Text(voice.checkingAvailability ? "Checking your Codex sign-in…":"Read Aloud checks your Codex sign-in first.").font(.caption).foregroundStyle(.secondary)
+            if let problem=voice.miniReviewProblem {Text(problem).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)}
         }
     }
 }

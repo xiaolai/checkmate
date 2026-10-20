@@ -128,14 +128,36 @@ import SaidGuard
     public var signInAvailable:Bool {voiceDouble || signInProved}
     /// Why the last reading could not start, shown on the review sheet until the next one.
     @Published public private(set) var miniReviewProblem:String?
-    /// Whether the review sheet offers Read Aloud: a finished game's proved facts are shown, a sign-in is proved and
-    /// nothing else holds the session.
-    public var miniReviewReadable:Bool {signInAvailable && session.fairness.engineHelpAllowed && !session.companionEnabled && session.finishedMiniGameReview() != nil}
+    /// Whether the review sheet offers Read Aloud at once: a finished game's proved facts are shown, a sign-in is
+    /// proved and nothing else holds the session.
+    public var miniReviewReadable:Bool {signInAvailable && miniReviewReviewable}
+    /// Whether the only thing missing before this review can be read aloud is a sign-in this launch has not proved.
+    /// The sheet then offers Read Aloud as a sign-in check, so the text-only fallback is explained rather than silent.
+    public var miniReviewNeedsSignIn:Bool {!signInAvailable && miniReviewReviewable}
+    /// A finished game's proved facts are shown, voice may speak and no companion holds the session.
+    private var miniReviewReviewable:Bool {session.fairness.engineHelpAllowed && !session.companionEnabled && session.finishedMiniGameReview() != nil}
     /// Reads the shown review's facts aloud, from the first, connecting a session for it if none is open.
-    public func readMiniReviewAloud(){
+    public func readMiniReviewAloud(){readMiniReviewAloud(authorized:nil)}
+    /// Checks the sign-in the learner asked for, then reads the review with the secret that check produced. Nothing is
+    /// authorized unless Read Aloud is pressed, and a refusal is shown on the sheet.
+    public func readMiniReviewAloudAfterSignIn(){
+        guard miniReviewNeedsSignIn,let scope=session.finishedMiniGameReview()?.scope else{readMiniReviewAloud();return}
+        miniReviewProblem=nil
+        Task {[weak self] in
+            guard let self else{return}
+            let secret=await self.checkAvailability().value
+            // The learner may have closed the sheet, or opened another review, while the check ran.
+            guard self.session.finishedMiniGameReview()?.scope==scope else{return}
+            guard self.signInAvailable else{self.miniReviewProblem=self.availability;return}
+            self.readMiniReviewAloud(authorized:secret)
+        }
+    }
+    /// Reads with a secret an availability check already minted, so one press authorizes once.
+    private func readMiniReviewAloud(authorized:ClientSecret?){
         guard miniReviewReadable,let current=session.finishedMiniGameReview() else{return};miniReviewProblem=nil
         if miniReviewSession==current.scope,ready{stopTurn(release:false);readMiniReview();return}
-        connect(miniReview:current.scope);if miniReviewSession==nil,status != "Disconnected"{miniReviewProblem=status}
+        if let authorized{connect(authorizedSecret:authorized,greet:false,miniReview:current.scope)}else{connect(miniReview:current.scope)}
+        if miniReviewSession==nil,status != "Disconnected"{miniReviewProblem=status}
     }
     /// Every segment a reading speaks passes here: a proved fact's exact text with its own squares, for the review the
     /// session was opened for, or nothing is queued (UNGROUNDED_REVIEW_SPEECH).

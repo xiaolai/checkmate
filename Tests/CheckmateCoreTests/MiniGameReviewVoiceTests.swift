@@ -86,6 +86,20 @@ import CheckmateCore
             XCTAssertNil(f.session.voiceLease,change);XCTAssertFalse(f.voice.miniReviewReadable,change)
         }
     }
+    /// Without a proved sign-in the sheet still offers Read Aloud, as a sign-in check the learner asked for; a refused
+    /// check is shown there and starts no reading. (The sign-in itself is never requested without that press.)
+    func testASignedOutReviewChecksTheSignInWhenAskedAndShowsARefusal()async throws {
+        let f=try fixture();defer{f.player.shutdown()};f.voice.voiceDouble=false
+        try await finish(f)
+        XCTAssertTrue(f.voice.miniReviewNeedsSignIn);XCTAssertFalse(f.voice.miniReviewReadable)
+        XCTAssertTrue(f.voice.connectRequests.isEmpty,"nothing is authorized before the press")
+        f.voice.readMiniReviewAloudAfterSignIn()
+        try await waitFor("the check ends"){!f.voice.checkingAvailability}
+        try await waitFor("the refusal is shown"){f.voice.miniReviewProblem != nil}
+        XCTAssertFalse(f.voice.signInAvailable);XCTAssertNil(f.voice.miniReviewSession)
+        XCTAssertTrue(f.voice.connectRequests.isEmpty,"a refused check starts no reading")
+        XCTAssertEqual(f.voice.miniReviewProblem,"Live availability checks are disabled during automation.","the sheet gives the reason")
+    }
     func testNotAvailableDuringPlayWithoutFactsOrWithoutASignIn()async throws {
         let play=try fixture();defer{play.player.shutdown()}
         XCTAssertNil(play.session.finishedMiniGameReview(),"nothing to read during play");XCTAssertFalse(play.voice.miniReviewReadable)
