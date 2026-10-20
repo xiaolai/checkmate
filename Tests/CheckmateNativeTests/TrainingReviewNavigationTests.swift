@@ -61,7 +61,7 @@ import CheckmateCore
         XCTAssertTrue(training.canReview(try XCTUnwrap(training.exercise)))
         // The practice game has moves, so the old menu item would have opened it instead.
         try model.session.rules.restore("1. e4 e5")
-        let practice=try practiceBytes(model)
+        let practicePGN=model.session.rules.pgn,practiceFEN=model.session.rules.fen
         let app=AppDelegate();app.model=model
         let item=NSMenuItem(title:"",action:#selector(AppDelegate.reviewCurrent),keyEquivalent:"")
         XCTAssertTrue(app.validateMenuItem(item),"a finished training game is reviewable")
@@ -70,7 +70,8 @@ import CheckmateCore
         let document=try XCTUnwrap(model.review.document)
         XCTAssertEqual(document.startingFEN,start,"the training game, not the practice game")
         XCTAssertEqual(document.provenance,"Training game")
-        XCTAssertEqual(try practiceBytes(model),practice,"the practice game is untouched")
+        XCTAssertEqual(model.session.rules.pgn,practicePGN,"the practice game is untouched")
+        XCTAssertEqual(model.session.rules.fen,practiceFEN)
     }
     /// An unfinished training game is not reviewable, and the menu does not fall back to the unrelated practice game.
     func testTheFileMenuRefusesAnUnfinishedTrainingGame()throws {
