@@ -18,6 +18,8 @@ struct FrozenTrainingDecoder {
         let model=try XCTUnwrap(JSONSerialization.jsonObject(with:Data(contentsOf:Self.directory.appendingPathComponent("release-decoder.json"))) as? [String:Any])
         records=try XCTUnwrap(model["records"] as? [String:[String:Any]]);shapes=try XCTUnwrap(model["shapes"] as? [String:Any])
     }
+    /// The fields the release knows in a `kind` record: the ones it decodes and writes back; nil for a kind it has not.
+    func fields(of kind:String)->Set<String>? {(records[kind]?["fields"] as? [String:Any]).map{Set($0.keys)}}
     /// `kind` is `active` or `retry`.
     func verdict(_ record:Any,as kind:String)->Verdict {
         guard let fields=record as? [String:Any],fields["id"] is String,fields["entry"] is String,fields["scenario"] is [String:Any],let spec=records[kind],let known=spec["fields"] as? [String:Any] else{return .damaged}

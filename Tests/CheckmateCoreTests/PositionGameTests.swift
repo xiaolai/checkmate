@@ -28,77 +28,117 @@ import CheckmateCore
         controller.attempt(from:String(uci.prefix(2)),to:String(uci.dropFirst(2).prefix(2)),promotion:uci.count==5 ? String(uci.suffix(1)):nil)
         await TrainingEndgameTests.settle(controller)
     }
-    /// Plays `moves` in a fresh game of `scenario` against `defender` and returns how it stands.
-    private func outcome(_ scenario:TrainingScenario,_ moves:[String],defender:ScriptedDefender?=nil)async throws -> TrainingController.Exercise {
-        let (_,player,controller)=try Self.fixture([scenario],defender:defender ?? ScriptedDefender());defer{player.shutdown()}
+    /// Plays `moves` in a fresh game of `scenario` against `defender` and returns how it stands. For `.black` the game,
+    /// the moves and the defender are each played as their mirror image (`Learner`), so the case is the same for a Black learner.
+    private func outcome(_ scenario:TrainingScenario,_ moves:[String],defender:ScriptedDefender?=nil,as learner:Learner = .white)async throws -> TrainingController.Exercise {
+        let (_,player,controller)=try Self.fixture([learner.scenario(scenario)],defender:learner.defender(defender ?? ScriptedDefender()));defer{player.shutdown()}
         controller.begin(try controller.prepare(entry:scenario.entry))
-        for move in moves{await Self.play(controller,move)}
+        for move in moves{await Self.play(controller,learner.uci(move))}
         return try XCTUnwrap(controller.exercise)
+    }
+    /// D3's cases are written for a White learner; each also runs as its mirror image, ranks flipped and colours swapped,
+    /// for a Black one. The defender then sees the board as the White case has it, and its move is mirrored back.
+    enum Learner:CaseIterable {
+        case white,black
+        static func square(_ s:Substring)->String {String(s.prefix(1))+String(9-Int(String(s.suffix(1)))!)}
+        static func swapped(_ c:Character)->Character {c.isUppercase ? Character(c.lowercased()):Character(c.uppercased())}
+        static func mirrored(_ fen:String)->String {
+            var fields=fen.split(separator:" ").map(String.init)
+            fields[0]=fields[0].split(separator:"/").reversed().map{String($0.map(swapped))}.joined(separator:"/")
+            fields[1]=fields[1]=="w" ? "b":"w"
+            if fields[2] != "-"{let castling=fields[2].map(swapped);fields[2]="KQkq".filter{castling.contains($0)}}
+            if fields[3] != "-"{fields[3]=square(Substring(fields[3]))}
+            return fields.joined(separator:" ")
+        }
+        func uci(_ uci:String)->String {self == .white ? uci:Self.square(uci.prefix(2))+Self.square(uci.dropFirst(2).prefix(2))+uci.dropFirst(4)}
+        @MainActor func scenario(_ scenario:TrainingScenario)->TrainingScenario {
+            guard self == .black,let start=scenario.fen else{return scenario}
+            return PositionGameTests.game(Self.mirrored(start),goal:scenario.goal?.kind ?? .checkmate,keep:scenario.keep,id:scenario.id,learner:scenario.learner=="w" ? "b":"w")
+        }
+        @MainActor func defender(_ defender:ScriptedDefender)->ScriptedDefender {
+            guard self == .black else{return defender}
+            let choose=defender.choose,mirrored=ScriptedDefender{rules in try choose(try ChessRules(fen:Self.mirrored(rules.fen))).map(Learner.black.uci)}
+            mirrored.failure=defender.failure;return mirrored
+        }
     }
 
     // MARK: D3, through the controller
 
     func testAnImmediateMateByPromotionWinsAndEachPromotionPieceIsJudged()async throws {
         let start="6k1/4P3/6K1/8/8/8/8/8 w - - 0 1"
-        for goal in [TrainingGoal.Kind.checkmate,.promoteAndHold] {
-            for piece in ["q","r"] {
-                let game=try await outcome(Self.game(start,goal:goal),["e7e8"+piece])
-                XCTAssertEqual(game.status,.correct,"\(goal) e8=\(piece) mates");XCTAssertTrue(game.feedback.hasPrefix("Checkmate!"))
+        for learner in Learner.allCases {
+            for goal in [TrainingGoal.Kind.checkmate,.promoteAndHold] {
+                for piece in ["q","r"] {
+                    let game=try await outcome(Self.game(start,goal:goal),["e7e8"+piece],as:learner)
+                    XCTAssertEqual(game.status,.correct,"\(learner) \(goal) e8=\(piece) mates");XCTAssertTrue(game.feedback.hasPrefix("Checkmate!"))
+                }
             }
-        }
-        // A minor piece leaves king and minor piece against king: an automatic draw, which comes first in the matrix.
-        for piece in ["b","n"] {
-            let game=try await outcome(Self.game(start,goal:.promoteAndHold),["e7e8"+piece])
-            XCTAssertEqual(game.status,.incorrect,piece);XCTAssertTrue(game.feedback.contains("enough material"),game.feedback)
+            // A minor piece leaves king and minor piece against king: an automatic draw, which comes first in the matrix.
+            for piece in ["b","n"] {
+                let game=try await outcome(Self.game(start,goal:.promoteAndHold),["e7e8"+piece],as:learner)
+                XCTAssertEqual(game.status,.incorrect,"\(learner) \(piece)");XCTAssertTrue(game.feedback.contains("enough material"),game.feedback)
+            }
         }
     }
     func testThePromotedPieceIsHeldThroughTheReplyOrCapturedOnIt()async throws {
-        for piece in ["q","r","b","n"] {
-            // Kings and a rook besides, so the capture is not an automatic draw first.
-            let held=try await outcome(Self.game("8/4P3/8/8/8/8/k7/4K2R w - - 0 1",goal:.promoteAndHold),["e7e8"+piece])
-            XCTAssertEqual(held.line.count,2,"the opponent replied");XCTAssertEqual(held.status,.correct,piece);XCTAssertTrue(held.feedback.hasPrefix("You promoted the pawn and kept the new piece."))
-            let lost=try await outcome(Self.game("8/3kP3/8/8/8/8/8/R3K3 w - - 0 1",goal:.promoteAndHold),["e7e8"+piece],defender:ScriptedDefender(choose:ScriptedDefender.capturing(piece)))
-            XCTAssertEqual(lost.line,["e7e8"+piece,"d7e8"]);XCTAssertEqual(lost.status,.incorrect,piece);XCTAssertTrue(lost.feedback.contains("captured the new piece"))
+        for learner in Learner.allCases {
+            for piece in ["q","r","b","n"] {
+                // Kings and a rook besides, so the capture is not an automatic draw first.
+                let held=try await outcome(Self.game("8/4P3/8/8/8/8/k7/4K2R w - - 0 1",goal:.promoteAndHold),["e7e8"+piece],as:learner)
+                XCTAssertEqual(held.line.count,2,"the opponent replied");XCTAssertEqual(held.status,.correct,"\(learner) \(piece)");XCTAssertTrue(held.feedback.hasPrefix("You promoted the pawn and kept the new piece."))
+                let lost=try await outcome(Self.game("8/3kP3/8/8/8/8/8/R3K3 w - - 0 1",goal:.promoteAndHold),["e7e8"+piece],defender:ScriptedDefender(choose:ScriptedDefender.capturing(piece)),as:learner)
+                XCTAssertEqual(lost.line,["e7e8"+piece,"d7e8"].map(learner.uci));XCTAssertEqual(lost.status,.incorrect,"\(learner) \(piece)");XCTAssertTrue(lost.feedback.contains("captured the new piece"))
+            }
         }
     }
     func testPromotingIntoStalemateIsADraw()async throws {
-        for goal in [TrainingGoal.Kind.checkmate,.promoteAndHold] {
-            let game=try await outcome(Self.game("8/1P6/8/8/8/8/8/5K1k w - - 0 1",goal:goal),["b7b8q"])
-            XCTAssertEqual(game.status,.incorrect);XCTAssertTrue(game.feedback.hasPrefix("Stalemate: your opponent has no legal move"),game.feedback)
+        for learner in Learner.allCases {
+            for goal in [TrainingGoal.Kind.checkmate,.promoteAndHold] {
+                let game=try await outcome(Self.game("8/1P6/8/8/8/8/8/5K1k w - - 0 1",goal:goal),["b7b8q"],as:learner)
+                XCTAssertEqual(game.status,.incorrect,"\(learner)");XCTAssertTrue(game.feedback.hasPrefix("Stalemate: your opponent has no legal move"),game.feedback)
+            }
         }
     }
     func testTheTrackedPawnCapturedBeforePromotingFails()async throws {
-        let game=try await outcome(Self.game("8/8/8/8/8/8/3kP3/R6K w - - 0 1",goal:.promoteAndHold),["a1a8"],defender:ScriptedDefender(choose:ScriptedDefender.capturing("p")))
-        XCTAssertEqual(game.line,["a1a8","d2e2"]);XCTAssertEqual(game.status,.incorrect);XCTAssertEqual(game.feedback,"Your pawn was captured before it could promote.")
+        for learner in Learner.allCases {
+            let game=try await outcome(Self.game("8/8/8/8/8/8/3kP3/R6K w - - 0 1",goal:.promoteAndHold),["a1a8"],defender:ScriptedDefender(choose:ScriptedDefender.capturing("p")),as:learner)
+            XCTAssertEqual(game.line,["a1a8","d2e2"].map(learner.uci));XCTAssertEqual(game.status,.incorrect,"\(learner)");XCTAssertEqual(game.feedback,"Your pawn was captured before it could promote.")
+        }
     }
     func testLosingAKeptPieceFailsButAnAutomaticDrawIsReportedFirst()async throws {
-        let kept=try await outcome(Self.game("8/8/8/8/8/2R5/1k6/4K2Q w - - 0 1",keep:["r"]),["h1h7"],defender:ScriptedDefender(choose:ScriptedDefender.capturing("r")))
-        XCTAssertEqual(kept.line,["h1h7","b2c3"]);XCTAssertEqual(kept.status,.incorrect);XCTAssertTrue(kept.feedback.contains("lost your last rook"),kept.feedback)
-        let bare=try await outcome(Self.game("8/8/8/8/8/2R5/1k6/4K3 w - - 0 1",keep:["r"]),["e1f1"],defender:ScriptedDefender(choose:ScriptedDefender.capturing("r")))
-        XCTAssertEqual(bare.status,.incorrect);XCTAssertTrue(bare.feedback.contains("neither side has enough material"),bare.feedback)
+        for learner in Learner.allCases {
+            let kept=try await outcome(Self.game("8/8/8/8/8/2R5/1k6/4K2Q w - - 0 1",keep:["r"]),["h1h7"],defender:ScriptedDefender(choose:ScriptedDefender.capturing("r")),as:learner)
+            XCTAssertEqual(kept.line,["h1h7","b2c3"].map(learner.uci));XCTAssertEqual(kept.status,.incorrect,"\(learner)");XCTAssertTrue(kept.feedback.contains("lost your last rook"),kept.feedback)
+            let bare=try await outcome(Self.game("8/8/8/8/8/2R5/1k6/4K3 w - - 0 1",keep:["r"]),["e1f1"],defender:ScriptedDefender(choose:ScriptedDefender.capturing("r")),as:learner)
+            XCTAssertEqual(bare.status,.incorrect,"\(learner)");XCTAssertTrue(bare.feedback.contains("neither side has enough material"),bare.feedback)
+        }
     }
     /// The defender shuffles its king between h8 and g8; the learner's rook between a1 and a2.
     private static func shuffle()->ScriptedDefender {ScriptedDefender{rules in rules.moves().map(\.uci).first{$0=="h8g8" || $0=="g8h8"}}}
     private static let shuffling=["a1a2","a2a1"]
     func testAClaimedDrawEndsThePositionGameAsADraw()async throws {
-        let (_,player,controller)=try Self.fixture([Self.game("7k/8/8/8/8/8/8/R3K3 w - - 0 1")],defender:Self.shuffle());defer{player.shutdown()}
-        controller.begin(try controller.prepare(entry:Self.entry.id))
-        for index in 0..<4{XCTAssertNil(controller.exercise?.claimable);await Self.play(controller,Self.shuffling[index%2])}
-        XCTAssertEqual(controller.exercise?.claimable,"threefold repetition","a claim is offered, never forced");XCTAssertFalse(controller.exercise?.finished ?? true)
-        controller.claimDraw()
-        XCTAssertEqual(controller.exercise?.status,.incorrect);XCTAssertEqual(controller.exercise?.feedback,"Draw claimed by threefold repetition. That is a draw, so this one is not solved.")
-        XCTAssertEqual(controller.exercise?.snapshot.actions.last,.claim("threefold repetition"))
+        for learner in Learner.allCases {
+            let (_,player,controller)=try Self.fixture([learner.scenario(Self.game("7k/8/8/8/8/8/8/R3K3 w - - 0 1"))],defender:learner.defender(Self.shuffle()));defer{player.shutdown()}
+            controller.begin(try controller.prepare(entry:Self.entry.id))
+            for index in 0..<4{XCTAssertNil(controller.exercise?.claimable);await Self.play(controller,learner.uci(Self.shuffling[index%2]))}
+            XCTAssertEqual(controller.exercise?.claimable,"threefold repetition","\(learner): a claim is offered, never forced");XCTAssertFalse(controller.exercise?.finished ?? true)
+            controller.claimDraw()
+            XCTAssertEqual(controller.exercise?.status,.incorrect);XCTAssertEqual(controller.exercise?.feedback,"Draw claimed by threefold repetition. That is a draw, so this one is not solved.")
+            XCTAssertEqual(controller.exercise?.snapshot.actions.last,.claim("threefold repetition"))
+        }
     }
     func testEachAutomaticDrawEndsThePositionGame()async throws {
-        // Fivefold repetition, with no claim made at the third.
-        let (_,player,controller)=try Self.fixture([Self.game("7k/8/8/8/8/8/8/R3K3 w - - 0 1")],defender:Self.shuffle());defer{player.shutdown()}
-        controller.begin(try controller.prepare(entry:Self.entry.id))
-        for index in 0..<8{XCTAssertFalse(controller.exercise?.finished ?? true,"ply \(index*2)");await Self.play(controller,Self.shuffling[index%2])}
-        XCTAssertEqual(controller.exercise?.status,.incorrect);XCTAssertEqual(controller.exercise?.feedback,"The game is drawn: fivefold repetition.")
-        // The 75-move rule.
-        let slow=try await outcome(Self.game("7k/8/8/8/8/8/8/R3K3 w - - 149 80"),["a1a2"])
-        XCTAssertEqual(slow.line,["a1a2"]);XCTAssertEqual(slow.status,.incorrect);XCTAssertEqual(slow.feedback,"The game is drawn: the 75-move rule.")
-        // Insufficient material is the kept-piece case above.
+        for learner in Learner.allCases {
+            // Fivefold repetition, with no claim made at the third.
+            let (_,player,controller)=try Self.fixture([learner.scenario(Self.game("7k/8/8/8/8/8/8/R3K3 w - - 0 1"))],defender:learner.defender(Self.shuffle()));defer{player.shutdown()}
+            controller.begin(try controller.prepare(entry:Self.entry.id))
+            for index in 0..<8{XCTAssertFalse(controller.exercise?.finished ?? true,"\(learner) ply \(index*2)");await Self.play(controller,learner.uci(Self.shuffling[index%2]))}
+            XCTAssertEqual(controller.exercise?.status,.incorrect);XCTAssertEqual(controller.exercise?.feedback,"The game is drawn: fivefold repetition.")
+            // The 75-move rule.
+            let slow=try await outcome(Self.game("7k/8/8/8/8/8/8/R3K3 w - - 149 80"),["a1a2"],as:learner)
+            XCTAssertEqual(slow.line,["a1a2"].map(learner.uci));XCTAssertEqual(slow.status,.incorrect,"\(learner)");XCTAssertEqual(slow.feedback,"The game is drawn: the 75-move rule.")
+            // Insufficient material is the kept-piece case above.
+        }
     }
     func testBlackToMoveAtFullmove37()async throws {
         let mate=try await outcome(Self.game("8/8/8/8/8/6k1/4p3/6K1 b - - 0 37",goal:.promoteAndHold),["e2e1q"])

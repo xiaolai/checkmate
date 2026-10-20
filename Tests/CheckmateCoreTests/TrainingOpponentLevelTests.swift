@@ -7,25 +7,32 @@ import CheckmateCore
 @testable import CheckmateRules
 @testable import CheckmateApplication
 
-/// The WI-026 release, emulated for WI-017's forward-compatibility tests, as `Release082` emulates 0.8.2. Its active
-/// attempt is this build's without `opponent`: the frozen decoder (`FrozenTrainingDecoder`) says it reads such an
-/// attempt and keeps the field by path (`ApplicationState.merged`, unchanged since WI-026), writing it back into
-/// whatever attempt then holds the slot. Its play is this build's with the attempt's opponent configuration unread.
+/// The WI-026 release, emulated for WI-017's forward-compatibility tests, as `Release082` emulates 0.8.2. What it reads
+/// and writes of the active attempt comes from the frozen decoder (`FrozenTrainingDecoder`,
+/// `Tests/Fixtures/TrainingCompatibility/release-decoder.json`): it decodes the fields that file lists, which must call
+/// the attempt readable, and keeps every other field (`opponent` among them) by path (`ApplicationState.merged`,
+/// unchanged since WI-026), writing it back into whatever attempt then holds the slot. Its play is this build's with
+/// the attempt's opponent configuration unread. The fields' values pass through as saved: the fixture states which
+/// fields the release knows, not how it would re-encode a value, and these tests' values are ones it reads as they are.
 enum Release026 {
-    struct Snapshot:Codable {var id:String,entry:String,scenario:TrainingScenario,freshness:String,revision:Int,startedAt:Date,actions:[TrainingAction],recordedHelp:Bool,retry:Bool}
     enum Action {case continueRun([TrainingAction]),replace(id:String)}
     /// Opens `state` in the WI-026 release, does `action` to its active attempt (each saved, as that release saves on
     /// resume and after every action) and saves.
     static func session(_ state:ApplicationState,_ action:Action)throws -> ApplicationState {
         func object(_ data:Data)throws -> [String:Any] {try XCTUnwrap(try JSONSerialization.jsonObject(with:data) as? [String:Any])}
+        let decoder=try FrozenTrainingDecoder(),known=try XCTUnwrap(decoder.fields(of:"active"))
         var top=try object(JSONEncoder().encode(state)),training=try XCTUnwrap(top["training"] as? [String:Any]),saved=try XCTUnwrap(training["active"] as? [String:Any])
-        XCTAssertEqual(try FrozenTrainingDecoder().verdict(saved,as:"active"),.readable,"premise: the WI-026 release resumes this attempt")
-        var snapshot=try JSONDecoder().decode(Snapshot.self,from:JSONSerialization.data(withJSONObject:saved))
+        XCTAssertEqual(decoder.verdict(saved,as:"active"),.readable,"premise: the WI-026 release resumes this attempt")
+        var written=saved.filter{known.contains($0.key)}
         switch action {
-        case .continueRun(let actions):snapshot.actions+=actions;snapshot.revision+=1+actions.count
-        case .replace(let id):snapshot=Snapshot(id:id,entry:snapshot.entry,scenario:snapshot.scenario,freshness:"new",revision:1,startedAt:snapshot.startedAt,actions:[],recordedHelp:false,retry:false)
+        case .continueRun(let actions):
+            written["actions"]=try XCTUnwrap(written["actions"] as? [Any])+(try actions.map{try JSONSerialization.jsonObject(with:JSONEncoder().encode($0))})
+            written["revision"]=try XCTUnwrap(written["revision"] as? Int)+1+actions.count
+        case .replace(let id):
+            written=["id":id,"entry":try XCTUnwrap(written["entry"]),"scenario":try XCTUnwrap(written["scenario"]),"freshness":"new","revision":1,"startedAt":try XCTUnwrap(written["startedAt"]),"actions":[Any](),"recordedHelp":false,"retry":false]
+            XCTAssertEqual(Set(written.keys),known,"a new attempt is written with every field the release knows")
         }
-        let written=try object(JSONEncoder().encode(snapshot))
+        XCTAssertEqual(decoder.verdict(written,as:"active"),.readable,"what the release writes it reads again")
         let nested=Dictionary(uniqueKeysWithValues:try saved.filter{written[$0.key]==nil}.map{(["training","active",$0.key],try JSONDecoder().decode(JSONValue.self,from:JSONSerialization.data(withJSONObject:$0.value,options:.fragmentsAllowed)))})
         training["active"]=written;top["training"]=training
         return try JSONDecoder().decode(ApplicationState.self,from:JSONSerialization.data(withJSONObject:ApplicationState.merged(top,[:],nested:nested)))
@@ -247,6 +254,20 @@ enum Release026 {
         XCTAssertEqual(attempt.levelLabel,"Strong")
         let rewritten=try JSONDecoder().decode(TrainingAttempt.self,from:JSONEncoder().encode(try JSONDecoder().decode(Attempt026.self,from:JSONEncoder().encode(attempt))))
         XCTAssertNil(rewritten.level);XCTAssertEqual(rewritten.levelLabel,"Level not recorded")
+    }
+    /// A guided game with no level keeps the strength it had before levels: Stockfish at skill 3 for 300 ms (an ending's
+    /// is skill 20), whether it began before position games or was saved before levels.
+    func testALegacyGuidedGameSearchesAtSkill3For300Milliseconds()async throws {
+        XCTAssertEqual(OpponentStrategy.legacy(.guidedGame),.engine(.skill(3),limit:.movetime(300)))
+        XCTAssertEqual(OpponentStrategy(.legacy(attempt:"a",revision:0),check:.guidedGame),.engine(.skill(3),limit:.movetime(300)))
+        XCTAssertEqual(OpponentStrategy(.legacy(attempt:"a",revision:0),check:.ending),.engine(.skill(20),limit:.movetime(300)))
+        unsetenv("CHECKMATE_POSITION_GAMES")
+        let scenario=TrainingScenario(id:"guided-legacy",entry:"guided-games",variant:"short-start",tier:1,cluster:"guided-legacy",learner:"b",prompt:"Play.",explanation:"Habits.",hints:["Develop."],fen:"6k1/5ppp/8/8/8/8/5PPP/R5K1 w - - 0 7",prelude:["h2h3"],review:TrainingReview(author:"test",reviewer:nil,validatorVersion:TrainingValidationService.validatorVersion),check:.guidedGame,workflow:"guided-game")
+        let defender=ScriptedDefender(choose:{_ in "g1h2"})
+        let (session,player,controller)=try TrainingEndgameTests.fixture([scenario],defender:defender);defer{player.shutdown()}
+        controller.begin(try controller.prepare(entry:"guided-games"));await play(controller,"h7h6")
+        XCTAssertNil(session.state.training?.active?.opponent,"no level was frozen");XCTAssertEqual(controller.exercise?.line,["h7h6","g1h2"])
+        XCTAssertEqual(defender.requests.map(\.profile),[.skill(3)]);XCTAssertEqual(defender.requests.map(\.limit),[.movetime(300)])
     }
     func testTheNoteNamesTheFrozenLevel(){
         XCTAssertEqual(TrainingEndgameController.note(for:.ending),TrainingEndgameController.defenderNote,"without a level, today's note")

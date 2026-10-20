@@ -189,5 +189,11 @@ final class MiniGameProofTests:XCTestCase {
         var broken=game;broken.history[2].board["c3"]="wp"
         XCTAssertFalse(MiniGameReview.run(broken,cpuSeconds:{0},stop:{false}).consistent,"a history the referee does not replay proves nothing")
         let stopped=MiniGameReview.run(game,cpuSeconds:{0},stop:{true});XCTAssertFalse(stopped.complete);XCTAssertTrue(stopped.facts.isEmpty)
+        // WI-018 (D5): a clock that advances a second on every reading spends the review's CPU budget part-way, and the
+        // review stops there, says it is incomplete, and states facts only from the positions it answered.
+        var reads=0.0
+        let budgeted=MiniGameReview.run(game,cpuSeconds:{reads+=1;return reads},stop:{false})
+        XCTAssertFalse(budgeted.complete);XCTAssertTrue(budgeted.consistent);XCTAssertLessThan(budgeted.answers.count,5)
+        XCTAssertTrue(budgeted.facts.allSatisfy{budgeted.answers[$0.ply] != nil})
     }
 }

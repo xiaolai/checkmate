@@ -105,7 +105,7 @@ enum Release082 {
         XCTAssertEqual(player.miniLevel,"challenging","the run keeps its level");XCTAssertTrue(player.miniLevelWithdrawn,"labelled")
         XCTAssertEqual(player.miniPreferredLevel,"standard");XCTAssertTrue(player.miniNewLevelOffered,"a new game at the fallback is offered before any move")
         player.startMini(.pawnDuel,fromLibrary:true);XCTAssertEqual(player.miniLevel,"challenging");XCTAssertTrue(player.miniLevelWithdrawn)
-        try await move(player,"a6","a7");XCTAssertEqual(player.miniGame?.runLevel?.profile,"challenging","the reply was searched in the run")
+        try await move(player,"a6","a7");XCTAssertEqual(player.miniGame?.runLevel?.profile,"challenging","the reply was searched in the run");XCTAssertEqual(player.miniProfile,"challenging","the reply searched at the withdrawn level, not the fallback")
         player.click("a7");player.click("a8");XCTAssertTrue(player.miniGame?.isFinished ?? false);XCTAssertFalse(player.miniNewLevelOffered,"a finished game offers Play again")
         let event=try XCTUnwrap(session.state.training?.events.last);XCTAssertEqual(event.level,"challenging");XCTAssertEqual(event.levelExact,true)
         player.restartMini();XCTAssertEqual(player.miniLevel,"standard","the new run plays the fallback");XCTAssertFalse(player.miniLevelWithdrawn)
