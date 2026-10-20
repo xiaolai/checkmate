@@ -104,6 +104,10 @@ import CheckmateSupport
             // The label itself: a known kind's title, nothing for anything else.
             let found=NetworkDiscoveredGame.pair([NetworkServiceRecord(name:"Ana's game",txt:["game":NetworkGameID.random(using:.system).text,"role":"seat","variant":"mini:queen-vs-pawns@7"],endpoint:NetworkEndpoint("x",description:"x"))])
             XCTAssertEqual(found.first?.variant,.queenVsPawns)
+            // A seat record that states no label falls back to the watch record's, as the terms do.
+            let id=NetworkGameID.random(using:.system).text,endpoint=NetworkEndpoint("x",description:"x")
+            let paired=NetworkDiscoveredGame.pair([NetworkServiceRecord(name:"Ana's game",txt:["game":id,"role":"seat"],endpoint:endpoint),NetworkServiceRecord(name:"Ana's game"+NetworkHostingConfiguration.watchSuffix,txt:["game":id,"role":"watch","variant":"mini:rook-sweep@1"],endpoint:endpoint)])
+            XCTAssertEqual(paired.count,1);XCTAssertNotNil(paired.first?.seat);XCTAssertEqual(paired.first?.variant,.rookSweep)
             XCTAssertEqual(NetworkRuleset.displayKind("rook-sweep"),nil)
         }
     }

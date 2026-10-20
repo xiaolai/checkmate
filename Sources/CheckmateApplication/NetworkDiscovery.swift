@@ -43,7 +43,7 @@ public struct NetworkDiscoveredGame:Equatable {
     public var assistance:NetworkAssistance {seat?.assistance ?? watch?.assistance ?? .off}
     /// The mini-game the list shows beside the name (protocol 1.3), from the seat record, else the watch record. Display
     /// only: what is played comes from the verified snapshot, and what this Mac states never depends on it.
-    public var variant:MiniGameKind? {seat.map{$0.variant} ?? watch?.variant}
+    public var variant:MiniGameKind? {seat?.variant ?? watch?.variant}
     public func record(_ role:NetworkListenerRole)->NetworkServiceRecord? {role == .seat ? seat:watch}
     public func key(_ role:NetworkListenerRole,code:NetworkCode)->NetworkAccessKey {NetworkAccessKey(gameID:gameID,role:role,code:code)}
     /// Games in order of first appearance. A record without a valid `game` and `role` is ignored. The first record for
