@@ -602,8 +602,9 @@ import CheckmateCore
     }
     func validateMenuItem(_ item:NSMenuItem)->Bool {
         if item.action == #selector(saveCurrentReview){return model?.review.active==true && model?.deletingReviewID==nil}
-        // Matches the review workspace: nothing to review is not offered.
-        if item.action == #selector(reviewCurrent){return model?.session.rules.history.isEmpty==false}
+        // Matches the review workspace and the training panel: nothing to review is not offered. A training game shown
+        // is the current game there; an unfinished one is not reviewed (mini-games plan D6).
+        if item.action == #selector(reviewCurrent){return model?.canReviewCurrent==true}
         if item.action == #selector(reviewPrevious){return model?.session.state.practice.previousGame.isEmpty==false}
         if item.action == #selector(findInLibrary){return model?.reviewWorkspace==true}
         return true

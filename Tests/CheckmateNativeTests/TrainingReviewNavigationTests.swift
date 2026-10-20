@@ -47,4 +47,41 @@ import CheckmateCore
         model.reviewTraining()
         XCTAssertNil(model.review.document);XCTAssertEqual(model.session.activity,before);XCTAssertNotNil(model.storageError,"the learner is told why")
     }
+    /// File ▸ Review Current Game means the game on screen: a finished training game, never the practice game beside
+    /// it (D6 covers the panel's button; this covers the menu item).
+    func testTheFileMenuReviewsTheTrainingGameOnScreen()async throws {
+        let model=try NativeModel(),game=GameWindow(model:model);defer{game.window?.delegate=nil;model.shutdown()}
+        let training=try XCTUnwrap(model.training);training.games.engine=ScriptedDefender()
+        let start="7K/8/6k1/8/8/8/8/1q6 b - - 0 37"
+        let scenario=TrainingScenario(id:"ending-black-37",entry:"finish-the-game",variant:"kqk",tier:1,cluster:"ending-black-37",learner:"b",prompt:"Checkmate.",explanation:"Mate it.",hints:["Shrink the box."],fen:start,review:TrainingReview(author:"test",reviewer:nil,validatorVersion:TrainingValidationService.validatorVersion),check:.ending)
+        var record=TrainingState();record.active=TrainingSessionSnapshot(id:UUID().uuidString,entry:"finish-the-game",scenario:scenario,freshness:"new",revision:2,startedAt:Date(),actions:[.move(from:"b1",to:"b7",promotion:nil),.reply("h8g8")])
+        model.session.state.training=record
+        model.resumeTraining();game.refresh()
+        training.attempt(from:"b7",to:"b8",promotion:nil)
+        XCTAssertTrue(training.canReview(try XCTUnwrap(training.exercise)))
+        // The practice game has moves, so the old menu item would have opened it instead.
+        try model.session.rules.restore("1. e4 e5")
+        let practice=try practiceBytes(model)
+        let app=AppDelegate();app.model=model
+        let item=NSMenuItem(title:"",action:#selector(AppDelegate.reviewCurrent),keyEquivalent:"")
+        XCTAssertTrue(app.validateMenuItem(item),"a finished training game is reviewable")
+        app.reviewCurrent()
+        for _ in 0..<500 where model.review.document==nil{try await Task.sleep(for:.milliseconds(10))}
+        let document=try XCTUnwrap(model.review.document)
+        XCTAssertEqual(document.startingFEN,start,"the training game, not the practice game")
+        XCTAssertEqual(document.provenance,"Training game")
+        XCTAssertEqual(try practiceBytes(model),practice,"the practice game is untouched")
+    }
+    /// An unfinished training game is not reviewable, and the menu does not fall back to the unrelated practice game.
+    func testTheFileMenuRefusesAnUnfinishedTrainingGame()throws {
+        let model=try NativeModel();defer{model.shutdown()}
+        let training=try XCTUnwrap(model.training);training.games.engine=ScriptedDefender()
+        model.startTraining("finish-the-game",variant:"kqk")
+        try model.session.rules.restore("1. e4 e5")
+        let app=AppDelegate();app.model=model
+        let item=NSMenuItem(title:"",action:#selector(AppDelegate.reviewCurrent),keyEquivalent:"")
+        XCTAssertFalse(app.validateMenuItem(item),"an unfinished training game is not reviewable")
+        model.reviewCurrent()
+        XCTAssertNil(model.review.document);XCTAssertFalse(model.importingReview,"nothing fell back to the practice game")
+    }
 }

@@ -594,8 +594,26 @@ import RealtimeConnection
             }
         }
     }
+    /// The training game the board shows, if any (not the training library): File ▸ Review Current Game reviews this
+    /// game, not the practice game beside it (mini-games plan D6).
+    var shownTrainingExercise:TrainingController.Exercise? {
+        guard case .training=session.activity.place else{return nil}
+        return training?.exercise
+    }
+    /// Whether File ▸ Review Current Game has a game to open: the training game the board shows, and only if it is
+    /// finished, else the practice game.
+    var canReviewCurrent:Bool {
+        if let exercise=shownTrainingExercise{return training?.canReview(exercise)==true}
+        return !session.rules.history.isEmpty
+    }
     /// The game's text is read here; parsing it (seconds for a long game) runs detached, under the import overlay and its Cancel.
     func reviewCurrent(previous:Bool=false){
+        // A training game on screen is what "current" means there; an unfinished one is not reviewed and never falls
+        // back to the unrelated practice game.
+        if !previous,let exercise=shownTrainingExercise {
+            guard training?.canReview(exercise)==true else{return}
+            reviewTraining();return
+        }
         reviewOpenGeneration+=1;cancelReviewImport();let provenance=previous ? "Previous game":"Current game",fallback="This game could not be opened for review. Your practice is unchanged."
         let data:Data;do{data=previous ? try ReviewRecordSource.data(previousGame:session.state.practice.previousGame,result:session.state.practice.previousEnding?.result):try ReviewRecordSource.data(session.rules,result:session.state.practice.ending?.result)}catch{storageError=userFacingMessage(error,fallback:fallback);return}
         parseForReview(data,provenance:provenance,fallback:fallback){documents,_ in self.openReview(documents[0],draft:true)}
