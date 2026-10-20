@@ -9,31 +9,48 @@ final class FakeScript {
     var bareKing:Set<NetworkSide>=[]
     /// Records loaded, so a test can tell a record refused unread from one replayed and then refused.
     var loads=0
+    /// Declared starts (D7): ones the rules refuse, ones written back otherwise (canonicalised), and ones already over.
+    var illegalStarts:Set<String>=[],canonical:[String:String]=[:],overStarts:Set<String>=[]
 }
-/// Chess without chess: any well-formed UCI is legal unless scripted otherwise; the position is the move list.
+/// Chess without chess: any well-formed UCI is legal unless scripted otherwise; the position is the start and the move
+/// list. A declared start is the FEN itself while no move is played, and its side to move makes the first move.
 final class FakeRules:NetworkChessRules {
     let script:FakeScript
-    private(set) var moves:[String]=[]
+    private(set) var moves:[String]=[],start:String?
     init(script:FakeScript){self.script=script}
-    private var side:NetworkSide {moves.count%2==0 ? .white:.black}
-    func networkFEN()throws -> String {"\(moves.isEmpty ? "start":moves.joined(separator:",")) \(side.rawValue) - - 0 \(moves.count/2+1)"}
+    private var side:NetworkSide {let first=start.map(NetworkStart.side) ?? .white;return moves.count%2==0 ? first:first.opponent}
+    func networkFEN()throws -> String {
+        guard let start else{return "\(moves.isEmpty ? "start":moves.joined(separator:",")) \(side.rawValue) - - 0 \(moves.count/2+1)"}
+        return moves.isEmpty ? start:"\(start.replacingOccurrences(of:" ",with:"_")),\(moves.joined(separator:",")) \(side.rawValue) - - 0 \(moves.count/2+1)"
+    }
     func networkSideToMove()throws -> NetworkSide {side}
     func networkPlay(uci:String)throws -> NetworkPlayedMove {
         guard ChessNotation.validUCI(uci),!script.illegal.contains(uci) else{throw NetworkRulesError.illegalMove}
         moves.append(uci);return NetworkPlayedMove(uci:uci,san:"S"+uci)
     }
-    func networkAutomaticEnding()throws -> NetworkAutomaticEnding? {moves.last.flatMap{script.mating.contains($0) ? .checkmate(winner:side.opponent):nil}}
+    func networkAutomaticEnding()throws -> NetworkAutomaticEnding? {
+        if moves.isEmpty,let start,script.overStarts.contains(start) {return .stalemate}
+        return moves.last.flatMap{script.mating.contains($0) ? .checkmate(winner:side.opponent):nil}
+    }
     func networkClaimableDraw()throws -> NetworkTermination? {script.claimable}
     func networkHasOnlyKing(_ side:NetworkSide)throws -> Bool {script.bareKing.contains(side)}
-    func networkPGN()throws -> String {"[Fake]\n"+moves.joined(separator:" ")}
+    func networkPGN()throws -> String {"[Fake]\n"+(start.map{"[FEN \($0)]\n"} ?? "")+moves.joined(separator:" ")}
     func networkLoad(pgn:String)throws {
         script.loads+=1
         guard pgn.hasPrefix("[Fake]\n") else{throw NetworkRulesError.unexpected("not a fake record")}
-        let list=pgn.dropFirst(7).split(separator:" ").map(String.init)
+        var body=pgn.dropFirst(7),declared:String?
+        if body.hasPrefix("[FEN "),let end=body.firstIndex(of:"\n") {declared=String(body[body.index(body.startIndex,offsetBy:5)..<body.index(before:end)]);body=body[body.index(after:end)...]}
+        let list=body.split(separator:" ").map(String.init)
         guard list.allSatisfy(ChessNotation.validUCI) else{throw NetworkRulesError.unexpected("bad move")}
-        moves=list
+        moves=list;start=declared
     }
     func networkMoves()throws -> [String] {moves}
+    func networkLoad(start fen:String)throws {
+        guard !script.illegalStarts.contains(fen) else{throw NetworkRulesError.illegalStart}
+        let written=script.canonical[fen] ?? fen
+        moves=[];start=written==NetworkStart.standard ? nil:written
+    }
+    func networkStartFEN()throws -> String {start ?? NetworkStart.standard}
 }
 /// FNV-1a: deterministic and collision-free enough for tests. Production injects SHA-256.
 let testHashing=NetworkHashing{data in var hash:UInt64=0xcbf29ce484222325;for byte in data {hash^=UInt64(byte);hash=hash&*0x100000001b3};return String(hash,radix:16)}
@@ -77,12 +94,14 @@ final class TestNetwork {
     /// Connections whose sends never complete: a peer that stopped reading.
     var stalled:Set<NetworkConnectionID>=[]
     var clients:[TestClient]=[]
-    init(hostSide:NetworkSide = .white,timeControl:NetworkTimeControl = .untimed,spectators:Bool=true,limits:NetworkHostLimits = .standard,epoch:NetworkID?=nil,assistance:NetworkAssistance = .off)throws {
+    /// `prepare` scripts the rules before the host sets up its start.
+    init(hostSide:NetworkSide = .white,timeControl:NetworkTimeControl = .untimed,spectators:Bool=true,limits:NetworkHostLimits = .standard,epoch:NetworkID?=nil,assistance:NetworkAssistance = .off,start:String?=nil,ruleset:NetworkRuleset?=nil,prepare:(FakeScript)->Void={_ in})throws {
         gameID=NetworkGameID.random(using:random.source)
-        host=try NetworkHost(gameID:gameID,runEpoch:epoch ?? NetworkID.random(using:random.source),settings:NetworkHostSettings(hostName:"Ana",hostSide:hostSide,timeControl:timeControl,allowSpectators:spectators,assistance:assistance),rules:factory,hashing:testHashing,random:random.source,limits:limits,at:now)
+        prepare(script)
+        host=try NetworkHost(gameID:gameID,runEpoch:epoch ?? NetworkID.random(using:random.source),settings:NetworkHostSettings(hostName:"Ana",hostSide:hostSide,timeControl:timeControl,allowSpectators:spectators,assistance:assistance,startFEN:start,ruleset:ruleset),rules:factory,hashing:testHashing,random:random.source,limits:limits,at:now)
     }
     var factory:NetworkRulesFactory {let script=script;return NetworkRulesFactory{FakeRules(script:script)}}
-    var hostMoves:[String] {(try? host.publicGame(at:now).pgn).map{$0.dropFirst(7).split(separator:" ").map(String.init)} ?? []}
+    var hostMoves:[String] {(try? host.publicGame(at:now).pgn).map{record in let fake=FakeRules(script:FakeScript());try? fake.networkLoad(pgn:record);return fake.moves} ?? []}
     func take(_ effects:[NetworkHostEffect])throws {
         var pending=effects
         while !pending.isEmpty {
@@ -104,9 +123,10 @@ final class TestNetwork {
     func completeSend(_ id:NetworkConnectionID)throws {try take(try host.sendCompleted(id,at:now))}
     // Clients.
     /// `accepting`: the assistance terms a guest accepted before joining (assistance plan A3).
-    func client(_ listener:NetworkListenerRole,name:String="Ben",claimID:NetworkSecret?=nil,accepting:NetworkAssistance = .off)->TestClient {
+    /// `capabilities`: what the client states in `hello` and `resume` (D7); `.none` is a 1.1 Mac.
+    func client(_ listener:NetworkListenerRole,name:String="Ben",claimID:NetworkSecret?=nil,accepting:NetworkAssistance = .off,capabilities:NetworkCapabilities = .supported)->TestClient {
         let role:NetworkReceiverRole=listener == .seat ? .guest(claimID:claimID ?? NetworkSecret.random(using:random.source)):.spectator
-        let client=TestClient(receiver:NetworkReceiver(gameID:gameID,role:role,name:name,appVersion:"0.8.0",rules:factory,hashing:testHashing,random:random.source,accepting:accepting),listener:listener)
+        let client=TestClient(receiver:NetworkReceiver(gameID:gameID,role:role,name:name,appVersion:"0.8.0",rules:factory,hashing:testHashing,random:random.source,accepting:accepting,capabilities:capabilities),listener:listener)
         clients.append(client);return client
     }
     func connect(_ client:TestClient)throws {

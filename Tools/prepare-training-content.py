@@ -5,6 +5,12 @@ Structure, references, counts, novelty clusters and coverage are checked here. C
 accepted answers are re-derived by the Swift evaluators in TrainingCatalogTests, which also check the validator
 version and chess.js hash pinned in the manifest below.
 
+Position games (mini-game plan WI-020) also need their goal shown reachable, recorded in the manifest's
+`positionGames`: a pawn race's exact verdict comes from Tools/kpk-oracle.py, computed here with the oracle's identity
+and source hash, and must be a promoteAndHold success; a checkmate game names, in position-game-evidence.json, a line
+from its start (empty when the start itself has one) to a position in which the bundled engine's search at a fixed
+node count reports a forced mate for the learner. PositionGameContentTests repeats that search on the test host.
+
   python3 Tools/prepare-training-content.py           publish Sources/CheckmateCore/Resources/training/
   python3 Tools/prepare-training-content.py --check   fail unless the published files match the sources exactly
 """
@@ -12,6 +18,7 @@ import argparse
 import ctypes
 import ctypes.util
 import hashlib
+import importlib.util
 import json
 import os
 import pathlib
@@ -25,6 +32,7 @@ PUBLISHED = ROOT / 'Sources' / 'CheckmateCore' / 'Resources' / 'training'
 COURSE = ROOT / 'Sources' / 'CheckmateCore' / 'Resources' / 'course.json'
 CHESS_JS = ROOT / 'Sources' / 'CheckmateCore' / 'Resources' / 'chess.js'
 SEARCH_JS = ROOT / 'Sources' / 'CheckmateCore' / 'Resources' / 'training-search.js'
+KPK_ORACLE = ROOT / 'Tools' / 'kpk-oracle.py'
 # Bumped whenever an evaluator's accepted answers can change; the Swift tests require the same number.
 VALIDATOR_VERSION = 1
 ID = re.compile(r'^[a-z0-9]+(-[a-z0-9]+)*$')
@@ -47,6 +55,7 @@ OBJECTIVES = {
     'finishTheGame': ('standardChess', 'selectionCorrection', ['playMove']),
     'mixedPractice': ('standardChess', 'selectionCorrection', ['playMove', 'chooseOption', 'selectSquares']),
     'guidedGame': ('standardChess', 'selectionCorrection', ['playMove']),
+    'positionGame': ('standardChess', 'selectionCorrection', ['playMove']),
 }
 GENERATED = {'reachTarget', 'findAttackers', 'findDefenders'}
 LEGACY = {'pawn-duel', 'rook-sweep', 'rooks-and-pawns', 'bishop-sweep', 'bishops-and-pawns', 'queen-vs-pawns', 'knight-capture', 'knight-corners'}
@@ -55,11 +64,16 @@ CONTEXTS = ['guidedExample', 'focusedPractice', 'noHintPractice', 'mixedApplicat
 # Every field TrainingScenario decodes: anything else would be ignored by the app and must not steer validation here.
 SCENARIO_FIELDS = {'id', 'entry', 'variant', 'tier', 'cluster', 'learner', 'prompt', 'explanation', 'hints', 'fen', 'prelude', 'diagram', 'target',
                    'drill', 'budget', 'shortest', 'choices', 'expected', 'noAction', 'reserve', 'review', 'generation', 'check', 'goal', 'plies',
-                   'nodes', 'stated', 'askColor', 'focus', 'skills', 'primarySkill', 'source', 'bridge', 'workflow'}
+                   'nodes', 'stated', 'askColor', 'focus', 'skills', 'primarySkill', 'source', 'bridge', 'workflow', 'keep'}
 # TrainingCheck and TrainingGoal.Kind raw values: anything else fails to decode in the app.
 CHECKS = {'defense', 'material', 'exchange', 'castle', 'castleReason', 'promotion', 'enPassant', 'enPassantChoice', 'forks', 'pins',
-          'mateThreatCreate', 'mateThreatPrevent', 'kingSquares', 'status', 'diagnosis', 'ending', 'guidedGame', 'moment'}
-GOAL_KINDS = {'survive', 'gain', 'hold'}
+          'mateThreatCreate', 'mateThreatPrevent', 'kingSquares', 'status', 'diagnosis', 'ending', 'guidedGame', 'moment', 'positionGame'}
+# A position game's goals (mini-game plan D3) and the piece types it may keep: never the king.
+POSITION_GOALS = {'checkmate', 'promoteAndHold'}
+KEEPABLE = ('q', 'r', 'b', 'n', 'p')
+GOAL_KINDS = {'survive', 'gain', 'hold'} | POSITION_GOALS
+# The evaluators whose scenario is where a playable game starts: a position only, with no oracle answer.
+GAME_CHECKS = ('ending', 'guidedGame', 'positionGame')
 
 
 class ContentError(Exception):
@@ -129,7 +143,7 @@ DECODED = {
     'check': one_of(CHECKS), 'goal': is_goal, 'plies': is_int, 'nodes': lambda nodes: isinstance(nodes, list) and all(map(is_node, nodes)),
     'stated': strings, 'askColor': lambda color: isinstance(color, str), 'focus': strings,
     'skills': lambda skills: isinstance(skills, list) and all(map(one_of(SKILLS), skills)), 'primarySkill': one_of(SKILLS), 'source': is_text,
-    'bridge': one_of(LEGACY), 'workflow': lambda workflow: isinstance(workflow, str),
+    'bridge': one_of(LEGACY), 'workflow': lambda workflow: isinstance(workflow, str), 'keep': strings,
 }
 EXPECTED_DECODED = {'squares': strings, 'moves': strings, 'choices': strings, 'wrong': strings,
                     'choice': lambda choice: isinstance(choice, str), 'distance': is_int}
@@ -195,13 +209,22 @@ def check_entry_references(name, entry, lessons):
         fail(f'{name}: one to three tiers')
 
 
+# The position games of mini-game plan D2 and their variants. Increment B's seven other entries are its exercises.
+POSITION_ENTRIES = {'pawn-race': ['kpk'], 'pawn-war': ['pawns'], 'cut-down-chess': ['knights', 'bishops', 'rooks', 'queens', 'minor-pieces', 'major-pieces'],
+                    'two-bishop-mate': ['kbbk']}
+
+
 def check_catalog_counts(entries):
-    """The aggregate shape of the catalog: Increment A is the eight existing games and seven new exercises."""
+    """The aggregate shape of the catalog: Increment A is the eight existing games and seven new exercises; Increment B
+    is seven new exercises and the four position games of D2, with exactly their variants."""
     counts = {}
     for entry in entries:
         counts[(entry['increment'], entry['origin'])] = counts.get((entry['increment'], entry['origin']), 0) + 1
     if counts.get(('A', 'existing')) != 8 or counts.get(('A', 'new')) != 7:
         fail(f'catalog: increment A must be eight existing and seven new entries, found {counts}')
+    positions = {entry['id']: entry.get('variants') for entry in entries if entry['objective'] == 'positionGame'}
+    if counts.get(('B', 'new')) != 7 + len(POSITION_ENTRIES) or ('B', 'existing') in counts or positions != POSITION_ENTRIES:
+        fail(f'catalog: increment B must be seven new exercises and the position games {POSITION_ENTRIES}, found {counts} and {positions}')
 
 
 def check_catalog(catalog, lessons):
@@ -240,7 +263,7 @@ def context_moves(scenario):
 # the learner acts for, the evaluator and its goal and search horizon, the stated line, asked colour, target and
 # options, and the diagram, drill and move budget of the other rule modes. Explanations, hints, focus squares, the
 # teaching graph and the oracle answer describe or grade the question rather than define it.
-EXERCISE_FIELDS = ('learner', 'check', 'goal', 'plies', 'stated', 'askColor', 'target', 'choices', 'diagram', 'drill', 'budget', 'shortest')
+EXERCISE_FIELDS = ('learner', 'check', 'goal', 'plies', 'stated', 'askColor', 'target', 'choices', 'diagram', 'drill', 'budget', 'shortest', 'keep')
 
 
 def position_key(scenario):
@@ -313,7 +336,7 @@ def check_oracle(name, scenario):
     if scenario.get('expected') is not None and not isinstance(scenario['expected'], dict):
         fail(f'{name}: expected is an object or null, found {scenario["expected"]!r}')
     expected = scenario.get('expected') or {}
-    if scenario.get('check') in ('ending', 'guidedGame'):
+    if scenario.get('check') in GAME_CHECKS:
         if expected or scenario.get('nodes'):
             fail(f'{name}: a game start is a position only')
     elif not (expected or scenario.get('nodes')):
@@ -331,7 +354,30 @@ def check_scenario(name, scenario, entry):
     check_position(name, scenario)
     check_presentation(name, scenario)
     check_decoded(name, scenario, check_oracle(name, scenario))
+    check_position_game(name, scenario)
     check_review(name, scenario.get('review'))
+
+
+def check_position_game(name, scenario):
+    """A position game (mini-game plan D3): a checkmate or promoteAndHold goal with threshold 0 and nothing else, the piece
+    types it keeps the learner's at the start, and a pawn race's one learner pawn. Only a position game uses either.
+    Legality and who moves are re-derived by the Swift validators."""
+    goal, keep = scenario.get('goal'), scenario.get('keep')
+    if scenario.get('check') != 'positionGame':
+        if isinstance(goal, dict) and goal.get('kind') in POSITION_GOALS:
+            fail(f'{name}: a {goal["kind"]} goal belongs to a position game')
+        if keep is not None:
+            fail(f'{name}: only a position game keeps piece types')
+        return
+    if not isinstance(goal, dict) or goal.get('kind') not in POSITION_GOALS or goal.get('threshold') != 0 or isinstance(goal.get('threshold'), bool) \
+            or goal.get('target') is not None or goal.get('drawOK') is not None or scenario.get('plies') is not None:
+        fail(f'{name}: a position game\'s goal is checkmate or promoteAndHold, with threshold 0 and no target, draw rule or horizon')
+    placement = scenario['fen'].split()[0]
+    mine = [piece.lower() for piece in placement if piece.isalpha() and (piece.isupper() == (scenario['learner'] == 'w'))]
+    if keep is not None and (not keep or len(set(keep)) != len(keep) or any(kept not in KEEPABLE or kept not in mine for kept in keep)):
+        fail(f'{name}: a position game keeps piece types the learner has, each of {KEEPABLE} at most once')
+    if goal['kind'] == 'promoteAndHold' and mine.count('p') != 1:
+        fail(f'{name}: a pawn race starts with exactly one learner pawn')
 
 
 def check_decoded(name, scenario, expected):
@@ -528,6 +574,58 @@ def coverage_report(coverage, entries, scenarios, lessons):
     return {'complete': complete, 'requirements': report, 'learnerEvidence': 'not observed'}
 
 
+_ORACLE = []
+
+
+def kpk_oracle():
+    """Tools/kpk-oracle.py's oracle, loaded once: its retrograde tables are solved on first use and kept for every start."""
+    if not _ORACLE:
+        spec = importlib.util.spec_from_file_location('kpk_oracle', KPK_ORACLE)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        _ORACLE.append(module.Oracle())
+    return _ORACLE[0]
+
+
+def check_mate_evidence(name, record):
+    """An engine mate for a checkmate position game: a line of moves from the start, the node count searched and the
+    mate distance in moves, for the learner. Its legality and the search itself are repeated in Swift."""
+    if not isinstance(record, dict) or set(record) != {'line', 'nodes', 'mate'}:
+        fail(f'{name}: mate evidence is a line, a node count and a mate distance, found {record!r}')
+    if not isinstance(record['line'], list) or len(record['line']) > 400 or any(not isinstance(move, str) or not UCI.fullmatch(move) for move in record['line']):
+        fail(f'{name}: the evidence line is at most 400 moves in UCI')
+    if not is_int(record['nodes']) or not 1000 <= record['nodes'] <= 5_000_000 or not is_int(record['mate']) or not 1 <= record['mate'] <= 100:
+        fail(f'{name}: the evidence names 1000 to 5000000 nodes and a mate in 1 to 100 moves for the learner')
+
+
+def position_game_evidence(scenarios, evidence):
+    """Each position game's reachable goal, for the manifest: a pawn race's exact oracle verdict (a promoteAndHold
+    success, with the oracle's identity), or a checkmate game's engine mate. Evidence for anything else is refused."""
+    if not isinstance(evidence, dict) or evidence.get('schemaVersion') != 1 or not is_text(evidence.get('engine')) or not isinstance(evidence.get('mates'), dict):
+        fail('position-game-evidence: needs schema version 1, the engine identity and the mates by scenario')
+    games = {s['id']: s for s in scenarios if s.get('check') == 'positionGame'}
+    mates = evidence['mates']
+    stray = sorted(set(mates) - {name for name, s in games.items() if s['goal']['kind'] == 'checkmate'})
+    if stray:
+        fail(f'position-game-evidence: mates for scenarios that are not published checkmate position games {stray}')
+    found = {}
+    for name, scenario in sorted(games.items()):
+        if scenario['goal']['kind'] == 'promoteAndHold':
+            try:
+                verdict = kpk_oracle().report(scenario['fen'])
+            except ValueError as error:
+                fail(f'{name}: the KPK oracle cannot judge this start: {error}')
+            if verdict['over'] is not None or verdict['pawnSide'] != scenario['learner'] or verdict['sideToMove'] != scenario['learner'] or verdict['promoteAndHold'] != 'success':
+                fail(f'{name}: a pawn race starts with the learner to move in an exact promoteAndHold success, but the KPK oracle says {verdict}')
+            found[name] = {'goal': 'promoteAndHold', 'oracle': verdict}
+        else:
+            if name not in mates:
+                fail(f'{name}: a checkmate position game names its engine mate in position-game-evidence.json')
+            check_mate_evidence(name, mates[name])
+            found[name] = {'goal': 'checkmate', 'engine': evidence['engine'], **mates[name]}
+    return found
+
+
 def build(source=SOURCE):
     lessons = {lesson['id'] for lesson in read(COURSE)['lessons']}
     catalog = read(source / 'catalog.json')
@@ -535,6 +633,7 @@ def build(source=SOURCE):
     scenarios = check_scenarios(sorted((source / 'scenarios').glob('*.json')), entries)
     coverage = read(source / 'coverage.json')
     report = coverage_report(coverage, entries, scenarios, lessons)
+    position_games = position_game_evidence(scenarios, read(source / 'position-game-evidence.json'))
     files = {'catalog.json': canonical(catalog), 'coverage.json': canonical(coverage), 'scenarios.json': canonical({'schemaVersion': 1, 'scenarios': scenarios})}
     counts, novelty = {}, {}
     for s in scenarios:
@@ -553,7 +652,7 @@ def build(source=SOURCE):
     manifest = {'schemaVersion': 1, 'contentVersion': catalog['contentVersion'], 'validatorVersion': VALIDATOR_VERSION,
                 'chessJS': hashlib.sha256(CHESS_JS.read_bytes()).hexdigest(), 'trainingSearch': hashlib.sha256(SEARCH_JS.read_bytes()).hexdigest(),
                 'files': {name: hashlib.sha256(text.encode()).hexdigest() for name, text in sorted(files.items())},
-                'counts': counts, 'novelty': novelty, 'coverage': report}
+                'counts': counts, 'novelty': novelty, 'coverage': report, 'positionGames': position_games}
     files['manifest.json'] = canonical(manifest)
     return files, report
 

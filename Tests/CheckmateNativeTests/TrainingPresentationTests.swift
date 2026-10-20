@@ -73,6 +73,18 @@ import CheckmateCore
         model.training?.next();model.training?.reveal()
         XCTAssertEqual(TrainingPanel.resultLabel(try XCTUnwrap(model.training?.exercise)),"Answer shown")
     }
+    /// The panel names the opponent the review names (`boundOpponent`), not the raw saved one: a game an older build
+    /// continued is marked mixed, and another attempt's configuration is not named at all.
+    func testThePanelNamesTheOpponentTheReviewNames(){
+        let scenario=TrainingScenario(id:"s",entry:"cut-down-chess",variant:"krk",tier:1,cluster:"c",learner:"w",prompt:"p",explanation:"e",hints:["h"],fen:"8/8/8/8/K7/3R4/8/k7 w - - 0 1",check:.ending)
+        var snapshot=TrainingSessionSnapshot(id:"mine",entry:"cut-down-chess",scenario:scenario,freshness:"new",revision:4,startedAt:Date(),opponent:.frozen(.gentle,attempt:"mine",seed:7,revision:4))
+        XCTAssertEqual(TrainingPanel.opponentLine(snapshot),"Opponent: Gentle")
+        snapshot.revision=7
+        XCTAssertEqual(TrainingPanel.opponentLine(snapshot),"Opponent: Gentle, mixed: an older version of Checkmate played part of this game","an older build continued it")
+        XCTAssertEqual(TrainingPanel.opponentLine(snapshot),snapshot.boundOpponent.map{"Opponent: "+$0.label},"the review's label")
+        snapshot.opponent?.attempt="theirs";XCTAssertNil(TrainingPanel.opponentLine(snapshot),"another attempt's configuration is not named")
+        snapshot.opponent=nil;XCTAssertNil(TrainingPanel.opponentLine(snapshot))
+    }
     func testAHintShowsItsSquaresOnlyAfterItIsAsked()throws {
         let (model,game)=try window();defer{game.window?.delegate=nil;model.shutdown()}
         model.startTraining("mate-in-one");game.refresh()

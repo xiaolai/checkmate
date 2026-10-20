@@ -67,13 +67,15 @@ enum ControlBarVoice:Equatable {
 
 extension ControlBarModel {
     /// The bar for what the app shows now. Pure: it reads the model and decides nothing else.
-    @MainActor static func make(session:GameSession,learning:LearningPlayer,review:ReviewController,training:TrainingController?,voice:ControlBarVoice)->ControlBarModel {
+    /// `trainingVoice`: the training game's coach is offered (mini-game plan WI-021, behind its flag), so the training
+    /// bar carries the same voice controls as practice's.
+    @MainActor static func make(session:GameSession,learning:LearningPlayer,review:ReviewController,training:TrainingController?,voice:ControlBarVoice,trainingVoice:Bool=false)->ControlBarModel {
         if review.active {return reviewBar(review)}
         // The network game's actions live in its own pane and menus (LAN-play plan D10: no new toolbar items).
         if session.mode == .network {return ControlBarModel()}
         if session.mode == .practice {return practiceBar(session,voice:voice)}
         if learning.mini {return miniBar(learning)}
-        if session.mode == .training,let training {return trainingBar(training,session:session)}
+        if session.mode == .training,let training {var bar=trainingBar(training,session:session);if trainingVoice,case .training=session.activity.place,training.exercise?.task == .game{bar.trailingGroups.insert(voiceControls(voice).items,at:0)};return bar}
         if session.mode == .lesson {return lessonBar(learning)}
         if learning.activePuzzle != nil {
             return ControlBarModel(leading:[ControlBarItem(action:.puzzleLibrary,symbol:"square.grid.2x2",label:"Puzzle library")],trailing:[ControlBarItem(action:.nextPuzzle,label:"Next puzzle",enabled:learning.passed,prominent:learning.passed)])

@@ -35,9 +35,15 @@ import Combine
     }
     /// A node-limited search searches exactly as far on every Mac (assistance plan A5).
     public func analyzeHistory(startFEN:String,moves:[String],profile:OpponentProfile,limit:EngineSearchLimit,multiPv:Int)async throws -> EngineAnalysis {
-        let bounded:EngineSearchLimit
-        switch limit {case .movetime(let budget):bounded = .movetime(max(100,min(3000,budget)));case .nodes(let nodes):bounded = .nodes(max(1000,min(5_000_000,nodes)))}
-        return try await search(startFEN:startFEN,moves:moves,profile:profile,limit:bounded,multiPv:multiPv,searchMoves:[])
+        try await search(startFEN:startFEN,moves:moves,profile:profile,limit:Self.bounded(limit),multiPv:multiPv,searchMoves:[])
+    }
+    /// The same, constrained to `searchMoves` (mini-game plan D4): the beginner opponent's candidate searches.
+    public func analyzeHistory(startFEN:String,moves:[String],profile:OpponentProfile,limit:EngineSearchLimit,multiPv:Int,searchMoves:[String])async throws -> EngineAnalysis {
+        try await search(startFEN:startFEN,moves:moves,profile:profile,limit:Self.bounded(limit),multiPv:multiPv,searchMoves:searchMoves)
+    }
+    /// A time as the budgeted search bounds it; a node count within what any search here asks for.
+    private static func bounded(_ limit:EngineSearchLimit)->EngineSearchLimit {
+        switch limit {case .movetime(let budget):return .movetime(max(100,min(3000,budget)));case .nodes(let nodes):return .nodes(max(1000,min(5_000_000,nodes)))}
     }
     private func search(startFEN:String,moves:[String],profile:OpponentProfile,limit:EngineSearchLimit,multiPv:Int,searchMoves:[String])async throws -> EngineAnalysis {
         if binaryIdentity.isEmpty{binaryIdentity=try await identityTask.value}

@@ -48,7 +48,7 @@ import Foundation
                 try learnerMayAct(exercise)
             }
             // Help that could not be recorded is never applied: graded, it would count as the learner's own work.
-            guard controller.recordAgentHelp() else{throw ProtocolFailure("UNAVAILABLE",refusal("The help could not be recorded, so nothing was done."))}
+            guard controller.recordAgentHelp().helped else{throw ProtocolFailure("UNAVAILABLE",refusal("The help could not be recorded, so nothing was done."))}
             switch kind {
             case "select":controller.replaceSelection(a["squares"] as! [String])
             case "submit":controller.submit()
@@ -105,6 +105,6 @@ import Foundation
         let entries=(controller.catalog?.entries ?? []).filter{Self.offered($0) && controller.provider?.available($0) != false}.map{entry->[String:Any] in
             ["id":entry.id,"title":entry.title,"summary":entry.summary,"objective":entry.objective.rawValue,"ruleMode":entry.ruleMode.rawValue,"origin":entry.origin.rawValue,"rules":entry.rules,"progress":TrainingRecommendation.progress(entry.id,in:training).lines]
         }
-        return ["schemaVersion":1,"entries":entries,"resumableEntryId":controller.resumable?.entry as Any? ?? NSNull()]
+        return ["schemaVersion":1,"entries":entries,"resumableEntryId":controller.resumable?.entry as Any? ?? NSNull(),"keptForNewerVersion":["activeAttempt":training.newerActive != nil,"suggestions":training.newerRetryCount]]
     }
 }

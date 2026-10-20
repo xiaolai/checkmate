@@ -14,6 +14,8 @@ OPTIONAL_SKIPS = {
     'EngineGoldenTests testHeldOutStrongEvidence',
     # Real Bonjour stays out of routine tests (LAN-play plan D12); the network-bonjour gate exercises it.
     'NetworkLoopbackTests testBonjourPublishesBothListenersAndAJoinPairsThemByGameID',
+    # WI-018's proof-search spike: a measurement run on demand (CHECKMATE_MINI_PROOF_SPIKE), not a routine test.
+    'MiniGameProofSpikeTests testSpikeMeasurementsAndUsefulnessGate',
     'OpponentCalibrationTests testSeededCompleteGames',
     'ReviewPerformanceTests testImportNavigationAndSelectedLatency',
     'ReviewPerformanceTests testMaximumMainlineNavigationScale',

@@ -33,14 +33,14 @@ public final class NetworkLoopbackDirectory {
     /// The most record files read in one look: one per hosted game, and a gate hosts a handful.
     static let maximumRecordFiles=64
     /// `assist` is the TXT value of the same name (assistance plan A3); absent in a record written before it existed.
-    /// `pid` and `started` are the publishing process.
-    private struct Entry:Codable {let name:String,game:String,role:String,port:UInt16;var assist:String?;let pid:Int32,started:Int64}
+    /// `variant` likewise (protocol 1.3), only for a mini-game. `pid` and `started` are the publishing process.
+    private struct Entry:Codable {let name:String,game:String,role:String,port:UInt16;var assist:String?;var variant:String?=nil;let pid:Int32,started:Int64}
     private func file(_ gameID:NetworkGameID)->URL {directory.appendingPathComponent(gameID.text+".json")}
     /// Writes a hosted game's records, replacing any earlier ones for it.
     public func publish(_ configuration:NetworkHostingConfiguration,_ endpoints:[NetworkListenerRole:NetworkEndpoint]){
         let entries=endpoints.compactMap{role,endpoint->Entry? in
             guard case .hostPort(let host,let port)?=endpoint.value as? NWEndpoint,Self.loopback(host) else{return nil}
-            return Entry(name:configuration.serviceName(for:role),game:configuration.gameID.text,role:role.rawValue,port:port.rawValue,assist:configuration.assistance.txt,pid:process,started:started(process) ?? 0)
+            return Entry(name:configuration.serviceName(for:role),game:configuration.gameID.text,role:role.rawValue,port:port.rawValue,assist:configuration.assistance.txt,variant:configuration.variant,pid:process,started:started(process) ?? 0)
         }.sorted{$0.role<$1.role}
         do{
             guard entries.count==endpoints.count else{throw CheckmateError.invalid("A listener is not on loopback.")}
@@ -93,7 +93,7 @@ public final class NetworkLoopbackDirectory {
             guard let data=Self.contents(url),let entries=try? JSONDecoder().decode([Entry].self,from:data),!entries.isEmpty else{continue}
             guard entries.allSatisfy({started($0.pid)==$0.started}) else{try? FileManager.default.removeItem(at:url);continue}
             files+=1
-            found+=entries.map{entry in var txt=["game":entry.game,"role":entry.role];txt["assist"]=entry.assist;return NetworkServiceRecord(name:entry.name,txt:txt,endpoint:NWNetworkTransport.loopbackEndpoint(port:entry.port))}
+            found+=entries.map{entry in var txt=["game":entry.game,"role":entry.role];txt["assist"]=entry.assist;txt["variant"]=entry.variant;return NetworkServiceRecord(name:entry.name,txt:txt,endpoint:NWNetworkTransport.loopbackEndpoint(port:entry.port))}
         }
         return found
     }

@@ -1,0 +1,155 @@
+{
+ "entry": "cut-down-chess",
+ "scenarios": [
+  {
+   "id": "cd-knights",
+   "entry": "cut-down-chess",
+   "variant": "knights",
+   "tier": 1,
+   "cluster": "cd-knights",
+   "learner": "w",
+   "fen": "1n2k1n1/pppppppp/8/8/8/8/PPPPPPPP/1N2K1N1 w - - 0 1",
+   "prompt": "White to move. Checkmate the enemy king. Every legal move is allowed; the computer plays Black.",
+   "explanation": "Knights jump, so they are the only pieces that can move before the pawns do. Bring them towards the centre, attack pawns that are not protected, and look for forks.",
+   "hints": [
+    "Count the material before each capture: keep at least as much as your opponent.",
+    "A pawn that promotes becomes a queen: a passed pawn can decide the game."
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "positionGame",
+   "goal": {
+    "kind": "checkmate",
+    "threshold": 0
+   }
+  },
+  {
+   "id": "cd-bishops",
+   "entry": "cut-down-chess",
+   "variant": "bishops",
+   "tier": 1,
+   "cluster": "cd-bishops",
+   "learner": "w",
+   "fen": "2b1kb2/pppppppp/8/8/8/8/PPPPPPPP/2B1KB2 w - - 0 1",
+   "prompt": "White to move. Checkmate the enemy king. Every legal move is allowed; the computer plays Black.",
+   "explanation": "A bishop needs open diagonals: move the pawns in front of it, then use it from far away. Each bishop stays on its own colour, so the pair together reaches every square.",
+   "hints": [
+    "Count the material before each capture: keep at least as much as your opponent.",
+    "A pawn that promotes becomes a queen: a passed pawn can decide the game."
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "positionGame",
+   "goal": {
+    "kind": "checkmate",
+    "threshold": 0
+   }
+  },
+  {
+   "id": "cd-rooks",
+   "entry": "cut-down-chess",
+   "variant": "rooks",
+   "tier": 1,
+   "cluster": "cd-rooks",
+   "learner": "w",
+   "fen": "r3k2r/pppppppp/8/8/8/8/PPPPPPPP/R3K2R w KQkq - 0 1",
+   "prompt": "White to move. Checkmate the enemy king. Every legal move is allowed; the computer plays Black.",
+   "explanation": "Rooks belong on open files and on the seventh rank, behind the enemy pawns. Open a file by exchanging pawns, and castle to bring your king to safety and a rook towards the centre.",
+   "hints": [
+    "Count the material before each capture: keep at least as much as your opponent.",
+    "A pawn that promotes becomes a queen: a passed pawn can decide the game."
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "positionGame",
+   "goal": {
+    "kind": "checkmate",
+    "threshold": 0
+   }
+  },
+  {
+   "id": "cd-queens",
+   "entry": "cut-down-chess",
+   "variant": "queens",
+   "tier": 1,
+   "cluster": "cd-queens",
+   "learner": "w",
+   "fen": "3qk3/pppppppp/8/8/8/8/PPPPPPPP/3QK3 w - - 0 1",
+   "prompt": "White to move. Checkmate the enemy king. Every legal move is allowed; the computer plays Black.",
+   "explanation": "The queen is worth nine pawns: keep her safe from attack by pawns and the enemy queen, and use her to attack undefended pawns and the enemy king.",
+   "hints": [
+    "Count the material before each capture: keep at least as much as your opponent.",
+    "A pawn that promotes becomes a queen: a passed pawn can decide the game."
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "positionGame",
+   "goal": {
+    "kind": "checkmate",
+    "threshold": 0
+   }
+  },
+  {
+   "id": "cd-minor-pieces",
+   "entry": "cut-down-chess",
+   "variant": "minor-pieces",
+   "tier": 1,
+   "cluster": "cd-minor-pieces",
+   "learner": "w",
+   "fen": "1nb1kbn1/pppppppp/8/8/8/8/PPPPPPPP/1NB1KBN1 w - - 0 1",
+   "prompt": "White to move. Checkmate the enemy king. Every legal move is allowed; the computer plays Black.",
+   "explanation": "Knights and bishops are worth about three pawns each. Develop them towards the centre before you chase pawns, and do not give one away for a single pawn.",
+   "hints": [
+    "Count the material before each capture: keep at least as much as your opponent.",
+    "A pawn that promotes becomes a queen: a passed pawn can decide the game."
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "positionGame",
+   "goal": {
+    "kind": "checkmate",
+    "threshold": 0
+   }
+  },
+  {
+   "id": "cd-major-pieces",
+   "entry": "cut-down-chess",
+   "variant": "major-pieces",
+   "tier": 1,
+   "cluster": "cd-major-pieces",
+   "learner": "w",
+   "fen": "r2qk2r/pppppppp/8/8/8/8/PPPPPPPP/R2QK2R w KQkq - 0 1",
+   "prompt": "White to move. Checkmate the enemy king. Every legal move is allowed; the computer plays Black.",
+   "explanation": "Rooks and queens are the heavy pieces. Castle to keep your king safe, open files for the rooks, and use the queen with a rook behind it to break through.",
+   "hints": [
+    "Count the material before each capture: keep at least as much as your opponent.",
+    "A pawn that promotes becomes a queen: a passed pawn can decide the game."
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "positionGame",
+   "goal": {
+    "kind": "checkmate",
+    "threshold": 0
+   }
+  }
+ ]
+}

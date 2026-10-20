@@ -26,7 +26,10 @@ public enum TrainingStore {
         guard state.trainingWritable else{throw CheckmateError.unavailable("Training progress is read-only until its saved record is recovered.")}
         var training=state.training ?? TrainingState()
         let scenario=snapshot.scenario,firstTry=outcome == .correct && !snapshot.retry && !snapshot.recordedHelp
-        let attempt=TrainingAttempt(id:UUID().uuidString,entry:snapshot.entry,scenarioID:scenario.id,cluster:scenario.cluster,tier:scenario.tier,learner:scenario.learner,startedAt:snapshot.startedAt,finishedAt:now,outcome:outcome,firstTryNoRecordedHelp:firstTry,recordedHelp:snapshot.recordedHelp,retry:snapshot.retry,freshness:snapshot.freshness)
+        // A game records the level it was played at (mini-game plan D4), settled as a resume settles it: an attempt
+        // left unopened since an older build played on is mixed, and one begun before levels is legacy.
+        let opponent=snapshot.settledOpponent
+        let attempt=TrainingAttempt(id:UUID().uuidString,entry:snapshot.entry,scenarioID:scenario.id,cluster:scenario.cluster,tier:scenario.tier,learner:scenario.learner,startedAt:snapshot.startedAt,finishedAt:now,outcome:outcome,firstTryNoRecordedHelp:firstTry,recordedHelp:snapshot.recordedHelp,retry:snapshot.retry,freshness:snapshot.freshness,opponent:opponent)
         // Retry spacing counts exercises actually done, so opening and leaving boards never makes a retry due.
         training.attempts.append(attempt);if outcome != .abandoned{training.finishedAttempts=training.finishedAttempts+1}
         var summary=training.summaries[snapshot.entry] ?? TrainingEntrySummary()
@@ -60,13 +63,14 @@ public enum TrainingStore {
     }
     /// Records a legacy mini-game that has just finished, unless this run was already credited (undo and replay within
     /// a run never add another event). Old saves without an opponent seed form one run until the game restarts.
-    /// Nothing is recorded when the retained records would no longer fit the training budget.
+    /// Nothing is recorded when the retained records would no longer fit the training budget. A game against the
+    /// computer records its run's level and whether it is exact.
     @discardableResult public static func recordLegacyCompletion(_ game:MiniGameState,origin:String,in state:inout ApplicationState,now:Date,calendar:Calendar)->TrainingCompletionEvent? {
         guard state.trainingWritable,game.isFinished else{return nil}
         var training=state.training ?? TrainingState()
-        let run=game.opponentSeed ?? "unseeded"
+        let run=game.run
         guard training.creditedRuns[game.kind.rawValue] != run else{return nil}
-        let winner=game.winner,event=TrainingCompletionEvent(id:UUID().uuidString,kind:game.kind.rawValue,run:run,winner:winner,drawReason:game.drawReason,computer:game.computer,origin:origin,at:now)
+        let winner=game.winner,event=TrainingCompletionEvent(id:UUID().uuidString,kind:game.kind.rawValue,run:run,winner:winner,drawReason:game.drawReason,computer:game.computer,origin:origin,at:now,level:game.computer ? game.runLevel:nil)
         training.events.append(event);training.creditedRuns[game.kind.rawValue]=run
         var summary=training.summaries[game.kind.rawValue] ?? TrainingEntrySummary()
         // A solo game finishes only by completing its route, which counts in `legacyWins` (see TrainingEntrySummary).
@@ -102,9 +106,10 @@ public enum TrainingStore {
         training[keyPath:records].removeFirst(low)
     }
     /// Whether `snapshot` can be saved as the active attempt within the training budget, after pruning disposable
-    /// records. Never makes room by touching the real practice game.
+    /// records. Never makes room by touching the real practice game. While a newer version's attempt holds the slot,
+    /// `snapshot` is never saved (`TrainingController.save`), so only the record as it stands must fit.
     public static func fits(_ snapshot:TrainingSessionSnapshot,in training:TrainingState)->Bool {
-        var trial=training;trial.active=snapshot;prune(&trial)
+        var trial=training;if trial.newerActive==nil{trial.active=snapshot};prune(&trial)
         return withinBudget(trial)
     }
     /// Whether the record encodes within its byte budget; a record that cannot be encoded does not fit.

@@ -44,4 +44,18 @@ extension ChessRules:NetworkChessRules {
     public func networkPGN()throws -> String {let record=pgn;guard !record.isEmpty else{throw NetworkRulesError.unexpected("The game record could not be read.")};return record}
     public func networkLoad(pgn:String)throws {try restore(pgn)}
     public func networkMoves()throws -> [String] {try moveHistory().map(\.uci)}
+    /// Loads the position, then loads the FEN chess.js wrote back for it, so the game and its record's FEN header are
+    /// the canonical start. A refusal puts the previous game back.
+    public func networkLoad(start fen:String)throws {
+        let before=try networkPGN()
+        do{try load(fen)}catch{throw NetworkRulesError.illegalStart}
+        func refuse()throws -> Never {try restore(before);throw NetworkRulesError.illegalStart}
+        let canonical=try networkFEN()
+        try load(canonical)
+        guard try networkFEN()==canonical,try setUpFEN() ?? NetworkStart.standard==canonical,NetworkStart.consistent(canonical) else{try refuse()}
+        // chess.js does not check that the side not to move is out of check: a position where it is cannot arise.
+        let mover=try currentTurn(),waiting=mover=="w" ? "b":"w"
+        guard let king=try currentBoard().first(where:{$0.value==waiting+"k"})?.key,try attackersOf(king,color:mover).isEmpty else{try refuse()}
+    }
+    public func networkStartFEN()throws -> String {try setUpFEN() ?? NetworkStart.standard}
 }

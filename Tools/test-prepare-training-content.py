@@ -39,13 +39,21 @@ def isolated(temporary):
     shutil.copytree(tool.SOURCE, source)
     for path in (source / 'scenarios').glob('*.json'):
         path.unlink()
+    (source / 'position-game-evidence.json').write_text(json.dumps(NO_EVIDENCE))
     return source
 
 
-def build_fixture(mutate, scenario=SCENARIO):
-    """Builds the isolated sources after one mutation of the catalog, the coverage and the fixture's scenario list."""
+# The position-game evidence of an isolated source: no scenario of the real content is published there.
+NO_EVIDENCE = {'schemaVersion': 1, 'engine': 'fixture-engine', 'mates': {}}
+
+
+def build_fixture(mutate, scenario=SCENARIO, mates=None):
+    """Builds the isolated sources after one mutation of the catalog, the coverage and the fixture's scenario list, with
+    `mates` as the position-game evidence's engine mates."""
     with tempfile.TemporaryDirectory(prefix='checkmate-training-content-') as temporary:
         source = isolated(temporary)
+        if mates is not None:
+            (source / 'position-game-evidence.json').write_text(json.dumps(dict(NO_EVIDENCE, mates=mates)))
         catalog = json.loads((source / 'catalog.json').read_text())
         coverage = json.loads((source / 'coverage.json').read_text())
         scenarios = [copy.deepcopy(scenario)]
@@ -98,6 +106,94 @@ def complete_and_withdrawn():
         _, report = tool.build(source)
         assert report['complete']['A'] is False, 'withdrawing Escape Check content kept Increment A complete'
         assert any(not row['met'] and 'escape-check' in json.dumps(row['requirement']) for row in report['requirements']), 'the lost requirement is not reported'
+
+
+# Position games (mini-game plan D3) in the catalog's own entries: a pawn race (an exact promoteAndHold success by the
+# KPK oracle, White's king outside the black king's reach of the a-pawn) and a two-bishop mate with its engine mate.
+POSITION = {
+    'id': 'race-fixture-1', 'entry': 'pawn-race', 'variant': 'kpk', 'tier': 1, 'learner': 'w', 'cluster': 'race-fixture-a',
+    'fen': '8/8/8/8/P7/8/6k1/K7 w - - 0 1', 'prompt': 'Promote the pawn and keep the new piece.', 'explanation': 'The pawn runs.',
+    'hints': ['Count the moves to the last rank.'], 'check': 'positionGame', 'goal': {'kind': 'promoteAndHold', 'threshold': 0},
+    'review': {'author': 'fixture', 'reviewer': None, 'validatorVersion': tool.VALIDATOR_VERSION},
+}
+BISHOPS = dict(POSITION, id='bishops-fixture-1', entry='two-bishop-mate', variant='kbbk', cluster='bishops-fixture-a', fen='4k3/8/8/8/8/8/8/2B1KB2 w - - 0 1',
+               goal={'kind': 'checkmate', 'threshold': 0}, keep=['b'])
+MATE = {'line': [], 'nodes': 2000000, 'mate': 18}
+
+
+def with_position_entry(mutate):
+    """The mutation, on the catalog that already has the position-game entries."""
+    return mutate
+
+
+def position_games():
+    """The objective publishes, with both goals and `keep`, its reachable goal recorded in the manifest; each malformed
+    position game stops publication for its own reason, and neither its goals nor `keep` may be borrowed by another
+    evaluator. Returns the negative fixtures run."""
+    files, _ = build_fixture(lambda c, v, s: None, POSITION)
+    manifest = json.loads(files['manifest.json'])
+    assert manifest['counts']['pawn-race'] == {'kpk': 1}, 'a pawn race publishes'
+    oracle = manifest['positionGames']['race-fixture-1']['oracle']
+    assert oracle['promoteAndHold'] == 'success' and oracle['fen'] == POSITION['fen'] and oracle['generator']['tool'] == 'kpk-oracle' and len(oracle['generator']['sourceHash']) == 64, oracle
+    files, _ = build_fixture(lambda c, v, s: None, BISHOPS, mates={'bishops-fixture-1': MATE})
+    manifest = json.loads(files['manifest.json'])
+    assert manifest['counts']['two-bishop-mate'] == {'kbbk': 1}, 'a two-bishop mate publishes'
+    assert manifest['positionGames']['bishops-fixture-1'] == dict(MATE, goal='checkmate', engine='fixture-engine'), manifest['positionGames']
+    evidence = {
+        'a drawn pawn race': ('exact promoteAndHold success', POSITION, None, lambda c, v, s: s[0].update(fen='8/8/8/4k3/8/4K3/4P3/8 w - - 0 1')),
+        'a pawn race the oracle cannot read': ('the KPK oracle cannot judge this start', POSITION, None, lambda c, v, s: s[0].update(fen='4k3/8/8/8/8/8/4P3/4K3 w - - 3 1')),
+        'a mate without evidence': ('names its engine mate', BISHOPS, {}, lambda c, v, s: None),
+        'evidence for an unpublished game': ('not published checkmate position games', BISHOPS, {'bishops-fixture-1': MATE, 'tb-nowhere': MATE}, lambda c, v, s: None),
+        'evidence for a pawn race': ('not published checkmate position games', POSITION, {'race-fixture-1': MATE}, lambda c, v, s: None),
+        'too few nodes': ('1000 to 5000000 nodes', BISHOPS, {'bishops-fixture-1': dict(MATE, nodes=10)}, lambda c, v, s: None),
+        'a mate for the defender': ('a mate in 1 to 100 moves', BISHOPS, {'bishops-fixture-1': dict(MATE, mate=-3)}, lambda c, v, s: None),
+        'an evidence line that is not UCI': ('at most 400 moves in UCI', BISHOPS, {'bishops-fixture-1': dict(MATE, line=['Bd3'])}, lambda c, v, s: None),
+        'an evidence field too many': ('a line, a node count and a mate distance', BISHOPS, {'bishops-fixture-1': dict(MATE, score=1)}, lambda c, v, s: None),
+        'a position game removed': ('the position games', POSITION, None, lambda c, v, s: c['entries'].remove(entry(c, 'pawn-war'))),
+        'a position game variant added': ('the position games', POSITION, None, lambda c, v, s: entry(c, 'cut-down-chess')['variants'].append('kings')),
+    }
+    for label, (reason, base, mates, mutate) in evidence.items():
+        try:
+            build_fixture(mutate, base, mates)
+        except tool.ContentError as error:
+            assert reason in str(error), f'{label}: failed for another reason: {error}'
+            continue
+        raise AssertionError(f'unproved position game was published: {label}')
+    cases = {
+        'no goal': ("goal is checkmate or promoteAndHold", lambda c, v, s: s[0].pop('goal')),
+        'a threshold': ("goal is checkmate or promoteAndHold", lambda c, v, s: s[0]['goal'].update(threshold=1)),
+        'a boolean threshold': ("invalid goal", lambda c, v, s: s[0]['goal'].update(threshold=False)),
+        'a horizon': ("goal is checkmate or promoteAndHold", lambda c, v, s: s[0].update(plies=3)),
+        'a search goal': ("goal is checkmate or promoteAndHold", lambda c, v, s: s[0].update(goal={'kind': 'gain', 'threshold': 1})),
+        'an unknown goal': ("invalid goal", lambda c, v, s: s[0].update(goal={'kind': 'holdDraw', 'threshold': 0})),
+        'two learner pawns': ('exactly one learner pawn', lambda c, v, s: s[0].update(fen='4k3/8/8/8/8/8/3PP3/4K3 w - - 0 1')),
+        'no learner pawn': ('exactly one learner pawn', lambda c, v, s: s[0].update(fen='4k3/8/8/8/8/8/4p3/4K3 w - - 0 1')),
+        'keeping what the learner lacks': ('keeps piece types the learner has', lambda c, v, s: s[0].update(keep=['q'])),
+        'keeping the king': ('keeps piece types the learner has', lambda c, v, s: s[0].update(keep=['k'])),
+        'keeping a type twice': ('keeps piece types the learner has', lambda c, v, s: s[0].update(keep=['p', 'p'])),
+        'keeping nothing': ('keeps piece types the learner has', lambda c, v, s: s[0].update(keep=[])),
+        'keep that is not a list': ("invalid keep 'p'", lambda c, v, s: s[0].update(keep='p')),
+        'an oracle answer': ('a game start is a position only', lambda c, v, s: s[0].update(expected={'moves': ['e2e4']})),
+    }
+    for label, (reason, mutate) in cases.items():
+        try:
+            build_fixture(with_position_entry(mutate), POSITION)
+        except tool.ContentError as error:
+            assert reason in str(error), f'{label}: failed for another reason: {error}'
+            continue
+        raise AssertionError(f'invalid position game was published: {label}')
+    borrowed = {
+        'keep on another evaluator': ('only a position game keeps piece types', SCENARIO, lambda c, v, s: s[0].update(keep=['r'])),
+        "a position game's goal on a search": ('goal belongs to a position game', SEARCHED, lambda c, v, s: s[0].update(goal={'kind': 'checkmate', 'threshold': 0})),
+    }
+    for label, (reason, base, mutate) in borrowed.items():
+        try:
+            build_fixture(mutate, base)
+        except tool.ContentError as error:
+            assert reason in str(error), f'{label}: failed for another reason: {error}'
+            continue
+        raise AssertionError(f'a borrowed position-game field was published: {label}')
+    return len(cases) + len(borrowed) + len(evidence)
 
 
 class Interrupted(Exception):
@@ -306,8 +402,9 @@ def main():
     }
     for label, (reason, mutate) in cases.items():
         expect_failure(label, reason, mutate)
+    positional = position_games()
     publication()
-    print(json.dumps({'passed': True, 'negativeFixtures': len(cases)}))
+    print(json.dumps({'passed': True, 'negativeFixtures': len(cases) + positional}))
 
 
 if __name__ == '__main__':

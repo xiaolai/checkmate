@@ -11,6 +11,13 @@ public struct AppSettings:Codable,Equatable {
     public var companionAutoStart=true
     public var opponentMode="skill",opponentElo=1320,miniOpponentProfile="standard",practiceSide="w"
     public var opponentPreset="custom",opponentRandomSeed=""
+    /// The learner's opponent level per mini-game, by kind; a game without one uses `miniOpponentProfile`. A new run
+    /// freezes the level `MiniGameOffering` resolves from both, so changing them never changes a game in progress.
+    public var miniOpponentProfiles:[String:String]=[:]
+    /// The learner's opponent level per standard-rule training entry, by entry id (mini-game plan D4). A new attempt
+    /// freezes the level `MiniGameOffering` resolves from it. Absent until the learner first chooses one, so a save
+    /// without position games writes nothing new.
+    public var positionGameLevels:[String:String]?
     public static let languages=["en":"English","zh":"Mandarin Chinese","es":"Spanish","fr":"French","de":"German","ja":"Japanese","ko":"Korean","pt":"Portuguese","it":"Italian","ar":"Arabic","hi":"Hindi"]
     public static let reasoningEfforts=["minimal","low","medium","high","xhigh"]
     public static let voices=["marin","cedar","alloy","ash","ballad","coral","echo","sage","shimmer","verse"]
@@ -35,7 +42,11 @@ public struct AppSettings:Codable,Equatable {
         pieceDuration=[0,300,500,700].contains(integer("pieceDuration",-1)) ? integer("pieceDuration",d.pieceDuration):d.pieceDuration
         skill=max(0,min(20,integer("skill",d.skill)))
         opponentPreset=choice("opponentPreset",["first_steps","gentle","club","custom"],d.opponentPreset);let seed=raw["opponentRandomSeed"] as? String ?? d.opponentRandomSeed;opponentRandomSeed=UInt64(seed,radix:16) != nil ? seed:d.opponentRandomSeed
-        opponentMode=choice("opponentMode",["skill","elo","beginner"],d.opponentMode);opponentElo=integer("opponentElo",d.opponentElo);miniOpponentProfile=choice("miniOpponentProfile",["beginner","standard","challenging"],d.miniOpponentProfile);practiceSide=choice("practiceSide",["w","b"],d.practiceSide)
+        opponentMode=choice("opponentMode",["skill","elo","beginner"],d.opponentMode);opponentElo=integer("opponentElo",d.opponentElo);miniOpponentProfile=choice("miniOpponentProfile",MiniOpponentPolicy.profiles,d.miniOpponentProfile);practiceSide=choice("practiceSide",["w","b"],d.practiceSide)
+        // Entry by entry like `choice`: an unknown game, a solo game or an unknown profile is dropped, the rest kept.
+        miniOpponentProfiles=(raw["miniOpponentProfiles"] as? [String:Any] ?? [:]).reduce(into:[:]){kept,entry in if let kind=MiniGameKind(rawValue:entry.key),!kind.solo,let profile=entry.value as? String,MiniOpponentPolicy.profiles.contains(profile){kept[entry.key]=profile}}
+        // The same, by entry: an invalid entry id or an unknown level is dropped, the rest kept.
+        positionGameLevels=(raw["positionGameLevels"] as? [String:Any]).map{$0.reduce(into:[:]){kept,entry in if entry.key.count<=48,entry.key.range(of:TrainingEntryDefinition.idPattern,options:.regularExpression) != nil,let level=entry.value as? String,TrainingOpponentLevel(rawValue:level) != nil{kept[entry.key]=level}}}
     }
     public init(from decoder:Decoder) throws {
         let container=try decoder.singleValueContainer();let object=try container.decode([String:JSONValue].self)
@@ -108,7 +119,7 @@ public struct ApplicationState:Codable {
     static let preservedObjects:Set<String>=["practice","course","settings","window","miniGames","training","lessonAttempts"]
     /// Every key this build can write, from a state with each optional field present.
     private static let writable:[String:JSONValue]={
-        var probe=ApplicationState();probe.miniGames=[:];probe.lessonAttempts=[:];probe.course.practised=[];probe.puzzleFilters=[:];probe.training=TrainingState();probe.window.frame=[0,0,1,1];probe.course.segmentID="";probe.course.positions=[:]
+        var probe=ApplicationState();probe.miniGames=[:];probe.lessonAttempts=[:];probe.course.practised=[];probe.puzzleFilters=[:];probe.training=TrainingState();probe.window.frame=[0,0,1,1];probe.course.segmentID="";probe.course.positions=[:];probe.settings.positionGameLevels=[:]
         probe.practice.ending=PracticeEnding(result:"1-0",reason:"");probe.practice.previousEnding=probe.practice.ending
         return (try? jsonObject(probe)) ?? [:]
     }()

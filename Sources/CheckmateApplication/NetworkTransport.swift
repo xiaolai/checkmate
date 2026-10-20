@@ -48,9 +48,12 @@ public struct NetworkHostingConfiguration:Equatable {
     public let serviceName:String
     /// The game's terms, published for the list to show. The key does not cover them, so they decide nothing (A3).
     public let assistance:NetworkAssistance
-    public init(gameID:NetworkGameID,seatCode:NetworkCode,watchCode:NetworkCode?,serviceName:String,assistance:NetworkAssistance = .off){self.gameID=gameID;self.seatCode=seatCode;self.watchCode=watchCode;self.serviceName=serviceName;self.assistance=assistance}
+    /// A mini-game's ruleset descriptor (protocol 1.3), published as `variant` for the list's label only; nil for chess,
+    /// whose TXT entries stay exactly 1.2's. The key does not cover it, so it decides nothing.
+    public let variant:String?
+    public init(gameID:NetworkGameID,seatCode:NetworkCode,watchCode:NetworkCode?,serviceName:String,assistance:NetworkAssistance = .off,variant:String?=nil){self.gameID=gameID;self.seatCode=seatCode;self.watchCode=watchCode;self.serviceName=serviceName;self.assistance=assistance;self.variant=variant}
     /// Every TXT entry one listener publishes.
-    public func txt(_ role:NetworkListenerRole)->[String:String] {["game":gameID.text,"role":role.rawValue,"assist":assistance.txt]}
+    public func txt(_ role:NetworkListenerRole)->[String:String] {var entries=["game":gameID.text,"role":role.rawValue,"assist":assistance.txt];entries["variant"]=variant;return entries}
     public var roles:[NetworkListenerRole] {watchCode==nil ? [.seat]:[.seat,.watch]}
     public func key(_ role:NetworkListenerRole)->NetworkAccessKey? {
         switch role {case .seat:return NetworkAccessKey(gameID:gameID,role:.seat,code:seatCode);case .watch:return watchCode.map{NetworkAccessKey(gameID:gameID,role:.watch,code:$0)}}

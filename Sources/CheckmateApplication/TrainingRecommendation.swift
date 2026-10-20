@@ -45,13 +45,15 @@ public enum TrainingRecommendation {
     }
     /// Queues the concrete board of a finished attempt that is worth repeating. One item per position; the oldest is
     /// dropped beyond the bound. A finished retry of a queued board removes it; abandoning one leaves it queued.
+    /// Items from a newer version count toward the bound and stay: the oldest of this build's own items go instead.
     public static func record(_ snapshot:TrainingSessionSnapshot,outcome:TrainingOutcome,in training:inout TrainingState,now:Date,calendar:Calendar){
         guard outcome != .abandoned else{return}
         let key=TrainingStore.positionKey(snapshot.scenario)
         training.retryQueue.removeAll{TrainingStore.positionKey($0.scenario)==key}
         guard let reason=reason(for:outcome,recordedHelp:snapshot.recordedHelp) else{return}
         training.retryQueue.append(TrainingRetryItem(id:UUID().uuidString,entry:snapshot.entry,scenario:snapshot.scenario,reason:reason,addedAt:now,notBefore:notBefore(now,calendar:calendar),afterAttempt:training.finishedAttempts))
-        if training.retryQueue.count>TrainingState.maximumRetries{training.retryQueue.removeFirst(training.retryQueue.count-TrainingState.maximumRetries)}
+        let excess=training.retryQueue.count+training.newerRetryCount-TrainingState.maximumRetries
+        if excess>0{training.retryQueue.removeFirst(min(excess,training.retryQueue.count))}
     }
     /// A queued board and when it becomes a suggestion.
     public struct Suggestion:Equatable {

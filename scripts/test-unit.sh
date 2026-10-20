@@ -27,6 +27,8 @@ python3 -I Tools/build-game-library.py --check
 python3 -I Tools/test-record-lessons.py
 python3 -I Tools/prepare-training-content.py --check
 python3 -I Tools/test-prepare-training-content.py
+# KPK oracle (mini-game plan WI-019): both implementations compared on every legal position.
+python3 -I Tools/test-kpk-oracle.py
 python3 scripts/test-run-gates.py
 # Every engine and voice entry is classified for network-game fairness (LAN-play plan D8).
 python3 -I scripts/test-fairness-inventory.py > /dev/null

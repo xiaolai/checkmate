@@ -8,6 +8,9 @@ import Foundation
     func analyzeHistory(startFEN:String,moves:[String],profile:OpponentProfile,budget:Int,multiPv:Int,searchMoves:[String])async throws -> EngineAnalysis
     /// A search with an explicit limit (A5). An engine that cannot count nodes refuses `nodes` rather than search for a time.
     func analyzeHistory(startFEN:String,moves:[String],profile:OpponentProfile,limit:EngineSearchLimit,multiPv:Int)async throws -> EngineAnalysis
+    /// A search with an explicit limit that may also be constrained to `searchMoves` (mini-game plan D4), so a level's
+    /// every search, the beginner opponent's candidate searches included, is node-limited.
+    func analyzeHistory(startFEN:String,moves:[String],profile:OpponentProfile,limit:EngineSearchLimit,multiPv:Int,searchMoves:[String])async throws -> EngineAnalysis
 }
 public extension EngineService {
     func analyzeHistory(startFEN:String,moves:[String],profile:OpponentProfile,budget:Int,multiPv:Int)async throws -> EngineAnalysis {
@@ -16,5 +19,15 @@ public extension EngineService {
     func analyzeHistory(startFEN:String,moves:[String],profile:OpponentProfile,limit:EngineSearchLimit,multiPv:Int)async throws -> EngineAnalysis {
         guard case .movetime(let budget)=limit else{throw CheckmateError.unavailable("This engine cannot search a fixed number of nodes.")}
         return try await analyzeHistory(startFEN:startFEN,moves:moves,profile:profile,budget:budget,multiPv:multiPv,searchMoves:[])
+    }
+    /// A time is the budgeted search, constrained or not; a node count without constraints is the limit search above.
+    /// An engine that cannot constrain a node search refuses it rather than search unconstrained or for a time.
+    func analyzeHistory(startFEN:String,moves:[String],profile:OpponentProfile,limit:EngineSearchLimit,multiPv:Int,searchMoves:[String])async throws -> EngineAnalysis {
+        switch limit {
+        case .movetime(let budget):return try await analyzeHistory(startFEN:startFEN,moves:moves,profile:profile,budget:budget,multiPv:multiPv,searchMoves:searchMoves)
+        case .nodes:
+            guard searchMoves.isEmpty else{throw CheckmateError.unavailable("This engine cannot constrain a search of a fixed number of nodes.")}
+            return try await analyzeHistory(startFEN:startFEN,moves:moves,profile:profile,limit:limit,multiPv:multiPv)
+        }
     }
 }

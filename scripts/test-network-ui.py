@@ -101,6 +101,14 @@ try:
         open_network(instance)
     step("three lobbies open")
 
+    # Mini-games are hosted only with CHECKMATE_NETWORK_MINI_GAMES=1 (protocol 1.3); without it the sheet is chess only.
+    host.click("network-host-button")
+    wait(lambda: host.shows("network-host-sheet"), "the host sheet did not open")
+    assert not host.shows("network-host-game"), "the host sheet offers mini-games with the flag off"
+    host.click("network-host-cancel")
+    wait(lambda: not host.shows("network-host-sheet"), "the host sheet did not close")
+    step("no mini-games without the flag")
+
     play_code, watch_code = host_game(host)
     host.capture("hosting")
     step("hosted")

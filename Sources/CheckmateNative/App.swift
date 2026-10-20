@@ -505,8 +505,63 @@ import CheckmateCore
                     try? await game.capture(directory+"/"+kind.rawValue+".png")
                 } else {games.append(["id":kind.rawValue,"passed":false])}
             }
-            let allPlayed=passed && games.count==MiniGameKind.allCases.count && games.allSatisfy{$0["passed"] as? Bool==true}
-            try? JSONSerialization.data(withJSONObject:["passed":allPlayed,"games":games,"clicks":clicks,"board":board],options:.prettyPrinted).write(to:URL(fileURLWithPath:directory+"/pawn-duel-results.json"))
+            // WI-018: a game won by a clicked move opens its review sheet with the proved fact; Return closes it, and a
+            // new game shows none. D5, with the voice double: Read Aloud, clicked with pointer events, opens a reading of
+            // that review alone, which asks only for the fact's exact text as a script; Return also ends the reading.
+            // The sheet's buttons in their window, leading first: SwiftUI hosts each as an AppKit control without a title
+            // or identifier, so the reading control (Read Aloud, then Stop Reading) is the one before Done.
+            @MainActor func buttons(_ root:NSView?)->[NSPoint] {
+                func find(_ view:NSView)->[NSView] {(view is NSControl && !view.isHidden ? [view]:[])+view.subviews.flatMap(find)}
+                return (root.map(find) ?? []).map{$0.convert($0.bounds,to:nil)}.sorted{$0.minX<$1.minX}.map{NSPoint(x:$0.midX,y:$0.midY)}
+            }
+            @MainActor func press(_ point:NSPoint,in sheet:NSWindow)async {
+                for type in [NSEvent.EventType.leftMouseDown,.leftMouseUp] {
+                    if let event=NSEvent.mouseEvent(with:type,location:point,modifierFlags:[],timestamp:ProcessInfo.processInfo.systemUptime,windowNumber:sheet.windowNumber,context:nil,eventNumber:0,clickCount:1,pressure:type == .leftMouseDown ? 1:0){NSApp.sendEvent(event)}
+                    try? await Task.sleep(for:.milliseconds(80))
+                }
+            }
+            final class Requests {var scripts:[String]=[],other=0}
+            var reading:[String:Any]=["offered":false]
+            var almost=MiniGameState(kind:.rookSweep);almost.snapshot.board=["a1":"wr","h2":"wp","e5":"br","a7":"bp"]
+            model.session.state.miniGames?[MiniGameKind.rookSweep.rawValue]=almost
+            if let lesson=model.learning.library.lessons.firstIndex(where:{$0.id==MiniGameKind.rookSweep.lessonID}){model.lesson(lesson)}
+            model.learning.startMini(.rookSweep);game.refresh();try? await Task.sleep(for:.milliseconds(100))
+            await click("a1");await click("a7")
+            for _ in 0..<150 where !game.miniReviewSheetShown{try? await Task.sleep(for:.milliseconds(40))}
+            let sheetShown=game.miniReviewSheetShown,facts=model.learning.miniReview.review?.facts.map(\.text) ?? []
+            if let sheet=game.window?.attachedSheet {
+                try? await GameWindow.captureWindow(sheet,path:directory+"/mini-review.png")
+                let requests=Requests()
+                model.voice.requestObserver={event in if let response=event["response"] as? [String:Any],response["conversation"] as? String=="none",let text=(response["instructions"] as? String)?.components(separatedBy:"SCRIPT:\n").last{requests.scripts.append(text)}else{requests.other+=1}}
+                let offered=buttons(sheet.contentView);reading["buttons"]=offered.count
+                if offered.count==2 {
+                    await press(offered[0],in:sheet)
+                    for _ in 0..<75 where requests.scripts.isEmpty{try? await Task.sleep(for:.milliseconds(40))}
+                    try? await Task.sleep(for:.milliseconds(300))
+                    reading=["offered":true,"connected":model.voice.connected && model.voice.miniReviewSession != nil,"scripts":requests.scripts,"otherRequests":requests.other,"capturing":model.voice.audio.capturing]
+                    try? await GameWindow.captureWindow(sheet,path:directory+"/mini-review-reading.png")
+                    // Stop Reading, in Read Aloud's place, ends the reading; Read Aloud then starts it again.
+                    if let stop=buttons(sheet.contentView).first{await press(stop,in:sheet)}
+                    for _ in 0..<75 where model.voice.connected{try? await Task.sleep(for:.milliseconds(40))}
+                    reading["stopped"] = !model.voice.connected && model.voice.miniReviewSession==nil && model.session.voiceLease==nil
+                    try? await Task.sleep(for:.milliseconds(300))
+                    if let again=buttons(sheet.contentView).first{await press(again,in:sheet)}
+                    for _ in 0..<75 where !model.voice.connected{try? await Task.sleep(for:.milliseconds(40))}
+                    reading["readAgain"]=model.voice.connected && model.voice.miniReviewSession != nil && requests.scripts.count==2
+                }
+                model.voice.requestObserver=nil
+                for type in [NSEvent.EventType.keyDown,.keyUp] {if let event=NSEvent.keyEvent(with:type,location:.zero,modifierFlags:[],timestamp:ProcessInfo.processInfo.systemUptime,windowNumber:sheet.windowNumber,context:nil,characters:"\r",charactersIgnoringModifiers:"\r",isARepeat:false,keyCode:36){NSApp.sendEvent(event)}}
+            }
+            for _ in 0..<75 where game.miniReviewSheetShown{try? await Task.sleep(for:.milliseconds(40))}
+            let closed = !game.miniReviewSheetShown && !model.learning.miniReview.sheetOpen
+            for _ in 0..<75 where model.voice.connected{try? await Task.sleep(for:.milliseconds(40))}
+            reading["endedByReturn"] = !model.voice.connected && model.voice.miniReviewSession==nil && model.session.voiceLease==nil
+            model.learning.restartMini();try? await Task.sleep(for:.milliseconds(300))
+            let review:[String:Any]=["sheetShown":sheetShown,"facts":facts,"closedByReturn":closed,"noneAfterRestart":!game.miniReviewSheetShown && model.learning.miniReview.status == .idle,"readAloud":reading]
+            let readAloud=reading["connected"] as? Bool==true && reading["scripts"] as? [String]==facts && reading["otherRequests"] as? Int==0 && reading["capturing"] as? Bool==false && reading["stopped"] as? Bool==true && reading["readAgain"] as? Bool==true && reading["endedByReturn"] as? Bool==true
+            let reviewed=sheetShown && facts==["Move 1: you had a forced win in 1 move here."] && closed && review["noneAfterRestart"] as? Bool==true && readAloud
+            let allPlayed=passed && games.count==MiniGameKind.allCases.count && games.allSatisfy{$0["passed"] as? Bool==true} && reviewed
+            try? JSONSerialization.data(withJSONObject:["passed":allPlayed,"games":games,"clicks":clicks,"board":board,"review":review],options:.prettyPrinted).write(to:URL(fileURLWithPath:directory+"/pawn-duel-results.json"))
             NSApp.terminate(nil)
         }
     }

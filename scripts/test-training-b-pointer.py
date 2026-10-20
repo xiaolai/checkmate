@@ -2,9 +2,14 @@
 
 Every action is a posted mouse event (accessibility presses bypass hit-testing): the Beginner skills section and a
 subskill chip, the promotion chooser cancelled and then answered, a normal-chess bridge opened from an existing game,
-a Finish the Game move answered by the bundled offline Stockfish defender, then taken back, a mixed case whose topic
-appears only after the answer, a guided game played and ended, and a related lesson read and left for training. The app runs with its
-own automation identifier and data directory, with training and its B preview enabled.
+a Finish the Game move answered by the bundled offline Stockfish defender, then taken back, the position games listed
+under the preview caption and one of them played, its move answered by Stockfish, the opponent level picker on a game
+whose calibration offers several levels (a game with no move takes the level, one in progress keeps its own and offers
+a new game at it) and none on one whose calibration offers one, the training game's voice coach connected from the bar
+and disconnected from the drawer with the silent voice double (connecting records no help), a mixed case whose topic
+appears only after the answer, a guided game played, ended and reviewed, a pawn race won and reviewed, and a related lesson read and left for
+training. The app runs with its own automation identifier and data directory, with training, its B preview, position
+games and the training voice coach enabled.
 """
 import atexit
 import json
@@ -26,13 +31,22 @@ helper = evidence / "training-b-pointer-helper"
 lister = evidence / "training-b-pointer-ax-helper"
 subprocess.run(["xcrun", "swiftc", str(root / "Tools/pointer-helper.swift"), "-o", str(helper)], check=True)
 subprocess.run(["xcrun", "swiftc", str(root / "Tools/ax-helper.swift"), "-o", str(lister)], check=True)
-command = [str(root / "build/CheckmateAutomation.app/Contents/MacOS/CheckmateNative"), "--automation", "--data-dir", str(state)]
+# The silent voice double stands in for the realtime service: nothing leaves the Mac, no audio plays, no microphone opens.
+command = [str(root / "build/CheckmateAutomation.app/Contents/MacOS/CheckmateNative"), "--automation", "--data-dir", str(state), "--voice-double"]
 environment = {key: value for key, value in os.environ.items() if key != "CHECKMATE_AUTOMATION"}
 environment["CHECKMATE_TRAINING_ENABLED"] = "1"
 environment["CHECKMATE_TRAINING_B"] = "1"
+# Position games and opponent levels (mini-game plan WI-017), default off for users.
+environment["CHECKMATE_POSITION_GAMES"] = "1"
+# The voice coach in a standard-rule training game (mini-game plan WI-021), default off for users.
+environment["CHECKMATE_TRAINING_VOICE"] = "1"
 process = None
 PIECES = {"n": "knight", "b": "bishop", "r": "rook", "q": "queen"}
 COLOURS = {"w": "White", "b": "Black"}
+# The position games (mini-game plan WI-020) and the levels calibration lets each offer, from its published results.
+POSITION_ENTRIES = ("pawn-race", "pawn-war", "cut-down-chess", "two-bishop-mate")
+OFFERED = {f"{v['entry']}/{v['variant']}": v["offered"] for v in json.loads((root / "Content/calibration/position-game-results.json").read_text())["verdicts"]}
+TITLES = {"gentle": "Gentle", "steady": "Steady", "strong": "Strong"}
 
 
 def pointer(action, *arguments):
@@ -123,6 +137,21 @@ def slides(origin, kind, board):
 def distance(a, b):
     (ax, ay), (bx, by) = coords(a), coords(b)
     return max(abs(ax - bx), abs(ay - by))
+
+
+# A pawn race the pawn wins by running, whatever the defender plays: the defending king is further from the promotion
+# square than the pawn is moves from it (a pawn on its second rank steps two at once), so with the learner to move it
+# can neither catch the pawn nor reach the new queen before that queen has stood a reply. Returns the squares the
+# pawn passes through, from its start; None when the start is not such a race.
+def runaway(fen):
+    board = board_of(fen)
+    pawn = next(s for s, p in board.items() if p == "wp")
+    king = next(s for s, p in board.items() if p == "bk")
+    file, rank = coords(pawn)
+    path = [name(file, r) for r in [rank] + ([3] if rank == 1 else []) + list(range((3 if rank == 1 else rank) + 1, 8))]
+    if fen.split()[1] != "w" or any(name(file, r) in board for r in range(rank + 1, 8)) or distance(king, path[-1]) <= len(path) - 1:
+        return None
+    return path
 
 
 def quiet_move(fen, learner):
@@ -223,6 +252,66 @@ try:
         wait(lambda: sum("undo" in action for action in active()["actions"]) > undone, f"The {how} take-back was not recorded")
         wait(lambda: label(piece).startswith(f"{piece}, {COLOURS[learner]}, {PIECES[kind]}"), f"The {how} take-back did not restore the start")
     bar_and_command_z_take_back = True
+    # The stalemate trap offers only Strong: its attempt froze it, and there is no picker.
+    assert (active().get("opponent") or {}).get("profile") == "strong", "The king-and-queen ending did not freeze Strong"
+    assert "training-level" not in listing(), "The stalemate trap offered a level choice"
+
+    # The rook ending offers exactly the levels its calibration passed: no picker when that is one.
+    open_library()
+    pointer("click", "training-variant-finish-the-game-krk")
+    wait(lambda: active() is not None and active()["scenario"]["variant"] == "krk" and not active()["actions"], "The King and rook chip did not start an ending")
+    show_details()
+    time.sleep(SAVE_SETTLE)
+    assert ("training-level" in listing()) == (len(OFFERED["finish-the-game/krk"]) > 1), "The rook ending's picker does not match its calibration"
+    assert (active().get("opponent") or {}).get("profile") == "strong", "The rook ending did not freeze its fallback, Strong"
+
+    # The position games (mini-game plan WI-020), listed under the preview caption, which says they are machine-checked.
+    open_library()
+    tree = listing()
+    position_games_listed = all("training-entry-" + entry in tree for entry in POSITION_ENTRIES) and "Preview: these exercises" in tree
+    assert position_games_listed, "The position games are not listed under the preview caption"
+
+    # A cut-down game with several calibrated levels: a dragged pawn move answered by Stockfish, then the level picker.
+    # A game with no move takes the chosen level; a game in progress keeps its own and offers a new game at the other.
+    variant = next(key.split("/")[1] for key, levels in OFFERED.items() if key.startswith("cut-down-chess/") and len(levels) > 1)
+    low, high = OFFERED["cut-down-chess/" + variant][0], OFFERED["cut-down-chess/" + variant][-1]
+    pointer("click", f"training-variant-cut-down-chess-{variant}")
+    wait(lambda: active() is not None and active()["entry"] == "cut-down-chess" and active()["scenario"]["variant"] == variant and not active()["actions"], f"The {variant} chip did not start a cut-down game")
+    show_details()
+    wait(lambda: "training-level" in listing(), "The cut-down game did not show the level picker")
+    first = active()["id"]
+    pointer("select-popup", "training-level", TITLES[low])
+    wait(lambda: (saved().get("settings") or {}).get("positionGameLevels", {}).get("cut-down-chess") == low, "The chosen level was not saved")
+    wait(lambda: (active().get("opponent") or {}).get("profile") == low and active()["id"] == first, "A game with no move did not take the chosen level")
+    pointer("drag-square", "e2", "e4")
+    wait(lambda: label("e4").startswith("e4, White, pawn"), "The dragged pawn move did not land")
+    wait(lambda: any("reply" in action for action in active()["actions"]), f"{TITLES[low]} did not answer", timeout=30)
+    wait(lambda: "Your move." in listing(), "The board did not return to the learner after the reply")
+    opponent = active()["opponent"]
+    assert opponent["limit"].get("nodes") and opponent["strategy"] == ("beginner" if low == "gentle" else "engine"), f"{TITLES[low]} is not its node-limited strategy"
+    position_game_reply = True
+    pointer("select-popup", "training-level", TITLES[high])
+    wait(lambda: (saved().get("settings") or {}).get("positionGameLevels", {}).get("cut-down-chess") == high, "Choosing another level during a game was not saved")
+    wait(lambda: "training-new-level" in listing(), "Choosing a level during a game did not offer a new game at it")
+    assert active()["opponent"]["profile"] == low and active()["id"] == first, "The game in progress changed level"
+    pointer("click", "training-new-level")
+    wait(lambda: active()["id"] != first and (active().get("opponent") or {}).get("profile") == high and not active()["actions"], "Start a new game at this level did not start one at it")
+    assert attempts()[-1]["outcome"] == "abandoned" and attempts()[-1].get("level") == low, "The game left was not recorded at its own level"
+    wait(lambda: "training-new-level" not in listing(), "The new game still offered another one")
+    level_picker = True
+
+    # The training game's voice coach (mini-game plan WI-021), on this fresh game: the bar's microphone connects it,
+    # connecting records no help, and the drawer's Disconnect Coach ends it.
+    assert not active().get("recordedHelp"), "fixture: the new game already had recorded help"
+    pointer("click", "bar-voiceConnect")
+    wait(lambda: "training-voice-disconnect" in listing() and "training-voice-status" in listing(), "Connecting the training coach did not open its session")
+    time.sleep(SAVE_SETTLE)
+    assert not active().get("recordedHelp") and not active()["actions"], "Connecting the coach recorded help"
+    pointer("click", "training-voice-disconnect")
+    wait(lambda: "training-voice-connect" in listing() and "training-voice-disconnect" not in listing(), "Disconnect Coach did not end the session")
+    time.sleep(SAVE_SETTLE)
+    assert not active().get("recordedHelp"), "The coach's session recorded help"
+    training_voice = True
 
     # Mixed practice: no topic before the answer; after it, the topic is shown.
     open_library()
@@ -244,9 +333,63 @@ try:
     pointer("drag-square", origin, target)
     wait(lambda: label(target).startswith(f"{target}, {COLOURS[learner]}, knight"), "The guided-game move did not land")
     wait(lambda: any("reply" in action for action in active()["actions"]), "The guided-game opponent did not answer", timeout=30)
+    # The review names the opponent by the level the game froze, read while the attempt is still the active one.
+    guided_opponent = f"Opponent ({TITLES[active()['opponent']['profile']]})"
     pointer("click", "training-end-game")
     wait(lambda: "Game ended · not counted" in listing(), "Ending the guided game did not show its neutral result")
     guided_game = True
+
+    # Review this game opens the guided game itself as a draft review, never the practice game, and leads back here.
+    time.sleep(SAVE_SETTLE)
+    practice = saved().get("practice")
+    pointer("click", "training-review-game")
+    wait(lambda: "review-document-actions" in listing() and guided_opponent in listing(), f"Review this game did not open the guided game in Review naming {guided_opponent}")
+    pointer("click", "Return to game")
+    wait(lambda: "Game ended · not counted" in listing() and "training-review-game" in listing(), "Return to game did not lead back to the finished guided game")
+    time.sleep(SAVE_SETTLE)
+    assert saved().get("practice") == practice, "Reviewing a training game changed the practice game"
+    guided_review = True
+
+    # A position game played to its end and reviewed: the review names the level the game froze. A pawn race ends
+    # fastest: a runaway start is won by pushing the pawn every move and promoting it to a queen, whatever the defender
+    # plays. The entry's start is the seed's choice among all its starts, so one that is not a runaway is left for a
+    # fresh start, which records it abandoned and never as practised.
+    races = [race for race in json.loads((root / "Sources/CheckmateCore/Resources/training/scenarios.json").read_text())["scenarios"] if race["entry"] == "pawn-race"]
+    assert any(runaway(race["fen"]) for race in races), "fixture: the pawn race has no runaway start"
+    path, previous = None, (active() or {}).get("id")
+    for _ in range(40):
+        open_library()
+        pointer("click", "training-entry-pawn-race")
+        wait(lambda: active() is not None and active()["entry"] == "pawn-race" and active()["id"] != previous and not active()["actions"], "The pawn race did not start a new game")
+        previous = active()["id"]
+        path = runaway(active()["scenario"]["fen"])
+        if path:
+            break
+    assert path, "fixture: forty fresh pawn races never began with a runaway pawn"
+    show_details()
+    level = (active().get("opponent") or {}).get("profile")
+    assert level in OFFERED["pawn-race/kpk"], f"The pawn race froze {level}, which its calibration does not offer"
+    for ply, (origin, target) in enumerate(zip(path, path[1:]), start=1):
+        pointer("drag-square", origin, target)
+        if target == path[-1]:
+            wait(lambda: "training-promotion-cancel" in listing(), "The pawn race's promotion did not open the chooser")
+            pointer("click", "Queen")
+            wait(lambda: label(target).startswith(f"{target}, White, queen"), "The pawn race's promotion did not land")
+        else:
+            wait(lambda: label(target).startswith(f"{target}, White, pawn"), "The pawn race's push did not land")
+            wait(lambda: sum("reply" in action for action in active()["actions"]) == ply, "The pawn race's defender did not answer", timeout=30)
+    wait(lambda: "training-review-game" in listing(), "The pawn race did not end with its review offered", timeout=30)
+    # The review is offered as the game ends; the attempt reaches the save just after it.
+    try:
+        wait(lambda: attempts() and attempts()[-1]["entry"] == "pawn-race" and attempts()[-1]["outcome"] == "correct" and attempts()[-1].get("level") == level, "")
+    except AssertionError:
+        raise AssertionError(f"The pawn race was not recorded won at {level}: {(attempts() or [None])[-1]}") from None
+    position_opponent = f"Opponent ({TITLES[level]})"
+    pointer("click", "training-review-game")
+    wait(lambda: "review-document-actions" in listing() and position_opponent in listing(), f"Review this game did not open the pawn race in Review naming {position_opponent}")
+    pointer("click", "Return to game")
+    wait(lambda: "training-review-game" in listing(), "Return to game did not lead back to the finished pawn race")
+    position_game_review = True
 
     # A related lesson opens without moving the course bookmark, and leads back to training.
     bookmark = (saved().get("course") or {}).get("lessonID")
@@ -260,8 +403,9 @@ try:
     lesson_link = True
 
     result = {"passed": True, "beginnerLibrary": beginner_library, "variantChip": variant_chip, "promotionCancelled": promotion_cancelled,
-              "promotionChosen": promotion_chosen, "bridgeOpened": bridge_opened, "endingReply": ending_reply, "endingTakeBack": ending_take_back, "barAndCommandZTakeBack": bar_and_command_z_take_back,
-              "mixedTopicAfterAnswer": mixed_topic_after_answer, "guidedGame": guided_game, "lessonLink": lesson_link}
+              "promotionChosen": promotion_chosen, "bridgeOpened": bridge_opened, "endingReply": ending_reply, "endingTakeBack": ending_take_back, "barAndCommandZTakeBack": bar_and_command_z_take_back, "levelPicker": level_picker, "trainingVoice": training_voice,
+              "positionGamesListed": position_games_listed, "positionGameReply": position_game_reply,
+              "mixedTopicAfterAnswer": mixed_topic_after_answer, "guidedGame": guided_game, "guidedReview": guided_review, "positionGameReview": position_game_review, "lessonLink": lesson_link}
     (evidence / "training-b-pointer-results.json").write_text(json.dumps(result, indent=2))
     print(json.dumps(result))
 except Exception:

@@ -4,7 +4,10 @@ bonjour-ready-pair and lan-pair).
 The test host hosts and runs a spectator; the LAN pair, reached over SSH (CHECKMATE_LAN_PAIR), joins. Both run the
 automation app the test host built and signed, installed at its fixed path and opened through LaunchServices. Every
 step is a real pointer or key event on the Mac it concerns: discover, join with the code, play to checkmate, Review on
-both. The game is played under agreed assistance, hints on request for both (assistance plan, Verification:
+both. First a game from a game-library position (mini-games plan WI-023, D7): Légal's mate after 5. Nxe5, Black to
+move, played to its mate with a spectator watching, and reviewed from its start. Then a simplified mini-game (protocol
+1.3, mini-games plan WI-024): Pawn Duel, played to a far-rank win with a spectator watching, and reviewed by its proof
+search on both Macs. The last game is played under agreed assistance, hints on request for both (assistance plan, Verification:
 network-lan): the pair accepts the terms before joining, each player asks for a hint on one move, every Mac counts
 both hints, and Review on both Macs shows the Assistance line. The pair's connection is cut through the automation-only hook (a file written over SSH), so the control channel
 is never cut (N13). A real cable or Wi-Fi loss is not automated. Evidence is kept per Mac, in test-host/ and pair/:
@@ -20,7 +23,7 @@ import time
 
 import test_host
 test_host.require("two-Mac network acceptance")
-from network_gate import (BUILT, Instance, cleanup_failure, compile_helpers, host_game, install, join, on_pair,  # noqa: E402
+from network_gate import (BUILT, Instance, cleanup_failure, compile_helpers, game_row, host_game, install, join, on_pair,  # noqa: E402
                           open_network, pair, permission, private_remote_dir, root, stop_all, wait, wait_for)
 
 evidence = pathlib.Path(os.environ["CHECKMATE_EVIDENCE_DIR"])
@@ -130,6 +133,111 @@ def pair_helpers():
     return copies
 
 
+# Pawn Duel to a far-rank win, the host White: White's b-pawn breaks through on c7 while Black's g-pawn runs, and
+# reaches c8 one move before Black's pawn could reach f1.
+PAWN_DUEL = ["b2b4", "g7g5", "b4b5", "g5g4", "b5b6", "g4g3", "b6c7", "g3f2", "c7c8"]
+
+
+def play_mini_game():
+    """Mini-games plan WI-024 (L2): a simplified mini-game over the LAN. The test host hosts Pawn Duel as White, the
+    lobby on the pair shows it as Pawn Duel, the pair joins as Black and the spectator watches. Every Mac shows the
+    kind's own start and rules, the moves cross the LAN as the referee allows them, and White's pawn reaches the far
+    rank: every Mac shows the win, each player's Mac opens the proof-search review (never a chess record), and everyone
+    goes back to the lobby."""
+    play_code, watch_code = host_game(host, side="White", mini_game="Pawn Duel")
+    row = wait_for(lambda: game_row(guest, "Ana's game"), "the pair never listed the mini-game", 30)
+    label = next((line for line in guest.listing().splitlines() if row in line), "")
+    assert "Pawn Duel" in label, f"the pair's lobby did not show the game as Pawn Duel: {label}"
+    join(guest, "Ana's game", "Ben", play_code)
+    wait(lambda: host.shows("Ben") and guest.shows("Ana"), "the pair never reached the mini-game", 40)
+    join(watcher, "Ana's game", "Cy", watch_code, watching=True)
+    wait(lambda: host.shows("Cy is watching."), "the host never saw its spectator in the mini-game")
+    for instance in instances:
+        line = wait_for(lambda instance=instance: instance.line("network-mini-game"), f"{instance.name} did not say the game is a mini-game")
+        assert "Pawn Duel: Reach the far rank" in line, f"{instance.name} showed the wrong mini-game: {line}"
+        # Pawn Duel's own start: pawns on b-g only, no pieces.
+        wait(lambda instance=instance: instance.label("b2").startswith("b2, White, pawn"), f"{instance.name} did not show Pawn Duel's start")
+        assert not instance.read_label("e1").startswith("e1, White"), f"{instance.name} shows a chess piece on e1 in Pawn Duel"
+        assert not instance.read_label("a2").startswith("a2, White"), f"{instance.name} shows a pawn on a2 in Pawn Duel"
+        instance.capture("mini-start")
+    for index, uci in enumerate(PAWN_DUEL):
+        mover = host if index % 2 == 0 else guest
+        origin, target = uci[:2], uci[2:]
+        shown = f"{target}, {'White' if mover is host else 'Black'}, pawn"
+        mover.square(origin)
+        mover.square(target)
+        for instance in instances:
+            wait(lambda instance=instance: instance.label(target).startswith(shown), f"{instance.name} never showed {origin}-{target}", 20)
+    for instance in instances:
+        wait(lambda instance=instance: instance.shows("network-review"), f"{instance.name} never saw the mini-game end", 20)
+        line = instance.line("network-status") or ""
+        expected = "You reached the far rank. You win." if instance is host else "Ana reached the far rank. Ana wins."
+        assert expected in line, f"{instance.name} did not show {expected!r} after the mini-game: {line}"
+        instance.capture("mini-ended")
+    results["miniGame"] = {"kind": "Pawn Duel", "moves": PAWN_DUEL, "result": {instance.name: instance.line("network-status") for instance in instances}}
+    reviews = {}
+    for instance in (host, guest):
+        instance.click("network-review")
+        # The sheet opens once the review is ready: a proved fact, or the statement that none was proved.
+        wait(lambda instance=instance: instance.shows("mini-review-fact") or instance.shows("mini-review-none"), f"{instance.name} did not open the mini-game's review", 60)
+        assert not instance.shows("review-document-actions"), f"{instance.name} opened a chess review for the mini-game"
+        reviews[instance.name] = [line for line in instance.listing().splitlines() if "mini-review-fact" in line or "mini-review-none" in line]
+        instance.capture("mini-review")
+        instance.click("mini-review-done")
+        wait(lambda instance=instance: not instance.shows("mini-review-done"), f"{instance.name} did not close the mini-game's review")
+    results["miniGame"]["review"] = reviews
+    for instance in instances:
+        wait(lambda instance=instance: instance.shows("network-back-to-games"), f"{instance.name} offered no way back to the lobby")
+        instance.click("network-back-to-games")
+        wait(lambda instance=instance: instance.shows("network-host-button"), f"{instance.name} did not go back to the lobby")
+    for instance in (guest, watcher):
+        wait(lambda instance=instance: game_row(instance, "Ana's game") is None, f"{instance.name} still lists the finished mini-game", 30)
+
+
+def play_position_game():
+    """Mini-games plan WI-023 (D7, L1): a game from a game-library position over the LAN. The test host hosts Légal's
+    mate after 5. Nxe5 as Black, which moves first there, at move 5; the pair joins as White and the spectator watches.
+    The game's own last moves are played to the real mate: every Mac shows the declared start and the result, the host's
+    Review numbers the moves from the start, and everyone goes back to the lobby."""
+    play_code, watch_code = host_game(host, side="Black", start=("Légal's mate", "After 5. Nxe5"))
+    join(guest, "Ana's game", "Ben", play_code)
+    wait(lambda: host.shows("Ben") and guest.shows("Ana"), "the pair never reached the position game", 40)
+    join(watcher, "Ana's game", "Cy", watch_code, watching=True)
+    wait(lambda: host.shows("Cy is watching."), "the host never saw its spectator in the position game")
+    for instance in instances:
+        wait(lambda instance=instance: instance.shows("network-declared-start"), f"{instance.name} did not say the game starts from a set-up position")
+        # The start, not the standard position: White's knight on e5, Black's bishop on g4, Black to move.
+        wait(lambda instance=instance: instance.label("e5").startswith("e5, White, knight"), f"{instance.name} did not show the declared start")
+        assert instance.read_label("g4").startswith("g4, Black, bishop"), f"{instance.name} does not show Black's bishop on g4"
+        instance.capture("position-start")
+    for mover, others, (origin, target), shown in [(host, (guest, watcher), ("g4", "d1"), "d1, Black, bishop"), (guest, (host, watcher), ("c4", "f7"), "f7, White, bishop"),
+                                                   (host, (guest, watcher), ("e8", "e7"), "e7, Black, king"), (guest, (host, watcher), ("c3", "d5"), "d5, White, knight")]:
+        mover.square(origin)
+        mover.square(target)
+        for instance in others:
+            wait(lambda instance=instance: instance.label(target).startswith(shown), f"{instance.name} never showed {origin}-{target}", 20)
+    for instance in instances:
+        wait(lambda instance=instance: instance.shows("network-review"), f"{instance.name} never saw the position game end", 20)
+        line = instance.line("network-status") or ""
+        expected = "Checkmate. You win." if instance is guest else "Checkmate. Ben wins."
+        assert expected in line, f"{instance.name} did not show {expected!r} after the position game: {line}"
+        instance.capture("position-ended")
+    results["positionGame"] = {"start": "Légal's mate after 5. Nxe5", "result": {instance.name: instance.line("network-status") for instance in instances}}
+    host.click("network-review")
+    wait(lambda: host.shows("review-document-actions"), "the host did not open the position game in Review")
+    wait(lambda: host.shows("Nd5#"), "Review did not show the position game's moves")
+    host.capture("position-review")
+    for instance in instances:
+        if instance is host:
+            instance.click("Play on Network")
+        wait(lambda instance=instance: instance.shows("network-back-to-games"), f"{instance.name} offered no way back to the lobby")
+        instance.click("network-back-to-games")
+        wait(lambda instance=instance: instance.shows("network-host-button"), f"{instance.name} did not go back to the lobby")
+    # The finished game's listing goes before the next game is hosted under the same name.
+    for instance in (guest, watcher):
+        wait(lambda instance=instance: game_row(instance, "Ana's game") is None, f"{instance.name} still lists the finished position game", 30)
+
+
 instances, failure = [], None
 pair_reports, pair_began = pair_reports_now(), float(on_pair("date +%s"))
 try:
@@ -140,7 +248,8 @@ try:
     install(remote=True)
     # Each instance is registered for cleanup as soon as it starts, so one that fails to start leaves none running.
     # Real Bonjour only: an empty loopback directory is the app's "no loopback" (NativeNetwork.swift), stated outright.
-    bonjour_only = {"CHECKMATE_NETWORK_LOOPBACK_DIR": ""}
+    # Every Mac may host from a game-library position (mini-games plan D7) and host a mini-game (WI-024).
+    bonjour_only = {"CHECKMATE_NETWORK_LOOPBACK_DIR": "", "CHECKMATE_NETWORK_POSITIONS": "1", "CHECKMATE_NETWORK_MINI_GAMES": "1"}
     host = Instance("host", local_evidence, helpers, mode="installed", environment=bonjour_only)
     instances.append(host)
     watcher = Instance("spectator", local_evidence, helpers, mode="installed", environment=bonjour_only)
@@ -151,7 +260,13 @@ try:
         open_network(instance)
     step("lobbies open on both Macs")
 
-    play_code, watch_code = host_game(host, assistance="Hints on request")
+    play_position_game()
+    step("a game from a library position, played to mate on both Macs and watched")
+
+    play_mini_game()
+    step("Pawn Duel, played to a far-rank win on both Macs, watched and reviewed")
+
+    play_code, watch_code = host_game(host, assistance="Hints on request", side="White")
     step("hosted on the test host, hints on request for both")
     join(guest, "Ana's game", "Ben", play_code, accept="Ana's game allows hints on request for both players.")
     wait(lambda: host.shows("Ben") and guest.shows("Ana"), "the pair never reached the game", 40)

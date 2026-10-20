@@ -24,25 +24,24 @@ extension MiniOpponentPolicyTests {
 
 }
 @MainActor final class MiniProfileCancellationTests:XCTestCase {
-    func testProfileChangeReplacesPendingReplyAndResetCancelsIt()async throws {
+    override func setUp(){MiniGameOffering.testTable=MiniGameLevelPlayerTests.allLevels}
+    override func tearDown(){MiniGameOffering.testTable=nil}
+    /// WI-015: the run's level is frozen, so a level change during a pending reply leaves that reply (and the run's
+    /// level) alone and produces exactly one reply; a restart still cancels a pending reply.
+    func testLevelChangeKeepsPendingReplyAndResetCancelsIt()async throws {
         let session=try GameSession(engine:nil),player=try LearningPlayer(session:session)
         session.state.settings.pieceDuration=0;session.state.settings.miniOpponentProfile="challenging"
         player.openLesson(index:3);player.startPawnDuel()
-        // Use an opening after which the two profiles choose different replies, so the reply shows which profile
-        // chose it: a reply that merely arrives cannot tell a replaced request from the original one.
-        func seed(_ game:MiniGameState)->UInt64 {(UInt64(game.opponentSeed ?? "1",radix:16) ?? 1) &+ UInt64(game.history.count+1)}
-        var expected:MiniGameMove?
-        for (from,to) in [("g2","g4"),("b2","b4"),("c2","c4"),("d2","d4"),("e2","e4"),("f2","f4"),("b2","b3"),("c2","c3"),("d2","d3"),("e2","e3"),("f2","f3"),("g2","g3")] {
-            player.click(from);player.click(to);XCTAssertTrue(player.miniThinking)
-            let game=try XCTUnwrap(player.miniGame),beginner=MiniGameOpponent.choose(in:game,profile:"beginner",seed:seed(game))
-            if beginner != MiniGameOpponent.choose(in:game,profile:"challenging",seed:seed(game)){expected=beginner;break}
-            player.restartMini()
-        }
-        let reply=try XCTUnwrap(expected,"No opening separates the profiles, so a replaced reply cannot be observed")
-        session.state.settings.miniOpponentProfile="beginner";player.settingsChanged()
+        // The reply's search is time-limited, so the move it finds depends on machine load; the level it searched at
+        // (`miniProfile`) is what the run freezes, so that is what is observed.
+        player.click("g2");player.click("g4");XCTAssertTrue(player.miniThinking);XCTAssertEqual(player.miniProfile,"challenging")
+        let requests=player.miniReplyRequests
+        session.state.settings.miniOpponentProfile="beginner";session.state.settings.miniOpponentProfiles=["pawn-duel":"beginner"];player.settingsChanged()
+        XCTAssertEqual(player.miniReplyRequests,requests,"the pending reply was replaced");XCTAssertEqual(player.miniLevel,"challenging")
         for _ in 0..<75 where player.miniThinking{try await Task.sleep(for:.milliseconds(40))}
-        XCTAssertFalse(player.miniThinking);XCTAssertEqual(player.miniGame?.history.count,2);XCTAssertEqual(player.miniGame?.snapshot.lastMove,reply)
-        try await Task.sleep(for:.milliseconds(700));XCTAssertEqual(player.miniGame?.history.count,2)
+        XCTAssertFalse(player.miniThinking);XCTAssertEqual(player.miniGame?.history.count,2);XCTAssertEqual(player.miniProfile,"challenging","the reply searched at the run's level")
+        try await Task.sleep(for:.milliseconds(700));XCTAssertEqual(player.miniGame?.history.count,2);XCTAssertEqual(player.miniReplyRequests,requests,"exactly one reply")
+        XCTAssertEqual(player.miniLevel,"challenging");XCTAssertTrue(player.miniNewLevelOffered)
         let next=try XCTUnwrap(MiniGameRules.moves(board:try XCTUnwrap(player.miniGame).board,kind:.pawnDuel,side:"w").first)
         player.click(next.from);player.click(next.to);session.state.settings.miniOpponentProfile="challenging";player.settingsChanged();player.restartMini()
         let seed=player.miniGame?.opponentSeed

@@ -35,6 +35,134 @@ enum LegacyFixtures {
     ]
     static let record=#"{"blackName":"Ben","clocks":{"active":"b","black":179000,"white":180000},"gameID":"J734ZR3TJN1BFYNH4ABKMKSBX8","hostSide":"w","openOffer":{"by":"b","offerID":"P9MA2RYD4AMBEHW1QYH3YAW6XR"},"pgn":"[Fake]\ne2e4 e7e5","revision":2,"timeControl":"3+2","whiteName":"Ana"}"#
 }
+/// Mini-games plan WI-023 (D7): protocol 1.2 against 1.1. The exact bytes the 1.1 codec wrote, captured from it at
+/// e35e5ef before any 1.2 change: every message type, the 1.1 additions (terms in `hello`, `assisted`, the
+/// `assistanceChanged` reason), and a hosted standard-start game's record with and without assistance, made by the host
+/// on the real chess rules (e4 e5 Nf3, the host White). Do not regenerate them: they are what a 1.1 peer still sends.
+enum Legacy11Fixtures {
+    static let messages:[String]=[
+        #"{"appVersion":"0.8.2","assistance":{"black":"guided","white":"hints"},"claimID":"EMR5N842M0R0SWP9F3YH957RSQXMTAF0YVAMQXEQTETM8C1E5GK0","name":"Ben","protocol":{"major":1,"minor":1},"type":"hello"}"#,
+        #"{"appVersion":"0.8.2","assistance":{"black":"off","white":"off"},"claimID":"EMR5N842M0R0SWP9F3YH957RSQXMTAF0YVAMQXEQTETM8C1E5GK0","name":"Ben","protocol":{"major":1,"minor":1},"type":"hello"}"#,
+        #"{"appVersion":"0.8.2","name":"Cy","protocol":{"major":1,"minor":1},"type":"hello"}"#,
+        #"{"protocol":{"major":1,"minor":1},"type":"seatedAck"}"#,
+        #"{"credential":"NCYQ0262J52F314B2RGBAB95CAYKZ900AEM490CMAS3MYSHJBFRG","gameID":"HSVGS8Y61V7W3A3DFXX1NTV2AG","protocol":{"major":1,"minor":1},"type":"resume"}"#,
+        #"{"protocol":{"major":1,"minor":1},"type":"resync"}"#,
+        #"{"commandID":"GY7DBSCD94CDHYB1ABY0KJE78G","gameID":"HSVGS8Y61V7W3A3DFXX1NTV2AG","protocol":{"major":1,"minor":1},"revision":3,"type":"move","uci":"e2e4"}"#,
+        #"{"assisted":true,"commandID":"3PGQBZPCB9NSQX6FVVD5PGGPFR","gameID":"HSVGS8Y61V7W3A3DFXX1NTV2AG","protocol":{"major":1,"minor":1},"revision":4,"type":"move","uci":"e7e8q"}"#,
+        #"{"commandID":"MDWZQVM5TFWPJXBP8QD1H52C7M","gameID":"HSVGS8Y61V7W3A3DFXX1NTV2AG","protocol":{"major":1,"minor":1},"type":"resign"}"#,
+        #"{"commandID":"8QWB6NG9AG9PZMPJ2V7FC8VEGR","gameID":"HSVGS8Y61V7W3A3DFXX1NTV2AG","protocol":{"major":1,"minor":1},"revision":3,"type":"drawOffer"}"#,
+        #"{"accept":false,"commandID":"D9XYCKGZ99EBVMPYX8DYYN5M8M","gameID":"HSVGS8Y61V7W3A3DFXX1NTV2AG","offerID":"CGYE7ASRAPN14CHJ77KJ60TKQW","protocol":{"major":1,"minor":1},"type":"drawAnswer"}"#,
+        #"{"commandID":"HTYG133KWYJZ8SK0NR148V08C0","gameID":"HSVGS8Y61V7W3A3DFXX1NTV2AG","protocol":{"major":1,"minor":1},"revision":4,"type":"claimDraw"}"#,
+        #"{"nonce":"TSBPV8YVKT82MNYBJSV050KGBC","protocol":{"major":1,"minor":1},"type":"pong"}"#,
+        #"{"protocol":{"major":1,"minor":1},"reason":"seatTaken","type":"bye"}"#,
+        #"{"protocol":{"major":1,"minor":1},"reason":"assistanceChanged","type":"bye"}"#,
+        #"{"credential":"NCYQ0262J52F314B2RGBAB95CAYKZ900AEM490CMAS3MYSHJBFRG","protocol":{"major":1,"minor":1},"type":"seated"}"#,
+        #"{"protocol":{"major":1,"minor":1},"type":"resumed"}"#,
+        #"{"protocol":{"major":1,"minor":1},"type":"watching"}"#,
+        #"{"hash":"abc123","parts":1,"protocol":{"major":1,"minor":1},"revision":2,"snapshotID":"3TMN8K5GW5KWBFY8NJG3QR6PDG","totalBytes":10,"type":"snapshotBegin"}"#,
+        #"{"data":"MDEyMzQ1Njc4OQ==","index":0,"protocol":{"major":1,"minor":1},"snapshotID":"QBTTNEC908BWA8GK2HFKFWJNW4","type":"snapshotPart"}"#,
+        #"{"protocol":{"major":1,"minor":1},"snapshotID":"JAQXF3YXDCYM8GC9599S2MHJXR","type":"snapshotEnd"}"#,
+        #"{"assisted":true,"clocks":{"active":"b","black":179000,"white":180000},"hash":"abc123","protocol":{"major":1,"minor":1},"receiptFor":"891R0H8QX36PEEPJ2HF1HBYPGW","revision":5,"san":"Nf3","type":"moved","uci":"g1f3"}"#,
+        #"{"hash":"def456","protocol":{"major":1,"minor":1},"revision":6,"san":"Nc6","type":"moved","uci":"b8c6"}"#,
+        #"{"commandID":"TPDVYHZFA17R17B2SQ7X9SKQQM","protocol":{"major":1,"minor":1},"reason":"stale","type":"rejected"}"#,
+        #"{"by":"w","offerID":"SMYZK37X59HDWTET9E2ZJDHKHW","protocol":{"major":1,"minor":1},"type":"drawOffered"}"#,
+        #"{"offerID":"BMB9BWFKYSW569RB48TD8ETFHM","protocol":{"major":1,"minor":1},"type":"drawDeclined"}"#,
+        #"{"clocks":{"active":"b","black":179000,"white":180000},"protocol":{"major":1,"minor":1},"type":"clock"}"#,
+        #"{"clocks":{"active":"b","black":179000,"white":180000},"protocol":{"major":1,"minor":1},"result":"0-1","revision":7,"termination":"resignation","type":"ended"}"#,
+        #"{"nonce":"M374AKWV9PQBX6WCEQJF642TTR","protocol":{"major":1,"minor":1},"type":"ping"}"#,
+    ]
+    /// White had hints and used one on 1. e4.
+    static let assistedRecord=#"{"assistance":{"black":"off","white":"hints"},"assistedPlies":[1],"blackName":"Ben","gameID":"5QVHHR37H3BVYSNN9EN96BYBBC","hostSide":"w","pgn":"[Event \"?\"]\n[Site \"?\"]\n[Date \"????.??.??\"]\n[Round \"?\"]\n[White \"?\"]\n[Black \"?\"]\n[Result \"*\"]\n\n1. e4 e5 2. Nf3 *","revision":3,"timeControl":"untimed","whiteName":"Ana"}"#
+    static let record=#"{"blackName":"Ben","gameID":"27BTBDZ9A8Z6WAJ8Z3YB46856C","hostSide":"w","pgn":"[Event \"?\"]\n[Site \"?\"]\n[Date \"????.??.??\"]\n[Round \"?\"]\n[White \"?\"]\n[Black \"?\"]\n[Result \"*\"]\n\n1. e4 e5 2. Nf3 *","revision":3,"timeControl":"untimed","whiteName":"Ana"}"#
+    /// Both records' position after 1. e4 e5 2. Nf3, and its revision-3 hash (SHA-256), as the 1.1 host computed them.
+    static let fen="rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2"
+    static let hash="88c1e1ddcf759d87542e375e9cdc89930d39ffc93f7fb66062f3fbbf2749b62b"
+}
+/// The 1.1 decode rules, frozen: `NetworkCodec`'s flat wire object and its checks as they were at 6f51c94, the last 1.1
+/// commit before 1.2. Its limits, its free-string rule and its terminations are written out, so a later change to
+/// `NetworkLimits`, `NetworkText` or `NetworkTermination` cannot move the oracle; the identifier, clock and assistance
+/// types are used as they are, unchanged since 1.1. Synthesised decoding ignores keys it does not know, which is the
+/// whole of 1.1's tolerance for 1.2's `capabilities`. A message it reads is returned as this build's, stating no
+/// capabilities, as 1.1 knew none.
+struct Legacy11Wire:Decodable {
+    struct Version:Decodable {let major:Int,minor:Int}
+    struct Refusal:Error {let field:String}
+    var type:String
+    var `protocol`:Version
+    var name,appVersion,uci,san,hash,data:String?
+    var claimID,credential:NetworkSecret?
+    var gameID:NetworkGameID?
+    var commandID,offerID,snapshotID,nonce,receiptFor:NetworkID?
+    var revision,totalBytes,parts,index:Int?
+    var accept:Bool?
+    var assistance:NetworkAssistance?
+    var assisted:Bool?
+    var by:NetworkSide?
+    var clocks:NetworkClocks?
+    var reason:String?
+    var result:NetworkGameResult?
+    var termination:String?
+    static let maximumMessageBytes=16*1024,maximumNameBytes=64,maximumSANBytes=16,maximumHashBytes=128,maximumRevision=1_000_000
+    static let maximumSnapshotBytes=1024*1024,maximumSnapshotPartBytes=9*1024
+    static var maximumSnapshotParts:Int {(maximumSnapshotBytes+maximumSnapshotPartBytes-1)/maximumSnapshotPartBytes}
+    static let terminations:Set<String>=["checkmate","stalemate","resignation","time","agreement","repetition","fiftyMoves","seventyFiveMoves","fivefold","insufficientMaterial","abandoned"]
+    /// 1.1's free-string rule: 1 to `maximumBytes` bytes of UTF-8 with no control character and no line or paragraph separator.
+    static func text(_ value:String,_ maximumBytes:Int=maximumNameBytes)->Bool {!value.isEmpty && value.utf8.count<=maximumBytes && !value.unicodeScalars.contains{[.control,.lineSeparator,.paragraphSeparator].contains($0.properties.generalCategory)}}
+    static func decode(_ data:Data)throws -> NetworkMessage {
+        guard data.count<=maximumMessageBytes else{throw Refusal(field:"size")}
+        let wire=try JSONDecoder().decode(Legacy11Wire.self,from:data)
+        guard wire.protocol.major==1 else{throw Refusal(field:"protocol")}
+        return try wire.message()
+    }
+    private func need<T>(_ value:T?,_ field:String)throws -> T {guard let value else{throw Refusal(field:field)};return value}
+    private func check(_ condition:Bool,_ field:String)throws {guard condition else{throw Refusal(field:field)}}
+    private func revisionValue()throws -> Int {let value=try need(revision,"revision");try check((0...Self.maximumRevision).contains(value),"revision");return value}
+    private func uciValue()throws -> String {let value=try need(uci,"uci");try check(Legacy10Wire.uci(value),"uci");return value}
+    private func clocksValue()throws -> NetworkClocks? {try check(clocks?.valid ?? true,"clocks");return clocks}
+    private func hashValue()throws -> String {let value=try need(hash,"hash");try check(!value.isEmpty && value.utf8.count<=Self.maximumHashBytes && value.utf8.allSatisfy{(0x21...0x7E).contains($0)},"hash");return value}
+    private func message()throws -> NetworkMessage {
+        switch type {
+        case "hello":
+            let name=try need(self.name,"name"),appVersion=try need(self.appVersion,"appVersion");try check(Self.text(name),"name");try check(Self.text(appVersion),"appVersion")
+            return .hello(name:name,appVersion:appVersion,claimID:claimID,assistance:assistance)
+        case "seatedAck":return .seatedAck
+        case "resume":return .resume(gameID:try need(gameID,"gameID"),credential:try need(credential,"credential"))
+        case "resync":return .resync
+        case "move":return .move(gameID:try need(gameID,"gameID"),commandID:try need(commandID,"commandID"),revision:try revisionValue(),uci:try uciValue(),assisted:assisted ?? false)
+        case "resign":return .resign(gameID:try need(gameID,"gameID"),commandID:try need(commandID,"commandID"))
+        case "drawOffer":return .drawOffer(gameID:try need(gameID,"gameID"),commandID:try need(commandID,"commandID"),revision:try revisionValue())
+        case "drawAnswer":return .drawAnswer(gameID:try need(gameID,"gameID"),commandID:try need(commandID,"commandID"),offerID:try need(offerID,"offerID"),accept:try need(accept,"accept"))
+        case "claimDraw":return .claimDraw(gameID:try need(gameID,"gameID"),commandID:try need(commandID,"commandID"),revision:try revisionValue())
+        case "pong":return .pong(nonce:try need(nonce,"nonce"))
+        case "bye":return .bye(NetworkByeReason(rawValue:try need(reason,"reason")) ?? .unknown)
+        case "seated":return .seated(credential:try need(credential,"credential"))
+        case "resumed":return .resumed
+        case "watching":return .watching
+        case "snapshotBegin":
+            let total=try need(totalBytes,"totalBytes"),count=try need(parts,"parts")
+            try check((1...Self.maximumSnapshotBytes).contains(total),"totalBytes");try check(count==(total+Self.maximumSnapshotPartBytes-1)/Self.maximumSnapshotPartBytes,"parts")
+            return .snapshotBegin(snapshotID:try need(snapshotID,"snapshotID"),revision:try revisionValue(),hash:try hashValue(),totalBytes:total,parts:count)
+        case "snapshotPart":
+            let position=try need(index,"index"),text=try need(data,"data")
+            try check((0..<Self.maximumSnapshotParts).contains(position),"index")
+            guard let bytes=Data(base64Encoded:text),!bytes.isEmpty,bytes.count<=Self.maximumSnapshotPartBytes else{throw Refusal(field:"data")}
+            return .snapshotPart(snapshotID:try need(snapshotID,"snapshotID"),index:position,data:bytes)
+        case "snapshotEnd":return .snapshotEnd(snapshotID:try need(snapshotID,"snapshotID"))
+        case "moved":
+            let san=try need(self.san,"san");try check(Self.text(san,Self.maximumSANBytes),"san")
+            return .moved(NetworkMoved(revision:try revisionValue(),uci:try uciValue(),san:san,hash:try hashValue(),clocks:try clocksValue(),receiptFor:receiptFor,assisted:assisted ?? false))
+        case "rejected":return .rejected(commandID:try need(commandID,"commandID"),reason:NetworkRejectReason(rawValue:try need(reason,"reason")) ?? .unknown)
+        case "drawOffered":return .drawOffered(NetworkDrawOffer(offerID:try need(offerID,"offerID"),by:try need(by,"by")))
+        case "drawDeclined":return .drawDeclined(offerID:try need(offerID,"offerID"))
+        case "clock":guard let clocks=try clocksValue() else{throw Refusal(field:"clocks")};return .clock(clocks)
+        case "ended":
+            let termination=try need(self.termination,"termination");try check(Self.terminations.contains(termination),"termination")
+            return .ended(NetworkEnded(outcome:NetworkOutcome(result:try need(result,"result"),termination:NetworkTermination(rawValue:termination)!),revision:try revisionValue(),clocks:try clocksValue()))
+        case "ping":return .ping(nonce:try need(nonce,"nonce"))
+        default:throw Refusal(field:"type")
+        }
+    }
+}
 /// The 1.0 decode rules, frozen: the flat wire object as 1.0 declared it, and the 1.0 public game decoder. Synthesised
 /// decoding ignores keys it does not know, which is the whole of 1.0's tolerance for 1.1's additions.
 struct Legacy10Wire:Decodable {
@@ -124,4 +252,27 @@ struct Legacy10PublicGame:Decodable,Equatable {
         clocks=try c.decodeIfPresent(NetworkClocks.self,forKey:.clocks);openOffer=try c.decodeIfPresent(NetworkDrawOffer.self,forKey:.openOffer);outcome=try c.decodeIfPresent(NetworkOutcome.self,forKey:.outcome)
         guard revision>=0,[whiteName,blackName].allSatisfy({$0.map{Legacy10Wire.text($0)} ?? true}),clocks?.valid ?? true,(clocks==nil)==(timeControl == .untimed) else{throw DecodingError.dataCorrupted(.init(codingPath:decoder.codingPath,debugDescription:"Invalid public game."))}
     }
+}
+/// Mini-games plan WI-024 (D7, L2): protocol 1.3 against 1.2. The exact bytes the 1.2 codec wrote, captured from it
+/// at bf7c181 before any 1.3 change: `hello` with and without terms and a spectator's, each stating 1.2's capabilities,
+/// `resume`, `move`, `moved`, `ended` and `bye`, and a hosted game's record from a declared start (the Game of the
+/// Century after 40. Kb1, the host Black, 40... Nc3+ 41. Kc1 on the real chess rules), with its position and hash. Do
+/// not regenerate them: they are what a 1.2 peer still sends.
+enum Legacy12Fixtures {
+    static let messages:[String]=[
+        #"{"appVersion":"0.8.3","assistance":{"black":"hints","white":"hints"},"capabilities":["start"],"claimID":"ZJ8T55DJHWM81E63X4ARZJW9QDQ2FPBGBS8TW1JZXE2ZKEY5VZA0","name":"Ben","protocol":{"major":1,"minor":2},"type":"hello"}"#,
+        #"{"appVersion":"0.8.3","assistance":{"black":"off","white":"off"},"capabilities":["start"],"claimID":"ZJ8T55DJHWM81E63X4ARZJW9QDQ2FPBGBS8TW1JZXE2ZKEY5VZA0","name":"Ben","protocol":{"major":1,"minor":2},"type":"hello"}"#,
+        #"{"appVersion":"0.8.3","capabilities":["start"],"name":"Cy","protocol":{"major":1,"minor":2},"type":"hello"}"#,
+        #"{"capabilities":["start"],"credential":"NC72YK32R2ACBCAHKJ0M3RAKTJGKFZ7FZ577XM62JHW6VKMZ0M00","gameID":"9HZF8WCHXP8XZ1PFNQ7ZJWA96C","protocol":{"major":1,"minor":2},"type":"resume"}"#,
+        #"{"commandID":"9TZYQ9YVAYY2TESD6MAB0JB088","gameID":"9HZF8WCHXP8XZ1PFNQ7ZJWA96C","protocol":{"major":1,"minor":2},"revision":3,"type":"move","uci":"e2e4"}"#,
+        #"{"hash":"abc123","protocol":{"major":1,"minor":2},"receiptFor":"A59T0XHYRX64W7C7YVRZ18WWRR","revision":5,"san":"Nf3","type":"moved","uci":"g1f3"}"#,
+        #"{"protocol":{"major":1,"minor":2},"result":"0-1","revision":7,"termination":"checkmate","type":"ended"}"#,
+        #"{"protocol":{"major":1,"minor":2},"reason":"protocolVersion","type":"bye"}"#,
+    ]
+    static let record=#"{"blackName":"Ana","gameID":"41K5PPY6VDQ7TASTDE538YB37M","hostSide":"b","pgn":"[Event \"?\"]\n[Site \"?\"]\n[Date \"????.??.??\"]\n[Round \"?\"]\n[White \"?\"]\n[Black \"?\"]\n[Result \"*\"]\n[SetUp \"1\"]\n[FEN \"1Q6/5pk1/2p3p1/1p2N2p/1b5P/1b6/r3n1P1/1K6 b - - 13 40\"]\n\n40. ... Nc3+ 41. Kc1 *","revision":2,"startFEN":"1Q6/5pk1/2p3p1/1p2N2p/1b5P/1b6/r3n1P1/1K6 b - - 13 40","timeControl":"untimed","whiteName":"Ben"}"#
+    static let fen="1Q6/5pk1/2p3p1/1p2N2p/1b5P/1bn5/r5P1/2K5 b - - 15 41"
+    static let hash="1a09ee4aed8ed96d49f7e22b6acefa420cf8ded2598ae418fbec56c5a34e01dc"
+    /// 1.2's terminations, written out so a later case cannot move them: an `ended` naming any other is malformed to a
+    /// 1.2 decoder (its `NetworkTermination` has no such case).
+    static let terminations:Set<String>=["checkmate","stalemate","resignation","time","agreement","repetition","fiftyMoves","seventyFiveMoves","fivefold","insufficientMaterial","abandoned"]
 }

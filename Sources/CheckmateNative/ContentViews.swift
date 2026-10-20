@@ -108,10 +108,18 @@ struct DetailContent:View {
         Text(learning.miniStatus).font(.title2.bold())
         if !learning.miniKind.solo {
             Picker("Opponent",selection:Binding(get:{learning.miniGame?.computer ?? true},set:{learning.setMiniComputer($0)})){Text("Computer").tag(true);Text("Two players on this device").tag(false)}
-            Picker("Difficulty",selection:Binding(get:{session.state.settings.miniOpponentProfile},set:{var settings=session.state.settings;settings.miniOpponentProfile=$0;session.updateSettings(settings)})){Text("Beginner").tag("beginner");Text("Standard").tag("standard");Text("Challenging").tag("challenging")}
+            // Per game, and only the levels this game offers. The game in progress keeps the level its run started with,
+            // labelled while it differs (also when that level is no longer offered).
+            if MiniGameOffering.offersChoice(learning.miniKind) {
+                Picker("Difficulty",selection:Binding(get:{learning.miniPreferredLevel},set:{learning.setMiniLevel($0)})){ForEach(MiniGameOffering.levels(for:learning.miniKind),id:\.self){Text(MiniGameOffering.title($0)).tag($0)}}.accessibilityIdentifier("mini-difficulty")
+            }
+            if learning.miniNewLevelOffered,let level=learning.miniLevel {
+                Text(learning.miniLevelWithdrawn ? "This game continues at \(MiniGameOffering.title(level)), a level this game no longer offers.":"This game continues at \(MiniGameOffering.title(level)).").foregroundStyle(.secondary).accessibilityIdentifier("mini-level-continues")
+                Button("Start a new game at \(MiniGameOffering.title(learning.miniPreferredLevel))"){learning.restartMini()}.accessibilityIdentifier("mini-new-level")
+            }
             Text(learning.miniGame?.computer==true ? "You play White. Select a piece, then its destination. The computer plays Black.":"Take turns moving White and Black on this device.")
         }
-        if learning.miniGame?.isFinished==true {Button {learning.restartMini()} label:{Label("Play again",systemImage:"arrow.counterclockwise")}.accessibilityIdentifier("mini-play-again")}
+        if learning.miniGame?.isFinished==true {Button {learning.restartMini()} label:{Label("Play again",systemImage:"arrow.counterclockwise")}.accessibilityIdentifier("mini-play-again");MiniGameReviewSection(reviewer:learning.miniReview)}
         Text(learning.miniKind.rules).foregroundStyle(.secondary)
         if !learning.feedback.isEmpty{Text(learning.feedback)}
     }
@@ -204,10 +212,12 @@ struct TransportContent:View {
     var voiceState:ControlBarVoice {
         if voice.connecting{return .connecting(voice.status)}
         if voice.connected{return .on(microphone:session.state.settings.voiceMicrophone,canStop:voice.canStopTurn)}
-        return .off(available:!session.companionEnabled)
+        return .off(available:session.mode == .training ? voice.trainingVoiceAvailable:!session.companionEnabled)
     }
+    /// The training game's coach is offered: its flag, and a game being played or a session open for it.
+    var trainingVoice:Bool {voice.training != nil && (voice.trainingSession || voice.trainingVoiceAvailable)}
     /// The bar for what is shown now; the Lesson menu reads the same model, so menu and bar always agree.
-    var barModel:ControlBarModel {ControlBarModel.make(session:session,learning:learning,review:review,training:training,voice:voiceState)}
+    var barModel:ControlBarModel {ControlBarModel.make(session:session,learning:learning,review:review,training:training,voice:voiceState,trainingVoice:trainingVoice)}
     var body:some View {ControlBarView(model:barModel,perform:perform,rowsChanged:rowsChanged,framesChanged:framesChanged)}
     /// What each control does; the model decides only which controls show and whether they can act.
     func perform(_ action:ControlBarAction){
@@ -235,7 +245,7 @@ struct TransportContent:View {
         case .demoPrevious:if let d=session.demonstration{try? session.seekDemo(line:d.line,ply:max(0,d.ply-1))}
         case .demoPlayPause:if let d=session.demonstration{d.playing ? session.pauseDemo():session.playDemo()}
         case .demoNext:if let d=session.demonstration{try? session.seekDemo(line:d.line,ply:min(d.lines[d.line].frames.count-1,d.ply+1))}
-        case .voiceConnect:voice.connect()
+        case .voiceConnect:if session.mode == .training{voice.connectTraining()}else{voice.connect()}
         case .voiceCancel,.voiceDisconnect:voice.disconnect()
         case .voiceMicrophone:var settings=session.state.settings;settings.voiceMicrophone.toggle();session.updateSettings(settings)
         case .voiceStop:voice.stopTurn()

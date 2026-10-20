@@ -48,11 +48,13 @@ public enum TrainingCheck:String,Codable,CaseIterable {
     /// A moment from the learner's own guided game, retried against exact mate-in-one detectors: find the mate that
     /// was missed, or play a move that does not allow one.
     case moment
+    /// A position game (mini-game plan D3): played to its goal, `checkmate` or `promoteAndHold`, keeping what `keep` lists.
+    case positionGame
     /// How the learner answers.
     public var task:TrainingTask {switch self {
         case .forks,.pins,.kingSquares:return .select
         case .exchange,.castleReason,.enPassantChoice,.status,.diagnosis:return .choose
-        case .ending,.guidedGame:return .game
+        case .ending,.guidedGame,.positionGame:return .game
         default:return .move
     }}
 }
@@ -88,6 +90,7 @@ public extension TrainingCheck {
         case (.finishTheGame,_):return .ending
         case (.guidedGame,"mate-find"),(.guidedGame,"mate-avoid"):return .moment
         case (.guidedGame,_):return .guidedGame
+        case (.positionGame,_):return .positionGame
         default:return nil
         }
     }
@@ -106,6 +109,11 @@ public struct TrainingGoal:Codable,Equatable {
         case gain
         /// Delta >= threshold, threshold <= 0: give nothing away (the declined-capture objective).
         case hold
+        /// A position game's goals (plan D3), with threshold 0 and nothing else: give checkmate; or promote the one
+        /// pawn and keep the new piece through the opponent's reply.
+        case checkmate,promoteAndHold
+        /// Whether this is a position game's goal rather than a bounded search's.
+        public var positionGame:Bool {self == .checkmate || self == .promoteAndHold}
     }
     public let kind:Kind,threshold:Int
     /// The piece to keep, by its square at the root (survival goals only).
@@ -158,10 +166,12 @@ public struct TrainingScenario:Codable,Equatable,Identifiable {
     public let bridge:MiniGameKind?
     /// A playable workflow this start belongs to (guided games).
     public let workflow:String?
-    public init(id:String,entry:String,variant:String,tier:Int,cluster:String,learner:String,prompt:String,explanation:String,hints:[String],fen:String?=nil,prelude:[String]?=nil,diagram:Position?=nil,target:String?=nil,drill:MovementDrill?=nil,budget:Int?=nil,shortest:Bool?=nil,choices:[String]?=nil,expected:TrainingExpected?=nil,noAction:Bool?=nil,reserve:Bool?=nil,review:TrainingReview?=nil,generation:TrainingGeneration?=nil,check:TrainingCheck?=nil,goal:TrainingGoal?=nil,plies:Int?=nil,nodes:[TrainingTeachingNode]?=nil,stated:[String]?=nil,askColor:String?=nil,focus:[String]?=nil,skills:[TrainingSkill]?=nil,primarySkill:TrainingSkill?=nil,source:String?=nil,bridge:MiniGameKind?=nil,workflow:String?=nil){
+    /// Position games: the learner's piece types (`q`, `r`, `b`, `n`, `p`) the game is lost without (plan D3).
+    public let keep:[String]?
+    public init(id:String,entry:String,variant:String,tier:Int,cluster:String,learner:String,prompt:String,explanation:String,hints:[String],fen:String?=nil,prelude:[String]?=nil,diagram:Position?=nil,target:String?=nil,drill:MovementDrill?=nil,budget:Int?=nil,shortest:Bool?=nil,choices:[String]?=nil,expected:TrainingExpected?=nil,noAction:Bool?=nil,reserve:Bool?=nil,review:TrainingReview?=nil,generation:TrainingGeneration?=nil,check:TrainingCheck?=nil,goal:TrainingGoal?=nil,plies:Int?=nil,nodes:[TrainingTeachingNode]?=nil,stated:[String]?=nil,askColor:String?=nil,focus:[String]?=nil,skills:[TrainingSkill]?=nil,primarySkill:TrainingSkill?=nil,source:String?=nil,bridge:MiniGameKind?=nil,workflow:String?=nil,keep:[String]?=nil){
         self.id=id;self.entry=entry;self.variant=variant;self.tier=tier;self.cluster=cluster;self.learner=learner;self.prompt=prompt;self.explanation=explanation;self.hints=hints
         self.fen=fen;self.prelude=prelude;self.diagram=diagram;self.target=target;self.drill=drill;self.budget=budget;self.shortest=shortest;self.choices=choices;self.expected=expected;self.noAction=noAction;self.reserve=reserve;self.review=review;self.generation=generation
-        self.check=check;self.goal=goal;self.plies=plies;self.nodes=nodes;self.stated=stated;self.askColor=askColor;self.focus=focus;self.skills=skills;self.primarySkill=primarySkill;self.source=source;self.bridge=bridge;self.workflow=workflow
+        self.check=check;self.goal=goal;self.plies=plies;self.nodes=nodes;self.stated=stated;self.askColor=askColor;self.focus=focus;self.skills=skills;self.primarySkill=primarySkill;self.source=source;self.bridge=bridge;self.workflow=workflow;self.keep=keep
     }
     /// Structural checks every scenario passes before any evaluator sees it. Legality is checked in Rules/Application.
     public func validateStructure(for definition:TrainingEntryDefinition)throws {
@@ -174,7 +184,7 @@ public struct TrainingScenario:Codable,Equatable,Identifiable {
         try validateRuleMode(definition.ruleMode)
         guard (focus ?? []).allSatisfy(ChessNotation.validSquare),(stated ?? []).allSatisfy(ChessNotation.validUCI),askColor.map({["w","b"].contains($0)}) ?? true else{try fail("invalid focus square, stated move or asked colour")}
         guard definition.increment == .beginner else {
-            guard check==nil,goal==nil,plies==nil,nodes==nil,stated==nil,askColor==nil,skills==nil,primarySkill==nil,source==nil,bridge==nil,workflow==nil else{try fail("Increment B fields on an Increment A scenario")}
+            guard check==nil,goal==nil,plies==nil,nodes==nil,stated==nil,askColor==nil,skills==nil,primarySkill==nil,source==nil,bridge==nil,workflow==nil,keep==nil else{try fail("Increment B fields on an Increment A scenario")}
             return
         }
         try validateBeginner(definition)
@@ -213,8 +223,12 @@ public struct TrainingScenario:Codable,Equatable,Identifiable {
             case .survive:guard let target=goal.target,ChessNotation.validSquare(target),check == .defense else{try fail("a survival goal names its target and belongs to Save Your Piece")}
             case .gain:guard goal.target==nil,goal.threshold>0,check != .defense else{try fail("a gain goal has a positive threshold and no target")}
             case .hold:guard goal.target==nil,goal.threshold<=0,check != .defense else{try fail("a hold goal has a threshold of zero or less and no target")}
+            case .checkmate,.promoteAndHold:try fail("a position game's goal belongs to a position game")
             }
+        } else if check == .positionGame {
+            guard let goal,goal.kind.positionGame,goal.threshold==0,goal.target==nil,goal.drawOK==nil,plies==nil else{try fail("a position game's goal is checkmate or promoteAndHold, with threshold 0 and no target, draw rule or horizon")}
         } else {guard goal==nil,plies==nil else{try fail("only searched objectives have a goal and horizon")}}
+        if let keep {guard check == .positionGame,!keep.isEmpty,Set(keep).count==keep.count,keep.allSatisfy({PositionGameReferee.keepable.contains($0)}) else{try fail("only a position game keeps piece types, each of q, r, b, n and p at most once")}}
         try validateTeachingGraph(check)
         if check.task == .choose{guard let choices,choices.count>=2,Set(choices).count==choices.count else{try fail("a choice needs at least two distinct options")}}
         else{guard choices==nil else{try fail("only choice questions have options")}}

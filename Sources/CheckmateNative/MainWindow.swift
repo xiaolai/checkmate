@@ -123,6 +123,9 @@ final class BoardTitleView:NSView {
         model.networkAssistant.objectWillChange.sink{[weak self] _ in DispatchQueue.main.async{self?.refresh()}}.store(in:&observations)
         // The squares the network game's coach is speaking about (A10) light up as it speaks, and go when it stops.
         model.voice.$networkFocus.removeDuplicates().dropFirst().receive(on:RunLoop.main).sink{[weak self] _ in self?.refresh()}.store(in:&observations)
+        // The training coach's spoken squares and highlights (mini-game plan WI-021) light up on the training board.
+        model.voice.$trainingFocus.removeDuplicates().dropFirst().receive(on:RunLoop.main).sink{[weak self] _ in self?.refresh()}.store(in:&observations)
+        model.trainingVoice?.$marks.removeDuplicates().dropFirst().receive(on:RunLoop.main).sink{[weak self] _ in self?.refresh()}.store(in:&observations)
         // VoiceOver hears the network game's moves, offers, result and clocks (LAN-play plan D10).
         model.network.announce={[weak self] text in self?.announce(text)}
         // D11: the permission help appears only on the two denial signals, and goes once access comes back.
@@ -130,7 +133,8 @@ final class BoardTitleView:NSView {
         // The network place's lobby and game chrome live in the details drawer: open it on arrival, as a lesson or review does.
         model.session.$activity.removeDuplicates().filter{$0 == .at(.network)}.receive(on:RunLoop.main).sink{[weak self] _ in self?.showDetails()}.store(in:&observations)
         model.session.objectWillChange.sink{[weak self] _ in DispatchQueue.main.async{self?.refresh()}}.store(in:&observations);model.learning.objectWillChange.sink{[weak self] _ in DispatchQueue.main.async{self?.refresh()}}.store(in:&observations)
-        model.voice.$connected.removeDuplicates().filter{$0}.receive(on:RunLoop.main).sink{[weak self] _ in self?.showDetails()}.store(in:&observations)
+        // A review read aloud keeps to its sheet: the drawer stays as it is.
+        model.voice.$connected.removeDuplicates().filter{$0}.receive(on:RunLoop.main).sink{[weak self] _ in guard let self,self.model.voice.miniReviewSession==nil else{return};self.showDetails()}.store(in:&observations)
         // These messages are shown only in the details drawer, which starts closed; open it when one appears.
         model.session.$error.removeDuplicates().compactMap{$0}.receive(on:RunLoop.main).sink{[weak self] _ in self?.showDetails()}.store(in:&observations)
         model.session.$preview.map{$0?.error}.removeDuplicates().compactMap{$0}.receive(on:RunLoop.main).sink{[weak self] _ in self?.showDetails()}.store(in:&observations)
@@ -144,7 +148,24 @@ final class BoardTitleView:NSView {
         let attemptReset=model.learning.onAttemptReset;model.learning.onAttemptReset={[weak self] in attemptReset?();self?.board.cancelAnimation()}
         board.refusedDrop={[weak self] from,to in guard let self,self.model.learning.attemptStep,!self.model.review.active else{return};self.model.learning.attempt.refused(from:from,to:to)}
         let miniReset=model.learning.onMiniReset;model.learning.onMiniReset={[weak self] in miniReset?();self?.board.cancelAnimation()}
+        model.learning.miniReview.objectWillChange.sink{[weak self] _ in DispatchQueue.main.async{self?.syncMiniReviewSheet()}}.store(in:&observations)
+        // A network mini-game's review (protocol 1.3) uses the same sheet, opened from the network pane.
+        model.network.miniReview.objectWillChange.sink{[weak self] _ in DispatchQueue.main.async{self?.syncMiniReviewSheet()}}.store(in:&observations)
     }
+    /// The finished mini-game's review sheet follows its reviewer: shown when a result arrives, gone when it is
+    /// dismissed or the review ends (restart, undo, leaving the game).
+    private var miniReviewSheet:NSWindow?
+    private func syncMiniReviewSheet(){
+        // The lesson's or library's game, or the network game's: at most one of them asks for the sheet at a time.
+        let reviewer=model.network.miniReview.sheetOpen ? model.network.miniReview:model.learning.miniReview
+        if reviewer.sheetOpen,let review=reviewer.review {
+            guard miniReviewSheet==nil,let window else{return}
+            let sheet=NSWindow(contentViewController:NSHostingController(rootView:MiniGameReviewSheet(review:review,voice:model.voice,close:{[weak reviewer] in reviewer?.dismissSheet()})))
+            sheet.title="\(review.kind.title) review";miniReviewSheet=sheet;window.beginSheet(sheet)
+        } else if let sheet=miniReviewSheet {miniReviewSheet=nil;window?.endSheet(sheet)}
+    }
+    /// The open mini-game review sheet's content, for the acceptance scenario.
+    var miniReviewSheetShown:Bool {miniReviewSheet?.sheetParent != nil}
     func toolbarDefaultItemIdentifiers(_ t:NSToolbar)->[NSToolbarItem.Identifier]{[.flexibleSpace,sidebarID,.sidebarTrackingSeparator,.flexibleSpace,titleID,.flexibleSpace,settingsID,.inspectorTrackingSeparator,inspectorID,.flexibleSpace]}
     func toolbarAllowedItemIdentifiers(_ t:NSToolbar)->[NSToolbarItem.Identifier]{toolbarDefaultItemIdentifiers(t)}
     func toolbar(_ t:NSToolbar,itemForItemIdentifier id:NSToolbarItem.Identifier,willBeInsertedIntoToolbar:Bool)->NSToolbarItem? {
@@ -367,8 +388,10 @@ playbackLineView?.isHidden=model.reviewWorkspace
     }
     /// An exercise shows only what the learner did: no legal-move dots or hidden answers, except a hint asked for.
     private func trainingPresentation(_ exercise:TrainingController.Exercise)->BoardPresentation {
+        // The training coach's highlights, only while they belong to the board shown.
+        let coach=model.trainingVoice?.shownMarks ?? TrainingVoiceAdapter.Marks()
         let target=[exercise.scenario.target ?? exercise.scenario.drill?.target ?? exercise.scenario.goal?.target].compactMap{$0}.map{Highlight(sq:$0,kind:"target")}
-        return BoardPresentation(source:"training",position:model.session.displayBoard,selected:exercise.picked,destinations:[],playable:true,dropsAnywhere:exercise.task == .move || exercise.task == .game,attacked:[],highlights:(exercise.lastMove.map{[Highlight(sq:$0.from,kind:"last"),Highlight(sq:$0.to,kind:"last")]} ?? [])+target+exercise.selection.map{Highlight(sq:$0,kind:"answer")}+exercise.hintSquares.map{Highlight(sq:$0,kind:"hint")},arrows:[],guards:[],counts:[],motion:nil)
+        return BoardPresentation(source:"training",position:model.session.displayBoard,selected:exercise.picked,destinations:[],playable:true,dropsAnywhere:exercise.task == .move || exercise.task == .game,attacked:[],highlights:(exercise.lastMove.map{[Highlight(sq:$0.from,kind:"last"),Highlight(sq:$0.to,kind:"last")]} ?? [])+target+exercise.selection.map{Highlight(sq:$0,kind:"answer")}+exercise.hintSquares.map{Highlight(sq:$0,kind:"hint")}+coach.squares.map{Highlight(sq:$0,kind:"focus")}+model.voice.trainingFocus.map{Highlight(sq:$0,kind:"focus")},arrows:coach.arrows,guards:[],counts:[],motion:nil)
     }
     func validateMenuItem(_ item:NSMenuItem)->Bool {
         // The network game's own items act on its controller (LAN-play plan D9); in network mode nothing else in the
@@ -467,7 +490,7 @@ playbackLineView?.isHidden=model.reviewWorkspace
     func offerNetworkCrashReview(){
         guard let entry=model.takeNetworkCrashNotice(),let window else{return}
         let moves=NativeModel.replayedMoves(entry) ?? [],reviewable = !moves.isEmpty
-        let alert=NSAlert();alert.messageText=entry.notice;alert.informativeText=reviewable ? "You can review the moves that were played.":"No moves were played."
+        let alert=NSAlert();alert.messageText=entry.notice;alert.informativeText=NativeModel.crashDetail(entry,moves:moves)
         if reviewable{alert.addButton(withTitle:"Review").setAccessibilityIdentifier("network-crash-review")}
         alert.addButton(withTitle:reviewable ? "Not Now":"OK").setAccessibilityIdentifier("network-crash-dismiss")
         alert.window.setAccessibilityIdentifier("network-crash-notice")

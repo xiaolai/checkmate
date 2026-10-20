@@ -71,6 +71,19 @@ import CheckmateRules
         XCTAssertTrue(practice.voice.networkVoiceAvailable,"a new session for the game may open")
     }
 
+    /// Protocol 1.3: a mini-game has no assistance, so neither player has the coach, even when the host sheet asked for
+    /// hints before the mini-game was chosen.
+    func testARulesetGameHasNoCoach()throws {
+        let previous=ProcessInfo.processInfo.environment["CHECKMATE_NETWORK_MINI_GAMES"];setenv("CHECKMATE_NETWORK_MINI_GAMES","1",1)
+        defer{if let previous {setenv("CHECKMATE_NETWORK_MINI_GAMES",previous,1)}else{unsetenv("CHECKMATE_NETWORK_MINI_GAMES")}}
+        let lan=MemoryLAN(),ana=try NetworkControllerTests().hosting(lan){$0.miniGame = .pawnDuel;$0.side = .white;$0.assistance=NetworkAssistance(both:.hints)}
+        let ben=try NetworkControllerTests().joining(lan,"Ben",ana)
+        XCTAssertNotNil(ana.game.ruleset,"premise: a ruleset game");XCTAssertEqual(ana.game.assistance,.off)
+        for mac in [ana,ben] {
+            let coach=try coach(mac);XCTAssertFalse(coach.voice.networkVoiceAvailable,"\(mac.game.playerName) has no coach in a mini-game")
+            XCTAssertThrowsError(try coach.voice.automationOpen(),"no session opens for \(mac.game.playerName)");XCTAssertFalse(coach.voice.networkSession)
+        }
+    }
     /// A10 and A9: a network session is configured with the network game's tools only and its own rules; practice's
     /// tools are refused even when called directly, and MCP stays `NETWORK_GAME`.
     func testANetworkSessionOffersOnlyTheGamesTools()async throws {

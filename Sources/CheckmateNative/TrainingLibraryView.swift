@@ -10,7 +10,7 @@ enum TrainingLabels {
     }}
     /// A subskill's button title.
     static func variant(_ id:String)->String {
-        let names=["move-away":"Move it away","protect":"Protect it","capture-attacker":"Capture the attacker","block":"Block the line","mixed-method":"Any defence","free-piece":"Free pieces","poisoned-capture":"Poisoned captures","compare-exchange":"Compare trades","anticipate-recapture":"Expect the recapture","castle-legal":"Castling","castle-unavailable":"When castling is not allowed","promotion":"Promotion","en-passant-available":"En passant","en-passant-unavailable":"When en passant is not allowed","fork-recognize":"Spot forks","pin-recognize":"Spot pins","fork-realize":"Win with a fork","pin-realize":"Win with a pin","mate-threat-create":"Threaten mate","mate-threat-prevent":"Stop a mate threat","kqk":"King and queen","krk":"King and rook","mixed":"Mixed"]
+        let names=["move-away":"Move it away","protect":"Protect it","capture-attacker":"Capture the attacker","block":"Block the line","mixed-method":"Any defence","free-piece":"Free pieces","poisoned-capture":"Poisoned captures","compare-exchange":"Compare trades","anticipate-recapture":"Expect the recapture","castle-legal":"Castling","castle-unavailable":"When castling is not allowed","promotion":"Promotion","en-passant-available":"En passant","en-passant-unavailable":"When en passant is not allowed","fork-recognize":"Spot forks","pin-recognize":"Spot pins","fork-realize":"Win with a fork","pin-realize":"Win with a pin","mate-threat-create":"Threaten mate","mate-threat-prevent":"Stop a mate threat","kqk":"King and queen","krk":"King and rook","mixed":"Mixed","kpk":"King and pawn","kbbk":"Two bishops","pawns":"Pawns","knights":"Knights","bishops":"Bishops","rooks":"Rooks","queens":"Queens","minor-pieces":"Minor pieces","major-pieces":"Major pieces"]
         return names[id] ?? id.replacingOccurrences(of:"-",with:" ").capitalized
     }
     /// What a mixed case practised, shown only after the learner has answered.
@@ -48,7 +48,8 @@ struct TrainingLibraryView:View {
     private var entries:[TrainingEntryDefinition] {guard let catalog=training.catalog else{return Self.legacyEntries};return catalog.entries.filter{$0.increment == .foundations && training.provider?.available($0) != false}}
     static let legacyEntries=MiniGameKind.allCases.map{TrainingEntryDefinition(id:$0.rawValue,title:$0.title,summary:$0.rules,rules:[],objective:.legacyGame,legacyKind:$0,increment:.foundations,delivery:.release,origin:.existing,skills:[],variants:[],lessonLinks:[$0.lessonID],tiers:1)}
     /// Increment B, only where it is enabled: development and automation until an editor has reviewed its content.
-    private var beginner:[TrainingEntryDefinition] {TrainingRolloutPolicy.beginnerEnabled ? (training.catalog?.entries ?? []).filter{$0.increment == .beginner && training.provider?.available($0) != false}:[]}
+    /// Position games also need their own flag.
+    private var beginner:[TrainingEntryDefinition] {(training.catalog?.entries ?? []).filter{TrainingRolloutPolicy.preview($0) && training.provider?.available($0) != false}}
     /// Subskills with a scenario still in play: one withdrawn this session (`scenario(_:)` returns nil) cannot start.
     private func variants(_ entry:TrainingEntryDefinition)->[String] {guard let provider=training.provider else{return []};let live=Set(provider.liveScenarios(for:entry.id).map(\.variant));return entry.variants.filter{live.contains($0)}}
     /// The first board suggested for an entry is `training-suggestion-<entry>`; later ones add their order (`-2`, `-3`), so each is targetable.
@@ -60,6 +61,7 @@ struct TrainingLibraryView:View {
         Text("Short exercises for the basics. This is foundational practice, not a complete beginner course.").foregroundStyle(.secondary)
         if let error=training.contentError{Text(error).foregroundStyle(Color(nsColor:NativeColors.error))}
         if let notice=training.notice{Text(notice).accessibilityIdentifier("training-notice")}
+        ForEach(training.keptForNewerVersion,id:\.self){Text($0).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("training-newer-version")}
         if let active=training.resumable,offered(active.entry),let definition=training.catalog?.entry(active.entry) {
             Button{model.resumeTraining()}label:{Label("Continue \(definition.title)",systemImage:"play.fill")}.controlSize(.large).accessibilityIdentifier("training-continue")
         }

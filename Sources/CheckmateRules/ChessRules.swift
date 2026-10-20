@@ -57,6 +57,9 @@ public final class ChessRules {
         return value
     }
     public func load(_ fen:String) throws {_ = try raw("game.load(\(literal(fen)))")}
+    /// The FEN header chess.js keeps for a game set up from a position (`load`, or a record's SetUp/FEN), or nil for
+    /// a game from the initial position.
+    public func setUpFEN()throws -> String? {let value=try raw("game.getHeaders().FEN ?? null");if value is NSNull{return nil};guard let fen=value as? String else{throw CheckmateError.invalid("Invalid chess operation.")};return fen}
     /// The record loads into a fresh game that replaces this one only once it has loaded: a failure leaves this game as it was.
     public func restore(_ pgn:String) throws {_ = try raw("(()=>{const g=new exports.Chess();g.loadPgn(\(literal(pgn)));game=g;return true})()")}
     /// A runtime failure throws: the caller must not record a new game or a take-back that did not happen.

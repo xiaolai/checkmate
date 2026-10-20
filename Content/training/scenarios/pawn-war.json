@@ -1,0 +1,30 @@
+{
+ "entry": "pawn-war",
+ "scenarios": [
+  {
+   "id": "pw-pawns",
+   "entry": "pawn-war",
+   "variant": "pawns",
+   "tier": 1,
+   "cluster": "pw-pawns",
+   "learner": "w",
+   "fen": "4k3/pppppppp/8/8/8/8/PPPPPPPP/4K3 w - - 0 1",
+   "prompt": "White to move. Kings and pawns only: checkmate the enemy king. Every legal move is allowed; the computer plays Black.",
+   "explanation": "The winning plan is a passed pawn: one no enemy pawn can stop or capture. Make one, promote it to a queen, then use the queen and your king together to give checkmate. Watch for stalemate once your opponent has few moves left.",
+   "hints": [
+    "Look for a pawn that no enemy pawn can stop: a passed pawn.",
+    "After promoting, bring your king up and mate with the queen and king together; leave the enemy king a move until the mate."
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "positionGame",
+   "goal": {
+    "kind": "checkmate",
+    "threshold": 0
+   }
+  }
+ ]
+}

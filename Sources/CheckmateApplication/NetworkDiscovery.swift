@@ -21,6 +21,8 @@ public struct NetworkServiceRecord:Equatable {
     var role:NetworkListenerRole? {txt["role"].flatMap(NetworkListenerRole.init(rawValue:))}
     /// The terms as advertised (A3): nil when absent (a 1.0 host, whose games have none) or unreadable.
     var assistance:NetworkAssistance? {txt["assist"].flatMap(NetworkAssistance.init(txt:))}
+    /// The mini-game the record says it plays (protocol 1.3), for the label only; nil when absent or unreadable.
+    var variant:MiniGameKind? {NetworkRuleset.displayKind(txt["variant"])}
 }
 /// A game as the joiner sees it: its two listeners' records paired by the game ID in their TXT, never by name (D3). The
 /// joiner then types only the code; the game ID, and so the key's salt and identity, comes from the record chosen.
@@ -39,6 +41,9 @@ public struct NetworkDiscoveredGame:Equatable {
     /// a 1.0 host's never do. Untrusted: the join sheet asks the person to accept these, and the host and the guest
     /// then check the real terms inside TLS.
     public var assistance:NetworkAssistance {seat?.assistance ?? watch?.assistance ?? .off}
+    /// The mini-game the list shows beside the name (protocol 1.3), from the seat record, else the watch record. Display
+    /// only: what is played comes from the verified snapshot, and what this Mac states never depends on it.
+    public var variant:MiniGameKind? {seat?.variant ?? watch?.variant}
     public func record(_ role:NetworkListenerRole)->NetworkServiceRecord? {role == .seat ? seat:watch}
     public func key(_ role:NetworkListenerRole,code:NetworkCode)->NetworkAccessKey {NetworkAccessKey(gameID:gameID,role:role,code:code)}
     /// Games in order of first appearance. A record without a valid `game` and `role` is ignored. The first record for

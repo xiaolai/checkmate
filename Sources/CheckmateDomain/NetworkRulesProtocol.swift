@@ -20,6 +20,13 @@ public protocol NetworkChessRules:AnyObject {
     func networkLoad(pgn:String)throws
     /// The moves played since the start of the record, in UCI, in order.
     func networkMoves()throws -> [String]
+    /// Replaces this game with a new one from `fen`, with no moves (mini-games plan D7): it then stands at the FEN its
+    /// rules write back, the canonical start, and its record declares that start. A position the rules refuse, one
+    /// whose side not to move is in check, or one failing `NetworkStart.consistent` throws
+    /// `NetworkRulesError.illegalStart` and leaves the game as it was; any other error is a rules failure.
+    func networkLoad(start fen:String)throws
+    /// The start the loaded record declares: its FEN header, or the standard start when it has none.
+    func networkStartFEN()throws -> String
 }
 public struct NetworkPlayedMove:Equatable {
     public let uci:String,san:String
@@ -27,8 +34,11 @@ public struct NetworkPlayedMove:Equatable {
 }
 public enum NetworkAutomaticEnding:Equatable {
     case checkmate(winner:NetworkSide),stalemate,insufficientMaterial,seventyFiveMoves,fivefold
+    /// A mini-game's referee ended it (protocol 1.3): won by `winner`, or drawn when nil, by `termination`.
+    case mini(winner:NetworkSide?,NetworkTermination)
     public var outcome:NetworkOutcome {
         switch self {
+        case .mini(let winner,let termination):return NetworkOutcome(result:winner.map{.win(for:$0)} ?? .draw,termination:termination)
         case .checkmate(let winner):return NetworkOutcome(result:.win(for:winner),termination:.checkmate)
         case .stalemate:return NetworkOutcome(result:.draw,termination:.stalemate)
         case .insufficientMaterial:return NetworkOutcome(result:.draw,termination:.insufficientMaterial)
@@ -37,13 +47,25 @@ public enum NetworkAutomaticEnding:Equatable {
         }
     }
 }
-public enum NetworkRulesError:Error,Equatable {case illegalMove,unexpected(String)}
+public enum NetworkRulesError:Error,Equatable {
+    case illegalMove
+    /// A start no game could have reached (D7); see `networkLoad(start:)`.
+    case illegalStart
+    /// A ruleset record that is not exactly the record grammar, or over its limits (protocol 1.3).
+    case badRecord
+    case unexpected(String)
+}
 /// Makes fresh games: the host's own network game (never `session.rules`, D9), and each scratch game a receiver
 /// replays a snapshot into before trusting it.
 public struct NetworkRulesFactory {
     private let make:()throws -> any NetworkChessRules
-    public init(_ make:@escaping ()throws -> any NetworkChessRules){self.make=make}
+    private let makeRuleset:(NetworkRuleset)throws -> any NetworkChessRules
+    /// `ruleset` makes a game of a mini-game's rules (protocol 1.3); the referee's own adapter unless a test counts it.
+    public init(_ make:@escaping ()throws -> any NetworkChessRules,ruleset:@escaping (NetworkRuleset)throws -> any NetworkChessRules={NetworkMiniGame($0)}){self.make=make;makeRuleset=ruleset}
+    /// A chess game.
     public func newGame()throws -> any NetworkChessRules {try make()}
+    /// A game of `ruleset`'s rules, or chess when nil.
+    public func newGame(_ ruleset:NetworkRuleset?)throws -> any NetworkChessRules {try ruleset.map(makeRuleset) ?? make()}
 }
 /// The position hash (D2): SHA-256 of the canonical FEN and the revision. The domain imports no cryptography, so the
 /// digest is injected; production passes CheckmateSupport's `reviewHash` (SHA-256, lower-case hex).

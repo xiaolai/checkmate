@@ -121,13 +121,13 @@ final class NetworkAssistanceTests:XCTestCase {
         for text in LegacyFixtures.messages {
             let message=try NetworkCodec.decode(Data(text.utf8))
             switch message {
-            case .hello(_,_,_,let assistance):XCTAssertNil(assistance,"a 1.0 guest states no terms")
+            case .hello(_,_,_,let assistance,let capabilities):XCTAssertNil(assistance,"a 1.0 guest states no terms");XCTAssertNil(capabilities)
             case .move(_,_,_,_,let assisted):XCTAssertFalse(assisted)
             case .moved(let moved):XCTAssertFalse(moved.assisted)
             default:break
             }
             let reencoded=String(decoding:try NetworkCodec.encode(message),as:UTF8.self)
-            XCTAssertEqual(reencoded,text.replacingOccurrences(of:#""minor":0"#,with:#""minor":1"#))
+            XCTAssertEqual(reencoded,text.replacingOccurrences(of:#""minor":0"#,with:#""minor":\#(NetworkProtocolVersion.current.minor)"#))
         }
     }
     /// The 1.0 record reads as a game without assistance, and a game without assistance writes the 1.0 bytes.

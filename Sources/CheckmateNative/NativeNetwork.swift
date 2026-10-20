@@ -143,17 +143,27 @@ extension NativeModel {
 
     // MARK: Review and the crash notice (D9)
     /// Review this game: the record opens as a draft review through the import path.
-    func reviewNetworkGame(){guard let record=network.reviewRecord() else{return};importReviewData(Data(record.utf8))}
+    /// A mini-game (protocol 1.3) opens its proof-search review instead: there is no PGN record of one.
+    func reviewNetworkGame(){
+        if network.ruleset != nil {network.showMiniReview();return}
+        guard let record=network.reviewRecord() else{return};importReviewData(Data(record.utf8))
+    }
     /// The crash file a previous run left, read once and deleted (D9): the window says its notice.
     func takeNetworkCrashNotice()->NetworkCrashFile.Entry? {
         guard let file=network.services?.crashFile,let entry=file.pending() else{return nil}
         file.clear();return entry
     }
     /// The crash file's game replayed once: its moves in SAN, or nil when the record does not replay. Empty when no
-    /// move was played. The notice and Review both use this one replay.
+    /// move was played. The notice and Review both use this one replay, on the network game's own board model. A
+    /// mini-game's entry (protocol 1.3) is never replayed: an interrupted mini-game has no review.
     static func replayedMoves(_ entry:NetworkCrashFile.Entry)->[String]? {
-        guard entry.game.revision<=NetworkLimits.maximumPlies+1,let rules=try? ChessRules(),(try? rules.restore(entry.game.pgn)) != nil else{return nil}
+        guard entry.game.ruleset==nil,entry.game.revision<=NetworkLimits.maximumPlies+1,let rules=try? NetworkGameController.newBoard(),(try? rules.restore(entry.game.pgn)) != nil else{return nil}
         return try? rules.moveHistory().map(\.san)
+    }
+    /// What the crash notice says under its first line.
+    static func crashDetail(_ entry:NetworkCrashFile.Entry,moves:[String])->String {
+        if let kind=entry.game.ruleset.flatMap({NetworkRuleset(descriptor:$0)?.kind ?? NetworkRuleset.displayKind($0)}) {return "\(kind.title) is reviewed only once a game is finished, so this one has no review."}
+        return moves.isEmpty ? "No moves were played.":"You can review the moves that were played."
     }
     /// The moves are the ones the rules replayed from the kept record, as for a game that just ended (A11).
     func reviewNetworkCrash(_ entry:NetworkCrashFile.Entry,moves:[String]){

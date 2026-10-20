@@ -1,0 +1,230 @@
+{
+ "entry": "pawn-race",
+ "scenarios": [
+  {
+   "id": "pr-a4",
+   "entry": "pawn-race",
+   "variant": "kpk",
+   "tier": 1,
+   "cluster": "pr-a4",
+   "learner": "w",
+   "fen": "8/8/8/8/P7/8/6k1/K7 w - - 0 1",
+   "prompt": "White to move. Promote your pawn and keep the new piece: it must still be on the board after your opponent's reply. Every legal move is allowed; the computer plays the other side.",
+   "explanation": "The enemy king stands outside the pawn's square, so the pawn simply runs: push it every move and it promotes before the king can catch it. A pawn on its starting rank may move two squares at once.",
+   "hints": [
+    "Count the moves: can the enemy king reach the promotion square before your pawn does?",
+    "Push the pawn at once. Every king move gives the defender a move to catch up."
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "positionGame",
+   "goal": {
+    "kind": "promoteAndHold",
+    "threshold": 0
+   }
+  },
+  {
+   "id": "pr-c4",
+   "entry": "pawn-race",
+   "variant": "kpk",
+   "tier": 1,
+   "cluster": "pr-c4",
+   "learner": "w",
+   "fen": "8/8/7k/8/2P5/8/8/K7 w - - 0 1",
+   "prompt": "White to move. Promote your pawn and keep the new piece: it must still be on the board after your opponent's reply. Every legal move is allowed; the computer plays the other side.",
+   "explanation": "The enemy king stands outside the pawn's square, so the pawn simply runs: push it every move and it promotes before the king can catch it. A pawn on its starting rank may move two squares at once.",
+   "hints": [
+    "Count the moves: can the enemy king reach the promotion square before your pawn does?",
+    "Push the pawn at once. Every king move gives the defender a move to catch up."
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "positionGame",
+   "goal": {
+    "kind": "promoteAndHold",
+    "threshold": 0
+   }
+  },
+  {
+   "id": "pr-h2",
+   "entry": "pawn-race",
+   "variant": "kpk",
+   "tier": 1,
+   "cluster": "pr-h2",
+   "learner": "w",
+   "fen": "8/8/8/8/8/8/k6P/6K1 w - - 0 1",
+   "prompt": "White to move. Promote your pawn and keep the new piece: it must still be on the board after your opponent's reply. Every legal move is allowed; the computer plays the other side.",
+   "explanation": "The enemy king stands outside the pawn's square, so the pawn simply runs: push it every move and it promotes before the king can catch it. A pawn on its starting rank may move two squares at once.",
+   "hints": [
+    "Count the moves: can the enemy king reach the promotion square before your pawn does?",
+    "Push the pawn at once. Every king move gives the defender a move to catch up."
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "positionGame",
+   "goal": {
+    "kind": "promoteAndHold",
+    "threshold": 0
+   }
+  },
+  {
+   "id": "pr-c5",
+   "entry": "pawn-race",
+   "variant": "kpk",
+   "tier": 2,
+   "cluster": "pr-c5",
+   "learner": "w",
+   "fen": "2k5/8/2K5/2P5/8/8/8/8 w - - 0 1",
+   "prompt": "White to move. Promote your pawn and keep the new piece: it must still be on the board after your opponent's reply. Every legal move is allowed; the computer plays the other side.",
+   "explanation": "With your king in front of the pawn, the pawn promotes once your king reaches a key square two ranks ahead of it. Walk the king forward first, and push the pawn only when your king guards the square it moves to.",
+   "hints": [
+    "Lead with your king: it clears the way and guards the squares in front of the pawn.",
+    "Push the pawn only when your king protects the square it moves to, or the enemy king can win it."
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "positionGame",
+   "goal": {
+    "kind": "promoteAndHold",
+    "threshold": 0
+   }
+  },
+  {
+   "id": "pr-e2",
+   "entry": "pawn-race",
+   "variant": "kpk",
+   "tier": 2,
+   "cluster": "pr-e2",
+   "learner": "w",
+   "fen": "4k3/8/8/8/8/4K3/4P3/8 w - - 0 1",
+   "prompt": "White to move. Promote your pawn and keep the new piece: it must still be on the board after your opponent's reply. Every legal move is allowed; the computer plays the other side.",
+   "explanation": "With your king in front of the pawn, the pawn promotes once your king reaches a key square two ranks ahead of it. Walk the king forward first, and push the pawn only when your king guards the square it moves to.",
+   "hints": [
+    "Lead with your king: it clears the way and guards the squares in front of the pawn.",
+    "Push the pawn only when your king protects the square it moves to, or the enemy king can win it."
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "positionGame",
+   "goal": {
+    "kind": "promoteAndHold",
+    "threshold": 0
+   }
+  },
+  {
+   "id": "pr-g2",
+   "entry": "pawn-race",
+   "variant": "kpk",
+   "tier": 2,
+   "cluster": "pr-g2",
+   "learner": "w",
+   "fen": "8/8/8/8/1k6/8/5KP1/8 w - - 0 1",
+   "prompt": "White to move. Promote your pawn and keep the new piece: it must still be on the board after your opponent's reply. Every legal move is allowed; the computer plays the other side.",
+   "explanation": "With your king in front of the pawn, the pawn promotes once your king reaches a key square two ranks ahead of it. Walk the king forward first, and push the pawn only when your king guards the square it moves to.",
+   "hints": [
+    "Lead with your king: it clears the way and guards the squares in front of the pawn.",
+    "Push the pawn only when your king protects the square it moves to, or the enemy king can win it."
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "positionGame",
+   "goal": {
+    "kind": "promoteAndHold",
+    "threshold": 0
+   }
+  },
+  {
+   "id": "pr-d2",
+   "entry": "pawn-race",
+   "variant": "kpk",
+   "tier": 3,
+   "cluster": "pr-d2",
+   "learner": "w",
+   "fen": "8/8/3k4/8/8/3K4/3P4/8 w - - 0 1",
+   "prompt": "White to move. Promote your pawn and keep the new piece: it must still be on the board after your opponent's reply. Every legal move is allowed; the computer plays the other side.",
+   "explanation": "When the kings face each other with one square between them, the side that does not have to move holds the opposition. Take it, with a king move or a spare pawn move, then step past the defending king to a key square in front of your pawn.",
+   "hints": [
+    "Opposition: the kings on one file with one square between them, and your opponent to move.",
+    "A spare pawn move can give the move back to your opponent at the right moment."
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "positionGame",
+   "goal": {
+    "kind": "promoteAndHold",
+    "threshold": 0
+   }
+  },
+  {
+   "id": "pr-b2",
+   "entry": "pawn-race",
+   "variant": "kpk",
+   "tier": 3,
+   "cluster": "pr-b2",
+   "learner": "w",
+   "fen": "8/8/1k6/8/1K6/8/1P6/8 w - - 0 1",
+   "prompt": "White to move. Promote your pawn and keep the new piece: it must still be on the board after your opponent's reply. Every legal move is allowed; the computer plays the other side.",
+   "explanation": "When the kings face each other with one square between them, the side that does not have to move holds the opposition. Take it, with a king move or a spare pawn move, then step past the defending king to a key square in front of your pawn.",
+   "hints": [
+    "Opposition: the kings on one file with one square between them, and your opponent to move.",
+    "A spare pawn move can give the move back to your opponent at the right moment."
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "positionGame",
+   "goal": {
+    "kind": "promoteAndHold",
+    "threshold": 0
+   }
+  },
+  {
+   "id": "pr-f2",
+   "entry": "pawn-race",
+   "variant": "kpk",
+   "tier": 3,
+   "cluster": "pr-f2",
+   "learner": "w",
+   "fen": "8/8/k7/8/8/8/5P2/6K1 w - - 0 1",
+   "prompt": "White to move. Promote your pawn and keep the new piece: it must still be on the board after your opponent's reply. Every legal move is allowed; the computer plays the other side.",
+   "explanation": "With your king in front of the pawn, the pawn promotes once your king reaches a key square two ranks ahead of it. Walk the king forward first, and push the pawn only when your king guards the square it moves to.",
+   "hints": [
+    "Lead with your king: it clears the way and guards the squares in front of the pawn.",
+    "Push the pawn only when your king protects the square it moves to, or the enemy king can win it."
+   ],
+   "review": {
+    "author": "claude (AI-authored)",
+    "reviewer": null,
+    "validatorVersion": 1
+   },
+   "check": "positionGame",
+   "goal": {
+    "kind": "promoteAndHold",
+    "threshold": 0
+   }
+  }
+ ]
+}

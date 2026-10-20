@@ -52,7 +52,7 @@ extension TrainingValidationService {
         case .kingSquares:_ = try validateKingSquares(legality,expected:expected,fail:fail);try c.requireNoAction(false)
         case .status:try validateStatus(c)
         case .mateThreatCreate,.mateThreatPrevent:try validateMateThreat(c)
-        case .ending,.guidedGame:break
+        case .ending,.guidedGame,.positionGame:break
         case .moment:try validateMoment(c)
         }
     }

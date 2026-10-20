@@ -23,6 +23,10 @@ let package = Package(
         .target(name: "CheckmateCore", dependencies: ["CheckmateDomain", "CheckmateRules", "CheckmateEngine", "CheckmateContent", "CheckmateApplication", "CheckmateMacPlatform", "CheckmateSupport", "CheckmateAssets"], path: "Sources/CheckmateComposition"),
         .executableTarget(name: "CheckmateNative", dependencies: ["CheckmateCore", .product(name: "RealtimeConnection", package: "sayso")]),
         .executableTarget(name: "CheckmateAcceptance", dependencies: ["CheckmateCore", .product(name: "SaidGuard", package: "sayso")], path: "Tools/Acceptance"),
+        // Mini-game calibration (WI-016): plays Domain's search and reference players only, on the test host.
+        .executableTarget(name: "CheckmateMiniGameCalibration", dependencies: ["CheckmateDomain"], path: "Tools/MiniGameCalibration"),
+        // Standard-rule calibration (WI-020): plays the opponent levels with the bundled Stockfish, on the test host.
+        .executableTarget(name: "CheckmatePositionGameCalibration", dependencies: ["CheckmateDomain", "CheckmateRules", "CheckmateEngine", "CheckmateApplication"], path: "Tools/PositionGameCalibration"),
         .testTarget(name: "CheckmateCoreTests", dependencies: ["CheckmateTestSupport", "CheckmateCore", "CheckmateDomain", "CheckmateSupport", "CheckmateRules", "CheckmateEngine", "CheckmateContent", "CheckmateApplication", "CheckmateMacPlatform", .product(name: "CodexAuth", package: "sayso"), .product(name: "RealtimeConnection", package: "sayso"), .product(name: "SaidGuard", package: "sayso"), .product(name: "PCM16", package: "sayso")]),
         .testTarget(name: "CheckmateNativeTests", dependencies: ["CheckmateTestSupport", "CheckmateCore", "CheckmateNative", "CheckmateDomain", "CheckmateSupport", "CheckmateRules", "CheckmateEngine", "CheckmateContent", "CheckmateApplication", "CheckmateMacPlatform", .product(name: "SaidGuard", package: "sayso")]),
         .target(name: "CheckmateTestSupport", dependencies: ["CheckmateDomain", "CheckmateRules", "CheckmateEngine"], path: "Tests/CheckmateTestSupport"),

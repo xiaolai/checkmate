@@ -44,6 +44,8 @@ public struct PreparedTrainingExercise {
         public internal(set) var habit:String?,moments:[TrainingMoment]=[]
         /// Games: the parity of the learner's plies in the line, from the validated start (0 when the learner moves first).
         var parity=0
+        /// A `promoteAndHold` game's tracked pawn (mini-game plan D3): at the start, then after each ply of the line.
+        var pawns:[PositionGamePawn]=[]
         /// How the learner answers now.
         public var task:TrainingTask {
             if let check=scenario.check{return check == .diagnosis && stage==1 ? .move:check.task}
@@ -87,8 +89,17 @@ public struct PreparedTrainingExercise {
     // MARK: Navigation
     /// Shows the library. An unfinished exercise stays saved for Continue.
     public func openLibrary(){learning.pause();games.cancel();exercise=nil;guidedReview=nil;go(.trainingLibrary);publish()}
-    /// The saved unfinished exercise the library offers as Continue, if training records are writable.
+    /// The saved unfinished exercise the library offers as Continue, if training records are writable. One from a newer
+    /// version (`TrainingState.newerActive`) is never offered.
     public var resumable:TrainingSessionSnapshot? {session.state.trainingWritable ? training.active:nil}
+    /// What the library says about records kept for a newer version of Checkmate; empty when there are none.
+    public var keptForNewerVersion:[String] {
+        let training=training,retries=training.newerRetryCount
+        var lines:[String]=[]
+        if training.newerActive != nil{lines.append("An unfinished exercise from a newer version of Checkmate is kept for it. Until it is finished there, an exercise started here cannot be continued after you leave it.")}
+        if retries>0{lines.append(retries==1 ? "A suggested board from a newer version of Checkmate is kept for it.":"\(retries) suggested boards from a newer version of Checkmate are kept for it.")}
+        return lines
+    }
     /// Stages a new exercise for `entry`. Throws (and changes nothing) when the content is unavailable or invalid.
     /// `generatedTier` applies to generated drills only; curated content is chosen regardless of its descriptive tier.
     public func prepare(entry id:String,generatedTier:Int=1,variant:String?=nil)throws -> PreparedTrainingExercise {
@@ -154,8 +165,8 @@ public struct PreparedTrainingExercise {
                 do{try TrainingStore.finish(old,outcome:.abandoned,in:&staged,now:now(),calendar:calendar);abandoning=true}
                 catch{throw CheckmateError.unavailable("The unfinished exercise could not be recorded: "+userFacing(error)+" Your progress is unchanged.")}
             }
-            let retry=prepared.retry || TrainingStore.attempted(prepared.scenario,in:training)
-            let snapshot=TrainingSessionSnapshot(id:UUID().uuidString,entry:prepared.definition.id,scenario:prepared.scenario,freshness:prepared.freshness.rawValue,startedAt:now(),retry:retry)
+            let retry=prepared.retry || TrainingStore.attempted(prepared.scenario,in:training),id=UUID().uuidString
+            let snapshot=TrainingSessionSnapshot(id:id,entry:prepared.definition.id,scenario:prepared.scenario,freshness:prepared.freshness.rawValue,startedAt:now(),retry:retry,opponent:frozenOpponent(prepared.scenario,attempt:id))
             do{state=try initial(prepared.definition,snapshot:snapshot,legality:prepared.legality)}catch{throw CheckmateError.unavailable("This exercise could not be started: "+userFacing(error)+" Your progress is unchanged.")}
         }
         // `begin(staged:)` saves `state` first, after the workspace is left: the same rule `save` applies is checked
@@ -194,11 +205,16 @@ public struct PreparedTrainingExercise {
         let board=try scenario.drill.map{$0.board($0.initial)} ?? scenario.diagram ?? legality?.board() ?? [:]
         var state=Exercise(definition:definition,snapshot:snapshot,legality:legality,board:board,drillState:scenario.drill?.initial)
         if scenario.check != nil{state.current=legality;if state.task == .game{state.claimable=try legality?.claimableDraw();state.parity=try legality?.turn()==scenario.learner ? 0:1}}
+        // Validation admitted exactly one learner pawn: it is the pawn followed.
+        if scenario.check == .positionGame,scenario.goal?.kind == .promoteAndHold {
+            guard let square=board.first(where:{$0.value==scenario.learner+"p"})?.key else{throw CheckmateError.invalid("A pawn race needs its pawn.")}
+            state.pawns=[.pawn(square)]
+        }
         return state
     }
     /// Rebuilds an attempt from its actions on the concrete scenario; any action that no longer applies fails it.
     private func replay(_ snapshot:TrainingSessionSnapshot,definition:TrainingEntryDefinition,legality:TrainingLegality?)throws -> Exercise {
-        var state=try initial(definition,snapshot:TrainingSessionSnapshot(id:snapshot.id,entry:snapshot.entry,scenario:snapshot.scenario,freshness:snapshot.freshness,revision:0,startedAt:snapshot.startedAt,retry:snapshot.retry),legality:legality)
+        var state=try initial(definition,snapshot:TrainingSessionSnapshot(id:snapshot.id,entry:snapshot.entry,scenario:snapshot.scenario,freshness:snapshot.freshness,revision:0,startedAt:snapshot.startedAt,retry:snapshot.retry,opponent:snapshot.settledOpponent),legality:legality)
         var path=state.scenario.drill.map{[$0.initial]} ?? []
         for action in snapshot.actions {
             switch action {
@@ -280,14 +296,36 @@ public struct PreparedTrainingExercise {
         case .legal:break
         }
     }
-    /// An agent's submission or hint on the learner's behalf: the attempt is recorded as helped before it applies.
-    /// Refused while the defender is thinking: saving would advance the revision its pending reply was asked for.
-    /// Returns whether the shown attempt is recorded as helped (already, or by this save). When false nothing was
-    /// recorded and the caller must not apply the help: graded, it would count as the learner's unassisted work.
-    @discardableResult public func recordAgentHelp()->Bool {
-        guard interactive,var state=exercise,!state.finished,!games.thinking else{return false}
-        guard !state.snapshot.recordedHelp else{return true}
-        state.snapshot.recordedHelp=true;return save(state)
+    /// What recording an agent's help did (mini-game plan D5). Only `recorded` and `alreadyRecorded` leave the shown
+    /// attempt recorded as helped (`helped`); every other outcome recorded nothing, and the caller must not apply or
+    /// disclose the help: graded, it would count as the learner's unassisted work.
+    public enum AgentHelpOutcome:String,Equatable,CaseIterable {
+        /// Saved now: the attempt's revision advanced by one.
+        case recorded
+        /// The attempt was already recorded as helped; nothing was saved.
+        case alreadyRecorded
+        /// The defender is choosing its reply: saving would advance the revision its reply was asked for.
+        case defenderThinking
+        /// The attempt has ended.
+        case finished
+        /// No attempt is shown, or a review over it owns the board.
+        case stale
+        /// The attempt could no longer be saved: too many actions, the revision bound, or the storage budget.
+        case storageFull
+        /// Training records are read-only, so no help can be recorded.
+        case unwritable
+        public var helped:Bool {self == .recorded || self == .alreadyRecorded}
+    }
+    /// An agent's submission, hint or coaching on the learner's behalf: the attempt is recorded as helped before it
+    /// applies. Refused while the defender is thinking: saving would advance the revision its pending reply was asked
+    /// for. An exercise starts and resumes only while training is writable, so `unwritable` is a guard, not a path.
+    @discardableResult public func recordAgentHelp()->AgentHelpOutcome {
+        guard interactive,var state=exercise else{return .stale}
+        guard !state.finished else{return .finished}
+        guard !games.thinking else{return .defenderThinking}
+        guard session.state.trainingWritable else{return .unwritable}
+        guard !state.snapshot.recordedHelp else{return .alreadyRecorded}
+        state.snapshot.recordedHelp=true;return save(state) ? .recorded:.storageFull
     }
     /// Replaces the selected squares, as an agent relaying the learner's choice does. Never grades.
     public func replaceSelection(_ squares:[String]){guard interactive,var state=exercise,!state.finished,state.task == .select else{return};state.selection=Array(Set(squares.filter(ChessNotation.validSquare))).sorted();exercise=state;publish()}
@@ -397,7 +435,7 @@ public struct PreparedTrainingExercise {
     }
     /// A new scenario for the same entry; a generated drill keeps the current one's tier unless another is named.
     public func next(generatedTier:Int?=nil){guard interactive,let state=exercise else{return};do{begin(try prepare(entry:state.definition.id,generatedTier:generatedTier ?? state.scenario.tier))}catch{refuse(userFacing(error))}}
-    /// Back to the library; an unfinished attempt stays saved for Continue.
+    /// Back to the library; an unfinished attempt stays saved for Continue, unless a newer version's attempt holds its slot.
     public func leave(){guard showing else{return};openLibrary()}
     // MARK: Evaluation
     private func correctSquares(_ state:Exercise)throws -> Set<String> {
@@ -439,7 +477,7 @@ public struct PreparedTrainingExercise {
     @discardableResult func finish(_ candidate:Exercise,_ outcome:TrainingOutcome)->Bool {
         var state=candidate
         state.status=outcome == .correct ? .correct:outcome == .revealed ? .revealed:outcome == .abandoned ? .ended:.incorrect
-        state.snapshot.revision+=1
+        state.snapshot.revision+=1;state.snapshot.opponent?.witness=state.snapshot.revision
         var staged=session.state
         do{try TrainingStore.finish(state.snapshot,outcome:outcome,in:&staged,now:now(),calendar:calendar);session.state.training=staged.training}
         catch where session.state.trainingWritable{refuse("This result could not be recorded, so the exercise is still open: "+userFacing(error));return false}
@@ -455,15 +493,17 @@ public struct PreparedTrainingExercise {
         let writable=session.state.trainingWritable
         guard let snapshot=Self.nextSaved(candidate.snapshot,in:training,writable:writable) else{refuse("This attempt has grown too long to save, so that was not recorded. Finish it, or start again.");return false}
         var state=candidate;state.snapshot=snapshot
-        if writable{var record=training;record.active=state.snapshot;TrainingStore.prune(&record);session.state.training=record}
+        // A newer version's attempt keeps the active slot: this one is shown and finished, but not saved for Continue.
+        if writable,training.newerActive==nil{var record=training;record.active=state.snapshot;TrainingStore.prune(&record);session.state.training=record}
         exercise=state;publish();session.emit(semantic:false,save:true);return true
     }
     /// `snapshot` as the next save writes it (its revision advanced), or nil when no save may write it: more actions
     /// than are kept, a revision past the bound the loader accepts, or, where training is writable, an attempt that no
     /// longer fits `record`'s storage budget. The one rule `save` applies and `stage` checks ahead of `begin(staged:)`,
     /// so a staged exercise's first save is never refused.
+    /// Every save stamps the frozen opponent's witness with the revision it writes (mini-game plan D4).
     static func nextSaved(_ snapshot:TrainingSessionSnapshot,in record:TrainingState,writable:Bool)->TrainingSessionSnapshot? {
-        var next=snapshot;next.revision+=1
+        var next=snapshot;next.revision+=1;next.opponent?.witness=next.revision
         guard next.actions.count<=maximumSavedActions,next.revision<=TrainingState.maximumCount,!writable || TrainingStore.fits(next,in:record) else{return nil}
         return next
     }
