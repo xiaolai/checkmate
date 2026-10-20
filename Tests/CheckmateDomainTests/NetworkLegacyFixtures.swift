@@ -78,6 +78,91 @@ enum Legacy11Fixtures {
     static let fen="rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2"
     static let hash="88c1e1ddcf759d87542e375e9cdc89930d39ffc93f7fb66062f3fbbf2749b62b"
 }
+/// The 1.1 decode rules, frozen: `NetworkCodec`'s flat wire object and its checks as they were at 6f51c94, the last 1.1
+/// commit before 1.2. Its limits, its free-string rule and its terminations are written out, so a later change to
+/// `NetworkLimits`, `NetworkText` or `NetworkTermination` cannot move the oracle; the identifier, clock and assistance
+/// types are used as they are, unchanged since 1.1. Synthesised decoding ignores keys it does not know, which is the
+/// whole of 1.1's tolerance for 1.2's `capabilities`. A message it reads is returned as this build's, stating no
+/// capabilities, as 1.1 knew none.
+struct Legacy11Wire:Decodable {
+    struct Version:Decodable {let major:Int,minor:Int}
+    struct Refusal:Error {let field:String}
+    var type:String
+    var `protocol`:Version
+    var name,appVersion,uci,san,hash,data:String?
+    var claimID,credential:NetworkSecret?
+    var gameID:NetworkGameID?
+    var commandID,offerID,snapshotID,nonce,receiptFor:NetworkID?
+    var revision,totalBytes,parts,index:Int?
+    var accept:Bool?
+    var assistance:NetworkAssistance?
+    var assisted:Bool?
+    var by:NetworkSide?
+    var clocks:NetworkClocks?
+    var reason:String?
+    var result:NetworkGameResult?
+    var termination:String?
+    static let maximumMessageBytes=16*1024,maximumNameBytes=64,maximumSANBytes=16,maximumHashBytes=128,maximumRevision=1_000_000
+    static let maximumSnapshotBytes=1024*1024,maximumSnapshotPartBytes=9*1024
+    static var maximumSnapshotParts:Int {(maximumSnapshotBytes+maximumSnapshotPartBytes-1)/maximumSnapshotPartBytes}
+    static let terminations:Set<String>=["checkmate","stalemate","resignation","time","agreement","repetition","fiftyMoves","seventyFiveMoves","fivefold","insufficientMaterial","abandoned"]
+    /// 1.1's free-string rule: 1 to `maximumBytes` bytes of UTF-8 with no control character and no line or paragraph separator.
+    static func text(_ value:String,_ maximumBytes:Int=maximumNameBytes)->Bool {!value.isEmpty && value.utf8.count<=maximumBytes && !value.unicodeScalars.contains{[.control,.lineSeparator,.paragraphSeparator].contains($0.properties.generalCategory)}}
+    static func decode(_ data:Data)throws -> NetworkMessage {
+        guard data.count<=maximumMessageBytes else{throw Refusal(field:"size")}
+        let wire=try JSONDecoder().decode(Legacy11Wire.self,from:data)
+        guard wire.protocol.major==1 else{throw Refusal(field:"protocol")}
+        return try wire.message()
+    }
+    private func need<T>(_ value:T?,_ field:String)throws -> T {guard let value else{throw Refusal(field:field)};return value}
+    private func check(_ condition:Bool,_ field:String)throws {guard condition else{throw Refusal(field:field)}}
+    private func revisionValue()throws -> Int {let value=try need(revision,"revision");try check((0...Self.maximumRevision).contains(value),"revision");return value}
+    private func uciValue()throws -> String {let value=try need(uci,"uci");try check(Legacy10Wire.uci(value),"uci");return value}
+    private func clocksValue()throws -> NetworkClocks? {try check(clocks?.valid ?? true,"clocks");return clocks}
+    private func hashValue()throws -> String {let value=try need(hash,"hash");try check(!value.isEmpty && value.utf8.count<=Self.maximumHashBytes && value.utf8.allSatisfy{(0x21...0x7E).contains($0)},"hash");return value}
+    private func message()throws -> NetworkMessage {
+        switch type {
+        case "hello":
+            let name=try need(self.name,"name"),appVersion=try need(self.appVersion,"appVersion");try check(Self.text(name),"name");try check(Self.text(appVersion),"appVersion")
+            return .hello(name:name,appVersion:appVersion,claimID:claimID,assistance:assistance)
+        case "seatedAck":return .seatedAck
+        case "resume":return .resume(gameID:try need(gameID,"gameID"),credential:try need(credential,"credential"))
+        case "resync":return .resync
+        case "move":return .move(gameID:try need(gameID,"gameID"),commandID:try need(commandID,"commandID"),revision:try revisionValue(),uci:try uciValue(),assisted:assisted ?? false)
+        case "resign":return .resign(gameID:try need(gameID,"gameID"),commandID:try need(commandID,"commandID"))
+        case "drawOffer":return .drawOffer(gameID:try need(gameID,"gameID"),commandID:try need(commandID,"commandID"),revision:try revisionValue())
+        case "drawAnswer":return .drawAnswer(gameID:try need(gameID,"gameID"),commandID:try need(commandID,"commandID"),offerID:try need(offerID,"offerID"),accept:try need(accept,"accept"))
+        case "claimDraw":return .claimDraw(gameID:try need(gameID,"gameID"),commandID:try need(commandID,"commandID"),revision:try revisionValue())
+        case "pong":return .pong(nonce:try need(nonce,"nonce"))
+        case "bye":return .bye(NetworkByeReason(rawValue:try need(reason,"reason")) ?? .unknown)
+        case "seated":return .seated(credential:try need(credential,"credential"))
+        case "resumed":return .resumed
+        case "watching":return .watching
+        case "snapshotBegin":
+            let total=try need(totalBytes,"totalBytes"),count=try need(parts,"parts")
+            try check((1...Self.maximumSnapshotBytes).contains(total),"totalBytes");try check(count==(total+Self.maximumSnapshotPartBytes-1)/Self.maximumSnapshotPartBytes,"parts")
+            return .snapshotBegin(snapshotID:try need(snapshotID,"snapshotID"),revision:try revisionValue(),hash:try hashValue(),totalBytes:total,parts:count)
+        case "snapshotPart":
+            let position=try need(index,"index"),text=try need(data,"data")
+            try check((0..<Self.maximumSnapshotParts).contains(position),"index")
+            guard let bytes=Data(base64Encoded:text),!bytes.isEmpty,bytes.count<=Self.maximumSnapshotPartBytes else{throw Refusal(field:"data")}
+            return .snapshotPart(snapshotID:try need(snapshotID,"snapshotID"),index:position,data:bytes)
+        case "snapshotEnd":return .snapshotEnd(snapshotID:try need(snapshotID,"snapshotID"))
+        case "moved":
+            let san=try need(self.san,"san");try check(Self.text(san,Self.maximumSANBytes),"san")
+            return .moved(NetworkMoved(revision:try revisionValue(),uci:try uciValue(),san:san,hash:try hashValue(),clocks:try clocksValue(),receiptFor:receiptFor,assisted:assisted ?? false))
+        case "rejected":return .rejected(commandID:try need(commandID,"commandID"),reason:NetworkRejectReason(rawValue:try need(reason,"reason")) ?? .unknown)
+        case "drawOffered":return .drawOffered(NetworkDrawOffer(offerID:try need(offerID,"offerID"),by:try need(by,"by")))
+        case "drawDeclined":return .drawDeclined(offerID:try need(offerID,"offerID"))
+        case "clock":guard let clocks=try clocksValue() else{throw Refusal(field:"clocks")};return .clock(clocks)
+        case "ended":
+            let termination=try need(self.termination,"termination");try check(Self.terminations.contains(termination),"termination")
+            return .ended(NetworkEnded(outcome:NetworkOutcome(result:try need(result,"result"),termination:NetworkTermination(rawValue:termination)!),revision:try revisionValue(),clocks:try clocksValue()))
+        case "ping":return .ping(nonce:try need(nonce,"nonce"))
+        default:throw Refusal(field:"type")
+        }
+    }
+}
 /// The 1.0 decode rules, frozen: the flat wire object as 1.0 declared it, and the 1.0 public game decoder. Synthesised
 /// decoding ignores keys it does not know, which is the whole of 1.0's tolerance for 1.1's additions.
 struct Legacy10Wire:Decodable {

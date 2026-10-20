@@ -269,6 +269,17 @@ final class NetworkStartTests:XCTestCase {
         XCTAssertEqual(object.removeValue(forKey:"capabilities") as? [String],NetworkCapabilities.supported.tokens,"a guest states it, and since 1.3 its rulesets too")
         XCTAssertEqual(Set(object.keys),["appVersion","assistance","claimID","name","protocol","type"],"the rest is the 1.1 hello")
         XCTAssertNoThrow(try Legacy10Wire.decode(opening),"the frozen decoder reads it")
+        // The frozen 1.1 decoder reads today's hello and resume, and the bytes 1.2 wrote, as the same message without capabilities.
+        guard case .hello(let name,let appVersion,let claimID,let assistance,_)=receiver.opening() else{return XCTFail("a guest opens with hello")}
+        XCTAssertEqual(try Legacy11Wire.decode(opening),.hello(name:name,appVersion:appVersion,claimID:claimID,assistance:assistance))
+        let credential=NetworkSecret.random(using:random.source),resume=try NetworkCodec.encode(.resume(gameID:gameID,credential:credential,capabilities:.supported))
+        XCTAssertNotNil((try JSONSerialization.jsonObject(with:resume) as? [String:Any])?["capabilities"],"a resume states them too")
+        XCTAssertEqual(try Legacy11Wire.decode(resume),.resume(gameID:gameID,credential:credential))
+        for text in Legacy12Fixtures.messages.prefix(4) {
+            var stated=try NetworkCodec.decode(Data(text.utf8))
+            switch stated {case .hello(let n,let a,let c,let t,_):stated = .hello(name:n,appVersion:a,claimID:c,assistance:t);case .resume(let g,let c,_):stated = .resume(gameID:g,credential:c);default:XCTFail(text)}
+            XCTAssertEqual(try Legacy11Wire.decode(Data(text.utf8)),stated,text)
+        }
         let spectator=NetworkReceiver(gameID:gameID,role:.spectator,name:"Cy",appVersion:"0.9.0",rules:NetworkRulesFactory{FakeRules(script:FakeScript())},hashing:testHashing)
         XCTAssertEqual(spectator.opening(),.hello(name:"Cy",appVersion:"0.9.0",claimID:nil,capabilities:.supported))
         let old=NetworkReceiver(gameID:gameID,role:.spectator,name:"Cy",appVersion:"0.9.0",rules:NetworkRulesFactory{FakeRules(script:FakeScript())},hashing:testHashing,capabilities:.none)

@@ -198,6 +198,19 @@ final class NetworkRulesetTests:XCTestCase {
         XCTAssertEqual(net.closes[id],.protocolVersion);XCTAssertEqual(net.messages(id),[]);XCTAssertEqual(net.host.phase,.disconnected)
         try net.connect(guest);XCTAssertEqual(net.host.phase,.running,"the same guest stating it again resumes")
     }
+    /// A mini-game has no claimed draw: the host's claim and the guest's are each refused as not claimable, and the game
+    /// goes on, though a chess game's scripted rules would allow one.
+    func testADrawClaimInAMiniGameIsNotClaimable()throws {
+        let net=try TestNetwork(ruleset:pawnDuel)
+        let (guest,_)=try net.startGame()
+        net.script.claimable = .repetition
+        try net.perform(.claimDraw);XCTAssertEqual(net.refusals,[.notClaimable],"the host is to move, and may not claim")
+        try net.hostPlays("b2b4")
+        let revision=net.host.revision
+        try net.command(guest,guest.receiver.claimDraw())
+        guard case .rejected(_,.notClaimable)?=guest.received.last else{return XCTFail("\(String(describing:guest.received.last))")}
+        XCTAssertNil(net.host.outcome);XCTAssertEqual(net.host.revision,revision);XCTAssertEqual(net.host.phase,.running)
+    }
     /// Codex objection 2: a receiver checks every ending the rules decide against its own replay, live and in a snapshot.
     func testAnEndingTheBoardDoesNotShowIsRefused()throws {
         // A chess game told it ended at the far rank, a mini-game told it ended by repetition at the start, or won by
@@ -220,6 +233,14 @@ final class NetworkRulesetTests:XCTestCase {
         XCTAssertNoThrow(try install(base,hash:hash))
         var lying=base;lying.outcome=wrongWinner
         XCTAssertThrowsError(try install(lying,hash:hash)){XCTAssertEqual($0 as? NetworkSnapshotError,.badSnapshot("outcome"))}
+        // A chess snapshot cannot carry a mini-game's ending: with no ruleset, one is refused, and a resignation installs.
+        let chessGame=NetworkPublicGame(gameID:.random(using:TestRandom(seed:10).source),revision:2,hostSide:.white,whiteName:"Ana",blackName:"Ben",timeControl:.untimed,pgn:"[Fake]\nb2b4",clocks:nil,openOffer:nil,outcome:NetworkOutcome(result:.whiteWins,termination:.resignation))
+        let chessHash=testHashing.positionHash(fen:"b2b4 b - - 0 1",revision:2)
+        XCTAssertNoThrow(try install(chessGame,hash:chessHash))
+        for termination in NetworkTermination.allCases where !termination.inProtocol12 {
+            var mini=chessGame;mini.outcome=NetworkOutcome(result:termination == .farRank || termination == .allCaptured ? .whiteWins:.draw,termination:termination)
+            XCTAssertThrowsError(try install(mini,hash:chessHash),"\(termination)"){XCTAssertEqual($0 as? NetworkSnapshotError,.badSnapshot("outcome"))}
+        }
     }
 
     // MARK: Receivers: before any replay (Codex objection 8)
