@@ -195,6 +195,21 @@ enum Release026 {
         XCTAssertEqual(resumed.session.state.training?.attempts.last?.level,"gentle");XCTAssertEqual(resumed.session.state.training?.attempts.last?.levelPolicy,TrainingOpponentConfiguration.frozen(.gentle,attempt:"x",seed:1).policy)
     }
 
+    /// The panel's new-game offer compares the level the game is actually bound to (`boundOpponent`), never a
+    /// configuration another attempt left in the saved snapshot; the panel and the review name that same opponent.
+    func testTheNewGameOfferIgnoresAnotherAttemptsSavedOpponent()async throws {
+        let defender=ScriptedDefender();defender.analysis=Self.scored
+        let (_,player,controller)=try fixture(defender,level:.gentle);defer{player.shutdown()}
+        controller.begin(try controller.prepare(entry:"finish-the-game",variant:"krk"))
+        await play(controller,"h1h2")
+        controller.setGameLevel(.strong)
+        let own=try XCTUnwrap(controller.exercise)
+        XCTAssertTrue(controller.gameNewLevelOffered(own),"the frozen level differs from the chosen one")
+        var other=own;other.snapshot.opponent?.attempt="theirs"
+        XCTAssertNil(other.snapshot.boundOpponent)
+        XCTAssertFalse(controller.gameNewLevelOffered(other),"another attempt's configuration is not this game's level")
+    }
+
     // MARK: An older build continuing or replacing the attempt (the frozen WI-026 decoder)
 
     func testAGentleAttemptAnOlderBuildContinuedKeepsItsLevelMarkedMixed()async throws {

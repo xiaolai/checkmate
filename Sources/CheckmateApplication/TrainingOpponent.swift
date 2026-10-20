@@ -48,7 +48,9 @@ extension TrainingController {
     /// Whether the unfinished game in progress plays at another level than the one chosen. It keeps its level, and the
     /// panel offers a new game at the chosen one.
     public func gameNewLevelOffered(_ exercise:Exercise)->Bool {
-        guard exercise.task == .game,!exercise.finished,!exercise.line.isEmpty,let frozen=exercise.snapshot.opponent?.level else{return false}
+        // The opponent the panel names and the review records (`boundOpponent`), never the raw saved one: a
+        // configuration of another attempt is not this game's level (plan D4).
+        guard exercise.task == .game,!exercise.finished,!exercise.line.isEmpty,let frozen=exercise.snapshot.boundOpponent?.level else{return false}
         return frozen != preferredGameLevel(exercise)
     }
     /// Chooses the level of this entry's next games. A game with no move yet takes it now, losing nothing; a game in
