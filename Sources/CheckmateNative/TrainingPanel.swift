@@ -62,11 +62,11 @@ struct TrainingPanel:View {
         if levels.count>1 {
             Picker("Opponent",selection:Binding(get:{training.preferredGameLevel(exercise)},set:{training.setGameLevel($0)})){ForEach(levels,id:\.self){Text($0.title).tag($0)}}.accessibilityIdentifier("training-level")
         }
-        if training.gameNewLevelOffered(exercise),let level=exercise.snapshot.opponent?.level {
-            Text("This game continues at \(level.title).").foregroundStyle(.secondary)
+        if training.gameNewLevelOffered(exercise) {
+            if let level=exercise.snapshot.boundOpponent?.level{Text("This game continues at \(level.title).").foregroundStyle(.secondary)}
             Button("Start a new game at this level"){training.startGameAtChosenLevel()}.accessibilityIdentifier("training-new-level")
         }
-        Text(TrainingEndgameController.note(for:scenario.check,opponent:exercise.snapshot.opponent)).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("training-opponent-note")
+        Text(TrainingEndgameController.note(for:scenario.check,opponent:exercise.snapshot.boundOpponent)).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("training-opponent-note")
         if let habit=exercise.habit,!exercise.finished{Label(habit,systemImage:"magnifyingglass").fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("training-habit")}
         // A finished game cannot be kept going, so the reminder belongs only to one still in play.
         if exercise.reminder,!exercise.finished {
@@ -97,7 +97,7 @@ struct TrainingPanel:View {
     /// A finished attempt's result, its topic (mixed practice hides it until the learner has answered) and related lessons.
     @ViewBuilder private func result(_ exercise:TrainingController.Exercise)->some View {
         Text(Self.resultLabel(exercise)).font(.headline).accessibilityIdentifier("training-result")
-        if let opponent=exercise.snapshot.opponent{Text("Opponent: "+opponent.label).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("training-opponent-level")}
+        if let opponent=Self.opponentLine(exercise.snapshot){Text(opponent).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("training-opponent-level")}
         if let skill=exercise.scenario.primarySkill{Text("This one was about "+TrainingLabels.skill(skill)+".").font(.caption).foregroundStyle(.secondary).accessibilityIdentifier("training-topic")}
         TrainingLessonLinks(model:model,entry:exercise.definition)
     }
@@ -109,6 +109,9 @@ struct TrainingPanel:View {
     /// A game's good move is asked for once, and no game hint is given while the defender is choosing its reply:
     /// saving one would advance the revision that reply belongs to.
     static func hintDisabled(_ exercise:TrainingController.Exercise,thinking:Bool)->Bool {exercise.task == .game && (exercise.hintLevel>=3 || thinking)}
+    /// The opponent a finished game names, the one its review names (`boundOpponent`): marked mixed when an older build
+    /// continued the game, and none when the saved one belongs to another attempt or cannot be played as frozen.
+    static func opponentLine(_ snapshot:TrainingSessionSnapshot)->String? {snapshot.boundOpponent.map{"Opponent: "+$0.label}}
     /// What a finished attempt shows. Help outside the app cannot be seen, so a clean result says "no recorded help".
     static func resultLabel(_ exercise:TrainingController.Exercise)->String {
         switch exercise.status {
