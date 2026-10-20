@@ -6,11 +6,11 @@ import Foundation
 /// Take back removed). It is built from the attempt alone, never from the practice game (`session.rules`), and its
 /// move numbers and first side come from the start's FEN, so a game may begin with Black at any move.
 @MainActor public enum TrainingReviewRecord {
-    /// The PGN of `snapshot`'s game. `title` is its Event; the learner is "You". The result is the board's (checkmate,
+    /// The PGN of `snapshot`'s game: an ending, guided game or position game. `title` is its Event; the learner is "You". The result is the board's (checkmate,
     /// stalemate or an automatic draw), a claimed draw's, or `*` for a game stopped on a board that plays on.
     public static func pgn(_ snapshot:TrainingSessionSnapshot,title:String,calendar:Calendar=Calendar(identifier:.gregorian),runtimeFactory:(() throws -> any ChessScriptRuntime)?=nil)throws -> String {
         let scenario=snapshot.scenario
-        guard [.ending,.guidedGame].contains(scenario.check),let start=scenario.fen else{throw CheckmateError.invalid("Only a training game can be reviewed.")}
+        guard [.ending,.guidedGame,.positionGame].contains(scenario.check),let start=scenario.fen else{throw CheckmateError.invalid("Only a training game can be reviewed.")}
         let prelude=scenario.prelude ?? [],line=try committed(snapshot.actions,learnerMovesFirst:TrainingLegality(fen:start,prelude:prelude,runtimeFactory:runtimeFactory).turn()==scenario.learner)
         let rules=try runtimeFactory.map{try ChessRules(fen:start,runtimeFactory:$0)} ?? ChessRules(fen:start)
         let sans=try (prelude+line).map{try rules.move(uci:$0).san}
@@ -21,7 +21,8 @@ import Foundation
         else if case .claim=snapshot.actions.last{result="1/2-1/2"}
         else{result="*"}
         let day=calendar.dateComponents([.year,.month,.day],from:snapshot.startedAt)
-        let opponent=scenario.check == .guidedGame ? "Gentle opponent":"Practice defender"
+        // The level the attempt froze, as the panel names it; an attempt with none keeps the names it had before levels.
+        let opponent=snapshot.boundOpponent.map{"Opponent (\($0.label))"} ?? (scenario.check == .guidedGame ? "Gentle opponent":"Practice defender")
         let headers=[("Event",title),("Date",String(format:"%04d.%02d.%02d",day.year ?? 0,day.month ?? 0,day.day ?? 0)),("White",scenario.learner=="w" ? "You":opponent),("Black",scenario.learner=="w" ? opponent:"You"),("Result",result),("SetUp","1"),("FEN",start)]
         return headers.map{"[\($0.0) \"\(escaped($0.1))\"]"}.joined(separator:"\n")+"\n\n"+movetext(sans,from:start,result:result)
     }
@@ -54,7 +55,7 @@ import Foundation
     private static func escaped(_ value:String)->String {value.replacingOccurrences(of:"\\",with:"\\\\").replacingOccurrences(of:"\"",with:"\\\"")}
 }
 extension TrainingController {
-    /// Whether the shown exercise is a finished game that can be reviewed: an ending or guided game that is over,
+    /// Whether the shown exercise is a finished game that can be reviewed: an ending, guided game or position game that is over,
     /// won, lost, drawn or ended. A withdrawn board is not offered.
     public func canReview(_ state:Exercise)->Bool {state.task == .game && state.finished && state.status != .suspended}
     /// The review record of the finished game shown. Its replayed moves must be the game the learner saw.

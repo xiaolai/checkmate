@@ -45,7 +45,31 @@ import CheckmateCore
         XCTAssertEqual(controller.exercise?.status,.ended)
         let document=try XCTUnwrap(PGNImporter.parse(try controller.reviewRecord()).first)
         XCTAssertEqual(document.startingFEN,start);XCTAssertEqual(document.mainline.map{document.nodes[$0].san},["h3","h6","Kh2"]);XCTAssertEqual(document.result,"*")
-        XCTAssertEqual(document.header("White"),"Gentle opponent");XCTAssertEqual(document.header("Black"),"You")
+        XCTAssertEqual(document.header("White"),"Gentle opponent","with position games off no opponent is recorded, and the old name stands");XCTAssertEqual(document.header("Black"),"You")
+        XCTAssertNil(controller.exercise?.snapshot.boundOpponent)
+    }
+    /// WI-025 with position games on: a finished position game is reviewed from its scenario's start, and the review
+    /// names the opponent by the level the attempt froze, as the panel does.
+    func testAFinishedPositionGameIsReviewedFromItsStartNamingItsFrozenLevel()async throws {
+        setenv("CHECKMATE_POSITION_GAMES","1",1);defer{unsetenv("CHECKMATE_POSITION_GAMES")}
+        let start="8/4P3/8/8/8/8/k7/4K2R w - - 0 1"
+        let (_,player,controller)=try PositionGameTests.fixture([PositionGameTests.game(start,goal:.promoteAndHold)],defender:ScriptedDefender());defer{player.shutdown()}
+        controller.begin(try controller.prepare(entry:PositionGameTests.entry.id))
+        XCTAssertThrowsError(try controller.reviewRecord(),"a game still in play is not offered for review")
+        await PositionGameTests.play(controller,"e7e8q")
+        let exercise=try XCTUnwrap(controller.exercise),opponent=try XCTUnwrap(exercise.snapshot.boundOpponent,"a position game freezes its opponent")
+        XCTAssertEqual(exercise.status,.correct);XCTAssertTrue(controller.canReview(exercise));XCTAssertEqual(exercise.line.count,2)
+        let document=try XCTUnwrap(PGNImporter.parse(try controller.reviewRecord(),provenance:"Training game").first)
+        XCTAssertEqual(document.startingFEN,start);XCTAssertEqual(document.header("SetUp"),"1");XCTAssertEqual(document.header("FEN"),start)
+        XCTAssertEqual(document.mainline.map{document.nodes[$0].uci},exercise.line)
+        XCTAssertEqual(document.header("White"),"You");XCTAssertEqual(document.header("Black"),"Opponent (\(opponent.label))")
+        XCTAssertNotEqual(opponent.label,"Level not recorded");XCTAssertNotEqual(document.header("Black"),"Practice defender")
+        // A frozen opponent names a guided game's and an ending's opponent too; none keeps the old names.
+        var snapshot=exercise.snapshot
+        snapshot.scenario=TrainingEndgameTests.ending(Self.blackAt37,id:"ending-black-37");snapshot.actions=[]
+        XCTAssertEqual(try XCTUnwrap(PGNImporter.parse(Data(try TrainingReviewRecord.pgn(snapshot,title:"x").utf8)).first).header("White"),"Opponent (\(opponent.label))")
+        snapshot.opponent=nil
+        XCTAssertEqual(try XCTUnwrap(PGNImporter.parse(Data(try TrainingReviewRecord.pgn(snapshot,title:"x").utf8)).first).header("White"),"Practice defender")
     }
     func testAClaimedDrawIsADrawAndOtherActionsAreRefused()throws {
         XCTAssertEqual(TrainingReviewRecord.movetext(["e4","e5","Nf3"],from:"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",result:"*"),"1. e4 e5 2. Nf3 *")

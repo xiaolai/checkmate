@@ -318,6 +318,8 @@ try:
     pointer("drag-square", origin, target)
     wait(lambda: label(target).startswith(f"{target}, {COLOURS[learner]}, knight"), "The guided-game move did not land")
     wait(lambda: any("reply" in action for action in active()["actions"]), "The guided-game opponent did not answer", timeout=30)
+    # The review names the opponent by the level the game froze, read while the attempt is still the active one.
+    guided_opponent = f"Opponent ({TITLES[active()['opponent']['profile']]})"
     pointer("click", "training-end-game")
     wait(lambda: "Game ended · not counted" in listing(), "Ending the guided game did not show its neutral result")
     guided_game = True
@@ -326,7 +328,7 @@ try:
     time.sleep(SAVE_SETTLE)
     practice = saved().get("practice")
     pointer("click", "training-review-game")
-    wait(lambda: "review-document-actions" in listing() and "Gentle opponent" in listing(), "Review this game did not open the guided game in Review")
+    wait(lambda: "review-document-actions" in listing() and guided_opponent in listing(), f"Review this game did not open the guided game in Review naming {guided_opponent}")
     pointer("click", "Return to game")
     wait(lambda: "Game ended · not counted" in listing() and "training-review-game" in listing(), "Return to game did not lead back to the finished guided game")
     time.sleep(SAVE_SETTLE)
