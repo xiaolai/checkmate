@@ -103,7 +103,9 @@ import CheckmateCore
         let manifest=try JSONDecoder().decode(PositionGameCalibration.Manifest.self,from:Data(contentsOf:Self.root.appendingPathComponent("Content/calibration/position-game-manifest.json")))
         let provider=try TrainingScenarioProvider.bundled()
         for entry in manifest.entries {
-            let published=provider.scenarios(for:entry.entry).filter{$0.variant==entry.variant && $0.learner==entry.learner}
+            // A guided game publishes both learner colours; its starts name each one.
+            let learners=Set(entry.starts.map{$0.learner(of:entry)})
+            let published=provider.scenarios(for:entry.entry).filter{$0.variant==entry.variant && learners.contains($0.learner)}
             XCTAssertEqual(Dictionary(uniqueKeysWithValues:entry.starts.map{($0.scenario,$0.fen)}),Dictionary(uniqueKeysWithValues:published.map{($0.id,$0.fen!)}),"\(entry.key): every published start, as published")
             XCTAssertTrue(published.allSatisfy{$0.check==entry.check},entry.key)
         }

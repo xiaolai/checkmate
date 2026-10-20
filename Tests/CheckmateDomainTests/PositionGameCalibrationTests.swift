@@ -27,7 +27,7 @@ final class PositionGameCalibrationTests:XCTestCase {
 
     func testTheTrackedManifestIsValidAndNamesEveryNewEntry()throws {
         let m=try manifest();XCTAssertEqual(PositionGameCalibration.problems(m),[])
-        XCTAssertEqual(Set(m.entries.map(\.key)),["pawn-race/kpk","pawn-war/pawns","cut-down-chess/knights","cut-down-chess/bishops","cut-down-chess/rooks","cut-down-chess/queens","cut-down-chess/minor-pieces","cut-down-chess/major-pieces","two-bishop-mate/kbbk","finish-the-game/krk"])
+        XCTAssertEqual(Set(m.entries.map(\.key)),["pawn-race/kpk","pawn-war/pawns","cut-down-chess/knights","cut-down-chess/bishops","cut-down-chess/rooks","cut-down-chess/queens","cut-down-chess/minor-pieces","cut-down-chess/major-pieces","two-bishop-mate/kbbk","finish-the-game/krk","guided-games/initial-setup","guided-games/short-start"])
         XCTAssertEqual(PositionGameCalibration.pairings(m,try entry("pawn-war/pawns")).map{"\($0.level.rawValue)|\($0.reference)"},["gentle|random","gentle|greedy","steady|random","steady|greedy","steady|level-below","strong|random","strong|greedy","strong|level-below"])
         XCTAssertEqual(PositionGameCalibration.pairings(m,try entry("two-bishop-mate/kbbk")).map{"\($0.level.rawValue)|\($0.reference)"},["gentle|random","gentle|greedy","steady|random","steady|greedy","strong|random","strong|greedy"],"a level that only defends has no head-to-head")
         XCTAssertEqual(m.opponent,.current,"the levels as the app plays them")
@@ -39,7 +39,15 @@ final class PositionGameCalibrationTests:XCTestCase {
             XCTAssertTrue(found.contains{$0.contains(fragment)},"\(found)",file:file,line:line)
         }
         refuses({$0.gamesPerPairing=60},"is below the");refuses({$0.gamesPerPairing=101},"split evenly")
-        refuses({$0.entries[0].kind="simplified"},"is not standard");refuses({$0.entries[0].check = .guidedGame},"only position games and endings")
+        refuses({$0.entries[0].kind="simplified"},"is not standard")
+        // A guided entry's starts name the learner's colour, and the level plays the other side.
+        let guided=try XCTUnwrap(valid.entries.firstIndex{$0.check == .guidedGame})
+        refuses({$0.entries[0].check = .guidedGame},"ordinary chess is scored as chess")
+        refuses({$0.entries[0].starts[0].learner="b"},"only a guided game names the learner per start")
+        refuses({$0.entries[guided].starts[0].learner="b"},"opposite each start's learner")
+        refuses({$0.entries[guided].sides=["w"]},"opposite each start's learner")
+        refuses({$0.entries[guided].starts.append(PositionGameCalibration.Start(scenario:"gg-extra",fen:"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",learner:"w"))},"both learner colours equally")
+        refuses({$0.entries[guided].scoring = .goal},"ordinary chess is scored as chess")
         refuses({$0.entries.append($0.entries[0])},"appears once");refuses({$0.entries=[]},"names its entries")
         refuses({$0.entries[0].sides=["w"]},"only the opponent's");refuses({$0.entries[0].references=["random","greedy","level-below"]},"no head-to-head")
         refuses({$0.entries[1].references=["random","greedy"]},"every reference");refuses({$0.entries[1].scoring = .goal},"scored as chess");refuses({$0.entries[0].scoring = .chess},"scored by the goal")

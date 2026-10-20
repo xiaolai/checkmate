@@ -24,14 +24,15 @@ import Foundation
     }
     /// The goal and kept pieces a scenario's game is judged by: a position game's own; an ending's as WI-017 restated it,
     /// checkmate keeping the mating piece, which its recorded regression shows ends every ending as the ending's own
-    /// evaluator does.
+    /// evaluator does; a guided game is ordinary chess, so it is judged by checkmate and keeps nothing.
     public static func rules(of scenario:TrainingScenario)throws -> (goal:TrainingGoal.Kind,keep:[String]) {
         switch scenario.check {
         case .positionGame?:
             guard let goal=scenario.goal?.kind,goal.positionGame else{throw CheckmateError.invalid("A position game names its goal.")}
             return (goal,scenario.keep ?? [])
         case .ending?:return (.checkmate,[scenario.variant=="krk" ? "r":"q"])
-        default:throw CheckmateError.invalid("Only position games and endings are calibrated.")
+        case .guidedGame?:return (.checkmate,[])
+        default:throw CheckmateError.invalid("Only position games, endings and guided games are calibrated.")
         }
     }
     /// Plays one game from `start` (learner to move) between `white` and `black`.

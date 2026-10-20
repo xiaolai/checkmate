@@ -34,12 +34,21 @@ public enum MiniGameOffering {
     public static func fallbackLevel(for check:TrainingCheck?)->TrainingOpponentLevel {check == .guidedGame ? .steady:.strong}
     /// The levels each calibrated standard-rule game offers, weakest first, by `entry/variant`: calibration's verdicts
     /// (WI-020, `Content/calibration/position-game-results.json`), which a unit test keeps equal to this table. A game
-    /// not listed was not calibrated and offers only its fallback.
+    /// not listed was not calibrated and offers only its fallback. A guided game is ordinary chess from a reviewed
+    /// start; its two published scenarios name both learner colours, and the level plays the other side in each.
     static let positionGames:[String:[TrainingOpponentLevel]]=[
-        "pawn-race/kpk":[.gentle,.strong],"pawn-war/pawns":[.gentle,.steady,.strong],
-        "cut-down-chess/knights":[.gentle,.steady,.strong],"cut-down-chess/bishops":[.gentle,.steady,.strong],"cut-down-chess/rooks":[.gentle,.steady,.strong],
-        "cut-down-chess/queens":[.steady,.strong],"cut-down-chess/minor-pieces":[.gentle,.steady,.strong],"cut-down-chess/major-pieces":[.steady,.strong],
-        "two-bishop-mate/kbbk":[.strong],"finish-the-game/krk":[.strong],
+        "pawn-race/kpk":[.gentle,.strong],
+        "pawn-war/pawns":[.gentle,.steady,.strong],
+        "cut-down-chess/knights":[.gentle,.steady,.strong],
+        "cut-down-chess/bishops":[.gentle,.steady,.strong],
+        "cut-down-chess/rooks":[.gentle,.steady,.strong],
+        "cut-down-chess/queens":[.steady,.strong],
+        "cut-down-chess/minor-pieces":[.gentle,.steady,.strong],
+        "cut-down-chess/major-pieces":[.steady,.strong],
+        "two-bishop-mate/kbbk":[.strong],
+        "finish-the-game/krk":[.strong],
+        "guided-games/initial-setup":[.steady,.strong],
+        "guided-games/short-start":[.steady,.strong],
     ]
     /// Replaces the calibrated table in tests of the level mechanism, which need levels calibration may withdraw.
     static var testPositionGames:[String:[TrainingOpponentLevel]]?

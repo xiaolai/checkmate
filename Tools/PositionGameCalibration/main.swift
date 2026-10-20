@@ -73,7 +73,10 @@ func authored()throws -> [TrainingScenario] {
 // MARK: Calibration
 
 /// One game to play: the entry, the pairing, its index, and the side, start and seed that follow from them.
-struct Job {let entry:PositionGameCalibration.Entry,level:TrainingOpponentLevel,reference:String,index:Int,side:String,start:PositionGameCalibration.Start,seed:UInt64}
+struct Job {let entry:PositionGameCalibration.Entry,level:TrainingOpponentLevel,reference:String,index:Int,side:String,start:PositionGameCalibration.Start,seed:UInt64
+    /// The learner's colour for this start: a guided game names it, every other entry has one for all its starts.
+    var learner:String {start.learner(of:entry)}
+}
 /// How one game ended: its job's index, the referee's row (nil at the ply cap), its length and how long it took.
 struct Played:Codable {let index:Int,row:PositionGameRow?,plies:Int,seconds:Double}
 /// One shard: plays every `count`th game from `shard`, one after another with one engine, and returns the outcomes.
@@ -92,7 +95,7 @@ struct Played:Codable {let index:Int,row:PositionGameRow?,plies:Int,seconds:Doub
         default:them = .level(all[all.firstIndex(of:job.level)!-1],engine:engine,seed:job.seed ^ 0xbe10)
         }
         let clock=Date()
-        let outcome=try await PositionGameMatch.play(start:job.start.fen,goal:rules.goal,keep:rules.keep,learner:job.entry.learner,white:job.side=="w" ? me:them,black:job.side=="w" ? them:me,maximumPlies:maximumPlies)
+        let outcome=try await PositionGameMatch.play(start:job.start.fen,goal:rules.goal,keep:rules.keep,learner:job.learner,white:job.side=="w" ? me:them,black:job.side=="w" ? them:me,maximumPlies:maximumPlies)
         played.append(Played(index:index,row:outcome.row,plies:outcome.plies,seconds:Date().timeIntervalSince(clock)))
         if played.count%25==0 || played.count==mine.count{log("shard \(shard)/\(count): \(played.count)/\(mine.count) games, \(Int(Date().timeIntervalSince(started)))s")}
     }
@@ -127,7 +130,7 @@ func shards(_ count:Int,jobs:Int)throws -> [Played] {
     var problems=PositionGameCalibration.problems(manifest)
     for entry in manifest.entries {for start in entry.starts {
         guard let scenario=provider.scenario(start.scenario) else{problems.append("\(entry.key): \(start.scenario) is not published");continue}
-        if scenario.fen != start.fen || scenario.entry != entry.entry || scenario.variant != entry.variant || scenario.check != entry.check || scenario.learner != entry.learner{problems.append("\(entry.key): \(start.scenario) differs from the published scenario")}
+        if scenario.fen != start.fen || scenario.entry != entry.entry || scenario.variant != entry.variant || scenario.check != entry.check || scenario.learner != start.learner(of:entry){problems.append("\(entry.key): \(start.scenario) differs from the published scenario")}
     }}
     guard problems.isEmpty else{fail("Invalid manifest:\n- "+problems.joined(separator:"\n- "))}
     let games=settings["--games"].map{Int($0) ?? -1} ?? manifest.gamesPerPairing
@@ -138,10 +141,12 @@ func shards(_ count:Int,jobs:Int)throws -> [Played] {
     let smoke=games != manifest.gamesPerPairing || only != nil
     let seed=UInt64(manifest.seed,radix:16)!,cores=ProcessInfo.processInfo.activeProcessorCount
     guard let workers=Int(settings["--workers"] ?? String(cores)),(1...64).contains(workers) else{fail("--workers must be 1...64")}
-    // The level plays White in the first half of a two-sided pairing and Black in the second; its starts take turns.
+    // A guided game's start names the learner, so the level plays the other side and the starts take turns. Every other
+    // entry plays White in the first half of a two-sided pairing and Black in the second; its starts take turns.
     let jobs=entries.flatMap{entry in PositionGameCalibration.pairings(manifest,entry).flatMap{pairing in (0..<games).map{index->Job in
-        let share=games/entry.sides.count,side=entry.sides[index/share],turn=index%share
-        return Job(entry:entry,level:pairing.level,reference:pairing.reference,index:index,side:side,start:entry.starts[turn%entry.starts.count],seed:PositionGameCalibration.seed(seed,entry.key,"\(pairing.level.rawValue)|\(pairing.reference)",index))
+        let start=entry.sidesFollowStarts ? entry.starts[index%entry.starts.count]:entry.starts[(index%(games/entry.sides.count))%entry.starts.count]
+        let side=entry.sidesFollowStarts ? (start.learner(of:entry)=="w" ? "b":"w"):entry.sides[index/(games/entry.sides.count)]
+        return Job(entry:entry,level:pairing.level,reference:pairing.reference,index:index,side:side,start:start,seed:PositionGameCalibration.seed(seed,entry.key,"\(pairing.level.rawValue)|\(pairing.reference)",index))
     }}}
     if let shard=settings["--shard"] {
         let parts=shard.split(separator:"/").compactMap{Int($0)}
@@ -159,7 +164,7 @@ func shards(_ count:Int,jobs:Int)throws -> [Played] {
         let rows=PositionGameCalibration.pairings(manifest,entry).map{pairing->MiniGameCalibration.Pairing in
             var white=MiniGameCalibration.Tally(),black=MiniGameCalibration.Tally()
             for game in mine where game.job.level==pairing.level && game.job.reference==pairing.reference {
-                let row=game.played.row,result=MiniGameCalibration.Game(winner:PositionGameCalibration.winner(row,learner:entry.learner,scoring:entry.scoring),plies:game.played.plies,adjudicated:row==nil)
+                let row=game.played.row,result=MiniGameCalibration.Game(winner:PositionGameCalibration.winner(row,learner:game.job.learner,scoring:entry.scoring),plies:game.played.plies,adjudicated:row==nil)
                 if game.job.side=="w"{white.add(result,side:"w")}else{black.add(result,side:"b")}
             }
             return MiniGameCalibration.Pairing(level:pairing.level.rawValue,reference:pairing.reference,asWhite:white,asBlack:black)

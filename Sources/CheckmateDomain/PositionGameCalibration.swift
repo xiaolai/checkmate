@@ -44,8 +44,13 @@ public enum PositionGameCalibration {
     /// scores a point when the referee's row is a success and nothing otherwise, because the app counts a draw as a
     /// failed goal (plan D3); the level scores the rest.
     public enum Scoring:String,Codable {case chess,goal}
-    /// A start: a published scenario and its FEN, which a unit test keeps equal to the published one.
-    public struct Start:Codable,Equatable {public var scenario:String,fen:String}
+    /// A start: a published scenario and its FEN, which a unit test keeps equal to the published one. A guided game
+    /// names the learner's colour per start (`learner`), because its published scenarios include both colours; every
+    /// other entry takes the entry's learner.
+    public struct Start:Codable,Equatable {
+        public var scenario:String,fen:String,learner:String?
+        public func learner(of entry:Entry)->String {learner ?? entry.learner}
+    }
     public struct Entry:Codable,Equatable {
         public var kind:String,entry:String,variant:String,check:TrainingCheck,learner:String
         /// Game `index` of a pairing (within its side's share) starts from `starts[index % starts.count]`.
@@ -55,6 +60,9 @@ public enum PositionGameCalibration {
         public var sides:[String]
         public var references:[String],scoring:Scoring,accessibility:MiniGameCalibration.Accessibility
         public var key:String {PositionGameCalibration.key(entry:entry,variant:variant)}
+        /// Whether the level's side follows each start's learner: a guided game's scenario fixes the learner's colour,
+        /// so the level always plays the other side; a position game or ending assigns the level's side itself.
+        public var sidesFollowStarts:Bool {check == .guidedGame}
     }
     /// The levels as the app plays them; a retuned level fails the validator, so it must be calibrated again.
     public struct Opponent:Codable,Equatable {
@@ -113,16 +121,30 @@ public enum PositionGameCalibration {
         require(!manifest.entries.isEmpty,"the manifest names its entries")
         require(Set(manifest.entries.map(\.key)).count==manifest.entries.count,"each entry and variant appears once")
         for entry in manifest.entries {
-            let name=entry.key,opponent=entry.learner=="w" ? "b":"w"
+            let name=entry.key,opponent=entry.learner=="w" ? "b":"w",guided=entry.check == .guidedGame
             require(entry.kind==kind,"\(name): entry kind \(entry.kind) is not \(kind)")
-            require([.positionGame,.ending].contains(entry.check),"\(name): only position games and endings are calibrated here")
+            require([.positionGame,.ending,.guidedGame].contains(entry.check),"\(name): only position games, endings and guided games are calibrated here")
             require(entry.learner=="w" || entry.learner=="b","\(name): the learner is w or b")
             require(!entry.starts.isEmpty && Set(entry.starts.map(\.scenario)).count==entry.starts.count,"\(name): the starts are distinct published scenarios")
-            require(entry.starts.allSatisfy{$0.fen.split(separator:" ").count==6 && $0.fen.split(separator:" ")[1]==Substring(entry.learner)},"\(name): every start is a full FEN with the learner to move")
-            require(entry.sides==["w","b"] || entry.sides==[opponent],"\(name): the level plays both sides, or only the opponent's")
-            let symmetric=entry.sides.count==2
+            let learners=entry.starts.map{$0.learner(of:entry)}
+            require(entry.starts.allSatisfy{$0.learner == nil || guided},"\(name): only a guided game names the learner per start")
+            if guided {
+                // A guided game's published scenario fixes the learner's colour and may start with the opponent to move;
+                // the level always plays the other side, so the starts decide the side rather than `sides` distributing it.
+                require(entry.starts.allSatisfy{$0.fen.split(separator:" ").count==6},"\(name): every start is a full FEN")
+                let levelSides=Set(learners.map{$0=="w" ? "b":"w"})
+                require(Set(entry.sides)==levelSides,"\(name): the level plays the side opposite each start's learner")
+                if levelSides.count==2 {
+                    let perLearner=Dictionary(grouping:learners,by:{$0}).mapValues(\.count)
+                    require(perLearner["w"]==perLearner["b"],"\(name): the starts name both learner colours equally, so the level plays each side in half the games")
+                }
+            } else {
+                require(entry.starts.allSatisfy{$0.fen.split(separator:" ").count==6 && $0.fen.split(separator:" ")[1]==Substring(entry.learner)},"\(name): every start is a full FEN with the learner to move")
+                require(entry.sides==["w","b"] || entry.sides==[opponent],"\(name): the level plays both sides, or only the opponent's")
+            }
+            let symmetric=entry.sides.count==2,chess=symmetric || guided
             require(entry.references==(symmetric ? references:["random","greedy"]),"\(name): \(symmetric ? "a start for either side plays every reference":"a level only defends, so it has no head-to-head with the level below as the learner's side")")
-            require(entry.scoring==(symmetric ? .chess:.goal),"\(name): \(symmetric ? "both sides play for checkmate, so it is scored as chess":"the learner plays for a goal, so it is scored by the goal")")
+            require(entry.scoring==(chess ? .chess:.goal),"\(name): \(chess ? "ordinary chess is scored as chess":"the learner plays for a goal, so it is scored by the goal")")
             require(["random","greedy"].contains(entry.accessibility.reference),"\(name): accessibility is measured against a fixed reference")
             require(entry.accessibility.minimumReferenceScore>0 && entry.accessibility.minimumReferenceScore<1,"\(name): accessibility threshold must be inside (0, 1)")
         }

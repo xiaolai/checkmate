@@ -368,6 +368,72 @@
     "reference": "greedy",
     "minimumReferenceScore": 0.3
    }
+  },
+  {
+   "kind": "standard",
+   "entry": "guided-games",
+   "variant": "initial-setup",
+   "check": "guidedGame",
+   "learner": "w",
+   "starts": [
+    {
+     "scenario": "gg-initial-setup-w",
+     "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+     "learner": "w"
+    },
+    {
+     "scenario": "gg-initial-setup-b",
+     "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+     "learner": "b"
+    }
+   ],
+   "sides": [
+    "w",
+    "b"
+   ],
+   "references": [
+    "random",
+    "greedy",
+    "level-below"
+   ],
+   "scoring": "chess",
+   "accessibility": {
+    "reference": "greedy",
+    "minimumReferenceScore": 0.3
+   }
+  },
+  {
+   "kind": "standard",
+   "entry": "guided-games",
+   "variant": "short-start",
+   "check": "guidedGame",
+   "learner": "w",
+   "starts": [
+    {
+     "scenario": "gg-short-start-italian",
+     "fen": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3",
+     "learner": "b"
+    },
+    {
+     "scenario": "gg-short-start-queens-pawn",
+     "fen": "rnbqkb1r/ppp1pppp/5n2/3p4/3P4/5N2/PPP1PPPP/RNBQKB1R w KQkq - 2 3",
+     "learner": "w"
+    }
+   ],
+   "sides": [
+    "w",
+    "b"
+   ],
+   "references": [
+    "random",
+    "greedy",
+    "level-below"
+   ],
+   "scoring": "chess",
+   "accessibility": {
+    "reference": "greedy",
+    "minimumReferenceScore": 0.3
+   }
   }
  ]
 }
