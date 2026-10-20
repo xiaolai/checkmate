@@ -103,6 +103,12 @@ import SaidGuard
             // Assistance plan A10: a coach connected to the learner's network game at hints answers with that game's tools.
             let network=try await networkCoachTurn();report["networkCoachTurn"]=network
             guard network["passed"] as? Bool==true else{throw CheckmateError.unavailable("The live network-game coach turn failed")}
+            // Mini-games D5/WI-018: a finished mini-game's review read aloud, only its facts' exact text.
+            let miniReview=try await miniGameReviewReading();report["miniGameReviewReading"]=miniReview
+            guard miniReview["passed"] as? Bool==true else{throw CheckmateError.unavailable("The live mini-game review reading failed")}
+            // Mini-games WI-021: the training adapter answers after the attempt records the help, from its own board.
+            let trainingTurn=try await trainingCoachTurn();report["trainingCoachTurn"]=trainingTurn
+            guard trainingTurn["passed"] as? Bool==true else{throw CheckmateError.unavailable("The live training-coach turn failed")}
             // D6: the Settings preview in another voice, through its own session, ends by itself and records its usage.
             let preview=try await voicePreview(model:report["selectedModel"] as? String ?? VoiceSessionConfiguration.model);report["preview"]=preview
             guard preview["passed"] as? Bool==true else{throw CheckmateError.unavailable("The voice preview failed")}
@@ -241,6 +247,70 @@ import SaidGuard
         let practiceAbsent = !(instructions+results).contains{mentions($0,practiceFEN)}
         let passed=answered && firstHealthy && completed && verifiedWithAudio(ledger) && coach.connected && coach.networkSession && (counts[.verified] ?? 0)>0 && (counts[.unverified] ?? 0)==0 && (counts[.interrupted] ?? 0)==0 && !failures.contains(coach.status) && hintAssisted && hinted && speechOnly && speechAssisted && boardSent && hintReturned && practiceAbsent
         return ["passed":passed,"hintOnlyOnNetworkBoard":hinted,"networkBoardSent":boardSent,"hintResultSent":hintReturned,"practiceBoardAbsent":practiceAbsent,"seconds":Date().timeIntervalSince(started),"model":coach.selectedModel,"networkSession":coach.networkSession,"assistedFlagged":hintAssisted,"speechOnlyTurn":speechOnly,"speechFlaggedAssisted":speechAssisted,"hintShown":hint?.uci ?? NSNull(),"verifiedSegments":counts[.verified] ?? 0,"unverifiedSegments":counts[.unverified] ?? 0,"interruptedSegments":counts[.interrupted] ?? 0,"responsesCompleted":completed,"coachTranscript":coachLines,"status":coach.status]
+    }}
+    /// D5/WI-018: a finished mini-game's review read aloud through the live provider. The learner presses Read Aloud
+    /// on a sheet with no proved sign-in, so the check authorizes once; only the proved facts' exact text is sent, one
+    /// script per fact, with no tools and no microphone. The reading stays connected until the sheet closes.
+    @MainActor static func miniGameReviewReading()async throws -> [String:Any] {try await withTemporaryLedger{ledger in
+        let session=try GameSession(engine:nil),player=try LearningPlayer(session:session),coach=try VoiceCoach(session:session)
+        session.state.settings.pieceDuration=0;session.state.settings.voiceMicrophone=false;session.state.settings.voiceLanguage="en"
+        var game=MiniGameState(kind:.rookSweep);game.snapshot.board=["a1":"wr","h2":"wp","e5":"br","a7":"bp"]
+        session.state.miniGames=[MiniGameKind.rookSweep.rawValue:game]
+        guard let lesson=player.library.lessons.firstIndex(where:{$0.id=="rook-practice"}) else{return ["passed":false,"failure":"the rook practice lesson is missing"]}
+        player.openLesson(index:lesson);player.startMini(.rookSweep)
+        coach.usageLedger=ledger;coach.audio.headless=true;coach.attachMiniReview(player.miniReview)
+        defer{coach.disconnect();player.shutdown()}
+        @MainActor func wait(_ seconds:Double,_ condition:@MainActor ()->Bool)async -> Bool {let end=Date().addingTimeInterval(seconds);while Date()<end{if condition(){return true};try? await Task.sleep(for:.milliseconds(100))};return condition()}
+        player.click("a1");player.click("a7")
+        guard await wait(30,{player.miniReview.review != nil && player.miniReview.sheetOpen}),let review=player.miniReview.review else{return ["passed":false,"failure":"the review did not open"]}
+        let expected=MiniGameReviewVoiceScript.segments(review).compactMap{$0["text"] as? String}
+        var scripts:[String]=[]
+        coach.requestObserver={event in
+            guard event["type"] as? String=="response.create",let response=event["response"] as? [String:Any],let instructions=response["instructions"] as? String,let range=instructions.range(of:"SCRIPT:\n") else{return}
+            scripts.append(String(instructions[range.upperBound...]))
+        }
+        let started=Date();coach.readMiniReviewAloudAfterSignIn()
+        let connected=await wait(60,{coach.connected})
+        let finished=await wait(120,{coach.turnIdle && scripts.count>=expected.count && responsesFinished(ledger)})
+        let counts=ledger.narrationCounts(),completed=responsesCompleted(ledger),failures:Set<String>=[VoiceCoach.turnFailure,VoiceCoach.turnTimeout,VoiceCoach.turnUnfinished]
+        let passed=connected && finished && completed && verifiedWithAudio(ledger) && coach.connected && coach.miniReviewSession != nil && scripts==expected && (counts[.verified] ?? 0)==expected.count && (counts[.unverified] ?? 0)==0 && (counts[.interrupted] ?? 0)==0 && !failures.contains(coach.status) && !coach.audio.capturing
+        return ["passed":passed,"seconds":Date().timeIntervalSince(started),"model":coach.selectedModel,"expectedScripts":expected,"scriptsSent":scripts,"verifiedSegments":counts[.verified] ?? 0,"unverifiedSegments":counts[.unverified] ?? 0,"interruptedSegments":counts[.interrupted] ?? 0,"responsesCompleted":completed,"connected":coach.connected,"microphoneCapturing":coach.audio.capturing,"status":coach.status]
+    }}
+    /// WI-021: the training voice adapter answers one typed question about the training game shown, through its own
+    /// tools, after the attempt records the help. The practice game stands elsewhere, so what reached the model proves
+    /// the source: the training board is present and the practice board is absent.
+    @MainActor static func trainingCoachTurn()async throws -> [String:Any] {try await withTemporaryLedger{ledger in
+        for (name,value) in [("CHECKMATE_TRAINING_ENABLED","1"),("CHECKMATE_TRAINING_B","1"),("CHECKMATE_POSITION_GAMES","1"),("CHECKMATE_TRAINING_VOICE","1")] {setenv(name,value,1)}
+        let session=try GameSession(engine:nil),player=try LearningPlayer(session:session)
+        let training=TrainingController(session:session,learning:player),adapter=TrainingVoiceAdapter(session:session,controller:training)
+        let engine=NativeEngine();try await engine.prepare();training.games.engine=engine
+        let coach=try VoiceCoach(session:session);coach.usageLedger=ledger;coach.audio.headless=true;coach.training=adapter
+        session.state.settings.voiceMicrophone=false;session.state.settings.voiceLanguage="en";session.state.settings.coachingMode="quiet"
+        defer{coach.disconnect();player.shutdown()}
+        // Practice stands elsewhere, so advice drawn from it could not pass for the training game's.
+        try session.playWhite(from:"d2",to:"d4")
+        training.begin(try training.prepare(entry:"finish-the-game",variant:"krk"))
+        guard let startedExercise=training.exercise,startedExercise.task == .game,!startedExercise.finished else{return ["passed":false,"failure":"the training game did not start"]}
+        let trainingFEN=startedExercise.snapshot.scenario.fen ?? "",practiceFEN=session.rules.fen
+        guard !trainingFEN.isEmpty,trainingFEN != practiceFEN else{return ["passed":false,"failure":"the practice and training boards match"]}
+        @MainActor func wait(_ seconds:Double,_ condition:@MainActor ()->Bool)async -> Bool {let end=Date().addingTimeInterval(seconds);while Date()<end{if condition(){return true};try? await Task.sleep(for:.milliseconds(100))};return condition()}
+        var instructions:[String]=[],results:[String]=[]
+        coach.requestObserver={event in
+            if let text=(event["response"] as? [String:Any])?["instructions"] as? String{instructions.append(text)}
+            if let item=event["item"] as? [String:Any],item["type"] as? String=="function_call_output",let output=item["output"] as? String{results.append(output)}
+        }
+        let started=Date();coach.connectTraining()
+        guard await wait(60,{coach.connected}) else{return ["passed":false,"failure":"not connected: \(coach.status)"]}
+        coach.ask("What is one good move here, and why?")
+        let answered=await wait(180,{coach.turnIdle && responsesFinished(ledger) && coach.history.contains{$0.role=="coach"}})
+        let recorded=training.exercise?.snapshot.recordedHelp==true
+        // A FEN as written in JSON, where a serializer may escape its slashes.
+        func mentions(_ text:String,_ fen:String)->Bool {text.contains(fen) || text.contains(fen.replacingOccurrences(of:"/",with:"\\/"))}
+        let boardSent=(instructions+results).contains(where:{mentions($0,trainingFEN)})
+        let practiceAbsent = !(instructions+results).contains(where:{mentions($0,practiceFEN)})
+        let counts=ledger.narrationCounts(),completed=responsesCompleted(ledger),failures:Set<String>=[VoiceCoach.turnFailure,VoiceCoach.turnTimeout,VoiceCoach.turnUnfinished]
+        let passed=answered && recorded && boardSent && practiceAbsent && coach.connected && coach.trainingSession && completed && verifiedWithAudio(ledger) && (counts[.verified] ?? 0)>0 && (counts[.unverified] ?? 0)==0 && (counts[.interrupted] ?? 0)==0 && !failures.contains(coach.status)
+        return ["passed":passed,"seconds":Date().timeIntervalSince(started),"model":coach.selectedModel,"helpRecorded":recorded,"trainingBoardSent":boardSent,"practiceBoardAbsent":practiceAbsent,"verifiedSegments":counts[.verified] ?? 0,"unverifiedSegments":counts[.unverified] ?? 0,"interruptedSegments":counts[.interrupted] ?? 0,"responsesCompleted":completed,"coachTranscript":coach.history.filter{$0.role=="coach"}.map(\.text),"status":coach.status]
     }}
     /// What the downgrade fixture records before the downgrade, to compare with what the older app leaves behind. A
     /// malformed manifest fails to decode, which reports the fixture as failed instead of trapping.
