@@ -7,7 +7,7 @@ under the preview caption and one of them played, its move answered by Stockfish
 whose calibration offers several levels (a game with no move takes the level, one in progress keeps its own and offers
 a new game at it) and none on one whose calibration offers one, the training game's voice coach connected from the bar
 and disconnected from the drawer with the silent voice double (connecting records no help), a mixed case whose topic
-appears only after the answer, a guided game played, ended and reviewed, and a related lesson read and left for
+appears only after the answer, a guided game played, ended and reviewed, a pawn race won and reviewed, and a related lesson read and left for
 training. The app runs with its own automation identifier and data directory, with training, its B preview, position
 games and the training voice coach enabled.
 """
@@ -137,6 +137,21 @@ def slides(origin, kind, board):
 def distance(a, b):
     (ax, ay), (bx, by) = coords(a), coords(b)
     return max(abs(ax - bx), abs(ay - by))
+
+
+# A pawn race the pawn wins by running, whatever the defender plays: the defending king is further from the promotion
+# square than the pawn is moves from it (a pawn on its second rank steps two at once), so with the learner to move it
+# can neither catch the pawn nor reach the new queen before that queen has stood a reply. Returns the squares the
+# pawn passes through, from its start; None when the start is not such a race.
+def runaway(fen):
+    board = board_of(fen)
+    pawn = next(s for s, p in board.items() if p == "wp")
+    king = next(s for s, p in board.items() if p == "bk")
+    file, rank = coords(pawn)
+    path = [name(file, r) for r in [rank] + ([3] if rank == 1 else []) + list(range((3 if rank == 1 else rank) + 1, 8))]
+    if fen.split()[1] != "w" or any(name(file, r) in board for r in range(rank + 1, 8)) or distance(king, path[-1]) <= len(path) - 1:
+        return None
+    return path
 
 
 def quiet_move(fen, learner):
@@ -335,6 +350,47 @@ try:
     assert saved().get("practice") == practice, "Reviewing a training game changed the practice game"
     guided_review = True
 
+    # A position game played to its end and reviewed: the review names the level the game froze. A pawn race ends
+    # fastest: a runaway start is won by pushing the pawn every move and promoting it to a queen, whatever the defender
+    # plays. The entry's start is the seed's choice among all its starts, so one that is not a runaway is left for a
+    # fresh start, which records it abandoned and never as practised.
+    races = [race for race in json.loads((root / "Sources/CheckmateCore/Resources/training/scenarios.json").read_text())["scenarios"] if race["entry"] == "pawn-race"]
+    assert any(runaway(race["fen"]) for race in races), "fixture: the pawn race has no runaway start"
+    path, previous = None, (active() or {}).get("id")
+    for _ in range(40):
+        open_library()
+        pointer("click", "training-entry-pawn-race")
+        wait(lambda: active() is not None and active()["entry"] == "pawn-race" and active()["id"] != previous and not active()["actions"], "The pawn race did not start a new game")
+        previous = active()["id"]
+        path = runaway(active()["scenario"]["fen"])
+        if path:
+            break
+    assert path, "fixture: forty fresh pawn races never began with a runaway pawn"
+    show_details()
+    level = (active().get("opponent") or {}).get("profile")
+    assert level in OFFERED["pawn-race/kpk"], f"The pawn race froze {level}, which its calibration does not offer"
+    for ply, (origin, target) in enumerate(zip(path, path[1:]), start=1):
+        pointer("drag-square", origin, target)
+        if target == path[-1]:
+            wait(lambda: "training-promotion-cancel" in listing(), "The pawn race's promotion did not open the chooser")
+            pointer("click", "Queen")
+            wait(lambda: label(target).startswith(f"{target}, White, queen"), "The pawn race's promotion did not land")
+        else:
+            wait(lambda: label(target).startswith(f"{target}, White, pawn"), "The pawn race's push did not land")
+            wait(lambda: sum("reply" in action for action in active()["actions"]) == ply, "The pawn race's defender did not answer", timeout=30)
+    wait(lambda: "training-review-game" in listing(), "The pawn race did not end with its review offered", timeout=30)
+    # The review is offered as the game ends; the attempt reaches the save just after it.
+    try:
+        wait(lambda: attempts() and attempts()[-1]["entry"] == "pawn-race" and attempts()[-1]["outcome"] == "correct" and attempts()[-1].get("level") == level, "")
+    except AssertionError:
+        raise AssertionError(f"The pawn race was not recorded won at {level}: {(attempts() or [None])[-1]}") from None
+    position_opponent = f"Opponent ({TITLES[level]})"
+    pointer("click", "training-review-game")
+    wait(lambda: "review-document-actions" in listing() and position_opponent in listing(), f"Review this game did not open the pawn race in Review naming {position_opponent}")
+    pointer("click", "Return to game")
+    wait(lambda: "training-review-game" in listing(), "Return to game did not lead back to the finished pawn race")
+    position_game_review = True
+
     # A related lesson opens without moving the course bookmark, and leads back to training.
     bookmark = (saved().get("course") or {}).get("lessonID")
     open_library()
@@ -349,7 +405,7 @@ try:
     result = {"passed": True, "beginnerLibrary": beginner_library, "variantChip": variant_chip, "promotionCancelled": promotion_cancelled,
               "promotionChosen": promotion_chosen, "bridgeOpened": bridge_opened, "endingReply": ending_reply, "endingTakeBack": ending_take_back, "barAndCommandZTakeBack": bar_and_command_z_take_back, "levelPicker": level_picker, "trainingVoice": training_voice,
               "positionGamesListed": position_games_listed, "positionGameReply": position_game_reply,
-              "mixedTopicAfterAnswer": mixed_topic_after_answer, "guidedGame": guided_game, "guidedReview": guided_review, "lessonLink": lesson_link}
+              "mixedTopicAfterAnswer": mixed_topic_after_answer, "guidedGame": guided_game, "guidedReview": guided_review, "positionGameReview": position_game_review, "lessonLink": lesson_link}
     (evidence / "training-b-pointer-results.json").write_text(json.dumps(result, indent=2))
     print(json.dumps(result))
 except Exception:

@@ -297,6 +297,7 @@
     "mixedTopicAfterAnswer",
     "guidedGame",
     "guidedReview",
+    "positionGameReview",
     "lessonLink"
    ],
    "inputs": [
