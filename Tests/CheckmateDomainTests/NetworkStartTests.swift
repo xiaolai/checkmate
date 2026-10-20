@@ -260,7 +260,7 @@ final class NetworkStartTests:XCTestCase {
         XCTAssertEqual(assisted.recordHeaders(date:"2026.10.18").map(\.name),["Event","Site","Date","Round","White","Black","Result","TimeControl","Assistance"])
     }
     /// 3. What 1.2 sends differs from 1.1 only in the version and the new optional fields, which the frozen decoder
-    /// ignores: a 1.2 guest's `hello` and `resume`, field by field.
+    /// ignores: a 1.2 guest's `hello` and `resume`, field by field, and every message 1.2 wrote.
     func testA12MessageIs11ButForVersionAndCapabilities()throws {
         let random=TestRandom(seed:51),gameID=NetworkGameID.random(using:random.source)
         let receiver=NetworkReceiver(gameID:gameID,role:.guest(claimID:.random(using:random.source)),name:"Ben",appVersion:"0.9.0",rules:NetworkRulesFactory{FakeRules(script:FakeScript())},hashing:testHashing,random:random.source,accepting:NetworkAssistance(both:.hints))
@@ -275,9 +275,10 @@ final class NetworkStartTests:XCTestCase {
         let credential=NetworkSecret.random(using:random.source),resume=try NetworkCodec.encode(.resume(gameID:gameID,credential:credential,capabilities:.supported))
         XCTAssertNotNil((try JSONSerialization.jsonObject(with:resume) as? [String:Any])?["capabilities"],"a resume states them too")
         XCTAssertEqual(try Legacy11Wire.decode(resume),.resume(gameID:gameID,credential:credential))
-        for text in Legacy12Fixtures.messages.prefix(4) {
+        // Every message 1.2 wrote: only hello and resume carry capabilities; each other message is read unchanged.
+        for text in Legacy12Fixtures.messages {
             var stated=try NetworkCodec.decode(Data(text.utf8))
-            switch stated {case .hello(let n,let a,let c,let t,_):stated = .hello(name:n,appVersion:a,claimID:c,assistance:t);case .resume(let g,let c,_):stated = .resume(gameID:g,credential:c);default:XCTFail(text)}
+            switch stated {case .hello(let n,let a,let c,let t,_):stated = .hello(name:n,appVersion:a,claimID:c,assistance:t);case .resume(let g,let c,_):stated = .resume(gameID:g,credential:c);default:break}
             XCTAssertEqual(try Legacy11Wire.decode(Data(text.utf8)),stated,text)
         }
         let spectator=NetworkReceiver(gameID:gameID,role:.spectator,name:"Cy",appVersion:"0.9.0",rules:NetworkRulesFactory{FakeRules(script:FakeScript())},hashing:testHashing)
