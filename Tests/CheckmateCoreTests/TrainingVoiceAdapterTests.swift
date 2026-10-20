@@ -188,6 +188,18 @@ import CheckmateCore
         XCTAssertFalse(f.exercise.snapshot.recordedHelp,"the new attempt has no help record");XCTAssertEqual(f.session.state.training?.active?.id,second);XCTAssertFalse(recorded(f))
         XCTAssertEqual(f.voice.status,Line.stopped.text);XCTAssertFalse(f.voice.trainingSession);XCTAssertNil(f.adapter.scope)
     }
+    /// A connection whose authorization fails records nothing: the attempt is byte-identical, the coach is not
+    /// connected, and the failure is what the learner reads. The gateway is never asked; the seam throws in its place.
+    func testAFailedAuthorizationRecordsNothing()async throws {
+        let f=try fixture(),record=try encoded(f.session.state.training),failure=CheckmateError.unavailable("Live voice is temporarily unavailable. Try again shortly.")
+        XCTAssertTrue(f.voice.trainingVoiceAvailable,"premise: the coach may connect to this game")
+        f.voice.automationAuthorizationFailure=failure;f.voice.connectTraining()
+        XCTAssertTrue(f.voice.connecting,"the connection reached authorization")
+        try await waitFor("the connection fails"){!f.voice.connecting};await drain()
+        XCTAssertEqual(f.voice.status,userFacingMessage(failure,fallback:""));XCTAssertFalse(f.voice.connected);XCTAssertFalse(f.voice.trainingSession)
+        XCTAssertEqual(try encoded(f.session.state.training),record,"nothing recorded");XCTAssertFalse(recorded(f));XCTAssertFalse(f.exercise.snapshot.recordedHelp)
+        XCTAssertTrue(f.events.isEmpty,"nothing sent")
+    }
     /// Each refusal (`stale`, `storageFull`, `unwritable`) ends the disclosure: no tool result, no coaching, only the
     /// neutral line, nothing recorded, and nothing asked again afterwards.
     func testEachRefusalEndsTheDisclosureWithNoRetry()async throws {
