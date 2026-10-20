@@ -29,6 +29,11 @@ Increment B is verified. Their content ships behind `CHECKMATE_POSITION_GAMES`, 
 offered to learners only after the same editorial review and beginner observation. The other later items still
 wait.
 
+Calibration pass rule, decided by the product owner on 2026-10-20: a difficulty level is offered when it beats
+the level below by at least 10 points against the greedy reference with disjoint 95% Wilson intervals, or, once
+greedy is saturated for the level below, when it beats that level head-to-head with a Wilson lower bound above
+50% (`MiniGameCalibration.pair`). Greedy cannot measure a difference it has no room left to show.
+
 ## Deliberate deferrals
 
 | Change | Why it waits | What it needs before it starts |
