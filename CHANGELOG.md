@@ -1,3 +1,36 @@
+# Checkmate 0.8.3
+
+Knight Capture is now a race either player can win. Every opposing piece except
+the knight counts as a target; taking the opposing knight still ends the game at
+once for its owner, but clearing every other piece wins. Counting the knight
+itself made the game a chase that one colour won from every starting position
+tested, so a learner playing White could not win. The lesson's board and its
+recorded narration are unchanged. A network mini-game names the referee's rules
+version, so both Macs need this version to play a mini-game together.
+
+Mini-games now choose their opponent per game. A game offers Gentle, Steady and
+Strong only where calibration measured a real difference between the levels; a
+game in progress keeps the level it began with, and choosing another level
+offers a new game at that level. A finished mini-game shows a review of what a
+proof search established about it, such as a forced win that was available in a
+given number of moves, and nothing is said during play. With a voice sign-in the
+review's facts can be read aloud word for word; without one the sheet says why
+and offers the sign-in check when it is asked for.
+
+Training records written by a newer version are kept aside instead of making all
+training read-only: an attempt or a retry this version cannot read is preserved
+unchanged and counted in the storage limits, and the rest of training stays
+writable. The preview of training's position games and guided-game levels, the
+training voice coach, and LAN play from a chosen position or a mini-game remain
+off in this release.
+
+Automated acceptance covered every gate on the test Mac, including the Intel
+build under Rosetta, the LAN pair and the real pointer gates. A live check, with
+no microphone or speaker, ran the coach's English, Chinese and Spanish turns, a
+network game's hints, a mini-game review reading and a training game's coach
+turn, with every narrated segment verified. No person has yet played the new
+preview features.
+
 # Checkmate 0.8.2
 
 A network game can now be played with help, if both players agree to it.

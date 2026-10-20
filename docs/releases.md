@@ -1,8 +1,8 @@
 # Checkmate releases
 
 `Version.env` owns the native version and monotonically increasing build number.
-Version 0.8.2 is build 27.
-Version 0.8.2 targets macOS 14+ with universal Apple Silicon and Intel binaries.
+Version 0.8.3 is build 28.
+Version 0.8.3 targets macOS 14+ with universal Apple Silicon and Intel binaries.
 Build tooling runs on the build host with Xcode 27; this is separate from the runtime target.
 Development and release builds use
 separate application identifiers and data directories.
@@ -21,8 +21,8 @@ Synchronize the source to the test host and run `bash scripts/acceptance.sh` the
 source hashes before building and writes `acceptance.json` only when every gate passes on an unchanged tree.
 On the test host, where Codex is signed in, also run `bash scripts/live-voice.sh /absolute/path/to/live-voice.json`.
 It drives the production voice coach against the live provider with no microphone or speaker: scripted narration
-at two efforts, a typed coach turn in English, Chinese and Spanish whose narration must be verified, and a Settings
-voice preview. It costs a little provider usage, so it is never a gate. The report records the tree's source hashes,
+at two efforts, a typed coach turn in English, Chinese and Spanish whose narration must be verified, a network game's
+hint, a mini-game review reading, a training game's coach turn, and a Settings voice preview. It costs a little provider usage, so it is never a gate. The report records the tree's source hashes,
 and `prepare-release.sh` refuses to package without a passing report for the same tree.
 Copy the evidence directory and the report to the build host, which never runs tests itself.
 Then run from this checkout, naming that evidence directory and report on the build host:
