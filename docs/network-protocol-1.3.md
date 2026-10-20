@@ -16,14 +16,14 @@ A mini-game's rules are named by one descriptor, `mini:<kind>@<rulesVersion>`:
 
 - `<kind>` is the `MiniGameKind` raw value (`pawn-duel`, `rook-sweep`, `rooks-and-pawns`, `bishop-sweep`,
   `bishops-and-pawns`, `queen-vs-pawns`, `knight-capture`);
-- `<rulesVersion>` is `MiniGameRules.version` written in decimal without leading zeros (1 today). That constant is
+- `<rulesVersion>` is `MiniGameRules.version` written in decimal without leading zeros (2 today). That constant is
   bumped whenever anything the game depends on changes: the referee (`winner`, `victory`, `drawReason`, `play`,
   `advance`, `MiniGameRules.moves`), everything they read (`canMove`, `delayedFinish`, `CourseLibrary.pawnMoves`, the
   repetition and no-progress constants) and the kind's initial board. So two builds that state the same descriptor
   start from the same board and judge every move and every ending identically. A test freezes each kind's initial
   board and a terminal trace per kind, so changing either without the bump fails.
 
-The descriptor is at most 24 bytes (`mini:bishops-and-pawns@1`). A string that is not exactly this shape, names a kind
+The descriptor is at most 24 bytes (`mini:bishops-and-pawns@2`). A string that is not exactly this shape, names a kind
 this build does not know, names a solo kind (Knight Corners, which has no opponent), or names another rules version is
 not a ruleset this build supports. **Solo kinds are refused everywhere**: the host sheet never offers one, a host
 cannot be given one (`NetworkRuleset(_:)` is nil for a solo kind, so host settings
@@ -55,7 +55,7 @@ newer one, and for a game with no moves yet.
 ## Negotiation
 
 - **Capability.** A ruleset game requires the capability `ruleset:<descriptor>` (at most 32 bytes:
-  `ruleset:mini:bishops-and-pawns@1` is exactly 32). A 1.3 guest and spectator state `start` and one `ruleset:` token
+  `ruleset:mini:bishops-and-pawns@2` is exactly 32). A 1.3 guest and spectator state `start` and one `ruleset:` token
   for every ruleset it supports, in every `hello` and `resume`, whatever the flag: 1 + 7 = 8 tokens, the 1.2 maximum.
   A host never infers what a peer supports from its version or from TXT; it reads only the stated tokens.
 - **Admission is 1.2's, unchanged.** The host's `requiredCapabilities` for a ruleset game is `{ruleset:<descriptor>}`;
@@ -74,7 +74,7 @@ newer one, and for a game with no moves yet.
 - **Capability budget.** The scheme fills 1.2's bounds exactly: eight tokens, the longest 32 bytes. A 1.2 host
   refuses a `hello` over those bounds as malformed before it looks at any token, so the bounds cannot be raised in a
   minor version. A ninth capability, a second rules version stated at once, or a rules version of two digits
-  (`ruleset:mini:bishops-and-pawns@10` is 33 bytes) needs a new compact token scheme designed then, within the same
+  (`ruleset:mini:bishops-and-pawns@20` is 33 bytes) needs a new compact token scheme designed then, within the same
   bounds, or a major version. A test asserts that what this build states fits, so the first change that would not
   fit fails instead of truncating what is stated.
 - **TXT `variant=` is display only.** The lobby shows the kind's title beside the game; nothing reads it for anything
@@ -88,7 +88,7 @@ A ruleset game's record is not PGN. It is one line of ASCII, the descriptor foll
 order, each as a space and four characters, from-square then to-square:
 
 ```
-mini:pawn-duel@1 b2b4 g7g5 b4b5
+mini:pawn-duel@2 b2b4 g7g5 b4b5
 ```
 
 - Exactly that grammar: the descriptor, then zero or more ` <square><square>` with each square `[a-h][1-8]`; no other
