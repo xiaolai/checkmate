@@ -23,10 +23,10 @@
       "milliseconds" : 650
     },
     {
-      "changedByDeadline" : 1,
-      "changedRate" : 0.0026954177897574125,
-      "cutRate" : 0.03773584905660377,
-      "deadlineCuts" : 14,
+      "changedByDeadline" : 0,
+      "changedRate" : 0,
+      "cutRate" : 0.013477088948787063,
+      "deadlineCuts" : 5,
       "decisions" : 371,
       "game" : "pawn-duel",
       "games" : 40,
@@ -89,11 +89,11 @@
       "milliseconds" : 650
     },
     {
-      "changedByDeadline" : 1,
-      "changedRate" : 0.0020876826722338203,
-      "cutRate" : 0.3987473903966597,
-      "deadlineCuts" : 191,
-      "decisions" : 479,
+      "changedByDeadline" : 0,
+      "changedRate" : 0,
+      "cutRate" : 0.2851153039832285,
+      "deadlineCuts" : 136,
+      "decisions" : 477,
       "game" : "rooks-and-pawns",
       "games" : 40,
       "level" : "challenging",
@@ -155,11 +155,11 @@
       "milliseconds" : 650
     },
     {
-      "changedByDeadline" : 7,
-      "changedRate" : 0.012302284710017574,
-      "cutRate" : 0.4235500878734622,
-      "deadlineCuts" : 241,
-      "decisions" : 569,
+      "changedByDeadline" : 1,
+      "changedRate" : 0.0017857142857142857,
+      "cutRate" : 0.3375,
+      "deadlineCuts" : 189,
+      "decisions" : 560,
       "game" : "bishops-and-pawns",
       "games" : 40,
       "level" : "challenging",
@@ -203,7 +203,7 @@
       "changedRate" : 0,
       "cutRate" : 0,
       "deadlineCuts" : 0,
-      "decisions" : 313,
+      "decisions" : 299,
       "game" : "knight-capture",
       "games" : 40,
       "level" : "beginner",
@@ -214,7 +214,7 @@
       "changedRate" : 0,
       "cutRate" : 0,
       "deadlineCuts" : 0,
-      "decisions" : 1180,
+      "decisions" : 341,
       "game" : "knight-capture",
       "games" : 40,
       "level" : "standard",
@@ -225,7 +225,7 @@
       "changedRate" : 0,
       "cutRate" : 0,
       "deadlineCuts" : 0,
-      "decisions" : 1186,
+      "decisions" : 350,
       "game" : "knight-capture",
       "games" : 40,
       "level" : "challenging",
@@ -1349,19 +1349,19 @@
         {
           "asBlack" : {
             "adjudicated" : 0,
-            "draws" : 4,
+            "draws" : 3,
             "games" : 200,
             "losses" : 0,
-            "plies" : 2741,
-            "wins" : 196
+            "plies" : 2532,
+            "wins" : 197
           },
           "asWhite" : {
             "adjudicated" : 0,
-            "draws" : 13,
+            "draws" : 1,
             "games" : 200,
-            "losses" : 187,
-            "plies" : 12281,
-            "wins" : 0
+            "losses" : 83,
+            "plies" : 6636,
+            "wins" : 116
           },
           "level" : "beginner",
           "reference" : "random"
@@ -1371,77 +1371,77 @@
             "adjudicated" : 0,
             "draws" : 0,
             "games" : 200,
+            "losses" : 10,
+            "plies" : 2280,
+            "wins" : 190
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 1,
+            "games" : 200,
+            "losses" : 184,
+            "plies" : 2654,
+            "wins" : 15
+          },
+          "level" : "beginner",
+          "reference" : "greedy"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
             "losses" : 0,
-            "plies" : 2430,
+            "plies" : 1840,
+            "wins" : 200
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 2,
+            "games" : 200,
+            "losses" : 0,
+            "plies" : 6061,
+            "wins" : 198
+          },
+          "level" : "standard",
+          "reference" : "random"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 0,
+            "plies" : 1482,
+            "wins" : 200
+          },
+          "asWhite" : {
+            "adjudicated" : 0,
+            "draws" : 2,
+            "games" : 200,
+            "losses" : 38,
+            "plies" : 5204,
+            "wins" : 160
+          },
+          "level" : "standard",
+          "reference" : "greedy"
+        },
+        {
+          "asBlack" : {
+            "adjudicated" : 0,
+            "draws" : 0,
+            "games" : 200,
+            "losses" : 0,
+            "plies" : 1636,
             "wins" : 200
           },
           "asWhite" : {
             "adjudicated" : 0,
             "draws" : 1,
             "games" : 200,
-            "losses" : 199,
-            "plies" : 2943,
-            "wins" : 0
-          },
-          "level" : "beginner",
-          "reference" : "greedy"
-        },
-        {
-          "asBlack" : {
-            "adjudicated" : 0,
-            "draws" : 0,
-            "games" : 200,
-            "losses" : 0,
-            "plies" : 2068,
-            "wins" : 200
-          },
-          "asWhite" : {
-            "adjudicated" : 0,
-            "draws" : 194,
-            "games" : 200,
-            "losses" : 6,
-            "plies" : 37170,
-            "wins" : 0
-          },
-          "level" : "standard",
-          "reference" : "random"
-        },
-        {
-          "asBlack" : {
-            "adjudicated" : 0,
-            "draws" : 0,
-            "games" : 200,
-            "losses" : 0,
-            "plies" : 1500,
-            "wins" : 200
-          },
-          "asWhite" : {
-            "adjudicated" : 0,
-            "draws" : 193,
-            "games" : 200,
-            "losses" : 7,
-            "plies" : 23722,
-            "wins" : 0
-          },
-          "level" : "standard",
-          "reference" : "greedy"
-        },
-        {
-          "asBlack" : {
-            "adjudicated" : 0,
-            "draws" : 0,
-            "games" : 200,
-            "losses" : 0,
-            "plies" : 1638,
-            "wins" : 200
-          },
-          "asWhite" : {
-            "adjudicated" : 0,
-            "draws" : 184,
-            "games" : 200,
-            "losses" : 16,
-            "plies" : 22434,
-            "wins" : 0
+            "losses" : 48,
+            "plies" : 5076,
+            "wins" : 151
           },
           "level" : "standard",
           "reference" : "level-below"
@@ -1452,16 +1452,16 @@
             "draws" : 0,
             "games" : 200,
             "losses" : 0,
-            "plies" : 1888,
+            "plies" : 1808,
             "wins" : 200
           },
           "asWhite" : {
             "adjudicated" : 0,
-            "draws" : 200,
+            "draws" : 3,
             "games" : 200,
             "losses" : 0,
-            "plies" : 37176,
-            "wins" : 0
+            "plies" : 6158,
+            "wins" : 197
           },
           "level" : "challenging",
           "reference" : "random"
@@ -1472,16 +1472,16 @@
             "draws" : 0,
             "games" : 200,
             "losses" : 0,
-            "plies" : 1548,
+            "plies" : 1542,
             "wins" : 200
           },
           "asWhite" : {
             "adjudicated" : 0,
-            "draws" : 200,
+            "draws" : 9,
             "games" : 200,
-            "losses" : 0,
-            "plies" : 22918,
-            "wins" : 0
+            "losses" : 55,
+            "plies" : 5644,
+            "wins" : 136
           },
           "level" : "challenging",
           "reference" : "greedy"
@@ -1489,19 +1489,19 @@
         {
           "asBlack" : {
             "adjudicated" : 0,
-            "draws" : 186,
+            "draws" : 30,
             "games" : 200,
-            "losses" : 0,
-            "plies" : 11299,
-            "wins" : 14
+            "losses" : 103,
+            "plies" : 5423,
+            "wins" : 67
           },
           "asWhite" : {
             "adjudicated" : 0,
-            "draws" : 200,
+            "draws" : 0,
             "games" : 200,
-            "losses" : 0,
-            "plies" : 25718,
-            "wins" : 0
+            "losses" : 174,
+            "plies" : 5286,
+            "wins" : 26
           },
           "level" : "challenging",
           "reference" : "level-below"
@@ -1530,17 +1530,17 @@
     }
   ],
   "identity" : {
-    "binarySHA256" : "80497f0c6fd5c9d8422ec0addbd447d968243ce05f6be898de357db80cf4fc2c",
+    "binarySHA256" : "0fefffb099899ee46bb3da8967f821ed8bbb40f897a20b477a90facbca2ca681",
     "cores" : 12,
     "cpu" : "Apple M6",
-    "date" : "2026-10-18T08:11:56Z",
+    "date" : "2026-10-20T04:07:11Z",
     "os" : "Version 27.0.1 (Build 26A434)",
     "sourceSHA256" : {
       "Content\/calibration\/mini-game-manifest.json" : "ec47b2da020482efbd3b11ad078a97f547433e6c998bc1b656e8c5cc60ad474c",
       "Sources\/CheckmateDomain\/ChessNotation.swift" : "eb3ac1a569cda5896981f054093d313b99b614c47af7d112edf5ac07eb1c75f6",
       "Sources\/CheckmateDomain\/Course.swift" : "cc4b3a0f97ae5b19789fee662ebb855fc6535b89115ed36d21e3de28ebdc43e4",
-      "Sources\/CheckmateDomain\/MiniGameCalibration.swift" : "54666e106b797b6f0caa8766e3783658c5a2c3d154ef1159b54fabfcda64cf38",
-      "Sources\/CheckmateDomain\/MiniGames.swift" : "738fb34b93fa0a0d1af6632b607fa19cd7fdd1f336388f6f7559bcb8849f4bb9",
+      "Sources\/CheckmateDomain\/MiniGameCalibration.swift" : "6b90c929d3acc70a6563f40583d882a5fdfa00d47c865c4a5a6b43025594f240",
+      "Sources\/CheckmateDomain\/MiniGames.swift" : "2db094bc21aadbfd8a4028a1c1df1cbc124b4e72730dc933ee804b9b71e4baac",
       "Tools\/MiniGameCalibration\/main.swift" : "e0ed49f4c3feebe7e9ea43890bd375664600e34d7caf99e3a77f1e84d0eb9957"
     }
   },
@@ -1650,12 +1650,12 @@
     "Intervals are 95% Wilson score intervals on the score; with draws the true variance is lower, so they are conservative.",
     "The deterministic run has the search deadline off; the deadline run plays with the production limit under load and does not feed the verdicts."
   ],
-  "outcomesDigest" : "69ae948e650dc210",
+  "outcomesDigest" : "941dcf6c146b0f8b",
   "requiredGamesPerPairing" : 386,
   "smoke" : false,
   "timing" : {
-    "deadlineSeconds" : 185.7505009174347,
-    "deterministicSeconds" : 2393.0150760412216,
+    "deadlineSeconds" : 172.1910240650177,
+    "deterministicSeconds" : 2221.398465037346,
     "gameThreads" : 12,
     "loadThreads" : 12
   },
@@ -2016,51 +2016,51 @@
         {
           "differs" : true,
           "headToHeadInterval" : [
-            0.684457128728908,
-            0.7711672158773156
+            0.8431081777620602,
+            0.9071862592797102
           ],
-          "headToHeadScore" : 0.73,
+          "headToHeadScore" : 0.87875,
           "headToHeadSeparated" : true,
           "higher" : "standard",
           "higherInterval" : [
-            0.6961800554196694,
-            0.7817302625640324
+            0.8694877208462789,
+            0.9278548822146123
           ],
-          "higherScore" : 0.74125,
+          "higherScore" : 0.9025,
           "lower" : "beginner",
           "lowerInterval" : [
-            0.4524727647446,
-            0.5500034545195642
+            0.46487197759570037,
+            0.5623664343101066
           ],
-          "lowerScore" : 0.50125,
+          "lowerScore" : 0.51375,
           "saturated" : false,
           "separated" : true
         },
         {
           "differs" : false,
           "headToHeadInterval" : [
-            0.46859763274320027,
-            0.5660694369550994
+            0.22883278412268437,
+            0.31554287127109204
           ],
-          "headToHeadScore" : 0.5175,
+          "headToHeadScore" : 0.27,
           "headToHeadSeparated" : false,
           "higher" : "challenging",
           "higherInterval" : [
-            0.7053228670693259,
-            0.7899209857635259
+            0.8130427345627831,
+            0.8827748786673735
           ],
-          "higherScore" : 0.75,
+          "higherScore" : 0.85125,
           "lower" : "standard",
           "lowerInterval" : [
-            0.6961800554196694,
-            0.7817302625640324
+            0.8694877208462789,
+            0.9278548822146123
           ],
-          "lowerScore" : 0.74125,
-          "saturated" : false,
+          "lowerScore" : 0.9025,
+          "saturated" : true,
           "separated" : false
         }
       ],
-      "referenceScoreAgainstGentle" : 0.49875
+      "referenceScoreAgainstGentle" : 0.48624999999999996
     }
   ]
 }

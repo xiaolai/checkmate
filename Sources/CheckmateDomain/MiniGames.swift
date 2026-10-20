@@ -12,7 +12,7 @@ public enum MiniGameKind:String,Codable,CaseIterable {
         case .pawnDuel:return "Reach the far rank, capture every opposing pawn, or leave the opponent without a move. Pawns stay pawns. No en passant."
         case .rookSweep,.bishopSweep:return "Only \(self == .rookSweep ? "rooks":"bishops") move. Capture every opposing pawn to win. Losing all your moving pieces or having no move loses."
         case .rooksAndPawns,.bishopsAndPawns,.queenVsPawns:return "Win by capturing all the other side’s pieces, or by getting a pawn to the last rank and keeping it there through the reply. A side with no legal move loses. A pawn on the last rank stays a pawn, and pawns never capture en passant."
-        case .knightCapture:return "Only the knights move. Take the other side’s pieces; a side whose knight is gone, or cannot move, loses."
+        case .knightCapture:return "Only the knights move. Take every other piece; a side whose knight is gone, or cannot move, loses."
         case .knightCorners:return "Visit a8, h8 and h1, then return to a1. Avoid the black pawns and the squares they attack."
     }}
     /// Each side's half is the other's turned through 180 degrees with colours swapped, so neither side starts ahead.
@@ -107,7 +107,10 @@ public struct MiniGameState:Codable,Equatable {
             let far=side=="w" ? "8":"1",atEnd=board.contains{$0.value==side+"p" && $0.key.hasSuffix(far)}
             if atEnd && (kind == .pawnDuel || kind.delayedFinish && turn==side){return (side,.farRank)}
             let other=side=="w" ? "b":"w"
-            let targets=board.values.filter{$0.hasPrefix(other) && (!(kind == .rookSweep || kind == .bishopSweep) || $0.hasSuffix("p"))}
+            // Knight Capture's target is every other piece: the opposing knight is never counted for `allCaptured`, and
+            // taking it already wins because its owner has no move left. This is the lesson's "every other piece is a
+            // target that stays still"; counting the knight made the game a chase that one colour won in every start.
+            let targets=board.values.filter{$0.hasPrefix(other) && (!(kind == .rookSweep || kind == .bishopSweep) || $0.hasSuffix("p")) && !(kind == .knightCapture && $0.hasSuffix("n"))}
             if targets.isEmpty{return (side,.allCaptured)}
         }
         return MiniGameRules.moves(board:board,kind:kind,side:turn).isEmpty ? (turn=="w" ? "b":"w",.noMoves):nil
@@ -162,7 +165,7 @@ public enum MiniGameRules {
     /// repetition and no-progress constants), or a kind's `initialBoard`: so a proof computed under the old rules is never
     /// taken for one under the new, and two Macs naming the same network ruleset (`NetworkRuleset`, protocol 1.3) play
     /// the same game. `NetworkRulesetTests` freezes each kind's start and a finished trace to catch a change without it.
-    public static let version=1
+    public static let version=2
     public static let corners=["a8","h8","h1","a1"]
     private static let straight=[(1,0),(-1,0),(0,1),(0,-1)],diagonal=[(1,1),(1,-1),(-1,1),(-1,-1)]
     private static let jumps=[(1,2),(2,1),(-1,2),(-2,1),(1,-2),(2,-1),(-1,-2),(-2,-1)]

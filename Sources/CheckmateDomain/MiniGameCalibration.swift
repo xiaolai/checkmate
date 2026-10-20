@@ -218,7 +218,7 @@ public enum MiniGameCalibration {
     /// (b) the reference is saturated for the lower level (it scores at least `headToHead.saturatedScore` against it),
     ///     and the higher level scores at least `headToHead.minimumScore` against the lower one head-to-head, with that
     ///     score's interval lower bound above `headToHead.lowerBoundAbove`.
-    /// Branch (b) is the orchestrator's decision after the first full run (2026-10-18): Steady already scored 94% to
+    /// Branch (b) was kept by the product owner on 2026-10-20 after the first full run (2026-10-18): Steady already scored 94% to
     /// 100% against greedy in every game, so greedy could not separate Steady from Strong and (a) alone withdrew Strong
     /// everywhere, although Strong beat Steady clearly head-to-head in some games. The plan's third reference, the next
     /// level down, decides once greedy has nothing left to measure; while greedy still discriminates, only (a) can pass.

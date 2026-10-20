@@ -34,6 +34,21 @@ final class MiniGameTests:XCTestCase {
         var chase=MiniGameState(kind:.queenVsPawns);chase.snapshot.board=["e4":"bq","c4":"wp","d3":"wp","e5":"wp"];chase.snapshot.turn="b"
         XCTAssertNotEqual(try XCTUnwrap(MiniGameOpponent.choose(in:chase)).to,"c4")
     }
+    /// Knight Capture's win is every other opposing piece, never the knight itself: taking the knight wins at once
+    /// because its owner has no move, while the knight is not counted among the targets still on the board.
+    func testKnightCaptureWinsByEveryOtherPiece() {
+        var game=MiniGameState(kind:.knightCapture,computer:false)
+        game.snapshot.board=["a1":"wn","b2":"wp","h8":"bn","b3":"bp","c5":"bp"]
+        XCTAssertTrue(game.play(MiniGameMove(from:"a1",to:"b3")))
+        XCTAssertNil(game.winner,"one target taken; the knight and another target remain")
+        XCTAssertTrue(game.play(MiniGameMove(from:"h8",to:"f7")))
+        XCTAssertTrue(game.play(MiniGameMove(from:"b3",to:"c5")))
+        XCTAssertEqual(game.winner,"w","every other black piece is gone, although the black knight remains")
+        var duel=MiniGameState(kind:.knightCapture,computer:false)
+        duel.snapshot.board=["e4":"wn","f6":"bn","h2":"wp","h7":"bp"]
+        XCTAssertTrue(duel.play(MiniGameMove(from:"e4",to:"f6")))
+        XCTAssertEqual(duel.winner,"w","taking the knight wins at once; it never had to be a target")
+    }
     func testFrozenPawnsAndCaptureGoals()throws {
         for kind in [MiniGameKind.rookSweep,.bishopSweep,.knightCapture] {
             let game=MiniGameState(kind:kind)

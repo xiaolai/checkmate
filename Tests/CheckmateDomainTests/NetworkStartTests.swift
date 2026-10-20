@@ -15,12 +15,12 @@ final class NetworkStartTests:XCTestCase {
     // MARK: Capabilities on the wire
     func testCapabilitiesRoundTripSortedAndAreBounded()throws {
         let random=TestRandom(seed:21),game=NetworkGameID.random(using:random.source),credential=NetworkSecret.random(using:random.source)
-        let stated=try XCTUnwrap(NetworkCapabilities(["zeta","start","ruleset:mini:pawn-duel@1"]))
-        XCTAssertEqual(stated.tokens,["ruleset:mini:pawn-duel@1","start","zeta"],"sorted, as written")
+        let stated=try XCTUnwrap(NetworkCapabilities(["zeta","start","ruleset:mini:pawn-duel@2"]))
+        XCTAssertEqual(stated.tokens,["ruleset:mini:pawn-duel@2","start","zeta"],"sorted, as written")
         for message:NetworkMessage in [.hello(name:"Ben",appVersion:"0.9.0",claimID:nil,capabilities:stated),.resume(gameID:game,credential:credential,capabilities:stated)] {
             let data=try NetworkCodec.encode(message)
             XCTAssertEqual(try NetworkCodec.decode(data),message)
-            XCTAssertTrue(String(decoding:data,as:UTF8.self).contains(#""capabilities":["ruleset:mini:pawn-duel@1","start","zeta"]"#))
+            XCTAssertTrue(String(decoding:data,as:UTF8.self).contains(#""capabilities":["ruleset:mini:pawn-duel@2","start","zeta"]"#))
             // The frozen 1.0 rules, which 1.1 kept for every field it did not add, still read the message.
             XCTAssertNoThrow(try Legacy10Wire.decode(data))
         }

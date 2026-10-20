@@ -44,7 +44,7 @@ import CheckmateSupport
         let (ana,ben,cy)=try withMiniGames(true){()throws -> (Mac,Mac,Mac) in
             let ana=try host(lan,.pawnDuel)
             XCTAssertEqual(ana.game.ruleset,NetworkRuleset(.pawnDuel));XCTAssertEqual(ana.game.board["b2"],"wp");XCTAssertNil(ana.game.board["e1"],"the kind's own start, shown at once")
-            XCTAssertEqual(lan.records.first?.txt["variant"],"mini:pawn-duel@1")
+            XCTAssertEqual(lan.records.first?.txt["variant"],"mini:pawn-duel@2")
             XCTAssertEqual(ana.game.record?.assistance,.off)
             return (ana,try join(lan,"Ben",ana),try join(lan,"Cy",ana,watching:true))
         }
@@ -80,7 +80,7 @@ import CheckmateSupport
         for mac in [ana,ben] {
             XCTAssertFalse(FileManager.default.fileExists(atPath:mac.crashFile.url.path),"never the file a 1.2 build reads")
             XCTAssertTrue(FileManager.default.fileExists(atPath:mac.crashFile.rulesetURL.path))
-            XCTAssertEqual(mac.crashFile.pending()?.game.ruleset,"mini:rook-sweep@1")
+            XCTAssertEqual(mac.crashFile.pending()?.game.ruleset,"mini:rook-sweep@2")
         }
         ben.game.resign();lan.scheduler.run()
         XCTAssertEqual(ana.game.outcome,NetworkOutcome(result:.whiteWins,termination:.resignation))
@@ -93,7 +93,7 @@ import CheckmateSupport
     /// whose record says nothing (or nonsense) is Pawn Duel; only the lobby's label follows the TXT.
     func testAForgedVariantIsIgnored()throws {
         try withMiniGames(true){
-            for (kind,forged) in [(nil,"mini:rook-sweep@1"),(MiniGameKind.pawnDuel,nil),(MiniGameKind.pawnDuel,"mini:knight-corners@1"),(MiniGameKind.pawnDuel,"chess")] as [(MiniGameKind?,String?)] {
+            for (kind,forged) in [(nil,"mini:rook-sweep@2"),(MiniGameKind.pawnDuel,nil),(MiniGameKind.pawnDuel,"mini:knight-corners@1"),(MiniGameKind.pawnDuel,"chess")] as [(MiniGameKind?,String?)] {
                 let lan=MemoryLAN(),ana=try host(lan,kind)
                 let records=lan.records.map{record in var txt=record.txt;txt["variant"]=forged;return NetworkServiceRecord(name:record.name,txt:txt,endpoint:record.endpoint)}
                 let ben=try join(lan,"Ben",ana,records:records)
@@ -106,7 +106,7 @@ import CheckmateSupport
             XCTAssertEqual(found.first?.variant,.queenVsPawns)
             // A seat record that states no label falls back to the watch record's, as the terms do.
             let id=NetworkGameID.random(using:.system).text,endpoint=NetworkEndpoint("x",description:"x")
-            let paired=NetworkDiscoveredGame.pair([NetworkServiceRecord(name:"Ana's game",txt:["game":id,"role":"seat"],endpoint:endpoint),NetworkServiceRecord(name:"Ana's game"+NetworkHostingConfiguration.watchSuffix,txt:["game":id,"role":"watch","variant":"mini:rook-sweep@1"],endpoint:endpoint)])
+            let paired=NetworkDiscoveredGame.pair([NetworkServiceRecord(name:"Ana's game",txt:["game":id,"role":"seat"],endpoint:endpoint),NetworkServiceRecord(name:"Ana's game"+NetworkHostingConfiguration.watchSuffix,txt:["game":id,"role":"watch","variant":"mini:rook-sweep@2"],endpoint:endpoint)])
             XCTAssertEqual(paired.count,1);XCTAssertNotNil(paired.first?.seat);XCTAssertEqual(paired.first?.variant,.rookSweep)
             XCTAssertEqual(NetworkRuleset.displayKind("rook-sweep"),nil)
         }
@@ -115,7 +115,7 @@ import CheckmateSupport
     func testTheCrashFileKeepsAMiniGameApartFromChess()throws {
         let root=FileManager.default.temporaryDirectory.appendingPathComponent("checkmate-mini-crash-\(UUID().uuidString)");defer{try? FileManager.default.removeItem(at:root)}
         let file=NetworkCrashFile(dataDirectory:root),ruleset=NetworkRuleset(.pawnDuel)!
-        let game=NetworkPublicGame(gameID:.random(using:.system),revision:1,hostSide:.white,whiteName:"Ana",blackName:"Ben",timeControl:.untimed,pgn:"mini:pawn-duel@1 b2b4",clocks:nil,openOffer:nil,outcome:nil,ruleset:ruleset.descriptor)
+        let game=NetworkPublicGame(gameID:.random(using:.system),revision:1,hostSide:.white,whiteName:"Ana",blackName:"Ben",timeControl:.untimed,pgn:"mini:pawn-duel@2 b2b4",clocks:nil,openOffer:nil,outcome:nil,ruleset:ruleset.descriptor)
         try file.save(NetworkCrashFile.Entry(game:game,part:.white))
         XCTAssertFalse(FileManager.default.fileExists(atPath:file.url.path));XCTAssertEqual(file.pending()?.game,game)
         try FileManager.default.copyItem(at:file.rulesetURL,to:file.url);try FileManager.default.removeItem(at:file.rulesetURL)

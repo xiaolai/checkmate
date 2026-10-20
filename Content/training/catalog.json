@@ -341,7 +341,7 @@
    "title": "Knight Capture",
    "summary": "The original Knight Capture mini-game, with its own simplified rules.",
    "rules": [
-    "Only knights move. Capture opposing pieces. You lose if your knight is captured or cannot move.",
+    "Only knights move. Capture every other piece. You lose if your knight is captured or cannot move.",
     "Three repeated positions or 40 turns without a capture or pawn move draw this mini-game."
    ],
    "objective": "legacyGame",

@@ -25,7 +25,7 @@ final class NetworkRulesetTests:XCTestCase {
         XCTAssertEqual(NetworkCapabilities.supported.tokens.map(\.utf8.count).max(),NetworkCapabilities.maximumTokenBytes)
         XCTAssertNil(NetworkCapabilities(NetworkCapabilities.supported.tokens+["one-more"]),"a ninth token is malformed to a 1.2 host")
         XCTAssertNil(NetworkCapabilities(["ruleset:mini:bishops-and-pawns@10"]),"a two-digit rules version does not fit")
-        for text in ["mini:pawn-duel@\(MiniGameRules.version+1)","mini:pawn-duel@0\(MiniGameRules.version)","mini:pawn-duel","pawn-duel@1","mini:pawn-duel@1 ","mini:Pawn-Duel@1","mini:chess@1","mini:knight-corners@\(MiniGameRules.version)",""] {
+        for text in ["mini:pawn-duel@\(MiniGameRules.version+1)","mini:pawn-duel@0\(MiniGameRules.version)","mini:pawn-duel","pawn-duel@1","mini:pawn-duel@2 ","mini:Pawn-Duel@1","mini:chess@1","mini:knight-corners@\(MiniGameRules.version)",""] {
             XCTAssertNil(NetworkRuleset(descriptor:text),text)
         }
     }
@@ -40,7 +40,7 @@ final class NetworkRulesetTests:XCTestCase {
     /// The descriptor names the referee and the start: freeze each kind's start and one finished trace, so a change
     /// to either without bumping `MiniGameRules.version` fails (Codex objection 6).
     func testTheRulesVersionPinsEveryStartAndAFinishedTrace()throws {
-        XCTAssertEqual(MiniGameRules.version,1)
+        XCTAssertEqual(MiniGameRules.version,2)
         let starts=Dictionary(uniqueKeysWithValues:NetworkRuleset.supported.map{($0.kind,NetworkMiniGame.placement($0.kind.initialBoard))})
         XCTAssertEqual(starts,[.pawnDuel:"8/1pppppp1/8/8/8/8/1PPPPPP1/8",.rookSweep:"6r1/3p4/1p1P1p1P/5P1p/P1p5/p1P1p1P1/4P3/1R6",
                                .rooksAndPawns:"3rr3/ppp2ppp/8/8/8/8/PPP2PPP/3RR3",.bishopSweep:"8/3b2b1/2p4p/p1P1p1P1/1p1P1p1P/P4P2/1B2B3/8",
@@ -59,20 +59,20 @@ final class NetworkRulesetTests:XCTestCase {
     // MARK: The record
     func testTheRecordIsTheMoveListAndAnythingElseIsRefused()throws {
         let game=try played(pawnDuel,Array(Self.farRankWin.prefix(3)))
-        XCTAssertEqual(try game.networkPGN(),"mini:pawn-duel@1 b2b4 g7g5 b4b5")
-        XCTAssertEqual(try pawnDuel.moves(of:"mini:pawn-duel@1"),[])
-        for bad in ["","mini:pawn-duel@1 ","mini:pawn-duel@1  b2b4","mini:pawn-duel@1 b2b4 ","mini:pawn-duel@1\nb2b4","mini:pawn-duel@1 B2B4","mini:pawn-duel@1 b2b4q","mini:pawn-duel@1 b2b9",
-                    "mini:rook-sweep@1 b1b2","1. b4 g5","[Event \"?\"]\n\n1. b4 *","mini:pawn-duel@1 b2-b4"," mini:pawn-duel@1"] {
+        XCTAssertEqual(try game.networkPGN(),"mini:pawn-duel@2 b2b4 g7g5 b4b5")
+        XCTAssertEqual(try pawnDuel.moves(of:"mini:pawn-duel@2"),[])
+        for bad in ["","mini:pawn-duel@2 ","mini:pawn-duel@2  b2b4","mini:pawn-duel@2 b2b4 ","mini:pawn-duel@2\nb2b4","mini:pawn-duel@2 B2B4","mini:pawn-duel@2 b2b4q","mini:pawn-duel@2 b2b9",
+                    "mini:rook-sweep@2 b1b2","1. b4 g5","[Event \"?\"]\n\n1. b4 *","mini:pawn-duel@2 b2-b4"," mini:pawn-duel@2"] {
             XCTAssertThrowsError(try pawnDuel.moves(of:bad),bad){XCTAssertEqual($0 as? NetworkRulesError,.badRecord,bad)}
             XCTAssertThrowsError(try NetworkMiniGame(pawnDuel).networkLoad(pgn:bad),bad)
         }
         // Over the limit, refused unread: one move too many.
-        let long="mini:pawn-duel@1"+String(repeating:" b2b3",count:NetworkRuleset.maximumPlies+1)
+        let long="mini:pawn-duel@2"+String(repeating:" b2b3",count:NetworkRuleset.maximumPlies+1)
         XCTAssertThrowsError(try pawnDuel.moves(of:long)){XCTAssertEqual($0 as? NetworkRulesError,.badRecord)}
         // Well formed but not legal under the referee: an illegal move, a move after the game ended, and a load that
         // fails leaves the game as it was.
         let kept=try played(pawnDuel,["b2b4"])
-        for bad in ["mini:pawn-duel@1 b2b5","mini:pawn-duel@1 g7g5","mini:pawn-duel@1 "+Self.farRankWin.joined(separator:" ")+" g2g3"] {
+        for bad in ["mini:pawn-duel@2 b2b5","mini:pawn-duel@2 g7g5","mini:pawn-duel@2 "+Self.farRankWin.joined(separator:" ")+" g2g3"] {
             XCTAssertThrowsError(try kept.networkLoad(pgn:bad),bad);XCTAssertEqual(try kept.networkMoves(),["b2b4"],bad)
         }
         XCTAssertThrowsError(try kept.networkPlay(uci:"g2g4q")){XCTAssertEqual($0 as? NetworkRulesError,.illegalMove)}
@@ -256,9 +256,9 @@ final class NetworkRulesetTests:XCTestCase {
         let start=NetworkMiniGame(pawnDuel),hash=testHashing.positionHash(fen:try start.networkFEN(),revision:0)
         let cases:[(NetworkPublicGame,String?,NetworkCapabilities,NetworkSnapshotError)]=[
             (record("mini:pawn-duel@\(MiniGameRules.version+1)","mini:pawn-duel@\(MiniGameRules.version+1)"),nil,.supported,.badSnapshot("ruleset")),
-            (record("mini:pawn-duel@1","mini:pawn-duel@1"),nil,NetworkCapabilities([NetworkStart.capability])!,.badSnapshot("ruleset")),
-            (record("mini:pawn-duel@1","mini:pawn-duel@1"),NetworkStart.standard,.supported,.pinMismatch),
-            (record("mini:pawn-duel@1","mini:pawn-duel@1"),rookSweep.descriptor,.supported,.pinMismatch),
+            (record("mini:pawn-duel@2","mini:pawn-duel@2"),nil,NetworkCapabilities([NetworkStart.capability])!,.badSnapshot("ruleset")),
+            (record("mini:pawn-duel@2","mini:pawn-duel@2"),NetworkStart.standard,.supported,.pinMismatch),
+            (record("mini:pawn-duel@2","mini:pawn-duel@2"),rookSweep.descriptor,.supported,.pinMismatch),
             (record(nil,"[Fake]\n"),pawnDuel.descriptor,.supported,.pinMismatch),
         ]
         for (game,pinned,stated,expected) in cases {
@@ -267,7 +267,7 @@ final class NetworkRulesetTests:XCTestCase {
             XCTAssertEqual(counter.games,0,"refused before any game was made to replay into")
         }
         // Oversized and malformed records: refused unread, before any game is made.
-        for (pgn,revision) in [("mini:pawn-duel@1"+String(repeating:" b2b3",count:5),2),("mini:pawn-duel@1 b2b4",NetworkRuleset.maximumPlies+2),("mini:pawn-duel@1  b2b4",1),("1. b4 *",1),("mini:pawn-duel@1 b2b4 g7g5",1)] {
+        for (pgn,revision) in [("mini:pawn-duel@2"+String(repeating:" b2b3",count:5),2),("mini:pawn-duel@2 b2b4",NetworkRuleset.maximumPlies+2),("mini:pawn-duel@2  b2b4",1),("1. b4 *",1),("mini:pawn-duel@2 b2b4 g7g5",1)] {
             let counter=Counter()
             XCTAssertThrowsError(try install(record(pawnDuel.descriptor,pgn,revision:revision),hash:hash,counter:counter),pgn)
             XCTAssertEqual(counter.games,0,pgn)
