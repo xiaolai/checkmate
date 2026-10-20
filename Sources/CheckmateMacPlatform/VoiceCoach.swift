@@ -55,6 +55,9 @@ import SaidGuard
     private var rounds=0
     /// Responses one request may take in total, its first included.
     public static let maximumToolResponses=3
+    /// A training game's coach has more to check before it speaks: the board, one search and one hypothetical move are
+    /// three legitimate tool turns on their own. Still bounded, so a coach that never calls `speak_explanation` ends.
+    public static let trainingMaximumToolResponses=6
     /// The response a Stop is waiting on (empty until the provider named it); only its completion acknowledges it.
     private var cancelling=""
     /// Learner items committed this session: a transcript arriving after its placeholder left the history is dropped.
@@ -448,7 +451,7 @@ import SaidGuard
     /// Continues a turn: the next scripted segment, a tool continuation or a queued request, under `request`'s checks.
     private func settled(){guard ready,gate.ready,calls.isEmpty,!awaitingCancellation,!externalPlayback,session.fairness.voiceAllowed(network:networkSession) else{return};timeout?.cancel();session.setVoiceFocus([],identity:session.displayIdentity);clearNetworkFocus()
         if !segments.isEmpty {continuation=false;guard display==currentDisplay || trainingSession && (display==Self.neutralDisplay || training?.accepts(display)==true) else{segments=[];if trainingSession{guard training?.inScope==true else{stopTraining();return};if queued?.1 != true{queued=(Self.trainingRegenerate,userTurn)}}else{queued=("Prepare a new explanation for the changed display.",false)};settled();return};if let scope=miniReviewSession{guard let current=session.finishedMiniGameReview(),current.scope==scope,(try? MiniGameReviewVoiceScript.validate([segments[0]],review:current.review)) != nil else{disconnect();return}};segment=segments.removeFirst();request(segment!.text,user:userTurn,script:true);return};segment=nil
-        if continuation{continuation=false;guard rounds+1<Self.maximumToolResponses else{addHistory(UUID().uuidString,"coach",Self.turnUnfinished);endTurn(Self.turnUnfinished);return};rounds+=1;request("Continue after the tool results and call speak_explanation when ready.",user:userTurn,continuing:true);return}
+        if continuation{continuation=false;let maximum=trainingSession ? Self.trainingMaximumToolResponses:Self.maximumToolResponses;guard rounds+1<maximum else{addHistory(UUID().uuidString,"coach",Self.turnUnfinished);endTurn(Self.turnUnfinished);return};rounds+=1;request("Continue after the tool results and call speak_explanation when ready.",user:userTurn,continuing:true);return}
         if let next=queued{queued=nil;request(next.0,user:next.1);return};trainingAnswer=false;syncMic();status=turnMessage ?? readyStatus;turnMessage=nil;if renewalDue{renew();return};applyEffortWhenIdle();pruneToolItems();guard !networkSession,miniReviewSession==nil,!trainingSession else{return};session.holdVoice(false);if session.reviewController?.active != true,session.rules.turn==session.humanSide,session.state.settings.coachingMode=="guided"{session.holdVoice(true)}
     }
     /// Transcript context names what was displayed: the review position during review, otherwise the practice move.

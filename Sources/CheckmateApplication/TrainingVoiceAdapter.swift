@@ -43,6 +43,9 @@ import Combine
     @Published public private(set) var marks=Marks()
     /// Ticket keys the adapter's own help record replaced, each with the key that replaced it: the same board.
     private var aliases:[String:String]=[:]
+    /// A diagnostic sink for acceptance probes: each disclosure and tool call, with the ticket keys but never the board
+    /// or the learner's text.
+    public var trace:((String)->Void)?
     /// The defender-thinking wait was used by the disclosure in progress; the next refusal while it thinks ends it.
     private var waited=false
     private var search:Task<EngineAnalysis,Error>?,marksTask:Task<Void,Never>?
@@ -90,40 +93,51 @@ import Combine
     /// ticket, refreshed when this call's own save advanced the revision; throws `Stop` when nothing may be disclosed,
     /// having recorded nothing.
     @discardableResult public func disclose(_ keys:[String])throws -> Ticket {
-        guard let shown else{throw Stop.outOfScope}
-        guard !shown.exercise.finished else{waited=false;throw Stop.refused(.finished)}
-        guard keys.allSatisfy(accepts) else{throw Stop.regenerate}
+        guard let shown else{trace?("disclose outOfScope");throw Stop.outOfScope}
+        guard !shown.exercise.finished else{trace?("disclose finished");waited=false;throw Stop.refused(.finished)}
+        guard keys.allSatisfy(accepts) else{trace?("disclose regenerate keys=\(keys) live=\(liveTicket?.key ?? "-")");throw Stop.regenerate}
         let outcome=controller.recordAgentHelp()
         switch outcome {
         case .recorded:
-            guard let next=liveTicket else{throw Stop.outOfScope}
-            aliases[shown.ticket.key]=next.key;waited=false;return next
-        case .alreadyRecorded:waited=false;return shown.ticket
+            guard let next=liveTicket else{trace?("disclose outOfScope after record");throw Stop.outOfScope}
+            aliases[shown.ticket.key]=next.key;waited=false
+            trace?("disclose recorded \(shown.ticket.key)->\(next.key)")
+            return next
+        case .alreadyRecorded:
+            waited=false;trace?("disclose alreadyRecorded \(shown.ticket.key)");return shown.ticket
         case .defenderThinking:
-            if waited{waited=false;throw Stop.refused(.defenderThinking)}
-            waited=true;throw Stop.wait
-        default:waited=false;throw Stop.refused(outcome)
+            if waited{trace?("disclose refused defenderThinking");waited=false;throw Stop.refused(.defenderThinking)}
+            waited=true;trace?("disclose wait defenderThinking");throw Stop.wait
+        default:
+            waited=false;trace?("disclose refused \(outcome.rawValue)");throw Stop.refused(outcome)
         }
     }
     // MARK: Tools
     /// Runs one of the adapter's tools for a response whose disclosure was granted at `key`. Every answer is about the
     /// training board the learner sees; nothing reads or changes the practice game or the real attempt.
     public func call(_ name:String,args a:[String:Any],key:String)async throws -> Any {
-        guard Self.toolNames.contains(name) else{throw ProtocolFailure("ROLE_FORBIDDEN","A training game's coach offers only get_board, analyze_position, test_move, inspect_piece and highlight_squares.")}
-        guard let shown else{throw Stop.outOfScope}
-        guard accepts(key) else{throw Stop.regenerate}
+        trace?("call \(name) key=\(key)")
+        guard Self.toolNames.contains(name) else{trace?("call \(name) forbidden");throw ProtocolFailure("ROLE_FORBIDDEN","A training game's coach offers only get_board, analyze_position, test_move, inspect_piece and highlight_squares.")}
+        guard let shown else{trace?("call \(name) outOfScope");throw Stop.outOfScope}
+        guard accepts(key) else{trace?("call \(name) regenerate live=\(liveTicket?.key ?? "-")");throw Stop.regenerate}
         // Nothing is told before the attempt records the help (`disclose`).
-        guard shown.exercise.snapshot.recordedHelp else{throw ProtocolFailure("UNAVAILABLE","Coaching starts only once the attempt records the help.")}
+        guard shown.exercise.snapshot.recordedHelp else{trace?("call \(name) noHelpRecord");throw ProtocolFailure("UNAVAILABLE","Coaching starts only once the attempt records the help.")}
         let exercise=shown.exercise,live=shown.ticket.key,result:Any
-        switch name {
-        case "get_board":result=try board()
-        case "analyze_position":result=try await analyze(exercise,key:live)
-        case "test_move":result=try await test(exercise,key:live,from:a["from"] as? String ?? "",to:a["to"] as? String ?? "",promotion:a["promotion"] as? String)
-        case "inspect_piece":result=try inspect(exercise,key:live,square:a["square"] as? String ?? "")
-        default:result=highlight(key:live,squares:a["squares"] as? [String] ?? [],arrows:a["arrows"] as? [[String]] ?? [])
+        do {
+            switch name {
+            case "get_board":result=try board()
+            case "analyze_position":result=try await analyze(exercise,key:live)
+            case "test_move":result=try await test(exercise,key:live,from:a["from"] as? String ?? "",to:a["to"] as? String ?? "",promotion:a["promotion"] as? String)
+            case "inspect_piece":result=try inspect(exercise,key:live,square:a["square"] as? String ?? "")
+            default:result=highlight(key:live,squares:a["squares"] as? [String] ?? [],arrows:a["arrows"] as? [[String]] ?? [])
+            }
+        } catch {
+            trace?("call \(name) threw \(error)")
+            throw error
         }
-        guard inScope else{throw Stop.outOfScope}
-        guard accepts(key) else{throw Stop.regenerate}
+        guard inScope else{trace?("call \(name) outOfScope after");throw Stop.outOfScope}
+        guard accepts(key) else{trace?("call \(name) regenerate after live=\(liveTicket?.key ?? "-")");throw Stop.regenerate}
+        trace?("call \(name) ok")
         return result
     }
     /// The training board as the learner sees it: the position, whose move it is, the learner's legal moves and the

@@ -284,6 +284,7 @@ import SaidGuard
         let session=try GameSession(engine:nil),player=try LearningPlayer(session:session)
         let training=TrainingController(session:session,learning:player),adapter=TrainingVoiceAdapter(session:session,controller:training)
         let engine=NativeEngine();try await engine.prepare();training.games.engine=engine
+        var trace:[String]=[];adapter.trace={trace.append($0)}
         let coach=try VoiceCoach(session:session);coach.usageLedger=ledger;coach.audio.headless=true;coach.training=adapter
         session.state.settings.voiceMicrophone=false;session.state.settings.voiceLanguage="en";session.state.settings.coachingMode="quiet"
         defer{coach.disconnect();player.shutdown()}
@@ -310,7 +311,7 @@ import SaidGuard
         let practiceAbsent = !(instructions+results).contains(where:{mentions($0,practiceFEN)})
         let counts=ledger.narrationCounts(),completed=responsesCompleted(ledger),failures:Set<String>=[VoiceCoach.turnFailure,VoiceCoach.turnTimeout,VoiceCoach.turnUnfinished]
         let passed=answered && recorded && boardSent && practiceAbsent && coach.connected && coach.trainingSession && completed && verifiedWithAudio(ledger) && (counts[.verified] ?? 0)>0 && (counts[.unverified] ?? 0)==0 && (counts[.interrupted] ?? 0)==0 && !failures.contains(coach.status)
-        return ["passed":passed,"seconds":Date().timeIntervalSince(started),"model":coach.selectedModel,"helpRecorded":recorded,"trainingBoardSent":boardSent,"practiceBoardAbsent":practiceAbsent,"verifiedSegments":counts[.verified] ?? 0,"unverifiedSegments":counts[.unverified] ?? 0,"interruptedSegments":counts[.interrupted] ?? 0,"responsesCompleted":completed,"coachTranscript":coach.history.filter{$0.role=="coach"}.map(\.text),"status":coach.status]
+        return ["passed":passed,"seconds":Date().timeIntervalSince(started),"model":coach.selectedModel,"helpRecorded":recorded,"trainingBoardSent":boardSent,"practiceBoardAbsent":practiceAbsent,"verifiedSegments":counts[.verified] ?? 0,"unverifiedSegments":counts[.unverified] ?? 0,"interruptedSegments":counts[.interrupted] ?? 0,"responsesCompleted":completed,"coachTranscript":coach.history.filter{$0.role=="coach"}.map(\.text),"status":coach.status,"adapterInScope":adapter.inScope,"adapterScope":adapter.scope.map{"\($0.entry)/\($0.attempt)"} ?? "none","trainingRevision":training.exercise?.snapshot.revision ?? -1,"trainingTrace":trace]
     }}
     /// What the downgrade fixture records before the downgrade, to compare with what the older app leaves behind. A
     /// malformed manifest fails to decode, which reports the fixture as failed instead of trapping.
