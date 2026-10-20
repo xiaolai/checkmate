@@ -154,7 +154,7 @@ final class PositionGameRulesTests:XCTestCase {
     func testThePreviewOffersTheCalibratedLevelsAndTheStalemateTrapOnlyStrong(){
         positionGames(true)
         XCTAssertEqual(MiniGameOffering.levels(entry:"finish-the-game",variant:"krk",check:.ending),MiniGameOffering.positionGames["finish-the-game/krk"])
-        XCTAssertEqual(MiniGameOffering.levels(entry:"guided-games",variant:"initial-setup",check:.guidedGame),[.steady],"not calibrated: its fallback alone")
+        XCTAssertEqual(MiniGameOffering.levels(entry:"guided-games",variant:"initial-setup",check:.guidedGame),MiniGameOffering.positionGames["guided-games/initial-setup"],"calibrated: its verdict")
         XCTAssertEqual(MiniGameOffering.levels(entry:"no-such-entry",variant:"x",check:.positionGame),[.strong])
         MiniGameOffering.testPositionGames=["finish-the-game/krk":TrainingOpponentLevel.allCases,"finish-the-game/kqk":TrainingOpponentLevel.allCases];defer{MiniGameOffering.testPositionGames=nil}
         XCTAssertEqual(MiniGameOffering.levels(entry:"finish-the-game",variant:"krk",check:.ending),[.gentle,.steady,.strong])
