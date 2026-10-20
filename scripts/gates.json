@@ -331,6 +331,7 @@
     "Sources/CheckmateApplication/LearningPlayer.swift",
     "Sources/CheckmateApplication/MiniGameReviewer.swift",
     "Sources/CheckmateNative/MiniGameReviewViews.swift",
+    "Sources/CheckmateMacPlatform/VoiceCoach.swift",
     "Sources/CheckmateDomain/Course.swift",
     "Sources/CheckmateCore/Resources/course*.json",
     "Sources/CheckmateCore/Resources/course/*",
