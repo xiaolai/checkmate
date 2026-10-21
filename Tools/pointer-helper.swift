@@ -26,6 +26,22 @@ func inWindows(_ match:(String,[String])->Bool)->AXUIElement?{for w in get(app,k
 // Controls win over their labels: a grid label often repeats its control's title.
 let controls:Set<String>=["AXButton","AXLink","AXCheckBox","AXPopUpButton","AXDisclosureTriangle","AXRadioButton","AXMenuButton"]
 func element(_ name:String)->AXUIElement?{inWindows{role,n in controls.contains(role) && n.contains(name)} ?? inWindows{_,n in n.contains(name)}}
+// Every element a name picks out, in the tier element() uses: a click on one of several silently picks the first.
+func matches(_ e:AXUIElement,depth:Int=0,_ match:(String,[String])->Bool)->[AXUIElement]{
+    if depth>40{return []};let role=get(e,kAXRoleAttribute) as? String ?? ""
+    if depth>0,role=="AXApplication"{return []};let own=depth>0 && match(role,names(e)) ? [e]:[]
+    return own+(get(e,kAXChildrenAttribute) as? [AXUIElement] ?? []).flatMap{matches($0,depth:depth+1,match)}
+}
+func unambiguous(_ name:String){
+    let windows=get(app,kAXWindowsAttribute) as? [AXUIElement] ?? []
+    var found=windows.flatMap{matches($0){role,n in controls.contains(role) && n.contains(name)}}
+    if found.isEmpty{found=windows.flatMap{matches($0){_,n in n.contains(name)}}}
+    // A row and its own label can share a name; only targets apart from each other, neither holding the other's
+    // center, make a click ambiguous.
+    let frames=found.compactMap{frame($0)}.filter{$0.width>0 && $0.height>0}
+    let apart=frames.indices.contains{i in frames.indices.contains{j in i<j && !frames[i].contains(CGPoint(x:frames[j].midX,y:frames[j].midY)) && !frames[j].contains(CGPoint(x:frames[i].midX,y:frames[i].midY))}}
+    if apart{fputs("Ambiguous: \(name) names \(found.count) elements: \(found.map{get($0,kAXRoleAttribute) as? String ?? "?"})\n",stderr);exit(2)}
+}
 func square(_ sq:String)->AXUIElement?{inWindows{role,n in role=="AXButton" && n.contains{$0==sq || $0.hasPrefix(sq+",")}}}
 func center(_ e:AXUIElement?,_ what:String)->CGPoint{guard let e=e,let f=frame(e),f.width>0,f.height>0 else{fputs("Not found: \(what)\n",stderr);exit(2)};return CGPoint(x:f.midX,y:f.midY)}
 let source=CGEventSource(stateID:.hidSystemState)
@@ -128,7 +144,7 @@ let a=CommandLine.arguments.count>3 ? CommandLine.arguments[3]:"",b=CommandLine.
 // Reading accessibility state needs no focus, and taking it could change what a poll observes (an open menu closes).
 if !["label","value","enabled","menu-open"].contains(action){NSRunningApplication(processIdentifier:pid)?.activate(options:[.activateAllWindows]);usleep(250_000)}
 switch action {
-case "click":let e=element(a);reveal(e);if let e,let w=windowOf(e),let wf=frame(w),let f=frame(e),!wf.contains(CGPoint(x:f.midX,y:f.midY)){fputs("Not visible after scrolling: \(a) element \(f) window \(wf)\n",stderr);exit(2)};click(center(e,a))
+case "click":unambiguous(a);let e=element(a);reveal(e);if let e,let w=windowOf(e),let wf=frame(w),let f=frame(e),!wf.contains(CGPoint(x:f.midX,y:f.midY)){fputs("Not visible after scrolling: \(a) element \(f) window \(wf)\n",stderr);exit(2)};click(center(e,a))
 // A real click a given number of points left of a named element's leading edge: the indent of a sidebar row.
 case "click-left":guard let d=Double(b),d.isFinite,d>=0,d<=200 else{fputs("Offset must be 0 to 200 points, found \(b)\n",stderr);exit(1)};let e=element(a);reveal(e);guard let e,let f=frame(e) else{fputs("Not found: \(a)\n",stderr);exit(2)};click(CGPoint(x:f.minX-d,y:f.midY))
 // The accessibility help (VoiceOver hint) of a named element or, failing that, of the nearest ancestor that has one.

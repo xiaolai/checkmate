@@ -9,6 +9,9 @@ state=pathlib.Path(tempfile.mkdtemp(prefix='checkmate-lessons-pointer-'));proces
 command=[str(root/'build/CheckmateAutomation.app/Contents/MacOS/CheckmateNative'),'--automation','--data-dir',str(state)]
 env={k:v for k,v in os.environ.items() if k!='CHECKMATE_AUTOMATION'}
 def pointer(*args):return subprocess.check_output([str(helpers['pointer-helper']),str(process.pid),*args],text=True).strip()
+# A lesson's sidebar row by its identifier: a mini-game's own sidebar row repeats its lesson's title (L-33).
+course=json.loads((root/'Sources/CheckmateCore/Resources/course.json').read_text())
+def lesson_row(title):return 'sidebar-lesson-'+next(l['id'] for l in course['lessons'] if l['title']==title)
 def listing():return subprocess.check_output([str(helpers['ax-helper']),str(process.pid),'list'],text=True)
 def wait(test,message,timeout=20):
  end=time.monotonic()+timeout
@@ -34,7 +37,7 @@ try:
  wait(lambda:'practice-heading' in listing(),'Details did not open')
  pointer('click-square','e2');pointer('click-square','e4')
  wait(lambda:'1. e4 ' in saved()['practice']['pgn'] and saved()['practice']['fen'].split()[1]=='w','Computer did not reply')
- pointer('click','Pawn Duel');wait(lambda:'Play Pawn Duel' in listing(),'Visible game invitation missing')
+ pointer('click',lesson_row('Pawn Duel'));wait(lambda:'Play Pawn Duel' in listing(),'Visible game invitation missing')
  pointer('click','Play Pawn Duel');wait(lambda:'Your turn' in listing(),'Play button did not start game')
  wait(lambda:pointer('label','e2').startswith('e2, White, pawn'),'Mini-game board did not appear')
  time.sleep(.8)
@@ -139,13 +142,12 @@ try:
   hint=pointer('help',activity);assert hint=='Practice activity for '+parent,f'{activity} row hint: {hint!r}'
  # On a lesson's last transcript the toolbar arrow goes to the next main lesson, skipping practice; earlier it only
  # advances the transcript, and the final lesson has no next lesson.
- course=json.loads((root/'Sources/CheckmateCore/Resources/course.json').read_text())
  def steps_of(title):return course['stepTitles'][next(i for i,l in enumerate(course['lessons']) if l['title']==title)]
  def shown(title,k):return f'AXPopUpButton: Transcript | {k}. {steps_of(title)[k-1]}' in listing()
  def current():
   found=re.search(r'AXPopUpButton: Transcript \| (\d+)\. ',listing());return int(found.group(1)) if found else 0
  def open_paused(title):
-  pointer('click',title);wait(opened(title),f'{title} did not open')
+  pointer('click',lesson_row(title));wait(opened(title),f'{title} did not open')
   if 'AXPopUpButton: Transcript' not in listing():pointer('click','Details')
   wait(lambda:'AXPopUpButton: Transcript' in listing(),f'The {title} transcript picker did not appear')
   # Opening a lesson plays it; pause first so the chosen transcript stays put.
