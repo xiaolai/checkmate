@@ -246,7 +246,7 @@ public struct LessonProjection:Codable {
     /// Over by the rules, by resignation or by a claimed draw.
     public var finished:Bool {rules.over || state.practice.ending != nil}
     /// A draw the side to move may claim now (it does not end the game by itself).
-    public var claimableDraw:String? {guard mode == .practice,!finished,rules.turn==humanSide else{return nil};return rules.threefoldRepetition ? "threefold repetition":rules.fiftyMoveClaim ? "the 50-move rule":nil}
+    public var claimableDraw:String? {guard mode == .practice,!finished,rules.turn==humanSide else{return nil};return rules.threefoldRepetition ? RulesDraw.threefold.reason:rules.fiftyMoveClaim ? RulesDraw.fiftyMoves.reason:nil}
     /// The end of the game for the learner: who won and why, or why it is drawn.
     public var gameOverMessage:String? {if let ending=state.practice.ending{return ending.reason};return rules.ending.map{endingText($0.reason)}}
     private func endingText(_ reason:String)->String {guard rules.checkmate else{return reason};return rules.turn==humanSide ? String(localized:"Checkmate. Stockfish wins.",bundle:.checkmate):String(localized:"Checkmate. You win!",bundle:.checkmate)}

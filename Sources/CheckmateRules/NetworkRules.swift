@@ -21,22 +21,22 @@ extension ChessRules:NetworkChessRules {
     public func networkAutomaticEnding()throws -> NetworkAutomaticEnding? {
         if try isCheckmate() {return .checkmate(winner:try networkSideToMove().opponent)}
         if try isStalemate() {return .stalemate}
-        // `automaticDrawReason` names insufficient material, then the 75-move rule, then fivefold repetition. A wording
-        // this does not know throws rather than reading as play on.
-        switch try automaticDrawReason() {
+        // The rules name the draw by kind, never by its translated wording. A claimable kind here throws rather than
+        // reading as play on.
+        switch try automaticDrawKind() {
         case nil:return nil
-        case "neither side has enough material to checkmate"?:return .insufficientMaterial
-        case "the 75-move rule"?:return .seventyFiveMoves
-        case "fivefold repetition"?:return .fivefold
-        case let other?:throw NetworkRulesError.unexpected(String(localized:"Unknown automatic draw: \(other).",bundle:.checkmate))
+        case .insufficientMaterial?:return .insufficientMaterial
+        case .seventyFiveMoves?:return .seventyFiveMoves
+        case .fivefold?:return .fivefold
+        case let other?:throw NetworkRulesError.unexpected(String(localized:"Unknown automatic draw: \(other.reason).",bundle:.checkmate))
         }
     }
     public func networkClaimableDraw()throws -> NetworkTermination? {
-        switch try claimableDrawReason() {
+        switch try claimableDrawKind() {
         case nil:return nil
-        case "threefold repetition"?:return .repetition
-        case "the 50-move rule"?:return .fiftyMoves
-        case let other?:throw NetworkRulesError.unexpected(String(localized:"Unknown claimable draw: \(other).",bundle:.checkmate))
+        case .threefold?:return .repetition
+        case .fiftyMoves?:return .fiftyMoves
+        case let other?:throw NetworkRulesError.unexpected(String(localized:"Unknown claimable draw: \(other.reason).",bundle:.checkmate))
         }
     }
     public func networkHasOnlyKing(_ side:NetworkSide)throws -> Bool {try currentBoard().values.filter{$0.hasPrefix(side.rawValue)}==[side.rawValue+"k"]}

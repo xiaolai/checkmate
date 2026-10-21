@@ -38,7 +38,7 @@ public final class ChessRules {
     public var stalemate:Bool {(try? isStalemate()) ?? false}
     public var insufficientMaterial:Bool {(try? isInsufficientMaterial()) ?? false}
     /// Claimable draws do not terminate play until claimed; fivefold/75 moves are automatic.
-    public var automaticDraw:Bool {(try? ruleDrawReason()) != nil}
+    public var automaticDraw:Bool {(try? ruleDraw()) != nil}
     public var draw:Bool {stalemate || insufficientMaterial || automaticDraw}
     /// Claimable, not automatic: threefold repetition, or 50 moves by each side without a capture or pawn move.
     public var threefoldRepetition:Bool {((try? positionRepetitions()) ?? 0)>=3}
@@ -117,12 +117,16 @@ public final class ChessRules {
         if try isCheckmate(){let white=try currentTurn()=="b";return (white ? "1-0":"0-1",(white ? String(localized:"White",bundle:.checkmate):String(localized:"Black",bundle:.checkmate))+String(localized:" wins by checkmate.",bundle:.checkmate))}
         if try isStalemate(){return ("1/2-1/2",String(localized:"Draw by stalemate.",bundle:.checkmate))}
         if try isInsufficientMaterial(){return ("1/2-1/2",String(localized:"Draw: neither side has enough material to checkmate.",bundle:.checkmate))}
-        return try ruleDrawReason().map{(result:"1/2-1/2",reason:String(localized:"Draw by \($0).",bundle:.checkmate))}
+        switch try ruleDraw() {
+        case .seventyFiveMoves?:return ("1/2-1/2",String(localized:"Draw by the 75-move rule.",bundle:.checkmate))
+        case .fivefold?:return ("1/2-1/2",String(localized:"Draw by fivefold repetition.",bundle:.checkmate))
+        default:return nil
+        }
     }
     /// The 75-move rule or fivefold repetition, whichever ends the game now; nil while neither does.
-    private func ruleDrawReason()throws -> String? {
-        if try flag("Number(game.fen().split(' ')[4])>=150&&!game.isCheckmate()"){return "the 75-move rule"}
-        return try positionRepetitions()>=5 ? "fivefold repetition":nil
+    private func ruleDraw()throws -> RulesDraw? {
+        if try flag("Number(game.fen().split(' ')[4])>=150&&!game.isCheckmate()"){return .seventyFiveMoves}
+        return try positionRepetitions()>=5 ? .fivefold:nil
     }
     /// How often the current position has stood in this game, this time included. Positions are the same when their
     /// placement, side to move, castling rights and en passant square are: `fen()` names an en passant square only when
@@ -133,15 +137,17 @@ public final class ChessRules {
         return count
     }
     /// Automatic draws other than stalemate: insufficient material, the 75-move rule or fivefold repetition.
-    public func automaticDrawReason()throws -> String? {
-        if try isInsufficientMaterial(){return String(localized:"neither side has enough material to checkmate",bundle:.checkmate)}
-        return try ruleDrawReason()
+    public func automaticDrawKind()throws -> RulesDraw? {
+        if try isInsufficientMaterial(){return .insufficientMaterial}
+        return try ruleDraw()
     }
+    public func automaticDrawReason()throws -> String? {try automaticDrawKind()?.reason}
     /// Claimable, not automatic: threefold repetition, or 50 moves by each side without a capture or pawn move.
-    public func claimableDrawReason()throws -> String? {
-        if try positionRepetitions()>=3{return "threefold repetition"}
-        return try fiftyMoveRuleReached() ? "the 50-move rule":nil
+    public func claimableDrawKind()throws -> RulesDraw? {
+        if try positionRepetitions()>=3{return .threefold}
+        return try fiftyMoveRuleReached() ? .fiftyMoves:nil
     }
+    public func claimableDrawReason()throws -> String? {try claimableDrawKind()?.reason}
     /// 100 plies (50 moves by each side) without a capture or pawn move: claimable, not automatic.
     private func fiftyMoveRuleReached()throws -> Bool {(Int(try currentFEN().split(separator:" ").dropFirst(4).first ?? "0") ?? 0)>=100}
     /// The piece on a square, or nil when it is empty; a runtime failure throws rather than reading as an empty square.
@@ -163,4 +169,18 @@ public final class ChessRules {
     public static let squares=ChessNotation.squares
     public static func validSquare(_ s:String)->Bool {ChessNotation.validSquare(s)}
     public static func validUCI(_ s:String)->Bool {ChessNotation.validUCI(s)}
+}
+/// A draw the rules name. Callers branch on the kind and show its phrase, so a translated phrase is never matched.
+public enum RulesDraw:Equatable {
+    case insufficientMaterial,seventyFiveMoves,fivefold,threefold,fiftyMoves
+    /// The reason as a phrase inside a sentence: "The game is drawn: the 75-move rule."
+    public var reason:String {
+        switch self {
+        case .insufficientMaterial:String(localized:"neither side has enough material to checkmate",bundle:.checkmate,comment:"A draw's reason, inside a sentence")
+        case .seventyFiveMoves:String(localized:"the 75-move rule",bundle:.checkmate,comment:"A draw's reason, inside a sentence")
+        case .fivefold:String(localized:"fivefold repetition",bundle:.checkmate,comment:"A draw's reason, inside a sentence")
+        case .threefold:String(localized:"threefold repetition",bundle:.checkmate,comment:"A draw's reason, inside a sentence")
+        case .fiftyMoves:String(localized:"the 50-move rule",bundle:.checkmate,comment:"A draw's reason, inside a sentence")
+        }
+    }
 }
