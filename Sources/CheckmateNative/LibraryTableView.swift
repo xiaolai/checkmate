@@ -28,11 +28,12 @@ struct LibraryTable:NSViewRepresentable {
         table.intercellSpacing=NSSize(width:0,height:0);table.columnAutoresizingStyle = .uniformColumnAutoresizingStyle;table.allowsEmptySelection=true;table.allowsMultipleSelection=false
         table.dataSource=coordinator;table.delegate=coordinator;table.target=coordinator;table.action=#selector(Coordinator.clicked(_:));table.doubleAction=#selector(Coordinator.clicked(_:))
         table.setAccessibilityLabel("Games");coordinator.table=table
+        let menu=NSMenu();menu.delegate=coordinator;table.menu=menu
         return table
     }
     func updateNSView(_ scroll:NSScrollView,context:Context){context.coordinator.library=library;context.coordinator.apply(focusRequests:focusRequests)}
 
-    @MainActor final class Coordinator:NSObject,NSTableViewDataSource,NSTableViewDelegate {
+    @MainActor final class Coordinator:NSObject,NSTableViewDataSource,NSTableViewDelegate,NSMenuDelegate {
         var library:ReviewLibraryController
         weak var table:LibraryTableView?
         private var items:[LibraryListItem]=[],ids:[String]=[],version = -1,focusRequests:Int
@@ -98,10 +99,8 @@ struct LibraryTable:NSViewRepresentable {
                 view.show(section,open:library.isOpen(section.id),enabled:library.query.isEmpty){[weak self] in self?.library.toggle(section.id)};return view
             case .header(let section):
                 let view=reuse(tableView,SectionHeaderCell.identifier){SectionHeaderCell()}
-                view.show(section){[weak self] in
-                    guard let self else{return};let sha=String(section.id.dropFirst("collection:".count))
-                    if let collection=self.library.collection(sha){self.library.requestRemove(collection)}else{self.library.requestRemove(sha,name:section.title,games:nil)}
-                };return view
+                let sha=String(section.id.dropFirst("collection:".count))
+                view.show(section,rename:{[weak self] in self?.library.requestRename(sha)},remove:{[weak self] in self?.removeCollection(sha,title:section.title)});return view
             case .broken(_,let broken):
                 let view=reuse(tableView,BrokenCell.identifier){BrokenCell()};view.show(broken);return view
             case .row(let game):
@@ -115,6 +114,25 @@ struct LibraryTable:NSViewRepresentable {
         @objc func clicked(_ sender:NSTableView){
             let row=sender.clickedRow;guard row>=0,row<items.count,case .row(let game)=items[row] else{return};library.selection=game.id;library.open(game)
         }
+        /// The shortcut menu of a line (Control-click): a saved review opens, is renamed or deleted; a collection is
+        /// renamed or removed.
+        func actions(at row:Int)->[(title:String,perform:()->Void)] {
+            guard row>=0,row<items.count else{return []}
+            switch items[row] {
+            case .row(let game):
+                guard case .saved(let id)=game.source else{return [("Open",{[weak self] in self?.openRow(game)})]}
+                return [("Open",{[weak self] in self?.openRow(game)}),("Rename…",{[weak self] in self?.library.model?.requestRenameReview(id)}),("Delete Saved Review…",{[weak self] in self?.library.model?.requestDeleteReview(id)})]
+            case .header(let section) where section.id.hasPrefix("collection:"):
+                let sha=String(section.id.dropFirst("collection:".count))
+                return [("Rename…",{[weak self] in self?.library.requestRename(sha)}),("Remove…",{[weak self] in self?.removeCollection(sha,title:section.title)})]
+            default:return []
+            }
+        }
+        func menuNeedsUpdate(_ menu:NSMenu){
+            menu.removeAllItems()
+            for action in actions(at:table?.clickedRow ?? -1){let item=NSMenuItem(title:action.title,action:#selector(MenuAction.run),keyEquivalent:"");let target=MenuAction(action.perform);item.target=target;item.representedObject=target;menu.addItem(item)}
+        }
+        fileprivate func removeCollection(_ sha:String,title:String){if let collection=library.collection(sha){library.requestRemove(collection)}else{library.requestRemove(sha,name:title,games:nil)}}
         func returnPressed(){library.openSelection()}
         func escapePressed()->Bool {guard !library.query.isEmpty else{return false};library.query="";return true}
     }
@@ -244,25 +262,40 @@ final class HeaderButton:NSButton {
     // Announced as the event's heading; it keeps its press action, value and hint, so it still discloses the event.
     override func accessibilityRole()->NSAccessibility.Role? {headingRole}
 }
-/// A Classics or collection header; a collection's has a Remove… button, which asks before removing.
+/// A menu item's action, kept alive by the item that runs it.
+final class MenuAction:NSObject {
+    private let perform:()->Void
+    init(_ perform:@escaping ()->Void){self.perform=perform}
+    @objc func run(){perform()}
+}
+/// A Classics or collection header; a collection's has Rename… and Remove… buttons (Remove asks before removing).
 final class SectionHeaderCell:NSTableCellView {
     static let identifier=NSUserInterfaceItemIdentifier("library-section")
     private let title=label(.systemFont(ofSize:NSFont.smallSystemFontSize,weight:.semibold),.secondaryLabelColor)
-    private let remove=NSButton(title:"Remove…",target:nil,action:nil)
-    private var onRemove:()->Void={}
+    private let rename=NSButton(title:"Rename…",target:nil,action:nil),remove=NSButton(title:"Remove…",target:nil,action:nil)
+    private var onRename:()->Void={},onRemove:()->Void={}
     init(){
-        super.init(frame:.zero);remove.bezelStyle = .inline;remove.isBordered=false;remove.controlSize = .small;remove.font = .systemFont(ofSize:NSFont.smallSystemFontSize);remove.contentTintColor = .controlAccentColor
-        remove.target=self;remove.action=#selector(removePressed);remove.translatesAutoresizingMaskIntoConstraints=false
-        addSubview(title);addSubview(remove);title.setAccessibilityRole(headingRole)
+        super.init(frame:.zero)
+        for button in [rename,remove]{button.bezelStyle = .inline;button.isBordered=false;button.controlSize = .small;button.font = .systemFont(ofSize:NSFont.smallSystemFontSize);button.contentTintColor = .controlAccentColor;button.target=self;button.translatesAutoresizingMaskIntoConstraints=false}
+        rename.action=#selector(renamePressed);remove.action=#selector(removePressed)
+        addSubview(title);addSubview(rename);addSubview(remove);title.setAccessibilityRole(headingRole)
         NSLayoutConstraint.activate([title.leadingAnchor.constraint(equalTo:leadingAnchor,constant:4),title.centerYAnchor.constraint(equalTo:centerYAnchor,constant:3),
-                                     remove.leadingAnchor.constraint(greaterThanOrEqualTo:title.trailingAnchor,constant:8),remove.trailingAnchor.constraint(equalTo:trailingAnchor,constant:-6),remove.centerYAnchor.constraint(equalTo:title.centerYAnchor)])
+                                     rename.leadingAnchor.constraint(greaterThanOrEqualTo:title.trailingAnchor,constant:8),remove.leadingAnchor.constraint(equalTo:rename.trailingAnchor,constant:4),
+                                     remove.trailingAnchor.constraint(equalTo:trailingAnchor,constant:-6),rename.centerYAnchor.constraint(equalTo:title.centerYAnchor),remove.centerYAnchor.constraint(equalTo:title.centerYAnchor)])
     }
     required init?(coder:NSCoder){nil}
-    func show(_ section:LibrarySection,remove onRemove:@escaping ()->Void){
-        title.stringValue=section.title;self.onRemove=onRemove
+    func show(_ section:LibrarySection,rename onRename:@escaping ()->Void,remove onRemove:@escaping ()->Void){
+        title.stringValue=section.title;self.onRename=onRename;self.onRemove=onRemove
         let collection=section.id.hasPrefix("collection:");remove.isHidden = !collection
-        if collection{let sha=String(section.id.dropFirst("collection:".count));remove.setAccessibilityLabel("Remove collection "+section.title);remove.setAccessibilityIdentifier("library-remove-"+String(sha.prefix(12)))}
+        // A collection that could not be read keeps Remove…, but has no name file to rename until it reads again.
+        rename.isHidden = !(collection && section.kind == .collection(nil))
+        if collection{
+            let sha=String(String(section.id.dropFirst("collection:".count)).prefix(12))
+            remove.setAccessibilityLabel("Remove collection "+section.title);remove.setAccessibilityIdentifier("library-remove-"+sha)
+            rename.setAccessibilityLabel("Rename collection "+section.title);rename.setAccessibilityIdentifier("library-rename-"+sha)
+        }
     }
+    @objc private func renamePressed(){onRename()}
     @objc private func removePressed(){onRemove()}
 
 }

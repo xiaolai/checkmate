@@ -298,6 +298,11 @@ import RealtimeConnection
     /// move or demonstration is kept, TX-8); from anywhere else the game is shown.
     func practice(){navigate(.practice)}
     func lesson(_ index:Int){navigate(.lesson(index))}
+    /// A mini-game from the sidebar (L-33): it opens from its lesson, exactly as the lesson's own Play button does.
+    func playMiniGame(_ kind:MiniGameKind){
+        guard let index=SidebarSelection.miniGames(learning.library).first(where:{$0.kind==kind})?.lesson,navigate(.lesson(index)) else{return}
+        learning.startMini(kind)
+    }
     func puzzles(){navigate(.puzzles)}
     /// A lesson's Check Yourself: its own puzzles, when the puzzles may be opened now.
     func checkYourself(_ index:Int){if navigate(.puzzles){learning.checkYourself(index:index)}}
@@ -698,6 +703,19 @@ import RealtimeConnection
             }
         }
     }
+    /// "Rename…" on a saved review (R-11): its name is stored in its record and index, and its saved time is kept.
+    func requestRenameReview(_ id:UUID){
+        guard let entry=reviews.first(where:{$0.id==id}) else{return}
+        NSAlert.askName("Rename Saved Review",current:entry.title,identifier:"review-rename-field"){[weak self] name in self?.renameReview(id,to:name)}
+    }
+    /// An empty name gives the review back its game's title.
+    func renameReview(_ id:UUID,to name:String){
+        let writer=reviewSaves;reviewLibraryGeneration+=1
+        Task {
+            do{reviews=try await Task.detached{try writer.rename(id,to:ReviewIndexEntry.cleanName(name))}.value}
+            catch{storageError=userFacingMessage(error,fallback:"The review could not be renamed. Try again.")}
+        }
+    }
     /// Undo of `deleteReview`: the record comes back from the Trash into the library list, with the engine analysis
     /// kept while it was there.
     func restoreDeletedReview(_ id:UUID){
@@ -743,7 +761,7 @@ import RealtimeConnection
     }
     /// The review workspace's game library (bundled games and imported collections), in the data directory's own
     /// `Library/` folder, apart from `Reviews/`.
-    lazy var library:ReviewLibraryController={let controller=ReviewLibraryController(directory:store.directory.appendingPathComponent("Library"));controller.model=self;return controller}()
+    lazy var library:ReviewLibraryController={let controller=ReviewLibraryController(directory:store.directory.appendingPathComponent("Library"));controller.model=self;controller.follow($reviews);return controller}()
     /// A library or collection game opens as a draft review through the same cancellable parse as any imported record.
     /// The record must read as exactly one game with nothing skipped, and pass `verify` (a bundled game must replay to
     /// its manifest entry), or nothing opens.
@@ -758,12 +776,9 @@ import RealtimeConnection
         parseForReview(data,delay:NativePolicy.silent ? min(2000,max(0,automationReviewImportDelayMs)):0,fallback:"This record could not be imported. Your current game and reviews are unchanged."){documents,skipped in
             // Unreadable games in a collection are skipped, and the learner is told which.
             if let first=skipped.first{self.storageError="\(skipped.count) game\(skipped.count==1 ? "":"s") in this file could not be read and \(skipped.count==1 ? "was":"were") skipped. "+(first.errorDescription ?? "")}
-            if documents.count==1{self.reviewSides[documents[0].id]=learnerSide;self.openReview(documents[0],draft:true)}else{let alert=NSAlert();alert.messageText="Choose a game to review";let picker=NSPopUpButton(frame:NSRect(x:0,y:0,width:440,height:28));picker.setAccessibilityLabel("Game to review");for (recordIndex,d) in documents.enumerated(){let label="\(recordIndex+1). \(d.header("White") ?? "White") – \(d.header("Black") ?? "Black") · \(d.result) · \(d.header("Date") ?? "Unknown date")";picker.addItem(withTitle:String(label.prefix(256)))};alert.accessoryView=picker;alert.addButton(withTitle:"Review");alert.addButton(withTitle:"Cancel")
-                // Main-actor work (MCP, saved loads, timers) can run during the modal loop; a choice made
-                // after another activity was selected must not replace it.
-                let chooserGeneration=self.reviewOpenGeneration;let response=alert.runModal()
-                guard !Task.isCancelled,self.reviewOpenGeneration==chooserGeneration else{return}
-                if response == .alertFirstButtonReturn{self.openReview(documents[picker.indexOfSelectedItem],draft:true)}}
+            if documents.count==1{self.reviewSides[documents[0].id]=learnerSide;self.openReview(documents[0],draft:true);return}
+            // Many games (R-9) join the library as a collection, searchable and sortable there, with the first selected.
+            self.showReviewWorkspace();self.library.load();self.library.importCollection(data)
         }
     }
     /// One cancellable parse for every review made from text (the current game, a file, a paste or a drop): it replaces
@@ -791,16 +806,27 @@ import RealtimeConnection
     func openPGN(startingIn directory:URL?=nil){let panel=NSOpenPanel();panel.allowsOtherFileTypes=true;panel.allowsMultipleSelection=false;if let directory{panel.directoryURL=directory};panel.begin{[weak self] response in guard let self,response == .OK,let url=panel.url else{return}
         self.reviewFiles.load(url,prepare:ReviewDrop.validated,deliver:{[weak self] in self?.importReviewData($0)},rejected:{[weak self] error in self?.storageError=(error as? ReviewDrop.Rejection)?.reason ?? "The selected file could not be read. Your current game and reviews are unchanged."})}}
     func pasteReview(){guard let text=NSPasteboard.general.string(forType:.string) else{storageError="Copy PGN or FEN text first.";return};importReviewData(Data(text.utf8))}
+    /// The open review as one PGN record (R-13): its moves, the learner's imagined lines as variations, and, when the
+    /// engine has analysed this review and engine help is allowed, each move's evaluation and grade. Replaying the lines
+    /// takes a chess.js context each, so the returned work runs off the main actor (Export and Copy PGN both use it).
+    func reviewPGN()->(@Sendable ()throws->Data)? {
+        guard let d=review.document else{return nil};let branches=review.branchesForSaving
+        let analysed=fairness.engineHelpAllowed && reviewAnalyzer.batchDocument==d.id
+        let evaluations=analysed ? reviewAnalyzer.evaluations:[:],grades:[Int:MoveGrade]=analysed ? Dictionary(uniqueKeysWithValues:d.nodes.indices.dropFirst().compactMap{node in reviewAnalyzer.grade(node).map{(node,$0)}}):[:]
+        return {try PGNExporter.withIdeas(d,branches:branches,evaluations:evaluations,grades:grades)}
+    }
+    /// The title an export is named after: the saved review's own name, else its game's title.
+    func reviewExportTitle(_ d:GameDocument)->String {reviews.first{$0.id==d.id}?.name ?? d.title}
     func exportReview(){
-        guard let d=review.document else{return};let branches=review.branchesForSaving
-        let panel=NSSavePanel();panel.nameFieldStringValue=Self.exportName(d,ideas:false)
+        guard let d=review.document,let build=reviewPGN() else{return};let branches=review.branchesForSaving,title=reviewExportTitle(d)
+        let panel=NSSavePanel();panel.nameFieldStringValue=Self.exportName(title,document:d,ideas:false)
         let choice=NSPopUpButton(frame:NSRect(x:0,y:0,width:260,height:28));choice.addItems(withTitles:["Original record","Original and my imagined lines"]);choice.setAccessibilityLabel("Export contents")
         // A FEN-only original exports as FEN; adding ideas always produces PGN records.
-        let naming=ExportNaming(panel:panel,document:d);choice.target=naming;choice.action=#selector(ExportNaming.choiceChanged(_:))
+        let naming=ExportNaming(panel:panel,document:d,title:title);choice.target=naming;choice.action=#selector(ExportNaming.choiceChanged(_:))
         if branches.contains(where:{!$0.moves.isEmpty}){panel.accessoryView=choice}
         panel.begin{response in withExtendedLifetime(naming){};guard response == .OK,let url=panel.url else{return};let ideas=choice.indexOfSelectedItem==1
             // Each idea replays its history in a new chess.js context: build and write the file off the main thread.
-            Task{do{try await Task.detached{try (ideas ? PGNExporter.withIdeas(d,branches:branches):d.original).write(to:url,options:.atomic)}.value}catch{self.storageError="The review could not be exported."}}}
+            Task{do{try await Task.detached{try (ideas ? build():d.original).write(to:url,options:.atomic)}.value}catch{self.storageError="The review could not be exported."}}}
     }
     /// The sheet forks the position it was opened for (RV-11): any transition ends the request, and a review changed
     /// under the sheet (open, paste, an agent) is refused.
@@ -811,17 +837,17 @@ import RealtimeConnection
     /// Forks exactly the displayed position: an imagined line replays from its own root (for "Compare best line", the
     /// parent), with history-aware automatic terminal rules.
     func confirmPracticeFork(side:String,preset:String){navigate(.practiceFork(side:side,preset:preset))}
-    static func exportName(_ document:GameDocument,ideas:Bool)->String {document.historyAvailable || ideas ? "review.pgn":"review.fen"}
+    static func exportName(_ title:String,document:GameDocument,ideas:Bool)->String {PGNExporter.fileName(title,pgn:document.historyAvailable || ideas)}
     func showBackups(){NSWorkspace.shared.activateFileViewerSelecting([store.directory])}
     func exportState(){let panel=NSSavePanel();panel.nameFieldStringValue="checkmate-state.json";panel.begin {response in guard response == .OK,let url=panel.url else{return};do{try self.store.exportState(self.session.state,to:url)}catch{self.storageError=userFacingMessage(error,fallback:"The export could not be written. Choose another location.")}}}
     func shutdown(){network.shutdown();lessonLanguages.shutdown();connectionStartup?.cancel();voicePreview.cancel();voiceResumeIntent=false;reviewTools.reset();reviewOpenGeneration+=1;cancelReviewImport();saveReview(immediate:true);shuttingDown=true;reviewSaveTask?.cancel();review.cancel();saveTask?.cancel();cancelMoveSounds();session.prepareShutdown();voice.disconnect();usage.flushForShutdown();companion.disable();learning.shutdown();audio.stopAll();session.cancelWork();try? store.save(session.state)}
 }
 /// Keeps the Save panel's suggested extension consistent with the chosen export contents.
 @MainActor final class ExportNaming:NSObject {
-    weak var panel:NSSavePanel?;let document:GameDocument
-    init(panel:NSSavePanel,document:GameDocument){self.panel=panel;self.document=document}
+    weak var panel:NSSavePanel?;let document:GameDocument,title:String
+    init(panel:NSSavePanel,document:GameDocument,title:String){self.panel=panel;self.document=document;self.title=title}
     @objc func choiceChanged(_ sender:NSPopUpButton){
-        guard let panel=panel else{return};let name=NativeModel.exportName(document,ideas:sender.indexOfSelectedItem==1)
+        guard let panel=panel else{return};let name=NativeModel.exportName(title,document:document,ideas:sender.indexOfSelectedItem==1)
         let stem=(panel.nameFieldStringValue as NSString).deletingPathExtension;panel.nameFieldStringValue=(stem.isEmpty ? "review":stem)+"."+(name as NSString).pathExtension
     }
 }

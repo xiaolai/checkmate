@@ -57,6 +57,20 @@ extension NSAlert {
         if let identifier{button.setAccessibilityIdentifier(identifier+"-confirm");stay.setAccessibilityIdentifier(identifier+"-cancel");other?.setAccessibilityIdentifier(identifier+"-alternative")}
         return alert
     }
+    /// A name to type: the field starts with `current`, selected; Rename is the default (Return) and Cancel answers
+    /// Escape. The field's identifier is `identifier`; the buttons are `identifier`-confirm and -cancel.
+    static func naming(_ title:String,current:String,identifier:String)->(alert:NSAlert,field:NSTextField) {
+        let alert=NSAlert();alert.messageText=title
+        let field=NSTextField(string:current);field.frame=NSRect(x:0,y:0,width:300,height:24);field.setAccessibilityLabel("Name");field.setAccessibilityIdentifier(identifier)
+        alert.accessoryView=field;alert.addButton(withTitle:"Rename").setAccessibilityIdentifier(identifier+"-confirm");alert.addButton(withTitle:"Cancel").setAccessibilityIdentifier(identifier+"-cancel")
+        alert.window.initialFirstResponder=field;return (alert,field)
+    }
+    /// Asks for a new name as a sheet on the main window (or a modal alert without one); `rename` runs only on Rename.
+    static func askName(_ title:String,current:String,identifier:String,rename:@escaping (String)->Void){
+        let (alert,field)=naming(title,current:current,identifier:identifier)
+        if let window=NSApp.mainWindow{alert.beginSheetModal(for:window){if $0 == .alertFirstButtonReturn{rename(field.stringValue)}}}
+        else if alert.runModal() == .alertFirstButtonReturn{rename(field.stringValue)}
+    }
     /// A button holds one key, and Return is Cancel's, so Escape (which NSAlert gives only a button titled Cancel that
     /// has no other key) is carried by this invisible, unannounced button in the alert, which clicks Cancel.
     private final class EscapeKey:NSButton {

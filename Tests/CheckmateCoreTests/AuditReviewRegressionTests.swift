@@ -80,14 +80,19 @@ final class AuditPGNRegressionTests:XCTestCase {
 }
 
 final class AuditExportAndQualityTests:XCTestCase {
-    func testExportIdeasPreservesOriginalAndPrecedingHistory()throws {
+    /// The imagined line joins the game as a variation where it leaves it (R-13): here it follows the record's own
+    /// 1... c5, so it only adds 2. Nf3 there; the same line given twice is written once.
+    func testExportIdeasKeepTheGameAndAddTheLineAsAVariation()throws {
         let original=Data("{keep exactly} 1. e4 e5 (1... c5) 2. Nf3 *\n".utf8)
         let document=try PGNImporter.parse(original)[0];var branch=ReviewBranch(root:1);branch.moves=["c7c5","g1f3"]
-        let export=try PGNExporter.withIdeas(document,branches:[branch,branch])
-        XCTAssertEqual(export.prefix(original.count),original)
-        let imported=try PGNImporter.parse(export);XCTAssertEqual(imported.count,2)
-        XCTAssertEqual(try imported[1].history(to:imported[1].mainline.last!),["e2e4","c7c5","g1f3"])
-        XCTAssertTrue(imported[1].title.contains("imagined"))
+        let imported=try PGNImporter.parse(PGNExporter.withIdeas(document,branches:[branch,branch]));XCTAssertEqual(imported.count,1)
+        let game=imported[0];XCTAssertEqual(game.nodes[0].commentsBefore,["keep exactly"])
+        XCTAssertEqual(try game.history(to:game.mainline.last!),["e2e4","e7e5","g1f3"])
+        let leaves=try game.nodes.filter{$0.children.isEmpty}.map{try game.history(to:$0.id)}
+        XCTAssertEqual(leaves.count,2);XCTAssertTrue(leaves.contains(["e2e4","c7c5","g1f3"]))
+        // The marker is written just before 2. Nf3; PGN gives a comment after a played move to that move, so it reads back on c5.
+        let c5=try XCTUnwrap(game.nodes.first{$0.uci=="c7c5"});XCTAssertTrue(c5.commentsBefore.isEmpty,"c5 is the record's own move, not imagined")
+        XCTAssertEqual(c5.commentsAfter,[PGNExporter.imaginedMarker]);XCTAssertEqual(game.nodes.filter{$0.commentsAfter.contains(PGNExporter.imaginedMarker)}.count,1,"The line given twice is marked once")
     }
     func testQualityHandlesBlackBoundsMateAndUnstableEvidence()throws {
         let cp:(Int)->AnalysisScore={AnalysisScore(kind:"cp",value:$0)}

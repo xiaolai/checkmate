@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import UniformTypeIdentifiers
 import CheckmateCore
 /// The review workspace's game library: the bundled games and the learner's imported collections, loaded and indexed off
@@ -24,9 +25,14 @@ enum LibraryListItem {
     @Published var query=""{didSet{if query != oldValue{refilter()}}}
     @Published var scope:LibraryScope = .all{didSet{if scope != oldValue{refilter()}}}
     @Published var collapsed:Set<String>=[]{didSet{if collapsed != oldValue{refilter()}}}
+    /// The order of the games within each section (R-21).
+    @Published var sort:LibrarySort = .standard{didSet{if sort != oldValue{refilter()}}}
     /// The selected game row, kept only while that row is on screen: Return never opens a game a search, scope or
     /// collapse has hidden.
-    @Published var selection:String?
+    @Published var selection:String?{didSet{if selection != oldValue{updatePreview()}}}
+    /// The selected game as the workspace's inspector previews it (R-26), read and parsed off the main actor.
+    @Published private(set) var preview:LibraryPreview?
+    private var previewTask:Task<Void,Never>?
     /// Bumped by ↓ in the search field: the list takes keyboard focus.
     @Published private(set) var listFocusRequests=0
     /// Bumped by Edit ▸ Find… while the workspace shows: the search field takes focus.
@@ -43,6 +49,11 @@ enum LibraryListItem {
     /// Collections being removed: their games no longer open.
     private(set) var removing:Set<String>=[]
     private var catalogGeneration=0,openGeneration=0
+    /// The saved reviews' index as the model last published it, shown in the Saved scope (R-11).
+    private var savedEntries:[ReviewIndexEntry]=[]
+    private var savedFollower:AnyCancellable?
+    /// A collection just imported from a many-game record: once its rows are on screen its first game is selected.
+    private var revealing:String?
     /// Which collection the review being opened came from, so removing that collection cancels the open.
     private(set) var openingCollection:String?
     var automationImportDelayMs=0
@@ -60,14 +71,41 @@ enum LibraryListItem {
     func isOpen(_ id:String)->Bool {!collapsed.contains(id) || !query.isEmpty}
     func toggle(_ id:String){guard query.isEmpty else{return};if collapsed.contains(id){collapsed.remove(id)}else{collapsed.insert(id)}}
     private func refilter(){
-        shown=catalog.sections(scope:scope,query:query)
+        shown=catalog.sections(scope:scope,query:query,sort:sort)
         items=shown.flatMap{section -> [LibraryListItem] in
             var list:[LibraryListItem]=[.header(section)]
             if case .collection(let broken?)=section.kind{list.append(.broken(section.id,broken))}
             return section.kind == .event && !isOpen(section.id) ? list:list+section.rows.map{.row($0)}
         }
         if let selection,!items.contains(where:{$0.id==selection}){self.selection=nil}
+        if let sha=revealing,let first=shown.first(where:{$0.id=="collection:"+sha})?.rows.first{revealing=nil;selection=first.id}
+        // A renamed review or collection keeps its selection; its preview is read again under the new name.
+        if let preview,let row=visibleRows.first(where:{$0.id==preview.id}),row.title != preview.title{self.preview=nil;updatePreview()}
         shownVersion+=1
+    }
+    private func updatePreview(){
+        previewTask?.cancel();previewTask=nil
+        guard let selection,let row=visibleRows.first(where:{$0.id==selection}) else{preview=nil;return}
+        guard preview?.id != row.id else{return}
+        let store=store,reviews=model?.reviewStore,library:GameLibrary?={if case .loaded(let library)=bundled{return library};return nil}()
+        let collection:CollectionIndex?={if case .collection(let sha,_)=row.source{return collections.first{$0.sha256==sha}};return nil}()
+        previewTask=Task{
+            let read=await Task.detached{Result{()throws -> GameDocument in
+                let data:Data
+                switch row.source {
+                case .bundled(let game):guard let library else{throw CheckmateError.invalid("The game library is not loaded.")};data=try library.data(game)
+                case .collection(_,let record):guard let collection else{throw CheckmateError.invalid("This collection is no longer in the library.")};data=try store.data(record,in:collection)
+                case .saved(let id):guard let reviews else{throw CheckmateError.invalid("Saved reviews are not available.")};return try reviews.load(id).document
+                }
+                guard let document=try PGNImporter.parse(data).first else{throw CheckmateError.invalid("No game was found in this record.")}
+                return document
+            }}.value
+            guard !Task.isCancelled,self.selection==row.id else{return}
+            switch read {
+            case .success(let document):preview = .of(row,document:document)
+            case .failure(let error):preview = .unreadable(row,userFacingMessage(error,fallback:"This game could not be read."))
+            }
+        }
     }
     /// ↓ from the search field: the first game on screen is selected and the list takes focus.
     func moveIntoList(){if let first=visibleRows.first{selection=first.id};listFocusRequests+=1}
@@ -100,11 +138,14 @@ enum LibraryListItem {
         Task{
             let built=await Task.detached{LibraryCatalog(library:library,collections:collections,broken:broken)}.value
             guard catalogGeneration==generation else{return}
-            publish(built)
+            publish(built.with(saved:savedEntries))
         }
     }
     /// Shows a built catalog (also how the table tests give the controller its lines).
     func publish(_ built:LibraryCatalog){catalog=built}
+    /// The Saved scope follows the model's index of saved reviews, most recent first.
+    func follow(_ reviews:Published<[ReviewIndexEntry]>.Publisher){savedFollower=reviews.sink{[weak self] entries in MainActor.assumeIsolated{self?.showSaved(entries)}}}
+    func showSaved(_ entries:[ReviewIndexEntry]){guard entries != savedEntries else{return};savedEntries=entries;catalog=catalog.with(saved:entries)}
     /// Automation only: while set, a library open holds after reading its record, before it may start a parse, until
     /// released. It lets the scenario prove that the newest open wins even when an older parse would finish first.
     /// Outside isolated automation `NativePolicy.silent` is false and this is never consulted.
@@ -147,6 +188,8 @@ enum LibraryListItem {
                 case .failure(let error):model.storageError=userFacingMessage(error,fallback:fallback)
                 }
             }
+        case .saved(let id):
+            openingCollection=nil;model.openSavedReview(id)
         }
     }
     /// "Import Collection…": the open panel, then an import off the main actor.
@@ -157,20 +200,25 @@ enum LibraryListItem {
         panel.begin{[weak self] response in guard response == .OK,let url=panel.url else{return};self?.importCollection(url)}
     }
     /// One import at a time, cancellable; the file is checked and read with the drop's bounded reader.
-    func importCollection(_ url:URL){
-        cancelImport();let token=ReviewImportCancellation();importToken=token;importing=url.lastPathComponent
-        let started=collectionsGeneration,store=store,delay=NativePolicy.silent ? min(5000,max(0,automationImportDelayMs)):0,name=url.lastPathComponent
+    func importCollection(_ url:URL){importCollection(label:url.lastPathComponent,name:url.lastPathComponent,reveal:false){try ReviewDrop.bounded(ReviewDrop.validated(url))}}
+    /// A record of many games opened, pasted or dropped for review (R-9) joins My games as a collection, named after its
+    /// games' event, and its first game is selected for the learner to open.
+    func importCollection(_ data:Data){scope = .myGames;query="";importCollection(label:"games",name:nil,reveal:true){data}}
+    private func importCollection(label:String,name:String?,reveal:Bool,read:@escaping @Sendable ()throws->Data){
+        cancelImport();let token=ReviewImportCancellation();importToken=token;importing=label;revealing=nil
+        let started=collectionsGeneration,store=store,delay=NativePolicy.silent ? min(5000,max(0,automationImportDelayMs)):0
         importTask=Task{
             do{
                 if delay>0{try await Task.sleep(for:.milliseconds(delay))}
-                let index=try await withTaskCancellationHandler(operation:{try await Task.detached{try store.importCollection(ReviewDrop.bounded(ReviewDrop.validated(url)),name:name,cancelled:{token.cancelled})}.value},onCancel:{token.cancel()})
+                let index=try await withTaskCancellationHandler(operation:{try await Task.detached{try store.importCollection(read(),name:name,cancelled:{token.cancelled})}.value},onCancel:{token.cancel()})
                 guard !Task.isCancelled,importToken===token else{return}
                 importing=nil;importToken=nil
                 // Removed after this import began: the removal wins and the rows stay gone.
                 guard !removing.contains(index.sha256),(removedAt[index.sha256] ?? -1)<started else{return}
                 collectionsGeneration+=1
+                if reveal{revealing=index.sha256;collapsed.remove("collection:"+index.sha256)}
                 if !collections.contains(where:{$0.sha256==index.sha256}){collections.append(index)};broken.removeAll{$0.id==index.sha256};rebuild()
-                if index.unreadable>0{model?.storageError="\(index.unreadable) game\(index.unreadable==1 ? "":"s") in \(PGNImporter.bounded(name,scalars:80)) could not be read and \(index.unreadable==1 ? "was":"were") skipped."}
+                if index.unreadable>0{model?.storageError="\(index.unreadable) game\(index.unreadable==1 ? "":"s") in \(PGNImporter.bounded(index.name,scalars:80)) could not be read and \(index.unreadable==1 ? "was":"were") skipped."}
             }catch{
                 guard importToken===token else{return};importing=nil;importToken=nil
                 if case CheckmateError.cancelled=error{return};if Task.isCancelled{return}
@@ -196,6 +244,21 @@ enum LibraryListItem {
             defer{removing.remove(sha)}
             do{try await Task.detached{try store.remove(sha)}.value;collectionsGeneration+=1;collections.removeAll{$0.sha256==sha};broken.removeAll{$0.id==sha};rebuild()}
             catch{model?.storageError=userFacingMessage(error,fallback:"The collection could not be removed. Try again.")}
+        }
+    }
+    /// "Rename…" on a collection's header (R-21): the name is kept in the collection's name file.
+    func requestRename(_ sha:String){
+        guard let current=collection(sha) else{return}
+        NSAlert.askName("Rename Collection",current:current.name,identifier:"collection-rename-field"){[weak self] name in self?.rename(sha,to:name)}
+    }
+    func rename(_ sha:String,to name:String){
+        let store=store
+        Task{
+            do{
+                try await Task.detached{try store.rename(sha,to:name)}.value
+                let found=try await Task.detached{try store.load()}.value
+                collectionsGeneration+=1;collections=found.collections;broken=found.broken;rebuild()
+            }catch{model?.storageError=userFacingMessage(error,fallback:"The collection could not be renamed. Try again.")}
         }
     }
     func collection(_ sha:String)->CollectionIndex? {collections.first{$0.sha256==sha}}

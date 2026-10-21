@@ -256,24 +256,89 @@ public final class ReviewImportCancellation:@unchecked Sendable {
 }
 public enum PGNExporter {
     public static func original(_ document:GameDocument)->Data {document.original}
-    /// Keep the imported record byte-for-byte, then append clearly identified idea games.
-    /// Each idea includes the original preceding history and starts from the original FEN.
-    public static func withIdeas(_ document:GameDocument,branches:[ReviewBranch])throws -> Data {
-        guard branches.count<=ReviewPolicy.maximumBranches else{throw CheckmateError.invalid("Too many idea games.")}
-        var records:[Data]=document.historyAvailable ? [document.original]:[]
-        if !document.historyAvailable{let rules=try ChessRules(fen:document.startingFEN);records.append(Data(terminated(rules.pgn).utf8))}
+    /// The comment that opens each imagined line in an export.
+    public static let imaginedMarker="Imagined line"
+    private static let standardStart="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+    /// One move of the exported tree: the game's own moves, then the imagined lines merged in.
+    private struct Move {var parent:Int?,san:String?,uci:String?,before:[String],after:[String],nags:[Int],children:[Int],side:String,fullmove:Int,imagined:Bool}
+    /// The game as one PGN record (R-13): its tags, moves, own variations, comments and glyphs; each imagined line as a
+    /// variation from where it leaves the game (a line from the game's last move varies that move), opened by
+    /// `imaginedMarker`; the engine's evaluation of each move, when given, as a `[%eval]` comment (White's view, in
+    /// pawns, or `#n` for mate); and a move's grade as its glyph where the record gives it none.
+    public static func withIdeas(_ document:GameDocument,branches:[ReviewBranch],evaluations:[Int:AnalysisScore]=[:],grades:[Int:MoveGrade]=[:])throws -> Data {
+        guard branches.count<=ReviewPolicy.maximumBranches else{throw CheckmateError.invalid("Too many imagined lines.")}
+        var moves=document.nodes.map{node in
+            let fields=node.beforeFEN.split(separator:" ")
+            var after=node.commentsAfter,nags=node.nags
+            if node.parent != nil,let score=evaluations[node.id],!after.contains(where:{$0.contains("[%eval")}){after.append("[%eval \(score.kind=="mate" ? "#\(score.value)":String(format:"%.2f",Double(score.value)/100))]")}
+            if node.parent != nil,let grade=grades[node.id],!nags.contains(where:{(1...6).contains($0)}){nags.insert(gradeNAGs[grade]!,at:0)}
+            return Move(parent:node.parent,san:node.san,uci:node.uci,before:node.commentsBefore,after:after,nags:nags,children:node.children,side:fields.count>1 ? String(fields[1]):node.side,fullmove:fields.count>5 ? Int(fields[5]) ?? node.fullmove:node.fullmove,imagined:false)
+        }
         var seen:Set<UUID>=[]
         for branch in branches where !branch.moves.isEmpty && seen.insert(branch.id).inserted {
-            guard branch.moves.count<=ReviewPolicy.maximumBranchPlies else{throw CheckmateError.invalid("Idea game exceeds the move limit.")}
-            let rules=try document.rules(at:branch.root)
-            for move in branch.moves{try rules.move(uci:move)}
-            var pgn=rules.pgn
-            pgn=pgn.replacingOccurrences(of:"[Event \"?\"]",with:"[Event \"Checkmate imagined line\"]")
-            if !pgn.contains("[Event "){pgn="[Event \"Checkmate imagined line\"]\n"+pgn}
-            records.append(Data(terminated(pgn).utf8))
+            guard branch.moves.count<=ReviewPolicy.maximumBranchPlies else{throw CheckmateError.invalid("An imagined line exceeds the move limit.")}
+            var rules=try document.rules(at:branch.root),cursor=branch.root,marked=false
+            func add(_ record:MoveRecord,to parent:Int){
+                let fields=record.before.split(separator:" ")
+                moves.append(Move(parent:parent,san:record.san,uci:record.from+record.to+(record.promotion ?? ""),before:marked ? []:[imaginedMarker],after:[],nags:[],children:[],side:String(fields[1]),fullmove:Int(fields[5]) ?? 1,imagined:true))
+                moves[parent].children.append(moves.count-1);marked=true
+            }
+            // A line from a move nothing follows varies that move: it repeats it, then goes on.
+            if moves[cursor].children.isEmpty,let parent=moves[cursor].parent {
+                let uci=moves[cursor].uci
+                if let twin=moves[parent].children.dropFirst().first(where:{moves[$0].imagined && moves[$0].uci==uci}){cursor=twin}
+                else{rules=try document.rules(at:parent);add(try rules.move(uci:uci ?? ""),to:parent);cursor=moves.count-1}
+            }
+            for uci in branch.moves {
+                let record=try rules.move(uci:uci)
+                if let same=moves[cursor].children.first(where:{moves[$0].uci==uci}){cursor=same}else{add(record,to:cursor);cursor=moves.count-1}
+            }
         }
-        var data=Data();for record in records{if !data.isEmpty{data.append(Data("\n\n".utf8))};data.append(record)};return data
+        var tokens:[String]=[]
+        func comment(_ text:String){tokens.append("{"+String(String.UnicodeScalarView(text.unicodeScalars.map{$0=="}" ? ")":$0}))+"}")}
+        func emit(_ id:Int,force:Bool){
+            let move=moves[id];move.before.forEach(comment)
+            if move.side=="w"{tokens.append("\(move.fullmove).")}else if force || !move.before.isEmpty{tokens.append("\(move.fullmove)...")}
+            let quality=move.nags.firstIndex{(1...6).contains($0)}
+            tokens.append((move.san ?? "")+(quality.map{glyphs[move.nags[$0]]!} ?? ""))
+            for (offset,nag) in move.nags.enumerated() where offset != quality{tokens.append("$\(nag)")}
+            move.after.forEach(comment)
+        }
+        func line(_ parent:Int,force start:Bool){
+            var cursor=parent,force=start
+            while let first=moves[cursor].children.first {
+                emit(first,force:force);force = !moves[first].after.isEmpty
+                for alternative in moves[cursor].children.dropFirst(){tokens.append("(");emit(alternative,force:true);line(alternative,force:!moves[alternative].after.isEmpty);tokens.append(")");force=true}
+                cursor=first
+            }
+        }
+        moves[0].before.forEach(comment);moves[0].after.forEach(comment);line(0,force:true);tokens.append(document.result)
+        var text=tags(document).map{"[\($0.name) \"\(escaped($0.value))\"]"}.joined(separator:"\n")+"\n\n",column=0
+        for token in tokens {
+            let joined=token==")" || text.hasSuffix("(") || column==0
+            if !joined && column+1+token.count>79{text+="\n";column=0}else if !joined{text+=" ";column+=1}
+            text+=token;column+=token.count
+        }
+        return Data((text+"\n").utf8)
     }
-    /// chess.js already ends its PGN with a result; a second one would read back as an extra empty game.
-    private static func terminated(_ pgn:String)->String {["*","1-0","0-1","1/2-1/2"].contains(pgn.split(whereSeparator:{$0.isWhitespace}).last.map(String.init) ?? "") ? pgn:pgn+"\n*"}
+    private static let glyphs=[1:"!",2:"?",3:"!!",4:"??",5:"!?",6:"?!"],gradeNAGs:[MoveGrade:Int]=[.inaccuracy:6,.mistake:2,.blunder:4]
+    /// The Seven Tag Roster first (unknown ones as "?"), the record's other tags in their order, and the start position
+    /// when it is not the usual one.
+    private static func tags(_ document:GameDocument)->[PGNHeader] {
+        let roster=["Event","Site","Date","Round","White","Black"]
+        var result=roster.map{name in PGNHeader(name,document.header(name) ?? (name=="Date" ? "????.??.??":"?"))}+[PGNHeader("Result",document.result)]
+        result+=document.headers.filter{!roster.contains($0.name) && !["Result","SetUp","FEN"].contains($0.name)}
+        if document.startingFEN != standardStart{result+=[PGNHeader("SetUp","1"),PGNHeader("FEN",document.startingFEN)]}
+        return result
+    }
+    private static func escaped(_ value:String)->String {
+        String(String.UnicodeScalarView(value.unicodeScalars.map{CharacterSet.controlCharacters.contains($0) ? " ":$0})).replacingOccurrences(of:"\\",with:"\\\\").replacingOccurrences(of:"\"",with:"\\\"")
+    }
+    /// The export's file name: the review's title with the characters a file name cannot hold replaced, never hidden,
+    /// at most 80 characters, else "review".
+    public static func fileName(_ title:String,pgn:Bool)->String {
+        let spaced=String(String.UnicodeScalarView(title.unicodeScalars.compactMap{CharacterSet.controlCharacters.contains($0) ? nil:"/\\:".unicodeScalars.contains($0) ? "-":$0}))
+        let trimmed=String(spaced.trimmingCharacters(in:CharacterSet.whitespacesAndNewlines.union(CharacterSet(charactersIn:".-"))).prefix(80)).trimmingCharacters(in:.whitespaces)
+        return (trimmed.isEmpty ? "review":trimmed)+(pgn ? ".pgn":".fen")
+    }
 }

@@ -7,6 +7,18 @@ enum SidebarSelection {
         if let visit=activity.review{guard let document=visit.document else{return "review"};return saved.contains(document) ? "review:"+document.uuidString:"review:draft"}
         switch activity.place {case .practice:return "practice";case .puzzleLibrary,.puzzle:return "puzzles";case .lesson:return "lesson:\(lessonIndex)";case .miniGame(let index,_,_):return index==nil ? "training":"lesson:\(lessonIndex)";case .trainingLibrary,.training:return "training";case .network:return "network"}
     }
+    /// How many saved reviews the sidebar lists.
+    static let recentLimit=8
+    /// The most recent saved reviews, plus the one open when it is older, so the open review's row is always there.
+    static func recentReviews(_ reviews:[ReviewIndexEntry],open:UUID?)->[ReviewIndexEntry] {
+        let recent=Array(reviews.prefix(recentLimit))
+        guard let open,!recent.contains(where:{$0.id==open}),let entry=reviews.first(where:{$0.id==open}) else{return recent}
+        return recent+[entry]
+    }
+    /// Each mini-game whose lesson is in the course, in the course's order, with that lesson.
+    static func miniGames(_ library:CourseLibrary)->[(kind:MiniGameKind,lesson:Int)] {
+        library.lessons.indices.flatMap{index in MiniGameKind.available(lessonID:library.lessons[index].id).map{(kind:$0,lesson:index)}}
+    }
     /// "Network game · your move" under Play on Network while the learner is elsewhere, Review included (LAN-play D9).
     @MainActor static func networkBadge(_ activity:Activity,_ network:NetworkGameController)->String? {activity == .at(.network) ? nil:network.badge}
 }
@@ -25,6 +37,8 @@ struct SidebarContent:View {
         guard let value=value else{return}
         if value=="review:draft" {return}
         if value=="review" {model.showReviewWorkspace()}
+        else if value=="reviews:all" {model.showReviewWorkspace();model.library.query="";model.library.scope = .saved}
+        else if value.hasPrefix("mini:"),let kind=MiniGameKind(rawValue:String(value.dropFirst(5))) {model.playMiniGame(kind)}
         else if value.hasPrefix("review:"),let id=UUID(uuidString:String(value.dropFirst(7))) {model.openSavedReview(id)}
         else if value=="practice" {model.practice()}
         else if value=="puzzles" {model.puzzles()}
@@ -43,9 +57,18 @@ struct SidebarContent:View {
             Label("Review game",systemImage:"doc.text.magnifyingglass").tag("review")
             if model.review.active,let document=model.review.document,!model.reviews.contains(where:{$0.id==document.id}){Label("Unsaved review",systemImage:"doc.badge.ellipsis").tag("review:draft")}
         }
+        // The most recent saved reviews (and the one open, if older); the library's Saved scope lists, searches and
+        // sorts them all (R-11).
         if !model.reviews.isEmpty {
-            Section("Saved reviews"){ForEach(model.reviews){record in Label(record.title=="?" ? "Untitled game":record.title,systemImage:"doc.text").tag("review:"+record.id.uuidString)
-                .contextMenu{Button("Delete Saved Review…",role:.destructive){model.requestDeleteReview(record.id)}.disabled(model.deletingReviewID != nil)}}}
+            Section("Saved reviews"){
+                ForEach(SidebarSelection.recentReviews(model.reviews,open:model.review.document?.id)){record in Label(record.title=="?" ? "Untitled game":record.title,systemImage:"doc.text").tag("review:"+record.id.uuidString)
+                    .contextMenu{Button("Rename…"){model.requestRenameReview(record.id)};Button("Delete Saved Review…",role:.destructive){model.requestDeleteReview(record.id)}.disabled(model.deletingReviewID != nil)}}
+                if model.reviews.count>SidebarSelection.recentLimit{Label("All Saved Reviews (\(model.reviews.count))",systemImage:"list.bullet").tag("reviews:all").accessibilityIdentifier("sidebar-all-saved-reviews")}
+            }
+        }
+        // The mini-games, otherwise reached only inside their lessons (L-33). Each opens from its lesson, as there.
+        Section("Mini-games"){
+            ForEach(SidebarSelection.miniGames(learning.library),id:\.kind){entry in Label(entry.kind.title,systemImage:"gamecontroller.fill").tag("mini:"+entry.kind.rawValue).selectionDisabled(participating).help(participating ? FairnessPolicy.destinationUnavailable:"")}
         }
         // A practice activity sits indented under its lesson, off the main path but one click away. The icon is the
         // row's kind; how far the learner has taken it (explored, practised, mastered) is a trailing badge VoiceOver reads.
@@ -75,12 +98,7 @@ struct DetailContent:View {
     @MainActor static func attempt(_ session:GameSession,_ action:() throws -> Void){do{try action()}catch{session.report(GameWindow.failureMessage(error))}}
     @State private var lessonGoalsShown=false
     var body:some View {ScrollView {VStack(alignment:.leading,spacing:Metrics.sectionGap) {
-        if model.reviewWorkspace {
-            Text("PGN game records").font(.headline)
-            Text("Open a finished or unfinished game, including its recorded moves and variations.")
-            Text("FEN positions").font(.headline)
-            Text("Explore a single board position. Earlier moves and repetition history are not included.").foregroundStyle(.secondary)
-        } else if model.review.active{ReviewDetailContent(review:model.review,model:model)}else {
+        if model.reviewWorkspace {WorkspaceInspector(library:model.library,theme:session.state.settings.boardTheme)} else if model.review.active{ReviewDetailContent(review:model.review,model:model)}else {
         if let label=relationships.selectedLabel{RelationshipContent(relationships:relationships,label:label,inspect:inspect);Divider()}
         if session.mode == .network {NetworkDetail(model:model,game:model.network,assistant:model.networkAssistant,voice:voice)}
         else if session.mode == .practice {practiceDetail}
