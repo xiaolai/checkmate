@@ -19,6 +19,8 @@ state = pathlib.Path(tempfile.mkdtemp(prefix="checkmate-sidebar-state-"))
 atexit.register(shutil.rmtree, state, ignore_errors=True)
 helper = evidence / "sidebar-ax-helper"
 subprocess.run(["xcrun", "swiftc", str(root / "Tools/ax-helper.swift"), "-o", str(helper)], check=True)
+pointer_helper = evidence / "sidebar-pointer-helper"
+subprocess.run(["xcrun", "swiftc", str(root / "Tools/pointer-helper.swift"), "-o", str(pointer_helper)], check=True)
 command = [str(root / "build/CheckmateAutomation.app/Contents/MacOS/CheckmateNative"),
            "--automation", "--data-dir", str(state)]
 # Silence comes from --automation, not the environment flag that used to unlock review.
@@ -30,6 +32,11 @@ process = None
 
 def act(action, target=""):
     return subprocess.check_output([str(helper), str(process.pid), action, target], text=True)
+
+
+def key(action, *arguments):
+    """Real key events, as a person presses them; accessibility press would bypass the alert's key handling."""
+    return subprocess.check_output([str(pointer_helper), str(process.pid), action, *arguments], text=True)
 
 
 def wait(predicate):
@@ -138,9 +145,33 @@ try:
     assert not (state / "Reviews" / removed_name).exists()
     assert all(review_files()[name] == data for name, data in before.items() if name != removed_name)
     assert not (state / "companion/connection.json").exists()
+
+    # The keyboard on a delete confirmation: Return and Escape both cancel, only a click on Delete deletes, and
+    # ⌘Z right after puts the review back.
+    act("select", "Review game")
+    wait(lambda: "AXButton: Review Current Game" in act("list"))
+    act("press", "Review Current Game")
+    wait(lambda: "AXButton: Save Review" in act("list"))
+    act("press", "Save Review")
+    wait(lambda: len(review_files()) == len(before))
+    kept = review_files()
+    for answer in ("escape", "return"):
+        act("press", "review-document-actions")
+        act("press", "Delete Saved Review…")
+        wait(lambda: "AXButton: Delete" in act("list"))
+        key(answer)
+        wait(lambda: "AXButton: Delete" not in act("list"))
+        assert review_files() == kept, f"{answer} on the delete confirmation deleted the review"
+    act("press", "review-document-actions")
+    act("press", "Delete Saved Review…")
+    wait(lambda: "AXButton: Delete" in act("list"))
+    act("press", "Delete")
+    wait(lambda: len(review_files()) == len(kept) - 1)
+    key("shortcut", "6", "c")
+    wait(lambda: review_files().keys() == kept.keys())
     quit_app()
     result = {"passed": True, "reviewNavigation": True, "returnToPractice": True,
-              "workspaceActionsVisible": True, "explicitSave": True, "navigationCreatesNoRecord": True, "emptyReviewsHidden": True, "deleteCancel": True,
+              "workspaceActionsVisible": True, "explicitSave": True, "navigationCreatesNoRecord": True, "emptyReviewsHidden": True, "deleteCancel": True, "keyboardCancels": True, "undoRestores": True,
               "deletePersistsAcrossRestart": True, "otherReviewsPreserved": True, "ordinaryReviewDefaults": True, "silent": True}
     (evidence / "sidebar-results.json").write_text(json.dumps(result, indent=2))
     print(json.dumps(result))

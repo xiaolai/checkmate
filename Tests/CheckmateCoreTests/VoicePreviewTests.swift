@@ -17,9 +17,15 @@ import CheckmateCore
         XCTAssertEqual(response["conversation"] as? String,"none");XCTAssertEqual(response["tool_choice"] as? String,"none");XCTAssertTrue((response["instructions"] as? String ?? "").contains("Spanish"))
     }
     func testAutomationNeverPreviews() {
-        let preview=VoicePreview();var blockedAsked=false;preview.blocked={blockedAsked=true;return nil}
+        let preview=VoicePreview();var blockedAsked=false;preview.blocked={blockedAsked=true;return nil};preview.consented={true}
         preview.play(voice:"marin",language:"English",model:"gpt-realtime-2.1",volume:1)
         XCTAssertFalse(preview.playing);XCTAssertFalse(blockedAsked);XCTAssertEqual(preview.status,"Live voice previews are disabled during automation.")
+    }
+    /// V-1: a preview opens an OpenAI session, so it plays only after the learner has agreed; without being told, it never does.
+    func testNoPreviewWithoutConsent() {
+        let preview=VoicePreview()
+        preview.play(voice:"marin",language:"English",model:"gpt-realtime-2.1",volume:1)
+        XCTAssertFalse(preview.playing);XCTAssertEqual(preview.status,VoiceUnavailability.consentNeeded.message)
     }
     func testAListeningCoachPausesForAPreview() {
         XCTAssertTrue(VoiceCoach.listens(ready:true,idle:true,externalPlayback:false,microphoneOn:true,capturing:true,silent:false))

@@ -95,6 +95,10 @@ import RealtimeConnection
             lessonLanguages=try LessonLanguageController(library:learning.library,directory:store.directory,usage:usage)
         }
         lessonLanguages.language=state.settings.lessonLanguage;lessonLanguages.voice=state.settings.lessonVoice
+        // A deleted review keeps its engine analysis while it waits in the Trash (so Undo brings both back); the analysis
+        // goes when the Trash lets the review go. A failure only leaves files for LRU eviction.
+        // A review Undo offers to put back that the Trash let go (to make room) can no longer come back: Undo stops offering it.
+        reviewStore.onPurge={[weak self] id in Task{@MainActor in if self?.undoableDeletion?.id==id{self?.undoableDeletion=nil};do{try await self?.reviewAnalyzer.forgetAnalysis(documentID:id)}catch{NativeLog.storage.error("A purged review's analysis could not be removed: \(String(describing:error),privacy:.public)")}}}
         wireLessonLanguages();wireAgentTools();wirePersistence();wireSounds();loadSavedReviews();observeSession()
         // Views that hide engine output during a network game redraw when it begins or ends; a practice coach that
         // waited out the game (D8) reconnects once it ends, if Practice is on screen then.
@@ -121,7 +125,7 @@ import RealtimeConnection
         learning.packs=lessonLanguages.store;voice.usageLedger=usage;voice.network=(network,networkAssistant);voice.training=trainingVoice;voice.connectionBlocked={[weak self] in self?.lessonLanguages.recording==true || self?.audio.isNarrationPlaying==true || self?.voicePreview.playing==true}
         voice.connectionBlockReason={[weak self] in self?.lessonLanguages.recording==true ? .lessonRecording:self?.voicePreview.playing==true ? .previewPlaying:.narrationPlaying}
         reconnectVoice={[weak self] in self?.voice.connect(greet:false)}
-        voicePreview.usageLedger=usage;voicePreview.onPlayingChanged={[weak self] playing in self?.voice.externalPlayback=playing}
+        voicePreview.usageLedger=usage;voicePreview.consented={[weak self] in self?.session.state.settings.voiceConsent==true};voicePreview.onPlayingChanged={[weak self] playing in self?.voice.externalPlayback=playing}
         // Whatever else plays waits for its turn: a preview blocks connecting, and lesson playback ends a preview.
         lessonLanguages.objectWillChange.sink{[weak self] in DispatchQueue.main.async{self?.resumeVoiceIfIntended()}}.store(in:&observations)
         learning.$playing.filter{$0}.sink{[weak self] _ in self?.voicePreview.cancel()}.store(in:&observations)
@@ -139,7 +143,7 @@ import RealtimeConnection
         session.reviewController=review;voice.attachReview(review);voice.attachMiniReview(learning.miniReview)
         let reviewTools=ReviewTools(review:review,session:session,store:reviewStore,analyzer:reviewAnalyzer);reviewTools.onOpen={[weak self] document,saved in self?.openReview(document,saved:saved,stillWanted:{!Task.isCancelled}) ?? false};reviewTools.onPractice={[weak self] in self?.practiceFromReview()};companion.tools.reviewTools=reviewTools;self.reviewTools=reviewTools
         reviewTools.activityGeneration={[weak self] in self?.reviewOpenGeneration ?? -1}
-        if let training{let tools=TrainingTools(session:session,controller:training);tools.onStart={[weak self] entry,resume in guard let self else{return false};let kind=training.catalog?.entry(entry)?.legacyKind;let next:Navigation=resume ? .trainingResume:kind.map{.trainingLegacy($0,restart:false)} ?? .trainingExercise(entry:entry);return (try? self.transition(next)) ?? false};companion.tools.trainingTools=tools}
+        if let training{let tools=TrainingTools(session:session,controller:training);tools.onStart={[weak self] entry,resume in guard let self else{return false};let kind=training.catalog?.entry(entry)?.legacyKind;let next:Navigation=resume ? .trainingResume:kind.map{.trainingLegacy($0,restart:false)} ?? .trainingExercise(entry:entry);return self.navigate(next)};companion.tools.trainingTools=tools}
         companion.tools.reviewOpenAllowed={[weak self] in guard let self else{return false};return self.reviewWorkspace || self.review.active}
     }
     /// Progress saves debounced off every change, and the open review saves on each of its events.
@@ -166,6 +170,10 @@ import RealtimeConnection
     }
     /// Views observe this model: forward training, activity, resume-gate and settings changes.
     private func observeSession(){
+        // Anything else Undo owns drops a pending deletion's Undo as it happens, so coming back to the same board
+        // cannot revive it. Published before the change: compare on the next main-loop turn.
+        let changes:[AnyPublisher<Void,Never>]=[session.objectWillChange.map{_ in}.eraseToAnyPublisher(),review.objectWillChange.map{_ in}.eraseToAnyPublisher(),learning.objectWillChange.map{_ in}.eraseToAnyPublisher()]+(training.map{[$0.objectWillChange.map{_ in}.eraseToAnyPublisher()]} ?? [])
+        Publishers.MergeMany(changes).sink{[weak self] in guard self?.undoableDeletion != nil else{return};DispatchQueue.main.async{_ = self?.undoAction}}.store(in:&observations)
         training?.objectWillChange.sink{[weak self] _ in self?.objectWillChange.send()}.store(in:&observations)
         // The workspace and draft flags read the session's activity; views observing this model follow it.
         session.$activity.removeDuplicates().dropFirst().sink{[weak self] _ in self?.objectWillChange.send()}.store(in:&observations)
@@ -208,11 +216,23 @@ import RealtimeConnection
     func connectPracticeVoice(){connectVoiceWithConsent{[weak self] in guard let self else{return};if session.mode == .training{voice.connectTraining()}else{voice.connect()}}}
     /// Settings ▸ Voice Coach's Connect, and a review's Connect Voice.
     func connectVoiceFromSettings(){connectVoiceWithConsent{[weak self] in self?.voice.connect()}}
+    /// A finished mini-game review's Read Aloud (D5), with the sign-in check it may need, Check availability and Preview
+    /// voice reach OpenAI too, so they ask the same question first.
+    func readMiniReviewAloud(){connectVoiceWithConsent{[weak self] in self?.voice.readMiniReviewAloudAfterSignIn()}}
+    func checkVoiceAvailability(){connectVoiceWithConsent{[weak self] in self?.voice.checkAvailability()}}
+    /// The selected voice is heard in its own preview session, never through the coach's conversation; a second press stops it.
+    func previewVoice(){
+        if voicePreview.playing{voicePreview.cancel();return}
+        connectVoiceWithConsent{[weak self] in
+            guard let self else{return};let settings=session.state.settings
+            voicePreview.play(voice:settings.coachVoice,language:AppSettings.languages[settings.voiceLanguage] ?? "English",model:voice.selectedModel.isEmpty ? VoiceSessionConfiguration.model:voice.selectedModel,volume:settings.voiceVolume)
+        }
+    }
     /// Asks the learner, with the saved launch choice as the checkbox's start, whether to connect voice (V-1). Tests
     /// answer instead; the app shows `VoiceConsent`'s sheet.
     var askVoiceConsent:(_ autoConnect:Bool,_ reply:@escaping (VoiceConsentAnswer)->Void)->Void={autoConnect,reply in VoiceConsent.ask(autoConnect:autoConnect,reply:reply)}
     private var askingVoiceConsent=false
-    /// Every Connect the learner presses passes here. Until they have agreed once to what voice sends to OpenAI, the
+    /// Every Connect the learner presses, and every other press that reaches OpenAI, passes here. Until they have agreed once to what voice sends to OpenAI, the
     /// question comes first; Connect saves the agreement (and the launch choice) before connecting, Cancel changes
     /// nothing. Automatic connections never ask: they never run without the saved agreement.
     func connectVoiceWithConsent(_ connect:@escaping ()->Void){
@@ -307,9 +327,8 @@ import RealtimeConnection
     func mayQuitDuringLessonJob()->Bool {
         guard lessonLanguages.busy else{return true}
         if let confirm=confirmQuitDuringLessonJob{return confirm()};if NativePolicy.silent{return true}
-        let alert=NSAlert();alert.messageText="Stop the lesson job and quit?";alert.informativeText="A lesson \(lessonLanguages.recording ? "recording":"translation") is running. Completed text and clips are kept; the item in progress, already charged, is lost. Record / Resume continues later."
-        alert.addButton(withTitle:"Keep Working");let quit=alert.addButton(withTitle:"Quit Anyway");quit.hasDestructiveAction=true
-        return alert.runModal() == .alertSecondButtonReturn
+        let alert=NSAlert.destructive("Stop the lesson job and quit?","A lesson \(lessonLanguages.recording ? "recording":"translation") is running. Completed text and clips are kept; the item in progress, already charged, is lost. Record / Resume continues later.",action:"Quit Anyway",cancel:"Keep Working")
+        return alert.runModal() == .alertFirstButtonReturn
     }
     /// Saves progress and every review before quitting; returns false when the learner chose to stay. A "Don't Save"
     /// given to a draft for this quit is spent when the quit is cancelled.
@@ -323,10 +342,8 @@ import RealtimeConnection
     private func mayQuitAfterSavingReviews()->Bool {
         saveReview(immediate:true);let unsaved=pendingReviewSnapshots.count;guard unsaved>0 else{return true}
         if let confirm=confirmQuitWithUnsavedReviews{return confirm(unsaved)};if NativePolicy.silent && !Self.quitAlertFixture{return true}
-        let alert=NSAlert();alert.messageText=unsaved==1 ? "A review could not be saved.":"\(unsaved) reviews could not be saved."
-        alert.informativeText=(reviewSaveWarning ?? "Its latest imagined lines are only in memory.")+" Cancel to keep working, or quit without them."
-        alert.addButton(withTitle:"Cancel");let quit=alert.addButton(withTitle:"Quit Anyway");quit.hasDestructiveAction=true
-        return alert.runModal() == .alertSecondButtonReturn
+        let alert=NSAlert.destructive(unsaved==1 ? "A review could not be saved.":"\(unsaved) reviews could not be saved.",(reviewSaveWarning ?? "Its latest imagined lines are only in memory.")+" Cancel to keep working, or quit without them.",action:"Quit Anyway")
+        return alert.runModal() == .alertFirstButtonReturn
     }
     /// Saves before quitting. A failure offers Export Progress… (the in-memory state) instead of losing the last
     /// moves silently; returns false when the learner chose to stay.
@@ -334,14 +351,12 @@ import RealtimeConnection
         saveTask?.cancel()
         do{try store.save(session.state);return true}catch{
             if NativePolicy.silent{return true}
-            let alert=NSAlert();alert.messageText="Your latest progress could not be saved."
-            alert.informativeText=userFacingMessage(error,fallback:"The data folder may be full or read-only.")+" Export it to keep it, or quit without it."
-            alert.addButton(withTitle:"Export Progress…");alert.addButton(withTitle:"Cancel");let quit=alert.addButton(withTitle:"Quit Anyway");quit.hasDestructiveAction=true
+            let alert=NSAlert.destructive("Your latest progress could not be saved.",userFacingMessage(error,fallback:"The data folder may be full or read-only.")+" Export it to keep it, or quit without it.",action:"Quit Anyway",alternative:"Export Progress…")
             switch alert.runModal(){
-            case .alertFirstButtonReturn:
+            case .alertThirdButtonReturn:
                 let panel=NSSavePanel();panel.nameFieldStringValue="checkmate-state.json";guard panel.runModal() == .OK,let url=panel.url else{return false}
                 do{try store.exportState(session.state,to:url);return true}catch{storageError=userFacingMessage(error,fallback:"The export could not be written. Choose another location.");return false}
-            case .alertThirdButtonReturn:return true
+            case .alertFirstButtonReturn:return true
             default:return false
             }
         }
@@ -372,10 +387,8 @@ import RealtimeConnection
     }
     private func askLearnerAboutDraft(_ ideas:Int)->DraftDisposal {
         if NativePolicy.silent{return .discard}
-        let alert=NSAlert();alert.messageText="Save this review before leaving?"
-        alert.informativeText="It holds \(ideas) imagined line\(ideas==1 ? "":"s") of yours that will be lost if you don’t save."
-        alert.addButton(withTitle:"Save");let discard=alert.addButton(withTitle:"Don’t Save");discard.hasDestructiveAction=true;alert.addButton(withTitle:"Cancel")
-        switch alert.runModal(){case .alertFirstButtonReturn:return .save;case .alertSecondButtonReturn:return .discard;default:return .cancel}
+        let alert=NSAlert.saveChanges("Save this review before leaving?","It holds \(ideas) imagined line\(ideas==1 ? "":"s") of yours that will be lost if you don’t save.")
+        switch alert.runModal(){case .alertFirstButtonReturn:return .save;case .alertThirdButtonReturn:return .discard;default:return .cancel}
     }
     /// Saves the open draft; on failure it stays a draft (Save stays available) and is not retried in the background.
     @discardableResult private func saveDraft()->Bool {
@@ -604,8 +617,8 @@ import RealtimeConnection
     func requestDeleteReview(_ id:UUID){
         guard deletingReviewID==nil,let record=reviews.first(where:{$0.id==id}) else{return}
         let alert=NSAlert.destructive("Delete “\(record.title)”?","This removes the saved review and its imagined lines; Edit ▸ Undo puts them back. Your current game and the original imported file are kept.",action:"Delete")
-        if let window=NSApp.mainWindow{alert.beginSheetModal(for:window){[weak self] response in if response == .alertFirstButtonReturn{self?.deleteReview(id,undo:window.undoManager)}}}
-        else if alert.runModal() == .alertFirstButtonReturn{deleteReview(id,undo:NSApp.mainWindow?.undoManager)}
+        if let window=NSApp.mainWindow{alert.beginSheetModal(for:window){[weak self] response in if response == .alertFirstButtonReturn{self?.deleteReview(id)}}}
+        else if alert.runModal() == .alertFirstButtonReturn{deleteReview(id)}
     }
     /// Restart from the drawer, the bar or the menu. Past the first exchange it asks first, with Cancel the default; a
     /// confirmation answered after the attempt was replaced (left, restarted, reloaded) does nothing.
@@ -616,8 +629,45 @@ import RealtimeConnection
         let answered:(NSApplication.ModalResponse)->Void={[weak self] response in guard response == .alertFirstButtonReturn,let self,self.learning.attempt.record?.id==shown else{return};self.learning.attempt.restart()}
         if let window=NSApp.mainWindow{alert.beginSheetModal(for:window,completionHandler:answered)}else{answered(alert.runModal())}
     }
-    /// Deletes a saved review into the library's Trash; with `undo`, Edit ▸ Undo puts it back.
-    func deleteReview(_ id:UUID,undo:UndoManager?=nil){
+    /// What Edit ▸ Undo does now (R-12): the one place its title, enabling and action are decided.
+    enum UndoAction:Equatable {
+        /// Put back the saved review deleted last; nothing Undo owns has happened since.
+        case restoreReview(UUID)
+        /// The game's own: take back, undo turn.
+        case game
+        /// In a review nothing else is undone.
+        case nothing
+    }
+    var undoAction:UndoAction {
+        if let deletion=undoableDeletion{if deletion.context==undoContext{return .restoreReview(deletion.id)};undoableDeletion=nil}
+        return review.active || reviewWorkspace ? .nothing:.game
+    }
+    /// What Undo would act on besides a deletion, as far as the learner made it: only what they do counts, so a reply
+    /// landing after the deletion (Practice's computer, a lesson's, a mini-game's or the training defender) keeps it.
+    struct UndoContext:Equatable {
+        let activity:Activity,game:Int,learnerMoves:Int,review:UUID?,ideas:[ReviewBranch],mini:Mini?,attempt:Attempt?,training:Training?
+        /// A mini-game as the learner's last move left it: against the computer the learner is White, so once its reply
+        /// has landed that is the position before the reply.
+        struct Mini:Equatable {let kind:MiniGameKind,computer:Bool,seed:String?,afterLearner:MiniGameSnapshot}
+        /// A lesson exercise's attempt, counting only the learner's (White's) moves; hints and playing on are theirs too.
+        struct Attempt:Equatable {let id:String,definition:String,learnerMoves:Int,hints:Int,playOn:Bool}
+        /// A training attempt's actions without the defender's or the objective's replies.
+        struct Training:Equatable {let id:String,learnerActions:[TrainingAction],help:Bool}
+    }
+    private var undoContext:UndoContext {
+        let mini=learning.miniGame.map{game in UndoContext.Mini(kind:game.kind,computer:game.computer,seed:game.opponentSeed,afterLearner:game.computer && game.snapshot.turn=="w" ? game.history.last ?? game.snapshot:game.snapshot)}
+        let attempt=learning.attempt.record.map{UndoContext.Attempt(id:$0.id,definition:$0.definition,learnerMoves:learning.attempt.rules.records.filter{$0.color=="w"}.count,hints:$0.hints,playOn:$0.playOn)}
+        let training=(training?.exercise?.snapshot).map{UndoContext.Training(id:$0.id,learnerActions:$0.actions.filter{if case .reply=$0{return false};return true},help:$0.recordedHelp)}
+        return UndoContext(activity:session.activity,game:session.gameGeneration,learnerMoves:session.rules.records.filter{$0.color==session.humanSide}.count,review:review.document?.id,ideas:review.branchesForSaving.sorted{$0.id.uuidString<$1.id.uuidString},mini:mini,attempt:attempt,training:training)
+    }
+    /// The deletion Undo can still put back, with what Undo would otherwise have acted on then; any change to that
+    /// drops it for good (`undoAction`, and the sink in `observeSession`).
+    private var undoableDeletion:(id:UUID,context:UndoContext)?
+    /// Undo's restore: the deleted review comes back, once.
+    func undoDeletion(){guard case .restoreReview(let id)=undoAction else{return};undoableDeletion=nil;restoreDeletedReview(id)}
+    /// Deletes a saved review into the library's Trash; until the learner does anything else Undo owns, Edit ▸ Undo
+    /// puts it back.
+    func deleteReview(_ id:UUID){
         guard deletingReviewID==nil else{return}
         // A saved review still loading is abandoned with its "Loading review…" overlay, never left showing it.
         deletingReviewID=id;reviewLibraryGeneration+=1;reviewOpenGeneration+=1;cancelReviewImport()
@@ -629,10 +679,8 @@ import RealtimeConnection
                 pendingReviewSnapshots[id]=nil;reconcileReviewSaveWarning()
                 if review.document?.id==id{navigate(.returnToGame)}
                 reviews=entries;deletingReviewID=nil
-                undo?.registerUndo(withTarget:self){$0.restoreDeletedReview(id)};undo?.setActionName("Delete Review")
                 if review.active{saveReview()}
-                // The deleted review's engine analysis goes with it; a failure only leaves files for LRU eviction.
-                try? await reviewAnalyzer.forgetAnalysis(documentID:id)
+                undoableDeletion=(id,undoContext)
             } catch {
                 deletingReviewID=nil
                 storageError="The review could not be deleted. Its saved record is preserved; try again."
@@ -640,8 +688,8 @@ import RealtimeConnection
             }
         }
     }
-    /// Undo of `deleteReview`: the record comes back from the Trash into the library list. Its engine analysis was
-    /// forgotten with it and is searched again on request.
+    /// Undo of `deleteReview`: the record comes back from the Trash into the library list, with the engine analysis
+    /// kept while it was there.
     func restoreDeletedReview(_ id:UUID){
         let writer=reviewSaves;reviewLibraryGeneration+=1
         Task {

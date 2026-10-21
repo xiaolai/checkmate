@@ -13,9 +13,9 @@ import CheckmateCore
     struct Fixture {let session:GameSession,player:LearningPlayer,voice:VoiceCoach;var events:[[String:Any]] {box.events};let box:Box}
     final class Box {var events:[[String:Any]]=[]}
     static let fact="Move 1: you had a forced win in 1 move here."
-    func fixture(library:Bool=false,facts:Bool=true)throws->Fixture {
+    func fixture(library:Bool=false,facts:Bool=true,consent:Bool=true)throws->Fixture {
         let session=try GameSession(engine:nil),player=try LearningPlayer(session:session),voice=try VoiceCoach(session:session),box=Box()
-        session.state.settings.pieceDuration=0;session.state.settings.voiceMicrophone=true
+        session.state.settings.pieceDuration=0;session.state.settings.voiceMicrophone=true;session.state.settings.voiceConsent=consent
         session.state.miniGames=[MiniGameKind.rookSweep.rawValue:MiniGameReviewerTests.almostWon()]
         if library{player.startMini(.rookSweep,fromLibrary:true)}else{player.openLesson(index:try XCTUnwrap(player.library.lessons.firstIndex{$0.id=="rook-practice"}));player.startMini(.rookSweep)}
         if !facts{player.miniReview.budget=0}
@@ -51,6 +51,14 @@ import CheckmateCore
             // Read Aloud again starts over from the first fact.
             f.voice.readMiniReviewAloud();XCTAssertEqual(scripts(f).count,2)
         }
+    }
+    /// V-1: a readable review reads nothing, and reaches no provider, until the learner has agreed to what voice sends.
+    func testNothingIsReadWithoutConsent()async throws {
+        let f=try fixture(consent:false);defer{f.voice.disconnect();f.player.shutdown()}
+        try await finish(f);XCTAssertTrue(f.voice.miniReviewReadable)
+        f.voice.readMiniReviewAloud();try await Task.sleep(for:.milliseconds(50))
+        XCTAssertTrue(f.voice.connectRequests.isEmpty);XCTAssertNil(f.voice.miniReviewSession);XCTAssertTrue(f.events.isEmpty,"nothing is sent")
+        XCTAssertEqual(f.voice.miniReviewProblem,VoiceUnavailability.consentNeeded.message,"the sheet says why")
     }
     func testInventedTextAndToolsAreRefused()async throws {
         let f=try fixture();defer{f.voice.disconnect();f.player.shutdown()}

@@ -20,6 +20,16 @@ import CheckmateCore
         XCTAssertEqual(model.storageError,"That lesson is not available.","the failed entry is said, not swallowed")
         XCTAssertEqual(model.session.activity.place,place,"nothing changed")
     }
+    /// A thrown transition is never turned into a bare `false`: every caller goes through `navigate`, which says why.
+    func testNoTransitionFailureIsSwallowed()throws {
+        let sources=URL(fileURLWithPath:#filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("Sources")
+        let files=try XCTUnwrap(FileManager.default.enumerator(at:sources,includingPropertiesForKeys:nil)).compactMap{$0 as? URL}.filter{$0.pathExtension=="swift"}
+        XCTAssertFalse(files.isEmpty)
+        for file in files {
+            let text=try String(contentsOf:file,encoding:.utf8)
+            XCTAssertNil(text.range(of:#"try\?\s*(self\.)?transition\("#,options:.regularExpression),"\(file.lastPathComponent) drops a transition failure; call navigate")
+        }
+    }
     func testAPracticeActionThatFailsIsSaidInTheDrawer()throws {
         let s=try GameSession(engine:nil)
         try s.playWhite(from:"e2",to:"e4");s.resign();XCTAssertNil(s.error)

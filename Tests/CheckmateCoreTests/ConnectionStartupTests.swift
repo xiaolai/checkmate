@@ -25,16 +25,35 @@ import RealtimeConnection
         XCTAssertFalse(AppSettings(raw: ["voiceAutoConnect": 0, "companionAutoStart": "false"]).voiceAutoConnect, "an invalid value reads as a new setting")
     }
 
-    /// V-1: voice is opt-in. A new install never connects on launch; a learner who had it on keeps the setting.
-    func testVoiceIsOptInForNewInstallsAndKeptForExistingOnes() throws {
+    /// V-1: voice is opt-in. A new install never connects on launch; a learner whose saved settings predate consent and
+    /// had connecting at launch on keeps connecting at launch, not just the stored value.
+    func testVoiceIsOptInForNewInstallsAndKeptForExistingOnes() async throws {
         XCTAssertFalse(AppSettings().voiceAutoConnect); XCTAssertFalse(AppSettings(raw: [:]).voiceAutoConnect)
         XCTAssertFalse(AppSettings().voiceConsent); XCTAssertFalse(AppSettings(raw: [:]).voiceConsent)
-        XCTAssertTrue(AppSettings(raw: ["voiceAutoConnect": true]).voiceAutoConnect, "a stored choice is kept")
-        XCTAssertFalse(AppSettings(raw: ["voiceAutoConnect": true]).voiceConsent, "consent is never inferred from an older setting")
+        // A state file from before consent existed: connecting at launch on, no `voiceConsent`, and a newer field.
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString); defer { try? FileManager.default.removeItem(at: directory) }
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let store = StateStore(directory: directory)
+        var object = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(ApplicationState())) as? [String: Any])
+        var raw = try XCTUnwrap(object["settings"] as? [String: Any]); raw.removeValue(forKey: "voiceConsent"); raw["voiceAutoConnect"] = true; raw["futureSetting"] = "x"
+        object["settings"] = raw; try JSONSerialization.data(withJSONObject: object).write(to: store.url)
+        let legacy = try store.load().settings
+        XCTAssertTrue(legacy.voiceAutoConnect, "a stored choice is kept"); XCTAssertTrue(legacy.voiceConsent, "an existing install with it on keeps its behaviour")
+        XCTAssertFalse(AppSettings(raw: ["voiceAutoConnect": false]).voiceConsent, "an older install that had it off still asks")
+        XCTAssertFalse(AppSettings(raw: ["voiceAutoConnect": true, "voiceConsent": false]).voiceConsent, "a saved answer is never overridden")
+        try store.save(try store.load())
+        let written = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: store.url)) as? [String: Any])["settings"] as? [String: Any]
+        XCTAssertEqual(written?["voiceConsent"] as? Bool, true, "consent is saved under its own key")
+        XCTAssertEqual(written?["futureSetting"] as? String, "x", "an unknown field survives the round trip")
+        for (settings, connects) in [(legacy, true), (AppSettings(), false), (try JSONDecoder().decode(AppSettings.self, from: Data("{}".utf8)), false)] {
+            var checks = 0, voices = 0
+            let startup = ConnectionStartup(settings: { settings }, check: { checks += 1; return "test-session" },
+                connectVoice: { _ in voices += 1 }, startMCP: {}, codexSetUp: { true }, stillCurrent: { true }, silent: false)
+            startup.start(); await settle()
+            XCTAssertEqual(checks, connects ? 1 : 0); XCTAssertEqual(voices, connects ? 1 : 0, "launch behaviour for \(settings.voiceAutoConnect)")
+        }
         let restored = try JSONDecoder().decode(AppSettings.self, from: JSONEncoder().encode(consented()))
         XCTAssertTrue(restored.voiceConsent); XCTAssertTrue(restored.voiceAutoConnect)
-        let written = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(consented())) as? [String: Any])
-        XCTAssertEqual(written["voiceConsent"] as? Bool, true, "consent is saved under its own key")
     }
 
     /// V-1: connecting on launch needs the learner's consent as well as the setting; without it the Codex sign-in is
@@ -129,7 +148,8 @@ import RealtimeConnection
         let startup = ConnectionStartup(settings: { self.consented() }, check: { effects += 1; return "test-session" },
             connectVoice: { _ in effects += 1 }, startMCP: { effects += 1 }, codexSetUp: { true }, stillCurrent: { true }, silent: true)
         startup.start(); await settle(); XCTAssertEqual(effects, 0)
-        let session = try GameSession(engine: nil), voice = try VoiceCoach(session: session)
+        // Agreed, so it is automation that stops the check and the connection, not the missing consent.
+        let session = try GameSession(engine: nil), voice = try VoiceCoach(session: session); session.state.settings.voiceConsent = true
         let authorization = await voice.checkAvailability().value
         XCTAssertNil(authorization)
         voice.connect(authorizedSecret: ClientSecret(bearer: "test-session", expiresAt: Date()))
@@ -141,7 +161,7 @@ import RealtimeConnection
     func testMCPStartsOnLaunchOnlyWhenCodexIsSetUp() async {
         for setUp in [false, true] {
             var mcp = 0
-            let startup = ConnectionStartup<String>(settings: { AppSettings() }, check: { nil }, connectVoice: { _ in },
+            let startup = ConnectionStartup<String>(settings: { AppSettings() }, check: { String?.none }, connectVoice: { _ in },
                 startMCP: { mcp += 1 }, codexSetUp: { setUp }, stillCurrent: { true }, silent: false)
             startup.start(); await settle()
             XCTAssertEqual(mcp, setUp ? 1 : 0)
@@ -155,6 +175,29 @@ import RealtimeConnection
             codexSetUp: { true }, stillCurrent: { true }, silent: false)
         startup.start(); await settle(); startup.start(); await settle()
         XCTAssertEqual(voices, 1); XCTAssertEqual(attempts, 1)
+    }
+
+    /// A launch start of MCP that fails, at once or once its listener is up, leaves the broker's own reason, which
+    /// Settings ▸ Connections shows (`companion.error`); startup only logs it and does not retry.
+    func testAFailedMCPStartOnLaunchIsShownByTheBroker() async throws {
+        let blocked = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try Data().write(to: blocked); defer { try? FileManager.default.removeItem(at: blocked) }
+        // The discovery directory is a file: the listener comes up, then publishing its connection file fails.
+        let session = try GameSession(engine: nil), broker = try CompanionBroker(session: session, directory: blocked)
+        defer { broker.disable() }
+        let startup = ConnectionStartup(settings: { AppSettings() }, check: { String?.none }, connectVoice: { _ in },
+            startMCP: { try broker.enable(role: "coach", standby: true) }, codexSetUp: { true }, stillCurrent: { true }, silent: false)
+        startup.start()
+        for _ in 0..<200 where broker.error == nil { try await Task.sleep(for: .milliseconds(10)) }
+        XCTAssertEqual(broker.error, "Could not publish the private connection file."); XCTAssertFalse(broker.enabled)
+        // A start refused at once (the session is held) is shown the same way.
+        let held = try GameSession(engine: nil), refused = try CompanionBroker(session: held, directory: blocked)
+        defer { refused.disable() }
+        _ = try held.openVoice()
+        let immediate = ConnectionStartup(settings: { AppSettings() }, check: { String?.none }, connectVoice: { _ in },
+            startMCP: { try refused.enable(role: "coach") }, codexSetUp: { true }, stillCurrent: { true }, silent: false)
+        immediate.start(); await settle()
+        XCTAssertEqual(refused.error, "The companion could not start. Check local connectivity and try enabling MCP again."); XCTAssertFalse(refused.enabled)
     }
 }
 

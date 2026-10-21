@@ -237,7 +237,10 @@ try:
     wait(lambda: "training-hint" in listing(), "Hint did not show a hint")
     pointer("drag-square", mate[:2], mate[2:4])
     if len(mate) == 5:
-        pointer("click", {"n": "Knight", "b": "Bishop", "r": "Rook", "q": "Queen"}[mate[4]])
+        # Training promotes through the board's promotion menu, as practice does.
+        piece = {"n": "Knight", "b": "Bishop", "r": "Rook", "q": "Queen"}[mate[4]]
+        wait(lambda: pointer("menu-open", piece) == "true", "The mating promotion did not open the promotion menu")
+        pointer("choose-menu-item", piece)
     wait(lambda: "Solved with recorded help" in listing(), "The hinted mate was not labelled as recorded help")
     # Wait for the hinted solve itself to be saved; only then does a zero no-help count mean anything.
     wait(lambda: summary("mate-in-one").get("assistedCompletions") == 1, "The hinted solve was not saved as recorded help")

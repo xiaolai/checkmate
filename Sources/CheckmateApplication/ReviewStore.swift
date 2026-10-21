@@ -26,6 +26,11 @@ public final class ReviewStore {
     /// A deleted review waits in `Trash/<id>/` this long, so its deletion can be undone, unless the library needs room.
     static let trashRetention:TimeInterval=30*24*3600
     private var trashChecked=false
+    /// Called with each deleted review that leaves the Trash for good (expired or making room), on the thread that
+    /// purged it, so what was kept for its Undo (its engine analysis) goes with it.
+    public var onPurge:((UUID)->Void)?
+    /// Removes a Trash folder for good and names its review.
+    private func purge(_ folder:URL)throws {try FileManager.default.removeItem(at:folder);if let id=UUID(uuidString:folder.lastPathComponent){onPurge?(id)}}
     private var trashURL:URL {directory.appendingPathComponent("Trash")}
     private func trashURL(_ id:UUID)->URL {trashURL.appendingPathComponent(id.uuidString)}
     /// The Trash's folders, oldest deletion first, with their sizes.
@@ -81,7 +86,7 @@ public final class ReviewStore {
         while let file=enumerator?.nextObject() as? URL {if file==documentURL(document.id){continue};if enumerator?.level==1,file.lastPathComponent==trashURL.lastPathComponent{enumerator?.skipDescendants();continue};let values=try file.resourceValues(forKeys:[.isRegularFileKey,.fileSizeKey]);if values.isRegularFile==true{total+=values.fileSize ?? 0}}
         // The Trash counts toward the library, but gives way, oldest deletion first, before a save is refused.
         var trash=try trashed()
-        while total+trash.reduce(0,{$0+$1.bytes})+data.count>ReviewPolicy.maximumLibraryBytes,let oldest=trash.first {try FileManager.default.removeItem(at:oldest.url);trash.removeFirst();NativeLog.storage.info("Removed a deleted review to make room in the library")}
+        while total+trash.reduce(0,{$0+$1.bytes})+data.count>ReviewPolicy.maximumLibraryBytes,let oldest=trash.first {try purge(oldest.url);trash.removeFirst();NativeLog.storage.info("Removed a deleted review to make room in the library")}
         total+=trash.reduce(0){$0+$1.bytes}
         guard total+data.count<=ReviewPolicy.maximumLibraryBytes else{throw CheckmateError.invalid("Review library storage limit reached; export or delete older reviews.")}
         let url=documentURL(document.id);try atomicWriter(data,url);try FileManager.default.setAttributes([.posixPermissions:0o600],ofItemAtPath:url.path)
@@ -131,7 +136,7 @@ public final class ReviewStore {
         // Once per store: reviews deleted more than `trashRetention` ago leave the Trash. A folder that cannot be removed
         // is logged and tried again next launch; it never keeps the library from opening.
         if !trashChecked{trashChecked=true;let cutoff=Date().addingTimeInterval(-Self.trashRetention)
-            do{for folder in try trashed() where folder.deleted<cutoff{try FileManager.default.removeItem(at:folder.url);NativeLog.storage.info("Removed a review deleted over 30 days ago")}}
+            do{for folder in try trashed() where folder.deleted<cutoff{try purge(folder.url);NativeLog.storage.info("Removed a review deleted over 30 days ago")}}
             catch{NativeLog.storage.error("The review Trash could not be emptied: \(String(describing:error),privacy:.public)")}
         }
         let documentIDs=Set(try FileManager.default.contentsOfDirectory(at:directory,includingPropertiesForKeys:nil).filter{$0.pathExtension=="json"}.compactMap{UUID(uuidString:$0.deletingPathExtension().lastPathComponent)})

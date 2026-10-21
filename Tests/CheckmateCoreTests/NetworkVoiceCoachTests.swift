@@ -21,7 +21,7 @@ import CheckmateRules
     private func coach(_ mac:Mac)throws -> Coach {
         let fairness=FairnessPolicy(participation:mac.participation),engine=CountingEngine();engine.participation=mac.participation
         let session=try GameSession(engine:nil,fairness:fairness),voice=try VoiceCoach(session:session),assistant=NetworkAssistant(game:mac.game,fairness:fairness,engine:engine)
-        voice.network=(mac.game,assistant);let events=Events();voice.automationOutbound={events.all.append($0)}
+        session.state.settings.voiceConsent=true;voice.network=(mac.game,assistant);let events=Events();voice.automationOutbound={events.all.append($0)}
         // A coach left connected keeps its renewal and timeout tasks, which would outlive this test.
         addTeardownBlock{@MainActor in voice.disconnect();assistant.cancel()}
         return Coach(session:session,voice:voice,assistant:assistant,engine:engine,events:events)

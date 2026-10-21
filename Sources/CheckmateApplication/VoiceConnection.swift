@@ -13,6 +13,8 @@ public enum VoiceUnavailability:Equatable,Sendable {
     case networkGame
     /// A finished game's review is no longer the one shown, or something else holds the session.
     case reviewNotReadable
+    /// The learner has not yet agreed to what voice sends to OpenAI (V-1); a Connect press asks first.
+    case consentNeeded
     case lessonRecording,previewPlaying,narrationPlaying
     public var message:String {
         switch self {
@@ -21,6 +23,7 @@ public enum VoiceUnavailability:Equatable,Sendable {
         case .trainingGameOnly:return "The voice coach connects only to a training game being played."
         case .networkGame:return "Voice coaching is off during your network game."
         case .reviewNotReadable:return "This review can no longer be read aloud."
+        case .consentNeeded:return "Connect the voice coach and agree to what it sends to OpenAI first."
         case .lessonRecording:return "Finish or cancel lesson recording before connecting the voice coach."
         case .previewPlaying:return "Wait for the voice preview to finish before connecting the voice coach."
         case .narrationPlaying:return "Stop lesson or preview playback before connecting the voice coach."

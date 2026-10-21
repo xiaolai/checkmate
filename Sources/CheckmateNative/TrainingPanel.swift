@@ -55,7 +55,7 @@ struct TrainingPanel:View {
     /// A played game: its status, the break reminder, take back and draw claims, then the moments worth another try.
     @ViewBuilder private func gameControls(_ exercise:TrainingController.Exercise)->some View {
         let scenario=exercise.scenario
-        Text(exercise.finished ? "Game over.":exercise.paused != nil ? "Game paused.":training.games.thinking ? "The defender is thinking…":"Your move.").accessibilityIdentifier("training-game-status")
+        Text(Self.gameStatus(finished:exercise.finished,paused:exercise.paused != nil,thinking:training.games.thinking)).accessibilityIdentifier("training-game-status")
         // The opponent level (mini-game plan D4): only the levels this game offers, and only when there is a choice. The
         // game in progress keeps the level it started with, labelled while it differs, with a new game offered at the other.
         let levels=training.gameLevels(exercise)
@@ -101,6 +101,8 @@ struct TrainingPanel:View {
         if let skill=exercise.scenario.primarySkill{Text("This one was about "+TrainingLabels.skill(skill)+".").font(.caption).foregroundStyle(.secondary).accessibilityIdentifier("training-topic")}
         TrainingLessonLinks(model:model,entry:exercise.definition)
     }
+    /// A played game's status, a heading like practice's (`DetailContent.practiceHeading`): no closing period.
+    static func gameStatus(finished:Bool,paused:Bool,thinking:Bool)->String {finished ? "Game over":paused ? "Game paused":thinking ? "The defender is thinking":"Your move"}
     /// Whether a finished attempt offers Try again, shared by this drawer and the transport: a withdrawn board cannot be retried.
     static func canRetry(_ exercise:TrainingController.Exercise)->Bool {exercise.status != .suspended}
     /// The next hint's title, shared by this drawer and the transport: the third step reveals the answer, or in a game

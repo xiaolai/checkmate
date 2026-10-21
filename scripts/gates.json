@@ -82,6 +82,9 @@
    "inputs": [
     "scripts/test-sidebar.py",
     "Tools/ax-helper.swift",
+    "Tools/pointer-helper.swift",
+    "Sources/CheckmateNative/Helpers.swift",
+    "Sources/CheckmateNative/NativeModel.swift",
     "Sources/CheckmateNative/ContentViews.swift",
     "Sources/CheckmateNative/ControlBar.swift",
     "Sources/CheckmateNative/MainWindow.swift",

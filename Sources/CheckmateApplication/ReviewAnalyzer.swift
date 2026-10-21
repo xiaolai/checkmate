@@ -58,7 +58,8 @@ public struct ReviewMoment:Codable,Identifiable {public let id:Int,expectationLo
     public func reset(){cancelBatch();batchDocument=nil;completed=0;failed=0;total=0;moments=[];evaluations=[:];batchStatus="idle"}
     /// Whether a whole-game analysis of this record is still running.
     public func batchRunning(_ id:UUID)->Bool {batchDocument==id && ["pending","deepening"].contains(batchStatus)}
-    /// Removes a deleted review's stored analysis from memory and disk; analysis other records computed is kept.
+    /// Removes a purged review's stored analysis (one that left the Trash) from memory and disk; analysis other
+    /// records computed is kept.
     public func forgetAnalysis(documentID:UUID)async throws {
         while let write=pendingWrites.first(where:{$0.value.document==documentID}){pendingWrites[write.key]=nil;await write.value.task.value}
         cache=cache.filter{$0.value.documentID != documentID};let disk=disk;_ = try await Task.detached{try disk?.delete(documentID:documentID)}.value}

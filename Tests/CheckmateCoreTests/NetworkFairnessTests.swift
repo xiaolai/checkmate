@@ -124,7 +124,7 @@ import CheckmateCore
             lesson.open(lessonID:"test",practice:try castling());lesson.click("e1");lesson.click("g1");lesson.playOn();try await Task.sleep(for:.milliseconds(30))
             XCTAssertEqual(lesson.record?.moves,["e1g1"],"the lesson's computer does not reply")
             // Voice: the coach does not connect.
-            let voice=try VoiceCoach(session:s);voice.connect();XCTAssertEqual(voice.status,VoiceCoach.networkGameStatus)
+            s.state.settings.voiceConsent=true;let voice=try VoiceCoach(session:s);voice.connect();XCTAssertEqual(voice.status,VoiceCoach.networkGameStatus)
             XCTAssertEqual(engine.calls,0,"nothing reached the engine (\(role))");XCTAssertEqual(blackEngine.callsWhileParticipating+engine.callsWhileParticipating,0)
         }
     }
@@ -278,7 +278,7 @@ import CheckmateCore
             v.ask("And now?");v.recheck();v.narrateReview()
             XCTAssertEqual(responses(),before,"nothing starts while participating (\(role))")
             do{_ = try await v.execute("speak_explanation",args:["positionId":s.positionId,"displayIdentity":s.displayIdentity,"segments":[["text":"Your pawn is on e2.","squares":["e2"],"kind":"observation"]]],id:"late");XCTFail("speak_explanation ran during a network game")}catch{}
-            v.connect();XCTAssertEqual(v.status,VoiceCoach.networkGameStatus)
+            s.state.settings.voiceConsent=true;v.connect();XCTAssertEqual(v.status,VoiceCoach.networkGameStatus)
             s.fairness.participation.end()
         }
     }

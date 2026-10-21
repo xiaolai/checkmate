@@ -37,7 +37,7 @@ import CheckmateCore
         if practice{try session.playWhite(from:"e2",to:"e4");_ = try session.commitBlack("e7e5")}
         controller.begin(try controller.prepare(entry:"finish-the-game"))
         let adapter=TrainingVoiceAdapter(session:session,controller:controller),voice=try VoiceCoach(session:session),box=Box()
-        voice.training=adapter;voice.automationOutbound={box.events.append($0)}
+        session.state.settings.voiceConsent=true;voice.training=adapter;voice.automationOutbound={box.events.append($0)}
         addTeardownBlock{@MainActor in voice.disconnect();defender.release();player.shutdown()}
         return Fixture(session:session,player:player,controller:controller,adapter:adapter,voice:voice,defender:defender,box:box)
     }

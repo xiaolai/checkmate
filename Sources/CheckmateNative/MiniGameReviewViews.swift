@@ -27,7 +27,7 @@ struct MiniGameReviewSection:View {
 struct MiniGameReviewSheet:View {
     let review:MiniGameReview
     @ObservedObject var voice:VoiceCoach
-    let close:()->Void
+    let read:()->Void,close:()->Void
     var body:some View {
         VStack(alignment:.leading,spacing:Metrics.sectionGap) {
             Text("\(review.kind.title) review").font(.title2.bold())
@@ -35,7 +35,7 @@ struct MiniGameReviewSheet:View {
             if review.facts.isEmpty {Text(MiniGameReviewWording.noFacts).accessibilityIdentifier("mini-review-none")}
             else {ForEach(Array(review.facts.enumerated()),id:\.offset){Text($0.element.text).fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("mini-review-fact")}}
             if !review.complete {Text(MiniGameReviewWording.incomplete).font(.caption).foregroundStyle(.secondary)}
-            HStack {MiniGameReviewReadAloud(voice:voice);Spacer();Button("Done",action:close).keyboardShortcut(.defaultAction).accessibilityIdentifier("mini-review-done")}
+            HStack {MiniGameReviewReadAloud(voice:voice,read:read);Spacer();Button("Done",action:close).keyboardShortcut(.defaultAction).accessibilityIdentifier("mini-review-done")}
         }.padding(Metrics.sectionGap*1.5).frame(width:420,alignment:.leading)
     }
 }
@@ -43,16 +43,18 @@ struct MiniGameReviewSheet:View {
 /// review stays text only. Closing the sheet ends the reading.
 struct MiniGameReviewReadAloud:View {
     @ObservedObject var voice:VoiceCoach
+    /// Reads the review aloud, after the voice consent question (V-1) and any sign-in check it needs.
+    let read:()->Void
     var body:some View {
         if voice.miniReviewSession != nil,voice.connected || voice.connecting {
             Button("Stop Reading"){voice.disconnect()}.accessibilityIdentifier("mini-review-stop")
             Text(voice.status).font(.caption).foregroundStyle(.secondary).accessibilityIdentifier("mini-review-voice-status")
         } else if voice.miniReviewReadable {
-            Button("Read Aloud"){voice.readMiniReviewAloud()}.accessibilityIdentifier("mini-review-read-aloud")
+            Button("Read Aloud",action:read).accessibilityIdentifier("mini-review-read-aloud")
             if let problem=voice.miniReviewProblem {Text(problem).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)}
         } else if voice.miniReviewNeedsSignIn {
             // The review stays readable as text without a sign-in; this says why, and offers the check in place.
-            Button("Read Aloud"){voice.readMiniReviewAloudAfterSignIn()}.disabled(voice.checkingAvailability).accessibilityIdentifier("mini-review-read-aloud")
+            Button("Read Aloud",action:read).disabled(voice.checkingAvailability).accessibilityIdentifier("mini-review-read-aloud")
             Text(voice.checkingAvailability ? "Checking your Codex sign-in…":"Read Aloud checks your Codex sign-in first.").font(.caption).foregroundStyle(.secondary)
             if let problem=voice.miniReviewProblem {Text(problem).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)}
         }

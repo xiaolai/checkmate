@@ -9,7 +9,7 @@ import CheckmateCore
 /// compares that line. Silent: the voice double and an injected authorization failure stand in for the provider.
 @MainActor final class VoiceConnectionStateTests:XCTestCase {
     private func coach()throws->(GameSession,VoiceCoach) {
-        let session=try GameSession(engine:nil);session.state.settings.voiceMicrophone=false
+        let session=try GameSession(engine:nil);session.state.settings.voiceMicrophone=false;session.state.settings.voiceConsent=true
         return (session,try VoiceCoach(session:session))
     }
     private func waitFor(_ what:String,_ condition:()->Bool)async throws {for _ in 0..<200 {if condition(){return};try await Task.sleep(for:.milliseconds(10))};XCTFail(what)}

@@ -57,6 +57,15 @@ def listing():
     return subprocess.check_output([str(lister), str(process.pid), "list"], text=True)
 
 
+def training_status():
+    """The training game's status heading, read by its identifier so no other "Your move" can match."""
+    for line in listing().splitlines():
+        names = line.split(": ", 1)[-1].split(" | ")
+        if "training-game-status" in names:
+            return next((name for name in names if name != "training-game-status"), None)
+    return None
+
+
 # NativeModel saves 250 ms after a change. A check that something was NOT saved waits this long first, or a stale
 # file would pass it before the save it is meant to catch lands.
 SAVE_SETTLE = 0.6
@@ -234,7 +243,7 @@ try:
     pointer("drag-square", piece, to)
     wait(lambda: label(to).startswith(f"{to}, {COLOURS[learner]}, {PIECES[kind]}"), "The dragged ending move did not land")
     wait(lambda: any("reply" in action for action in active()["actions"]), "The defender did not answer", timeout=30)
-    wait(lambda: "Your move." in listing(), "The board did not return to the learner after the reply")
+    wait(lambda: training_status() == "Your move", "The board did not return to the learner after the reply")
     ending_reply = True
     pointer("click", "training-undo")
     wait(lambda: any("undo" in action for action in active()["actions"]), "Take back was not recorded")
@@ -245,7 +254,7 @@ try:
         undone = sum("undo" in action for action in active()["actions"])
         pointer("drag-square", piece, to)
         wait(lambda: label(to).startswith(f"{to}, {COLOURS[learner]}, {PIECES[kind]}"), f"The ending move before the {how} take-back did not land")
-        wait(lambda: "Your move." in listing() and sum("reply" in action for action in active()["actions"]) > undone, f"The defender did not answer before the {how} take-back", timeout=30)
+        wait(lambda: training_status() == "Your move" and sum("reply" in action for action in active()["actions"]) > undone, f"The defender did not answer before the {how} take-back", timeout=30)
         if how == "bar":
             pointer("click", "bar-trainingTakeBack")
         else:
@@ -287,7 +296,7 @@ try:
     pointer("drag-square", "e2", "e4")
     wait(lambda: label("e4").startswith("e4, White, pawn"), "The dragged pawn move did not land")
     wait(lambda: any("reply" in action for action in active()["actions"]), f"{TITLES[low]} did not answer", timeout=30)
-    wait(lambda: "Your move." in listing(), "The board did not return to the learner after the reply")
+    wait(lambda: training_status() == "Your move", "The board did not return to the learner after the reply")
     opponent = active()["opponent"]
     assert opponent["limit"].get("nodes") and opponent["strategy"] == ("beginner" if low == "gentle" else "engine"), f"{TITLES[low]} is not its node-limited strategy"
     position_game_reply = True
@@ -305,7 +314,7 @@ try:
     # connecting records no help, and the drawer's Disconnect Coach ends it.
     assert not active().get("recordedHelp"), "fixture: the new game already had recorded help"
     pointer("click", "bar-voiceConnect")
-    # The first Connect asks once what voice sends (V-1); only the sheet's Connect connects, and it is remembered.
+    # The first Connect asks once what voice sends (V-1); only the sheet's Agree connects, and it is remembered.
     wait(lambda: "voice-consent-connect" in listing(), "The first Connect did not ask for consent")
     pointer("click", "voice-consent-connect")
     wait(lambda: (saved().get("settings") or {}).get("voiceConsent") is True, "Agreeing to voice was not saved")

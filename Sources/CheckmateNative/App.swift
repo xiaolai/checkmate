@@ -535,6 +535,8 @@ import CheckmateCore
                 model.voice.requestObserver={event in if let response=event["response"] as? [String:Any],response["conversation"] as? String=="none",let text=(response["instructions"] as? String)?.components(separatedBy:"SCRIPT:\n").last{requests.scripts.append(text)}else{requests.other+=1}}
                 let offered=buttons(sheet.contentView);reading["buttons"]=offered.count
                 if offered.count==2 {
+                    // A learner who already agreed to the voice coach; the consent question itself is VoiceConsentTests'.
+                    var agreed=model.session.state.settings;agreed.voiceConsent=true;model.session.updateSettings(agreed)
                     await press(offered[0],in:sheet)
                     for _ in 0..<75 where requests.scripts.isEmpty{try? await Task.sleep(for:.milliseconds(40))}
                     try? await Task.sleep(for:.milliseconds(300))

@@ -250,7 +250,9 @@ final class ReviewStoreTests:XCTestCase {
         let store=ReviewStore(directory:directory),old=try PGNImporter.parse(Data("1. e4 *".utf8))[0],recent=try PGNImporter.parse(Data("1. d4 *".utf8))[0]
         try store.save(old,cursor:1,branches:[]);try store.save(recent,cursor:1,branches:[]);try store.delete(old.id);try store.delete(recent.id)
         try FileManager.default.setAttributes([.creationDate:Date().addingTimeInterval(-31*24*3600)],ofItemAtPath:trash(directory,old.id).path)
-        let reopened=ReviewStore(directory:directory);XCTAssertTrue(try reopened.list().isEmpty)
+        // Each review that leaves the Trash for good is named, so its engine analysis can go with it.
+        let reopened=ReviewStore(directory:directory);var purged:[UUID]=[];reopened.onPurge={purged.append($0)};XCTAssertTrue(try reopened.list().isEmpty)
+        XCTAssertEqual(purged,[old.id],"only the expired deletion is purged")
         XCTAssertFalse(FileManager.default.fileExists(atPath:trash(directory,old.id).path),"a review deleted 31 days ago is gone")
         XCTAssertTrue(FileManager.default.fileExists(atPath:trash(directory,recent.id).path))
         // A full library empties the Trash, oldest first, before refusing a save.
@@ -259,5 +261,9 @@ final class ReviewStoreTests:XCTestCase {
         let next=try PGNImporter.parse(Data("1. c4 *".utf8))[0]
         try reopened.save(next,cursor:1,branches:[]);XCTAssertEqual(try reopened.list().map(\.id),[next.id])
         XCTAssertFalse(FileManager.default.fileExists(atPath:trash(directory,recent.id).path))
+        XCTAssertEqual(purged,[old.id,recent.id],"a deletion purged for room is named too")
+        // Deleting a record again replaces its Trash copy: it is still in the Trash, so nothing is purged.
+        try reopened.delete(next.id);try reopened.save(next,cursor:1,branches:[]);try reopened.delete(next.id)
+        XCTAssertEqual(purged,[old.id,recent.id])
     }
 }

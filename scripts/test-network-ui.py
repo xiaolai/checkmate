@@ -318,7 +318,7 @@ try:
     join(guest, "Hal's game", "Ivy", play_code, accept="Hal's game allows guided hints for both players.")
     wait(lambda: host.shows("Ivy") and host.shows("network-voice-connect"), "the guided game did not start with the voice coach offered", 30)
     host.click("network-voice-connect")
-    # The first Connect asks once what voice sends (V-1); only the sheet's Connect connects.
+    # The first Connect asks once what voice sends (V-1); only the sheet's Agree connects.
     wait(lambda: host.shows("voice-consent-connect"), "the first Connect did not ask for consent")
     host.click("voice-consent-connect")
     wait(lambda: voice_status(host) == VOICE_THINKING and host.shows("network-voice-stop"), f"Connect did not start the coach's turn: {voice_status(host)!r}", 20)

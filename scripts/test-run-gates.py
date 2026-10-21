@@ -57,7 +57,7 @@ every = {gate['name'] for gate in spec['gates']}
 cases = [
     ([], set()),
     (['Sources/CheckmateDomain/MiniGames.swift'], every),
-    (['Tools/pointer-helper.swift'], {'pointer', 'lesson-remediation', 'lesson-exercise', 'board-clicks', 'training-pointer', 'training-b-pointer', 'network-ui', 'network-bonjour', 'network-lan'}),
+    (['Tools/pointer-helper.swift'], {'pointer', 'lesson-remediation', 'lesson-exercise', 'board-clicks', 'training-pointer', 'training-b-pointer', 'network-ui', 'network-bonjour', 'network-lan', 'sidebar'}),
     (['Tests/CheckmateNativeTests/BoardClickTests.swift'], {'architecture', 'unit'}),
     # Play on Network: the loopback gate always; the Bonjour and two-Mac gates too, behind their prerequisites.
     (['Sources/CheckmateMacPlatform/NWNetworkTransport.swift'], {'architecture', 'ui', 'network-ui', 'network-bonjour', 'network-lan', 'unit', 'package'}),

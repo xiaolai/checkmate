@@ -1,5 +1,6 @@
 import CheckmateDomain
 import CheckmateContent
+import CheckmateApplication
 import CheckmateSupport
 import Foundation
 import Combine
@@ -13,6 +14,9 @@ import Combine
     public var usageLedger:UsageLedger?
     /// Why a preview cannot play now (coach speaking, lesson narration or recording); nil when it may.
     public var blocked:()->String?={nil}
+    /// Whether the learner has agreed to what voice sends to OpenAI (V-1). A preview opens an OpenAI session, so until
+    /// the app says so it plays nothing.
+    public var consented:()->Bool={false}
     /// Told when a preview starts and ends, so a listening coach does not hear it as the learner.
     public var onPlayingChanged:(Bool)->Void={_ in}
     public let audio=VoiceAudio()
@@ -34,6 +38,7 @@ import Combine
 
     public func play(voice:String,language:String,model:String,volume:Double){
         cancel()
+        guard consented() else{status=VoiceUnavailability.consentNeeded.message;return}
         guard !NativePolicy.silent else{status="Live voice previews are disabled during automation.";return}
         if let reason=blocked(){status=reason;return}
         let current=UUID();generation=current;status="Preparing a preview…";audio.volume=Float(volume);setPlaying(true)

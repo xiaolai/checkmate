@@ -203,7 +203,7 @@ import CheckmateCore
     /// summary of the conversation instead of a greeting.
     func testSessionIsRenewedBetweenTurnsBeforeItsLimit()async throws {
         XCTAssertEqual(VoiceCoach.renewalAge,55*60)
-        let s=try GameSession(engine:nil);s.state.settings.coachingMode="quiet";let v=try VoiceCoach(session:s);v.renewalDelay=0.05
+        let s=try GameSession(engine:nil);s.state.settings.coachingMode="quiet";s.state.settings.voiceConsent=true;let v=try VoiceCoach(session:s);v.renewalDelay=0.05
         _ = try s.openVoice();v.receive(["type":"session.updated"]);defer{v.disconnect()}
         v.receive(["type":"input_audio_buffer.committed","item_id":"question"]);v.receive(["type":"conversation.item.input_audio_transcription.completed","item_id":"question","transcript":"Why is my bishop stuck?"])
         try await Task.sleep(nanoseconds:150_000_000);XCTAssertEqual(v.renewals,0,"renewed in the middle of a turn")
@@ -213,7 +213,7 @@ import CheckmateCore
         XCTAssertLessThanOrEqual(v.carriedSummary.count,2000)
     }
     func testIdleSessionIsRenewedOnTime()async throws {
-        let s=try GameSession(engine:nil);s.state.settings.coachingMode="quiet";let v=try VoiceCoach(session:s);v.renewalDelay=0.02
+        let s=try GameSession(engine:nil);s.state.settings.coachingMode="quiet";s.state.settings.voiceConsent=true;let v=try VoiceCoach(session:s);v.renewalDelay=0.02
         _ = try s.openVoice();v.receive(["type":"session.updated"]);defer{v.disconnect()}
         try await until("the idle renewal"){v.renewals==1};XCTAssertEqual(v.connectRequests,[false])
     }
@@ -234,7 +234,7 @@ import CheckmateCore
     }
     /// Renewal waits while a preview plays or connecting is blocked, then happens.
     func testRenewalWaitsForAPreviewAndAnUnblockedConnection()async throws {
-        let s=try GameSession(engine:nil);s.state.settings.coachingMode="quiet";let v=try VoiceCoach(session:s);v.renewalDelay=0.02
+        let s=try GameSession(engine:nil);s.state.settings.coachingMode="quiet";s.state.settings.voiceConsent=true;let v=try VoiceCoach(session:s);v.renewalDelay=0.02
         var blocked=true;v.connectionBlocked={blocked};v.externalPlayback=true
         _ = try s.openVoice();v.receive(["type":"session.updated"]);defer{v.disconnect()}
         try await Task.sleep(nanoseconds:100_000_000);XCTAssertEqual(v.renewals,0,"renewed during a preview")
@@ -272,7 +272,7 @@ import CheckmateCore
     }
     /// An effort chosen while connecting is sent once the session is ready.
     func testEffortChosenWhileConnectingIsApplied()throws {
-        let s=try GameSession(engine:nil);s.state.settings.coachingMode="quiet";let v=try VoiceCoach(session:s);var events:[[String:Any]]=[];v.automationOutbound={events.append($0)};_ = try s.openVoice();defer{v.disconnect()}
+        let s=try GameSession(engine:nil);s.state.settings.coachingMode="quiet";s.state.settings.voiceConsent=true;let v=try VoiceCoach(session:s);var events:[[String:Any]]=[];v.automationOutbound={events.append($0)};_ = try s.openVoice();defer{v.disconnect()}
         var settings=s.state.settings;settings.coachReasoningEffort="high";s.updateSettings(settings);v.settingsChanged()
         v.receive(["type":"session.updated","session":["reasoning":["effort":"minimal"]]])
         XCTAssertEqual(VoiceCoach.effort(of:events.last ?? [:]),"high")

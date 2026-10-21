@@ -6,8 +6,8 @@ import ScreenCaptureKit
 import CheckmateCore
 final class BoardWindow:NSWindow {
     /// Edit ▸ Undo (⌘Z): a text field in focus handles it first; otherwise the window would answer it with its own
-    /// empty undo manager and the game never heard it. It goes to the game instead: take back, undo turn; in a review,
-    /// where nothing is taken back, the game window sends it to this window's undo manager.
+    /// empty undo manager and the game never heard it. It goes to the game window instead, which follows
+    /// `NativeModel.undoAction`: a just-deleted review's restore, or the game's take back and undo turn.
     @objc func undo(_ sender:Any?){(windowController as? GameWindow)?.undo(sender)}
     override func validateMenuItem(_ item:NSMenuItem)->Bool {
         if item.action == #selector(undo(_:)),let controller=windowController as? GameWindow{return controller.validateMenuItem(item)}
@@ -167,7 +167,7 @@ final class BoardTitleView:NSView {
         let reviewer=model.network.miniReview.sheetOpen ? model.network.miniReview:model.learning.miniReview
         if reviewer.sheetOpen,let review=reviewer.review {
             guard miniReviewSheet==nil,let window else{return}
-            let sheet=NSWindow(contentViewController:NSHostingController(rootView:MiniGameReviewSheet(review:review,voice:model.voice,close:{[weak reviewer] in reviewer?.dismissSheet()})))
+            let sheet=NSWindow(contentViewController:NSHostingController(rootView:MiniGameReviewSheet(review:review,voice:model.voice,read:{[weak model] in model?.readMiniReviewAloud()},close:{[weak reviewer] in reviewer?.dismissSheet()})))
             sheet.title="\(review.kind.title) review";miniReviewSheet=sheet;window.beginSheet(sheet)
         } else if let sheet=miniReviewSheet {miniReviewSheet=nil;window?.endSheet(sheet)}
     }
@@ -443,9 +443,9 @@ playbackLineView?.isHidden=model.reviewWorkspace
             return shown?.enabled ?? false
         }
         if item.action == #selector(toggleRight){item.title=guidanceShown ? (desiredRight ? "Hide Lesson Guidance":"Show Lesson Guidance"):"Toggle Game Details";return true}
-        // Edit ▸ Undo in a review or the review workspace undoes the window's last undoable action, a saved review's
-        // deletion; elsewhere it is the game's take back.
-        if item.action == NSSelectorFromString("undo:"){let reviewing=model.review.active || model.reviewWorkspace;item.title=reviewing ? (window?.undoManager?.undoMenuItemTitle ?? "Undo"):"Undo";if reviewing{return window?.undoManager?.canUndo ?? false}}
+        // Edit ▸ Undo follows `NativeModel.undoAction`: right after a deletion it puts the review back; in a review it
+        // has nothing else; elsewhere it is the game's take back.
+        if item.action == NSSelectorFromString("undo:"){switch model.undoAction{case .restoreReview:item.title="Undo Delete Review";return true;case .nothing:item.title="Undo";return false;case .game:item.title="Undo"}}
         if item.action == #selector(undo as () -> Void) || item.action == NSSelectorFromString("undo:"),!model.review.active,!model.reviewWorkspace {
             if model.learning.attemptStep{if item.action == #selector(undo as () -> Void){item.title="Undo Turn"};return model.learning.attempt.hasMoves}
             if let exercise=trainingExercise{return model.training.map{ControlBarModel.canTakeBack($0,exercise)} ?? false}
@@ -458,7 +458,7 @@ playbackLineView?.isHidden=model.reviewWorkspace
             if model.learning.miniGame?.history.isEmpty != false{model.learning.restartMini();return}
             // The sheet answers for the mini-game it was shown over: one replaced meanwhile (an agent, a restart) is kept.
             let shown=model.learning.miniGame.map{($0.kind,$0.opponentSeed)}
-            let alert=NSAlert();alert.messageText="Start a new \(model.learning.miniKind.title) game?";alert.informativeText="This replaces the current mini-game.";alert.addButton(withTitle:"New Game").hasDestructiveAction=true;alert.addButton(withTitle:"Cancel");present(alert){[weak self] response in guard response == .alertFirstButtonReturn,let self,self.model.learning.mini,let game=self.model.learning.miniGame,let shown,game.kind==shown.0,game.opponentSeed==shown.1 else{return};self.model.learning.restartMini()};return
+            let alert=NSAlert.destructive("Start a new \(model.learning.miniKind.title) game?","This replaces the current mini-game.",action:"New Game");present(alert){[weak self] response in guard response == .alertFirstButtonReturn,let self,self.model.learning.mini,let game=self.model.learning.miniGame,let shown,game.kind==shown.0,game.opponentSeed==shown.1 else{return};self.model.learning.restartMini()};return
         }
         guard model.session.mode == .practice else{return};let a=NSAlert();a.messageText="Start a new game?";a.informativeText=model.session.state.practice.previousGame.isEmpty ? "Your current game will be available under Restore Previous Game.":"Your current game will be available under Restore Previous Game, replacing the game kept there now."
         let side=NSPopUpButton(frame:NSRect(x:0,y:0,width:220,height:28));side.addItems(withTitles:["Play as White","Play as Black"]);side.selectItem(at:model.session.humanSide=="b" ? 1:0);side.setAccessibilityLabel("Your side");a.accessoryView=side
@@ -550,7 +550,7 @@ playbackLineView?.isHidden=model.reviewWorkspace
     @objc func showAbout(){showSettings();settings?.selectCategory("About")}
     /// Edit ▸ Undo (⌘Z) reaches here when no text field claims it: it takes back the move, as Game ▸ Take Back does. In a
     /// review it undoes the window's last undoable action instead (a saved review's deletion).
-    @objc func undo(_ sender:Any?){if model.review.active || model.reviewWorkspace{window?.undoManager?.undo();return};undo()}
+    @objc func undo(_ sender:Any?){switch model.undoAction{case .restoreReview:model.undoDeletion();case .nothing:return;case .game:undo()}}
     @objc func undo(){
         guard !model.review.active,!model.reviewWorkspace else{return};board.cancelAnimation()
         if model.learning.mini{model.learning.undoMini()}

@@ -108,9 +108,7 @@ extension NativeModel {
     private func confirmNetwork(message:String,detail:String,action:String,identifier:String,answer:(()->Bool)?,then confirmed:@escaping @MainActor ()->Void){
         if let answer{if answer(){confirmed()};return}
         guard let window=NSApp.mainWindow else{if NativePolicy.silent{confirmed()};return}
-        let alert=NSAlert();alert.messageText=message;alert.informativeText=detail
-        let go=alert.addButton(withTitle:action);go.hasDestructiveAction=true;go.setAccessibilityIdentifier(identifier+"-confirm")
-        let cancel=alert.addButton(withTitle:"Cancel");cancel.keyEquivalent="\r";cancel.setAccessibilityIdentifier(identifier+"-cancel");alert.window.defaultButtonCell=cancel.cell as? NSButtonCell
+        let alert=NSAlert.destructive(message,detail,action:action,identifier:identifier)
         alert.beginSheetModal(for:window){response in if response == .alertFirstButtonReturn{MainActor.assumeIsolated{confirmed()}}}
     }
 
@@ -120,11 +118,8 @@ extension NativeModel {
     func mayQuitNetworkGame()->Bool {
         guard network.leavingResigns else{return true}
         if let confirm=confirmLeavingNetworkGame{return confirm()};if NativePolicy.silent{return true}
-        let alert=NSAlert();alert.messageText=NetworkGameController.leaveConfirmation
-        alert.informativeText="\(network.opponentName) wins the game. Checkmate quits once your resignation has gone out."
-        let quit=alert.addButton(withTitle:"Leave and Quit");quit.hasDestructiveAction=true;quit.setAccessibilityIdentifier("network-quit-confirm")
         // Return must never resign: Cancel is the default, as in the other resignation confirmations.
-        quit.keyEquivalent="";let cancel=alert.addButton(withTitle:"Cancel");cancel.keyEquivalent="\r";cancel.setAccessibilityIdentifier("network-quit-cancel")
+        let alert=NSAlert.destructive(NetworkGameController.leaveConfirmation,"\(network.opponentName) wins the game. Checkmate quits once your resignation has gone out.",action:"Leave and Quit",identifier:"network-quit")
         return alert.runModal() == .alertFirstButtonReturn
     }
     /// Leaves an open session before the app closes, so the resignation, or the host's `ended`, goes out before the

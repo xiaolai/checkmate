@@ -45,11 +45,30 @@ final class ToolbarInsetHostingController<Content:View>:NSViewController {
 }
 extension NSAlert {
     /// A confirmation of something that cannot be undone: the action is marked destructive and takes no key, and
-    /// Cancel is the default (Return) button, so only a deliberate choice runs it.
-    static func destructive(_ title:String,_ message:String,action:String)->NSAlert {
+    /// Cancel (or the word given for it) is the default (Return) button and answers Escape, so only a deliberate choice runs it. The only
+    /// place besides `saveChanges` an alert button is marked destructive. Responses: first the action, second Cancel, third `alternative`, a
+    /// safe choice that takes no key either. `identifier` names the buttons `-confirm`, `-cancel`, `-alternative`.
+    static func destructive(_ title:String,_ message:String,action:String,cancel:String="Cancel",alternative:String?=nil,identifier:String?=nil)->NSAlert {
         let alert=NSAlert();alert.messageText=title;alert.informativeText=message
         let button=alert.addButton(withTitle:action);button.keyEquivalent="";button.hasDestructiveAction=true
-        let cancel=alert.addButton(withTitle:"Cancel");cancel.keyEquivalent="\r";alert.window.defaultButtonCell=cancel.cell as? NSButtonCell
+        let stay=alert.addButton(withTitle:cancel);stay.keyEquivalent="\r";alert.window.defaultButtonCell=stay.cell as? NSButtonCell
+        alert.window.contentView?.addSubview(EscapeKey(clicking:stay))
+        let other=alternative.map{alert.addButton(withTitle:$0)};other?.keyEquivalent=""
+        if let identifier{button.setAccessibilityIdentifier(identifier+"-confirm");stay.setAccessibilityIdentifier(identifier+"-cancel");other?.setAccessibilityIdentifier(identifier+"-alternative")}
+        return alert
+    }
+    /// A button holds one key, and Return is Cancel's, so Escape (which NSAlert gives only a button titled Cancel that
+    /// has no other key) is carried by this invisible, unannounced button in the alert, which clicks Cancel.
+    private final class EscapeKey:NSButton {
+        convenience init(clicking cancel:NSButton){self.init(frame:.zero);isTransparent=true;isBordered=false;title="";keyEquivalent="\u{1b}";target=cancel;action=#selector(NSButton.performClick(_:));setAccessibilityElement(false)}
+    }
+    /// The Mac's save-before-closing question: Save is the default (Return), Cancel answers Escape, and Don't Save is
+    /// marked destructive and takes no key. Responses: first Save, second Cancel, third Don't Save.
+    static func saveChanges(_ title:String,_ message:String)->NSAlert {
+        let alert=NSAlert();alert.messageText=title;alert.informativeText=message
+        let save=alert.addButton(withTitle:"Save");save.keyEquivalent="\r";alert.window.defaultButtonCell=save.cell as? NSButtonCell
+        alert.addButton(withTitle:"Cancel").keyEquivalent="\u{1b}"
+        let discard=alert.addButton(withTitle:"Don’t Save");discard.keyEquivalent="";discard.hasDestructiveAction=true
         return alert
     }
 }

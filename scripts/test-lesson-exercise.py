@@ -42,7 +42,7 @@ def drawers(sidebar,details):
  """Opens or closes each drawer with its own toolbar button and waits for it."""
  if ('AXStaticText: The Pawn' in listing())!=sidebar:pointer('click','Toggle Sidebar')
  wait(lambda:('AXStaticText: The Pawn' in listing())==sidebar,'The sidebar did not '+('open' if sidebar else 'close'))
- shown=lambda:'AXPopUpButton: Transcript' in listing() or 'Your next move.' in listing()
+ shown=lambda:'AXPopUpButton: Transcript' in listing() or 'practice-heading' in listing()
  if shown()!=details:pointer('click','Lesson Guidance' if 'Lesson Guidance' in listing() else 'Toggle Game Details')
  wait(lambda:shown()==details,'Game details did not '+('open' if details else 'close'))
 def open_lesson(lesson_title):

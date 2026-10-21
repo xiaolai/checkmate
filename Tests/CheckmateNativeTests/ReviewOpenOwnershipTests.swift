@@ -1,3 +1,4 @@
+import CheckmateTestSupport
 import XCTest
 import AppKit
 import CheckmateCore
@@ -101,16 +102,144 @@ final class ReviewStoreStartPositionTests:XCTestCase {
         XCTAssertFalse(model.importingReview,"Loading review… stayed visible for an abandoned load");XCTAssertFalse(model.review.active)
         XCTAssertEqual(model.reviews.map(\.id),[ids[0]])
     }
-    /// R-12: Edit ▸ Undo after deleting a saved review puts it back in the library.
-    func testUndoPutsADeletedReviewBack()async throws {
+    /// A deleted review's engine analysis stays while the review is in the Trash, so Undo brings both back; it is
+    /// forgotten when the Trash entry is purged.
+    func testADeletedReviewKeepsItsAnalysisUntilTheTrashIsPurged()async throws {
+        let document=try PGNImporter.parse(Data("1. e4 e5 *".utf8))[0]
+        do {
+            let model=try NativeModel();defer{model.shutdown()}
+            model.openReview(document);XCTAssertTrue(model.returnToGame())
+            try await settle("the library to list it"){model.reviews.map(\.id)==[document.id]}
+            let cache=ReviewAnalysisCache(directory:model.store.directory.appendingPathComponent("ReviewAnalysis"))
+            try cache.save(ReviewEvidence(schemaVersion:1,documentID:document.id,documentHash:"document",nodeID:1,historyHash:"history",revision:1,engineVersion:"test",options:[:],budgetMs:500,createdAt:Date(),root:EngineAnalysis(),played:nil,quality:"provisional",provisional:true),key:"analysis")
+            model.deleteReview(document.id);try await settle("the deletion"){model.deletingReviewID==nil && model.reviews.isEmpty}
+            try await Task.sleep(for:.milliseconds(200))
+            XCTAssertEqual(cache.load("analysis")?.documentID,document.id,"the analysis of a review in the Trash is kept")
+            model.restoreDeletedReview(document.id);try await settle("the restored review"){model.reviews.map(\.id)==[document.id]}
+            XCTAssertEqual(cache.load("analysis")?.documentID,document.id,"the restored review has its analysis")
+            model.deleteReview(document.id);try await settle("the second deletion"){model.deletingReviewID==nil && model.reviews.isEmpty}
+        }
+        // Thirty-one days later the next launch purges the Trash entry, and its analysis with it.
+        let folder=directory.appendingPathComponent("Reviews/Trash").appendingPathComponent(document.id.uuidString)
+        XCTAssertTrue(FileManager.default.fileExists(atPath:folder.path),"the deletion is in the Trash")
+        try FileManager.default.setAttributes([.creationDate:Date().addingTimeInterval(-31*24*3600)],ofItemAtPath:folder.path)
         let model=try NativeModel();defer{model.shutdown()}
-        let document=try PGNImporter.parse(Data("1. e4 e5 *".utf8))[0];model.openReview(document);XCTAssertTrue(model.returnToGame())
-        try await settle("the library to list it"){model.reviews.map(\.id)==[document.id]}
-        let undo=UndoManager();undo.groupsByEvent=false
-        undo.beginUndoGrouping();model.deleteReview(document.id,undo:undo);try await settle("the deletion"){model.deletingReviewID==nil && model.reviews.isEmpty};undo.endUndoGrouping()
-        XCTAssertTrue(undo.canUndo);XCTAssertEqual(undo.undoActionName,"Delete Review")
-        undo.undo();try await settle("the restored review"){model.reviews.map(\.id)==[document.id]}
+        let cache=ReviewAnalysisCache(directory:model.store.directory.appendingPathComponent("ReviewAnalysis"))
+        try await settle("the purged review's analysis to be forgotten"){cache.load("analysis")==nil}
+        XCTAssertFalse(FileManager.default.fileExists(atPath:folder.path))
+    }
+    /// R-12: right after a saved review is deleted, from the library list or from the open review, Edit ▸ Undo is
+    /// "Undo Delete Review" and puts it back; the game's own Undo is untouched. Once the learner does anything else Undo
+    /// owns (a move, a take back, another review or mode), the restore is dropped for good, even if they come back.
+    func testUndoRightAfterADeletionPutsTheReviewBackAndNothingLater()async throws {
+        let model=try NativeModel(),game=GameWindow(model:model);defer{game.window?.delegate=nil;model.shutdown()}
+        let item=NSMenuItem(title:"Undo",action:NSSelectorFromString("undo:"),keyEquivalent:"z")
+        func learnerMoves()->Int {model.session.rules.records.filter{$0.color==model.session.humanSide}.count}
+        let document=try PGNImporter.parse(Data("1. e4 e5 *".utf8))[0],other=try PGNImporter.parse(Data("1. c4 *".utf8))[0]
+        for shown in [other,document]{model.openReview(shown);XCTAssertTrue(model.returnToGame())}
+        try await settle("the library to list both"){model.reviews.count==2}
+        try model.session.playWhite(from:"d2",to:"d4");XCTAssertEqual(learnerMoves(),1)
+        XCTAssertEqual(model.undoAction,.game,"with no deletion Undo is the game's")
+        // From the library list during practice: Undo restores the review, and the practice move stays.
+        model.deleteReview(document.id);try await settle("the deletion"){model.deletingReviewID==nil && model.reviews.count==1}
+        XCTAssertEqual(model.undoAction,.restoreReview(document.id))
+        XCTAssertTrue(game.validateMenuItem(item));XCTAssertEqual(item.title,"Undo Delete Review")
+        game.undo(nil);try await settle("the restored review"){model.reviews.count==2}
+        XCTAssertEqual(learnerMoves(),1,"Undo took back a practice move instead");XCTAssertEqual(model.undoAction,.game,"a restore is used once")
         XCTAssertEqual(try model.reviewStore.load(document.id).document.id,document.id);XCTAssertNil(model.storageError)
+        // A take back after the deletion is the learner's newer action: Undo no longer restores the review.
+        model.deleteReview(document.id);try await settle("the deletion"){model.deletingReviewID==nil && model.reviews.count==1}
+        model.session.undo();XCTAssertEqual(learnerMoves(),0)
+        XCTAssertEqual(model.undoAction,.game);_ = game.validateMenuItem(item);XCTAssertEqual(item.title,"Undo")
+        try model.session.playWhite(from:"d2",to:"d4");XCTAssertEqual(model.undoAction,.game,"a dropped restore never returns")
+        // Going elsewhere and back drops it too, though the board then looks as it did.
+        model.restoreDeletedReview(document.id);try await settle("the restored review"){model.reviews.count==2}
+        model.deleteReview(document.id);try await settle("the deletion"){model.deletingReviewID==nil && model.reviews.count==1}
+        XCTAssertEqual(model.undoAction,.restoreReview(document.id))
+        model.lesson(0);try await Task.sleep(for:.milliseconds(50));model.practice();try await Task.sleep(for:.milliseconds(50))
+        XCTAssertEqual(model.undoAction,.game,"switching mode dropped the restore")
+        // Deleting the open review returns to the game; Undo there still restores it.
+        model.restoreDeletedReview(document.id);try await settle("the restored review"){model.reviews.count==2}
+        model.openReview(document);XCTAssertTrue(model.review.active);XCTAssertEqual(model.undoAction,.nothing,"a review has nothing else to undo")
+        XCTAssertFalse(game.validateMenuItem(item))
+        model.deleteReview(document.id);try await settle("the deletion"){model.deletingReviewID==nil && model.reviews.count==1 && !model.review.active}
+        XCTAssertEqual(model.undoAction,.restoreReview(document.id));XCTAssertTrue(game.validateMenuItem(item));XCTAssertEqual(item.title,"Undo Delete Review")
+        game.undo(nil);try await settle("the restored review"){model.reviews.count==2}
+        XCTAssertEqual(learnerMoves(),1,"the practice move is kept")
+    }
+}
+
+/// R-12 in every activity: only what the learner does drops a pending Undo Delete Review. A reply that lands after the
+/// deletion (a lesson's, a mini-game's, the training defender's) keeps it, and the learner's next move or take back
+/// drops it. A Trash purge of the review drops it too, since it can no longer come back.
+@MainActor final class ReviewUndoAfterReplyTests:XCTestCase {
+    private var directory:URL!
+    override func setUp(){directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);setenv("CHECKMATE_DATA_DIR",directory.path,1);setenv("CHECKMATE_TRAINING_ENABLED","1",1);setenv("CHECKMATE_TRAINING_B","1",1)}
+    override func tearDown(){unsetenv("CHECKMATE_DATA_DIR");unsetenv("CHECKMATE_TRAINING_ENABLED");unsetenv("CHECKMATE_TRAINING_B");try? FileManager.default.removeItem(at:directory)}
+    private func settle(_ what:String,_ condition:()->Bool)async throws {for _ in 0..<500{if condition(){return};try await Task.sleep(for:.milliseconds(10))};XCTFail("timed out waiting for \(what)")}
+    /// A model with one saved review in the library, back in Practice.
+    private func modelWithReview()async throws -> (NativeModel,GameDocument) {
+        let model=try NativeModel(),document=try PGNImporter.parse(Data("1. e4 e5 *".utf8))[0]
+        model.openReview(document);XCTAssertTrue(model.returnToGame());try await settle("the library to list it"){model.reviews.map(\.id)==[document.id]}
+        return (model,document)
+    }
+    private func delete(_ model:NativeModel,_ document:GameDocument)async throws {model.deleteReview(document.id);try await settle("the deletion"){model.deletingReviewID==nil && model.reviews.isEmpty}}
+    /// The learner's move in a lesson exercise, then the deletion while its authored reply is pending.
+    func testALessonReplyKeepsTheRestore()async throws {
+        let (model,document)=try await modelWithReview();defer{model.shutdown()}
+        let fen="4k3/8/8/8/8/8/4P3/4K3 w - - 0 1",print={(moves:[String])throws -> String in let rules=try ChessRules(fen:fen);for move in moves{try rules.move(uci:move)};return LessonAttemptJudge.fingerprint(rules.fen)}
+        let practice=LessonPractice(fen:fen,goal:"Push.",beat:"test:0",teaching:[LessonTeachingNode(fingerprint:try print([]),accepted:["e2e4"],replies:["e2e4":"e8e7"],next:["e2e4":1]),LessonTeachingNode(fingerprint:try print(["e2e4","e8e7"]),accepted:["e4e5"])],checkpoints:[.init(kind:.graph,label:"Push twice")],opponent:.beginner,hints:["a","b"],offTrack:"Off track.",success:"Pushed.")
+        let attempt:LessonAttemptController=model.learning.attempt;attempt.replyDelay={.milliseconds(1500)}
+        attempt.open(lessonID:"undo-line",practice:practice);attempt.click("e2");attempt.click("e4")
+        XCTAssertEqual(attempt.record?.moves,["e2e4"]);XCTAssertTrue(attempt.thinking,"the reply is pending")
+        try await delete(model,document);XCTAssertEqual(model.undoAction,.restoreReview(document.id))
+        try await settle("the lesson's reply"){attempt.record?.moves.count==2 && !attempt.thinking}
+        try await Task.sleep(for:.milliseconds(50))
+        XCTAssertEqual(model.undoAction,.restoreReview(document.id),"the lesson's reply is not the learner's action")
+        attempt.undo();XCTAssertEqual(attempt.record?.moves,[]);XCTAssertEqual(model.undoAction,.game,"the learner's take back drops it")
+    }
+    /// The learner's mini-game move, then the deletion while the computer's reply is pending.
+    func testAMiniGameReplyKeepsTheRestore()async throws {
+        let (model,document)=try await modelWithReview();defer{model.shutdown()}
+        model.learning.startMini(.pawnDuel,restart:true,computer:true,fromLibrary:true)
+        let game=try XCTUnwrap(model.learning.miniGame),from=try XCTUnwrap(game.board.keys.sorted().first{!game.destinations(from:$0).isEmpty})
+        model.learning.click(from);model.learning.click(try XCTUnwrap(game.destinations(from:from).first))
+        XCTAssertEqual(model.learning.miniGame?.turn,"b");XCTAssertTrue(model.learning.miniThinking,"the reply is pending")
+        try await delete(model,document);XCTAssertEqual(model.undoAction,.restoreReview(document.id))
+        try await settle("the computer's reply"){model.learning.miniGame?.turn=="w" && !model.learning.miniThinking}
+        try await Task.sleep(for:.milliseconds(50))
+        XCTAssertEqual(model.undoAction,.restoreReview(document.id),"the computer's reply is not the learner's action")
+        let after=try XCTUnwrap(model.learning.miniGame),next=try XCTUnwrap(after.board.keys.sorted().first{!after.destinations(from:$0).isEmpty})
+        model.learning.click(next);model.learning.click(try XCTUnwrap(after.destinations(from:next).first))
+        XCTAssertEqual(model.undoAction,.game,"the learner's next move drops it")
+    }
+    /// The learner's move in a training ending, then the deletion while the defender thinks.
+    func testATrainingDefenderReplyKeepsTheRestore()async throws {
+        let (model,document)=try await modelWithReview();defer{model.shutdown()}
+        let defender=ScriptedDefender();defender.holding=true;model.training?.games.engine=defender
+        model.startTraining("finish-the-game",variant:"kqk")
+        let training=try XCTUnwrap(model.training),exercise=try XCTUnwrap(training.exercise),legality=try XCTUnwrap(exercise.current)
+        let move=try XCTUnwrap(try legality.outcomes().first{outcome in
+            let after=try TrainingLegality(fen:exercise.scenario.fen!,prelude:[outcome.uci])
+            return try after.status() == .neither && !after.outcomes().isEmpty
+        })
+        training.attempt(from:move.from,to:move.to,promotion:nil);XCTAssertTrue(training.games.thinking,"the defender is thinking")
+        try await delete(model,document);XCTAssertEqual(model.undoAction,.restoreReview(document.id))
+        defender.release();try await settle("the defender's reply"){!training.games.thinking && training.exercise?.line.count==2}
+        try await Task.sleep(for:.milliseconds(50))
+        XCTAssertEqual(model.undoAction,.restoreReview(document.id),"the defender's reply is not the learner's action")
+        training.undo();XCTAssertEqual(model.undoAction,.game,"the learner's take back drops it")
+    }
+    /// The Trash letting the deleted review go (to make room, or after thirty days) means Undo can no longer put it back.
+    func testAPurgeOfThePendingReviewDropsTheRestore()async throws {
+        let (model,document)=try await modelWithReview();defer{model.shutdown()}
+        let game=GameWindow(model:model);defer{game.window?.delegate=nil}
+        let item=NSMenuItem(title:"Undo",action:NSSelectorFromString("undo:"),keyEquivalent:"z")
+        try await delete(model,document);XCTAssertEqual(model.undoAction,.restoreReview(document.id))
+        model.reviewStore.onPurge?(UUID());try await Task.sleep(for:.milliseconds(100))
+        XCTAssertEqual(model.undoAction,.restoreReview(document.id),"another review's purge leaves it")
+        model.reviewStore.onPurge?(document.id);try await Task.sleep(for:.milliseconds(100))
+        XCTAssertEqual(model.undoAction,.game,"a purged review is not offered back");_ = game.validateMenuItem(item);XCTAssertEqual(item.title,"Undo")
     }
 }
 

@@ -19,6 +19,13 @@ import CheckmateCore
         XCTAssertEqual(DetailContent.practiceHeading(result:"1/2-1/2",learner:"w",thinking:false,learnerToMove:true),"Drawn game")
         XCTAssertEqual(DetailContent.practiceHeading(result:"*",learner:"w",thinking:false,learnerToMove:true),"Game over")
     }
+    /// The training game's status is a heading too, written like practice's: no closing period.
+    func testTheTrainingGameStatusIsAHeading(){
+        XCTAssertEqual(TrainingPanel.gameStatus(finished:false,paused:false,thinking:false),"Your move")
+        XCTAssertEqual(TrainingPanel.gameStatus(finished:false,paused:false,thinking:true),"The defender is thinking")
+        XCTAssertEqual(TrainingPanel.gameStatus(finished:false,paused:true,thinking:true),"Game paused")
+        XCTAssertEqual(TrainingPanel.gameStatus(finished:true,paused:true,thinking:true),"Game over")
+    }
     func testTheHeadingReadsTheSession()throws {
         let s=try GameSession(engine:nil)
         XCTAssertEqual(DetailContent.practiceHeading(s),"Your move","a new game as White starts on the learner's move")

@@ -90,9 +90,9 @@ try:
     if "AXStaticText: The Pawn" not in listing():
         pointer("click", "Toggle Sidebar")
     wait(lambda: "AXStaticText: The Pawn" in listing(), "Lesson sidebar did not open at launch")
-    if "Your next move." not in listing():
+    if "practice-heading" not in listing():
         pointer("click", "Toggle Game Details")
-    wait(lambda: "Your next move." in listing(), "Game details did not open")
+    wait(lambda: "practice-heading" in listing(), "Game details did not open")
 
     # A trackpad press that drifts within its square is still a click.
     pointer("drift-square", "f2", "12")
@@ -377,7 +377,7 @@ try:
 
     def back_to_game(where):
         pointer("click", "Return to game")
-        wait(lambda: "Your next move." in listing(), "Return to game did not leave " + where)
+        wait(lambda: "practice-heading" in listing(), "Return to game did not leave " + where)
 
     open_library_game()
     pointer("click", "11, White, Qxh7+")
