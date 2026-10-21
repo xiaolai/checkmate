@@ -379,8 +379,20 @@ struct ControlBarView:View {
 struct BarButtonStyle:ViewModifier {
     var prominent=false
     @ViewBuilder func body(content:Content)->some View {
-        if #available(macOS 26,*) {if prominent{content.buttonStyle(.glassProminent)}else{content.buttonStyle(.glass)}}
+        if #available(macOS 26,*) {content.buttonStyle(BarGlassButton(prominent:prominent))}
         else if prominent {content.buttonStyle(.borderedProminent)} else {content.buttonStyle(.bordered)}
+    }
+}
+/// A glass capsule with the bordered button's footprint: 8 points either side of the label, 28 high. The system glass
+/// button is 12 points wider, which wraps the practice bar into a second row at 600 points and shrinks the board.
+@available(macOS 26,*) private struct BarGlassButton:ButtonStyle {
+    let prominent:Bool
+    @Environment(\.isEnabled) private var enabled
+    func makeBody(configuration:Configuration)->some View {
+        configuration.label.padding(.horizontal,8).frame(minHeight:28)
+            .foregroundStyle(prominent ? AnyShapeStyle(.white):AnyShapeStyle(.primary)).opacity(enabled ? 1:0.45)
+            .glassEffect(prominent ? .regular.tint(.accentColor).interactive():.regular.interactive(),in:.capsule)
+            .contentShape(.capsule).opacity(configuration.isPressed ? 0.8:1)
     }
 }
 /// One group of bar buttons shares a glass container on macOS 26 and later, so neighbouring glass blends as one

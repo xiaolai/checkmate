@@ -1,4 +1,6 @@
 import XCTest
+import AppKit
+import SwiftUI
 @testable import CheckmateNative
 import CheckmateCore
 @testable import CheckmateDomain
@@ -203,5 +205,17 @@ import CheckmateCore
         }
         for (symbol,kinds) in seen{XCTAssertEqual(kinds.count,1,"\(symbol) means \(kinds.sorted())")}
         XCTAssertNotEqual(seen["arrow.counterclockwise"],seen["arrow.uturn.backward"])
+    }
+    /// Glass draws the bar's buttons, but each keeps the bordered button's footprint (8 points either side of its
+    /// label, 28 high): the system glass button is 12 wider, which wrapped the practice bar at 600 points and shrank
+    /// the board.
+    func testBarButtonsKeepTheBorderedFootprint(){
+        func size(_ view:some View)->CGSize {NSHostingView(rootView:view).fittingSize}
+        let icon=Image(systemName:"lightbulb").frame(width:20,height:20),word=Text("New Game")
+        for prominent in [false,true] {
+            XCTAssertEqual(size(Button{}label:{icon}.modifier(BarButtonStyle(prominent:prominent)).controlSize(.large)),CGSize(width:36,height:28),"icon, prominent \(prominent)")
+            let text=size(Button{}label:{word}.modifier(BarButtonStyle(prominent:prominent)).controlSize(.large))
+            XCTAssertEqual(text.width,size(word).width+16,"text, prominent \(prominent)");XCTAssertEqual(text.height,28,"text, prominent \(prominent)")
+        }
     }
 }
