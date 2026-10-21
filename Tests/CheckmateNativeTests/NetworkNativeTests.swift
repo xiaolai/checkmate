@@ -11,7 +11,7 @@ import CheckmateCore
     private var directory:URL!
     override func setUp(){directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);setenv("CHECKMATE_DATA_DIR",directory.path,1)}
     override func tearDown(){unsetenv("CHECKMATE_DATA_DIR");try? FileManager.default.removeItem(at:directory)}
-    private func bar(_ model:NativeModel)->ControlBarModel {ControlBarModel.make(session:model.session,learning:model.learning,review:model.review,training:model.training,voice:.off(unavailable:nil))}
+    private func bar(_ model:NativeModel)->ControlBarModel {ControlBarModel.make(session:model.session,learning:model.learning,review:model.review,training:model.training,network:model.network,voice:.off(unavailable:nil))}
 
     /// A component built with its own policy would never see the game begin: the app hands every one the same.
     func testEveryComponentSharesTheAppsFairnessCheck()throws {
@@ -32,7 +32,7 @@ import CheckmateCore
         let paused=bar(model);XCTAssertEqual(paused.status,.text(FairnessPolicy.practicePaused))
         XCTAssertEqual(paused.trailing.first{$0.action == .hint}?.enabled,false);XCTAssertEqual(paused.trailing.first{$0.action == .tryMove}?.enabled,false)
         XCTAssertTrue(paused.trailingGroups.isEmpty,"no voice controls during a network game")
-        model.playOnNetwork();XCTAssertEqual(model.session.activity,.at(.network));XCTAssertEqual(bar(model),ControlBarModel(),"no new toolbar items (D10)")
+        model.playOnNetwork();XCTAssertEqual(model.session.activity,.at(.network));XCTAssertEqual(bar(model),ControlBarModel(),"no game to act on yet: the bar stays empty")
         // Once the game ends, everything opens again.
         model.fairness.participation.end();model.lesson(0);XCTAssertEqual(model.session.mode,.lesson)
     }

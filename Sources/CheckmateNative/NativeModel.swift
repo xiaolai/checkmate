@@ -488,6 +488,10 @@ import RealtimeConnection
     private func reconcileReviewSaveWarning(){if pendingReviewSnapshots.isEmpty,let warning=reviewSaveWarning{if storageError==warning{storageError=nil};reviewSaveWarning=nil}}
     /// Returns whether the review is open with its state restored; false when the learner kept a draft, the request was
     /// withdrawn while the draft question was up (`stillWanted`), or the restore failed.
+    /// The learner's side in each game they reviewed from their own play this run (B-6), so its review opens from
+    /// their side; an imported record has none and opens from White's.
+    private var reviewSides:[UUID:String]=[:]
+    func reviewLearnerSide(_ document:GameDocument)->String? {reviewSides[document.id]}
     @discardableResult func openReview(_ document:GameDocument,saved:SavedReview?=nil,draft:Bool=false,stillWanted:()->Bool={true})->Bool{
         navigate(.review(document,saved:saved,draft:draft),stillWanted:stillWanted)
     }
@@ -719,7 +723,8 @@ import RealtimeConnection
         }
         reviewOpenGeneration+=1;cancelReviewImport();let provenance=previous ? "Previous game":"Current game",fallback="This game could not be opened for review. Your practice is unchanged."
         let data:Data;do{data=previous ? try ReviewRecordSource.data(previousGame:session.state.practice.previousGame,result:session.state.practice.previousEnding?.result):try ReviewRecordSource.data(session.rules,result:session.state.practice.ending?.result)}catch{storageError=userFacingMessage(error,fallback:fallback);return}
-        parseForReview(data,provenance:provenance,fallback:fallback){documents,_ in self.openReview(documents[0],draft:true)}
+        let side=previous ? session.state.practice.previousSide:session.humanSide
+        parseForReview(data,provenance:provenance,fallback:fallback){documents,_ in self.reviewSides[documents[0].id]=side;self.openReview(documents[0],draft:true)}
     }
     /// The finished training game shown, as a draft review (mini-games plan D6): read from the attempt's own start and
     /// actions, never the practice game. The review covers the training entry, so Return to game leads back to it.
@@ -727,7 +732,8 @@ import RealtimeConnection
         reviewOpenGeneration+=1;cancelReviewImport();let fallback="This game could not be opened for review. Your training is unchanged."
         guard let training else{return}
         let data:Data;do{data=try training.reviewRecord()}catch{storageError=userFacingMessage(error,fallback:fallback);return}
-        parseForReview(data,provenance:"Training game",fallback:fallback){documents,_ in self.openReview(documents[0],draft:true)}
+        let side=shownTrainingExercise?.scenario.learner
+        parseForReview(data,provenance:"Training game",fallback:fallback){documents,_ in self.reviewSides[documents[0].id]=side;self.openReview(documents[0],draft:true)}
     }
     /// The review workspace's game library (bundled games and imported collections), in the data directory's own
     /// `Library/` folder, apart from `Reviews/`.
@@ -741,11 +747,12 @@ import RealtimeConnection
             try verify(documents[0]);self.openReview(documents[0],draft:true)
         }
     }
-    func importReviewData(_ data:Data){
+    /// `learnerSide` is the learner's own side when the record is a game they played (a network game).
+    func importReviewData(_ data:Data,learnerSide:String?=nil){
         parseForReview(data,delay:NativePolicy.silent ? min(2000,max(0,automationReviewImportDelayMs)):0,fallback:"This record could not be imported. Your current game and reviews are unchanged."){documents,skipped in
             // Unreadable games in a collection are skipped, and the learner is told which.
             if let first=skipped.first{self.storageError="\(skipped.count) game\(skipped.count==1 ? "":"s") in this file could not be read and \(skipped.count==1 ? "was":"were") skipped. "+(first.errorDescription ?? "")}
-            if documents.count==1{self.openReview(documents[0],draft:true)}else{let alert=NSAlert();alert.messageText="Choose a game to review";let picker=NSPopUpButton(frame:NSRect(x:0,y:0,width:440,height:28));picker.setAccessibilityLabel("Game to review");for (recordIndex,d) in documents.enumerated(){let label="\(recordIndex+1). \(d.header("White") ?? "White") – \(d.header("Black") ?? "Black") · \(d.result) · \(d.header("Date") ?? "Unknown date")";picker.addItem(withTitle:String(label.prefix(256)))};alert.accessoryView=picker;alert.addButton(withTitle:"Review");alert.addButton(withTitle:"Cancel")
+            if documents.count==1{self.reviewSides[documents[0].id]=learnerSide;self.openReview(documents[0],draft:true)}else{let alert=NSAlert();alert.messageText="Choose a game to review";let picker=NSPopUpButton(frame:NSRect(x:0,y:0,width:440,height:28));picker.setAccessibilityLabel("Game to review");for (recordIndex,d) in documents.enumerated(){let label="\(recordIndex+1). \(d.header("White") ?? "White") – \(d.header("Black") ?? "Black") · \(d.result) · \(d.header("Date") ?? "Unknown date")";picker.addItem(withTitle:String(label.prefix(256)))};alert.accessoryView=picker;alert.addButton(withTitle:"Review");alert.addButton(withTitle:"Cancel")
                 // Main-actor work (MCP, saved loads, timers) can run during the modal loop; a choice made
                 // after another activity was selected must not replace it.
                 let chooserGeneration=self.reviewOpenGeneration;let response=alert.runModal()

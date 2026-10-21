@@ -136,7 +136,7 @@ public struct LessonProjection:Codable {
     public var humanSide:String {state.settings.practiceSide}
     public var opponentSide:String {humanSide=="w" ? "b":"w"}
     public static func validatePracticeFork(_ fork:ChessRules,side:String)throws {guard ["w","b"].contains(side),!fork.over else{throw CheckmateError.invalid("Terminal position cannot start practice.")}}
-    public func installPracticeFork(_ fork:ChessRules,side:String)throws {try Self.validatePracticeFork(fork,side:side);cancelWork();keepAsPrevious();try rules.restore(fork.pgn);gameGeneration+=1;state.practice.ending=nil;state.practice.startPly=fork.history.count;state.settings.practiceSide=side;resetOpponent();showReplacedGame();changedPosition();message="You play \(side=="w" ? "White":"Black").";reply()}
+    public func installPracticeFork(_ fork:ChessRules,side:String)throws {try Self.validatePracticeFork(fork,side:side);cancelWork();keepAsPrevious();try rules.restore(fork.pgn);gameGeneration+=1;state.practice.ending=nil;state.practice.startPly=fork.history.count;state.practice.hints=0;state.settings.practiceSide=side;resetOpponent();showReplacedGame();changedPosition();message="You play \(side=="w" ? "White":"Black").";reply()}
     public var positionId:String {sessionId+":"+String(position)}
     /// What the board shows, by one precedence: an active review, the review workspace, training, a lesson, then a
     /// visible demonstration or preview over the practice game, then the game itself.
@@ -168,7 +168,7 @@ public struct LessonProjection:Codable {
     /// Advances whenever pending work is cancelled (a settings, position or presentation change): a result computed across a change is stale.
     public var workGeneration:Int {generation}
     public func cancelWork(){if coaching.status=="thinking"{coaching.status="idle";signalEvent()};generation+=1;work?.cancel();work=nil;busy=false;busyReason=nil}
-    private func changedPosition(){cancelWork();explicitResumeRequired=false;position+=1;liveSelection=nil;clearPresentation();clearAnnotations();selected=nil;inspection=nil;error=nil;coaching=Coaching();coaching.summary=turnSummary();emit(save:true)}
+    private func changedPosition(){cancelWork();explicitResumeRequired=false;position+=1;hintStep=0;liveSelection=nil;clearPresentation();clearAnnotations();selected=nil;inspection=nil;error=nil;coaching=Coaching();coaching.summary=turnSummary();emit(save:true)}
     /// `legalNow` is true only when a click on a dot plays: the learner's own piece, on the learner's turn, on the
     /// live board. The opponent's moves, moves while Stockfish thinks and imagined boards show as possibilities.
     private func learnerInspection(_ sq:String,on board:ChessRules,live:Bool)->PieceInspection? {
@@ -202,7 +202,7 @@ public struct LessonProjection:Codable {
         guard !reviewSuspended,mode == .practice,rules.turn==humanSide,busyReason != "opponent",!finished,(presentationHidden || preview==nil && demonstration==nil) else{throw CheckmateError.invalid("ROLE_FORBIDDEN")}
         let move=try rules.move(from,to,promotion);changedPosition();if let ending=rules.ending{message=endingText(ending.reason)};onMove?(move);reply()
     }
-    public func commitBlack(_ uci:String) throws -> MoveRecord {try fairness.requireEngineHelp();guard !reviewSuspended,!explicitResumeRequired,rules.turn==opponentSide else{throw CheckmateError.stale};let kept=selected;let m=try rules.move(uci:uci);changedPosition();if let kept,rules.piece(kept)?.color==humanSide{selected=kept;inspection=learnerInspection(kept,on:rules,live:true)};onMove?(m);message=gameOverMessage ?? turnSummary();scheduleGuidance();return m}
+    public func commitBlack(_ uci:String) throws -> MoveRecord {try fairness.requireEngineHelp();guard !reviewSuspended,!explicitResumeRequired,rules.turn==opponentSide else{throw CheckmateError.stale};let kept=selected;let m=try rules.move(uci:uci);changedPosition();if let kept,rules.piece(kept)?.color==humanSide{selected=kept;inspection=learnerInspection(kept,on:rules,live:true)};onMove?(m);message=gameOverMessage ?? turnSummary();return m}
     public func reply(){guard fairness.engineHelpAllowed,!shuttingDown,!reviewSuspended,!explicitResumeRequired,mode == .practice,rules.turn==opponentSide,!finished,!busy,!voiceHold,!pausedOpponent,!suspended,(presentationHidden || (preview==nil && demonstration==nil)),(!companionEnabled || companionRole != "opponent"),let engine=engine else{return}
         let fen=rules.fen,epoch=generation;busy=true;busyReason="opponent";emit(semantic:false)
         work=Task {[weak self] in guard let self=self else{return};do{let result=try await self.chooseOpponentMove(engine:engine);try Task.checkCancellation();guard self.generation==epoch,self.rules.fen==fen,self.fairness.engineHelpAllowed else{return};guard let move=result.bestMove else{throw CheckmateError.unavailable("ENGINE_UNAVAILABLE")};self.busy=false;self.busyReason=nil;self.recordOpponentChoice(result);_ = try self.commitBlack(move)}catch{if self.generation==epoch {self.busy=false;self.busyReason=nil;self.error="Stockfish could not respond"+Self.engineReason(error)+". Retry, undo, or start a new game.";self.emit(semantic:false)}}}
@@ -232,9 +232,9 @@ public struct LessonProjection:Codable {
     /// A learner's action that could not be done, said where the drawer shows practice errors; the game is unchanged.
     public func report(_ message:String){error=message;emit(semantic:false)}
     public func retryEngine(){error=nil;if rules.turn==humanSide{hint()}else{reply()}}
-    /// Whether Take Back has a learner move to undo; a lone opening move by Stockfish is not one, and a resigned or
-    /// drawn-by-claim game is over.
-    public var canTakeBack:Bool {mode == .practice && !reviewSuspended && state.practice.ending==nil && rules.records.dropFirst(state.practice.startPly).contains{$0.color==humanSide}}
+    /// Whether Take Back has a learner move to undo; a lone opening move by Stockfish is not one. Every ending allows
+    /// it alike (checkmate, resignation, a claimed draw): taking back after a resignation or claim takes the ending back too.
+    public var canTakeBack:Bool {mode == .practice && !reviewSuspended && rules.records.dropFirst(state.practice.startPly).contains{$0.color==humanSide}}
     /// Over by the rules, by resignation or by a claimed draw.
     public var finished:Bool {rules.over || state.practice.ending != nil}
     /// A draw the side to move may claim now (it does not end the game by itself).
@@ -243,22 +243,24 @@ public struct LessonProjection:Codable {
     public var gameOverMessage:String? {if let ending=state.practice.ending{return ending.reason};return rules.ending.map{endingText($0.reason)}}
     private func endingText(_ reason:String)->String {guard rules.checkmate else{return reason};return rules.turn==humanSide ? "Checkmate. Stockfish wins.":"Checkmate. You win!"}
     /// The learner resigns: the game is recorded as lost and play stops.
-    public func resign(){guard mode == .practice,!reviewSuspended,!finished,!rules.history.isEmpty else{return};cancelWork();state.practice.ending=PracticeEnding(result:humanSide=="w" ? "0-1":"1-0",reason:"You resigned. Stockfish wins.");message=gameOverMessage ?? message;emit(save:true)}
+    /// A practice game can be resigned once a move is played and until it ends; Game ▸ Resign and the bar's follow this.
+    public var canResign:Bool {mode == .practice && !reviewSuspended && !finished && !rules.history.isEmpty}
+    public func resign(){guard canResign else{return};cancelWork();state.practice.ending=PracticeEnding(result:humanSide=="w" ? "0-1":"1-0",reason:"You resigned. Stockfish wins.");message=gameOverMessage ?? message;emit(save:true)}
     /// Claims a draw by threefold repetition or the 50-move rule when one is available.
     public func claimDraw(){guard let reason=claimableDraw else{return};cancelWork();state.practice.ending=PracticeEnding(result:"1/2-1/2",reason:"Draw claimed by \(reason).");message=gameOverMessage ?? message;emit(save:true)}
-    public func undo(){guard canTakeBack else{return};cancelWork();state.practice.beginnerSevereStreak=0;do{try rules.undo();if rules.turn==opponentSide,rules.records.count>state.practice.startPly{try rules.undo()}}catch{let reason=Self.engineReason(error);changedPosition();self.error="The move could not be taken back"+reason+".";emit(semantic:false);return};changedPosition();message="Move taken back.";onUndo?();reply()}
+    public func undo(){guard canTakeBack else{return};cancelWork();state.practice.beginnerSevereStreak=0;do{try rules.undo();if rules.turn==opponentSide,rules.records.count>state.practice.startPly{try rules.undo()}}catch{let reason=Self.engineReason(error);changedPosition();self.error="The move could not be taken back"+reason+".";emit(semantic:false);return};state.practice.ending=nil;changedPosition();message="Move taken back.";onUndo?();reply()}
     private static let standardStart="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
     private var holdsGame:Bool {!rules.history.isEmpty || rules.fen != Self.standardStart}
     /// The game being replaced becomes the previous game with everything Restore Previous Game needs to resume it.
-    private func keepAsPrevious(){guard holdsGame else{return};state.practice.previousGame=rules.pgn;state.practice.previousSide=humanSide;state.practice.previousEnding=state.practice.ending;state.practice.previousStartPly=state.practice.startPly}
+    private func keepAsPrevious(){guard holdsGame else{return};state.practice.previousGame=rules.pgn;state.practice.previousSide=humanSide;state.practice.previousEnding=state.practice.ending;state.practice.previousStartPly=state.practice.startPly;state.practice.previousHints=state.practice.hints}
     /// Starts a new game with the learner on `side` (by default the side they play now). As Black, Stockfish opens.
-    public func newGame(side:String?=nil){guard !reviewSuspended,mode == .practice else{return};let side=["w","b"].contains(side ?? "") ? side!:humanSide;keepAsPrevious();do{try rules.reset()}catch{self.error="A new game could not be started"+Self.engineReason(error)+".";return};gameGeneration+=1;state.practice.ending=nil;state.practice.startPly=0;state.settings.practiceSide=side;resetOpponent();error=nil;changedPosition();message=side=="w" ? "You play White. Start by making room for your pieces.":"You play Black. Stockfish moves first.";reply()}
+    public func newGame(side:String?=nil){guard !reviewSuspended,mode == .practice else{return};let side=["w","b"].contains(side ?? "") ? side!:humanSide;keepAsPrevious();do{try rules.reset()}catch{self.error="A new game could not be started"+Self.engineReason(error)+".";return};gameGeneration+=1;state.practice.ending=nil;state.practice.startPly=0;state.practice.hints=0;state.settings.practiceSide=side;resetOpponent();error=nil;changedPosition();message=side=="w" ? "You play White. Start by making room for your pieces.":"You play Black. Stockfish moves first.";reply()}
     /// Swaps the current and previous games, each with the side the learner played, so neither is lost.
     public func restorePrevious() throws {
         guard !reviewSuspended,mode == .practice,!state.practice.previousGame.isEmpty else{return}
-        let previous=state.practice.previousGame,previousSide=state.practice.previousSide,previousEnding=state.practice.previousEnding,previousStartPly=state.practice.previousStartPly,held=holdsGame,current=held ? rules.pgn:"",currentSide=humanSide
+        let previous=state.practice.previousGame,previousSide=state.practice.previousSide,previousEnding=state.practice.previousEnding,previousStartPly=state.practice.previousStartPly,previousHints=state.practice.previousHints,held=holdsGame,current=held ? rules.pgn:"",currentSide=humanSide
         try rules.restore(previous);gameGeneration+=1
-        state.practice.previousGame=current;state.practice.previousSide=currentSide;state.practice.previousEnding=held ? state.practice.ending:nil;state.practice.previousStartPly=held ? state.practice.startPly:0;state.practice.ending=previousEnding;state.practice.startPly=previousStartPly;state.settings.practiceSide=previousSide;resetOpponent()
+        state.practice.previousGame=current;state.practice.previousSide=currentSide;state.practice.previousEnding=held ? state.practice.ending:nil;state.practice.previousStartPly=held ? state.practice.startPly:0;state.practice.previousHints=held ? state.practice.hints:0;state.practice.ending=previousEnding;state.practice.startPly=previousStartPly;state.practice.hints=previousHints;state.settings.practiceSide=previousSide;resetOpponent()
         changedPosition();message="You play \(previousSide=="w" ? "White":"Black").";reply()
     }
     public func continueWithStockfish(){pausedOpponent=false;emit();reply()}
@@ -292,7 +294,9 @@ public struct LessonProjection:Codable {
     public func holdVoice(_ value:Bool){if value,busyReason=="opponent"{cancelWork()};voiceHold=value;emit(semantic:false);if !value{reply()}}
     public func setVoiceFocus(_ sq:[String],identity:String){guard identity==displayIdentity else{return};voiceFocus=sq.filter(ChessRules.validSquare);emit(semantic:false)}
     public func clearAnnotations(){overlayTask?.cancel();overlayTask=nil;highlights=[];arrows=[];voiceFocus=[];overlayRevision+=1}
-    public func annotate(arrows:[[String]],highlights:[Highlight],ttl:Int=15000){clearAnnotations();self.arrows=arrows;self.highlights=highlights;emit(semantic:false);let epoch=overlayRevision;overlayTask=Task{try? await Task.sleep(nanoseconds:UInt64(ttl)*1_000_000);guard !Task.isCancelled,self.overlayRevision==epoch else{return};self.clearAnnotations();self.emit(semantic:false)}}
+    /// How long the marks shown now last, in milliseconds; nil while they stay until the position changes (a hint).
+    public private(set) var annotationLifetime:Int?
+    public func annotate(arrows:[[String]],highlights:[Highlight],ttl:Int?=15000){clearAnnotations();self.arrows=arrows;self.highlights=highlights;annotationLifetime=ttl;emit(semantic:false);guard let ttl else{return};let epoch=overlayRevision;overlayTask=Task{try? await Task.sleep(nanoseconds:UInt64(ttl)*1_000_000);guard !Task.isCancelled,self.overlayRevision==epoch else{return};self.clearAnnotations();self.emit(semantic:false)}}
     /// A hidden presentation's selection is the live board's own, so only a visible one's is dropped.
     private func clearPresentation(){demoTask?.cancel();demoTask=nil;if !presentationHidden,preview != nil || demonstration != nil{selected=nil;inspection=nil};preview=nil;demonstration=nil;presentationHidden=false}
     /// A new presentation frame drops the marks and inspection drawn for the previous one; a hidden presentation's selection is the live board's own.
@@ -331,8 +335,16 @@ public struct LessonProjection:Codable {
     /// repetitions count as they do in the game.
     private func analyzeGame(_ e:EngineService,then extra:[String]=[],budget:Int,multiPv:Int) async throws -> EngineAnalysis {try await e.analyzeHistory(startFEN:rules.records.first?.before ?? rules.fen,moves:rules.records.map(\.uci)+extra,profile:.skill(20),budget:budget,multiPv:multiPv)}
     public func analyze(budget:Int=350,multiPv:Int=3) async throws -> EngineAnalysis {try fairness.requireEngineHelp();guard let e=engine else{throw CheckmateError.unavailable("ENGINE_UNAVAILABLE")};let epoch=position;let a=try await analyzeGame(e,budget:budget,multiPv:multiPv);try fairness.requireEngineHelp();guard epoch==position,!Task.isCancelled else{throw CheckmateError.stale};return a}
-    public func hint(){guard fairness.engineHelpAllowed,!busy,mode == .practice,rules.turn==humanSide,!finished else{return};cancelWork();let epoch=generation;busy=true;busyReason="analysis";coaching.status="thinking";emit(semantic:false);work=Task{do{let a=try await self.analyze();try Task.checkCancellation();guard self.generation==epoch,self.fairness.engineHelpAllowed else{return};self.busy=false;self.busyReason=nil;guard let uci=a.lines.first?.pv.first ?? a.bestMove else{throw CheckmateError.unavailable("No hint returned")};let facts=try self.moveFacts(self.rules,uci:uci);self.coaching.status="ready";self.coaching.recommendation=facts;self.coaching.analysis=a;self.message=facts.description;self.signalEvent();self.annotate(arrows:[[facts.from,facts.to]],highlights:[Highlight(sq:facts.from,kind:"focus")])}catch{guard self.generation==epoch,!Task.isCancelled else{return};self.busy=false;self.busyReason=nil;self.coaching.status="error";self.error="A hint is unavailable"+Self.engineReason(error)+". Please try again.";self.signalEvent()}}}
-    private func scheduleGuidance(){guard fairness.engineHelpAllowed,state.settings.coachingMode=="guided",voiceLease==nil,!(companionEnabled && companionRole=="opponent"),rules.turn==humanSide,!rules.over else{return};hint()}
+    /// The hint shown for this position, step by step: 0 none, 1 the piece to move, 2 the move itself. Any change of
+    /// position ends it; nothing is shown until the learner asks.
+    public private(set) var hintStep=0
+    /// The first request marks the piece to move; the second shows the move from the same search. Each step shown
+    /// counts once in the game's `hints`, and stays on the board until the learner moves.
+    public func hint(){guard fairness.engineHelpAllowed,!busy,mode == .practice,rules.turn==humanSide,!finished,hintStep<2 else{return}
+        if hintStep==1,let facts=coaching.recommendation{hintStep=2;state.practice.hints+=1;message=facts.description;signalEvent();annotate(arrows:[[facts.from,facts.to]],highlights:[Highlight(sq:facts.from,kind:"focus")],ttl:nil);emit(semantic:false,save:true);return}
+        cancelWork();let epoch=generation;busy=true;busyReason="analysis";coaching.status="thinking";emit(semantic:false);work=Task{do{let a=try await self.analyze();try Task.checkCancellation();guard self.generation==epoch,self.fairness.engineHelpAllowed else{return};self.busy=false;self.busyReason=nil;guard let uci=a.lines.first?.pv.first ?? a.bestMove else{throw CheckmateError.unavailable("No hint returned")};let facts=try self.moveFacts(self.rules,uci:uci);self.coaching.status="ready";self.coaching.recommendation=facts;self.coaching.analysis=a;self.hintStep=1;self.state.practice.hints+=1;self.message=Self.pieceHint(facts);self.signalEvent();self.annotate(arrows:[],highlights:[Highlight(sq:facts.from,kind:"focus")],ttl:nil);self.emit(semantic:false,save:true)}catch{guard self.generation==epoch,!Task.isCancelled else{return};self.busy=false;self.busyReason=nil;self.coaching.status="error";self.error="A hint is unavailable"+Self.engineReason(error)+". Please try again.";self.signalEvent()}}}
+    /// The first hint step names the piece, never where it goes.
+    static func pieceHint(_ facts:MoveFacts)->String {let names=["p":"pawn","n":"knight","b":"bishop","r":"rook","q":"queen","k":"king"];return "Try moving your \(names[facts.piece] ?? "piece") on \(facts.from). Ask for another hint to see the move."}
     public func boardFacts(_ r:ChessRules)->BoardFacts {
         var white=0,black=0,threats:[Threat]=[]
         for (sq,p) in r.board {let color=String(p.prefix(1)),kind=String(p.suffix(1));if color=="w"{white+=TrainingMaterial.value(p)}else{black+=TrainingMaterial.value(p)};for from in r.attackers(sq,color=="w" ? "b":"w") {threats.append(Threat(from:from,to:sq,piece:kind,color:color,attacker:r.piece(from)?.type ?? ""))}}

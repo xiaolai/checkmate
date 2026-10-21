@@ -165,7 +165,7 @@ struct NetworkDetail:View {
         if game.timeControl == .untimed {
             VStack(alignment:.leading,spacing:6){row(top,clocks:nil);row(top.opponent,clocks:nil)}
         }else{
-            TimelineView(.periodic(from:.now,by:0.25)){_ in
+            TimelineView(.periodic(from:.now,by:0.1)){_ in
                 let clocks=game.currentClocks
                 VStack(alignment:.leading,spacing:6){row(top,clocks:clocks);row(top.opponent,clocks:clocks)}
             }
@@ -178,13 +178,19 @@ struct NetworkDetail:View {
             Text(game.players.name(side)+(side==game.learnerSide ? " (you)":"")).fontWeight(toMove ? .semibold:.regular).accessibilityIdentifier("network-\(colour)-name")
             Spacer(minLength:Metrics.smallGap)
             if let clocks {
-                Text(Self.clock(clocks.remaining(side))).font(.system(.title3,design:.monospaced)).foregroundStyle(clocks.active==side ? .primary:.secondary)
+                Text(Self.clock(clocks.remaining(side))).font(.system(.title3,design:.monospaced)).foregroundStyle(Self.low(clocks.remaining(side)) ? Color(nsColor:NativeColors.error):clocks.active==side ? .primary:.secondary)
                     .accessibilityLabel(Self.spokenClock(clocks.remaining(side))).accessibilityIdentifier("network-\(colour)-clock")
             }
         }
     }
-    /// "4:05": whole seconds, rounded up so a clock reads 0:00 only once it has run out.
-    static func clock(_ milliseconds:Int)->String {let seconds=(max(0,milliseconds)+999)/1000;return String(format:"%d:%02d",seconds/60,seconds%60)}
+    /// "4:05": whole seconds, rounded up so a clock reads 0:00 only once it has run out; under ten seconds, tenths
+    /// ("0:09.4"), rounded up the same way (B-2).
+    static func clock(_ milliseconds:Int)->String {
+        let tenths=(max(0,milliseconds)+99)/100;if tenths<100{return String(format:"0:%02d.%d",tenths/10,tenths%10)}
+        let seconds=(max(0,milliseconds)+999)/1000;return String(format:"%d:%02d",seconds/60,seconds%60)
+    }
+    /// Under twenty seconds a clock shows red (B-2).
+    static func low(_ milliseconds:Int)->Bool {milliseconds<20_000}
     static func spokenClock(_ milliseconds:Int)->String {
         let seconds=(max(0,milliseconds)+999)/1000,minutes=seconds/60,rest=seconds%60
         return [minutes>0 ? "\(minutes) minute\(minutes==1 ? "":"s")":nil,rest>0 || minutes==0 ? "\(rest) second\(rest==1 ? "":"s")":nil].compactMap{$0}.joined(separator:" ")

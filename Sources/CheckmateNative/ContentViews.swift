@@ -201,7 +201,13 @@ struct TransportContent:View {
     @ObservedObject var learning:LearningPlayer
     @ObservedObject var voice:VoiceCoach
     @ObservedObject var review:ReviewController
+    /// The network game, whose bar carries its turn, clocks and actions (B-1).
+    @ObservedObject var network:NetworkGameController
     let newGame:()->Void,showDetails:()->Void
+    /// Flip Board and Resign, which the window performs as its Game menu does (each asks first where it must).
+    var gameCommand:(ControlBarAction)->Void={_ in}
+    /// The network clock's low-time warning, held by the window so it sounds once per game (B-2).
+    var lowTime:NetworkLowTimeWarning?=nil
     /// Hands Black back to Stockfish after the companion opponent disconnected.
     var continueWithStockfish:()->Void={}
     /// Explicit resume for a reply held after a failed review entry; always reachable with both drawers closed.
@@ -231,8 +237,8 @@ struct TransportContent:View {
     /// The training game's coach is offered: its flag, and a game being played or a session open for it.
     var trainingVoice:Bool {voice.training != nil && (voice.trainingSession || voice.trainingVoiceAvailable)}
     /// The bar for what is shown now; the Lesson menu reads the same model, so menu and bar always agree.
-    var barModel:ControlBarModel {ControlBarModel.make(session:session,learning:learning,review:review,training:training,voice:voiceState,trainingVoice:trainingVoice)}
-    var body:some View {ControlBarView(model:barModel,perform:perform,rowsChanged:rowsChanged,framesChanged:framesChanged)}
+    var barModel:ControlBarModel {ControlBarModel.make(session:session,learning:learning,review:review,training:training,network:network,voice:voiceState,trainingVoice:trainingVoice)}
+    var body:some View {ControlBarView(model:barModel,perform:perform,rowsChanged:rowsChanged,framesChanged:framesChanged,network:network,lowTime:lowTime)}
     /// What each control does; the model decides only which controls show and whether they can act.
     func perform(_ action:ControlBarAction){
         switch action {
@@ -278,6 +284,11 @@ struct TransportContent:View {
         case .trainingTryAgain:training?.retry()
         case .trainingNextExercise:training?.next()
         case .trainingLibrary,.backToTraining:openTrainingLibrary()
+        case .offerDraw:network.offerDraw()
+        case .acceptDraw:network.answerDraw(accept:true)
+        case .declineDraw:network.answerDraw(accept:false)
+        case .resign,.flipBoard:gameCommand(action)
+        case .more:break
         }
     }
 }

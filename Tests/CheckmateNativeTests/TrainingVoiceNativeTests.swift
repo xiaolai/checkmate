@@ -15,7 +15,7 @@ import CheckmateCore
     override func setUp(){directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);setenv("CHECKMATE_DATA_DIR",directory.path,1);setenv("CHECKMATE_TRAINING_ENABLED","1",1);setenv("CHECKMATE_TRAINING_B","1",1)}
     override func tearDown(){unsetenv("CHECKMATE_DATA_DIR");unsetenv("CHECKMATE_TRAINING_ENABLED");unsetenv("CHECKMATE_TRAINING_B");unsetenv("CHECKMATE_TRAINING_VOICE");try? FileManager.default.removeItem(at:directory)}
     private func bar(_ model:NativeModel,trainingVoice:Bool)->ControlBarModel {
-        ControlBarModel.make(session:model.session,learning:model.learning,review:model.review,training:model.training,voice:.off(unavailable:nil),trainingVoice:trainingVoice)
+        ControlBarModel.make(session:model.session,learning:model.learning,review:model.review,training:model.training,network:model.network,voice:.off(unavailable:nil),trainingVoice:trainingVoice)
     }
     func testTheFlagAloneOffersTheTrainingCoach()throws {
         let off=try NativeModel();defer{off.shutdown()}

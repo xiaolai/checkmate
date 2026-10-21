@@ -14,6 +14,9 @@ enum NativeColors {
 struct BoardPalette {
     let lightSquare:NSColor,darkSquare:NSColor,ink:NSColor,protection:NSColor,danger:NSColor
     static let lightPiece=NSColor.white,darkPiece=NSColor.black,pieceOutline=NSColor.black
+    /// Check's glow, its ring and the last move's tint are the same in every theme; BoardPlayTests checks their
+    /// contrast against each theme's squares (B-15).
+    static let check=rgb(1.0,0.15,0.10),checkRing=rgb(0.30,0.02,0.02),lastMove=rgb(1.0,0.84,0.18)
     private static func rgb(_ r:CGFloat,_ g:CGFloat,_ b:CGFloat)->NSColor {NSColor(srgbRed:r,green:g,blue:b,alpha:1)}
     static func theme(_ name:String)->BoardPalette {
         switch name {

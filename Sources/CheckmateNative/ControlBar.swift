@@ -13,6 +13,7 @@ enum ControlBarAction:Hashable {
     case reviewFirst,reviewPrevious,reviewPlayPause,reviewNext,reviewLast,returnToOriginal
     case puzzleLibrary,nextPuzzle
     case trainingHint,trainingTakeBack,trainingTryAgain,trainingNextExercise,trainingLibrary,backToTraining
+    case offerDraw,acceptDraw,declineDraw,resign,flipBoard,more
 }
 
 /// One control: an icon button when `symbol` is set, otherwise a text button. `label` is what VoiceOver says and the
@@ -26,7 +27,7 @@ struct ControlBarItem:Equatable,Identifiable {
     var prominent=false
     /// The main playback control, drawn with a larger symbol.
     var primary=false
-    /// Voice: Disconnect is offered from this control's menu.
+    /// Voice: Disconnect is offered from this control's menu; More is only a menu.
     var menu:[ControlBarItem]=[]
     /// More to say than the label, shown as the tooltip (a connection's progress).
     var detail:String?=nil
@@ -53,6 +54,8 @@ struct ControlBarModel:Equatable {
     var trailing:[ControlBarItem]=[]
     /// Further trailing groups, each drawn as its own group (voice beside the game's tools).
     var trailingGroups:[[ControlBarItem]]=[]
+    /// The network game's two clocks show beside the status (B-2).
+    var clocks=false
 
     var items:[ControlBarItem] {leading+centre+trailing+trailingGroups.flatMap{$0}}
     func item(_ action:ControlBarAction)->ControlBarItem? {items.first{$0.action==action}}
@@ -70,10 +73,9 @@ extension ControlBarModel {
     /// The bar for what the app shows now. Pure: it reads the model and decides nothing else.
     /// `trainingVoice`: the training game's coach is offered (mini-game plan WI-021, behind its flag), so the training
     /// bar carries the same voice controls as practice's.
-    @MainActor static func make(session:GameSession,learning:LearningPlayer,review:ReviewController,training:TrainingController?,voice:ControlBarVoice,trainingVoice:Bool=false)->ControlBarModel {
+    @MainActor static func make(session:GameSession,learning:LearningPlayer,review:ReviewController,training:TrainingController?,network:NetworkGameController,voice:ControlBarVoice,trainingVoice:Bool=false)->ControlBarModel {
         if review.active {return reviewBar(review)}
-        // The network game's actions live in its own pane and menus (LAN-play plan D10: no new toolbar items).
-        if session.mode == .network {return ControlBarModel()}
+        if session.mode == .network {return networkBar(network)}
         if session.mode == .practice {return practiceBar(session,voice:voice)}
         if learning.mini {return miniBar(learning)}
         if session.mode == .training,let training {var bar=trainingBar(training,session:session);if trainingVoice,case .training=session.activity.place,training.exercise?.task == .game{bar.trailingGroups.insert(voiceControls(voice).items,at:0)};return bar}
@@ -142,18 +144,25 @@ extension ControlBarModel {
         // During a network game practice is viewable only: Stockfish waits and hints, Try a move and voice are off (D8).
         let fair=session.fairness.engineHelpAllowed
         bar.status = !fair ? .text(FairnessPolicy.practicePaused):session.busyReason=="opponent" ? .working("Stockfish is thinking"):session.busy ? .working("Finding a hint"):.turn(side:session.rules.turn,label:session.rules.status)
-        bar.leading=[ControlBarItem(action:.newGame,label:"New game…")]
+        // More (Flip Board, Resign) sits beside New game: the bar is centred, so the longer side sets when it wraps.
+        bar.leading=[ControlBarItem(action:.newGame,label:"New game…"),ControlBarItem(action:.more,symbol:"ellipsis.circle",label:"More",menu:[ControlBarItem(action:.flipBoard,label:"Flip Board"),ControlBarItem(action:.resign,label:"Resign…",enabled:session.canResign)])]
         if session.explicitResumeRequired{bar.leading.append(ControlBarItem(action:.resumeGame,label:"Resume game",prominent:true))}
         else if session.pausedOpponent{bar.leading.append(ControlBarItem(action:.continueWithStockfish,label:"Continue with Stockfish",prominent:true))}
         let yourMove=session.rules.turn==session.humanSide && !session.finished
         bar.trailing=[
             ControlBarItem(action:.takeBack,symbol:"arrow.uturn.backward",label:"Take back move",enabled:session.canTakeBack),
-            ControlBarItem(action:.hint,symbol:"lightbulb",label:"Hint",enabled:fair && !session.busy && yourMove),
+            practiceHint(step:session.hintStep,available:fair && !session.busy && yourMove),
             ControlBarItem(action:.tryMove,label:"Try a move",enabled:fair && yourMove && session.busyReason != "opponent" && session.demonstration==nil),
         ]
         bar.trailingGroups=fair ? [voiceGroup.items]:[]
         if let status=voiceGroup.status{bar.status = .working(status)}
         return bar
+    }
+
+    /// Practice's Hint, step by step (B-5): the first request marks the piece, the second shows the move, and then the
+    /// move is on the board until the learner plays.
+    static func practiceHint(step:Int,available:Bool)->ControlBarItem {
+        ControlBarItem(action:.hint,symbol:"lightbulb",label:step==1 ? "Show Move":"Hint",enabled:available && step<2)
     }
 
     /// The voice coach's controls, the same beside the game and over a preview or demonstration: Cancel while it
@@ -236,6 +245,9 @@ struct ControlBarView:View {
     /// Called with where each control (by action) and the status were laid out, in the bar's own coordinates; the
     /// layout acceptance checks them at every board size.
     var framesChanged:([String:CGRect])->Void={_ in}
+    /// The network game whose clocks show when the model asks for them, and its low-time warning.
+    var network:NetworkGameController?=nil
+    var lowTime:NetworkLowTimeWarning?=nil
     @State private var widths:[Int:CGFloat]=[:]
     static let groupGap:CGFloat=14,itemGap:CGFloat=4,rowHeight:CGFloat=32
     /// The narrowest a leading status may become before the bar takes another row; longer status text is shortened
@@ -307,6 +319,7 @@ struct ControlBarView:View {
     private func centreGroup(room:CGFloat)->some View {
         HStack(spacing:Self.groupGap) {
             if model.statusInCentre,let status=model.status{StatusPill(status:status).background(place("status"))}
+            if model.clocks,let network,let lowTime{NetworkBarClocks(game:network,warning:lowTime).background(place("clocks"))}
             if !model.centre.isEmpty{HStack(spacing:Self.itemGap){ForEach(model.centre){button($0)}}.accessibilityElement(children:.contain).accessibilityLabel("Playback")}
         }.fixedSize()
     }
@@ -322,15 +335,35 @@ struct ControlBarView:View {
         if let symbol=item.symbol {
             if item.menu.isEmpty {
                 Button{perform(item.action)}label:{icon(symbol,primary:item.primary)}
-                    .buttonStyle(.bordered).controlSize(.large).disabled(!item.enabled).help(item.label).accessibilityLabel(item.label)
+                    .buttonStyle(.bordered).controlSize(.large).disabled(!item.enabled).help(Self.tooltip(item)).accessibilityLabel(item.label)
+            } else if item.action == .more {
+                Menu{entries(item)}label:{icon(symbol,primary:false)}
+                    .menuStyle(.button).buttonStyle(.bordered).controlSize(.large).fixedSize().disabled(!item.enabled).help(Self.tooltip(item)).accessibilityLabel(item.label)
             } else {
-                Menu{ForEach(item.menu){entry in Button(entry.label){perform(entry.action)}}}label:{icon(symbol,primary:false)}primaryAction:{perform(item.action)}
-                    .menuStyle(.button).buttonStyle(.bordered).controlSize(.large).fixedSize().disabled(!item.enabled).help(item.label).accessibilityLabel(item.label)
+                Menu{entries(item)}label:{icon(symbol,primary:false)}primaryAction:{perform(item.action)}
+                    .menuStyle(.button).buttonStyle(.bordered).controlSize(.large).fixedSize().disabled(!item.enabled).help(Self.tooltip(item)).accessibilityLabel(item.label)
             }
         } else if item.prominent {
-            Button(item.label){perform(item.action)}.buttonStyle(.borderedProminent).controlSize(.large).disabled(!item.enabled).help(item.label)
+            Button(item.label){perform(item.action)}.buttonStyle(.borderedProminent).controlSize(.large).disabled(!item.enabled).help(Self.tooltip(item))
         } else {
-            Button(item.label){perform(item.action)}.buttonStyle(.bordered).controlSize(.large).disabled(!item.enabled).help(item.detail ?? item.label)
+            Button(item.label){perform(item.action)}.buttonStyle(.bordered).controlSize(.large).disabled(!item.enabled).help(Self.tooltip(item))
+        }
+    }
+    private func entries(_ item:ControlBarItem)->some View {ForEach(item.menu){entry in Button(entry.label){perform(entry.action)}.disabled(!entry.enabled).help(Self.tooltip(entry))}}
+    /// The tooltip: what the control does, then its menu shortcut when it has one (B-17).
+    static func tooltip(_ item:ControlBarItem)->String {let text=item.detail ?? item.label;return shortcut(item.action).map{"\(text) (\($0))"} ?? text}
+    /// The shortcut of the menu item that performs the same action.
+    static func shortcut(_ action:ControlBarAction)->String? {
+        switch action {
+        case .takeBack,.attemptUndo,.trainingTakeBack,.miniUndo:return "⌘Z"
+        case .hint,.attemptHint,.trainingHint:return "⇧⌘H"
+        case .newGame,.miniNewGame:return "⌘N"
+        case .flipBoard:return "⇧⌘F"
+        case .playPause,.reviewPlayPause,.demoPlayPause:return "⌘P"
+        case .previousStep,.previousLesson,.reviewPrevious,.demoPrevious,.previewPrevious:return "⌘["
+        case .nextStep,.nextLesson,.reviewNext,.demoNext,.previewNext:return "⌘]"
+        case .stepFromStart:return "⌘R"
+        default:return nil
         }
     }
     /// Every icon sits in the same square, so swapping play for pause or one chevron for two never resizes a slot.

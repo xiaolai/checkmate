@@ -32,6 +32,10 @@ public struct AudioPolicy {public let automation:Bool;public init(automation:Boo
     public func pause(){narration?.pause()}
     public func stop(){narration?.stop();narration=nil}
     public func illustration(piece:String,capture:Bool,settings:AppSettings){guard policy.mayPlay(enabled:settings.moveSounds,volume:settings.effectsVolume) else{return};var tones=scores[piece] ?? [];if capture{tones.append(Tone(at:0,duration:0.045,from:1050,to:170,gain:0.055,wave:"triangle"))};do{let player=try AVAudioPlayer(data:Self.wave(tones));player.volume=Float(settings.effectsVolume*(narration?.isPlaying==true ? 0.35:1));player.play();effect=player}catch{self.error="Move sound could not play."}}
+    /// A network clock's low-time warning: two short high tones, under the move-sound settings. Returns whether it
+    /// played; automation and muted sounds never do.
+    @discardableResult public func lowTime(settings:AppSettings)->Bool {guard policy.mayPlay(enabled:settings.moveSounds,volume:settings.effectsVolume) else{return false}
+        do{let p=try AVAudioPlayer(data:Self.wave([Tone(at:0,duration:0.09,from:880,to:880,gain:0.05,wave:"sine"),Tone(at:0.14,duration:0.09,from:880,to:880,gain:0.05,wave:"sine")]));p.volume=Float(settings.effectsVolume);p.play();effect=p;return true}catch{self.error="The low-time warning could not play.";return false}}
     public func stopAll(){stop();effect?.stop();effect=nil}
     public func move(_ move:MoveRecord?,settings:AppSettings,undo:Bool=false){guard policy.mayPlay(enabled:settings.moveSounds,volume:settings.effectsVolume) else{return};var tones:[Tone]=[],at=0.0
         func piece(_ type:String,_ time:Double){for t in scores[type] ?? [] {tones.append(Tone(at:time+t.at,duration:t.duration,from:t.from,to:t.to,gain:t.gain,wave:t.wave))}}

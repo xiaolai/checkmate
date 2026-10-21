@@ -15,7 +15,7 @@ import CheckmateCore
     private var directory:URL!
     override func setUp(){directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);setenv("CHECKMATE_DATA_DIR",directory.path,1)}
     override func tearDown(){unsetenv("CHECKMATE_DATA_DIR");unsetenv(NativeModel.networkLoopbackVariable);try? FileManager.default.removeItem(at:directory)}
-    private func bar(_ model:NativeModel)->ControlBarModel {ControlBarModel.make(session:model.session,learning:model.learning,review:model.review,training:model.training,voice:.off(unavailable:nil))}
+    private func bar(_ model:NativeModel)->ControlBarModel {ControlBarModel.make(session:model.session,learning:model.learning,review:model.review,training:model.training,network:model.network,voice:.off(unavailable:nil))}
 
     /// One manual scheduler and memory transport; a host's records reach every discovery made here.
     private final class LAN {
@@ -43,7 +43,7 @@ import CheckmateCore
     }
 
     /// D9: in network mode the Game menu shows only Resign, Offer Draw, Claim Draw, Flip Board and Leave Game, and the
-    /// Lesson menu hides; elsewhere the network-only items hide.
+    /// Lesson menu hides; elsewhere the network-only items hide. Flip Board works everywhere (B-6).
     func testTheGameMenuShowsOnlyTheNetworkItemsInNetworkMode(){
         let menu=AppDelegate.makeGameMenu(target:nil),lesson=NSMenuItem(title:"Lesson",action:nil,keyEquivalent:"")
         func visible()->[String] {menu.items.filter{!$0.isHidden}.map{$0.isSeparatorItem ? "—":$0.title}}
@@ -51,7 +51,7 @@ import CheckmateCore
         XCTAssertEqual(visible(),["Offer Draw","Claim Draw","Resign…","Flip Board","Leave Game…"]);XCTAssertTrue(lesson.isHidden)
         XCTAssertEqual(menu.items.compactMap{$0.identifier?.rawValue}.filter{$0.hasPrefix("network-")},["network-menu-offer-draw","network-menu-flip-board","network-menu-leave-game"])
         GameWindow.syncMenus(menu,lesson:lesson,network:false)
-        XCTAssertEqual(visible(),["New Game…","Take Back Move","Restore Previous Game","Claim Draw","Resign…","—","Protected by","Attacked by","Dismiss Piece Inspection"]);XCTAssertFalse(lesson.isHidden)
+        XCTAssertEqual(visible(),["New Game…","Take Back Move","Hint","Restore Previous Game","Claim Draw","Resign…","Flip Board","—","Protected by","Attacked by","Dismiss Piece Inspection"]);XCTAssertFalse(lesson.isHidden)
         GameWindow.syncMenus(menu,lesson:lesson,network:true);GameWindow.syncMenus(menu,lesson:lesson,network:true)
         XCTAssertEqual(visible(),["Offer Draw","Claim Draw","Resign…","Flip Board","Leave Game…"],"repeated syncs change nothing")
         // Assistance plan A1: at board insight the network game's menu also shows the piece inspector.
@@ -63,8 +63,8 @@ import CheckmateCore
     func testTheNetworkItemsFollowTheGame()throws {
         let model=try NativeModel();defer{model.shutdown()}
         let game=model.network,offer=#selector(GameWindow.offerDraw),flip=#selector(GameWindow.flipBoard),leave=#selector(GameWindow.leaveGame),resign=#selector(GameWindow.resign),claim=#selector(GameWindow.claimDraw)
-        for action in [offer,flip,leave]{XCTAssertEqual(GameWindow.networkItemEnabled(action,network:false,game:game),false,"\(action) outside network mode")}
-        for action in [resign,claim,#selector(GameWindow.newGame)]{XCTAssertNil(GameWindow.networkItemEnabled(action,network:false,game:game),"practice decides \(action)")}
+        for action in [offer,leave]{XCTAssertEqual(GameWindow.networkItemEnabled(action,network:false,game:game),false,"\(action) outside network mode")}
+        for action in [resign,claim,flip,#selector(GameWindow.newGame)]{XCTAssertNil(GameWindow.networkItemEnabled(action,network:false,game:game),"practice decides \(action)")}
         XCTAssertNil(GameWindow.networkItemEnabled(#selector(GameWindow.newGame),network:true,game:game))
         for action in [offer,flip,leave,resign,claim]{XCTAssertEqual(GameWindow.networkItemEnabled(action,network:true,game:game),false,"\(action) in the lobby")}
         let lan=LAN(),ben=try hostedGame(model,lan);model.playOnNetwork()
@@ -73,18 +73,45 @@ import CheckmateCore
         ben.offerDraw();lan.scheduler.run();XCTAssertEqual(GameWindow.networkItemEnabled(offer,network:true,game:game),false,"an offer is open")
     }
 
-    /// D9 and D10: away from the network place the sidebar says "Network game · your move" while it is; the control bar
-    /// stays empty in network mode; fairness holds while the host's seat is taken.
-    func testTheBadgeAndTheEmptyControlBar()throws {
+    /// D9: away from the network place the sidebar says "Network game · your move" while it is; in network mode the
+    /// control bar carries the game (B-1); fairness holds while the host's seat is taken.
+    func testTheBadgeAndTheNetworkControlBar()throws {
         let model=try NativeModel();defer{model.shutdown()}
         let lan=LAN(),ben=try hostedGame(model,lan),game=model.network
         model.playOnNetwork();XCTAssertEqual(model.session.activity,.at(.network))
         XCTAssertNil(SidebarSelection.networkBadge(model.session.activity,game),"no badge on the network place itself")
-        XCTAssertEqual(bar(model),ControlBarModel(),"no new toolbar items (D10)");XCTAssertEqual(model.fairness.participation.role,.player)
+        XCTAssertEqual(bar(model).trailing.map(\.action),[.offerDraw,.resign,.flipBoard]);XCTAssertEqual(model.fairness.participation.role,.player)
         model.practice();XCTAssertEqual(SidebarSelection.networkBadge(model.session.activity,game),NetworkGameController.yourMoveBadge)
         game.play(from:"e2",to:"e4");lan.scheduler.run();XCTAssertNil(SidebarSelection.networkBadge(model.session.activity,game),"Ben's move")
         ben.play(from:"e7",to:"e5");lan.scheduler.run();XCTAssertEqual(SidebarSelection.networkBadge(model.session.activity,game),NetworkGameController.yourMoveBadge,"the game went on while away")
-        model.playOnNetwork();XCTAssertEqual(game.board["e5"],"bp");XCTAssertEqual(bar(model),ControlBarModel())
+        model.playOnNetwork();XCTAssertEqual(game.board["e5"],"bp");XCTAssertEqual(bar(model).trailing.map(\.action),[.offerDraw,.resign,.flipBoard])
+    }
+
+    /// B-1: the bar shows whose turn it is, Offer Draw, Resign and Flip Board, and answers a draw offer inline, so the
+    /// drawer need not be open. Each control acts on the network game.
+    func testTheControlBarCarriesTheNetworkGame()throws {
+        let model=try NativeModel();defer{model.shutdown()}
+        model.network.form.timeControl = .fivePlusThree
+        let lan=LAN(),ben=try hostedGame(model,lan),game=model.network;model.playOnNetwork()
+        var shown=bar(model)
+        XCTAssertEqual(shown.trailing.map(\.label),["Offer Draw","Resign…","Flip Board"]);XCTAssertTrue(shown.trailing.allSatisfy(\.enabled))
+        XCTAssertTrue(shown.clocks,"a timed game shows both clocks");XCTAssertTrue(shown.statusInCentre)
+        guard case .turn(let side,let label)?=shown.status else{return XCTFail("the turn shows")};XCTAssertEqual(side,"w");XCTAssertEqual(label,game.statusText)
+        ben.offerDraw();lan.scheduler.run();shown=bar(model)
+        XCTAssertEqual(shown.trailing.map(\.label),["Accept Draw","Decline","Offer Draw","Resign…","Flip Board"]);XCTAssertEqual(shown.item(.offerDraw)?.enabled,false,"an offer is open")
+        let transport=TransportContent(session:model.session,learning:model.learning,voice:model.voice,review:model.review,network:model.network,newGame:{},showDetails:{},restartAttempt:{},connectVoice:{})
+        transport.perform(.declineDraw);lan.scheduler.run();XCTAssertNil(game.openOffer);XCTAssertNil(game.outcome)
+        XCTAssertEqual(bar(model).trailing.map(\.action),[.offerDraw,.resign,.flipBoard])
+        ben.offerDraw();lan.scheduler.run();transport.perform(.acceptDraw);lan.scheduler.run()
+        XCTAssertEqual(game.outcome?.result,.draw);XCTAssertEqual(game.outcome?.termination,.agreement)
+        shown=bar(model);XCTAssertEqual(shown.item(.resign)?.enabled,false);XCTAssertEqual(shown.item(.offerDraw)?.enabled,false);XCTAssertEqual(shown.item(.flipBoard)?.enabled,true)
+        guard case .text?=shown.status else{return XCTFail("a finished game says how it ended")}
+    }
+    /// An untimed game has no clocks to show; the lobby has no bar.
+    func testAnUntimedGameShowsNoClocksAndTheLobbyNoBar()throws {
+        let model=try NativeModel();defer{model.shutdown()};model.playOnNetwork()
+        XCTAssertEqual(bar(model),ControlBarModel(),"nothing to act on in the lobby")
+        let lan=LAN();_=try hostedGame(model,lan);XCTAssertFalse(bar(model).clocks)
     }
 
     /// D9: Leave and Resign ask first when they count as a resignation; Cancel keeps the game; quitting asks too, then
@@ -154,7 +181,7 @@ import CheckmateCore
     func testTheHostSheetAndThePanesText()throws {
         XCTAssertEqual(NetworkTimeControl.allCases.map(NetworkHostSheet.label),["Untimed","3 + 2","5 + 3","10 + 5","15 + 10","30 + 0"])
         let form=NetworkHostForm();XCTAssertEqual(form.timeControl,.untimed,"untimed by default");XCTAssertEqual(form.side,.white);XCTAssertTrue(form.allowSpectators)
-        XCTAssertEqual(NetworkDetail.clock(180_000),"3:00");XCTAssertEqual(NetworkDetail.clock(65_001),"1:06","rounded up");XCTAssertEqual(NetworkDetail.clock(0),"0:00");XCTAssertEqual(NetworkDetail.clock(-5),"0:00")
+        XCTAssertEqual(NetworkDetail.clock(180_000),"3:00");XCTAssertEqual(NetworkDetail.clock(65_001),"1:06","rounded up");XCTAssertEqual(NetworkDetail.clock(0),"0:00.0","tenths under ten seconds (B-2)");XCTAssertEqual(NetworkDetail.clock(-5),"0:00.0")
         XCTAssertEqual(NetworkDetail.spokenClock(65_000),"1 minute 5 seconds");XCTAssertEqual(NetworkDetail.spokenClock(120_000),"2 minutes");XCTAssertEqual(NetworkDetail.spokenClock(1_000),"1 second");XCTAssertEqual(NetworkDetail.spokenClock(0),"0 seconds")
         let code=try XCTUnwrap(NetworkCode(typed:"K7QD2M9X"));XCTAssertEqual(code.grouped,"K7QD-2M9X");XCTAssertEqual(NetworkDetail.spelled(code),"K 7 Q D, 2 M 9 X")
         XCTAssertEqual(NetworkGameController.gameName(host:"Ana"),"Ana's game")

@@ -239,12 +239,19 @@ final class BoardView:NSView {
     private func drawSquares(_ palette:BoardPalette,side s:CGFloat){
         for sq in ChessRules.squares {let rect=squareRect(sq),parity=(Int(sq.utf8.first!-97)+Int(sq.suffix(1))!-1)%2; (parity==0 ? palette.darkSquare:palette.lightSquare).setFill();rect.fill()
             if sq==selected{let danger=highlights.contains{$0.sq==sq && ($0.kind=="check" || $0.kind=="no")};halo(rect,selected:true,color:danger ? palette.danger:nil)}
-            if let h=highlights.last(where:{$0.sq==sq}),sq != selected {
-                let color=h.kind=="check" || h.kind=="no" ? palette.danger:palette.ink
+            if let h=highlights.last(where:{$0.sq==sq}),sq != selected,h.kind=="check" {
+                // Check (B-15): a saturated glow over the king's square, ringed in a dark red that stands out from it.
+                let glow=NSGradient(colors:[BoardPalette.check.withAlphaComponent(BoardOverlay.checkGlow),BoardPalette.check.withAlphaComponent(BoardOverlay.checkGlow*0.6)]);glow?.draw(in:rect,relativeCenterPosition:.zero)
+                let ring=NSBezierPath(ovalIn:rect.insetBy(dx:s*BoardOverlay.annotationInset,dy:s*BoardOverlay.annotationInset));BoardPalette.checkRing.setStroke();ring.lineWidth=s*BoardOverlay.haloWidth*1.5;ring.stroke()
+            } else if let h=highlights.last(where:{$0.sq==sq}),sq != selected,h.kind=="last" {
+                // The last move (B-15): a hue tint over both squares; Increase Contrast outlines it too so it stays findable.
+                BoardPalette.lastMove.withAlphaComponent(BoardOverlay.lastMoveTint).setFill();rect.fill()
+                if shouldIncreaseContrast,!showsKeyboardFocus || focus != sq{palette.ink.setStroke();let outline=NSBezierPath(rect:rect.insetBy(dx:s*BoardOverlay.haloWidth,dy:s*BoardOverlay.haloWidth));outline.lineWidth=s*BoardOverlay.haloWidth;outline.stroke()}
+            } else if let h=highlights.last(where:{$0.sq==sq}),sq != selected {
+                let color=h.kind=="no" ? palette.danger:palette.ink
                 let path=NSBezierPath(ovalIn:rect.insetBy(dx:s*BoardOverlay.annotationInset,dy:s*BoardOverlay.annotationInset))
                 color.withAlphaComponent(BoardOverlay.annotationFill).setFill();path.fill()
-                // The last move is a quiet fill, but Increase Contrast outlines it too so it stays findable.
-                if h.kind != "last" || shouldIncreaseContrast,!showsKeyboardFocus || focus != sq{color.withAlphaComponent(shouldIncreaseContrast ? 1:BoardOverlay.haloStrokeHigh).setStroke();path.lineWidth=s*BoardOverlay.haloWidth;path.stroke()}
+                if !showsKeyboardFocus || focus != sq{color.withAlphaComponent(shouldIncreaseContrast ? 1:BoardOverlay.haloStrokeHigh).setStroke();path.lineWidth=s*BoardOverlay.haloWidth;path.stroke()}
             }
             if attacked.contains(sq){palette.ink.withAlphaComponent(BoardOverlay.coverageOpacity).setStroke();let p=NSBezierPath(ovalIn:rect.insetBy(dx:s*0.36,dy:s*0.36));p.lineWidth=max(1,s*0.025);p.stroke()}
             // Playable moves are solid; possibilities that a click cannot play are hollow or dashed.
@@ -297,9 +304,17 @@ final class BoardView:NSView {
         if let m=explicitMotion,let piece=position[m.from]{let a=squareRect(m.from),b=squareRect(m.to),t=m.t*m.t*(3-2*m.t);glyph(piece,rect:NSRect(x:a.minX+(b.minX-a.minX)*t,y:a.minY+(b.minY-a.minY)*t,width:s,height:s))}
         if let d=drag,let piece=position[d.from]{glyph(piece,rect:NSRect(x:d.point.x-s/2,y:d.point.y-s/2,width:s,height:s))}
     }
-    private func drawLabels(_ palette:BoardPalette,side s:CGFloat){let r=boardRect
+    /// Coordinates (B-14): lowercase files under the board and ranks on its left, each centred on its square and in the
+    /// margin by its measured size, in the order the board is shown.
+    static func coordinateLabels(board r:NSRect,blackAtBottom:Bool,margin:CGFloat,size:(String)->NSSize)->[(text:String,origin:NSPoint)] {
+        let s=r.width/8
+        let files=(0..<8).map{i->(text:String,origin:NSPoint) in let text=String(UnicodeScalar(97+(blackAtBottom ? 7-i:i))!),m=size(text);return (text,NSPoint(x:r.minX+(CGFloat(i)+0.5)*s-m.width/2,y:r.minY-margin+(margin-m.height)/2))}
+        let ranks=(0..<8).map{i->(text:String,origin:NSPoint) in let text=String(blackAtBottom ? 8-i:i+1),m=size(text);return (text,NSPoint(x:r.minX-margin+(margin-m.width)/2,y:r.minY+(CGFloat(i)+0.5)*s-m.height/2))}
+        return files+ranks
+    }
+    private func drawLabels(_ palette:BoardPalette,side s:CGFloat){
         let attrs:[NSAttributedString.Key:Any]=[.font:NSFont.systemFont(ofSize:Metrics.coordinateSize,weight:.medium),.foregroundColor:NativeColors.secondaryText]
-        for i in 0..<8 {let file=String(UnicodeScalar(65+(blackAtBottom ? 7-i:i))!) as NSString,rank=String(blackAtBottom ? 8-i:i+1) as NSString;file.draw(at:NSPoint(x:r.minX+(CGFloat(i)+0.5)*s-4,y:r.minY-Metrics.padding),withAttributes:attrs);file.draw(at:NSPoint(x:r.minX+(CGFloat(i)+0.5)*s-4,y:r.maxY+4),withAttributes:attrs);rank.draw(at:NSPoint(x:r.minX-Metrics.padding,y:r.minY+(CGFloat(i)+0.5)*s-6),withAttributes:attrs);rank.draw(at:NSPoint(x:r.maxX+6,y:r.minY+(CGFloat(i)+0.5)*s-6),withAttributes:attrs)}
+        for label in Self.coordinateLabels(board:boardRect,blackAtBottom:blackAtBottom,margin:Metrics.boardMargin,size:{($0 as NSString).size(withAttributes:attrs)}){(label.text as NSString).draw(at:label.origin,withAttributes:attrs)}
         for (i,sq) in counts.enumerated(){let rect=squareRect(sq),label=String(i+1) as NSString;label.draw(at:NSPoint(x:rect.minX+s*0.08,y:rect.maxY-s*0.25),withAttributes:[.font:NSFont.systemFont(ofSize:s*0.16,weight:.bold),.foregroundColor:palette.ink])}
     }
 }

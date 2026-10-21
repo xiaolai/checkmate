@@ -141,7 +141,7 @@ extension NativeModel {
     /// A mini-game (protocol 1.3) opens its proof-search review instead: there is no PGN record of one.
     func reviewNetworkGame(){
         if network.ruleset != nil {network.showMiniReview();return}
-        guard let record=network.reviewRecord() else{return};importReviewData(Data(record.utf8))
+        guard let record=network.reviewRecord() else{return};importReviewData(Data(record.utf8),learnerSide:network.learnerSide?.rawValue)
     }
     /// The crash file a previous run left, read once and deleted (D9): the window says its notice.
     func takeNetworkCrashNotice()->NetworkCrashFile.Entry? {
