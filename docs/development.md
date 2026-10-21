@@ -27,7 +27,7 @@ bash build.sh
 open build/CheckmateNative.app
 ```
 
-`CHECKMATE_AUTOMATION=1 swift test` runs all four test suites silently. `bash scripts/acceptance.sh` runs silent isolated
+`bash scripts/acceptance.sh --only unit` runs all four test suites silently. Build through `build.sh` or the gate scripts rather than a bare `swift build` or `swift test`: they run `scripts/fresh-sources.py`, which rebuilds a synced file whose content changed but whose time did not. `bash scripts/acceptance.sh` runs silent isolated
 native tests, packaged UI scenarios, the existing MCP adapter against the native
 broker, a temporary WebKit legacy-store exporter test, and resource checks.
 The WebKit helper is a test executable, never part of the application. Its export is reimported by the deterministic migration test. The aggregate includes 483 sampled layout frames, constrained/fullscreen checks, lifecycle/restart tests, 1000 command transitions and 20 connection cycles. Automation does not enable VoiceOver or change accessibility preferences.
