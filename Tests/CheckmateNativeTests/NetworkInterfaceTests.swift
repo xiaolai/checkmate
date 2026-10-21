@@ -15,7 +15,7 @@ import CheckmateCore
     private var directory:URL!
     override func setUp(){directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);setenv("CHECKMATE_DATA_DIR",directory.path,1)}
     override func tearDown(){unsetenv("CHECKMATE_DATA_DIR");unsetenv(NativeModel.networkLoopbackVariable);try? FileManager.default.removeItem(at:directory)}
-    private func bar(_ model:NativeModel)->ControlBarModel {ControlBarModel.make(session:model.session,learning:model.learning,review:model.review,training:model.training,voice:.off(available:true))}
+    private func bar(_ model:NativeModel)->ControlBarModel {ControlBarModel.make(session:model.session,learning:model.learning,review:model.review,training:model.training,voice:.off(unavailable:nil))}
 
     /// One manual scheduler and memory transport; a host's records reach every discovery made here.
     private final class LAN {
@@ -268,7 +268,7 @@ import CheckmateCore
         model.voice.receive(["type":"conversation.item.input_audio_transcription.completed","item_id":"network-1","transcript":"What now?"])
         XCTAssertEqual(model.networkVoiceHistory.map(\.id),["network-1"],"Practice's words stay on Practice")
         // Reconnecting through the page keeps what this game's coach already said.
-        let requested=model.voice.connectRequests.count
+        let requested=model.voice.connectRequests.count;model.session.state.settings.voiceConsent=true
         model.voice.disconnect();model.connectNetworkVoice()
         XCTAssertEqual(model.voice.connectRequests.count,requested+1,"the page's button asks the coach to connect, once")
         try model.voice.automationOpen();model.voice.receive(["type":"session.updated"])

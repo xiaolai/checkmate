@@ -51,6 +51,13 @@ import RealtimeConnection
     private static let progressSaveFailure="Your progress could not be saved. Export it before quitting."
     private var shuttingDown=false
     private var connectionStartup:ConnectionStartup<ClientSecret>?
+    /// Which Checkmate Codex starts for chess MCP, read from Codex's configuration at launch and after Set up Codex
+    /// (V-15); nil until read, and never read during automation.
+    @Published private(set) var codexSetup:CompanionInstallation.SetupCheck?
+    /// This copy's MCP executable, which Set up Codex registers.
+    static var mcpExecutable:URL? {Bundle.main.executableURL?.deletingLastPathComponent().appendingPathComponent("CheckmateMCP")}
+    /// Reads Codex's configuration again, without running Codex.
+    func refreshCodexSetup(){guard !NativePolicy.silent,let executable=Self.mcpExecutable else{return};codexSetup=CompanionInstallation.setupCheck(executable:executable)}
     var onReview:(()->Void)?
     /// True for a move the learner dropped in place: it does not animate, so its sound does not wait for one.
     var movePlacedDirectly:((MoveRecord)->Bool)?
@@ -94,7 +101,7 @@ import RealtimeConnection
         fairness.participation.observe{[weak self] role in self?.objectWillChange.send();if role==nil{DispatchQueue.main.async{self?.resumeVoiceIfIntended()}}}
         // Whose conversation the coach's history is: it is cleared whenever the coach opens for another one (practice,
         // or another network game), so the game it last opened for, however it was connected, owns what it holds.
-        voice.$connected.filter{$0}.sink{[weak self] _ in guard let self else{return};self.networkVoiceGame=self.voice.networkSession ? self.network.record?.gameID:nil}.store(in:&observations)
+        voice.$connection.filter{$0 == .ready}.sink{[weak self] _ in guard let self else{return};self.networkVoiceGame=self.voice.networkSession ? self.network.record?.gameID:nil}.store(in:&observations)
         // The lobby browses only while the network place is on screen (D1); the game itself carries on elsewhere (D9).
         session.$activity.removeDuplicates().sink{[weak self] activity in self?.network.setShown(activity == .at(.network))}.store(in:&observations)
         // A host whose Mac sleeps stops its game as interrupted (D9).
@@ -112,7 +119,7 @@ import RealtimeConnection
     /// Lesson languages share the one narration channel and the voice coach's connection.
     private func wireLessonLanguages(){
         learning.packs=lessonLanguages.store;voice.usageLedger=usage;voice.network=(network,networkAssistant);voice.training=trainingVoice;voice.connectionBlocked={[weak self] in self?.lessonLanguages.recording==true || self?.audio.isNarrationPlaying==true || self?.voicePreview.playing==true}
-        voice.connectionBlockReason={[weak self] in self?.lessonLanguages.recording==true ? "Finish or cancel lesson recording before connecting the voice coach.":self?.voicePreview.playing==true ? "Wait for the voice preview to finish before connecting the voice coach.":"Stop lesson or preview playback before connecting the voice coach."}
+        voice.connectionBlockReason={[weak self] in self?.lessonLanguages.recording==true ? .lessonRecording:self?.voicePreview.playing==true ? .previewPlaying:.narrationPlaying}
         reconnectVoice={[weak self] in self?.voice.connect(greet:false)}
         voicePreview.usageLedger=usage;voicePreview.onPlayingChanged={[weak self] playing in self?.voice.externalPlayback=playing}
         // Whatever else plays waits for its turn: a preview blocks connecting, and lesson playback ends a preview.
@@ -195,7 +202,29 @@ import RealtimeConnection
         return voice.history
     }
     /// The network page's Connect Voice Coach.
-    func connectNetworkVoice(){voice.connect()}
+    func connectNetworkVoice(){connectVoiceWithConsent{[weak self] in self?.voice.connect()}}
+    /// The control bar's Connect: the training game's coach in Training, otherwise Practice's (or a review's).
+    func connectPracticeVoice(){connectVoiceWithConsent{[weak self] in guard let self else{return};if session.mode == .training{voice.connectTraining()}else{voice.connect()}}}
+    /// Settings ▸ Voice Coach's Connect, and a review's Connect Voice.
+    func connectVoiceFromSettings(){connectVoiceWithConsent{[weak self] in self?.voice.connect()}}
+    /// Asks the learner, with the saved launch choice as the checkbox's start, whether to connect voice (V-1). Tests
+    /// answer instead; the app shows `VoiceConsent`'s sheet.
+    var askVoiceConsent:(_ autoConnect:Bool,_ reply:@escaping (VoiceConsentAnswer)->Void)->Void={autoConnect,reply in VoiceConsent.ask(autoConnect:autoConnect,reply:reply)}
+    private var askingVoiceConsent=false
+    /// Every Connect the learner presses passes here. Until they have agreed once to what voice sends to OpenAI, the
+    /// question comes first; Connect saves the agreement (and the launch choice) before connecting, Cancel changes
+    /// nothing. Automatic connections never ask: they never run without the saved agreement.
+    func connectVoiceWithConsent(_ connect:@escaping ()->Void){
+        guard !session.state.settings.voiceConsent else{connect();return}
+        guard !askingVoiceConsent else{return}
+        askingVoiceConsent=true
+        askVoiceConsent(session.state.settings.voiceAutoConnect){[weak self] answer in
+            guard let self else{return};askingVoiceConsent=false
+            guard case .connect(let autoConnect)=answer else{return}
+            var settings=session.state.settings;settings.voiceConsent=true;settings.voiceAutoConnect=autoConnect;session.updateSettings(settings)
+            connect()
+        }
+    }
     var reconnectVoice:()->Void={}
     private var claimsWhenVoiceLeft=0
     private func rememberVoice(){if !voice.networkSession,voice.miniReviewSession==nil,!voice.trainingSession,voice.connected || voice.connecting{voiceResumeIntent=true;claimsWhenVoiceLeft=session.companionClaims}}
@@ -214,6 +243,7 @@ import RealtimeConnection
         // Voice is judged by its own and the activity's generations (connectVoice); the broker's generation, which its
         // own start or an asynchronous listener failure moves, only decides whether MCP still starts.
         let activity=activityGeneration,voiceGeneration=voice.connectionGeneration,brokerGeneration=companion.connectionGeneration
+        refreshCodexSetup()
         connectionStartup=ConnectionStartup(
             settings:{[weak self] in self?.session.state.settings ?? AppSettings()},
             // Voice needs only the Codex sign-in, not the Codex command; the MCP broker below still needs the command.
@@ -226,11 +256,13 @@ import RealtimeConnection
                 guard let self,activityGeneration==activity,voice.connectionGeneration==voiceGeneration,voiceMayConnect else{return}
                 voice.connect(authorizedSecret:authorization)
             },
+            // A failed start has already stopped the broker and shows its error in Settings ▸ Connections.
             startMCP:{[weak self] in
-                guard let self,companion.connectionGeneration==brokerGeneration,CompanionInstallation.installedCodex() != nil else{return}
-                do{try companion.enable(role:session.state.settings.companionRole,standby:true)}
-                catch{companion.disable()}
+                guard let self,companion.connectionGeneration==brokerGeneration else{return}
+                try companion.enable(role:session.state.settings.companionRole,standby:true)
             },
+            // Only a Codex that Set up Codex registered can use chess MCP, so without it nothing listens.
+            codexSetUp:{[weak self] in self?.codexSetup?.registered==true},
             stillCurrent:{[weak self] in
                 guard let self else{return false}
                 return !shuttingDown

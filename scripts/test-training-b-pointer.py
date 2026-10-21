@@ -304,6 +304,10 @@ try:
     # connecting records no help, and the drawer's Disconnect Coach ends it.
     assert not active().get("recordedHelp"), "fixture: the new game already had recorded help"
     pointer("click", "bar-voiceConnect")
+    # The first Connect asks once what voice sends (V-1); only the sheet's Connect connects, and it is remembered.
+    wait(lambda: "voice-consent-connect" in listing(), "The first Connect did not ask for consent")
+    pointer("click", "voice-consent-connect")
+    wait(lambda: (saved().get("settings") or {}).get("voiceConsent") is True, "Agreeing to voice was not saved")
     wait(lambda: "training-voice-disconnect" in listing() and "training-voice-status" in listing(), "Connecting the training coach did not open its session")
     time.sleep(SAVE_SETTLE)
     assert not active().get("recordedHelp") and not active()["actions"], "Connecting the coach recorded help"

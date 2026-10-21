@@ -11,7 +11,7 @@ import CheckmateCore
     private var directory:URL!
     override func setUp(){directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);setenv("CHECKMATE_DATA_DIR",directory.path,1)}
     override func tearDown(){unsetenv("CHECKMATE_DATA_DIR");try? FileManager.default.removeItem(at:directory)}
-    private func bar(_ model:NativeModel)->ControlBarModel {ControlBarModel.make(session:model.session,learning:model.learning,review:model.review,training:model.training,voice:.off(available:true))}
+    private func bar(_ model:NativeModel)->ControlBarModel {ControlBarModel.make(session:model.session,learning:model.learning,review:model.review,training:model.training,voice:.off(unavailable:nil))}
 
     /// A component built with its own policy would never see the game begin: the app hands every one the same.
     func testEveryComponentSharesTheAppsFairnessCheck()throws {

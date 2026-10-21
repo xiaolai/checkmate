@@ -59,6 +59,8 @@
    "key": "startupSettings",
    "prebuilt": true,
    "inputs": [
+    "Sources/CheckmateApplication/VoiceConnection.swift",
+    "Sources/CheckmateNative/VoiceConsent.swift",
     "scripts/test-startup-settings.py",
     "Tools/ax-helper.swift",
     "Sources/CheckmateNative/SettingsWindow.swift",
@@ -301,6 +303,8 @@
     "lessonLink"
    ],
    "inputs": [
+    "Sources/CheckmateApplication/VoiceConnection.swift",
+    "Sources/CheckmateNative/VoiceConsent.swift",
     "scripts/test-training-b-pointer.py",
     "Content/calibration/position-game-results.json",
     "Tools/pointer-helper.swift",
@@ -327,6 +331,7 @@
    "result": "pawn-duel-results.json",
    "key": "miniGames",
    "inputs": [
+    "Sources/CheckmateApplication/VoiceConnection.swift",
     "scripts/test-pawn-duel.sh",
     "Sources/CheckmateDomain/MiniGame*.swift",
     "Sources/CheckmateApplication/LearningPlayer.swift",
@@ -429,6 +434,8 @@
     "shutdownPersistence"
    ],
    "inputs": [
+    "Sources/CheckmateApplication/VoiceConnection.swift",
+    "Sources/CheckmateNative/VoiceConsent.swift",
     "scripts/test-review-ui.sh",
     "Tools/ReviewScenario.swift",
     "Sources/CheckmateNative/Review*.swift",
@@ -458,6 +465,8 @@
    "key": "networkUI",
    "prebuilt": true,
    "inputs": [
+    "Sources/CheckmateApplication/VoiceConnection.swift",
+    "Sources/CheckmateNative/VoiceConsent.swift",
     "scripts/test-network-ui.py",
     "scripts/network_gate.py",
     "Tools/pointer-helper.swift",

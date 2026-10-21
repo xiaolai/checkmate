@@ -9,7 +9,15 @@ import Combine
 import RealtimeConnection
 import SaidGuard
 @MainActor public final class VoiceCoach:ObservableObject {
-    @Published public private(set) var status="Disconnected"
+    /// The line shown for the coach: its connection state's text, or what a ready session is doing. Logic reads
+    /// `connection`, never this.
+    @Published public private(set) var status=VoiceConnectionState.disconnected.text
+    /// Where the connection stands (V-11). `connected` and `connecting` are read from it.
+    @Published public private(set) var connection:VoiceConnectionState = .disconnected
+    public var connected:Bool {connection == .ready}
+    public var connecting:Bool {connection.inProgress}
+    /// Moves the connection to `state` and shows its line.
+    private func enter(_ state:VoiceConnectionState){connection=state;status=state.text}
     @Published public private(set) var availability="Not checked"
     @Published public private(set) var checkingAvailability=false
     private var availabilityTask:Task<ClientSecret?,Never>?
@@ -20,8 +28,6 @@ import SaidGuard
     @Published public private(set) var selectedModel=""
     private var authorizedModel=VoiceSessionConfiguration.model
     public var connectionGeneration:UUID{epoch}
-    @Published public private(set) var connected=false
-    @Published public private(set) var connecting=false
     @Published public private(set) var microphone=false
     @Published public private(set) var history:[VoiceHistory]=[]
     @Published public private(set) var activeVoice=""
@@ -160,7 +166,7 @@ import SaidGuard
         guard miniReviewReadable,let current=session.finishedMiniGameReview() else{return};miniReviewProblem=nil
         if miniReviewSession==current.scope,ready{stopTurn(release:false);readMiniReview();return}
         if let authorized{connect(authorizedSecret:authorized,greet:false,miniReview:current.scope)}else{connect(miniReview:current.scope)}
-        if miniReviewSession==nil,status != "Disconnected"{miniReviewProblem=status}
+        if miniReviewSession==nil,connection != .disconnected{miniReviewProblem=status}
     }
     /// Every segment a reading speaks passes here: a proved fact's exact text with its own squares, for the review the
     /// session was opened for, or nothing is queued (UNGROUNDED_REVIEW_SPEECH).
@@ -209,8 +215,6 @@ import SaidGuard
     nonisolated static let trainingRegenerate="The training board changed before your answer reached the learner, so it was not given. Call get_board, then answer the learner's latest turn again from the new board."
     /// The display a neutral line is spoken for: it names no board, so a board change does not drop it.
     nonisolated static let neutralDisplay="training:neutral"
-    /// Why the coach did not connect to a training game.
-    public static let trainingUnavailable="The voice coach connects only to a training game being played, with no external MCP companion connected."
     /// The tools the open session was configured with.
     var activeDefinitions:[[String:Any]] {miniReviewSession != nil ? []:networkSession ? networkDefinitions:trainingSession ? trainingDefinitions:definitions}
     /// The most bytes a call to `name` can need under its own schema; a tool this session does not offer may still say
@@ -255,23 +259,32 @@ import SaidGuard
     }
     public var connectionBlocked:()->Bool={false}
     /// Why the coach does not connect during a network game (LAN-play plan D8).
-    public static let networkGameStatus="Voice coaching is off during your network game."
+    public static let networkGameStatus=VoiceUnavailability.networkGame.message
     /// Why a review could not be read aloud: it is no longer the one shown, or something else holds the session.
-    public static let miniReviewUnavailable="This review can no longer be read aloud."
+    public static let miniReviewUnavailable=VoiceUnavailability.reviewNotReadable.message
     /// A network session answers only on the learner's own move (A10).
     public static let networkOwnMove="The coach answers on your move."
     private var ownMove:Bool {!networkSession || network?.game.yourTurn==true}
-    public var connectionBlockReason:()->String={"Finish or cancel lesson recording before connecting the voice coach."}
+    public var connectionBlockReason:()->VoiceUnavailability={.lessonRecording}
     /// `greet` is false when voice resumes a conversation the learner already had (returning to Practice, or renewal).
     public func connect(authorizedSecret:ClientSecret?=nil,greet:Bool=true){connect(authorizedSecret:authorizedSecret,greet:greet,miniReview:nil)}
     /// Whether the learner can connect the coach to the training game shown now (WI-021): its flag, a standard-rule
     /// game being played, no MCP companion and no network game.
-    public var trainingVoiceAvailable:Bool {training?.connectable==true && session.fairness.voiceAllowed(network:false) && !session.companionEnabled}
+    public var trainingVoiceAvailable:Bool {trainingVoiceUnavailability==nil}
+    /// Why the training coach cannot connect now, or nil when it can.
+    public var trainingVoiceUnavailability:VoiceUnavailability? {
+        if session.companionEnabled{return .companionConnected}
+        if !session.fairness.voiceAllowed(network:false){return .networkGame}
+        return training?.connectable==true ? nil:.trainingGameOnly
+    }
+    /// Why the practice coach cannot connect now, or nil when it can: only an MCP companion holding the session is
+    /// known before connecting.
+    public var practiceVoiceUnavailability:VoiceUnavailability? {session.companionEnabled ? .companionConnected:nil}
     /// Connects the coach to the training game shown, without a greeting. Connecting records nothing: the attempt's
     /// help is recorded before the coach's first disclosure.
     public func connectTraining(){guard trainingVoiceAvailable else{return};connect(greet:false,miniReview:nil,training:true)}
     /// `miniReview` opens a session that reads that finished review aloud (D5) instead of a coach.
-    private func connect(authorizedSecret:ClientSecret?=nil,greet:Bool=true,miniReview:MiniGameReviewVoiceScope?,training:Bool=false){connectRequests.append(greet);let network=session.fairness.participation.role != nil;guard session.fairness.voiceAllowed(network:network),!network || self.network != nil && miniReview==nil && !training else{status=Self.networkGameStatus;return};guard !connectionBlocked() else{status=connectionBlockReason();return};guard !NativePolicy.silent || voiceDouble || automationAuthorizationFailure != nil,socket==nil,!connecting else{return};disconnect();usageModel=VoiceSessionConfiguration.model;do{try open(network:network,miniReview:miniReview,training:training)}catch{status=network ? Self.networkGameStatus:miniReview != nil ? Self.miniReviewUnavailable:training ? Self.trainingUnavailable:"Voice coaching requires Practice or enabled review voice, with no external MCP companion connected.";return};greetOnReady=greet;if greet{carriedSummary=""};if voiceDouble{connectDouble();return};connecting=true;audio.volume=Float(session.state.settings.voiceVolume);let generation=epoch;status=authorizedSecret==nil ? "Authorizing voice…":"Connecting voice…";connectTask=Task {do{let secret:ClientSecret,model:String;if let authorizedSecret{secret=authorizedSecret;model=authorizedModel}else{if let failure=automationAuthorizationFailure{throw failure};model=try await resolveModel();secret=try await gateway.authorize(model:model);signInProved=true};guard generation==epoch,!Task.isCancelled else{return};selectedModel=model;usageModel=model;status="Connecting voice…";let ws=try await VoiceSocket.open(secret:secret,model:model,handshakeTimeout:20);guard generation==epoch,!Task.isCancelled else{ws.closeSoon();return};socket=ws;activeVoice=session.state.settings.coachVoice
+    private func connect(authorizedSecret:ClientSecret?=nil,greet:Bool=true,miniReview:MiniGameReviewVoiceScope?,training:Bool=false){connectRequests.append(greet);let network=session.fairness.participation.role != nil;guard session.fairness.voiceAllowed(network:network),!network || self.network != nil && miniReview==nil && !training else{enter(.unavailable(.networkGame));return};guard !connectionBlocked() else{enter(.unavailable(connectionBlockReason()));return};guard !NativePolicy.silent || voiceDouble || automationAuthorizationFailure != nil,socket==nil,!connecting else{return};disconnect();usageModel=VoiceSessionConfiguration.model;do{try open(network:network,miniReview:miniReview,training:training)}catch{enter(.unavailable(network ? .networkGame:miniReview != nil ? .reviewNotReadable:session.companionEnabled ? .companionConnected:training ? .trainingGameOnly:.practiceOnly));return};greetOnReady=greet;if greet{carriedSummary=""};if voiceDouble{connectDouble();return};audio.volume=Float(session.state.settings.voiceVolume);let generation=epoch;enter(authorizedSecret==nil ? .authorizing:.connecting);connectTask=Task {do{let secret:ClientSecret,model:String;if let authorizedSecret{secret=authorizedSecret;model=authorizedModel}else{if let failure=automationAuthorizationFailure{throw failure};model=try await resolveModel();secret=try await gateway.authorize(model:model);signInProved=true};guard generation==epoch,!Task.isCancelled else{return};selectedModel=model;usageModel=model;enter(.connecting);let ws=try await VoiceSocket.open(secret:secret,model:model,handshakeTimeout:20);guard generation==epoch,!Task.isCancelled else{ws.closeSoon();return};socket=ws;activeVoice=session.state.settings.coachVoice
         receiveTask=Task{do{while !Task.isCancelled,generation==epoch {let event=try await ws.receive();guard generation==epoch,!Task.isCancelled else{return};receive(event)}}catch{if generation==epoch{fail("Voice connection ended. Reconnect to continue.")}}}
         // A microphone problem never ends the session: the coach still talks, and the specific fix is shown.
         configure();armTimeout();microphoneProblem=nil;if microphoneWanted{do{try await startInput(session.state.settings.voiceInputDevice)}catch is CancellationError{throw CancellationError()}catch{microphoneProblem=userFacingMessage(error,fallback:"The microphone is unavailable. Select another input device or turn off Microphone.")}};guard generation==epoch,!Task.isCancelled else{return};syncMic();if ready,gate.ready,calls.isEmpty,!awaitingCancellation{status=readyStatus}
@@ -297,7 +310,7 @@ import SaidGuard
     /// gateway, so a failed authorization can be checked with no sign-in, socket, audio or microphone.
     var automationAuthorizationFailure:Error?
     private func connectDouble(){
-        connecting=true;status="Connecting voice…";configure();let generation=epoch
+        enter(.connecting);configure();let generation=epoch
         DispatchQueue.main.async{[weak self] in guard let self,self.epoch==generation,self.connecting,!self.ready else{return};self.receive(["type":"session.updated"])}
     }
     private func answerAsDouble(_ event:[String:Any]){
@@ -342,8 +355,8 @@ import SaidGuard
         // Readiness and pending work end first: stopping audio below reports interrupted playback, which must not
         // start another segment, request or renewal on a session that is going away.
         ready=false;segments=[];segment=nil;queued=nil;continuation=false;renewalTask?.cancel();renewalTask=nil;renewalDue=false
-        for operation in Set(usageOperations.values).union(pendingUsage.values){usageLedger?.finish(operationID:operation,status:.incomplete)};usageOperations.removeAll();pendingUsage.removeAll();usagePCMBytes.removeAll();seenTranscriptionIDs.removeAll();availabilityTask?.cancel();availabilityTask=nil;availabilityEpoch=UUID();if checkingAvailability{availability="Not checked"};checkingAvailability=false;NativeLog.voice.debug("Disconnecting voice and releasing audio resources");microphoneTest?.cancel();microphoneTest=nil;microphoneUpdate?.cancel();microphoneUpdate=nil;epoch=UUID();connectTask?.cancel();connectTask=nil;receiveTask?.cancel();receiveTask=nil;timeout?.cancel();timeout=nil;for task in calls.values{task.cancel()};calls.removeAll();streamingArguments.removeAll();socket?.closeSoon();socket=nil;audio.stop();ready=false;connected=false;connecting=false;microphone=false;gate.reset();awaitingCancellation=false;queued=nil;segments=[];segment=nil;continuation=false;ignored=[];responseID="";userTurn=false;lease="";microphoneProblem=nil;turnMessage=nil;rounds=0;cancelling="";committedLearner=[];pendingEffort=nil;effortChange=nil;toolItems=[:];narration(.interrupted);renewalTask?.cancel();renewalTask=nil;renewalDue=false;tools.reset();if session.voiceLease != nil{session.closeVoice()}else if session.voiceHold{session.holdVoice(false)};networkSession=false;miniReviewSession=nil;trainingSession=false;trainingAnswer=false;training?.release();status="Disconnected"}
-    private func fail(_ message:String){let reading=miniReviewSession != nil;modelSelection.invalidate();disconnect();status=message;if reading{miniReviewProblem=message}}
+        for operation in Set(usageOperations.values).union(pendingUsage.values){usageLedger?.finish(operationID:operation,status:.incomplete)};usageOperations.removeAll();pendingUsage.removeAll();usagePCMBytes.removeAll();seenTranscriptionIDs.removeAll();availabilityTask?.cancel();availabilityTask=nil;availabilityEpoch=UUID();if checkingAvailability{availability="Not checked"};checkingAvailability=false;NativeLog.voice.debug("Disconnecting voice and releasing audio resources");microphoneTest?.cancel();microphoneTest=nil;microphoneUpdate?.cancel();microphoneUpdate=nil;epoch=UUID();connectTask?.cancel();connectTask=nil;receiveTask?.cancel();receiveTask=nil;timeout?.cancel();timeout=nil;for task in calls.values{task.cancel()};calls.removeAll();streamingArguments.removeAll();socket?.closeSoon();socket=nil;audio.stop();ready=false;connection = .disconnected;microphone=false;gate.reset();awaitingCancellation=false;queued=nil;segments=[];segment=nil;continuation=false;ignored=[];responseID="";userTurn=false;lease="";microphoneProblem=nil;turnMessage=nil;rounds=0;cancelling="";committedLearner=[];pendingEffort=nil;effortChange=nil;toolItems=[:];narration(.interrupted);renewalTask?.cancel();renewalTask=nil;renewalDue=false;tools.reset();if session.voiceLease != nil{session.closeVoice()}else if session.voiceHold{session.holdVoice(false)};networkSession=false;miniReviewSession=nil;trainingSession=false;trainingAnswer=false;training?.release();enter(.disconnected)}
+    private func fail(_ message:String){let reading=miniReviewSession != nil;modelSelection.invalidate();disconnect();enter(.failed(message));if reading{miniReviewProblem=message}}
     /// A segment whose speech differs from its verified script, or cannot be checked, ends this explanation but not the
     /// session: nothing more of it is spoken, its verified text is shown in the history, and the coach listens again.
     private func unverifiedNarration(_ id:String,_ segment:SpeechSegment,responseDone:Bool){narration(.unverified);let text=([segment]+segments).map(\.text).joined(separator:" ");if responseDone{gate.reset()};if networkSession,ownMove{network?.game.hintShown()};stopTurn(release:false,keepLearnerTurn:true);addHistory(id,"coach","Narration could not be verified, so here is the explanation as text: "+text);if !awaitingCancellation{settled()}}
@@ -413,7 +426,7 @@ import SaidGuard
         microphoneUpdate=Task{do{try Task.checkCancellation();try await startInput(session.state.settings.voiceInputDevice);guard generation==epoch,!Task.isCancelled else{return};microphoneProblem=nil}catch{guard generation==epoch,!Task.isCancelled,!(error is CancellationError) else{return};microphoneProblem=userFacingMessage(error,fallback:"The microphone changed and could not restart. Select an available input device.")};syncMic();if ready,gate.ready,calls.isEmpty,!awaitingCancellation{status=readyStatus}}
     }
     /// Only while voice is fully disconnected: a test during connecting would stop the live session's capture.
-    public func testMicrophone(){guard !connected,!connecting,socket==nil else{return};microphoneTest?.cancel();status="Opening microphone…";let generation=epoch;microphoneTest=Task{do{try Task.checkCancellation();try await startInput(session.state.settings.voiceInputDevice);guard generation==epoch,!Task.isCancelled else{return};audio.listening=true;status="Microphone test — speak for five seconds";try await Task.sleep(nanoseconds:5_000_000_000);audio.stopCapture();status="Disconnected"}catch{if generation==epoch,!Task.isCancelled,!(error is CancellationError){audio.stopCapture();status="Microphone unavailable. Check permissions and input device."}}}}
+    public func testMicrophone(){guard !connected,!connecting,socket==nil else{return};microphoneTest?.cancel();enter(.disconnected);status="Opening microphone…";let generation=epoch;microphoneTest=Task{do{try Task.checkCancellation();try await startInput(session.state.settings.voiceInputDevice);guard generation==epoch,!Task.isCancelled else{return};audio.listening=true;status="Microphone test — speak for five seconds";try await Task.sleep(nanoseconds:5_000_000_000);audio.stopCapture();status=connection.text}catch{if generation==epoch,!Task.isCancelled,!(error is CancellationError){audio.stopCapture();status="Microphone unavailable. Check permissions and input device."}}}}
     /// A typed learner turn, answered exactly as a spoken one (used by the live acceptance probe).
     public func ask(_ text:String){let question=String(text.trimmingCharacters(in:.whitespacesAndNewlines).prefix(2000));guard miniReviewSession==nil,session.fairness.voiceAllowed(network:networkSession),ready,!question.isEmpty else{return};guard ownMove else{status=Self.networkOwnMove;return};send(["type":"conversation.item.create","item":["type":"message","role":"user","content":[["type":"input_text","text":question]]]]);addHistory("typed-"+UUID().uuidString,"learner",question);request("Respond to the learner’s latest typed question.",user:true)}
     public func recheck(){guard session.fairness.voiceAllowed(network:networkSession) else{return};guard miniReviewSession==nil else{return};guard ownMove else{status=Self.networkOwnMove;return};stopTurn(release:false);request("Recheck the last explanation against verified board facts. Correct any mistake plainly. Never play a move during review.",user:false)}
@@ -492,7 +505,7 @@ import SaidGuard
         switch type {
         // A network game's guided comment is not a greeting: a renewed session still owes the learner's move its one
         // comment if that move began while it renewed (`networkCommentaryDue` keeps it to one per move).
-        case "session.updated":if ready{effortConfirmed(event)};if !ready{confirmedEffort=Self.effort(of:event) ?? appliedSettings.coachReasoningEffort;if session.state.settings.coachReasoningEffort != confirmedEffort{pendingEffort=session.state.settings.coachReasoningEffort};scheduleRenewal();ready=true;connecting=false;connected=true;availability="Connected to live voice";timeout?.cancel();position=currentPosition;if !networkSession,miniReviewSession==nil,!trainingSession{session.holdVoice(session.state.settings.coachingMode=="guided")};if miniReviewSession != nil{readMiniReview()}else if !trainingSession,session.reviewController?.active != true,session.fairness.voiceAllowed(network:networkSession),networkSession ? networkCommentaryDue():greetOnReady && session.state.settings.coachingMode=="guided"{request(networkSession ? Self.networkCommentary(after:network?.game.rules.records.last):"Introduce yourself briefly and help this beginner make their first decision. For a game already underway explain this position instead.",user:false)}else{settled()}}
+        case "session.updated":if ready{effortConfirmed(event)};if !ready{confirmedEffort=Self.effort(of:event) ?? appliedSettings.coachReasoningEffort;if session.state.settings.coachReasoningEffort != confirmedEffort{pendingEffort=session.state.settings.coachReasoningEffort};scheduleRenewal();ready=true;connection = .ready;availability="Connected to live voice";timeout?.cancel();position=currentPosition;if !networkSession,miniReviewSession==nil,!trainingSession{session.holdVoice(session.state.settings.coachingMode=="guided")};if miniReviewSession != nil{readMiniReview()}else if !trainingSession,session.reviewController?.active != true,session.fairness.voiceAllowed(network:networkSession),networkSession ? networkCommentaryDue():greetOnReady && session.state.settings.coachingMode=="guided"{request(networkSession ? Self.networkCommentary(after:network?.game.rules.records.last):"Introduce yourself briefly and help this beginner make their first decision. For a game already underway explain this position instead.",user:false)}else{settled()}}
         case "response.created":guard (response["metadata"] as? [String:String])?["checkmate_turn"]==String(turn) else{ignored.insert(id);return};responseID=id
         case "input_audio_buffer.speech_started":guard miniReviewSession==nil else{return};if gate.ready{status="I hear you — go ahead"}else if audio.echoCancelled,segment != nil{bargeIn()}
         case "input_audio_buffer.committed":guard miniReviewSession==nil else{return};if let item=event["item_id"] as? String,!item.isEmpty{committedLearner.insert(item);addHistory(item,"learner","…")};if session.fairness.voiceAllowed(network:networkSession){if ownMove{request(queued?.1==true ? Self.learnerTurns:Self.learnerTurn,user:true)}else{status=Self.networkOwnMove}}
@@ -681,5 +694,5 @@ import SaidGuard
         segments=decoded;display=Self.neutralDisplay;if !awaitingCancellation{settled()}
     }
     /// Ends a training session that may no longer coach, saying so.
-    private func stopTraining(){let line=TrainingVoiceAdapter.NeutralLine.stopped.text;addHistory(UUID().uuidString,"coach",line);disconnect();status=line}
+    private func stopTraining(){let line=TrainingVoiceAdapter.NeutralLine.stopped.text;addHistory(UUID().uuidString,"coach",line);disconnect();enter(.failed(line))}
 }

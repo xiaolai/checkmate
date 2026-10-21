@@ -68,6 +68,85 @@ final class CompanionInstallationTests: XCTestCase {
         XCTAssertEqual(try CompanionInstallation.register(executable: tool, codex: tool, skill: Data("v3".utf8), home: root), .customized)
         XCTAssertEqual(try String(contentsOf: skill, encoding: .utf8), "v2 with my notes")
     }
+    /// A stand-in Codex that writes `script`'s output and exits as it says, in a fresh temporary folder.
+    private func fakeCodex(_ script: String) throws -> (URL, URL) {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let codex = root.appendingPathComponent("bin/codex"); try executable(codex)
+        try Data(("#!/bin/sh\n" + script + "\n").utf8).write(to: codex); try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: codex.path)
+        return (root, codex)
+    }
+    /// V-13: a failed setup keeps what Codex said: logged, and its first line offered under Details.
+    func testAFailedSetupReportsWhatCodexSaid() throws {
+        let (root, codex) = try fakeCodex("echo 'progress on stdout'\necho 'Error: could not write config.toml: Permission denied' >&2\necho 'second line' >&2\nexit 3")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let tool = URL(fileURLWithPath: "/usr/bin/true")
+        XCTAssertThrowsError(try CompanionInstallation.register(executable: tool, codex: codex, skill: Data("v1".utf8), home: root)) { error in
+            let failure = error as? CompanionInstallation.CodexCommandFailure
+            XCTAssertEqual(failure?.details, "Error: could not write config.toml: Permission denied")
+            XCTAssertEqual(userFacingMessage(error, fallback: ""), "Codex setup failed. Check that Codex is installed and try again.")
+        }
+        XCTAssertThrowsError(try CompanionInstallation.unregister(codex: codex, home: root, bundledSkill: Data("v1".utf8))) { error in
+            XCTAssertEqual((error as? CompanionInstallation.CodexCommandFailure)?.details, "Error: could not write config.toml: Permission denied")
+            XCTAssertEqual(userFacingMessage(error, fallback: ""), "Codex could not remove the Checkmate connection. It may already be removed.")
+        }
+    }
+    /// A Codex that says a great deal neither blocks on a full pipe nor makes the details unbounded.
+    func testCodexOutputIsBoundedAndNeverBlocks() throws {
+        let (root, codex) = try fakeCodex("head -c 400000 /dev/zero | tr '\\0' 'x' >&2\nhead -c 400000 /dev/zero | tr '\\0' 'y'\nexit 1")
+        defer { try? FileManager.default.removeItem(at: root) }
+        XCTAssertThrowsError(try CompanionInstallation.unregister(codex: codex, home: root, bundledSkill: Data("v1".utf8))) { error in
+            let details = (error as? CompanionInstallation.CodexCommandFailure)?.details ?? ""
+            XCTAssertTrue(details.hasPrefix("xxxx")); XCTAssertLessThanOrEqual(details.count, CompanionInstallation.detailLimit)
+        }
+        XCTAssertNil(CompanionInstallation.firstLine(Data("\n\n  \n".utf8)), "nothing said, no details")
+        XCTAssertEqual(CompanionInstallation.firstLine(Data("\n  warning: one\ntwo".utf8)), "warning: one")
+    }
+
+    // V-15: Codex's configuration is read as a file, never by running Codex, to see which Checkmate it starts.
+    private func codexHome(_ config: String?) throws -> (URL, [String: String]) {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        if let config { try Data(config.utf8).write(to: root.appendingPathComponent("config.toml")) }
+        return (root, ["CODEX_HOME": root.path])
+    }
+    func testRegistrationIsReadFromCodexConfiguration() throws {
+        let release = "ai.xiaolai.checkmate", development = "ai.xiaolai.checkmate.native-development"
+        let cases: [(String?, String?, CompanionInstallation.Registration)] = [
+            (nil, release, .absent),
+            ("model = \"gpt-5\"\n", release, .absent),
+            ("[mcp_servers.checkmate]\ncommand = \"/Applications/Checkmate.app/Contents/MacOS/CheckmateMCP\"\n", release, .registered(command: "/Applications/Checkmate.app/Contents/MacOS/CheckmateMCP")),
+            ("[mcp_servers.checkmate]\ncommand = \"/Applications/Checkmate.app/Contents/MacOS/CheckmateMCP\"\n", development, .absent),
+            ("# mine\n[mcp_servers.other]\ncommand = \"/bin/other\"\n\n[mcp_servers.checkmate-development]\nargs = [\"--connection-file\", '/tmp/a\"b.json']\ncommand = '/tmp/Check mate.app/Contents/MacOS/CheckmateMCP'  # literal\n[mcp_servers.checkmate-development.env]\nX = \"1\"\n", development, .registered(command: "/tmp/Check mate.app/Contents/MacOS/CheckmateMCP")),
+            ("[mcp_servers.\"checkmate\"]\ncommand = \"/A\\\\B/Check\\u00e9.app/Contents/MacOS/CheckmateMCP\"\n", release, .registered(command: "/A\\B/Check\u{e9}.app/Contents/MacOS/CheckmateMCP")),
+            ("[mcp_servers.checkmate]\nurl = \"http://127.0.0.1:1\"\n", release, .unreadable),
+            ("mcp_servers.checkmate.command = \"/x\"\n", release, .unreadable),
+            ("[mcp_servers.checkmate]\ncommand = \"\"\"\n/x\"\"\"\n", release, .unreadable),
+        ]
+        for (config, bundle, expected) in cases {
+            let (root, environment) = try codexHome(config); defer { try? FileManager.default.removeItem(at: root) }
+            XCTAssertEqual(CompanionInstallation.registration(bundleIdentifier: bundle, environment: environment), expected, config ?? "no file")
+        }
+        let (root, environment) = try codexHome(String(repeating: "#", count: CompanionInstallation.configurationLimit + 1)); defer { try? FileManager.default.removeItem(at: root) }
+        XCTAssertEqual(CompanionInstallation.registration(bundleIdentifier: release, environment: environment), .unreadable, "an oversized file is not read")
+    }
+    func testRegistrationIsComparedWithThisCopyOfCheckmate() throws {
+        let (root, environment) = try codexHome(nil); defer { try? FileManager.default.removeItem(at: root) }
+        let app = root.appendingPathComponent("Checkmate.app/Contents/MacOS/CheckmateMCP"), link = root.appendingPathComponent("Linked.app")
+        try executable(app); try FileManager.default.createSymbolicLink(at: link, withDestinationURL: root.appendingPathComponent("Checkmate.app"))
+        func check(_ command: String?) throws -> CompanionInstallation.SetupCheck {
+            if let command { try Data("[mcp_servers.checkmate]\ncommand = \"\(command)\"\n".utf8).write(to: root.appendingPathComponent("config.toml")) }
+            return CompanionInstallation.setupCheck(executable: app, bundleIdentifier: "ai.xiaolai.checkmate", environment: environment)
+        }
+        XCTAssertEqual(try check(nil), .notSetUp)
+        XCTAssertEqual(try check(app.path), .current)
+        XCTAssertEqual(try check(link.appendingPathComponent("Contents/MacOS/CheckmateMCP").path), .current, "a link to this copy is this copy")
+        XCTAssertEqual(try check("/Volumes/Checkmate/Checkmate.app/Contents/MacOS/CheckmateMCP"), .stale(registered: "/Volumes/Checkmate/Checkmate.app/Contents/MacOS/CheckmateMCP"))
+        try Data("[mcp_servers.checkmate]\nurl = \"x\"\n".utf8).write(to: root.appendingPathComponent("config.toml"))
+        XCTAssertEqual(CompanionInstallation.setupCheck(executable: app, bundleIdentifier: "ai.xiaolai.checkmate", environment: environment), .unknown)
+        XCTAssertTrue(CompanionInstallation.SetupCheck.stale(registered: "/x").registered); XCTAssertTrue(CompanionInstallation.SetupCheck.current.registered)
+        XCTAssertTrue(CompanionInstallation.SetupCheck.unknown.registered, "an entry Checkmate cannot read is still Codex's registration")
+        XCTAssertFalse(CompanionInstallation.SetupCheck.notSetUp.registered)
+    }
     func testRemovingCodexSetupDeletesOnlyCheckmatesOwnSkill() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);defer { try? FileManager.default.removeItem(at: root) }
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)

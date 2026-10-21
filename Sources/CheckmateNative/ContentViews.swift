@@ -101,7 +101,7 @@ struct DetailContent:View {
             Text("Moves").font(.headline);Text(session.rules.history.isEmpty ? "Your story starts with one move.":session.moveListText).textSelection(.enabled)
         }
         }
-        if voice.connected || voice.connecting || !voice.history.isEmpty || voice.status != "Disconnected" {Divider();Text("Voice coach").font(.headline);Text(voice.status).foregroundStyle(.secondary);if voice.connected{HStack{Button("Recheck"){voice.recheck()};Button("Stop speaking"){voice.stopTurn()}}};ForEach(Array(voice.history.reversed())){entry in VStack(alignment:.leading){Text(entry.role=="learner" ? "You":"Coach").font(.caption).foregroundStyle(.secondary);Text(entry.text).textSelection(.enabled)}}}
+        if voice.connected || voice.connecting || !voice.history.isEmpty || voice.connection != .disconnected {Divider();Text("Voice coach").font(.headline);Text(voice.status).foregroundStyle(.secondary);if voice.connected{HStack{Button("Recheck"){voice.recheck()};Button("Stop speaking"){voice.stopTurn()}}};ForEach(Array(voice.history.reversed())){entry in VStack(alignment:.leading){Text(entry.role=="learner" ? "You":"Coach").font(.caption).foregroundStyle(.secondary);Text(entry.text).textSelection(.enabled)}}}
         if let error=session.error {Text(error).foregroundStyle(Color(nsColor:NativeColors.error));Button("Retry Stockfish"){session.retryEngine()}}
     }
     @ViewBuilder private var miniDetail:some View {
@@ -209,10 +209,12 @@ struct TransportContent:View {
     var rowsChanged:(Int)->Void={_ in}
     /// Where the bar laid out each control, for the layout acceptance.
     var framesChanged:([String:CGRect])->Void={_ in}
+    /// The bar's Connect, which asks for consent first (`NativeModel.connectPracticeVoice`).
+    let connectVoice:()->Void
     var voiceState:ControlBarVoice {
         if voice.connecting{return .connecting(voice.status)}
         if voice.connected{return .on(microphone:session.state.settings.voiceMicrophone,canStop:voice.canStopTurn)}
-        return .off(available:session.mode == .training ? voice.trainingVoiceAvailable:!session.companionEnabled)
+        return .off(unavailable:session.mode == .training ? voice.trainingVoiceUnavailability:voice.practiceVoiceUnavailability)
     }
     /// The training game's coach is offered: its flag, and a game being played or a session open for it.
     var trainingVoice:Bool {voice.training != nil && (voice.trainingSession || voice.trainingVoiceAvailable)}
@@ -245,7 +247,7 @@ struct TransportContent:View {
         case .demoPrevious:if let d=session.demonstration{try? session.seekDemo(line:d.line,ply:max(0,d.ply-1))}
         case .demoPlayPause:if let d=session.demonstration{d.playing ? session.pauseDemo():session.playDemo()}
         case .demoNext:if let d=session.demonstration{try? session.seekDemo(line:d.line,ply:min(d.lines[d.line].frames.count-1,d.ply+1))}
-        case .voiceConnect:if session.mode == .training{voice.connectTraining()}else{voice.connect()}
+        case .voiceConnect:connectVoice()
         case .voiceCancel,.voiceDisconnect:voice.disconnect()
         case .voiceMicrophone:var settings=session.state.settings;settings.voiceMicrophone.toggle();session.updateSettings(settings)
         case .voiceStop:voice.stopTurn()

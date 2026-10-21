@@ -13,23 +13,50 @@ import RealtimeConnection
 @MainActor final class ConnectionStartupTests: XCTestCase {
     private func settle() async { for _ in 0..<12 { await Task.yield() } }
 
+    /// Settings of a learner who agreed to voice and asked it to connect on launch.
+    private func consented() -> AppSettings { var settings = AppSettings(); settings.voiceConsent = true; settings.voiceAutoConnect = true; return settings }
+
     func testDefaultsAndPersistedOptOuts() throws {
-        XCTAssertTrue(AppSettings().voiceAutoConnect)
         XCTAssertTrue(AppSettings(raw: [:]).companionAutoStart)
         let settings = AppSettings(raw: ["voiceAutoConnect": false, "companionAutoStart": false])
         let restored = try JSONDecoder().decode(AppSettings.self, from: JSONEncoder().encode(settings))
         XCTAssertFalse(restored.voiceAutoConnect)
         XCTAssertFalse(restored.companionAutoStart)
-        XCTAssertTrue(AppSettings(raw: ["voiceAutoConnect": 0, "companionAutoStart": "false"]).voiceAutoConnect)
+        XCTAssertFalse(AppSettings(raw: ["voiceAutoConnect": 0, "companionAutoStart": "false"]).voiceAutoConnect, "an invalid value reads as a new setting")
+    }
+
+    /// V-1: voice is opt-in. A new install never connects on launch; a learner who had it on keeps the setting.
+    func testVoiceIsOptInForNewInstallsAndKeptForExistingOnes() throws {
+        XCTAssertFalse(AppSettings().voiceAutoConnect); XCTAssertFalse(AppSettings(raw: [:]).voiceAutoConnect)
+        XCTAssertFalse(AppSettings().voiceConsent); XCTAssertFalse(AppSettings(raw: [:]).voiceConsent)
+        XCTAssertTrue(AppSettings(raw: ["voiceAutoConnect": true]).voiceAutoConnect, "a stored choice is kept")
+        XCTAssertFalse(AppSettings(raw: ["voiceAutoConnect": true]).voiceConsent, "consent is never inferred from an older setting")
+        let restored = try JSONDecoder().decode(AppSettings.self, from: JSONEncoder().encode(consented()))
+        XCTAssertTrue(restored.voiceConsent); XCTAssertTrue(restored.voiceAutoConnect)
+        let written = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(consented())) as? [String: Any])
+        XCTAssertEqual(written["voiceConsent"] as? Bool, true, "consent is saved under its own key")
+    }
+
+    /// V-1: connecting on launch needs the learner's consent as well as the setting; without it the Codex sign-in is
+    /// never read.
+    func testAutomaticVoiceNeverConnectsWithoutConsent() async {
+        for consent in [false, true] {
+            var settings = AppSettings(raw: ["voiceAutoConnect": true]); settings.voiceConsent = consent
+            var checks = 0, voices = 0
+            let startup = ConnectionStartup(settings: { settings }, check: { checks += 1; return "test-session" },
+                connectVoice: { _ in voices += 1 }, startMCP: {}, codexSetUp: { true }, stillCurrent: { true }, silent: false)
+            startup.start(); await settle()
+            XCTAssertEqual(checks, consent ? 1 : 0); XCTAssertEqual(voices, consent ? 1 : 0)
+        }
     }
 
     func testAuthorizedStartupReusesCredentialAndRunsOnlyOnce() async {
         var events: [String] = []
-        let startup = ConnectionStartup(settings: { AppSettings() }, check: {
+        let startup = ConnectionStartup(settings: { self.consented() }, check: {
             events.append("check"); return "test-session"
         }, connectVoice: { credential in
             XCTAssertEqual(credential, "test-session"); events.append("voice")
-        }, startMCP: { events.append("mcp") }, stillCurrent: { true }, silent: false)
+        }, startMCP: { events.append("mcp") }, codexSetUp: { true }, stillCurrent: { true }, silent: false)
         startup.start(); startup.start(); await settle()
         XCTAssertEqual(events, ["mcp", "check", "voice"], "local MCP never waits for the voice check")
     }
@@ -37,8 +64,8 @@ import RealtimeConnection
     /// Hidden during the check (Cmd-H, or launched hidden): the attempt waits and runs when the app is shown.
     func testHiddenStartupWaitsAndResumesWhenShown() async {
         var events: [String] = [], hidden = true
-        let startup = ConnectionStartup(settings: { AppSettings() }, check: { events.append("check"); return "test-session" },
-            connectVoice: { _ in events.append("voice") }, startMCP: { events.append("mcp") }, stillCurrent: { true }, visible: { !hidden }, silent: false)
+        let startup = ConnectionStartup(settings: { self.consented() }, check: { events.append("check"); return "test-session" },
+            connectVoice: { _ in events.append("voice") }, startMCP: { events.append("mcp") }, codexSetUp: { true }, stillCurrent: { true }, visible: { !hidden }, silent: false)
         startup.start(); await settle()
         XCTAssertEqual(events, ["check"]); XCTAssertTrue(startup.deferred)
         startup.start(); await settle(); XCTAssertEqual(events, ["check"], "A deferred attempt is resumed, not restarted by start()")
@@ -51,11 +78,11 @@ import RealtimeConnection
         for voice in [false, true] {
             for mcp in [false, true] {
                 for available in [false, true] {
-                    var settings = AppSettings(); settings.voiceAutoConnect = voice; settings.companionAutoStart = mcp
+                    var settings = consented(); settings.voiceAutoConnect = voice; settings.companionAutoStart = mcp
                     var voiceStarts = 0, mcpStarts = 0, checks = 0
                     let startup = ConnectionStartup(settings: { settings }, check: { checks += 1; return available ? "test-session" : nil },
                         connectVoice: { _ in voiceStarts += 1 }, startMCP: { mcpStarts += 1 },
-                        stillCurrent: { true }, silent: false)
+                        codexSetUp: { true }, stillCurrent: { true }, silent: false)
                     startup.start(); await settle()
                     XCTAssertEqual(voiceStarts, voice && available ? 1 : 0)
                     XCTAssertEqual(mcpStarts, mcp ? 1 : 0)
@@ -68,12 +95,12 @@ import RealtimeConnection
     /// Opting out of voice while its check is pending prevents the connection; local MCP had already started without
     /// waiting for the check.
     func testOptOutWhileCheckPendingPreventsAutomaticConnection() async {
-        var settings = AppSettings(), started = false, voices = 0, mcp = 0
+        var settings = consented(), started = false, voices = 0, mcp = 0
         var continuation: CheckedContinuation<String?, Never>?
         let startup = ConnectionStartup(settings: { settings }, check: {
             started = true; return await withCheckedContinuation { continuation = $0 }
         }, connectVoice: { _ in voices += 1 }, startMCP: { mcp += 1 },
-            stillCurrent: { true }, silent: false)
+            codexSetUp: { true }, stillCurrent: { true }, silent: false)
         startup.start(); await settle(); XCTAssertTrue(started)
         XCTAssertEqual(mcp, 1, "MCP started while the voice check was still pending")
         settings.voiceAutoConnect = false; settings.companionAutoStart = false
@@ -85,10 +112,10 @@ import RealtimeConnection
         for cancel in [false, true] {
             var current = true, voices = 0, mcp = 0
             var continuation: CheckedContinuation<String?, Never>?
-            let startup = ConnectionStartup(settings: { AppSettings() }, check: {
+            let startup = ConnectionStartup(settings: { self.consented() }, check: {
                 await withCheckedContinuation { continuation = $0 }
             }, connectVoice: { _ in voices += 1 }, startMCP: { mcp += 1 },
-                stillCurrent: { current }, silent: false)
+                codexSetUp: { true }, stillCurrent: { current }, silent: false)
             startup.start(); await settle()
             XCTAssertEqual(mcp, 1, "MCP started before the check")
             if cancel { startup.cancel() } else { current = false }
@@ -99,8 +126,8 @@ import RealtimeConnection
 
     func testAutomationNeverChecksAccountsOrStartsConnections() async throws {
         var effects = 0
-        let startup = ConnectionStartup(settings: { AppSettings() }, check: { effects += 1; return "test-session" },
-            connectVoice: { _ in effects += 1 }, startMCP: { effects += 1 }, stillCurrent: { true }, silent: true)
+        let startup = ConnectionStartup(settings: { self.consented() }, check: { effects += 1; return "test-session" },
+            connectVoice: { _ in effects += 1 }, startMCP: { effects += 1 }, codexSetUp: { true }, stillCurrent: { true }, silent: true)
         startup.start(); await settle(); XCTAssertEqual(effects, 0)
         let session = try GameSession(engine: nil), voice = try VoiceCoach(session: session)
         let authorization = await voice.checkAvailability().value
@@ -110,11 +137,22 @@ import RealtimeConnection
         XCTAssertFalse(voice.audio.capturing)
     }
 
+    /// V-12: chess MCP starts on launch only once Set up Codex registered Checkmate; without it nothing listens.
+    func testMCPStartsOnLaunchOnlyWhenCodexIsSetUp() async {
+        for setUp in [false, true] {
+            var mcp = 0
+            let startup = ConnectionStartup<String>(settings: { AppSettings() }, check: { nil }, connectVoice: { _ in },
+                startMCP: { mcp += 1 }, codexSetUp: { setUp }, stillCurrent: { true }, silent: false)
+            startup.start(); await settle()
+            XCTAssertEqual(mcp, setUp ? 1 : 0)
+        }
+    }
+
     func testMCPFailureDoesNotStopVoiceOrRetry() async {
         var voices = 0, attempts = 0
-        let startup = ConnectionStartup(settings: { AppSettings() }, check: { "test-session" },
+        let startup = ConnectionStartup(settings: { self.consented() }, check: { "test-session" },
             connectVoice: { _ in voices += 1 }, startMCP: { attempts += 1; throw CheckmateError.unavailable("fixture") },
-            stillCurrent: { true }, silent: false)
+            codexSetUp: { true }, stillCurrent: { true }, silent: false)
         startup.start(); await settle(); startup.start(); await settle()
         XCTAssertEqual(voices, 1); XCTAssertEqual(attempts, 1)
     }

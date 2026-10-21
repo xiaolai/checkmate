@@ -26,7 +26,7 @@ struct AboutPane:View {
         Section("Privacy"){
             LabeledContent{Button("Show in Finder"){open(facts.dataDirectory,reveal:true)}}label:{Text("Games, progress and settings are stored only on this Mac.")}
             Text("Stockfish, lessons and puzzles work offline.")
-            Text("When the voice coach is connected, what you say and the current position are sent to OpenAI, authorized by your Codex sign-in.")
+            Text(VoiceConsent.sentToOpenAI)
             Text("Translating a lesson sends its text to Codex, and recording it sends the translated text to OpenAI for speech. Both happen only when you choose them, using your Codex sign-in.")
             Text("Chess MCP accepts connections only from this Mac. A Codex task you connect can read the current game, its position and moves, and your saved reviews, including the names, events and comments in imported games.")
         }
