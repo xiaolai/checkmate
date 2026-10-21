@@ -24,7 +24,9 @@ import CheckmateCore
         XCTAssertTrue(game.typedMoveAvailable)
         XCTAssertEqual(game.submitTypedMove("Nf6"),"No knight of yours can move to f6.");XCTAssertEqual(model.session.rules.history,[])
         XCTAssertNil(game.submitTypedMove("e4"));XCTAssertEqual(model.session.rules.history.first,"e4")
-        if model.session.rules.turn=="b"{XCTAssertEqual(game.submitTypedMove("Nf3"),"It's not your move yet.")}
+        // The opponent's reply is asynchronous, so the position where it is the opponent's turn is set, not waited for.
+        model.session.cancelWork();try model.session.rules.restore("1. e4 *");game.refresh();XCTAssertEqual(model.session.rules.turn,"b")
+        XCTAssertEqual(game.submitTypedMove("Nf3"),"It's not your move yet.");XCTAssertEqual(model.session.rules.history,["e4"])
         // An earlier position shown from the move list takes no move.
         model.session.cancelWork();try model.session.rules.restore("1. e4 e5 *");game.refresh();game.showPracticeMove(0)
         XCTAssertEqual(game.submitTypedMove("Nf3"),"This is an earlier position. Choose Back to Game to play.");XCTAssertEqual(model.session.rules.history,["e4","e5"])

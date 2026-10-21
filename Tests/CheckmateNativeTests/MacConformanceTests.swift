@@ -46,6 +46,14 @@ import CheckmateCore
         XCTAssertEqual(top("Window")?.items.filter{!$0.isSeparatorItem}.map(\.title),["Minimize","Zoom","Bring All to Front"])
     }}
 
+    // D-3: File ▸ Close (⌘W) reaches the window's close check, which quits through Quit's questions.
+    func testCloseReachesTheWindowAndQuits()throws {try withMenus{_,game,_ in
+        let close=try XCTUnwrap(item("Close",in:"File")),window=try XCTUnwrap(game.window),action=try XCTUnwrap(close.action);var quits=0
+        XCTAssertTrue(window.delegate===game);XCTAssertTrue(window.styleMask.contains(.closable));game.quit={quits+=1}
+        XCTAssertTrue(NSApp.sendAction(action,to:window,from:close),"⌘W is not delivered to the window")
+        XCTAssertEqual(quits,1,"⌘W did not reach windowShouldClose")
+    }}
+
     // D-4, D-5, D-8: Play leaves ⌘P free, the sidebar is ⌃⌘S, full screen is explicit, and no two items share a chord.
     func testShortcutsAreStandardAndUnique()throws {try withMenus{_,_,_ in
         let play=try XCTUnwrap(item("Play",in:"Lesson"));XCTAssertEqual(play.keyEquivalent,"p");XCTAssertEqual(modifiers(play),[.command,.option])

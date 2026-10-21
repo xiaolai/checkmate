@@ -704,7 +704,9 @@ playbackLineView?.isHidden=model.reviewWorkspace
     func windowDidEndLiveResize(_ notification:Notification){if let window=window{let side=min(main.view.frame.width,window.frame.height);coreFrame=NSRect(x:window.frame.minX+openExtentLeftOfBoard,y:window.frame.minY,width:side,height:side)};fittedLayout=false;rememberFrame()}
     func windowDidResize(_ notification:Notification){if fullscreen,let parent=split.view.superview{split.view.frame=parent.bounds};squareAfterResize();titleView.syncCenter();DispatchQueue.main.async{[weak self] in self?.titleView.syncCenter()}}
     /// Closing the window quits, so it asks the same questions as Quit; a cancelled quit keeps the window open.
-    func windowShouldClose(_ sender:NSWindow)->Bool{NSApp.terminate(nil);return false}
+    func windowShouldClose(_ sender:NSWindow)->Bool{quit();return false}
+    /// How closing quits; tests replace it.
+    var quit:()->Void={NSApp.terminate(nil)}
     func snapshot(_ path:String){Task{do{try await capture(path)}catch{FileHandle.standardError.write(Data("snapshot failed: \(error)\n".utf8))}}}
     func capture(_ path:String) async throws {
         try await Self.captureWindow(window,path:path)
