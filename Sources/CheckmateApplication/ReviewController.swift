@@ -63,6 +63,28 @@ public struct ReviewBranch:Codable,Equatable {public let id:UUID,root:Int;public
         guard nodeID==0,branch==nil,fairness.engineHelpAllowed,let d=document,let analyzer,analyzer.batchDocument==d.id else{return nil}
         return analyzer.batchStatus=="ready" || analyzer.losses.values.contains(where:{MoveGrade(expectationLoss:$0).map{$0 != .inaccuracy} ?? false}) ? analyzer.losses:nil
     }
+    /// The shown position's White-relative score (R-17): an imagined line's own analysis, else the whole-game analysis
+    /// of this game, else this move's own analysis. Nil while engine help is withheld for a network game (D8).
+    public var shownScore:AnalysisScore? {
+        guard fairness.engineHelpAllowed,let d=document else{return nil}
+        if branch != nil{return evidence?.root.lines.first?.score}
+        if let analyzer,analyzer.batchDocument==d.id,let score=analyzer.evaluations[nodeID]{return score}
+        guard let e=evidence,e.nodeID==nodeID else{return nil};return nodeID==0 ? e.root.lines.first?.score:e.played?.lines.first?.score
+    }
+    /// How much of the evaluation bar is White's, 0...1; nil hides the bar.
+    public var evaluationShare:Double? {guard let score=shownScore,let turn=displayRules?.turn else{return nil};return Self.whiteShare(score,turn:turn)}
+    /// The engine's first choice in the shown position, as UCI, for the optional arrow; nil while engine help is withheld.
+    public var bestMove:String? {
+        guard fairness.engineHelpAllowed,let d=document else{return nil}
+        if branch != nil{return evidence?.root.lines.first?.pv.first}
+        guard let analyzer,analyzer.batchDocument==d.id else{return nil};return analyzer.bestMoves[nodeID]
+    }
+    /// White's winning chances for a White-relative score, 0...1, on the curve Lichess uses for its bar. A mate is all
+    /// or nothing; a mate in 0 means the side to move is already mated.
+    public static func whiteShare(_ score:AnalysisScore,turn:String)->Double {
+        if score.kind=="mate"{return score.value>0 ? 1:score.value<0 ? 0:turn=="w" ? 0:1}
+        return 1/(1+exp(-0.00368208*Double(score.value)))
+    }
     public var explanation:ReviewExplanation? {guard let d=document else{return nil};let shown=fairness.engineHelpAllowed ? evidence:nil,losses=overviewLosses,key=identity+":\(branchPly):\(shown?.createdAt.timeIntervalSince1970 ?? 0):\(losses?.hashValue ?? 0)";if let cache=explanationCache,cache.0==key{return cache.1};let result:ReviewExplanation?;if branch != nil,let rules=displayRules{result=ReviewExplanation.imagined(rules:rules)}else{result=try? ReviewExplanation.make(document:d,node:nodeID,evidence:shown,losses:losses)};if let result=result{explanationCache=(key,result)};return result}
     /// Shows `document` and records the review in the session's activity, over the place it returns to.
     public func open(_ document:GameDocument,practice:GameSession,draft:Bool=false){load(document);practice.enterReview(document:document.id,draft:draft)}

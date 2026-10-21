@@ -22,6 +22,9 @@ public struct ReviewMoment:Codable,Identifiable {public let id:Int,expectationLo
     @Published public private(set) var evaluations:[Int:AnalysisScore]=[:]
     /// What each graded mainline move of `batchDocument` gave up, by node, from the same passes as `evaluations` (R-1).
     @Published public private(set) var losses:[Int:Double]=[:]
+    /// The engine's first choice in the position after each mainline node of `batchDocument` (node 0 the start), from
+    /// the search of the next move's position (R-17's best-move arrow).
+    @Published public private(set) var bestMoves:[Int:String]=[:]
     /// The move's grade from its latest analysis; nil when it is near the best or not analyzed.
     public func grade(_ node:Int)->MoveGrade? {MoveGrade(expectationLoss:losses[node])}
     /// The evaluations and grades a PGN export of `document` carries: none while engine help is off (D8), and none from
@@ -75,7 +78,7 @@ public struct ReviewMoment:Codable,Identifiable {public let id:Int,expectationLo
     /// Stops the running analysis. What it finished stays shown: the run is "partial", and starting it again (Resume)
     /// searches only the positions not yet stored. A finished, failed or idle analysis keeps its status.
     public func cancelBatch(){generation+=1;batchTask?.cancel();batchSearch?.cancel();batchTask=nil;batchSearch=nil;if ["pending","deepening"].contains(batchStatus){batchStatus="partial"}}
-    public func reset(){cancelBatch();batchDocument=nil;completed=0;failed=0;total=0;moments=[];evaluations=[:];losses=[:];batchStatus="idle"}
+    public func reset(){cancelBatch();batchDocument=nil;completed=0;failed=0;total=0;moments=[];evaluations=[:];losses=[:];bestMoves=[:];batchStatus="idle"}
     /// Whether a whole-game analysis of this record is still running.
     public func batchRunning(_ id:UUID)->Bool {batchDocument==id && ["pending","deepening"].contains(batchStatus)}
     /// Removes a purged review's stored analysis (one that left the Trash) from memory and disk; analysis other
@@ -86,7 +89,7 @@ public struct ReviewMoment:Codable,Identifiable {public let id:Int,expectationLo
     /// Starting again while the same record's analysis runs keeps its progress, and a record without moves has no game
     /// to analyze, so neither restarts the batch nor reports an empty "ready".
     /// The same record's finished scores stay on the graph while it runs again; another record's go.
-    public func startBatch(_ document:GameDocument){guard fairness.engineHelpAllowed,!batchRunning(document.id),!document.mainline.isEmpty else{return};cancelBatch();if batchDocument != document.id{evaluations=[:];losses=[:]};batchDocument=document.id;completed=0;failed=0;total=document.mainline.count;moments=[];batchStatus="pending";let epoch=generation
+    public func startBatch(_ document:GameDocument){guard fairness.engineHelpAllowed,!batchRunning(document.id),!document.mainline.isEmpty else{return};cancelBatch();if batchDocument != document.id{evaluations=[:];losses=[:];bestMoves=[:]};batchDocument=document.id;completed=0;failed=0;total=document.mainline.count;moments=[];batchStatus="pending";let epoch=generation
         batchTask=Task{for node in document.mainline {guard !Task.isCancelled,self.generation==epoch else{return};while self.selectedCount>0{try? await Task.sleep(nanoseconds:10_000_000);guard !Task.isCancelled,self.generation==epoch else{return}};var done=false
             while !done {guard !Task.isCancelled,self.generation==epoch else{return};while self.selectedCount>0{try? await Task.sleep(nanoseconds:10_000_000);guard !Task.isCancelled else{return}};let search=Task{try await self.compute(document:document,node:node,revision:0,budget:self.plan(document).quickBudget)};self.batchSearch=search
                 do{let evidence=try await search.value;guard self.generation==epoch else{return};self.recordMoment(evidence,document:document);self.recordEvaluation(evidence,document:document);done=true}catch{if !search.isCancelled{guard self.generation==epoch else{return};self.failed+=1;done=true}}}
@@ -113,23 +116,23 @@ public struct ReviewMoment:Codable,Identifiable {public let id:Int,expectationLo
     /// to analyze what is missing: `startBatch` checks fairness again and searches only positions not stored.
     public func restore(_ document:GameDocument,analyze:Bool=false){guard fairness.engineHelpAllowed,!batchRunning(document.id),!document.mainline.isEmpty else{return};reset();let epoch=generation,engine=engine
         batchTask=Task{
-            var found:[Int:ReviewEvidence]=[:],moments:[ReviewMoment]=[],evaluations:[Int:AnalysisScore]=[:],losses:[Int:Double]=[:],deepened=false
+            var found:[Int:ReviewEvidence]=[:],moments:[ReviewMoment]=[],evaluations:[Int:AnalysisScore]=[:],losses:[Int:Double]=[:],bestMoves:[Int:String]=[:],deepened=false
             // An engine whose files cannot be identified, or a history that cannot be hashed, has no stored evidence:
             // nothing is shown, and Analyze reports the failure when it searches.
             do{let identity=try await engine.identity()
                 for node in document.mainline {guard !Task.isCancelled,self.generation==epoch else{return};if let evidence=try await self.stored(document:document,node:node,budget:self.plan(document).quickBudget,identity:identity){found[node]=evidence}}
-                for node in document.mainline {if let evidence=found[node]{moments=Self.recording(evidence,document:document,in:moments);Self.evaluate(evidence,document:document,into:&evaluations,losses:&losses)}}
+                for node in document.mainline {if let evidence=found[node]{moments=Self.recording(evidence,document:document,in:moments);Self.evaluate(evidence,document:document,into:&evaluations,losses:&losses,best:&bestMoves)}}
                 // The batch deepens its leading moments only once every position is in, so a stored run is ready only then.
                 deepened=found.count==document.mainline.count
                 if deepened{for node in moments.prefix(self.plan(document).moments).map(\.id){
                     guard !Task.isCancelled,self.generation==epoch else{return}
                     guard let baseline=found[node],let deep=try await self.stored(document:document,node:node,budget:ReviewPolicy.deepBudget,identity:identity) else{deepened=false;break}
-                    let evidence=self.judged(deep,baseline:baseline,document:document,node:node,revision:0);moments=Self.recording(evidence,document:document,in:moments);Self.evaluate(evidence,document:document,into:&evaluations,losses:&losses)
+                    let evidence=self.judged(deep,baseline:baseline,document:document,node:node,revision:0);moments=Self.recording(evidence,document:document,in:moments);Self.evaluate(evidence,document:document,into:&evaluations,losses:&losses,best:&bestMoves)
                 }}
             }catch{return}
             // Stored evidence is engine output too: withheld while participating (D8).
             guard !Task.isCancelled,self.generation==epoch,self.fairness.engineHelpAllowed else{return}
-            if !found.isEmpty{self.batchDocument=document.id;self.total=document.mainline.count;self.completed=found.count;self.failed=0;self.moments=moments;self.evaluations=evaluations;self.losses=losses;self.batchStatus=deepened ? "ready":"partial"}
+            if !found.isEmpty{self.batchDocument=document.id;self.total=document.mainline.count;self.completed=found.count;self.failed=0;self.moments=moments;self.evaluations=evaluations;self.losses=losses;self.bestMoves=bestMoves;self.batchStatus=deepened ? "ready":"partial"}
             self.batchTask=nil;if analyze && !deepened{self.startBatch(document)}
         }
     }
@@ -143,11 +146,12 @@ public struct ReviewMoment:Codable,Identifiable {public let id:Int,expectationLo
         if forcing || costly || evidence.nodeID==document.mainline.last {result.append(ReviewMoment(id:evidence.nodeID,expectationLoss:loss,reason:reason,provisional:evidence.provisional));result.sort{($0.expectationLoss ?? 0)>($1.expectationLoss ?? 0)}}
         return result
     }
-    private func recordEvaluation(_ evidence:ReviewEvidence,document:GameDocument){Self.evaluate(evidence,document:document,into:&evaluations,losses:&losses)}
-    private static func evaluate(_ evidence:ReviewEvidence,document:GameDocument,into evaluations:inout [Int:AnalysisScore],losses:inout [Int:Double]){
+    private func recordEvaluation(_ evidence:ReviewEvidence,document:GameDocument){Self.evaluate(evidence,document:document,into:&evaluations,losses:&losses,best:&bestMoves)}
+    private static func evaluate(_ evidence:ReviewEvidence,document:GameDocument,into evaluations:inout [Int:AnalysisScore],losses:inout [Int:Double],best:inout [Int:String]){
         // A newer result without a score leaves a gap rather than keeping an older pass's score or grade.
         evaluations[evidence.nodeID]=evidence.played?.lines.first?.score
         losses[evidence.nodeID]=expectationLoss(root:evidence.root.lines.first,played:evidence.played?.lines.first,mover:document.nodes[evidence.nodeID].side)
+        best[document.nodes[evidence.nodeID].parent ?? 0]=evidence.root.lines.first?.pv.first
         if evidence.nodeID==document.mainline.first{evaluations[0]=evidence.root.lines.first?.score}
     }
     public static func expectationLoss(root:AnalysisLine?,played:AnalysisLine?,mover:String)->Double? {guard let root=root,let played=played,root.score.bound==nil,played.score.bound==nil,let best=root.wdl,let actual=played.wdl,best.count==3,actual.count==3 else{return nil};func expected(_ wdl:[Int])->Double {Double(wdl[mover=="w" ? 0:2])+Double(wdl[1])/2};return max(0,(expected(best)-expected(actual))/1000)}

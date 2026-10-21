@@ -15,6 +15,8 @@ public struct AppSettings:Codable,Equatable {
     public var pauseForPractice=true
     /// Opening a review analyzes the whole game, apart from positions already stored (R-4).
     public var reviewAutoAnalyze=true
+    /// An arrow for the engine's first choice on the review board (R-17): off until the learner turns it on.
+    public var reviewBestMoveArrow=false
     /// Check for Updates at launch (V-19): off until the learner turns it on; Check for Updates… works either way.
     public var checkForUpdates=false
     public var lessonLanguage="en",lessonVoice="cedar"
@@ -51,7 +53,7 @@ public struct AppSettings:Codable,Equatable {
         boardTheme=choice("boardTheme",Array(Self.themes.keys),d.boardTheme);coachingMode=choice("coachingMode",["guided","on_request","quiet"],d.coachingMode);companionRole=choice("companionRole",["coach","opponent"],d.companionRole)
         voiceAutoConnect=flag("voiceAutoConnect",d.voiceAutoConnect);voiceConsent=raw["voiceConsent"]==nil ? voiceAutoConnect:flag("voiceConsent",d.voiceConsent);companionAutoStart=flag("companionAutoStart",d.companionAutoStart);voiceMicrophone=flag("voiceMicrophone",d.voiceMicrophone);voiceAssistMoves=flag("voiceAssistMoves",d.voiceAssistMoves)
         voiceInputDevice=String((raw["voiceInputDevice"] as? String ?? d.voiceInputDevice).prefix(256));voiceVolume=level("voiceVolume",d.voiceVolume);voiceInputLanguage=choice("voiceInputLanguage",["auto","response"],d.voiceInputLanguage)
-        reviewAutoAnalyze=flag("reviewAutoAnalyze",d.reviewAutoAnalyze);checkForUpdates=flag("checkForUpdates",d.checkForUpdates)
+        reviewAutoAnalyze=flag("reviewAutoAnalyze",d.reviewAutoAnalyze);reviewBestMoveArrow=flag("reviewBestMoveArrow",d.reviewBestMoveArrow);checkForUpdates=flag("checkForUpdates",d.checkForUpdates)
         pauseForPractice=flag("pauseForPractice",d.pauseForPractice);narration=flag("narration",d.narration);volume=level("volume",d.volume);autoAdvance=flag("autoAdvance",d.autoAdvance);moveSounds=flag("moveSounds",d.moveSounds);effectsVolume=level("effectsVolume",d.effectsVolume)
         pieceDuration=[0,300,500,700].contains(integer("pieceDuration",-1)) ? integer("pieceDuration",d.pieceDuration):d.pieceDuration
         skill=max(0,min(20,integer("skill",d.skill)))

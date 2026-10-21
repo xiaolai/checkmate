@@ -101,6 +101,8 @@ final class BoardView:NSView,NSAccessibilityCustomRotorItemSearchDelegate {
     var primaryMoveArrow:[String]? {arrows.first{$0.count==2 && ChessRules.validSquare($0[0]) && ChessRules.validSquare($0[1]) && $0[0] != $0[1]}}
     /// A lesson's guard lines, [from, to]: drawn like the Inspector's protection connectors, under the arrows.
     var guards:[[String]]=[]
+    /// White's share of the review's evaluation bar, 0...1, drawn in the margin right of the board (R-17); nil hides it.
+    var evaluation:Double? {didSet{if evaluation != oldValue{needsDisplay=true}}}
     var relationshipConnectors:[RelationshipConnector]=[]
     var relationshipMode:RelationshipMode? {didSet{if relationshipMode != oldValue{updateBreathing()}}}
     var inspectRelationship:((RelationshipMode)->Void)?,dismissRelationships:(()->Bool)?
@@ -295,9 +297,9 @@ final class BoardView:NSView,NSAccessibilityCustomRotorItemSearchDelegate {
     /// Monotonic, so a clock change never stalls or skips a move.
     private var animationProgress:Double {animationDuration>0 ? min(1,max(0,(ProcessInfo.processInfo.systemUptime-animationStart)/animationDuration)):1}
     /// Layers draw bottom to top: squares and their marks, guard lines and relationships, arrows, pieces, the learner's
-    /// own marks, then coordinates.
+    /// own marks, coordinates, then the review's evaluation bar in the margin.
     override func draw(_ dirty:NSRect){let s=boardRect.width/8;guard s>0 else{return}
-        let palette=self.palette;drawSquares(palette,side:s);drawRelationships(palette,side:s);drawArrows(palette,side:s);drawPieces(side:s);BoardSketch.draw(sketch.marks+(sketchPreview.map{[$0]} ?? []),on:self,side:s);drawLabels(palette,side:s)
+        let palette=self.palette;drawSquares(palette,side:s);drawRelationships(palette,side:s);drawArrows(palette,side:s);drawPieces(side:s);BoardSketch.draw(sketch.marks+(sketchPreview.map{[$0]} ?? []),on:self,side:s);drawLabels(palette,side:s);drawEvaluation(palette)
     }
     private func drawSquares(_ palette:BoardPalette,side s:CGFloat){
         for sq in ChessRules.squares {let rect=squareRect(sq),parity=(Int(sq.utf8.first!-97)+Int(sq.suffix(1))!-1)%2; (parity==0 ? palette.darkSquare:palette.lightSquare).setFill();rect.fill()
@@ -375,6 +377,16 @@ final class BoardView:NSView,NSAccessibilityCustomRotorItemSearchDelegate {
         let files=(0..<8).map{i->(text:String,origin:NSPoint) in let text=String(UnicodeScalar(97+(blackAtBottom ? 7-i:i))!),m=size(text);return (text,NSPoint(x:r.minX+(CGFloat(i)+0.5)*s-m.width/2,y:r.minY-margin+(margin-m.height)/2))}
         let ranks=(0..<8).map{i->(text:String,origin:NSPoint) in let text=String(blackAtBottom ? 8-i:i+1),m=size(text);return (text,NSPoint(x:r.minX-margin+(margin-m.width)/2,y:r.minY+(CGFloat(i)+0.5)*s-m.height/2))}
         return files+ranks
+    }
+    /// The evaluation bar's White and Black parts beside the board: White's grows from the side White plays from.
+    static func evaluationBar(board r:NSRect,share:Double,blackAtBottom:Bool)->(white:NSRect,black:NSRect) {
+        let bar=NSRect(x:r.maxX+Metrics.boardMargin*0.2,y:r.minY,width:Metrics.boardMargin*0.3,height:r.height),white=bar.height*CGFloat(max(0,min(1,share)))
+        return blackAtBottom ? (NSRect(x:bar.minX,y:bar.maxY-white,width:bar.width,height:white),NSRect(x:bar.minX,y:bar.minY,width:bar.width,height:bar.height-white)):(NSRect(x:bar.minX,y:bar.minY,width:bar.width,height:white),NSRect(x:bar.minX,y:bar.minY+white,width:bar.width,height:bar.height-white))
+    }
+    private func drawEvaluation(_ palette:BoardPalette){
+        guard let share=evaluation else{return};let parts=Self.evaluationBar(board:boardRect,share:share,blackAtBottom:blackAtBottom)
+        BoardPalette.lightPiece.setFill();parts.white.fill();BoardPalette.darkPiece.setFill();parts.black.fill()
+        palette.ink.withAlphaComponent(shouldIncreaseContrast ? 1:0.4).setStroke();let frame=NSBezierPath(rect:parts.white.union(parts.black));frame.lineWidth=1;frame.stroke()
     }
     private func drawLabels(_ palette:BoardPalette,side s:CGFloat){
         let attrs:[NSAttributedString.Key:Any]=[.font:NSFont.systemFont(ofSize:Self.coordinateFontSize(side:s),weight:.medium),.foregroundColor:NativeColors.secondaryText]

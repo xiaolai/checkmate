@@ -4,7 +4,7 @@ import AppKit
 import CheckmateCore
 @testable import CheckmateApplication
 
-/// R-8 on the review board: the Lichess key model and its Go menu.
+/// R-8 and R-17 on the review board: the Lichess key model and its Go menu, and the evaluation bar's place.
 @MainActor final class ReviewGoTests:XCTestCase {
     private var directory:URL!
     override func setUp(){directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);setenv("CHECKMATE_DATA_DIR",directory.path,1)}
@@ -57,5 +57,12 @@ import CheckmateCore
         try review.select(d6);try review.selectSquare("b1");try review.selectSquare("c3");try review.select(main[3]);try review.selectSquare("f1");try review.selectSquare("b5");try review.select(0)
         let ideas=review.authoredBranches,inLine=try XCTUnwrap(ideas.first{$0.root==d6}),atEnd=try XCTUnwrap(ideas.first{$0.root==main[3]})
         XCTAssertEqual(ReviewFormat.entries(document,ideas:ideas),[.row(.init(number:1,white:main[0],black:main[1])),.line([c5,nf3,d6],depth:1),.line([c3],depth:2),.idea(inLine),.idea(idea),.row(.init(number:2,white:main[2],black:main[3])),.idea(atEnd)],"ideas from inside a variation and after the last move are inline too")
+    }
+    func testTheEvaluationBarSitsRightOfTheBoardWithWhiteOnItsOwnSide() {
+        let board=NSRect(x:20,y:20,width:400,height:400),plain=BoardView.evaluationBar(board:board,share:0.75,blackAtBottom:false)
+        XCTAssertGreaterThan(plain.white.minX,board.maxX);XCTAssertLessThanOrEqual(plain.white.maxX,board.maxX+20,"inside the margin")
+        XCTAssertEqual(plain.white.minY,board.minY);XCTAssertEqual(plain.white.height,300,accuracy:0.001);XCTAssertEqual(plain.black.height,100,accuracy:0.001)
+        let flipped=BoardView.evaluationBar(board:board,share:0.75,blackAtBottom:true)
+        XCTAssertEqual(flipped.white.maxY,board.maxY);XCTAssertEqual(flipped.white.height,300,accuracy:0.001)
     }
 }
