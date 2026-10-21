@@ -372,7 +372,7 @@ public struct PreparedTrainingExercise {
         switch state.definition.objective {
         case .reachTarget:
             guard let drill=state.scenario.drill,let current=state.drillState,from==current.square else{state.feedback=String(localized:"Move only the marked piece.",bundle:.checkmate);exercise=state;publish();return}
-            guard let next=drill.apply(current,to:to) else{state.feedback=String(localized:"The \(PieceName.of(String(drill.piece.suffix(1)))) cannot move from \(from) to \(to) here.",bundle:.checkmate);exercise=state;publish();return}
+            guard let next=drill.apply(current,to:to) else{state.feedback=String(localized:"\(PieceName.phrase(String(drill.piece.suffix(1)),.opening)) cannot move from \(from) to \(to) here.",bundle:.checkmate);exercise=state;publish();return}
             state.drillState=next;state.board=drill.board(next);state.lastMove=(from,to);state.snapshot.actions.append(.move(from:from,to:to,promotion:nil))
             let budget=state.scenario.budget ?? .max,used=state.movesUsed,remaining=drill.distance(from:next)
             if next.square==drill.target{state.feedback=Sentences.join(String(localized:"You reached \(drill.target) in \(used) moves.",bundle:.checkmate,comment:"The first value is a board square, such as e4"),state.scenario.explanation);finish(state,.correct)}

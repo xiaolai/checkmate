@@ -24,13 +24,13 @@
         }
       }
     },
-    "%@ %@ to %@, capturing the %@ on %@." : {
+    "%@ %@ to %@, capturing %@ on %@." : {
       "comment" : "A move described: the piece, its squares, what it captured",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "%1$@ %2$@ to %3$@, capturing the %4$@ on %5$@."
+            "value" : "%1$@ %2$@ to %3$@, capturing %4$@ on %5$@."
           }
         }
       }
@@ -152,11 +152,44 @@
         }
       }
     },
+    "%@ cannot move from %@ to %@ here." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ cannot move from %2$@ to %3$@ here."
+          }
+        }
+      }
+    },
+    "%@ cannot move from %@ to %@." : {
+      "comment" : "A typed move the piece cannot make",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ cannot move from %2$@ to %3$@."
+          }
+        }
+      }
+    },
     "%@ castled kingside" : {
       "comment" : "A move announcement: who castled"
     },
+    "%@ castled kingside, check" : {
+      "comment" : "A move announcement: who castled, giving check"
+    },
+    "%@ castled kingside, checkmate" : {
+      "comment" : "A move announcement: who castled, giving checkmate"
+    },
     "%@ castled queenside" : {
       "comment" : "A move announcement: who castled"
+    },
+    "%@ castled queenside, check" : {
+      "comment" : "A move announcement: who castled, giving check"
+    },
+    "%@ castled queenside, checkmate" : {
+      "comment" : "A move announcement: who castled, giving checkmate"
     },
     "%@ credit status: unlimited (provider-reported)" : {},
     "%@ declined the draw" : {},
@@ -203,17 +236,27 @@
       "comment" : "One person watches the network game"
     },
     "%@ left the game." : {},
-    "%@ moved the %@ from %@ to %@." : {
+    "%@ moved %@ from %@ to %@." : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "%1$@ moved the %2$@ from %3$@ to %4$@."
+            "value" : "%1$@ moved %2$@ from %3$@ to %4$@."
           }
         }
       }
     },
     "%@ no longer holds your seat." : {},
+    "%@ of yours can move to %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ of yours can move to %2$@."
+          }
+        }
+      }
+    },
     "%@ offered a draw." : {},
     "%@ offers a draw" : {},
     "%@ offers a draw." : {},
@@ -224,6 +267,26 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "%1$@ on %2$@"
+          }
+        }
+      }
+    },
+    "%@ on %@ covers %@. Check pins and legal replies before treating coverage as a capture." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ on %2$@ covers %3$@. Check pins and legal replies before treating coverage as a capture."
+          }
+        }
+      }
+    },
+    "%@ on %@ is %@'s, and it's %@'s move." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ on %2$@ is %3$@'s, and it's %4$@'s move."
           }
         }
       }
@@ -250,12 +313,166 @@
         }
       }
     },
+    "%@ played %@ to %@, capturing %@" : {
+      "comment" : "A move announcement: who, the piece, its square, the piece it captured",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ played %2$@ to %3$@, capturing %4$@"
+          }
+        }
+      }
+    },
+    "%@ played %@ to %@, capturing %@, check" : {
+      "comment" : "A move announcement: who, the piece, its square, the piece it captured, giving check",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ played %2$@ to %3$@, capturing %4$@, check"
+          }
+        }
+      }
+    },
+    "%@ played %@ to %@, capturing %@, checkmate" : {
+      "comment" : "A move announcement: who, the piece, its square, the piece it captured, giving checkmate",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ played %2$@ to %3$@, capturing %4$@, checkmate"
+          }
+        }
+      }
+    },
+    "%@ played %@ to %@, capturing %@, promoting to %@" : {
+      "comment" : "A move announcement: who, the piece, its square, the piece it captured, the piece the pawn became",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ played %2$@ to %3$@, capturing %4$@, promoting to %5$@"
+          }
+        }
+      }
+    },
+    "%@ played %@ to %@, capturing %@, promoting to %@, check" : {
+      "comment" : "A move announcement: who, the piece, its square, the piece it captured, the piece the pawn became, giving check",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ played %2$@ to %3$@, capturing %4$@, promoting to %5$@, check"
+          }
+        }
+      }
+    },
+    "%@ played %@ to %@, capturing %@, promoting to %@, checkmate" : {
+      "comment" : "A move announcement: who, the piece, its square, the piece it captured, the piece the pawn became, giving checkmate",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ played %2$@ to %3$@, capturing %4$@, promoting to %5$@, checkmate"
+          }
+        }
+      }
+    },
+    "%@ played %@ to %@, check" : {
+      "comment" : "A move announcement: who, the piece, its square, giving check",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ played %2$@ to %3$@, check"
+          }
+        }
+      }
+    },
+    "%@ played %@ to %@, checkmate" : {
+      "comment" : "A move announcement: who, the piece, its square, giving checkmate",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ played %2$@ to %3$@, checkmate"
+          }
+        }
+      }
+    },
+    "%@ played %@ to %@, promoting to %@" : {
+      "comment" : "A move announcement: who, the piece, its square, the piece the pawn became",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ played %2$@ to %3$@, promoting to %4$@"
+          }
+        }
+      }
+    },
+    "%@ played %@ to %@, promoting to %@, check" : {
+      "comment" : "A move announcement: who, the piece, its square, the piece the pawn became, giving check",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ played %2$@ to %3$@, promoting to %4$@, check"
+          }
+        }
+      }
+    },
+    "%@ played %@ to %@, promoting to %@, checkmate" : {
+      "comment" : "A move announcement: who, the piece, its square, the piece the pawn became, giving checkmate",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ played %2$@ to %3$@, promoting to %4$@, checkmate"
+          }
+        }
+      }
+    },
     "%@ played %@." : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
             "value" : "%1$@ played %2$@."
+          }
+        }
+      }
+    },
+    "%@ played pawn to %@, capturing a pawn en passant" : {
+      "comment" : "A move announcement: who, the square, an en passant capture",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ played pawn to %2$@, capturing a pawn en passant"
+          }
+        }
+      }
+    },
+    "%@ played pawn to %@, capturing a pawn en passant, check" : {
+      "comment" : "A move announcement: who, the square, an en passant capture, giving check",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ played pawn to %2$@, capturing a pawn en passant, check"
+          }
+        }
+      }
+    },
+    "%@ played pawn to %@, capturing a pawn en passant, checkmate" : {
+      "comment" : "A move announcement: who, the square, an en passant capture, giving checkmate",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ played pawn to %2$@, capturing a pawn en passant, checkmate"
           }
         }
       }
@@ -454,34 +671,6 @@
         }
       }
     },
-    "%@, capturing a %@" : {
-      "comment" : "A move announcement, then the piece it captured",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$@, capturing a %2$@"
-          }
-        }
-      }
-    },
-    "%@, capturing a %@ en passant" : {
-      "comment" : "A move announcement, then the piece it captured en passant",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$@, capturing a %2$@ en passant"
-          }
-        }
-      }
-    },
-    "%@, check" : {
-      "comment" : "A move announcement that gives check"
-    },
-    "%@, checkmate" : {
-      "comment" : "A move announcement that gives checkmate"
-    },
     "%@, clip %lld" : {
       "comment" : "Where a problem happened: a lesson's place, then the clip's number",
       "localizations" : {
@@ -515,17 +704,6 @@
     },
     "%@, not done yet" : {
       "comment" : "A lesson checkpoint that is not done yet"
-    },
-    "%@, promoting to a %@" : {
-      "comment" : "A move announcement, then the piece the pawn became",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$@, promoting to a %2$@"
-          }
-        }
-      }
     },
     "%@, then %@" : {
       "comment" : "Steps of a route, one after the other",
@@ -1271,17 +1449,6 @@
     "?! inaccuracy · ? mistake · ?? blunder; estimates may change." : {
       "comment" : "The move grades' glyphs and what they mean"
     },
-    "A %@ cannot move from %@ to %@." : {
-      "comment" : "A typed move the piece cannot make",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "A %1$@ cannot move from %2$@ to %3$@."
-          }
-        }
-      }
-    },
     "A bishop slides diagonally and stays on squares of one color. It cannot pass through pieces." : {},
     "A board pattern held back for fresh practice." : {},
     "A check, capture, promotion or the final move" : {},
@@ -1629,12 +1796,12 @@
     "Cached text input (subset)" : {},
     "Can capture this pawn en passant, landing on %@." : {},
     "Can capture this pawn en passant, landing on the passed square." : {},
-    "Can recapture on %@ after the %@ on %@ plays %@." : {
+    "Can recapture on %@ after %@ on %@ plays %@." : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Can recapture on %1$@ after the %2$@ on %3$@ plays %4$@."
+            "value" : "Can recapture on %1$@ after %2$@ on %3$@ plays %4$@."
           }
         }
       }
@@ -1646,12 +1813,12 @@
     "Cancel to keep working, or quit without them." : {},
     "Canceled. Completed text and clips are preserved." : {},
     "Canceling…" : {},
-    "Cannot recapture after the %@ on %@ plays %@; that recapture would leave its own king in check." : {
+    "Cannot recapture after %@ on %@ plays %@; that recapture would leave its own king in check." : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Cannot recapture after the %1$@ on %2$@ plays %3$@; that recapture would leave its own king in check."
+            "value" : "Cannot recapture after %1$@ on %2$@ plays %3$@; that recapture would leave its own king in check."
           }
         }
       }
@@ -2158,12 +2325,12 @@
     "Follow every line into the square and see which pieces could capture there." : {},
     "For each piece, ask whether a piece of its own side could capture back if it were taken." : {},
     "Free pieces" : {},
-    "From %@, the %@ controls %@ in the center." : {
+    "From %@, %@ controls %@ in the center." : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "From %1$@, the %2$@ controls %3$@ in the center."
+            "value" : "From %1$@, %2$@ controls %3$@ in the center."
           }
         }
       }
@@ -2803,16 +2970,6 @@
     "Next review move" : {},
     "Next transcript" : {},
     "No" : {},
-    "No %@ of yours can move to %@." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "No %1$@ of yours can move to %2$@."
-          }
-        }
-      }
-    },
     "No Black piece attacks %@." : {},
     "No Black piece protects %@." : {},
     "No Squares" : {},
@@ -3054,7 +3211,7 @@
     "Promote to a knight" : {},
     "Promote to a queen" : {},
     "Promote to a rook" : {},
-    "Promotes to a %@." : {},
+    "Promotes to %@." : {},
     "Promotion" : {},
     "Promotion canceled. Nothing was counted." : {},
     "Protect it" : {},
@@ -3614,42 +3771,12 @@
     "That position is already over. Choose a different move." : {},
     "That square holds your own piece." : {},
     "That square is not a safe neighboring square. Try another step." : {},
-    "The %@ cannot move from %@ to %@ here." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "The %1$@ cannot move from %2$@ to %3$@ here."
-          }
-        }
-      }
-    },
     "The %@ listener failed: %@." : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
             "value" : "The %1$@ listener failed: %2$@."
-          }
-        }
-      }
-    },
-    "The %@ on %@ covers %@. Check pins and legal replies before treating coverage as a capture." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "The %1$@ on %2$@ covers %3$@. Check pins and legal replies before treating coverage as a capture."
-          }
-        }
-      }
-    },
-    "The %@ on %@ is %@'s, and it's %@'s move." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "The %1$@ on %2$@ is %3$@'s, and it's %4$@'s move."
           }
         }
       }
@@ -3698,7 +3825,7 @@
     "The context moves must show how the pawn arrived." : {},
     "The current progress is too large to keep before importing." : {},
     "The data folder may be full or read-only." : {},
-    "The defender captured your %@. Keep it protected, or out of the king's reach." : {},
+    "The defender captured %@. Keep it protected, or out of the king's reach." : {},
     "The defender is Stockfish at full strength with a short think: it resists well, but it is not perfect." : {},
     "The defender is thinking" : {},
     "The defender played %@." : {},
@@ -3801,7 +3928,7 @@
         }
       }
     },
-    "The pawn became a %@." : {},
+    "The pawn became %@." : {},
     "The pawn on %@ controls %@. Another piece needs a legal route to use those squares; this does not establish why the pawn was moved." : {
       "localizations" : {
         "en" : {
@@ -3976,12 +4103,12 @@
     "This board repeats a pattern you have seen." : {},
     "This board shows imagined moves. Dots show where this piece could go there." : {},
     "This build declares no Bonjour service type." : {},
-    "This captures the %@ on %@." : {
+    "This captures %@ on %@." : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "This captures the %1$@ on %2$@."
+            "value" : "This captures %1$@ on %2$@."
           }
         }
       }
@@ -4188,12 +4315,12 @@
     "Try a name, player, event or year." : {},
     "Try a player, event, year or opening." : {},
     "Try again" : {},
-    "Try moving your %@ on %@. Ask for another hint to see the move." : {
+    "Try moving %@ on %@. Ask for another hint to see the move." : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Try moving your %1$@ on %2$@. Ask for another hint to see the move."
+            "value" : "Try moving %1$@ on %2$@. Ask for another hint to see the move."
           }
         }
       }
@@ -4378,17 +4505,17 @@
     "Won on time" : {},
     "Working…" : {},
     "World Championships" : {},
-    "Worth reviewing: early in the game, bringing out knights and bishops before the queen usually helps." : {},
-    "Worth reviewing: your %@ on %@ can be taken. Is it protected well enough?" : {
+    "Worth reviewing: %@ on %@ can be taken. Is it protected well enough?" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Worth reviewing: your %1$@ on %2$@ can be taken. Is it protected well enough?"
+            "value" : "Worth reviewing: %1$@ on %2$@ can be taken. Is it protected well enough?"
           }
         }
       }
     },
+    "Worth reviewing: early in the game, bringing out knights and bishops before the queen usually helps." : {},
     "Worth reviewing: your king can no longer castle. Castling is often the quickest way to a safe king." : {},
     "Yes" : {},
     "Yes, castling is allowed" : {},
@@ -4434,6 +4561,8 @@
     "You cannot castle while your king is in check." : {},
     "You come out ahead" : {},
     "You come out behind" : {},
+    "You have %@ there." : {},
+    "You have %@." : {},
     "You have %lld seconds left" : {
       "localizations" : {
         "en" : {
@@ -4457,8 +4586,6 @@
       }
     },
     "You have kept the maximum of %lld imagined lines. Delete one to start another." : {},
-    "You have no %@ there." : {},
-    "You have no %@." : {},
     "You have no move." : {},
     "You have tried this board before, so this is practice." : {},
     "You have version %@. Download the new version from GitHub, or update it with Homebrew." : {},
@@ -4650,7 +4777,7 @@
       }
     },
     "bishop" : {
-      "comment" : "A piece's name inside a sentence"
+      "comment" : "A piece's bare name, as in the list label: knight e4"
     },
     "bishops" : {
       "comment" : "Two or more pieces of one kind, inside a sentence"
@@ -4752,14 +4879,14 @@
       "comment" : "Follows a lesson’s name and a colon"
     },
     "king" : {
-      "comment" : "A piece's name inside a sentence"
+      "comment" : "A piece's bare name, as in the list label: knight e4"
     },
     "king destinations differ from the oracle: %@" : {},
     "kings" : {
       "comment" : "Two or more pieces of one kind, inside a sentence"
     },
     "knight" : {
-      "comment" : "A piece's name inside a sentence"
+      "comment" : "A piece's bare name, as in the list label: knight e4"
     },
     "knights" : {
       "comment" : "Two or more pieces of one kind, inside a sentence"
@@ -4820,6 +4947,18 @@
         }
       }
     },
+    "network.miniGame.titleAndRules" : {
+      "comment" : "A mini-game's title, then its rules, under the players' names and in the lobby",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@: %2$@"
+          }
+        }
+      }
+    },
     "no accepted move makes a fork" : {},
     "no accepted move makes or uses a pin" : {},
     "no help" : {
@@ -4841,13 +4980,1273 @@
     "only searched objectives have a goal and horizon" : {},
     "part of the last move" : {},
     "pawn" : {
-      "comment" : "A piece's name inside a sentence"
+      "comment" : "A piece's bare name, as in the list label: knight e4"
     },
     "pawns" : {
       "comment" : "Two or more pieces of one kind, inside a sentence"
     },
     "piece" : {
-      "comment" : "A piece's name inside a sentence, when its kind is unknown"
+      "comment" : "A piece's bare name, as in the list label: knight e4, when its kind is unknown"
+    },
+    "piece.anyObject.bishop" : {
+      "comment" : "Any piece of this kind, as the object of a verb, as in: Ben played pawn to d5, capturing a knight",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "a bishop"
+          }
+        }
+      }
+    },
+    "piece.anyObject.king" : {
+      "comment" : "Any piece of this kind, as the object of a verb, as in: Ben played pawn to d5, capturing a knight",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "a king"
+          }
+        }
+      }
+    },
+    "piece.anyObject.knight" : {
+      "comment" : "Any piece of this kind, as the object of a verb, as in: Ben played pawn to d5, capturing a knight",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "a knight"
+          }
+        }
+      }
+    },
+    "piece.anyObject.pawn" : {
+      "comment" : "Any piece of this kind, as the object of a verb, as in: Ben played pawn to d5, capturing a knight",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "a pawn"
+          }
+        }
+      }
+    },
+    "piece.anyObject.piece" : {
+      "comment" : "Any piece of this kind, as the object of a verb, as in: Ben played pawn to d5, capturing a knight, when its kind is unknown",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "a piece"
+          }
+        }
+      }
+    },
+    "piece.anyObject.queen" : {
+      "comment" : "Any piece of this kind, as the object of a verb, as in: Ben played pawn to d5, capturing a knight",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "a queen"
+          }
+        }
+      }
+    },
+    "piece.anyObject.rook" : {
+      "comment" : "Any piece of this kind, as the object of a verb, as in: Ben played pawn to d5, capturing a knight",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "a rook"
+          }
+        }
+      }
+    },
+    "piece.anyOpening.bishop" : {
+      "comment" : "Any piece of this kind, opening a sentence as its subject, as in: A knight cannot move from b1 to b3.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "A bishop"
+          }
+        }
+      }
+    },
+    "piece.anyOpening.king" : {
+      "comment" : "Any piece of this kind, opening a sentence as its subject, as in: A knight cannot move from b1 to b3.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "A king"
+          }
+        }
+      }
+    },
+    "piece.anyOpening.knight" : {
+      "comment" : "Any piece of this kind, opening a sentence as its subject, as in: A knight cannot move from b1 to b3.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "A knight"
+          }
+        }
+      }
+    },
+    "piece.anyOpening.pawn" : {
+      "comment" : "Any piece of this kind, opening a sentence as its subject, as in: A knight cannot move from b1 to b3.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "A pawn"
+          }
+        }
+      }
+    },
+    "piece.anyOpening.piece" : {
+      "comment" : "Any piece of this kind, opening a sentence as its subject, as in: A knight cannot move from b1 to b3., when its kind is unknown",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "A piece"
+          }
+        }
+      }
+    },
+    "piece.anyOpening.queen" : {
+      "comment" : "Any piece of this kind, opening a sentence as its subject, as in: A knight cannot move from b1 to b3.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "A queen"
+          }
+        }
+      }
+    },
+    "piece.anyOpening.rook" : {
+      "comment" : "Any piece of this kind, opening a sentence as its subject, as in: A knight cannot move from b1 to b3.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "A rook"
+          }
+        }
+      }
+    },
+    "piece.became.bishop" : {
+      "comment" : "What a pawn became when it promoted, after the verb, as in: The pawn became a queen.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "a bishop"
+          }
+        }
+      }
+    },
+    "piece.became.king" : {
+      "comment" : "What a pawn became when it promoted, after the verb, as in: The pawn became a queen.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "a king"
+          }
+        }
+      }
+    },
+    "piece.became.knight" : {
+      "comment" : "What a pawn became when it promoted, after the verb, as in: The pawn became a queen.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "a knight"
+          }
+        }
+      }
+    },
+    "piece.became.pawn" : {
+      "comment" : "What a pawn became when it promoted, after the verb, as in: The pawn became a queen.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "a pawn"
+          }
+        }
+      }
+    },
+    "piece.became.piece" : {
+      "comment" : "What a pawn became when it promoted, after the verb, as in: The pawn became a queen., when its kind is unknown",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "a piece"
+          }
+        }
+      }
+    },
+    "piece.became.queen" : {
+      "comment" : "What a pawn became when it promoted, after the verb, as in: The pawn became a queen.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "a queen"
+          }
+        }
+      }
+    },
+    "piece.became.rook" : {
+      "comment" : "What a pawn became when it promoted, after the verb, as in: The pawn became a queen.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "a rook"
+          }
+        }
+      }
+    },
+    "piece.bracketed.black.bishop" : {
+      "comment" : "A piece by color and kind, in brackets after the square it stands on, as in: Select every Black piece that protects the piece on e4 (the white knight).",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "the black bishop"
+          }
+        }
+      }
+    },
+    "piece.bracketed.black.king" : {
+      "comment" : "A piece by color and kind, in brackets after the square it stands on, as in: Select every Black piece that protects the piece on e4 (the white knight).",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "the black king"
+          }
+        }
+      }
+    },
+    "piece.bracketed.black.knight" : {
+      "comment" : "A piece by color and kind, in brackets after the square it stands on, as in: Select every Black piece that protects the piece on e4 (the white knight).",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "the black knight"
+          }
+        }
+      }
+    },
+    "piece.bracketed.black.pawn" : {
+      "comment" : "A piece by color and kind, in brackets after the square it stands on, as in: Select every Black piece that protects the piece on e4 (the white knight).",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "the black pawn"
+          }
+        }
+      }
+    },
+    "piece.bracketed.black.piece" : {
+      "comment" : "A piece by color and kind, in brackets after the square it stands on, as in: Select every Black piece that protects the piece on e4 (the white knight). The kind is unknown.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "the black piece"
+          }
+        }
+      }
+    },
+    "piece.bracketed.black.queen" : {
+      "comment" : "A piece by color and kind, in brackets after the square it stands on, as in: Select every Black piece that protects the piece on e4 (the white knight).",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "the black queen"
+          }
+        }
+      }
+    },
+    "piece.bracketed.black.rook" : {
+      "comment" : "A piece by color and kind, in brackets after the square it stands on, as in: Select every Black piece that protects the piece on e4 (the white knight).",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "the black rook"
+          }
+        }
+      }
+    },
+    "piece.bracketed.white.bishop" : {
+      "comment" : "A piece by color and kind, in brackets after the square it stands on, as in: Select every Black piece that protects the piece on e4 (the white knight).",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "the white bishop"
+          }
+        }
+      }
+    },
+    "piece.bracketed.white.king" : {
+      "comment" : "A piece by color and kind, in brackets after the square it stands on, as in: Select every Black piece that protects the piece on e4 (the white knight).",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "the white king"
+          }
+        }
+      }
+    },
+    "piece.bracketed.white.knight" : {
+      "comment" : "A piece by color and kind, in brackets after the square it stands on, as in: Select every Black piece that protects the piece on e4 (the white knight).",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "the white knight"
+          }
+        }
+      }
+    },
+    "piece.bracketed.white.pawn" : {
+      "comment" : "A piece by color and kind, in brackets after the square it stands on, as in: Select every Black piece that protects the piece on e4 (the white knight).",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "the white pawn"
+          }
+        }
+      }
+    },
+    "piece.bracketed.white.piece" : {
+      "comment" : "A piece by color and kind, in brackets after the square it stands on, as in: Select every Black piece that protects the piece on e4 (the white knight). The kind is unknown.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "the white piece"
+          }
+        }
+      }
+    },
+    "piece.bracketed.white.queen" : {
+      "comment" : "A piece by color and kind, in brackets after the square it stands on, as in: Select every Black piece that protects the piece on e4 (the white knight).",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "the white queen"
+          }
+        }
+      }
+    },
+    "piece.bracketed.white.rook" : {
+      "comment" : "A piece by color and kind, in brackets after the square it stands on, as in: Select every Black piece that protects the piece on e4 (the white knight).",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "the white rook"
+          }
+        }
+      }
+    },
+    "piece.moveOpening.bishop" : {
+      "comment" : "A piece's name opening a move told by its squares, as in: Knight g1 to f3.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Bishop"
+          }
+        }
+      }
+    },
+    "piece.moveOpening.king" : {
+      "comment" : "A piece's name opening a move told by its squares, as in: Knight g1 to f3.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "King"
+          }
+        }
+      }
+    },
+    "piece.moveOpening.knight" : {
+      "comment" : "A piece's name opening a move told by its squares, as in: Knight g1 to f3.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Knight"
+          }
+        }
+      }
+    },
+    "piece.moveOpening.pawn" : {
+      "comment" : "A piece's name opening a move told by its squares, as in: Knight g1 to f3.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Pawn"
+          }
+        }
+      }
+    },
+    "piece.moveOpening.piece" : {
+      "comment" : "A piece's name opening a move told by its squares, as in: Knight g1 to f3., when its kind is unknown",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Piece"
+          }
+        }
+      }
+    },
+    "piece.moveOpening.queen" : {
+      "comment" : "A piece's name opening a move told by its squares, as in: Knight g1 to f3.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Queen"
+          }
+        }
+      }
+    },
+    "piece.moveOpening.rook" : {
+      "comment" : "A piece's name opening a move told by its squares, as in: Knight g1 to f3.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Rook"
+          }
+        }
+      }
+    },
+    "piece.noneOpening.bishop" : {
+      "comment" : "No piece of this kind, opening a sentence as its subject, as in: No knight of yours can move to f6.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "No bishop"
+          }
+        }
+      }
+    },
+    "piece.noneOpening.king" : {
+      "comment" : "No piece of this kind, opening a sentence as its subject, as in: No knight of yours can move to f6.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "No king"
+          }
+        }
+      }
+    },
+    "piece.noneOpening.knight" : {
+      "comment" : "No piece of this kind, opening a sentence as its subject, as in: No knight of yours can move to f6.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "No knight"
+          }
+        }
+      }
+    },
+    "piece.noneOpening.pawn" : {
+      "comment" : "No piece of this kind, opening a sentence as its subject, as in: No knight of yours can move to f6.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "No pawn"
+          }
+        }
+      }
+    },
+    "piece.noneOpening.piece" : {
+      "comment" : "No piece of this kind, opening a sentence as its subject, as in: No knight of yours can move to f6., when its kind is unknown",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "No piece"
+          }
+        }
+      }
+    },
+    "piece.noneOpening.queen" : {
+      "comment" : "No piece of this kind, opening a sentence as its subject, as in: No knight of yours can move to f6.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "No queen"
+          }
+        }
+      }
+    },
+    "piece.noneOpening.rook" : {
+      "comment" : "No piece of this kind, opening a sentence as its subject, as in: No knight of yours can move to f6.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "No rook"
+          }
+        }
+      }
+    },
+    "piece.noneOwned.bishop" : {
+      "comment" : "No piece of this kind, as the object of the verb have, as in: You have no queen there.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "no bishop"
+          }
+        }
+      }
+    },
+    "piece.noneOwned.king" : {
+      "comment" : "No piece of this kind, as the object of the verb have, as in: You have no queen there.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "no king"
+          }
+        }
+      }
+    },
+    "piece.noneOwned.knight" : {
+      "comment" : "No piece of this kind, as the object of the verb have, as in: You have no queen there.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "no knight"
+          }
+        }
+      }
+    },
+    "piece.noneOwned.pawn" : {
+      "comment" : "No piece of this kind, as the object of the verb have, as in: You have no queen there.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "no pawn"
+          }
+        }
+      }
+    },
+    "piece.noneOwned.piece" : {
+      "comment" : "No piece of this kind, as the object of the verb have, as in: You have no queen there., when its kind is unknown",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "no piece"
+          }
+        }
+      }
+    },
+    "piece.noneOwned.queen" : {
+      "comment" : "No piece of this kind, as the object of the verb have, as in: You have no queen there.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "no queen"
+          }
+        }
+      }
+    },
+    "piece.noneOwned.rook" : {
+      "comment" : "No piece of this kind, as the object of the verb have, as in: You have no queen there.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "no rook"
+          }
+        }
+      }
+    },
+    "piece.object.bishop" : {
+      "comment" : "A piece by its kind, as the object of a verb, as in: White moved the knight from g1 to f3; This captures the knight on f6",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "the bishop"
+          }
+        }
+      }
+    },
+    "piece.object.king" : {
+      "comment" : "A piece by its kind, as the object of a verb, as in: White moved the knight from g1 to f3; This captures the knight on f6",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "the king"
+          }
+        }
+      }
+    },
+    "piece.object.knight" : {
+      "comment" : "A piece by its kind, as the object of a verb, as in: White moved the knight from g1 to f3; This captures the knight on f6",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "the knight"
+          }
+        }
+      }
+    },
+    "piece.object.pawn" : {
+      "comment" : "A piece by its kind, as the object of a verb, as in: White moved the knight from g1 to f3; This captures the knight on f6",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "the pawn"
+          }
+        }
+      }
+    },
+    "piece.object.piece" : {
+      "comment" : "A piece by its kind, as the object of a verb, as in: White moved the knight from g1 to f3; This captures the knight on f6, when its kind is unknown",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "the piece"
+          }
+        }
+      }
+    },
+    "piece.object.queen" : {
+      "comment" : "A piece by its kind, as the object of a verb, as in: White moved the knight from g1 to f3; This captures the knight on f6",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "the queen"
+          }
+        }
+      }
+    },
+    "piece.object.rook" : {
+      "comment" : "A piece by its kind, as the object of a verb, as in: White moved the knight from g1 to f3; This captures the knight on f6",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "the rook"
+          }
+        }
+      }
+    },
+    "piece.opening.bishop" : {
+      "comment" : "A piece by its kind, opening a sentence as its subject, as in: The knight on f3 covers e5; The knight cannot move from b1 to b3 here",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "The bishop"
+          }
+        }
+      }
+    },
+    "piece.opening.king" : {
+      "comment" : "A piece by its kind, opening a sentence as its subject, as in: The knight on f3 covers e5; The knight cannot move from b1 to b3 here",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "The king"
+          }
+        }
+      }
+    },
+    "piece.opening.knight" : {
+      "comment" : "A piece by its kind, opening a sentence as its subject, as in: The knight on f3 covers e5; The knight cannot move from b1 to b3 here",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "The knight"
+          }
+        }
+      }
+    },
+    "piece.opening.pawn" : {
+      "comment" : "A piece by its kind, opening a sentence as its subject, as in: The knight on f3 covers e5; The knight cannot move from b1 to b3 here",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "The pawn"
+          }
+        }
+      }
+    },
+    "piece.opening.piece" : {
+      "comment" : "A piece by its kind, opening a sentence as its subject, as in: The knight on f3 covers e5; The knight cannot move from b1 to b3 here, when its kind is unknown",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "The piece"
+          }
+        }
+      }
+    },
+    "piece.opening.queen" : {
+      "comment" : "A piece by its kind, opening a sentence as its subject, as in: The knight on f3 covers e5; The knight cannot move from b1 to b3 here",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "The queen"
+          }
+        }
+      }
+    },
+    "piece.opening.rook" : {
+      "comment" : "A piece by its kind, opening a sentence as its subject, as in: The knight on f3 covers e5; The knight cannot move from b1 to b3 here",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "The rook"
+          }
+        }
+      }
+    },
+    "piece.played.bishop" : {
+      "comment" : "A piece's name after the verb played, in a move announcement, as in: Ben played knight to f3",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "bishop"
+          }
+        }
+      }
+    },
+    "piece.played.king" : {
+      "comment" : "A piece's name after the verb played, in a move announcement, as in: Ben played knight to f3",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "king"
+          }
+        }
+      }
+    },
+    "piece.played.knight" : {
+      "comment" : "A piece's name after the verb played, in a move announcement, as in: Ben played knight to f3",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "knight"
+          }
+        }
+      }
+    },
+    "piece.played.pawn" : {
+      "comment" : "A piece's name after the verb played, in a move announcement, as in: Ben played knight to f3",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "pawn"
+          }
+        }
+      }
+    },
+    "piece.played.piece" : {
+      "comment" : "A piece's name after the verb played, in a move announcement, as in: Ben played knight to f3, when its kind is unknown",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "piece"
+          }
+        }
+      }
+    },
+    "piece.played.queen" : {
+      "comment" : "A piece's name after the verb played, in a move announcement, as in: Ben played knight to f3",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "queen"
+          }
+        }
+      }
+    },
+    "piece.played.rook" : {
+      "comment" : "A piece's name after the verb played, in a move announcement, as in: Ben played knight to f3",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "rook"
+          }
+        }
+      }
+    },
+    "piece.promotedTo.bishop" : {
+      "comment" : "What a pawn promotes to, after the word to, as in: Promotes to a queen. Ben played pawn to e8, promoting to a queen",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "a bishop"
+          }
+        }
+      }
+    },
+    "piece.promotedTo.king" : {
+      "comment" : "What a pawn promotes to, after the word to, as in: Promotes to a queen. Ben played pawn to e8, promoting to a queen",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "a king"
+          }
+        }
+      }
+    },
+    "piece.promotedTo.knight" : {
+      "comment" : "What a pawn promotes to, after the word to, as in: Promotes to a queen. Ben played pawn to e8, promoting to a queen",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "a knight"
+          }
+        }
+      }
+    },
+    "piece.promotedTo.pawn" : {
+      "comment" : "What a pawn promotes to, after the word to, as in: Promotes to a queen. Ben played pawn to e8, promoting to a queen",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "a pawn"
+          }
+        }
+      }
+    },
+    "piece.promotedTo.piece" : {
+      "comment" : "What a pawn promotes to, after the word to, as in: Promotes to a queen. Ben played pawn to e8, promoting to a queen, when its kind is unknown",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "a piece"
+          }
+        }
+      }
+    },
+    "piece.promotedTo.queen" : {
+      "comment" : "What a pawn promotes to, after the word to, as in: Promotes to a queen. Ben played pawn to e8, promoting to a queen",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "a queen"
+          }
+        }
+      }
+    },
+    "piece.promotedTo.rook" : {
+      "comment" : "What a pawn promotes to, after the word to, as in: Promotes to a queen. Ben played pawn to e8, promoting to a queen",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "a rook"
+          }
+        }
+      }
+    },
+    "piece.subject.bishop" : {
+      "comment" : "A piece by its kind, as the subject in the middle of a sentence, as in: after the knight on e4 plays Nxf6; From f3, the knight controls e5",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "the bishop"
+          }
+        }
+      }
+    },
+    "piece.subject.king" : {
+      "comment" : "A piece by its kind, as the subject in the middle of a sentence, as in: after the knight on e4 plays Nxf6; From f3, the knight controls e5",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "the king"
+          }
+        }
+      }
+    },
+    "piece.subject.knight" : {
+      "comment" : "A piece by its kind, as the subject in the middle of a sentence, as in: after the knight on e4 plays Nxf6; From f3, the knight controls e5",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "the knight"
+          }
+        }
+      }
+    },
+    "piece.subject.pawn" : {
+      "comment" : "A piece by its kind, as the subject in the middle of a sentence, as in: after the knight on e4 plays Nxf6; From f3, the knight controls e5",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "the pawn"
+          }
+        }
+      }
+    },
+    "piece.subject.piece" : {
+      "comment" : "A piece by its kind, as the subject in the middle of a sentence, as in: after the knight on e4 plays Nxf6; From f3, the knight controls e5, when its kind is unknown",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "the piece"
+          }
+        }
+      }
+    },
+    "piece.subject.queen" : {
+      "comment" : "A piece by its kind, as the subject in the middle of a sentence, as in: after the knight on e4 plays Nxf6; From f3, the knight controls e5",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "the queen"
+          }
+        }
+      }
+    },
+    "piece.subject.rook" : {
+      "comment" : "A piece by its kind, as the subject in the middle of a sentence, as in: after the knight on e4 plays Nxf6; From f3, the knight controls e5",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "the rook"
+          }
+        }
+      }
+    },
+    "piece.yoursObject.bishop" : {
+      "comment" : "The learner's own piece, as the object of a verb, as in: Try moving your knight on g1. The defender captured your rook.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "your bishop"
+          }
+        }
+      }
+    },
+    "piece.yoursObject.king" : {
+      "comment" : "The learner's own piece, as the object of a verb, as in: Try moving your knight on g1. The defender captured your rook.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "your king"
+          }
+        }
+      }
+    },
+    "piece.yoursObject.knight" : {
+      "comment" : "The learner's own piece, as the object of a verb, as in: Try moving your knight on g1. The defender captured your rook.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "your knight"
+          }
+        }
+      }
+    },
+    "piece.yoursObject.pawn" : {
+      "comment" : "The learner's own piece, as the object of a verb, as in: Try moving your knight on g1. The defender captured your rook.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "your pawn"
+          }
+        }
+      }
+    },
+    "piece.yoursObject.piece" : {
+      "comment" : "The learner's own piece, as the object of a verb, as in: Try moving your knight on g1. The defender captured your rook., when its kind is unknown",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "your piece"
+          }
+        }
+      }
+    },
+    "piece.yoursObject.queen" : {
+      "comment" : "The learner's own piece, as the object of a verb, as in: Try moving your knight on g1. The defender captured your rook.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "your queen"
+          }
+        }
+      }
+    },
+    "piece.yoursObject.rook" : {
+      "comment" : "The learner's own piece, as the object of a verb, as in: Try moving your knight on g1. The defender captured your rook.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "your rook"
+          }
+        }
+      }
+    },
+    "piece.yoursSubject.bishop" : {
+      "comment" : "The learner's own piece, as the subject, as in: Worth reviewing: your knight on f3 can be taken.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "your bishop"
+          }
+        }
+      }
+    },
+    "piece.yoursSubject.king" : {
+      "comment" : "The learner's own piece, as the subject, as in: Worth reviewing: your knight on f3 can be taken.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "your king"
+          }
+        }
+      }
+    },
+    "piece.yoursSubject.knight" : {
+      "comment" : "The learner's own piece, as the subject, as in: Worth reviewing: your knight on f3 can be taken.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "your knight"
+          }
+        }
+      }
+    },
+    "piece.yoursSubject.pawn" : {
+      "comment" : "The learner's own piece, as the subject, as in: Worth reviewing: your knight on f3 can be taken.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "your pawn"
+          }
+        }
+      }
+    },
+    "piece.yoursSubject.piece" : {
+      "comment" : "The learner's own piece, as the subject, as in: Worth reviewing: your knight on f3 can be taken., when its kind is unknown",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "your piece"
+          }
+        }
+      }
+    },
+    "piece.yoursSubject.queen" : {
+      "comment" : "The learner's own piece, as the subject, as in: Worth reviewing: your knight on f3 can be taken.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "your queen"
+          }
+        }
+      }
+    },
+    "piece.yoursSubject.rook" : {
+      "comment" : "The learner's own piece, as the subject, as in: Worth reviewing: your knight on f3 can be taken.",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "your rook"
+          }
+        }
+      }
     },
     "pieces" : {
       "comment" : "Two or more pieces, inside a sentence, when their kind is unknown"
@@ -4878,7 +6277,7 @@
       }
     },
     "queen" : {
-      "comment" : "A piece's name inside a sentence"
+      "comment" : "A piece's bare name, as in the list label: knight e4"
     },
     "queens" : {
       "comment" : "Two or more pieces of one kind, inside a sentence"
@@ -4896,7 +6295,7 @@
     },
     "restricted or conditional" : {},
     "rook" : {
-      "comment" : "A piece's name inside a sentence"
+      "comment" : "A piece's bare name, as in the list label: knight e4"
     },
     "rooks" : {
       "comment" : "Two or more pieces of one kind, inside a sentence"
@@ -4926,25 +6325,25 @@
     "the answer set differs from the geometry: %@" : {},
     "the answer set differs from the oracle" : {},
     "the black bishop" : {
-      "comment" : "A piece by color and kind inside a sentence, as in: Move the black bishop from c8 to g4"
+      "comment" : "A piece by color and kind, as the object of a verb, as in: Move the black bishop from c8 to g4"
     },
     "the black king" : {
-      "comment" : "A piece by color and kind inside a sentence, as in: Move the black king from e8 to e7"
+      "comment" : "A piece by color and kind, as the object of a verb, as in: Move the black king from e8 to e7"
     },
     "the black knight" : {
-      "comment" : "A piece by color and kind inside a sentence, as in: Move the black knight from b8 to c6"
+      "comment" : "A piece by color and kind, as the object of a verb, as in: Move the black knight from b8 to c6"
     },
     "the black pawn" : {
-      "comment" : "A piece by color and kind inside a sentence, as in: Move the black pawn from e7 to e5"
+      "comment" : "A piece by color and kind, as the object of a verb, as in: Move the black pawn from e7 to e5"
     },
     "the black piece" : {
-      "comment" : "A piece by color inside a sentence, when its kind is unknown"
+      "comment" : "A piece by color, as the object of a verb, when its kind is unknown"
     },
     "the black queen" : {
-      "comment" : "A piece by color and kind inside a sentence, as in: Move the black queen from d8 to h4"
+      "comment" : "A piece by color and kind, as the object of a verb, as in: Move the black queen from d8 to h4"
     },
     "the black rook" : {
-      "comment" : "A piece by color and kind inside a sentence, as in: Move the black rook from a8 to a1"
+      "comment" : "A piece by color and kind, as the object of a verb, as in: Move the black rook from a8 to a1"
     },
     "the classification differs from the oracle" : {},
     "the context moves must end with the pawn's two-square step" : {},
@@ -4971,25 +6370,25 @@
     "the target must be one of the learner's pieces, not the king" : {},
     "the teaching graph names an illegal root move" : {},
     "the white bishop" : {
-      "comment" : "A piece by color and kind inside a sentence, as in: Move the white bishop from c1 to g5"
+      "comment" : "A piece by color and kind, as the object of a verb, as in: Move the white bishop from c1 to g5"
     },
     "the white king" : {
-      "comment" : "A piece by color and kind inside a sentence, as in: Move the white king from e1 to e2"
+      "comment" : "A piece by color and kind, as the object of a verb, as in: Move the white king from e1 to e2"
     },
     "the white knight" : {
-      "comment" : "A piece by color and kind inside a sentence, as in: Move the white knight from b1 to c3"
+      "comment" : "A piece by color and kind, as the object of a verb, as in: Move the white knight from b1 to c3"
     },
     "the white pawn" : {
-      "comment" : "A piece by color and kind inside a sentence, as in: Move the white pawn from e2 to e4"
+      "comment" : "A piece by color and kind, as the object of a verb, as in: Move the white pawn from e2 to e4"
     },
     "the white piece" : {
-      "comment" : "A piece by color inside a sentence, when its kind is unknown"
+      "comment" : "A piece by color, as the object of a verb, when its kind is unknown"
     },
     "the white queen" : {
-      "comment" : "A piece by color and kind inside a sentence, as in: Move the white queen from d1 to h5"
+      "comment" : "A piece by color and kind, as the object of a verb, as in: Move the white queen from d1 to h5"
     },
     "the white rook" : {
-      "comment" : "A piece by color and kind inside a sentence, as in: Move the white rook from a1 to a8"
+      "comment" : "A piece by color and kind, as the object of a verb, as in: Move the white rook from a1 to a8"
     },
     "this objective belongs to increment %@" : {},
     "threefold repetition" : {

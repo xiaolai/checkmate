@@ -14,16 +14,16 @@ public struct ReviewExplanation:Codable,Equatable {
         var facts:[ReviewFact]=[]
         func add(_ kind:String,_ text:String,_ squares:[String]=[]){let content=kind+"|"+text+"|"+squares.joined(separator:",");facts.append(ReviewFact(id:"\(document.contentHash.prefix(12)):\(node):\(reviewHash(Data(content.utf8)).prefix(16))",kind:kind,text:text,squares:squares))}
         if let parent=n.parent,let uci=n.uci {
-            let before=try document.snapshotRules(at:parent),move=try before.move(uci:uci),name=PieceName.of(move.promotion ?? move.piece)
-            add("move",String(localized:"\(PieceName.side(move.color)) moved the \(PieceName.of(move.piece)) from \(move.from) to \(move.to).",bundle:.checkmate),[move.from,move.to])
-            if let capture=move.captured{let square=move.flags.contains("e") ? String(move.to.prefix(1))+String(move.from.suffix(1)):move.to;add("capture",String(localized:"This captures the \(PieceName.of(capture)) on \(square).",bundle:.checkmate),[square,move.to])}
-            if let promotion=move.promotion{add("promotion",String(localized:"The pawn became a \(PieceName.of(promotion)).",bundle:.checkmate),[move.to])}
+            let before=try document.snapshotRules(at:parent),move=try before.move(uci:uci),mover=move.promotion ?? move.piece
+            add("move",String(localized:"\(PieceName.side(move.color)) moved \(PieceName.phrase(move.piece,.object)) from \(move.from) to \(move.to).",bundle:.checkmate),[move.from,move.to])
+            if let capture=move.captured{let square=move.flags.contains("e") ? String(move.to.prefix(1))+String(move.from.suffix(1)):move.to;add("capture",String(localized:"This captures \(PieceName.phrase(capture,.object)) on \(square).",bundle:.checkmate),[square,move.to])}
+            if let promotion=move.promotion{add("promotion",String(localized:"The pawn became \(PieceName.phrase(promotion,.became)).",bundle:.checkmate),[move.to])}
             if move.flags.contains("k") || move.flags.contains("q"){let rank=move.color=="w" ? "1":"8",rookFrom=(move.flags.contains("k") ? "h":"a")+rank,rookTo=(move.flags.contains("k") ? "f":"d")+rank;add("castle",String(localized:"The king and rook moved together when castling.",bundle:.checkmate),[move.from,move.to,rookFrom,rookTo])}
             let controlled=ChessRules.squares.filter{rules.attackers($0,move.color).contains(move.to)}
             let enemy=controlled.filter{rules.piece($0).map{$0.color != move.color} ?? false}
-            if !enemy.isEmpty {add("coverage",String(localized:"The \(name) on \(move.to) covers \(enemy.joined(separator:", ")). Check pins and legal replies before treating coverage as a capture.",bundle:.checkmate),[move.to]+enemy)}
+            if !enemy.isEmpty {add("coverage",String(localized:"\(PieceName.phrase(mover,.opening)) on \(move.to) covers \(enemy.joined(separator:", ")). Check pins and legal replies before treating coverage as a capture.",bundle:.checkmate),[move.to]+enemy)}
             else if move.piece=="p",!controlled.isEmpty {add("coverage",String(localized:"The pawn on \(move.to) controls \(controlled.joined(separator:", ")). Another piece needs a legal route to use those squares; this does not establish why the pawn was moved.",bundle:.checkmate),[move.to]+controlled)}
-            else {let centre=controlled.filter{centralSquares.contains($0)};if !centre.isEmpty{add("centre",String(localized:"From \(move.to), the \(name) controls \(centre.joined(separator:", ")) in the center.",bundle:.checkmate),[move.to]+centre)}}
+            else {let centre=controlled.filter{centralSquares.contains($0)};if !centre.isEmpty{add("centre",String(localized:"From \(move.to), \(PieceName.phrase(mover,.subject)) controls \(centre.joined(separator:", ")) in the center.",bundle:.checkmate),[move.to]+centre)}}
             let opponent=move.color=="w" ? "b":"w",attackers=rules.attackers(move.to,opponent)
             if !attackers.isEmpty {add("attack",String(localized:"The piece on \(move.to) is covered by an opposing piece from \(attackers.joined(separator:", ")). This is an attack map, not proof that a capture wins material.",bundle:.checkmate),[move.to]+attackers)}
             let replies=rules.moves().filter{$0.to==move.to && $0.captured != nil}

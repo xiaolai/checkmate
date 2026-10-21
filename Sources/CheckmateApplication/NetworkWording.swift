@@ -20,22 +20,25 @@ public enum NetworkWording {
     /// The host sheet's note on a mini-game (protocol 1.3): its own rules, and no assistance.
     public static let miniGameNote=String(localized:"The game is played by the mini-game's own rules, with no assistance. Review afterwards shows what a proof search found.",bundle:.checkmate)
     /// Under the names in a mini-game, and the lobby's label: "Pawn Duel: Reach the far rank, …".
-    public static func miniGame(_ kind:MiniGameKind)->String {"\(kind.title): \(kind.rules)"}
+    /// The title and rules are the published English of the calibrated, hash-checked mini-game rules, so only the joining
+    /// is translated until that content is.
+    public static func miniGame(_ kind:MiniGameKind)->String {String(localized:"network.miniGame.titleAndRules",defaultValue:"\(kind.title): \(kind.rules)",bundle:.checkmate,comment:"A mini-game's title, then its rules, under the players' names and in the lobby")} // not localized: the title and rules are published English in the calibrated MiniGames.swift
     /// A move that just landed (D10): "Ben played knight to f3", "You castled kingside", "Ana played pawn to e8,
-    /// capturing a rook, promoting to a queen, check".
+    /// capturing a rook, promoting to a queen, check". Each shape is one whole sentence, so a translator orders its parts
+    /// and the piece names come with the article their place needs.
     public static func move(_ move:MoveRecord,players:Players)->String {
-        let who=players.subject(move.color=="b" ? .black:.white)
-        var text:String
-        // chess.js flags: k and q castle, e captures en passant.
-        if move.flags.contains("k") {text=String(localized:"\(who) castled kingside",bundle:.checkmate,comment:"A move announcement: who castled")}
-        else if move.flags.contains("q") {text=String(localized:"\(who) castled queenside",bundle:.checkmate,comment:"A move announcement: who castled")}
-        else {
-            text=String(localized:"\(who) played \(PieceName.of(move.piece)) to \(move.to)",bundle:.checkmate,comment:"A move announcement: who, the piece, its square")
-            if let captured=move.captured {text=move.flags.contains("e") ? String(localized:"\(text), capturing a \(PieceName.of(captured)) en passant",bundle:.checkmate,comment:"A move announcement, then the piece it captured en passant"):String(localized:"\(text), capturing a \(PieceName.of(captured))",bundle:.checkmate,comment:"A move announcement, then the piece it captured")}
-            if let promotion=move.promotion {text=String(localized:"\(text), promoting to a \(PieceName.of(promotion))",bundle:.checkmate,comment:"A move announcement, then the piece the pawn became")}
+        let who=players.subject(move.color=="b" ? .black:.white),to=move.to,end=move.san.hasSuffix("#") ? 2:move.san.hasSuffix("+") ? 1:0
+        // chess.js flags: k and q castle, e captures en passant (always a pawn taking a pawn).
+        if move.flags.contains("k") {return [String(localized:"\(who) castled kingside",bundle:.checkmate,comment:"A move announcement: who castled"),String(localized:"\(who) castled kingside, check",bundle:.checkmate,comment:"A move announcement: who castled, giving check"),String(localized:"\(who) castled kingside, checkmate",bundle:.checkmate,comment:"A move announcement: who castled, giving checkmate")][end]}
+        if move.flags.contains("q") {return [String(localized:"\(who) castled queenside",bundle:.checkmate,comment:"A move announcement: who castled"),String(localized:"\(who) castled queenside, check",bundle:.checkmate,comment:"A move announcement: who castled, giving check"),String(localized:"\(who) castled queenside, checkmate",bundle:.checkmate,comment:"A move announcement: who castled, giving checkmate")][end]}
+        if move.flags.contains("e") {return [String(localized:"\(who) played pawn to \(to), capturing a pawn en passant",bundle:.checkmate,comment:"A move announcement: who, the square, an en passant capture"),String(localized:"\(who) played pawn to \(to), capturing a pawn en passant, check",bundle:.checkmate,comment:"A move announcement: who, the square, an en passant capture, giving check"),String(localized:"\(who) played pawn to \(to), capturing a pawn en passant, checkmate",bundle:.checkmate,comment:"A move announcement: who, the square, an en passant capture, giving checkmate")][end]}
+        let piece=PieceName.phrase(move.piece,.played)
+        switch (move.captured.map{PieceName.phrase($0,.anyObject)},move.promotion.map{PieceName.phrase($0,.promotedTo)}) {
+        case (nil,nil):return [String(localized:"\(who) played \(piece) to \(to)",bundle:.checkmate,comment:"A move announcement: who, the piece, its square"),String(localized:"\(who) played \(piece) to \(to), check",bundle:.checkmate,comment:"A move announcement: who, the piece, its square, giving check"),String(localized:"\(who) played \(piece) to \(to), checkmate",bundle:.checkmate,comment:"A move announcement: who, the piece, its square, giving checkmate")][end]
+        case (let captured?,nil):return [String(localized:"\(who) played \(piece) to \(to), capturing \(captured)",bundle:.checkmate,comment:"A move announcement: who, the piece, its square, the piece it captured"),String(localized:"\(who) played \(piece) to \(to), capturing \(captured), check",bundle:.checkmate,comment:"A move announcement: who, the piece, its square, the piece it captured, giving check"),String(localized:"\(who) played \(piece) to \(to), capturing \(captured), checkmate",bundle:.checkmate,comment:"A move announcement: who, the piece, its square, the piece it captured, giving checkmate")][end]
+        case (nil,let promoted?):return [String(localized:"\(who) played \(piece) to \(to), promoting to \(promoted)",bundle:.checkmate,comment:"A move announcement: who, the piece, its square, the piece the pawn became"),String(localized:"\(who) played \(piece) to \(to), promoting to \(promoted), check",bundle:.checkmate,comment:"A move announcement: who, the piece, its square, the piece the pawn became, giving check"),String(localized:"\(who) played \(piece) to \(to), promoting to \(promoted), checkmate",bundle:.checkmate,comment:"A move announcement: who, the piece, its square, the piece the pawn became, giving checkmate")][end]
+        case (let captured?,let promoted?):return [String(localized:"\(who) played \(piece) to \(to), capturing \(captured), promoting to \(promoted)",bundle:.checkmate,comment:"A move announcement: who, the piece, its square, the piece it captured, the piece the pawn became"),String(localized:"\(who) played \(piece) to \(to), capturing \(captured), promoting to \(promoted), check",bundle:.checkmate,comment:"A move announcement: who, the piece, its square, the piece it captured, the piece the pawn became, giving check"),String(localized:"\(who) played \(piece) to \(to), capturing \(captured), promoting to \(promoted), checkmate",bundle:.checkmate,comment:"A move announcement: who, the piece, its square, the piece it captured, the piece the pawn became, giving checkmate")][end]
         }
-        if move.san.hasSuffix("#") {text=String(localized:"\(text), checkmate",bundle:.checkmate,comment:"A move announcement that gives checkmate")}else if move.san.hasSuffix("+") {text=String(localized:"\(text), check",bundle:.checkmate,comment:"A move announcement that gives check")}
-        return text
     }
     // MARK: Assistance (assistance plan A3, A7, A12)
     /// A level as a sentence uses it: "hints on request", "no help".

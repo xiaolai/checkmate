@@ -35,7 +35,7 @@ public struct TrainingMoment:Equatable {
         if rights(beforeFEN),!rights(afterFEN),!castled{return String(localized:"Worth reviewing: your king can no longer castle. Castling is often the quickest way to a safe king.",bundle:.checkmate)}
         if let piece=after[played.to],piece.last != "k" {
             if !takers.isEmpty,!defended || takers.contains(where:{TrainingMaterial.value(after[$0]!)<TrainingMaterial.value(piece)}) {
-                return String(localized:"Worth reviewing: your \(PieceName.of(String(piece.last!))) on \(played.to) can be taken. Is it protected well enough?",bundle:.checkmate)
+                return String(localized:"Worth reviewing: \(PieceName.phrase(String(piece.last!),.yoursSubject)) on \(played.to) can be taken. Is it protected well enough?",bundle:.checkmate)
             }
         }
         let home:[String]=learner=="w" ? ["b1","g1","c1","f1"]:["b8","g8","c8","f8"]

@@ -13,10 +13,12 @@ public enum TypedMove {
     public struct Choice:Equatable {public let from:String,to:String,promotion:String?;public init(from:String,to:String,promotion:String?){self.from=from;self.to=to;self.promotion=promotion}}
     public enum Resolution:Equatable {case move(Choice),refused(String)}
     static func side(_ color:String)->String {color=="w" ? String(localized:"White",bundle:.checkmate):String(localized:"Black",bundle:.checkmate)}
-    /// "Two", "Three": a count of pieces at the start of a sentence, in the language the text is shown in.
-    static func spelled(_ n:Int)->String {
-        let formatter=NumberFormatter();formatter.numberStyle = .spellOut;formatter.locale=Locale(identifier:Bundle.checkmate.preferredLocalizations.first ?? "en")
-        return (formatter.string(from:NSNumber(value:n)) ?? String(n)).capitalized
+    /// "Two", "Three": a count of pieces at the start of a sentence, in the language the text is shown in. Only the first
+    /// letter is raised, in that language's own way: capitalizing every word would make "Vingt Et Un" of "vingt et un".
+    static func spelled(_ n:Int,locale:Locale=Locale(identifier:Bundle.checkmate.preferredLocalizations.first ?? "en"))->String {
+        let formatter=NumberFormatter();formatter.numberStyle = .spellOut;formatter.locale=locale
+        let words=formatter.string(from:NSNumber(value:n)) ?? String(n)
+        return words.prefix(1).uppercased(with:locale)+words.dropFirst()
     }
 
     static func readings(_ text:String)->[Reading] {
@@ -72,7 +74,7 @@ public enum TypedMove {
         case .squares(let from,let to,let promotion):
             if squaresAsTyped{return .move(Choice(from:from,to:to,promotion:promotion))}
             guard let piece=board[from] else{return .refused(String(localized:"There's no piece on \(from).",bundle:.checkmate))}
-            guard piece.hasPrefix(turn) else{return .refused(String(localized:"The \(PieceName.of(String(piece.suffix(1)))) on \(from) is \(side(String(piece.prefix(1))))'s, and it's \(side(turn))'s move.",bundle:.checkmate))}
+            guard piece.hasPrefix(turn) else{return .refused(String(localized:"\(PieceName.phrase(String(piece.suffix(1)),.opening)) on \(from) is \(side(String(piece.prefix(1))))'s, and it's \(side(turn))'s move.",bundle:.checkmate))}
             return choose(moves.filter{$0.from==from && $0.to==to},promotion:promotion,example:from+to+"q",board:board,turn:turn,inCheck:inCheck){refusal(piece:piece,from:from,to:to,board:board,enPassant:enPassant,inCheck:inCheck)}
         case .castle(let kingside):
             let matches=moves.filter{$0.piece=="k" && $0.flags.contains(kingside ? "k":"q")}
@@ -81,7 +83,6 @@ public enum TypedMove {
         case .piece(let kind,let file,let rank,let to,let promotion):
             let fits={(from:String)->Bool in (file.map{from.first==$0} ?? (kind != "p" || from.first==to.first)) && (rank.map{from.last==$0} ?? true)}
             let matches=moves.filter{$0.piece==kind && $0.to==to && fits($0.from)}
-            let name=PieceName.of(kind)
             if Set(matches.map(\.from)).count>1 {
                 let froms=Array(Set(matches.map(\.from))).sorted(),letter=kind=="p" ? "":kind.uppercased()
                 let byFile=Set(froms.map(\.first)).count==froms.count,byRank=Set(froms.map(\.last)).count==froms.count
@@ -91,10 +92,10 @@ public enum TypedMove {
             }
             return choose(matches,promotion:promotion,example:to+"=Q",board:board,turn:turn,inCheck:inCheck){
                 let own=board.filter{$0.value==turn+kind && fits($0.key)}.keys.sorted()
-                if own.isEmpty{return file != nil || rank != nil ? String(localized:"You have no \(name) there.",bundle:.checkmate):String(localized:"You have no \(name).",bundle:.checkmate)}
+                if own.isEmpty{return file != nil || rank != nil ? String(localized:"You have \(PieceName.phrase(kind,.noneOwned)) there.",bundle:.checkmate):String(localized:"You have \(PieceName.phrase(kind,.noneOwned)).",bundle:.checkmate)}
                 let reaching=own.filter{follows(from:$0,to:to,board:board,enPassant:enPassant)}
                 if own.count==1 || reaching.count==1{return refusal(piece:turn+kind,from:reaching.first ?? own[0],to:to,board:board,enPassant:enPassant,inCheck:inCheck)}
-                return String(localized:"No \(name) of yours can move to \(to).",bundle:.checkmate)
+                return String(localized:"\(PieceName.phrase(kind,.noneOpening)) of yours can move to \(to).",bundle:.checkmate)
             }
         }
     }
@@ -121,11 +122,11 @@ public enum TypedMove {
     }
     /// Why a move that is not among the position's moves is refused. Shared with the training exercises' grading.
     public static func refusal(piece:String,from:String,to:String,board:Position,enPassant:String?,inCheck:Bool)->String {
-        let name=PieceName.of(String(piece.suffix(1))),turn=String(piece.prefix(1))
+        let turn=String(piece.prefix(1))
         guard let (fx,fy)=TrainingGeometry.coordinates(from),let (tx,ty)=TrainingGeometry.coordinates(to) else{return String(localized:"That move is not possible.",bundle:.checkmate)}
         if board[to]?.hasPrefix(turn)==true{return String(localized:"That square holds your own piece.",bundle:.checkmate)}
         if piece.last=="k",fy==ty,abs(fx-tx)==2{return inCheck ? String(localized:"You cannot castle while your king is in check.",bundle:.checkmate):String(localized:"Castling is not allowed here.",bundle:.checkmate)}
-        guard follows(from:from,to:to,board:board,enPassant:enPassant) else{return String(localized:"A \(name) cannot move from \(from) to \(to).",bundle:.checkmate,comment:"A typed move the piece cannot make")}
+        guard follows(from:from,to:to,board:board,enPassant:enPassant) else{return String(localized:"\(PieceName.phrase(String(piece.suffix(1)),.anyOpening)) cannot move from \(from) to \(to).",bundle:.checkmate,comment:"A typed move the piece cannot make")}
         // A board without the mover's king plays its own rules (a mini-game): nothing about check applies.
         guard board.values.contains(turn+"k") else{return String(localized:"That move is not allowed here.",bundle:.checkmate)}
         if piece.last=="k"{return String(localized:"Your king would be attacked on \(to).",bundle:.checkmate)}

@@ -26,8 +26,8 @@ public struct PieceRelationship:Codable,Equatable {
         }
         if !responses.isEmpty {
             return Sentences.join(responses.map {r in
-                let piece=PieceName.of(r.attackerPiece)
-                return r.canRecapture ? String(localized:"Can recapture on \(r.destination) after the \(piece) on \(r.attackerSquare) plays \(r.captureSAN).",bundle:.checkmate):String(localized:"Cannot recapture after the \(piece) on \(r.attackerSquare) plays \(r.captureSAN); that recapture would leave its own king in check.",bundle:.checkmate)
+                let piece=PieceName.phrase(r.attackerPiece,.subject)
+                return r.canRecapture ? String(localized:"Can recapture on \(r.destination) after \(piece) on \(r.attackerSquare) plays \(r.captureSAN).",bundle:.checkmate):String(localized:"Cannot recapture after \(piece) on \(r.attackerSquare) plays \(r.captureSAN); that recapture would leave its own king in check.",bundle:.checkmate)
             })
         }
         return status == "restricted" ? String(localized:"Covers this square, but moving onto it would leave its own king in check. A future recapture depends on the capturing move.",bundle:.checkmate):String(localized:"Covers this square. No opposing piece has a legal capture here in the current position; a future recapture depends on how the position changes.",bundle:.checkmate)

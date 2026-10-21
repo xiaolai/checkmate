@@ -67,7 +67,7 @@ extension TrainingController {
             return (.incorrect,String(localized:"Stalemate: the defender has no legal move and is not in check, so the game is a draw. Leave the king a square while you close in.",bundle:.checkmate))
         default:break
         }
-        if state.scenario.check == .ending,try !position.board().values.contains(matingPiece(state)){return (.incorrect,String(localized:"The defender captured your \(PieceName.of(state.scenario.variant=="krk" ? "r":"q")). Keep it protected, or out of the king's reach.",bundle:.checkmate))}
+        if state.scenario.check == .ending,try !position.board().values.contains(matingPiece(state)){return (.incorrect,String(localized:"The defender captured \(PieceName.phrase(state.scenario.variant=="krk" ? "r":"q",.yoursObject)). Keep it protected, or out of the king's reach.",bundle:.checkmate))}
         if let reason=try position.automaticDraw(){return (.incorrect,String(localized:"The game is drawn: \(reason).",bundle:.checkmate))}
         return nil
     }
