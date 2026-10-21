@@ -51,7 +51,7 @@ extension GameWindow {
         }
         if l.mini,let game=l.miniGame {
             if game.isFinished{return .waiting(String(localized:"The game is over.",bundle:.checkmate))}
-            if l.miniThinking || game.computer && game.turn=="b"{return .waiting(Self.notYourMove)}
+            if l.miniThinking || game.computer && game.turn != l.miniLearnerSide{return .waiting(Self.notYourMove)}
             let moves=MiniGameRules.moves(board:game.board,kind:game.kind,side:game.turn).map{MoveRecord(color:game.turn,from:$0.from,to:$0.to,piece:String(game.board[$0.from]?.suffix(1) ?? ""),flags:"n",san:"",before:"",after:"",captured:game.board[$0.to].map{String($0.suffix(1))},promotion:nil)}
             return .ready(TypedMoveTarget(moves:moves,board:game.board,turn:game.turn,enPassant:nil,inCheck:false,asTyped:false){choice in l.clearSelection();l.click(choice.from);l.click(choice.to);return nil})
         }

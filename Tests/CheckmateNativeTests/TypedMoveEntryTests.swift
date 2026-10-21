@@ -48,6 +48,21 @@ import CheckmateCore
         XCTAssertNotNil(game.submitTypedMove(first.from+unreachable));XCTAssertEqual(model.learning.miniGame?.history.count,0,"a refused move changes nothing")
         XCTAssertNil(game.submitTypedMove(first.from+first.to));XCTAssertEqual(model.learning.miniGame?.history.count,1)
     }
+    /// A learner playing Black against the computer types Black's moves on their own turn and is told to wait on White's.
+    func testAMiniGameAsBlackTakesTypedMovesOnBlacksTurnOnly()async throws {
+        let model=try NativeModel(),game=GameWindow(model:model);defer{model.session.cancelWork();game.window?.delegate=nil;model.shutdown()}
+        model.session.state.settings.pieceDuration=0;model.session.state.settings.miniLearnerSides=["pawn-duel":"b"]
+        model.learning.startMini(.pawnDuel,restart:true,computer:true,fromLibrary:true);game.refresh();XCTAssertEqual(model.learning.miniLearnerSide,"b","fixture: the learner plays Black")
+        // White's turn with no reply in flight (a pause cancelled it): no move is the learner's, White's least of all.
+        model.learning.pause();XCTAssertFalse(model.learning.miniThinking);XCTAssertEqual(model.learning.miniTurn,"w")
+        let mini=try XCTUnwrap(model.learning.miniGame),white=try XCTUnwrap(MiniGameRules.moves(board:mini.board,kind:mini.kind,side:"w").first)
+        XCTAssertEqual(game.submitTypedMove(white.from+white.to),"It's not your move yet.");XCTAssertEqual(model.learning.miniGame?.history.count,0)
+        // The computer opens, and then Black's typed move is played.
+        model.learning.restartMini();for _ in 0..<150 where model.learning.miniThinking{try await Task.sleep(for:.milliseconds(20))}
+        XCTAssertEqual(model.learning.miniTurn,"b","the computer replied");game.refresh()
+        let after=try XCTUnwrap(model.learning.miniGame),black=try XCTUnwrap(MiniGameRules.moves(board:after.board,kind:after.kind,side:"b").first)
+        XCTAssertNil(game.submitTypedMove(black.from+black.to));XCTAssertEqual(model.learning.miniGame?.history.count,2);XCTAssertEqual(model.learning.miniGame?.board[black.to],"bp")
+    }
     /// An en passant capture typed in SAN lands on an empty square: a training exercise and a lesson puzzle read it from
     /// the position's en passant square, not only from the pieces.
     func testAnEnPassantCaptureIsTypedInTrainingAndInAPuzzle()throws {
