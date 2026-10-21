@@ -16,6 +16,7 @@ import CheckmateCore
         let menu=AppDelegate.makeGameMenu(target:nil),item=menu.items.first{$0.action == #selector(GameWindow.typeMove)}
         XCTAssertEqual(item?.title,"Type a Move…");XCTAssertEqual(item?.keyEquivalent,"l");XCTAssertEqual(item?.keyEquivalentModifierMask,[.command])
         XCTAssertEqual(menu.items.filter{$0.keyEquivalent=="l" && $0.keyEquivalentModifierMask == [.command]}.count,1,"⌘L is not used twice")
+        XCTAssertTrue(HelpContent.sections.contains{$0.text.contains("Game ▸ Type a Move… (⌘L)")},"Help names the command and its shortcut")
     }
     func testPracticePlaysATypedMoveAndExplainsARefusal()throws {
         let model=try NativeModel(),game=GameWindow(model:model);defer{model.session.cancelWork();game.window?.delegate=nil;model.shutdown()}

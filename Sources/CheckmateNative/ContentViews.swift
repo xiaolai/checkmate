@@ -128,14 +128,14 @@ struct DetailContent:View {
             if let e=p.evaluation {Text(e.comparison);Picker("Continuation",selection:Binding(get:{p.line},set:{line in Self.attempt(session){try session.previewAt(ply:0,line:line)}})){Text("Your move").tag("candidate");Text("Engine suggestion").tag("recommended")};Text((p.line=="candidate" ? e.candidateFrames:e.recommendedFrames).dropFirst().map(\.san).joined(separator:" · "));Button("Play my move"){Self.attempt(session){try session.playCandidate()}}}
             if p.status=="analyzing"{ProgressView("Comparing moves…")};if let error=p.error{Text(error).foregroundStyle(.secondary)}
         } else {
-            if session.explicitResumeRequired {Text("Game paused").font(.title2.bold());Text(session.message);Text("Your game is paused because a saved review could not be restored.");Button("Return to game"){model.resumeAfterFailedRestore()}}
+            if session.explicitResumeRequired {Text("Game paused").sectionHeading(.title2.bold());Text(session.message);Text("Your game is paused because a saved review could not be restored.");Button("Return to game"){model.resumeAfterFailedRestore()}}
             // A finished game sums itself up and offers its review (B-7), without taking Return from the board or the coach.
             else if session.finished,let result=session.state.practice.ending?.result ?? session.rules.ending?.result {VStack(alignment:.leading,spacing:Metrics.smallGap){
-                Text(Self.practiceHeading(session)).font(.title2.bold()).accessibilityIdentifier("practice-heading");Text(session.message)
+                Text(Self.practiceHeading(session)).sectionHeading(.title2.bold()).accessibilityIdentifier("practice-heading");Text(session.message)
                 Text(Self.practiceSummary(result:result,plies:session.rules.history.count)).foregroundStyle(.secondary).monospacedDigit()
                 Button("Review This Game"){model.reviewCurrent()}.buttonStyle(.borderedProminent).disabled(!model.canReviewCurrent).accessibilityIdentifier("practice-review-this-game")
             }.padding(10).frame(maxWidth:.infinity,alignment:.leading).background(ReviewCard(radius:8))}
-            else {Text(Self.practiceHeading(session)).font(.title2.bold()).accessibilityIdentifier("practice-heading");Text(session.message)}
+            else {Text(Self.practiceHeading(session)).sectionHeading(.title2.bold()).accessibilityIdentifier("practice-heading");Text(session.message)}
             if session.pausedOpponent {Text("The companion opponent disconnected.");Button("Continue with Stockfish"){model.companion.disable();session.continueWithStockfish()}}
             OpponentSettingsContent(session:session)
             PracticeMoveList(session:session,history:history)
@@ -205,7 +205,7 @@ struct DetailContent:View {
             if session.state.course.completed.contains(learning.current.id),let next=learning.library.nextMainLesson(after:learning.lessonIndex) {Button("Continue to \(learning.localizedTitle(index:next))"){model.continueLesson()}}
             if CourseCompleteCard.shown(learning) {
                 GroupBox {VStack(alignment:.leading,spacing:Metrics.smallGap){
-                    Text(CourseCompleteCard.title).font(.headline)
+                    Text(CourseCompleteCard.title).sectionHeading()
                     Text(CourseCompleteCard.message(trainingAvailable:model.training != nil)).foregroundStyle(.secondary)
                     HStack{ForEach(CourseCompleteCard.actions(trainingAvailable:model.training != nil),id:\.self){action in Button(action.title){switch action {case .puzzles:model.puzzles();case .training:model.trainingLibrary();case .game:model.practice()}}}}
                 }.frame(maxWidth:.infinity,alignment:.leading)}.accessibilityElement(children:.contain).accessibilityIdentifier("course-complete")

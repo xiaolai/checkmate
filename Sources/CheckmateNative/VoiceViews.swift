@@ -24,7 +24,7 @@ struct VoiceCoachCard:View {
     init(voice:VoiceCoach,model:NativeModel){self.voice=voice;self.model=model;_help=ObservedObject(wrappedValue:model.voiceHelp)}
     private var idle:Bool {voice.connection == .disconnected && voice.history.isEmpty}
     var body:some View {
-        Divider();Text("Voice Coach").font(.headline)
+        Divider();Text("Voice Coach").sectionHeading()
         if idle {
             Text("Ask about this game out loud or in writing, and the coach answers about the position on the board.").fixedSize(horizontal:false,vertical:true)
             VStack(alignment:.leading,spacing:2){Text("“Why was my last move a mistake?”");Text("“What should I be thinking about here?”")}.font(.callout).foregroundStyle(.secondary)
