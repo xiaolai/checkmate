@@ -40,6 +40,19 @@ import CheckmateCore
         session.state.settings.miniLearnerSides=["pawn-duel":"b","knight-capture":"b"];player.startMini(.knightCapture,restart:true)
         XCTAssertFalse(player.miniSideOffered);XCTAssertEqual(player.miniLearnerSide,"w");XCTAssertFalse(player.miniThinking)
     }
+    /// The board state the companion and the voice coach read names the side the learner plays in the mini-game, not
+    /// the practice side, from a lesson and from the training library alike.
+    func testTheBoardStateNamesTheMiniGameSideTheLearnerPlays()throws {
+        let (session,player)=try fixture();defer{player.shutdown()}
+        XCTAssertEqual(session.humanSide,"w","fixture: practice is played from White")
+        func sides()->[String?] {let value=session.publicState(),state=value["state"] as? [String:Any];return [value["learnerSide"] as? String,state?["learnerSide"] as? String]}
+        session.state.settings.miniLearnerSides=["pawn-duel":"b"];player.startMini(.pawnDuel,restart:true)
+        XCTAssertEqual(session.publicState()["mode"] as? String,"pawn_duel");XCTAssertEqual(sides(),["b","b"],"from a lesson")
+        player.startMini(.pawnDuel,restart:true,fromLibrary:true)
+        XCTAssertEqual(session.publicState()["mode"] as? String,"training");XCTAssertEqual(sides(),["b","b"],"from the training library")
+        player.startMini(.knightCapture,restart:true);XCTAssertEqual(sides(),["w","w"],"a game played from White")
+        player.leaveMini();XCTAssertEqual(session.publicState()["learnerSide"] as? String,"w","outside a mini-game the practice side")
+    }
     func testChoosingASideStartsAFreshGameAtItAndKeepsAGameInProgress()async throws {
         let (session,player)=try fixture();defer{player.shutdown()}
         player.startMini(.pawnDuel);XCTAssertEqual(player.miniLearnerSide,"w");XCTAssertEqual(player.miniPreferredSide,"w")

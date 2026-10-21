@@ -47,7 +47,7 @@ public struct TrainingAttempt:Codable,Equatable,Identifiable {
     public init(id:String,entry:String,scenarioID:String,cluster:String,tier:Int,learner:String,startedAt:Date,finishedAt:Date,outcome:TrainingOutcome,firstTryNoRecordedHelp:Bool,recordedHelp:Bool,retry:Bool,freshness:String,opponent:TrainingOpponentConfiguration?=nil){self.id=id;self.entry=entry;self.scenarioID=scenarioID;self.cluster=cluster;self.tier=tier;self.learner=learner;self.startedAt=startedAt;self.finishedAt=finishedAt;self.outcome=outcome;self.firstTryNoRecordedHelp=firstTryNoRecordedHelp;self.recordedHelp=recordedHelp;self.retry=retry;self.freshness=freshness;level=opponent?.profile;levelPolicy=opponent?.policy}
 }
 /// A finished existing mini-game, observed as it finished (never inferred from a loaded board). `winner` is the side
-/// that won, or nil for a draw; `computer` says whether the learner played the computer as White.
+/// that won, or nil for a draw; `computer` says whether the learner played the computer.
 /// Against the computer, `level` and `levelPolicy` are the run's frozen level and the search policy it names, and
 /// `levelExact` is false when an older build moved the run's board (the level is not exact). All three are absent
 /// from a two-player or solo game, and from events an older build saved: it re-encodes events without them, so after
@@ -61,7 +61,7 @@ public struct TrainingCompletionEvent:Codable,Equatable,Identifiable {
 public struct TrainingEntrySummary:Codable,Equatable {
     public var attempts=0,firstTryNoRecordedHelp=0,assistedCompletions=0,practiceCompletions=0,incorrect=0,revealed=0,abandoned=0
     /// Finished legacy mini-games; the meaning depends on the kind. Against the computer: results from the learner's
-    /// (White's) side. Two-player: only `twoPlayerFinishes`. Solo (Knight Corners): `legacyWins` counts completed routes,
+    /// side, White or Black. Two-player: only `twoPlayerFinishes`. Solo (Knight Corners): `legacyWins` counts completed routes,
     /// the only way a solo game finishes, and its losses and draws stay zero and are never read.
     public var legacyWins=0,legacyLosses=0,legacyDraws=0,twoPlayerFinishes=0
     /// Distinct novelty clusters practised and local calendar days with practice (both bounded, newest kept).
