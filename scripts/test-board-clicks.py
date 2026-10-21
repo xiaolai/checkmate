@@ -2,7 +2,7 @@
 
 Covers the ways a second click used to be lost: drift across a square edge, a first click on an inactive
 window, a click while piece inspection is on, and clicks under the storage error banner. Also drives the learner's
-right-button arrows and circles (B-11) with real clicks.
+right-button arrows and circles (B-11) and the control bar's glass buttons (D-35) with real clicks.
 """
 import json
 import os
@@ -249,7 +249,24 @@ def sketch_marks():
     cleared("Marks drawn before quitting came back after a relaunch, so they reached saved state")
 
 
-scenarios = [drift_across_edge, first_click_on_inactive_window, inspection_does_not_block_moves, rank8_clickable_under_banner, sketch_marks]
+def glass_control_bar():
+    """D-35: the control bar's Liquid Glass buttons take real clicks: a text button, a prominent one, an icon button,
+    and a menu button with its item."""
+    pointer("click", "bar-tryMove")
+    wait(lambda: "bar-returnToGame" in listing(), "A click on the Try a Move glass button did not open the preview")
+    pointer("click", "bar-returnToGame")
+    wait(lambda: "bar-returnToGame" not in listing() and "bar-tryMove" in listing(), "A click on the prominent Return to Game glass button did not close the preview")
+    play_e4()
+    pointer("click", "bar-takeBack")
+    wait(lambda: label("e2").startswith("e2, White, pawn") and not label("e4").startswith("e4, White, pawn"), "A click on the Take back glass button did not take the move back")
+    assert frame("square-frame", "e1")[1] > frame("square-frame", "e8")[1], "fixture: White plays from the bottom"
+    pointer("click", "bar-more")
+    wait(lambda: pointer("menu-open", "Flip Board") == "true", "A click on the More glass button did not open its menu")
+    pointer("choose-menu-item", "Flip Board")
+    wait(lambda: frame("square-frame", "e1")[1] < frame("square-frame", "e8")[1], "Flip Board from the More menu did not turn the board over")
+
+
+scenarios = [drift_across_edge, first_click_on_inactive_window, inspection_does_not_block_moves, rank8_clickable_under_banner, sketch_marks, glass_control_bar]
 # A filtered run is for debugging one scenario: an unknown name fails, and the result is marked incomplete so the
 # acceptance gate (gate_check: any false flag fails) can never take a partial run for a pass.
 selected_names = [name for name in os.environ.get("CHECKMATE_BOARD_CLICK_SCENARIOS", "").split(",") if name]
