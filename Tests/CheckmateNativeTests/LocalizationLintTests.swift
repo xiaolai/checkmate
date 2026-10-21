@@ -33,7 +33,11 @@ import CheckmateCore
         XCTAssertEqual(hits(#"if title=="Open Game"{}"#),[])
         XCTAssertEqual(hits(#"let wire="Not shown here" // not localized: wire value"#),[])
         XCTAssertEqual(hits("case gentle=\"Gentle Play\""),[])
-        XCTAssertEqual(hits("let s=\"\"\"\nSome text here\n\"\"\""),[])
+        // A multi-line or raw literal reaches the screen like any other.
+        XCTAssertEqual(hits("let s=\"\"\"\nSome text here\n\"\"\""),["Some text here"])
+        XCTAssertEqual(hits(##"let r=#"Some raw text"#;let p=#"^\[[A-Z]+\s+""#"##),["Some raw text"])
+        // So does a format string, its specifiers read as interpolations.
+        XCTAssertEqual(hits(#"LabeledContent("Duration",value:String(format:"%.1f seconds",d));let h=String(format:"%02x",b)"#),["\u{1} seconds"])
         XCTAssertEqual(hits(#"let m=["Some key":1]"#),[])
         XCTAssertEqual(hits(#"let id="board-square""#),[])
         XCTAssertEqual(lint.analyse(#"precondition(ok,String(localized:"The state is broken",bundle:.checkmate))"#).misplaced,[1])
@@ -68,6 +72,24 @@ import CheckmateCore
         XCTAssertEqual(composed(#"label.stringValue="\(side) \(piece)""#),["\u{1} \u{1}"])
         XCTAssertEqual(composed(#"NativeLog.ui.info("\(side) \(piece)");let a=[PieceName.side(c),String(n)];let b=PieceName.named(c,p);let c=side+piece.count"#),[])
         XCTAssertEqual(composed("let u=side+\" \"+piece // not localized: a planted exception\n// let v=PieceName.side(c)+PieceName.of(p)"),[])
+        // A piece is known by its value's name, not only `piece` or `name`.
+        XCTAssertEqual(composed(#"Text("You took the \(captured).");let a=String(localized:"Move a \(kind) here.",bundle:.checkmate);let b=String(localized:"Your \(move.pieceName) is pinned.",bundle:.checkmate)"#),["You took the \u{1}.","Move a \u{1} here.","Your \u{1} is pinned."])
+        // A word between the determiner and the piece does not make them agree.
+        XCTAssertEqual(composed(#"let a=String(localized:"Move the white \(piece).",bundle:.checkmate);Text("Guard your own \(name).")"#),["Move the white \u{1}.","Guard your own \u{1}."])
+        // Every determiner, not only an article or a possessive.
+        XCTAssertEqual(composed(#"Text("Select every \(piece).");Text("Move each \(piece).");Text("Is this \(piece) safe?");Text("Take that \(piece).");Text("Can any \(piece) move?");Text("Find another \(piece).");Text("Guard our \(piece).")"#),["Select every \u{1}.","Move each \u{1}.","Is this \u{1} safe?","Take that \u{1}.","Can any \u{1} move?","Find another \u{1}.","Guard our \u{1}."])
+        // A color call qualified by its type is still a color.
+        XCTAssertEqual(composed(#"let a=String(localized:"\(TypedMove.side(c)) \(piece) moved.",bundle:.checkmate);let t=TypedMove.side(c)+" "+PieceName.of(p)"#),["\u{1} \u{1} moved.",#"TypedMove.side(c)+" "+PieceName.of(p)"#])
+        // Plain code joins the piece first, or two bare values in a list, as surely; but a call's two arguments are no join.
+        XCTAssertEqual(composed(#"let t=PieceName.of(p)+" "+side;let u=piece+" "+PieceName.side(c);let v=[side,piece];let w=[PieceName.of(p),side]"#),[#"PieceName.of(p)+" "+side"#,#"piece+" "+PieceName.side(c)"#,"side,piece","PieceName.of(p),side"])
+        XCTAssertEqual(composed(#"let a=PieceName.named(side,piece);let b=[side,piece,square];let c=side+" to move";let d=m.color+m.piece"#),[])
+        // A join written across lines.
+        XCTAssertEqual(composed("let t=PieceName.side(c)+\n    \" \"+PieceName.of(p)"),["PieceName.side(c)+\n    \" \"+PieceName.of(p)"])
+        XCTAssertEqual(lint.analyse("let a=1\nlet t=side+\n    \" \"+piece").composed.map(\.line),[2])
+        // Multi-line and raw literals, and format strings, written or localized, with their arguments in any order.
+        XCTAssertEqual(composed("let s=\"\"\"\nMove the \\(side) \\(piece).\n\"\"\""),["Move the \u{1} \u{1}."])
+        XCTAssertEqual(composed(##"let r=#"Move the \#(side) \#(piece)."#;let q=#"\(side) \(piece)"#"##),["Move the \u{1} \u{1}."])
+        XCTAssertEqual(composed(#"let a=String(format:"Move the %@ %@.",side,piece);let b=String(format:String(localized:"Move the %2$@ %1$@.",bundle:.checkmate),piece,side);let c=String(format:"%@ %@",side,count)"#),["Move the \u{1} \u{1}.","Move the \u{1} \u{1}."])
     }
 
     func testShownTextGoesThroughTheCatalog()throws {
@@ -137,7 +159,7 @@ import CheckmateCore
 }
 
 /// A whole-file scan of Swift string literals that tracks the call each literal is an argument of, so a call spanning
-/// lines keeps its callee. Comments, multi-line strings and raw strings are skipped.
+/// lines keeps its callee. Comments are skipped; multi-line and raw strings are read like any other.
 private struct LocalizationLint {
     final class Frame {
         let callee:String,start:Int;var label:String?,argumentStart:Int,end:Int?
@@ -163,18 +185,27 @@ private struct LocalizationLint {
     /// A key starting or ending with a space, or starting with a joining mark: a piece of a sentence, which a translator
     /// cannot reorder.
     static func isFragment(_ key:String)->Bool {guard let first=key.first,let last=key.last else{return false};return first.isWhitespace || ",;.·".contains(first) || last.isWhitespace}
-    /// A color or side beside a piece name ("the \(color) \(piece)", "\(side) piece", "\(side)'s knight"), or an article or
-    /// possessive before one ("the \(piece)", "a \(name)", "your \(piece)"): neither the color nor the article can agree
-    /// with the piece's gender. An interpolation counts as a color or a piece by its source.
-    private let colorSource=try! NSRegularExpression(pattern:#"^(?:side|theirs|ours|color|colour)$|\bPieceName\.(?:side|color)\(|\bcolorName\(|(?:^|[^.\w])side\("#)
-    private let pieceSource=try! NSRegularExpression(pattern:#"^(?:piece|pieces|name)$|\bPieceName\.(?:of|plural)\("#)
-    private let composition=try! NSRegularExpression(pattern:#"\x{02}(?:['’]s)?\s+(?:\x{03}|(?:pawn|knight|bishop|rook|queen|king|piece)s?\b)|(?:^|[^\w])(?:[Tt]he|[Aa]n?|[Yy]our|[Nn]o|[Mm]y|[Tt]heir|[Hh]is|[Hh]er|[Ii]ts)\s+\x{03}"#)
-    /// Plain code that joins a color to a piece name, in a list or with `+`: `[PieceName.side(c),PieceName.of(p)]`,
-    /// `side+" "+piece`. Calls nest up to three deep.
+    /// A color or side beside a piece name ("the \(color) \(piece)", "\(side) piece", "\(side)'s knight"), or an article,
+    /// possessive or other determiner before one, perhaps with a word or two between ("the \(piece)", "a \(name)",
+    /// "your own \(piece)", "every \(kind)"): neither the color nor the determiner can agree with the piece's gender. An
+    /// interpolation counts as a color or a piece by its source: a call that names one, qualified or not
+    /// (`TypedMove.side(c)`, `PieceName.of(p)`), or a value whose name says so (`side`, `move.color`, `piece`, `kind`,
+    /// `captured`, `pieceName`, `name`).
+    private static let colorValue=#"(?:[a-z_]\w*\.)*(?:side|theirs|ours|color|colour)"#,pieceValue=#"(?:[a-z_]\w*\.)*(?:(?:[a-z]\w*)?(?:[Pp]iece(?:[Nn]ame)?|[Kk]ind|[Cc]aptured?)s?|names?)"#
+    private let colorSource=try! NSRegularExpression(pattern:"^"+Self.colorValue+#"$|\b(?:side|color|colorName)\("#)
+    private let pieceSource=try! NSRegularExpression(pattern:"^"+Self.pieceValue+#"$|\bPieceName\.(?:of|plural)\("#)
+    private let composition=try! NSRegularExpression(pattern:#"\x{02}(?:['’]s)?\s+(?:\x{03}|(?:pawn|knight|bishop|rook|queen|king|piece)s?\b)|(?:^|[^\w])(?:[Tt]he|[Aa]n?|[Yy]our|[Nn]o|[Mm]y|[Oo]ur|[Tt]heir|[Hh]is|[Hh]er|[Ii]ts|[Ee]very|[Ee]ach|[Tt]his|[Tt]hat|[Tt]hese|[Tt]hose|[Aa]ny|[Aa]nother)(?:\s+[a-z’']+){0,2}\s+\x{03}"#)
+    /// Plain code that joins a color and a piece name, either first, with `+` or in a list (`side+" "+piece`,
+    /// `PieceName.of(p)+" "+side`, `[PieceName.side(c),PieceName.of(p)]`, `[side,piece]`), on one line or across lines.
+    /// Calls nest up to three deep; two bare values count only as a whole array literal, since a call takes its
+    /// arguments the same way. A `+` join counts only with text between its parts: with none (`m.color+m.piece`) it
+    /// spells a board code, not a phrase.
     private let joined:NSRegularExpression={
-        let call=#"\((?:[^()]|\((?:[^()]|\([^()]*\))*\))*\)"#,glue=#"\s*\+\s*(?:"[^"\\]*"\s*\+\s*)?"#
-        let color=#"(?:\bPieceName\.(?:side|color)|\bcolorName|(?<![.\w])side)"#+call,piece=#"\bPieceName\.(?:of|plural)"#+call
-        return try! NSRegularExpression(pattern:color+#"(?:\s*,\s*|"#+glue+")"+piece+#"|(?<![.\w])(?:side|color|colour)"#+glue+#"(?:"#+piece+#"|\b(?:piece|pieces)\b(?![.\w(]))"#)
+        let call=#"\((?:[^()]|\((?:[^()]|\([^()]*\))*\))*\)"#,glue=#"\s*\+\s*"[^"\\]+"\s*\+\s*"#,comma=#"\s*,\s*"#
+        let colorCall=#"\b(?:[A-Za-z_]\w*\.)*(?:side|color|colorName)"#+call,pieceCall=#"\bPieceName\.(?:of|plural)"#+call
+        let color="(?:"+colorCall+#"|(?<![.\w])"#+Self.colorValue+#"(?![\w(.]))"#,piece="(?:"+pieceCall+#"|(?<![.\w])"#+Self.pieceValue+#"(?![\w(.]))"#
+        let listed=#"(?<=\[\s{0,4})(?:"#+color+comma+piece+"|"+piece+comma+color+#")(?=\s*\])"#
+        return try! NSRegularExpression(pattern:color+glue+piece+"|"+piece+glue+color+"|"+colorCall+comma+pieceCall+"|"+pieceCall+comma+colorCall+"|"+listed)
     }()
     func isComposed(_ literal:Literal)->Bool {
         var sources=literal.interpolations.makeIterator()
@@ -207,27 +238,35 @@ private struct LocalizationLint {
             let c=s[i]
             if starts("//",i){i=find("\n",i) ?? n;continue}
             if starts("/*",i){i=find("*/",i).map{$0+2} ?? n;continue}
-            if starts("\"\"\"",i){i=find("\"\"\"",i+3).map{$0+3} ?? n;continue}
-            if starts("#\"",i){i=find("\"#",i+2).map{$0+2} ?? n;continue}
-            if c=="\"" {
-                let start=i,current=outer+stack.map{Snapshot(frame:$0,label:$0.label)};i+=1;var parts="",nested:[Literal]=[],interpolations:[String]=[]
-                while i<n,s[i] != "\"",s[i] != "\n" {
-                    if starts("\\(",i){
-                        var depth=1;i+=2;let inner=i
+            // A string literal: "…", a multi-line """…""", or a raw #"…"# (any number of #s, its escapes and
+            // interpolations written \#…), each scanned the same way.
+            if c=="\"" || c=="#" {
+                var hashes=0;while i+hashes<n,s[i+hashes]=="#"{hashes+=1}
+                guard i+hashes<n,s[i+hashes]=="\"" else{i+=max(1,hashes);continue}
+                let start=i,current=outer+stack.map{Snapshot(frame:$0,label:$0.label)},multiline=starts("\"\"\"",i+hashes),pound=String(repeating:"#",count:hashes)
+                let close=(multiline ? "\"\"\"":"\"")+pound,escape="\\"+pound;i+=hashes+(multiline ? 3:1)
+                // A multi-line literal's text starts on the line after its opening delimiter.
+                if multiline{while i<n,s[i] != "\n"{i+=1};i+=1}
+                var parts="",nested:[Literal]=[],interpolations:[String]=[]
+                while i<n,!starts(close,i),multiline || s[i] != "\n" {
+                    if starts(escape+"(",i){
+                        var depth=1;i+=escape.count+1;let inner=i
                         while i<n,depth>0 {
                             if s[i]=="("{depth+=1}else if s[i]==")"{depth-=1}
                             else if s[i]=="\""{i+=1;while i<n,s[i] != "\""{i+=s[i]=="\\" ? 2:1}}
                             i+=1
                         }
-                        let barrier=Snapshot(frame:Frame(callee:"\\(",start:inner-2,argumentStart:inner),label:nil)
+                        let barrier=Snapshot(frame:Frame(callee:"\\(",start:inner-escape.count-1,argumentStart:inner),label:nil)
                         nested+=scan(s,from:inner,to:max(inner,i-1),outer:current+[barrier]);interpolations.append(String(s[inner..<max(inner,i-1)]));parts.append("\u{1}");continue
                     }
                     // A line break or tab reads as the space it is, so "\nRefreshed …" still starts a sentence.
-                    if s[i]=="\\"{parts+=i+1<n && "nt".contains(s[i+1]) ? "\n":String(s[i..<min(i+2,n)]);i+=2;continue}
+                    if starts(escape,i){let k=i+escape.count;parts+=k<n && "nt".contains(s[k]) ? "\n":String(s[i..<min(k+1,n)]);i=k+1;continue}
                     parts.append(s[i]);i+=1
                 }
+                // Nor does the line break before a multi-line literal's closing delimiter belong to its text.
+                if multiline,let last=parts.lastIndex(of:"\n"),parts[last...].dropFirst().allSatisfy({$0==" " || $0=="\t"}){parts=String(parts[..<last])}
                 let prefix=stack.last.map{String(s[$0.argumentStart..<start])} ?? ""
-                out.append(Literal(start:start,end:min(i+1,n),text:parts,stack:current,prefix:prefix,interpolations:interpolations));out+=nested;i+=1;continue
+                out.append(Literal(start:start,end:min(i+close.count,n),text:parts,stack:current,prefix:prefix,interpolations:interpolations));out+=nested;i+=close.count;continue
             }
             if c=="(" {
                 var k=i;while k>0,Self.isIdentifier(s[k-1]){k-=1}
@@ -277,13 +316,51 @@ private struct LocalizationLint {
         return out
     }
 
+    /// A specifier in a format string ("%@", "%2$@", "%.1f", "%%"), or an interpolation already in its text.
+    private let specifier=try! NSRegularExpression(pattern:#"\x{01}|%%|%(?:(\d+)\$)?[-+ #0']*(?:\d+|\*)?(?:\.(?:\d+|\*))?(?:hh|h|ll|l|q|L|z|t|j)?[@dDiuUxXoOfFeEgGcCsSaAp]"#)
+    private let labelled=try! NSRegularExpression(pattern:#"^\w+\s*:(?!:)"#)
+    /// The format of `String(format:…)`, written in place or as a localized key, is read like an interpolating literal:
+    /// each specifier becomes an interpolation whose source is the argument it takes ("%2$@" the second).
+    func formatted(_ s:[Character],_ literal:Literal)->Literal {
+        func isFormat(_ snapshot:Snapshot)->Bool {snapshot.callee=="String" && snapshot.label=="format"}
+        let stack=literal.stack,count=stack.count,call:Snapshot,from:Int
+        if let last=stack.last,isFormat(last){call=last;from=literal.end}
+        else if count>1,stack[count-1].callee=="String",stack[count-1].label=="localized",isFormat(stack[count-2]),let end=stack[count-1].frame.end{call=stack[count-2];from=end}
+        else{return literal}
+        guard let end=call.frame.end,from<end else{return literal}
+        // The call's arguments after the format, split at its own commas; a labelled one (locale:) is not a value.
+        var arguments:[String]=[],current="",depth=0,quoted=false,k=from
+        while k<end-1 {
+            let c=s[k]
+            if quoted{if c=="\\",k+1<end-1{current.append(c);current.append(s[k+1]);k+=2;continue};if c=="\""{quoted=false}}
+            else if c=="\""{quoted=true}else if "([{".contains(c){depth+=1}else if ")]}".contains(c){depth-=1}
+            else if c==",",depth==0{arguments.append(current);current="";k+=1;continue}
+            current.append(c);k+=1
+        }
+        arguments.append(current)
+        let values=arguments.dropFirst().map{$0.trimmingCharacters(in:.whitespacesAndNewlines)}.filter{first(labelled,$0)==nil}
+        var text="",sources:[String]=[],existing=literal.interpolations.makeIterator(),next=0,cursor=literal.text.startIndex
+        for match in specifier.matches(in:literal.text,range:NSRange(literal.text.startIndex...,in:literal.text)) {
+            guard let range=Range(match.range,in:literal.text) else{continue};text+=literal.text[cursor..<range.lowerBound];cursor=range.upperBound
+            switch literal.text[range] {
+            case "\u{1}":text+="\u{1}";sources.append(existing.next() ?? "")
+            case "%%":text+="%"
+            default:
+                let index:Int;if let position=Range(match.range(at:1),in:literal.text).flatMap({Int(literal.text[$0])}){index=position-1}else{index=next;next+=1}
+                text+="\u{1}";sources.append(values.indices.contains(index) ? values[index]:"")
+            }
+        }
+        text+=literal.text[cursor...]
+        return Literal(start:literal.start,end:literal.end,text:text,stack:literal.stack,prefix:literal.prefix,interpolations:sources)
+    }
+
     /// Prose literals that bypass the catalog, the lines where developer text was put into it, catalog keys that are
     /// pieces of a sentence, and catalog keys that put a color beside a piece name.
     func analyse(_ text:String)->(literals:Int,hits:[(line:Int,text:String)],misplaced:[Int],fragments:[(line:Int,text:String)],composed:[(line:Int,text:String)]) {
         let s=Array(text),lines=text.components(separatedBy:"\n");var lineStarts=[0]
         for line in lines {lineStarts.append(lineStarts.last!+line.count+1)}
         func lineOf(_ offset:Int)->Int {var low=0,high=lineStarts.count;while low<high {let mid=(low+high)/2;if lineStarts[mid]<=offset{low=mid+1}else{high=mid}};return low}
-        let skipped=excludedLines(lines),literals=scan(s);var hits:[(line:Int,text:String)]=[],misplaced:[Int]=[],fragments:[(line:Int,text:String)]=[],composed:[(line:Int,text:String)]=[]
+        let skipped=excludedLines(lines),literals=scan(s).map{formatted(s,$0)};var hits:[(line:Int,text:String)]=[],misplaced:[Int]=[],fragments:[(line:Int,text:String)]=[],composed:[(line:Int,text:String)]=[]
         for literal in literals {
             let line=lineOf(literal.start)
             guard !skipped.contains(line) else{continue}
@@ -296,9 +373,11 @@ private struct LocalizationLint {
             guard let frame=literal.stack.last,frame.callee=="String",kind(frame) == .localized,literal.stack.count>1,kind(literal.stack[literal.stack.count-2]) == .developer,let end=frame.frame.end,s[frame.frame.start..<end].filter({$0=="\""}).count==2 else{continue}
             misplaced.append(line)
         }
-        for (index,line) in lines.enumerated() where !skipped.contains(index+1) {
-            let code=line.range(of:"//").map{String(line[..<$0.lowerBound])} ?? line
-            for match in joined.matches(in:code,range:NSRange(code.startIndex...,in:code)) {composed.append((index+1,String(code[Range(match.range,in:code)!])))}
+        // Joins are matched over the whole file with its comments left out, so one written across lines is found too.
+        let code=lines.map{line in line.range(of:"//").map{String(line[..<$0.lowerBound])} ?? line}.joined(separator:"\n") as NSString
+        for match in joined.matches(in:code as String,range:NSRange(location:0,length:code.length)) {
+            let found=code.substring(with:match.range),line=code.substring(to:match.range.location).filter{$0=="\n"}.count+1
+            if !(line...line+found.filter{$0=="\n"}.count).contains(where:{skipped.contains($0)}){composed.append((line,found))}
         }
         return (literals.count,hits,misplaced,fragments,composed)
     }
