@@ -20,6 +20,8 @@ import CheckmateCore
             let lock=lockInstance(root)
             guard lock != .unopenable else{let alert=NSAlert();alert.messageText=String(localized:"Checkmate could not open its data folder.",bundle:.checkmate);alert.informativeText=String(localized:"Check that \(root.path) is writable, then open Checkmate again.",bundle:.checkmate);alert.runModal();NSApp.terminate(nil);return}
             guard lock == .held else{for app in NSRunningApplication.runningApplications(withBundleIdentifier:Bundle.main.bundleIdentifier ?? ""){if app.processIdentifier != ProcessInfo.processInfo.processIdentifier{app.activate(options:[.activateAllWindows])}};NSApp.terminate(nil);return}
+            // Read before the model loads or saves anything: only a folder with no saved progress is a first run (L-20).
+            let firstRun=try !StateStore(directory:root).hasSavedProgress()
             NativeLog.lifecycle.info("Opening native application");let model=try NativeModel();self.model=model;let window=GameWindow(model:model);game=window;window.board.reviewFiles=reviewFiles;installMenus(window:window,model:model);window.showWindow(nil);NSApp.activate(ignoringOtherApps:true)
             model.startConnections();openPendingFiles()
             if Self.checksAutomatically(settings:model.session.state.settings,silent:NativePolicy.silent){Task{await runUpdateCheck(automatic:true)}}
@@ -27,6 +29,8 @@ import CheckmateCore
             window.offerNetworkCrashReview()
             // Scenario flags mutate and save the game: only an isolated automation run may use them, never the released app.
             let automation=Self.isolatedAutomation
+            // The welcome is for a true first run; automation and tests see it only when they ask for it (L-20).
+            if Onboarding.shows(firstRun:firstRun,silent:NativePolicy.silent,requested:automation && CommandLine.arguments.contains("--onboarding")){window.showOnboarding()}
             // A gate may run one instance dark beside light ones (network-ui) without touching the system appearance.
             if automation,CommandLine.arguments.contains("--dark-appearance"){NSApp.appearance=NSAppearance(named:.darkAqua)}
             if automation,let i=CommandLine.arguments.firstIndex(of:"--bonjour-self-check"),i+1<CommandLine.arguments.count{NativeModel.runBonjourSelfCheck(output:URL(fileURLWithPath:CommandLine.arguments[i+1]),directory:root.appendingPathComponent("bonjour-self-check"))}

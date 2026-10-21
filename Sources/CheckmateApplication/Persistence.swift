@@ -7,6 +7,14 @@ public final class StateStore {
     public let directory:URL
     public var url:URL {directory.appendingPathComponent("state-v1.json")}
     public init(directory:URL){self.directory=directory}
+    /// Whether the learner has been here before (L-20): any saved state, backup or set-aside state in the data folder.
+    /// A missing folder is a first run; a folder that cannot be read throws rather than passing for one.
+    public func hasSavedProgress()throws->Bool {
+        var isDirectory:ObjCBool=false
+        guard FileManager.default.fileExists(atPath:directory.path,isDirectory:&isDirectory) else{return false}
+        guard isDirectory.boolValue else{throw CheckmateError.unavailable(String(localized:"The data folder is not a folder.",bundle:.checkmate))}
+        return try FileManager.default.contentsOfDirectory(atPath:directory.path).contains{$0.hasPrefix("state-")}
+    }
     /// The largest state file or archive the app reads back; nothing larger is written as a save or an export.
     public static let maximumBytes=4*1024*1024
     public static func dataDirectoryIdentifier(bundleIdentifier:String?)->String {ApplicationDataPaths.dataDirectoryIdentifier(bundleIdentifier:bundleIdentifier)}
