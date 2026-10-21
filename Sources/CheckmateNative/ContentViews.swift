@@ -172,11 +172,28 @@ struct DetailContent:View {
                 Text(learning.miniLevelWithdrawn ? String(localized:"This game continues at \(MiniGameOffering.title(level)), a level this game no longer offers.",bundle:.checkmate):String(localized:"This game continues at \(MiniGameOffering.title(level)).",bundle:.checkmate)).foregroundStyle(.secondary).accessibilityIdentifier("mini-level-continues")
                 Button("Start a New Game at \(MiniGameOffering.title(learning.miniPreferredLevel))"){learning.restartMini()}.accessibilityIdentifier("mini-new-level")
             }
-            Text(learning.miniGame?.computer==true ? String(localized:"You play White. Select a piece, then its destination. The computer plays Black.",bundle:.checkmate):String(localized:"Take turns moving White and Black on this device.",bundle:.checkmate))
+            // Only in games equal from both sides (L-23); like the level, the game in progress keeps its side.
+            if learning.miniSideOffered {
+                Picker("Side",selection:Binding(get:{learning.miniPreferredSide},set:{learning.setMiniSide($0)})){Text("White").tag("w");Text("Black").tag("b")}.accessibilityIdentifier("mini-side")
+            }
+            if learning.miniNewSideOffered {
+                Text(learning.miniLearnerSide=="b" ? String(localized:"This game continues with you as Black.",bundle:.checkmate):String(localized:"This game continues with you as White.",bundle:.checkmate)).foregroundStyle(.secondary).accessibilityIdentifier("mini-side-continues")
+                Button(learning.miniPreferredSide=="b" ? String(localized:"Start a New Game as Black",bundle:.checkmate):String(localized:"Start a New Game as White",bundle:.checkmate)){learning.restartMini()}.accessibilityIdentifier("mini-new-side")
+            }
+            Text(learning.miniGame?.computer != true ? String(localized:"Take turns moving White and Black on this device.",bundle:.checkmate):learning.miniLearnerSide=="b" ? String(localized:"You play Black. The computer plays White and moves first. Select a piece, then its destination.",bundle:.checkmate):String(localized:"You play White. Select a piece, then its destination. The computer plays Black.",bundle:.checkmate))
         }
-        if learning.miniGame?.isFinished==true {Button {learning.restartMini()} label:{Label("Play again",symbol:.startOver)}.accessibilityIdentifier("mini-play-again");MiniGameReviewSection(reviewer:learning.miniReview)}
+        if let record=learning.miniRecordText {Text(record).foregroundStyle(.secondary).accessibilityIdentifier("mini-record")}
+        if learning.miniGame?.isFinished==true {Button {learning.restartMini()} label:{Label("Play again",symbol:.startOver)}.accessibilityIdentifier("mini-play-again");miniAdvice;MiniGameReviewSection(reviewer:learning.miniReview)}
         Text(learning.miniKind.rules).foregroundStyle(.secondary)
         if !learning.feedback.isEmpty{Text(learning.feedback)}
+    }
+    /// The step the learner's last `MiniGameRecord.streakLength` results at one level suggest (L-24), never taken unasked.
+    @ViewBuilder private var miniAdvice:some View {
+        switch learning.miniAdvice {
+        case .stepUp(let level)?:Text("You won your last three games at \(MiniGameOffering.title(learning.miniPreferredLevel)). Ready for a stronger opponent?").accessibilityIdentifier("mini-advice");Button("Play at \(MiniGameOffering.title(level))"){learning.takeMiniAdvice()}.accessibilityIdentifier("mini-take-advice")
+        case .stepDown(let level)?:Text("You lost your last three games at \(MiniGameOffering.title(learning.miniPreferredLevel)). An easier opponent may help you learn.").accessibilityIdentifier("mini-advice");Button("Play at \(MiniGameOffering.title(level))"){learning.takeMiniAdvice()}.accessibilityIdentifier("mini-take-advice")
+        case nil:EmptyView()
+        }
     }
     @ViewBuilder private var lessonOrPuzzleDetail:some View {
         if session.mode == .lesson {

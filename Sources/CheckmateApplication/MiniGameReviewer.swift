@@ -29,11 +29,12 @@ import Combine
     /// review's own CPU time, whatever else the machine is doing.
     nonisolated static func threadCPUSeconds()->Double {Double(clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID))/1e9}
 
-    public func start(_ game:MiniGameState){
+    /// Reviews a finished game against the computer from `learner`'s side, or a two-player game from both.
+    public func start(_ game:MiniGameState,learner:String="w"){
         guard !game.kind.solo,game.isFinished else{return}
         cancel();generation+=1;let reviewed=Identity(game),budget=budget,clock=cpuSeconds
         identity=reviewed
-        launch(Task.detached(priority:.utility){MiniGameReview.run(game,budget:budget,cpuSeconds:clock,stop:{Task.isCancelled})},opens:true){[weak self] in self?.current().map(Identity.init)==reviewed}
+        launch(Task.detached(priority:.utility){MiniGameReview.run(game,learner:learner,budget:budget,cpuSeconds:clock,stop:{Task.isCancelled})},opens:true){[weak self] in self?.current().map(Identity.init)==reviewed}
     }
     /// A network game's moves from its kind's start, while it is shown (protocol 1.3): `start(kind:moves:)` shows a
     /// result only for the same session's same moves.

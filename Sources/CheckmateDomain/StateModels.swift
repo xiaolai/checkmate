@@ -29,6 +29,9 @@ public struct AppSettings:Codable,Equatable {
     /// without position games writes nothing new.
     public var positionGameLevels:[String:String]?
     public static let languages=["en":"English","zh":"Mandarin Chinese","es":"Spanish","fr":"French","de":"German","ja":"Japanese","ko":"Korean","pt":"Portuguese","it":"Italian","ar":"Arabic","hi":"Hindi"] // not localized: language names also tell the voice model which language to answer in
+    /// The side the learner plays against the computer per mini-game (L-23), `w` or `b`, only for games that offer the
+    /// choice (`MiniGameSides`). A new run takes it; absent until the learner first chooses, so a save writes nothing new.
+    public var miniLearnerSides:[String:String]?
     public static let reasoningEfforts=["minimal","low","medium","high","xhigh"]
     public static let voices=["marin","cedar","alloy","ash","ballad","coral","echo","sage","shimmer","verse"]
     public static let themes=["wood":String(localized:"Walnut",bundle:.checkmate),"green":String(localized:"Sage",bundle:.checkmate),"blue":String(localized:"Slate",bundle:.checkmate),"neutral":String(localized:"Graphite",bundle:.checkmate)]
@@ -58,6 +61,8 @@ public struct AppSettings:Codable,Equatable {
         miniOpponentProfiles=(raw["miniOpponentProfiles"] as? [String:Any] ?? [:]).reduce(into:[:]){kept,entry in if let kind=MiniGameKind(rawValue:entry.key),!kind.solo,let profile=entry.value as? String,MiniOpponentPolicy.profiles.contains(profile){kept[entry.key]=profile}}
         // The same, by entry: an invalid entry id or an unknown level is dropped, the rest kept.
         positionGameLevels=(raw["positionGameLevels"] as? [String:Any]).map{$0.reduce(into:[:]){kept,entry in if entry.key.count<=48,entry.key.range(of:TrainingEntryDefinition.idPattern,options:.regularExpression) != nil,let level=entry.value as? String,TrainingOpponentLevel(rawValue:level) != nil{kept[entry.key]=level}}}
+        // The same, by game: one that does not offer the choice, or an unknown side, is dropped.
+        miniLearnerSides=(raw["miniLearnerSides"] as? [String:Any]).map{$0.reduce(into:[:]){kept,entry in if let kind=MiniGameKind(rawValue:entry.key),MiniGameSides.offersChoice(kind),let side=entry.value as? String,["w","b"].contains(side){kept[entry.key]=side}}}
     }
     public init(from decoder:Decoder) throws {
         let container=try decoder.singleValueContainer();let object=try container.decode([String:JSONValue].self)
@@ -152,6 +157,8 @@ public struct ApplicationState:Codable {
     public var miniGames:[String:MiniGameState]?
     /// Each lesson's exercise in progress, by lesson id: separate from the practice game, mini-games and training.
     public var lessonAttempts:[String:LessonAttemptRecord]?
+    /// Each mini-game's record against the computer and the side of its run (L-23, L-24), by kind. Absent from older saves.
+    public var miniGameRecords:[String:MiniGameRecord]?
     public var puzzleFilters:[String:String]?
     /// Optional training progress with its own envelope version; schemaVersion stays 1 (plan: Data Model).
     public var training:TrainingState?
@@ -167,12 +174,12 @@ public struct ApplicationState:Codable {
     /// top. Written back only into a record that still exists, so a record this build removed is never revived as a stub.
     public var unknownNestedFields:[[String]:JSONValue]=[:]
     public init(){}
-    private enum CodingKeys:String,CodingKey {case schemaVersion,savedAt,practice,course,settings,puzzles,window,importedArchives,miniGames,lessonAttempts,puzzleFilters,training}
+    private enum CodingKeys:String,CodingKey {case schemaVersion,savedAt,practice,course,settings,puzzles,window,importedArchives,miniGames,lessonAttempts,puzzleFilters,training,miniGameRecords}
     /// The objects whose own unknown keys are kept as well; other values (puzzles, positions) are this build's records.
-    static let preservedObjects:Set<String>=["practice","course","settings","window","miniGames","training","lessonAttempts"]
+    static let preservedObjects:Set<String>=["practice","course","settings","window","miniGames","training","lessonAttempts","miniGameRecords"]
     /// Every key this build can write, from a state with each optional field present.
     private static let writable:[String:JSONValue]={
-        var probe=ApplicationState();probe.miniGames=[:];probe.lessonAttempts=[:];probe.course.practised=[];probe.course.unaided=[];probe.course.exercises=[:];probe.puzzleFilters=[:];probe.training=TrainingState();probe.window.frame=[0,0,1,1];probe.course.segmentID="";probe.course.positions=[:];probe.settings.positionGameLevels=[:]
+        var probe=ApplicationState();probe.miniGames=[:];probe.lessonAttempts=[:];probe.course.practised=[];probe.course.unaided=[];probe.course.exercises=[:];probe.puzzleFilters=[:];probe.training=TrainingState();probe.window.frame=[0,0,1,1];probe.course.segmentID="";probe.course.positions=[:];probe.settings.positionGameLevels=[:];probe.settings.miniLearnerSides=[:];probe.miniGameRecords=[:]
         probe.practice.ending=PracticeEnding(result:"1-0",reason:"");probe.practice.previousEnding=probe.practice.ending
         return (try? jsonObject(probe)) ?? [:]
     }()
@@ -244,6 +251,10 @@ public struct ApplicationState:Codable {
         settings=try field(.settings,AppSettings.self);puzzles=try field(.puzzles,[String:PuzzleProgress].self);window=try field(.window,WindowState.self);importedArchives=try field(.importedArchives,[String].self)
         if case .object(let games)?=raw["miniGames"] {var known:[String:MiniGameState]=[:];for (key,game) in games where MiniGameKind(rawValue:key) != nil {known[key]=try JSONDecoder().decode(MiniGameState.self,from:JSONEncoder().encode(game))};miniGames=known}
         else if let games=raw["miniGames"],games != .null {throw DecodingError.typeMismatch([String:MiniGameState].self,.init(codingPath:decoder.codingPath,debugDescription:"Saved mini-games are not an object."))}
+        // Like the boards: a record of a game this build does not know is left out (and written back); a damaged one
+        // of a known game fails the load, so a later save never erases that progress unseen.
+        if case .object(let records)?=raw["miniGameRecords"] {var known:[String:MiniGameRecord]=[:];for (key,record) in records where MiniGameKind(rawValue:key) != nil {known[key]=try JSONDecoder().decode(MiniGameRecord.self,from:JSONEncoder().encode(record))};miniGameRecords=known}
+        else if let records=raw["miniGameRecords"],records != .null {throw DecodingError.typeMismatch([String:MiniGameRecord].self,.init(codingPath:decoder.codingPath,debugDescription:"Saved mini-game records are not an object."))}
         // An attempt this build cannot read is left out on its own (kept raw in `unknownFields` and written back until
         // the learner plays that exercise here): the rest still loads.
         if case .object(let attempts)?=raw["lessonAttempts"] {var known:[String:LessonAttemptRecord]=[:];for (key,value) in attempts {if let record=try? JSONDecoder().decode(LessonAttemptRecord.self,from:JSONEncoder().encode(value)){known[key]=record}};lessonAttempts=known}
@@ -259,7 +270,7 @@ public struct ApplicationState:Codable {
         var c=encoder.container(keyedBy:CodingKeys.self)
         try c.encode(schemaVersion,forKey:.schemaVersion);try c.encode(savedAt,forKey:.savedAt);try c.encode(practice,forKey:.practice);try c.encode(course,forKey:.course)
         try c.encode(settings,forKey:.settings);try c.encode(puzzles,forKey:.puzzles);try c.encode(window,forKey:.window);try c.encode(importedArchives,forKey:.importedArchives)
-        try c.encodeIfPresent(miniGames,forKey:.miniGames);try c.encodeIfPresent(lessonAttempts,forKey:.lessonAttempts);try c.encodeIfPresent(puzzleFilters,forKey:.puzzleFilters)
+        try c.encodeIfPresent(miniGames,forKey:.miniGames);try c.encodeIfPresent(lessonAttempts,forKey:.lessonAttempts);try c.encodeIfPresent(puzzleFilters,forKey:.puzzleFilters);try c.encodeIfPresent(miniGameRecords,forKey:.miniGameRecords)
         if let trainingRaw{try c.encode(trainingRaw,forKey:.training)}else{try c.encodeIfPresent(training,forKey:.training)}
     }
     /// Training records may be written: none was kept raw for lack of understanding.

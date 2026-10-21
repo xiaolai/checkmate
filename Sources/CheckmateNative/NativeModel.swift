@@ -670,7 +670,7 @@ import RealtimeConnection
         struct Training:Equatable {let id:String,learnerActions:[TrainingAction],help:Bool}
     }
     private var undoContext:UndoContext {
-        let mini=learning.miniGame.map{game in UndoContext.Mini(kind:game.kind,computer:game.computer,seed:game.opponentSeed,afterLearner:game.computer && game.snapshot.turn=="w" ? game.history.last ?? game.snapshot:game.snapshot)}
+        let mini=learning.miniGame.map{game in UndoContext.Mini(kind:game.kind,computer:game.computer,seed:game.opponentSeed,afterLearner:game.computer && game.snapshot.turn==learning.miniLearnerSide ? game.history.last ?? game.snapshot:game.snapshot)}
         let attempt=learning.attempt.record.map{UndoContext.Attempt(id:$0.id,definition:$0.definition,learnerMoves:learning.attempt.rules.records.filter{$0.color=="w"}.count,hints:$0.hints,playOn:$0.playOn)}
         let training=(training?.exercise?.snapshot).map{UndoContext.Training(id:$0.id,learnerActions:$0.actions.filter{if case .reply=$0{return false};return true},help:$0.recordedHelp)}
         return UndoContext(activity:session.activity,game:session.gameGeneration,learnerMoves:session.rules.records.filter{$0.color==session.humanSide}.count,review:review.document?.id,ideas:review.branchesForSaving.sorted{$0.id.uuidString<$1.id.uuidString},mini:mini,attempt:attempt,training:training)

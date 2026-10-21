@@ -65,8 +65,8 @@ public enum TrainingStore {
     /// Records a legacy mini-game that has just finished, unless this run was already credited (undo and replay within
     /// a run never add another event). Old saves without an opponent seed form one run until the game restarts.
     /// Nothing is recorded when the retained records would no longer fit the training budget. A game against the
-    /// computer records its run's level and whether it is exact.
-    @discardableResult public static func recordLegacyCompletion(_ game:MiniGameState,origin:String,in state:inout ApplicationState,now:Date,calendar:Calendar)->TrainingCompletionEvent? {
+    /// computer records its run's level and whether it is exact. Its win, loss or draw is counted from `learner`'s side.
+    @discardableResult public static func recordLegacyCompletion(_ game:MiniGameState,learner:String="w",origin:String,in state:inout ApplicationState,now:Date,calendar:Calendar)->TrainingCompletionEvent? {
         guard state.trainingWritable,game.isFinished else{return nil}
         var training=state.training ?? TrainingState()
         let run=game.run
@@ -75,7 +75,7 @@ public enum TrainingStore {
         training.events.append(event);training.creditedRuns[game.kind.rawValue]=run
         var summary=training.summaries[game.kind.rawValue] ?? TrainingEntrySummary()
         // A solo game finishes only by completing its route, which counts in `legacyWins` (see TrainingEntrySummary).
-        if game.kind.solo{summary.legacyWins=summary.legacyWins+1}else if !game.computer{summary.twoPlayerFinishes=summary.twoPlayerFinishes+1}else if winner=="w"{summary.legacyWins=summary.legacyWins+1}else if winner=="b"{summary.legacyLosses=summary.legacyLosses+1}else{summary.legacyDraws=summary.legacyDraws+1}
+        if game.kind.solo{summary.legacyWins=summary.legacyWins+1}else if !game.computer{summary.twoPlayerFinishes=summary.twoPlayerFinishes+1}else if winner==learner{summary.legacyWins=summary.legacyWins+1}else if winner != nil{summary.legacyLosses=summary.legacyLosses+1}else{summary.legacyDraws=summary.legacyDraws+1}
         let today=day(now,calendar:calendar);if !summary.days.contains(today){summary.days.append(today)}
         training.summaries[game.kind.rawValue]=summary
         prune(&training);guard withinBudget(training),(try? training.validate()) != nil else{return nil}

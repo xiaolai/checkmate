@@ -1772,6 +1772,16 @@
       "comment" : "A network game's agreed help, from its record"
     },
     "Assistance: %@ for both players." : {},
+    "At %@: %lld won, %lld drawn, %lld lost" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "At %1$@: %2$lld won, %3$lld drawn, %4$lld lost"
+          }
+        }
+      }
+    },
     "At %lld%@ %@, both king and rook change squares. Inspect the king's safety afterward." : {
       "localizations" : {
         "en" : {
@@ -2183,6 +2193,7 @@
     "Computer wins. Try again!" : {},
     "Computer’s turn" : {},
     "Computer’s turn · Black" : {},
+    "Computer’s turn · White" : {},
     "Connect Voice Coach" : {},
     "Connect is off while Codex is connected to Checkmate. Turn off Allow Codex connections in Connections to use voice." : {},
     "Connect the voice coach and agree to what it sends to OpenAI first." : {},
@@ -3282,6 +3293,7 @@
     "Play as" : {},
     "Play as Black" : {},
     "Play as White" : {},
+    "Play at %@" : {},
     "Play code" : {},
     "Play code, %@" : {
       "comment" : "The play code, read one character at a time"
@@ -3746,6 +3758,7 @@
     "Showing the most recent 100 operations. Export includes all retained history." : {},
     "Shown as text instead" : {},
     "Shows this event's games." : {},
+    "Side" : {},
     "Sidebar" : {},
     "Sign In" : {},
     "Sign in to Codex on this Mac with your ChatGPT account to translate lessons." : {},
@@ -3796,6 +3809,8 @@
     "Start Again" : {},
     "Start Fresh" : {},
     "Start Practice" : {},
+    "Start a New Game as Black" : {},
+    "Start a New Game as White" : {},
     "Start a New Game at %@" : {},
     "Start a New Game at This Level" : {},
     "Start a new %@ game?" : {},
@@ -4275,6 +4290,8 @@
     "This file is still in iCloud. Download it in Finder, then drop it again." : {},
     "This game continues at %@, a level this game no longer offers." : {},
     "This game continues at %@." : {},
+    "This game continues with you as Black." : {},
+    "This game continues with you as White." : {},
     "This game could not be opened for review. Your current game and reviews are unchanged." : {},
     "This game could not be opened for review. Your practice is unchanged." : {},
     "This game could not be opened for review. Your training is unchanged." : {},
@@ -4729,9 +4746,11 @@
     "You have tried this board before, so this is practice." : {},
     "You have version %@. Download the new version from GitHub, or update it with Homebrew." : {},
     "You lost" : {},
+    "You lost your last three games at %@. An easier opponent may help you learn." : {},
     "You play %@." : {},
     "You play %@. Choose a piece to explore." : {},
     "You play Black. Stockfish moves first." : {},
+    "You play Black. The computer plays White and moves first. Select a piece, then its destination." : {},
     "You play White. Choose a piece to explore." : {},
     "You play White. Select a piece, then its destination. The computer plays Black." : {},
     "You play White. Start by making room for your pieces." : {},
@@ -4769,6 +4788,7 @@
     "You win!" : {},
     "You win." : {},
     "You won" : {},
+    "You won your last three games at %@. Ready for a stronger opponent?" : {},
     "You're watching" : {},
     "You're watching this game, so you can't move." : {},
     "You: %@" : {
@@ -4835,6 +4855,7 @@
     "Your side:" : {},
     "Your story starts with one move." : {},
     "Your turn" : {},
+    "Your turn · Black" : {},
     "Your turn · White" : {},
     "Your turn — listening" : {},
     "Your turn. Move a White piece on the board." : {},

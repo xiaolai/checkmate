@@ -170,7 +170,7 @@ final class BoardTitleView:NSView {
         model.voice.$connection.removeDuplicates().receive(on:RunLoop.main).sink{[weak self] state in guard case .failed=state else{return};self?.showDetails()}.store(in:&observations)
         let undone=model.session.onUndo;model.session.onUndo={[weak self] in undone?();self?.board.cancelAnimation()}
         let sound=model.session.onMove;model.session.onMove={[weak self] move in sound?(move);guard let self=self else{return};self.board.animate(move,duration:Double(self.model.session.state.settings.pieceDuration)/1000);self.announce(move)}
-        let miniSound=model.learning.onMiniMove;model.learning.onMiniMove={[weak self] move in miniSound?(move);guard let self else{return};self.board.animate(move,landing:self.model.learning.miniGame?.board,duration:Double(self.model.session.state.settings.pieceDuration)/1000);if self.model.learning.miniGame?.computer==true,move.color=="b"{self.announce(String(localized:"The computer played \(move.san).",bundle:.checkmate))}}
+        let miniSound=model.learning.onMiniMove;model.learning.onMiniMove={[weak self] move in miniSound?(move);guard let self else{return};self.board.animate(move,landing:self.model.learning.miniGame?.board,duration:Double(self.model.session.state.settings.pieceDuration)/1000);if self.model.learning.miniGame?.computer==true,move.color != self.model.learning.miniLearnerSide{self.announce(String(localized:"The computer played \(move.san).",bundle:.checkmate))}}
         let attemptSound=model.learning.onAttemptMove;model.learning.onAttemptMove={[weak self] move in attemptSound?(move);guard let self else{return};self.board.animate(move,landing:self.model.learning.attempt.board,duration:Double(self.model.session.state.settings.pieceDuration)/1000);self.announce(self.attemptAnnouncement(for:move))}
         let trainingSound=model.training?.onMove;model.training?.onMove={[weak self] move in trainingSound?(move);guard let self else{return};self.board.animate(move,duration:Double(self.model.session.state.settings.pieceDuration)/1000);self.announce(self.trainingAnnouncement(for:move))}
         // A training exercise's feedback and hints are shown in the details drawer, as a puzzle's are: open it when one appears.
@@ -389,8 +389,8 @@ final class BoardTitleView:NSView {
     func refresh(){syncDrawerToggles();syncMenus();let s=model.session,l=model.learning
         // The learner's own side sits nearest them in practice, training and a review of their own game; lessons and
         // other reviews keep White at the bottom. Flip Board turns what is shown over until something else is (B-6);
-        // the network game keeps its own flip.
-        let natural=model.review.active ? model.review.document.flatMap(model.reviewLearnerSide)=="b":s.mode == .practice && s.humanSide=="b" || trainingExercise?.scenario.learner=="b" || s.mode == .network && model.network.blackAtBottom
+        // the network game keeps its own flip. A mini-game played from Black against the computer puts Black nearest.
+        let natural=model.review.active ? model.review.document.flatMap(model.reviewLearnerSide)=="b":s.mode == .practice && s.humanSide=="b" || trainingExercise?.scenario.learner=="b" || s.mode == .network && model.network.blackAtBottom || l.mini && l.miniGame?.computer==true && l.miniLearnerSide=="b"
         board.blackAtBottom = !model.reviewWorkspace && natural != (s.mode != .network && flipped==boardSubject)
         board.reviewNavigation=model.review.active && model.review.branch==nil
         reviewWorkspaceView.isHidden = !model.reviewWorkspace;controls.isHidden=model.reviewWorkspace;if workspaceFill.isActive != model.reviewWorkspace{workspaceAboveControls.isActive=false;workspaceFill.isActive=model.reviewWorkspace;workspaceAboveControls.isActive = !model.reviewWorkspace}

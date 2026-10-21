@@ -41,7 +41,7 @@ public struct MiniGameReview:Equatable {
     }
     /// Reviews a finished game. `cpuSeconds` reads the CPU time the review has used so far (its owner's thread clock);
     /// `stop` is the owner's cancellation. Both are polled during each search.
-    public static func run(_ game:MiniGameState,budget:Double=MiniGameProofBudget.reviewCPUSeconds,cpuSeconds:@escaping ()->Double,stop:@escaping ()->Bool)->MiniGameReview {
+    public static func run(_ game:MiniGameState,learner:String="w",budget:Double=MiniGameProofBudget.reviewCPUSeconds,cpuSeconds:@escaping ()->Double,stop:@escaping ()->Bool)->MiniGameReview {
         guard !game.kind.solo,let positions=positions(of:game) else{return MiniGameReview(kind:game.kind,run:game.opponentSeed,plies:game.history.count,answers:[:],facts:[],nodes:0,entries:0,complete:false,consistent:false)}
         let complete=game.history.count<MiniGameState.maximumHistory,started=cpuSeconds()
         let over={stop() || cpuSeconds()-started>=budget}
@@ -52,7 +52,7 @@ public struct MiniGameReview:Equatable {
             if answer.exhausted && over(){finished=false;break}
             answers[ply]=answer
         }
-        return MiniGameReview(kind:game.kind,run:game.opponentSeed,plies:game.history.count,answers:answers,facts:facts(positions,answers:answers,computer:game.computer),nodes:proof.nodes,entries:proof.entryCount,complete:finished,consistent:true)
+        return MiniGameReview(kind:game.kind,run:game.opponentSeed,plies:game.history.count,answers:answers,facts:facts(positions,answers:answers,computer:game.computer,learner:learner),nodes:proof.nodes,entries:proof.entryCount,complete:finished,consistent:true)
     }
     /// Reviews a game known by every move from its kind's start (a network game, protocol 1.3), whatever ended it:
     /// each position at its absolute ply, with the positions back to its last capture or pawn move (and the one before,
@@ -95,17 +95,18 @@ public struct MiniGameReview:Equatable {
         /// marks the boundary, as its history: everything the referee and the proof's draw context read.
         func position(_ ply:Int)->MiniGameState {var state=base;state.snapshot=snapshots[ply];state.history=Array(snapshots[max(0,stretch[ply]-1)..<ply]);return state}
     }
-    static func facts(_ positions:[MiniGameState],answers:[Int:MiniGameProofAnswer],computer:Bool)->[MiniGameFact] {
-        facts(turns:positions.map(\.turn),played:positions.dropFirst().compactMap(\.snapshot.lastMove),answers:answers,computer:computer)
+    static func facts(_ positions:[MiniGameState],answers:[Int:MiniGameProofAnswer],computer:Bool,learner:String="w")->[MiniGameFact] {
+        facts(turns:positions.map(\.turn),played:positions.dropFirst().compactMap(\.snapshot.lastMove),answers:answers,computer:computer,learner:learner)
     }
-    /// `turns[ply]` is the side to move at each position, `played[ply]` the move made there.
-    static func facts(turns:[String],played made:[MiniGameMove],answers:[Int:MiniGameProofAnswer],computer:Bool)->[MiniGameFact] {
+    /// `turns[ply]` is the side to move at each position, `played[ply]` the move made there. Against the computer only
+    /// `learner`'s moves are reviewed.
+    static func facts(turns:[String],played made:[MiniGameMove],answers:[Int:MiniGameProofAnswer],computer:Bool,learner:String="w")->[MiniGameFact] {
         func name(_ side:String)->String {side=="w" ? String(localized:"White",bundle:.checkmate):String(localized:"Black",bundle:.checkmate)}
         func moves(_ plies:Int)->Int {(plies+1)/2}
         var facts:[MiniGameFact]=[]
         for ply in turns.indices.dropLast() {
             let side=turns[ply],number=ply/2+1
-            guard !computer || side=="w",let before=answers[ply],ply<made.count else{continue}
+            guard !computer || side==learner,let before=answers[ply],ply<made.count else{continue}
             let played=made[ply]
             // A win the side already had two plies earlier is the same run: it is stated once, where it was first proved.
             if case .win(let plies)=before.result,plies>0,let line=before.line {

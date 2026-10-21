@@ -62,7 +62,37 @@ import Combine
     public let miniReview=MiniGameReviewer()
     private var miniTask:Task<Void,Never>?,miniGeneration=UUID()
     public var miniKind:MiniGameKind {miniGame?.kind ?? .pawnDuel}
-    public var miniStatus:String {if let reason=miniGame?.drawReason{return Sentences.join(String(localized:"Draw.",bundle:.checkmate),reason)};if let winner=winner{return miniKind.solo ? String(localized:"Route complete!",bundle:.checkmate):miniGame?.computer==true ? (winner=="w" ? String(localized:"You win!",bundle:.checkmate):String(localized:"Computer wins. Try again!",bundle:.checkmate)):(winner=="w" ? String(localized:"White wins!",bundle:.checkmate):String(localized:"Black wins!",bundle:.checkmate))};if miniKind.solo{return String(localized:"Next corner: \(MiniGameRules.corners[miniGame?.snapshot.cornerIndex ?? 0])",bundle:.checkmate)};return miniGame?.computer==true ? (miniTurn=="w" ? String(localized:"Your turn · White",bundle:.checkmate):String(localized:"Computer’s turn · Black",bundle:.checkmate)):(miniTurn=="w" ? String(localized:"White to move",bundle:.checkmate):String(localized:"Black to move",bundle:.checkmate))}
+    public var miniStatus:String {if let reason=miniGame?.drawReason{return Sentences.join(String(localized:"Draw.",bundle:.checkmate),reason)};if let winner=winner{return miniKind.solo ? String(localized:"Route complete!",bundle:.checkmate):miniGame?.computer==true ? (winner==miniLearnerSide ? String(localized:"You win!",bundle:.checkmate):String(localized:"Computer wins. Try again!",bundle:.checkmate)):(winner=="w" ? String(localized:"White wins!",bundle:.checkmate):String(localized:"Black wins!",bundle:.checkmate))};if miniKind.solo{return String(localized:"Next corner: \(MiniGameRules.corners[miniGame?.snapshot.cornerIndex ?? 0])",bundle:.checkmate)};return miniGame?.computer==true ? (miniTurn==miniLearnerSide ? (miniTurn=="w" ? String(localized:"Your turn · White",bundle:.checkmate):String(localized:"Your turn · Black",bundle:.checkmate)):(miniTurn=="w" ? String(localized:"Computer’s turn · White",bundle:.checkmate):String(localized:"Computer’s turn · Black",bundle:.checkmate))):(miniTurn=="w" ? String(localized:"White to move",bundle:.checkmate):String(localized:"Black to move",bundle:.checkmate))}
+    /// The record of the game shown against the computer and the side of its run (L-23, L-24), once one is saved.
+    public var miniRecord:MiniGameRecord? {session.state.miniGameRecords?[miniKind.rawValue]}
+    /// The side the learner plays in the game shown: its run's side, else White.
+    public var miniLearnerSide:String {miniGame.flatMap{miniRecord?.side(of:$0)} ?? "w"}
+    /// The side the picker shows: the learner's preference for the game shown.
+    public var miniPreferredSide:String {session.state.settings.miniLearnerSides?[miniKind.rawValue] ?? "w"}
+    /// Whether the game shown lets the learner choose a side: against the computer, in a game equal from both sides.
+    public var miniSideOffered:Bool {mini && miniGame?.computer==true && MiniGameSides.offersChoice(miniKind)}
+    /// Whether the learner has moved in the game shown; the computer's opening move as White is not the learner's.
+    private var miniLearnerMoved:Bool {(miniGame?.history.count ?? 0)>(miniLearnerSide=="b" ? 1:0)}
+    /// Whether the picker names another side than the unfinished game in progress is played from. That game keeps its
+    /// side, and the drawer offers a new game from the chosen one.
+    public var miniNewSideOffered:Bool {guard miniSideOffered,miniGame?.isFinished==false else{return false};return miniLearnerMoved && miniLearnerSide != miniPreferredSide}
+    /// Chooses the side of this game's next runs. A game the learner has not moved in restarts from it, losing nothing.
+    public func setMiniSide(_ side:String){
+        guard miniSideOffered,["w","b"].contains(side) else{return}
+        var settings=session.state.settings;settings.miniLearnerSides=(settings.miniLearnerSides ?? [:]).merging([miniKind.rawValue:side]){_,chosen in chosen};session.updateSettings(settings)
+        if !miniLearnerMoved,miniLearnerSide != side{restartMini()}
+    }
+    /// The learner's results at the level of the game shown, against the computer.
+    public var miniRecordText:String? {guard miniGame?.computer==true,let level=miniLevel,let tally=miniRecord?.levels[level] else{return nil};return String(localized:"At \(MiniGameOffering.title(level)): \(tally.wins) won, \(tally.draws) drawn, \(tally.losses) lost",bundle:.checkmate)}
+    /// The step the latest results suggest for the next game, shown once the game shown has finished (L-24).
+    public var miniAdvice:MiniGameLevelAdvice? {guard let game=miniGame,game.computer,game.isFinished else{return nil};return miniRecord?.advice(level:miniPreferredLevel,offered:MiniGameOffering.levels(for:miniKind))}
+    /// Takes the suggested step: the level becomes this game's preference and a new game starts at it.
+    public func takeMiniAdvice(){
+        guard let advice=miniAdvice else{return}
+        switch advice {case .stepUp(let level),.stepDown(let level):setMiniLevel(level);if miniLevel != level{restartMini()}}
+    }
+    /// Counts a finish against the computer in the game's record, once per run.
+    private func countMini(_ game:MiniGameState){var record=miniRecord ?? MiniGameRecord();if record.count(game){session.state.miniGameRecords=(session.state.miniGameRecords ?? [:]).merging([game.kind.rawValue:record]){_,counted in counted}}}
     public var onIllustration:((String,Bool)->Void)?
     private var soundedMoves=Set<Int>()
     /// The exercise of the lesson's invitation step ("Now try it yourself"), played on that step's own board.
@@ -259,6 +289,8 @@ import Combine
     public func startMini(_ kind:MiniGameKind,restart:Bool=false,computer:Bool=true,fromLibrary:Bool=false){
         pause();miniReview.cancel();var game = !restart ? session.state.miniGames?[kind.rawValue] ?? MiniGameState(kind:kind,computer:computer):MiniGameState(kind:kind,computer:computer)
         game.settleLevel(adopting:MiniGameOffering.level(for:kind,settings:session.state.settings));miniGame=game
+        // Only a game against the computer that offers the choice records a side; every other run is played from White.
+        if game.computer,MiniGameSides.offersChoice(kind) {var record=miniRecord ?? MiniGameRecord();record.settleSide(of:game,preferred:miniPreferredSide);session.state.miniGameRecords=(session.state.miniGameRecords ?? [:]).merging([kind.rawValue:record]){_,settled in settled}}
         go(.miniGame(lessonIndex:fromLibrary ? nil:lessonIndex,kind:kind,fromTraining:!fromLibrary && lessonFromTraining));picked=[];feedback=""
         syncMini();scheduleMiniOpponent()
     }
@@ -293,11 +325,11 @@ import Combine
         if miniGame?.history.isEmpty != false,miniLevel != level{restartMini()}
     }
     public func setMiniComputer(_ enabled:Bool){cancelMiniOpponent();miniReview.cancel();miniGame?.computer=enabled && !miniKind.solo;picked=[];syncMini();scheduleMiniOpponent()}
-    public func undoMini(){onMiniReset?();cancelMiniOpponent();miniReview.cancel();miniGame?.undo();picked=[];feedback="";syncMini();scheduleMiniOpponent()}
+    public func undoMini(){onMiniReset?();cancelMiniOpponent();miniReview.cancel();if var game=miniGame{MiniGameSides.undo(&game,learner:miniLearnerSide);miniGame=game};picked=[];feedback="";syncMini();scheduleMiniOpponent()}
     /// Back to where the game was opened: its lesson, or the training library.
     public func leaveMini(){onMiniReset?();cancelMiniOpponent();miniReview.cancel();picked=[];feedback="";if miniFromLibrary{go(.trainingLibrary);session.setTraining(.library);return};go(miniLesson);rebuild()}
     private func clickMini(_ square:String){
-        guard let game=miniGame,!game.isFinished,!miniThinking,!(game.computer && game.turn=="b") else{return}
+        guard let game=miniGame,!game.isFinished,!miniThinking,!(game.computer && game.turn != miniLearnerSide) else{return}
         if let from=picked.first,game.destinations(from:from).contains(square){applyMini(MiniGameMove(from:from,to:square));scheduleMiniOpponent();return}
         picked=game.board[square]?.hasPrefix(game.turn)==true && game.kind.canMove(game.board[square]!) ? (picked==[square] ? []:[square]):[]
         feedback=picked.isEmpty ? String(localized:"Select one of your movable pieces.",bundle:.checkmate):"";publish()
@@ -311,9 +343,9 @@ import Combine
         guard game.play(move) else{return};miniGame=game;picked=[];feedback=""
         // Emit-only: an observed unfinished-to-finished transition adds a completion event to the same state save as
         // the board (syncMini). It never changes the game or its result; a loaded finished board adds nothing.
-        if !wasFinished,game.isFinished{TrainingStore.recordLegacyCompletion(game,origin:miniFromLibrary ? "library":"lesson",in:&session.state,now:now(),calendar:calendar)}
+        if !wasFinished,game.isFinished{TrainingStore.recordLegacyCompletion(game,learner:miniLearnerSide,origin:miniFromLibrary ? "library":"lesson",in:&session.state,now:now(),calendar:calendar);countMini(game)}
         syncMini()
-        if !wasFinished,game.isFinished{miniReview.start(game)}
+        if !wasFinished,game.isFinished{miniReview.start(game,learner:miniLearnerSide)}
         onMiniMove?(MoveRecord(color:color,from:move.from,to:move.to,piece:String(piece.suffix(1)),flags:captured==nil ? "n":"c",san:move.from+"–"+move.to,before:"",after:"",captured:captured.map{String($0.suffix(1))},promotion:nil))
     }
     /// Every save of the board rewrites its level's witness, so a later mismatch can only come from another build.
@@ -335,7 +367,7 @@ import Combine
     /// A game opened from the library is in training mode with the same rules and opponent. The reply searches at the
     /// run's level, never at the current setting.
     private func scheduleMiniOpponent(){
-        guard mini,!session.reviewSuspended,let game=miniGame,game.computer,game.turn=="b",!game.isFinished else{return}
+        guard mini,!session.reviewSuspended,let game=miniGame,game.computer,game.turn != miniLearnerSide,!game.isFinished else{return}
         cancelMiniOpponent();miniThinking=true;picked=[];let generation=miniGeneration;miniReplyRequests+=1
         let delay=MiniGameOpponent.replyDelay+Duration.milliseconds(Int64(session.state.settings.pieceDuration))
         // `startMini` settles every competitive run's level, so the fallback is never reached in practice.
@@ -392,7 +424,7 @@ import Combine
     /// The truthful training projection of a library-opened mini-game: the same board, rules and outcome as from its lesson.
     private func publishTrainingMini(){
         let finished=miniGame?.isFinished==true
-        session.setTraining(TrainingProjection(view:"legacy_game",entryId:miniKind.rawValue,title:miniKind.title,objective:TrainingObjectiveKind.legacyGame.rawValue,ruleMode:TrainingRuleMode.simplifiedVariant.rawValue,rules:miniRules,pieces:frame.board,turn:miniTurn,learnerSide:"w",status:finished ? "finished":"active",winner:winner,drawReason:miniGame?.drawReason))
+        session.setTraining(TrainingProjection(view:"legacy_game",entryId:miniKind.rawValue,title:miniKind.title,objective:TrainingObjectiveKind.legacyGame.rawValue,ruleMode:TrainingRuleMode.simplifiedVariant.rawValue,rules:miniRules,pieces:frame.board,turn:miniTurn,learnerSide:miniLearnerSide,status:finished ? "finished":"active",winner:winner,drawReason:miniGame?.drawReason))
     }
     public func shutdown(){packReloadTask?.cancel();packGeneration=UUID();pause();miniReview.cancel();attempt.close();audio?.stop()}
 }
