@@ -107,21 +107,21 @@ public struct TrainingEntryDefinition:Codable,Equatable,Identifiable {
     public static let idPattern="\\A[a-z0-9]+(-[a-z0-9]+)*\\z"
     /// Fails loudly on any definition this build cannot honour exactly.
     public func validate()throws {
-        func fail(_ reason:String)throws -> Never {throw CheckmateError.invalid("Training entry \(id): \(reason)")}
+        func fail(_ reason:String)throws -> Never {throw CheckmateError.invalid(String(localized:"Training entry \(id): \(reason)",bundle:.checkmate))}
         guard id.count<=48,id.range(of:Self.idPattern,options:.regularExpression) != nil else{try fail("invalid identifier")}
-        guard !title.isEmpty,title.count<=60,!summary.isEmpty,summary.count<=300 else{try fail("invalid title or summary")}
-        guard !rules.isEmpty,rules.allSatisfy({!$0.isEmpty && $0.count<=400}) else{try fail("plain rules are required")}
+        guard !title.isEmpty,title.count<=60,!summary.isEmpty,summary.count<=300 else{try fail(String(localized:"invalid title or summary",bundle:.checkmate))}
+        guard !rules.isEmpty,rules.allSatisfy({!$0.isEmpty && $0.count<=400}) else{try fail(String(localized:"plain rules are required",bundle:.checkmate))}
         guard ruleMode==objective.ruleMode,illegalInput==objective.illegalInput,actions==objective.actions else{try fail("rule mode, input policy and actions must match the objective")}
-        guard (objective == .legacyGame)==(legacyKind != nil) else{try fail("a legacy game names exactly one mini-game")}
+        guard (objective == .legacyGame)==(legacyKind != nil) else{try fail(String(localized:"a legacy game names exactly one mini-game",bundle:.checkmate))}
         // Legacy progress is stored under the mini-game's own key, so the entry carries that key as its identifier.
-        guard legacyKind.map({$0.rawValue==id}) ?? true else{try fail("a legacy game's identifier is its mini-game's")}
-        guard origin==(objective == .legacyGame ? .existing:.new) else{try fail("only legacy games are existing entries")}
-        guard !skills.isEmpty,Set(skills).count==skills.count else{try fail("skills must be listed once each")}
+        guard legacyKind.map({$0.rawValue==id}) ?? true else{try fail(String(localized:"a legacy game's identifier is its mini-game's",bundle:.checkmate))}
+        guard origin==(objective == .legacyGame ? .existing:.new) else{try fail(String(localized:"only legacy games are existing entries",bundle:.checkmate))}
+        guard !skills.isEmpty,Set(skills).count==skills.count else{try fail(String(localized:"skills must be listed once each",bundle:.checkmate))}
         guard Set(variants).count==variants.count,variants.allSatisfy({$0.range(of:Self.idPattern,options:.regularExpression) != nil}) else{try fail("invalid variants")}
         // Every scenario of a new exercise names one of its variants, so an entry without any could never be played.
-        guard objective == .legacyGame || !variants.isEmpty else{try fail("a new exercise lists its variants")}
-        guard (1...3).contains(tiers) else{try fail("one to three tiers")}
-        guard increment==objective.increment else{try fail("this objective belongs to increment \(objective.increment.rawValue)")}
+        guard objective == .legacyGame || !variants.isEmpty else{try fail(String(localized:"a new exercise lists its variants",bundle:.checkmate))}
+        guard (1...3).contains(tiers) else{try fail(String(localized:"one to three tiers",bundle:.checkmate))}
+        guard increment==objective.increment else{try fail(String(localized:"this objective belongs to increment \(objective.increment.rawValue)",bundle:.checkmate))}
     }
 }
 /// The published library: entries in display order plus their schema version.
@@ -132,11 +132,11 @@ public struct TrainingCatalog:Codable,Equatable {
     public func entry(_ id:String)->TrainingEntryDefinition? {entries.first{$0.id==id}}
     public func entries(in increment:TrainingIncrement)->[TrainingEntryDefinition] {entries.filter{$0.increment==increment}}
     public func validate()throws {
-        guard schemaVersion==Self.schemaVersion else{throw CheckmateError.invalid("Unsupported training catalog version.")}
-        guard contentVersion>=1 else{throw CheckmateError.invalid("Training content version must be positive.")}
+        guard schemaVersion==Self.schemaVersion else{throw CheckmateError.invalid(String(localized:"Unsupported training catalog version.",bundle:.checkmate))}
+        guard contentVersion>=1 else{throw CheckmateError.invalid(String(localized:"Training content version must be positive.",bundle:.checkmate))}
         for entry in entries{try entry.validate()}
         // A legacy entry's identifier is its mini-game's (entry validation), so unique identifiers also mean each mini-game appears once.
-        guard Set(entries.map(\.id)).count==entries.count else{throw CheckmateError.invalid("Duplicate training entry identifiers.")}
+        guard Set(entries.map(\.id)).count==entries.count else{throw CheckmateError.invalid(String(localized:"Duplicate training entry identifiers.",bundle:.checkmate))}
     }
     /// The published catalog from the asset bundle, validated before use.
     public static func bundled()throws -> TrainingCatalog {

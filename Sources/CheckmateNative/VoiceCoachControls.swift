@@ -5,7 +5,7 @@ import CheckmateCore
 /// connecting; otherwise Connect Voice Coach when the surface offers it. Identifiers are `<idPrefix>-<role>`.
 struct VoiceCoachControls:View {
     struct Action:Identifiable {let id:String,title:String,run:()->Void}
-    static let connectTitle="Connect Voice Coach",cancelTitle="Cancel Voice Coach",stopTitle="Stop Speaking",disconnectTitle="Disconnect Voice Coach"
+    static let connectTitle=String(localized:"Connect Voice Coach",bundle:.checkmate),cancelTitle=String(localized:"Cancel Voice Coach",bundle:.checkmate),stopTitle=String(localized:"Stop Speaking",bundle:.checkmate),disconnectTitle=String(localized:"Disconnect Voice Coach",bundle:.checkmate)
     @ObservedObject var voice:VoiceCoach
     let idPrefix:String
     /// Whether the live session is this surface's (a network or training coach belongs to its own activity).

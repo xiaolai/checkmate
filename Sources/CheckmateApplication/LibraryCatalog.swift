@@ -1,17 +1,18 @@
+import CheckmateAssets
 import CheckmateDomain
 import Foundation
 /// Which part of the library the browser shows.
 public enum LibraryScope:String,CaseIterable,Sendable,Identifiable {
     case all,worldChampionships,classics,myGames,saved
     public var id:String {rawValue}
-    public var title:String {switch self {case .all:"All";case .worldChampionships:"World Championships";case .classics:"Classics";case .myGames:"My games";case .saved:"Saved"}}
+    public var title:String {switch self {case .all:String(localized:"All",bundle:.checkmate);case .worldChampionships:String(localized:"World Championships",bundle:.checkmate);case .classics:String(localized:"Classics",bundle:.checkmate);case .myGames:String(localized:"My games",bundle:.checkmate);case .saved:String(localized:"Saved",bundle:.checkmate)}}
 }
 /// The order of the games within each section (R-21): the library's own order, or by players, date (newest first) or
 /// event; a game without the detail goes last.
 public enum LibrarySort:String,CaseIterable,Sendable,Identifiable {
     case standard,players,date,event
     public var id:String {rawValue}
-    public var title:String {switch self {case .standard:"Default Order";case .players:"Players";case .date:"Date";case .event:"Event"}}
+    public var title:String {switch self {case .standard:String(localized:"Default Order",bundle:.checkmate);case .players:String(localized:"Players",bundle:.checkmate);case .date:String(localized:"Date",bundle:.checkmate);case .event:String(localized:"Event",bundle:.checkmate)}}
 }
 /// One game as the library browser lists it, bundled or imported, with its search key computed once.
 public struct LibraryRow:Identifiable,Sendable,Equatable {
@@ -41,13 +42,13 @@ public struct LibraryCatalog:Sendable,Equatable {
     /// when it is known (mate on the board, or a reviewed termination); otherwise only who won.
     public static func ending(_ game:LibraryGame)->String {
         switch game.ending {
-        case "checkmate":"Checkmate";case "draw":"Draw";case "resignation":"Resignation";case "time":"Won on time"
-        default:game.result=="1-0" ? "White won":game.result=="0-1" ? "Black won":"Result unknown"
+        case "checkmate":String(localized:"Checkmate",bundle:.checkmate);case "draw":String(localized:"Draw",bundle:.checkmate,comment:"A game result: neither side wins");case "resignation":String(localized:"Resignation",bundle:.checkmate);case "time":String(localized:"Won on time",bundle:.checkmate)
+        default:game.result=="1-0" ? String(localized:"White won",bundle:.checkmate):game.result=="0-1" ? String(localized:"Black won",bundle:.checkmate):String(localized:"Result unknown",bundle:.checkmate)
         }
     }
     public static func facts(_ game:LibraryGame)->String {
         let moves=(game.plies+1)/2,ending=ending(game)
-        return ([ending,Plural.count(moves,one:"%d move",other:"%d moves"),game.opening?.name].compactMap{$0}).joined(separator:" · ")
+        return ([ending,String(localized:"\(moves) moves",bundle:.checkmate),game.opening?.name].compactMap{$0}).joined(separator:" · ")
     }
     static func bundledRow(_ game:LibraryGame,event:LibraryEvent?)->LibraryRow {
         // Under its event's section a championship game shows the players and game only; the full title is its label.
@@ -63,8 +64,8 @@ public struct LibraryCatalog:Sendable,Equatable {
     }
     static func collectionRow(_ record:CollectionRecord,index:Int,collection:CollectionIndex)->LibraryRow {
         func known(_ name:String)->String? {guard let value=record.tags[name]?.trimmingCharacters(in:.whitespacesAndNewlines),!value.isEmpty,value.contains(where:{$0 != "?" && $0 != "."}) else{return nil};return value}
-        let white=known("White") ?? "White",black=known("Black") ?? "Black",year=known("Date").map{String($0.prefix(4))}.flatMap{$0.allSatisfy(\.isNumber) ? $0:nil}
-        let round=known("Round").map{"Round "+$0},result=known("Result") ?? "*"
+        let white=known("White") ?? String(localized:"White",bundle:.checkmate),black=known("Black") ?? String(localized:"Black",bundle:.checkmate),year=known("Date").map{String($0.prefix(4))}.flatMap{$0.allSatisfy(\.isNumber) ? $0:nil}
+        let round=known("Round").map{String(localized:"Round ",bundle:.checkmate,comment:"A tournament round, followed by its number")+$0},result=known("Result") ?? "*"
         let details=[known("Event"),year,round].compactMap{$0}.joined(separator:" · ")
         let key=folded([white,black,known("Event") ?? "",year ?? "",known("Round") ?? "",known("Opening") ?? "",known("ECO") ?? "",known("Site") ?? ""].joined(separator:" "))
         let label=["\(white) – \(black)",known("Event"),year,result].compactMap{$0}.joined(separator:", ")
@@ -77,7 +78,7 @@ public struct LibraryCatalog:Sendable,Equatable {
         let players=entry.white != nil || entry.black != nil ? "\(entry.white ?? "White") – \(entry.black ?? "Black")":nil
         let year=entry.date.map{String($0.prefix(4))}.flatMap{$0.count==4 && $0.allSatisfy(\.isNumber) ? $0:nil}
         let details=[entry.name==nil ? nil:players,entry.event,year].compactMap{$0}.joined(separator:" · ")
-        let saved="Saved "+entry.updatedAt.formatted(date:.abbreviated,time:.shortened)
+        let saved=String(localized:"Saved ",bundle:.checkmate)+entry.updatedAt.formatted(date:.abbreviated,time:.shortened)
         let key=folded([entry.title,entry.white ?? "",entry.black ?? "",entry.event ?? "",entry.date ?? ""].joined(separator:" "))
         return LibraryRow(id:"saved:"+entry.id.uuidString,source:.saved(entry.id),title:entry.title,details:details,result:entry.result,facts:saved,accessibilityLabel:[entry.title,details.isEmpty ? nil:details,entry.result,saved].compactMap{$0}.joined(separator:", "),searchKey:key,
                           sortPlayers:players.map(folded) ?? "",sortDate:entry.date ?? "",sortEvent:folded(entry.event ?? ""))
@@ -105,12 +106,12 @@ public struct LibraryCatalog:Sendable,Equatable {
     public func sections(scope:LibraryScope,query:String,sort:LibrarySort = .standard)->[LibrarySection] {
         let words=Self.words(query)
         func keep(_ rows:[LibraryRow])->[LibraryRow] {Self.sorted(words.isEmpty ? rows:rows.filter{Self.matches($0,words:words)},by:sort)}
-        if scope == .saved {let kept=keep(saved);return kept.isEmpty ? []:[LibrarySection(id:"saved",title:"Saved reviews",kind:.saved,rows:kept)]}
+        if scope == .saved {let kept=keep(saved);return kept.isEmpty ? []:[LibrarySection(id:"saved",title:String(localized:"Saved reviews",bundle:.checkmate),kind:.saved,rows:kept)]}
         var result:[LibrarySection]=[]
         if scope == .all || scope == .worldChampionships {
             for (event,rows) in events {let kept=keep(rows);if !kept.isEmpty{result.append(LibrarySection(id:"event:"+event.id,title:event.title+" · "+event.players.joined(separator:" – "),kind:.event,rows:kept))}}
         }
-        if scope == .all || scope == .classics {let kept=keep(classics);if !kept.isEmpty{result.append(LibrarySection(id:"classics",title:"Classics",kind:.classics,rows:kept))}}
+        if scope == .all || scope == .classics {let kept=keep(classics);if !kept.isEmpty{result.append(LibrarySection(id:"classics",title:String(localized:"Classics",bundle:.checkmate),kind:.classics,rows:kept))}}
         if scope == .all || scope == .myGames {
             for (collection,rows) in collections {let kept=keep(rows);if !kept.isEmpty || words.isEmpty{result.append(LibrarySection(id:"collection:"+collection.sha256,title:collection.name,kind:.collection(nil),rows:kept))}}
             for item in broken{result.append(LibrarySection(id:"collection:"+item.id,title:item.name,kind:.collection(item),rows:[]))}

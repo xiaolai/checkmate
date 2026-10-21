@@ -70,12 +70,12 @@ public struct NetworkPublicGame:Codable,Equatable {
     /// D7) and `Assistance` when either side had any (A11). `date` is "YYYY.MM.DD"; the domain reads no calendar. An
     /// interrupted game (no outcome) has the result `*` and no Termination.
     public func recordHeaders(date:String)->[(name:String,value:String)] {
-        var headers:[(name:String,value:String)]=[("Event","Checkmate network game"),("Site","?"),("Date",date),("Round","?"),("White",whiteName ?? "?"),("Black",blackName ?? "?"),("Result",outcome?.result.rawValue ?? "*")]
+        var headers:[(name:String,value:String)]=[("Event","Checkmate network game"),("Site","?"),("Date",date),("Round","?"),("White",whiteName ?? "?"),("Black",blackName ?? "?"),("Result",outcome?.result.rawValue ?? "*")] // not localized: the shared network game record
         // Review replays from a declared start; a standard-start record has neither tag, as in 1.1.
         if let startFEN {headers+=[("SetUp","1"),("FEN",startFEN)]}
         headers.append(("TimeControl",timeControl.pgnValue))
-        if assistance != .off {headers.append(("Assistance",assistance.recordValue))}
-        if let outcome {headers.append(("Termination",outcome.termination.pgnValue))}
+        if assistance != .off {headers.append(("Assistance",assistance.recordValue))} // not localized: the shared network game record
+        if let outcome {headers.append(("Termination",outcome.termination.pgnValue))} // not localized: the shared network game record
         return headers
     }
 }

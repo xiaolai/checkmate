@@ -1,3 +1,4 @@
+import CheckmateAssets
 import CheckmateDomain
 import Foundation
 /// Whether the learner is in a network game, seated or watching (LAN-play plan D8). It is set from `seated` or
@@ -51,7 +52,7 @@ import Foundation
     public func voiceAllowed(network:Bool)->Bool {network ? networkAssistance >= .hints:engineHelpAllowed}
     /// The error code MCP tools and refused calls carry while participating (D15).
     public static let refusal="NETWORK_GAME"
-    public static let practicePaused="Paused during your network game"
-    public static let analysisHidden="Analysis is hidden during your network game"
-    public static let destinationUnavailable="Finish your network game first."
+    public static let practicePaused=String(localized:"Paused during your network game",bundle:.checkmate)
+    public static let analysisHidden=String(localized:"Analysis is hidden during your network game",bundle:.checkmate)
+    public static let destinationUnavailable=String(localized:"Finish your network game first.",bundle:.checkmate)
 }

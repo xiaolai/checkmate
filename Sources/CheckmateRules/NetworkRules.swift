@@ -1,3 +1,4 @@
+import CheckmateAssets
 import CheckmateDomain
 import Foundation
 /// The network game's view of `ChessRules` (D2, D5, D6), built only on the throwing queries: a runtime failure is an
@@ -5,7 +6,7 @@ import Foundation
 extension ChessRules:NetworkChessRules {
     public func networkFEN()throws -> String {
         let fen=try currentFEN()
-        guard fen.split(separator:" ",omittingEmptySubsequences:false).count==6 else{throw NetworkRulesError.unexpected("The position has no six-field FEN.")}
+        guard fen.split(separator:" ",omittingEmptySubsequences:false).count==6 else{throw NetworkRulesError.unexpected(String(localized:"The position has no six-field FEN.",bundle:.checkmate))}
         return fen
     }
     public func networkSideToMove()throws -> NetworkSide {try currentTurn()=="w" ? .white:.black}
@@ -14,7 +15,7 @@ extension ChessRules:NetworkChessRules {
     public func networkPlay(uci:String)throws -> NetworkPlayedMove {
         guard ChessNotation.validUCI(uci),let legal=try legalMoves().first(where:{$0.uci==uci}) else{throw NetworkRulesError.illegalMove}
         let played=try move(legal.from,legal.to,legal.promotion ?? "q")
-        guard played.uci==uci else{throw NetworkRulesError.unexpected("The rules played another move.")}
+        guard played.uci==uci else{throw NetworkRulesError.unexpected(String(localized:"The rules played another move.",bundle:.checkmate))}
         return NetworkPlayedMove(uci:played.uci,san:played.san)
     }
     public func networkAutomaticEnding()throws -> NetworkAutomaticEnding? {
@@ -27,7 +28,7 @@ extension ChessRules:NetworkChessRules {
         case "neither side has enough material to checkmate"?:return .insufficientMaterial
         case "the 75-move rule"?:return .seventyFiveMoves
         case "fivefold repetition"?:return .fivefold
-        case let other?:throw NetworkRulesError.unexpected("Unknown automatic draw: \(other).")
+        case let other?:throw NetworkRulesError.unexpected(String(localized:"Unknown automatic draw: \(other).",bundle:.checkmate))
         }
     }
     public func networkClaimableDraw()throws -> NetworkTermination? {
@@ -35,13 +36,13 @@ extension ChessRules:NetworkChessRules {
         case nil:return nil
         case "threefold repetition"?:return .repetition
         case "the 50-move rule"?:return .fiftyMoves
-        case let other?:throw NetworkRulesError.unexpected("Unknown claimable draw: \(other).")
+        case let other?:throw NetworkRulesError.unexpected(String(localized:"Unknown claimable draw: \(other).",bundle:.checkmate))
         }
     }
     public func networkHasOnlyKing(_ side:NetworkSide)throws -> Bool {try currentBoard().values.filter{$0.hasPrefix(side.rawValue)}==[side.rawValue+"k"]}
     /// `pgn` is a convenience read that is empty only on a runtime failure (a record always ends in a result token),
     /// so an empty one is that failure.
-    public func networkPGN()throws -> String {let record=pgn;guard !record.isEmpty else{throw NetworkRulesError.unexpected("The game record could not be read.")};return record}
+    public func networkPGN()throws -> String {let record=pgn;guard !record.isEmpty else{throw NetworkRulesError.unexpected(String(localized:"The game record could not be read.",bundle:.checkmate))};return record}
     public func networkLoad(pgn:String)throws {try restore(pgn)}
     public func networkMoves()throws -> [String] {try moveHistory().map(\.uci)}
     /// Loads the position, then loads the FEN chess.js wrote back for it, so the game and its record's FEN header are

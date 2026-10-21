@@ -1,3 +1,4 @@
+import CheckmateAssets
 import CheckmateDomain
 import CheckmateApplication
 import CheckmateSupport
@@ -13,11 +14,11 @@ public enum CompanionState:CaseIterable,Equatable,Sendable {
     case off,starting,waiting,waitingForVoice,paused,connected
     public var text:String {
         switch self {
-        case .off:return "Not connected"
-        case .starting:return "Starting…"
-        case .waiting:return "Waiting for a Codex task to connect"
-        case .waitingForVoice:return "Codex can connect once you disconnect the voice coach."
-        case .paused:return "Paused — show Checkmate to continue"
+        case .off:return String(localized:"Not connected",bundle:.checkmate)
+        case .starting:return String(localized:"Starting…",bundle:.checkmate)
+        case .waiting:return String(localized:"Waiting for a Codex task to connect",bundle:.checkmate)
+        case .waitingForVoice:return String(localized:"Codex can connect once you disconnect the voice coach.",bundle:.checkmate)
+        case .paused:return String(localized:"Paused — show Checkmate to continue",bundle:.checkmate)
         case .connected:return "A Codex task is connected"
         }
     }
@@ -27,10 +28,10 @@ public enum CompanionProblem:CaseIterable,Equatable,Sendable {
     case discoveryFailed,listenerFailed,voiceConnected,startFailed
     public var message:String {
         switch self {
-        case .discoveryFailed:return "Checkmate could not save the file Codex uses to find it. Turn on Allow Codex connections to try again."
-        case .listenerFailed:return "Checkmate could not open a connection for Codex on this Mac. Turn on Allow Codex connections to try again."
-        case .voiceConnected:return "Codex cannot connect while the voice coach is connected. Disconnect the voice coach, then turn on Allow Codex connections."
-        case .startFailed:return "Checkmate could not start the Codex companion. Turn on Allow Codex connections to try again."
+        case .discoveryFailed:return String(localized:"Checkmate could not save the file Codex uses to find it. Turn on Allow Codex connections to try again.",bundle:.checkmate)
+        case .listenerFailed:return String(localized:"Checkmate could not open a connection for Codex on this Mac. Turn on Allow Codex connections to try again.",bundle:.checkmate)
+        case .voiceConnected:return String(localized:"Codex cannot connect while the voice coach is connected. Disconnect the voice coach, then turn on Allow Codex connections.",bundle:.checkmate)
+        case .startFailed:return String(localized:"Checkmate could not start the Codex companion. Turn on Allow Codex connections to try again.",bundle:.checkmate)
         }
     }
 }
@@ -119,9 +120,9 @@ public enum CompanionProblem:CaseIterable,Equatable,Sendable {
         }}}
     private func authenticate(_ h:[String:String],claim:Bool) throws -> String {
         guard enabled else{throw ProtocolFailure("DISABLED")};guard h["origin"]==nil,h["host"]=="127.0.0.1:\(port)",h["authorization"]=="Bearer \(authorizationNonce)" else{throw ProtocolFailure("NOT_AUTHORIZED")}
-        guard !session.suspended else{throw ProtocolFailure("APP_SUSPENDED")};guard session.voiceLease==nil else{throw ProtocolFailure("SESSION_IN_USE","The voice coach is connected in Checkmate. Calls are refused, not queued: ask the learner to disconnect voice in Checkmate to let Codex connect.")};guard let client=h["x-checkmate-client"],UUID(uuidString:client) != nil else{throw ProtocolFailure("INVALID_ARGUMENT")}
-        guard !revokedClients.contains(client) else{throw ProtocolFailure("DISCONNECTED_BY_USER","The learner disconnected this companion in Checkmate. Start a new Codex task to connect again.")}
-        if let owner=owner{guard owner==client else{throw ProtocolFailure("SESSION_IN_USE","Another Codex task is connected to Checkmate. Use one companion conversation at a time.")}}else if claim{owner=client;lease=UUID().uuidString;connected=true;state = .connected;session.setConnection(enabled:true,role:configuredRole,lease:lease)}else{throw ProtocolFailure("NOT_CONNECTED")};touched=now();return lease!
+        guard !session.suspended else{throw ProtocolFailure("APP_SUSPENDED")};guard session.voiceLease==nil else{throw ProtocolFailure("SESSION_IN_USE","The voice coach is connected in Checkmate. Calls are refused, not queued: ask the learner to disconnect voice in Checkmate to let Codex connect.")};guard let client=h["x-checkmate-client"],UUID(uuidString:client) != nil else{throw ProtocolFailure("INVALID_ARGUMENT")} // not localized: model-facing refusal
+        guard !revokedClients.contains(client) else{throw ProtocolFailure("DISCONNECTED_BY_USER","The learner disconnected this companion in Checkmate. Start a new Codex task to connect again.")} // not localized: model-facing refusal
+        if let owner=owner{guard owner==client else{throw ProtocolFailure("SESSION_IN_USE","Another Codex task is connected to Checkmate. Use one companion conversation at a time.")}}else if claim{owner=client;lease=UUID().uuidString;connected=true;state = .connected;session.setConnection(enabled:true,role:configuredRole,lease:lease)}else{throw ProtocolFailure("NOT_CONNECTED")};touched=now();return lease! // not localized: model-facing refusal
     }
     private func handle(_ c:NWConnection,path:String,headers:[String:String],body:Data){do {
         guard let a=(try? JSONSerialization.jsonObject(with:body)) as? [String:Any] else{throw ProtocolFailure("INVALID_ARGUMENT")};let lease=try authenticate(headers,claim:path=="/rpc")

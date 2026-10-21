@@ -14,7 +14,7 @@ struct ReviewWorkspaceContent:View {
                 Button("Open PGN…"){model.openPGN()}.buttonStyle(.borderedProminent)
                 Menu("More Ways to Review"){secondaryActions}.fixedSize().accessibilityIdentifier("review-start-more")
             }
-            Text(model.session.rules.history.isEmpty ? "Play a move to review your current game. You can also drop a PGN file on the window.":"You can also drop a PGN file on the window.").font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.center)
+            Text(model.session.rules.history.isEmpty ? String(localized:"Play a move to review your current game. You can also drop a PGN file on the window.",bundle:.checkmate):String(localized:"You can also drop a PGN file on the window.",bundle:.checkmate)).font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.center)
         }.fixedSize(horizontal:false,vertical:true)
         GameLibraryBrowser(model:model,library:model.library).frame(maxHeight:.infinity)
         Button("Return to Game"){model.returnToGame()}.buttonStyle(.borderless)
@@ -39,8 +39,8 @@ struct ReviewDetailContent:View {
             ReviewMoveSection(review:review,model:model,analyzer:analyzer,document:d)
             ReviewPositionPanel(review:review,model:model,analyzer:analyzer,document:d)
             if !review.authoredBranches.isEmpty{DisclosureGroup("My imagined lines (\(review.authoredBranches.count) of \(ReviewPolicy.maximumBranches))"){VStack(alignment:.leading,spacing:Metrics.tightGap){ForEach(review.authoredBranches,id:\.id){branch in HStack{
-                Button(ReviewFormat.ideaLabel(d,branch)){do{try review.openSavedBranch(branch.id)}catch{model.storageError=userFacingMessage(error,fallback:"This imagined line could not be opened.")}}.buttonStyle(.link)
-                Spacer();Button("Delete",role:.destructive){do{try review.deleteBranch(branch.id);model.saveReview()}catch{model.storageError=userFacingMessage(error,fallback:"This imagined line could not be deleted.")}}.controlSize(.small).accessibilityLabel("Delete idea: \(ReviewFormat.ideaLabel(d,branch))")}}}.padding(.top,Metrics.tightGap)}}
+                Button(ReviewFormat.ideaLabel(d,branch)){do{try review.openSavedBranch(branch.id)}catch{model.storageError=userFacingMessage(error,fallback:String(localized:"This imagined line could not be opened.",bundle:.checkmate))}}.buttonStyle(.link)
+                Spacer();Button("Delete",role:.destructive){do{try review.deleteBranch(branch.id);model.saveReview()}catch{model.storageError=userFacingMessage(error,fallback:String(localized:"This imagined line could not be deleted.",bundle:.checkmate))}}.controlSize(.small).accessibilityLabel("Delete idea: \(ReviewFormat.ideaLabel(d,branch))")}}}.padding(.top,Metrics.tightGap)}}
             ReviewVoiceSection(voice:voice,connect:{[weak model] in model?.connectVoiceFromSettings()})
             // The review control bar has no way back to the game, and the workspace hides it.
             Button("Return to Game"){model.returnToGame()}.buttonStyle(.borderless)
@@ -96,7 +96,7 @@ struct EngineEloControl:View {
     @ObservedObject var engine:NativeEngine
     @Binding var value:Int
     @State private var unavailable=false
-    var body:some View {Group{if let range=engine.capabilities.eloRange{let shown=min(max(value,range.lowerBound),range.upperBound);Stepper("Engine estimate: \(shown)",value:Binding(get:{shown},set:{value=$0}),in:range,step:50)}else{Text(unavailable ? "This engine does not provide an Elo setting. Use Stockfish skill instead.":"Checking engine strength settings…").foregroundStyle(.secondary)}}.task{do{try await engine.prepare();unavailable=engine.capabilities.eloRange==nil}catch{unavailable=true}}}
+    var body:some View {Group{if let range=engine.capabilities.eloRange{let shown=min(max(value,range.lowerBound),range.upperBound);Stepper("Engine estimate: \(shown)",value:Binding(get:{shown},set:{value=$0}),in:range,step:50)}else{Text(unavailable ? String(localized:"This engine does not provide an Elo setting. Use Stockfish skill instead.",bundle:.checkmate):String(localized:"Checking engine strength settings…",bundle:.checkmate)).foregroundStyle(.secondary)}}.task{do{try await engine.prepare();unavailable=engine.capabilities.eloRange==nil}catch{unavailable=true}}}
 }
 
 struct ReviewPracticeSheet:View {
@@ -109,7 +109,7 @@ struct ReviewPracticeSheet:View {
     // Starts at the learner's current opponent rather than silently switching to custom settings.
     init(model:NativeModel){self.model=model;let current=model.session.state.settings.opponentPreset;_preset=State(initialValue:current=="first_steps" && !ReviewRolloutPolicy.beginnerOpponentEnabled ? "custom":current);_target=State(initialValue:model.review.practiceForkTarget)}
     private func stillShown()->Bool {
-        guard target != nil,model.review.practiceForkTarget==target else{model.practiceForkRequested=false;model.storageError="The review changed while this was open, so nothing was started or saved. Choose Practice Here again.";return false};return true
+        guard target != nil,model.review.practiceForkTarget==target else{model.practiceForkRequested=false;model.storageError=String(localized:"The review changed while this was open, so nothing was started or saved. Choose Practice Here again.",bundle:.checkmate);return false};return true
     }
     var body:some View {VStack(alignment:.leading,spacing:Metrics.sectionGap){
         Text("Practice from this position").sectionHeading()

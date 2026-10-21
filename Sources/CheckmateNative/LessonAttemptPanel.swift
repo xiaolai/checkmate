@@ -11,19 +11,19 @@ struct LessonAttemptPanel:View {
     private var practice:LessonPractice? {attempt.practice}
     private var headline:String {
         guard let phase=attempt.phase else{return ""}
-        if attempt.waitingToResume{return "Your attempt is paused."}
-        if attempt.thinking{return "The computer is thinking…"}
+        if attempt.waitingToResume{return String(localized:"Your attempt is paused.",bundle:.checkmate)}
+        if attempt.thinking{return String(localized:"The computer is thinking…",bundle:.checkmate)}
         switch phase {
-        case .yourTurn:return "Your turn. Move a White piece on the board."
-        case .computerTurn:return "The computer is about to move."
-        case .offTrack:return "Not quite. Take back your move and try again."
-        case .failed:return "This attempt cannot reach the goal any more."
-        case .achieved:return "Well done!"
-        case .playingOn:return attempt.rules.turn=="w" ? "Play on: your move.":"Play on: the computer is about to move."
-        case .finished:return "The game is over."
+        case .yourTurn:return String(localized:"Your turn. Move a White piece on the board.",bundle:.checkmate)
+        case .computerTurn:return String(localized:"The computer is about to move.",bundle:.checkmate)
+        case .offTrack:return String(localized:"Not quite. Take back your move and try again.",bundle:.checkmate)
+        case .failed:return String(localized:"This attempt cannot reach the goal any more.",bundle:.checkmate)
+        case .achieved:return String(localized:"Well done!",bundle:.checkmate)
+        case .playingOn:return attempt.rules.turn=="w" ? String(localized:"Play on: your move.",bundle:.checkmate):String(localized:"Play on: the computer is about to move.",bundle:.checkmate)
+        case .finished:return String(localized:"The game is over.",bundle:.checkmate)
         }
     }
-    private var hintLabel:String {attempt.canShowMove ? "Show me a move":(attempt.record?.hints ?? 0)==0 ? "Hint":"Another hint"}
+    private var hintLabel:String {attempt.canShowMove ? String(localized:"Show me a move",bundle:.checkmate):(attempt.record?.hints ?? 0)==0 ? String(localized:"Hint",bundle:.checkmate,comment:"Noun: ask for a hint"):String(localized:"Another hint",bundle:.checkmate)}
     var body:some View {
         VStack(alignment:.leading,spacing:Metrics.smallGap) {
             Text(headline).font(.headline).accessibilityIdentifier("lesson-attempt-status")
@@ -31,7 +31,7 @@ struct LessonAttemptPanel:View {
             ForEach(Array(zip(practice?.checkpoints ?? [],attempt.judgement?.done ?? []).enumerated()),id:\.offset){_,item in
                 Label(item.0.label,systemImage:(item.1 ? AppSymbol.done:.markerOff).rawValue)
                     .foregroundStyle(item.1 ? Color.accentColor:Color.secondary)
-                    .accessibilityLabel(item.0.label+(item.1 ? ", done":", not done yet"))
+                    .accessibilityLabel(item.0.label+(item.1 ? ", done":String(localized:", not done yet",bundle:.checkmate)))
             }
             if learning.playing,attempt.hasMoves {Text("The instruction describes the starting position; your game stays as it is.").font(.caption).foregroundStyle(.secondary)}
             if let text=attempt.notice ?? attempt.judgement?.feedback {Text(text).textSelection(.enabled).accessibilityIdentifier("lesson-attempt-feedback")}

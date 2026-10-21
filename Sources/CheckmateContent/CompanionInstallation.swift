@@ -1,3 +1,4 @@
+import CheckmateAssets
 import CheckmateDomain
 import CheckmateSupport
 import CodexAuth
@@ -42,11 +43,11 @@ public enum CompanionInstallation {
     }
     @discardableResult public static func register(executable: URL, codex: URL, skill: Data, bundleIdentifier: String? = Bundle.main.bundleIdentifier, home: URL = FileManager.default.homeDirectoryForCurrentUser, environment: [String: String] = ProcessInfo.processInfo.environment) throws -> SkillState {
         guard FileManager.default.isExecutableFile(atPath: executable.path), FileManager.default.isExecutableFile(atPath: codex.path) else {
-            throw CheckmateError.unavailable("Install Codex on this Mac first.")
+            throw CheckmateError.unavailable(String(localized:"Install Codex on this Mac first.",bundle:.checkmate))
         }
         // Automation never registers with the learner's real Codex (tests pass a stand-in executable).
         if NativePolicy.silent, let real = installedCodex(), codex.resolvingSymlinksInPath() == real.resolvingSymlinksInPath() {
-            throw CheckmateError.unavailable("Codex setup is disabled during automation.")
+            throw CheckmateError.unavailable(String(localized:"Codex setup is disabled during automation.",bundle:.checkmate))
         }
         let skillFile = skillFile(home: home, bundleIdentifier: bundleIdentifier), state = skillState(bundled: skill, bundleIdentifier: bundleIdentifier, home: home)
         let text = installedText(skill, bundleIdentifier: bundleIdentifier)
@@ -58,18 +59,18 @@ public enum CompanionInstallation {
         // A current copy is exactly Checkmate's text too: record it, or a missing or stale marker makes the next update see it as customized.
         if state != .customized { try Data(hash(text).utf8).write(to: markerFile(home: home, bundleIdentifier: bundleIdentifier), options: .atomic) }
         try runCodex(codex, arguments(executable: executable, bundleIdentifier: bundleIdentifier), environment: environment,
-                     timedOut: "Codex setup timed out. Try again after restarting Codex.", failed: "Codex setup failed. Check that Codex is installed and try again.")
+                     timedOut: String(localized:"Codex setup timed out. Try again after restarting Codex.",bundle:.checkmate), failed: String(localized:"Codex setup failed. Check that Codex is installed and try again.",bundle:.checkmate))
         return skillState(bundled: skill, bundleIdentifier: bundleIdentifier, home: home)
     }
     /// Undoes Set up Codex: removes this build's MCP registration and Checkmate's own skill copy. A customized
     /// skill is kept, and so is anything else the learner added to its folder.
     @discardableResult public static func unregister(codex: URL, bundleIdentifier: String? = Bundle.main.bundleIdentifier, home: URL = FileManager.default.homeDirectoryForCurrentUser, bundledSkill: Data, environment: [String: String] = ProcessInfo.processInfo.environment) throws -> SkillRemoval {
         if NativePolicy.silent, let real = installedCodex(), codex.resolvingSymlinksInPath() == real.resolvingSymlinksInPath() {
-            throw CheckmateError.unavailable("Codex setup is disabled during automation.")
+            throw CheckmateError.unavailable(String(localized:"Codex setup is disabled during automation.",bundle:.checkmate))
         }
         let name = isRelease(bundleIdentifier) ? "checkmate" : "checkmate-development"
         try runCodex(codex, ["mcp", "remove", name], environment: environment,
-                     timedOut: "Codex did not respond. Try again after restarting Codex.", failed: "Codex could not remove the Checkmate connection. It may already be removed.")
+                     timedOut: String(localized:"Codex did not respond. Try again after restarting Codex.",bundle:.checkmate), failed: String(localized:"Codex could not remove the Checkmate connection. It may already be removed.",bundle:.checkmate))
         switch skillState(bundled: bundledSkill, bundleIdentifier: bundleIdentifier, home: home) {
         case .notInstalled: return .absent
         case .customized: return .kept
@@ -253,7 +254,7 @@ public enum CompanionInstallation {
         }
         var volume = statfs()
         if statfs(bundle.path, &volume) == 0, volume.f_flags & UInt32(MNT_RDONLY) != 0 {
-            return "Checkmate is running from a read-only disk image, which disappears when it is ejected. Drag Checkmate to the Applications folder, open it from there, then choose Set up Codex."
+            return String(localized:"Checkmate is running from a read-only disk image, which disappears when it is ejected. Drag Checkmate to the Applications folder, open it from there, then choose Set up Codex.",bundle:.checkmate)
         }
         return nil
     }

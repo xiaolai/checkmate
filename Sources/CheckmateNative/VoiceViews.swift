@@ -32,7 +32,7 @@ struct VoiceCoachCard:View {
         let unavailable=voice.practiceVoiceUnavailability
         if voice.connected {
             Text(voice.status).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
-            VoiceCoachControls(voice:voice,idPrefix:"voice",actions:[.init(id:"recheck",title:"Check That Again"){voice.recheck()}])
+            VoiceCoachControls(voice:voice,idPrefix:"voice",actions:[.init(id:"recheck",title:String(localized:"Check That Again",bundle:.checkmate)){voice.recheck()}])
         } else if voice.connecting {
             Text(voice.status).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
             VoiceCoachControls(voice:voice,idPrefix:"voice")
@@ -52,7 +52,7 @@ struct VoiceCoachCard:View {
         if unavailable == nil || voice.connected {
             TextField("Ask the Coach…",text:$help.draft).onSubmit{help.submit()}.disabled(voice.connecting).accessibilityIdentifier("voice-ask")
         }
-        ForEach(Array(voice.history.reversed())){entry in VStack(alignment:.leading){Text(entry.role=="learner" ? "You":"Coach").font(.caption).foregroundStyle(.secondary);Text(entry.text).textSelection(.enabled)}}
+        ForEach(Array(voice.history.reversed())){entry in VStack(alignment:.leading){Text(entry.role=="learner" ? String(localized:"You",bundle:.checkmate):String(localized:"Coach",bundle:.checkmate)).font(.caption).foregroundStyle(.secondary);Text(entry.text).textSelection(.enabled)}}
     }
 }
 
@@ -63,7 +63,7 @@ struct VoiceSettingsContent:View {
     /// What this Mac still needs for voice, one line each; nothing before the check, or when voice can work.
     static func needs(_ capability:VoiceCapability?)->[String] {
         guard let capability,!capability.signInFileFound else{return []}
-        return (capability.codexInstalled ? []:["The Codex app from OpenAI, installed on this Mac."])+["A Codex sign-in with your ChatGPT account."]
+        return (capability.codexInstalled ? []:[String(localized:"The Codex app from OpenAI, installed on this Mac.",bundle:.checkmate)])+["A Codex sign-in with your ChatGPT account."]
     }
     @ObservedObject var session:GameSession
     @ObservedObject var voice:VoiceCoach
@@ -104,10 +104,10 @@ struct VoiceSettingsContent:View {
                 ForEach(CoachThinking.allCases,id:\.self){Text($0.title).tag($0.rawValue)}
                 if Self.thinking(effort:settings.coachReasoningEffort)==nil{Text("Custom: \(CoachThinking.name(effort:settings.coachReasoningEffort))").tag(settings.coachReasoningEffort)}
             }.accessibilityIdentifier("coach-thinking")
-            Text(Self.thinking(effort:settings.coachReasoningEffort)?.detail ?? "Chosen under Advanced.").font(.caption).foregroundStyle(.secondary)
+            Text(Self.thinking(effort:settings.coachReasoningEffort)?.detail ?? String(localized:"Chosen under Advanced.",bundle:.checkmate)).font(.caption).foregroundStyle(.secondary)
             Toggle("Show Advanced Settings",isOn:$advanced).accessibilityIdentifier("coach-advanced")
             if advanced {
-                Text(voice.selectedModel.isEmpty ? "Coach: chosen automatically, the newest one your account can use":"Coach: chosen automatically · \(voice.selectedModel)").foregroundStyle(.secondary)
+                Text(voice.selectedModel.isEmpty ? String(localized:"Coach: chosen automatically, the newest one your account can use",bundle:.checkmate):String(localized:"Coach: chosen automatically · \(voice.selectedModel)",bundle:.checkmate)).foregroundStyle(.secondary)
                 Picker("Reasoning effort",selection:binding(\.coachReasoningEffort)){ForEach(AppSettings.reasoningEfforts,id:\.self){Text(CoachThinking.name(effort:$0)).tag($0)}}.accessibilityIdentifier("coach-reasoning-effort")
                 Text("Longer thinking may take longer to answer and uses more of your account. Changes apply to the next answer.").font(.caption).foregroundStyle(.secondary)
             }
@@ -117,7 +117,7 @@ struct VoiceSettingsContent:View {
             if voice.connected && voice.activeVoice != settings.coachVoice{Text("Reconnect to use the selected voice.").font(.caption).foregroundStyle(.secondary)}
             Picker("Response language",selection:binding(\.voiceLanguage)){ForEach(AppSettings.languages.keys.sorted(),id:\.self){Text(AppSettings.languages[$0]!).tag($0)}}
             Slider(value:binding(\.voiceVolume),in:0...1){Text("Coach volume")}
-            Button(preview.playing ? "Stop Preview":"Preview Voice"){model.previewVoice()}.accessibilityIdentifier("coach-voice-preview")
+            Button(preview.playing ? String(localized:"Stop Preview",bundle:.checkmate):String(localized:"Preview Voice",bundle:.checkmate)){model.previewVoice()}.accessibilityIdentifier("coach-voice-preview")
             if !preview.status.isEmpty{Text(preview.status).font(.caption).foregroundStyle(.secondary)}
         }
         Section {

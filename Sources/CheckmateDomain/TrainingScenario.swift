@@ -1,3 +1,4 @@
+import CheckmateAssets
 import Foundation
 /// Who wrote and who checked a curated scenario, and which validator accepted it. `reviewer` stays nil until an
 /// editor has actually reviewed the content; machine validation is recorded separately as `validatorVersion`.
@@ -178,73 +179,73 @@ public struct TrainingScenario:Codable,Equatable,Identifiable {
         guard id.count<=96,id.range(of:"\\A[a-z0-9]+([:-][a-z0-9]+)*\\z",options:.regularExpression) != nil else{try fail("invalid identifier")}
         guard entry==definition.id,definition.variants.contains(variant),(1...definition.tiers).contains(tier),!cluster.isEmpty else{try fail("entry, variant, tier or cluster does not match the catalog")}
         guard ["w","b"].contains(learner),!prompt.isEmpty,!explanation.isEmpty,!hints.isEmpty else{try fail("learner, prompt, explanation and hints are required")}
-        guard (review != nil) != (generation != nil) else{try fail("a scenario is either curated (reviewed) or generated, not both")}
+        guard (review != nil) != (generation != nil) else{try fail(String(localized:"a scenario is either curated (reviewed) or generated, not both",bundle:.checkmate))}
         let squares=[target].compactMap{$0}+(diagram.map{Array($0.keys)} ?? [])+(expected?.squares ?? [])
         guard squares.allSatisfy(ChessNotation.validSquare),diagram?.values.allSatisfy(Self.validPiece) ?? true,((expected?.moves ?? [])+(expected?.wrong ?? [])+(prelude ?? [])).allSatisfy(ChessNotation.validUCI) else{try fail("invalid square, piece or move")}
         try validateRuleMode(definition.ruleMode)
-        guard (focus ?? []).allSatisfy(ChessNotation.validSquare),(stated ?? []).allSatisfy(ChessNotation.validUCI),askColor.map({["w","b"].contains($0)}) ?? true else{try fail("invalid focus square, stated move or asked color")}
+        guard (focus ?? []).allSatisfy(ChessNotation.validSquare),(stated ?? []).allSatisfy(ChessNotation.validUCI),askColor.map({["w","b"].contains($0)}) ?? true else{try fail(String(localized:"invalid focus square, stated move or asked color",bundle:.checkmate))}
         guard definition.increment == .beginner else {
-            guard check==nil,goal==nil,plies==nil,nodes==nil,stated==nil,askColor==nil,skills==nil,primarySkill==nil,source==nil,bridge==nil,workflow==nil,keep==nil else{try fail("Increment B fields on an Increment A scenario")}
+            guard check==nil,goal==nil,plies==nil,nodes==nil,stated==nil,askColor==nil,skills==nil,primarySkill==nil,source==nil,bridge==nil,workflow==nil,keep==nil else{try fail(String(localized:"Increment B fields on an Increment A scenario",bundle:.checkmate))}
             return
         }
         try validateBeginner(definition)
     }
-    private func fail(_ reason:String)throws -> Never {throw CheckmateError.invalid("Training scenario \(id): \(reason)")}
+    private func fail(_ reason:String)throws -> Never {throw CheckmateError.invalid(String(localized:"Training scenario \(id): \(reason)",bundle:.checkmate))}
     /// A colour and a piece letter, such as `wn`.
     private static func validPiece(_ piece:String)->Bool {piece.count==2 && piece.first.map{"wb".contains($0)}==true && piece.last.map{"pnbrqk".contains($0)}==true}
     /// The payload the entry's rule mode reads, and nothing it does not.
     private func validateRuleMode(_ mode:TrainingRuleMode)throws {
         switch mode {
-        case .standardChess:guard fen != nil,diagram==nil,drill==nil else{try fail("standard chess needs a FEN and no diagram")}
-        case .recognitionDiagram:guard let diagram,fen==nil,drill==nil,let target,!diagram.isEmpty,diagram.count<=32 else{try fail("a recognition diagram needs pieces and a marked square, and no drill")};_ = target
+        case .standardChess:guard fen != nil,diagram==nil,drill==nil else{try fail(String(localized:"standard chess needs a FEN and no diagram",bundle:.checkmate))}
+        case .recognitionDiagram:guard let diagram,fen==nil,drill==nil,let target,!diagram.isEmpty,diagram.count<=32 else{try fail(String(localized:"a recognition diagram needs pieces and a marked square, and no drill",bundle:.checkmate))};_ = target
         case .movementDrill:
-            guard let drill,let budget,budget>=1,fen==nil else{try fail("a movement drill needs its piece and a move budget")}
+            guard let drill,let budget,budget>=1,fen==nil else{try fail(String(localized:"a movement drill needs its piece and a move budget",bundle:.checkmate))}
             // The drill's own encoding first: its colour and every move it allows are derived from these.
             guard Self.validPiece(drill.piece),ChessNotation.validSquare(drill.start),ChessNotation.validSquare(drill.target),drill.pieces[drill.start]==nil,
-                  drill.pieces.allSatisfy({ChessNotation.validSquare($0.key) && Self.validPiece($0.value)}) else{try fail("invalid drill piece, square or fixed piece")}
-            guard drill.color==Character(learner) else{try fail("the drill's piece is not the learner's")}
-            guard drill.pieces.values.filter({$0.first != drill.color}).count<=MovementDrill.maximumEnemies else{try fail("too many enemy pieces for an exact route search")}
-        case .simplifiedVariant:try fail("existing games have no scenarios")
+                  drill.pieces.allSatisfy({ChessNotation.validSquare($0.key) && Self.validPiece($0.value)}) else{try fail(String(localized:"invalid drill piece, square or fixed piece",bundle:.checkmate))}
+            guard drill.color==Character(learner) else{try fail(String(localized:"the drill's piece is not the learner's",bundle:.checkmate))}
+            guard drill.pieces.values.filter({$0.first != drill.color}).count<=MovementDrill.maximumEnemies else{try fail(String(localized:"too many enemy pieces for an exact route search",bundle:.checkmate))}
+        case .simplifiedVariant:try fail(String(localized:"existing games have no scenarios",bundle:.checkmate))
         }
     }
     /// Increment B: the evaluator, its goal and horizon, its teaching graph and its question format.
     private func validateBeginner(_ definition:TrainingEntryDefinition)throws {
         guard let check else{try fail("an Increment B scenario names its evaluator")}
         if definition.objective == .mixedPractice {
-            guard TrainingCheck.mixed.contains(check) else{try fail("\(check.rawValue) is not a mixed-practice evaluator")}
-            guard let skills,!skills.isEmpty,let primarySkill,skills.contains(primarySkill) else{try fail("a mixed case lists its skills and primary skill")}
+            guard TrainingCheck.mixed.contains(check) else{try fail(String(localized:"\(check.rawValue) is not a mixed-practice evaluator",bundle:.checkmate))}
+            guard let skills,!skills.isEmpty,let primarySkill,skills.contains(primarySkill) else{try fail(String(localized:"a mixed case lists its skills and primary skill",bundle:.checkmate))}
         } else {
             guard check==TrainingCheck.focused(definition.objective,variant:variant) else{try fail("variant \(variant) is graded by another evaluator")}
-            guard skills==nil,primarySkill==nil,source==nil else{try fail("only mixed cases carry skill rows")}
+            guard skills==nil,primarySkill==nil,source==nil else{try fail(String(localized:"only mixed cases carry skill rows",bundle:.checkmate))}
         }
         if check.searched {
-            guard let goal,let plies,(1...5).contains(plies),plies % 2==1 else{try fail("a searched objective needs a goal and an odd horizon of one to five plies")}
+            guard let goal,let plies,(1...5).contains(plies),plies % 2==1 else{try fail(String(localized:"a searched objective needs a goal and an odd horizon of one to five plies",bundle:.checkmate))}
             switch goal.kind {
-            case .survive:guard let target=goal.target,ChessNotation.validSquare(target),check == .defense else{try fail("a survival goal names its target and belongs to Save Your Piece")}
-            case .gain:guard goal.target==nil,goal.threshold>0,check != .defense else{try fail("a gain goal has a positive threshold and no target")}
-            case .hold:guard goal.target==nil,goal.threshold<=0,check != .defense else{try fail("a hold goal has a threshold of zero or less and no target")}
-            case .checkmate,.promoteAndHold:try fail("a position game's goal belongs to a position game")
+            case .survive:guard let target=goal.target,ChessNotation.validSquare(target),check == .defense else{try fail(String(localized:"a survival goal names its target and belongs to Save Your Piece",bundle:.checkmate))}
+            case .gain:guard goal.target==nil,goal.threshold>0,check != .defense else{try fail(String(localized:"a gain goal has a positive threshold and no target",bundle:.checkmate))}
+            case .hold:guard goal.target==nil,goal.threshold<=0,check != .defense else{try fail(String(localized:"a hold goal has a threshold of zero or less and no target",bundle:.checkmate))}
+            case .checkmate,.promoteAndHold:try fail(String(localized:"a position game's goal belongs to a position game",bundle:.checkmate))
             }
         } else if check == .positionGame {
-            guard let goal,goal.kind.positionGame,goal.threshold==0,goal.target==nil,goal.drawOK==nil,plies==nil else{try fail("a position game's goal is checkmate or promoteAndHold, with threshold 0 and no target, draw rule or horizon")}
-        } else {guard goal==nil,plies==nil else{try fail("only searched objectives have a goal and horizon")}}
-        if let keep {guard check == .positionGame,!keep.isEmpty,Set(keep).count==keep.count,keep.allSatisfy({PositionGameReferee.keepable.contains($0)}) else{try fail("only a position game keeps piece types, each of q, r, b, n and p at most once")}}
+            guard let goal,goal.kind.positionGame,goal.threshold==0,goal.target==nil,goal.drawOK==nil,plies==nil else{try fail(String(localized:"a position game's goal is checkmate or promoteAndHold, with threshold 0 and no target, draw rule or horizon",bundle:.checkmate))}
+        } else {guard goal==nil,plies==nil else{try fail(String(localized:"only searched objectives have a goal and horizon",bundle:.checkmate))}}
+        if let keep {guard check == .positionGame,!keep.isEmpty,Set(keep).count==keep.count,keep.allSatisfy({PositionGameReferee.keepable.contains($0)}) else{try fail(String(localized:"only a position game keeps piece types, each of q, r, b, n and p at most once",bundle:.checkmate))}}
         try validateTeachingGraph(check)
-        if check.task == .choose{guard let choices,choices.count>=2,Set(choices).count==choices.count else{try fail("a choice needs at least two distinct options")}}
-        else{guard choices==nil else{try fail("only choice questions have options")}}
-        guard (check == .exchange)==(stated != nil) else{try fail("an exchange question states its line, and only it does")}
-        guard [.forks,.pins].contains(check)==(askColor != nil) else{try fail("a recognition question names the asked color, and only it does")}
+        if check.task == .choose{guard let choices,choices.count>=2,Set(choices).count==choices.count else{try fail(String(localized:"a choice needs at least two distinct options",bundle:.checkmate))}}
+        else{guard choices==nil else{try fail(String(localized:"only choice questions have options",bundle:.checkmate))}}
+        guard (check == .exchange)==(stated != nil) else{try fail(String(localized:"an exchange question states its line, and only it does",bundle:.checkmate))}
+        guard [.forks,.pins].contains(check)==(askColor != nil) else{try fail(String(localized:"a recognition question names the asked color, and only it does",bundle:.checkmate))}
     }
     /// Move objectives (and diagnosis) ship a small teaching graph whose links stay inside it; nothing else has one.
     private func validateTeachingGraph(_ check:TrainingCheck)throws {
         switch (check.task,check) {
         case (.move,_),(.choose,.diagnosis):
-            guard let nodes,!nodes.isEmpty,nodes.count<=64 else{try fail("a move objective ships its teaching graph")}
+            guard let nodes,!nodes.isEmpty,nodes.count<=64 else{try fail(String(localized:"a move objective ships its teaching graph",bundle:.checkmate))}
             for node in nodes {
                 let moves=node.accepted+Array(node.replies.keys)+Array(node.replies.values)+Array((node.next ?? [:]).keys)
-                guard moves.allSatisfy(ChessNotation.validUCI),(node.next ?? [:]).values.allSatisfy({(1..<nodes.count).contains($0)}),Set((node.next ?? [:]).keys).isSubset(of:node.accepted) else{try fail("invalid teaching node")}
+                guard moves.allSatisfy(ChessNotation.validUCI),(node.next ?? [:]).values.allSatisfy({(1..<nodes.count).contains($0)}),Set((node.next ?? [:]).keys).isSubset(of:node.accepted) else{try fail(String(localized:"invalid teaching node",bundle:.checkmate))}
             }
-        default:guard nodes==nil else{try fail("only move objectives have a teaching graph")}
+        default:guard nodes==nil else{try fail(String(localized:"only move objectives have a teaching graph",bundle:.checkmate))}
         }
     }
 }

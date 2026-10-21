@@ -1,3 +1,4 @@
+import CheckmateAssets
 import CheckmateDomain
 import Foundation
 import Combine
@@ -74,7 +75,7 @@ public struct UsageTotals: Equatable {
     public init(directory: URL) {
         let suppliedRootIsSymlink=(try? directory.resourceValues(forKeys:[.isSymbolicLinkKey]).isSymbolicLink) == true
         self.directory=directory.resolvingSymlinksInPath()
-        if suppliedRootIsSymlink{rejectedRootSymlink=true;unavailable=true;storageError="Usage history is unavailable because its directory is a symbolic link.";return}
+        if suppliedRootIsSymlink{rejectedRootSymlink=true;unavailable=true;storageError=String(localized:"Usage history is unavailable because its directory is a symbolic link.",bundle:.checkmate);return}
         let url=self.directory.appendingPathComponent("usage-v1.json")
         guard FileManager.default.fileExists(atPath:url.path) else{return}
         do {
@@ -82,7 +83,7 @@ public struct UsageTotals: Equatable {
             let values=try url.resourceValues(forKeys:[.isSymbolicLinkKey,.fileSizeKey]);guard values.isSymbolicLink != true,(values.fileSize ?? 0)<=UsageLimits.maximumFileBytes else{throw CocoaError(.fileReadCorruptFile)}
             let file=try JSONDecoder().decode(File.self,from:Data(contentsOf:url));guard file.version==1,file.records.count<=UsageLimits.maximumRecords,file.records.allSatisfy(Self.valid) else{throw CocoaError(.fileReadCorruptFile)}
             records=file.records.map { var r=$0;if r.status == .running {r.status = .incomplete};return r }
-        }catch{unavailable=true;storageError="Usage history is unavailable; its original file is preserved. Activity in this session is shown here but not saved."}
+        }catch{unavailable=true;storageError=String(localized:"Usage history is unavailable; its original file is preserved. Activity in this session is shown here but not saved.",bundle:.checkmate)}
     }
     private static func valid(_ r:UsageRecord)->Bool {
         let strings=[r.id,r.provider,r.sessionID,r.providerID ?? "",r.model ?? "",r.locale ?? "",r.voice ?? "",r.lessonID ?? ""]
@@ -133,7 +134,7 @@ public struct UsageTotals: Equatable {
         var sum=UsageTotals();for r in records(in:range,now:now){if r.status == .incomplete || r.status == .running{sum.incompleteRecords+=1};guard let t=r.tokens,t.known else{sum.unknownRecords+=1;continue};sum.knownRecords+=1;sum.input += t.input ?? 0;sum.output += t.output ?? 0;sum.total += t.total ?? 0};return sum
     }
     /// Refuses while the history file is unreadable: an export of the empty in-memory history would look like a copy.
-    public func exportJSON() throws -> Data {guard !unavailable else{throw CheckmateError.unavailable("Usage history is unavailable, so there is nothing reliable to export. Its original file is kept unchanged.")};let encoder=JSONEncoder();encoder.outputFormatting=[.prettyPrinted,.sortedKeys];encoder.dateEncodingStrategy = .iso8601;return try encoder.encode(File(records:records))}
+    public func exportJSON() throws -> Data {guard !unavailable else{throw CheckmateError.unavailable(String(localized:"Usage history is unavailable, so there is nothing reliable to export. Its original file is kept unchanged.",bundle:.checkmate))};let encoder=JSONEncoder();encoder.outputFormatting=[.prettyPrinted,.sortedKeys];encoder.dateEncodingStrategy = .iso8601;return try encoder.encode(File(records:records))}
     /// Clears completed history. An unreadable history file is first set aside (kept, never overwritten), so
     /// clearing starts a new history without destroying the file the pane said was preserved; that new history begins
     /// with this session's activity, which was only in memory.
@@ -209,11 +210,11 @@ public struct UsageTotals: Equatable {
             pendingPersistence?.cancel();persistenceRevision+=1;let revision=persistenceRevision
             let work=DispatchWorkItem { [weak self] in
                 let message:String?
-                do{try Self.writeSnapshot(try JSONEncoder().encode(File(records:snapshot)),to:root);message=nil}catch{message="Usage history could not be saved."}
+                do{try Self.writeSnapshot(try JSONEncoder().encode(File(records:snapshot)),to:root);message=nil}catch{message=String(localized:"Usage history could not be saved.",bundle:.checkmate)}
                 Task { @MainActor [weak self] in guard let self,self.persistenceRevision==revision else{return};self.storageError=message }
             }
             pendingPersistence=work
             if immediate{persistenceQueue.async(execute:work)}else{persistenceQueue.asyncAfter(deadline:.now()+0.1,execute:work)}
-        }catch{storageError="Usage history could not be saved."}
+        }catch{storageError=String(localized:"Usage history could not be saved.",bundle:.checkmate)}
     }
 }

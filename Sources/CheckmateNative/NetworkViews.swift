@@ -41,7 +41,7 @@ struct NetworkDetail:View {
             Text(NetworkGameController.browseTimeoutHelp).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("network-no-games")
             Button("Local Network Settings…"){model.openLocalNetworkSettings()}.accessibilityIdentifier("network-permission-settings")
         }else if game.games.isEmpty {
-            Text(game.browsing ? "Looking for games…":"No games found yet.").foregroundStyle(.secondary).accessibilityIdentifier("network-no-games")
+            Text(game.browsing ? String(localized:"Looking for games…",bundle:.checkmate):String(localized:"No games found yet.",bundle:.checkmate)).foregroundStyle(.secondary).accessibilityIdentifier("network-no-games")
         }
         // Join and Watch share this one list (D10).
         ForEach(game.games,id:\.gameID.text){entry in
@@ -100,7 +100,7 @@ struct NetworkDetail:View {
             }
         }
         if !game.spectators.isEmpty {
-            Text(game.spectators.count==1 ? "\(game.spectators[0]) is watching.":"\(game.spectators.count) people are watching.").font(.caption).foregroundStyle(.secondary).accessibilityIdentifier("network-spectators")
+            Text(game.spectators.count==1 ? "\(game.spectators[0]) is watching.":String(localized:"\(game.spectators.count) people are watching.",bundle:.checkmate)).font(.caption).foregroundStyle(.secondary).accessibilityIdentifier("network-spectators")
         }
         Divider()
         if game.canTryAgain{
@@ -135,14 +135,14 @@ struct NetworkDetail:View {
             // Connecting, and why a connection ended or was refused, show as well as a live session's state.
             if voice.connection != .disconnected {Text(voice.status).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("network-voice-status")}
             VoiceCoachControls(voice:voice,idPrefix:"network-voice",owned:voice.networkSession){model.connectNetworkVoice()}
-            ForEach(Array(model.networkVoiceHistory.suffix(3).reversed())){entry in Text((entry.role=="learner" ? "You: ":"Coach: ")+entry.text).font(.caption).fixedSize(horizontal:false,vertical:true)}
+            ForEach(Array(model.networkVoiceHistory.suffix(3).reversed())){entry in Text((entry.role=="learner" ? String(localized:"You: ",bundle:.checkmate):String(localized:"Coach: ",bundle:.checkmate))+entry.text).font(.caption).fixedSize(horizontal:false,vertical:true)}
         }
     }
     private var leaveTitle:String {
-        if game.link == .connecting || game.link == .denied {return "Cancel"}
-        if game.part == .spectator {return "Stop Watching"}
-        if game.hostPhase == .waiting {return "Stop Hosting"}
-        return game.leavingResigns ? "Leave Game…":"Leave Game"
+        if game.link == .connecting || game.link == .denied {return String(localized:"Cancel",bundle:.checkmate)}
+        if game.part == .spectator {return String(localized:"Stop Watching",bundle:.checkmate)}
+        if game.hostPhase == .waiting {return String(localized:"Stop Hosting",bundle:.checkmate)}
+        return game.leavingResigns ? String(localized:"Leave Game…",bundle:.checkmate):String(localized:"Leave Game",bundle:.checkmate)
     }
     /// The codes the host shares, grouped for reading, and read out symbol by symbol.
     private func codes(_ play:NetworkCode)->some View {
@@ -153,7 +153,7 @@ struct NetworkDetail:View {
                 Text("Watch code").font(.caption).foregroundStyle(.secondary)
                 Text(watch.grouped).font(.system(.title3,design:.monospaced)).textSelection(.enabled).accessibilityLabel("Watch code, "+Self.spelled(watch)).accessibilityIdentifier("network-watch-code")
             }
-            Text(game.hostPhase == .waiting ? (game.watchCode==nil ? "Give the play code to the person you're playing.":"Give the play code to the person you're playing, and the watch code to anyone watching."):game.watchCode==nil ? "":"Anyone who wants to watch needs the watch code.").font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
+            Text(game.hostPhase == .waiting ? (game.watchCode==nil ? String(localized:"Give the play code to the person you're playing.",bundle:.checkmate):String(localized:"Give the play code to the person you're playing, and the watch code to anyone watching.",bundle:.checkmate)):game.watchCode==nil ? "":String(localized:"Anyone who wants to watch needs the watch code.",bundle:.checkmate)).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
         }
     }
     static func spelled(_ code:NetworkCode)->String {code.grouped.split(separator:"-").map{$0.map(String.init).joined(separator:" ")}.joined(separator:", ")}
@@ -172,7 +172,7 @@ struct NetworkDetail:View {
     private func row(_ side:NetworkSide,clocks:NetworkClocks?)->some View {
         let colour=side == .white ? "white":"black",toMove=game.rules.turn==side.rawValue && game.outcome==nil
         return HStack(spacing:Metrics.smallGap){
-            TurnIndicator(side:side.rawValue,label:side == .white ? "White":"Black")
+            TurnIndicator(side:side.rawValue,label:side == .white ? String(localized:"White",bundle:.checkmate):String(localized:"Black",bundle:.checkmate))
             Text(game.players.name(side)+(side==game.learnerSide ? " (you)":"")).fontWeight(toMove ? .semibold:.regular).accessibilityIdentifier("network-\(colour)-name")
             Spacer(minLength:Metrics.smallGap)
             if let clocks {
@@ -192,7 +192,7 @@ struct NetworkDetail:View {
     static func spokenClock(_ milliseconds:Int)->String {
         let seconds=(max(0,milliseconds)+999)/1000,formatter=DateComponentsFormatter()
         formatter.unitsStyle = .full;formatter.allowedUnits=seconds<60 ? [.second]:[.minute,.second];formatter.zeroFormattingBehavior = .dropAll
-        return formatter.string(from:TimeInterval(seconds)) ?? Plural.count(seconds,one:"%d second",other:"%d seconds")
+        return formatter.string(from:TimeInterval(seconds)) ?? String(localized:"\(seconds) seconds",bundle:.checkmate)
     }
 }
 /// A discovered game as a sheet's item: the Accept sheet is tied to the game it was opened for.
@@ -248,8 +248,8 @@ struct NetworkHostSheet:View {
                 }
                 if miniGame {Text(NetworkWording.miniGameNote).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("network-host-mini-note")}
                 else if handicap {
-                    levels("White's assistance",\.white,"network-host-assistance-white")
-                    levels("Black's assistance",\.black,"network-host-assistance-black")
+                    levels(String(localized:"White's assistance",bundle:.checkmate),\.white,"network-host-assistance-white")
+                    levels(String(localized:"Black's assistance",bundle:.checkmate),\.black,"network-host-assistance-black")
                 }else{
                     Picker("Assistance",selection:Binding(get:{game.form.assistance.white},set:{game.form.assistance=NetworkAssistance(both:$0)})){ForEach(NetworkAssistanceLevel.allCases,id:\.self){level in Text(level.title).tag(level)}}.accessibilityIdentifier("network-host-assistance")
                 }
@@ -301,7 +301,7 @@ struct NetworkHostSheet:View {
         Task{
             switch await Task.detached(operation:{Result{try GameLibrary.load()}}).value {
             case .success(let loaded):library=loaded;if !libraryGame.isEmpty{choose(libraryGame,in:loaded,keeping:chosen)}
-            case .failure(let error):libraryProblem=userFacingMessage(error,fallback:"The game library could not be read.")
+            case .failure(let error):libraryProblem=userFacingMessage(error,fallback:String(localized:"The game library could not be read.",bundle:.checkmate))
             }
         }
     }
@@ -314,7 +314,7 @@ struct NetworkHostSheet:View {
             guard libraryGame==id else{return}
             switch read {
             case .success(let found):positions=found;game.form.start=chosen.flatMap{kept in found.first{$0==kept}} ?? found[found.count/2]
-            case .failure(let error):libraryProblem=userFacingMessage(error,fallback:"This library game could not be read.")
+            case .failure(let error):libraryProblem=userFacingMessage(error,fallback:String(localized:"This library game could not be read.",bundle:.checkmate))
             }
         }
     }
@@ -323,7 +323,7 @@ struct NetworkHostSheet:View {
     }
     /// "Untimed", "5 + 3": minutes, plus seconds added per move.
     static func label(_ control:NetworkTimeControl)->String {
-        guard let initial=control.initial else{return "Untimed"}
+        guard let initial=control.initial else{return String(localized:"Untimed",bundle:.checkmate)}
         return "\(initial.components.seconds/60) + \(control.increment.components.seconds)"
     }
 }

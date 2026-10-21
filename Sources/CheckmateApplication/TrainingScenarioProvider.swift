@@ -14,8 +14,8 @@ public enum TrainingFreshness:String,Codable {case new,reserve,`repeat`}
     private var suspended=Set<String>()
     public init(catalog:TrainingCatalog,scenarios:[TrainingScenario])throws {
         try catalog.validate();self.catalog=catalog
-        for scenario in scenarios {guard let definition=catalog.entry(scenario.entry) else{throw CheckmateError.invalid("Scenario \(scenario.id) names an unknown entry.")};try scenario.validateStructure(for:definition)}
-        guard Set(scenarios.map(\.id)).count==scenarios.count else{throw CheckmateError.invalid("Duplicate training scenario identifiers.")}
+        for scenario in scenarios {guard let definition=catalog.entry(scenario.entry) else{throw CheckmateError.invalid(String(localized:"Scenario \(scenario.id) names an unknown entry.",bundle:.checkmate))};try scenario.validateStructure(for:definition)}
+        guard Set(scenarios.map(\.id)).count==scenarios.count else{throw CheckmateError.invalid(String(localized:"Duplicate training scenario identifiers.",bundle:.checkmate))}
         curated=Dictionary(grouping:scenarios,by:\.entry)
     }
     struct Published:Decodable {let schemaVersion:Int,scenarios:[TrainingScenario]}
@@ -25,19 +25,19 @@ public enum TrainingFreshness:String,Codable {case new,reserve,`repeat`}
     /// loudly instead of trusting stale answers.
     public static func bundled()throws -> TrainingScenarioProvider {
         let manifest=try JSONDecoder().decode(Manifest.self,from:Data(contentsOf:NativeResources.url("training/manifest.json")))
-        guard manifest.schemaVersion==1,manifest.validatorVersion==TrainingValidationService.validatorVersion else{throw CheckmateError.invalid("Training content was validated by another validator version.")}
-        guard try reviewFileHash(NativeResources.url("chess.js"))==manifest.chessJS else{throw CheckmateError.invalid("Training content was validated against another chess.js; revalidate it.")}
-        guard try reviewFileHash(NativeResources.url("training-search.js"))==manifest.trainingSearch else{throw CheckmateError.invalid("Training content was validated against another training search; revalidate it.")}
+        guard manifest.schemaVersion==1,manifest.validatorVersion==TrainingValidationService.validatorVersion else{throw CheckmateError.invalid(String(localized:"Training content was validated by another validator version.",bundle:.checkmate))}
+        guard try reviewFileHash(NativeResources.url("chess.js"))==manifest.chessJS else{throw CheckmateError.invalid(String(localized:"Training content was validated against another chess.js; revalidate it.",bundle:.checkmate))}
+        guard try reviewFileHash(NativeResources.url("training-search.js"))==manifest.trainingSearch else{throw CheckmateError.invalid(String(localized:"Training content was validated against another training search; revalidate it.",bundle:.checkmate))}
         // Each file is hashed from the very bytes that are then decoded.
         func validated(_ name:String)throws -> Data {
             let data=try Data(contentsOf:NativeResources.url("training/"+name))
-            guard let pinned=manifest.files[name],reviewHash(data)==pinned else{throw CheckmateError.invalid("Training \(name) is not the validated file; revalidate the content.")}
+            guard let pinned=manifest.files[name],reviewHash(data)==pinned else{throw CheckmateError.invalid(String(localized:"Training \(name) is not the validated file; revalidate the content.",bundle:.checkmate))}
             return data
         }
         let catalog=try JSONDecoder().decode(TrainingCatalog.self,from:try validated("catalog.json"))
-        guard catalog.contentVersion==manifest.contentVersion else{throw CheckmateError.invalid("The training catalog's content version differs from the validated content.")}
+        guard catalog.contentVersion==manifest.contentVersion else{throw CheckmateError.invalid(String(localized:"The training catalog's content version differs from the validated content.",bundle:.checkmate))}
         let published=try JSONDecoder().decode(Published.self,from:try validated("scenarios.json"))
-        guard published.schemaVersion==1 else{throw CheckmateError.invalid("Unsupported training scenario version.")}
+        guard published.schemaVersion==1 else{throw CheckmateError.invalid(String(localized:"Unsupported training scenario version.",bundle:.checkmate))}
         return try TrainingScenarioProvider(catalog:catalog,scenarios:published.scenarios)
     }
     public func scenarios(for entry:String)->[TrainingScenario] {curated[entry] ?? []}

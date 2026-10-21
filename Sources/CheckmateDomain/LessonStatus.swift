@@ -1,3 +1,4 @@
+import CheckmateAssets
 import Foundation
 /// How far the learner has taken a lesson, derived from saved progress alone; nothing here is saved.
 ///
@@ -8,7 +9,7 @@ import Foundation
 public enum LessonStatus:String,Equatable,CaseIterable {
     case notStarted,explored,practised,mastered
     /// The sidebar's badge; nil when there is nothing to claim.
-    public var title:String? {switch self {case .notStarted:return nil;case .explored:return "Explored";case .practised:return "Practiced";case .mastered:return "Mastered"}}
+    public var title:String? {switch self {case .notStarted:return nil;case .explored:return String(localized:"Explored",bundle:.checkmate);case .practised:return String(localized:"Practiced",bundle:.checkmate);case .mastered:return String(localized:"Mastered",bundle:.checkmate)}}
     public static func of(_ lesson:CourseLesson,in library:CourseLibrary,course:CourseProgress,puzzles:[String:PuzzleProgress])->LessonStatus {
         if lesson.practice?.playable==true,course.practised?.contains(lesson.id)==true {
             let linked=library.puzzles(for:lesson.id)

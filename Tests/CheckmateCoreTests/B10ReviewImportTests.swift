@@ -17,7 +17,8 @@ final class B10ReviewImportTests:XCTestCase {
         // only after building 1000 games.
         XCTAssertThrowsError(try PGNImporter.parse(Data(String(repeating:"*\n",count:ReviewPolicy.maximumRecords+1).utf8))){error in
             let problem=error as? ReviewImportError;XCTAssertEqual(problem?.record,ReviewPolicy.maximumRecords+1)
-            XCTAssertTrue(problem?.reason.contains("more than \(ReviewPolicy.maximumRecords) games")==true,"\(error)")
+            // Shown text formats its numbers for the reader's locale, as "1,000" in English.
+            XCTAssertTrue(problem?.reason.contains("more than \(ReviewPolicy.maximumRecords.formatted()) games")==true,"\(error)")
         }
     }
     func testALexicalErrorEndsTheCountWithoutRefusingTheFile()throws {

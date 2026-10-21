@@ -1,10 +1,11 @@
+import CheckmateAssets
 /// Seeded movement and recognition generators (plan rule 5). Each tier has explicit constraints; at most 64
 /// candidates are tried per seed, every candidate is validated by the exact evaluator, and no transform is applied, so
 /// pawn direction never changes meaning. Exhaustion returns nil and the caller says so honestly.
 public enum TrainingGenerator {
     public static let version=2,candidateCap=64
     public static let pieceNames=["p":"pawn","n":"knight","b":"bishop","r":"rook","q":"queen","k":"king"]
-    public static func colorName(_ color:Character)->String {color=="w" ? "White":"Black"}
+    public static func colorName(_ color:Character)->String {color=="w" ? String(localized:"White",bundle:.checkmate):String(localized:"Black",bundle:.checkmate)}
     static func randomSquare(_ random:inout TrainingRandom,files:ClosedRange<Int>=0...7,ranks:ClosedRange<Int>=0...7)->String {TrainingGeometry.square(random.int(files),random.int(ranks))!}
     static func cluster(_ prefix:String,_ parts:[String])->String {
         // A stable FNV-1a fingerprint of the concrete board: same board, same cluster.
@@ -49,20 +50,20 @@ public enum TrainingGenerator {
             let target=random.pick(reachable),drill=MovementDrill(piece:own+piece,start:start,target:target,pieces:pieces)
             guard let distance=distances[target] else{continue}
             let budget=distance+limits.slack,shortest=tier>=3
-            let prompt=shortest ? "Move the \(colorName(color).lowercased()) \(name) from \(start) to \(target) in the fewest moves: \(budget).":"Move the \(colorName(color).lowercased()) \(name) from \(start) to \(target) in at most \(budget) moves."
+            let prompt=shortest ? String(localized:"Move the \(colorName(color).lowercased()) \(name) from \(start) to \(target) in the fewest moves: \(budget).",bundle:.checkmate):String(localized:"Move the \(colorName(color).lowercased()) \(name) from \(start) to \(target) in at most \(budget) moves.",bundle:.checkmate)
             let id="gen-reach-target-\(piece)-t\(tier)-\(own)-\(seedText(seed))"
-            return TrainingScenario(id:id,entry:"reach-target",variant:name,tier:tier,cluster:cluster("reach",[own+piece,start,target]+pieces.sorted{$0.key<$1.key}.map{$0.key+$0.value}),learner:own,prompt:prompt,explanation:Plural.count(distance,one:"A shortest route takes %d move.",other:"A shortest route takes %d moves."),hints:[movementHint(piece)],drill:drill,budget:budget,shortest:shortest,expected:TrainingExpected(distance:distance),generation:TrainingGeneration(generator:"reach-target",version:version,seed:seedText(seed),candidates:candidate))
+            return TrainingScenario(id:id,entry:"reach-target",variant:name,tier:tier,cluster:cluster("reach",[own+piece,start,target]+pieces.sorted{$0.key<$1.key}.map{$0.key+$0.value}),learner:own,prompt:prompt,explanation:String(localized:"A shortest route takes \(distance) moves.",bundle:.checkmate),hints:[movementHint(piece)],drill:drill,budget:budget,shortest:shortest,expected:TrainingExpected(distance:distance),generation:TrainingGeneration(generator:"reach-target",version:version,seed:seedText(seed),candidates:candidate))
         }
         return nil
     }
     public static func movementHint(_ piece:String)->String {
         switch piece {
-        case "p":return "A pawn moves straight forward one square, or two from its starting square, and captures only one square diagonally forward."
-        case "n":return "A knight jumps in an L: two squares one way and one square sideways. It hops over pieces."
-        case "b":return "A bishop slides diagonally and stays on squares of one color. It cannot pass through pieces."
-        case "r":return "A rook slides along ranks and files. It cannot pass through pieces."
-        case "q":return "A queen slides like a rook or a bishop. It cannot pass through pieces."
-        default:return "A king steps one square in any direction, and never onto a square an enemy piece attacks."
+        case "p":return String(localized:"A pawn moves straight forward one square, or two from its starting square, and captures only one square diagonally forward.",bundle:.checkmate)
+        case "n":return String(localized:"A knight jumps in an L: two squares one way and one square sideways. It hops over pieces.",bundle:.checkmate)
+        case "b":return String(localized:"A bishop slides diagonally and stays on squares of one color. It cannot pass through pieces.",bundle:.checkmate)
+        case "r":return String(localized:"A rook slides along ranks and files. It cannot pass through pieces.",bundle:.checkmate)
+        case "q":return String(localized:"A queen slides like a rook or a bishop. It cannot pass through pieces.",bundle:.checkmate)
+        default:return String(localized:"A king steps one square in any direction, and never onto a square an enemy piece attacks.",bundle:.checkmate)
         }
     }
     // MARK: Find the Attackers / Defenders
@@ -117,10 +118,10 @@ public enum TrainingGenerator {
             if tier>1,lookalikes(board,target:target,color:color).isEmpty{continue}
             let side=colorName(color),entry=defenders ? "find-defenders":"find-attackers"
             let occupant=board[target].map{" (the \(colorName($0.first!).lowercased()) \(pieceNames[String($0.last!)] ?? "piece"))"} ?? ""
-            let prompt=defenders ? "Select every \(side) piece that protects the piece on \(target)\(occupant). Choose None if nothing protects it.":"Select every \(side) piece that attacks \(target)\(occupant). Choose None if no \(side) piece attacks it."
-            let hint=defenders ? "Which other \(side) pieces attack \(target)? Follow their lines and jumps; a line stops at the first piece in the way. A pinned piece or a king still counts as protecting here.":"Follow each \(side) piece's lines and jumps. A line stops at the first piece in the way; a pinned piece still attacks."
+            let prompt=defenders ? String(localized:"Select every \(side) piece that protects the piece on \(target)\(occupant). Choose None if nothing protects it.",bundle:.checkmate):String(localized:"Select every \(side) piece that attacks \(target)\(occupant). Choose None if no \(side) piece attacks it.",bundle:.checkmate)
+            let hint=defenders ? String(localized:"Which other \(side) pieces attack \(target)? Follow their lines and jumps; a line stops at the first piece in the way. A pinned piece or a king still counts as protecting here.",bundle:.checkmate):String(localized:"Follow each \(side) piece's lines and jumps. A line stops at the first piece in the way; a pinned piece still attacks.",bundle:.checkmate)
             let pieces=answer.sorted().joined(separator:", ")
-            let explanation=answer.isEmpty ? (defenders ? "No \(side) piece protects \(target).":"No \(side) piece attacks \(target)."):defenders ? (answer.count==1 ? "\(pieces) protects \(target).":"\(pieces) protect \(target)."):(answer.count==1 ? "\(pieces) attacks \(target).":"\(pieces) attack \(target).")
+            let explanation=answer.isEmpty ? (defenders ? String(localized:"No \(side) piece protects \(target).",bundle:.checkmate):String(localized:"No \(side) piece attacks \(target).",bundle:.checkmate)):defenders ? (answer.count==1 ? "\(pieces) protects \(target).":"\(pieces) protect \(target)."):(answer.count==1 ? "\(pieces) attacks \(target).":"\(pieces) attack \(target).")
             return TrainingScenario(id:"gen-\(entry)-t\(tier)-\(own)-\(seedText(seed))",entry:entry,variant:defenders ? "defenders":"attackers",tier:tier,cluster:cluster(defenders ? "defend":"attack",[own,target]+board.sorted{$0.key<$1.key}.map{$0.key+$0.value}),learner:own,prompt:prompt,explanation:explanation,hints:[hint],diagram:board,target:target,expected:TrainingExpected(squares:answer.sorted()),generation:TrainingGeneration(generator:entry,version:version,seed:seedText(seed),candidates:candidate))
         }
         return nil

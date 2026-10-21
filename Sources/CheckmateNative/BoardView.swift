@@ -10,7 +10,7 @@ final class SquareAccessibility:NSAccessibilityElement,NSAccessibilityElementPro
     override func accessibilityColumnIndexRange()->NSRange {NSRange(location:board?.gridColumn(square) ?? 0,length:1)}
     override func accessibilityLabel()->String? {label(pressure:false)}
     /// `pressure` states the attack and defence counts even on a square the board does not mark as covered (the Attacked Pieces rotor).
-    func label(pressure:Bool)->String {guard let board=board else{return square};var parts=[square];if let p=board.position[square]{parts += [p.first=="w" ? "White":"Black",BoardView.names[String(p.suffix(1)),default:"piece"]]};if board.selected==square{parts.append("selected")};if board.destinations.contains(square){parts.append(!board.destinationsPlayable ? "possible destination, not playable now":board.captures(on:square) ? "capture destination":"move destination")};if pressure || board.attacked.contains(square){parts.append(board.pressure(on:square))};for h in board.highlights where h.sq==square{parts.append(h.kind=="check" ? "in check":h.kind=="no" ? "unavailable lesson destination":h.kind=="last" ? "part of the last move":h.kind=="target" ? "target square":h.kind=="answer" ? "in your answer":h.kind=="hint" ? "shown by a hint":"highlighted by the coach")};for a in board.arrows where a.count==2{if a[0]==square{parts.append("suggested move to \(a[1])")};if a[1]==square{parts.append("suggested move from \(a[0])")}};for g in board.guards where g.count==2{if g[0]==square{parts.append("guards \(g[1])")};if g[1]==square{parts.append("guarded by \(g[0])")}};for connection in board.relationshipConnectors {let description=connection.limited ? "restricted or conditional":"";if connection.source==square{parts.append("\(board.relationshipMode == .protected ? "protects":"attacks") \(connection.target) \(description)")};if connection.target==square{parts.append("\(board.relationshipMode == .protected ? "protected by":"attacked by") \(connection.source) \(description)")}};return parts.joined(separator:", ")}
+    func label(pressure:Bool)->String {guard let board=board else{return square};var parts=[square];if let p=board.position[square]{parts += [p.first=="w" ? String(localized:"White",bundle:.checkmate):String(localized:"Black",bundle:.checkmate),BoardView.names[String(p.suffix(1)),default:"piece"]]};if board.selected==square{parts.append("selected")};if board.destinations.contains(square){parts.append(!board.destinationsPlayable ? "possible destination, not playable now":board.captures(on:square) ? "capture destination":"move destination")};if pressure || board.attacked.contains(square){parts.append(board.pressure(on:square))};for h in board.highlights where h.sq==square{parts.append(h.kind=="check" ? "in check":h.kind=="no" ? String(localized:"unavailable lesson destination",bundle:.checkmate):h.kind=="last" ? String(localized:"part of the last move",bundle:.checkmate):h.kind=="target" ? "target square":h.kind=="answer" ? String(localized:"in your answer",bundle:.checkmate):h.kind=="hint" ? String(localized:"shown by a hint",bundle:.checkmate):String(localized:"highlighted by the coach",bundle:.checkmate))};for a in board.arrows where a.count==2{if a[0]==square{parts.append(String(localized:"suggested move to \(a[1])",bundle:.checkmate))};if a[1]==square{parts.append(String(localized:"suggested move from \(a[0])",bundle:.checkmate))}};for g in board.guards where g.count==2{if g[0]==square{parts.append("guards \(g[1])")};if g[1]==square{parts.append("guarded by \(g[0])")}};for connection in board.relationshipConnectors {let description=connection.limited ? String(localized:"restricted or conditional",bundle:.checkmate):"";if connection.source==square{parts.append("\(board.relationshipMode == .protected ? "protects":"attacks") \(connection.target) \(description)")};if connection.target==square{parts.append("\(board.relationshipMode == .protected ? "protected by":"attacked by") \(connection.source) \(description)")}};return parts.joined(separator:", ")}
     override func accessibilityFrame()->NSRect {guard let b=board,let w=b.window else{return .zero};return w.convertToScreen(b.convert(b.squareRect(square),to:nil))}
     override func isAccessibilityFocused()->Bool {board?.focus==square && board?.window?.firstResponder === board}
     override func setAccessibilityFocused(_ value:Bool){if value{board?.focus=square;board?.window?.makeFirstResponder(board);board?.keyboardFocusVisible=true;board?.needsDisplay=true;NSAccessibility.post(element:self,notification:.focusedUIElementChanged)}}
@@ -21,7 +21,7 @@ final class BoardHeaderAccessibility:NSAccessibilityElement {
     weak var board:BoardView?;let column:Bool,index:Int
     init(board:BoardView,column:Bool,index:Int){self.board=board;self.column=column;self.index=index;super.init();setAccessibilityParent(board)}
     override func accessibilityRole()->NSAccessibility.Role? {.staticText}
-    override func accessibilityLabel()->String? {guard let board=board else{return nil};return column ? "File "+board.gridFile(index):"Rank "+board.gridRank(index)}
+    override func accessibilityLabel()->String? {guard let board=board else{return nil};return column ? String(localized:"File ",bundle:.checkmate,comment:"A board column, followed by its letter")+board.gridFile(index):String(localized:"Rank ",bundle:.checkmate,comment:"A board row, followed by its number")+board.gridRank(index)}
     override func accessibilityFrame()->NSRect {guard let b=board,let w=b.window else{return .zero};let r=b.boardRect,s=r.width/8,m=Metrics.boardMargin;return w.convertToScreen(b.convert(column ? NSRect(x:r.minX+CGFloat(index)*s,y:r.minY-m,width:s,height:m):NSRect(x:r.minX-m,y:r.maxY-CGFloat(index+1)*s,width:m,height:s),to:nil))}
 }
 /// Review files are read off the main thread, one at a time, shared by Finder opens and board drops: a newer read
@@ -42,16 +42,16 @@ final class BoardHeaderAccessibility:NSAccessibilityElement {
 /// its file, and a pipe or an iCloud placeholder is refused with a reason. It touches the file system, so it runs off the main thread.
 enum ReviewDrop {
     struct Rejection:Error {let reason:String}
-    static let unreadable="This file could not be read."
+    static let unreadable=String(localized:"This file could not be read.",bundle:.checkmate)
     @Sendable static func validated(_ url:URL)throws -> URL {
         let file=url.resolvingSymlinksInPath()
         let values:URLResourceValues;do{values=try file.resourceValues(forKeys:[.isRegularFileKey,.fileSizeKey,.ubiquitousItemDownloadingStatusKey])}catch{throw Rejection(reason:unreadable)}
-        guard values.isRegularFile==true,let size=values.fileSize else{throw Rejection(reason:"Drop a PGN or FEN file.")}
-        if let status=values.ubiquitousItemDownloadingStatus,status != .current{throw Rejection(reason:"This file is still in iCloud. Download it in Finder, then drop it again.")}
+        guard values.isRegularFile==true,let size=values.fileSize else{throw Rejection(reason:String(localized:"Drop a PGN or FEN file.",bundle:.checkmate))}
+        if let status=values.ubiquitousItemDownloadingStatus,status != .current{throw Rejection(reason:String(localized:"This file is still in iCloud. Download it in Finder, then drop it again.",bundle:.checkmate))}
         guard size<=ReviewPolicy.maximumBytes else{throw Rejection(reason:tooLarge)}
         return file
     }
-    static let tooLarge="This file is larger than the 16 MiB import limit."
+    static let tooLarge=String(localized:"This file is larger than the 16 MiB import limit.",bundle:.checkmate)
     /// The record files the board takes; the extension is matched without case.
     static let recordExtensions:Set<String>=["pgn","fen"]
     /// Whether a drag carries one game record: a single .pgn or .fen file, or, with no file, text that reads as one.
@@ -71,7 +71,7 @@ enum ReviewDrop {
     /// at most one byte past the import limit, so a file that grew or was replaced after its size was checked is refused unloaded.
     @Sendable static func bounded(_ url:URL)throws -> Data {
         let descriptor=Darwin.open(url.path,O_RDONLY|O_NONBLOCK|O_CLOEXEC);guard descriptor>=0 else{throw Rejection(reason:unreadable)}
-        let handle=FileHandle(fileDescriptor:descriptor,closeOnDealloc:true);var status=stat();guard fstat(descriptor,&status)==0,status.st_mode & S_IFMT == S_IFREG else{throw Rejection(reason:"Drop a PGN or FEN file.")}
+        let handle=FileHandle(fileDescriptor:descriptor,closeOnDealloc:true);var status=stat();guard fstat(descriptor,&status)==0,status.st_mode & S_IFMT == S_IFREG else{throw Rejection(reason:String(localized:"Drop a PGN or FEN file.",bundle:.checkmate))}
         var data=Data();while data.count<=ReviewPolicy.maximumBytes,let chunk=try handle.read(upToCount:ReviewPolicy.maximumBytes+1-data.count),!chunk.isEmpty{data.append(chunk)}
         guard data.count<=ReviewPolicy.maximumBytes else{throw Rejection(reason:tooLarge)};return data
     }
@@ -158,7 +158,7 @@ final class BoardView:NSView,NSAccessibilityCustomRotorItemSearchDelegate {
     override func mouseMoved(with e:NSEvent){cursor(at:convert(e.locationInWindow,from:nil)).set()}
     /// A grid of 64 square buttons, top row first as drawn, with file and rank headers: VoiceOver can read a row or a column.
     override func accessibilityRole()->NSAccessibility.Role? {.grid}
-    override func accessibilityLabel()->String? {"Chessboard"}
+    override func accessibilityLabel()->String? {String(localized:"Chessboard",bundle:.checkmate)}
     override func accessibilityRowCount()->Int {8}
     override func accessibilityColumnCount()->Int {8}
     func gridRow(_ sq:String)->Int {let rank=Int(sq.suffix(1)) ?? 1;return blackAtBottom ? rank-1:8-rank}
@@ -177,7 +177,7 @@ final class BoardView:NSView,NSAccessibilityCustomRotorItemSearchDelegate {
         let other:Character=owner=="w" ? "b":"w";return "attacked by \(TrainingGeometry.attackers(of:sq,color:other,board:position).count), defended by \(TrainingGeometry.attackers(of:sq,color:owner,board:position).count)"
     }
     enum Rotor {case pieces,attacked}
-    private lazy var rotors=[NSAccessibilityCustomRotor(label:"Pieces",itemSearchDelegate:self),NSAccessibilityCustomRotor(label:"Attacked Pieces",itemSearchDelegate:self)]
+    private lazy var rotors=[NSAccessibilityCustomRotor(label:String(localized:"Pieces",bundle:.checkmate),itemSearchDelegate:self),NSAccessibilityCustomRotor(label:String(localized:"Attacked Pieces",bundle:.checkmate),itemSearchDelegate:self)]
     override func accessibilityCustomRotors()->[NSAccessibilityCustomRotor] {rotors}
     /// The rotor's squares in reading order (top row first, left to right): every piece, or every piece an enemy piece attacks.
     func rotorSquares(_ rotor:Rotor)->[String] {
@@ -196,7 +196,7 @@ final class BoardView:NSView,NSAccessibilityCustomRotorItemSearchDelegate {
     }
     /// In a review's original game the plain arrow keys step through moves; Option with the arrow keys explores squares.
     var reviewNavigation=false
-    override func accessibilityHelp()->String? {reviewNavigation ? "Left and Right arrows step through the game. Hold Option with the arrow keys to explore squares, then press Return to choose a piece or destination. Escape clears your selection.":"Use arrow keys to explore squares and Space or Return to choose a piece or destination. Escape clears your selection."}
+    override func accessibilityHelp()->String? {reviewNavigation ? String(localized:"Left and Right arrows step through the game. Hold Option with the arrow keys to explore squares, then press Return to choose a piece or destination. Escape clears your selection.",bundle:.checkmate):String(localized:"Use arrow keys to explore squares and Space or Return to choose a piece or destination. Escape clears your selection.",bundle:.checkmate)}
     override func isAccessibilityElement()->Bool {true}
     /// The 64 squares first, then the sixteen headers.
     override func accessibilityChildren()->[Any]? {squares+columnHeaders+rowHeaders}

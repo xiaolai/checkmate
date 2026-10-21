@@ -22,7 +22,7 @@ enum ReviewFormat {
     /// moves. The list stops at a move that cannot be played, so a damaged idea is still named.
     static func ideaLabel(_ d:GameDocument,_ branch:ReviewBranch,plies:Int=3)->String {
         let root=d.nodes.indices.contains(branch.root) ? d.nodes[branch.root]:nil
-        let head=root.flatMap{node in node.san.map{"After \(node.fullmove)\(node.side=="w" ? ".":"…")\($0)"}} ?? "From the start"
+        let head=root.flatMap{node in node.san.map{String(localized:"After \(node.fullmove)\(node.side=="w" ? ".":"…")\($0)",bundle:.checkmate)}} ?? String(localized:"From the start",bundle:.checkmate)
         // A root the record does not hold has no position to play the line from: the idea is named by its root alone.
         var moves:[String]=[];let rules:ChessRules;do{rules=try d.snapshotRules(at:branch.root)}catch{return branch.moves.isEmpty ? head:"\(head): …"}
         for (index,uci) in branch.moves.prefix(plies).enumerated() {
@@ -34,7 +34,7 @@ enum ReviewFormat {
         return moves.isEmpty ? head:"\(head): \(moves.joined(separator:" "))"
     }
     /// A cancelled whole-game analysis: how far it got before the deeper check of its leading moment.
-    static func partialAnalysis(completed:Int,total:Int)->String {completed<total ? "Analyzed \(completed) of \(total) moves":"Analyzed all \(total) moves; the deeper check is unfinished"}
+    static func partialAnalysis(completed:Int,total:Int)->String {completed<total ? String(localized:"Analyzed \(completed) of \(total) moves",bundle:.checkmate):String(localized:"Analyzed all \(total) moves; the deeper check is unfinished",bundle:.checkmate)}
     /// A header value worth showing: not empty, not "?" and not an all-unknown date.
     static func known(_ value:String?)->String? {
         guard let value=value?.trimmingCharacters(in:.whitespacesAndNewlines),!value.isEmpty,value.contains(where:{$0 != "?" && $0 != "."}) else{return nil};return value
@@ -49,7 +49,7 @@ enum ReviewFormat {
         if let own=d.provenance.ownGameTitle{return own}
         let white=known(d.header("White")),black=known(d.header("Black"))
         if white != nil || black != nil{return "\(white ?? "White") – \(black ?? "Black")"}
-        return d.historyAvailable ? "Imported game":"Imported position"
+        return d.historyAvailable ? String(localized:"Imported game",bundle:.checkmate):String(localized:"Imported position",bundle:.checkmate)
     }
     /// The header's second line: event, site and date, leaving out unknown parts and a site that only repeats the event.
     static func details(_ d:GameDocument)->String? {
@@ -59,8 +59,8 @@ enum ReviewFormat {
     }
     /// A network game's agreed assistance (assistance plan A11): "Assistance: White: Hints on request; Black: Off". Nil
     /// for a record without the tag, which every game without assistance is.
-    static func assistance(_ d:GameDocument)->String? {known(d.header("Assistance")).map{"Assistance: "+$0}}
-    static func result(_ result:String)->String {switch result{case "1-0":return "1–0";case "0-1":return "0–1";case "1/2-1/2":return "½–½";default:return "Unfinished"}}
+    static func assistance(_ d:GameDocument)->String? {known(d.header("Assistance")).map{String(localized:"Assistance: ",bundle:.checkmate)+$0}}
+    static func result(_ result:String)->String {switch result{case "1-0":return "1–0";case "0-1":return "0–1";case "1/2-1/2":return "½–½";default:return String(localized:"Unfinished",bundle:.checkmate)}}
     /// A score from White's side: "+0.8", "−1.4", "0.0", "M3" (White mates), "−M2" (Black mates); a bound is marked.
     static func score(_ s:AnalysisScore)->String {
         let bound=s.bound=="lower" ? "≥":s.bound=="upper" ? "≤":""
@@ -108,7 +108,7 @@ enum ReviewFormat {
     /// Checks, captures, promotions and the final move: the moments to start with before any engine analysis.
     @MainActor static func heuristicMoments(_ d:GameDocument)->[Int] {let ids=line(d).ids,last=ids.last;return ids.filter{id in let san=d.nodes[id].san ?? "";return san.contains("+") || san.contains("#") || san.contains("x") || san.contains("=") || id==last}}
     /// The standard annotation glyphs (PGN NAGs) the review shows, with what each says; other numbers are left out.
-    private static let annotations:[Int:(glyph:String,meaning:String)]=[1:("!","Good move"),2:("?","Poor move"),3:("!!","Brilliant move"),4:("??","Very poor move"),5:("!?","Interesting move"),6:("?!","Dubious move"),7:("□","Only move"),10:("=","Equal position"),13:("∞","Unclear position"),14:("⩲","White is slightly better"),15:("⩱","Black is slightly better"),16:("±","White is better"),17:("∓","Black is better"),18:("+−","White is winning"),19:("−+","Black is winning")]
+    private static let annotations:[Int:(glyph:String,meaning:String)]=[1:("!",String(localized:"Good move",bundle:.checkmate)),2:("?",String(localized:"Poor move",bundle:.checkmate)),3:("!!",String(localized:"Brilliant move",bundle:.checkmate)),4:("??",String(localized:"Very poor move",bundle:.checkmate)),5:("!?",String(localized:"Interesting move",bundle:.checkmate)),6:("?!",String(localized:"Dubious move",bundle:.checkmate)),7:("□",String(localized:"Only move",bundle:.checkmate)),10:("=",String(localized:"Equal position",bundle:.checkmate)),13:("∞",String(localized:"Unclear position",bundle:.checkmate)),14:("⩲",String(localized:"White is slightly better",bundle:.checkmate)),15:("⩱",String(localized:"Black is slightly better",bundle:.checkmate)),16:("±",String(localized:"White is better",bundle:.checkmate)),17:("∓",String(localized:"Black is better",bundle:.checkmate)),18:("+−",String(localized:"White is winning",bundle:.checkmate)),19:("−+",String(localized:"Black is winning",bundle:.checkmate))]
     /// A move's annotation glyphs as the record gives them: move glyphs, then position glyphs after a space ("!! ±").
     static func glyphs(_ nags:[Int])->String {
         let move=nags.filter{$0<=9}.compactMap{annotations[$0]?.glyph}.joined(),position=nags.filter{$0>9}.compactMap{annotations[$0]?.glyph}.joined(separator:" ")
@@ -121,9 +121,9 @@ enum ReviewFormat {
         (n.commentsBefore+n.commentsAfter).map{$0.replacingOccurrences(of:#"\[%[^\]]*\]"#,with:"",options:.regularExpression).split(whereSeparator:\.isWhitespace).joined(separator:" ")}.filter{!$0.isEmpty}
     }
     /// Why a move is graded, from the side that played it: "Mistake (?): this move gave up about 15% of White's chances."
-    static func gradeLine(_ grade:MoveGrade,loss:Double,side:String)->String {"\(grade.name) (\(grade.glyph)): this move gave up about \(Int((loss*100).rounded()))% of \(side=="w" ? "White":"Black")'s chances."}
+    static func gradeLine(_ grade:MoveGrade,loss:Double,side:String)->String {String(localized:"\(grade.name) (\(grade.glyph)): this move gave up about \(Int((loss*100).rounded()))% of \(side=="w" ? "White":"Black")'s chances.",bundle:.checkmate)}
     /// The position at a graph index: "Start" or its move, e.g. "2. Nf3".
-    @MainActor private static func position(_ d:GameDocument,index:Int)->String {index<=0 ? "Start":moveText(d.nodes[node(d,index:index)])}
+    @MainActor private static func position(_ d:GameDocument,index:Int)->String {index<=0 ? String(localized:"Start",bundle:.checkmate,comment:"Noun: the starting position of a game"):moveText(d.nodes[node(d,index:index)])}
     /// The graph's hover readout: "2. Nf3?! +0.8"; a position without a score says so.
     @MainActor static func readout(_ d:GameDocument,index:Int,score:AnalysisScore?,grade:MoveGrade?)->String {
         let head=position(d,index:index)+(index>0 ? grade?.glyph ?? "":"");return score.map{"\(head) \(self.score($0))"} ?? "\(head), no score"
@@ -135,10 +135,10 @@ enum ReviewFormat {
     /// The graph's label carries the selected position, since a chart reports no value; the pointer gate reads its
     /// "position N of M" part.
     @MainActor static func graphLabel(_ d:GameDocument,index:Int?,last:Int,score:AnalysisScore?,grade:MoveGrade?)->String {
-        guard let index else{return "Evaluation graph, not on the main line"};return "Evaluation graph, position \(index) of \(last), "+pointLabel(d,index:index,score:score,grade:grade)
+        guard let index else{return String(localized:"Evaluation graph, not on the main line",bundle:.checkmate)};return String(localized:"Evaluation graph, position \(index) of \(last), ",bundle:.checkmate)+pointLabel(d,index:index,score:score,grade:grade)
     }
     /// The engine comparison's caption, with the depth its first line reached.
-    static func evidenceCaption(provisional:Bool,depth:Int?)->String {(provisional ? "Provisional engine estimate":"Deeper engine comparison")+(depth.map{$0>0 ? " · depth \($0)":""} ?? "")}
+    static func evidenceCaption(provisional:Bool,depth:Int?)->String {(provisional ? String(localized:"Provisional engine estimate",bundle:.checkmate):String(localized:"Deeper engine comparison",bundle:.checkmate))+(depth.map{$0>0 ? " · depth \($0)":""} ?? "")}
     /// At most `limit` moments, in game order. `ids` is most important first: engine moments arrive that way; for the
     /// heuristic the final move counts first, then the earliest.
     @MainActor static func keyMoments(_ ids:[Int],in d:GameDocument,limit:Int=5,engine:Bool)->[Int] {
@@ -200,7 +200,7 @@ struct ReviewAnalysisSection:View {
             else if ReviewFormat.line(document).ids.isEmpty{Text("This position has no moves to analyze as a game; Why? analyzes the position itself.").font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)}
             else if mine,["pending","deepening"].contains(analyzer.batchStatus){
                 ProgressView(value:Double(analyzer.completed),total:Double(max(1,analyzer.total)))
-                HStack{Text(analyzer.batchStatus=="deepening" ? "Checking key moments more deeply":"\(analyzer.completed) / \(analyzer.total) moves").font(.caption).foregroundStyle(.secondary);Spacer(minLength:0);Button("Cancel Analysis"){analyzer.cancelBatch()}.controlSize(.small)}
+                HStack{Text(analyzer.batchStatus=="deepening" ? String(localized:"Checking key moments more deeply",bundle:.checkmate):"\(analyzer.completed) / \(analyzer.total) moves").font(.caption).foregroundStyle(.secondary);Spacer(minLength:0);Button("Cancel Analysis"){analyzer.cancelBatch()}.controlSize(.small)}
             }
             else if mine,analyzer.batchStatus=="ready"{
                 EvaluationGraph(review:review,model:model,analyzer:analyzer,document:document,samples:ReviewFormat.series(document,evaluations:analyzer.evaluations,outcome:ReviewFormat.cachedOutcome(document)))
@@ -272,14 +272,14 @@ struct EvaluationGraph:View,AXChartDescriptorRepresentable {
     }
     func makeChartDescriptor()->AXChartDescriptor {
         // Positions are named by their move, and each point reads as move, score and grade.
-        let moves=(0...last).map{$0==0 ? "Start":ReviewFormat.moveText(document.nodes[ReviewFormat.node(document,index:$0)])}
-        let x=AXNumericDataAxisDescriptor(title:"Move",range:0...Double(last),gridlinePositions:[]){let i=Int($0);return moves.indices.contains(i) ? moves[i]:"Position \(i)"}
-        let y=AXNumericDataAxisDescriptor(title:"Pawns from White's side",range:-ReviewFormat.evaluationLimit...ReviewFormat.evaluationLimit,gridlinePositions:[0]){String(format:"%+.1f",$0)}
+        let moves=(0...last).map{$0==0 ? String(localized:"Start",bundle:.checkmate,comment:"Noun: the starting position of a game"):ReviewFormat.moveText(document.nodes[ReviewFormat.node(document,index:$0)])}
+        let x=AXNumericDataAxisDescriptor(title:String(localized:"Move",bundle:.checkmate,comment:"Noun: one move in a chess game"),range:0...Double(last),gridlinePositions:[]){let i=Int($0);return moves.indices.contains(i) ? moves[i]:String(localized:"Position \(i)",bundle:.checkmate)}
+        let y=AXNumericDataAxisDescriptor(title:String(localized:"Pawns from White's side",bundle:.checkmate),range:-ReviewFormat.evaluationLimit...ReviewFormat.evaluationLimit,gridlinePositions:[0]){String(format:"%+.1f",$0)}
         // One series per run of known scores, as drawn: a position without a score is a gap, not part of a line.
         let runs=Dictionary(grouping:points,by:\.run).sorted{$0.key<$1.key},missing=samples.count-points.count
-        let series=runs.enumerated().map{index,run in AXDataSeriesDescriptor(name:runs.count==1 ? "Evaluation":"Evaluation, part \(index+1)",isContinuous:run.value.count>1,dataPoints:run.value.map{AXDataPoint(x:Double($0.id),y:$0.value,additionalValues:[],label:ReviewFormat.pointLabel(document,index:$0.id,score:score($0.id),grade:grade($0.id)))})}
-        let summary="Evaluation after each move of the main line, from White's side."+(missing>0 ? " \(missing) of \(samples.count) positions have no score.":"")
-        return AXChartDescriptor(title:"Evaluation graph",summary:summary,xAxis:x,yAxis:y,additionalAxes:[],series:series)
+        let series=runs.enumerated().map{index,run in AXDataSeriesDescriptor(name:runs.count==1 ? String(localized:"Evaluation",bundle:.checkmate):String(localized:"Evaluation, part \(index+1)",bundle:.checkmate),isContinuous:run.value.count>1,dataPoints:run.value.map{AXDataPoint(x:Double($0.id),y:$0.value,additionalValues:[],label:ReviewFormat.pointLabel(document,index:$0.id,score:score($0.id),grade:grade($0.id)))})}
+        let summary=String(localized:"Evaluation after each move of the main line, from White's side.",bundle:.checkmate)+(missing>0 ? " \(missing) of \(samples.count) positions have no score.":"")
+        return AXChartDescriptor(title:String(localized:"Evaluation graph",bundle:.checkmate),summary:summary,xAxis:x,yAxis:y,additionalAxes:[],series:series)
     }
 }
 /// A move grade's colour, shared by the move list and the graph's markers; an ungraded key moment uses the accent colour.
@@ -306,8 +306,8 @@ struct ReviewMoveSection:View {
             Text("Moves").sectionHeading()
             if !key.isEmpty {
                 ViewThatFits(in:.horizontal){ForEach([5,4,3,2,1],id:\.self){count in HStack(spacing:Metrics.tightGap){ForEach(ReviewFormat.keyMoments(ranked,in:document,limit:count,engine:!moments.isEmpty),id:\.self){id in
-                    Button(ReviewFormat.moveText(document.nodes[id])){select(id)}.buttonStyle(.bordered).controlSize(.small).accessibilityLabel("Key moment, \(ReviewFormat.moveLabel(document.nodes[id]))").help(reasons[id] ?? "A check, capture, promotion or the final move")}}}}
-                Text(anyGrade ? "?! inaccuracy · ? mistake · ?? blunder; estimates may change.":moments.isEmpty ? "Checks, captures, promotions and the final move.":"Moments to start with; estimates may change.").font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                    Button(ReviewFormat.moveText(document.nodes[id])){select(id)}.buttonStyle(.bordered).controlSize(.small).accessibilityLabel("Key moment, \(ReviewFormat.moveLabel(document.nodes[id]))").help(reasons[id] ?? String(localized:"A check, capture, promotion or the final move",bundle:.checkmate))}}}}
+                Text(anyGrade ? "?! inaccuracy · ? mistake · ?? blunder; estimates may change.":moments.isEmpty ? String(localized:"Checks, captures, promotions and the final move.",bundle:.checkmate):String(localized:"Moments to start with; estimates may change.",bundle:.checkmate)).font(.caption).foregroundStyle(.secondary).lineLimit(1)
             }
             ScrollViewReader{proxy in
                 ScrollView{LazyVStack(spacing:0){ForEach(Array(rows.enumerated()),id:\.offset){index,row in
@@ -322,14 +322,14 @@ struct ReviewMoveSection:View {
             }
         }
         // VoiceOver's rotor steps through the key moments in the move list.
-        .accessibilityRotor("Key Moments"){ForEach(key,id:\.self){id in AccessibilityRotorEntry(Text(verbatim:ReviewFormat.moveLabel(document.nodes[id])),id:id,in:rotor)}}}
+        .accessibilityRotor(String(localized:"Key Moments",bundle:.checkmate)){ForEach(key,id:\.self){id in AccessibilityRotorEntry(Text(verbatim:ReviewFormat.moveLabel(document.nodes[id])),id:id,in:rotor)}}}
     }
     private func scroll(_ proxy:ScrollViewProxy,_ rows:[ReviewFormat.MoveRow]){guard let row=rows.firstIndex(where:{$0.white==review.nodeID || $0.black==review.nodeID}) else{return};proxy.scrollTo(row,anchor:.center)}
     /// A move: its SAN, the record's own annotation glyphs, then the engine's grade in its colour.
     @ViewBuilder private func cell(_ id:Int?,graded:Bool,empty:String)->some View {
         if let id {
             let n=document.nodes[id],chosen=review.branch==nil && review.nodeID==id,grade=graded ? analyzer.grade(id):nil,glyphs=ReviewFormat.glyphs(n.nags)
-            let reason=[grade?.name,ReviewFormat.glyphMeanings(n.nags).map{"Marked in the record: "+$0}].compactMap{$0}.joined(separator:"; ")
+            let reason=[grade?.name,ReviewFormat.glyphMeanings(n.nags).map{String(localized:"Marked in the record: ",bundle:.checkmate)+$0}].compactMap{$0}.joined(separator:"; ")
             Button{select(id)} label:{HStack(spacing:2){
                 Text(verbatim:n.san ?? "").monospacedDigit().foregroundStyle(Color.primary).fontWeight(chosen ? .semibold:.regular)
                 if !glyphs.isEmpty{Text(verbatim:glyphs).foregroundStyle(.secondary).accessibilityHidden(true)}
@@ -371,19 +371,19 @@ struct ReviewPositionPanel:View {
                     HStack(spacing:Metrics.smallGap){actions}
                     VStack(alignment:.leading,spacing:Metrics.smallGap){HStack(spacing:Metrics.smallGap){why;deeper};idea}
                 }.controlSize(.small)
-                if let pv=review.evidence?.root.lines.first?.pv,!pv.isEmpty{Button("Compare Best Line · Before This Move"){attempt("The best line could not be shown."){try review.previewLine(pv,fromNode:document.nodes[review.nodeID].parent);review.seekBranch(0)}}.buttonStyle(.link).controlSize(.small)}
+                if let pv=review.evidence?.root.lines.first?.pv,!pv.isEmpty{Button("Compare Best Line · Before This Move"){attempt(String(localized:"The best line could not be shown.",bundle:.checkmate)){try review.previewLine(pv,fromNode:document.nodes[review.nodeID].parent);review.seekBranch(0)}}.buttonStyle(.link).controlSize(.small)}
             }
             if review.analysisStatus=="pending"{ProgressView("Analyzing offline…").controlSize(.small)}
             if let error=review.error{Text(error).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)}
             if model.fairness.engineHelpAllowed,let evidence=review.evidence{EngineEvidenceList(evidence:evidence)}
             DisclosureGroup("Verified board facts"){VStack(alignment:.leading,spacing:Metrics.tightGap){ForEach(explanation?.facts ?? []){fact in Text(verbatim:fact.text).textSelection(.enabled).fixedSize(horizontal:false,vertical:true)}}.padding(.top,Metrics.tightGap)}
-            if !document.nodes[review.nodeID].children.isEmpty{DisclosureGroup("Recorded continuations"){VStack(alignment:.leading,spacing:Metrics.tightGap){ForEach(document.nodes[review.nodeID].children,id:\.self){id in Button(document.nodes[id].san ?? "Position"){attempt("That move could not be shown."){try review.select(id)}}.buttonStyle(.link)}}.padding(.top,Metrics.tightGap)}}
+            if !document.nodes[review.nodeID].children.isEmpty{DisclosureGroup("Recorded continuations"){VStack(alignment:.leading,spacing:Metrics.tightGap){ForEach(document.nodes[review.nodeID].children,id:\.self){id in Button(document.nodes[id].san ?? String(localized:"Position",bundle:.checkmate,comment:"Noun: the arrangement of pieces on the board")){attempt(String(localized:"That move could not be shown.",bundle:.checkmate)){try review.select(id)}}.buttonStyle(.link)}}.padding(.top,Metrics.tightGap)}}
         }
     }
     @ViewBuilder private var actions:some View {why;deeper;idea}
     private var why:some View {Button("Why?"){review.analyze(using:model.reviewAnalyzer)}}
     private var deeper:some View {Button("Look Deeper"){review.analyze(using:model.reviewAnalyzer,budget:ReviewPolicy.deepBudget)}}
-    private var idea:some View {Button("Test My Idea"){attempt("An imagined line could not start here."){try review.beginBranch()}}}
+    private var idea:some View {Button("Test My Idea"){attempt(String(localized:"An imagined line could not start here.",bundle:.checkmate)){try review.beginBranch()}}}
 }
 
 /// The engine's lines as score and moves, one line each; engine details are in the caption's help.
@@ -405,13 +405,13 @@ struct ImaginedLineCallout:View {
     let branch:ReviewBranch,document:GameDocument
     var body:some View {VStack(alignment:.leading,spacing:Metrics.smallGap){
         Label("Imagined line",symbol:.imaginedLine).sectionHeading()
-        Text(branch.id==review.previewBranchID ? "A preview line: it is not kept unless you play a move in it.":"Either side can make legal moves here. The imported game is preserved.").font(.callout).fixedSize(horizontal:false,vertical:true)
+        Text(branch.id==review.previewBranchID ? String(localized:"A preview line: it is not kept unless you play a move in it.",bundle:.checkmate):String(localized:"Either side can make legal moves here. The imported game is preserved.",bundle:.checkmate)).font(.callout).fixedSize(horizontal:false,vertical:true)
         IdeaMoves(review:review,branch:branch,document:document)
         HStack(spacing:Metrics.smallGap){
             // No engine output during a network game (D8): say so rather than offer a button that does nothing.
             if model.fairness.engineHelpAllowed{Button("Analyze This Idea"){review.analyze(using:model.reviewAnalyzer)};Button("Look Deeper"){review.analyze(using:model.reviewAnalyzer,budget:ReviewPolicy.deepBudget)}}
             else{Text(FairnessPolicy.analysisHidden).foregroundStyle(.secondary)}
-            if review.canUndoIdeaChange{Button("Undo Change"){do{try review.undoIdeaChange();model.saveReview()}catch{model.storageError=userFacingMessage(error,fallback:"The change could not be undone.")}}}
+            if review.canUndoIdeaChange{Button("Undo Change"){do{try review.undoIdeaChange();model.saveReview()}catch{model.storageError=userFacingMessage(error,fallback:String(localized:"The change could not be undone.",bundle:.checkmate))}}}
         }.controlSize(.small)
     }.padding(10).frame(maxWidth:.infinity,alignment:.leading).background(RoundedRectangle(cornerRadius:Metrics.cornerRadius).fill(Color.accentColor.opacity(0.08))).overlay(RoundedRectangle(cornerRadius:Metrics.cornerRadius).strokeBorder(Color.accentColor.opacity(0.3)))}
 }
@@ -428,9 +428,9 @@ struct ReviewVoiceSection:View {
         if active || ReviewRolloutPolicy.reviewVoiceEnabled {VStack(alignment:.leading,spacing:Metrics.smallGap){
             Text("Voice coach").sectionHeading()
             if active{Text(voice.status).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)}
-            Text(voice.connected ? "Connected. Only selected verified facts are shared.":"Optional. Only selected verified facts are shared.").font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
-            VoiceCoachControls(voice:voice,idPrefix:"review-voice",actions:[.init(id:"narrate",title:"Narrate Facts"){voice.narrateReview()}],connect:ReviewRolloutPolicy.reviewVoiceEnabled ? {connect()}:nil).controlSize(.small)
-            if !voice.history.isEmpty{DisclosureGroup("Transcript",isExpanded:$transcriptShown){VStack(alignment:.leading,spacing:6){ForEach(Array(voice.history.reversed())){entry in VStack(alignment:.leading,spacing:1){Text(entry.role=="learner" ? "You":"Coach").font(.caption).foregroundStyle(.secondary);Text(entry.text).textSelection(.enabled).fixedSize(horizontal:false,vertical:true)}}}.padding(.top,Metrics.tightGap)}}
+            Text(voice.connected ? String(localized:"Connected. Only selected verified facts are shared.",bundle:.checkmate):String(localized:"Optional. Only selected verified facts are shared.",bundle:.checkmate)).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
+            VoiceCoachControls(voice:voice,idPrefix:"review-voice",actions:[.init(id:"narrate",title:String(localized:"Narrate Facts",bundle:.checkmate)){voice.narrateReview()}],connect:ReviewRolloutPolicy.reviewVoiceEnabled ? {connect()}:nil).controlSize(.small)
+            if !voice.history.isEmpty{DisclosureGroup("Transcript",isExpanded:$transcriptShown){VStack(alignment:.leading,spacing:6){ForEach(Array(voice.history.reversed())){entry in VStack(alignment:.leading,spacing:1){Text(entry.role=="learner" ? String(localized:"You",bundle:.checkmate):String(localized:"Coach",bundle:.checkmate)).font(.caption).foregroundStyle(.secondary);Text(entry.text).textSelection(.enabled).fixedSize(horizontal:false,vertical:true)}}}.padding(.top,Metrics.tightGap)}}
         }}
     }
 }

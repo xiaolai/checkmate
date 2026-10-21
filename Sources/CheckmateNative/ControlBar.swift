@@ -81,7 +81,7 @@ extension ControlBarModel {
         if session.mode == .training,let training {var bar=trainingBar(training,session:session);if trainingVoice,case .training=session.activity.place,training.exercise?.task == .game{bar.trailingGroups.insert(voiceControls(voice).items,at:0)};return bar}
         if session.mode == .lesson {return lessonBar(learning)}
         if learning.activePuzzle != nil {
-            return ControlBarModel(leading:[ControlBarItem(action:.puzzleLibrary,symbol:.library,label:"Puzzle library")],trailing:learning.passed ? [ControlBarItem(action:.nextPuzzle,label:"Next Puzzle",prominent:true)]:[ControlBarItem(action:.puzzleHint,label:learning.puzzleHints==0 ? "Hint":"Another Hint",enabled:learning.canHint),ControlBarItem(action:.skipPuzzle,label:"Skip")])
+            return ControlBarModel(leading:[ControlBarItem(action:.puzzleLibrary,symbol:.library,label:String(localized:"Puzzle library",bundle:.checkmate))],trailing:learning.passed ? [ControlBarItem(action:.nextPuzzle,label:String(localized:"Next Puzzle",bundle:.checkmate),prominent:true)]:[ControlBarItem(action:.puzzleHint,label:learning.puzzleHints==0 ? String(localized:"Hint",bundle:.checkmate,comment:"Noun: ask for a hint"):String(localized:"Another Hint",bundle:.checkmate),enabled:learning.canHint),ControlBarItem(action:.skipPuzzle,label:String(localized:"Skip",bundle:.checkmate))])
         }
         return ControlBarModel()
     }
@@ -91,32 +91,32 @@ extension ControlBarModel {
         let step=learning.step,last=learning.current.beats.count-1
         let previous=step==0 ? learning.library.previousMainLesson(before:learning.lessonIndex):nil
         let next=step>=last ? learning.library.nextMainLesson(after:learning.lessonIndex):nil
-        if learning.readingFromTraining{bar.leading.append(ControlBarItem(action:.backToTraining,label:"Back to Training"))}
-        let replay=learning.attemptStep ? (learning.attempt.hasMoves ? "Replay the original instruction (your game stays as it is)":"Replay the instruction"):"Replay transcript"
+        if learning.readingFromTraining{bar.leading.append(ControlBarItem(action:.backToTraining,label:String(localized:"Back to Training",bundle:.checkmate)))}
+        let replay=learning.attemptStep ? (learning.attempt.hasMoves ? String(localized:"Replay the original instruction (your game stays as it is)",bundle:.checkmate):String(localized:"Replay the instruction",bundle:.checkmate)):String(localized:"Replay transcript",bundle:.checkmate)
         bar.centre=[
             ControlBarItem(action:.stepFromStart,symbol:.replayFromStart,label:replay),
-            previous.map{ControlBarItem(action:.previousLesson,symbol:.previousLesson,label:"Previous lesson: \(learning.localizedTitle(index:$0))")}
-                ?? ControlBarItem(action:.previousStep,symbol:.previous,label:"Previous transcript",enabled:step>0),
-            ControlBarItem(action:.playPause,symbol:learning.playing ? .pause:.play,label:learning.playing ? "Pause":"Play",primary:true),
-            next.map{ControlBarItem(action:.nextLesson,symbol:.nextLesson,label:"Next lesson: \(learning.localizedTitle(index:$0))")}
-                ?? ControlBarItem(action:.nextStep,symbol:.next,label:"Next transcript"),
+            previous.map{ControlBarItem(action:.previousLesson,symbol:.previousLesson,label:String(localized:"Previous lesson: \(learning.localizedTitle(index:$0))",bundle:.checkmate))}
+                ?? ControlBarItem(action:.previousStep,symbol:.previous,label:String(localized:"Previous transcript",bundle:.checkmate),enabled:step>0),
+            ControlBarItem(action:.playPause,symbol:learning.playing ? .pause:.play,label:learning.playing ? String(localized:"Pause",bundle:.checkmate):String(localized:"Play",bundle:.checkmate,comment:"Verb: start playback of a lesson"),primary:true),
+            next.map{ControlBarItem(action:.nextLesson,symbol:.nextLesson,label:String(localized:"Next lesson: \(learning.localizedTitle(index:$0))",bundle:.checkmate))}
+                ?? ControlBarItem(action:.nextStep,symbol:.next,label:String(localized:"Next transcript",bundle:.checkmate)),
         ]
         if learning.attemptStep,let status=learning.attemptStatus {
             let attempt:LessonAttemptController=learning.attempt
             bar.status = attempt.thinking ? .working(status):.turn(side:attempt.rules.turn,label:status)
-            if attempt.waitingToResume{bar.leading.append(ControlBarItem(action:.resumeAttempt,label:"Resume Your Attempt",prominent:true))}
-            let hint=attempt.canShowMove ? "Show me a move":(attempt.record?.hints ?? 0)==0 ? "Hint":"Another hint"
+            if attempt.waitingToResume{bar.leading.append(ControlBarItem(action:.resumeAttempt,label:String(localized:"Resume Your Attempt",bundle:.checkmate),prominent:true))}
+            let hint=attempt.canShowMove ? String(localized:"Show me a move",bundle:.checkmate):(attempt.record?.hints ?? 0)==0 ? String(localized:"Hint",bundle:.checkmate,comment:"Noun: ask for a hint"):String(localized:"Another hint",bundle:.checkmate)
             // Off track the refutation stays on the board until the learner takes the move back; Hint could only repeat the advice.
-            if attempt.phase == .offTrack {bar.trailing=[ControlBarItem(action:.attemptUndo,label:"Take Back",prominent:true),ControlBarItem(action:.attemptRestart,symbol:.startOver,label:"Restart")]}
+            if attempt.phase == .offTrack {bar.trailing=[ControlBarItem(action:.attemptUndo,label:String(localized:"Take Back",bundle:.checkmate),prominent:true),ControlBarItem(action:.attemptRestart,symbol:.startOver,label:String(localized:"Restart",bundle:.checkmate))]}
             else {bar.trailing=[
                 ControlBarItem(action:.attemptHint,symbol:.hint,label:hint,enabled:attempt.learnerToMove),
-                ControlBarItem(action:.attemptUndo,symbol:.undo,label:"Undo Turn",enabled:attempt.hasMoves),
-                ControlBarItem(action:.attemptRestart,symbol:.startOver,label:"Restart",enabled:attempt.hasMoves),
+                ControlBarItem(action:.attemptUndo,symbol:.undo,label:String(localized:"Undo Turn",bundle:.checkmate),enabled:attempt.hasMoves),
+                ControlBarItem(action:.attemptRestart,symbol:.startOver,label:String(localized:"Restart",bundle:.checkmate),enabled:attempt.hasMoves),
             ]}
         } else {
-            let text=if let next{"Step \(step+1) of \(last+1) · next: \(learning.localizedTitle(index:next))"}
-                else if let previous{"Step \(step+1) of \(last+1) · back: \(learning.localizedTitle(index:previous))"}
-                else{"Step \(step+1) of \(last+1)"}
+            let text=if let next{String(localized:"Step \(step+1) of \(last+1) · next: \(learning.localizedTitle(index:next))",bundle:.checkmate)}
+                else if let previous{String(localized:"Step \(step+1) of \(last+1) · back: \(learning.localizedTitle(index:previous))",bundle:.checkmate)}
+                else{String(localized:"Step \(step+1) of \(last+1)",bundle:.checkmate)}
             bar.status = .text(text)
         }
         return bar
@@ -126,35 +126,35 @@ extension ControlBarModel {
         let voiceGroup=voiceControls(voice)
         if !session.presentationHidden,let d=session.demonstration {
             let count=d.lines[d.line].frames.count
-            return ControlBarModel(status:.text("Demonstration · move \(d.ply) of \(max(0,count-1))"),centre:[
-                ControlBarItem(action:.demoPrevious,symbol:.previous,label:"Previous imagined move",enabled:d.ply>0),
-                ControlBarItem(action:.demoPlayPause,symbol:d.playing ? .pause:.play,label:d.playing ? "Pause demonstration":"Play demonstration",primary:true),
-                ControlBarItem(action:.demoNext,symbol:.next,label:"Next imagined move",enabled:d.ply<count-1),
-            ],trailing:[ControlBarItem(action:.returnToGame,label:"Return to Game",prominent:true)],trailingGroups:[voiceGroup.items])
+            return ControlBarModel(status:.text(String(localized:"Demonstration · move \(d.ply) of \(max(0,count-1))",bundle:.checkmate)),centre:[
+                ControlBarItem(action:.demoPrevious,symbol:.previous,label:String(localized:"Previous imagined move",bundle:.checkmate),enabled:d.ply>0),
+                ControlBarItem(action:.demoPlayPause,symbol:d.playing ? .pause:.play,label:d.playing ? String(localized:"Pause demonstration",bundle:.checkmate):String(localized:"Play demonstration",bundle:.checkmate),primary:true),
+                ControlBarItem(action:.demoNext,symbol:.next,label:String(localized:"Next imagined move",bundle:.checkmate),enabled:d.ply<count-1),
+            ],trailing:[ControlBarItem(action:.returnToGame,label:String(localized:"Return to Game",bundle:.checkmate),prominent:true)],trailingGroups:[voiceGroup.items])
         }
         if !session.presentationHidden,let p=session.preview {
             let frames=(p.line=="candidate" ? p.evaluation?.candidateFrames.count:p.evaluation?.recommendedFrames.count) ?? 0
             var trailing:[ControlBarItem]=[]
-            if p.candidate != nil{trailing.append(ControlBarItem(action:.tryAnotherMove,label:"Try Another Move",enabled:session.rules.turn==session.humanSide && !session.rules.over))}
-            trailing.append(ControlBarItem(action:.returnToGame,label:"Return to Game",prominent:true))
-            return ControlBarModel(status:.text(p.evaluation==nil ? "Your idea":"Your idea · move \(p.ply) of \(max(0,frames-1))"),centre:[
-                ControlBarItem(action:.previewPrevious,symbol:.previous,label:"Previous preview move",enabled:p.evaluation != nil && p.ply>0),
-                ControlBarItem(action:.previewNext,symbol:.next,label:"Next preview move",enabled:p.evaluation != nil && p.ply<frames-1),
+            if p.candidate != nil{trailing.append(ControlBarItem(action:.tryAnotherMove,label:String(localized:"Try Another Move",bundle:.checkmate),enabled:session.rules.turn==session.humanSide && !session.rules.over))}
+            trailing.append(ControlBarItem(action:.returnToGame,label:String(localized:"Return to Game",bundle:.checkmate),prominent:true))
+            return ControlBarModel(status:.text(p.evaluation==nil ? String(localized:"Your idea",bundle:.checkmate):String(localized:"Your idea · move \(p.ply) of \(max(0,frames-1))",bundle:.checkmate)),centre:[
+                ControlBarItem(action:.previewPrevious,symbol:.previous,label:String(localized:"Previous preview move",bundle:.checkmate),enabled:p.evaluation != nil && p.ply>0),
+                ControlBarItem(action:.previewNext,symbol:.next,label:String(localized:"Next preview move",bundle:.checkmate),enabled:p.evaluation != nil && p.ply<frames-1),
             ],trailing:trailing,trailingGroups:[voiceGroup.items])
         }
         var bar=ControlBarModel(statusInCentre:true)
         // During a network game practice is viewable only: Stockfish waits and hints, Try a move and voice are off (D8).
         let fair=session.fairness.engineHelpAllowed
-        bar.status = !fair ? .text(FairnessPolicy.practicePaused):session.busyReason == .opponent ? .working("Stockfish is thinking"):session.busy ? .working("Finding a hint"):.turn(side:session.rules.turn,label:session.rules.status)
+        bar.status = !fair ? .text(FairnessPolicy.practicePaused):session.busyReason == .opponent ? .working(String(localized:"Stockfish is thinking",bundle:.checkmate)):session.busy ? .working(String(localized:"Finding a hint",bundle:.checkmate)):.turn(side:session.rules.turn,label:session.rules.status)
         // More (Flip Board, Resign) sits beside New game: the bar is centered, so the longer side sets when it wraps.
-        bar.leading=[ControlBarItem(action:.newGame,label:"New Game…"),ControlBarItem(action:.more,symbol:.moreActions,label:"More",menu:[ControlBarItem(action:.flipBoard,label:"Flip Board"),ControlBarItem(action:.resign,label:"Resign…",enabled:session.canResign)])]
-        if session.explicitResumeRequired{bar.leading.append(ControlBarItem(action:.resumeGame,label:"Resume Game",prominent:true))}
-        else if session.pausedOpponent{bar.leading.append(ControlBarItem(action:.continueWithStockfish,label:"Continue with Stockfish",prominent:true))}
+        bar.leading=[ControlBarItem(action:.newGame,label:String(localized:"New Game…",bundle:.checkmate)),ControlBarItem(action:.more,symbol:.moreActions,label:String(localized:"More",bundle:.checkmate),menu:[ControlBarItem(action:.flipBoard,label:String(localized:"Flip Board",bundle:.checkmate)),ControlBarItem(action:.resign,label:String(localized:"Resign…",bundle:.checkmate),enabled:session.canResign)])]
+        if session.explicitResumeRequired{bar.leading.append(ControlBarItem(action:.resumeGame,label:String(localized:"Resume Game",bundle:.checkmate),prominent:true))}
+        else if session.pausedOpponent{bar.leading.append(ControlBarItem(action:.continueWithStockfish,label:String(localized:"Continue with Stockfish",bundle:.checkmate),prominent:true))}
         let yourMove=session.rules.turn==session.humanSide && !session.finished
         bar.trailing=[
-            ControlBarItem(action:.takeBack,symbol:.undo,label:"Take back move",enabled:session.canTakeBack),
+            ControlBarItem(action:.takeBack,symbol:.undo,label:String(localized:"Take back move",bundle:.checkmate),enabled:session.canTakeBack),
             practiceHint(step:session.hintStep,available:fair && !session.busy && yourMove),
-            ControlBarItem(action:.tryMove,label:"Try a Move",enabled:fair && yourMove && session.busyReason != .opponent && session.demonstration==nil),
+            ControlBarItem(action:.tryMove,label:String(localized:"Try a Move",bundle:.checkmate),enabled:fair && yourMove && session.busyReason != .opponent && session.demonstration==nil),
         ]
         bar.trailingGroups=fair ? [voiceGroup.items]:[]
         if let status=voiceGroup.status{bar.status = .working(status)}
@@ -164,43 +164,43 @@ extension ControlBarModel {
     /// Practice's Hint, step by step (B-5): the first request marks the piece, the second shows the move, and then the
     /// move is on the board until the learner plays.
     static func practiceHint(step:Int,available:Bool)->ControlBarItem {
-        ControlBarItem(action:.hint,symbol:.hint,label:step==1 ? "Show Move":"Hint",enabled:available && step<2)
+        ControlBarItem(action:.hint,symbol:.hint,label:step==1 ? String(localized:"Show Move",bundle:.checkmate):String(localized:"Hint",bundle:.checkmate,comment:"Noun: ask for a hint"),enabled:available && step<2)
     }
 
     /// The voice coach's controls, the same beside the game and over a preview or demonstration: Cancel while it
     /// connects, Stop one click away while it is on, Disconnect in the microphone's menu.
     private static func voiceControls(_ voice:ControlBarVoice)->(items:[ControlBarItem],status:String?) {
         switch voice {
-        case .off(let reason):return ([ControlBarItem(action:.voiceConnect,symbol:.microphone,label:reason?.message ?? "Connect voice coach",enabled:reason==nil)],nil)
-        case .connecting(let status):return ([ControlBarItem(action:.voiceCancel,label:VoiceCoachControls.cancelTitle,detail:status)],"Connecting voice coach")
+        case .off(let reason):return ([ControlBarItem(action:.voiceConnect,symbol:.microphone,label:reason?.message ?? String(localized:"Connect voice coach",bundle:.checkmate),enabled:reason==nil)],nil)
+        case .connecting(let status):return ([ControlBarItem(action:.voiceCancel,label:VoiceCoachControls.cancelTitle,detail:status)],String(localized:"Connecting voice coach",bundle:.checkmate))
         case .on(let microphone,let canStop):return ([
-            ControlBarItem(action:.voiceStop,symbol:.stopSpeaking,label:"Stop coach speaking",enabled:canStop),
-            ControlBarItem(action:.voiceMicrophone,symbol:microphone ? .microphone:.microphoneOff,label:microphone ? "Mute microphone":"Enable microphone",menu:[ControlBarItem(action:.voiceDisconnect,label:VoiceCoachControls.disconnectTitle)]),
+            ControlBarItem(action:.voiceStop,symbol:.stopSpeaking,label:String(localized:"Stop coach speaking",bundle:.checkmate),enabled:canStop),
+            ControlBarItem(action:.voiceMicrophone,symbol:microphone ? .microphone:.microphoneOff,label:microphone ? String(localized:"Mute microphone",bundle:.checkmate):String(localized:"Enable microphone",bundle:.checkmate),menu:[ControlBarItem(action:.voiceDisconnect,label:VoiceCoachControls.disconnectTitle)]),
         ],nil)
         }
     }
 
     @MainActor private static func miniBar(_ learning:LearningPlayer)->ControlBarModel {
-        let back=learning.miniFromLibrary ? "Back to Training":"Back to \(learning.localizedTitle(index:learning.lessonIndex))"
+        let back=learning.miniFromLibrary ? String(localized:"Back to Training",bundle:.checkmate):String(localized:"Back to \(learning.localizedTitle(index:learning.lessonIndex))",bundle:.checkmate)
         var bar=ControlBarModel(statusInCentre:true,leading:[ControlBarItem(action:.backFromMiniGame,label:back)])
         bar.status = learning.miniKind.solo ? .text(learning.miniStatus):.turn(side:learning.miniTurn,label:learning.miniStatus)
         bar.trailing=[
-            ControlBarItem(action:.miniUndo,symbol:.undo,label:"Undo Turn",enabled:learning.miniGame?.history.isEmpty == false),
-            ControlBarItem(action:.miniNewGame,symbol:.startOver,label:"New game"),
+            ControlBarItem(action:.miniUndo,symbol:.undo,label:String(localized:"Undo Turn",bundle:.checkmate),enabled:learning.miniGame?.history.isEmpty == false),
+            ControlBarItem(action:.miniNewGame,symbol:.startOver,label:String(localized:"New game",bundle:.checkmate)),
         ]
         return bar
     }
 
     @MainActor private static func reviewBar(_ review:ReviewController)->ControlBarModel {
-        var bar=ControlBarModel(status:.text(review.branch==nil ? "Original game":"Imagined line"))
+        var bar=ControlBarModel(status:.text(review.branch==nil ? String(localized:"Original game",bundle:.checkmate):String(localized:"Imagined line",bundle:.checkmate)))
         bar.centre=[
-            ControlBarItem(action:.reviewFirst,symbol:.firstPosition,label:"First position"),
-            ControlBarItem(action:.reviewPrevious,symbol:.previous,label:"Previous review move"),
-            ControlBarItem(action:.reviewPlayPause,symbol:review.playing ? .pause:.play,label:review.playing ? "Pause review":"Play review",primary:true),
-            ControlBarItem(action:.reviewNext,symbol:.next,label:"Next review move"),
-            ControlBarItem(action:.reviewLast,symbol:.lastPosition,label:"Last position"),
+            ControlBarItem(action:.reviewFirst,symbol:.firstPosition,label:String(localized:"First position",bundle:.checkmate)),
+            ControlBarItem(action:.reviewPrevious,symbol:.previous,label:String(localized:"Previous review move",bundle:.checkmate)),
+            ControlBarItem(action:.reviewPlayPause,symbol:review.playing ? .pause:.play,label:review.playing ? String(localized:"Pause review",bundle:.checkmate):String(localized:"Play review",bundle:.checkmate),primary:true),
+            ControlBarItem(action:.reviewNext,symbol:.next,label:String(localized:"Next review move",bundle:.checkmate)),
+            ControlBarItem(action:.reviewLast,symbol:.lastPosition,label:String(localized:"Last position",bundle:.checkmate)),
         ]
-        if review.branch != nil{bar.trailing=[ControlBarItem(action:.returnToOriginal,label:"Return to Original",prominent:true)]}
+        if review.branch != nil{bar.trailing=[ControlBarItem(action:.returnToOriginal,label:String(localized:"Return to Original",bundle:.checkmate),prominent:true)]}
         return bar
     }
 
@@ -214,21 +214,21 @@ extension ControlBarModel {
 
     @MainActor private static func trainingBar(_ training:TrainingController,session:GameSession)->ControlBarModel {
         var bar=ControlBarModel(statusInCentre:true)
-        bar.trailingGroups=[[ControlBarItem(action:.trainingLibrary,symbol:.library,label:"Training library")]]
+        bar.trailingGroups=[[ControlBarItem(action:.trainingLibrary,symbol:.library,label:String(localized:"Training library",bundle:.checkmate))]]
         guard case .training=session.activity.place,let exercise=training.exercise else{return bar}
         if exercise.finished {
             bar.status = .text(TrainingPanel.resultLabel(exercise))
-            if TrainingPanel.canRetry(exercise){bar.trailing.append(ControlBarItem(action:.trainingTryAgain,symbol:.startOver,label:"Try Again"))}
-            bar.trailing.append(ControlBarItem(action:.trainingNextExercise,label:"Next Exercise",prominent:true))
+            if TrainingPanel.canRetry(exercise){bar.trailing.append(ControlBarItem(action:.trainingTryAgain,symbol:.startOver,label:String(localized:"Try Again",bundle:.checkmate)))}
+            bar.trailing.append(ControlBarItem(action:.trainingNextExercise,label:String(localized:"Next Exercise",bundle:.checkmate),prominent:true))
         } else if !exercise.feedback.isEmpty {
             // The latest feedback line, which may be long: it sits at the leading edge, where the status truncates.
             bar.status = .text(exercise.feedback);bar.statusInCentre=false
         } else {
-            bar.status = .turn(side:exercise.scenario.learner,label:exercise.scenario.learner=="w" ? "You are White":"You are Black")
+            bar.status = .turn(side:exercise.scenario.learner,label:exercise.scenario.learner=="w" ? String(localized:"You are White",bundle:.checkmate):String(localized:"You are Black",bundle:.checkmate))
         }
         if !exercise.finished {
             bar.trailing.append(ControlBarItem(action:.trainingHint,symbol:.hint,label:TrainingPanel.hintTitle(exercise),enabled:!TrainingPanel.hintDisabled(exercise,thinking:training.games.thinking)))
-            if exercise.scenario.drill != nil || exercise.task == .game{bar.trailing.append(ControlBarItem(action:.trainingTakeBack,symbol:.undo,label:"Take back a move",enabled:canTakeBack(training,exercise)))}
+            if exercise.scenario.drill != nil || exercise.task == .game{bar.trailing.append(ControlBarItem(action:.trainingTakeBack,symbol:.undo,label:String(localized:"Take back a move",bundle:.checkmate),enabled:canTakeBack(training,exercise)))}
         }
         return bar
     }

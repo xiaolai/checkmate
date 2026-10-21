@@ -12,7 +12,7 @@ extension GameWindow {
         let voice=model.voice
         switch item.action {
         case #selector(toggleVoiceCoach)?:
-            item.title=voice.connected ? "Disconnect Voice Coach":voice.connecting ? "Cancel Voice Coach":"Connect Voice Coach"
+            item.title=voice.connected ? String(localized:"Disconnect Voice Coach",bundle:.checkmate):voice.connecting ? String(localized:"Cancel Voice Coach",bundle:.checkmate):String(localized:"Connect Voice Coach",bundle:.checkmate)
             return voice.connected || voice.connecting || offered
         case #selector(stopSpeaking)?:return voice.connected && voice.canStopTurn
         default:return nil

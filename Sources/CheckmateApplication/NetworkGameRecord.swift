@@ -1,3 +1,4 @@
+import CheckmateAssets
 import CheckmateDomain
 import Foundation
 /// What a finished or interrupted network game leaves behind (LAN-play plan D9): the record handed to Review, and the
@@ -18,7 +19,7 @@ public enum NetworkGameRecord {
         return headers+"\n\n"+movetext(moves,result:game.outcome?.result.rawValue ?? "*",assisted:Set(game.assistedPlies),start:game.start)
     }
     /// The comment after each assisted move (A11). Self-reported by the mover, as the game's wording says.
-    static let assistedComment="{Hint shown}"
+    static let assistedComment="{Hint shown}" // not localized: a record comment read back
     /// Numbered movetext from the start's first move, ending in `result`: "37... Kd7 38. Ke5" when Black moves first at
     /// move 37. The plies in `assisted` (counted from 1) are followed by `assistedComment`.
     static func movetext(_ moves:[String],result:String,assisted:Set<Int>=[],start:String=NetworkStart.standard)->String {
@@ -48,9 +49,9 @@ public struct NetworkCrashFile {
         /// "Your network game with Ben ended when Checkmate closed."
         public var notice:String {
             switch part {
-            case .white:return "Your network game with \(game.blackName ?? "your opponent") ended when Checkmate closed."
-            case .black:return "Your network game with \(game.whiteName ?? "your opponent") ended when Checkmate closed."
-            case .spectator:return "The network game you were watching ended when Checkmate closed."
+            case .white:return String(localized:"Your network game with \(game.blackName ?? "your opponent") ended when Checkmate closed.",bundle:.checkmate)
+            case .black:return String(localized:"Your network game with \(game.whiteName ?? "your opponent") ended when Checkmate closed.",bundle:.checkmate)
+            case .spectator:return String(localized:"The network game you were watching ended when Checkmate closed.",bundle:.checkmate)
             }
         }
     }

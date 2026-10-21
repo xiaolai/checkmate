@@ -1,3 +1,4 @@
+import CheckmateAssets
 import CheckmateDomain
 import CheckmateRules
 import CheckmateSupport
@@ -16,7 +17,7 @@ public enum ReviewProvenance:String,Codable,Sendable,CaseIterable {case currentG
     public init(from decoder:Decoder)throws {let value=try decoder.singleValueContainer().decode(String.self);self=Self(rawValue:value) ?? Self.legacy[value] ?? .imported}
     static let legacy:[String:ReviewProvenance]=["Current game":.currentGame,"Previous game":.previousGame,"Training game":.trainingGame,"Library game":.libraryGame,"Collection game":.collectionGame,"Imported":.imported]
     /// The practice game's own name, shown when its record has no players.
-    public var ownGameTitle:String? {switch self{case .currentGame:return "Current game";case .previousGame:return "Previous game";default:return nil}}
+    public var ownGameTitle:String? {switch self{case .currentGame:return String(localized:"Current game",bundle:.checkmate);case .previousGame:return String(localized:"Previous game",bundle:.checkmate);default:return nil}}
 }
 public struct GameDocument:Codable,Equatable,Identifiable {
     public let schemaVersion:Int,id:UUID,contentHash:String,importedAt:Date,provenance:ReviewProvenance,original:Data,headers:[PGNHeader],startingFEN:String,result:String,termination:String?,historyAvailable:Bool,nodes:[GameNode]
@@ -25,24 +26,24 @@ public struct GameDocument:Codable,Equatable,Identifiable {
     public var title:String {
         func known(_ name:String)->String? {guard let value=header(name)?.trimmingCharacters(in:.whitespacesAndNewlines),!value.isEmpty,value != "?" else{return nil};return value}
         let title:String
-        if known("White") != nil || known("Black") != nil{title="\(known("White") ?? "White") – \(known("Black") ?? "Black")"+(known("Round").flatMap{$0=="-" ? nil:" · Round \($0)"} ?? "")}
+        if known("White") != nil || known("Black") != nil{title="\(known("White") ?? "White") – \(known("Black") ?? "Black")"+(known("Round").flatMap{$0=="-" ? nil:String(localized:" · Round \($0)",bundle:.checkmate)} ?? "")}
         else if let event=known("Event"){title=event}
         else if let own=provenance.ownGameTitle{title=own}
-        else{title=historyAvailable ? "Imported game":"Imported position"}
+        else{title=historyAvailable ? String(localized:"Imported game",bundle:.checkmate):String(localized:"Imported position",bundle:.checkmate)}
         return String(String.UnicodeScalarView(title.unicodeScalars.prefix(ReviewPolicy.maximumTitleScalars)))
     }
     public func header(_ name:String)->String? {headers.first{$0.name==name}?.value}
     public var mainline:[Int] {var result:[Int]=[],node=0;while let next=nodes[node].children.first{result.append(next);node=next};return result}
-    public func history(to id:Int)throws -> [String] {guard nodes.indices.contains(id) else{throw CheckmateError.invalid("Unknown review node.")};var route:[String]=[],cursor=id;while let parent=nodes[cursor].parent{guard let uci=nodes[cursor].uci else{throw CheckmateError.invalid("Missing move.")};route.append(uci);cursor=parent};return route.reversed()}
+    public func history(to id:Int)throws -> [String] {guard nodes.indices.contains(id) else{throw CheckmateError.invalid(String(localized:"Unknown review node.",bundle:.checkmate))};var route:[String]=[],cursor=id;while let parent=nodes[cursor].parent{guard let uci=nodes[cursor].uci else{throw CheckmateError.invalid(String(localized:"Missing move.",bundle:.checkmate))};route.append(uci);cursor=parent};return route.reversed()}
     public func historyHash(to id:Int)throws -> String {reviewHash(Data((startingFEN+"|"+(try history(to:id)).joined(separator:" ")).utf8))}
     public func rules(at id:Int)throws -> ChessRules {let rules=try ChessRules(fen:startingFEN);for move in try history(to:id){try rules.move(uci:move)};return rules}
     /// History is required for searches/forks; drawing and rule facts use immutable snapshots.
     public func snapshotRules(at id:Int)throws -> ChessRules {
-        guard nodes.indices.contains(id) else{throw CheckmateError.invalid("Unknown review node.")}
+        guard nodes.indices.contains(id) else{throw CheckmateError.invalid(String(localized:"Unknown review node.",bundle:.checkmate))}
         return try ChessRules(fen:nodes[id].afterFEN)
     }
     public func status(at id:Int,using snapshot:ChessRules?=nil)throws -> ReviewPositionStatus {
-        guard nodes.indices.contains(id) else{throw CheckmateError.invalid("Unknown review node.")}
+        guard nodes.indices.contains(id) else{throw CheckmateError.invalid(String(localized:"Unknown review node.",bundle:.checkmate))}
         let rules:ChessRules
         if let snapshot=snapshot,snapshot.fen==nodes[id].afterFEN{rules=snapshot}else{rules=try snapshotRules(at:id)}
         // chess.js emits an en-passant square only when a legal capture exists;
@@ -54,19 +55,19 @@ public struct GameDocument:Codable,Equatable,Identifiable {
         return ReviewPositionStatus(check:rules.check,checkmate:rules.checkmate,stalemate:rules.stalemate,insufficientMaterial:rules.insufficientMaterial,claimableThreefold:repetitions>=3,claimableFiftyMove:clock>=100,automaticFivefold:repetitions>=5,automaticSeventyFiveMove:clock>=150 && !rules.checkmate)
     }
     private func checkEnvelope()throws {
-        guard schemaVersion==1,original.count<=ReviewPolicy.maximumBytes,reviewHash(original)==contentHash,!nodes.isEmpty,nodes.count<=ReviewPolicy.maximumNodes,nodes[0].parent==nil,nodes[0].afterFEN==startingFEN else{throw CheckmateError.invalid("Review document integrity failed.")}
+        guard schemaVersion==1,original.count<=ReviewPolicy.maximumBytes,reviewHash(original)==contentHash,!nodes.isEmpty,nodes.count<=ReviewPolicy.maximumNodes,nodes[0].parent==nil,nodes[0].afterFEN==startingFEN else{throw CheckmateError.invalid(String(localized:"Review document integrity failed.",bundle:.checkmate))}
     }
     /// This record as the current importer reads its hash-verified original bytes, keeping its identity. A saved
     /// review whose stored tree came from an older importer or chess.js is read this way instead of being refused.
     public func rederived()throws -> GameDocument {
         try checkEnvelope();let report=try PGNImporter.parseReport(original,provenance:provenance)
-        guard report.documents.count==1,report.skipped.isEmpty,let record=report.documents.first else{throw CheckmateError.invalid("Review tree integrity failed.")}
+        guard report.documents.count==1,report.skipped.isEmpty,let record=report.documents.first else{throw CheckmateError.invalid(String(localized:"Review tree integrity failed.",bundle:.checkmate))}
         return GameDocument(schemaVersion:1,id:id,contentHash:contentHash,importedAt:importedAt,provenance:provenance,original:original,headers:record.headers,startingFEN:record.startingFEN,result:record.result,termination:record.termination,historyAvailable:record.historyAvailable,nodes:record.nodes)
     }
     /// A document this process built from text is valid by construction; any other must equal a fresh re-parse.
     public func validate()throws {
         try checkEnvelope();if ImportedDocuments.shared.built(self){return}
-        guard try rederived()==self else{throw CheckmateError.invalid("Review tree integrity failed.")}
+        guard try rederived()==self else{throw CheckmateError.invalid(String(localized:"Review tree integrity failed.",bundle:.checkmate))}
     }
 }
 /// Fingerprints of the documents `PGNImporter` built in this process. Saving one of them skips the full re-parse a

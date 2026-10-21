@@ -1,3 +1,4 @@
+import CheckmateAssets
 import CheckmateDomain
 import CheckmateSupport
 import CodexAuth
@@ -36,7 +37,7 @@ public final class VoiceGateway:Sendable {
     /// Bounds each call to Codex while it fetches or renews the sign-in.
     public static let codexTimeout:TimeInterval=20
     /// One sign-in for the process: Codex runs only to fetch or renew the token, which stays in memory.
-    static let credentials=Result{try Credentials(CodexAuthConfiguration(margin:signInMargin,timeout:codexTimeout,clientName:"checkmate",guardAccess:{_ in if NativePolicy.silent{throw CheckmateError.unavailable("Live voice is disabled during automation.")}},log:{NativeLog.voice.debug("\($0)")}))}
+    static let credentials=Result{try Credentials(CodexAuthConfiguration(margin:signInMargin,timeout:codexTimeout,clientName:"checkmate",guardAccess:{_ in if NativePolicy.silent{throw CheckmateError.unavailable(String(localized:"Live voice is disabled during automation.",bundle:.checkmate))}},log:{NativeLog.voice.debug("\($0)")}))}
     private let client:HTTPClient
     public init(){let configuration=URLSessionConfiguration.ephemeral;configuration.timeoutIntervalForResource=Self.mintResourceTimeout;client=HTTPClient(configuration:configuration)}
     /// What a sign-in state means for the learner (V-6): one cause and its action. Every state that is not ready has its own.
@@ -56,7 +57,7 @@ public final class VoiceGateway:Sendable {
     }
     /// A realtime secret for a session of `model`, minted with Codex's sign-in (renewed once if the provider refuses it).
     public func authorize(model:String="gpt-realtime") async throws->ClientSecret {
-        guard !NativePolicy.silent else{throw CheckmateError.unavailable("Live voice is disabled during automation.")}
+        guard !NativePolicy.silent else{throw CheckmateError.unavailable(String(localized:"Live voice is disabled during automation.",bundle:.checkmate))}
         do {
             let minter=Minter(client:client,credentials:try Self.credentials.get(),timeout:Self.mintTimeout,lifetimeSeconds:Self.secretLifetime)
             return try await minter.secret(session:JSONSerialization.data(withJSONObject:["type":"realtime","model":model]))
@@ -81,7 +82,7 @@ public final class VoiceSocket:Sendable {
     /// The next message's bytes. A message over the read limit, a close or a broken connection ends the session.
     public func receiveData()async throws->Data {try await session.next().raw}
     /// The next event; one that is not a JSON object fails.
-    public func receive()async throws->[String:Any] {guard let event=try JSONSerialization.jsonObject(with:try await receiveData()) as? [String:Any] else{throw CheckmateError.invalid("Malformed voice event")};return event}
+    public func receive()async throws->[String:Any] {guard let event=try JSONSerialization.jsonObject(with:try await receiveData()) as? [String:Any] else{throw CheckmateError.invalid(String(localized:"Malformed voice event",bundle:.checkmate))};return event}
     /// Closes the session: a normal close, dropped if the provider does not finish it promptly.
     public func close()async {await session.close()}
     /// Closes the session without waiting, for a caller that cannot.
@@ -106,6 +107,6 @@ public enum VoiceSessionConfiguration {
 
 public enum VoiceScriptRequest {
     public static func event(text:String,language:String,metadata:[String:String]=[:])->[String:Any] {
-        ["type":"response.create","response":["conversation":"none","input":[],"output_modalities":["audio"],"tool_choice":"none","metadata":metadata,"instructions":"You are a text-to-speech reader. Read exactly the script below, in its written language. Do not greet, answer, explain, translate, or add words. The selected response language is \(language). SCRIPT:\n"+text]]
+        ["type":"response.create","response":["conversation":"none","input":[],"output_modalities":["audio"],"tool_choice":"none","metadata":metadata,"instructions":"You are a text-to-speech reader. Read exactly the script below, in its written language. Do not greet, answer, explain, translate, or add words. The selected response language is \(language). SCRIPT:\n"+text]] // not localized: model instructions
     }
 }

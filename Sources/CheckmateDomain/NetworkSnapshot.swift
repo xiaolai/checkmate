@@ -1,3 +1,4 @@
+import CheckmateAssets
 import Foundation
 /// A consistent capture of the public game at one revision (D5), sent as `snapshotBegin`, Base64 parts of at most
 /// 9 KiB raw, then `snapshotEnd`. Parts are made one at a time as the outbox asks for them.
@@ -20,7 +21,7 @@ public struct NetworkSnapshot:Equatable {
     /// The host's capture: the public game encoded, and the hash of the position it records.
     static func capture(_ game:NetworkPublicGame,fen:String,hashing:NetworkHashing,random:NetworkRandom)throws -> NetworkSnapshot {
         let payload=try game.encoded()
-        guard payload.count<=NetworkLimits.maximumSnapshotBytes else{throw NetworkRulesError.unexpected("The game record is over the snapshot limit.")}
+        guard payload.count<=NetworkLimits.maximumSnapshotBytes else{throw NetworkRulesError.unexpected(String(localized:"The game record is over the snapshot limit.",bundle:.checkmate))}
         return NetworkSnapshot(snapshotID:.random(using:random),revision:game.revision,hash:hashing.positionHash(fen:fen,revision:game.revision),payload:payload)
     }
 }

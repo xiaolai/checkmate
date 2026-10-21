@@ -1,3 +1,4 @@
+import CheckmateAssets
 import CheckmateDomain
 import CheckmateRules
 import Foundation
@@ -78,11 +79,11 @@ public struct LessonAttemptProjection:Codable,Equatable {
         cancelReply();self.lessonID=lessonID;self.practice=practice;selected=nil;hintArrow=nil;notice=nil
         let definition=practice.definitionID
         if let saved=session.state.lessonAttempts?[lessonID] {
-            if saved.definition != definition {notice="This exercise has changed since you last tried it, so it starts again.";record=LessonAttemptRecord(definition:definition)}
+            if saved.definition != definition {notice=String(localized:"This exercise has changed since you last tried it, so it starts again.",bundle:.checkmate);record=LessonAttemptRecord(definition:definition)}
             else {record=saved}
         } else {record=LessonAttemptRecord(definition:definition)}
-        if !rejudge(){notice="Your saved attempt could not be replayed, so the exercise starts again.";record=LessonAttemptRecord(definition:definition);_ = rejudge()}
-        if session.state.lessonAttempts?[lessonID]==nil,case .object(let kept)?=session.state.unknownFields["lessonAttempts"],kept[lessonID] != nil {notice="Your saved attempt was made by a newer version of Checkmate, so it starts again here. Your first move or hint replaces it."}
+        if !rejudge(){notice=String(localized:"Your saved attempt could not be replayed, so the exercise starts again.",bundle:.checkmate);record=LessonAttemptRecord(definition:definition);_ = rejudge()}
+        if session.state.lessonAttempts?[lessonID]==nil,case .object(let kept)?=session.state.unknownFields["lessonAttempts"],kept[lessonID] != nil {notice=String(localized:"Your saved attempt was made by a newer version of Checkmate, so it starts again here. Your first move or hint replaces it.",bundle:.checkmate)}
         // Opening saves nothing: a replaced or unreadable saved attempt stays on disk until the learner plays this one.
         waitingToResume=computerToMove
         onChange()
@@ -106,7 +107,7 @@ public struct LessonAttemptProjection:Codable,Equatable {
             if !hasMoves,let reason=practice?.mistakes?[from+square]{notice=reason;selected=rules.piece(square)?.color=="w" ? square:nil;onChange();return}
         }
         if selected==square{selected=nil}
-        else if rules.piece(square)?.color=="w"{selected=rules.moves(square).isEmpty ? nil:square;notice=selected==nil ? "That piece has no legal move here.":nil}
+        else if rules.piece(square)?.color=="w"{selected=rules.moves(square).isEmpty ? nil:square;notice=selected==nil ? String(localized:"That piece has no legal move here.",bundle:.checkmate):nil}
         else{selected=nil}
         onChange()
     }
@@ -117,7 +118,7 @@ public struct LessonAttemptProjection:Codable,Equatable {
     /// Plays one of White's legal moves. A promotion without a chosen piece is refused: the board asks first.
     public func play(from:String,to:String,promotion:String?){
         guard learnerToMove,var record else{return}
-        guard let move=rules.moves(from).first(where:{$0.to==to && ($0.promotion==nil || $0.promotion==promotion)}) else{notice="That move is not legal here.";onChange();return}
+        guard let move=rules.moves(from).first(where:{$0.to==to && ($0.promotion==nil || $0.promotion==promotion)}) else{notice=String(localized:"That move is not legal here.",bundle:.checkmate);onChange();return}
         let wasAchieved=judgement?.achieved==true
         record.moves.append(move.uci);self.record=record;selected=nil;hintArrow=nil;notice=nil
         guard rejudge(),let landed=rules.records.last else{self.record?.moves.removeLast();_ = rejudge();onChange();return}
@@ -141,13 +142,13 @@ public struct LessonAttemptProjection:Codable,Equatable {
     /// Off track it only explains: nothing is shown, so the hint count stays as it was.
     public func hint(){
         guard active,var record,learnerToMove || phase == .offTrack else{return}
-        if phase == .offTrack{notice="Take back your move first, then ask again.";onChange();return}
+        if phase == .offTrack{notice=String(localized:"Take back your move first, then ask again.",bundle:.checkmate);onChange();return}
         let words=min(2,practice?.hints?.count ?? 0)
         if !hasMoves,record.hints<words{record.hints+=1;self.record=record;save();onChange();return}
         record.hints=3;self.record=record;save()
         if let node=judgement?.node,let move=practice?.teaching?[node].accepted.first{hintArrow=[String(move.prefix(2)),String(move.dropFirst(2).prefix(2))];onChange();return}
         guard session.fairness.engineHelpAllowed else{notice=FairnessPolicy.destinationUnavailable;onChange();return}
-        guard let engine=session.engine,let practice else{notice="A move cannot be shown right now.";onChange();return}
+        guard let engine=session.engine,let practice else{notice=String(localized:"A move cannot be shown right now.",bundle:.checkmate);onChange();return}
         let token=generation,moves=record.moves
         work=Task{[weak self,fairness=session.fairness] in
             // D8, again where the search starts: participation may have begun before this task first ran.
@@ -155,7 +156,7 @@ public struct LessonAttemptProjection:Codable,Equatable {
             let best=try? await engine.analyzeHistory(startFEN:practice.fen,moves:moves,profile:.skill(20),budget:300,multiPv:1).bestMove
             guard let self,!Task.isCancelled,self.generation==token,self.record?.moves==moves,self.session.fairness.engineHelpAllowed else{return}
             self.work=nil
-            if let best,best.count>=4{self.hintArrow=[String(best.prefix(2)),String(best.dropFirst(2).prefix(2))]}else{self.notice="A move cannot be shown right now."}
+            if let best,best.count>=4{self.hintArrow=[String(best.prefix(2)),String(best.dropFirst(2).prefix(2))]}else{self.notice=String(localized:"A move cannot be shown right now.",bundle:.checkmate)}
             self.onChange()
         }
         onChange()
@@ -191,12 +192,12 @@ public struct LessonAttemptProjection:Codable,Equatable {
             guard let self,!Task.isCancelled,self.generation==token,self.record?.id==id,self.record?.moves==moves,fairness.engineHelpAllowed else{return}
             self.work=nil;self.thinking=false
             if self.session.suspended{self.waitingToResume=true;self.onChange();return}
-            if failed{self.waitingToResume=true;self.notice="The computer could not choose a reply. Press Resume to try again.";self.onChange();return}
+            if failed{self.waitingToResume=true;self.notice=String(localized:"The computer could not choose a reply. Press Resume to try again.",bundle:.checkmate);self.onChange();return}
             self.applyReply(choice!)
         }
     }
     private func applyReply(_ uci:String){
-        guard var record,rules.turn=="b",rules.moves().contains(where:{$0.uci==uci}) else{waitingToResume=true;notice="The computer's reply did not fit this position. Press Resume to try again.";onChange();return}
+        guard var record,rules.turn=="b",rules.moves().contains(where:{$0.uci==uci}) else{waitingToResume=true;notice=String(localized:"The computer's reply did not fit this position. Press Resume to try again.",bundle:.checkmate);onChange();return}
         let wasAchieved=judgement?.achieved==true
         record.moves.append(uci);self.record=record
         guard rejudge(),let landed=rules.records.last else{self.record?.moves.removeLast();_ = rejudge();waitingToResume=true;onChange();return}

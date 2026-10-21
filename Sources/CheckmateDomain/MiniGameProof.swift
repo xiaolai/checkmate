@@ -1,3 +1,4 @@
+import CheckmateAssets
 import Foundation
 
 /// The proof search's limits (plan D5), fixed by WI-018's spike on the test host. Per root position: at most `plies`

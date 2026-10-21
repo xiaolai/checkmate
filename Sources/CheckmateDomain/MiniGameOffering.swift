@@ -1,3 +1,4 @@
+import CheckmateAssets
 import Foundation
 
 /// Which opponent levels each simplified mini-game offers, and so which level a new run freezes (plan D4, D8).
@@ -27,7 +28,7 @@ public enum MiniGameOffering {
         return [settings.miniOpponentProfiles[kind.rawValue],settings.miniOpponentProfile].compactMap{$0}.first{allowed.contains($0)} ?? fallbackLevel
     }
     /// The name a level is shown by (plan D4); the stored profile names stay as they are.
-    public static func title(_ level:String)->String {["beginner":"Gentle","standard":"Steady","challenging":"Strong","legacy":"Legacy strength"][level] ?? TrainingOpponentLevel(rawValue:level)?.title ?? level.capitalized}
+    public static func title(_ level:String)->String {["beginner":String(localized:"Gentle",bundle:.checkmate),"standard":String(localized:"Steady",bundle:.checkmate),"challenging":String(localized:"Strong",bundle:.checkmate),"legacy":String(localized:"Legacy strength",bundle:.checkmate)][level] ?? TrainingOpponentLevel(rawValue:level)?.title ?? level.capitalized}
     // MARK: Standard-rule training games
     /// The level a standard-rule game plays when it offers no choice: today's coded strength (plan D4), Steady for a
     /// guided game (`.skill(3)`), Strong for an ending or a position game (`.skill(20)`).

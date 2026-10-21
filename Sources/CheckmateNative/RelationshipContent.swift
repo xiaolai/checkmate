@@ -8,7 +8,7 @@ struct RelationshipContent:View {
         VStack(alignment:.leading,spacing:Metrics.smallGap){
             Text(label).sectionHeading()
             HStack {ForEach(RelationshipMode.allCases,id:\.self){mode in
-                Toggle(mode.title,isOn:Binding(get:{relationships.mode==mode},set:{value in if value != (relationships.mode==mode){inspect(mode)}})).toggleStyle(.button).help("\(mode.title) · \(mode.shortcut) while the board has focus").accessibilityValue(relationships.mode==mode ? "On":"Off")
+                Toggle(mode.title,isOn:Binding(get:{relationships.mode==mode},set:{value in if value != (relationships.mode==mode){inspect(mode)}})).toggleStyle(.button).help("\(mode.title) · \(mode.shortcut) while the board has focus").accessibilityValue(relationships.mode==mode ? String(localized:"On",bundle:.checkmate,comment:"State of a toggle"):String(localized:"Off",bundle:.checkmate,comment:"State of a toggle"))
             }}
             if let report=relationships.report {
                 Text(report.mode.title).sectionHeading(.title2.bold())

@@ -1,3 +1,4 @@
+import CheckmateAssets
 import CheckmateDomain
 import CheckmateRules
 import CheckmateSupport
@@ -10,10 +11,10 @@ public enum PGNImporter {
     /// Every readable game, plus the games that could not be read: one bad game in a collection is skipped and
     /// reported, never allowed to fail the whole file. A file with no readable game fails with its first problem.
     public static func parseReport(_ data:Data,provenance:ReviewProvenance = .imported,cancelled:@escaping ()->Bool={false})throws -> (documents:[GameDocument],skipped:[ReviewImportError]) {
-        guard data.count<=ReviewPolicy.maximumBytes else{throw ReviewImportError(record:1,token:0,reason:"File exceeds the 16 MiB limit.")}
+        guard data.count<=ReviewPolicy.maximumBytes else{throw ReviewImportError(record:1,token:0,reason:String(localized:"File exceeds the 16 MiB limit.",bundle:.checkmate))}
         // The PGN standard's character set is ISO 8859-1; many exports (ChessBase, TWIC) still use it.
-        guard var source=String(data:data,encoding:.utf8) ?? String(data:data,encoding:.windowsCP1252) ?? String(data:data,encoding:.isoLatin1) else{throw ReviewImportError(record:1,token:0,reason:"The file is not readable text.")}
-        if source.first=="\u{feff}"{source.removeFirst()};guard !source.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty else{throw ReviewImportError(record:1,token:0,reason:"The file is empty.")}
+        guard var source=String(data:data,encoding:.utf8) ?? String(data:data,encoding:.windowsCP1252) ?? String(data:data,encoding:.isoLatin1) else{throw ReviewImportError(record:1,token:0,reason:String(localized:"The file is not readable text.",bundle:.checkmate))}
+        if source.first=="\u{feff}"{source.removeFirst()};guard !source.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty else{throw ReviewImportError(record:1,token:0,reason:String(localized:"The file is empty.",bundle:.checkmate))}
         var trimmed=source.trimmingCharacters(in:.whitespacesAndNewlines)
         if trimmed.split(separator:" ").count==4,!trimmed.contains("["),trimmed.split(whereSeparator:{$0.isWhitespace}).first?.filter({$0=="/"}).count==7{trimmed+=" 0 1"}
         if let boardField=trimmed.split(whereSeparator:{$0.isWhitespace}).first,boardField.filter({$0=="/"}).count==7,!trimmed.contains("[") {
@@ -42,7 +43,7 @@ public enum PGNImporter {
         }};do{try advance()}catch is ReviewImportError{}}}
         do{token=try scanner.next()}catch let problem as ReviewImportError{skipped.append(problem);consumed=true;try skipGame(movetext:false)}
         while token != nil {
-            if cancelled(){throw CheckmateError.cancelled};guard records.count<ReviewPolicy.maximumRecords else{throw ReviewImportError(record:records.count+1,token:index,reason:"Too many game records.")}
+            if cancelled(){throw CheckmateError.cancelled};guard records.count<ReviewPolicy.maximumRecords else{throw ReviewImportError(record:records.count+1,token:index,reason:String(localized:"Too many game records.",bundle:.checkmate))}
             scanner.record=records.count+skipped.count+1;nesting=0
             // Commentary before a game's headers (or after the last result) belongs to no move. The game's text starts
             // with it, because its root keeps it: re-reading that text alone must give the same tree.
@@ -52,54 +53,54 @@ public enum PGNImporter {
             if token==nil{break}
             let document=try autoreleasepool{() throws -> GameDocument in
             var headers:[PGNHeader]=[],names:Set<String>=[]
-            while token != nil,case let .tag(name,value)=token!.kind {guard names.insert(name).inserted else{failedInHeaders=true;throw ReviewImportError(record:recordNumber,token:index,reason:"Duplicate header \(name).")};headers.append(PGNHeader(name,value));try advance()}
+            while token != nil,case let .tag(name,value)=token!.kind {guard names.insert(name).inserted else{failedInHeaders=true;throw ReviewImportError(record:recordNumber,token:index,reason:String(localized:"Duplicate header \(name).",bundle:.checkmate))};headers.append(PGNHeader(name,value));try advance()}
             func failure(_ reason:String)->ReviewImportError {ReviewImportError(record:recordNumber,token:index,reason:reason)}
-            let variant=headers.first{$0.name=="Variant"}?.value.lowercased();guard variant==nil || ["standard","normal","normal chess","chess","from position"].contains(variant!) else{throw failure("Only standard chess is supported.")}
+            let variant=headers.first{$0.name=="Variant"}?.value.lowercased();guard variant==nil || ["standard","normal","normal chess","chess","from position"].contains(variant!) else{throw failure(String(localized:"Only standard chess is supported.",bundle:.checkmate))}
             // A FEN header alone (common in exports) is a custom start; SetUp 1 without a FEN, or SetUp 0 with one, conflicts.
             var fen=headers.first{$0.name=="FEN"}?.value;if let value=fen,value.split(separator:" ").count==4{fen=value+" 0 1"}
             let setup=headers.first{$0.name=="SetUp"}?.value
-            guard setup==nil || ["0","1"].contains(setup!),setup != "1" || fen != nil,fen==nil || setup != "0" else{throw failure("Custom positions require SetUp 1 and FEN together.")}
+            guard setup==nil || ["0","1"].contains(setup!),setup != "1" || fen != nil,fen==nil || setup != "0" else{throw failure(String(localized:"Custom positions require SetUp 1 and FEN together.",bundle:.checkmate))}
             // An unreadable start position is this game's problem, reported like any other; it never fails the file.
-            let root:ChessRules;do{if let fen=fen{try validateFEN(fen)};root=try ChessRules(fen:fen)}catch CheckmateError.cancelled{throw CheckmateError.cancelled}catch{throw failure("Invalid FEN: \(userFacingMessage(error,fallback:"the position cannot be read."))")}
+            let root:ChessRules;do{if let fen=fen{try validateFEN(fen)};root=try ChessRules(fen:fen)}catch CheckmateError.cancelled{throw CheckmateError.cancelled}catch{throw failure(String(localized:"Invalid FEN: \(userFacingMessage(error,fallback:"the position cannot be read."))",bundle:.checkmate))}
             let starting=root.fen;var builders=[Builder(parent:nil,fen:starting,ply:0,before:preamble)],marker:String?,markerEnd:Int?
             func sequence(parent initial:Int,depth:Int)throws {
-                guard depth<=ReviewPolicy.maximumDepth else{throw failure("Variation nesting exceeds 32.")};var cursor=initial,played=false,leading:[String]=[],rules:ChessRules?
+                guard depth<=ReviewPolicy.maximumDepth else{throw failure(String(localized:"Variation nesting exceeds 32.",bundle:.checkmate))};var cursor=initial,played=false,leading:[String]=[],rules:ChessRules?
                 while token != nil {
                     if cancelled(){throw CheckmateError.cancelled}
                     switch token!.kind {
-                    case .tag: if depth>0{throw failure("Header inside variation.")};return
-                    case .close:guard depth>0 else{throw failure("Unexpected closing variation.")};try advance();return
+                    case .tag: if depth>0{throw failure(String(localized:"Header inside variation.",bundle:.checkmate))};return
+                    case .close:guard depth>0 else{throw failure(String(localized:"Unexpected closing variation.",bundle:.checkmate))};try advance();return
                     case .open:
-                        guard let parent=builders[cursor].parent else{throw failure("Variation needs a preceding move.")};try advance();try sequence(parent:parent,depth:depth+1)
+                        guard let parent=builders[cursor].parent else{throw failure(String(localized:"Variation needs a preceding move.",bundle:.checkmate))};try advance();try sequence(parent:parent,depth:depth+1)
                     case .comment(let text):
                         if played{builders[cursor].after.append(text)}else if depth==0{builders[initial].before.append(text)}else{leading.append(text)};try advance()
                     case .word(let spelled):
                         let raw=resultSpellings[spelled] ?? spelled
                         // The token after a result belongs to the next record: a lexical error in it is reported for
                         // that record and never costs this one.
-                        if results.contains(raw) {guard depth==0 else{let problem=failure("Result marker inside variation.");do{try advance()}catch is ReviewImportError{};throw problem};marker=raw;markerEnd=token!.end;ended=true;scanner.record=recordNumber+1;do{try advance()}catch let problem as ReviewImportError{lookahead=problem};return}
+                        if results.contains(raw) {guard depth==0 else{let problem=failure(String(localized:"Result marker inside variation.",bundle:.checkmate));do{try advance()}catch is ReviewImportError{};throw problem};marker=raw;markerEnd=token!.end;ended=true;scanner.record=recordNumber+1;do{try advance()}catch let problem as ReviewImportError{lookahead=problem};return}
                         try advance()
-                        if raw.hasPrefix("$"){guard let nag=Int(raw.dropFirst()),(0...255).contains(nag),played else{throw failure("Invalid annotation glyph.")};builders[cursor].nags.append(nag);continue}
+                        if raw.hasPrefix("$"){guard let nag=Int(raw.dropFirst()),(0...255).contains(nag),played else{throw failure(String(localized:"Invalid annotation glyph.",bundle:.checkmate))};builders[cursor].nags.append(nag);continue}
                         var san=raw
                         if let match=san.range(of:"^[0-9]+\\.(\\.\\.)?",options:.regularExpression){san.removeSubrange(match)}
                         if san.isEmpty || san=="..."{continue}
                         let glyphs=["!!":3,"??":4,"!?":5,"?!":6,"!":1,"?":2];var nag:Int?
                         for suffix in ["!!","??","!?","?!","!","?"] where san.hasSuffix(suffix){nag=glyphs[suffix];san.removeLast(suffix.count);break}
-                        guard builders.count<ReviewPolicy.maximumNodes else{throw failure("Tree node limit exceeded.")}
-                        guard depth>0 || builders[cursor].ply<ReviewPolicy.maximumMainlinePlies else{throw failure("This game has more than 2,000 moves, counting each side's moves separately, which is more than Checkmate can review.")}
+                        guard builders.count<ReviewPolicy.maximumNodes else{throw failure(String(localized:"Tree node limit exceeded.",bundle:.checkmate))}
+                        guard depth>0 || builders[cursor].ply<ReviewPolicy.maximumMainlinePlies else{throw failure(String(localized:"This game has more than 2,000 moves, counting each side's moves separately, which is more than Checkmate can review.",bundle:.checkmate))}
                         // Built at the first move, so an empty or comment-only variation costs no chess.js context.
                         let board=try rules ?? ChessRules(fen:builders[initial].fen);rules=board
-                        guard let move=try legalMove(san,rules:board) else{throw failure("Illegal or ambiguous SAN: \(san).")}
+                        guard let move=try legalMove(san,rules:board) else{throw failure(String(localized:"Illegal or ambiguous SAN: \(san).",bundle:.checkmate))}
                         try board.move(uci:move.uci);let next=builders.count
                         builders.append(Builder(parent:cursor,move:move,fen:board.fen,ply:builders[cursor].ply+1,before:leading,nags:nag.map{[$0]} ?? []));leading=[];builders[cursor].children.append(next);cursor=next;played=true
                     }
                 }
-                if depth>0{throw failure("Unclosed variation.")}
+                if depth>0{throw failure(String(localized:"Unclosed variation.",bundle:.checkmate))}
             }
             try sequence(parent:0,depth:0)
             // Move lists copied from websites often omit the result: take the Result header, else unfinished (*).
             let tagged=headers.first(where:{$0.name=="Result"})?.value,result=marker ?? tagged.flatMap{results.contains($0) ? $0:nil} ?? "*"
-            if let tagged,tagged != result{throw failure("Result header conflicts with movetext result.")}
+            if let tagged,tagged != result{throw failure(String(localized:"Result header conflicts with movetext result.",bundle:.checkmate))}
             let end=markerEnd ?? (token != nil ? token!.start:chars.count)
             let original=Data(String(String.UnicodeScalarView(chars[start..<end])).trimmingCharacters(in:.whitespacesAndNewlines).utf8)
             let nodes=builders.enumerated().map{offset,b -> GameNode in let fields=(b.move?.before ?? b.fen).split(separator:" ");return GameNode(id:offset,parent:b.parent,children:b.children,uci:b.move?.uci,san:b.move?.san,beforeFEN:b.move?.before ?? b.fen,afterFEN:b.fen,ply:b.ply,fullmove:Int(fields[5]) ?? 1,side:String(fields[1]),commentsBefore:b.before,commentsAfter:b.after,nags:b.nags)}
@@ -115,7 +116,7 @@ public enum PGNImporter {
                 skipped.append(problem);if let pending=lookahead{lookahead=nil;skipped.append(pending)};if consumed,let last=token,case .tag=last.kind{failedInHeaders=true};if !ended || consumed{try skipGame(movetext:!failedInHeaders,depth:failedInHeaders ? 0:nesting)}
             }
         }
-        guard !records.isEmpty else{throw skipped.first ?? ReviewImportError(record:1,token:0,reason:"No game records.")};return (records,skipped)
+        guard !records.isEmpty else{throw skipped.first ?? ReviewImportError(record:1,token:0,reason:String(localized:"No game records.",bundle:.checkmate))};return (records,skipped)
     }
     /// One record of a collection as the importer divides it: its byte range in the file and its header tags. Only the
     /// lexer runs (no replay, no document): a record is fully validated when it is opened.
@@ -123,9 +124,9 @@ public enum PGNImporter {
     /// Splits a PGN collection into records with the importer's own lexer and record boundaries (`refuseOversizedCollection`).
     /// A lexical error makes the record it falls in unreadable; reading resumes at the next line that starts a header.
     public static func splitRecords(_ data:Data,maximumRecords:Int,cancelled:@escaping ()->Bool={false})throws -> (records:[RecordSpan],unreadable:Int) {
-        guard data.count<=ReviewPolicy.maximumBytes else{throw ReviewImportError(record:1,token:0,reason:"File exceeds the 16 MiB limit.")}
+        guard data.count<=ReviewPolicy.maximumBytes else{throw ReviewImportError(record:1,token:0,reason:String(localized:"File exceeds the 16 MiB limit.",bundle:.checkmate))}
         let utf8=String(data:data,encoding:.utf8)
-        guard var source=utf8 ?? String(data:data,encoding:.windowsCP1252) ?? String(data:data,encoding:.isoLatin1) else{throw ReviewImportError(record:1,token:0,reason:"The file is not readable text.")}
+        guard var source=utf8 ?? String(data:data,encoding:.windowsCP1252) ?? String(data:data,encoding:.isoLatin1) else{throw ReviewImportError(record:1,token:0,reason:String(localized:"The file is not readable text.",bundle:.checkmate))}
         // Foundation may or may not keep a UTF-8 byte order mark in the decoded text; the bytes decide where text starts.
         if source.first=="\u{feff}"{source.removeFirst()};let base=utf8 != nil && data.starts(with:[0xEF,0xBB,0xBF]) ? 3:0
         let chars=Array(source.unicodeScalars),results=Set(["1-0","0-1","1/2-1/2","*"]),spellings=["1/2":"1/2-1/2","½-½":"1/2-1/2"]
@@ -146,7 +147,7 @@ public enum PGNImporter {
             }
             return chars.count
         }
-        func overLimit()->ReviewImportError? {spans.count+unreadable>maximumRecords ? ReviewImportError(record:spans.count+unreadable,token:scanner.count,reason:"The file has more than \(maximumRecords) games."):nil}
+        func overLimit()->ReviewImportError? {spans.count+unreadable>maximumRecords ? ReviewImportError(record:spans.count+unreadable,token:scanner.count,reason:String(localized:"The file has more than \(maximumRecords) games.",bundle:.checkmate)):nil}
         while true {
             // Checked before every token, so a file of millions of tiny records is refused as soon as it passes the limit.
             if let problem=overLimit(){throw problem}
@@ -193,7 +194,7 @@ public enum PGNImporter {
             }
             if count>ReviewPolicy.maximumRecords{break}
         }}catch is ReviewImportError{}
-        guard count<=ReviewPolicy.maximumRecords else{throw ReviewImportError(record:count,token:scanner.count-1,reason:"The file has more than \(ReviewPolicy.maximumRecords) games; split it into smaller files.")}
+        guard count<=ReviewPolicy.maximumRecords else{throw ReviewImportError(record:count,token:scanner.count-1,reason:String(localized:"The file has more than \(ReviewPolicy.maximumRecords) games; split it into smaller files.",bundle:.checkmate))}
     }
     /// Accept common legal overspecification/check-suffix omissions, but never resolve ambiguity by guessing.
     private static func legalMove(_ san:String,rules:ChessRules)throws -> MoveRecord? {
@@ -215,13 +216,13 @@ public enum PGNImporter {
         guard fenCounter(fields[4]) != nil,let fullmove=fenCounter(fields[5]),fullmove>=1 else{throw CheckmateError.invalid("FEN move counters must be whole numbers, with the move number at least 1.")}
         let board=rules.board
         guard board.values.filter({$0=="wk"}).count==1,board.values.filter({$0=="bk"}).count==1 else{throw CheckmateError.invalid("FEN must have one king per side.")}
-        guard !board.contains(where:{$0.value.hasSuffix("p") && ($0.key.hasSuffix("1") || $0.key.hasSuffix("8"))}) else{throw CheckmateError.invalid("Pawns cannot occupy the first or eighth rank.")}
+        guard !board.contains(where:{$0.value.hasSuffix("p") && ($0.key.hasSuffix("1") || $0.key.hasSuffix("8"))}) else{throw CheckmateError.invalid(String(localized:"Pawns cannot occupy the first or eighth rank.",bundle:.checkmate))}
         let white=board.first{$0.value=="wk"}!.key,black=board.first{$0.value=="bk"}!.key
-        guard !rules.attackers(white,"b").contains(black),!rules.attackers(black,"w").contains(white) else{throw CheckmateError.invalid("Kings cannot be adjacent.")}
+        guard !rules.attackers(white,"b").contains(black),!rules.attackers(black,"w").contains(white) else{throw CheckmateError.invalid(String(localized:"Kings cannot be adjacent.",bundle:.checkmate))}
         let other=rules.turn=="w" ? "b":"w",king=other=="w" ? white:black
-        guard rules.attackers(king,rules.turn).isEmpty else{throw CheckmateError.invalid("The side that just moved cannot remain in check.")}
-        for (right,kingSquare,rookSquare,color) in [("K","e1","h1","w"),("Q","e1","a1","w"),("k","e8","h8","b"),("q","e8","a8","b")] where fields[2].contains(right) {guard board[kingSquare]==color+"k",board[rookSquare]==color+"r" else{throw CheckmateError.invalid("Castling rights do not match the pieces.")}}
-        if fields[3] != "-" {let target=String(fields[3]),rank=rules.turn=="w" ? "6":"3",pawnSquare=String(target.prefix(1))+(rules.turn=="w" ? "5":"4"),origin=String(target.prefix(1))+(rules.turn=="w" ? "7":"2");guard board[origin]==nil, target.hasSuffix(rank),board[target]==nil,board[pawnSquare]==other+"p",fields[4]=="0" else{throw CheckmateError.invalid("En passant target is inconsistent.")}}
+        guard rules.attackers(king,rules.turn).isEmpty else{throw CheckmateError.invalid(String(localized:"The side that just moved cannot remain in check.",bundle:.checkmate))}
+        for (right,kingSquare,rookSquare,color) in [("K","e1","h1","w"),("Q","e1","a1","w"),("k","e8","h8","b"),("q","e8","a8","b")] where fields[2].contains(right) {guard board[kingSquare]==color+"k",board[rookSquare]==color+"r" else{throw CheckmateError.invalid(String(localized:"Castling rights do not match the pieces.",bundle:.checkmate))}}
+        if fields[3] != "-" {let target=String(fields[3]),rank=rules.turn=="w" ? "6":"3",pawnSquare=String(target.prefix(1))+(rules.turn=="w" ? "5":"4"),origin=String(target.prefix(1))+(rules.turn=="w" ? "7":"2");guard board[origin]==nil, target.hasSuffix(rank),board[target]==nil,board[pawnSquare]==other+"p",fields[4]=="0" else{throw CheckmateError.invalid(String(localized:"En passant target is inconsistent.",bundle:.checkmate))}}
         return fullmove
     }
     /// A FEN move counter: one to six ASCII digits, so it always fits an `Int`.
@@ -235,14 +236,14 @@ public enum PGNImporter {
         func fail(_ reason:String)->ReviewImportError {ReviewImportError(record:record,token:count,reason:reason)}
         while i<chars.count {
             if i % 256 == 0,cancelled(){throw CheckmateError.cancelled};if chars[i].properties.isWhitespace{i+=1;continue};let start=i,c=chars[i];i+=1
-            if c=="{" {var text="";while i<chars.count,chars[i] != "}"{text.unicodeScalars.append(chars[i]);i+=1;if i % 256 == 0,cancelled(){throw CheckmateError.cancelled};guard i-start<=ReviewPolicy.maximumTextScalars else{throw fail("Comment exceeds text limit.")}};guard i<chars.count else{throw fail("Unclosed comment.")};i+=1;return Token(kind:.comment(text),start:start,end:i)}
-            else if c==";" {var text="";while i<chars.count,chars[i] != "\n",chars[i] != "\r"{text.unicodeScalars.append(chars[i]);i+=1;if i % 256 == 0,cancelled(){throw CheckmateError.cancelled};guard i-start<=ReviewPolicy.maximumTextScalars else{throw fail("Comment exceeds text limit.")}};return Token(kind:.comment(text),start:start,end:i)}
+            if c=="{" {var text="";while i<chars.count,chars[i] != "}"{text.unicodeScalars.append(chars[i]);i+=1;if i % 256 == 0,cancelled(){throw CheckmateError.cancelled};guard i-start<=ReviewPolicy.maximumTextScalars else{throw fail(String(localized:"Comment exceeds text limit.",bundle:.checkmate))}};guard i<chars.count else{throw fail(String(localized:"Unclosed comment.",bundle:.checkmate))};i+=1;return Token(kind:.comment(text),start:start,end:i)}
+            else if c==";" {var text="";while i<chars.count,chars[i] != "\n",chars[i] != "\r"{text.unicodeScalars.append(chars[i]);i+=1;if i % 256 == 0,cancelled(){throw CheckmateError.cancelled};guard i-start<=ReviewPolicy.maximumTextScalars else{throw fail(String(localized:"Comment exceeds text limit.",bundle:.checkmate))}};return Token(kind:.comment(text),start:start,end:i)}
             else if c=="(" || c==")" {return Token(kind:c=="(" ? .open:.close,start:start,end:i)}
             else if c=="[" {
-                while i<chars.count,chars[i].properties.isWhitespace{i+=1};var name="";while i<chars.count,!chars[i].properties.isWhitespace,chars[i] != "\""{name.unicodeScalars.append(chars[i]);i+=1;guard name.unicodeScalars.count<=ReviewPolicy.maximumTokenScalars else{throw fail("Header name is too long.")}};while i<chars.count,chars[i].properties.isWhitespace{i+=1};guard !name.isEmpty,i<chars.count,chars[i]=="\"" else{throw fail("Invalid PGN header.")};i+=1;var value="",closed=false
-                while i<chars.count {if i % 256 == 0,cancelled(){throw CheckmateError.cancelled};guard i-start<=ReviewPolicy.maximumTextScalars else{throw fail("Header exceeds text limit.")};let ch=chars[i];i+=1;if ch=="\""{closed=true;break};if ch=="\\"{guard i<chars.count,["\\","\""].contains(chars[i]) else{throw fail("Invalid header escape.")};value.unicodeScalars.append(chars[i]);i+=1}else{value.unicodeScalars.append(ch)}}
-                while i<chars.count,chars[i].properties.isWhitespace{i+=1};guard closed,i<chars.count,chars[i]=="]" else{throw fail("Unclosed PGN header.")};i+=1;return Token(kind:.tag(name,value),start:start,end:i)
-            }else {var word=String(c);while i<chars.count,!chars[i].properties.isWhitespace,!"{}();[]".unicodeScalars.contains(chars[i]){word.unicodeScalars.append(chars[i]);i+=1;guard word.unicodeScalars.count<=ReviewPolicy.maximumTokenScalars else{throw fail("Movetext token is too long.")}};return Token(kind:.word(word),start:start,end:i)}
+                while i<chars.count,chars[i].properties.isWhitespace{i+=1};var name="";while i<chars.count,!chars[i].properties.isWhitespace,chars[i] != "\""{name.unicodeScalars.append(chars[i]);i+=1;guard name.unicodeScalars.count<=ReviewPolicy.maximumTokenScalars else{throw fail(String(localized:"Header name is too long.",bundle:.checkmate))}};while i<chars.count,chars[i].properties.isWhitespace{i+=1};guard !name.isEmpty,i<chars.count,chars[i]=="\"" else{throw fail(String(localized:"Invalid PGN header.",bundle:.checkmate))};i+=1;var value="",closed=false
+                while i<chars.count {if i % 256 == 0,cancelled(){throw CheckmateError.cancelled};guard i-start<=ReviewPolicy.maximumTextScalars else{throw fail(String(localized:"Header exceeds text limit.",bundle:.checkmate))};let ch=chars[i];i+=1;if ch=="\""{closed=true;break};if ch=="\\"{guard i<chars.count,["\\","\""].contains(chars[i]) else{throw fail(String(localized:"Invalid header escape.",bundle:.checkmate))};value.unicodeScalars.append(chars[i]);i+=1}else{value.unicodeScalars.append(ch)}}
+                while i<chars.count,chars[i].properties.isWhitespace{i+=1};guard closed,i<chars.count,chars[i]=="]" else{throw fail(String(localized:"Unclosed PGN header.",bundle:.checkmate))};i+=1;return Token(kind:.tag(name,value),start:start,end:i)
+            }else {var word=String(c);while i<chars.count,!chars[i].properties.isWhitespace,!"{}();[]".unicodeScalars.contains(chars[i]){word.unicodeScalars.append(chars[i]);i+=1;guard word.unicodeScalars.count<=ReviewPolicy.maximumTokenScalars else{throw fail(String(localized:"Movetext token is too long.",bundle:.checkmate))}};return Token(kind:.word(word),start:start,end:i)}
         };return nil
         }
     }
@@ -257,7 +258,7 @@ public final class ReviewImportCancellation:@unchecked Sendable {
 public enum PGNExporter {
     public static func original(_ document:GameDocument)->Data {document.original}
     /// The comment that opens each imagined line in an export.
-    public static let imaginedMarker="Imagined line"
+    public static let imaginedMarker="Imagined line" // not localized: a record comment read back
     private static let standardStart="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
     /// One move of the exported tree: the game's own moves, then the imagined lines merged in.
     private struct Move {var parent:Int?,san:String?,uci:String?,before:[String],after:[String],nags:[Int],children:[Int],side:String,fullmove:Int,imagined:Bool}
@@ -266,7 +267,7 @@ public enum PGNExporter {
     /// `imaginedMarker`; the engine's evaluation of each move, when given, as a `[%eval]` comment (White's view, in
     /// pawns, or `#n` for mate); and a move's grade as its glyph where the record gives it none.
     public static func withIdeas(_ document:GameDocument,branches:[ReviewBranch],evaluations:[Int:AnalysisScore]=[:],grades:[Int:MoveGrade]=[:])throws -> Data {
-        guard branches.count<=ReviewPolicy.maximumBranches else{throw CheckmateError.invalid("Too many imagined lines.")}
+        guard branches.count<=ReviewPolicy.maximumBranches else{throw CheckmateError.invalid(String(localized:"Too many imagined lines.",bundle:.checkmate))}
         var moves=document.nodes.map{node in
             let fields=node.beforeFEN.split(separator:" ")
             var after=node.commentsAfter,nags=node.nags
@@ -276,7 +277,7 @@ public enum PGNExporter {
         }
         var seen:Set<UUID>=[]
         for branch in branches where !branch.moves.isEmpty && seen.insert(branch.id).inserted {
-            guard branch.moves.count<=ReviewPolicy.maximumBranchPlies else{throw CheckmateError.invalid("An imagined line exceeds the move limit.")}
+            guard branch.moves.count<=ReviewPolicy.maximumBranchPlies else{throw CheckmateError.invalid(String(localized:"An imagined line exceeds the move limit.",bundle:.checkmate))}
             var rules=try document.rules(at:branch.root),cursor=branch.root,marked=false
             func add(_ record:MoveRecord,to parent:Int){
                 let fields=record.before.split(separator:" ")
@@ -325,9 +326,9 @@ public enum PGNExporter {
     /// The Seven Tag Roster first (unknown ones as "?"), the record's other tags in their order, and the start position
     /// when it is not the usual one.
     private static func tags(_ document:GameDocument)->[PGNHeader] {
-        let roster=["Event","Site","Date","Round","White","Black"]
+        let roster=["Event","Site","Date","Round","White","Black"] // not localized: PGN tag names
         var result=roster.map{name in PGNHeader(name,document.header(name) ?? (name=="Date" ? "????.??.??":"?"))}+[PGNHeader("Result",document.result)]
-        result+=document.headers.filter{!roster.contains($0.name) && !["Result","SetUp","FEN"].contains($0.name)}
+        result+=document.headers.filter{!roster.contains($0.name) && !["Result","SetUp","FEN"].contains($0.name)} // not localized: PGN tag names
         if document.startingFEN != standardStart{result+=[PGNHeader("SetUp","1"),PGNHeader("FEN",document.startingFEN)]}
         return result
     }

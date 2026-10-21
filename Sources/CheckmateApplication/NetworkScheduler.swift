@@ -1,3 +1,4 @@
+import CheckmateAssets
 import CheckmateDomain
 import Foundation
 /// The one serial queue a network game runs on, and its clock (LAN-play plan D6). Every event — a message, a send

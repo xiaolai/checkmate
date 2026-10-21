@@ -1,3 +1,4 @@
+import CheckmateAssets
 import CheckmateDomain
 import Foundation
 /// A start the host may choose (mini-games plan D7, Q2): the position after a chosen move of a bundled game-library
@@ -17,11 +18,11 @@ public struct NetworkLibraryStart:Equatable {
     /// damaged bundle throws rather than offering a position the game never reached.
     public static func positions(of game:LibraryGame,in library:GameLibrary)throws -> [NetworkLibraryStart] {
         let documents=try PGNImporter.parse(try library.data(game),provenance:GameLibrary.provenance)
-        guard documents.count==1 else{throw CheckmateError.invalid("The library game \(game.title) does not hold exactly one game.")}
+        guard documents.count==1 else{throw CheckmateError.invalid(String(localized:"The library game \(game.title) does not hold exactly one game.",bundle:.checkmate))}
         let document=documents[0];try GameLibrary.verify(document,matches:game)
         return document.mainline.map{id in
             let node=document.nodes[id]
-            return NetworkLibraryStart(gameID:game.id,title:game.title,ply:node.ply,fen:node.afterFEN,move:"After \(node.fullmove)\(node.side=="b" ? "...":".") \(node.san ?? "")")
+            return NetworkLibraryStart(gameID:game.id,title:game.title,ply:node.ply,fen:node.afterFEN,move:String(localized:"After \(node.fullmove)\(node.side=="b" ? "...":".") \(node.san ?? "")",bundle:.checkmate))
         }
     }
 }

@@ -1,3 +1,4 @@
+import CheckmateAssets
 import CheckmateDomain
 import CheckmateRules
 import CheckmateSupport
@@ -12,42 +13,42 @@ public final class StateStore {
     public static func defaultDirectory()->URL {ApplicationDataPaths.defaultDirectory()}
     public func load() throws -> ApplicationState {
         guard FileManager.default.fileExists(atPath:url.path) else{return ApplicationState()}
-        let data=try Self.read(url,tooLarge:"Saved state is too large.")
-        guard let object=try JSONSerialization.jsonObject(with:data) as? [String:Any],object["schemaVersion"] as? Int == 1 else{throw CheckmateError.invalid("Unsupported saved-state version. Export or restore a backup.")}
+        let data=try Self.read(url,tooLarge:String(localized:"Saved state is too large.",bundle:.checkmate))
+        guard let object=try JSONSerialization.jsonObject(with:data) as? [String:Any],object["schemaVersion"] as? Int == 1 else{throw CheckmateError.invalid(String(localized:"Unsupported saved-state version. Export or restore a backup.",bundle:.checkmate))}
         let value=try JSONDecoder().decode(ApplicationState.self,from:data)
         try Self.validate(value)
         return value
     }
     public static func validate(_ value:ApplicationState) throws {
-        guard value.course.step>=0,(value.course.positions?.count ?? 0)<=1000,value.puzzles.values.allSatisfy({(0...PuzzleProgress.maximumAttempts).contains($0.attempts)}) else{throw CheckmateError.invalid("Saved learning progress has invalid bounds.")}
+        guard value.course.step>=0,(value.course.positions?.count ?? 0)<=1000,value.puzzles.values.allSatisfy({(0...PuzzleProgress.maximumAttempts).contains($0.attempts)}) else{throw CheckmateError.invalid(String(localized:"Saved learning progress has invalid bounds.",bundle:.checkmate))}
         if let games=value.miniGames {
-            guard games.count<=MiniGameKind.allCases.count else{throw CheckmateError.invalid("Too many saved mini-games.")}
+            guard games.count<=MiniGameKind.allCases.count else{throw CheckmateError.invalid(String(localized:"Too many saved mini-games.",bundle:.checkmate))}
             for (id,game) in games {
-                guard id==game.kind.rawValue,game.history.count<=MiniGameState.maximumHistory else{throw CheckmateError.invalid("Invalid mini-game history.")}
+                guard id==game.kind.rawValue,game.history.count<=MiniGameState.maximumHistory else{throw CheckmateError.invalid(String(localized:"Invalid mini-game history.",bundle:.checkmate))}
                 let allowedPieces=Set(game.kind.initialBoard.values)
                 for snapshot in game.history+[game.snapshot] {
-                    guard ["w","b"].contains(snapshot.turn),(0...MiniGameRules.corners.count).contains(snapshot.cornerIndex),snapshot.pendingFinish==nil || ["w","b"].contains(snapshot.pendingFinish!),snapshot.board.count<=64,snapshot.board.allSatisfy({allowedPieces.contains($0.value) && ChessRules.validSquare($0.key)}),snapshot.lastMove==nil || ChessRules.validSquare(snapshot.lastMove!.from) && ChessRules.validSquare(snapshot.lastMove!.to) else{throw CheckmateError.invalid("Invalid mini-game position.")}
+                    guard ["w","b"].contains(snapshot.turn),(0...MiniGameRules.corners.count).contains(snapshot.cornerIndex),snapshot.pendingFinish==nil || ["w","b"].contains(snapshot.pendingFinish!),snapshot.board.count<=64,snapshot.board.allSatisfy({allowedPieces.contains($0.value) && ChessRules.validSquare($0.key)}),snapshot.lastMove==nil || ChessRules.validSquare(snapshot.lastMove!.from) && ChessRules.validSquare(snapshot.lastMove!.to) else{throw CheckmateError.invalid(String(localized:"Invalid mini-game position.",bundle:.checkmate))}
                 }
             }
         }
         // Lesson attempts are replayed against their lesson when opened; here only their size and shape are bounded.
-        guard [value.course.practised,value.course.unaided].allSatisfy({($0?.count ?? 0)<=200 && ($0 ?? []).allSatisfy{!$0.isEmpty && $0.count<=80}}) else{throw CheckmateError.invalid("Saved lesson exercises have invalid bounds.")}
-        guard (value.course.exercises?.count ?? 0)<=200,(value.course.exercises ?? [:]).allSatisfy({!$0.key.isEmpty && $0.key.count<=80 && $0.value.hints.map{(0...3).contains($0)} ?? true}),value.puzzles.values.allSatisfy({$0.hints.map{(0...PuzzleProgress.maximumHints).contains($0)} ?? true}) else{throw CheckmateError.invalid("Saved lesson exercises have invalid bounds.")}
+        guard [value.course.practised,value.course.unaided].allSatisfy({($0?.count ?? 0)<=200 && ($0 ?? []).allSatisfy{!$0.isEmpty && $0.count<=80}}) else{throw CheckmateError.invalid(String(localized:"Saved lesson exercises have invalid bounds.",bundle:.checkmate))}
+        guard (value.course.exercises?.count ?? 0)<=200,(value.course.exercises ?? [:]).allSatisfy({!$0.key.isEmpty && $0.key.count<=80 && $0.value.hints.map{(0...3).contains($0)} ?? true}),value.puzzles.values.allSatisfy({$0.hints.map{(0...PuzzleProgress.maximumHints).contains($0)} ?? true}) else{throw CheckmateError.invalid(String(localized:"Saved lesson exercises have invalid bounds.",bundle:.checkmate))}
         if let attempts=value.lessonAttempts {
-            guard attempts.count<=200,attempts.allSatisfy({!$0.key.isEmpty && $0.key.count<=80 && $0.value.moves.count<=LessonAttemptRecord.maximumMoves && $0.value.moves.allSatisfy(ChessRules.validUCI) && (0...3).contains($0.value.hints) && $0.value.id.count<=64 && $0.value.definition.count<=64}) else{throw CheckmateError.invalid("Saved lesson exercises have invalid bounds.")}
+            guard attempts.count<=200,attempts.allSatisfy({!$0.key.isEmpty && $0.key.count<=80 && $0.value.moves.count<=LessonAttemptRecord.maximumMoves && $0.value.moves.allSatisfy(ChessRules.validUCI) && (0...3).contains($0.value.hints) && $0.value.id.count<=64 && $0.value.definition.count<=64}) else{throw CheckmateError.invalid(String(localized:"Saved lesson exercises have invalid bounds.",bundle:.checkmate))}
         }
         // This build's own training record stays within its bounds; a raw kept record is written back unchanged.
-        if let training=value.training,value.trainingWritable {try training.validate();guard try JSONEncoder().encode(training).count<=TrainingState.maximumBytes else{throw CheckmateError.invalid("Training progress exceeds its storage budget.")}}
-        guard value.schemaVersion==1 else{throw CheckmateError.invalid("Unsupported saved-state version.")}
+        if let training=value.training,value.trainingWritable {try training.validate();guard try JSONEncoder().encode(training).count<=TrainingState.maximumBytes else{throw CheckmateError.invalid(String(localized:"Training progress exceeds its storage budget.",bundle:.checkmate))}}
+        guard value.schemaVersion==1 else{throw CheckmateError.invalid(String(localized:"Unsupported saved-state version.",bundle:.checkmate))}
         // A saved or imported game, current or previous, starts from a legal position and stays within the length the app can replay.
         let rules=try ChessRules()
         // An over-long game is refused from its text before it is replayed; the history is read once and gives its ply count.
-        func replay(_ pgn:String,_ name:String)throws -> Int {let tooLong=CheckmateError.invalid("The \(name) is longer than 2000 moves.");guard mainlineMoveCount(pgn)<=ReviewPolicy.maximumMainlinePlies else{throw tooLong};try rules.restore(pgn);let records=rules.records;_ = try PGNImporter.validateFEN(records.first?.before ?? rules.fen);guard records.count<=ReviewPolicy.maximumMainlinePlies else{throw tooLong};return records.count}
-        let plies=value.practice.pgn.isEmpty ? 0:try replay(value.practice.pgn,"saved game");if !value.practice.fen.isEmpty,value.practice.fen != rules.fen{throw CheckmateError.invalid("Saved game checksum does not match its history.")}
+        func replay(_ pgn:String,_ name:String)throws -> Int {let tooLong=CheckmateError.invalid(String(localized:"The \(name) is longer than 2000 moves.",bundle:.checkmate));guard mainlineMoveCount(pgn)<=ReviewPolicy.maximumMainlinePlies else{throw tooLong};try rules.restore(pgn);let records=rules.records;_ = try PGNImporter.validateFEN(records.first?.before ?? rules.fen);guard records.count<=ReviewPolicy.maximumMainlinePlies else{throw tooLong};return records.count}
+        let plies=value.practice.pgn.isEmpty ? 0:try replay(value.practice.pgn,"saved game");if !value.practice.fen.isEmpty,value.practice.fen != rules.fen{throw CheckmateError.invalid(String(localized:"Saved game checksum does not match its history.",bundle:.checkmate))}
         // Take Back's boundary lies within its game, or Take Back stays disabled until play passes it.
-        guard (0...plies).contains(value.practice.startPly) else{throw CheckmateError.invalid("The saved game's practice start is beyond its moves.")}
+        guard (0...plies).contains(value.practice.startPly) else{throw CheckmateError.invalid(String(localized:"The saved game's practice start is beyond its moves.",bundle:.checkmate))}
         let previousPlies=value.practice.previousGame.isEmpty ? 0:try replay(value.practice.previousGame,"previous game")
-        guard (0...previousPlies).contains(value.practice.previousStartPly) else{throw CheckmateError.invalid("The previous game's practice start is beyond its moves.")}
+        guard (0...previousPlies).contains(value.practice.previousStartPly) else{throw CheckmateError.invalid(String(localized:"The previous game's practice start is beyond its moves.",bundle:.checkmate))}
     }
     /// The mainline moves `ChessRules.restore` (chess.js's PGN grammar) would replay, counted from the text alone so the
     /// move bound holds before any replay. Linear in the text. Following that grammar: a move is castling written with
@@ -83,13 +84,13 @@ public final class StateStore {
     }
     public func save(_ state:ApplicationState) throws {
         try FileManager.default.createDirectory(at:directory,withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])
-        let data=try Self.encoded(state,tooLarge:"Saved state is too large.")  // load() refuses larger files
+        let data=try Self.encoded(state,tooLarge:String(localized:"Saved state is too large.",bundle:.checkmate))  // load() refuses larger files
         try requireFirstLaunchBackup()
         if FileManager.default.fileExists(atPath:url.path) {try Self.copy(url,to:backupURL)}
         try Self.write(data,to:url)
-        guard try Data(contentsOf:url)==data else{throw CheckmateError.unavailable("Saved state read-back failed.")}
+        guard try Data(contentsOf:url)==data else{throw CheckmateError.unavailable(String(localized:"Saved state read-back failed.",bundle:.checkmate))}
     }
-    public func preserveBeforeImport(_ state:ApplicationState)throws -> URL {try Self.validate(state);try FileManager.default.createDirectory(at:directory,withIntermediateDirectories:true,attributes:[.posixPermissions:0o700]);let archive=directory.appendingPathComponent("state-before-import-"+UUID().uuidString+".json");try Self.write(Self.bounded(state,tooLarge:"The current progress is too large to keep before importing."),to:archive);pruneImportBackups();return archive}
+    public func preserveBeforeImport(_ state:ApplicationState)throws -> URL {try Self.validate(state);try FileManager.default.createDirectory(at:directory,withIntermediateDirectories:true,attributes:[.posixPermissions:0o700]);let archive=directory.appendingPathComponent("state-before-import-"+UUID().uuidString+".json");try Self.write(Self.bounded(state,tooLarge:String(localized:"The current progress is too large to keep before importing.",bundle:.checkmate)),to:archive);pruneImportBackups();return archive}
     /// Imports and practice forks each keep a backup; only the newest are kept so they never grow without bound.
     public static let keptImportBackups=20
     private func pruneImportBackups(){
@@ -115,10 +116,10 @@ public final class StateStore {
     private func writeFirstLaunchBackup()throws {guard !FileManager.default.fileExists(atPath:firstLaunchBackupURL.path),FileManager.default.fileExists(atPath:url.path) else{return};try Self.copy(url,to:firstLaunchBackupURL)}
     private func requireFirstLaunchBackup()throws {
         guard firstLaunchBackupPending else{return}
-        do{try writeFirstLaunchBackup();firstLaunchBackupPending=false}catch{throw CheckmateError.unavailable("Your saved progress could not be backed up for this version of Checkmate, so it was not replaced.")}
+        do{try writeFirstLaunchBackup();firstLaunchBackupPending=false}catch{throw CheckmateError.unavailable(String(localized:"Your saved progress could not be backed up for this version of Checkmate, so it was not replaced.",bundle:.checkmate))}
     }
     public func restoreBackup()throws {
-        let data=try Self.read(backupURL,tooLarge:"Backup too large");let value=try JSONDecoder().decode(ApplicationState.self,from:data);try Self.validate(value)
+        let data=try Self.read(backupURL,tooLarge:String(localized:"Backup too large",bundle:.checkmate));let value=try JSONDecoder().decode(ApplicationState.self,from:data);try Self.validate(value)
         try requireFirstLaunchBackup()
         if FileManager.default.fileExists(atPath:url.path){try Self.copy(url,to:directory.appendingPathComponent("state-preserved-"+UUID().uuidString+".json"))}
         try Self.write(data,to:url)
@@ -127,7 +128,7 @@ public final class StateStore {
     public func export(to destination:URL) throws {try Self.copy(url,to:destination)}
     /// Writes `state` itself rather than the last saved file, so an export still works when saving does not.
     public func exportState(_ state:ApplicationState,to destination:URL) throws {
-        try Self.encoded(state,tooLarge:"The progress is too large to export.").write(to:destination,options:.atomic)  // import refuses larger archives
+        try Self.encoded(state,tooLarge:String(localized:"The progress is too large to export.",bundle:.checkmate)).write(to:destination,options:.atomic)  // import refuses larger archives
     }
     /// The validated, timestamped bytes of `state` as saved and exported, proven to decode and within the size limit.
     private static func encoded(_ state:ApplicationState,tooLarge:String)throws -> Data {
@@ -143,7 +144,7 @@ public final class StateStore {
     /// Copies a state file through the file system, never loading it, then moves it into place in one step, readable by
     /// the owner only. Only a regular file is copied.
     private static func copy(_ source:URL,to destination:URL)throws {
-        guard try source.resourceValues(forKeys:[.isRegularFileKey]).isRegularFile==true else{throw CheckmateError.unavailable("The saved file is not a regular file.")}
+        guard try source.resourceValues(forKeys:[.isRegularFileKey]).isRegularFile==true else{throw CheckmateError.unavailable(String(localized:"The saved file is not a regular file.",bundle:.checkmate))}
         let files=FileManager.default,staging=try files.url(for:.itemReplacementDirectory,in:.userDomainMask,appropriateFor:destination.deletingLastPathComponent(),create:true);defer{try? files.removeItem(at:staging)}
         let temporary=staging.appendingPathComponent(destination.lastPathComponent);try files.copyItem(at:source,to:temporary);try files.setAttributes([.posixPermissions:0o600],ofItemAtPath:temporary.path)
         if files.fileExists(atPath:destination.path){_ = try files.replaceItemAt(destination,withItemAt:temporary)}else{try files.moveItem(at:temporary,to:destination)}
@@ -156,7 +157,7 @@ public final class StateStore {
     }
     /// The state's JSON with the fields a newer build wrote (`unknownFields`) kept.
     private static func serialized(_ state:ApplicationState)throws -> Data {
-        guard let written=try JSONSerialization.jsonObject(with:JSONEncoder().encode(state)) as? [String:Any] else{throw CheckmateError.invalid("The state did not encode as an object.")}
+        guard let written=try JSONSerialization.jsonObject(with:JSONEncoder().encode(state)) as? [String:Any] else{throw CheckmateError.invalid(String(localized:"The state did not encode as an object.",bundle:.checkmate))}
         return try JSONSerialization.data(withJSONObject:ApplicationState.merged(written,state.unknownFields,nested:state.unknownNestedFields),options:[.sortedKeys,.prettyPrinted])
     }
     /// Start fresh after a launch failure: the unreadable file is kept beside the new state, never deleted.

@@ -1,9 +1,10 @@
+import CheckmateAssets
 import CheckmateDomain
 import CheckmateRules
 /// The resolved result of a stated exchange line, as a three-way choice.
 public enum TrainingExchangeResult:Int,CaseIterable {
     case behind = -1,even = 0,ahead = 1
-    public var label:String {switch self{case .ahead:return "You come out ahead";case .even:return "It is an even trade";case .behind:return "You come out behind"}}
+    public var label:String {switch self{case .ahead:return String(localized:"You come out ahead",bundle:.checkmate);case .even:return String(localized:"It is an even trade",bundle:.checkmate);case .behind:return String(localized:"You come out behind",bundle:.checkmate)}}
     public static let choices=[ahead,even,behind].map(\.label)
 }
 /// What needs attention in an unlabelled position (plan: Mixed Practice diagnosis). Several can be genuine; any
@@ -11,11 +12,11 @@ public enum TrainingExchangeResult:Int,CaseIterable {
 public enum TrainingConcern:String,CaseIterable {
     case mate,mateThreat,winMaterial,danger,none
     public var label:String {switch self {
-        case .mate:return "You can give checkmate now"
-        case .mateThreat:return "Your opponent threatens checkmate"
-        case .winMaterial:return "You can win material"
-        case .danger:return "One of your pieces is in danger"
-        case .none:return "Nothing urgent"
+        case .mate:return String(localized:"You can give checkmate now",bundle:.checkmate)
+        case .mateThreat:return String(localized:"Your opponent threatens checkmate",bundle:.checkmate)
+        case .winMaterial:return String(localized:"You can win material",bundle:.checkmate)
+        case .danger:return String(localized:"One of your pieces is in danger",bundle:.checkmate)
+        case .none:return String(localized:"Nothing urgent",bundle:.checkmate)
     }}
     public static let choices=allCases.map(\.label)
 }
@@ -23,17 +24,17 @@ extension TrainingValidationService {
     /// Increment B: the scenario's evaluator re-derives every answer. Cheap rule checks run whenever a scenario is
     /// prepared; `deep` adds the bounded searches, run offline over the published corpus (plan rule 7).
     static func validateBeginner(_ scenario:TrainingScenario,definition:TrainingEntryDefinition,runtimeFactory:(() throws -> any ChessScriptRuntime)?,deep:Bool)throws {
-        func fail(_ reason:String)throws -> Never {throw CheckmateError.invalid("Training scenario \(scenario.id): \(reason)")}
-        guard let check=scenario.check,let fen=scenario.fen else{try fail("missing evaluator or position")}
+        func fail(_ reason:String)throws -> Never {throw CheckmateError.invalid(String(localized:"Training scenario \(scenario.id): \(reason)",bundle:.checkmate))}
+        guard let check=scenario.check,let fen=scenario.fen else{try fail(String(localized:"missing evaluator or position",bundle:.checkmate))}
         if check.task == .game{try TrainingGameValidation.validate(scenario,runtimeFactory:runtimeFactory);return}
         let legality=try TrainingLegality(fen:fen,prelude:scenario.prelude ?? [],runtimeFactory:runtimeFactory)
-        guard try legality.turn()==scenario.learner else{try fail("the learner must be the side to move")}
+        guard try legality.turn()==scenario.learner else{try fail(String(localized:"the learner must be the side to move",bundle:.checkmate))}
         let board=try legality.board(),outcomes=try legality.outcomes(),legal=Set(outcomes.map(\.uci)),expected=scenario.expected ?? TrainingExpected(),noAction=scenario.noAction==true
-        if check.searched || check == .exchange{guard board.values.filter({$0.last != "k"}).count<=8 else{try fail("more than eight pieces besides the kings")}}
+        if check.searched || check == .exchange{guard board.values.filter({$0.last != "k"}).count<=8 else{try fail(String(localized:"more than eight pieces besides the kings",bundle:.checkmate))}}
         let root=scenario.nodes?.first
         if let root {
-            guard try legality.fingerprint()==root.fingerprint else{try fail("the root fingerprint differs from the presented position")}
-            guard Set(root.accepted).isSubset(of:legal),Set(root.replies.keys).isSubset(of:legal) else{try fail("the teaching graph names an illegal root move")}
+            guard try legality.fingerprint()==root.fingerprint else{try fail(String(localized:"the root fingerprint differs from the presented position",bundle:.checkmate))}
+            guard Set(root.accepted).isSubset(of:legal),Set(root.replies.keys).isSubset(of:legal) else{try fail(String(localized:"the teaching graph names an illegal root move",bundle:.checkmate))}
         }
         let accepted=Set(root?.accepted ?? []),captures=Set(outcomes.filter{$0.captured != nil}.map(\.uci))
         let validator=deep ? try TrainingContinuationValidator(runtimeFactory:runtimeFactory):nil
@@ -70,7 +71,7 @@ extension TrainingValidationService {
         let validator:TrainingContinuationValidator?
         /// Rejects the scenario, naming it.
         let fail:(String)throws -> Never
-        func requireNoAction(_ value:Bool)throws {guard noAction==value else{try fail(value ? "this no-action case must be marked noAction":"only a case where acting is wrong is marked noAction")}}
+        func requireNoAction(_ value:Bool)throws {guard noAction==value else{try fail(value ? "this no-action case must be marked noAction":String(localized:"only a case where acting is wrong is marked noAction",bundle:.checkmate))}}
         /// A one-move rule task: the accepted moves are exactly `answer`, and no reply is shown.
         func simple(_ answer:Set<String>,_ what:String)throws {
             guard !answer.isEmpty,accepted==answer,root?.accepted.count==answer.count else{try fail("accepted \(what) differ from the rules: \(answer.sorted())")}
@@ -79,16 +80,16 @@ extension TrainingValidationService {
     }
     private static func validateDefense(_ c:BeginnerContext)throws {
         let scenario=c.scenario,board=c.board,accepted=c.accepted
-        guard let target=scenario.goal?.target,board[target]?.first==Character(scenario.learner),board[target]?.last != "k" else{try c.fail("the target must be one of the learner's pieces, not the king")}
-        guard !accepted.isEmpty else{try c.fail("at least one move must save the piece")}
-        guard let wrong=c.expected.wrong,!wrong.isEmpty,Set(wrong).isSubset(of:c.legal),Set(wrong).isDisjoint(with:accepted) else{try c.fail("name at least one plausible passive move that fails")}
+        guard let target=scenario.goal?.target,board[target]?.first==Character(scenario.learner),board[target]?.last != "k" else{try c.fail(String(localized:"the target must be one of the learner's pieces, not the king",bundle:.checkmate))}
+        guard !accepted.isEmpty else{try c.fail(String(localized:"at least one move must save the piece",bundle:.checkmate))}
+        guard let wrong=c.expected.wrong,!wrong.isEmpty,Set(wrong).isSubset(of:c.legal),Set(wrong).isDisjoint(with:accepted) else{try c.fail(String(localized:"name at least one plausible passive move that fails",bundle:.checkmate))}
         try c.requireNoAction(false)
         let learner=Character(scenario.learner)
         let tags=c.outcomes.filter{accepted.contains($0.uci)}.map{outcome in TrainingMaterial.defenseTags(before:board,after:TrainingMaterial.board(fen:outcome.after) ?? [:],from:outcome.from,to:outcome.to,target:target,learner:learner)}
         let shared=tags.dropFirst().reduce(tags.first ?? []){$0.intersection($1)}
         let methods:[String:TrainingMaterial.DefenseMethod]=["move-away":.moveAway,"protect":.protect,"capture-attacker":.captureAttacker,"block":.block]
-        if let method=methods[scenario.variant]{guard shared.contains(method) else{try c.fail("not every saving move uses \(method.rawValue); classify it as mixed-method")}}
-        else{guard shared.subtracting([.other]).isEmpty else{try c.fail("every saving move shares one method; classify it under that method")}}
+        if let method=methods[scenario.variant]{guard shared.contains(method) else{try c.fail(String(localized:"not every saving move uses \(method.rawValue); classify it as mixed-method",bundle:.checkmate))}}
+        else{guard shared.subtracting([.other]).isEmpty else{try c.fail(String(localized:"every saving move shares one method; classify it under that method",bundle:.checkmate))}}
         try c.validator?.certifyGraph(scenario,runtimeFactory:c.runtimeFactory)
     }
     private static func validateMaterial(_ c:BeginnerContext)throws {
@@ -96,105 +97,105 @@ extension TrainingValidationService {
         let acceptedCaptures=accepted.intersection(captures)
         if c.noAction{guard acceptedCaptures.isEmpty,!captures.isEmpty else{try c.fail("a declined-capture case has a legal capture and accepts none")}}
         switch (c.definition.objective,scenario.variant) {
-        case (.captureWisely,"free-piece"):guard !acceptedCaptures.isEmpty,scenario.goal?.kind == .gain else{try c.fail("a free piece is won by a capture")};try c.requireNoAction(false)
+        case (.captureWisely,"free-piece"):guard !acceptedCaptures.isEmpty,scenario.goal?.kind == .gain else{try c.fail(String(localized:"a free piece is won by a capture",bundle:.checkmate))};try c.requireNoAction(false)
         case (.captureWisely,_):
-            guard let wrong=c.expected.wrong,!wrong.isEmpty,Set(wrong).isSubset(of:captures),Set(wrong).isDisjoint(with:accepted) else{try c.fail("name the tempting capture that fails")}
+            guard let wrong=c.expected.wrong,!wrong.isEmpty,Set(wrong).isSubset(of:captures),Set(wrong).isDisjoint(with:accepted) else{try c.fail(String(localized:"name the tempting capture that fails",bundle:.checkmate))}
             // A tempting capture exists, so the case is a declined capture exactly when no capture is accepted.
             try c.requireNoAction(acceptedCaptures.isEmpty)
         case (.simpleTactics,"fork-realize"):
-            guard outcomes.contains(where:{accepted.contains($0.uci) && TrainingRelationship.forked(by:$0.to,board:TrainingMaterial.board(fen:$0.after) ?? [:]).count>=2}) else{try c.fail("no accepted move makes a fork")}
+            guard outcomes.contains(where:{accepted.contains($0.uci) && TrainingRelationship.forked(by:$0.to,board:TrainingMaterial.board(fen:$0.after) ?? [:]).count>=2}) else{try c.fail(String(localized:"no accepted move makes a fork",bundle:.checkmate))}
             try c.requireNoAction(false)
         case (.simpleTactics,_):
             let opponent:Character=scenario.learner=="w" ? "b":"w",pinned=TrainingRelationship.pinned(color:opponent,board:c.board)
-            guard outcomes.contains(where:{outcome in accepted.contains(outcome.uci) && (pinned.contains(outcome.to) || !TrainingRelationship.pinned(color:opponent,board:TrainingMaterial.board(fen:outcome.after) ?? [:]).subtracting(pinned).isEmpty)}) else{try c.fail("no accepted move makes or uses a pin")}
+            guard outcomes.contains(where:{outcome in accepted.contains(outcome.uci) && (pinned.contains(outcome.to) || !TrainingRelationship.pinned(color:opponent,board:TrainingMaterial.board(fen:outcome.after) ?? [:]).subtracting(pinned).isEmpty)}) else{try c.fail(String(localized:"no accepted move makes or uses a pin",bundle:.checkmate))}
             try c.requireNoAction(false)
         default:break
         }
-        guard !accepted.isEmpty else{try c.fail("a material task needs at least one move that meets its goal")}
+        guard !accepted.isEmpty else{try c.fail(String(localized:"a material task needs at least one move that meets its goal",bundle:.checkmate))}
         try c.validator?.certifyGraph(scenario,runtimeFactory:c.runtimeFactory)
     }
     private static func validateDiagnosis(_ c:BeginnerContext)throws {
         let scenario=c.scenario
-        guard scenario.choices==TrainingConcern.choices,let genuine=c.expected.choices,!genuine.isEmpty,Set(genuine).isSubset(of:TrainingConcern.choices) else{try c.fail("a diagnosis offers every concern and names the genuine ones")}
+        guard scenario.choices==TrainingConcern.choices,let genuine=c.expected.choices,!genuine.isEmpty,Set(genuine).isSubset(of:TrainingConcern.choices) else{try c.fail(String(localized:"a diagnosis offers every concern and names the genuine ones",bundle:.checkmate))}
         try c.requireNoAction(false)
         if let validator=c.validator {
-            guard let found=try concerns(scenario,legality:c.legality,validator:validator) else{try c.fail("a diagnosis position has the learner out of check")}
-            guard Set(genuine)==Set(found.map(\.label)) else{try c.fail("the genuine concerns differ: \(found.map(\.rawValue).sorted())")}
+            guard let found=try concerns(scenario,legality:c.legality,validator:validator) else{try c.fail(String(localized:"a diagnosis position has the learner out of check",bundle:.checkmate))}
+            guard Set(genuine)==Set(found.map(\.label)) else{try c.fail(String(localized:"the genuine concerns differ: \(String(describing:found.map(\.rawValue).sorted()))",bundle:.checkmate))}
             try validator.certifyGraph(scenario,runtimeFactory:c.runtimeFactory)
         }
     }
     private static func validateExchange(_ c:BeginnerContext)throws {
         let scenario=c.scenario
-        guard scenario.choices==TrainingExchangeResult.choices,let stated=scenario.stated,!stated.isEmpty,let choice=c.expected.choice,TrainingExchangeResult.choices.contains(choice) else{try c.fail("an exchange question states its line and offers the three results")}
+        guard scenario.choices==TrainingExchangeResult.choices,let stated=scenario.stated,!stated.isEmpty,let choice=c.expected.choice,TrainingExchangeResult.choices.contains(choice) else{try c.fail(String(localized:"an exchange question states its line and offers the three results",bundle:.checkmate))}
         _ = try TrainingLegality(fen:c.fen,prelude:(scenario.prelude ?? [])+stated,runtimeFactory:c.runtimeFactory)
-        guard c.captures.contains(stated[0]) else{try c.fail("the stated line starts with the learner's capture")}
+        guard c.captures.contains(stated[0]) else{try c.fail(String(localized:"the stated line starts with the learner's capture",bundle:.checkmate))}
         try c.requireNoAction(false)
-        if let validator=c.validator{guard TrainingExchangeResult(rawValue:try validator.exchangeSign(scenario))?.label==choice else{try c.fail("the exchange result differs from the oracle")}}
+        if let validator=c.validator{guard TrainingExchangeResult(rawValue:try validator.exchangeSign(scenario))?.label==choice else{try c.fail(String(localized:"the exchange result differs from the oracle",bundle:.checkmate))}}
     }
     private static func validateCastle(_ c:BeginnerContext)throws {
         let scenario=c.scenario,board=c.board
         try c.simple(try TrainingSpecialRules.castlingMoves(c.legality),"castling moves");try c.requireNoAction(false)
-        guard let wrong=c.expected.wrong,!wrong.isEmpty else{try c.fail("include a plausible illegal castling attempt")}
+        guard let wrong=c.expected.wrong,!wrong.isEmpty else{try c.fail(String(localized:"include a plausible illegal castling attempt",bundle:.checkmate))}
         for attempt in wrong {
             // A castling attempt: the king two files along its rank, or onto its own rook.
             let from=String(attempt.prefix(2)),to=String(attempt.dropFirst(2).prefix(2))
-            guard board[from]==scenario.learner+"k",let (fx,fy)=TrainingGeometry.coordinates(from),let (tx,ty)=TrainingGeometry.coordinates(to),fy==ty,abs(fx-tx)==2 || board[to]==scenario.learner+"r" else{try c.fail("\(attempt) is not a castling attempt")}
-            guard case .ruleError=try c.legality.grade(from:from,to:to,promotion:nil,castling:true) else{try c.fail("\(attempt) is not graded as a rule error")}
+            guard board[from]==scenario.learner+"k",let (fx,fy)=TrainingGeometry.coordinates(from),let (tx,ty)=TrainingGeometry.coordinates(to),fy==ty,abs(fx-tx)==2 || board[to]==scenario.learner+"r" else{try c.fail(String(localized:"\(attempt) is not a castling attempt",bundle:.checkmate))}
+            guard case .ruleError=try c.legality.grade(from:from,to:to,promotion:nil,castling:true) else{try c.fail(String(localized:"\(attempt) is not graded as a rule error",bundle:.checkmate))}
         }
     }
     private static func validateEnPassant(_ c:BeginnerContext)throws {
         try c.simple(try TrainingSpecialRules.enPassantMoves(c.legality),"en-passant captures");try c.requireNoAction(false)
-        guard let last=c.scenario.prelude?.last,let (_,from)=TrainingGeometry.coordinates(String(last.prefix(2))),let (_,to)=TrainingGeometry.coordinates(String(last.dropFirst(2).prefix(2))),abs(from-to)==2 else{try c.fail("the context moves must end with the pawn's two-square step")}
+        guard let last=c.scenario.prelude?.last,let (_,from)=TrainingGeometry.coordinates(String(last.prefix(2))),let (_,to)=TrainingGeometry.coordinates(String(last.dropFirst(2).prefix(2))),abs(from-to)==2 else{try c.fail(String(localized:"the context moves must end with the pawn's two-square step",bundle:.checkmate))}
     }
     private static func validateCastleReason(_ c:BeginnerContext)throws {
         let scenario=c.scenario
-        guard scenario.choices==TrainingCastleReason.choices,let destination=scenario.target else{try c.fail("a castling question names the king's square and offers every reason")}
+        guard scenario.choices==TrainingCastleReason.choices,let destination=scenario.target else{try c.fail(String(localized:"a castling question names the king's square and offers every reason",bundle:.checkmate))}
         let reasons=try TrainingSpecialRules.castleReasons(c.legality,destination:destination)
         guard reasons.count==1,let reason=reasons.first,reason.label==c.expected.choice else{try c.fail("castling has \(reasons.map(\.rawValue).sorted()); curate exactly the oracle's one reason")}
         try c.requireNoAction(reason != .allowed)
-        if reason == .moved{guard try showsCastlerMoving(scenario,fen:c.fen,destination:destination,runtimeFactory:c.runtimeFactory) else{try c.fail("the context moves must show the king or rook moving")}}
+        if reason == .moved{guard try showsCastlerMoving(scenario,fen:c.fen,destination:destination,runtimeFactory:c.runtimeFactory) else{try c.fail(String(localized:"the context moves must show the king or rook moving",bundle:.checkmate))}}
     }
     private static func validateEnPassantChoice(_ c:BeginnerContext)throws {
         let scenario=c.scenario
         guard scenario.choices==TrainingPassantReason.choices,let target=scenario.target else{try c.fail("an en-passant question names the pawn and offers every reason")}
         let reasons=try TrainingSpecialRules.passantReasons(c.legality,target:target,prelude:scenario.prelude ?? [])
-        guard reasons.count==1,let reason=reasons.first,reason.label==c.expected.choice else{try c.fail("en passant has \(reasons.map(\.rawValue).sorted()); curate exactly the oracle's one reason")}
+        guard reasons.count==1,let reason=reasons.first,reason.label==c.expected.choice else{try c.fail(String(localized:"en passant has \(String(describing:reasons.map(\.rawValue).sorted())); curate exactly the oracle's one reason",bundle:.checkmate))}
         try c.requireNoAction(reason != .allowed)
     }
     /// Forks or pins: the answer squares are exactly the geometry's.
     private static func validateRelationship(_ c:BeginnerContext)throws {
         let color=Character(c.scenario.askColor ?? "w")
         let answer=c.check == .forks ? TrainingRelationship.forks(by:color,board:c.board):TrainingRelationship.pinned(color:color,board:c.board)
-        guard let squares=c.expected.squares,Set(squares)==answer,squares.count==answer.count else{try c.fail("the answer set differs from the geometry: \(answer.sorted())")}
+        guard let squares=c.expected.squares,Set(squares)==answer,squares.count==answer.count else{try c.fail(String(localized:"the answer set differs from the geometry: \(String(describing:answer.sorted()))",bundle:.checkmate))}
         try c.requireNoAction(answer.isEmpty)
     }
     private static func validateStatus(_ c:BeginnerContext)throws {
-        guard c.scenario.choices==TrainingStatus.choices,c.expected.choice==(try c.legality.status()).label else{try c.fail("the classification differs from the oracle")}
+        guard c.scenario.choices==TrainingStatus.choices,c.expected.choice==(try c.legality.status()).label else{try c.fail(String(localized:"the classification differs from the oracle",bundle:.checkmate))}
         try c.requireNoAction(false)
     }
     private static func validateMateThreat(_ c:BeginnerContext)throws {
         let scenario=c.scenario,accepted=c.accepted,create=c.check == .mateThreatCreate
-        guard !accepted.isEmpty,accepted.count<c.legal.count else{try c.fail("some moves must succeed and some must fail")}
+        guard !accepted.isEmpty,accepted.count<c.legal.count else{try c.fail(String(localized:"some moves must succeed and some must fail",bundle:.checkmate))}
         guard scenario.nodes?.count==1 else{try c.fail("a mate-threat task is one decision")}
         try c.requireNoAction(false)
-        if create{guard try c.legality.matingMoves().isEmpty else{try c.fail("with a mate in one available this is a mate-in-one task")}}
+        if create{guard try c.legality.matingMoves().isEmpty else{try c.fail(String(localized:"with a mate in one available this is a mate-in-one task",bundle:.checkmate))}}
         if let validator=c.validator {
             let found=try validator.threat(scenario,create:create)
             guard Set(found.accepted)==accepted,c.root?.replies==found.replies else{try c.fail("mate-threat answers differ from the exact one-reply query: \(found.accepted)")}
-            if !create{guard found.opponentThreat else{try c.fail("the opponent must threaten mate now")}}
+            if !create{guard found.opponentThreat else{try c.fail(String(localized:"the opponent must threaten mate now",bundle:.checkmate))}}
         }
     }
     private static func validateMoment(_ c:BeginnerContext)throws {
         let scenario=c.scenario,accepted=c.accepted
         // Re-derived exactly, cheaply enough to run whenever a moment is staged or resumed.
-        guard let root=c.root,scenario.nodes?.count==1,!accepted.isEmpty,accepted.count<c.legal.count else{try c.fail("a moment is one decision with some moves right and some wrong")}
+        guard let root=c.root,scenario.nodes?.count==1,!accepted.isEmpty,accepted.count<c.legal.count else{try c.fail(String(localized:"a moment is one decision with some moves right and some wrong",bundle:.checkmate))}
         try c.requireNoAction(false)
         switch scenario.variant {
-        case "mate-find":guard accepted==(try c.legality.matingMoves()),root.replies.isEmpty else{try c.fail("the accepted moves are exactly the checkmates")}
+        case "mate-find":guard accepted==(try c.legality.matingMoves()),root.replies.isEmpty else{try c.fail(String(localized:"the accepted moves are exactly the checkmates",bundle:.checkmate))}
         case "mate-avoid":
             let found=try (c.validator ?? TrainingContinuationValidator(runtimeFactory:c.runtimeFactory)).threat(scenario,create:false)
             // The learner's own move created the threat, so none need exist yet; the answers are re-derived exactly.
-            guard Set(found.accepted)==accepted,root.replies==found.replies else{try c.fail("the accepted moves are exactly those that allow no mate in one")}
+            guard Set(found.accepted)==accepted,root.replies==found.replies else{try c.fail(String(localized:"the accepted moves are exactly those that allow no mate in one",bundle:.checkmate))}
         default:try c.fail("unknown moment")
         }
     }

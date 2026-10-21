@@ -27,7 +27,7 @@ struct LibraryTable:NSViewRepresentable {
         table.headerView=nil;table.style = .inset;table.usesAutomaticRowHeights=false;table.rowHeight=rowHeight;table.floatsGroupRows=false
         table.intercellSpacing=NSSize(width:0,height:0);table.columnAutoresizingStyle = .uniformColumnAutoresizingStyle;table.allowsEmptySelection=true;table.allowsMultipleSelection=false
         table.dataSource=coordinator;table.delegate=coordinator;table.target=coordinator;table.action=#selector(Coordinator.clicked(_:));table.doubleAction=#selector(Coordinator.clicked(_:))
-        table.setAccessibilityLabel("Games");coordinator.table=table
+        table.setAccessibilityLabel(String(localized:"Games",bundle:.checkmate));coordinator.table=table
         let menu=NSMenu();menu.delegate=coordinator;table.menu=menu
         return table
     }
@@ -120,11 +120,11 @@ struct LibraryTable:NSViewRepresentable {
             guard row>=0,row<items.count else{return []}
             switch items[row] {
             case .row(let game):
-                guard case .saved(let id)=game.source else{return [("Open",{[weak self] in self?.openRow(game)})]}
-                return [("Open",{[weak self] in self?.openRow(game)}),("Rename…",{[weak self] in self?.library.model?.requestRenameReview(id)}),("Delete Saved Review…",{[weak self] in self?.library.model?.requestDeleteReview(id)})]
+                guard case .saved(let id)=game.source else{return [(String(localized:"Open",bundle:.checkmate,comment:"Verb: open the item"),{[weak self] in self?.openRow(game)})]}
+                return [(String(localized:"Open",bundle:.checkmate,comment:"Verb: open the item"),{[weak self] in self?.openRow(game)}),(String(localized:"Rename…",bundle:.checkmate),{[weak self] in self?.library.model?.requestRenameReview(id)}),(String(localized:"Delete Saved Review…",bundle:.checkmate),{[weak self] in self?.library.model?.requestDeleteReview(id)})]
             case .header(let section) where section.id.hasPrefix("collection:"):
                 let sha=String(section.id.dropFirst("collection:".count))
-                return [("Rename…",{[weak self] in self?.library.requestRename(sha)}),("Remove…",{[weak self] in self?.removeCollection(sha,title:section.title)})]
+                return [(String(localized:"Rename…",bundle:.checkmate),{[weak self] in self?.library.requestRename(sha)}),(String(localized:"Remove…",bundle:.checkmate),{[weak self] in self?.removeCollection(sha,title:section.title)})]
             default:return []
             }
         }
@@ -255,7 +255,7 @@ final class HeaderButton:NSButton {
         image=(open ? AppSymbol.expanded:.collapsed).nsImage()?.withSymbolConfiguration(configuration);contentTintColor = .secondaryLabelColor
         attributedTitle=NSAttributedString(string:" "+section.title,attributes:[.font:NSFont.systemFont(ofSize:NSFont.smallSystemFontSize,weight:.semibold),.foregroundColor:NSColor.secondaryLabelColor])
         setAccessibilityLabel(section.title);setAccessibilityIdentifier("library-section-"+section.id)
-        setAccessibilityHelp(open ? "Hides this event's games.":"Shows this event's games.")
+        setAccessibilityHelp(open ? String(localized:"Hides this event's games.",bundle:.checkmate):String(localized:"Shows this event's games.",bundle:.checkmate))
     }
     @objc private func pressed(){toggle()}
     override func accessibilityValue()->Any? {open ? "expanded":"collapsed"}
@@ -272,7 +272,7 @@ final class MenuAction:NSObject {
 final class SectionHeaderCell:NSTableCellView {
     static let identifier=NSUserInterfaceItemIdentifier("library-section")
     private let title=label(.systemFont(ofSize:NSFont.smallSystemFontSize,weight:.semibold),.secondaryLabelColor)
-    private let rename=NSButton(title:"Rename…",target:nil,action:nil),remove=NSButton(title:"Remove…",target:nil,action:nil)
+    private let rename=NSButton(title:String(localized:"Rename…",bundle:.checkmate),target:nil,action:nil),remove=NSButton(title:String(localized:"Remove…",bundle:.checkmate),target:nil,action:nil)
     private var onRename:()->Void={},onRemove:()->Void={}
     init(){
         super.init(frame:.zero)
@@ -291,8 +291,8 @@ final class SectionHeaderCell:NSTableCellView {
         rename.isHidden = !(collection && section.kind == .collection(nil))
         if collection{
             let sha=String(String(section.id.dropFirst("collection:".count)).prefix(12))
-            remove.setAccessibilityLabel("Remove collection "+section.title);remove.setAccessibilityIdentifier("library-remove-"+sha)
-            rename.setAccessibilityLabel("Rename collection "+section.title);rename.setAccessibilityIdentifier("library-rename-"+sha)
+            remove.setAccessibilityLabel(String(localized:"Remove collection ",bundle:.checkmate)+section.title);remove.setAccessibilityIdentifier("library-remove-"+sha)
+            rename.setAccessibilityLabel(String(localized:"Rename collection ",bundle:.checkmate)+section.title);rename.setAccessibilityIdentifier("library-rename-"+sha)
         }
     }
     @objc private func renamePressed(){onRename()}
@@ -310,7 +310,7 @@ final class BrokenCell:NSTableCellView {
         NSLayoutConstraint.activate([icon.leadingAnchor.constraint(equalTo:leadingAnchor,constant:4),icon.centerYAnchor.constraint(equalTo:centerYAnchor),message.leadingAnchor.constraint(equalTo:icon.trailingAnchor,constant:6),message.trailingAnchor.constraint(lessThanOrEqualTo:trailingAnchor,constant:-6),message.centerYAnchor.constraint(equalTo:centerYAnchor)])
     }
     required init?(coder:NSCoder){nil}
-    func show(_ broken:BrokenCollection){message.stringValue=broken.error;setAccessibilityLabel("This collection could not be read: "+broken.error)}
+    func show(_ broken:BrokenCollection){message.stringValue=broken.error;setAccessibilityLabel(String(localized:"This collection could not be read: ",bundle:.checkmate)+broken.error)}
     override func isAccessibilityElement()->Bool {true}
     override func accessibilityRole()->NSAccessibility.Role? {.staticText}
 }

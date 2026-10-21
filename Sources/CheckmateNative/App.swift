@@ -13,12 +13,12 @@ import CheckmateCore
     /// Silent, with an explicit isolated data directory, and not the released app's identifier.
     static var isolatedAutomation:Bool {NativePolicy.silent && ProcessInfo.processInfo.environment["CHECKMATE_DATA_DIR"] != nil && Bundle.main.bundleIdentifier != "ai.xiaolai.checkmate"}
     func applicationDidFinishLaunching(_ notification:Notification){
-        if let i=CommandLine.arguments.firstIndex(of:"--package-check"),i+1<CommandLine.arguments.count {let destination=CommandLine.arguments[i+1];Task{do{let rules=try ChessRules(),course=try CourseLibrary();let analysis=try await NativeEngine().analyze(fen:rules.fen,skill:0,budget:100,multiPv:1);guard let move=analysis.bestMove else{throw CheckmateError.unavailable("No packaged engine move")};_ = try rules.move(uci:move);let result:[String:Any]=["passed":true,"resourceRoot":NativeResources.root.path,"lessons":course.lessons.count,"engineMove":move];try JSONSerialization.data(withJSONObject:result,options:.prettyPrinted).write(to:URL(fileURLWithPath:destination));NSApp.terminate(nil)}catch{NSApp.terminate(nil)}};return}
+        if let i=CommandLine.arguments.firstIndex(of:"--package-check"),i+1<CommandLine.arguments.count {let destination=CommandLine.arguments[i+1];Task{do{let rules=try ChessRules(),course=try CourseLibrary();let analysis=try await NativeEngine().analyze(fen:rules.fen,skill:0,budget:100,multiPv:1);guard let move=analysis.bestMove else{throw CheckmateError.unavailable(String(localized:"No packaged engine move",bundle:.checkmate))};_ = try rules.move(uci:move);let result:[String:Any]=["passed":true,"resourceRoot":NativeResources.root.path,"lessons":course.lessons.count,"engineMove":move];try JSONSerialization.data(withJSONObject:result,options:.prettyPrinted).write(to:URL(fileURLWithPath:destination));NSApp.terminate(nil)}catch{NSApp.terminate(nil)}};return}
         do {
             let root=StateStore.defaultDirectory();try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])
             // A lock file that cannot be opened is a problem with the data folder, not a second copy: say so.
             let lock=lockInstance(root)
-            guard lock != .unopenable else{let alert=NSAlert();alert.messageText="Checkmate could not open its data folder.";alert.informativeText="Check that \(root.path) is writable, then open Checkmate again.";alert.runModal();NSApp.terminate(nil);return}
+            guard lock != .unopenable else{let alert=NSAlert();alert.messageText=String(localized:"Checkmate could not open its data folder.",bundle:.checkmate);alert.informativeText=String(localized:"Check that \(root.path) is writable, then open Checkmate again.",bundle:.checkmate);alert.runModal();NSApp.terminate(nil);return}
             guard lock == .held else{for app in NSRunningApplication.runningApplications(withBundleIdentifier:Bundle.main.bundleIdentifier ?? ""){if app.processIdentifier != ProcessInfo.processInfo.processIdentifier{app.activate(options:[.activateAllWindows])}};NSApp.terminate(nil);return}
             NativeLog.lifecycle.info("Opening native application");let model=try NativeModel();self.model=model;let window=GameWindow(model:model);game=window;window.board.reviewFiles=reviewFiles;installMenus(window:window,model:model);window.showWindow(nil);NSApp.activate(ignoringOtherApps:true)
             model.startConnections();openPendingFiles()
@@ -50,9 +50,9 @@ import CheckmateCore
     private func recoverFromLaunchFailure(_ error:Error,_ notification:Notification){
         let store=StateStore(directory:StateStore.defaultDirectory()),stateProblem:Bool={do{_ = try store.load();return false}catch{return true}}()
         let alert=NSAlert()
-        guard stateProblem else{alert.messageText="Checkmate could not start.";alert.informativeText=userFacingMessage(error,fallback:"A part of the app could not be opened. Reinstall Checkmate if this continues.")+" Your saved progress was not changed.";alert.addButton(withTitle:"Quit");_ = presentRecovery(alert);quit();return}
-        alert.messageText="Checkmate could not open your saved progress."
-        alert.informativeText=userFacingMessage(error,fallback:"The saved file is damaged or comes from a newer version of Checkmate.")+" Whatever you choose, that file is kept."
+        guard stateProblem else{alert.messageText=String(localized:"Checkmate could not start.",bundle:.checkmate);alert.informativeText=userFacingMessage(error,fallback:String(localized:"A part of the app could not be opened. Reinstall Checkmate if this continues.",bundle:.checkmate))+String(localized:" Your saved progress was not changed.",bundle:.checkmate);alert.addButton(withTitle:String(localized:"Quit",bundle:.checkmate));_ = presentRecovery(alert);quit();return}
+        alert.messageText=String(localized:"Checkmate could not open your saved progress.",bundle:.checkmate)
+        alert.informativeText=userFacingMessage(error,fallback:String(localized:"The saved file is damaged or comes from a newer version of Checkmate.",bundle:.checkmate))+String(localized:" Whatever you choose, that file is kept.",bundle:.checkmate)
         let hasBackup=FileManager.default.fileExists(atPath:store.backupURL.path),choices:[LaunchRecoveryChoice]=[.startFresh]+(hasBackup ? [.restoreBackup]:[])+[.export,.quit]
         for choice in choices{alert.addButton(withTitle:choice.title)}
         let index=presentRecovery(alert).rawValue-NSApplication.ModalResponse.alertFirstButtonReturn.rawValue,original=error
@@ -61,7 +61,7 @@ import CheckmateCore
             case .restoreBackup:try store.restoreBackup();applicationDidFinishLaunching(notification);return
             case .export:let panel=NSSavePanel();panel.nameFieldStringValue="checkmate-saved-state.json";if panel.runModal() == .OK,let url=panel.url{try store.export(to:url)};recoverFromLaunchFailure(error,notification);return
             case .quit:quit();return
-        }}catch{let failure=NSAlert();failure.messageText="That did not work";failure.informativeText=userFacingMessage(error,fallback:"Your saved file is unchanged.")+" Choose another option.";failure.runModal();recoverFromLaunchFailure(original,notification)}
+        }}catch{let failure=NSAlert();failure.messageText=String(localized:"That did not work",bundle:.checkmate);failure.informativeText=userFacingMessage(error,fallback:String(localized:"Your saved file is unchanged.",bundle:.checkmate))+String(localized:" Choose another option.",bundle:.checkmate);failure.runModal();recoverFromLaunchFailure(original,notification)}
     }
     func runReviewBatchScenario(directory:String){guard let model=model else{return};Task{do{
         let root=URL(fileURLWithPath:directory);let warmBaseline=CommandLine.arguments.contains("--warm-engine-baseline");if warmBaseline{_ = try await model.reviewAnalyzer.engine.analyze(fen:try ChessRules().fen,skill:20,budget:100,multiPv:1)};try Data("ready".utf8).write(to:root.appendingPathComponent("baseline-ready"));try await Task.sleep(for:.seconds(2))
@@ -577,56 +577,56 @@ import CheckmateCore
         func submenu(_ title:String)->NSMenu {let item=NSMenuItem(title:title,action:nil,keyEquivalent:""),sub=NSMenu(title:title);item.submenu=sub;menu.addItem(item);return sub}
         @discardableResult func add(_ to:NSMenu,_ title:String,_ action:Selector?,_ key:String="",_ modifiers:NSEvent.ModifierFlags = .command,target:AnyObject?)->NSMenuItem {let item=NSMenuItem(title:title,action:action,keyEquivalent:key);item.keyEquivalentModifierMask=modifiers;item.target=target;to.addItem(item);return item}
         // App: the standard About panel (D-9), Check for Updates… (V-19) and the system's Services (D-8).
-        let app=submenu("");add(app,"About Checkmate",#selector(showAbout),target:self);add(app,"Check for Updates…",#selector(checkForUpdates),target:self);app.addItem(.separator())
-        add(app,"Settings…",#selector(GameWindow.showSettings),",",target:window);app.addItem(.separator())
-        let services=NSMenuItem(title:"Services",action:nil,keyEquivalent:""),servicesMenu=NSMenu(title:"Services");services.submenu=servicesMenu;app.addItem(services);NSApp.servicesMenu=servicesMenu;app.addItem(.separator())
-        add(app,"Hide Checkmate",#selector(NSApplication.hide(_:)),"h",target:nil);add(app,"Hide Others",#selector(NSApplication.hideOtherApplications(_:)),"h",[.command,.option],target:nil);add(app,"Show All",#selector(NSApplication.unhideAllApplications(_:)),target:nil);app.addItem(.separator());add(app,"Quit Checkmate",#selector(NSApplication.terminate(_:)),"q",target:nil)
+        let app=submenu("");add(app,String(localized:"About Checkmate",bundle:.checkmate),#selector(showAbout),target:self);add(app,String(localized:"Check for Updates…",bundle:.checkmate),#selector(checkForUpdates),target:self);app.addItem(.separator())
+        add(app,String(localized:"Settings…",bundle:.checkmate),#selector(GameWindow.showSettings),",",target:window);app.addItem(.separator())
+        let services=NSMenuItem(title:String(localized:"Services",bundle:.checkmate),action:nil,keyEquivalent:""),servicesMenu=NSMenu(title:String(localized:"Services",bundle:.checkmate));services.submenu=servicesMenu;app.addItem(services);NSApp.servicesMenu=servicesMenu;app.addItem(.separator())
+        add(app,String(localized:"Hide Checkmate",bundle:.checkmate),#selector(NSApplication.hide(_:)),"h",target:nil);add(app,String(localized:"Hide Others",bundle:.checkmate),#selector(NSApplication.hideOtherApplications(_:)),"h",[.command,.option],target:nil);add(app,String(localized:"Show All",bundle:.checkmate),#selector(NSApplication.unhideAllApplications(_:)),target:nil);app.addItem(.separator());add(app,String(localized:"Quit Checkmate",bundle:.checkmate),#selector(NSApplication.terminate(_:)),"q",target:nil)
         // File: documents (R-14, R-15), Close (D-7: closing the window quits, as Help says), then the Data menu's progress items (D-3).
-        let file=submenu("File");file.delegate=self;fileMenu=file;model.openedFile={[weak self] in self?.recents.note($0)}
-        add(file,"Open…",#selector(openPGN),"o",target:self)
-        let recent=NSMenu(title:"Open Recent");recent.delegate=self;recent.autoenablesItems=false;recentMenu=recent;add(file,"Open Recent",nil,target:nil).submenu=recent;menuNeedsUpdate(recent)
-        add(file,"Paste PGN or FEN",#selector(pasteReview),target:self);file.addItem(.separator())
-        add(file,"Close",#selector(NSWindow.performClose(_:)),"w",target:nil);add(file,"Save Review",#selector(saveCurrentReview),"s",target:self);add(file,"Export…",#selector(exportShown),"e",[.command,.shift],target:self);file.addItem(shareMenuItem());file.addItem(.separator())
+        let file=submenu(String(localized:"File",bundle:.checkmate));file.delegate=self;fileMenu=file;model.openedFile={[weak self] in self?.recents.note($0)}
+        add(file,String(localized:"Open…",bundle:.checkmate),#selector(openPGN),"o",target:self)
+        let recent=NSMenu(title:String(localized:"Open Recent",bundle:.checkmate));recent.delegate=self;recent.autoenablesItems=false;recentMenu=recent;add(file,String(localized:"Open Recent",bundle:.checkmate),nil,target:nil).submenu=recent;menuNeedsUpdate(recent)
+        add(file,String(localized:"Paste PGN or FEN",bundle:.checkmate),#selector(pasteReview),target:self);file.addItem(.separator())
+        add(file,String(localized:"Close",bundle:.checkmate,comment:"Verb: close the window"),#selector(NSWindow.performClose(_:)),"w",target:nil);add(file,String(localized:"Save Review",bundle:.checkmate),#selector(saveCurrentReview),"s",target:self);add(file,String(localized:"Export…",bundle:.checkmate),#selector(exportShown),"e",[.command,.shift],target:self);file.addItem(shareMenuItem());file.addItem(.separator())
         // Shift-Command-R: Command-R alone is Lesson ▸ Play Step from Start.
-        add(file,"Review Current Game",#selector(reviewCurrent),"r",[.command,.shift],target:self);add(file,"Review Previous Game",#selector(reviewPrevious),target:self);file.addItem(.separator())
-        add(file,"Import Progress…",#selector(importData),target:self);add(file,"Export Progress…",#selector(exportData),target:self);add(file,"Show Backups…",#selector(showBackups),target:self)
-        let edit=submenu("Edit");for (name,selector,key) in [("Undo",NSSelectorFromString("undo:"),"z"),("Redo",NSSelectorFromString("redo:"),"Z"),("Cut",#selector(NSText.cut(_:)),"x"),("Copy",#selector(NSText.copy(_:)),"c"),("Paste",#selector(NSText.paste(_:)),"v"),("Select All",#selector(NSText.selectAll(_:)),"a")]{edit.addItem(withTitle:name,action:selector,keyEquivalent:key)}
-        edit.addItem(.separator());add(edit,"Copy FEN",#selector(copyFEN),target:self);add(edit,"Copy PGN",#selector(copyPGN),target:self)
+        add(file,String(localized:"Review Current Game",bundle:.checkmate),#selector(reviewCurrent),"r",[.command,.shift],target:self);add(file,String(localized:"Review Previous Game",bundle:.checkmate),#selector(reviewPrevious),target:self);file.addItem(.separator())
+        add(file,String(localized:"Import Progress…",bundle:.checkmate),#selector(importData),target:self);add(file,String(localized:"Export Progress…",bundle:.checkmate),#selector(exportData),target:self);add(file,String(localized:"Show Backups…",bundle:.checkmate),#selector(showBackups),target:self)
+        let edit=submenu(String(localized:"Edit",bundle:.checkmate));for (name,selector,key) in [(String(localized:"Undo",bundle:.checkmate),NSSelectorFromString("undo:"),"z"),(String(localized:"Redo",bundle:.checkmate),NSSelectorFromString("redo:"),"Z"),(String(localized:"Cut",bundle:.checkmate),#selector(NSText.cut(_:)),"x"),(String(localized:"Copy",bundle:.checkmate),#selector(NSText.copy(_:)),"c"),(String(localized:"Paste",bundle:.checkmate),#selector(NSText.paste(_:)),"v"),(String(localized:"Select All",bundle:.checkmate),#selector(NSText.selectAll(_:)),"a")]{edit.addItem(withTitle:name,action:selector,keyEquivalent:key)}
+        edit.addItem(.separator());add(edit,String(localized:"Copy FEN",bundle:.checkmate),#selector(copyFEN),target:self);add(edit,String(localized:"Copy PGN",bundle:.checkmate),#selector(copyPGN),target:self)
         // Workspace-scoped: Find… searches the game library and is offered only while the review workspace shows.
-        edit.addItem(.separator());add(edit,"Find…",#selector(findInLibrary),"f",target:self)
+        edit.addItem(.separator());add(edit,String(localized:"Find…",bundle:.checkmate),#selector(findInLibrary),"f",target:self)
         // View: the split view's own toggles (D-5, D-6), whose titles the window's split controller keeps, and full screen (D-8).
-        let view=submenu("View");add(view,GameWindow.drawerTitle(sidebar:true,open:false),#selector(NSSplitViewController.toggleSidebar(_:)),"s",[.command,.control],target:window.split);add(view,GameWindow.drawerTitle(sidebar:false,open:false),#selector(NSSplitViewController.toggleInspector(_:)),"i",[.command,.option],target:window.split)
-        view.addItem(.separator());add(view,"Enter Full Screen",#selector(NSWindow.toggleFullScreen(_:)),"f",[.command,.control],target:window.window)
-        let gameItem=NSMenuItem(title:"Game",action:nil,keyEquivalent:""),gameMenu=Self.makeGameMenu(target:window);gameItem.submenu=gameMenu;menu.addItem(gameItem)
+        let view=submenu(String(localized:"View",bundle:.checkmate));add(view,GameWindow.drawerTitle(sidebar:true,open:false),#selector(NSSplitViewController.toggleSidebar(_:)),"s",[.command,.control],target:window.split);add(view,GameWindow.drawerTitle(sidebar:false,open:false),#selector(NSSplitViewController.toggleInspector(_:)),"i",[.command,.option],target:window.split)
+        view.addItem(.separator());add(view,String(localized:"Enter Full Screen",bundle:.checkmate),#selector(NSWindow.toggleFullScreen(_:)),"f",[.command,.control],target:window.window)
+        let gameItem=NSMenuItem(title:String(localized:"Game",bundle:.checkmate),action:nil,keyEquivalent:""),gameMenu=Self.makeGameMenu(target:window);gameItem.submenu=gameMenu;menu.addItem(gameItem)
         // Lesson: the bar's playback, with shortcuts (Hint is in the Game menu). Space stays with the board, which uses it to
         // activate a square, so Play takes Option-Command-P and Command-P stays free (D-4).
-        let lessonMenu=submenu("Lesson"),lessonItem=menu.items.last!
+        let lessonMenu=submenu(String(localized:"Lesson",bundle:.checkmate)),lessonItem=menu.items.last!
         // In network mode the window shows only the network game's items and hides the Lesson menu (LAN-play plan D9).
         window.gameMenu=gameMenu;window.lessonMenuItem=lessonItem
-        for (name,action,key,modifiers) in [("Play",#selector(GameWindow.lessonPlayPause),"p",NSEvent.ModifierFlags([.command,.option])),("Previous Step",#selector(GameWindow.lessonPrevious),"[",.command),("Next Step",#selector(GameWindow.lessonNext),"]",.command),("Play Step from Start",#selector(GameWindow.lessonFromStart),"r",.command)] {add(lessonMenu,name,action,key,modifiers,target:window)}
-        let windows=submenu("Window");add(windows,"Minimize",#selector(NSWindow.performMiniaturize(_:)),"m",target:nil);add(windows,"Zoom",#selector(NSWindow.performZoom(_:)),target:nil);windows.addItem(.separator());add(windows,"Bring All to Front",#selector(NSApplication.arrangeInFront(_:)),target:nil);NSApp.windowsMenu=windows
+        for (name,action,key,modifiers) in [(String(localized:"Play",bundle:.checkmate,comment:"Verb: start playback of a lesson"),#selector(GameWindow.lessonPlayPause),"p",NSEvent.ModifierFlags([.command,.option])),(String(localized:"Previous Step",bundle:.checkmate),#selector(GameWindow.lessonPrevious),"[",.command),(String(localized:"Next Step",bundle:.checkmate),#selector(GameWindow.lessonNext),"]",.command),(String(localized:"Play Step from Start",bundle:.checkmate),#selector(GameWindow.lessonFromStart),"r",.command)] {add(lessonMenu,name,action,key,modifiers,target:window)}
+        let windows=submenu(String(localized:"Window",bundle:.checkmate));add(windows,String(localized:"Minimize",bundle:.checkmate),#selector(NSWindow.performMiniaturize(_:)),"m",target:nil);add(windows,String(localized:"Zoom",bundle:.checkmate),#selector(NSWindow.performZoom(_:)),target:nil);windows.addItem(.separator());add(windows,String(localized:"Bring All to Front",bundle:.checkmate),#selector(NSApplication.arrangeInFront(_:)),target:nil);NSApp.windowsMenu=windows
         // Help: the system's Help menu, so menu search works (D-1).
-        let help=submenu("Help");add(help,"Checkmate Help",#selector(showHelp),"?",target:self);add(help,"Report a Problem",#selector(reportProblem),target:self);NSApp.helpMenu=help
+        let help=submenu(String(localized:"Help",bundle:.checkmate));add(help,String(localized:"Checkmate Help",bundle:.checkmate),#selector(showHelp),"?",target:self);add(help,String(localized:"Report a Problem",bundle:.checkmate),#selector(reportProblem),target:self);NSApp.helpMenu=help
         NSApp.mainMenu=menu;window.syncMenus()
     }
     /// The Game menu: practice's items, the network game's (Offer Draw, Flip Board, Leave Game), and piece inspection.
     /// Claim Draw and Resign serve both; the window shows each group only in its own mode.
     /// The Game menu, its items aimed at `target` (the window; tests read it without one).
     static func makeGameMenu(target:AnyObject?)->NSMenu {
-        let gameMenu=NSMenu(title:"Game")
-        for (name,action,key) in [("New Game…",#selector(GameWindow.newGame),"n"),("Take Back Move",#selector(GameWindow.undo as (GameWindow) -> () -> Void),""),("Hint",#selector(GameWindow.barHint),"h"),("Restore Previous Game",#selector(GameWindow.restorePrevious),""),("Offer Draw",#selector(GameWindow.offerDraw),""),("Claim Draw",#selector(GameWindow.claimDraw),""),("Resign…",#selector(GameWindow.resign),""),("Flip Board",#selector(GameWindow.flipBoard),""),("Leave Game…",#selector(GameWindow.leaveGame),""),("Type a Move…",#selector(GameWindow.typeMove),"l")] {let item=NSMenuItem(title:name,action:action,keyEquivalent:key);item.target=target;gameMenu.addItem(item)}
+        let gameMenu=NSMenu(title:String(localized:"Game",bundle:.checkmate))
+        for (name,action,key) in [(String(localized:"New Game…",bundle:.checkmate),#selector(GameWindow.newGame),"n"),(String(localized:"Take Back Move",bundle:.checkmate),#selector(GameWindow.undo as (GameWindow) -> () -> Void),""),(String(localized:"Hint",bundle:.checkmate,comment:"Noun: ask for a hint"),#selector(GameWindow.barHint),"h"),(String(localized:"Restore Previous Game",bundle:.checkmate),#selector(GameWindow.restorePrevious),""),(String(localized:"Offer Draw",bundle:.checkmate),#selector(GameWindow.offerDraw),""),(String(localized:"Claim Draw",bundle:.checkmate),#selector(GameWindow.claimDraw),""),(String(localized:"Resign…",bundle:.checkmate),#selector(GameWindow.resign),""),(String(localized:"Flip Board",bundle:.checkmate),#selector(GameWindow.flipBoard),""),(String(localized:"Leave Game…",bundle:.checkmate),#selector(GameWindow.leaveGame),""),(String(localized:"Type a Move…",bundle:.checkmate),#selector(GameWindow.typeMove),"l")] {let item=NSMenuItem(title:name,action:action,keyEquivalent:key);item.target=target;gameMenu.addItem(item)}
         // Hint (B-17) and Flip Board (B-6) take ⇧⌘H and ⇧⌘F; ⌘F stays with Find.
         for action in [#selector(GameWindow.barHint),#selector(GameWindow.flipBoard)]{gameMenu.items.first{$0.action==action}?.keyEquivalentModifierMask=[.command,.shift]}
         gameMenu.items.first{$0.action == #selector(GameWindow.flipBoard)}?.keyEquivalent="f"
         // The network game's own items carry stable identifiers for the native gates (LAN-play plan D9).
         for (action,identifier) in [(#selector(GameWindow.offerDraw),"network-menu-offer-draw"),(#selector(GameWindow.flipBoard),"network-menu-flip-board"),(#selector(GameWindow.leaveGame),"network-menu-leave-game")] {gameMenu.items.first{$0.action==action}?.identifier=NSUserInterfaceItemIdentifier(identifier)}
         gameMenu.addItem(.separator())
-        for (name,action,key) in [("Protected by",#selector(GameWindow.showProtection),"p"),("Attacked by",#selector(GameWindow.showAttacks),"a")] {let item=NSMenuItem(title:name,action:action,keyEquivalent:key);item.keyEquivalentModifierMask=[.command,.shift];item.target=target;gameMenu.addItem(item)}
-        let dismiss=NSMenuItem(title:"Dismiss Piece Inspection",action:#selector(GameWindow.dismissInspection),keyEquivalent:"");dismiss.target=target;gameMenu.addItem(dismiss)
+        for (name,action,key) in [(String(localized:"Protected by",bundle:.checkmate),#selector(GameWindow.showProtection),"p"),(String(localized:"Attacked by",bundle:.checkmate),#selector(GameWindow.showAttacks),"a")] {let item=NSMenuItem(title:name,action:action,keyEquivalent:key);item.keyEquivalentModifierMask=[.command,.shift];item.target=target;gameMenu.addItem(item)}
+        let dismiss=NSMenuItem(title:String(localized:"Dismiss Piece Inspection",bundle:.checkmate),action:#selector(GameWindow.dismissInspection),keyEquivalent:"");dismiss.target=target;gameMenu.addItem(dismiss)
         // V-20: the voice coach from the menu bar; the title follows the connection (`GameWindow.voiceMenuItemEnabled`).
         gameMenu.addItem(.separator())
-        let connect=NSMenuItem(title:"Connect Voice Coach",action:#selector(GameWindow.toggleVoiceCoach),keyEquivalent:"");connect.target=target;gameMenu.addItem(connect)
-        let stop=NSMenuItem(title:"Stop Speaking",action:#selector(GameWindow.stopSpeaking),keyEquivalent:".");stop.keyEquivalentModifierMask=[.command];stop.target=target;gameMenu.addItem(stop)
+        let connect=NSMenuItem(title:String(localized:"Connect Voice Coach",bundle:.checkmate),action:#selector(GameWindow.toggleVoiceCoach),keyEquivalent:"");connect.target=target;gameMenu.addItem(connect)
+        let stop=NSMenuItem(title:String(localized:"Stop Speaking",bundle:.checkmate),action:#selector(GameWindow.stopSpeaking),keyEquivalent:".");stop.keyEquivalentModifierMask=[.command];stop.target=target;gameMenu.addItem(stop)
         return gameMenu
     }
     func validateMenuItem(_ item:NSMenuItem)->Bool {
@@ -658,15 +658,15 @@ import CheckmateCore
     lazy var reviewFiles:ReviewFileReader={let reader=ReviewFileReader();reader.activity={[weak self] in self?.model?.activityGeneration ?? -1};reader.supersede={[weak self] in self?.model?.supersedeReviewOpen()};return reader}()
     /// Several files opened at once: the learner picks the one to review (one review is open at a time); nil cancels.
     var chooseReviewFile:([URL])->URL?=AppDelegate.askWhichFile
-    static func askWhichFile(_ urls:[URL])->URL? {let alert=NSAlert();alert.messageText="Choose a file to review";alert.informativeText="\(urls.count) files were opened. Checkmate reviews one at a time.";let picker=NSPopUpButton(frame:NSRect(x:0,y:0,width:440,height:28));picker.setAccessibilityLabel("File to review");for url in urls{picker.addItem(withTitle:String(url.lastPathComponent.prefix(256)))};alert.accessoryView=picker;alert.addButton(withTitle:"Review");alert.addButton(withTitle:"Cancel");return alert.runModal() == .alertFirstButtonReturn ? urls[picker.indexOfSelectedItem]:nil}
+    static func askWhichFile(_ urls:[URL])->URL? {let alert=NSAlert();alert.messageText=String(localized:"Choose a file to review",bundle:.checkmate);alert.informativeText=String(localized:"\(urls.count) files were opened. Checkmate reviews one at a time.",bundle:.checkmate);let picker=NSPopUpButton(frame:NSRect(x:0,y:0,width:440,height:28));picker.setAccessibilityLabel(String(localized:"File to review",bundle:.checkmate));for url in urls{picker.addItem(withTitle:String(url.lastPathComponent.prefix(256)))};alert.accessoryView=picker;alert.addButton(withTitle:String(localized:"Review",bundle:.checkmate,comment:"Verb: open the game for review"));alert.addButton(withTitle:String(localized:"Cancel",bundle:.checkmate));return alert.runModal() == .alertFirstButtonReturn ? urls[picker.indexOfSelectedItem]:nil}
     func application(_ application:NSApplication,open urls:[URL]){pendingOpen+=urls;openPendingFiles()}
     private func openPendingFiles(){
         guard let model,!pendingOpen.isEmpty else{return};let urls=pendingOpen;pendingOpen.removeAll()
         guard let url=urls.count==1 ? urls[0]:chooseReviewFile(urls) else{return}
         let file=url.resolvingSymlinksInPath()
-        guard let values=try? file.resourceValues(forKeys:[.isRegularFileKey,.fileSizeKey]),values.isRegularFile==true,let size=values.fileSize,size<=ReviewPolicy.maximumBytes else{model.storageError="This file could not be opened for review. Use a PGN or FEN file up to 16 MiB.";return}
+        guard let values=try? file.resourceValues(forKeys:[.isRegularFileKey,.fileSizeKey]),values.isRegularFile==true,let size=values.fileSize,size<=ReviewPolicy.maximumBytes else{model.storageError=String(localized:"This file could not be opened for review. Use a PGN or FEN file up to 16 MiB.",bundle:.checkmate);return}
         recents.note(url)
-        reviewFiles.load(file,deliver:{[weak model] in model?.importReviewData($0)},failed:{[weak model] in model?.storageError="This file could not be read."})
+        reviewFiles.load(file,deliver:{[weak model] in model?.importReviewData($0)},failed:{[weak model] in model?.storageError=String(localized:"This file could not be read.",bundle:.checkmate)})
     }
     /// A draft review holding the learner's imagined lines is never discarded without asking. A seated network player
     /// is asked last, just before closing, since leaving resigns; once everything agrees, the network game is left and the app waits until

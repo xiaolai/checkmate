@@ -14,7 +14,7 @@ extension NativeModel {
             return NetworkServices(transport:faultHook(NWNetworkTransport(scheduler:scheduler,configuration:.loopback()),scheduler:scheduler),discovery:shared.discovery(),scheduler:scheduler,delivery:.mainQueue,rules:rules,hashing:hashing,appVersion:version,crashFile:crash,listenersReady:{shared.publish($0,$1)},listenersClosed:{shared.withdraw($0)})
         }
         let type=NWNetworkTransport.bonjourServiceType()
-        let discovery:any NetworkDiscovery=type.map{NWNetworkDiscovery(serviceType:$0,scheduler:scheduler)} ?? NetworkUnavailableDiscovery(scheduler:scheduler,reason:"This build declares no Bonjour service type.")
+        let discovery:any NetworkDiscovery=type.map{NWNetworkDiscovery(serviceType:$0,scheduler:scheduler)} ?? NetworkUnavailableDiscovery(scheduler:scheduler,reason:String(localized:"This build declares no Bonjour service type.",bundle:.checkmate))
         return NetworkServices(transport:faultHook(NWNetworkTransport(scheduler:scheduler,configuration:.init(serviceType:type,loopbackOnly:false)),scheduler:scheduler),discovery:discovery,scheduler:scheduler,delivery:.mainQueue,rules:rules,hashing:hashing,appVersion:version,crashFile:crash)
     }
     static let networkLoopbackVariable="CHECKMATE_NETWORK_LOOPBACK_DIR"
@@ -31,9 +31,9 @@ extension NativeModel {
             NSApp.terminate(nil)
         }
         do {
-            let host=try NetworkGameController(services:networkServices(directory:directory.appendingPathComponent("host")),playerName:"Self check")
-            let guest=try NetworkGameController(services:networkServices(directory:directory.appendingPathComponent("guest")),playerName:"Guest")
-            guard host.host(),let code=host.playCode,let hosted=host.hostedGameID else{return finish(["passed":false,"stage":"host","message":host.lobbyMessage ?? "could not host"])}
+            let host=try NetworkGameController(services:networkServices(directory:directory.appendingPathComponent("host")),playerName:"Self check") // not localized: a self-check player, never shown
+            let guest=try NetworkGameController(services:networkServices(directory:directory.appendingPathComponent("guest")),playerName:"Guest") // not localized: a self-check player, never shown
+            guard host.host(),let code=host.playCode,let hosted=host.hostedGameID else{return finish(["passed":false,"stage":"host","message":host.lobbyMessage ?? "could not host"])} // not localized: automation evidence
             guest.setShown(true)
             var stage="browse",joined=false
             func poll(_ remaining:Int){
@@ -41,7 +41,7 @@ extension NativeModel {
                 // This check's own game, by ID: another Mac's self-check may be advertising at the same moment.
                 if !joined,let game=guest.games.first(where:{$0.gameID==hosted}) {
                     joined=guest.join(game,code:code.grouped);stage="join"
-                    if !joined{return finish(["passed":false,"stage":stage,"message":guest.lobbyMessage ?? "could not join"])}
+                    if !joined{return finish(["passed":false,"stage":stage,"message":guest.lobbyMessage ?? "could not join"])} // not localized: automation evidence
                 }
                 if joined,guest.link == .live,host.link == .live {
                     guest.leave();return finish(["passed":true,"stage":"joined","denied":false])
@@ -89,7 +89,7 @@ extension NativeModel {
         let game=network;guard game.part != nil else{return}
         guard game.leavingResigns else{game.leave();return}
         let session=game.sessionID
-        confirmNetwork(message:NetworkGameController.leaveConfirmation,detail:"\(game.opponentName) wins the game.",action:"Leave Game",identifier:"network-leave",answer:confirmLeavingNetworkGame){[weak self] in
+        confirmNetwork(message:NetworkGameController.leaveConfirmation,detail:String(localized:"\(game.opponentName) wins the game.",bundle:.checkmate),action:String(localized:"Leave Game",bundle:.checkmate),identifier:"network-leave",answer:confirmLeavingNetworkGame){[weak self] in
             // The same session only; it may have ended while the sheet was open, and leaving it then simply leaves.
             guard let game=self?.network,game.sessionID==session,game.part != nil else{return}
             game.leave()
@@ -98,7 +98,7 @@ extension NativeModel {
     func resignNetworkGame(){
         let game=network;guard game.canResign else{return}
         let session=game.sessionID
-        confirmNetwork(message:"Resign this game?",detail:"\(game.opponentName) wins. You can review the game afterwards.",action:"Resign",identifier:"network-resign",answer:confirmResigningNetworkGame){[weak self] in
+        confirmNetwork(message:String(localized:"Resign this game?",bundle:.checkmate),detail:"\(game.opponentName) wins. You can review the game afterwards.",action:String(localized:"Resign",bundle:.checkmate,comment:"Verb: give up the game"),identifier:"network-resign",answer:confirmResigningNetworkGame){[weak self] in
             guard let game=self?.network,game.sessionID==session,game.canResign else{return}
             game.resign()
         }
@@ -119,7 +119,7 @@ extension NativeModel {
         guard network.leavingResigns else{return true}
         if let confirm=confirmLeavingNetworkGame{return confirm()};if NativePolicy.silent{return true}
         // Return must never resign: Cancel is the default, as in the other resignation confirmations.
-        let alert=NSAlert.destructive(NetworkGameController.leaveConfirmation,"\(network.opponentName) wins the game. Checkmate quits once your resignation has gone out.",action:"Leave and Quit",identifier:"network-quit")
+        let alert=NSAlert.destructive(NetworkGameController.leaveConfirmation,String(localized:"\(network.opponentName) wins the game. Checkmate quits once your resignation has gone out.",bundle:.checkmate),action:String(localized:"Leave and Quit",bundle:.checkmate),identifier:"network-quit")
         return alert.runModal() == .alertFirstButtonReturn
     }
     /// Leaves an open session before the app closes, so the resignation, or the host's `ended`, goes out before the
@@ -157,8 +157,8 @@ extension NativeModel {
     }
     /// What the crash notice says under its first line.
     static func crashDetail(_ entry:NetworkCrashFile.Entry,moves:[String])->String {
-        if let kind=entry.game.ruleset.flatMap({NetworkRuleset(descriptor:$0)?.kind ?? NetworkRuleset.displayKind($0)}) {return "\(kind.title) is reviewed only once a game is finished, so this one has no review."}
-        return moves.isEmpty ? "No moves were played.":"You can review the moves that were played."
+        if let kind=entry.game.ruleset.flatMap({NetworkRuleset(descriptor:$0)?.kind ?? NetworkRuleset.displayKind($0)}) {return String(localized:"\(kind.title) is reviewed only once a game is finished, so this one has no review.",bundle:.checkmate)}
+        return moves.isEmpty ? String(localized:"No moves were played.",bundle:.checkmate):String(localized:"You can review the moves that were played.",bundle:.checkmate)
     }
     /// The moves are the ones the rules replayed from the kept record, as for a game that just ended (A11).
     func reviewNetworkCrash(_ entry:NetworkCrashFile.Entry,moves:[String]){

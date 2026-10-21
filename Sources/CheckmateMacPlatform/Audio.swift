@@ -12,8 +12,8 @@ public struct AudioPolicy {public let automation:Bool;public init(automation:Boo
     private let scores:[String:[Tone]]
     public private(set) var error:String?
     public private(set) var narrationFailure:String?
-    public static let playbackFailure="Narration could not play. You can still read the transcript."
-    public static let replacedFailure="Checkmate was updated or moved while open, so lesson narration is unavailable. Quit and reopen Checkmate to hear it."
+    public static let playbackFailure=String(localized:"Narration could not play. You can still read the transcript.",bundle:.checkmate)
+    public static let replacedFailure=String(localized:"Checkmate was updated or moved while open, so lesson narration is unavailable. Quit and reopen Checkmate to hear it.",bundle:.checkmate)
     /// Bundled narration resolves by path into the app bundle on disk. An update installed (or a move made) while the app
     /// runs leaves this process's course pointing at files that are gone; only a relaunch loads the new course.
     private let bundleURL:URL,launchedBundle:String?
@@ -24,18 +24,18 @@ public struct AudioPolicy {public let automation:Bool;public init(automation:Boo
     var bundledNarrationFailure:String {Self.bundleIdentity(bundleURL)==launchedBundle ? Self.playbackFailure:Self.replacedFailure}
     /// Told when lesson narration (or a lesson recording preview) starts playing, so another voice can stop.
     public var onNarrationStart:()->Void={}
-    public func play(file:String,seconds:Double,settings:AppSettings){stop();onNarrationStart();narrationFailure=nil;guard policy.mayPlay(enabled:settings.narration,volume:settings.volume) else{return};do{let p=try AVAudioPlayer(contentsOf:NativeResources.url(file));p.volume=Float(settings.volume);p.currentTime=min(seconds,p.duration);guard p.play() else{throw CheckmateError.unavailable("Narration could not play.")};narration=p}catch{narrationFailure=bundledNarrationFailure}}
-    public func play(localURL:URL,seconds:Double,settings:AppSettings){stop();onNarrationStart();narrationFailure=nil;guard localURL.isFileURL,policy.mayPlay(enabled:settings.narration,volume:settings.volume) else{return};do{let values=try localURL.resourceValues(forKeys:[.isSymbolicLinkKey,.fileSizeKey]);guard values.isSymbolicLink != true,(values.fileSize ?? Int.max)<=28_800_044 else{throw CheckmateError.invalid("Invalid local recording.")};let p=try AVAudioPlayer(contentsOf:localURL);p.volume=Float(settings.volume);p.currentTime=min(seconds,p.duration);guard p.play() else{throw CheckmateError.unavailable("Narration could not play.")};narration=p}catch{narrationFailure=Self.playbackFailure}}
+    public func play(file:String,seconds:Double,settings:AppSettings){stop();onNarrationStart();narrationFailure=nil;guard policy.mayPlay(enabled:settings.narration,volume:settings.volume) else{return};do{let p=try AVAudioPlayer(contentsOf:NativeResources.url(file));p.volume=Float(settings.volume);p.currentTime=min(seconds,p.duration);guard p.play() else{throw CheckmateError.unavailable(String(localized:"Narration could not play.",bundle:.checkmate))};narration=p}catch{narrationFailure=bundledNarrationFailure}}
+    public func play(localURL:URL,seconds:Double,settings:AppSettings){stop();onNarrationStart();narrationFailure=nil;guard localURL.isFileURL,policy.mayPlay(enabled:settings.narration,volume:settings.volume) else{return};do{let values=try localURL.resourceValues(forKeys:[.isSymbolicLinkKey,.fileSizeKey]);guard values.isSymbolicLink != true,(values.fileSize ?? Int.max)<=28_800_044 else{throw CheckmateError.invalid(String(localized:"Invalid local recording.",bundle:.checkmate))};let p=try AVAudioPlayer(contentsOf:localURL);p.volume=Float(settings.volume);p.currentTime=min(seconds,p.duration);guard p.play() else{throw CheckmateError.unavailable(String(localized:"Narration could not play.",bundle:.checkmate))};narration=p}catch{narrationFailure=Self.playbackFailure}}
     public func setNarrationVolume(_ volume:Double){narration?.volume=Float(volume)}
     public var isNarrationPlaying:Bool {narration?.isPlaying==true}
     public var playbackTime:Double? {guard let narration=narration,narration.isPlaying else{return nil};return narration.currentTime}
     public func pause(){narration?.pause()}
     public func stop(){narration?.stop();narration=nil}
-    public func illustration(piece:String,capture:Bool,settings:AppSettings){guard policy.mayPlay(enabled:settings.moveSounds,volume:settings.effectsVolume) else{return};var tones=scores[piece] ?? [];if capture{tones.append(Tone(at:0,duration:0.045,from:1050,to:170,gain:0.055,wave:"triangle"))};do{let player=try AVAudioPlayer(data:Self.wave(tones));player.volume=Float(settings.effectsVolume*(narration?.isPlaying==true ? 0.35:1));player.play();effect=player}catch{self.error="Move sound could not play."}}
+    public func illustration(piece:String,capture:Bool,settings:AppSettings){guard policy.mayPlay(enabled:settings.moveSounds,volume:settings.effectsVolume) else{return};var tones=scores[piece] ?? [];if capture{tones.append(Tone(at:0,duration:0.045,from:1050,to:170,gain:0.055,wave:"triangle"))};do{let player=try AVAudioPlayer(data:Self.wave(tones));player.volume=Float(settings.effectsVolume*(narration?.isPlaying==true ? 0.35:1));player.play();effect=player}catch{self.error=String(localized:"Move sound could not play.",bundle:.checkmate)}}
     /// A network clock's low-time warning: two short high tones, under the move-sound settings. Returns whether it
     /// played; automation and muted sounds never do.
     @discardableResult public func lowTime(settings:AppSettings)->Bool {guard policy.mayPlay(enabled:settings.moveSounds,volume:settings.effectsVolume) else{return false}
-        do{let p=try AVAudioPlayer(data:Self.wave([Tone(at:0,duration:0.09,from:880,to:880,gain:0.05,wave:"sine"),Tone(at:0.14,duration:0.09,from:880,to:880,gain:0.05,wave:"sine")]));p.volume=Float(settings.effectsVolume);p.play();effect=p;return true}catch{self.error="The low-time warning could not play.";return false}}
+        do{let p=try AVAudioPlayer(data:Self.wave([Tone(at:0,duration:0.09,from:880,to:880,gain:0.05,wave:"sine"),Tone(at:0.14,duration:0.09,from:880,to:880,gain:0.05,wave:"sine")]));p.volume=Float(settings.effectsVolume);p.play();effect=p;return true}catch{self.error=String(localized:"The low-time warning could not play.",bundle:.checkmate);return false}}
     public func stopAll(){stop();effect?.stop();effect=nil}
     public func move(_ move:MoveRecord?,settings:AppSettings,undo:Bool=false){guard policy.mayPlay(enabled:settings.moveSounds,volume:settings.effectsVolume) else{return};var tones:[Tone]=[],at=0.0
         func piece(_ type:String,_ time:Double){for t in scores[type] ?? [] {tones.append(Tone(at:time+t.at,duration:t.duration,from:t.from,to:t.to,gain:t.gain,wave:t.wave))}}
@@ -45,7 +45,7 @@ public struct AudioPolicy {public let automation:Bool;public init(automation:Boo
             let end=(tones.map{$0.at+$0.duration}.max() ?? 0)+0.035
             if m.san.contains("#"){for (i,f) in [520.0,650,780].enumerated(){tones.append(Tone(at:end+Double(i)*0.11,duration:i==2 ? 0.22:0.12,from:f,to:f,gain:0.04,wave:"sine"))}}else if m.san.contains("+"){tones.append(Tone(at:end,duration:0.12,from:740,to:740,gain:0.035,wave:"sine"))}
         }
-        do{let p=try AVAudioPlayer(data:Self.wave(tones));p.volume=Float(settings.effectsVolume*(narration?.isPlaying==true ? 0.35:1));p.play();effect=p}catch{self.error="Move sound could not play."}
+        do{let p=try AVAudioPlayer(data:Self.wave(tones));p.volume=Float(settings.effectsVolume*(narration?.isPlaying==true ? 0.35:1));p.play();effect=p}catch{self.error=String(localized:"Move sound could not play.",bundle:.checkmate)}
     }
     public static func wave(_ tones:[Tone])->Data {
         let rate=24000,count=Int(((tones.map{$0.at+$0.duration}.max() ?? 0)+0.01)*Double(rate));var samples=[Double](repeating:0,count:count)

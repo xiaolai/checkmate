@@ -1,3 +1,4 @@
+import CheckmateAssets
 import Foundation
 /// Why a connection is closed. Sent in `bye`; an unknown reason from a newer peer reads as `unknown`.
 public enum NetworkByeReason:String,Codable,CaseIterable {
@@ -87,9 +88,9 @@ public enum NetworkCodecError:Error,Equatable,CustomStringConvertible {
     public var byeReason:NetworkByeReason {if case .protocolMismatch=self{return .protocolVersion};return .malformed}
     public var description:String {
         switch self {
-        case .tooLarge(let bytes):return "A network message of \(bytes) bytes is over the \(NetworkLimits.maximumMessageBytes)-byte limit."
-        case .protocolMismatch(let peer):return "The other Mac uses Checkmate network protocol \(peer); this one uses \(NetworkProtocolVersion.current). Update Checkmate on both Macs to play together."
-        case .malformed(let detail):return "A malformed network message: \(detail)."
+        case .tooLarge(let bytes):return String(localized:"A network message of \(bytes) bytes is over the \(NetworkLimits.maximumMessageBytes)-byte limit.",bundle:.checkmate)
+        case .protocolMismatch(let peer):return String(localized:"The other Mac uses Checkmate network protocol \(String(describing:peer)); this one uses \(String(describing:NetworkProtocolVersion.current)). Update Checkmate on both Macs to play together.",bundle:.checkmate)
+        case .malformed(let detail):return String(localized:"A malformed network message: \(detail).",bundle:.checkmate)
         }
     }
 }
@@ -110,7 +111,7 @@ public enum NetworkCodec {
         // The version is read on its own first: a newer major may change any other field, and must still produce a
         // readable mismatch rather than a parse error.
         let header:Header
-        do{header=try JSONDecoder().decode(Header.self,from:data)}catch{throw NetworkCodecError.malformed("no protocol version")}
+        do{header=try JSONDecoder().decode(Header.self,from:data)}catch{throw NetworkCodecError.malformed(String(localized:"no protocol version",bundle:.checkmate))}
         guard header.protocol.major==NetworkProtocolVersion.current.major else{throw NetworkCodecError.protocolMismatch(peer:header.protocol)}
         let wire:Wire
         do{wire=try JSONDecoder().decode(Wire.self,from:data)}catch{throw NetworkCodecError.malformed("invalid field")}

@@ -1,3 +1,4 @@
+import CheckmateAssets
 import Foundation
 import CoreFoundation
 public struct AppSettings:Codable,Equatable {
@@ -27,10 +28,10 @@ public struct AppSettings:Codable,Equatable {
     /// freezes the level `MiniGameOffering` resolves from it. Absent until the learner first chooses one, so a save
     /// without position games writes nothing new.
     public var positionGameLevels:[String:String]?
-    public static let languages=["en":"English","zh":"Mandarin Chinese","es":"Spanish","fr":"French","de":"German","ja":"Japanese","ko":"Korean","pt":"Portuguese","it":"Italian","ar":"Arabic","hi":"Hindi"]
+    public static let languages=["en":"English","zh":"Mandarin Chinese","es":"Spanish","fr":"French","de":"German","ja":"Japanese","ko":"Korean","pt":"Portuguese","it":"Italian","ar":"Arabic","hi":"Hindi"] // not localized: language names also tell the voice model which language to answer in
     public static let reasoningEfforts=["minimal","low","medium","high","xhigh"]
     public static let voices=["marin","cedar","alloy","ash","ballad","coral","echo","sage","shimmer","verse"]
-    public static let themes=["wood":"Walnut","green":"Sage","blue":"Slate","neutral":"Graphite"]
+    public static let themes=["wood":String(localized:"Walnut",bundle:.checkmate),"green":String(localized:"Sage",bundle:.checkmate),"blue":String(localized:"Slate",bundle:.checkmate),"neutral":String(localized:"Graphite",bundle:.checkmate)]
     public init() {}
     public init(raw:[String:Any]) {
         func choice(_ k:String,_ allowed:[String],_ fallback:String)->String {let v=raw[k] as? String ?? fallback;return allowed.contains(v) ? v:fallback}
@@ -102,7 +103,7 @@ public struct ExerciseProgress:Codable,Equatable {public var firstTry:Bool?,hint
 /// Where one puzzle stands, for the learner to read; derived from its record, never saved.
 public enum PuzzleStanding:CaseIterable {
     case notTried,notSolved,solvedLater,solvedWithHints,solved
-    public var title:String {switch self {case .notTried:return "Not tried";case .notSolved:return "Not solved yet";case .solvedLater:return "Solved on a later try";case .solvedWithHints:return "Solved with hints";case .solved:return "Solved"}}
+    public var title:String {switch self {case .notTried:return String(localized:"Not tried",bundle:.checkmate);case .notSolved:return String(localized:"Not solved yet",bundle:.checkmate);case .solvedLater:return String(localized:"Solved on a later try",bundle:.checkmate);case .solvedWithHints:return String(localized:"Solved with hints",bundle:.checkmate);case .solved:return String(localized:"Solved",bundle:.checkmate)}}
 }
 /// One puzzle's progress. `attempts` counts the learner's answers, one per answer.
 public struct PuzzleProgress:Codable,Equatable {
@@ -249,7 +250,7 @@ public struct ApplicationState:Codable {
         if let filters=raw["puzzleFilters"],filters != .null {puzzleFilters=try JSONDecoder().decode([String:String].self,from:JSONEncoder().encode(filters))}
         // Bad or newer training data never prevents loading the rest: it is kept raw, never silently replaced.
         if let value=raw["training"],value != .null {
-            do{let decoded=try JSONDecoder().decode(TrainingState.self,from:JSONEncoder().encode(value));try decoded.validate();guard try JSONEncoder().encode(decoded).count<=TrainingState.maximumBytes else{throw CheckmateError.invalid("Training progress exceeds its storage budget.")};training=decoded}
+            do{let decoded=try JSONDecoder().decode(TrainingState.self,from:JSONEncoder().encode(value));try decoded.validate();guard try JSONEncoder().encode(decoded).count<=TrainingState.maximumBytes else{throw CheckmateError.invalid(String(localized:"Training progress exceeds its storage budget.",bundle:.checkmate))};training=decoded}
             catch{trainingRaw=value;if case .object(let object)=value,Self.newer(object["version"]){trainingIssue="future"}else{trainingIssue="unreadable"}}
         }
         let mine=try Self.jsonObject(self);unknownFields=Self.unknown(in:raw,mine:mine);unknownNestedFields=Self.nestedUnknown(in:raw,mine:mine)

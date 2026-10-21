@@ -1,3 +1,4 @@
+import CheckmateAssets
 /// A reviewed move's grade (R-1): how much of the mover's expected score it gave up, on the review's own thresholds.
 /// A move within `nearBestExpectationLoss` of the engine's leading option has no grade.
 public enum MoveGrade:String,Codable,CaseIterable,Sendable {
@@ -8,5 +9,5 @@ public enum MoveGrade:String,Codable,CaseIterable,Sendable {
     }
     /// The standard annotation glyph written after the move.
     public var glyph:String {switch self{case .inaccuracy:return "?!";case .mistake:return "?";case .blunder:return "??"}}
-    public var name:String {switch self{case .inaccuracy:return "Inaccuracy";case .mistake:return "Mistake";case .blunder:return "Blunder"}}
+    public var name:String {switch self{case .inaccuracy:return String(localized:"Inaccuracy",bundle:.checkmate);case .mistake:return String(localized:"Mistake",bundle:.checkmate);case .blunder:return String(localized:"Blunder",bundle:.checkmate)}}
 }

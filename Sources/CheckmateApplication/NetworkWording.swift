@@ -1,3 +1,4 @@
+import CheckmateAssets
 import CheckmateDomain
 import Foundation
 /// Everything a network game says in words (LAN-play plan D9–D11): VoiceOver's move and clock announcements, results,
@@ -9,15 +10,15 @@ public enum NetworkWording {
         /// The side the learner plays; nil for a spectator.
         public var learner:NetworkSide?
         public init(white:String?,black:String?,learner:NetworkSide?){self.white=white;self.black=black;self.learner=learner}
-        public func name(_ side:NetworkSide)->String {(side == .white ? white:black) ?? (side == .white ? "White":"Black")}
-        public func subject(_ side:NetworkSide)->String {side==learner ? "You":name(side)}
+        public func name(_ side:NetworkSide)->String {(side == .white ? white:black) ?? (side == .white ? String(localized:"White",bundle:.checkmate):String(localized:"Black",bundle:.checkmate))}
+        public func subject(_ side:NetworkSide)->String {side==learner ? String(localized:"You",bundle:.checkmate):name(side)}
     }
     /// The host sheet's note on a declared start (mini-games plan D7): the game is chess from there, never a training goal.
-    public static let startNote="The game is ordinary chess from this position: checkmate wins, and stalemate is a draw. Training goals stay in Training."
+    public static let startNote=String(localized:"The game is ordinary chess from this position: checkmate wins, and stalemate is a draw. Training goals stay in Training.",bundle:.checkmate)
     /// Under the names, in a game from a declared start.
-    public static let declaredStart="This game starts from a set-up position."
+    public static let declaredStart=String(localized:"This game starts from a set-up position.",bundle:.checkmate)
     /// The host sheet's note on a mini-game (protocol 1.3): its own rules, and no assistance.
-    public static let miniGameNote="The game is played by the mini-game's own rules, with no assistance. Review afterwards shows what a proof search found."
+    public static let miniGameNote=String(localized:"The game is played by the mini-game's own rules, with no assistance. Review afterwards shows what a proof search found.",bundle:.checkmate)
     /// Under the names in a mini-game, and the lobby's label: "Pawn Duel: Reach the far rank, …".
     public static func miniGame(_ kind:MiniGameKind)->String {"\(kind.title): \(kind.rules)"}
     static let pieces=["p":"pawn","n":"knight","b":"bishop","r":"rook","q":"queen","k":"king"]
@@ -32,48 +33,48 @@ public enum NetworkWording {
         else {
             text="\(who) played \(pieces[move.piece] ?? "a piece") to \(move.to)"
             if let captured=move.captured {text+=", capturing a \(pieces[captured] ?? "piece")"+(move.flags.contains("e") ? " en passant":"")}
-            if let promotion=move.promotion {text+=", promoting to a \(pieces[promotion] ?? "piece")"}
+            if let promotion=move.promotion {text+=String(localized:", promoting to a \(pieces[promotion] ?? "piece")",bundle:.checkmate)}
         }
         if move.san.hasSuffix("#") {text+=", checkmate"}else if move.san.hasSuffix("+") {text+=", check"}
         return text
     }
     // MARK: Assistance (assistance plan A3, A7, A12)
     /// A level as a sentence uses it: "hints on request", "no help".
-    public static func phrase(_ level:NetworkAssistanceLevel)->String {switch level{case .off:return "no help";case .insight:return "board insight";case .hints:return "hints on request";case .guided:return "guided hints"}}
+    public static func phrase(_ level:NetworkAssistanceLevel)->String {switch level{case .off:return String(localized:"no help",bundle:.checkmate,comment:"Assistance level inside a sentence");case .insight:return String(localized:"board insight",bundle:.checkmate,comment:"Assistance level inside a sentence");case .hints:return String(localized:"hints on request",bundle:.checkmate,comment:"Assistance level inside a sentence");case .guided:return String(localized:"guided hints",bundle:.checkmate,comment:"Assistance level inside a sentence")}}
     /// The lobby row's badge (A12), from the TXT record and so for display only; nil for a game without assistance.
     public static func badge(_ terms:NetworkAssistance)->String? {
-        if terms.handicap{return "Handicap"}
-        switch terms.white {case .off:return nil;case .insight:return "Board insight";case .hints:return "Hints";case .guided:return "Guided"}
+        if terms.handicap{return String(localized:"Handicap",bundle:.checkmate)}
+        switch terms.white {case .off:return nil;case .insight:return String(localized:"Board insight",bundle:.checkmate);case .hints:return String(localized:"Hints",bundle:.checkmate);case .guided:return String(localized:"Guided",bundle:.checkmate)}
     }
     /// What the Accept sheet asks the joiner to agree to (A3), before their side is known: "Ana's game allows hints on
     /// request for both players." A handicap names the colours, which the game checks, and never a guess at "you".
     public static func offer(_ terms:NetworkAssistance,game:String)->String {
         if terms.symmetric{return "\(game) allows \(phrase(terms.white)) for both players."}
-        return "Handicap: White gets \(phrase(terms.white)), Black gets \(phrase(terms.black)). You see which side you play once you join."
+        return String(localized:"Handicap: White gets \(phrase(terms.white)), Black gets \(phrase(terms.black)). You see which side you play once you join.",bundle:.checkmate)
     }
     /// The in-game line under the names (A12): "Assistance: hints on request for both players.", "Handicap: you get
     /// hints on request; Ben gets no help." Nil for a game without assistance.
     public static func terms(_ terms:NetworkAssistance,players:Players)->String? {
         guard terms != .off else{return nil}
-        if terms.symmetric{return "Assistance: \(phrase(terms.white)) for both players."}
+        if terms.symmetric{return String(localized:"Assistance: \(phrase(terms.white)) for both players.",bundle:.checkmate)}
         func gets(_ side:NetworkSide)->String {(side==players.learner ? "you get ":"\(players.name(side)) gets ")+phrase(terms.level(side))}
-        return "Handicap: \(gets(.white)); \(gets(.black))."
+        return String(localized:"Handicap: \(gets(.white)); \(gets(.black)).",bundle:.checkmate)
     }
     /// Each side's assisted moves (A7), White first: "Hints used: Ana 3 · Ben 0". Self-reported, so never "verified".
     public static func hintsUsed(_ game:NetworkPublicGame,players:Players)->String {
-        "Hints used: \(players.name(.white)) \(game.assistedMoves(by:.white)) · \(players.name(.black)) \(game.assistedMoves(by:.black))"
+        String(localized:"Hints used: \(players.name(.white)) \(game.assistedMoves(by:.white)) · \(players.name(.black)) \(game.assistedMoves(by:.black))",bundle:.checkmate)
     }
     /// VoiceOver, after a move the mover made with a hint shown (A12): "Ben used a hint".
-    public static func usedHint(_ side:NetworkSide,players:Players)->String {side==players.learner ? "You used a hint":"\(players.name(side)) used a hint"}
+    public static func usedHint(_ side:NetworkSide,players:Players)->String {side==players.learner ? String(localized:"You used a hint",bundle:.checkmate):String(localized:"\(players.name(side)) used a hint",bundle:.checkmate)}
     /// The suggested move under the board's arrow: "Hint: Nf3", or "Guided hint: Nf3" for one a guided turn showed by
     /// itself.
-    public static func hint(san:String?,uci:String,automatic:Bool)->String {(automatic ? "Guided hint: ":"Hint: ")+(san ?? uci)}
-    public static let findingHint="Finding a hint…"
+    public static func hint(san:String?,uci:String,automatic:Bool)->String {(automatic ? String(localized:"Guided hint: ",bundle:.checkmate):String(localized:"Hint: ",bundle:.checkmate))+(san ?? uci)}
+    public static let findingHint=String(localized:"Finding a hint…",bundle:.checkmate)
     /// A verified record this Mac's rules could not show, after one more try (input stays off meanwhile).
-    public static let recordUnreadable="This Mac couldn't show the game's latest position. Leave the game and join again."
+    public static let recordUnreadable=String(localized:"This Mac couldn't show the game's latest position. Leave the game and join again.",bundle:.checkmate)
     /// The Accept sheet's title and its note under the terms (A3).
-    public static func joinQuestion(_ game:String)->String {"Join \(game)?"}
-    public static let termsFixed="The assistance stays the same for the whole game, and each Mac counts the hints its player uses."
+    public static func joinQuestion(_ game:String)->String {String(localized:"Join \(game)?",bundle:.checkmate)}
+    public static let termsFixed=String(localized:"The assistance stays the same for the whole game, and each Mac counts the hints its player uses.",bundle:.checkmate)
     /// Remaining time at which VoiceOver announces a running clock (D10), in milliseconds.
     public static let clockThresholds=[60_000,30_000,10_000]
     /// The next announcement a clock with `remaining` milliseconds will reach, if any: the highest threshold below it.
@@ -81,85 +82,85 @@ public enum NetworkWording {
     /// "You have 30 seconds left", "Ben has 10 seconds left".
     public static func clock(_ side:NetworkSide,threshold:Int,players:Players)->String {
         let seconds=threshold/1000
-        return side==players.learner ? "You have \(seconds) seconds left":"\(players.name(side)) has \(seconds) seconds left"
+        return side==players.learner ? String(localized:"You have \(seconds) seconds left",bundle:.checkmate):"\(players.name(side)) has \(seconds) seconds left"
     }
     /// How the game ended, from the learner's side of the board: "Ben resigned. You win."
     public static func result(_ outcome:NetworkOutcome,players:Players)->String {
         guard outcome.result != .draw else{
             switch outcome.termination {
-            case .agreement:return "Draw agreed."
-            case .stalemate:return "Draw by stalemate."
-            case .repetition:return "Draw by threefold repetition."
-            case .fivefold:return "Draw by fivefold repetition."
-            case .fiftyMoves:return "Draw by the fifty-move rule."
-            case .seventyFiveMoves:return "Draw by the seventy-five-move rule."
-            case .insufficientMaterial:return "Draw: neither side can checkmate."
+            case .agreement:return String(localized:"Draw agreed.",bundle:.checkmate)
+            case .stalemate:return String(localized:"Draw by stalemate.",bundle:.checkmate)
+            case .repetition:return String(localized:"Draw by threefold repetition.",bundle:.checkmate)
+            case .fivefold:return String(localized:"Draw by fivefold repetition.",bundle:.checkmate)
+            case .fiftyMoves:return String(localized:"Draw by the fifty-move rule.",bundle:.checkmate)
+            case .seventyFiveMoves:return String(localized:"Draw by the seventy-five-move rule.",bundle:.checkmate)
+            case .insufficientMaterial:return String(localized:"Draw: neither side can checkmate.",bundle:.checkmate)
             // D6: the flag fell against a side that has only its king, which can never checkmate.
-            case .time:return "Time ran out against a lone king. Draw."
+            case .time:return String(localized:"Time ran out against a lone king. Draw.",bundle:.checkmate)
             // A mini-game's own draws (protocol 1.3), in its rules' words.
-            case .miniRepetition:return "Draw: the same position appeared three times."
-            case .miniNoProgress:return "Draw: 40 turns without a capture or pawn move."
-            case .unreachableTargets:return "Draw: no remaining target can be reached."
-            case .checkmate,.resignation,.abandoned,.farRank,.allCaptured,.noMoves:return "Draw."
+            case .miniRepetition:return String(localized:"Draw: the same position appeared three times.",bundle:.checkmate)
+            case .miniNoProgress:return String(localized:"Draw: 40 turns without a capture or pawn move.",bundle:.checkmate)
+            case .unreachableTargets:return String(localized:"Draw: no remaining target can be reached.",bundle:.checkmate)
+            case .checkmate,.resignation,.abandoned,.farRank,.allCaptured,.noMoves:return String(localized:"Draw.",bundle:.checkmate)
             }
         }
         let winner:NetworkSide=outcome.result == .whiteWins ? .white:.black,loser=winner.opponent
         let wins=players.subject(winner)+(winner==players.learner ? " win.":" wins.")
         switch outcome.termination {
-        case .checkmate:return "Checkmate. "+wins
+        case .checkmate:return String(localized:"Checkmate. ",bundle:.checkmate)+wins
         // A mini-game's own wins (protocol 1.3).
-        case .farRank:return "\(players.subject(winner)) reached the far rank. "+wins
-        case .allCaptured:return "Every piece there was to capture is taken. "+wins
+        case .farRank:return String(localized:"\(players.subject(winner)) reached the far rank. ",bundle:.checkmate)+wins
+        case .allCaptured:return String(localized:"Every piece there was to capture is taken. ",bundle:.checkmate)+wins
         case .noMoves:return "\(players.subject(loser)) \(loser==players.learner ? "have":"has") no move. "+wins
         case .resignation:return "\(players.subject(loser)) resigned. "+wins
-        case .time:return "\(players.subject(loser)) ran out of time. "+wins
+        case .time:return String(localized:"\(players.subject(loser)) ran out of time. ",bundle:.checkmate)+wins
         // D4: the host claimed the win after the guest stayed away past the hold.
-        case .abandoned:return "\(players.subject(loser)) left the game. "+wins
+        case .abandoned:return String(localized:"\(players.subject(loser)) left the game. ",bundle:.checkmate)+wins
         default:return wins
         }
     }
     /// Why the game refused a command; nothing changed.
     public static func refusal(_ reason:NetworkRejectReason)->String {
         switch reason {
-        case .stale:return "The game moved on. Try again."
-        case .notYourTurn:return "It isn't your turn."
-        case .illegal:return "That move isn't legal."
-        case .notClaimable:return "There is no draw to claim now."
-        case .noOffer:return "That draw offer is no longer open."
-        case .offerPending:return "Your draw offer is still open."
-        case .gameOver:return "The game is over."
-        case .notRunning:return "The game waits until both players are here."
-        case .wrongGame,.unknown:return "That didn't work. Try again."
+        case .stale:return String(localized:"The game moved on. Try again.",bundle:.checkmate)
+        case .notYourTurn:return String(localized:"It isn't your turn.",bundle:.checkmate)
+        case .illegal:return String(localized:"That move isn't legal.",bundle:.checkmate)
+        case .notClaimable:return String(localized:"There is no draw to claim now.",bundle:.checkmate)
+        case .noOffer:return String(localized:"That draw offer is no longer open.",bundle:.checkmate)
+        case .offerPending:return String(localized:"Your draw offer is still open.",bundle:.checkmate)
+        case .gameOver:return String(localized:"The game is over.",bundle:.checkmate)
+        case .notRunning:return String(localized:"The game waits until both players are here.",bundle:.checkmate)
+        case .wrongGame,.unknown:return String(localized:"That didn't work. Try again.",bundle:.checkmate)
         }
     }
     /// Under Try Again (D8): engine help stays off while the seat can still be resumed.
-    public static let seatHeld="Your seat is kept for you, so practice help stays off until you review this game or go back to games."
+    public static let seatHeld=String(localized:"Your seat is kept for you, so practice help stays off until you review this game or go back to games.",bundle:.checkmate)
     /// Assistance plan A3: the terms the guest accepted are not the game's, whichever Mac found it.
-    static func assistanceChanged(_ game:String)->String {"\(game) has different assistance than the one you accepted."}
+    static func assistanceChanged(_ game:String)->String {String(localized:"\(game) has different assistance than the one you accepted.",bundle:.checkmate)}
     /// What a guest or spectator reads once its game stopped for good (D9, D11), about the game by its name. A
     /// connection that never worked is "Couldn't reach Ana's game", with no guessed cause; one that worked and was
     /// lost is the game having stopped: interrupted, no result. Nil when nothing needs saying: this Mac left, or the
     /// game ended with a result.
     public static func stop(_ stop:NetworkClientStop,game:String,wasLive:Bool)->String? {
-        let lost=wasLive ? "\(game) has stopped.":"Couldn't reach \(game)."
+        let lost=wasLive ? "\(game) has stopped.":String(localized:"Couldn't reach \(game).",bundle:.checkmate)
         switch stop {
         case .left,.finished:return nil
         case .couldNotReach,.failed:return lost
         // TLS with the typed code failed: a fact about the attempt, not a guess at the network.
-        case .handshakeFailed:return "Couldn't open \(game) with that code."
-        case .insecure:return "Couldn't reach \(game) securely."
+        case .handshakeFailed:return String(localized:"Couldn't open \(game) with that code.",bundle:.checkmate)
+        case .insecure:return String(localized:"Couldn't reach \(game) securely.",bundle:.checkmate)
         case .assistanceChanged:return Self.assistanceChanged(game)
         case .closedByHost(let reason):
             switch reason {
             case .hostLeft:return "\(game) has stopped."
-            case .seatTaken:return "Someone else is already playing in \(game)."
-            case .gameOver:return "\(game) is already over."
-            case .notAllowed:return "\(game) doesn't allow spectators."
-            case .full:return "\(game) has as many spectators as it allows."
-            case .protocolVersion:return "\(game) uses a different version of Checkmate."
+            case .seatTaken:return String(localized:"Someone else is already playing in \(game).",bundle:.checkmate)
+            case .gameOver:return String(localized:"\(game) is already over.",bundle:.checkmate)
+            case .notAllowed:return String(localized:"\(game) doesn't allow spectators.",bundle:.checkmate)
+            case .full:return String(localized:"\(game) has as many spectators as it allows.",bundle:.checkmate)
+            case .protocolVersion:return String(localized:"\(game) uses a different version of Checkmate.",bundle:.checkmate)
             // Assistance plan A3: the terms the guest accepted are not the game's.
             case .assistanceChanged:return Self.assistanceChanged(game)
-            case .badCredential,.replaced:return "\(game) no longer holds your seat."
+            case .badCredential,.replaced:return String(localized:"\(game) no longer holds your seat.",bundle:.checkmate)
             case .badSnapshot,.slow,.malformed,.timeout,.rateLimited,.busy,.leaving,.unknown:return lost
             }
         }

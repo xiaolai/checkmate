@@ -1,3 +1,4 @@
+import CheckmateAssets
 import Foundation
 /// What one player's own Mac may show them during a network game (assistance plan A1). Each level includes every one
 /// below it; spectators always have `off`, whatever the terms.
@@ -5,8 +6,10 @@ public enum NetworkAssistanceLevel:String,Codable,CaseIterable,Comparable {
     case off,insight,hints,guided
     private var rank:Int {Self.allCases.firstIndex(of:self)!}
     public static func <(a:NetworkAssistanceLevel,b:NetworkAssistanceLevel)->Bool {a.rank<b.rank}
-    /// The name the host sheet, the join sheet and the record use.
-    public var title:String {switch self{case .off:return "Off";case .insight:return "Board insight";case .hints:return "Hints on request";case .guided:return "Guided"}}
+    /// The name the host sheet and the join sheet show.
+    public var title:String {switch self{case .off:return String(localized:"Off",bundle:.checkmate,comment:"State of a toggle");case .insight:return String(localized:"Board insight",bundle:.checkmate);case .hints:return String(localized:"Hints on request",bundle:.checkmate);case .guided:return String(localized:"Guided",bundle:.checkmate)}}
+    /// The English name the shared record carries, the same on both Macs whatever their language.
+    fileprivate var recordTitle:String {switch self{case .off:return "Off";case .insight:return "Board insight";case .hints:return "Hints on request";case .guided:return "Guided"}} // not localized: a record tag
     /// One letter per side in the TXT record's `assist` value (A3).
     public var letter:Character {switch self{case .off:return "o";case .insight:return "i";case .hints:return "h";case .guided:return "g"}}
     public init?(letter:Character){guard let level=Self.allCases.first(where:{$0.letter==letter}) else{return nil};self=level}
@@ -35,6 +38,6 @@ public struct NetworkAssistance:Codable,Hashable,CustomStringConvertible {
         self.init(white:white,black:black)
     }
     /// The review record's `Assistance` tag value (A11): "White: Hints on request; Black: Off".
-    public var recordValue:String {"White: \(white.title); Black: \(black.title)"}
+    public var recordValue:String {"White: \(white.recordTitle); Black: \(black.recordTitle)"} // not localized: a record tag
     public var description:String {txt}
 }

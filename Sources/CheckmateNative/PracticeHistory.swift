@@ -39,7 +39,7 @@ struct PracticeMoveList:View {
             let records=session.rules.records,labels=Self.labels(records),game=PracticeHistory.Game(generation:session.gameGeneration,position:session.position,history:session.rules.history),shown=history.ply(in:game)
             if let shown {
                 VStack(alignment:.leading,spacing:Metrics.smallGap){
-                    Label(shown==0 ? "Starting position":"Earlier position, after \(labels[shown-1])",symbol:.earlierPosition).font(.callout.bold())
+                    Label(shown==0 ? String(localized:"Starting position",bundle:.checkmate):String(localized:"Earlier position, after \(labels[shown-1])",bundle:.checkmate),symbol:.earlierPosition).font(.callout.bold())
                     Text("You can look, but moves can't be played here.").foregroundStyle(.secondary)
                     Button("Back to Game"){history.close()}.accessibilityIdentifier("practice-history-back")
                 }.padding(Metrics.smallGap).frame(maxWidth:.infinity,alignment:.leading).background(RoundedRectangle(cornerRadius:6).fill(Color.accentColor.opacity(0.12))).accessibilityElement(children:.contain).accessibilityIdentifier("practice-history-marker")
@@ -87,10 +87,10 @@ extension GameWindow {
     /// What VoiceOver hears as the shown position changes.
     func announceHistory(){
         let records=model.session.rules.records,labels=PracticeMoveList.labels(records)
-        let text=shownHistoryPly.map{$0==0 ? "Starting position. Moves can't be played here.":"After \(labels[$0-1]). Earlier position; moves can't be played here."} ?? "Back to the game."
+        let text=shownHistoryPly.map{$0==0 ? String(localized:"Starting position. Moves can't be played here.",bundle:.checkmate):String(localized:"After \(labels[$0-1]). Earlier position; moves can't be played here.",bundle:.checkmate)} ?? String(localized:"Back to the game.",bundle:.checkmate)
         NSAccessibility.post(element:board,notification:.announcementRequested,userInfo:[.announcement:text,.priority:NSAccessibilityPriorityLevel.high.rawValue])
     }
-    static let earlierPositionRefusal="This is an earlier position. Choose Back to Game to play."
+    static let earlierPositionRefusal=String(localized:"This is an earlier position. Choose Back to Game to play.",bundle:.checkmate)
     /// A click on the board of an earlier position explains why nothing happens.
     func refuseHistoryMove(){NSAccessibility.post(element:board,notification:.announcementRequested,userInfo:[.announcement:Self.earlierPositionRefusal,.priority:NSAccessibilityPriorityLevel.high.rawValue])}
 }

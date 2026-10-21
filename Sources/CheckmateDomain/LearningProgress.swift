@@ -1,3 +1,4 @@
+import CheckmateAssets
 import Foundation
 /// One rung of a puzzle's hint ladder: words to read, and the square of the piece it points at (highlighted as a hint).
 public struct PuzzleHint:Equatable {public let text:String,square:String?}
@@ -8,28 +9,28 @@ extension Puzzle {
     public var hints:[PuzzleHint] {
         let words=exercise.claim.flatMap{Self.lookFor[$0.type]}.map{PuzzleHint(text:$0,square:nil)}
         switch exercise.kind {
-        case "move":return [exercise.referenceAnswer.first.map{PuzzleHint(text:"Move the highlighted piece.",square:$0)},words].compactMap{$0}
-        case "path":return [exercise.from.map{PuzzleHint(text:"Move the highlighted king one step at a time.",square:$0)},words].compactMap{$0}
-        case "choice":return (exercise.choices ?? []).first{$0 != exercise.answer}.map{[PuzzleHint(text:"It is not “\($0)”.",square:nil)]} ?? []
+        case "move":return [exercise.referenceAnswer.first.map{PuzzleHint(text:String(localized:"Move the highlighted piece.",bundle:.checkmate),square:$0)},words].compactMap{$0}
+        case "path":return [exercise.from.map{PuzzleHint(text:String(localized:"Move the highlighted king one step at a time.",bundle:.checkmate),square:$0)},words].compactMap{$0}
+        case "choice":return (exercise.choices ?? []).first{$0 != exercise.answer}.map{[PuzzleHint(text:String(localized:"It is not “\($0)”.",bundle:.checkmate),square:nil)]} ?? []
         default:return [words].compactMap{$0}
         }
     }
     /// What to look for, by the kind of claim the puzzle's answer makes. Plain words that never name the answer.
     static let lookFor:[String:String]=[
-        "mate":"Look for a check that leaves the king no safe square, no block and no capture.",
-        "check":"Look for a move that attacks the enemy king.",
-        "escape-check":"You can move the king, block the check or capture the checking piece. Only one of them works here.",
-        "fork":"Look for one move that attacks two pieces at the same time.",
-        "safe-capture":"Look for a capture where no enemy piece can take your piece back.",
-        "castle":"Castling moves the king two squares toward a rook, and the rook jumps over the king.",
-        "promote":"Move a pawn onto the last row of the board.",
-        "destinations":"Picture the piece moving: count each square it can reach in one move, and stop at any piece in the way.",
-        "attacked-pieces":"Go through the pieces one at a time and ask which ones could be captured right now.",
-        "attackers":"Follow every line into the square and see which pieces could capture there.",
-        "undefended":"For each piece, ask whether a piece of its own side could capture back if it were taken.",
-        "locate":"Find the letter along the bottom edge first, then the number along the side.",
-        "attacks":"Picture where the piece could capture: those are the squares it attacks.",
-        "king-route":"Before each step, check that no enemy piece attacks the square.",
+        "mate":String(localized:"Look for a check that leaves the king no safe square, no block and no capture.",bundle:.checkmate),
+        "check":String(localized:"Look for a move that attacks the enemy king.",bundle:.checkmate),
+        "escape-check":String(localized:"You can move the king, block the check or capture the checking piece. Only one of them works here.",bundle:.checkmate),
+        "fork":String(localized:"Look for one move that attacks two pieces at the same time.",bundle:.checkmate),
+        "safe-capture":String(localized:"Look for a capture where no enemy piece can take your piece back.",bundle:.checkmate),
+        "castle":String(localized:"Castling moves the king two squares toward a rook, and the rook jumps over the king.",bundle:.checkmate),
+        "promote":String(localized:"Move a pawn onto the last row of the board.",bundle:.checkmate),
+        "destinations":String(localized:"Picture the piece moving: count each square it can reach in one move, and stop at any piece in the way.",bundle:.checkmate),
+        "attacked-pieces":String(localized:"Go through the pieces one at a time and ask which ones could be captured right now.",bundle:.checkmate),
+        "attackers":String(localized:"Follow every line into the square and see which pieces could capture there.",bundle:.checkmate),
+        "undefended":String(localized:"For each piece, ask whether a piece of its own side could capture back if it were taken.",bundle:.checkmate),
+        "locate":String(localized:"Find the letter along the bottom edge first, then the number along the side.",bundle:.checkmate),
+        "attacks":String(localized:"Picture where the piece could capture: those are the squares it attacks.",bundle:.checkmate),
+        "king-route":String(localized:"Before each step, check that no enemy piece attacks the square.",bundle:.checkmate),
     ]
 }
 /// What a finished set of puzzles shows instead of starting it again: how each of its puzzles stands.
@@ -42,7 +43,7 @@ public struct PuzzleSetSummary:Equatable {
     }
     public var text:String {
         var parts=["\(solved) of \(total) solved on your own."]
-        if helped>0{parts.append("\(helped) solved with a hint or on a later try.")};if toReview>0{parts.append("\(toReview) to review.")};if notTried>0{parts.append("\(notTried) not tried.")}
+        if helped>0{parts.append(String(localized:"\(helped) solved with a hint or on a later try.",bundle:.checkmate))};if toReview>0{parts.append("\(toReview) to review.")};if notTried>0{parts.append("\(notTried) not tried.")}
         return parts.joined(separator:" ")
     }
 }

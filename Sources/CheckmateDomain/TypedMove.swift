@@ -1,3 +1,4 @@
+import CheckmateAssets
 import Foundation
 /// A move the learner types (B-23), in SAN ("Nf3", "exd5", "O-O", "a8=Q") or as squares ("g1f3", "g1-f3", "a7a8q"),
 /// resolved against the moves a position offers. Every refusal says why in words a beginner can act on.
@@ -12,7 +13,7 @@ public enum TypedMove {
     public struct Choice:Equatable {public let from:String,to:String,promotion:String?;public init(from:String,to:String,promotion:String?){self.from=from;self.to=to;self.promotion=promotion}}
     public enum Resolution:Equatable {case move(Choice),refused(String)}
     static let names=["p":"pawn","n":"knight","b":"bishop","r":"rook","q":"queen","k":"king"]
-    static func side(_ color:String)->String {color=="w" ? "White":"Black"}
+    static func side(_ color:String)->String {color=="w" ? String(localized:"White",bundle:.checkmate):String(localized:"Black",bundle:.checkmate)}
     /// "Two", "Three": a count of pieces at the start of a sentence, in US English whatever the system language.
     static func spelled(_ n:Int)->String {
         let formatter=NumberFormatter();formatter.numberStyle = .spellOut;formatter.locale=Locale(identifier:"en_US_POSIX")
@@ -54,9 +55,9 @@ public enum TypedMove {
     /// passed on unchecked, for an exercise that grades raw attempts itself.
     public static func resolve(_ text:String,moves:[MoveRecord],board:Position,turn:String,inCheck:Bool,squaresAsTyped:Bool=false)->Resolution {
         let trimmed=text.trimmingCharacters(in:.whitespaces)
-        guard !trimmed.isEmpty else{return .refused("Type a move, such as e4 or Nf3.")}
+        guard !trimmed.isEmpty else{return .refused(String(localized:"Type a move, such as e4 or Nf3.",bundle:.checkmate))}
         let readings=readings(trimmed)
-        guard !readings.isEmpty else{return .refused("“\(trimmed)” is not a move. Type a move such as e4, Nf3, O-O or e2e4.")}
+        guard !readings.isEmpty else{return .refused(String(localized:"“\(trimmed)” is not a move. Type a move such as e4, Nf3, O-O or e2e4.",bundle:.checkmate))}
         var first:Resolution?
         for reading in readings {
             let result=resolve(reading,moves:moves,board:board,turn:turn,inCheck:inCheck,squaresAsTyped:squaresAsTyped)
@@ -68,13 +69,13 @@ public enum TypedMove {
         switch reading {
         case .squares(let from,let to,let promotion):
             if squaresAsTyped{return .move(Choice(from:from,to:to,promotion:promotion))}
-            guard let piece=board[from] else{return .refused("There's no piece on \(from).")}
-            guard piece.hasPrefix(turn) else{return .refused("The \(names[String(piece.suffix(1))] ?? "piece") on \(from) is \(side(String(piece.prefix(1))))'s, and it's \(side(turn))'s move.")}
+            guard let piece=board[from] else{return .refused(String(localized:"There's no piece on \(from).",bundle:.checkmate))}
+            guard piece.hasPrefix(turn) else{return .refused(String(localized:"The \(names[String(piece.suffix(1))] ?? "piece") on \(from) is \(side(String(piece.prefix(1))))'s, and it's \(side(turn))'s move.",bundle:.checkmate))}
             return choose(moves.filter{$0.from==from && $0.to==to},promotion:promotion,example:from+to+"q",board:board,turn:turn,inCheck:inCheck){refusal(piece:piece,from:from,to:to,board:board,enPassant:nil,inCheck:inCheck)}
         case .castle(let kingside):
             let matches=moves.filter{$0.piece=="k" && $0.flags.contains(kingside ? "k":"q")}
             if let move=matches.first{return .move(Choice(from:move.from,to:move.to,promotion:nil))}
-            return .refused(inCheck ? "You cannot castle while your king is in check.":"Castling \(kingside ? "kingside":"queenside") is not allowed here.")
+            return .refused(inCheck ? String(localized:"You cannot castle while your king is in check.",bundle:.checkmate):String(localized:"Castling \(kingside ? "kingside":"queenside") is not allowed here.",bundle:.checkmate))
         case .piece(let kind,let file,let rank,let to,let promotion):
             let fits={(from:String)->Bool in (file.map{from.first==$0} ?? (kind != "p" || from.first==to.first)) && (rank.map{from.last==$0} ?? true)}
             let matches=moves.filter{$0.piece==kind && $0.to==to && fits($0.from)}
@@ -84,14 +85,14 @@ public enum TypedMove {
                 let byFile=Set(froms.map(\.first)).count==froms.count,byRank=Set(froms.map(\.last)).count==froms.count
                 let examples=froms.map{letter+(byFile ? String($0.first!):byRank ? String($0.last!):$0)+to}
                 let count=spelled(froms.count)
-                return .refused("\(count) \(name)s can move to \(to). Type which one, such as "+(examples.count==2 ? examples.joined(separator:" or "):examples.dropLast().joined(separator:", ")+" or "+examples.last!)+".")
+                return .refused(String(localized:"\(count) \(name)s can move to \(to). Type which one, such as ",bundle:.checkmate)+(examples.count==2 ? examples.joined(separator:" or "):examples.dropLast().joined(separator:", ")+" or "+examples.last!)+".")
             }
             return choose(matches,promotion:promotion,example:to+"=Q",board:board,turn:turn,inCheck:inCheck){
                 let own=board.filter{$0.value==turn+kind && fits($0.key)}.keys.sorted()
-                if own.isEmpty{return "You have no \(name)\(file != nil || rank != nil ? " there":"")."}
+                if own.isEmpty{return String(localized:"You have no \(name)\(file != nil || rank != nil ? " there":"").",bundle:.checkmate)}
                 let reaching=own.filter{follows(from:$0,to:to,board:board,enPassant:nil)}
                 if own.count==1 || reaching.count==1{return refusal(piece:turn+kind,from:reaching.first ?? own[0],to:to,board:board,enPassant:nil,inCheck:inCheck)}
-                return "No \(name) of yours can move to \(to)."
+                return String(localized:"No \(name) of yours can move to \(to).",bundle:.checkmate)
             }
         }
     }
@@ -99,9 +100,9 @@ public enum TypedMove {
     private static func choose(_ matches:[MoveRecord],promotion:String?,example:String,board:Position,turn:String,inCheck:Bool,otherwise:()->String)->Resolution {
         guard let any=matches.first else{return .refused(otherwise())}
         let promotes=matches.contains{$0.promotion != nil}
-        if promotes,promotion==nil{return .refused("Add the piece to promote to, such as \(example).")}
-        if !promotes,promotion != nil{return .refused("Only a pawn reaching the last rank promotes.")}
-        guard let move=promotes ? matches.first(where:{$0.promotion==promotion}):any else{return .refused("A pawn can promote only to a queen, rook, bishop or knight.")}
+        if promotes,promotion==nil{return .refused(String(localized:"Add the piece to promote to, such as \(example).",bundle:.checkmate))}
+        if !promotes,promotion != nil{return .refused(String(localized:"Only a pawn reaching the last rank promotes.",bundle:.checkmate))}
+        guard let move=promotes ? matches.first(where:{$0.promotion==promotion}):any else{return .refused(String(localized:"A pawn can promote only to a queen, rook, bishop or knight.",bundle:.checkmate))}
         return .move(Choice(from:move.from,to:move.to,promotion:move.promotion))
     }
 
@@ -119,14 +120,14 @@ public enum TypedMove {
     /// Why a move that is not among the position's moves is refused. Shared with the training exercises' grading.
     public static func refusal(piece:String,from:String,to:String,board:Position,enPassant:String?,inCheck:Bool)->String {
         let name=names[String(piece.suffix(1))] ?? "piece",turn=String(piece.prefix(1))
-        guard let (fx,fy)=TrainingGeometry.coordinates(from),let (tx,ty)=TrainingGeometry.coordinates(to) else{return "That move is not possible."}
-        if board[to]?.hasPrefix(turn)==true{return "That square holds your own piece."}
-        if piece.last=="k",fy==ty,abs(fx-tx)==2{return inCheck ? "You cannot castle while your king is in check.":"Castling is not allowed here."}
+        guard let (fx,fy)=TrainingGeometry.coordinates(from),let (tx,ty)=TrainingGeometry.coordinates(to) else{return String(localized:"That move is not possible.",bundle:.checkmate)}
+        if board[to]?.hasPrefix(turn)==true{return String(localized:"That square holds your own piece.",bundle:.checkmate)}
+        if piece.last=="k",fy==ty,abs(fx-tx)==2{return inCheck ? String(localized:"You cannot castle while your king is in check.",bundle:.checkmate):String(localized:"Castling is not allowed here.",bundle:.checkmate)}
         guard follows(from:from,to:to,board:board,enPassant:enPassant) else{return "A \(name) cannot move from \(from) to \(to)."}
         // A board without the mover's king plays its own rules (a mini-game): nothing about check applies.
-        guard board.values.contains(turn+"k") else{return "That move is not allowed here."}
-        if piece.last=="k"{return "Your king would be attacked on \(to)."}
-        return inCheck ? "That move does not get your king out of check.":"That move would leave your king in check."
+        guard board.values.contains(turn+"k") else{return String(localized:"That move is not allowed here.",bundle:.checkmate)}
+        if piece.last=="k"{return String(localized:"Your king would be attacked on \(to).",bundle:.checkmate)}
+        return inCheck ? String(localized:"That move does not get your king out of check.",bundle:.checkmate):String(localized:"That move would leave your king in check.",bundle:.checkmate)
     }
     /// The moves the side's pieces can make by their own way of moving, ignoring check: what SAN is read against in an
     /// exercise that grades raw attempts and must not reveal its legal moves. Castling is offered where king and rook

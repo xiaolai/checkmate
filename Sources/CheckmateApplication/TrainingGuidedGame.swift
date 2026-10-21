@@ -1,3 +1,4 @@
+import CheckmateAssets
 import CheckmateDomain
 import CheckmateRules
 /// A moment from the learner's own guided game that exact detectors found (plan: guided games/review): a mate in
@@ -11,8 +12,8 @@ public struct TrainingMoment:Equatable {
     public var label:String {
         let move="move \(Self.moveNumber(fen:fen,ply:ply))"
         switch kind {
-        case .mateFind:return "At \(move) you had a checkmate, and played \(played)."
-        case .mateAvoid:return "At \(move), after \(played), your opponent could checkmate at once."
+        case .mateFind:return String(localized:"At \(move) you had a checkmate, and played \(played).",bundle:.checkmate)
+        case .mateAvoid:return String(localized:"At \(move), after \(played), your opponent could checkmate at once.",bundle:.checkmate)
         }
     }
     /// The move number of the position `fen` (its fullmove field), or one counted from `ply` when the field is missing.
@@ -31,16 +32,16 @@ public struct TrainingMoment:Equatable {
         let mine=Character(learner)
         let rights:(String)->Bool={fen in let field=fen.split(separator:" ").dropFirst(2).first.map(String.init) ?? "-";return field.contains{$0 != "-" && ($0.isUppercase == (learner=="w"))}}
         let castled=played.from==(learner=="w" ? "e1":"e8") && ["c","g"].contains(played.to.first) && before[played.from]==learner+"k"
-        if rights(beforeFEN),!rights(afterFEN),!castled{return "Worth reviewing: your king can no longer castle. Castling is often the quickest way to a safe king."}
+        if rights(beforeFEN),!rights(afterFEN),!castled{return String(localized:"Worth reviewing: your king can no longer castle. Castling is often the quickest way to a safe king.",bundle:.checkmate)}
         if let piece=after[played.to],piece.last != "k" {
             if !takers.isEmpty,!defended || takers.contains(where:{TrainingMaterial.value(after[$0]!)<TrainingMaterial.value(piece)}) {
-                return "Worth reviewing: your \(TrainingGenerator.pieceNames[String(piece.last!)] ?? "piece") on \(played.to) can be taken. Is it protected well enough?"
+                return String(localized:"Worth reviewing: your \(TrainingGenerator.pieceNames[String(piece.last!)] ?? "piece") on \(played.to) can be taken. Is it protected well enough?",bundle:.checkmate)
             }
         }
         let home:[String]=learner=="w" ? ["b1","g1","c1","f1"]:["b8","g8","c8","f8"]
         let undeveloped=home.filter{square in after[square].map{$0.first==mine && "nb".contains($0.last!)} ?? false}.count
         // Early in the game by the position's own move number: a game may start after move one.
-        if TrainingMoment.moveNumber(fen:beforeFEN,ply:ply)<=6,undeveloped>=2,before[played.from]==learner+"q" {return "Worth reviewing: early in the game, bringing out knights and bishops before the queen usually helps."}
+        if TrainingMoment.moveNumber(fen:beforeFEN,ply:ply)<=6,undeveloped>=2,before[played.from]==learner+"q" {return String(localized:"Worth reviewing: early in the game, bringing out knights and bishops before the queen usually helps.",bundle:.checkmate)}
         return nil
     }
     /// The retry for a moment: find a checkmate (every mating move is accepted), or play a move after which the
@@ -57,9 +58,9 @@ public struct TrainingMoment:Equatable {
         }
         let find=moment.kind == .mateFind
         return TrainingScenario(id:base.id,entry:base.entry,variant:base.variant,tier:1,cluster:base.cluster,learner:learner,
-            prompt:find ? "From your game: a checkmate was possible here. Find it.":"From your game: play a move that does not allow checkmate next move.",
-            explanation:find ? "Before any other move, look at every check you can give: one of them may end the game.":"Before you move, look at every check your opponent could give after it.",
-            hints:find ? ["Look at every check you can give.","Which check leaves the king no square, no block and no capture?"]:["Which of your opponent's checks would be mate?","Cover that square, give the king room, or stop the checking piece."],
+            prompt:find ? String(localized:"From your game: a checkmate was possible here. Find it.",bundle:.checkmate):String(localized:"From your game: play a move that does not allow checkmate next move.",bundle:.checkmate),
+            explanation:find ? String(localized:"Before any other move, look at every check you can give: one of them may end the game.",bundle:.checkmate):String(localized:"Before you move, look at every check your opponent could give after it.",bundle:.checkmate),
+            hints:find ? [String(localized:"Look at every check you can give.",bundle:.checkmate),String(localized:"Which check leaves the king no square, no block and no capture?",bundle:.checkmate)]:[String(localized:"Which of your opponent's checks would be mate?",bundle:.checkmate),String(localized:"Cover that square, give the king room, or stop the checking piece.",bundle:.checkmate)],
             fen:moment.fen,generation:generation,check:.moment,nodes:[TrainingTeachingNode(fingerprint:fingerprint,accepted:accepted,replies:replies)])
     }
 }
@@ -82,7 +83,7 @@ extension TrainingController {
     public func endGuidedGame(){
         guard interactive,var state=exercise,state.scenario.check == .guidedGame,!state.finished else{return}
         games.cancel();state.habit=nil
-        state.feedback=state.moments.isEmpty ? "Game ended. No moments to retry were found.":"Game ended. Review a moment below and try it again."
+        state.feedback=state.moments.isEmpty ? String(localized:"Game ended. No moments to retry were found.",bundle:.checkmate):String(localized:"Game ended. Review a moment below and try it again.",bundle:.checkmate)
         // Not recorded: the game goes on, and a reply cancelled above is asked for again.
         if !finish(state,.abandoned){requestReply()}
     }
@@ -95,7 +96,7 @@ extension TrainingController {
             try TrainingValidationService.validate(scenario,definition:state.definition,runtimeFactory:runtimeFactory)
             let prepared=PreparedTrainingExercise(definition:state.definition,scenario:scenario,freshness:.repeat,legality:try TrainingLegality(fen:state.moments[index].fen,runtimeFactory:runtimeFactory),resumed:nil,retry:true)
             guidedReview=state;begin(prepared)
-        }catch{var shown=state;shown.feedback="This moment could not be prepared: \(userFacing(error))";exercise=shown;publish()}
+        }catch{var shown=state;shown.feedback=String(localized:"This moment could not be prepared: \(userFacing(error))",bundle:.checkmate);exercise=shown;publish()}
     }
     /// Back from a moment's retry to the finished guided game it came from. An unfinished retry stays saved for Continue.
     public func returnToGuidedGame(){

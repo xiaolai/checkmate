@@ -34,7 +34,7 @@ import CheckmateCore
         }
         XCTAssertNil(offending("Set Up Codex"));XCTAssertNil(offending("Export Saved File…"));XCTAssertEqual(offending("Return to game"),"game");XCTAssertEqual(offending("Practise here"),"here")
         var checked=0,failures:[String]=[]
-        for line in try sourceLines() {for title in matches(#"(?:\bButton|\bMenu|NSMenuItem\(title:|withTitle:|NSButton\(title:|\baction:)\(?"([^"\\]+)""#,line.text) {
+        for line in try sourceLines() {for title in matches(#"(?:\bButton\(|\bMenu\(|NSMenuItem\(title:|withTitle:|NSButton\(title:|\baction:)(?:String\(localized:)?"([^"\\]+)""#,line.text) {
             checked+=1;if let word=offending(title){failures.append("\(line.file):\(line.line) \(title) (\(word))")}
         }}
         XCTAssertGreaterThan(checked,100,"the lint saw the app's commands")
@@ -51,11 +51,12 @@ import CheckmateCore
         XCTAssertEqual(failures,[],"compare a typed identifier, and map it to text only in the view")
         XCTAssertFalse(matches(patterns[0],#"if label=="Return to game"{"#).isEmpty,"the scan catches a comparison")
     }
-    /// Counted text is a whole format string per form (D-13): no English suffix or verb glued on by a count test.
+    /// Counted text is one localized string whose catalog entry has a whole sentence per plural form (D-11, D-13): no English
+    /// suffix or verb glued on by a count test.
     func testCountedTextUsesWholeForms()throws {
         let pattern=#"==\s*1\s*\?\s*"[A-Za-z]*"\s*:\s*"[A-Za-z]*""#
         let failures=try sourceLines().filter{!matches(pattern,$0.text).isEmpty}.map{"\($0.file):\($0.line)"}
-        XCTAssertEqual(failures,[],"use Plural.count with a whole sentence for each form")
+        XCTAssertEqual(failures,[],"interpolate the count into String(localized:) and give the catalog entry plural variations")
         XCTAssertFalse(matches(pattern,#"\(n) move\(n==1 ? "":"s")"#).isEmpty,"the scan catches a glued suffix")
     }
     /// Shown text uses US spelling (D-16). A word inside a literal counts; identifiers, comments and one-word wire values

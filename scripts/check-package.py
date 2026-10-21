@@ -75,6 +75,16 @@ if bundle.name != 'Checkmate_CheckmateAssets.bundle':
 resources = bundle / 'Contents/Resources/Resources'
 if not resources.is_dir():
     resources = bundle / 'Resources'
+# The String Catalog compiles to en.lproj tables. A missing key falls back to its English text, so only the plural
+# table shows the loss: without it every count reads "1 moves". build.sh copies the tables into the app as well,
+# where SwiftUI's Text("…") and AppKit look by default.
+localized = resources.parent
+for tables in (localized / 'en.lproj', app / 'Contents/Resources/en.lproj'):
+    if not (tables / 'Localizable.strings').is_file():
+        raise RuntimeError(f'Compiled String Catalog missing: {tables.relative_to(app)}/Localizable.strings')
+    plurals = tables / 'Localizable.stringsdict'
+    if not (plurals.is_file() and '%lld moves' in plistlib.loads(plurals.read_bytes())):
+        raise RuntimeError(f'Plural variations missing: {tables.relative_to(app)}/Localizable.stringsdict lacks "%lld moves"')
 course = json.loads((resources / 'course.json').read_text())
 if not (len(course['lessons']) == 39 and len(course['puzzles']) == 82):
     raise RuntimeError(f"Bundled course has {len(course['lessons'])} lessons and {len(course['puzzles'])} puzzles, not 39 and 82")
@@ -187,4 +197,4 @@ if arguments.release:
         if entitlements(code).get('com.apple.security.get-task-allow'):
             raise RuntimeError(f'{code.name} must exclude debugger access')
 # Every flag is a passed check: the acceptance aggregate rejects any false value.
-print(json.dumps({'passed': True, 'iconFormat': 'Icon Composer with legacy fallback', 'architectures': ['arm64', 'x86_64'], 'minimumMacOS': settings['CHECKMATE_MINIMUM_MACOS'], 'deploymentTargetsVerifiedPerSlice': True, 'bundleIdentifier': bundle_id, 'version': settings['CHECKMATE_VERSION'], 'build': settings['CHECKMATE_BUILD_NUMBER'], 'lessons': len(course['lessons']), 'audioFiles': len(narration['assets']), 'narrationVoice': 'cedar', 'audioHashesVerified': True, 'puzzles': len(course['puzzles']), 'webRuntimeAbsent': True, 'engineHasSystemDependenciesOnly': True}))
+print(json.dumps({'passed': True, 'iconFormat': 'Icon Composer with legacy fallback', 'architectures': ['arm64', 'x86_64'], 'minimumMacOS': settings['CHECKMATE_MINIMUM_MACOS'], 'deploymentTargetsVerifiedPerSlice': True, 'bundleIdentifier': bundle_id, 'version': settings['CHECKMATE_VERSION'], 'build': settings['CHECKMATE_BUILD_NUMBER'], 'lessons': len(course['lessons']), 'audioFiles': len(narration['assets']), 'narrationVoice': 'cedar', 'audioHashesVerified': True, 'puzzles': len(course['puzzles']), 'webRuntimeAbsent': True, 'engineHasSystemDependenciesOnly': True, 'localizationsShipped': True}))

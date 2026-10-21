@@ -13,7 +13,7 @@ struct TrainingPanel:View {
             if exercise.snapshot.retry{Text("You have tried this board before, so this is practice.").font(.caption).foregroundStyle(.secondary)}
             Text(TrainingLabels.ruleMode(definition.ruleMode)).font(.caption).foregroundStyle(.secondary)
             ForEach(definition.rules,id:\.self){Text($0).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)}
-            if scenario.drill != nil {Text(scenario.budget.map{"Moves: \(exercise.movesUsed) of \($0)"} ?? "Moves: \(exercise.movesUsed)").accessibilityIdentifier("training-moves")}
+            if scenario.drill != nil {Text(scenario.budget.map{String(localized:"Moves: \(exercise.movesUsed) of \($0)",bundle:.checkmate)} ?? String(localized:"Moves: \(exercise.movesUsed)",bundle:.checkmate)).accessibilityIdentifier("training-moves")}
             answerControls(exercise)
             if exercise.task == .game {gameControls(exercise);if model.voice.training != nil{TrainingVoiceCoach(voice:model.voice,connect:{[weak model] in model?.connectVoiceWithConsent{model?.voice.connectTraining()}})}}
             // A moment retried from a finished guided game leads back to that game's review.
@@ -21,7 +21,7 @@ struct TrainingPanel:View {
             // A finished attempt refuses a promotion, so its chooser is not offered.
             if let pending=exercise.pendingPromotion,!exercise.finished {
                 HStack{
-                    ForEach([("Queen","q"),("Rook","r"),("Bishop","b"),("Knight","n")],id:\.1){title,piece in Button(title){training.attempt(from:pending.from,to:pending.to,promotion:piece)}}
+                    ForEach([(String(localized:"Queen",bundle:.checkmate),"q"),(String(localized:"Rook",bundle:.checkmate),"r"),(String(localized:"Bishop",bundle:.checkmate),"b"),(String(localized:"Knight",bundle:.checkmate),"n")],id:\.1){title,piece in Button(title){training.attempt(from:pending.from,to:pending.to,promotion:piece)}}
                     Button("Cancel"){training.cancelPromotion()}.accessibilityIdentifier("training-promotion-cancel")
                 }
             }
@@ -43,7 +43,7 @@ struct TrainingPanel:View {
     /// Selecting squares or choosing an answer.
     @ViewBuilder private func answerControls(_ exercise:TrainingController.Exercise)->some View {
         if exercise.task == .select {
-            Text(exercise.selection.isEmpty ? "Click squares to select them, then submit.":"Selected: \(Plural.list(exercise.selection.sorted()))")
+            Text(exercise.selection.isEmpty ? String(localized:"Click squares to select them, then submit.",bundle:.checkmate):String(localized:"Selected: \(Plural.list(exercise.selection.sorted()))",bundle:.checkmate))
             HStack {
                 Button("Submit"){training.submit()}.disabled(exercise.selection.isEmpty || exercise.finished).keyboardShortcut(.defaultAction).accessibilityIdentifier("training-submit")
                 Button("None"){training.submit(none:true)}.disabled(exercise.finished).accessibilityIdentifier("training-none")
@@ -102,26 +102,26 @@ struct TrainingPanel:View {
         TrainingLessonLinks(model:model,entry:exercise.definition)
     }
     /// A played game's status, a heading like practice's (`DetailContent.practiceHeading`): no closing period.
-    static func gameStatus(finished:Bool,paused:Bool,thinking:Bool)->String {finished ? "Game over":paused ? "Game paused":thinking ? "The defender is thinking":"Your move"}
+    static func gameStatus(finished:Bool,paused:Bool,thinking:Bool)->String {finished ? String(localized:"Game over",bundle:.checkmate):paused ? String(localized:"Game paused",bundle:.checkmate):thinking ? String(localized:"The defender is thinking",bundle:.checkmate):String(localized:"Your move",bundle:.checkmate)}
     /// Whether a finished attempt offers Try again, shared by this drawer and the transport: a withdrawn board cannot be retried.
     static func canRetry(_ exercise:TrainingController.Exercise)->Bool {exercise.status != .suspended}
     /// The next hint's title, shared by this drawer and the transport: the third step reveals the answer, or in a game
     /// asks the defender's engine for one good move.
-    static func hintTitle(_ exercise:TrainingController.Exercise)->String {exercise.hintLevel<2 ? "Hint":exercise.task == .game ? "Show a good move":"Show answer"}
+    static func hintTitle(_ exercise:TrainingController.Exercise)->String {exercise.hintLevel<2 ? String(localized:"Hint",bundle:.checkmate,comment:"Noun: ask for a hint"):exercise.task == .game ? String(localized:"Show a good move",bundle:.checkmate):String(localized:"Show answer",bundle:.checkmate)}
     /// A game's good move is asked for once, and no game hint is given while the defender is choosing its reply:
     /// saving one would advance the revision that reply belongs to.
     static func hintDisabled(_ exercise:TrainingController.Exercise,thinking:Bool)->Bool {exercise.task == .game && (exercise.hintLevel>=3 || thinking)}
     /// The opponent a finished game names, the one its review names (`boundOpponent`): marked mixed when an older build
     /// continued the game, and none when the saved one belongs to another attempt or cannot be played as frozen.
-    static func opponentLine(_ snapshot:TrainingSessionSnapshot)->String? {snapshot.boundOpponent.map{"Opponent: \($0.label)"}}
+    static func opponentLine(_ snapshot:TrainingSessionSnapshot)->String? {snapshot.boundOpponent.map{String(localized:"Opponent: \($0.label)",bundle:.checkmate)}}
     /// What a finished attempt shows. Help outside the app cannot be seen, so a clean result says "no recorded help".
     static func resultLabel(_ exercise:TrainingController.Exercise)->String {
         switch exercise.status {
-        case .correct:return exercise.snapshot.recordedHelp ? "Solved with recorded help":exercise.snapshot.retry ? "Solved again · practice":"Solved · first try · no recorded help"
-        case .incorrect:return "Not solved this time"
-        case .revealed:return "Answer shown"
-        case .suspended:return "Withdrawn · not counted"
-        case .ended:return "Game ended · not counted"
+        case .correct:return exercise.snapshot.recordedHelp ? String(localized:"Solved with recorded help",bundle:.checkmate):exercise.snapshot.retry ? String(localized:"Solved again · practice",bundle:.checkmate):String(localized:"Solved · first try · no recorded help",bundle:.checkmate)
+        case .incorrect:return String(localized:"Not solved this time",bundle:.checkmate)
+        case .revealed:return String(localized:"Answer shown",bundle:.checkmate)
+        case .suspended:return String(localized:"Withdrawn · not counted",bundle:.checkmate)
+        case .ended:return String(localized:"Game ended · not counted",bundle:.checkmate)
         case .active:return ""
         }
     }
@@ -134,14 +134,14 @@ struct TrainingVoiceCoach:View {
     /// Connect Voice Coach, which asks for consent first.
     let connect:()->Void
     /// V-25: the coach's help counts as help, said before the learner connects.
-    static let helpCaption="Asking the coach for help marks this game as solved with help."
+    static let helpCaption=String(localized:"Asking the coach for help marks this game as solved with help.",bundle:.checkmate)
     var body:some View {
         if voice.trainingSession || voice.trainingVoiceAvailable || !voice.history.isEmpty && voice.connection != .disconnected {
             Divider();Text("Voice coach").sectionHeading()
             if voice.connection != .disconnected {Text(voice.status).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("training-voice-status")}
             VoiceCoachControls(voice:voice,idPrefix:"training-voice",owned:voice.trainingSession,connect:voice.trainingVoiceAvailable ? {connect()}:nil)
             if voice.trainingVoiceAvailable && !voice.connected && !voice.connecting {Text(Self.helpCaption).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)}
-            if voice.trainingSession || voice.history.last?.source == .training {ForEach(Array(voice.history.suffix(3).reversed())){entry in Text((entry.role=="learner" ? "You: ":"Coach: ")+entry.text).font(.caption).fixedSize(horizontal:false,vertical:true)}}
+            if voice.trainingSession || voice.history.last?.source == .training {ForEach(Array(voice.history.suffix(3).reversed())){entry in Text((entry.role=="learner" ? String(localized:"You: ",bundle:.checkmate):String(localized:"Coach: ",bundle:.checkmate))+entry.text).font(.caption).fixedSize(horizontal:false,vertical:true)}}
         }
     }
 }

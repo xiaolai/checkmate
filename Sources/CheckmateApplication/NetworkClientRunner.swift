@@ -1,3 +1,4 @@
+import CheckmateAssets
 import CheckmateDomain
 import Foundation
 /// Why a guest's or spectator's game stopped. Every one is final: nothing reconnects after it.
@@ -165,10 +166,10 @@ public final class NetworkClientRunner {
             if case .protocolMismatch=error{return finish(.closedByHost(.protocolVersion))}
             return finish(.failed(error.description))
         }
-        catch{abandon(farewell:.malformed);return finish(.failed("A malformed network message."))}
+        catch{abandon(farewell:.malformed);return finish(.failed(String(localized:"A malformed network message.",bundle:.checkmate)))}
         let output:NetworkReceiverOutput
         do{output=try receiver.receive(message:message,at:now)}
-        catch{abandon(farewell:.leaving);return finish(.failed("This Mac's chess rules failed: \(error)."))}
+        catch{abandon(farewell:.leaving);return finish(.failed(String(localized:"This Mac's chess rules failed: \(String(describing:error)).",bundle:.checkmate)))}
         // A snapshot landing as the window ends, before its timer runs, is too late as well.
         if output.events.contains(where:{if case .installed=$0 {return true};return false}),let since=lostAt,let policy=reconnect,now-since>=policy.window {abandon(farewell:.leaving);return finish(.couldNotReach)}
         for event in output.events {
@@ -178,7 +179,7 @@ public final class NetworkClientRunner {
         if let reason=output.close {
             abandon(farewell:reason)
             if reason == .assistanceChanged {return finish(.assistanceChanged)}
-            return reason == .badSnapshot ? dropped(.lost):finish(.failed("The host sent a message that breaks the protocol (\(reason.rawValue))."))
+            return reason == .badSnapshot ? dropped(.lost):finish(.failed(String(localized:"The host sent a message that breaks the protocol (\(reason.rawValue)).",bundle:.checkmate)))
         }
         if case .bye(let reason)=message {
             abandon(farewell:nil)
@@ -257,7 +258,7 @@ public final class NetworkClientRunner {
         scheduler.enqueue{[self] in
             guard stop==nil,admitted,!leaving else{return}
             do{if let message=try make(receiver) {send(message)}}
-            catch{abandon(farewell:.leaving);finish(.failed("This Mac's chess rules failed: \(error)."))}
+            catch{abandon(farewell:.leaving);finish(.failed(String(localized:"This Mac's chess rules failed: \(String(describing:error)).",bundle:.checkmate)))}
             publishStatus()
         }
     }
@@ -265,7 +266,7 @@ public final class NetworkClientRunner {
     private func send(_ message:NetworkMessage){
         guard link != nil,ready else{return}
         let data:Data
-        do{data=try NetworkCodec.encode(message)}catch{abandon(farewell:.leaving);return finish(.failed("A message could not be sent: \(error)."))}
+        do{data=try NetworkCodec.encode(message)}catch{abandon(farewell:.leaving);return finish(.failed(String(localized:"A message could not be sent: \(String(describing:error)).",bundle:.checkmate)))}
         guard bufferedBytes+data.count<=NetworkLimits.peerQueueBytes else{abandon(farewell:.slow);return dropped(.lost)}
         outbox.append(data);pump()
     }
@@ -316,7 +317,7 @@ public final class NetworkClientRunner {
         }
         catch{
             // A rules failure stops the game; the stopped status still goes out, without a record.
-            guard stop != nil else{abandon(farewell:.leaving);return finish(.failed("This Mac's chess rules failed: \(error)."))}
+            guard stop != nil else{abandon(farewell:.leaving);return finish(.failed(String(localized:"This Mac's chess rules failed: \(String(describing:error)).",bundle:.checkmate)))}
             game=nil
         }
         events(.status(NetworkClientStatus(link:key.link,game:game,fen:key.fen,side:receiver.side,pendingMove:key.pending,at:now)))

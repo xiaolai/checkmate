@@ -38,10 +38,15 @@ import CheckmateCore
         let coach=try VoiceCoach(session:try GameSession(engine:nil))
         XCTAssertEqual(coach.connection,.disconnected,"idle is a state to compare, not shown text");XCTAssertEqual(coach.status,"Disconnected")
     }
+    /// Counted text comes from the catalog's plural variations; without the shipped catalog every count reads "1 moves".
     func testPluralFormsAndListsAreWholeStrings() {
-        XCTAssertEqual(Plural.count(1,one:"%d move",other:"%d moves"),"1 move");XCTAssertEqual(Plural.count(3,one:"%d move",other:"%d moves"),"3 moves")
-        XCTAssertEqual(Plural.count(2,one:"Idea from Position %2$d · %1$d Move",other:"Idea from Position %2$d · %1$d Moves",5),"Idea from Position 5 · 2 Moves")
-        XCTAssertEqual(Plural.count(1,one:"Removed %1$d file (%2$@).",other:"Removed %1$d files (%2$@).","2 KB"),"Removed 1 file (2 KB).")
+        func moves(_ n:Int)->String {String(localized:"\(n) moves",bundle:.checkmate)}
+        XCTAssertEqual(moves(1),"1 move");XCTAssertEqual(moves(3),"3 moves");XCTAssertEqual(moves(0),"0 moves")
+        XCTAssertEqual(String(localized:"\("Draw") · \(1) moves",bundle:.checkmate),"Draw · 1 move","a count after another value")
+        XCTAssertEqual(String(localized:"Removed \(1) outdated files (\("2 KB")).",bundle:.checkmate),"Removed 1 outdated file (2 KB).")
+        XCTAssertEqual(String(localized:"Move \(12): you had a forced win in \(1) moves here.",bundle:.checkmate),"Move 12: you had a forced win in 1 move here.","the plural follows the second number, not the first")
+        XCTAssertEqual(String(localized:"Move \(1): you had a forced win in \(2) moves here.",bundle:.checkmate),"Move 1: you had a forced win in 2 moves here.")
+        XCTAssertEqual(String(localized:"There are \(1) to find.",bundle:.checkmate),"There is 1 to find.")
         XCTAssertEqual(Plural.list(["Forks"]),"Forks");XCTAssertEqual(Plural.list(["Forks","Pins"]),"Forks and Pins");XCTAssertEqual(Plural.list(["Forks","Pins","Skewers"]),"Forks, Pins, and Skewers")
     }
 }

@@ -1,3 +1,4 @@
+import CheckmateAssets
 import Foundation
 import CheckmateDomain
 import CheckmateRules
@@ -33,7 +34,7 @@ public struct PreparedWorkspaceTransition {
     public func stillCurrent(_ prepared:PreparedWorkspaceTransition)->Bool {
         if case .training(let staged)=prepared.entry{return training?.isCurrent(staged) ?? false};return true
     }
-    public static let staleTrainingMessage="Training progress changed while this exercise was being opened, so it was not opened. Try again; your progress is unchanged."
+    public static let staleTrainingMessage=String(localized:"Training progress changed while this exercise was being opened, so it was not opened. Try again; your progress is unchanged.",bundle:.checkmate)
     /// The new-exercise controller, when training is enabled: a review closing over an exercise hands its board back.
     public var training:TrainingController?
     public func prepare(_ next:WorkspaceNavigation,pendingReview:(document:GameDocument,cursor:Int,branches:[ReviewBranch])?=nil)throws -> PreparedWorkspaceTransition {
@@ -49,7 +50,7 @@ public struct PreparedWorkspaceTransition {
         case .importProgress(let state,_):try StateStore.validate(state);return .importProgress(state)
         case .practiceFork(let side,_):
             let rules=try review.practiceForkRules()
-            guard !rules.over else{throw CheckmateError.invalid("This position is terminal and cannot start practice.")}
+            guard !rules.over else{throw CheckmateError.invalid(String(localized:"This position is terminal and cannot start practice.",bundle:.checkmate))}
             try GameSession.validatePracticeFork(rules,side:side);try ChessRules().restore(rules.pgn);return .practiceFork(rules)
         // A training exercise is chosen, validated and its evaluator built here: a failure leaves the activity as it was.
         case .trainingExercise(let entry,let variant):return .training(try trainingController().stage(trainingController().prepare(entry:entry,variant:variant)))
@@ -58,8 +59,8 @@ public struct PreparedWorkspaceTransition {
         case .trainingRetry(let id):return .training(try trainingController().stage(trainingController().prepareRetry(id:id)))
         case .trainingLibrary,.trainingLegacy:_ = try trainingController();return .none
         // A lesson that does not exist fails here, before the host closes a review or stops playback for it.
-        case .lesson(let index,_):guard learning.library.lessons.indices.contains(index) else{throw CheckmateError.invalid("That lesson is not available.")};return .none
-        case .trainingLesson(let id):_ = try trainingController();guard learning.library.lessons.contains(where:{$0.id==id}) else{throw CheckmateError.invalid("That lesson is not available.")};return .none
+        case .lesson(let index,_):guard learning.library.lessons.indices.contains(index) else{throw CheckmateError.invalid(String(localized:"That lesson is not available.",bundle:.checkmate))};return .none
+        case .trainingLesson(let id):_ = try trainingController();guard learning.library.lessons.contains(where:{$0.id==id}) else{throw CheckmateError.invalid(String(localized:"That lesson is not available.",bundle:.checkmate))};return .none
         default:return .none
         }
     }
@@ -110,7 +111,7 @@ public struct PreparedWorkspaceTransition {
     /// Every exit from an exercise cancels its pending defender reply, so none advances or saves the exercise unseen.
     /// Only Return to game, back to the training place, asks for it again.
     private func leaveTraining(){training?.games.cancel()}
-    private func trainingController()throws -> TrainingController {guard let training else{throw CheckmateError.unavailable("Training is not available in this version.")};return training}
+    private func trainingController()throws -> TrainingController {guard let training else{throw CheckmateError.unavailable(String(localized:"Training is not available in this version.",bundle:.checkmate))};return training}
     /// A review closed for another activity first returns to the place it covered, so the new one replaces that place.
     private func leaveReview(_ wasReviewing:Bool,_ place:Place){if wasReviewing{session.enter(.at(place));session.cancelWork()}}
 }

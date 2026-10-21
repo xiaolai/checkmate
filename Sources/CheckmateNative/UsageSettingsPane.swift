@@ -9,8 +9,8 @@ struct UsageSettingsPane:View {
     @State private var range=UsageTimeRange.today
     @State private var error:String?
     private var records:[UsageRecord]{ledger.records(in:range).sorted{$0.startedAt>$1.startedAt}}
-    private func title(_ activity:UsageActivity)->String {switch activity{case .translation:return "Lesson translation";case .lessonRecording:return "Lesson recording";case .voiceCoach:return "Voice coach";case .inputTranscription:return "Input transcription"}}
-    private func count(_ value:Int64?)->String{value.map(UsageFormat.number) ?? "Unknown"}
+    private func title(_ activity:UsageActivity)->String {switch activity{case .translation:return String(localized:"Lesson translation",bundle:.checkmate);case .lessonRecording:return String(localized:"Lesson recording",bundle:.checkmate);case .voiceCoach:return String(localized:"Voice coach",bundle:.checkmate);case .inputTranscription:return String(localized:"Input transcription",bundle:.checkmate)}}
+    private func count(_ value:Int64?)->String{value.map(UsageFormat.number) ?? String(localized:"Unknown",bundle:.checkmate)}
     var body:some View {
         Section("Checkmate activity") {
             Picker("Time range",selection:$range){Text("Today").tag(UsageTimeRange.today);Text("This month").tag(UsageTimeRange.thisMonth);Text("All retained").tag(UsageTimeRange.all)}.accessibilityIdentifier("usage-time-range")
@@ -26,8 +26,8 @@ struct UsageSettingsPane:View {
                     if !group.isEmpty {
                         DisclosureGroup("Breakdown") {
                             Text("\(group.count) operations · \(Set(group.map(\.sessionID)).count) sessions").font(.caption).foregroundStyle(.secondary)
-                            Text(known.isEmpty ? "Tokens not reported":"\(UsageFormat.tokens(known.reduce(0,+))) reported · \(group.count-known.count) not reported").font(.caption).foregroundStyle(.secondary)
-                            Text(durations.isEmpty ? "Time not reported":"\(UsageFormat.minutes(durations.reduce(0,+))) reported · \(group.count-durations.count) not reported").font(.caption).foregroundStyle(.secondary)
+                            Text(known.isEmpty ? String(localized:"Tokens not reported",bundle:.checkmate):"\(UsageFormat.tokens(known.reduce(0,+))) reported · \(group.count-known.count) not reported").font(.caption).foregroundStyle(.secondary)
+                            Text(durations.isEmpty ? String(localized:"Time not reported",bundle:.checkmate):"\(UsageFormat.minutes(durations.reduce(0,+))) reported · \(group.count-durations.count) not reported").font(.caption).foregroundStyle(.secondary)
                             let narrated=group.compactMap(\.narration)
                             if !narrated.isEmpty{Text("Narrated segments: \(narrated.filter{$0 == .verified}.count) heard as written · \(narrated.filter{$0 == .unverified}.count) shown as text instead · \(narrated.filter{$0 == .interrupted}.count) stopped").font(.caption).foregroundStyle(.secondary).accessibilityIdentifier("usage-narration-outcomes")}
                         }
@@ -49,7 +49,7 @@ struct UsageSettingsPane:View {
             if records.isEmpty{Text("No recorded Checkmate activity in this time range.").foregroundStyle(.secondary)}
             ForEach(Array(records.prefix(100))){record in
                 DisclosureGroup {
-                    LabeledContent("Model",value:record.model ?? "Unknown")
+                    LabeledContent("Model",value:record.model ?? String(localized:"Unknown",bundle:.checkmate))
                     LabeledContent("Input tokens",value:count(record.tokens?.input))
                     LabeledContent("Output tokens",value:count(record.tokens?.output))
                     LabeledContent("Total tokens",value:count(record.tokens?.total))
@@ -66,7 +66,7 @@ struct UsageSettingsPane:View {
                     if record.estimatedCredits != nil || record.estimatedUSD != nil{Text("Provider estimates are not actual charges.").font(.caption).foregroundStyle(.secondary)}
                     if let locale=record.locale{LabeledContent("Language",value:locale)}
                     if let voice=record.voice{LabeledContent("Voice",value:voice.capitalized)}
-                    if let outcome=record.narration{LabeledContent("Narration",value:outcome == .verified ? "Heard as written":outcome == .unverified ? "Shown as text instead":"Stopped")}
+                    if let outcome=record.narration{LabeledContent("Narration",value:outcome == .verified ? String(localized:"Heard as written",bundle:.checkmate):outcome == .unverified ? String(localized:"Shown as text instead",bundle:.checkmate):String(localized:"Stopped",bundle:.checkmate))}
                     if let duration=record.durationSeconds{LabeledContent("Duration",value:String(format:"%.1f seconds",duration))}
                     Text(record.startedAt.formatted(date:.abbreviated,time:.standard)).font(.caption)
                 } label:{Text("\(title(record.activity)) · \(record.status.rawValue.capitalized)")}
@@ -76,11 +76,11 @@ struct UsageSettingsPane:View {
     }
     private func export(){
         let panel=NSSavePanel();panel.allowedContentTypes=[.json];panel.nameFieldStringValue="Checkmate-usage.json"
-        panel.begin{response in guard response == .OK,let url=panel.url else{return};Task{do{try? await ledger.flush();try ledger.exportJSON().write(to:url,options:.atomic);error=nil}catch{self.error=userFacingMessage(error,fallback:"Usage history could not be exported. Choose another location.")}}}
+        panel.begin{response in guard response == .OK,let url=panel.url else{return};Task{do{try? await ledger.flush();try ledger.exportJSON().write(to:url,options:.atomic);error=nil}catch{self.error=userFacingMessage(error,fallback:String(localized:"Usage history could not be exported. Choose another location.",bundle:.checkmate))}}}
     }
     private func clear(){
-        let alert=NSAlert.destructive("Clear usage history?",ledger.unavailable ? "The unreadable history file is kept, and a new history starts with this session’s activity. Your lessons, recordings and progress are kept.":"This removes completed Checkmate usage history. Activity still running remains recorded. Your lessons, recordings and progress are kept.",action:"Clear History")
+        let alert=NSAlert.destructive(String(localized:"Clear usage history?",bundle:.checkmate),ledger.unavailable ? String(localized:"The unreadable history file is kept, and a new history starts with this session’s activity. Your lessons, recordings and progress are kept.",bundle:.checkmate):String(localized:"This removes completed Checkmate usage history. Activity still running remains recorded. Your lessons, recordings and progress are kept.",bundle:.checkmate),action:String(localized:"Clear History",bundle:.checkmate))
         guard alert.runModal() == .alertFirstButtonReturn else{return}
-        Task{do{try ledger.clear();try await ledger.flush();error=nil}catch{self.error="Usage history could not be cleared."}}
+        Task{do{try ledger.clear();try await ledger.flush();error=nil}catch{self.error=String(localized:"Usage history could not be cleared.",bundle:.checkmate)}}
     }
 }

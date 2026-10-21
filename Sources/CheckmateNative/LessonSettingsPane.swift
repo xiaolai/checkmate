@@ -78,13 +78,13 @@ struct LessonSettingsPane:View {
     private var groups:[LessonGroup] {LessonLanguageController.groups(library)}
     /// The list's status columns. Their titles are hidden from VoiceOver, so each cell names its column and says a
     /// blank cell's meaning; nil is a status still being read.
-    static let statusColumns=["Translated","Recorded","Out of Date"]
-    static let staleHelp="A stored file for this lesson can no longer be used. Translate or record the lesson again, or remove what is stored."
+    static let statusColumns=[String(localized:"Translated",bundle:.checkmate),String(localized:"Recorded",bundle:.checkmate),String(localized:"Out of Date",bundle:.checkmate)]
+    static let staleHelp=String(localized:"A stored file for this lesson can no longer be used. Translate or record the lesson again, or remove what is stored.",bundle:.checkmate)
     /// Each cell's tooltip comes with it, so the view never tells the columns apart by their shown titles (D-12).
     static func statusCells(_ status:LessonStoredStatus?)->[(column:String,shown:String,spoken:String,help:String)] {
-        guard let status else{return zip(statusColumns,["…","…",""]).map{($0,$1,"Loading","")}}
-        let translated=status.translated ? "Yes":"No"
-        return zip(statusColumns,[(translated,translated,""),(status.recordedText,status.recordedText,""),(status.stale ? "Yes":"",status.stale ? "Yes":"No",status.stale ? staleHelp:"")]).map{($0,$1.0,$1.1,$1.2)}
+        guard let status else{return zip(statusColumns,["…","…",""]).map{($0,$1,String(localized:"Loading",bundle:.checkmate),"")}}
+        let translated=status.translated ? String(localized:"Yes",bundle:.checkmate):String(localized:"No",bundle:.checkmate)
+        return zip(statusColumns,[(translated,translated,""),(status.recordedText,status.recordedText,""),(status.stale ? String(localized:"Yes",bundle:.checkmate):"",status.stale ? String(localized:"Yes",bundle:.checkmate):String(localized:"No",bundle:.checkmate),status.stale ? staleHelp:"")]).map{($0,$1.0,$1.1,$1.2)}
     }
     /// L-27: every lesson with what is stored for the chosen language and voice, grouped by course section, and its own
     /// Translate and Record.
@@ -119,21 +119,21 @@ struct LessonSettingsPane:View {
     private func confirmLesson(_ index:Int,_ mode:String){Task{@MainActor in run(await controller.plan(mode:mode,lesson:index),mode)}}
     private func run(_ plan:LessonJobPlan?,_ mode:String){
         guard let plan else{return}
-        let alert=NSAlert();alert.messageText=plan.title;alert.informativeText=plan.message;alert.addButton(withTitle:plan.action);alert.addButton(withTitle:"Cancel")
+        let alert=NSAlert();alert.messageText=plan.title;alert.informativeText=plan.message;alert.addButton(withTitle:plan.action);alert.addButton(withTitle:String(localized:"Cancel",bundle:.checkmate))
         guard alert.runModal() == .alertFirstButtonReturn else{controller.declinePlan();return}
         if mode=="translate"{controller.translate()}else{controller.record()}
     }
     private func confirmPurge(){
-        confirm("Remove outdated translations?","This removes translated text and recordings made for earlier versions of these lessons, which this version can no longer use. Current translations, recordings and your progress are kept.",action:"Remove"){controller.purgeOutdated()}
+        confirm(String(localized:"Remove outdated translations?",bundle:.checkmate),String(localized:"This removes translated text and recordings made for earlier versions of these lessons, which this version can no longer use. Current translations, recordings and your progress are kept.",bundle:.checkmate),action:String(localized:"Remove",bundle:.checkmate)){controller.purgeOutdated()}
     }
     private func confirmDiscard(){
-        confirm("Discard translated text?","This removes cached translated text and its recordings for the chosen scope, so Translate can request fresh text. Your progress and bundled English lessons are kept.",action:"Discard"){controller.discardTranslation()}
+        confirm(String(localized:"Discard translated text?",bundle:.checkmate),String(localized:"This removes cached translated text and its recordings for the chosen scope, so Translate can request fresh text. Your progress and bundled English lessons are kept.",bundle:.checkmate),action:String(localized:"Discard",bundle:.checkmate)){controller.discardTranslation()}
     }
     private func confirmRemoveClip(){
-        confirm("Remove clip \(clip+1)?","This removes one recording for the selected language, voice and lesson. Record / Resume then records only that clip again; until then the lesson plays in English.",action:"Remove"){controller.removeClip(step:clip)}
+        confirm(String(localized:"Remove clip \(clip+1)?",bundle:.checkmate),String(localized:"This removes one recording for the selected language, voice and lesson. Record / Resume then records only that clip again; until then the lesson plays in English.",bundle:.checkmate),action:String(localized:"Remove",bundle:.checkmate)){controller.removeClip(step:clip)}
     }
     private func confirmRemove(){
-        confirm("Remove stored lesson language?","This removes recordings for the selected language, voice and scope. Translated text, progress and bundled English lessons are kept.",action:"Remove"){controller.remove()}
+        confirm(String(localized:"Remove stored lesson language?",bundle:.checkmate),String(localized:"This removes recordings for the selected language, voice and scope. Translated text, progress and bundled English lessons are kept.",bundle:.checkmate),action:String(localized:"Remove",bundle:.checkmate)){controller.remove()}
     }
     /// A destructive confirmation: Cancel is the default (Return) button, and the action runs only when chosen.
     private func confirm(_ title:String,_ message:String,action:String,perform:()->Void){

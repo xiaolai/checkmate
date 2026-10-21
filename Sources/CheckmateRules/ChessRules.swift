@@ -11,12 +11,12 @@ public final class ChessRules {
     }
     private func literal(_ object:Any) throws -> String {String(decoding:try JSONSerialization.data(withJSONObject:object,options:[.fragmentsAllowed,.sortedKeys]),as:UTF8.self)}
     private func raw(_ expression:String) throws -> Any {
-        let value=try runtime.evaluate("(()=>{try{return JSON.stringify({ok:true,value:\(expression)})}catch(e){return JSON.stringify({ok:false})}})()");guard let data=value.data(using:.utf8),let result=try JSONSerialization.jsonObject(with:data) as? [String:Any],result["ok"] as? Bool == true else {throw CheckmateError.invalid("Invalid chess operation.")}
+        let value=try runtime.evaluate("(()=>{try{return JSON.stringify({ok:true,value:\(expression)})}catch(e){return JSON.stringify({ok:false})}})()");guard let data=value.data(using:.utf8),let result=try JSONSerialization.jsonObject(with:data) as? [String:Any],result["ok"] as? Bool == true else {throw CheckmateError.invalid(String(localized:"Invalid chess operation.",bundle:.checkmate))}
         return result["value"] ?? NSNull()
     }
     private func decoded<T:Decodable>(_ expression:String,_ type:T.Type) throws -> T {let value=try raw(expression);return try JSONDecoder().decode(type,from:JSONSerialization.data(withJSONObject:value,options:.fragmentsAllowed))}
-    private func flag(_ expression:String)throws -> Bool {guard let value=try raw(expression) as? Bool else{throw CheckmateError.invalid("Invalid chess operation.")};return value}
-    private func text(_ expression:String)throws -> String {guard let value=try raw(expression) as? String else{throw CheckmateError.invalid("Invalid chess operation.")};return value}
+    private func flag(_ expression:String)throws -> Bool {guard let value=try raw(expression) as? Bool else{throw CheckmateError.invalid(String(localized:"Invalid chess operation.",bundle:.checkmate))};return value}
+    private func text(_ expression:String)throws -> String {guard let value=try raw(expression) as? String else{throw CheckmateError.invalid(String(localized:"Invalid chess operation.",bundle:.checkmate))};return value}
     // Convenience reads: each falls back to an empty or false value on a runtime failure. The throwing queries below
     // are the one implementation; anything that grades or copies a game uses those.
     public var fen:String {(try? currentFEN()) ?? ""}
@@ -37,7 +37,7 @@ public final class ChessRules {
     public var fiftyMoveClaim:Bool {(try? fiftyMoveRuleReached()) ?? false}
     /// How the game ended by the rules, or nil while it continues.
     public var ending:(result:String,reason:String)? {try? rulesEnding()}
-    public var status:String {checkmate ? "Checkmate" : draw ? "Draw" : (turn == "w" ? "White to move" : "Black to move") + (check ? " · Check" : "")}
+    public var status:String {checkmate ? String(localized:"Checkmate",bundle:.checkmate) : draw ? String(localized:"Draw",bundle:.checkmate,comment:"A game result: neither side wins") : (turn == "w" ? String(localized:"White to move",bundle:.checkmate) : String(localized:"Black to move",bundle:.checkmate)) + (check ? String(localized:" · Check",bundle:.checkmate) : "")}
     public func piece(_ square:String)->ChessPiece? {guard Self.validSquare(square) else{return nil};return try? pieceAt(square)}
     public var board:[String:String] {(try? currentBoard()) ?? [:]}
     public func moves(_ square:String?=nil)->[MoveRecord] {(try? legalMoves(from:square)) ?? []}
@@ -53,13 +53,13 @@ public final class ChessRules {
     /// chess.js always writes its Result header (default *), so a finished game needs it set explicitly.
     public func recordPGN(result override:String?=nil)throws -> String {
         let result=try override ?? rulesEnding()?.result ?? "*"
-        guard let value=try raw("(()=>{const g=new exports.Chess();g.loadPgn(game.pgn());g.setHeader('Result',\(literal(result)));return g.pgn()})()") as? String else{throw CheckmateError.invalid("The game record could not be written.")}
+        guard let value=try raw("(()=>{const g=new exports.Chess();g.loadPgn(game.pgn());g.setHeader('Result',\(literal(result)));return g.pgn()})()") as? String else{throw CheckmateError.invalid(String(localized:"The game record could not be written.",bundle:.checkmate))}
         return value
     }
     public func load(_ fen:String) throws {_ = try raw("game.load(\(literal(fen)))")}
     /// The FEN header chess.js keeps for a game set up from a position (`load`, or a record's SetUp/FEN), or nil for
     /// a game from the initial position.
-    public func setUpFEN()throws -> String? {let value=try raw("game.getHeaders().FEN ?? null");if value is NSNull{return nil};guard let fen=value as? String else{throw CheckmateError.invalid("Invalid chess operation.")};return fen}
+    public func setUpFEN()throws -> String? {let value=try raw("game.getHeaders().FEN ?? null");if value is NSNull{return nil};guard let fen=value as? String else{throw CheckmateError.invalid(String(localized:"Invalid chess operation.",bundle:.checkmate))};return fen}
     /// The record loads into a fresh game that replaces this one only once it has loaded: a failure leaves this game as it was.
     public func restore(_ pgn:String) throws {_ = try raw("(()=>{const g=new exports.Chess();g.loadPgn(\(literal(pgn)));game=g;return true})()")}
     /// A runtime failure throws: the caller must not record a new game or a take-back that did not happen.
@@ -78,13 +78,13 @@ public final class ChessRules {
             let d=p.color=="w" ? 1 : -1,one=String(sq.prefix(1))+String(rank+d),two=String(sq.prefix(1))+String(rank+d*2)
             if (1...8).contains(rank+d),try pieceAt(one)==nil {destinations.append(one);if rank==(d==1 ? 2:7),try pieceAt(two)==nil{destinations.append(two)}}
         }
-        return PieceInspection(square:sq,piece:p.type,color:p.color,attacks:attacks,destinations:destinations,legalNow:legal,note:legal ? "Dots show legal moves. Rings show attacks or defended squares.":"Dots show potential movement with current blockers. It is not this side’s turn; checks and pins may restrict these moves. Rings show attacks or defended squares.")
+        return PieceInspection(square:sq,piece:p.type,color:p.color,attacks:attacks,destinations:destinations,legalNow:legal,note:legal ? String(localized:"Dots show legal moves. Rings show attacks or defended squares.",bundle:.checkmate):String(localized:"Dots show potential movement with current blockers. It is not this side’s turn; checks and pins may restrict these moves. Rings show attacks or defended squares.",bundle:.checkmate))
     }
     /// The relationships evaluator (`relationships.js`), read once from the bundled resources. A missing or unreadable
     /// resource fails every relationships call with this error; there is no inline fallback copy.
     private static let relationshipsScript=Result<String,Error>{
         do{return try String(contentsOf:NativeResources.url("relationships.js"),encoding:.utf8)}
-        catch{throw CheckmateError.unavailable("Chess relationships resource is missing or unreadable: \(error.localizedDescription)")}
+        catch{throw CheckmateError.unavailable(String(localized:"Chess relationships resource is missing or unreadable: \(error.localizedDescription)",bundle:.checkmate))}
     }
     /// Evaluates a displayed position without mutating the live game or its history.
     /// An authored partial diagram intentionally supplies geometry only.
@@ -99,17 +99,17 @@ public final class ChessRules {
     public func currentFEN()throws -> String {try text("game.fen()")}
     /// The moves played since the start of the record, as `records` but throwing on a runtime failure.
     public func moveHistory()throws -> [MoveRecord] {try decoded("game.history({verbose:true})",[MoveRecord].self)}
-    public func currentTurn()throws -> String {let value=try text("game.turn()");guard ["w","b"].contains(value) else{throw CheckmateError.invalid("Invalid chess operation.")};return value}
+    public func currentTurn()throws -> String {let value=try text("game.turn()");guard ["w","b"].contains(value) else{throw CheckmateError.invalid(String(localized:"Invalid chess operation.",bundle:.checkmate))};return value}
     public func isCheck()throws -> Bool {try flag("game.isCheck()")}
     public func isCheckmate()throws -> Bool {try flag("game.isCheckmate()")}
     public func isStalemate()throws -> Bool {try flag("game.isStalemate()")}
     public func isInsufficientMaterial()throws -> Bool {try flag("game.isInsufficientMaterial()")}
     /// How the game ended by the rules, or nil while it continues; a runtime failure throws rather than reading as play on.
     private func rulesEnding()throws -> (result:String,reason:String)? {
-        if try isCheckmate(){let white=try currentTurn()=="b";return (white ? "1-0":"0-1",(white ? "White":"Black")+" wins by checkmate.")}
-        if try isStalemate(){return ("1/2-1/2","Draw by stalemate.")}
-        if try isInsufficientMaterial(){return ("1/2-1/2","Draw: neither side has enough material to checkmate.")}
-        return try ruleDrawReason().map{(result:"1/2-1/2",reason:"Draw by \($0).")}
+        if try isCheckmate(){let white=try currentTurn()=="b";return (white ? "1-0":"0-1",(white ? String(localized:"White",bundle:.checkmate):String(localized:"Black",bundle:.checkmate))+String(localized:" wins by checkmate.",bundle:.checkmate))}
+        if try isStalemate(){return ("1/2-1/2",String(localized:"Draw by stalemate.",bundle:.checkmate))}
+        if try isInsufficientMaterial(){return ("1/2-1/2",String(localized:"Draw: neither side has enough material to checkmate.",bundle:.checkmate))}
+        return try ruleDrawReason().map{(result:"1/2-1/2",reason:String(localized:"Draw by \($0).",bundle:.checkmate))}
     }
     /// The 75-move rule or fivefold repetition, whichever ends the game now; nil while neither does.
     private func ruleDrawReason()throws -> String? {
@@ -121,12 +121,12 @@ public final class ChessRules {
     /// the capture is legal, so a pawn pinned to its king cannot make two positions differ. chess.js's own repetition
     /// count hashes the square whenever an enemy pawn stands beside it, pinned or not, so it is not used.
     private func positionRepetitions()throws -> Int {
-        guard let count=Int(try text("(()=>{const h=game.history({verbose:true}),key=fen=>fen.split(' ').slice(0,4).join(' '),current=key(game.fen()),positions=[h.length?h[0].before:game.fen(),...h.map(m=>m.after)];return String(positions.filter(fen=>key(fen)===current).length)})()")) else{throw CheckmateError.invalid("Invalid chess operation.")}
+        guard let count=Int(try text("(()=>{const h=game.history({verbose:true}),key=fen=>fen.split(' ').slice(0,4).join(' '),current=key(game.fen()),positions=[h.length?h[0].before:game.fen(),...h.map(m=>m.after)];return String(positions.filter(fen=>key(fen)===current).length)})()")) else{throw CheckmateError.invalid(String(localized:"Invalid chess operation.",bundle:.checkmate))}
         return count
     }
     /// Automatic draws other than stalemate: insufficient material, the 75-move rule or fivefold repetition.
     public func automaticDrawReason()throws -> String? {
-        if try isInsufficientMaterial(){return "neither side has enough material to checkmate"}
+        if try isInsufficientMaterial(){return String(localized:"neither side has enough material to checkmate",bundle:.checkmate)}
         return try ruleDrawReason()
     }
     /// Claimable, not automatic: threefold repetition, or 50 moves by each side without a capture or pawn move.
@@ -144,7 +144,7 @@ public final class ChessRules {
         return try decoded("game.moves(\(literal(args)))",[MoveRecord].self)
     }
     /// The whole board in one evaluation.
-    public func currentBoard()throws -> Position {try decoded("Object.fromEntries(game.board().flat().filter(p=>p).map(p=>[p.square,p.color+p.type]))",Position.self)}
+    public func currentBoard()throws -> Position {try decoded("Object.fromEntries(game.board().flat().filter(p=>p).map(p=>[p.square,p.color+p.type]))",Position.self)} // not localized: JavaScript
     /// Squares of `color`'s pieces attacking `square` in the current game (legal-position context, pins ignored).
     public func attackersOf(_ square:String,color:String)throws -> [String] {guard Self.validSquare(square),["w","b"].contains(color) else{throw CheckmateError.invalid("INVALID_SQUARE")};return try decoded("game.attackers(\(literal(square)),\(literal(color)))",[String].self).sorted()}
     /// Every legal move and the position it leads to, in one evaluation of a copy: this game never changes, so an

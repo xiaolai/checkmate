@@ -35,7 +35,7 @@ final class DrawerSplitViewController:NSSplitViewController {
 }
 final class BoardTitleView:NSView {
     weak var board:NSView?
-    let label=textLabel("Practice · White vs Stockfish",.title3,.semibold),tabs=NSSegmentedControl(labels:["Game","Demonstration"],trackingMode:.selectOne,target:nil,action:nil)
+    let label=textLabel(String(localized:"Practice · White vs Stockfish",bundle:.checkmate),.title3,.semibold),tabs=NSSegmentedControl(labels:[String(localized:"Game",bundle:.checkmate),String(localized:"Demonstration",bundle:.checkmate)],trackingMode:.selectOne,target:nil,action:nil)
     override init(frame:NSRect){super.init(frame:frame);addSubview(label);addSubview(tabs);label.alignment = .center;tabs.isHidden=true}
     required init?(coder:NSCoder){fatalError()}
     override var mouseDownCanMoveWindow:Bool {true}
@@ -79,7 +79,7 @@ final class BoardTitleView:NSView {
     private let titleID=NSToolbarItem.Identifier("checkmate.title")
     init(model:NativeModel){self.model=model
         let w=BoardWindow(contentRect:NSRect(x:0,y:0,width:Metrics.core,height:Metrics.core),styleMask:[.titled,.closable,.miniaturizable,.resizable,.fullSizeContentView],backing:.buffered,defer:false)
-        super.init(window:w);w.title="Checkmate";w.isMovableByWindowBackground=true;w.titleVisibility = .hidden;w.titlebarSeparatorStyle = .none;w.titlebarAppearsTransparent=true;w.isReleasedWhenClosed=false;w.isRestorable=false;w.delegate=self;w.autorecalculatesKeyViewLoop=true;w.identifier=NSUserInterfaceItemIdentifier("main");w.collectionBehavior=[.fullScreenPrimary];w.tabbingMode = .disallowed
+        super.init(window:w);w.title=String(localized:"Checkmate",bundle:.checkmate);w.isMovableByWindowBackground=true;w.titleVisibility = .hidden;w.titlebarSeparatorStyle = .none;w.titlebarAppearsTransparent=true;w.isReleasedWhenClosed=false;w.isRestorable=false;w.delegate=self;w.autorecalculatesKeyViewLoop=true;w.identifier=NSUserInterfaceItemIdentifier("main");w.collectionBehavior=[.fullScreenPrimary];w.tabbingMode = .disallowed
         main.view=BackgroundView();navigation=NSHostingController(rootView:SidebarContent(session:model.session,learning:model.learning,model:model,network:model.network));inspector=ToolbarInsetHostingController(rootView:DetailContent(session:model.session,learning:model.learning,model:model,voice:model.voice,relationships:relationships,history:history,inspect:{[weak self] mode in self?.toggleRelationship(mode)}))
         split.drawerOpen={[unowned self] in $0 ? desiredLeft:desiredRight};split.toggleDrawer={[unowned self] in $0 ? toggleLeft():toggleRight()}
         _ = split.view;split.splitView.autoresizingMask=[.width,.height];split.splitView.isVertical=true;split.splitView.dividerStyle = .thin
@@ -163,7 +163,7 @@ final class BoardTitleView:NSView {
         model.voice.$connection.removeDuplicates().receive(on:RunLoop.main).sink{[weak self] state in guard case .failed=state else{return};self?.showDetails()}.store(in:&observations)
         let undone=model.session.onUndo;model.session.onUndo={[weak self] in undone?();self?.board.cancelAnimation()}
         let sound=model.session.onMove;model.session.onMove={[weak self] move in sound?(move);guard let self=self else{return};self.board.animate(move,duration:Double(self.model.session.state.settings.pieceDuration)/1000);self.announce(move)}
-        let miniSound=model.learning.onMiniMove;model.learning.onMiniMove={[weak self] move in miniSound?(move);guard let self else{return};self.board.animate(move,landing:self.model.learning.miniGame?.board,duration:Double(self.model.session.state.settings.pieceDuration)/1000);if self.model.learning.miniGame?.computer==true,move.color=="b"{self.announce("The computer played \(move.san).")}}
+        let miniSound=model.learning.onMiniMove;model.learning.onMiniMove={[weak self] move in miniSound?(move);guard let self else{return};self.board.animate(move,landing:self.model.learning.miniGame?.board,duration:Double(self.model.session.state.settings.pieceDuration)/1000);if self.model.learning.miniGame?.computer==true,move.color=="b"{self.announce(String(localized:"The computer played \(move.san).",bundle:.checkmate))}}
         let attemptSound=model.learning.onAttemptMove;model.learning.onAttemptMove={[weak self] move in attemptSound?(move);guard let self else{return};self.board.animate(move,landing:self.model.learning.attempt.board,duration:Double(self.model.session.state.settings.pieceDuration)/1000);self.announce(self.attemptAnnouncement(for:move))}
         let trainingSound=model.training?.onMove;model.training?.onMove={[weak self] move in trainingSound?(move);guard let self else{return};self.board.animate(move,duration:Double(self.model.session.state.settings.pieceDuration)/1000);self.announce(self.trainingAnnouncement(for:move))}
         // A training exercise's feedback and hints are shown in the details drawer, as a puzzle's are: open it when one appears.
@@ -196,15 +196,15 @@ final class BoardTitleView:NSView {
         let item=NSToolbarItem(itemIdentifier:id)
         // AppKit builds the system toggles itself; this is only a fallback with the same action.
         if id == .toggleSidebar || id == .toggleInspector{item.action=id == .toggleSidebar ? #selector(NSSplitViewController.toggleSidebar(_:)):#selector(NSSplitViewController.toggleInspector(_:));item.target=split;item.isBordered=true;label(toolbarItem:item);return item}
-        if id==titleID{item.view=titleView;item.isBordered=false;item.label="Current activity";return item}
+        if id==titleID{item.view=titleView;item.isBordered=false;item.label=String(localized:"Current activity",bundle:.checkmate);return item}
         return nil
     }
     /// One noun per drawer, "Sidebar" and "Details", in the View menu, the toolbar and Help (D-6).
-    static func drawerTitle(sidebar:Bool,open:Bool)->String {(open ? "Hide ":"Show ")+(sidebar ? "Sidebar":"Details")}
+    static func drawerTitle(sidebar:Bool,open:Bool)->String {(open ? String(localized:"Hide ",bundle:.checkmate):String(localized:"Show ",bundle:.checkmate))+(sidebar ? String(localized:"Sidebar",bundle:.checkmate):String(localized:"Details",bundle:.checkmate))}
     /// The system toggle items keep their own action, which reaches the split controller; their label, image
     /// description and tooltip name the drawer, and the tooltip says whether it will open or close, as the View menu does.
     func label(toolbarItem item:NSToolbarItem){
-        let sidebar=item.itemIdentifier == .toggleSidebar,label=sidebar ? "Sidebar":"Details",tip=Self.drawerTitle(sidebar:sidebar,open:sidebar ? desiredLeft:desiredRight)+(sidebar ? " (⌃⌘S)":" (⌥⌘I)")
+        let sidebar=item.itemIdentifier == .toggleSidebar,label=sidebar ? String(localized:"Sidebar",bundle:.checkmate):String(localized:"Details",bundle:.checkmate),tip=Self.drawerTitle(sidebar:sidebar,open:sidebar ? desiredLeft:desiredRight)+(sidebar ? " (⌃⌘S)":" (⌥⌘I)")
         if item.label != label{item.label=label;item.paletteLabel=label};if item.toolTip != tip{item.toolTip=tip}
         if item.image?.accessibilityDescription != label{item.image=NSImage(systemSymbolName:sidebar ? "sidebar.left":"sidebar.right",accessibilityDescription:label)}
     }
@@ -307,7 +307,7 @@ final class BoardTitleView:NSView {
     @discardableResult private func showPromotionMenu(at sq:String,action:Selector,payload:(String)->Any)->Bool {
         let menu=NSMenu()
         // Each piece answers to its letter alone (B-13); Queen opens under the pointer, highlighted.
-        for (title,piece,tip) in [("Queen","q","Promote to a queen"),("Rook","r","Promote to a rook"),("Bishop","b","Promote to a bishop"),("Knight","n","Promote to a knight")]{let item=NSMenuItem(title:title,action:action,keyEquivalent:piece);item.keyEquivalentModifierMask=[];item.target=self;item.image=promotionImage(piece);item.toolTip=tip;item.representedObject=payload(piece);menu.addItem(item)}
+        for (title,piece,tip) in [(String(localized:"Queen",bundle:.checkmate),"q",String(localized:"Promote to a queen",bundle:.checkmate)),(String(localized:"Rook",bundle:.checkmate),"r",String(localized:"Promote to a rook",bundle:.checkmate)),(String(localized:"Bishop",bundle:.checkmate),"b",String(localized:"Promote to a bishop",bundle:.checkmate)),(String(localized:"Knight",bundle:.checkmate),"n",String(localized:"Promote to a knight",bundle:.checkmate))]{let item=NSMenuItem(title:title,action:action,keyEquivalent:piece);item.keyEquivalentModifierMask=[];item.target=self;item.image=promotionImage(piece);item.toolTip=tip;item.representedObject=payload(piece);menu.addItem(item)}
         return presentPromotionMenu(menu,board.squareRect(sq).origin,board)
     }
     /// A training promotion, bound to the attempt, its saved revision and the move the menu was opened for: a choice
@@ -352,30 +352,30 @@ final class BoardTitleView:NSView {
     /// What VoiceOver hears for a move that just landed; nil outside practice or during review.
     func announcement(for move:MoveRecord)->String? {
         let s=model.session;guard s.mode == .practice,!model.review.active else{return nil}
-        var text=move.color==s.humanSide ? "You played \(move.san).":move.color=="w" ? "White played \(move.san).":"Black played \(move.san)."
-        if s.rules.checkmate{text+=move.color==s.humanSide ? " Checkmate. You win.":" Checkmate."}else if s.rules.check{text+=move.color==s.humanSide ? " Check.":" Your king is in check."}else if s.rules.draw{text+=" The game is drawn."}
+        var text=move.color==s.humanSide ? String(localized:"You played \(move.san).",bundle:.checkmate):move.color=="w" ? String(localized:"White played \(move.san).",bundle:.checkmate):String(localized:"Black played \(move.san).",bundle:.checkmate)
+        if s.rules.checkmate{text+=move.color==s.humanSide ? String(localized:" Checkmate. You win.",bundle:.checkmate):String(localized:" Checkmate.",bundle:.checkmate)}else if s.rules.check{text+=move.color==s.humanSide ? String(localized:" Check.",bundle:.checkmate):String(localized:" Your king is in check.",bundle:.checkmate)}else if s.rules.draw{text+=String(localized:" The game is drawn.",bundle:.checkmate)}
         return text
     }
     /// What VoiceOver hears when a lesson exercise move lands: the move, check or mate, and the exercise's outcome.
     func attemptAnnouncement(for move:MoveRecord)->String {
         let attempt=model.learning.attempt!,rules=attempt.rules
-        var text=move.color=="w" ? "You played \(move.san).":"The computer played \(move.san)."
-        if rules.checkmate{text+=" Checkmate."}else if rules.check{text+=move.color=="w" ? " Check.":" Your king is in check."}else if rules.draw{text+=" The game is drawn."}
-        switch attempt.phase {case .achieved?:text+=" Well done! "+(attempt.judgement?.feedback ?? "");case .offTrack?,.failed?:text+=" "+(attempt.judgement?.feedback ?? "");default:break}
+        var text=move.color=="w" ? String(localized:"You played \(move.san).",bundle:.checkmate):String(localized:"The computer played \(move.san).",bundle:.checkmate)
+        if rules.checkmate{text+=String(localized:" Checkmate.",bundle:.checkmate)}else if rules.check{text+=move.color=="w" ? String(localized:" Check.",bundle:.checkmate):String(localized:" Your king is in check.",bundle:.checkmate)}else if rules.draw{text+=String(localized:" The game is drawn.",bundle:.checkmate)}
+        switch attempt.phase {case .achieved?:text+=String(localized:" Well done! ",bundle:.checkmate)+(attempt.judgement?.feedback ?? "");case .offTrack?,.failed?:text+=" "+(attempt.judgement?.feedback ?? "");default:break}
         return text
     }
     /// What VoiceOver hears when a training move lands: who played it, and check or mate from its notation. The
     /// exercise's result is in its feedback, which the drawer and the bar show.
     func trainingAnnouncement(for move:MoveRecord)->String {
         let learner=move.color==trainingExercise?.scenario.learner
-        var text=(learner ? "You played ":"The opponent played ")+move.san+"."
-        if move.san.hasSuffix("#"){text+=" Checkmate."}else if move.san.hasSuffix("+"){text+=learner ? " Check.":" Your king is in check."}
+        var text=(learner ? String(localized:"You played ",bundle:.checkmate):String(localized:"The opponent played ",bundle:.checkmate))+move.san+"."
+        if move.san.hasSuffix("#"){text+=String(localized:" Checkmate.",bundle:.checkmate)}else if move.san.hasSuffix("+"){text+=learner ? String(localized:" Check.",bundle:.checkmate):String(localized:" Your king is in check.",bundle:.checkmate)}
         return text
     }
     /// The bar takes a second row when its sides no longer fit beside the centre group; the board yields the height.
     private func setControlRows(_ rows:Int){let height=Metrics.header+CGFloat(max(0,rows-1))*(ControlBarView.rowHeight+Metrics.smallGap);if controlsHeight.constant != height{controlsHeight.constant=height}}
     /// An arrow that crossed into another lesson says where the learner now is.
-    private func announceLesson(){announce("Now in \(model.learning.localizedTitle(index:model.learning.lessonIndex)).")}
+    private func announceLesson(){announce(String(localized:"Now in \(model.learning.localizedTitle(index:model.learning.lessonIndex)).",bundle:.checkmate))}
     private func announce(_ text:String){NSAccessibility.post(element:board,notification:.announcementRequested,userInfo:[.announcement:text,.priority:NSAccessibilityPriorityLevel.high.rawValue])}
     func refresh(){syncDrawerToggles();syncMenus();let s=model.session,l=model.learning
         // The learner's own side sits nearest them in practice, training and a review of their own game; lessons and
@@ -387,11 +387,11 @@ final class BoardTitleView:NSView {
         reviewWorkspaceView.isHidden = !model.reviewWorkspace;controls.isHidden=model.reviewWorkspace;if workspaceFill.isActive != model.reviewWorkspace{workspaceAboveControls.isActive=false;workspaceFill.isActive=model.reviewWorkspace;workspaceAboveControls.isActive = !model.reviewWorkspace}
 playbackLineView?.isHidden=model.reviewWorkspace
         trainingLibraryView.isHidden=true
-        if model.reviewWorkspace{board.isHidden=true;welcome.isHidden=true;puzzles.isHidden=true;setTitle("Game review");titleView.label.isHidden=false;titleView.tabs.isHidden=true;return}
+        if model.reviewWorkspace{board.isHidden=true;welcome.isHidden=true;puzzles.isHidden=true;setTitle(String(localized:"Game review",bundle:.checkmate));titleView.label.isHidden=false;titleView.tabs.isHidden=true;return}
         board.theme=s.state.settings.boardTheme
         if model.review.active{let review=model.review;applyBoard(reviewPresentation(review));board.relationshipMode=nil;board.relationshipConnectors=[]
-            if announcedReviewIdentity != review.identity{announcedReviewIdentity=review.identity;let node=review.document?.nodes[review.nodeID];let announcement=review.branch==nil ? "Review, \(node?.fullmove ?? 1), \(node?.side=="b" ? "Black":"White"), \(node?.san ?? "starting position")":"Imagined line, move \(review.branchPly)";NSAccessibility.post(element:board,notification:.announcementRequested,userInfo:[.announcement:announcement,.priority:NSAccessibilityPriorityLevel.high.rawValue])}
-            board.isHidden=false;puzzles.isHidden=true;welcome.isHidden=true;setTitle(review.branch==nil ? "Review · Original game":"Review · Imagined moves");titleView.label.isHidden=false;titleView.tabs.isHidden=true;board.needsDisplay=true;return}
+            if announcedReviewIdentity != review.identity{announcedReviewIdentity=review.identity;let node=review.document?.nodes[review.nodeID];let announcement=review.branch==nil ? String(localized:"Review, \(node?.fullmove ?? 1), \(node?.side=="b" ? "Black":"White"), \(node?.san ?? "starting position")",bundle:.checkmate):String(localized:"Imagined line, move \(review.branchPly)",bundle:.checkmate);NSAccessibility.post(element:board,notification:.announcementRequested,userInfo:[.announcement:announcement,.priority:NSAccessibilityPriorityLevel.high.rawValue])}
+            board.isHidden=false;puzzles.isHidden=true;welcome.isHidden=true;setTitle(review.branch==nil ? String(localized:"Review · Original game",bundle:.checkmate):String(localized:"Review · Imagined moves",bundle:.checkmate));titleView.label.isHidden=false;titleView.tabs.isHidden=true;board.needsDisplay=true;return}
 
         // An exercise's own presentation replaces the activity's before relationships read the selection; it offers no inspection.
         var shown=s.mode == .network ? networkPresentation():trainingExercise.map(trainingPresentation) ?? activityPresentation()
@@ -409,8 +409,8 @@ playbackLineView?.isHidden=model.reviewWorkspace
         let trainingLibrary=model.training != nil && s.activity.place == .trainingLibrary
         board.isHidden=library || titlecard || trainingLibrary;puzzles.isHidden = !library;welcome.isHidden = !titlecard;trainingLibraryView.isHidden = !trainingLibrary
         if titlecard {welcome.rootView=WelcomeContent(title:l.localizedStepTitle(index:l.lessonIndex,step:l.step))}
-        setTitle(s.mode == .network ? model.network.boardTitle:s.mode == .practice ? "Practice · \(s.humanSide=="b" ? "Black":"White") vs Stockfish":s.mode == .puzzles ? "Quick puzzles":l.mini ? l.miniKind.title:s.mode == .training ? trainingExercise?.definition.title ?? "Training":l.localizedTitle(index:l.lessonIndex)+(l.attemptStatus.map{" · "+$0} ?? ""))
-        let temporary=s.preview != nil || s.demonstration != nil;titleView.label.isHidden=temporary;titleView.tabs.isHidden = !temporary;titleView.tabs.setLabel(s.demonstration != nil ? "Demonstration":"Try a Move",forSegment:1);titleView.tabs.selectedSegment=s.presentationHidden ? 0:1;titleView.needsLayout=true
+        setTitle(s.mode == .network ? model.network.boardTitle:s.mode == .practice ? String(localized:"Practice · \(s.humanSide=="b" ? "Black":"White") vs Stockfish",bundle:.checkmate):s.mode == .puzzles ? String(localized:"Quick puzzles",bundle:.checkmate):l.mini ? l.miniKind.title:s.mode == .training ? trainingExercise?.definition.title ?? String(localized:"Training",bundle:.checkmate):l.localizedTitle(index:l.lessonIndex)+(l.attemptStatus.map{" · "+$0} ?? ""))
+        let temporary=s.preview != nil || s.demonstration != nil;titleView.label.isHidden=temporary;titleView.tabs.isHidden = !temporary;titleView.tabs.setLabel(s.demonstration != nil ? String(localized:"Demonstration",bundle:.checkmate):String(localized:"Try a Move",bundle:.checkmate),forSegment:1);titleView.tabs.selectedSegment=s.presentationHidden ? 0:1;titleView.needsLayout=true
     }
     /// Everything the board shows for one activity. Each builder sets every field, so nothing from the previous
     /// activity survives a switch; `applyBoard` is the one place the board receives it.
@@ -469,11 +469,11 @@ playbackLineView?.isHidden=model.reviewWorkspace
         if let enabled=Self.voiceMenuItemEnabled(item,model:model,offered:!model.reviewWorkspace && bar.item(.voiceConnect)?.enabled==true){return enabled}
         if let action=item.action,[#selector(lessonPlayPause),#selector(lessonPrevious),#selector(lessonNext),#selector(lessonFromStart),#selector(barHint)].contains(action) {
             let shown=barItem(for:action)
-            let fallback=[#selector(lessonPlayPause):"Play",#selector(lessonPrevious):"Previous Step",#selector(lessonNext):"Next Step",#selector(lessonFromStart):"Play Step from Start",#selector(barHint):"Hint"][action] ?? item.title
+            let fallback=[#selector(lessonPlayPause):String(localized:"Play",bundle:.checkmate,comment:"Verb: start playback of a lesson"),#selector(lessonPrevious):String(localized:"Previous Step",bundle:.checkmate),#selector(lessonNext):String(localized:"Next Step",bundle:.checkmate),#selector(lessonFromStart):String(localized:"Play Step from Start",bundle:.checkmate),#selector(barHint):String(localized:"Hint",bundle:.checkmate,comment:"Noun: ask for a hint")][action] ?? item.title
             // The title follows the control: Pause while playing, and the lesson's name where the arrow crosses into it.
             switch shown?.action {
-            case .previousLesson?,.nextLesson?:item.title=shown!.label.replacingOccurrences(of:"Previous lesson:",with:"Previous Lesson:").replacingOccurrences(of:"Next lesson:",with:"Next Lesson:")
-            case .playPause?,.reviewPlayPause?,.demoPlayPause?:item.title=shown!.symbol == .pause ? "Pause":"Play"
+            case .previousLesson?,.nextLesson?:item.title=shown!.label.replacingOccurrences(of:String(localized:"Previous lesson:",bundle:.checkmate),with:String(localized:"Previous Lesson:",bundle:.checkmate)).replacingOccurrences(of:String(localized:"Next lesson:",bundle:.checkmate),with:String(localized:"Next Lesson:",bundle:.checkmate))
+            case .playPause?,.reviewPlayPause?,.demoPlayPause?:item.title=shown!.symbol == .pause ? String(localized:"Pause",bundle:.checkmate):String(localized:"Play",bundle:.checkmate,comment:"Verb: start playback of a lesson")
             case .attemptHint?,.trainingHint?,.hint?:item.title=shown!.label
             default:item.title=fallback
             }
@@ -483,11 +483,11 @@ playbackLineView?.isHidden=model.reviewWorkspace
         if item.action == #selector(resign){return !model.review.active && model.session.canResign}
         // Edit ▸ Undo follows `NativeModel.undoAction`: right after a deletion it puts the review back; in a review it
         // has nothing else; elsewhere it is the game's take back.
-        if item.action == NSSelectorFromString("undo:"){switch model.undoAction{case .restoreReview:item.title="Undo Delete Review";return true;case .nothing:item.title="Undo";return false;case .game:item.title="Undo"}}
+        if item.action == NSSelectorFromString("undo:"){switch model.undoAction{case .restoreReview:item.title=String(localized:"Undo Delete Review",bundle:.checkmate);return true;case .nothing:item.title=String(localized:"Undo",bundle:.checkmate);return false;case .game:item.title=String(localized:"Undo",bundle:.checkmate)}}
         if item.action == #selector(undo as () -> Void) || item.action == NSSelectorFromString("undo:"),!model.review.active,!model.reviewWorkspace {
-            if model.learning.attemptStep{if item.action == #selector(undo as () -> Void){item.title="Undo Turn"};return model.learning.attempt.hasMoves}
+            if model.learning.attemptStep{if item.action == #selector(undo as () -> Void){item.title=String(localized:"Undo Turn",bundle:.checkmate)};return model.learning.attempt.hasMoves}
             if let exercise=trainingExercise{return model.training.map{ControlBarModel.canTakeBack($0,exercise)} ?? false}
-            if item.action == #selector(undo as () -> Void){item.title=model.learning.mini ? "Undo Turn":"Take Back Move"}
+            if item.action == #selector(undo as () -> Void){item.title=model.learning.mini ? String(localized:"Undo Turn",bundle:.checkmate):String(localized:"Take Back Move",bundle:.checkmate)}
         }
         if [#selector(showProtection),#selector(showAttacks),#selector(dismissInspection)].contains(item.action){if item.action == #selector(dismissInspection){return relationships.mode != nil};item.state=(item.action == #selector(showProtection) && relationships.mode == .protected || item.action == #selector(showAttacks) && relationships.mode == .attacked) ? .on:.off;return !model.review.active && trainingExercise==nil && (model.session.mode != .network || model.network.inspectable) && board.selected.flatMap{board.position[$0]} != nil && !board.isHidden};guard [#selector(newGame),#selector(undo as () -> Void),NSSelectorFromString("undo:"),#selector(restorePrevious),#selector(claimDraw),#selector(resign)].contains(item.action) else{return true};guard !model.review.active,!model.reviewWorkspace else{return false};if model.learning.mini,![#selector(restorePrevious),#selector(claimDraw),#selector(resign)].contains(item.action){return item.action == #selector(newGame) || model.learning.miniGame?.history.isEmpty == false};guard model.session.mode == .practice else{return false};if item.action == #selector(undo as () -> Void) || item.action == NSSelectorFromString("undo:"){return model.session.canTakeBack};if item.action == #selector(claimDraw){return model.session.claimableDraw != nil};if item.action == #selector(resign){return !model.session.finished && !model.session.rules.history.isEmpty};if item.action == #selector(restorePrevious){return !model.session.state.practice.previousGame.isEmpty};return true}
     @objc func newGame(){
@@ -496,12 +496,12 @@ playbackLineView?.isHidden=model.reviewWorkspace
             if model.learning.miniGame?.history.isEmpty != false{model.learning.restartMini();return}
             // The sheet answers for the mini-game it was shown over: one replaced meanwhile (an agent, a restart) is kept.
             let shown=model.learning.miniGame.map{($0.kind,$0.opponentSeed)}
-            let alert=NSAlert.destructive("Start a new \(model.learning.miniKind.title) game?","This replaces the current mini-game.",action:"New Game");present(alert){[weak self] response in guard response == .alertFirstButtonReturn,let self,self.model.learning.mini,let game=self.model.learning.miniGame,let shown,game.kind==shown.0,game.opponentSeed==shown.1 else{return};self.model.learning.restartMini()};return
+            let alert=NSAlert.destructive(String(localized:"Start a new \(model.learning.miniKind.title) game?",bundle:.checkmate),String(localized:"This replaces the current mini-game.",bundle:.checkmate),action:String(localized:"New Game",bundle:.checkmate));present(alert){[weak self] response in guard response == .alertFirstButtonReturn,let self,self.model.learning.mini,let game=self.model.learning.miniGame,let shown,game.kind==shown.0,game.opponentSeed==shown.1 else{return};self.model.learning.restartMini()};return
         }
-        guard model.session.mode == .practice else{return};let a=NSAlert();a.messageText="Start a new game?";a.informativeText=model.session.state.practice.previousGame.isEmpty ? "Your current game will be available under Restore Previous Game.":"Your current game will be available under Restore Previous Game, replacing the game kept there now."
+        guard model.session.mode == .practice else{return};let a=NSAlert();a.messageText=String(localized:"Start a new game?",bundle:.checkmate);a.informativeText=model.session.state.practice.previousGame.isEmpty ? String(localized:"Your current game will be available under Restore Previous Game.",bundle:.checkmate):String(localized:"Your current game will be available under Restore Previous Game, replacing the game kept there now.",bundle:.checkmate)
         let choices=NewGameChoices.view(settings:model.session.state.settings,side:model.session.humanSide);a.accessoryView=choices.view
         let shown=practiceGame
-        a.addButton(withTitle:"New Game");a.addButton(withTitle:"Cancel");present(a){r in guard r == .alertFirstButtonReturn,self.stillShowing(shown) else{return};self.board.cancelAnimation()
+        a.addButton(withTitle:String(localized:"New Game",bundle:.checkmate));a.addButton(withTitle:String(localized:"Cancel",bundle:.checkmate));present(a){r in guard r == .alertFirstButtonReturn,self.stillShowing(shown) else{return};self.board.cancelAnimation()
             var settings=self.model.session.state.settings;let preset=NewGameChoices.strengths[choices.strength.indexOfSelectedItem].tag
             if settings.opponentPreset != preset{settings.opponentPreset=preset;self.model.session.updateSettings(settings)}
             self.model.session.newGame(side:NewGameChoices.side(at:choices.side.indexOfSelectedItem){Bool.random()})}}
@@ -558,10 +558,10 @@ playbackLineView?.isHidden=model.reviewWorkspace
     /// D11's help: a sheet whose button opens System Settings › Privacy & Security › Local Network.
     private func syncPermissionHelp(_ shown:Bool){
         if shown,permissionAlert==nil,let window {
-            let alert=NSAlert();alert.messageText="Allow Checkmate on your local network"
-            alert.informativeText="Finding and joining network games needs Local Network access. Turn on Checkmate in System Settings › Privacy & Security › Local Network; a game that is waiting carries on by itself once it is on."
-            alert.addButton(withTitle:"Open Local Network Settings").setAccessibilityIdentifier("network-permission-open-settings")
-            alert.addButton(withTitle:"Not Now").setAccessibilityIdentifier("network-permission-close")
+            let alert=NSAlert();alert.messageText=String(localized:"Allow Checkmate on your local network",bundle:.checkmate)
+            alert.informativeText=String(localized:"Finding and joining network games needs Local Network access. Turn on Checkmate in System Settings › Privacy & Security › Local Network; a game that is waiting carries on by itself once it is on.",bundle:.checkmate)
+            alert.addButton(withTitle:String(localized:"Open Local Network Settings",bundle:.checkmate)).setAccessibilityIdentifier("network-permission-open-settings")
+            alert.addButton(withTitle:String(localized:"Not Now",bundle:.checkmate)).setAccessibilityIdentifier("network-permission-close")
             alert.window.setAccessibilityIdentifier("network-permission-sheet")
             permissionAlert=alert
             alert.beginSheetModal(for:window){[weak self] response in MainActor.assumeIsolated{
@@ -578,15 +578,15 @@ playbackLineView?.isHidden=model.reviewWorkspace
         guard let entry=model.takeNetworkCrashNotice(),let window else{return}
         let moves=NativeModel.replayedMoves(entry) ?? [],reviewable = !moves.isEmpty
         let alert=NSAlert();alert.messageText=entry.notice;alert.informativeText=NativeModel.crashDetail(entry,moves:moves)
-        if reviewable{alert.addButton(withTitle:"Review").setAccessibilityIdentifier("network-crash-review")}
-        alert.addButton(withTitle:reviewable ? "Not Now":"OK").setAccessibilityIdentifier("network-crash-dismiss")
+        if reviewable{alert.addButton(withTitle:String(localized:"Review",bundle:.checkmate,comment:"Verb: open the game for review")).setAccessibilityIdentifier("network-crash-review")}
+        alert.addButton(withTitle:reviewable ? String(localized:"Not Now",bundle:.checkmate):"OK").setAccessibilityIdentifier("network-crash-dismiss")
         alert.window.setAccessibilityIdentifier("network-crash-notice")
         alert.beginSheetModal(for:window){[weak self] response in MainActor.assumeIsolated{if reviewable,response == .alertFirstButtonReturn{self?.model.reviewNetworkCrash(entry,moves:moves)}}}
     }
     @objc func resign(){
         if model.session.mode == .network{model.resignNetworkGame();return}
         guard !model.review.active,model.session.canResign else{return}
-        let a=NSAlert.destructive("Resign this game?","The game is recorded as a loss. Start a new game or review it afterwards.",action:"Resign")
+        let a=NSAlert.destructive(String(localized:"Resign this game?",bundle:.checkmate),String(localized:"The game is recorded as a loss. Start a new game or review it afterwards.",bundle:.checkmate),action:String(localized:"Resign",bundle:.checkmate,comment:"Verb: give up the game"))
         let shown=practiceGame
         present(a){[weak self] r in guard r == .alertFirstButtonReturn,let self,self.stillShowing(shown) else{return};self.model.session.resign();self.refresh()}
     }
@@ -706,16 +706,16 @@ playbackLineView?.isHidden=model.reviewWorkspace
         try await Self.captureWindow(window,path:path)
     }
     static func captureWindow(_ window:NSWindow?,path:String) async throws {
-        guard let id=window?.windowNumber else{throw CheckmateError.unavailable("There is no window to capture.")}
+        guard let id=window?.windowNumber else{throw CheckmateError.unavailable(String(localized:"There is no window to capture.",bundle:.checkmate))}
         let content:SCShareableContent
         if #available(macOS 14.4,*) {content=try await SCShareableContent.currentProcess}
         else {content=try await SCShareableContent.excludingDesktopWindows(false,onScreenWindowsOnly:false)}
-        guard let own=content.windows.first(where:{$0.windowID==CGWindowID(id)}) else{throw CheckmateError.unavailable("The window is not available for capture.")}
+        guard let own=content.windows.first(where:{$0.windowID==CGWindowID(id)}) else{throw CheckmateError.unavailable(String(localized:"The window is not available for capture.",bundle:.checkmate))}
         // The image is the window alone at the display's own pixel scale: a fixed 2× scale left a 1× window in one corner.
         let filter=SCContentFilter(desktopIndependentWindow:own),scale=CGFloat(filter.pointPixelScale)
         let config=SCStreamConfiguration();config.width=Int((filter.contentRect.width*scale).rounded());config.height=Int((filter.contentRect.height*scale).rounded());config.showsCursor=false;config.ignoreShadowsSingleWindow=true
         let image=try await SCScreenshotManager.captureImage(contentFilter:filter,configuration:config)
-        guard let png=NSBitmapImageRep(cgImage:image).representation(using:.png,properties:[:]) else{throw CheckmateError.invalid("The capture could not be encoded as PNG.")}
+        guard let png=NSBitmapImageRep(cgImage:image).representation(using:.png,properties:[:]) else{throw CheckmateError.invalid(String(localized:"The capture could not be encoded as PNG.",bundle:.checkmate))}
         try png.write(to:URL(fileURLWithPath:path))
     }
 }

@@ -1,3 +1,4 @@
+import CheckmateAssets
 import Foundation
 /// What the learner did in an attempt, in order. Replaying these on the concrete scenario rebuilds the attempt exactly.
 public enum TrainingAction:Codable,Equatable {
@@ -160,7 +161,7 @@ public struct TrainingState:Codable,Equatable {
     /// decode, or carries a field this build does not know: anywhere when `whole`, else in its scenario and actions).
     /// Throws when it is damaged: not an object with a string `id`, a string `entry` and a `scenario` object.
     static func readable<Record:Codable>(_ raw:JSONValue,as type:Record.Type,whole:Bool)throws -> Record? {
-        guard case .object(let fields)=raw,case .string?=fields["id"],case .string?=fields["entry"],case .object?=fields["scenario"] else{throw CheckmateError.invalid("Training record: a damaged \(Record.self)")}
+        guard case .object(let fields)=raw,case .string?=fields["id"],case .string?=fields["entry"],case .object?=fields["scenario"] else{throw CheckmateError.invalid(String(localized:"Training record: a damaged \(String(describing:Record.self))",bundle:.checkmate))}
         guard let record=try? JSONDecoder().decode(Record.self,from:JSONEncoder().encode(raw)),case .object(let written)=try JSONDecoder().decode(JSONValue.self,from:JSONEncoder().encode(record)) else{return nil}
         let compared=whole ? fields:fields.filter{written[$0.key] != nil}
         return compared.contains(where:{key,value in Self.unknown(value,beyond:written[key])}) ? nil:record
@@ -194,13 +195,13 @@ public struct TrainingState:Codable,Equatable {
     }
     /// Fails on any record this build could not have written: an unreadable record is preserved raw instead.
     public func validate()throws {
-        func fail(_ reason:String)throws -> Never {throw CheckmateError.invalid("Training record: \(reason)")}
+        func fail(_ reason:String)throws -> Never {throw CheckmateError.invalid(String(localized:"Training record: \(reason)",bundle:.checkmate))}
         guard version==Self.version else{try fail("unsupported version \(version)")}
-        guard attempts.count<=Self.maximumAttempts,events.count<=Self.maximumEvents,retrySlots.count<=Self.maximumRetries,attemptedPositions.count<=Self.maximumPositions,(0...Self.maximumCount).contains(finishedAttempts) else{try fail("exceeds its bounds")}
+        guard attempts.count<=Self.maximumAttempts,events.count<=Self.maximumEvents,retrySlots.count<=Self.maximumRetries,attemptedPositions.count<=Self.maximumPositions,(0...Self.maximumCount).contains(finishedAttempts) else{try fail(String(localized:"exceeds its bounds",bundle:.checkmate))}
         // A newer-version item's identifier is read from its raw record; `readable` admitted only string identifiers.
         let retryIDs=retrySlots.map{slot->String in switch slot {case .item(let item):return item.id;case .newer(.object(let fields)):if case .string(let id)?=fields["id"]{return id};return "";case .newer:return ""}}
         guard Set(attempts.map(\.id)).count==attempts.count,Set(events.map(\.id)).count==events.count,Set(retryIDs).count==retryIDs.count else{try fail("duplicate identifiers")}
-        guard active==nil || newerActive==nil else{try fail("two active attempts")}
+        guard active==nil || newerActive==nil else{try fail(String(localized:"two active attempts",bundle:.checkmate))}
         guard creditedRuns.keys.allSatisfy({MiniGameKind(rawValue:$0) != nil}),events.allSatisfy({MiniGameKind(rawValue:$0.kind) != nil}) else{try fail("unknown mini-game")}
         for summary in summaries.values {
             let outcomes=[summary.firstTryNoRecordedHelp,summary.assistedCompletions,summary.practiceCompletions,summary.incorrect,summary.revealed,summary.abandoned]
@@ -210,12 +211,12 @@ public struct TrainingState:Codable,Equatable {
         }
         // A retry counts from the finished attempts when it was queued, which can only have grown since.
         // `notBefore` is a `yyyy-MM-dd` record of the day computed when queued (scheduling re-derives it from `addedAt`).
-        guard retryQueue.allSatisfy({(0...finishedAttempts).contains($0.afterAttempt) && $0.notBefore.range(of:Self.dayPattern,options:.regularExpression) != nil}) else{try fail("invalid retry item")}
+        guard retryQueue.allSatisfy({(0...finishedAttempts).contains($0.afterAttempt) && $0.notBefore.range(of:Self.dayPattern,options:.regularExpression) != nil}) else{try fail(String(localized:"invalid retry item",bundle:.checkmate))}
         if let active {
-            guard (0...Self.maximumCount).contains(active.revision),active.actions.count<=Self.maximumActions else{try fail("invalid active attempt")}
+            guard (0...Self.maximumCount).contains(active.revision),active.actions.count<=Self.maximumActions else{try fail(String(localized:"invalid active attempt",bundle:.checkmate))}
             // Every hint, reveal and undo records help as it is taken, so one without the flag was not written by this build.
             let helped=active.actions.contains{if case .hint=$0{return true};return $0 == .reveal || $0 == .undo}
-            guard active.recordedHelp || !helped else{try fail("help taken but not recorded")}
+            guard active.recordedHelp || !helped else{try fail(String(localized:"help taken but not recorded",bundle:.checkmate))}
         }
     }
 }

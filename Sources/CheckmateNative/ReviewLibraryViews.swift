@@ -52,10 +52,10 @@ struct GameLibraryBrowser:View {
         }
     }
     static func emptyTitle(scope:LibraryScope,searching:Bool)->String {
-        switch (scope,searching) {case (.saved,false):"No saved reviews yet";case (.saved,true):"No saved reviews match your search";case (.myGames,false):"No collections yet";case (_,false):"No games";case (_,true):"No games match your search"}
+        switch (scope,searching) {case (.saved,false):String(localized:"No saved reviews yet",bundle:.checkmate);case (.saved,true):String(localized:"No saved reviews match your search",bundle:.checkmate);case (.myGames,false):String(localized:"No collections yet",bundle:.checkmate);case (_,false):String(localized:"No games",bundle:.checkmate);case (_,true):String(localized:"No games match your search",bundle:.checkmate)}
     }
     static func emptyHint(scope:LibraryScope,searching:Bool)->String {
-        switch (scope,searching) {case (.saved,false):"A game you review is saved here when you return to your game.";case (.saved,true):"Try a name, player, event or year.";case (.myGames,false):"Import a PGN collection, or drop a PGN file here.";case (_,false):"";case (_,true):"Try a player, event, year or opening."}
+        switch (scope,searching) {case (.saved,false):String(localized:"A game you review is saved here when you return to your game.",bundle:.checkmate);case (.saved,true):String(localized:"Try a name, player, event or year.",bundle:.checkmate);case (.myGames,false):String(localized:"Import a PGN collection, or drop a PGN file here.",bundle:.checkmate);case (_,false):"";case (_,true):String(localized:"Try a player, event, year or opening.",bundle:.checkmate)}
     }
     private var footer:some View {
         VStack(alignment:.leading,spacing:Metrics.tightGap){
@@ -65,7 +65,7 @@ struct GameLibraryBrowser:View {
                 Spacer()
                 if let name=library.importing {
                     ProgressView().controlSize(.small).accessibilityLabel("Importing")
-                    Text(verbatim:"Importing \(PGNImporter.bounded(name,scalars:40))…").font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                    Text(verbatim:String(localized:"Importing \(PGNImporter.bounded(name,scalars:40))…",bundle:.checkmate)).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                     Button("Cancel"){library.cancelImport()}.controlSize(.small)
                 }
             }
@@ -84,8 +84,8 @@ struct LibrarySearchField:NSViewRepresentable {
     let focusRequests:Int,moveDown:()->Void,submit:()->Void
     func makeCoordinator()->Coordinator {Coordinator(self)}
     func makeNSView(context:Context)->NSSearchField {
-        let field=NSSearchField();field.placeholderString="Players, event, year or opening";field.sendsSearchStringImmediately=true;field.sendsWholeSearchString=false
-        field.delegate=context.coordinator;field.setAccessibilityIdentifier("library-search");field.setAccessibilityLabel("Search the game library");return field
+        let field=NSSearchField();field.placeholderString=String(localized:"Players, event, year or opening",bundle:.checkmate);field.sendsSearchStringImmediately=true;field.sendsWholeSearchString=false
+        field.delegate=context.coordinator;field.setAccessibilityIdentifier("library-search");field.setAccessibilityLabel(String(localized:"Search the game library",bundle:.checkmate));return field
     }
     func updateNSView(_ field:NSSearchField,context:Context){
         context.coordinator.parent=self

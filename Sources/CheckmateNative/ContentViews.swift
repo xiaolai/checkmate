@@ -31,7 +31,7 @@ struct SidebarContent:View {
     /// VoiceOver hears what the indent shows: which lesson an activity practises.
     private func practiceHint(_ lesson:CourseLesson)->String {
         guard let parent=lesson.practiceFor,let index=learning.library.lessons.firstIndex(where:{$0.id==parent}) else{return ""}
-        return "Practice activity for \(learning.localizedTitle(index:index))"
+        return String(localized:"Practice activity for \(learning.localizedTitle(index:index))",bundle:.checkmate)
     }
     private func navigate(_ value:String?) {
         guard let value=value else{return}
@@ -58,8 +58,8 @@ struct SidebarContent:View {
         Section {
             Label("Practice a game",symbol:.practice).tag("practice")
             if NetworkPolicy.availableHere{Label{VStack(alignment:.leading,spacing:1){Text("Play on Network");if let badge=SidebarSelection.networkBadge(session.activity,network){Text(badge).font(.caption).foregroundStyle(.secondary).accessibilityIdentifier("network-sidebar-badge")}}}icon:{AppSymbol.network.image}.tag("network")}
-            destination("Quick puzzles",symbol:.puzzles,tag:"puzzles")
-            if model.training != nil{destination("Training",symbol:.training,tag:"training")}
+            destination(String(localized:"Quick puzzles",bundle:.checkmate),symbol:.puzzles,tag:"puzzles")
+            if model.training != nil{destination(String(localized:"Training",bundle:.checkmate),symbol:.training,tag:"training")}
             Label("Review game",symbol:.review).tag("review")
             if model.review.active,let document=model.review.document,!model.reviews.contains(where:{$0.id==document.id}){Label("Unsaved review",symbol:.unsavedReview).tag("review:draft")}
         }
@@ -67,7 +67,7 @@ struct SidebarContent:View {
         // sorts them all (R-11).
         if !model.reviews.isEmpty {
             Section("Saved reviews"){
-                ForEach(SidebarSelection.recentReviews(model.reviews,open:model.review.document?.id)){record in Label(record.title=="?" ? "Untitled game":record.title,symbol:.savedReview).tag("review:"+record.id.uuidString)
+                ForEach(SidebarSelection.recentReviews(model.reviews,open:model.review.document?.id)){record in Label(record.title=="?" ? String(localized:"Untitled game",bundle:.checkmate):record.title,symbol:.savedReview).tag("review:"+record.id.uuidString)
                     .contextMenu{Button("Rename…"){model.requestRenameReview(record.id)};Button("Delete Saved Review…",role:.destructive){model.requestDeleteReview(record.id)}.disabled(model.deletingReviewID != nil)}}
                 if model.reviews.count>SidebarSelection.recentLimit{Label("All Saved Reviews (\(model.reviews.count))",symbol:.allSavedReviews).tag("reviews:all").accessibilityIdentifier("sidebar-all-saved-reviews")}
             }
@@ -80,8 +80,8 @@ struct SidebarContent:View {
         // row's kind; how far the learner has taken it (explored, practiced, mastered) is a trailing badge VoiceOver reads.
         Section {
             if let closedReason{Text(closedReason).font(.caption).foregroundStyle(.secondary).accessibilityIdentifier("sidebar-learn-closed")}
-            if let next=learning.continueIndex {Button{model.lesson(next)}label:{Label("Continue Learning",symbol:.continueLearning)}.disabled(participating).help(participating ? FairnessPolicy.destinationUnavailable:"Open \(learning.localizedTitle(index:next))").accessibilityIdentifier("sidebar-continue-learning")}
-            ForEach(Array(learning.library.lessons.enumerated()),id:\.element.id){i,l in let status=learning.status(index:i),here=i==learning.continueIndex;Label {HStack(spacing:Metrics.smallGap){Text(learning.localizedTitle(index:i));if here{AppSymbol.continueHere.image.foregroundStyle(.tint).help("Continue here").accessibilityHidden(true)}}} icon:{(l.isPractice ? AppSymbol.gameActivity:.lesson).image}.badge(status.title.map{Text($0)}).accessibilityValue((status.title ?? "Not started")+(here ? ", continue here":"")+(closedReason.map{". "+$0} ?? "")).padding(.leading,l.isPractice ? Metrics.practiceIndent:0).accessibilityHint(participating ? FairnessPolicy.destinationUnavailable:practiceHint(l)).accessibilityIdentifier("sidebar-lesson-"+l.id).tag("lesson:\(i)").selectionDisabled(participating)}
+            if let next=learning.continueIndex {Button{model.lesson(next)}label:{Label("Continue Learning",symbol:.continueLearning)}.disabled(participating).help(participating ? FairnessPolicy.destinationUnavailable:String(localized:"Open \(learning.localizedTitle(index:next))",bundle:.checkmate)).accessibilityIdentifier("sidebar-continue-learning")}
+            ForEach(Array(learning.library.lessons.enumerated()),id:\.element.id){i,l in let status=learning.status(index:i),here=i==learning.continueIndex;Label {HStack(spacing:Metrics.smallGap){Text(learning.localizedTitle(index:i));if here{AppSymbol.continueHere.image.foregroundStyle(.tint).help("Continue here").accessibilityHidden(true)}}} icon:{(l.isPractice ? AppSymbol.gameActivity:.lesson).image}.badge(status.title.map{Text($0)}).accessibilityValue((status.title ?? String(localized:"Not started",bundle:.checkmate))+(here ? ", continue here":"")+(closedReason.map{". "+$0} ?? "")).padding(.leading,l.isPractice ? Metrics.practiceIndent:0).accessibilityHint(participating ? FairnessPolicy.destinationUnavailable:practiceHint(l)).accessibilityIdentifier("sidebar-lesson-"+l.id).tag("lesson:\(i)").selectionDisabled(participating)}
         } header:{HStack{Text("Learn & explore");Spacer();Text(learning.courseProgress.text).monospacedDigit().accessibilityLabel("\(learning.courseProgress.explored) of \(learning.courseProgress.total) lessons explored")}.accessibilityElement(children:.combine).accessibilityIdentifier("sidebar-course-progress")}
     }.listStyle(.sidebar).scrollContentBackground(.hidden).overlay(alignment:.bottom){if model.importingReview{VStack{ProgressView("Loading review…");Button("Cancel Import"){model.cancelReviewImport()}}.padding().background(.regularMaterial)}}}
 }
@@ -97,11 +97,11 @@ struct DetailContent:View {
     @MainActor static func practiceHeading(_ s:GameSession)->String {practiceHeading(result:s.finished ? s.state.practice.ending?.result ?? s.rules.ending?.result ?? "*":nil,learner:s.humanSide,thinking:s.busyReason == .opponent,learnerToMove:s.rules.turn==s.humanSide)}
     /// `result` is the finished game's PGN result, nil while it is in play.
     static func practiceHeading(result:String?,learner:String,thinking:Bool,learnerToMove:Bool)->String {
-        if let result {switch result {case "1/2-1/2":return "Drawn game";case "1-0","0-1":return result==(learner=="w" ? "1-0":"0-1") ? "You won":"You lost";default:return "Game over"}}
-        return thinking ? "Stockfish is thinking":learnerToMove ? "Your move":"Opponent's move"
+        if let result {switch result {case "1/2-1/2":return String(localized:"Drawn game",bundle:.checkmate);case "1-0","0-1":return result==(learner=="w" ? "1-0":"0-1") ? String(localized:"You won",bundle:.checkmate):String(localized:"You lost",bundle:.checkmate);default:return String(localized:"Game over",bundle:.checkmate)}}
+        return thinking ? String(localized:"Stockfish is thinking",bundle:.checkmate):learnerToMove ? String(localized:"Your move",bundle:.checkmate):String(localized:"Opponent's move",bundle:.checkmate)
     }
     /// A finished game's summary line: its result and how many moves were played, e.g. "1–0 · 23 moves".
-    static func practiceSummary(result:String,plies:Int)->String {let moves=(plies+1)/2;return Plural.count(moves,one:"%2$@ · %1$d move",other:"%2$@ · %1$d moves",ReviewFormat.result(result))}
+    static func practiceSummary(result:String,plies:Int)->String {let moves=(plies+1)/2;return String(localized:"\(ReviewFormat.result(result)) · \(moves) moves",bundle:.checkmate,comment:"A game summary: its result, then how many moves it lasted")}
     /// Runs a learner's practice action; one that cannot be done is said in the drawer, never dropped.
     @MainActor static func attempt(_ session:GameSession,_ action:() throws -> Void){do{try action()}catch{session.report(GameWindow.failureMessage(error))}}
     @State private var lessonGoalsShown=false
@@ -161,10 +161,10 @@ struct DetailContent:View {
                 Picker("Difficulty",selection:Binding(get:{learning.miniPreferredLevel},set:{learning.setMiniLevel($0)})){ForEach(MiniGameOffering.levels(for:learning.miniKind),id:\.self){Text(MiniGameOffering.title($0)).tag($0)}}.accessibilityIdentifier("mini-difficulty")
             }
             if learning.miniNewLevelOffered,let level=learning.miniLevel {
-                Text(learning.miniLevelWithdrawn ? "This game continues at \(MiniGameOffering.title(level)), a level this game no longer offers.":"This game continues at \(MiniGameOffering.title(level)).").foregroundStyle(.secondary).accessibilityIdentifier("mini-level-continues")
+                Text(learning.miniLevelWithdrawn ? String(localized:"This game continues at \(MiniGameOffering.title(level)), a level this game no longer offers.",bundle:.checkmate):String(localized:"This game continues at \(MiniGameOffering.title(level)).",bundle:.checkmate)).foregroundStyle(.secondary).accessibilityIdentifier("mini-level-continues")
                 Button("Start a New Game at \(MiniGameOffering.title(learning.miniPreferredLevel))"){learning.restartMini()}.accessibilityIdentifier("mini-new-level")
             }
-            Text(learning.miniGame?.computer==true ? "You play White. Select a piece, then its destination. The computer plays Black.":"Take turns moving White and Black on this device.")
+            Text(learning.miniGame?.computer==true ? String(localized:"You play White. Select a piece, then its destination. The computer plays Black.",bundle:.checkmate):String(localized:"Take turns moving White and Black on this device.",bundle:.checkmate))
         }
         if learning.miniGame?.isFinished==true {Button {learning.restartMini()} label:{Label("Play again",symbol:.startOver)}.accessibilityIdentifier("mini-play-again");MiniGameReviewSection(reviewer:learning.miniReview)}
         Text(learning.miniKind.rules).foregroundStyle(.secondary)
@@ -183,7 +183,7 @@ struct DetailContent:View {
                 }
                 // The exercise is played on the lesson's own invitation step; elsewhere in the lesson this leads there.
                 if !learning.attemptStep,learning.invitationStep != nil,let practice=learning.current.practice {
-                    Button {learning.goToAttempt()} label:{Label(learning.attemptInProgress ? "Resume Your Attempt":"Go to Your Turn",symbol:.play)}
+                    Button {learning.goToAttempt()} label:{Label(learning.attemptInProgress ? String(localized:"Resume Your Attempt",bundle:.checkmate):String(localized:"Go to Your Turn",bundle:.checkmate),symbol:.play)}
                         .controlSize(.large).accessibilityIdentifier("lesson-go-to-attempt")
                     Text(practice.goal).foregroundStyle(.secondary)
                 }
@@ -202,7 +202,7 @@ struct DetailContent:View {
             if e.kind=="choice" {ForEach(e.choices ?? [],id:\.self){choice in Button(choice){learning.choose(choice)}.disabled(learning.passed)}}
             if e.kind=="squares" {if e.answers?.count != 1{Button("Check My Answer"){learning.checkAnswer()}.disabled(learning.picked.isEmpty || learning.passed)};if e.allowNone==true{Button("No Squares"){learning.noSquares()}.disabled(learning.passed)}}
             if e.kind=="path"{Button("Restart Path"){learning.restartPath()}}
-            HStack{Button(learning.puzzleHints==0 ? "Hint":"Another Hint"){learning.hint()}.disabled(!learning.canHint).accessibilityIdentifier("puzzle-hint");Button("Reveal Answer"){learning.reveal()}.disabled(learning.passed)}
+            HStack{Button(learning.puzzleHints==0 ? String(localized:"Hint",bundle:.checkmate,comment:"Noun: ask for a hint"):String(localized:"Another Hint",bundle:.checkmate)){learning.hint()}.disabled(!learning.canHint).accessibilityIdentifier("puzzle-hint");Button("Reveal Answer"){learning.reveal()}.disabled(learning.passed)}
         }
         if !learning.feedback.isEmpty{Text(learning.feedback).foregroundStyle(.secondary)}
         if session.mode == .lesson {
@@ -354,7 +354,7 @@ struct LessonProgressContent:View {
             }
             .allowsHitTesting(false)
             .accessibilityElement(children:.ignore)
-            .accessibilityLabel(review.active ? "Review playback":"Transcript playback")
+            .accessibilityLabel(review.active ? String(localized:"Review playback",bundle:.checkmate):String(localized:"Transcript playback",bundle:.checkmate))
             .accessibilityValue("\(Int(fraction*100)) percent")
         }
     }
@@ -366,12 +366,12 @@ struct PuzzleLibraryContent:View {
         if let summary=learning.setSummary {GroupBox {VStack(alignment:.leading,spacing:Metrics.smallGap){Text("You Reached the End of This Set").sectionHeading();Text(summary.text);if summary.toReview>0{Button("Review Mistakes"){learning.reviewMistakes()}.accessibilityIdentifier("puzzle-review-mistakes")}}.frame(maxWidth:.infinity,alignment:.leading)}.accessibilityElement(children:.contain).accessibilityIdentifier("puzzle-set-summary")}
         TextField("Search exercises",text:$learning.query).textFieldStyle(.roundedBorder)
         HStack {Picker("Topic",selection:$learning.topic){Text("All topics").tag(String?.none);ForEach(learning.topicGroups,id:\.title){group in Section(group.title){ForEach(group.topics,id:\.self){Text($0).tag(String?.some($0))}}}};Picker("Level",selection:$learning.level){Text("All levels").tag(String?.none);ForEach(learning.levels,id:\.self){Text($0).tag(String?.some($0))}};Picker("Status",selection:$learning.filter){ForEach(PuzzleStatusFilter.allCases,id:\.self){Text($0.title).tag($0)}}}
-        Text(Plural.count(puzzles.count,one:"%d exercise",other:"%d exercises")).foregroundStyle(.secondary)
+        Text(String(localized:"\(puzzles.count) exercises",bundle:.checkmate)).foregroundStyle(.secondary)
         if puzzles.isEmpty{ContentUnavailableView{Label("No matching exercises",symbol:.search)}description:{Text("No exercises match these filters.")}actions:{Button("Clear Filters"){learning.clearFilters()}.disabled(!learning.filtersActive)}.accessibilityIdentifier("puzzle-library-empty")}
         else{List(puzzles,id:\.id){p in let row=PuzzleRowFormat(p,record:session.state.puzzles[p.id] ?? PuzzleProgress());Button{learning.openPuzzle(id:p.id)}label:{HStack{VStack(alignment:.leading){Text(row.title);Text(row.detail).font(.caption).foregroundStyle(.secondary)};Spacer();if row.review{AppSymbol.toReview.image.foregroundStyle(.secondary).help("To review").accessibilityHidden(true)};if let mark=row.mark,let help=row.markHelp{mark.symbol.image.foregroundStyle(Color(nsColor:NativeColors.success)).help(help).accessibilityHidden(true)}}}.buttonStyle(.plain)
             .accessibilityValue(row.accessibilityValue)}}
     }.padding(Metrics.sectionGap)}
 }
-extension PuzzleStatusFilter {var title:String{switch self{case .all:return "All";case .unsolved:return "Unsolved";case .review:return "To review"}}}
+extension PuzzleStatusFilter {var title:String{switch self{case .all:return String(localized:"All",bundle:.checkmate);case .unsolved:return String(localized:"Unsolved",bundle:.checkmate);case .review:return String(localized:"To review",bundle:.checkmate)}}}
 struct WelcomeContent:View {let title:String;var body:some View {VStack(spacing:Metrics.sectionGap){Image("LessonKnight",bundle:.main).resizable().renderingMode(.template).scaledToFit().foregroundStyle(.primary).frame(width:Metrics.mascotSize,height:Metrics.mascotSize).accessibilityHidden(true);Text(title).sectionHeading(.largeTitle.bold())}.frame(maxWidth:.infinity,maxHeight:.infinity,alignment:.center)}}
 /// Exercise controls under the board: hint, try again or next, and the way back to the library.

@@ -8,12 +8,12 @@ struct LibraryPreview:Equatable {
     static func of(_ row:LibraryRow,document:GameDocument)->LibraryPreview {
         func known(_ tag:String)->String? {guard let value=document.header(tag)?.trimmingCharacters(in:.whitespacesAndNewlines),value.contains(where:{$0 != "?" && $0 != "."}) else{return nil};return PGNImporter.bounded(value,scalars:120)}
         let last=document.mainline.last.map{document.nodes[$0]},plies=document.mainline.count
-        let details=[known("Event"),known("Site"),known("Date").map{$0.replacingOccurrences(of:".??",with:"")},known("Round").map{"Round "+$0}].compactMap{$0}
+        let details=[known("Event"),known("Site"),known("Date").map{$0.replacingOccurrences(of:".??",with:"")},known("Round").map{String(localized:"Round ",bundle:.checkmate,comment:"A tournament round, followed by its number")+$0}].compactMap{$0}
         return LibraryPreview(id:row.id,title:row.title,details:details,result:document.result,moves:(plies+1)/2,fen:last?.afterFEN ?? document.startingFEN,problem:nil)
     }
     static func unreadable(_ row:LibraryRow,_ message:String)->LibraryPreview {LibraryPreview(id:row.id,title:row.title,details:[],result:row.result,moves:0,fen:nil,problem:message)}
     /// "1–0 · 23 moves", or the result alone for a position with no moves.
-    var summary:String {moves==0 ? ReviewFormat.result(result):Plural.count(moves,one:"%2$@ · %1$d move",other:"%2$@ · %1$d moves",ReviewFormat.result(result))}
+    var summary:String {moves==0 ? ReviewFormat.result(result):String(localized:"\(ReviewFormat.result(result)) · \(moves) moves",bundle:.checkmate,comment:"A game summary: its result, then how many moves it lasted")}
 }
 /// The review workspace's inspector: the selected game's preview, or what can be opened when nothing is selected.
 struct WorkspaceInspector:View {
@@ -27,7 +27,7 @@ struct WorkspaceInspector:View {
                 if let problem=preview.problem{Text(verbatim:problem).foregroundStyle(Color(nsColor:NativeColors.error))}
                 else{
                     Text(preview.summary)
-                    if let fen=preview.fen{PositionThumbnail(fen:fen,theme:theme).accessibilityLabel(preview.moves==0 ? "Position":"Final position")}
+                    if let fen=preview.fen{PositionThumbnail(fen:fen,theme:theme).accessibilityLabel(preview.moves==0 ? String(localized:"Position",bundle:.checkmate,comment:"Noun: the arrangement of pieces on the board"):String(localized:"Final position",bundle:.checkmate))}
                     Text("Press Return or double-click the game to open it for review.").font(.caption).foregroundStyle(.secondary)
                 }
             }.accessibilityElement(children:.contain).accessibilityIdentifier("library-preview")
@@ -64,7 +64,7 @@ struct PositionThumbnail:View {
             }
             return pieces.isEmpty ? nil:title+": "+pieces.sorted{$0.kind<$1.kind}.map(\.text).joined(separator:", ")
         }
-        return [side("w","White"),side("b","Black")].compactMap{$0}.map{$0+"."}.joined(separator:" ")
+        return [side("w",String(localized:"White",bundle:.checkmate)),side("b",String(localized:"Black",bundle:.checkmate))].compactMap{$0}.map{$0+"."}.joined(separator:" ")
     }
     var body:some View {
         let board=Self.squares(fen),palette=BoardPalette.theme(theme),symbols=["k":"♚","q":"♛","r":"♜","b":"♝","n":"♞","p":"♟"]

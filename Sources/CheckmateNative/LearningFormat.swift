@@ -24,10 +24,10 @@ struct PuzzleRowFormat:Equatable {
 enum CourseCompleteCard {
     enum Action:CaseIterable {
         case puzzles,training,game
-        var title:String {switch self {case .puzzles:return "Quick Puzzles";case .training:return "Training";case .game:return "Play a Game"}}
+        var title:String {switch self {case .puzzles:return String(localized:"Quick Puzzles",bundle:.checkmate);case .training:return String(localized:"Training",bundle:.checkmate);case .game:return String(localized:"Play a Game",bundle:.checkmate)}}
     }
-    static let title="You Explored the Whole Course"
+    static let title=String(localized:"You Explored the Whole Course",bundle:.checkmate)
     @MainActor static func shown(_ learning:LearningPlayer)->Bool {learning.courseComplete && learning.library.nextMainLesson(after:learning.lessonIndex)==nil}
     static func actions(trainingAvailable:Bool)->[Action] {Action.allCases.filter{$0 != .training || trainingAvailable}}
-    static func message(trainingAvailable:Bool)->String {"Keep your skills sharp with puzzles\(trainingAvailable ? ", training or":" or") a game."}
+    static func message(trainingAvailable:Bool)->String {String(localized:"Keep your skills sharp with puzzles\(trainingAvailable ? ", training or":" or") a game.",bundle:.checkmate)}
 }

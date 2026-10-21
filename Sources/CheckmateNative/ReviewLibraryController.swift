@@ -93,17 +93,17 @@ enum LibraryListItem {
             let read=await Task.detached{Result{()throws -> GameDocument in
                 let data:Data
                 switch row.source {
-                case .bundled(let game):guard let library else{throw CheckmateError.invalid("The game library is not loaded.")};data=try library.data(game)
-                case .collection(_,let record):guard let collection else{throw CheckmateError.invalid("This collection is no longer in the library.")};data=try store.data(record,in:collection)
-                case .saved(let id):guard let reviews else{throw CheckmateError.invalid("Saved reviews are not available.")};return try reviews.load(id).document
+                case .bundled(let game):guard let library else{throw CheckmateError.invalid(String(localized:"The game library is not loaded.",bundle:.checkmate))};data=try library.data(game)
+                case .collection(_,let record):guard let collection else{throw CheckmateError.invalid(String(localized:"This collection is no longer in the library.",bundle:.checkmate))};data=try store.data(record,in:collection)
+                case .saved(let id):guard let reviews else{throw CheckmateError.invalid(String(localized:"Saved reviews are not available.",bundle:.checkmate))};return try reviews.load(id).document
                 }
-                guard let document=try PGNImporter.parse(data).first else{throw CheckmateError.invalid("No game was found in this record.")}
+                guard let document=try PGNImporter.parse(data).first else{throw CheckmateError.invalid(String(localized:"No game was found in this record.",bundle:.checkmate))}
                 return document
             }}.value
             guard !Task.isCancelled,self.selection==row.id else{return}
             switch read {
             case .success(let document):preview = .of(row,document:document)
-            case .failure(let error):preview = .unreadable(row,userFacingMessage(error,fallback:"This game could not be read."))
+            case .failure(let error):preview = .unreadable(row,userFacingMessage(error,fallback:String(localized:"This game could not be read.",bundle:.checkmate)))
             }
         }
     }
@@ -117,13 +117,13 @@ enum LibraryListItem {
         let store=store
         loadTask=Task{
             let library=await Task.detached{Result{try GameLibrary.load()}}.value
-            switch library {case .success(let library):bundled = .loaded(library);case .failure(let error):bundled = .failed(userFacingMessage(error,fallback:"The game library could not be loaded."))}
+            switch library {case .success(let library):bundled = .loaded(library);case .failure(let error):bundled = .failed(userFacingMessage(error,fallback:String(localized:"The game library could not be loaded.",bundle:.checkmate)))}
             // A read that an import or removal overtook is stale: it is discarded and the folder read again.
             while !Task.isCancelled {
                 let started=collectionsGeneration
                 let found=await Task.detached{Result{try store.load()}}.value
                 guard collectionsGeneration==started else{continue}
-                switch found {case .success(let found):collections=found.collections;broken=found.broken;case .failure(let error):collections=[];broken=[BrokenCollection(id:String(repeating:"0",count:64),name:"My games",error:userFacingMessage(error,fallback:"Your collections could not be read."))]}
+                switch found {case .success(let found):collections=found.collections;broken=found.broken;case .failure(let error):collections=[];broken=[BrokenCollection(id:String(repeating:"0",count:64),name:String(localized:"My games",bundle:.checkmate),error:userFacingMessage(error,fallback:String(localized:"Your collections could not be read.",bundle:.checkmate)))]}
                 break
             }
             rebuild()
@@ -155,7 +155,7 @@ enum LibraryListItem {
     private func automationBarrier()async {guard NativePolicy.silent,automationHoldReads else{return};await withCheckedContinuation{heldReads.append($0)}}
     func open(_ row:LibraryRow){
         guard let model else{return}
-        let fallback="This game could not be opened for review. Your current game and reviews are unchanged."
+        let fallback=String(localized:"This game could not be opened for review. Your current game and reviews are unchanged.",bundle:.checkmate)
         // The newest request wins: a review still being parsed is cancelled now, before this one is read, so it cannot
         // finish (and replace the activity) while this one loads.
         if model.importingReview{model.cancelReviewImport()}
@@ -184,7 +184,7 @@ enum LibraryListItem {
                 await automationBarrier()
                 guard openGeneration==generation,model.activityGeneration==activity,!removing.contains(sha),collections.contains(where:{$0.sha256==sha}) else{return}
                 switch read {
-                case .success(let data):model.openLibraryRecord(data,provenance:Self.collectionProvenance,fallback:"This game could not be read. It is skipped; the rest of the collection is unchanged.")
+                case .success(let data):model.openLibraryRecord(data,provenance:Self.collectionProvenance,fallback:String(localized:"This game could not be read. It is skipped; the rest of the collection is unchanged.",bundle:.checkmate))
                 case .failure(let error):model.storageError=userFacingMessage(error,fallback:fallback)
                 }
             }
@@ -194,7 +194,7 @@ enum LibraryListItem {
     }
     /// "Import Collection…": the open panel, then an import off the main actor.
     func chooseCollection(startingIn directory:URL?=nil){
-        let panel=NSOpenPanel();panel.allowsOtherFileTypes=true;panel.allowsMultipleSelection=false;panel.prompt="Import";panel.message="Choose a PGN file to add to My games."
+        let panel=NSOpenPanel();panel.allowsOtherFileTypes=true;panel.allowsMultipleSelection=false;panel.prompt=String(localized:"Import",bundle:.checkmate);panel.message=String(localized:"Choose a PGN file to add to My games.",bundle:.checkmate)
         if let pgn=UTType(filenameExtension:"pgn"){panel.allowedContentTypes=[pgn,.plainText]}
         if let directory{panel.directoryURL=directory}
         panel.begin{[weak self] response in guard response == .OK,let url=panel.url else{return};self?.importCollection(url)}
@@ -218,11 +218,11 @@ enum LibraryListItem {
                 collectionsGeneration+=1
                 if reveal{revealing=index.sha256;collapsed.remove("collection:"+index.sha256)}
                 if !collections.contains(where:{$0.sha256==index.sha256}){collections.append(index)};broken.removeAll{$0.id==index.sha256};rebuild()
-                if index.unreadable>0{model?.storageError=Plural.count(index.unreadable,one:"%1$d game in %2$@ could not be read and was skipped.",other:"%1$d games in %2$@ could not be read and were skipped.",PGNImporter.bounded(index.name,scalars:80))}
+                if index.unreadable>0{model?.storageError=String(localized:"\(index.unreadable) games in \(PGNImporter.bounded(index.name,scalars:80)) could not be read and were skipped.",bundle:.checkmate,comment:"The second value is a game file’s name")}
             }catch{
                 guard importToken===token else{return};importing=nil;importToken=nil
                 if case CheckmateError.cancelled=error{return};if Task.isCancelled{return}
-                model?.storageError=(error as? ReviewDrop.Rejection)?.reason ?? userFacingMessage(error,fallback:"This file could not be imported. Your library is unchanged.")
+                model?.storageError=(error as? ReviewDrop.Rejection)?.reason ?? userFacingMessage(error,fallback:String(localized:"This file could not be imported. Your library is unchanged.",bundle:.checkmate))
             }
         }
     }
@@ -230,7 +230,7 @@ enum LibraryListItem {
     func requestRemove(_ collection:CollectionIndex){requestRemove(collection.sha256,name:collection.name,games:collection.records.count)}
     /// Every removal is confirmed, a broken collection's included: its file may still be recoverable.
     func requestRemove(_ sha:String,name:String,games:Int?){
-        let alert=NSAlert.destructive("Remove “\(PGNImporter.bounded(name,scalars:80))”?",games.map{Plural.count($0,one:"Its %d game leaves My games. Reviews you saved from it are kept.",other:"Its %d games leave My games. Reviews you saved from them are kept.")} ?? "Its file is deleted from My games. Reviews you saved from it are kept.",action:"Remove")
+        let alert=NSAlert.destructive(String(localized:"Remove “\(PGNImporter.bounded(name,scalars:80))”?",bundle:.checkmate,comment:"Asks before removing a game file from My games"),games.map{String(localized:"Its \($0) games leave My games. Reviews you saved from them are kept.",bundle:.checkmate)} ?? String(localized:"Its file is deleted from My games. Reviews you saved from it are kept.",bundle:.checkmate),action:String(localized:"Remove",bundle:.checkmate,comment:"Removes a game file from My games"))
         if let window=NSApp.mainWindow{alert.beginSheetModal(for:window){[weak self] response in if response == .alertFirstButtonReturn{self?.remove(sha)}}}
         else if alert.runModal() == .alertFirstButtonReturn{remove(sha)}
     }
@@ -243,13 +243,13 @@ enum LibraryListItem {
         Task{
             defer{removing.remove(sha)}
             do{try await Task.detached{try store.remove(sha)}.value;collectionsGeneration+=1;collections.removeAll{$0.sha256==sha};broken.removeAll{$0.id==sha};rebuild()}
-            catch{model?.storageError=userFacingMessage(error,fallback:"The collection could not be removed. Try again.")}
+            catch{model?.storageError=userFacingMessage(error,fallback:String(localized:"The collection could not be removed. Try again.",bundle:.checkmate))}
         }
     }
     /// "Rename…" on a collection's header (R-21): the name is kept in the collection's name file.
     func requestRename(_ sha:String){
         guard let current=collection(sha) else{return}
-        NSAlert.askName("Rename Collection",current:current.name,identifier:"collection-rename-field"){[weak self] name in self?.rename(sha,to:name)}
+        NSAlert.askName(String(localized:"Rename Collection",bundle:.checkmate),current:current.name,identifier:"collection-rename-field"){[weak self] name in self?.rename(sha,to:name)}
     }
     func rename(_ sha:String,to name:String){
         let store=store
@@ -258,7 +258,7 @@ enum LibraryListItem {
                 try await Task.detached{try store.rename(sha,to:name)}.value
                 let found=try await Task.detached{try store.load()}.value
                 collectionsGeneration+=1;collections=found.collections;broken=found.broken;rebuild()
-            }catch{model?.storageError=userFacingMessage(error,fallback:"The collection could not be renamed. Try again.")}
+            }catch{model?.storageError=userFacingMessage(error,fallback:String(localized:"The collection could not be renamed. Try again.",bundle:.checkmate))}
         }
     }
     func collection(_ sha:String)->CollectionIndex? {collections.first{$0.sha256==sha}}

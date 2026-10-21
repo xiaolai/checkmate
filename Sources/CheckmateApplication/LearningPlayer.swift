@@ -1,3 +1,4 @@
+import CheckmateAssets
 import CheckmateDomain
 import CheckmateRules
 import CheckmateContent
@@ -18,14 +19,14 @@ import Combine
     private var localizedPacks:[Int:LessonPack]=[:],localizedURLs:[String:URL]=[:]
     private var loadedSelection=""
     @Published public private(set) var localizationLoading=false
-    public var fallbackMessage:String? {guard session.state.settings.lessonLanguage != "en" else{return nil};if localizationLoading{return "Checking this lesson’s offline recordings…"};return localizedPacks[lessonIndex]==nil ? "This lesson is playing in English because its selected language recording is incomplete or unavailable.":nil}
+    public var fallbackMessage:String? {guard session.state.settings.lessonLanguage != "en" else{return nil};if localizationLoading{return String(localized:"Checking this lesson’s offline recordings…",bundle:.checkmate)};return localizedPacks[lessonIndex]==nil ? String(localized:"This lesson is playing in English because its selected language recording is incomplete or unavailable.",bundle:.checkmate):nil}
     public var subtitle:String {localizedPacks[lessonIndex]?.translation.beats[step].say ?? beat.say}
     public var teaches:[String] {localizedPacks[lessonIndex]?.translation.teaches ?? current.teaches ?? []}
     public func localizedTitle(index:Int)->String {localizedPacks[index]?.translation.title ?? library.lessons[index].title}
     public func localizedStepTitle(index:Int,step:Int)->String {localizedPacks[index]?.translation.beats[step].stepTitle ?? library.stepTitles[index][step]}
     private var packReloadTask:Task<Void,Never>?,packGeneration=UUID()
     private var authoredLessonActive:Bool {session.mode == .lesson && !mini && activePuzzle==nil && session.lesson?.mode=="lesson"}
-    private func playbackIdentity(_ pack:LessonPack?)->String {guard let pack else{return "English"};return pack.sourceFingerprint+"|"+pack.locale+"|"+pack.voice+"|"+pack.clips.sorted{$0.beatID<$1.beatID}.map{$0.beatID+":"+$0.audioHash}.joined(separator:"|")}
+    private func playbackIdentity(_ pack:LessonPack?)->String {guard let pack else{return String(localized:"English",bundle:.checkmate)};return pack.sourceFingerprint+"|"+pack.locale+"|"+pack.voice+"|"+pack.clips.sorted{$0.beatID<$1.beatID}.map{$0.beatID+":"+$0.audioHash}.joined(separator:"|")}
     public func reloadLocalizedPacks(){let settings=session.state.settings,selection=settings.lessonLanguage+"|"+settings.lessonVoice,selectionChanged=selection != loadedSelection;let active=authoredLessonActive;if selectionChanged && active{rewind()};packReloadTask?.cancel();packGeneration=UUID();let generation=packGeneration;if selectionChanged{localizedPacks=[:];localizedURLs=[:]}else{dropPacksWithMissingRecordings(active:active)};loadedSelection=selection;guard settings.lessonLanguage != "en",let packs else{localizationLoading=false;if selectionChanged && active{rebuild()};return};let library=self.library
         // A rescan for the same selection (a job ended, a recording was removed) must not end a pending selection
         // change's loading early: only the scan that completes clears it.
@@ -61,7 +62,7 @@ import Combine
     public let miniReview=MiniGameReviewer()
     private var miniTask:Task<Void,Never>?,miniGeneration=UUID()
     public var miniKind:MiniGameKind {miniGame?.kind ?? .pawnDuel}
-    public var miniStatus:String {if let reason=miniGame?.drawReason{return "Draw. "+reason};if let winner=winner{return miniKind.solo ? "Route complete!":miniGame?.computer==true ? (winner=="w" ? "You win!":"Computer wins. Try again!"):(winner=="w" ? "White wins!":"Black wins!")};if miniKind.solo{return "Next corner: \(MiniGameRules.corners[miniGame?.snapshot.cornerIndex ?? 0])"};return miniGame?.computer==true ? (miniTurn=="w" ? "Your turn · White":"Computer’s turn · Black"):(miniTurn=="w" ? "White to move":"Black to move")}
+    public var miniStatus:String {if let reason=miniGame?.drawReason{return String(localized:"Draw. ",bundle:.checkmate)+reason};if let winner=winner{return miniKind.solo ? String(localized:"Route complete!",bundle:.checkmate):miniGame?.computer==true ? (winner=="w" ? String(localized:"You win!",bundle:.checkmate):String(localized:"Computer wins. Try again!",bundle:.checkmate)):(winner=="w" ? String(localized:"White wins!",bundle:.checkmate):String(localized:"Black wins!",bundle:.checkmate))};if miniKind.solo{return String(localized:"Next corner: \(MiniGameRules.corners[miniGame?.snapshot.cornerIndex ?? 0])",bundle:.checkmate)};return miniGame?.computer==true ? (miniTurn=="w" ? String(localized:"Your turn · White",bundle:.checkmate):String(localized:"Computer’s turn · Black",bundle:.checkmate)):(miniTurn=="w" ? String(localized:"White to move",bundle:.checkmate):String(localized:"Black to move",bundle:.checkmate))}
     public var onIllustration:((String,Bool)->Void)?
     private var soundedMoves=Set<Int>()
     /// The exercise of the lesson's invitation step ("Now try it yourself"), played on that step's own board.
@@ -81,8 +82,8 @@ import Combine
     /// The exercise's state for the centered title, or nil off the invitation step.
     public var attemptStatus:String? {
         guard attemptStep,let phase=attempt.phase else{return nil}
-        if attempt.waitingToResume{return "Paused"};if attempt.thinking{return "Computer’s turn"}
-        switch phase {case .yourTurn:return "Your turn";case .computerTurn:return "Computer’s turn";case .offTrack,.failed:return "Try again";case .achieved:return "Well done";case .playingOn:return attempt.rules.turn=="w" ? "Play on · Your turn":"Play on · Computer’s turn";case .finished:return "Game finished"}
+        if attempt.waitingToResume{return String(localized:"Paused",bundle:.checkmate)};if attempt.thinking{return String(localized:"Computer’s turn",bundle:.checkmate)}
+        switch phase {case .yourTurn:return String(localized:"Your turn",bundle:.checkmate);case .computerTurn:return String(localized:"Computer’s turn",bundle:.checkmate);case .offTrack,.failed:return String(localized:"Try again",bundle:.checkmate);case .achieved:return String(localized:"Well done",bundle:.checkmate);case .playingOn:return attempt.rules.turn=="w" ? String(localized:"Play on · Your turn",bundle:.checkmate):String(localized:"Play on · Computer’s turn",bundle:.checkmate);case .finished:return String(localized:"Game finished",bundle:.checkmate)}
     }
     private func syncAttempt(){if attemptStep,let practice=current.practice{attempt.open(lessonID:current.id,practice:practice)}else if attempt.active{attempt.close()};attemptFrame=attempt.frame}
     private func attemptChanged(){attemptFrame=attempt.frame;guard attemptStep else{return};picked=attempt.selected.map{[$0]} ?? [];objectWillChange.send();frame=attemptFrame;publish()}
@@ -174,7 +175,7 @@ import Combine
     /// course continues) stays on the learner's own lesson.
     public var readingFromTraining:Bool {if case .lesson(_,true)=session.activity.place{return true};return false}
     public func seek(step:Int) {NativeLog.course.debug("Seeking authored transcript");guard current.beats.indices.contains(step) else{return};pause();if mini{go(miniLesson)};self.step=step;seconds=0;illustrationPlayed=false;soundedMoves=[];picked=[];feedback="";passed=false;if !readingFromTraining{session.state.course.lessonID=current.id;session.state.course.step=step;session.state.course.segmentID=key};session.state.course.positions=(session.state.course.positions ?? [:]).merging([current.id:key]){_,new in new};syncAttempt();rebuild();session.emit(semantic:false,save:true)}
-    public func play() {guard !mini,activePuzzle==nil else{return};guard !localizationLoading else{showPlaybackNotice("Checking offline lesson recordings. Try Play again shortly.");return};if seconds>=duration{seconds=0;soundedMoves=[]};playing=true;illustrationPlayed=true;lastTick=Date();playNarration();timer?.invalidate();timer=Timer.scheduledTimer(withTimeInterval:0.04,repeats:true){[weak self] _ in Task{@MainActor in guard let self=self,let last=self.lastTick else{return};let now=Date();self.lastTick=now;self.tick(wallDelta:now.timeIntervalSince(last))}};rebuild()}
+    public func play() {guard !mini,activePuzzle==nil else{return};guard !localizationLoading else{showPlaybackNotice(String(localized:"Checking offline lesson recordings. Try Play again shortly.",bundle:.checkmate));return};if seconds>=duration{seconds=0;soundedMoves=[]};playing=true;illustrationPlayed=true;lastTick=Date();playNarration();timer?.invalidate();timer=Timer.scheduledTimer(withTimeInterval:0.04,repeats:true){[weak self] _ in Task{@MainActor in guard let self=self,let last=self.lastTick else{return};let now=Date();self.lastTick=now;self.tick(wallDelta:now.timeIntervalSince(last))}};rebuild()}
     public func pause(){if mini{onMiniReset?()};cancelMiniOpponent();attempt?.suspend();pauseNarration()}
     /// Stops lesson narration only. A mini-game's pending computer reply is not narration and keeps coming (LE-5).
     public func pauseNarration(){timer?.invalidate();timer=nil;lastTick=nil;playing=false;audio?.pause();if session.mode != .practice{publish()}}
@@ -183,7 +184,7 @@ import Combine
     /// Plays the step again from its start. On the invitation step that is the instruction only: the board stays.
     public func replay(){if attemptStep{pauseNarration();seconds=0;soundedMoves=[];play();return};rewind();play()}
     public func tick(wallDelta:Double){if let time=audio?.playbackTime,session.state.settings.narration{advance(by:max(0,time-seconds))}else{advance(by:wallDelta)}}
-    public func advance(by delta:Double) {guard playing else{return};seconds=min(duration,seconds+max(0,delta));rebuild();if seconds>=duration {if attemptStep{pauseNarration();if step==current.beats.count-1{complete()}else{feedback="Your turn: make your move on the board."};publish();return};pause();if step<current.beats.count-1 {if session.state.settings.autoAdvance {seek(step:step+1);play()}}else{complete(continuePlayback:session.state.settings.autoAdvance)};publish()}}
+    public func advance(by delta:Double) {guard playing else{return};seconds=min(duration,seconds+max(0,delta));rebuild();if seconds>=duration {if attemptStep{pauseNarration();if step==current.beats.count-1{complete()}else{feedback=String(localized:"Your turn: make your move on the board.",bundle:.checkmate)};publish();return};pause();if step<current.beats.count-1 {if session.state.settings.autoAdvance {seek(step:step+1);play()}}else{complete(continuePlayback:session.state.settings.autoAdvance)};publish()}}
     /// On a puzzle: the next one in the filtered set. Past the last one the set ends with its summary in the library
     /// rather than starting over.
     public func next(){guard !mini else{return};if let id=activePuzzle?.id {
@@ -198,22 +199,22 @@ import Combine
     /// After a set's summary: the puzzles to review, from the first.
     public func reviewMistakes(){filter = .review;setSummary=nil;if let first=filteredPuzzles.first{openPuzzle(id:first.id)}}
     /// The lesson's own puzzles (linked by its id), for its Check Yourself button; nil when it has none.
-    public func checkYourselfTitle(index:Int)->String? {guard library.lessons.indices.contains(index) else{return nil};let count=library.puzzles(for:library.lessons[index].id).count;return count==0 ? nil:Plural.count(count,one:"Check Yourself: %d Puzzle",other:"Check Yourself: %d Puzzles")}
+    public func checkYourselfTitle(index:Int)->String? {guard library.lessons.indices.contains(index) else{return nil};let count=library.puzzles(for:library.lessons[index].id).count;return count==0 ? nil:String(localized:"Check Yourself: \(count) Puzzles",bundle:.checkmate,comment:"A lesson’s quiz title, shown in the sidebar")}
     /// Opens the lesson's first puzzle, with the library showing just that lesson's puzzles.
     public func checkYourself(index:Int){guard library.lessons.indices.contains(index),let first=library.puzzles(for:library.lessons[index].id).first else{return};topic=first.topic;level=nil;filter = .all;query="";openPuzzle(id:first.id)}
     public func complete(continuePlayback:Bool=false){
         // Narration ending over the exercise stops only the narration: a reply the computer is choosing still comes.
         if attemptStep{pauseNarration()}else{pause()}
         if !session.state.course.completed.contains(current.id){session.state.course.completed.append(current.id)}
-        feedback="Lesson explored! You can replay it whenever you like."
+        feedback=String(localized:"Lesson explored! You can replay it whenever you like.",bundle:.checkmate)
         session.emit(semantic:false,save:true)
         // Only uninterrupted playback crosses a lesson boundary. Manual navigation
         // remains paused, and the final lesson never loops back to the beginning.
         // It follows the main path: a practice activity is offered, never played into.
         // The exercise step is an interaction boundary: its narration ending never leaves it, whatever auto-advance says.
-        if attemptStep{feedback="Your turn: make your move on the board, or continue to the next lesson.";publish();return}
+        if attemptStep{feedback=String(localized:"Your turn: make your move on the board, or continue to the next lesson.",bundle:.checkmate);publish();return}
         if continuePlayback,let next=library.nextMainLesson(after:lessonIndex) {
-            if session.state.settings.pauseForPractice,practiceAvailable{feedback=library.practice(for:lessonIndex).first.map{"Try \(localizedTitle(index:$0)), or continue to the next lesson."} ?? MiniGameKind.available(lessonID:current.id).first.map{"Play \($0.title), or continue to the next lesson."} ?? "Continue to the next lesson when you are ready.";publish();return}
+            if session.state.settings.pauseForPractice,practiceAvailable{feedback=library.practice(for:lessonIndex).first.map{String(localized:"Try \(localizedTitle(index:$0)), or continue to the next lesson.",bundle:.checkmate)} ?? MiniGameKind.available(lessonID:current.id).first.map{String(localized:"Play \($0.title), or continue to the next lesson.",bundle:.checkmate)} ?? String(localized:"Continue to the next lesson when you are ready.",bundle:.checkmate);publish();return}
             openLesson(index:next,resume:false,fromTraining:readingFromTraining)
             play()
         }
@@ -239,17 +240,17 @@ import Combine
         case "move":let mover=e.from.flatMap{frame.board?[$0]?.first};if let from=picked.first {if from==sq{picked=[];return};if let mover,frame.board?[sq]?.first==mover{picked=[sq];break};let correct=e.matches([from,sq]);if correct,activePuzzle != nil,var board=frame.board{try? CourseLibrary.apply(&board,moves:[[from,sq]]);frame.board=board};picked=[];answer(correct)}else if let piece=frame.board?[sq],mover.map({piece.first==$0}) ?? true {picked=[sq]}
         // A square that is not a king step is a misclick, not a mistake; an unsafe neighbour is a mistake whose own
         // guidance stays visible instead of the generic "Not quite".
-        case "path":if var board=frame.board,let from=board.first(where:{$0.value=="wk"})?.key {if from==sq{return};if CourseLibrary.safeKingStep(board,from:from,to:sq){try? CourseLibrary.apply(&board,moves:[[from,sq]]);frame.board=board;if sq==e.to{answer(true)}else{feedback="Safe step. Keep going!"}}else if !CourseLibrary.attacks(board,from:from,to:sq){feedback="Choose a square next to the king."}else{answer(false,hint:"That square is not a safe neighboring square. Try another step.")}}
+        case "path":if var board=frame.board,let from=board.first(where:{$0.value=="wk"})?.key {if from==sq{return};if CourseLibrary.safeKingStep(board,from:from,to:sq){try? CourseLibrary.apply(&board,moves:[[from,sq]]);frame.board=board;if sq==e.to{answer(true)}else{feedback=String(localized:"Safe step. Keep going!",bundle:.checkmate)}}else if !CourseLibrary.attacks(board,from:from,to:sq){feedback=String(localized:"Choose a square next to the king.",bundle:.checkmate)}else{answer(false,hint:String(localized:"That square is not a safe neighboring square. Try another step.",bundle:.checkmate))}}
         default:break};publish()
     }
     /// A correct answer after a mistake in this visit is a later solve, and one after a hint is solved with help: each
     /// says so, counts as solved but not as solved alone, and stays queued for review.
     private func answer(_ correct:Bool,revealed:Bool=false,hint:String?=nil){guard let p=activePuzzle,!passed else{return};pause()
         let later=correct && !revealed && mistake,helped=correct && !revealed && puzzleHints>0
-        var record=session.state.puzzles[p.id] ?? PuzzleProgress();record.record(correct:correct,revealed:revealed,afterMistake:mistake,hints:puzzleHints);session.state.puzzles[p.id]=record;if !correct{mistake=true};passed=correct || revealed;feedback=passed ? (revealed ? solution(p.exercise)+" ":helped ? "Correct, with help from a hint. It counts as solved with help and comes back for review. ":later ? "Correct, on a later try. It counts as solved and comes back for review. ":"Correct. ")+p.explanation:hint ?? "Not quite. Look again and try another answer.";session.emit(semantic:false,save:true);publish()
+        var record=session.state.puzzles[p.id] ?? PuzzleProgress();record.record(correct:correct,revealed:revealed,afterMistake:mistake,hints:puzzleHints);session.state.puzzles[p.id]=record;if !correct{mistake=true};passed=correct || revealed;feedback=passed ? (revealed ? solution(p.exercise)+" ":helped ? String(localized:"Correct, with help from a hint. It counts as solved with help and comes back for review. ",bundle:.checkmate):later ? String(localized:"Correct, on a later try. It counts as solved and comes back for review. ",bundle:.checkmate):String(localized:"Correct. ",bundle:.checkmate))+p.explanation:hint ?? String(localized:"Not quite. Look again and try another answer.",bundle:.checkmate);session.emit(semantic:false,save:true);publish()
     }
     public func reveal(){guard activePuzzle != nil else{return};answer(false,revealed:true)}
-    private func solution(_ e:Exercise)->String {switch e.kind {case "choice":return e.answer ?? "";case "squares":return (e.answers ?? []).isEmpty ? "No squares":(e.answers ?? []).joined(separator:", ");case "move":return "\(e.from ?? "") → \(e.to ?? "")";default:return "Walk safely from \(e.from ?? "") to \(e.to ?? "")."}}
+    private func solution(_ e:Exercise)->String {switch e.kind {case "choice":return e.answer ?? "";case "squares":return (e.answers ?? []).isEmpty ? String(localized:"No squares",bundle:.checkmate):(e.answers ?? []).joined(separator:", ");case "move":return "\(e.from ?? "") → \(e.to ?? "")";default:return String(localized:"Walk safely from \(e.from ?? "") to \(e.to ?? "").",bundle:.checkmate)}}
     public func startPawnDuel(computer:Bool=true){startMini(.pawnDuel,restart:true,computer:computer)}
     /// Opens a mini-game from its lesson, or with `fromLibrary` from the training library. Either way it is the one
     /// saved board for that kind (plan rule 8): resuming by default, replaced only by an explicit restart. Opening from
@@ -299,7 +300,7 @@ import Combine
         guard let game=miniGame,!game.isFinished,!miniThinking,!(game.computer && game.turn=="b") else{return}
         if let from=picked.first,game.destinations(from:from).contains(square){applyMini(MiniGameMove(from:from,to:square));scheduleMiniOpponent();return}
         picked=game.board[square]?.hasPrefix(game.turn)==true && game.kind.canMove(game.board[square]!) ? (picked==[square] ? []:[square]):[]
-        feedback=picked.isEmpty ? "Select one of your movable pieces.":"";publish()
+        feedback=picked.isEmpty ? String(localized:"Select one of your movable pieces.",bundle:.checkmate):"";publish()
     }
     /// The clock and calendar completion events are stamped with; tests inject fixed ones.
     public var now:()->Date={Date()}
@@ -361,7 +362,7 @@ import Combine
         if playing{if settings.narration != narrationApplied.on || (settings.volume>0) != (narrationApplied.volume>0){playNarration()}else if settings.volume != narrationApplied.volume{narrationApplied.volume=settings.volume;audio?.setNarrationVolume(settings.volume)}};rebuild()}
     private func rebuild(){
         if attemptStep{frame=attemptFrame;picked=attempt.selected.map{[$0]} ?? [];publish();return}
-        do{frame=try library.frame(lesson:lessonIndex,step:step,seconds:seconds,duration:Double(session.state.settings.pieceDuration)/1000,narrationSeconds:narrationSeconds,useCues:localizedPacks[lessonIndex]==nil,staged:illustrationPlayed)}catch{feedback="The lesson illustration could not load."}
+        do{frame=try library.frame(lesson:lessonIndex,step:step,seconds:seconds,duration:Double(session.state.settings.pieceDuration)/1000,narrationSeconds:narrationSeconds,useCues:localizedPacks[lessonIndex]==nil,staged:illustrationPlayed)}catch{feedback=String(localized:"The lesson illustration could not load.",bundle:.checkmate)}
         if playing {
             var board=library.referenceFrames[lessonIndex][step].start.board ?? [:]
             let times=library.moveTimes(lesson:lessonIndex,step:step,narrationSeconds:narrationSeconds,pieceDuration:Double(session.state.settings.pieceDuration)/1000,useCues:localizedPacks[lessonIndex]==nil)
@@ -385,9 +386,9 @@ import Combine
         // Training shows only a library-opened mini-game from here; its library and exercises have their own controller.
         if session.mode == .training{if mini{publishTrainingMini()};return}
         // The library has no board or lesson of its own: whatever paused, it stays the library.
-        if session.activity.place == .puzzleLibrary{session.setLesson(LessonProjection(mode:"quick_puzzle",pieces:nil,title:"Quick puzzles",lessonId:"puzzle-library",step:0,prompt:nil,choices:nil,playing:false,narrationActive:false,moving:false,turn:nil,winner:nil,rules:nil));return};let e=mini ? nil:exercise;session.setLesson(LessonProjection(mode:mini ? (miniKind == .pawnDuel ? "pawn_duel":"mini_game"):activePuzzle != nil ? "quick_puzzle":"lesson",pieces:frame.board,title:mini ? miniKind.title:activePuzzle?.title ?? current.title,lessonId:activePuzzle?.id ?? current.id,step:activePuzzle != nil ? 0:step,prompt:e?.prompt,choices:e?.kind=="choice" ? e?.choices:nil,playing:playing,narrationActive:narrationAudible,moving:frame.motion != nil,turn:mini ? miniTurn:attemptStep ? attempt.rules.turn:nil,winner:winner,rules:mini ? miniRules:nil,drawReason:mini ? miniGame?.drawReason:nil,attempt:attemptStep && !mini && e==nil ? attempt.projection:nil))}
+        if session.activity.place == .puzzleLibrary{session.setLesson(LessonProjection(mode:"quick_puzzle",pieces:nil,title:String(localized:"Quick puzzles",bundle:.checkmate),lessonId:"puzzle-library",step:0,prompt:nil,choices:nil,playing:false,narrationActive:false,moving:false,turn:nil,winner:nil,rules:nil));return};let e=mini ? nil:exercise;session.setLesson(LessonProjection(mode:mini ? (miniKind == .pawnDuel ? "pawn_duel":"mini_game"):activePuzzle != nil ? "quick_puzzle":"lesson",pieces:frame.board,title:mini ? miniKind.title:activePuzzle?.title ?? current.title,lessonId:activePuzzle?.id ?? current.id,step:activePuzzle != nil ? 0:step,prompt:e?.prompt,choices:e?.kind=="choice" ? e?.choices:nil,playing:playing,narrationActive:narrationAudible,moving:frame.motion != nil,turn:mini ? miniTurn:attemptStep ? attempt.rules.turn:nil,winner:winner,rules:mini ? miniRules:nil,drawReason:mini ? miniGame?.drawReason:nil,attempt:attemptStep && !mini && e==nil ? attempt.projection:nil))}
     /// The shown mini-game's rules, the same from its lesson and from the training library.
-    private var miniRules:[String] {miniKind == .pawnDuel ? ["Reach the far rank with a pawn, capture every opposing pawn, or leave the opponent without a move.","Pawns move forward and capture diagonally. A pawn on its starting rank may advance two empty squares.","No en passant. Pawns stay pawns at the far rank. "+MiniGameState.drawRules]:[miniKind.rules]}
+    private var miniRules:[String] {miniKind == .pawnDuel ? [String(localized:"Reach the far rank with a pawn, capture every opposing pawn, or leave the opponent without a move.",bundle:.checkmate),String(localized:"Pawns move forward and capture diagonally. A pawn on its starting rank may advance two empty squares.",bundle:.checkmate),String(localized:"No en passant. Pawns stay pawns at the far rank. ",bundle:.checkmate)+MiniGameState.drawRules]:[miniKind.rules]}
     /// The truthful training projection of a library-opened mini-game: the same board, rules and outcome as from its lesson.
     private func publishTrainingMini(){
         let finished=miniGame?.isFinished==true

@@ -1,3 +1,4 @@
+import CheckmateAssets
 import Foundation
 public enum NetworkSide:String,Codable,CaseIterable {
     case white="w",black="b"
@@ -22,7 +23,7 @@ public enum NetworkTermination:String,Codable,CaseIterable {
     public var inProtocol12:Bool {switch self{case .farRank,.allCaptured,.noMoves,.miniRepetition,.miniNoProgress,.unreachableTargets:return false;default:return true}}
     /// The PGN `Termination` value for the review record (D9). A mini-game has no PGN record; its values are named for
     /// completeness.
-    public var pgnValue:String {switch self{case .checkmate:return "Checkmate";case .stalemate:return "Stalemate";case .resignation:return "Resignation";case .time:return "Time forfeit";case .agreement:return "Draw by agreement";case .repetition:return "Threefold repetition";case .fiftyMoves:return "Fifty-move rule";case .seventyFiveMoves:return "Seventy-five-move rule";case .fivefold:return "Fivefold repetition";case .insufficientMaterial:return "Insufficient material";case .abandoned:return "Abandoned";case .farRank:return "Far rank";case .allCaptured:return "All captured";case .noMoves:return "No moves";case .miniRepetition:return "Repeated position";case .miniNoProgress:return "No progress";case .unreachableTargets:return "Targets unreachable"}}
+    public var pgnValue:String {switch self{case .checkmate:return String(localized:"Checkmate",bundle:.checkmate);case .stalemate:return String(localized:"Stalemate",bundle:.checkmate);case .resignation:return String(localized:"Resignation",bundle:.checkmate);case .time:return String(localized:"Time forfeit",bundle:.checkmate);case .agreement:return String(localized:"Draw by agreement",bundle:.checkmate);case .repetition:return String(localized:"Threefold repetition",bundle:.checkmate);case .fiftyMoves:return "Fifty-move rule";case .seventyFiveMoves:return "Seventy-five-move rule";case .fivefold:return String(localized:"Fivefold repetition",bundle:.checkmate);case .insufficientMaterial:return String(localized:"Insufficient material",bundle:.checkmate);case .abandoned:return String(localized:"Abandoned",bundle:.checkmate);case .farRank:return String(localized:"Far rank",bundle:.checkmate);case .allCaptured:return String(localized:"All captured",bundle:.checkmate);case .noMoves:return String(localized:"No moves",bundle:.checkmate);case .miniRepetition:return String(localized:"Repeated position",bundle:.checkmate);case .miniNoProgress:return String(localized:"No progress",bundle:.checkmate);case .unreachableTargets:return String(localized:"Targets unreachable",bundle:.checkmate)}}
 }
 public struct NetworkOutcome:Codable,Equatable {
     public let result:NetworkGameResult,termination:NetworkTermination

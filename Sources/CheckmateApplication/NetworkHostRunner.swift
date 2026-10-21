@@ -1,3 +1,4 @@
+import CheckmateAssets
 import CheckmateDomain
 import Foundation
 /// What the host's interface shows: a copy made on the network queue whenever an event changed it.
@@ -68,7 +69,7 @@ public final class NetworkHostRunner {
     private func begin(){
         guard !started,stop==nil else{return};started=true
         do{hosting=try transport.startHosting(configuration){[weak self] event in self?.transportEvent(event)}}
-        catch{finish(.failed("The game could not open its listeners: \(error)."));return}
+        catch{finish(.failed(String(localized:"The game could not open its listeners: \(String(describing:error)).",bundle:.checkmate)));return}
         afterEvent()
     }
     private func act(_ action:NetworkHostAction){
@@ -85,9 +86,9 @@ public final class NetworkHostRunner {
         lastEvent=Self.summary(event)
         switch event {
         case .listening(let endpoints):events(.listening(endpoints))
-        case .listenerFailed(let role,let detail):fail("The \(role.rawValue) listener failed: \(detail).")
+        case .listenerFailed(let role,let detail):fail(String(localized:"The \(role.rawValue) listener failed: \(detail).",bundle:.checkmate))
         case .accepted(let handle,let role):
-            guard generations[handle]==nil else{return fail("\(handle) was accepted twice.")}
+            guard generations[handle]==nil else{return fail(String(localized:"\(String(describing:handle)) was accepted twice.",bundle:.checkmate))}
             run{
                 let accepted=try host.accept(role,at:now)
                 generations[handle]=accepted.connection;handles[accepted.connection]=handle
@@ -135,7 +136,7 @@ public final class NetworkHostRunner {
     private func run(_ body:()throws -> [NetworkHostEffect]){
         guard stop==nil else{return}
         let effects:[NetworkHostEffect]
-        do{effects=try body()}catch{fail("The network game's rules failed: \(error).");return}
+        do{effects=try body()}catch{fail(String(localized:"The network game's rules failed: \(String(describing:error)).",bundle:.checkmate));return}
         execute(effects)
         afterEvent()
     }
@@ -146,7 +147,7 @@ public final class NetworkHostRunner {
             case .transmit(let id,let data):
                 guard let handle=handles[id] else{
                     // Name the whole batch and what the runner holds, so the log shows how the message outlived its link.
-                    return fail("A message went to \(id), which the runner does not hold. Effects: \(effects.map(Self.summary)); held: \(handles.keys.map(\.description).sorted()); last event: \(lastEvent).")
+                    return fail(String(localized:"A message went to \(String(describing:id)), which the runner does not hold. Effects: \(String(describing:effects.map(Self.summary))); held: \(String(describing:handles.keys.map(\.description).sorted())); last event: \(lastEvent).",bundle:.checkmate))
                 }
                 hosting?.send(data,on:handle)
             case .close(let id,let reason):
@@ -178,7 +179,7 @@ public final class NetworkHostRunner {
         lastStatus=key
         let now=scheduler.now
         do{events(.status(NetworkHostStatus(phase:host.phase,game:try host.publicGame(at:now),fen:host.fen,sideToMove:host.sideToMove,guestConnected:key.guestConnected,spectators:key.spectators,holdExpired:host.holdExpired,at:now)))}
-        catch{fail("The network game's rules failed: \(error).")}
+        catch{fail(String(localized:"The network game's rules failed: \(String(describing:error)).",bundle:.checkmate))}
     }
     private func fail(_ reason:String){
         guard stop==nil else{return}

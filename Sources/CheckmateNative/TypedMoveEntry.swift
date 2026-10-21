@@ -13,8 +13,8 @@ extension GameWindow {
         case waiting(String)
         case ready(TypedMoveTarget)
     }
-    static let typedMoveUnavailable="Typed moves work in a game, a lesson exercise or a training exercise."
-    static let notYourMove="It's not your move yet."
+    static let typedMoveUnavailable=String(localized:"Typed moves work in a game, a lesson exercise or a training exercise.",bundle:.checkmate)
+    static let notYourMove=String(localized:"It's not your move yet.",bundle:.checkmate)
     var typedMoveAvailable:Bool {if case .none=typedMovePlace(){return false};return true}
     func typedMovePlace()->TypedMovePlace {
         let s=model.session,l=model.learning
@@ -22,22 +22,22 @@ extension GameWindow {
         if s.mode == .network {
             let game=model.network
             guard let seat=game.seat else{return .none}
-            if seat == .spectator{return .waiting("You're watching this game, so you can't move.")}
-            guard game.canMove else{return .waiting(game.pending != nil ? "Your move is on its way.":game.rules.turn==game.side ? "You can't move right now.":Self.notYourMove)}
+            if seat == .spectator{return .waiting(String(localized:"You're watching this game, so you can't move.",bundle:.checkmate))}
+            guard game.canMove else{return .waiting(game.pending != nil ? String(localized:"Your move is on its way.",bundle:.checkmate):game.rules.turn==game.side ? String(localized:"You can't move right now.",bundle:.checkmate):Self.notYourMove)}
             return .ready(TypedMoveTarget(moves:game.rules.moves(nil),board:game.rules.board,turn:game.rules.turn,inCheck:game.rules.check,asTyped:false){choice in
-                game.play(from:choice.from,to:choice.to,promotion:choice.promotion ?? "q");return game.pending==nil ? "That move could not be sent. Try again.":nil})
+                game.play(from:choice.from,to:choice.to,promotion:choice.promotion ?? "q");return game.pending==nil ? String(localized:"That move could not be sent. Try again.",bundle:.checkmate):nil})
         }
         if s.mode == .practice {
             if shownHistoryPly != nil{return .waiting(Self.earlierPositionRefusal)}
-            if s.finished{return .waiting("The game is over. Start a new game to play again.")}
-            guard s.presentationHidden || s.preview==nil && s.demonstration==nil else{return .waiting("Go back to the game to play a move.")}
+            if s.finished{return .waiting(String(localized:"The game is over. Start a new game to play again.",bundle:.checkmate))}
+            guard s.presentationHidden || s.preview==nil && s.demonstration==nil else{return .waiting(String(localized:"Go back to the game to play a move.",bundle:.checkmate))}
             guard s.rules.turn==s.humanSide,s.busyReason != .opponent else{return .waiting(Self.notYourMove)}
             return .ready(TypedMoveTarget(moves:s.rules.moves(),board:s.rules.board,turn:s.rules.turn,inCheck:s.rules.check,asTyped:false){choice in
                 do{try s.playWhite(from:choice.from,to:choice.to,promotion:choice.promotion ?? "q");return nil}catch{return Self.failureMessage(error)}})
         }
         if let training=model.training,let exercise=trainingExercise {
-            if exercise.finished{return .waiting("This exercise is finished.")}
-            guard exercise.task == .move || exercise.task == .game else{return .waiting("This exercise asks you to choose squares, not to play a move.")}
+            if exercise.finished{return .waiting(String(localized:"This exercise is finished.",bundle:.checkmate))}
+            guard exercise.task == .move || exercise.task == .game else{return .waiting(String(localized:"This exercise asks you to choose squares, not to play a move.",bundle:.checkmate))}
             if exercise.task == .game,training.games.thinking{return .waiting(Self.notYourMove)}
             // The exercise grades a raw attempt itself and never reveals its legal moves (training plan rule 3): squares go
             // through as typed, and SAN is read from where the pieces can reach.
@@ -50,17 +50,17 @@ extension GameWindow {
             return .ready(TypedMoveTarget(moves:attempt.rules.moves(),board:attempt.rules.board,turn:attempt.rules.turn,inCheck:attempt.rules.check,asTyped:false){choice in attempt.play(from:choice.from,to:choice.to,promotion:choice.promotion);return nil})
         }
         if l.mini,let game=l.miniGame {
-            if game.isFinished{return .waiting("The game is over.")}
+            if game.isFinished{return .waiting(String(localized:"The game is over.",bundle:.checkmate))}
             if l.miniThinking || game.computer && game.turn=="b"{return .waiting(Self.notYourMove)}
             let moves=MiniGameRules.moves(board:game.board,kind:game.kind,side:game.turn).map{MoveRecord(color:game.turn,from:$0.from,to:$0.to,piece:String(game.board[$0.from]?.suffix(1) ?? ""),flags:"n",san:"",before:"",after:"",captured:game.board[$0.to].map{String($0.suffix(1))},promotion:nil)}
             return .ready(TypedMoveTarget(moves:moves,board:game.board,turn:game.turn,inCheck:false,asTyped:false){choice in l.clearSelection();l.click(choice.from);l.click(choice.to);return nil})
         }
         if l.activePuzzle != nil,let exercise=l.exercise,exercise.kind=="move" {
-            if l.passed{return .waiting("This exercise is finished.")}
+            if l.passed{return .waiting(String(localized:"This exercise is finished.",bundle:.checkmate))}
             let board=l.frame.board ?? [:],mover=exercise.from.flatMap{board[$0].map{String($0.prefix(1))}} ?? "w"
             // The puzzle grades the pair of squares as clicks would: any move of one of the learner's pieces is an answer.
             return .ready(TypedMoveTarget(moves:TypedMove.reachable(board:board,turn:mover,enPassant:nil),board:board,turn:mover,inCheck:false,asTyped:true){[weak self] choice in
-                guard board[choice.from]?.hasPrefix(mover)==true else{return "There's no piece of yours on \(choice.from)."}
+                guard board[choice.from]?.hasPrefix(mover)==true else{return String(localized:"There's no piece of yours on \(choice.from).",bundle:.checkmate)}
                 l.clearSelection();l.click(choice.from);l.click(choice.to);if !l.feedback.isEmpty{self?.announceTypedMove(l.feedback)};return nil})
         }
         return .none
@@ -92,8 +92,8 @@ final class TypedMoveController:NSViewController {
     let field=NSTextField(),message=textLabel("",.callout)
     var submit:(String)->String?={_ in nil}
     override func loadView(){
-        let title=textLabel("Type a Move",.headline,.semibold);title.setAccessibilityRole(.staticText)
-        field.placeholderString="e4, Nf3, O-O or e2e4";field.setAccessibilityLabel("Move");field.identifier=NSUserInterfaceItemIdentifier("typed-move-field");field.target=self;field.action=#selector(enter)
+        let title=textLabel(String(localized:"Type a Move",bundle:.checkmate),.headline,.semibold);title.setAccessibilityRole(.staticText)
+        field.placeholderString="e4, Nf3, O-O or e2e4";field.setAccessibilityLabel(String(localized:"Move",bundle:.checkmate,comment:"Noun: one move in a chess game"));field.identifier=NSUserInterfaceItemIdentifier("typed-move-field");field.target=self;field.action=#selector(enter)
         message.identifier=NSUserInterfaceItemIdentifier("typed-move-message");message.textColor = .secondaryLabelColor;message.maximumNumberOfLines=0;message.preferredMaxLayoutWidth=260;message.isHidden=true
         let stack=NSStackView(views:[title,field,message]);stack.orientation = .vertical;stack.alignment = .leading;stack.spacing=Metrics.smallGap;stack.edgeInsets=NSEdgeInsets(top:12,left:12,bottom:12,right:12)
         field.widthAnchor.constraint(equalToConstant:260).isActive=true

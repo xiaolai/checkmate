@@ -22,18 +22,18 @@ import Foundation
         self.cap=cap
         runtime=try (runtimeFactory ?? {try JavaScriptCoreChessRuntime()})()
         _ = try runtime.evaluate(try String(contentsOf:NativeResources.url("training-search.js"),encoding:.utf8)+";0")
-        guard try runtime.evaluate("typeof TrainingSearch")=="object" else{throw CheckmateError.unavailable("The training search could not load.")}
+        guard try runtime.evaluate("typeof TrainingSearch")=="object" else{throw CheckmateError.unavailable(String(localized:"The training search could not load.",bundle:.checkmate))}
     }
     private func call<T:Decodable>(_ function:String,_ spec:[String:Any],as type:T.Type)throws -> T {
         let literal=String(decoding:try JSONSerialization.data(withJSONObject:spec,options:[.sortedKeys]),as:UTF8.self)
         let text=try runtime.evaluate("(()=>{try{return JSON.stringify({ok:true,value:TrainingSearch.\(function)(\(literal))})}catch(e){return JSON.stringify({ok:false,error:String(e)})}})()")
-        guard let data=text.data(using:.utf8),let object=try JSONSerialization.jsonObject(with:data) as? [String:Any] else{throw CheckmateError.invalid("The training search returned nothing.")}
-        guard object["ok"] as? Bool==true,let value=object["value"] else{throw CheckmateError.invalid("Training search failed: \(object["error"] as? String ?? "unknown error")")}
+        guard let data=text.data(using:.utf8),let object=try JSONSerialization.jsonObject(with:data) as? [String:Any] else{throw CheckmateError.invalid(String(localized:"The training search returned nothing.",bundle:.checkmate))}
+        guard object["ok"] as? Bool==true,let value=object["value"] else{throw CheckmateError.invalid(String(localized:"Training search failed: \(object["error"] as? String ?? "unknown error")",bundle:.checkmate))}
         return try JSONDecoder().decode(type,from:JSONSerialization.data(withJSONObject:value))
     }
     private func spend(_ used:Int,exhausted:Bool)throws {
         nodes+=used
-        guard !exhausted,nodes<=cap else{throw CheckmateError.invalid("the search exceeded \(cap) positions, so nothing is certified")}
+        guard !exhausted,nodes<=cap else{throw CheckmateError.invalid(String(localized:"the search exceeded \(cap) positions, so nothing is certified",bundle:.checkmate))}
     }
     private func spec(_ scenario:TrainingScenario,line:[String],plies:Int)->[String:Any] {
         var goal:[String:Any]=["kind":scenario.goal?.kind.rawValue ?? "gain","threshold":scenario.goal?.threshold ?? 1,"drawOK":scenario.goal?.drawOK ?? false]
@@ -57,7 +57,7 @@ import Foundation
     func holds(_ scenario:TrainingScenario,line:[String],plies:Int)throws -> Bool {
         let result=try call("holds",spec(scenario,line:line,plies:plies),as:Holds.self)
         try spend(result.nodes,exhausted:result.exhausted)
-        guard let holds=result.holds else{throw CheckmateError.invalid("The training search returned no result.")}
+        guard let holds=result.holds else{throw CheckmateError.invalid(String(localized:"The training search returned no result.",bundle:.checkmate))}
         return holds
     }
     /// The sign of the stated line's resolved material change for the learner: 1, 0 or -1.
@@ -65,7 +65,7 @@ import Foundation
         var request=spec(scenario,line:[],plies:0);request["stated"]=scenario.stated ?? []
         let result=try call("exchange",request,as:Exchange.self)
         try spend(result.nodes ?? 0,exhausted:result.exhausted)
-        guard let sign=result.sign else{throw CheckmateError.invalid("The exchange could not be resolved.")}
+        guard let sign=result.sign else{throw CheckmateError.invalid(String(localized:"The exchange could not be resolved.",bundle:.checkmate))}
         return sign
     }
     func threat(_ scenario:TrainingScenario,create:Bool)throws -> Threat {
@@ -73,7 +73,7 @@ import Foundation
         var request=spec(scenario,line:[],plies:0);request["kind"]=create ? "create":"prevent"
         let result=try call("threat",request,as:Found.self)
         try spend(result.nodes,exhausted:result.exhausted)
-        guard let accepted=result.accepted,let rejected=result.rejected,let replies=result.replies,let opponentThreat=result.opponentThreat else{throw CheckmateError.invalid("The training search returned no result.")}
+        guard let accepted=result.accepted,let rejected=result.rejected,let replies=result.replies,let opponentThreat=result.opponentThreat else{throw CheckmateError.invalid(String(localized:"The training search returned no result.",bundle:.checkmate))}
         return Threat(accepted:accepted,rejected:rejected,replies:replies,opponentThreat:opponentThreat)
     }
     /// Whether one of the learner's pieces is in danger (see `TrainingSearch.danger`); nil when in check.
@@ -86,7 +86,7 @@ import Foundation
     /// accepted set equals the search's, each reply is legal and does what it claims (a refutation defeats the
     /// move, a testing reply leaves the goal reachable), and every continuation node is reached by its reply.
     func certifyGraph(_ scenario:TrainingScenario,runtimeFactory:(() throws -> any ChessScriptRuntime)?)throws {
-        guard let nodes=scenario.nodes,let plies=scenario.plies else{throw CheckmateError.invalid("missing teaching graph")}
+        guard let nodes=scenario.nodes,let plies=scenario.plies else{throw CheckmateError.invalid(String(localized:"missing teaching graph",bundle:.checkmate))}
         var visited=Set<Int>()
         func certify(_ index:Int,line:[String],plies:Int)throws {
             guard visited.insert(index).inserted else{throw CheckmateError.invalid("teaching node \(index) is reached twice")}
@@ -106,6 +106,6 @@ import Foundation
             }
         }
         try certify(0,line:[],plies:plies)
-        guard visited.count==nodes.count else{throw CheckmateError.invalid("unreachable teaching nodes")}
+        guard visited.count==nodes.count else{throw CheckmateError.invalid(String(localized:"unreachable teaching nodes",bundle:.checkmate))}
     }
 }

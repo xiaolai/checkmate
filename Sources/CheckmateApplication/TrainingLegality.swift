@@ -1,10 +1,11 @@
+import CheckmateAssets
 import CheckmateDomain
 import CheckmateRules
 /// The four-way classification with explicit precedence: checkmate, stalemate, check, neither. "Neither" means none of
 /// those three, not that no other draw rule could apply.
 public enum TrainingStatus:String,Codable,CaseIterable {
     case checkmate,stalemate,check,neither
-    public var label:String {switch self{case .checkmate:return "Checkmate";case .stalemate:return "Stalemate";case .check:return "Check";case .neither:return "Neither"}}
+    public var label:String {switch self{case .checkmate:return String(localized:"Checkmate",bundle:.checkmate);case .stalemate:return String(localized:"Stalemate",bundle:.checkmate);case .check:return String(localized:"Check",bundle:.checkmate,comment:"Noun: a king under attack");case .neither:return String(localized:"Neither",bundle:.checkmate)}}
     public static let choices=allCases.map(\.label)
 }
 /// How a raw move attempt in Escape Check is graded (plan rule 3): before legal-move filtering and without exposing
@@ -31,7 +32,7 @@ public enum TrainingMoveGrade:Equatable {
     public init(fen:String,prelude:[String]=[],runtimeFactory:(() throws -> any ChessScriptRuntime)?=nil)throws {
         _ = try PGNImporter.validateFEN(fen)
         rules=try runtimeFactory.map{try ChessRules(fen:fen,runtimeFactory:$0)} ?? ChessRules(fen:fen)
-        for uci in prelude{guard ChessNotation.validUCI(uci) else{throw CheckmateError.invalid("Invalid context move.")};_ = try rules.move(uci:uci)}
+        for uci in prelude{guard ChessNotation.validUCI(uci) else{throw CheckmateError.invalid(String(localized:"Invalid context move.",bundle:.checkmate))};_ = try rules.move(uci:uci)}
         self.fen=try rules.currentFEN()
     }
     public func turn()throws -> String {try rules.currentTurn()}
@@ -51,7 +52,7 @@ public enum TrainingMoveGrade:Equatable {
     public func matingMoves()throws -> Set<String> {Set(try outcomes().filter(\.checkmate).map(\.uci))}
     /// The squares the side to move's king can legally reach (castling excluded by the scenarios that ask this).
     public func kingDestinations()throws -> Set<String> {
-        let turn=try turn();guard let king=try board().first(where:{$0.value==turn+"k"})?.key else{throw CheckmateError.invalid("No king to move.")}
+        let turn=try turn();guard let king=try board().first(where:{$0.value==turn+"k"})?.key else{throw CheckmateError.invalid(String(localized:"No king to move.",bundle:.checkmate))}
         return Set(try outcomes().filter{$0.from==king && !$0.flags.contains("k") && !$0.flags.contains("q")}.map(\.to))
     }
     /// The legal move for exactly this attempt, if there is one.
@@ -62,17 +63,17 @@ public enum TrainingMoveGrade:Equatable {
     /// With `castling`, moving the king onto its own rook is graded as a castling rule error: king-to-rook is not
     /// accepted as castling.
     public func grade(from:String,to:String,promotion:String?,castling:Bool=false)throws -> TrainingMoveGrade {
-        guard ChessNotation.validSquare(from),ChessNotation.validSquare(to),from != to else{return .selection("Choose a piece, then a different square.")}
+        guard ChessNotation.validSquare(from),ChessNotation.validSquare(to),from != to else{return .selection(String(localized:"Choose a piece, then a different square.",bundle:.checkmate))}
         let board=try board(),turn=try turn()
-        guard let piece=board[from],piece.hasPrefix(turn) else{return .selection("Select one of your own pieces.")}
-        if castling,piece==turn+"k",board[to]==turn+"r",from.last==to.last{return .ruleError("To castle, move the king two squares towards the rook; the rook then jumps over the king.")}
-        if board[to]?.hasPrefix(turn)==true{return .selection("That square holds your own piece.")}
+        guard let piece=board[from],piece.hasPrefix(turn) else{return .selection(String(localized:"Select one of your own pieces.",bundle:.checkmate))}
+        if castling,piece==turn+"k",board[to]==turn+"r",from.last==to.last{return .ruleError(String(localized:"To castle, move the king two squares towards the rook; the rook then jumps over the king.",bundle:.checkmate))}
+        if board[to]?.hasPrefix(turn)==true{return .selection(String(localized:"That square holds your own piece.",bundle:.checkmate))}
         let candidates=try outcomes().filter{$0.from==from && $0.to==to}
         if !candidates.isEmpty {
             let promotes=candidates.contains{$0.promotion != nil}
             if promotes && promotion==nil{return .needsPromotion}
             if let legal=candidates.first(where:{$0.promotion==promotion}){return .legal(legal)}
-            return .ruleError(promotes ? "A pawn can promote only to a queen, rook, bishop or knight.":"Only a pawn reaching the last rank promotes; this move takes no promotion piece.")
+            return .ruleError(promotes ? String(localized:"A pawn can promote only to a queen, rook, bishop or knight.",bundle:.checkmate):String(localized:"Only a pawn reaching the last rank promotes; this move takes no promotion piece.",bundle:.checkmate))
         }
         return .ruleError(try reason(piece:piece,from:from,to:to,board:board))
     }

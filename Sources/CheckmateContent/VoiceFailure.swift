@@ -1,3 +1,4 @@
+import CheckmateAssets
 import CheckmateDomain
 import CheckmateSupport
 import CodexAuth
@@ -7,7 +8,7 @@ import RealtimeConnection
 /// The one thing the learner can do about a voice or Codex problem (V-6). Each is a button.
 public enum VoiceAction:String,CaseIterable,Sendable {
     case openMicrophoneSettings="Open Microphone Settings",tryAgain="Try Again",signIn="Sign In",getCodex="Get Codex",setUpCodex="Set Up Codex",openVoiceSettings="Open Voice Settings",openConnections="Open Connection Settings"
-    public var title:String {rawValue}
+    public var title:String {switch self{case .openMicrophoneSettings:return String(localized:"Open Microphone Settings",bundle:.checkmate);case .tryAgain:return String(localized:"Try Again",bundle:.checkmate);case .signIn:return String(localized:"Sign In",bundle:.checkmate);case .getCodex:return String(localized:"Get Codex",bundle:.checkmate);case .setUpCodex:return String(localized:"Set Up Codex",bundle:.checkmate);case .openVoiceSettings:return String(localized:"Open Voice Settings",bundle:.checkmate);case .openConnections:return String(localized:"Open Connection Settings",bundle:.checkmate)}}
 }
 
 /// Why voice or Codex could not do what was asked, as one plain cause and one action (V-6, V-7). The details (states,
@@ -19,36 +20,36 @@ public enum VoiceFailure:String,Error,UserFacingError,CaseIterable,Equatable,Sen
     case companionConnected,networkGame,notHere,consentNeeded
     public var cause:String {
         switch self {
-        case .noCodex:return "Voice needs the Codex app, and it is not on this Mac."
-        case .codexNotSetUp:return "Codex is not set up to use Checkmate's chess tools."
-        case .codexTooOld:return "Codex on this Mac is too old for voice. Voice needs Codex \(minimumCodexVersion) or later."
-        case .signedOut:return "Codex on this Mac is not signed in with your ChatGPT account."
-        case .apiKeySignIn:return "Codex on this Mac is signed in with an API key, and voice uses your ChatGPT subscription instead."
-        case .otherSignIn:return "Codex on this Mac is signed in another way, and voice needs a ChatGPT sign-in."
-        case .signInExpired:return "Your Codex sign-in has expired."
-        case .signInRejected:return "Your Codex sign-in was not accepted."
-        case .keychainSignIn:return "Codex keeps its sign-in in the keychain, and this version of Codex cannot share it with Checkmate."
-        case .otherProvider:return "Codex on this Mac uses a service other than ChatGPT, so voice cannot use its sign-in."
-        case .codexUnresponsive:return "Codex on this Mac did not answer when Checkmate asked for its sign-in."
-        case .accessRefused:return "Your ChatGPT account cannot use live voice."
-        case .rateLimited:return "Your account has used live voice a lot recently, so it is paused for now."
-        case .serviceDown:return "The live voice service is having trouble right now."
-        case .offline:return "Checkmate cannot reach the live voice service from this Mac."
-        case .requestRefused:return "The live voice service turned down this connection."
-        case .noModel:return "No voice coach is available to your account right now."
-        case .thinkingUnsupported:return "The voice coach available to your account cannot think at the level you chose."
-        case .connectionLost:return "The voice connection ended."
-        case .timedOut:return "The voice coach stopped answering."
-        case .serviceError:return "The live voice service stopped this session."
-        case .connectFailed:return "The voice coach could not connect."
-        case .audioOutput:return "Your Mac could not play the coach's voice."
-        case .microphoneDenied:return "Checkmate is not allowed to use the microphone."
-        case .microphoneUnavailable:return "The selected microphone is not available."
-        case .microphoneFormat:return "The selected microphone records in a format Checkmate cannot use."
-        case .companionConnected:return "Codex is connected to Checkmate, so the voice coach cannot connect."
-        case .networkGame:return "Voice coaching is off during your network game. The coach can connect once the game ends."
-        case .notHere:return "The voice coach cannot connect to what is shown now. Return to Practice or a training game you are playing to connect it."
-        case .consentNeeded:return "The voice coach needs your agreement to what it sends to OpenAI before it connects."
+        case .noCodex:return String(localized:"Voice needs the Codex app, and it is not on this Mac.",bundle:.checkmate)
+        case .codexNotSetUp:return String(localized:"Codex is not set up to use Checkmate's chess tools.",bundle:.checkmate)
+        case .codexTooOld:return String(localized:"Codex on this Mac is too old for voice. Voice needs Codex \(minimumCodexVersion) or later.",bundle:.checkmate)
+        case .signedOut:return String(localized:"Codex on this Mac is not signed in with your ChatGPT account.",bundle:.checkmate)
+        case .apiKeySignIn:return String(localized:"Codex on this Mac is signed in with an API key, and voice uses your ChatGPT subscription instead.",bundle:.checkmate)
+        case .otherSignIn:return String(localized:"Codex on this Mac is signed in another way, and voice needs a ChatGPT sign-in.",bundle:.checkmate)
+        case .signInExpired:return String(localized:"Your Codex sign-in has expired.",bundle:.checkmate)
+        case .signInRejected:return String(localized:"Your Codex sign-in was not accepted.",bundle:.checkmate)
+        case .keychainSignIn:return String(localized:"Codex keeps its sign-in in the keychain, and this version of Codex cannot share it with Checkmate.",bundle:.checkmate)
+        case .otherProvider:return String(localized:"Codex on this Mac uses a service other than ChatGPT, so voice cannot use its sign-in.",bundle:.checkmate)
+        case .codexUnresponsive:return String(localized:"Codex on this Mac did not answer when Checkmate asked for its sign-in.",bundle:.checkmate)
+        case .accessRefused:return String(localized:"Your ChatGPT account cannot use live voice.",bundle:.checkmate)
+        case .rateLimited:return String(localized:"Your account has used live voice a lot recently, so it is paused for now.",bundle:.checkmate)
+        case .serviceDown:return String(localized:"The live voice service is having trouble right now.",bundle:.checkmate)
+        case .offline:return String(localized:"Checkmate cannot reach the live voice service from this Mac.",bundle:.checkmate)
+        case .requestRefused:return String(localized:"The live voice service turned down this connection.",bundle:.checkmate)
+        case .noModel:return String(localized:"No voice coach is available to your account right now.",bundle:.checkmate)
+        case .thinkingUnsupported:return String(localized:"The voice coach available to your account cannot think at the level you chose.",bundle:.checkmate)
+        case .connectionLost:return String(localized:"The voice connection ended.",bundle:.checkmate)
+        case .timedOut:return String(localized:"The voice coach stopped answering.",bundle:.checkmate)
+        case .serviceError:return String(localized:"The live voice service stopped this session.",bundle:.checkmate)
+        case .connectFailed:return String(localized:"The voice coach could not connect.",bundle:.checkmate)
+        case .audioOutput:return String(localized:"Your Mac could not play the coach's voice.",bundle:.checkmate)
+        case .microphoneDenied:return String(localized:"Checkmate is not allowed to use the microphone.",bundle:.checkmate)
+        case .microphoneUnavailable:return String(localized:"The selected microphone is not available.",bundle:.checkmate)
+        case .microphoneFormat:return String(localized:"The selected microphone records in a format Checkmate cannot use.",bundle:.checkmate)
+        case .companionConnected:return String(localized:"Codex is connected to Checkmate, so the voice coach cannot connect.",bundle:.checkmate)
+        case .networkGame:return String(localized:"Voice coaching is off during your network game. The coach can connect once the game ends.",bundle:.checkmate)
+        case .notHere:return String(localized:"The voice coach cannot connect to what is shown now. Return to Practice or a training game you are playing to connect it.",bundle:.checkmate)
+        case .consentNeeded:return String(localized:"The voice coach needs your agreement to what it sends to OpenAI before it connects.",bundle:.checkmate)
         }
     }
     /// The one action that can fix it now; nil when nothing can until the learner leaves where they are, which the
@@ -124,8 +125,8 @@ public enum VoiceFailure:String,Error,UserFacingError,CaseIterable,Equatable,Sen
 /// voice models accept; Advanced settings still offer every effort.
 public enum CoachThinking:String,CaseIterable,Sendable {
     case quick="minimal",balanced="low",thorough="high"
-    public var title:String {switch self {case .quick:return "Quick";case .balanced:return "Balanced";case .thorough:return "Thorough"}}
-    public var detail:String {switch self {case .quick:return "Answers fastest.";case .balanced:return "Thinks a little longer before answering.";case .thorough:return "Thinks longest, and may take a while to answer."}}
+    public var title:String {switch self {case .quick:return String(localized:"Quick",bundle:.checkmate);case .balanced:return String(localized:"Balanced",bundle:.checkmate);case .thorough:return String(localized:"Thorough",bundle:.checkmate)}}
+    public var detail:String {switch self {case .quick:return String(localized:"Answers fastest.",bundle:.checkmate);case .balanced:return String(localized:"Thinks a little longer before answering.",bundle:.checkmate);case .thorough:return String(localized:"Thinks longest, and may take a while to answer.",bundle:.checkmate)}}
     /// The learner's name for any reasoning effort, including the ones only Advanced offers.
-    public static func name(effort:String)->String {CoachThinking(rawValue:effort)?.title ?? (effort=="xhigh" ? "Extra high":effort.capitalized)}
+    public static func name(effort:String)->String {CoachThinking(rawValue:effort)?.title ?? (effort=="xhigh" ? String(localized:"Extra high",bundle:.checkmate):effort.capitalized)}
 }

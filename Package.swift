@@ -5,6 +5,8 @@ let releaseSettings = try String(contentsOf: URL(fileURLWithPath: #filePath).del
 let minimumMacOS = releaseSettings.split(separator: "\n").first { $0.hasPrefix("CHECKMATE_MINIMUM_MACOS=") }!.split(separator: "=", maxSplits: 1)[1]
 let package = Package(
     name: "Checkmate",
+    // The String Catalog's source language; the app ships English only for now (CheckmateAssets holds the catalog).
+    defaultLocalization: "en",
     platforms: [.macOS(String(minimumMacOS))],
     products: [.library(name: "CheckmateDomain", targets: ["CheckmateDomain"]), .library(name: "CheckmateApplication", targets: ["CheckmateApplication"]), .executable(name: "CheckmateMCP", targets: ["CheckmateMCP"]), .executable(name: "CheckmateNative", targets: ["CheckmateNative"]), .executable(name: "CheckmateAcceptance", targets: ["CheckmateAcceptance"])],
     dependencies: [.package(url: "https://github.com/modelcontextprotocol/swift-sdk.git", exact: "0.12.1"), .package(url: "https://github.com/xiaolai/sayso.git", from: "0.4.0")],
@@ -12,7 +14,7 @@ let package = Package(
         .target(name: "CheckmateMCPKit", dependencies: ["CheckmateCore", .product(name: "MCP", package: "swift-sdk")]),
         .executableTarget(name: "CheckmateMCP", dependencies: ["CheckmateMCPKit"]),
         .testTarget(name: "CheckmateMCPTests", dependencies: ["CheckmateMCPKit"]),
-        .target(name: "CheckmateAssets", dependencies: [], path: "Sources/CheckmateCore", resources: [.copy("Resources")]),
+        .target(name: "CheckmateAssets", dependencies: [], path: "Sources/CheckmateCore", resources: [.copy("Resources"), .process("Localizable.xcstrings")]),
         .target(name: "CheckmateDomain", dependencies: ["CheckmateAssets"]),
         .target(name: "CheckmateSupport", dependencies: ["CheckmateDomain", "CheckmateAssets"]),
         .target(name: "CheckmateRules", dependencies: ["CheckmateDomain", "CheckmateAssets", "CheckmateSupport"]),

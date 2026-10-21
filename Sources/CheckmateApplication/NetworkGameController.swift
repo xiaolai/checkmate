@@ -1,3 +1,4 @@
+import CheckmateAssets
 import CheckmateDomain
 import CheckmateRules
 import CheckmateSupport
@@ -39,18 +40,18 @@ import OSLog
         case stopped
     }
     /// The sidebar badge while the learner is elsewhere and the game waits for their move (D9).
-    public static let yourMoveBadge="Network game · your move"
-    public static let lobbyTitle="Play on Network"
-    public static let nameNeeded="Type your name first, up to 64 characters."
-    public static let codeNeeded="Type the 8-character code shown on the host's Mac."
+    public static let yourMoveBadge=String(localized:"Network game · your move",bundle:.checkmate)
+    public static let lobbyTitle=String(localized:"Play on Network",bundle:.checkmate)
+    public static let nameNeeded=String(localized:"Type your name first, up to 64 characters.",bundle:.checkmate)
+    public static let codeNeeded=String(localized:"Type the 8-character code shown on the host's Mac.",bundle:.checkmate)
     /// Joining a game with assistance needs the person to accept its terms first (assistance plan A3).
-    public static let assistanceNeeded="Accept this game's assistance to join it."
-    public static let leaveConfirmation="Leave the game? It counts as a resignation."
-    public static let watchingNotice="You're watching"
+    public static let assistanceNeeded=String(localized:"Accept this game's assistance to join it.",bundle:.checkmate)
+    public static let leaveConfirmation=String(localized:"Leave the game? It counts as a resignation.",bundle:.checkmate)
+    public static let watchingNotice=String(localized:"You're watching",bundle:.checkmate)
     /// Hosting refused the chosen start (mini-games plan D7).
-    public static let startOver="That position is already over. Choose a different move."
-    public static let startIllegal="That position can't start a game. Choose a different move."
-    public static let sendingNotice="Sending…"
+    public static let startOver=String(localized:"That position is already over. Choose a different move.",bundle:.checkmate)
+    public static let startIllegal=String(localized:"That position can't start a game. Choose a different move.",bundle:.checkmate)
+    public static let sendingNotice=String(localized:"Sending…",bundle:.checkmate)
 
     // MARK: The shown game
     /// The shown game (mini-games plan WI-022): this controller and the views read it only through the board model.
@@ -106,7 +107,7 @@ import OSLog
     /// found clears it, and each new look starts the time again.
     @Published public private(set) var browseTimedOut=false
     public static let browseTimeout:Duration = .seconds(10)
-    public static let browseTimeoutHelp="No games found. If a game is open on another Mac, check that Checkmate is allowed in System Settings ▸ Privacy & Security ▸ Local Network."
+    public static let browseTimeoutHelp=String(localized:"No games found. If a game is open on another Mac, check that Checkmate is allowed in System Settings ▸ Privacy & Security ▸ Local Network.",bundle:.checkmate)
     /// One of D11's two denial signals was seen and access has not come back since.
     @Published public private(set) var localNetworkDenied=false
     /// Show the permission help (D11), until dismissed or access comes back.
@@ -179,7 +180,7 @@ import OSLog
     public var side:String? {if case .player(let side)=seat{return side};return nil}
     public var players:NetworkWording.Players {NetworkWording.Players(white:whiteName,black:blackName,learner:learnerSide)}
     /// The other player's name, as the learner reads it.
-    public var opponentName:String {learnerSide.map{players.name($0.opponent)} ?? "Your opponent"}
+    public var opponentName:String {learnerSide.map{players.name($0.opponent)} ?? String(localized:"Your opponent",bundle:.checkmate)}
 
     // MARK: A game shown without a session
     /// Shows a game: the seat the learner holds and the position (a record the host's game has already verified).
@@ -320,7 +321,7 @@ import OSLog
         switch update {
         case .games(let found):if games != found{games=found};if lobbyMessage != nil{lobbyMessage=nil};if !found.isEmpty,browseTimedOut{browseTimedOut=false};accessRestored()
         case .denied:askForPermission()
-        case .failed(let detail):NativeLog.lifecycle.error("Network discovery failed: \(detail,privacy:.public)");lobbyMessage="Couldn't look for games on your network."
+        case .failed(let detail):NativeLog.lifecycle.error("Network discovery failed: \(detail,privacy:.public)");lobbyMessage=String(localized:"Couldn't look for games on your network.",bundle:.checkmate)
         }
     }
     /// D11's denial signals only: a browser waiting with -65570, or a connection waiting with `localNetworkDenied`.
@@ -347,7 +348,7 @@ import OSLog
         do{host=try NetworkHost(gameID:gameID,runEpoch:services.runEpoch,settings:NetworkHostSettings(hostName:name,hostSide:side,timeControl:form.timeControl,allowSpectators:form.allowSpectators,assistance:assistance,startFEN:start,ruleset:ruleset),rules:services.rules,hashing:services.hashing,random:random,at:services.scheduler.now)}
         catch NetworkHostError.startOver{lobbyMessage=Self.startOver;return false}
         catch NetworkHostError.illegalStart{lobbyMessage=Self.startIllegal;return false}
-        catch{NativeLog.lifecycle.error("A network game could not be set up: \(String(describing:error),privacy:.public)");lobbyMessage="The game could not be set up.";return false}
+        catch{NativeLog.lifecycle.error("A network game could not be set up: \(String(describing:error),privacy:.public)");lobbyMessage=String(localized:"The game could not be set up.",bundle:.checkmate);return false}
         let configuration=NetworkHostingConfiguration(gameID:gameID,seatCode:seatCode,watchCode:watch,serviceName:Self.gameName(host:name),assistance:assistance,variant:ruleset?.descriptor)
         beginSession(.host,name:configuration.serviceName)
         playCode=seatCode;watchCode=watch;learnerSide=side;timeControl=form.timeControl;hostPhase = .waiting
@@ -366,8 +367,8 @@ import OSLog
     /// game advertises, unless it advertises none. The guest states them in `hello`, and both sides check them again.
     @discardableResult public func join(_ game:NetworkDiscoveredGame,code typed:String,watching:Bool=false,accepting:NetworkAssistance?=nil)->Bool {
         guard part==nil,let services else{return false}
-        let role:NetworkListenerRole=watching ? .watch:.seat,name=game.name.isEmpty ? "the host's game":game.name
-        guard let record=game.record(role) else{lobbyMessage=watching ? "\(name) doesn't allow spectators.":"\(name) has no seat to join.";return false}
+        let role:NetworkListenerRole=watching ? .watch:.seat,name=game.name.isEmpty ? String(localized:"the host's game",bundle:.checkmate):game.name
+        guard let record=game.record(role) else{lobbyMessage=watching ? String(localized:"\(name) doesn't allow spectators.",bundle:.checkmate):String(localized:"\(name) has no seat to join.",bundle:.checkmate);return false}
         guard let player=Self.validName(playerName) else{lobbyMessage=Self.nameNeeded;return false}
         guard let code=NetworkCode(typed:typed) else{lobbyMessage=Self.codeNeeded;return false}
         let accepted=accepting ?? .off
@@ -421,7 +422,7 @@ import OSLog
         case .refused(let reason):clearPending();flash(NetworkWording.refusal(reason))
         case .stopped(let stop):
             runner=nil;update(\.link,.stopped);clearPending();services?.listenersClosed(configuration.gameID)
-            if case .failed(let detail)=stop {NativeLog.lifecycle.error("The hosted network game stopped: \(detail,privacy:.public)");if !leaving{stopMessage=sleptWhileHosting ? "Your game stopped when this Mac went to sleep.":"Your game had to stop."}}
+            if case .failed(let detail)=stop {NativeLog.lifecycle.error("The hosted network game stopped: \(detail,privacy:.public)");if !leaving{stopMessage=sleptWhileHosting ? String(localized:"Your game stopped when this Mac went to sleep.",bundle:.checkmate):String(localized:"Your game had to stop.",bundle:.checkmate)}}
             if leaving{return finishLeaving()}
         }
         settle()
@@ -490,8 +491,8 @@ import OSLog
         // A12: joining or watching a game with assistance announces its terms once, as the line under the names shows them.
         if first,part != .host,let terms=NetworkWording.terms(game.assistance,players:players){announce(terms)}
         if pending != nil,gameRevision != pendingRevision{clearPending()}
-        if let offer=openOffer,offer != previousOffer,offer.by != learnerSide{announce("\(players.name(offer.by)) offers a draw")}
-        if let offer=previousOffer,openOffer==nil,outcome==nil,!moved,offer.by==learnerSide{announce("\(opponentName) declined the draw")}
+        if let offer=openOffer,offer != previousOffer,offer.by != learnerSide{announce(String(localized:"\(players.name(offer.by)) offers a draw",bundle:.checkmate))}
+        if let offer=previousOffer,openOffer==nil,outcome==nil,!moved,offer.by==learnerSide{announce(String(localized:"\(opponentName) declined the draw",bundle:.checkmate))}
         if let outcome,previousOutcome==nil{
             announce(NetworkWording.result(outcome,players:players))
             // Protocol 1.3: a finished mini-game is reviewed by the proof search, whatever ended it.
@@ -511,7 +512,7 @@ import OSLog
         switch part {
         case nil:next=Self.lobbyTitle
         case .host?:next=whiteName != nil && blackName != nil ? "\(players.name(.white)) vs \(players.name(.black))":gameName
-        case .guest?,.spectator?:next=record != nil ? "\(players.name(.white)) vs \(players.name(.black))":part == .guest ? "Joining \(gameName)":"Watching \(gameName)"
+        case .guest?,.spectator?:next=record != nil ? "\(players.name(.white)) vs \(players.name(.black))":part == .guest ? String(localized:"Joining \(gameName)",bundle:.checkmate):String(localized:"Watching \(gameName)",bundle:.checkmate)
         }
         update(\.title,next)
     }
@@ -645,7 +646,7 @@ import OSLog
     public func systemWillSleep(){
         guard !leaving,outcome==nil else{return}
         switch runner {
-        case .host(let runner,_)?:sleptWhileHosting=true;runner.interrupt("This Mac went to sleep.")
+        case .host(let runner,_)?:sleptWhileHosting=true;runner.interrupt(String(localized:"This Mac went to sleep.",bundle:.checkmate))
         case .client(let runner)?:runner.suspend()
         case nil:break
         }
@@ -691,17 +692,17 @@ import OSLog
         if let stopMessage{return stopMessage}
         if let outcome{return NetworkWording.result(outcome,players:players)}
         switch link {
-        case .connecting:return part == .spectator ? "Connecting to \(gameName)…":"Joining \(gameName)…"
-        case .denied:return "Waiting for Local Network access…"
-        case .waiting:return "Waiting for someone to join. Share the play code."
-        case .reconnecting:return "Reconnecting to \(gameName)…"
-        case .away:return holdExpired ? "\(opponentName) has been away for a while. Claim the win, or keep waiting.":"\(opponentName) is away. Their seat is held for 2 minutes."
-        case .stopped:return leaving ? "Leaving…":nil
+        case .connecting:return part == .spectator ? String(localized:"Connecting to \(gameName)…",bundle:.checkmate):String(localized:"Joining \(gameName)…",bundle:.checkmate)
+        case .denied:return String(localized:"Waiting for Local Network access…",bundle:.checkmate)
+        case .waiting:return String(localized:"Waiting for someone to join. Share the play code.",bundle:.checkmate)
+        case .reconnecting:return String(localized:"Reconnecting to \(gameName)…",bundle:.checkmate)
+        case .away:return holdExpired ? String(localized:"\(opponentName) has been away for a while. Claim the win, or keep waiting.",bundle:.checkmate):"\(opponentName) is away. Their seat is held for 2 minutes."
+        case .stopped:return leaving ? String(localized:"Leaving…",bundle:.checkmate):nil
         case .live:
-            if leaving{return "Leaving…"}
+            if leaving{return String(localized:"Leaving…",bundle:.checkmate)}
             if hostPhase == .reserved{return "\(opponentName) is joining…"}
             let turn:NetworkSide=rules.turn=="b" ? .black:.white
-            return turn==learnerSide ? "Your move.":"\(players.name(turn))'s move."
+            return turn==learnerSide ? String(localized:"Your move.",bundle:.checkmate):"\(players.name(turn))'s move."
         }
     }
 }

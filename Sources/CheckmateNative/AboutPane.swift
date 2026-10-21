@@ -13,11 +13,11 @@ struct AboutPane:View {
     let facts:AboutFacts
     static let project=URL(string:"https://github.com/xiaolai/checkmate")!,reportProblem=project.appendingPathComponent("issues/new")
     /// The pane's acknowledgements, which the standard About panel's credits list too (D-9).
-    static let acknowledgements=[("Stockfish 19","GPL-3.0"),("chess.js 1.4.0, Jeff Hlywa","BSD-2-Clause"),("Swift MCP SDK and dependencies","MIT, Apache-2.0"),("Knight artwork, SVG Repo","CC0-1.0")]
-    static let license="Checkmate is free software: you can redistribute and modify it under the GNU General Public License, version 3 or later. It comes with no warranty.",narration="Lesson narration is AI-generated speech (OpenAI Cedar)."
+    static let acknowledgements=[(String(localized:"Stockfish 19",bundle:.checkmate),"GPL-3.0"),("chess.js 1.4.0, Jeff Hlywa","BSD-2-Clause"),(String(localized:"Swift MCP SDK and dependencies",bundle:.checkmate),"MIT, Apache-2.0"),(String(localized:"Knight artwork, SVG Repo",bundle:.checkmate),"CC0-1.0")]
+    static let license=String(localized:"Checkmate is free software: you can redistribute and modify it under the GNU General Public License, version 3 or later. It comes with no warranty.",bundle:.checkmate),narration=String(localized:"Lesson narration is AI-generated speech (OpenAI Cedar).",bundle:.checkmate)
     /// The About panel's credits: the license, the acknowledgements, and where the rest is.
     static var credits:NSAttributedString {
-        let text=([license,"","Acknowledgements"]+acknowledgements.map{"\($0.0) (\($0.1))"}+[narration,"","Privacy, licenses and links are in Settings ▸ About."]).joined(separator:"\n")
+        let text=([license,"",String(localized:"Acknowledgements",bundle:.checkmate)]+acknowledgements.map{"\($0.0) (\($0.1))"}+[narration,"",String(localized:"Privacy, licenses and links are in Settings ▸ About.",bundle:.checkmate)]).joined(separator:"\n")
         let style=NSMutableParagraphStyle();style.alignment = .center
         return NSAttributedString(string:text,attributes:[.font:NSFont.systemFont(ofSize:NSFont.smallSystemFontSize),.foregroundColor:NSColor.labelColor,.paragraphStyle:style])
     }
@@ -32,7 +32,7 @@ struct AboutPane:View {
     var body:some View {
         Section {HStack(spacing:14){Image(nsImage:NSApp.applicationIconImage).resizable().frame(width:64,height:64).accessibilityHidden(true)
             VStack(alignment:.leading,spacing:3){Text("Checkmate").sectionHeading(.title2.weight(.semibold));Text("Version \(facts.version) (\(facts.build))").foregroundStyle(.secondary).textSelection(.enabled);Text("Learn and practice chess on your Mac.")}}}
-        Section("What's inside"){LabeledContent("Chess engine",value:"Stockfish 19, on this Mac");LabeledContent("Lessons",value:"\(facts.lessons)");LabeledContent("Practice activities",value:"\(facts.practiceActivities)");LabeledContent("Puzzles",value:"\(facts.puzzles)");LabeledContent("Lesson recordings",value:"\(facts.recordings)");LabeledContent("Requires",value:"macOS \(facts.minimumSystem) or later")}
+        Section("What's inside"){LabeledContent("Chess engine",value:String(localized:"Stockfish 19, on this Mac",bundle:.checkmate));LabeledContent("Lessons",value:"\(facts.lessons)");LabeledContent("Practice activities",value:"\(facts.practiceActivities)");LabeledContent("Puzzles",value:"\(facts.puzzles)");LabeledContent("Lesson recordings",value:"\(facts.recordings)");LabeledContent("Requires",value:"macOS \(facts.minimumSystem) or later")}
         Section("Privacy"){
             LabeledContent{Button("Show in Finder"){open(facts.dataDirectory,reveal:true)}}label:{Text("Games, progress and settings are stored only on this Mac.")}
             Text("Stockfish, lessons and puzzles work offline.")
@@ -43,9 +43,9 @@ struct AboutPane:View {
         Section {
             HStack(spacing:Metrics.tightGap){Text("Copyright © 2026");link("xiaolai",URL(string:"https://lixiaolai.com")!)}
             Text(Self.license)
-            HStack(spacing:Metrics.padding){link("License",NativeResources.url("Checkmate-COPYING.txt"));link("Third-Party Notices",NativeResources.url("THIRD_PARTY_NOTICES.txt"));link("Source Code",Self.project.appendingPathComponent("releases/tag/v\(facts.version)"))}
+            HStack(spacing:Metrics.padding){link(String(localized:"License",bundle:.checkmate),NativeResources.url("Checkmate-COPYING.txt"));link("Third-Party Notices",NativeResources.url("THIRD_PARTY_NOTICES.txt"));link(String(localized:"Source Code",bundle:.checkmate),Self.project.appendingPathComponent("releases/tag/v\(facts.version)"))}
         } header:{Text("License")}
         Section {ForEach(Self.acknowledgements,id:\.0){LabeledContent($0.0,value:$0.1)}} header:{Text("Acknowledgements")} footer:{Text(Self.narration)}
-        Section {HStack(spacing:Metrics.padding){link("Checkmate on GitHub",Self.project);link("Changelog",Self.project.appendingPathComponent("blob/v\(facts.version)/CHANGELOG.md"));link("Report a Problem",Self.reportProblem)}}
+        Section {HStack(spacing:Metrics.padding){link(String(localized:"Checkmate on GitHub",bundle:.checkmate),Self.project);link(String(localized:"Changelog",bundle:.checkmate),Self.project.appendingPathComponent("blob/v\(facts.version)/CHANGELOG.md"));link(String(localized:"Report a Problem",bundle:.checkmate),Self.reportProblem)}}
     }
 }

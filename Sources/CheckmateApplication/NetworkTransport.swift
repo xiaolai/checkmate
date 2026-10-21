@@ -1,3 +1,4 @@
+import CheckmateAssets
 import CheckmateDomain
 import Foundation
 /// Where a listener can be reached. Opaque here: each transport makes its own, from a listener or a discovery result,
@@ -62,7 +63,7 @@ public struct NetworkHostingConfiguration:Equatable {
     /// Bonjour instance names are at most 63 bytes of UTF-8; the name is cut at a character so the suffix fits.
     public func serviceName(for role:NetworkListenerRole)->String {
         let suffix=role == .watch ? Self.watchSuffix:""
-        var name=serviceName.isEmpty ? "Checkmate game":serviceName
+        var name=serviceName.isEmpty ? String(localized:"Checkmate game",bundle:.checkmate):serviceName
         while name.utf8.count+suffix.utf8.count>63 {name.removeLast()}
         return name+suffix
     }

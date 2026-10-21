@@ -45,10 +45,10 @@ import RealtimeConnection
     private let reviewSaves:ReviewSaveCoordinator
     private static func reviewSaveFailure(_ error:Error)->String {
         let reason=userFacingMessage(error,fallback:"")
-        return reason.isEmpty ? "The review could not be saved. Export the original PGN before quitting.":"The review could not be saved: \(reason.trimmingCharacters(in:CharacterSet(charactersIn:"."))). Export the original PGN before quitting."
+        return reason.isEmpty ? String(localized:"The review could not be saved. Export the original PGN before quitting.",bundle:.checkmate):String(localized:"The review could not be saved: \(reason.trimmingCharacters(in:CharacterSet(charactersIn:"."))). Export the original PGN before quitting.",bundle:.checkmate)
     }
     private var reviewSaveTask:Task<Void,Never>?
-    private static let progressSaveFailure="Your progress could not be saved. Export it before quitting."
+    private static let progressSaveFailure=String(localized:"Your progress could not be saved. Export it before quitting.",bundle:.checkmate)
     private var shuttingDown=false
     private var connectionStartup:ConnectionStartup<ClientSecret>?
     /// Which Checkmate Codex starts for chess MCP, read from Codex's configuration at launch and after Set up Codex
@@ -74,8 +74,8 @@ import RealtimeConnection
     /// gate (every reply entry point respects it); the banner, practice pane and bottom transport offer the explicit
     /// "Return to Game"/"Resume Game" action. A new game, restore, import, fork or lesson clears it with the position.
     var restoreResumePending:Bool {session.explicitResumeRequired}
-    static let failedRestoreMessage="The saved review could not be restored; its file is preserved."
-    static let failedRestorePausedMessage=failedRestoreMessage+" Your game is paused. Choose Return to Game to continue."
+    static let failedRestoreMessage=String(localized:"The saved review could not be restored; its file is preserved.",bundle:.checkmate)
+    static let failedRestorePausedMessage=failedRestoreMessage+String(localized:" Your game is paused. Choose Return to Game to continue.",bundle:.checkmate)
     func resumeAfterFailedRestore(){storageError=nil;practice()}
     init() throws {
         if !NativePolicy.silent {Task.detached{CodexSubscriptionClient.cleanAbandonedPrivateHomes()}}
@@ -132,7 +132,7 @@ import RealtimeConnection
         learning.$playing.filter{$0}.sink{[weak self] _ in self?.voicePreview.cancel()}.store(in:&observations)
         audio.onNarrationStart={[weak self] in self?.voicePreview.cancel()}
         voicePreview.$playing.removeDuplicates().filter{!$0}.dropFirst().sink{[weak self] _ in DispatchQueue.main.async{self?.resumeVoiceIfIntended()}}.store(in:&observations)
-        voicePreview.blocked={[weak self] in guard let self else{return nil};if voice.canStopTurn{return "Wait until the coach finishes speaking, then preview."};if lessonLanguages.recording{return "Finish or cancel lesson recording before previewing a voice."};if audio.isNarrationPlaying{return "Stop lesson playback before previewing a voice."};return nil}
+        voicePreview.blocked={[weak self] in guard let self else{return nil};if voice.canStopTurn{return String(localized:"Wait until the coach finishes speaking, then preview.",bundle:.checkmate)};if lessonLanguages.recording{return String(localized:"Finish or cancel lesson recording before previewing a voice.",bundle:.checkmate)};if audio.isNarrationPlaying{return String(localized:"Stop lesson playback before previewing a voice.",bundle:.checkmate)};return nil}
         lessonLanguages.voiceConflict={[weak self] in self?.voice.connected==true || self?.voice.connecting==true}
         // Settings effects are not navigation (LE-5): the Lesson picker only stops a preview of the old selection; a preview
         // or a removal stops lesson narration (one narration channel) but never a mini-game's pending computer reply.
@@ -166,8 +166,8 @@ import RealtimeConnection
     /// The saved-review library loads off the main thread; a library changed meanwhile wins.
     private func loadSavedReviews(){
         let reviewStore=reviewStore;Task{do{let (entries,moved)=try await Task.detached{let entries=try reviewStore.list();return (entries,reviewStore.takeQuarantinedCount())}.value
-            if moved>0{storageError=Plural.count(moved,one:"%d saved review could not be read and was moved to the Quarantine folder inside Reviews. Nothing was deleted.",other:"%d saved reviews could not be read and were moved to the Quarantine folder inside Reviews. Nothing was deleted.")}
-            guard reviewLibraryGeneration==0 else{return};reviews=entries}catch{storageError="Saved reviews could not be loaded. Your current practice is unchanged."}}
+            if moved>0{storageError=String(localized:"\(moved) saved reviews could not be read and were moved to the Quarantine folder inside Reviews. Nothing was deleted.",bundle:.checkmate)}
+            guard reviewLibraryGeneration==0 else{return};reviews=entries}catch{storageError=String(localized:"Saved reviews could not be loaded. Your current practice is unchanged.",bundle:.checkmate)}}
     }
     /// Views observe this model: forward training, activity, resume-gate and settings changes.
     private func observeSession(){
@@ -226,7 +226,7 @@ import RealtimeConnection
         if voicePreview.playing{voicePreview.cancel();return}
         connectVoiceWithConsent{[weak self] in
             guard let self else{return};let settings=session.state.settings
-            voicePreview.play(voice:settings.coachVoice,language:AppSettings.languages[settings.voiceLanguage] ?? "English",model:voice.selectedModel.isEmpty ? VoiceSessionConfiguration.model:voice.selectedModel,volume:settings.voiceVolume)
+            voicePreview.play(voice:settings.coachVoice,language:AppSettings.languages[settings.voiceLanguage] ?? String(localized:"English",bundle:.checkmate),model:voice.selectedModel.isEmpty ? VoiceSessionConfiguration.model:voice.selectedModel,volume:settings.voiceVolume)
         }
     }
     /// Asks the learner, with the saved launch choice as the checkbox's start, whether to connect voice (V-1). Tests
@@ -337,7 +337,7 @@ import RealtimeConnection
     func mayQuitDuringLessonJob()->Bool {
         guard lessonLanguages.busy else{return true}
         if let confirm=confirmQuitDuringLessonJob{return confirm()};if NativePolicy.silent{return true}
-        let alert=NSAlert.destructive("Stop the lesson job and quit?","A lesson \(lessonLanguages.recording ? "recording":"translation") is running. Completed text and clips are kept; the item in progress, already charged, is lost. Record / Resume continues later.",action:"Quit Anyway",cancel:"Keep Working")
+        let alert=NSAlert.destructive(String(localized:"Stop the lesson job and quit?",bundle:.checkmate),String(localized:"A lesson \(lessonLanguages.recording ? "recording":"translation") is running. Completed text and clips are kept; the item in progress, already charged, is lost. Record / Resume continues later.",bundle:.checkmate),action:String(localized:"Quit Anyway",bundle:.checkmate),cancel:String(localized:"Keep Working",bundle:.checkmate))
         return alert.runModal() == .alertFirstButtonReturn
     }
     /// Saves progress and every review before quitting; returns false when the learner chose to stay. A "Don't Save"
@@ -352,7 +352,7 @@ import RealtimeConnection
     private func mayQuitAfterSavingReviews()->Bool {
         saveReview(immediate:true);let unsaved=pendingReviewSnapshots.count;guard unsaved>0 else{return true}
         if let confirm=confirmQuitWithUnsavedReviews{return confirm(unsaved)};if NativePolicy.silent && !Self.quitAlertFixture{return true}
-        let alert=NSAlert.destructive(unsaved==1 ? "A review could not be saved.":"\(unsaved) reviews could not be saved.",(reviewSaveWarning ?? "Its latest imagined lines are only in memory.")+" Cancel to keep working, or quit without them.",action:"Quit Anyway")
+        let alert=NSAlert.destructive(unsaved==1 ? String(localized:"A review could not be saved.",bundle:.checkmate):String(localized:"\(unsaved) reviews could not be saved.",bundle:.checkmate),(reviewSaveWarning ?? String(localized:"Its latest imagined lines are only in memory.",bundle:.checkmate))+String(localized:" Cancel to keep working, or quit without them.",bundle:.checkmate),action:String(localized:"Quit Anyway",bundle:.checkmate))
         return alert.runModal() == .alertFirstButtonReturn
     }
     /// Saves before quitting. A failure offers Export Progress… (the in-memory state) instead of losing the last
@@ -361,11 +361,11 @@ import RealtimeConnection
         saveTask?.cancel()
         do{try store.save(session.state);return true}catch{
             if NativePolicy.silent{return true}
-            let alert=NSAlert.destructive("Your latest progress could not be saved.",userFacingMessage(error,fallback:"The data folder may be full or read-only.")+" Export it to keep it, or quit without it.",action:"Quit Anyway",alternative:"Export Progress…")
+            let alert=NSAlert.destructive(String(localized:"Your latest progress could not be saved.",bundle:.checkmate),userFacingMessage(error,fallback:String(localized:"The data folder may be full or read-only.",bundle:.checkmate))+String(localized:" Export it to keep it, or quit without it.",bundle:.checkmate),action:String(localized:"Quit Anyway",bundle:.checkmate),alternative:String(localized:"Export Progress…",bundle:.checkmate))
             switch alert.runModal(){
             case .alertThirdButtonReturn:
                 let panel=NSSavePanel();panel.nameFieldStringValue="checkmate-state.json";guard panel.runModal() == .OK,let url=panel.url else{return false}
-                do{try store.exportState(session.state,to:url);return true}catch{storageError=userFacingMessage(error,fallback:"The export could not be written. Choose another location.");return false}
+                do{try store.exportState(session.state,to:url);return true}catch{storageError=userFacingMessage(error,fallback:String(localized:"The export could not be written. Choose another location.",bundle:.checkmate));return false}
             case .alertFirstButtonReturn:return true
             default:return false
             }
@@ -397,7 +397,7 @@ import RealtimeConnection
     }
     private func askLearnerAboutDraft(_ ideas:Int)->DraftDisposal {
         if NativePolicy.silent{return .discard}
-        let alert=NSAlert.saveChanges("Save this review before leaving?",Plural.count(ideas,one:"It holds %d imagined line of yours that will be lost if you don’t save.",other:"It holds %d imagined lines of yours that will be lost if you don’t save."))
+        let alert=NSAlert.saveChanges(String(localized:"Save this review before leaving?",bundle:.checkmate),String(localized:"It holds \(ideas) imagined lines of yours that will be lost if you don’t save.",bundle:.checkmate))
         switch alert.runModal(){case .alertFirstButtonReturn:return .save;case .alertThirdButtonReturn:return .discard;default:return .cancel}
     }
     /// Saves the open draft; on failure it stays a draft (Save stays available) and is not retried in the background.
@@ -409,7 +409,7 @@ import RealtimeConnection
     /// Imports progress and ends in practice on the imported game, from any activity (SH-9).
     func installImport(_ state:ApplicationState)throws -> URL {
         // The imported game replaces the one under a review: a review still open here (opened while the panel was up) is refused.
-        guard !review.active else{throw CheckmateError.invalid("Leave the open review, then import the progress file again.")}
+        guard !review.active else{throw CheckmateError.invalid(String(localized:"Leave the open review, then import the progress file again.",bundle:.checkmate))}
         var backup:URL?;_ = try transition(.importProgress(state,backup:{backup=$0}))
         guard let backup else{throw CheckmateError.cancelled};return backup
     }
@@ -425,25 +425,25 @@ import RealtimeConnection
                 // Read no more than an archive may hold, so an oversized file is refused without loading it whole.
                 let handle=try FileHandle(forReadingFrom:url);defer{try? handle.close()}
                 let archive=try handle.read(upToCount:StateStore.maximumBytes+1) ?? Data()
-                guard archive.count<=StateStore.maximumBytes else{throw CheckmateError.invalid("Invalid progress archive.")}
+                guard archive.count<=StateStore.maximumBytes else{throw CheckmateError.invalid(String(localized:"Invalid progress archive.",bundle:.checkmate))}
                 var state=self.session.state
                 let report=try LegacyImporter.apply(archive,to:&state,course:self.learning.library)
                 let alert=NSAlert()
-                if report.duplicate {alert.messageText="Already imported";alert.informativeText=report.summary;alert.runModal();return}
-                alert.messageText="Import game and progress?"
-                alert.informativeText=report.summary+" A separate copy of your current state will be kept in Backups."
-                let text=NSTextView(frame:NSRect(x:0,y:0,width:480,height:180));text.string=report.details;text.isEditable=false;text.isSelectable=true;text.font = .systemFont(ofSize:NSFont.systemFontSize);text.textContainerInset=NSSize(width:8,height:8);text.setAccessibilityLabel("Import recovery report")
+                if report.duplicate {alert.messageText=String(localized:"Already imported",bundle:.checkmate);alert.informativeText=report.summary;alert.runModal();return}
+                alert.messageText=String(localized:"Import game and progress?",bundle:.checkmate)
+                alert.informativeText=report.summary+String(localized:" A separate copy of your current state will be kept in Backups.",bundle:.checkmate)
+                let text=NSTextView(frame:NSRect(x:0,y:0,width:480,height:180));text.string=report.details;text.isEditable=false;text.isSelectable=true;text.font = .systemFont(ofSize:NSFont.systemFontSize);text.textContainerInset=NSSize(width:8,height:8);text.setAccessibilityLabel(String(localized:"Import recovery report",bundle:.checkmate))
                 let scroll=NSScrollView(frame:text.frame);scroll.hasVerticalScroller=true;scroll.borderType = .noBorder;scroll.documentView=text;alert.accessoryView=scroll
-                alert.addButton(withTitle:"Import");alert.addButton(withTitle:"Cancel")
+                alert.addButton(withTitle:String(localized:"Import",bundle:.checkmate));alert.addButton(withTitle:String(localized:"Cancel",bundle:.checkmate))
                 guard alert.runModal() == .alertFirstButtonReturn else{return}
                 if self.review.active || self.reviewWorkspace{guard self.returnToGame() else{return}}
                 state=self.session.state
                 let finalReport=try LegacyImporter.apply(archive,to:&state,course:self.learning.library)
                 if finalReport.duplicate{return}
                 let backup=try self.installImport(state)
-                let result=NSAlert();result.messageText="Progress imported";result.informativeText=finalReport.summary;result.addButton(withTitle:"Done");result.addButton(withTitle:"Show Backup")
+                let result=NSAlert();result.messageText=String(localized:"Progress imported",bundle:.checkmate);result.informativeText=finalReport.summary;result.addButton(withTitle:String(localized:"Done",bundle:.checkmate,comment:"Verb: finish and dismiss"));result.addButton(withTitle:String(localized:"Show Backup",bundle:.checkmate))
                 if result.runModal() == .alertSecondButtonReturn {NSWorkspace.shared.activateFileViewerSelecting([backup])}
-            }catch {self.storageError=userFacingMessage(error,fallback:"The progress file could not be imported. Your current progress is unchanged.")}
+            }catch {self.storageError=userFacingMessage(error,fallback:String(localized:"The progress file could not be imported. Your current progress is unchanged.",bundle:.checkmate))}
         }
     }
     /// Leaves a review (or the workspace) for the place it was opened over, resuming that place.
@@ -554,7 +554,7 @@ import RealtimeConnection
         switch next {
         // The imported state is written here too: a write that fails leaves playback, connections and the activity alone.
         case .importProgress(_,let backup):if let state=staged.importedState{do{backup(try store.preserveBeforeImport(session.state));try store.save(state)}catch{draftDiscardApproved=nil;throw error}}
-        case .practiceFork:do{_ = try store.preserveBeforeImport(session.state)}catch{practiceForkRequested=false;draftDiscardApproved=nil;storageError=userFacingMessage(error,fallback:"Practice could not start from this position. The review is unchanged.");return false}
+        case .practiceFork:do{_ = try store.preserveBeforeImport(session.state)}catch{practiceForkRequested=false;draftDiscardApproved=nil;storageError=userFacingMessage(error,fallback:String(localized:"Practice could not start from this position. The review is unchanged.",bundle:.checkmate));return false}
         default:break
         }
         // A staged training exercise is entered only over the record it was staged from: checked before any exit effect.
@@ -571,7 +571,7 @@ import RealtimeConnection
             if case .review=next,let document=review.document{reviewAnalyzer.restore(document,analyze:session.state.settings.reviewAutoAnalyze)}
         } catch {
             switch next {
-            case .practiceFork:storageError=userFacingMessage(error,fallback:"Practice could not start from this position. The review was closed; your game is unchanged.");return false
+            case .practiceFork:storageError=userFacingMessage(error,fallback:String(localized:"Practice could not start from this position. The review was closed; your game is unchanged.",bundle:.checkmate));return false
             default:draftDiscardApproved=nil;throw error
             }
         }
@@ -584,9 +584,9 @@ import RealtimeConnection
     /// The message for a navigation whose staging failed, shown with nothing changed; nil when the failure is thrown.
     private static func stagingFailure(_ next:Navigation)->String? {
         switch next {
-        case .practiceFork:return "Practice could not start from this position. The review is unchanged."
-        case .trainingLibrary,.trainingExercise,.trainingScenario,.trainingResume,.trainingRetry,.trainingLegacy:return "This exercise could not be opened. Nothing was changed."
-        case .trainingLesson:return "This lesson could not be opened. Nothing was changed."
+        case .practiceFork:return String(localized:"Practice could not start from this position. The review is unchanged.",bundle:.checkmate)
+        case .trainingLibrary,.trainingExercise,.trainingScenario,.trainingResume,.trainingRetry,.trainingLegacy:return String(localized:"This exercise could not be opened. Nothing was changed.",bundle:.checkmate)
+        case .trainingLesson:return String(localized:"This lesson could not be opened. Nothing was changed.",bundle:.checkmate)
         case .practice,.returnToGame,.lesson,.puzzles,.reviewWorkspace,.review,.importProgress,.network:return nil
         }
     }
@@ -627,11 +627,11 @@ import RealtimeConnection
             let saved=try await Task.detached{try store.load(id)}.value
             guard !Task.isCancelled,!shuttingDown,reviewOpenGeneration==generation else{return};importingReview=false
             reviewSides[saved.document.id]=saved.learnerSide;openReview(saved.document,saved:saved)
-        }catch{guard !Task.isCancelled,!shuttingDown,reviewOpenGeneration==generation else{return};importingReview=false;draftDiscardApproved=nil;storageError="The saved review could not be opened; its file is preserved."}}
+        }catch{guard !Task.isCancelled,!shuttingDown,reviewOpenGeneration==generation else{return};importingReview=false;draftDiscardApproved=nil;storageError=String(localized:"The saved review could not be opened; its file is preserved.",bundle:.checkmate)}}
     }
     func requestDeleteReview(_ id:UUID){
         guard deletingReviewID==nil,let record=reviews.first(where:{$0.id==id}) else{return}
-        let alert=NSAlert.destructive("Delete “\(record.title)”?","This removes the saved review and its imagined lines; Edit ▸ Undo puts them back. Your current game and the original imported file are kept.",action:"Delete",identifier:"review-delete")
+        let alert=NSAlert.destructive(String(localized:"Delete “\(record.title)”?",bundle:.checkmate),String(localized:"This removes the saved review and its imagined lines; Edit ▸ Undo puts them back. Your current game and the original imported file are kept.",bundle:.checkmate),action:String(localized:"Delete",bundle:.checkmate),identifier:"review-delete")
         if let window=NSApp.mainWindow{alert.beginSheetModal(for:window){[weak self] response in if response == .alertFirstButtonReturn{self?.deleteReview(id)}}}
         else if alert.runModal() == .alertFirstButtonReturn{deleteReview(id)}
     }
@@ -640,7 +640,7 @@ import RealtimeConnection
     func requestRestartAttempt(){
         let attempt:LessonAttemptController=learning.attempt
         guard attempt.restartNeedsConfirmation,let shown=attempt.record?.id else{attempt.restart();return}
-        let alert=NSAlert.destructive("Start this exercise again?","The moves of this attempt are cleared. Anything you have already achieved in it stays achieved.",action:"Start Again")
+        let alert=NSAlert.destructive(String(localized:"Start this exercise again?",bundle:.checkmate),String(localized:"The moves of this attempt are cleared. Anything you have already achieved in it stays achieved.",bundle:.checkmate),action:String(localized:"Start Again",bundle:.checkmate))
         let answered:(NSApplication.ModalResponse)->Void={[weak self] response in guard response == .alertFirstButtonReturn,let self,self.learning.attempt.record?.id==shown else{return};self.learning.attempt.restart()}
         if let window=NSApp.mainWindow{alert.beginSheetModal(for:window,completionHandler:answered)}else{answered(alert.runModal())}
     }
@@ -698,7 +698,7 @@ import RealtimeConnection
                 undoableDeletion=(id,undoContext)
             } catch {
                 deletingReviewID=nil
-                storageError="The review could not be deleted. Its saved record is preserved; try again."
+                storageError=String(localized:"The review could not be deleted. Its saved record is preserved; try again.",bundle:.checkmate)
                 if review.active{saveReview()}
             }
         }
@@ -706,14 +706,14 @@ import RealtimeConnection
     /// "Rename…" on a saved review (R-11): its name is stored in its record and index, and its saved time is kept.
     func requestRenameReview(_ id:UUID){
         guard let entry=reviews.first(where:{$0.id==id}) else{return}
-        NSAlert.askName("Rename Saved Review",current:entry.title,identifier:"review-rename-field"){[weak self] name in self?.renameReview(id,to:name)}
+        NSAlert.askName(String(localized:"Rename Saved Review",bundle:.checkmate),current:entry.title,identifier:"review-rename-field"){[weak self] name in self?.renameReview(id,to:name)}
     }
     /// An empty name gives the review back its game's title.
     func renameReview(_ id:UUID,to name:String){
         let writer=reviewSaves;reviewLibraryGeneration+=1
         Task {
             do{reviews=try await Task.detached{try writer.rename(id,to:ReviewIndexEntry.cleanName(name))}.value}
-            catch{storageError=userFacingMessage(error,fallback:"The review could not be renamed. Try again.")}
+            catch{storageError=userFacingMessage(error,fallback:String(localized:"The review could not be renamed. Try again.",bundle:.checkmate))}
         }
     }
     /// Undo of `deleteReview`: the record comes back from the Trash into the library list, with the engine analysis
@@ -722,7 +722,7 @@ import RealtimeConnection
         let writer=reviewSaves;reviewLibraryGeneration+=1
         Task {
             do{reviews=try await Task.detached{try writer.restore(id)}.value}
-            catch{storageError=userFacingMessage(error,fallback:"The deleted review could not be put back.")}
+            catch{storageError=userFacingMessage(error,fallback:String(localized:"The deleted review could not be put back.",bundle:.checkmate))}
         }
     }
     /// The training game the board shows, if any (not the training library): File ▸ Review Current Game reviews this
@@ -745,7 +745,7 @@ import RealtimeConnection
             guard training?.canReview(exercise)==true else{return}
             reviewTraining();return
         }
-        reviewOpenGeneration+=1;cancelReviewImport();let provenance:ReviewProvenance=previous ? .previousGame:.currentGame,fallback="This game could not be opened for review. Your practice is unchanged."
+        reviewOpenGeneration+=1;cancelReviewImport();let provenance:ReviewProvenance=previous ? .previousGame:.currentGame,fallback=String(localized:"This game could not be opened for review. Your practice is unchanged.",bundle:.checkmate)
         let data:Data;do{data=previous ? try ReviewRecordSource.data(previousGame:session.state.practice.previousGame,result:session.state.practice.previousEnding?.result):try ReviewRecordSource.data(session.rules,result:session.state.practice.ending?.result)}catch{storageError=userFacingMessage(error,fallback:fallback);return}
         let side=previous ? session.state.practice.previousSide:session.humanSide
         parseForReview(data,provenance:provenance,fallback:fallback){documents,_ in self.reviewSides[documents[0].id]=side;self.openReview(documents[0],draft:true)}
@@ -753,7 +753,7 @@ import RealtimeConnection
     /// The finished training game shown, as a draft review (mini-games plan D6): read from the attempt's own start and
     /// actions, never the practice game. The review covers the training entry, so Return to game leads back to it.
     func reviewTraining(){
-        reviewOpenGeneration+=1;cancelReviewImport();let fallback="This game could not be opened for review. Your training is unchanged."
+        reviewOpenGeneration+=1;cancelReviewImport();let fallback=String(localized:"This game could not be opened for review. Your training is unchanged.",bundle:.checkmate)
         guard let training else{return}
         let data:Data;do{data=try training.reviewRecord()}catch{storageError=userFacingMessage(error,fallback:fallback);return}
         let side=shownTrainingExercise?.scenario.learner
@@ -767,15 +767,15 @@ import RealtimeConnection
     /// its manifest entry), or nothing opens.
     func openLibraryRecord(_ data:Data,provenance:ReviewProvenance,fallback:String,verify:@escaping (GameDocument)throws->Void={_ in}){
         parseForReview(data,provenance:provenance,delay:NativePolicy.silent ? min(2000,max(0,automationReviewImportDelayMs)):0,fallback:fallback){documents,skipped in
-            guard documents.count==1,skipped.isEmpty else{throw CheckmateError.invalid("This library record does not hold exactly one readable game.")}
+            guard documents.count==1,skipped.isEmpty else{throw CheckmateError.invalid(String(localized:"This library record does not hold exactly one readable game.",bundle:.checkmate))}
             try verify(documents[0]);self.openReview(documents[0],draft:true)
         }
     }
     /// `learnerSide` is the learner's own side when the record is a game they played (a network game).
     func importReviewData(_ data:Data,learnerSide:String?=nil){
-        parseForReview(data,delay:NativePolicy.silent ? min(2000,max(0,automationReviewImportDelayMs)):0,fallback:"This record could not be imported. Your current game and reviews are unchanged."){documents,skipped in
+        parseForReview(data,delay:NativePolicy.silent ? min(2000,max(0,automationReviewImportDelayMs)):0,fallback:String(localized:"This record could not be imported. Your current game and reviews are unchanged.",bundle:.checkmate)){documents,skipped in
             // Unreadable games in a collection are skipped, and the learner is told which.
-            if let first=skipped.first{self.storageError=Plural.count(skipped.count,one:"%d game in this file could not be read and was skipped.",other:"%d games in this file could not be read and were skipped.")+" "+(first.errorDescription ?? "")}
+            if let first=skipped.first{self.storageError=String(localized:"\(skipped.count) games in this file could not be read and were skipped.",bundle:.checkmate)+" "+(first.errorDescription ?? "")}
             if documents.count==1{self.reviewSides[documents[0].id]=learnerSide;self.openReview(documents[0],draft:true);return}
             // Many games (R-9) join the library as a collection, searchable and sortable there, with the first selected.
             self.showReviewWorkspace();self.library.load();self.library.importCollection(data)
@@ -790,7 +790,7 @@ import RealtimeConnection
             if delay>0{try await Task.sleep(for:.milliseconds(delay))}
             let report=try await withTaskCancellationHandler(operation:{try await Task.detached{try PGNImporter.parseReport(data,provenance:provenance,cancelled:{token.cancelled})}.value},onCancel:{token.cancel()})
             guard !Task.isCancelled,reviewOpenGeneration==generation else{return};importingReview=false
-            guard !report.documents.isEmpty else{throw CheckmateError.invalid("No games found in this record.")}
+            guard !report.documents.isEmpty else{throw CheckmateError.invalid(String(localized:"No games found in this record.",bundle:.checkmate))}
             try present(report.documents,report.skipped)
         }catch{guard !Task.isCancelled else{return};importingReview=false;storageError=userFacingMessage(error,fallback:fallback)}}
     }
@@ -806,8 +806,8 @@ import RealtimeConnection
     /// A file File ▸ Open… opened, for File ▸ Open Recent (R-15).
     var openedFile:(URL)->Void={_ in}
     func openPGN(startingIn directory:URL?=nil){let panel=NSOpenPanel();panel.allowedContentTypes=ReviewFileTypes.openable;panel.allowsMultipleSelection=false;if let directory{panel.directoryURL=directory};panel.begin{[weak self] response in guard let self,response == .OK,let url=panel.url else{return}
-        self.reviewFiles.load(url,prepare:ReviewDrop.validated,deliver:{[weak self] in self?.openedFile(url);self?.importReviewData($0)},rejected:{[weak self] error in self?.storageError=(error as? ReviewDrop.Rejection)?.reason ?? "The selected file could not be read. Your current game and reviews are unchanged."})}}
-    func pasteReview(){guard let text=NSPasteboard.general.string(forType:.string) else{storageError="Copy PGN or FEN text first.";return};importReviewData(Data(text.utf8))}
+        self.reviewFiles.load(url,prepare:ReviewDrop.validated,deliver:{[weak self] in self?.openedFile(url);self?.importReviewData($0)},rejected:{[weak self] error in self?.storageError=(error as? ReviewDrop.Rejection)?.reason ?? String(localized:"The selected file could not be read. Your current game and reviews are unchanged.",bundle:.checkmate)})}}
+    func pasteReview(){guard let text=NSPasteboard.general.string(forType:.string) else{storageError=String(localized:"Copy PGN or FEN text first.",bundle:.checkmate);return};importReviewData(Data(text.utf8))}
     /// The open review as one PGN record (R-13): its moves, the learner's imagined lines as variations, and, when the
     /// engine has analysed this review and engine help is allowed, each move's evaluation and grade. Replaying the lines
     /// takes a chess.js context each, so the returned work runs off the main actor (Export and Copy PGN both use it).
@@ -822,26 +822,26 @@ import RealtimeConnection
     func exportReview(){
         guard let d=review.document,let build=reviewPGN() else{return};let branches=review.branchesForSaving,title=reviewExportTitle(d)
         let panel=NSSavePanel();panel.nameFieldStringValue=Self.exportName(title,document:d,ideas:false)
-        let choice=NSPopUpButton(frame:NSRect(x:0,y:0,width:260,height:28));choice.addItems(withTitles:["Original record","Original and my imagined lines"]);choice.setAccessibilityLabel("Export contents")
+        let choice=NSPopUpButton(frame:NSRect(x:0,y:0,width:260,height:28));choice.addItems(withTitles:[String(localized:"Original record",bundle:.checkmate),String(localized:"Original and my imagined lines",bundle:.checkmate)]);choice.setAccessibilityLabel(String(localized:"Export contents",bundle:.checkmate))
         // A FEN-only original exports as FEN; adding ideas always produces PGN records.
         let naming=ExportNaming(panel:panel,document:d,title:title);choice.target=naming;choice.action=#selector(ExportNaming.choiceChanged(_:))
         if branches.contains(where:{!$0.moves.isEmpty}){panel.accessoryView=choice}
         panel.begin{response in withExtendedLifetime(naming){};guard response == .OK,let url=panel.url else{return};let ideas=choice.indexOfSelectedItem==1
             // Each idea replays its history in a new chess.js context: build and write the file off the main thread.
-            Task{do{try await Task.detached{try (ideas ? build():d.original).write(to:url,options:.atomic)}.value}catch{self.storageError="The review could not be exported."}}}
+            Task{do{try await Task.detached{try (ideas ? build():d.original).write(to:url,options:.atomic)}.value}catch{self.storageError=String(localized:"The review could not be exported.",bundle:.checkmate)}}}
     }
     /// The sheet forks the position it was opened for (RV-11): any transition ends the request, and a review changed
     /// under the sheet (open, paste, an agent) is refused.
     private var practiceForkIdentity:String?
     func practiceFromReview(){practiceForkIdentity=review.identity+":\(review.branchPly)";practiceForkRequested=true}
     private func practiceForkStillCurrent()->Bool {
-        guard practiceForkRequested,review.active,practiceForkIdentity==review.identity+":\(review.branchPly)" else{practiceForkRequested=false;practiceForkIdentity=nil;storageError="The review changed while you were choosing. Choose Practice Here again.";return false};return true}
+        guard practiceForkRequested,review.active,practiceForkIdentity==review.identity+":\(review.branchPly)" else{practiceForkRequested=false;practiceForkIdentity=nil;storageError=String(localized:"The review changed while you were choosing. Choose Practice Here again.",bundle:.checkmate);return false};return true}
     /// Forks exactly the displayed position: an imagined line replays from its own root (for "Compare best line", the
     /// parent), with history-aware automatic terminal rules.
     func confirmPracticeFork(side:String,preset:String){navigate(.practiceFork(side:side,preset:preset))}
     static func exportName(_ title:String,document:GameDocument,ideas:Bool)->String {PGNExporter.fileName(title,pgn:document.historyAvailable || ideas)}
     func showBackups(){NSWorkspace.shared.activateFileViewerSelecting([store.directory])}
-    func exportState(){let panel=NSSavePanel();panel.nameFieldStringValue="checkmate-state.json";panel.begin {response in guard response == .OK,let url=panel.url else{return};do{try self.store.exportState(self.session.state,to:url)}catch{self.storageError=userFacingMessage(error,fallback:"The export could not be written. Choose another location.")}}}
+    func exportState(){let panel=NSSavePanel();panel.nameFieldStringValue="checkmate-state.json";panel.begin {response in guard response == .OK,let url=panel.url else{return};do{try self.store.exportState(self.session.state,to:url)}catch{self.storageError=userFacingMessage(error,fallback:String(localized:"The export could not be written. Choose another location.",bundle:.checkmate))}}}
     func shutdown(){network.shutdown();lessonLanguages.shutdown();connectionStartup?.cancel();voicePreview.cancel();voiceResumeIntent=false;reviewTools.reset();reviewOpenGeneration+=1;cancelReviewImport();saveReview(immediate:true);shuttingDown=true;reviewSaveTask?.cancel();review.cancel();saveTask?.cancel();cancelMoveSounds();session.prepareShutdown();voice.disconnect();usage.flushForShutdown();companion.disable();learning.shutdown();audio.stopAll();session.cancelWork();try? store.save(session.state)}
 }
 /// Keeps the Save panel's suggested extension consistent with the chosen export contents.

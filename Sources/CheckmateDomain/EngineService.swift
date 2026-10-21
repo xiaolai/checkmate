@@ -1,3 +1,4 @@
+import CheckmateAssets
 import Foundation
 /// History, strength and constrained searches belong to the engine contract, not a concrete implementation.
 @MainActor public protocol EngineService:AnyObject {
@@ -28,7 +29,7 @@ public extension EngineService {
         try await analyzeHistory(startFEN:startFEN,moves:moves,profile:profile,budget:budget,multiPv:multiPv,searchMoves:[])
     }
     func analyzeHistory(startFEN:String,moves:[String],profile:OpponentProfile,limit:EngineSearchLimit,multiPv:Int)async throws -> EngineAnalysis {
-        guard case .movetime(let budget)=limit else{throw CheckmateError.unavailable("This engine cannot search a fixed number of nodes.")}
+        guard case .movetime(let budget)=limit else{throw CheckmateError.unavailable(String(localized:"This engine cannot search a fixed number of nodes.",bundle:.checkmate))}
         return try await analyzeHistory(startFEN:startFEN,moves:moves,profile:profile,budget:budget,multiPv:multiPv,searchMoves:[])
     }
     /// A time is the budgeted search, constrained or not; a node count without constraints is the limit search above.
@@ -37,7 +38,7 @@ public extension EngineService {
         switch limit {
         case .movetime(let budget):return try await analyzeHistory(startFEN:startFEN,moves:moves,profile:profile,budget:budget,multiPv:multiPv,searchMoves:searchMoves)
         case .nodes:
-            guard searchMoves.isEmpty else{throw CheckmateError.unavailable("This engine cannot constrain a search of a fixed number of nodes.")}
+            guard searchMoves.isEmpty else{throw CheckmateError.unavailable(String(localized:"This engine cannot constrain a search of a fixed number of nodes.",bundle:.checkmate))}
             return try await analyzeHistory(startFEN:startFEN,moves:moves,profile:profile,limit:limit,multiPv:multiPv)
         }
     }

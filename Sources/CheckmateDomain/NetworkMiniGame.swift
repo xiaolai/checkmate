@@ -1,3 +1,4 @@
+import CheckmateAssets
 import Foundation
 /// A simplified mini-game as a network game (mini-games plan WI-024, `docs/network-protocol-1.3.md`): the host's and
 /// each receiver's verification (`NetworkChessRules`) and the shown game (`NetworkBoardModel`), both on the referee
@@ -22,7 +23,7 @@ public final class NetworkMiniGame:NetworkChessRules,NetworkBoardModel {
         let pawns=state.board.filter{$0.value.hasSuffix("p")}
         let since=state.history.reversed().prefix{$0.board.count==state.board.count && $0.board.filter{$0.value.hasSuffix("p")}==pawns}.reversed()
         // The referee keeps 256 positions and draws after 80 without progress, so the stretch is never cut short.
-        guard since.count<MiniGameState.maximumHistory else{throw NetworkRulesError.unexpected("The mini-game's history was cut short.")}
+        guard since.count<MiniGameState.maximumHistory else{throw NetworkRulesError.unexpected(String(localized:"The mini-game's history was cut short.",bundle:.checkmate))}
         func position(_ s:MiniGameSnapshot)->String {Self.squares(s.board)+";"+s.turn+";"+(s.pendingFinish ?? "-")}
         return ["mini-state-v1",rules.descriptor,Self.squares(state.board),state.turn,state.snapshot.pendingFinish ?? "-",since.map(position).joined(separator:"/"),String(since.count)].joined(separator:"|")
     }
@@ -78,7 +79,7 @@ public final class NetworkMiniGame:NetworkChessRules,NetworkBoardModel {
     public func legalMoves(from square:String?)throws -> [MoveRecord] {moves(square)}
     public func endedByRules()throws -> Bool {state.isFinished}
     /// The piece inspector is chess's: a mini-game has no assistance, so it is never offered (protocol 1.3).
-    public func relationships(_ square:String,mode:RelationshipMode,diagram:Position?)throws -> RelationshipInspection {throw CheckmateError.unavailable("The piece inspector is not available in a mini-game.")}
+    public func relationships(_ square:String,mode:RelationshipMode,diagram:Position?)throws -> RelationshipInspection {throw CheckmateError.unavailable(String(localized:"The piece inspector is not available in a mini-game.",bundle:.checkmate))}
 
     // MARK: Moves
     private func play(_ uci:String)throws -> MoveRecord {

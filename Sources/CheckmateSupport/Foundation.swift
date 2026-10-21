@@ -1,3 +1,4 @@
+import CheckmateAssets
 import CheckmateDomain
 import Foundation
 import OSLog
@@ -8,7 +9,7 @@ public protocol UserFacingError:Error {var userFacingMessage:String {get}}
 public func userFacingMessage(_ error:Error,fallback:String)->String {
     if let described=error as? UserFacingError {return described.userFacingMessage}
     if let located=error as? ReviewImportError {return located.errorDescription ?? fallback}
-    if let app=error as? CheckmateError {switch app{case .invalid(let text),.unavailable(let text):return text;case .stale:return "The position changed; try again.";case .cancelled:return "The operation was canceled."}}
+    if let app=error as? CheckmateError {switch app{case .invalid(let text),.unavailable(let text):return text;case .stale:return String(localized:"The position changed; try again.",bundle:.checkmate);case .cancelled:return String(localized:"The operation was canceled.",bundle:.checkmate)}}
     return fallback
 }
 public enum NativePolicy {

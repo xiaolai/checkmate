@@ -13,15 +13,15 @@ public final class JavaScriptCoreChessRuntime:ChessScriptRuntime {
     private let context:JSContext
     public init()throws {
         Self.lock.lock();Self.created+=1;Self.lock.unlock()
-        guard let context=JSContext() else{throw CheckmateError.unavailable("Chess rules could not initialize.")};self.context=context
+        guard let context=JSContext() else{throw CheckmateError.unavailable(String(localized:"Chess rules could not initialize.",bundle:.checkmate))};self.context=context
         context.evaluateScript("var exports={};")
         context.evaluateScript(try String(contentsOf:NativeResources.url("chess.js"),encoding:.utf8))
-        guard context.exception==nil else{throw CheckmateError.unavailable("Chess rules resource is invalid.")}
+        guard context.exception==nil else{throw CheckmateError.unavailable(String(localized:"Chess rules resource is invalid.",bundle:.checkmate))}
         context.evaluateScript("var game=new exports.Chess();")
     }
     public func evaluate(_ script:String)throws -> String {
         context.exception=nil
-        guard let value=context.evaluateScript(script)?.toString(),context.exception==nil else{throw CheckmateError.invalid("Invalid chess operation.")}
+        guard let value=context.evaluateScript(script)?.toString(),context.exception==nil else{throw CheckmateError.invalid(String(localized:"Invalid chess operation.",bundle:.checkmate))}
         return value
     }
 }

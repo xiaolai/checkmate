@@ -1,3 +1,4 @@
+import CheckmateAssets
 import CheckmateDomain
 /// Increment B play on the immutable validated content (plan: multi-move runtime): the learner decides at teaching
 /// nodes, the published reply is shown after each move, and a technical fault voids only the uncommitted ply. The app
@@ -21,7 +22,7 @@ extension TrainingController {
     /// The answers that are right for a choice question, re-derived where cheap and otherwise the validated oracle.
     func correctChoices(_ state:Exercise)throws -> Set<String> {
         let scenario=state.scenario,expected=scenario.expected ?? TrainingExpected()
-        guard let legality=state.current ?? state.legality else{throw CheckmateError.invalid("No position.")}
+        guard let legality=state.current ?? state.legality else{throw CheckmateError.invalid(String(localized:"No position.",bundle:.checkmate))}
         switch scenario.check {
         case .castleReason:return Set(try TrainingSpecialRules.castleReasons(legality,destination:scenario.target ?? "").map(\.label))
         case .enPassantChoice:return Set(try TrainingSpecialRules.passantReasons(legality,target:scenario.target ?? "",prelude:scenario.prelude ?? []).map(\.label))
@@ -36,10 +37,10 @@ extension TrainingController {
             let correct=try correctChoices(state),right=correct.contains(option)
             state.snapshot.actions.append(.choose(option))
             if state.scenario.check == .diagnosis {
-                guard right else{state.feedback="Not quite. Look again: "+correct.sorted().joined(separator:"; ")+".";finish(state,.incorrect);return}
-                state.stage=1;state.feedback="Yes: \(option.prefix(1).lowercased()+option.dropFirst()). "+state.prompt;save(state);return
+                guard right else{state.feedback=String(localized:"Not quite. Look again: ",bundle:.checkmate)+correct.sorted().joined(separator:"; ")+".";finish(state,.incorrect);return}
+                state.stage=1;state.feedback=String(localized:"Yes: \(option.prefix(1).lowercased()+option.dropFirst()). ",bundle:.checkmate)+state.prompt;save(state);return
             }
-            state.feedback=(right ? "Correct. ":"Not quite. The answer is: \(correct.sorted().joined(separator:" or ")). ")+state.scenario.explanation
+            state.feedback=(right ? String(localized:"Correct. ",bundle:.checkmate):String(localized:"Not quite. The answer is: \(correct.sorted().joined(separator:" or ")). ",bundle:.checkmate))+state.scenario.explanation
             finish(state,right ? .correct:.incorrect)
         }catch{fault()}
     }
@@ -47,25 +48,25 @@ extension TrainingController {
     func suspend(){
         guard var state=exercise else{return}
         provider?.suspend(state.scenario.id)
-        state.status = .suspended;state.feedback="This exercise did not match its checked answers, so it has been withdrawn. Nothing was counted.";exercise=state
+        state.status = .suspended;state.feedback=String(localized:"This exercise did not match its checked answers, so it has been withdrawn. Nothing was counted.",bundle:.checkmate);exercise=state
         if session.state.trainingWritable,training.active?.id==state.snapshot.id{var record=training;record.active=nil;session.state.training=record}
         publish();session.emit(semantic:false,save:true)
     }
     private func miss(_ state:Exercise)->String {
         switch state.scenario.check {
-        case .castle:return "That move is legal, but it is not castling."
-        case .promotion:return "That move does not promote a pawn."
-        case .enPassant:return "That is not the en-passant capture."
-        case .mateThreatCreate:return "After that move you do not threaten checkmate."
-        default:return "That does not reach the goal."
+        case .castle:return String(localized:"That move is legal, but it is not castling.",bundle:.checkmate)
+        case .promotion:return String(localized:"That move does not promote a pawn.",bundle:.checkmate)
+        case .enPassant:return String(localized:"That is not the en-passant capture.",bundle:.checkmate)
+        case .mateThreatCreate:return String(localized:"After that move you do not threaten checkmate.",bundle:.checkmate)
+        default:return String(localized:"That does not reach the goal.",bundle:.checkmate)
         }
     }
     /// The technique a saving move used, named from its actual tags (plan: defense method coverage).
     private func technique(_ state:Exercise,before:Position,outcome:MoveOutcome)->String {
         guard state.scenario.check == .defense,let target=state.scenario.goal?.target,let after=TrainingMaterial.board(fen:outcome.after) else{return ""}
-        let names:[TrainingMaterial.DefenseMethod:String]=[.moveAway:"moving it away",.captureAttacker:"capturing the attacker",.protect:"protecting it",.block:"blocking the attack",.other:"a move that meets the threat"]
+        let names:[TrainingMaterial.DefenseMethod:String]=[.moveAway:String(localized:"moving it away",bundle:.checkmate),.captureAttacker:String(localized:"capturing the attacker",bundle:.checkmate),.protect:"protecting it",.block:String(localized:"blocking the attack",bundle:.checkmate),.other:String(localized:"a move that meets the threat",bundle:.checkmate)]
         let tags=TrainingMaterial.defenseTags(before:before,after:after,from:outcome.from,to:outcome.to,target:target,learner:Character(state.scenario.learner))
-        return "You saved it by "+TrainingMaterial.DefenseMethod.allCases.filter(tags.contains).compactMap{names[$0]}.joined(separator:" and ")+". "
+        return String(localized:"You saved it by ",bundle:.checkmate)+TrainingMaterial.DefenseMethod.allCases.filter(tags.contains).compactMap{names[$0]}.joined(separator:" and ")+". "
     }
     /// A move at a teaching node. Only the move stage takes one: a diagnosis answers its question first.
     func attemptBeginner(from:String,to:String,promotion:String?){
@@ -87,11 +88,11 @@ extension TrainingController {
             let land={[weak self] in self?.landed(outcome,from:legality.fen);if let reply{self?.landed(reply,from:outcome.after)}}
             if let after=prepared.after,let next=node.next?[move] {
                 state.node=next;state.current=after;clearHints(&state)
-                state.feedback="Good. "+(reply.map{"The reply was \($0.san). "} ?? "")+"Keep going: find the next move."
+                state.feedback=String(localized:"Good. ",bundle:.checkmate)+(reply.map{String(localized:"The reply was \($0.san). ",bundle:.checkmate)} ?? "")+String(localized:"Keep going: find the next move.",bundle:.checkmate)
                 if save(state){land()};return
             }
-            if right{state.feedback="Correct. "+praise+(reply.map{"The best reply, \($0.san), does not change that. "} ?? "")+scenario.explanation}
-            else{state.feedback=(reply.map{"After \($0.san) it goes wrong. "} ?? miss(state)+" ")+scenario.explanation}
+            if right{state.feedback=String(localized:"Correct. ",bundle:.checkmate)+praise+(reply.map{String(localized:"The best reply, \($0.san), does not change that. ",bundle:.checkmate)} ?? "")+scenario.explanation}
+            else{state.feedback=(reply.map{String(localized:"After \($0.san) it goes wrong. ",bundle:.checkmate)} ?? miss(state)+" ")+scenario.explanation}
             if finish(state,right ? .correct:.incorrect){land()}
         }catch{fault()}
     }
@@ -111,7 +112,7 @@ extension TrainingController {
     }
     /// The board a validated FEN shows; a FEN that cannot be read is a fault, never the previous board kept.
     func boardAfter(_ fen:String)throws -> Position {
-        guard let board=TrainingMaterial.board(fen:fen) else{throw CheckmateError.invalid("A position could not be read.")}
+        guard let board=TrainingMaterial.board(fen:fen) else{throw CheckmateError.invalid(String(localized:"A position could not be read.",bundle:.checkmate))}
         return board
     }
     /// Hints belong to the teaching node they were given for: reaching the next node clears them; the recorded help stays.
@@ -121,19 +122,19 @@ extension TrainingController {
     /// continuing move and its reply together, so a saved attempt never ends between them.
     func awaitingReply(_ state:Exercise)->Bool {if state.scenario.check != nil,state.task == .move,case .move? = state.snapshot.actions.last{return true};return false}
     func replayMove(_ state:inout Exercise,uci:String)throws {
-        guard state.task == .move,!awaitingReply(state),let nodes=state.scenario.nodes,let legality=state.current,state.node<nodes.count else{throw CheckmateError.invalid("A saved move no longer applies.")}
+        guard state.task == .move,!awaitingReply(state),let nodes=state.scenario.nodes,let legality=state.current,state.node<nodes.count else{throw CheckmateError.invalid(String(localized:"A saved move no longer applies.",bundle:.checkmate))}
         let node=nodes[state.node]
-        guard try legality.fingerprint()==node.fingerprint,node.accepted.contains(uci),node.next?[uci] != nil,let outcome=try legality.outcomes().first(where:{$0.uci==uci}) else{throw CheckmateError.invalid("A saved move no longer applies.")}
+        guard try legality.fingerprint()==node.fingerprint,node.accepted.contains(uci),node.next?[uci] != nil,let outcome=try legality.outcomes().first(where:{$0.uci==uci}) else{throw CheckmateError.invalid(String(localized:"A saved move no longer applies.",bundle:.checkmate))}
         state.line.append(uci);state.board=try boardAfter(outcome.after);state.lastMove=(outcome.from,outcome.to)
     }
     func replayReply(_ state:inout Exercise,_ move:String)throws {
-        guard awaitingReply(state),let nodes=state.scenario.nodes,let fen=state.scenario.fen,let last=state.line.last,state.node<nodes.count,let next=nodes[state.node].next?[last],nodes[state.node].replies[last]==move else{throw CheckmateError.invalid("A saved reply no longer applies.")}
+        guard awaitingReply(state),let nodes=state.scenario.nodes,let fen=state.scenario.fen,let last=state.line.last,state.node<nodes.count,let next=nodes[state.node].next?[last],nodes[state.node].replies[last]==move else{throw CheckmateError.invalid(String(localized:"A saved reply no longer applies.",bundle:.checkmate))}
         let after=try TrainingLegality(fen:fen,prelude:(state.scenario.prelude ?? [])+state.line+[move],runtimeFactory:runtimeFactory)
-        guard try after.fingerprint()==nodes[next].fingerprint else{throw CheckmateError.invalid("A saved reply no longer applies.")}
+        guard try after.fingerprint()==nodes[next].fingerprint else{throw CheckmateError.invalid(String(localized:"A saved reply no longer applies.",bundle:.checkmate))}
         state.line.append(move);state.board=try after.board();state.lastMove=(String(move.prefix(2)),String(move.dropFirst(2).prefix(2)));state.node=next;state.current=after;clearHints(&state)
     }
     func replayConcern(_ state:inout Exercise,_ option:String)throws {
-        guard try correctChoices(state).contains(option) else{throw CheckmateError.invalid("A saved answer no longer applies.")}
+        guard try correctChoices(state).contains(option) else{throw CheckmateError.invalid(String(localized:"A saved answer no longer applies.",bundle:.checkmate))}
         state.stage=1
     }
     // MARK: Answers
@@ -142,18 +143,18 @@ extension TrainingController {
         switch state.scenario.check {
         case .forks:return TrainingRelationship.forks(by:color,board:state.board)
         case .pins:return TrainingRelationship.pinned(color:color,board:state.board)
-        case .kingSquares:guard let legality=state.current else{throw CheckmateError.invalid("No position.")};return try legality.kingDestinations()
+        case .kingSquares:guard let legality=state.current else{throw CheckmateError.invalid(String(localized:"No position.",bundle:.checkmate))};return try legality.kingDestinations()
         default:return []
         }
     }
     func beginnerSolution(_ state:Exercise)throws -> String {
         switch state.task {
-        case .select:let squares=try beginnerSquares(state).sorted();return squares.isEmpty ? "The answer is None.":"The answer is \(squares.joined(separator:", "))."
-        case .choose:return "The answer is: "+(try correctChoices(state)).sorted().joined(separator:" or ")+"."
+        case .select:let squares=try beginnerSquares(state).sorted();return squares.isEmpty ? String(localized:"The answer is None.",bundle:.checkmate):String(localized:"The answer is \(squares.joined(separator:", ")).",bundle:.checkmate)
+        case .choose:return String(localized:"The answer is: ",bundle:.checkmate)+(try correctChoices(state)).sorted().joined(separator:" or ")+"."
         case .move:
             guard let legality=state.current,let node=state.scenario.nodes?[state.node] else{return ""}
             let moves=try legality.outcomes().filter{node.accepted.contains($0.uci)}.map(\.san)
-            return moves.isEmpty ? "No move reaches the goal here.":"Moves that work: "+moves.joined(separator:", ")+"."
+            return moves.isEmpty ? String(localized:"No move reaches the goal here.",bundle:.checkmate):String(localized:"Moves that work: ",bundle:.checkmate)+moves.joined(separator:", ")+"."
         case .game:return ""
         }
     }

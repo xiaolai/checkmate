@@ -1,3 +1,4 @@
+import CheckmateAssets
 import CheckmateDomain
 import Foundation
 /// Writes descriptive training records into the global state. Every change here is saved by the same atomic state
@@ -23,7 +24,7 @@ public enum TrainingStore {
     }
     /// Records a finished attempt and updates its entry's counters. Returns the attempt recorded.
     @discardableResult public static func finish(_ snapshot:TrainingSessionSnapshot,outcome:TrainingOutcome,in state:inout ApplicationState,now:Date,calendar:Calendar)throws -> TrainingAttempt {
-        guard state.trainingWritable else{throw CheckmateError.unavailable("Training progress is read-only until its saved record is recovered.")}
+        guard state.trainingWritable else{throw CheckmateError.unavailable(String(localized:"Training progress is read-only until its saved record is recovered.",bundle:.checkmate))}
         var training=state.training ?? TrainingState()
         let scenario=snapshot.scenario,firstTry=outcome == .correct && !snapshot.retry && !snapshot.recordedHelp
         // A game records the level it was played at (mini-game plan D4), settled as a resume settles it: an attempt
@@ -50,15 +51,15 @@ public enum TrainingStore {
         if training.active?.id==snapshot.id{training.active=nil}
         TrainingRecommendation.record(snapshot,outcome:outcome,in:&training,now:now,calendar:calendar)
         prune(&training)
-        guard withinBudget(training) else{throw CheckmateError.unavailable("Training progress is full: its retained records no longer fit. Nothing was recorded.")}
+        guard withinBudget(training) else{throw CheckmateError.unavailable(String(localized:"Training progress is full: its retained records no longer fit. Nothing was recorded.",bundle:.checkmate))}
         // Counters are bounded on load; a record that would pass a bound is refused rather than silently capped.
-        guard (try? training.validate()) != nil else{throw CheckmateError.unavailable("Training progress has reached its limits. Nothing was recorded.")}
+        guard (try? training.validate()) != nil else{throw CheckmateError.unavailable(String(localized:"Training progress has reached its limits. Nothing was recorded.",bundle:.checkmate))}
         state.training=training;return attempt
     }
     /// The explicit recovery for an unreadable training record: training starts afresh. The rolling save backup still
     /// holds the old record, and an export taken first keeps it verbatim. A newer version's record is never replaced.
     public static func resetUnreadable(in state:inout ApplicationState)throws {
-        guard state.trainingRaw != nil,state.trainingIssue != "future" else{throw CheckmateError.invalid(state.trainingIssue=="future" ? "This training progress was saved by a newer version of Checkmate and is kept unchanged.":"Training progress is readable; there is nothing to reset.")}
+        guard state.trainingRaw != nil,state.trainingIssue != "future" else{throw CheckmateError.invalid(state.trainingIssue=="future" ? String(localized:"This training progress was saved by a newer version of Checkmate and is kept unchanged.",bundle:.checkmate):String(localized:"Training progress is readable; there is nothing to reset.",bundle:.checkmate))}
         state.trainingRaw=nil;state.trainingIssue=nil;state.training=TrainingState()
     }
     /// Records a legacy mini-game that has just finished, unless this run was already credited (undo and replay within

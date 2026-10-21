@@ -16,7 +16,7 @@ final class VisibleHostingView<Content:View>:NSHostingView<Content> {
 }
 /// The launch-recovery alert's buttons: the choice is the case, so a reworded title never changes what it does (D-12).
 enum LaunchRecoveryChoice:CaseIterable {case startFresh,restoreBackup,export,quit
-    var title:String{switch self{case .startFresh:return "Start Fresh";case .restoreBackup:return "Restore Backup";case .export:return "Export Saved File…";case .quit:return "Quit"}}
+    var title:String{switch self{case .startFresh:return String(localized:"Start Fresh",bundle:.checkmate);case .restoreBackup:return String(localized:"Restore Backup",bundle:.checkmate);case .export:return String(localized:"Export Saved File…",bundle:.checkmate);case .quit:return String(localized:"Quit",bundle:.checkmate)}}
 }
 struct Metrics {
     static let promotionIconSize:CGFloat=24
@@ -57,7 +57,7 @@ extension NSAlert {
     /// Cancel (or the word given for it) is the default (Return) button and answers Escape, so only a deliberate choice runs it. The only
     /// place besides `saveChanges` an alert button is marked destructive. Responses: first the action, second Cancel, third `alternative`, a
     /// safe choice that takes no key either. `identifier` names the buttons `-confirm`, `-cancel`, `-alternative`.
-    static func destructive(_ title:String,_ message:String,action:String,cancel:String="Cancel",alternative:String?=nil,identifier:String?=nil)->NSAlert {
+    static func destructive(_ title:String,_ message:String,action:String,cancel:String=String(localized:"Cancel",bundle:.checkmate),alternative:String?=nil,identifier:String?=nil)->NSAlert {
         let alert=NSAlert();alert.messageText=title;alert.informativeText=message
         let button=alert.addButton(withTitle:action);button.keyEquivalent="";button.hasDestructiveAction=true
         let stay=alert.addButton(withTitle:cancel);stay.keyEquivalent="\r";alert.window.defaultButtonCell=stay.cell as? NSButtonCell
@@ -70,8 +70,8 @@ extension NSAlert {
     /// Escape. The field's identifier is `identifier`; the buttons are `identifier`-confirm and -cancel.
     static func naming(_ title:String,current:String,identifier:String)->(alert:NSAlert,field:NSTextField) {
         let alert=NSAlert();alert.messageText=title
-        let field=NSTextField(string:current);field.frame=NSRect(x:0,y:0,width:300,height:24);field.setAccessibilityLabel("Name");field.setAccessibilityIdentifier(identifier)
-        alert.accessoryView=field;alert.addButton(withTitle:"Rename").setAccessibilityIdentifier(identifier+"-confirm");alert.addButton(withTitle:"Cancel").setAccessibilityIdentifier(identifier+"-cancel")
+        let field=NSTextField(string:current);field.frame=NSRect(x:0,y:0,width:300,height:24);field.setAccessibilityLabel(String(localized:"Name",bundle:.checkmate));field.setAccessibilityIdentifier(identifier)
+        alert.accessoryView=field;alert.addButton(withTitle:String(localized:"Rename",bundle:.checkmate)).setAccessibilityIdentifier(identifier+"-confirm");alert.addButton(withTitle:String(localized:"Cancel",bundle:.checkmate)).setAccessibilityIdentifier(identifier+"-cancel")
         alert.window.initialFirstResponder=field;return (alert,field)
     }
     /// Asks for a new name as a sheet on the main window (or a modal alert without one); `rename` runs only on Rename.
@@ -89,9 +89,9 @@ extension NSAlert {
     /// marked destructive and takes no key. Responses: first Save, second Cancel, third Don't Save.
     static func saveChanges(_ title:String,_ message:String)->NSAlert {
         let alert=NSAlert();alert.messageText=title;alert.informativeText=message
-        let save=alert.addButton(withTitle:"Save");save.keyEquivalent="\r";alert.window.defaultButtonCell=save.cell as? NSButtonCell
-        alert.addButton(withTitle:"Cancel").keyEquivalent="\u{1b}"
-        let discard=alert.addButton(withTitle:"Don’t Save");discard.keyEquivalent="";discard.hasDestructiveAction=true
+        let save=alert.addButton(withTitle:String(localized:"Save",bundle:.checkmate,comment:"Verb: save the changes"));save.keyEquivalent="\r";alert.window.defaultButtonCell=save.cell as? NSButtonCell
+        alert.addButton(withTitle:String(localized:"Cancel",bundle:.checkmate)).keyEquivalent="\u{1b}"
+        let discard=alert.addButton(withTitle:String(localized:"Don’t Save",bundle:.checkmate));discard.keyEquivalent="";discard.hasDestructiveAction=true
         return alert
     }
 }
@@ -101,12 +101,12 @@ extension GameWindow {
     static func failureMessage(_ error:Error)->String {
         if let app=error as? CheckmateError {
             switch app {
-            case .invalid("ROLE_FORBIDDEN"):return "This move can’t be played now. Wait for your turn."
-            case .invalid(let text),.unavailable(let text):if text.contains(where:\.isLetter),text.allSatisfy({$0.isUppercase || $0.isNumber || $0=="_"}){return "That action is not available right now."}
+            case .invalid("ROLE_FORBIDDEN"):return String(localized:"This move can’t be played now. Wait for your turn.",bundle:.checkmate)
+            case .invalid(let text),.unavailable(let text):if text.contains(where:\.isLetter),text.allSatisfy({$0.isUppercase || $0.isNumber || $0=="_"}){return String(localized:"That action is not available right now.",bundle:.checkmate)}
             default:break
             }
         }
-        return userFacingMessage(error,fallback:"That action could not be completed.")
+        return userFacingMessage(error,fallback:String(localized:"That action could not be completed.",bundle:.checkmate))
     }
     /// The alert for a failure: its message, and the error's recovery suggestion, when it has one, as the detail.
     static func failureAlert(_ error:Error)->NSAlert {

@@ -3,28 +3,28 @@ import CheckmateCore
 /// Plain labels for how an entry's moves are judged, shown with every entry and exercise (plan rule 2).
 enum TrainingLabels {
     static func ruleMode(_ mode:TrainingRuleMode)->String {switch mode {
-        case .movementDrill:return "Movement practice · only the marked piece moves"
-        case .simplifiedVariant:return "Simplified game · its own rules, not full chess"
-        case .recognitionDiagram:return "Diagram · reading attacks, not a game position"
-        case .standardChess:return "Standard chess rules"
+        case .movementDrill:return String(localized:"Movement practice · only the marked piece moves",bundle:.checkmate)
+        case .simplifiedVariant:return String(localized:"Simplified game · its own rules, not full chess",bundle:.checkmate)
+        case .recognitionDiagram:return String(localized:"Diagram · reading attacks, not a game position",bundle:.checkmate)
+        case .standardChess:return String(localized:"Standard chess rules",bundle:.checkmate)
     }}
     /// A subskill's button title.
     static func variant(_ id:String)->String {
-        let names=["move-away":"Move it away","protect":"Protect it","capture-attacker":"Capture the attacker","block":"Block the line","mixed-method":"Any defense","free-piece":"Free pieces","poisoned-capture":"Poisoned captures","compare-exchange":"Compare trades","anticipate-recapture":"Expect the recapture","castle-legal":"Castling","castle-unavailable":"When castling is not allowed","promotion":"Promotion","en-passant-available":"En passant","en-passant-unavailable":"When en passant is not allowed","fork-recognize":"Spot forks","pin-recognize":"Spot pins","fork-realize":"Win with a fork","pin-realize":"Win with a pin","mate-threat-create":"Threaten mate","mate-threat-prevent":"Stop a mate threat","kqk":"King and queen","krk":"King and rook","mixed":"Mixed","kpk":"King and pawn","kbbk":"Two bishops","pawns":"Pawns","knights":"Knights","bishops":"Bishops","rooks":"Rooks","queens":"Queens","minor-pieces":"Minor pieces","major-pieces":"Major pieces"]
+        let names=["move-away":String(localized:"Move it away",bundle:.checkmate),"protect":String(localized:"Protect it",bundle:.checkmate),"capture-attacker":String(localized:"Capture the attacker",bundle:.checkmate),"block":String(localized:"Block the line",bundle:.checkmate),"mixed-method":String(localized:"Any defense",bundle:.checkmate),"free-piece":String(localized:"Free pieces",bundle:.checkmate),"poisoned-capture":String(localized:"Poisoned captures",bundle:.checkmate),"compare-exchange":String(localized:"Compare trades",bundle:.checkmate),"anticipate-recapture":String(localized:"Expect the recapture",bundle:.checkmate),"castle-legal":String(localized:"Castling",bundle:.checkmate),"castle-unavailable":String(localized:"When castling is not allowed",bundle:.checkmate),"promotion":String(localized:"Promotion",bundle:.checkmate),"en-passant-available":String(localized:"En passant",bundle:.checkmate),"en-passant-unavailable":String(localized:"When en passant is not allowed",bundle:.checkmate),"fork-recognize":String(localized:"Spot forks",bundle:.checkmate),"pin-recognize":String(localized:"Spot pins",bundle:.checkmate),"fork-realize":String(localized:"Win with a fork",bundle:.checkmate),"pin-realize":String(localized:"Win with a pin",bundle:.checkmate),"mate-threat-create":String(localized:"Threaten mate",bundle:.checkmate),"mate-threat-prevent":String(localized:"Stop a mate threat",bundle:.checkmate),"kqk":String(localized:"King and queen",bundle:.checkmate),"krk":String(localized:"King and rook",bundle:.checkmate),"mixed":String(localized:"Mixed",bundle:.checkmate),"kpk":String(localized:"King and pawn",bundle:.checkmate),"kbbk":String(localized:"Two bishops",bundle:.checkmate),"pawns":String(localized:"Pawns",bundle:.checkmate),"knights":String(localized:"Knights",bundle:.checkmate),"bishops":String(localized:"Bishops",bundle:.checkmate),"rooks":String(localized:"Rooks",bundle:.checkmate),"queens":String(localized:"Queens",bundle:.checkmate),"minor-pieces":String(localized:"Minor pieces",bundle:.checkmate),"major-pieces":String(localized:"Major pieces",bundle:.checkmate)]
         return names[id] ?? id.replacingOccurrences(of:"-",with:" ").capitalized
     }
     /// What a mixed case practised, shown only after the learner has answered.
     static func skill(_ skill:TrainingSkill)->String {switch skill {
-        case .movement:return "how the pieces move"
-        case .attackProtection:return "attack and protection"
-        case .threatResponse:return "answering a threat"
-        case .captureExchange:return "captures and trades"
+        case .movement:return String(localized:"how the pieces move",bundle:.checkmate)
+        case .attackProtection:return String(localized:"attack and protection",bundle:.checkmate)
+        case .threatResponse:return String(localized:"answering a threat",bundle:.checkmate)
+        case .captureExchange:return String(localized:"captures and trades",bundle:.checkmate)
         case .checkMateDraw:return "check, mate and draws"
         case .specialRules:return "castling, promotion and en passant"
         case .elementaryTactics:return "forks, pins and mating threats"
-        case .convertingWin:return "finishing a won game"
+        case .convertingWin:return String(localized:"finishing a won game",bundle:.checkmate)
         case .gameHabits:return "game habits"
-        case .diagnosis:return "spotting what matters"
+        case .diagnosis:return String(localized:"spotting what matters",bundle:.checkmate)
     }}
 }
 /// Buttons laid out three to a row, eagerly: a lazy grid leaves rows below the fold out of the accessibility tree.
@@ -76,11 +76,11 @@ struct TrainingLibraryView:View {
                         Text(suggestion.explanation).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
                     }
                     Spacer(minLength:0)
-                    Button(suggestion.due ? "Practice Again":"Try It Now"){model.retryTraining(suggestion.item.id)}.accessibilityIdentifier(Self.suggestionIdentifier(suggestion.item.entry,earlier:suggestions[..<position].filter{$0.item.entry==suggestion.item.entry}.count))
+                    Button(suggestion.due ? String(localized:"Practice Again",bundle:.checkmate):String(localized:"Try It Now",bundle:.checkmate)){model.retryTraining(suggestion.item.id)}.accessibilityIdentifier(Self.suggestionIdentifier(suggestion.item.entry,earlier:suggestions[..<position].filter{$0.item.entry==suggestion.item.entry}.count))
                 }
             }
         }
-        ForEach([(TrainingOrigin.new,"New exercises"),(.existing,"Existing games")],id:\.0){origin,heading in
+        ForEach([(TrainingOrigin.new,String(localized:"New exercises",bundle:.checkmate)),(.existing,String(localized:"Existing games",bundle:.checkmate))],id:\.0){origin,heading in
             let group=entries.filter{$0.origin==origin}
             if !group.isEmpty{Text("\(heading) (\(group.count))").sectionHeading(.title3.bold()).padding(.top,Metrics.smallGap)}
             ForEach(group,id:\.id){entry in row(entry)}
@@ -95,7 +95,7 @@ struct TrainingLibraryView:View {
         Button{open(entry)}label:{HStack(alignment:.top){
             (entry.legacyKind != nil ? AppSymbol.gameActivity:.exercise).image.frame(width:Metrics.padding*2).accessibilityHidden(true)
             VStack(alignment:.leading,spacing:2){
-                HStack{Text(entry.title).font(.headline);Text(entry.origin == .existing ? "Existing game":entry.increment == .beginner ? "Preview":"New").font(.caption).padding(.horizontal,Metrics.tightGap).background(.quaternary,in:Capsule())}
+                HStack{Text(entry.title).font(.headline);Text(entry.origin == .existing ? String(localized:"Existing game",bundle:.checkmate):entry.increment == .beginner ? String(localized:"Preview",bundle:.checkmate,comment:"Badge: this item can be tried before it is unlocked"):String(localized:"New",bundle:.checkmate,comment:"Badge: this item has not been played yet")).font(.caption).padding(.horizontal,Metrics.tightGap).background(.quaternary,in:Capsule())}
                 Text(entry.summary).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
                 Text(TrainingLabels.ruleMode(entry.ruleMode)).font(.caption).foregroundStyle(.secondary)
                 ForEach(TrainingRecommendation.progress(entry.id,in:training.training).lines,id:\.self){Text($0).font(.caption)}

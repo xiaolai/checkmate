@@ -10,9 +10,9 @@ extension ControlBarModel {
         let running=game.outcome==nil && game.link == .live && game.hostPhase != .reserved && game.hostPhase != .waiting
         bar.status = running ? .turn(side:game.rules.turn,label:text):.text(text)
         bar.clocks=game.timeControl != .untimed
-        if game.canAnswerDraw{bar.trailing+=[ControlBarItem(action:.acceptDraw,label:"Accept Draw",prominent:true),ControlBarItem(action:.declineDraw,label:"Decline")]}
-        if game.learnerSide != nil{bar.trailing+=[ControlBarItem(action:.offerDraw,label:"Offer Draw",enabled:game.canOfferDraw),ControlBarItem(action:.resign,label:"Resign…",enabled:game.canResign)]}
-        bar.trailing.append(ControlBarItem(action:.flipBoard,symbol:.flipBoard,label:"Flip Board",enabled:game.seat != nil))
+        if game.canAnswerDraw{bar.trailing+=[ControlBarItem(action:.acceptDraw,label:String(localized:"Accept Draw",bundle:.checkmate),prominent:true),ControlBarItem(action:.declineDraw,label:String(localized:"Decline",bundle:.checkmate))]}
+        if game.learnerSide != nil{bar.trailing+=[ControlBarItem(action:.offerDraw,label:String(localized:"Offer Draw",bundle:.checkmate),enabled:game.canOfferDraw),ControlBarItem(action:.resign,label:String(localized:"Resign…",bundle:.checkmate),enabled:game.canResign)]}
+        bar.trailing.append(ControlBarItem(action:.flipBoard,symbol:.flipBoard,label:String(localized:"Flip Board",bundle:.checkmate),enabled:game.seat != nil))
         return bar
     }
 }
@@ -33,7 +33,7 @@ struct NetworkBarClocks:View {
         if let clocks {
             let left=clocks.remaining(side),colour=side == .white ? "white":"black"
             HStack(spacing:4){
-                TurnIndicator(side:side.rawValue,label:side == .white ? "White":"Black")
+                TurnIndicator(side:side.rawValue,label:side == .white ? String(localized:"White",bundle:.checkmate):String(localized:"Black",bundle:.checkmate))
                 Text(NetworkDetail.clock(left)).font(.system(.callout,design:.monospaced)).fontWeight(clocks.active==side ? .semibold:.regular)
                     .foregroundStyle(NetworkDetail.low(left) ? Color(nsColor:NativeColors.error):clocks.active==side ? .primary:.secondary)
             }

@@ -1,3 +1,4 @@
+import CheckmateAssets
 import CheckmateDomain
 import CheckmateSupport
 import Foundation
@@ -132,7 +133,7 @@ public struct ReviewMoment:Codable,Identifiable {public let id:Int,expectationLo
         // Reassessed on every result: a quiet move a quick pass admitted leaves when a deeper pass finds it costs little.
         var result=moments;result.removeAll{$0.id==evidence.nodeID}
         // What a move cost comes first: a capture, check or promotion that threw the game away is reported for its cost.
-        let reason=costly ? (forcing ? "Engine alternatives are worth comparing (also a capture, check or promotion)":"Engine alternatives are worth comparing"):forcing ? "Capture, check or promotion":"Engine alternatives are worth comparing"
+        let reason=costly ? (forcing ? String(localized:"Engine alternatives are worth comparing (also a capture, check or promotion)",bundle:.checkmate):String(localized:"Engine alternatives are worth comparing",bundle:.checkmate)):forcing ? String(localized:"Capture, check or promotion",bundle:.checkmate):String(localized:"Engine alternatives are worth comparing",bundle:.checkmate)
         if forcing || costly || evidence.nodeID==document.mainline.last {result.append(ReviewMoment(id:evidence.nodeID,expectationLoss:loss,reason:reason,provisional:evidence.provisional));result.sort{($0.expectationLoss ?? 0)>($1.expectationLoss ?? 0)}}
         return result
     }

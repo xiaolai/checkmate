@@ -5,13 +5,13 @@ import CheckmateCore
 /// the same presets as the Opponent settings.
 enum NewGameChoices {
     struct Choice:Equatable {let title:String,tag:String}
-    static let sides=[Choice(title:"Play as White",tag:"w"),Choice(title:"Play as Black",tag:"b"),Choice(title:"Random Side",tag:"random")]
+    static let sides=[Choice(title:String(localized:"Play as White",bundle:.checkmate),tag:"w"),Choice(title:String(localized:"Play as Black",bundle:.checkmate),tag:"b"),Choice(title:String(localized:"Random Side",bundle:.checkmate),tag:"random")]
     /// The side the sheet's choice at `index` plays; Random Side asks `coin` (true is White).
     static func side(at index:Int,_ coin:()->Bool)->String {
         let tag=sides[max(0,min(sides.count-1,index))].tag;return tag=="random" ? (coin() ? "w":"b"):tag
     }
     static var strengths:[Choice] {
-        (ReviewRolloutPolicy.beginnerOpponentEnabled ? [Choice(title:"First Steps",tag:"first_steps")]:[])+[Choice(title:"Gentle",tag:"gentle"),Choice(title:"Club",tag:"club"),Choice(title:"Keep Custom Settings",tag:"custom")]
+        (ReviewRolloutPolicy.beginnerOpponentEnabled ? [Choice(title:String(localized:"First Steps",bundle:.checkmate),tag:"first_steps")]:[])+[Choice(title:String(localized:"Gentle",bundle:.checkmate),tag:"gentle"),Choice(title:String(localized:"Club",bundle:.checkmate,comment:"Opponent strength: a club-level player"),tag:"club"),Choice(title:String(localized:"Keep Custom Settings",bundle:.checkmate),tag:"custom")]
     }
     /// The strength shown for the saved preset; one this build does not offer shows as Keep Custom Settings.
     static func strengthIndex(_ settings:AppSettings)->Int {
@@ -22,8 +22,8 @@ enum NewGameChoices {
         func popUp(_ choices:[Choice],selected:Int,label:String)->NSPopUpButton {
             let button=NSPopUpButton(frame:NSRect(x:0,y:0,width:220,height:28));button.addItems(withTitles:choices.map(\.title));button.selectItem(at:selected);button.setAccessibilityLabel(label);return button
         }
-        let sidePicker=popUp(sides,selected:side=="b" ? 1:0,label:"Your side"),strength=popUp(strengths,selected:strengthIndex(settings),label:"Opponent")
-        let grid=NSGridView(views:[[NSTextField(labelWithString:"Your side:"),sidePicker],[NSTextField(labelWithString:"Opponent:"),strength]])
+        let sidePicker=popUp(sides,selected:side=="b" ? 1:0,label:String(localized:"Your side",bundle:.checkmate)),strength=popUp(strengths,selected:strengthIndex(settings),label:String(localized:"Opponent",bundle:.checkmate))
+        let grid=NSGridView(views:[[NSTextField(labelWithString:String(localized:"Your side:",bundle:.checkmate)),sidePicker],[NSTextField(labelWithString:String(localized:"Opponent:",bundle:.checkmate)),strength]])
         grid.column(at:0).xPlacement = .trailing;grid.rowAlignment = .firstBaseline;grid.frame=NSRect(origin:.zero,size:grid.fittingSize)
         return (grid,sidePicker,strength)
     }

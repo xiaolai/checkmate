@@ -1,3 +1,4 @@
+import CheckmateAssets
 import CheckmateApplication
 import CheckmateDomain
 import CheckmateSupport
@@ -43,8 +44,8 @@ public final class NetworkLoopbackDirectory {
             return Entry(name:configuration.serviceName(for:role),game:configuration.gameID.text,role:role.rawValue,port:port.rawValue,assist:configuration.assistance.txt,variant:configuration.variant,pid:process,started:started(process) ?? 0)
         }.sorted{$0.role<$1.role}
         do{
-            guard entries.count==endpoints.count else{throw CheckmateError.invalid("A listener is not on loopback.")}
-            guard entries.allSatisfy({$0.started>0}) else{throw CheckmateError.unavailable("This process's start time could not be read.")}
+            guard entries.count==endpoints.count else{throw CheckmateError.invalid(String(localized:"A listener is not on loopback.",bundle:.checkmate))}
+            guard entries.allSatisfy({$0.started>0}) else{throw CheckmateError.unavailable(String(localized:"This process's start time could not be read.",bundle:.checkmate))}
             try FileManager.default.createDirectory(at:directory,withIntermediateDirectories:true)
             try JSONEncoder().encode(entries).write(to:file(configuration.gameID),options:.atomic)
         }catch{NativeLog.lifecycle.error("The loopback game record could not be published: \(String(describing:error),privacy:.public)")}

@@ -1,3 +1,4 @@
+import CheckmateAssets
 import CheckmateDomain
 import CheckmateRules
 import Foundation
@@ -34,7 +35,7 @@ public struct ReviewBranch:Codable,Equatable {public let id:UUID,root:Int;public
     private var replacedContinuations:[UUID:(branch:ReviewBranch,ply:Int,preview:Bool)]=[:]
     public var canUndoIdeaChange:Bool {branch.map{replacedContinuations[$0.id] != nil} ?? false}
     public var branchesForSaving:[ReviewBranch] {boundedBranches(authoredBranches+(branch.flatMap{$0.id==previewBranchID ? nil:[$0]} ?? []))}
-    public static let ideaLimitMessage="You have kept the maximum of \(ReviewPolicy.maximumBranches) imagined lines. Delete one to start another."
+    public static let ideaLimitMessage=String(localized:"You have kept the maximum of \(ReviewPolicy.maximumBranches) imagined lines. Delete one to start another.",bundle:.checkmate)
     /// Called after the open line is remembered (or while it is still a preview), so every kept idea is counted.
     private var atIdeaLimit:Bool {authoredBranches.count>=ReviewPolicy.maximumBranches}
     private var rulesCache:(String,ChessRules)?
@@ -68,24 +69,24 @@ public struct ReviewBranch:Codable,Equatable {public let id:UUID,root:Int;public
     private func rememberBranch(){authoredBranches=rememberedBranches;previewBranchID=nil}
     /// Removes one imagined line; the imported record and the other lines are kept.
     public func deleteBranch(_ id:UUID)throws {
-        guard authoredBranches.contains(where:{$0.id==id}) || branch?.id==id else{throw CheckmateError.invalid("Unknown imagined line.")}
+        guard authoredBranches.contains(where:{$0.id==id}) || branch?.id==id else{throw CheckmateError.invalid(String(localized:"Unknown imagined line.",bundle:.checkmate))}
         authoredBranches.removeAll{$0.id==id};replacedContinuations[id]=nil
         if branch?.id==id{pause();branch=nil;branchPly=0;selected=nil;evidence=nil}
         revision+=1
     }
     /// Restores the idea's continuation that the learner's last move replaced.
     public func undoIdeaChange()throws {
-        guard let current=branch,let previous=replacedContinuations.removeValue(forKey:current.id) else{throw CheckmateError.invalid("There is no change to undo.")}
+        guard let current=branch,let previous=replacedContinuations.removeValue(forKey:current.id) else{throw CheckmateError.invalid(String(localized:"There is no change to undo.",bundle:.checkmate))}
         pause();branch=previous.branch;branchPly=previous.ply;if previous.preview{previewBranchID=previous.branch.id;authoredBranches.removeAll{$0.id==previous.branch.id}};selected=nil;revision+=1
     }
     /// Reopening the idea already open keeps its latest moves (an edit or an undo), not the copy kept before them.
     public func openSavedBranch(_ id:UUID)throws {
-        guard let saved=rememberedBranches.first(where:{$0.id==id}),let document=document else{throw CheckmateError.invalid("Unknown imagined line.")}
+        guard let saved=rememberedBranches.first(where:{$0.id==id}),let document=document else{throw CheckmateError.invalid(String(localized:"Unknown imagined line.",bundle:.checkmate))}
         let rules=try document.snapshotRules(at:saved.root);for move in saved.moves{try rules.move(uci:move)}
         rememberBranch();cancel();nodeID=saved.root;branch=saved;branchPly=0;selected=nil;evidence=nil;error=nil;revision+=1
     }
-    public func select(_ node:Int)throws {guard document?.nodes.indices.contains(node)==true else{throw CheckmateError.invalid("Unknown review node.")};rememberBranch();cancel();nodeID=node;branch=nil;selected=nil;evidence=nil;error=nil;revision+=1}
-    public func restoreSaved(cursor:Int,branches:[ReviewBranch])throws {guard document?.nodes.indices.contains(cursor)==true else{throw CheckmateError.invalid("Unknown review node.")};authoredBranches=boundedBranches(branches);try select(cursor)}
+    public func select(_ node:Int)throws {guard document?.nodes.indices.contains(node)==true else{throw CheckmateError.invalid(String(localized:"Unknown review node.",bundle:.checkmate))};rememberBranch();cancel();nodeID=node;branch=nil;selected=nil;evidence=nil;error=nil;revision+=1}
+    public func restoreSaved(cursor:Int,branches:[ReviewBranch])throws {guard document?.nodes.indices.contains(cursor)==true else{throw CheckmateError.invalid(String(localized:"Unknown review node.",bundle:.checkmate))};authoredBranches=boundedBranches(branches);try select(cursor)}
     /// A failed review entry restores the exact prior owner without resuming play; a suspended practice reply
     /// stays held by the session until an explicit Return to game. Returns whether a reply is waiting.
     @discardableResult public func abandonFailedEntry(practice:GameSession)->Bool {close(practice:practice,resumePractice:false);return practice.requireExplicitResume()}
@@ -108,12 +109,12 @@ public struct ReviewBranch:Codable,Equatable {public let id:UUID,root:Int;public
     public func play(){guard document != nil else{return};pause();playing=true;playback=Task{while !Task.isCancelled,self.playing {try? await Task.sleep(nanoseconds:1_500_000_000);guard !Task.isCancelled,self.document != nil else{return};if let branch=self.branch{if self.branchPly>=branch.moves.count{self.pause();return};self.branchPly+=1;self.revision+=1;continue};let route=self.currentRoute,index=route.firstIndex(of:self.nodeID) ?? 0;guard index+1<route.count else{self.pause();return};self.nodeID=route[index+1];self.revision+=1;self.evidence=nil;self.selected=nil;if index+2==route.count{self.pause()}}}}
     /// Starts an imagined line at the shown position. At the idea limit a new line is refused, never made by
     /// silently dropping the oldest idea.
-    public func beginBranch()throws {guard document != nil else{throw CheckmateError.invalid("No review is open.")};guard rememberedBranches.count<ReviewPolicy.maximumBranches else{throw CheckmateError.invalid(Self.ideaLimitMessage)};rememberBranch();cancel();branch=ReviewBranch(root:nodeID);branchPly=0;selected=nil;revision+=1}
+    public func beginBranch()throws {guard document != nil else{throw CheckmateError.invalid(String(localized:"No review is open.",bundle:.checkmate))};guard rememberedBranches.count<ReviewPolicy.maximumBranches else{throw CheckmateError.invalid(Self.ideaLimitMessage)};rememberBranch();cancel();branch=ReviewBranch(root:nodeID);branchPly=0;selected=nil;revision+=1}
     /// Stores the validated canonical UCI (for example e7e8 becomes e7e8q), never the caller's spelling. Replaying
     /// the line's own next move steps along it; a different move replaces the continuation, which can be undone.
     public func playBranch(_ uci:String)throws {
         // The move is tried on the shown position, which then leaves the cache: a refused move must not advance the board.
-        guard var branch=branch,let rules=displayRules else{throw CheckmateError.invalid("Open Test My Idea first.")};rulesCache=nil;let canonical=try rules.move(uci:uci).uci
+        guard var branch=branch,let rules=displayRules else{throw CheckmateError.invalid(String(localized:"Open Test My Idea first.",bundle:.checkmate))};rulesCache=nil;let canonical=try rules.move(uci:uci).uci
         if branchPly<branch.moves.count,branch.moves[branchPly]==canonical{branchPly+=1;selected=nil;revision+=1;return}
         let wasPreview=branch.id==previewBranchID
         if wasPreview{guard !atIdeaLimit else{throw CheckmateError.invalid(Self.ideaLimitMessage)};previewBranchID=nil}
@@ -123,7 +124,7 @@ public struct ReviewBranch:Codable,Equatable {public let id:UUID,root:Int;public
     /// The displayed position (original node, or imagined line rooted at its own root and
     /// replayed to the shown ply) with full preceding history for a separate practice game.
     public func practiceForkRules()throws -> ChessRules {
-        guard let document=document else{throw CheckmateError.invalid("No review is open.")}
+        guard let document=document else{throw CheckmateError.invalid(String(localized:"No review is open.",bundle:.checkmate))}
         let rules=try document.rules(at:branch?.root ?? nodeID)
         for move in (branch?.moves ?? []).prefix(branchPly){try rules.move(uci:move)}
         return rules
@@ -141,7 +142,7 @@ public struct ReviewBranch:Codable,Equatable {public let id:UUID,root:Int;public
     /// Checkmate, stalemate, insufficient material, the 75-move rule, or a fifth occurrence of the shown position along
     /// the recorded path to it (or to the idea's root) and the idea's moves, read from stored FENs.
     private func displayedPositionEndsGame()throws -> Bool {
-        guard let document=document,let shown=displayRules else{throw CheckmateError.invalid("No review is open.")}
+        guard let document=document,let shown=displayRules else{throw CheckmateError.invalid(String(localized:"No review is open.",bundle:.checkmate))}
         if shown.checkmate || shown.stalemate || shown.insufficientMaterial{return true}
         let fen=shown.fen;if (Int(fen.split(separator:" ").dropFirst(4).first ?? "0") ?? 0)>=150{return true}
         func key(_ fen:String)->String {fen.split(separator:" ").prefix(4).joined(separator:" ")}
@@ -153,14 +154,14 @@ public struct ReviewBranch:Codable,Equatable {public let id:UUID,root:Int;public
     /// Shows an engine or agent line as a preview. It is not the learner's idea: it is never saved or counted
     /// unless the learner plays a move in it.
     public func previewLine(_ moves:[String],fromNode:Int?=nil)throws {
-        guard moves.count<=32 else{throw CheckmateError.invalid("Preview line is too long.")};guard let document=document else{throw CheckmateError.invalid("No review is open.")}
+        guard moves.count<=32 else{throw CheckmateError.invalid(String(localized:"Preview line is too long.",bundle:.checkmate))};guard let document=document else{throw CheckmateError.invalid(String(localized:"No review is open.",bundle:.checkmate))}
         let root=fromNode ?? nodeID;let rules=try document.snapshotRules(at:root);var canonical:[String]=[];for move in moves{canonical.append(try rules.move(uci:move).uci)}
         rememberBranch();cancel();var line=ReviewBranch(root:root);line.moves=canonical;branch=line;previewBranchID=line.id;branchPly=canonical.count;selected=nil;revision+=1
     }
     public func clearBranch(){pause();rememberBranch();branch=nil;branchPly=0;selected=nil;revision+=1}
     public func seekBranch(_ ply:Int){guard let branch=branch else{return};pause();branchPly=max(0,min(branch.moves.count,ply));selected=nil;revision+=1}
     /// A legal move on the original game opens an imagined line with it; the imported record is never changed.
-    public func selectSquare(_ square:String,promotion:String="q")throws {guard let rules=displayRules else{return};if let from=selected,rules.moves(from).contains(where:{$0.to==square}){guard let candidate=rules.moves(from).first(where:{$0.to==square && ($0.promotion==nil || $0.promotion==promotion)}) else{throw CheckmateError.invalid("Choose a valid promotion.")};if branch==nil{try beginBranch()};try playBranch(candidate.uci);return};selected=rules.piece(square)==nil ? nil:square}
+    public func selectSquare(_ square:String,promotion:String="q")throws {guard let rules=displayRules else{return};if let from=selected,rules.moves(from).contains(where:{$0.to==square}){guard let candidate=rules.moves(from).first(where:{$0.to==square && ($0.promotion==nil || $0.promotion==promotion)}) else{throw CheckmateError.invalid(String(localized:"Choose a valid promotion.",bundle:.checkmate))};if branch==nil{try beginBranch()};try playBranch(candidate.uci);return};selected=rules.piece(square)==nil ? nil:square}
     public func clearSelection(){selected=nil}
-    public func analyze(using analyzer:ReviewAnalyzer,budget:Int?=nil){guard fairness.engineHelpAllowed,let d=document else{return};analysisTask?.cancel();let node=nodeID,epoch=revision,branch=self.branch,ply=branchPly;analysisStatus="pending";analysisTask=Task{do{let result:ReviewEvidence;if let branch=branch{result=try await analyzer.analyzeBranch(document:d,root:branch.root,moves:Array(branch.moves.prefix(ply)),revision:epoch,budget:budget ?? ReviewPolicy.quickBudget)}else{result=try await analyzer.analyze(document:d,node:node,revision:epoch,budget:budget)};guard !Task.isCancelled,self.document?.id==d.id,self.nodeID==node,self.revision==epoch else{return};self.evidence=result;self.analysisStatus="ready"}catch{guard !Task.isCancelled,self.revision==epoch else{return};self.analysisStatus="failed";self.error="Analysis is unavailable; the record remains navigable."}}}
+    public func analyze(using analyzer:ReviewAnalyzer,budget:Int?=nil){guard fairness.engineHelpAllowed,let d=document else{return};analysisTask?.cancel();let node=nodeID,epoch=revision,branch=self.branch,ply=branchPly;analysisStatus="pending";analysisTask=Task{do{let result:ReviewEvidence;if let branch=branch{result=try await analyzer.analyzeBranch(document:d,root:branch.root,moves:Array(branch.moves.prefix(ply)),revision:epoch,budget:budget ?? ReviewPolicy.quickBudget)}else{result=try await analyzer.analyze(document:d,node:node,revision:epoch,budget:budget)};guard !Task.isCancelled,self.document?.id==d.id,self.nodeID==node,self.revision==epoch else{return};self.evidence=result;self.analysisStatus="ready"}catch{guard !Task.isCancelled,self.revision==epoch else{return};self.analysisStatus="failed";self.error=String(localized:"Analysis is unavailable; the record remains navigable.",bundle:.checkmate)}}}
 }

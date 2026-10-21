@@ -3,11 +3,11 @@ import CheckmateCore
 
 /// The post-game review of a finished mini-game (WI-018): proved facts as text, and nothing during play.
 enum MiniGameReviewWording {
-    static let method="Each fact below was proved by checking every reply, up to \(MiniGameProofBudget.plies) single moves ahead, under this game’s rules."
-    static let running="Checking the game for forced wins…"
-    static let incomplete="The review ran out of time before it had checked every position."
-    static let noFacts="No forced win was proved within \(MiniGameProofBudget.plies) single moves of any position in this game."
-    static func summary(_ review:MiniGameReview)->String {review.facts.isEmpty ? noFacts:Plural.count(review.facts.count,one:"%d proved fact about this game.",other:"%d proved facts about this game.")}
+    static let method=String(localized:"Each fact below was proved by checking every reply, up to \(MiniGameProofBudget.plies) single moves ahead, under this game’s rules.",bundle:.checkmate)
+    static let running=String(localized:"Checking the game for forced wins…",bundle:.checkmate)
+    static let incomplete=String(localized:"The review ran out of time before it had checked every position.",bundle:.checkmate)
+    static let noFacts=String(localized:"No forced win was proved within \(MiniGameProofBudget.plies) single moves of any position in this game.",bundle:.checkmate)
+    static func summary(_ review:MiniGameReview)->String {review.facts.isEmpty ? noFacts:String(localized:"\(review.facts.count) proved facts about this game.",bundle:.checkmate)}
 }
 /// The details drawer's part: the review's progress, and the way back to its sheet once dismissed.
 struct MiniGameReviewSection:View {
@@ -55,7 +55,7 @@ struct MiniGameReviewReadAloud:View {
         } else if voice.miniReviewNeedsSignIn {
             // The review stays readable as text without a sign-in; this says why, and offers the check in place.
             Button("Read Aloud",action:read).disabled(voice.checkingAvailability).accessibilityIdentifier("mini-review-read-aloud")
-            Text(voice.checkingAvailability ? "Checking your Codex sign-in…":"Read Aloud checks your Codex sign-in first.").font(.caption).foregroundStyle(.secondary)
+            Text(voice.checkingAvailability ? String(localized:"Checking your Codex sign-in…",bundle:.checkmate):String(localized:"Read Aloud checks your Codex sign-in first.",bundle:.checkmate)).font(.caption).foregroundStyle(.secondary)
             if let problem=voice.miniReviewProblem {Text(problem).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)}
         }
     }

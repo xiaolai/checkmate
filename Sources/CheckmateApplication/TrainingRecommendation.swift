@@ -1,3 +1,4 @@
+import CheckmateAssets
 import CheckmateDomain
 import Foundation
 /// Descriptive progress and a simple retry queue (plan rule 10). Everything here reports what was observed; nothing
@@ -15,15 +16,15 @@ public enum TrainingRecommendation {
         public var lines:[String] {
             var out:[String]=[]
             if firstTryNoRecordedHelp+withRecordedHelp+practice+notSolved+answerShown>0 {
-                out.append("Solved on the first try with no recorded help: \(firstTryNoRecordedHelp)")
-                if withRecordedHelp>0{out.append("Solved with recorded help: \(withRecordedHelp)")}
-                if practice>0{out.append("Solved again in practice: \(practice)")}
+                out.append(String(localized:"Solved on the first try with no recorded help: \(firstTryNoRecordedHelp)",bundle:.checkmate))
+                if withRecordedHelp>0{out.append(String(localized:"Solved with recorded help: \(withRecordedHelp)",bundle:.checkmate))}
+                if practice>0{out.append(String(localized:"Solved again in practice: \(practice)",bundle:.checkmate))}
                 // Both lists keep only their newest entries, so a count at the bound means at least that many.
                 func atLeast(_ count:Int,_ bound:Int)->String {count>=bound ? "\(count)+":"\(count)"}
-                out.append("Board patterns practiced: \(atLeast(clusters,TrainingState.maximumClusters)) · Days practiced: \(atLeast(days,TrainingState.maximumDays))")
+                out.append(String(localized:"Board patterns practiced: \(atLeast(clusters,TrainingState.maximumClusters)) · Days practiced: \(atLeast(days,TrainingState.maximumDays))",bundle:.checkmate))
             }
-            if gamesWon+gamesLost+gamesDrawn>0{out.append("Games against the computer: won \(gamesWon), lost \(gamesLost), drawn \(gamesDrawn)")}
-            if routesCompleted>0{out.append("Routes completed: \(routesCompleted)")}
+            if gamesWon+gamesLost+gamesDrawn>0{out.append(String(localized:"Games against the computer: won \(gamesWon), lost \(gamesLost), drawn \(gamesDrawn)",bundle:.checkmate))}
+            if routesCompleted>0{out.append(String(localized:"Routes completed: \(routesCompleted)",bundle:.checkmate))}
             if twoPlayerGames>0{out.append("Two-player games finished: \(twoPlayerGames)")}
             return out
         }
@@ -37,9 +38,9 @@ public enum TrainingRecommendation {
     /// Why a finished attempt is worth repeating, or nil when it went cleanly. Abandoned attempts are not suggested.
     public static func reason(for outcome:TrainingOutcome,recordedHelp:Bool)->String? {
         switch outcome {
-        case .incorrect:return "Not solved last time."
-        case .revealed:return "The answer was shown last time."
-        case .correct:return recordedHelp ? "Solved with help last time." :nil
+        case .incorrect:return String(localized:"Not solved last time.",bundle:.checkmate)
+        case .revealed:return String(localized:"The answer was shown last time.",bundle:.checkmate)
+        case .correct:return recordedHelp ? String(localized:"Solved with help last time.",bundle:.checkmate) :nil
         case .abandoned:return nil
         }
     }
@@ -75,10 +76,10 @@ public enum TrainingRecommendation {
             let remaining=max(0,interveningItems-(training.finishedAttempts-item.afterAttempt)),dayReached=today>=notBefore(item.addedAt,calendar:calendar)
             let when:String
             switch (remaining,dayReached) {
-            case (0,true):when="Ready to try again."
-            case (0,false):when="Ready tomorrow."
-            case (let n,true):when=Plural.count(n,one:"Ready after %d more exercise.",other:"Ready after %d more exercises.")
-            case (let n,false):when=Plural.count(n,one:"Ready tomorrow, after %d more exercise.",other:"Ready tomorrow, after %d more exercises.")
+            case (0,true):when=String(localized:"Ready to try again.",bundle:.checkmate)
+            case (0,false):when=String(localized:"Ready tomorrow.",bundle:.checkmate)
+            case (let n,true):when=String(localized:"Ready after \(n) more exercises.",bundle:.checkmate)
+            case (let n,false):when=String(localized:"Ready tomorrow, after \(n) more exercises.",bundle:.checkmate)
             }
             return Suggestion(item:item,due:remaining==0 && dayReached,explanation:item.reason+" "+when)
         }.sorted{($0.due ? 0:1,$0.item.addedAt)<($1.due ? 0:1,$1.item.addedAt)}
@@ -86,8 +87,8 @@ public enum TrainingRecommendation {
     /// How a new board relates to what the learner has seen; a repeat says so instead of pretending to be new.
     public static func freshnessLabel(_ freshness:String)->String? {
         switch TrainingFreshness(rawValue:freshness) {
-        case .reserve:return "A board pattern held back for fresh practice."
-        case .repeat:return "This board repeats a pattern you have seen."
+        case .reserve:return String(localized:"A board pattern held back for fresh practice.",bundle:.checkmate)
+        case .repeat:return String(localized:"This board repeats a pattern you have seen.",bundle:.checkmate)
         default:return nil
         }
     }

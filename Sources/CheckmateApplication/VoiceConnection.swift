@@ -1,3 +1,4 @@
+import CheckmateAssets
 import CheckmateDomain
 
 /// Why the voice coach cannot connect now, said in the learner's words. Every place that refuses a connection names
@@ -20,16 +21,16 @@ public enum VoiceUnavailability:Equatable,Sendable {
     case lessonRecording,previewPlaying,narrationPlaying
     public var message:String {
         switch self {
-        case .companionConnected:return "Voice is unavailable while Codex is connected to Checkmate."
-        case .practiceOnly:return ReviewRolloutPolicy.reviewVoiceEnabled ? "The voice coach works in Practice and in game reviews.":"The voice coach works in Practice."
-        case .trainingGameOnly:return "The voice coach connects only to a training game being played."
-        case .networkGame:return "Voice coaching is off during your network game."
-        case .reviewNotReadable:return "This review can no longer be read aloud."
-        case .consentNeeded:return "Connect the voice coach and agree to what it sends to OpenAI first."
-        case .codexMissing:return "The voice coach needs the Codex app, signed in with your ChatGPT account. Settings › Voice Coach shows what you need."
-        case .lessonRecording:return "Finish or cancel lesson recording before connecting the voice coach."
-        case .previewPlaying:return "Wait for the voice preview to finish before connecting the voice coach."
-        case .narrationPlaying:return "Stop lesson or preview playback before connecting the voice coach."
+        case .companionConnected:return String(localized:"Voice is unavailable while Codex is connected to Checkmate.",bundle:.checkmate)
+        case .practiceOnly:return ReviewRolloutPolicy.reviewVoiceEnabled ? String(localized:"The voice coach works in Practice and in game reviews.",bundle:.checkmate):String(localized:"The voice coach works in Practice.",bundle:.checkmate)
+        case .trainingGameOnly:return String(localized:"The voice coach connects only to a training game being played.",bundle:.checkmate)
+        case .networkGame:return String(localized:"Voice coaching is off during your network game.",bundle:.checkmate)
+        case .reviewNotReadable:return String(localized:"This review can no longer be read aloud.",bundle:.checkmate)
+        case .consentNeeded:return String(localized:"Connect the voice coach and agree to what it sends to OpenAI first.",bundle:.checkmate)
+        case .codexMissing:return String(localized:"The voice coach needs the Codex app, signed in with your ChatGPT account. Settings › Voice Coach shows what you need.",bundle:.checkmate)
+        case .lessonRecording:return String(localized:"Finish or cancel lesson recording before connecting the voice coach.",bundle:.checkmate)
+        case .previewPlaying:return String(localized:"Wait for the voice preview to finish before connecting the voice coach.",bundle:.checkmate)
+        case .narrationPlaying:return String(localized:"Stop lesson or preview playback before connecting the voice coach.",bundle:.checkmate)
         }
     }
 }
@@ -44,10 +45,10 @@ public enum VoiceConnectionState:Equatable,Sendable {
     /// The status line for a state; a ready session shows what it is doing instead.
     public var text:String {
         switch self {
-        case .disconnected:return "Disconnected"
-        case .authorizing:return "Authorizing voice…"
-        case .connecting:return "Connecting voice…"
-        case .ready:return "Connected"
+        case .disconnected:return String(localized:"Disconnected",bundle:.checkmate)
+        case .authorizing:return String(localized:"Authorizing voice…",bundle:.checkmate)
+        case .connecting:return String(localized:"Connecting voice…",bundle:.checkmate)
+        case .ready:return String(localized:"Connected",bundle:.checkmate)
         case .failed(let reason):return reason
         case .unavailable(let reason):return reason.message
         }

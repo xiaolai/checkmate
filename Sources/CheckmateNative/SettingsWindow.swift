@@ -4,7 +4,7 @@ import SwiftUI
 import CheckmateCore
 /// A settings pane; the raw value is the saved identifier and `title` is only what the sidebar shows (D-12).
 enum SettingsCategory:String,CaseIterable,Identifiable {case board,sound,lessons,practice,voice,connections,usage,about;var id:String{rawValue}
-    var title:String{switch self{case .board:return "Chessboard";case .sound:return "Sound";case .lessons:return "Lessons";case .practice:return "Practice";case .voice:return "Voice Coach";case .connections:return "Connections";case .usage:return "Usage";case .about:return "About"}}
+    var title:String{switch self{case .board:return String(localized:"Chessboard",bundle:.checkmate);case .sound:return String(localized:"Sound",bundle:.checkmate);case .lessons:return String(localized:"Lessons",bundle:.checkmate);case .practice:return String(localized:"Practice",bundle:.checkmate);case .voice:return String(localized:"Voice Coach",bundle:.checkmate);case .connections:return String(localized:"Connections",bundle:.checkmate);case .usage:return String(localized:"Usage",bundle:.checkmate);case .about:return String(localized:"About",bundle:.checkmate)}}
     /// Saves before stable identifiers stored the shown title; those titles stay fixed here even if a title changes.
     init(stored:String){self=Self(rawValue:stored) ?? Self.legacy[stored] ?? .board}
     static let legacy:[String:SettingsCategory]=["Chessboard":.board,"Sound":.sound,"Lessons":.lessons,"Practice":.practice,"Voice Coach":.voice,"Connections":.connections,"Usage":.usage,"About":.about]
@@ -31,17 +31,17 @@ private struct SettingsForm:View {
     let library:CourseLibrary
     func binding<T>(_ key:WritableKeyPath<AppSettings,T>)->Binding<T> {Binding(get:{session.state.settings[keyPath:key]},set:{var s=session.state.settings;s[keyPath:key]=$0;session.updateSettings(s)})}
     private func removeCodexSetup() {
-        guard !NativePolicy.silent else {companionSetupStatus="Codex setup is disabled during automation.";return}
-        guard let codex=CompanionInstallation.installedCodex() else {companionSetupStatus="Codex is not installed, so there is no Checkmate setup in it to remove.";return}
-        let alert=NSAlert.destructive("Remove Checkmate from Codex?","Codex will no longer start Checkmate’s chess tools, and Checkmate’s companion skill is removed. A skill you edited is kept.",action:"Remove")
+        guard !NativePolicy.silent else {companionSetupStatus=String(localized:"Codex setup is disabled during automation.",bundle:.checkmate);return}
+        guard let codex=CompanionInstallation.installedCodex() else {companionSetupStatus=String(localized:"Codex is not installed, so there is no Checkmate setup in it to remove.",bundle:.checkmate);return}
+        let alert=NSAlert.destructive(String(localized:"Remove Checkmate from Codex?",bundle:.checkmate),String(localized:"Codex will no longer start Checkmate’s chess tools, and Checkmate’s companion skill is removed. A skill you edited is kept.",bundle:.checkmate),action:String(localized:"Remove",bundle:.checkmate))
         guard alert.runModal() == .alertFirstButtonReturn else{return}
         companionSetupRunning=true;companionSetupDetails=nil
         Task {
             do {
                 let skill=try Data(contentsOf:NativeResources.url("companion-skill.md"))
                 let removal=try await Task.detached {try CompanionInstallation.unregister(codex:codex,bundledSkill:skill)}.value
-                switch removal {case .removed:companionSetupStatus="Removed from Codex, with Checkmate’s companion skill.";case .absent:companionSetupStatus="Removed from Codex. No companion skill was installed.";case .kept:companionSetupStatus="Removed from Codex. Your edited companion skill was kept."}
-            } catch {companionSetupStatus=userFacingMessage(error,fallback:"Codex setup could not be removed.");companionSetupDetails=(error as? CompanionInstallation.CodexCommandFailure)?.details}
+                switch removal {case .removed:companionSetupStatus=String(localized:"Removed from Codex, with Checkmate’s companion skill.",bundle:.checkmate);case .absent:companionSetupStatus=String(localized:"Removed from Codex. No companion skill was installed.",bundle:.checkmate);case .kept:companionSetupStatus=String(localized:"Removed from Codex. Your edited companion skill was kept.",bundle:.checkmate)}
+            } catch {companionSetupStatus=userFacingMessage(error,fallback:String(localized:"Codex setup could not be removed.",bundle:.checkmate));companionSetupDetails=(error as? CompanionInstallation.CodexCommandFailure)?.details}
             companionSetupRunning=false;model.refreshCodexSetup()
         }
     }
@@ -49,23 +49,23 @@ private struct SettingsForm:View {
     private var skillNote:String? {
         guard let bundled=try? Data(contentsOf:NativeResources.url("companion-skill.md")) else{return nil}
         switch CompanionInstallation.skillState(bundled:bundled) {
-        case .outdated:return "The installed companion skill is from an older Checkmate. Choose Set Up Codex to update it."
-        case .customized:return "Your companion skill differs from this version’s and is kept as it is. To use this version’s, remove ~/.codex/skills/\(CompanionInstallation.skillName()), then choose Set Up Codex."
+        case .outdated:return String(localized:"The installed companion skill is from an older Checkmate. Choose Set Up Codex to update it.",bundle:.checkmate)
+        case .customized:return String(localized:"Your companion skill differs from this version’s and is kept as it is. To use this version’s, remove ~/.codex/skills/\(CompanionInstallation.skillName()), then choose Set Up Codex.",bundle:.checkmate)
         case .notInstalled,.current:return nil
         }
     }
     private func setUpCodex() {
-        guard !NativePolicy.silent else {companionSetupStatus="Codex setup is disabled during automation.";return}
+        guard !NativePolicy.silent else {companionSetupStatus=String(localized:"Codex setup is disabled during automation.",bundle:.checkmate);return}
         if let problem=CompanionInstallation.launchLocationProblem(bundle:Bundle.main.bundleURL) {companionSetupStatus=problem;return}
-        guard let codex=CompanionInstallation.installedCodex(),let directory=Bundle.main.executableURL?.deletingLastPathComponent() else {companionSetupStatus="Install Codex on this Mac first.";return}
+        guard let codex=CompanionInstallation.installedCodex(),let directory=Bundle.main.executableURL?.deletingLastPathComponent() else {companionSetupStatus=String(localized:"Install Codex on this Mac first.",bundle:.checkmate);return}
         let executable=directory.appendingPathComponent("CheckmateMCP")
         companionSetupRunning=true;companionSetupDetails=nil
         Task {
             do {
                 let skill=try Data(contentsOf:NativeResources.url("companion-skill.md"))
                 let state=try await Task.detached {try CompanionInstallation.register(executable:executable,codex:codex,skill:skill)}.value
-                companionSetupStatus=SettingsWindow.setupReady(connectionsAllowed:companion.enabled,skill:CompanionInstallation.skillName())+(state == .customized ? " Your customized companion skill was kept.":"")
-            } catch {companionSetupStatus=userFacingMessage(error,fallback:"Codex setup failed. Check that Codex is installed and try again.");companionSetupDetails=(error as? CompanionInstallation.CodexCommandFailure)?.details}
+                companionSetupStatus=SettingsWindow.setupReady(connectionsAllowed:companion.enabled,skill:CompanionInstallation.skillName())+(state == .customized ? String(localized:" Your customized companion skill was kept.",bundle:.checkmate):"")
+            } catch {companionSetupStatus=userFacingMessage(error,fallback:String(localized:"Codex setup failed. Check that Codex is installed and try again.",bundle:.checkmate));companionSetupDetails=(error as? CompanionInstallation.CodexCommandFailure)?.details}
             companionSetupRunning=false;model.refreshCodexSetup()
         }
     }
@@ -89,7 +89,7 @@ private struct SettingsForm:View {
             AboutPane(facts:about)
             Section{Toggle("Check for Updates Automatically",isOn:binding(\.checkForUpdates))} header:{Text("Updates")} footer:{Text("When this is on, Checkmate asks GitHub for the latest release each time it opens. Checkmate ▸ Check for Updates… asks at any time.").foregroundStyle(.secondary)}
         case .connections:
-            Section("Codex companion"){Button(companionSetupRunning ? "Working…" : "Set Up Codex"){setUpCodex()}.disabled(companionSetupRunning);Button("Remove Codex Setup…"){removeCodexSetup()}.disabled(companionSetupRunning);if !companionSetupStatus.isEmpty{Text(companionSetupStatus).foregroundStyle(.secondary);if let details=companionSetupDetails{DisclosureGroup("Details"){Text(details).font(.caption).textSelection(.enabled).fixedSize(horizontal:false,vertical:true)}}}else if let note=skillNote{Text(note).foregroundStyle(.secondary)};codexSetupNote;Text(companion.status);Toggle("Accept Codex connections at launch",isOn:binding(\.companionAutoStart));Toggle("Allow Codex connections",isOn:Binding(get:{companion.enabled},set:{on in if on{do{try companion.enable(role:session.state.settings.companionRole,standby:true)}catch{companion.disable()}}else{companion.disable()}}));Picker("Companion role",selection:binding(\.companionRole)){Text("Coach").tag("coach");Text("Opponent (Black)").tag("opponent")}.disabled(companion.enabled);if companion.connected{Button("Disconnect Companion"){companion.disconnectCurrentClient()}};if let error=companion.error{Text(error).foregroundStyle(.secondary)}}
+            Section("Codex companion"){Button(companionSetupRunning ? String(localized:"Working…",bundle:.checkmate) : String(localized:"Set Up Codex",bundle:.checkmate)){setUpCodex()}.disabled(companionSetupRunning);Button("Remove Codex Setup…"){removeCodexSetup()}.disabled(companionSetupRunning);if !companionSetupStatus.isEmpty{Text(companionSetupStatus).foregroundStyle(.secondary);if let details=companionSetupDetails{DisclosureGroup("Details"){Text(details).font(.caption).textSelection(.enabled).fixedSize(horizontal:false,vertical:true)}}}else if let note=skillNote{Text(note).foregroundStyle(.secondary)};codexSetupNote;Text(companion.status);Toggle("Accept Codex connections at launch",isOn:binding(\.companionAutoStart));Toggle("Allow Codex connections",isOn:Binding(get:{companion.enabled},set:{on in if on{do{try companion.enable(role:session.state.settings.companionRole,standby:true)}catch{companion.disable()}}else{companion.disable()}}));Picker("Companion role",selection:binding(\.companionRole)){Text("Coach").tag("coach");Text("Opponent (Black)").tag("opponent")}.disabled(companion.enabled);if companion.connected{Button("Disconnect Companion"){companion.disconnectCurrentClient()}};if let error=companion.error{Text(error).foregroundStyle(.secondary)}}
             Section {Text("The Codex companion is a Codex task on this Mac that can see your board, coach you, or play against you, using Checkmate’s chess tools. Set Up Codex adds Checkmate to Codex once; after that, Checkmate waits on this Mac for a Codex task to connect. While the voice coach is connected, Codex is asked to wait; disconnect voice to use the companion.").foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)}
         case .voice:
             VoiceSettingsContent(session:session,voice:voice,voiceAudio:voiceAudio,preview:preview,model:model)
@@ -111,25 +111,25 @@ private struct SettingsForm:View {
 @MainActor final class SettingsWindow:NSWindowController,NSToolbarDelegate {
     /// Escape closes Settings, as ⌘W (File ▸ Close) does.
     override func cancelOperation(_ sender:Any?){window?.performClose(sender)}
-    private let selection=SettingsSelection(),titleID=NSToolbarItem.Identifier("settings.title"),titleLabel=textLabel("Settings",.title3,.semibold)
+    private let selection=SettingsSelection(),titleID=NSToolbarItem.Identifier("settings.title"),titleLabel=textLabel(String(localized:"Settings",bundle:.checkmate),.title3,.semibold)
     private var titleFollowsPane:AnyCancellable?
     init(model:NativeModel){selection.category=SettingsCategory(stored:model.session.state.window.settingsCategory);let w=NSWindow(contentRect:NSRect(x:0,y:0,width:Metrics.settingsWidth,height:Metrics.settingsHeight),styleMask:[.titled,.closable,.fullSizeContentView],backing:.buffered,defer:false);super.init(window:w)
         // Titled by its pane (V-23); the identifier stays "Settings" so automation and the Window menu can find it.
-        w.title="Settings";w.identifier=NSUserInterfaceItemIdentifier("Settings");w.titleVisibility = .hidden;w.isReleasedWhenClosed=false;w.autorecalculatesKeyViewLoop=true
+        w.title=String(localized:"Settings",bundle:.checkmate);w.identifier=NSUserInterfaceItemIdentifier("Settings");w.titleVisibility = .hidden;w.isReleasedWhenClosed=false;w.autorecalculatesKeyViewLoop=true
         let split=NSSplitViewController(),side=NSSplitViewItem(sidebarWithViewController:NSHostingController(rootView:SettingsSidebar(selection:selection))),detail=NSSplitViewItem(viewController:NSHostingController(rootView:SettingsForm(selection:selection,session:model.session,voice:model.voice,companion:model.companion,model:model,voiceAudio:model.voice.audio,preview:model.voicePreview,about:AboutFacts(model:model),lessonLanguages:model.lessonLanguages,usage:model.usage,library:model.learning.library)))
         side.canCollapse=false;side.minimumThickness=Metrics.settingsSidebar;side.maximumThickness=Metrics.settingsSidebar;side.allowsFullHeightLayout=true;side.titlebarSeparatorStyle = .none;detail.titlebarSeparatorStyle = .automatic;split.addSplitViewItem(side);split.addSplitViewItem(detail);w.contentViewController=split
         let toolbar=NSToolbar(identifier:"Settings.Toolbar");toolbar.delegate=self;toolbar.displayMode = .iconOnly;toolbar.centeredItemIdentifiers=[titleID];w.toolbar=toolbar;w.toolbarStyle = .unified;w.setContentSize(NSSize(width:Metrics.settingsWidth,height:Metrics.settingsHeight));w.center()
         // The titlebar is opaque with a separator over the scrolling form, so a scrolled section no longer slides under the title.
-        titleFollowsPane=selection.$category.sink{[weak self] category in let title=category?.title ?? "Settings";self?.window?.title=title;self?.titleLabel.stringValue=title}
+        titleFollowsPane=selection.$category.sink{[weak self] category in let title=category?.title ?? String(localized:"Settings",bundle:.checkmate);self?.window?.title=title;self?.titleLabel.stringValue=title}
     }
     func selectCategory(_ value:SettingsCategory){selection.category=value}
     /// Opens Settings on one pane, as a failure's button does (V-27).
     func show(category:SettingsCategory){selection.category=category;showWindow(nil);window?.makeKeyAndOrderFront(nil)}
     var shownCategory:SettingsCategory? {selection.category}
     /// What to do after Set Up Codex, from whether connections are already allowed (V-14).
-    nonisolated static func setupReady(connectionsAllowed:Bool,skill:String)->String {connectionsAllowed ? "Ready. Start a new Codex task using $\(skill).":"Ready. Turn on Allow Codex connections below, then start a new Codex task using $\(skill)."}
+    nonisolated static func setupReady(connectionsAllowed:Bool,skill:String)->String {connectionsAllowed ? String(localized:"Ready. Start a new Codex task using $\(skill).",bundle:.checkmate):String(localized:"Ready. Turn on Allow Codex connections below, then start a new Codex task using $\(skill).",bundle:.checkmate)}
     required init?(coder:NSCoder){fatalError()}
     func toolbarDefaultItemIdentifiers(_ t:NSToolbar)->[NSToolbarItem.Identifier]{[.flexibleSpace,titleID,.flexibleSpace]}
     func toolbarAllowedItemIdentifiers(_ t:NSToolbar)->[NSToolbarItem.Identifier]{toolbarDefaultItemIdentifiers(t)}
-    func toolbar(_ t:NSToolbar,itemForItemIdentifier id:NSToolbarItem.Identifier,willBeInsertedIntoToolbar:Bool)->NSToolbarItem?{let item=NSToolbarItem(itemIdentifier:id);item.view=titleLabel;item.isBordered=false;item.label="Settings";return item}
+    func toolbar(_ t:NSToolbar,itemForItemIdentifier id:NSToolbarItem.Identifier,willBeInsertedIntoToolbar:Bool)->NSToolbarItem?{let item=NSToolbarItem(itemIdentifier:id);item.view=titleLabel;item.isBordered=false;item.label=String(localized:"Settings",bundle:.checkmate);return item}
 }

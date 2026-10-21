@@ -1,3 +1,4 @@
+import CheckmateAssets
 import CheckmateDomain
 import CheckmateRules
 import Foundation
@@ -16,7 +17,7 @@ import Foundation
         public var from:String {String(uci.prefix(2))}
         public var to:String {String(uci.dropFirst(2).prefix(2))}
     }
-    public static let unavailable="A hint is unavailable. Please try again."
+    public static let unavailable=String(localized:"A hint is unavailable. Please try again.",bundle:.checkmate)
     @Published public private(set) var hint:Hint?
     @Published public private(set) var thinking=false
     @Published public private(set) var error:String?
@@ -87,7 +88,7 @@ import Foundation
                 // A6 and A8, again after the await: the result is shown only to the same turn under the same terms.
                 try self.fairness.requireNetworkHint()
                 guard !Task.isCancelled,self.fairness.participation.epoch==epoch,self.game.gameRevision==revision,self.game.yourTurn else{return self.dropped(id)}
-                guard let uci=analysis.lines.first?.pv.first ?? analysis.bestMove,self.game.rules.moves().contains(where:{$0.uci==uci}) else{throw CheckmateError.unavailable("No hint returned")}
+                guard let uci=analysis.lines.first?.pv.first ?? analysis.bestMove,self.game.rules.moves().contains(where:{$0.uci==uci}) else{throw CheckmateError.unavailable(String(localized:"No hint returned",bundle:.checkmate))}
                 self.work=nil;self.thinking=false;self.hint=Hint(uci:uci,san:analysis.lines.first?.san.first,automatic:automatic);self.game.hintShown()
             }catch{
                 guard let self else{return}

@@ -1,3 +1,4 @@
+import CheckmateAssets
 import CheckmateApplication
 import CheckmateDomain
 import Foundation

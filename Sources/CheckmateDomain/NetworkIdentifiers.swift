@@ -1,3 +1,4 @@
+import CheckmateAssets
 import Foundation
 /// Random bytes for every identifier, code and secret a network game makes. Injected so tests are deterministic;
 /// production uses `system`, which draws from `SystemRandomNumberGenerator`.

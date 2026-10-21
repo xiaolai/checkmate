@@ -1,3 +1,4 @@
+import CheckmateAssets
 import CheckmateDomain
 import Foundation
 /// The transport for tests (D13): listeners and connections in memory on one scheduler, under the contracts of

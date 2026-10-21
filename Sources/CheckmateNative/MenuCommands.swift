@@ -48,12 +48,12 @@ extension AppDelegate:NSMenuDelegate {
         let current=Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0",outcome=await updateChecker.check(current:current),alert=NSAlert()
         switch outcome {
         case .available(let release):
-            alert.messageText="Checkmate \(release.version) is available.";alert.informativeText="You have version \(current). Download the new version from GitHub, or update it with Homebrew.";alert.addButton(withTitle:"Download");alert.addButton(withTitle:"Later")
+            alert.messageText=String(localized:"Checkmate \(release.version) is available.",bundle:.checkmate);alert.informativeText=String(localized:"You have version \(current). Download the new version from GitHub, or update it with Homebrew.",bundle:.checkmate);alert.addButton(withTitle:String(localized:"Download",bundle:.checkmate));alert.addButton(withTitle:String(localized:"Later",bundle:.checkmate))
             if presentUpdateAlert(alert) == .alertFirstButtonReturn{AboutPane.open(release.page,dataDirectory:dataDirectory)}
         case .current(let version):
-            guard !automatic else{return};alert.messageText="Checkmate is up to date.";alert.informativeText="Version \(version) is the latest release.";_ = presentUpdateAlert(alert)
+            guard !automatic else{return};alert.messageText=String(localized:"Checkmate is up to date.",bundle:.checkmate);alert.informativeText=String(localized:"Version \(version) is the latest release.",bundle:.checkmate);_ = presentUpdateAlert(alert)
         case .failed:
-            guard !automatic else{return};alert.messageText="Checkmate couldn’t check for updates.";alert.informativeText="Check your internet connection, then try again.";_ = presentUpdateAlert(alert)
+            guard !automatic else{return};alert.messageText=String(localized:"Checkmate couldn’t check for updates.",bundle:.checkmate);alert.informativeText=String(localized:"Check your internet connection, then try again.",bundle:.checkmate);_ = presentUpdateAlert(alert)
         }
     }
     private func copy(_ text:String?){guard let text else{return};pasteboard.clearContents();pasteboard.setString(text,forType:.string)}
@@ -64,14 +64,14 @@ extension AppDelegate:NSMenuDelegate {
         guard let model else{return};if model.review.active{model.exportReview();return}
         guard let pgn=model.shownRecord?.pgn else{return}
         let panel=NSSavePanel();panel.nameFieldStringValue="game.pgn";panel.allowedContentTypes=[ReviewFileTypes.pgn]
-        panel.begin{[weak model] response in guard response == .OK,let url=panel.url else{return};do{try Data(pgn.utf8).write(to:url,options:.atomic)}catch{model?.storageError="The game could not be exported. Choose another location."}}
+        panel.begin{[weak model] response in guard response == .OK,let url=panel.url else{return};do{try Data(pgn.utf8).write(to:url,options:.atomic)}catch{model?.storageError=String(localized:"The game could not be exported. Choose another location.",bundle:.checkmate)}}
     }
     var canExport:Bool {model?.review.active==true || model?.shownRecord?.pgn != nil}
     /// The system's Share menu for the shown game (or position), and a disabled Share when there is nothing to share.
     func shareMenuItem()->NSMenuItem {
         let item:NSMenuItem
-        if let text=model?.shownRecord.flatMap({$0.pgn ?? $0.fen}){let picker=NSSharingServicePicker(items:[text]);sharePicker=picker;item=picker.standardShareMenuItem}else{item=NSMenuItem(title:"Share",action:nil,keyEquivalent:"");item.isEnabled=false}
-        item.title="Share";item.identifier=Self.shareID;return item
+        if let text=model?.shownRecord.flatMap({$0.pgn ?? $0.fen}){let picker=NSSharingServicePicker(items:[text]);sharePicker=picker;item=picker.standardShareMenuItem}else{item=NSMenuItem(title:String(localized:"Share",bundle:.checkmate),action:nil,keyEquivalent:"");item.isEnabled=false}
+        item.title=String(localized:"Share",bundle:.checkmate);item.identifier=Self.shareID;return item
     }
     @objc func openRecent(_ sender:NSMenuItem){guard let url=sender.representedObject as? URL else{return};application(NSApp,open:[url])}
     @objc func clearRecents(){recents.clear()}
@@ -80,7 +80,7 @@ extension AppDelegate:NSMenuDelegate {
             menu.removeAllItems();let urls=recents.urls()
             for url in urls{let item=NSMenuItem(title:url.lastPathComponent,action:#selector(openRecent(_:)),keyEquivalent:"");item.target=self;item.representedObject=url;item.toolTip=url.path;menu.addItem(item)}
             if !urls.isEmpty{menu.addItem(.separator())}
-            let clear=NSMenuItem(title:"Clear Menu",action:#selector(clearRecents),keyEquivalent:"");clear.target=self;clear.isEnabled = !urls.isEmpty;menu.addItem(clear)
+            let clear=NSMenuItem(title:String(localized:"Clear Menu",bundle:.checkmate),action:#selector(clearRecents),keyEquivalent:"");clear.target=self;clear.isEnabled = !urls.isEmpty;menu.addItem(clear)
         }
         if menu === fileMenu,let index=menu.items.firstIndex(where:{$0.identifier==Self.shareID}){menu.removeItem(at:index);menu.insertItem(shareMenuItem(),at:index)}
     }

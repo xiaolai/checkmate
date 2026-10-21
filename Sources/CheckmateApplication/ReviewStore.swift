@@ -1,3 +1,4 @@
+import CheckmateAssets
 import CheckmateDomain
 import CheckmateSupport
 import Foundation
@@ -119,8 +120,8 @@ public final class ReviewStore {
         validated[document.id]=current;return current
     }
     private func validateBranches(_ branches:[ReviewBranch],document:GameDocument)throws {
-        guard branches.count<=ReviewPolicy.maximumBranches,Set(branches.map(\.id)).count==branches.count else{throw CheckmateError.invalid("Invalid saved branches.")}
-        for branch in branches{let rules=try document.snapshotRules(at:branch.root);guard branch.moves.count<=ReviewPolicy.maximumBranchPlies else{throw CheckmateError.invalid("Branch too long.")};for move in branch.moves{try rules.move(uci:move)}}
+        guard branches.count<=ReviewPolicy.maximumBranches,Set(branches.map(\.id)).count==branches.count else{throw CheckmateError.invalid(String(localized:"Invalid saved branches.",bundle:.checkmate))}
+        for branch in branches{let rules=try document.snapshotRules(at:branch.root);guard branch.moves.count<=ReviewPolicy.maximumBranchPlies else{throw CheckmateError.invalid(String(localized:"Branch too long.",bundle:.checkmate))};for move in branch.moves{try rules.move(uci:move)}}
     }
     public func save(_ document:GameDocument,cursor:Int,branches:[ReviewBranch],learnerSide:String?=nil)throws {
         lock.lock();defer{lock.unlock()};try write(document,cursor:cursor,branches:branches,learnerSide:learnerSide,name:nil,date:nil)
@@ -129,15 +130,15 @@ public final class ReviewStore {
     /// review keeps its place in the recent list.
     public func rename(_ id:UUID,to name:String?)throws {
         lock.lock();defer{lock.unlock()}
-        guard let entry=try list().first(where:{$0.id==id}) else{throw CheckmateError.invalid("This review is no longer in the library.")}
+        guard let entry=try list().first(where:{$0.id==id}) else{throw CheckmateError.invalid(String(localized:"This review is no longer in the library.",bundle:.checkmate))}
         let saved=try load(id);try write(saved.document,cursor:saved.cursor,branches:saved.branches,learnerSide:saved.learnerSide,name:.some(ReviewIndexEntry.cleanName(name)),date:entry.updatedAt)
     }
     /// `name` nil keeps the record's current name; `date` nil stamps the write with now.
     private func write(_ document:GameDocument,cursor:Int,branches:[ReviewBranch],learnerSide:String?,name requested:String??,date fixed:Date?)throws {
-        try prepare();guard !futureSchema(documentURL(document.id)) else{throw CheckmateError.unavailable("This review requires a newer Checkmate version; its file is preserved.")};try validate(document)
-        guard document.nodes.indices.contains(cursor) else{throw CheckmateError.invalid("Invalid saved review cursor.")}
+        try prepare();guard !futureSchema(documentURL(document.id)) else{throw CheckmateError.unavailable(String(localized:"This review requires a newer Checkmate version; its file is preserved.",bundle:.checkmate))};try validate(document)
+        guard document.nodes.indices.contains(cursor) else{throw CheckmateError.invalid(String(localized:"Invalid saved review cursor.",bundle:.checkmate))}
         var entries=try list()
-        guard learnerSide.map({["w","b"].contains($0)}) ?? true else{throw CheckmateError.invalid("Invalid saved review side.")}
+        guard learnerSide.map({["w","b"].contains($0)}) ?? true else{throw CheckmateError.invalid(String(localized:"Invalid saved review side.",bundle:.checkmate))}
         let current=entries.first{$0.id==document.id},name=requested ?? current?.name
         if branchCache[document.id]==branches,sides[document.id]==learnerSide,let current,current.name==name,persisted[document.id]==document,!futureSchema(cursorURL(document.id)) {
             let date=fixed ?? Date()
@@ -145,43 +146,43 @@ public final class ReviewStore {
                 entries.removeAll{$0.id==document.id};entries.append(.of(document,name:name,updatedAt:date));index=entries.sorted{$0.updatedAt>$1.updatedAt};try writeIndex()};return
         }
         try validateBranches(branches,document:document)
-        guard current != nil || entries.count<ReviewPolicy.maximumSavedRecords else{throw CheckmateError.invalid("Review library record limit reached.")}
+        guard current != nil || entries.count<ReviewPolicy.maximumSavedRecords else{throw CheckmateError.invalid(String(localized:"Review library record limit reached.",bundle:.checkmate))}
         let saved=SavedReview(schemaVersion:1,document:document,cursor:cursor,branches:branches,updatedAt:fixed ?? Date(),learnerSide:learnerSide,name:name),data=try JSONEncoder().encode(saved)
-        guard data.count<=ReviewPolicy.maximumSavedBytes else{throw CheckmateError.invalid("Saved review exceeds storage limit.")}
+        guard data.count<=ReviewPolicy.maximumSavedBytes else{throw CheckmateError.invalid(String(localized:"Saved review exceeds storage limit.",bundle:.checkmate))}
         // The record being replaced does not count against its own new version.
         var total=try libraryBytes()-size(documentURL(document.id))
         // The Trash counts toward the library, but gives way, oldest deletion first, before a save is refused.
         var trash=try trashed()
         while total+trash.reduce(0,{$0+$1.bytes})+data.count>ReviewPolicy.maximumLibraryBytes,let oldest=trash.first {try purge(oldest.url);trash.removeFirst();NativeLog.storage.info("Removed a deleted review to make room in the library")}
         total+=trash.reduce(0){$0+$1.bytes}
-        guard total+data.count<=ReviewPolicy.maximumLibraryBytes else{throw CheckmateError.invalid("Review library storage limit reached; export or delete older reviews.")}
+        guard total+data.count<=ReviewPolicy.maximumLibraryBytes else{throw CheckmateError.invalid(String(localized:"Review library storage limit reached; export or delete older reviews.",bundle:.checkmate))}
         let url=documentURL(document.id)
         try tracking([url,cursorURL(document.id),indexURL]){
             try atomicWriter(data,url);try FileManager.default.setAttributes([.posixPermissions:0o600],ofItemAtPath:url.path)
-            guard try Data(contentsOf:url)==data else{throw CheckmateError.unavailable("Review read-back failed.")}
+            guard try Data(contentsOf:url)==data else{throw CheckmateError.unavailable(String(localized:"Review read-back failed.",bundle:.checkmate))}
             persisted[document.id]=document;hashes[document.id]=document.contentHash;sides[document.id]=learnerSide
             entries.removeAll{$0.id==document.id};entries.append(.of(document,name:name,updatedAt:saved.updatedAt));index=entries.sorted{$0.updatedAt>$1.updatedAt};stamps[document.id]=stamp(document.id);branchCache[document.id]=branches;try saveCursor(document.id,cursor:cursor,date:saved.updatedAt);try writeIndex()
         }
     }
     public func load(_ id:UUID)throws -> SavedReview {
         lock.lock();defer{lock.unlock()};let url=documentURL(id),size=try url.resourceValues(forKeys:[.fileSizeKey]).fileSize ?? 0
-        guard size<=ReviewPolicy.maximumSavedBytes else{throw CheckmateError.unavailable("This review is too large for this version; its file is preserved.")}
+        guard size<=ReviewPolicy.maximumSavedBytes else{throw CheckmateError.unavailable(String(localized:"This review is too large for this version; its file is preserved.",bundle:.checkmate))}
         let data=try Data(contentsOf:url)
         // Read the envelope before decoding its version-specific payload: a newer
         // payload need not have the fields understood by this reader.
-        if let envelope=try JSONSerialization.jsonObject(with:data) as? [String:Any],let version=envelope["schemaVersion"] as? Int,version>1 {throw CheckmateError.unavailable("This review requires a newer Checkmate version; its file is preserved.")}
+        if let envelope=try JSONSerialization.jsonObject(with:data) as? [String:Any],let version=envelope["schemaVersion"] as? Int,version>1 {throw CheckmateError.unavailable(String(localized:"This review requires a newer Checkmate version; its file is preserved.",bundle:.checkmate))}
         var saved=try JSONDecoder().decode(SavedReview.self,from:data)
         // A side this reader cannot hold is ignored, as if the record had none.
         if let side=saved.learnerSide,!["w","b"].contains(side){saved.learnerSide=nil}
         saved.name=ReviewIndexEntry.cleanName(saved.name)
-        guard saved.schemaVersion<=1 else{throw CheckmateError.unavailable("This review requires a newer Checkmate version; its file is preserved.")}
-        guard saved.schemaVersion==1,saved.document.id==id,saved.document.nodes.indices.contains(saved.cursor) else{throw CheckmateError.invalid("Invalid review version or cursor.")}
+        guard saved.schemaVersion<=1 else{throw CheckmateError.unavailable(String(localized:"This review requires a newer Checkmate version; its file is preserved.",bundle:.checkmate))}
+        guard saved.schemaVersion==1,saved.document.id==id,saved.document.nodes.indices.contains(saved.cursor) else{throw CheckmateError.invalid(String(localized:"Invalid review version or cursor.",bundle:.checkmate))}
         // A re-read tree must still hold the cursor and every idea at the same positions, found by their recorded moves
         // (node numbers can differ between readers); otherwise the file stays preserved, untouched.
         let stored=saved.document,document=try readable(stored),rederived=document != stored
         if rederived{
-            guard let cursor=Self.node(saved.cursor,of:stored,in:document) else{throw CheckmateError.invalid("Invalid review version or cursor.")}
-            let branches=try saved.branches.map{branch->ReviewBranch in guard let root=Self.node(branch.root,of:stored,in:document) else{throw CheckmateError.invalid("Invalid saved branches.")};return branch.rooted(at:root)}
+            guard let cursor=Self.node(saved.cursor,of:stored,in:document) else{throw CheckmateError.invalid(String(localized:"Invalid review version or cursor.",bundle:.checkmate))}
+            let branches=try saved.branches.map{branch->ReviewBranch in guard let root=Self.node(branch.root,of:stored,in:document) else{throw CheckmateError.invalid(String(localized:"Invalid saved branches.",bundle:.checkmate))};return branch.rooted(at:root)}
             saved=SavedReview(schemaVersion:1,document:document,cursor:cursor,branches:branches,updatedAt:saved.updatedAt,learnerSide:saved.learnerSide,name:saved.name)
         }
         // A re-read record is not yet on disk in its new numbering: the next save rewrites it whole, never only its cursor.
@@ -228,7 +229,7 @@ public final class ReviewStore {
             catch let error as CheckmateError{if case .unavailable=error{if futureSchema(url){preserved[id]=stamp(id);continue};throw error};try quarantine(url,id:id)}
             catch{try quarantine(url,id:id)}
         }
-        guard entries.count<=ReviewPolicy.maximumSavedRecords else{throw CheckmateError.invalid("Review library record limit exceeded.")}
+        guard entries.count<=ReviewPolicy.maximumSavedRecords else{throw CheckmateError.invalid(String(localized:"Review library record limit exceeded.",bundle:.checkmate))}
         index=entries.sorted{$0.updatedAt>$1.updatedAt};try writeIndex();return index!
     }
     private func quarantine(_ url:URL,id:UUID)throws {let quarantine=directory.appendingPathComponent("Quarantine");try FileManager.default.createDirectory(at:quarantine,withIntermediateDirectories:true);try FileManager.default.moveItem(at:url,to:quarantine.appendingPathComponent(UUID().uuidString+"-"+url.lastPathComponent));validated[id]=nil;persisted[id]=nil;hashes[id]=nil;quarantinedSinceTaken+=1;usedBytes=nil}
@@ -242,7 +243,7 @@ public final class ReviewStore {
     public func export(_ id:UUID)throws -> Data {try load(id).document.original}
     public func delete(_ id:UUID)throws {
         lock.lock();defer{lock.unlock()};_ = try list()
-        guard !futureSchema(documentURL(id)) else{throw CheckmateError.unavailable("This review requires a newer Checkmate version; its file is preserved.")}
+        guard !futureSchema(documentURL(id)) else{throw CheckmateError.unavailable(String(localized:"This review requires a newer Checkmate version; its file is preserved.",bundle:.checkmate))}
         // The record and its cursor move to `Trash/<id>/`, replacing an earlier deletion of the same record; the folder's
         // creation date is the deletion date.
         let files=FileManager.default,previousIndex=index,folder=trashURL(id),sources=[documentURL(id),cursorURL(id)].filter{files.fileExists(atPath:$0.path)}
@@ -270,9 +271,9 @@ public final class ReviewStore {
     public func restore(_ id:UUID)throws {
         lock.lock();defer{lock.unlock()};var entries=try list()
         let files=FileManager.default,folder=trashURL(id),document=folder.appendingPathComponent(documentURL(id).lastPathComponent)
-        guard files.fileExists(atPath:document.path) else{throw CheckmateError.invalid("This review is no longer in the Trash.")}
-        guard !files.fileExists(atPath:documentURL(id).path),!entries.contains(where:{$0.id==id}) else{throw CheckmateError.invalid("This review is already in the library.")}
-        guard entries.count<ReviewPolicy.maximumSavedRecords else{throw CheckmateError.invalid("Review library record limit reached.")}
+        guard files.fileExists(atPath:document.path) else{throw CheckmateError.invalid(String(localized:"This review is no longer in the Trash.",bundle:.checkmate))}
+        guard !files.fileExists(atPath:documentURL(id).path),!entries.contains(where:{$0.id==id}) else{throw CheckmateError.invalid(String(localized:"This review is already in the library.",bundle:.checkmate))}
+        guard entries.count<ReviewPolicy.maximumSavedRecords else{throw CheckmateError.invalid(String(localized:"Review library record limit reached.",bundle:.checkmate))}
         var moved:[(URL,URL)]=[]
         do {
             try tracking([documentURL(id),cursorURL(id),indexURL]){
