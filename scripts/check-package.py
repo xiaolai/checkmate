@@ -24,6 +24,20 @@ if not (isinstance(microphone, str) and microphone.strip()):
 # The permission prompt must say where speech goes, as the voice consent sheet does.
 if 'OpenAI' not in microphone:
     raise RuntimeError('NSMicrophoneUsageDescription must say that speech is sent to OpenAI')
+# Finder, the App Store category and the About panel read these (D-34); File ▸ Open and Open With read the types (R-15).
+for key, expected in [('LSApplicationCategoryType', 'public.app-category.education'), ('CFBundleDevelopmentRegion', 'en')]:
+    if info.get(key) != expected:
+        raise RuntimeError(f'{key} must be {expected}, not {info.get(key)!r}')
+if not str(info.get('NSHumanReadableCopyright', '')).startswith('Copyright © '):
+    raise RuntimeError('NSHumanReadableCopyright missing: the About panel would show no copyright')
+declared = {entry.get('UTTypeIdentifier'): entry for entry in info.get('UTImportedTypeDeclarations', [])}
+handled = {kind for entry in info.get('CFBundleDocumentTypes', []) for kind in entry.get('LSItemContentTypes', [])}
+for kind, extension in [('org.chessprogramming.pgn', 'pgn'), ('org.chessprogramming.fen', 'fen')]:
+    entry = declared.get(kind)
+    if not entry or 'public.plain-text' not in entry.get('UTTypeConformsTo', []) or extension not in entry.get('UTTypeTagSpecification', {}).get('public.filename-extension', []):
+        raise RuntimeError(f'{kind} must be imported as plain text with the .{extension} extension')
+    if kind not in handled:
+        raise RuntimeError(f'CFBundleDocumentTypes must list {kind} so Finder offers Checkmate for .{extension} files')
 # Release and development identities keep separate data, MCP registration and microphone permission.
 bundle_id = info.get('CFBundleIdentifier', '')
 if release_identity:

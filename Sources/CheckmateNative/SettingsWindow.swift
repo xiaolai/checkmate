@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import SwiftUI
 import CheckmateCore
 enum SettingsCategory:String,CaseIterable,Identifiable {case board="Chessboard",sound="Sound",lessons="Lessons",practice="Practice",voice="Voice Coach",connections="Connections",usage="Usage",about="About";var id:String{rawValue};var symbol:String{switch self{case .board:return "checkerboard.rectangle";case .sound:return "speaker.wave.2";case .lessons:return "book";case .practice:return "flag.checkered";case .voice:return "waveform";case .connections:return "link";case .usage:return "chart.bar";case .about:return "info.circle"}}}
@@ -80,6 +81,7 @@ private struct SettingsForm:View {
             UsageSettingsPane(ledger:usage,controller:lessonLanguages)
         case .about:
             AboutPane(facts:about)
+            Section{Toggle("Check for Updates Automatically",isOn:binding(\.checkForUpdates))} header:{Text("Updates")} footer:{Text("When this is on, Checkmate asks GitHub for the latest release each time it opens. Checkmate ▸ Check for Updates… asks at any time.").foregroundStyle(.secondary)}
         case .connections:
             Section("Codex companion"){Button(companionSetupRunning ? "Working…" : "Set Up Codex"){setUpCodex()}.disabled(companionSetupRunning);Button("Remove Codex Setup…"){removeCodexSetup()}.disabled(companionSetupRunning);if !companionSetupStatus.isEmpty{Text(companionSetupStatus).foregroundStyle(.secondary);if let details=companionSetupDetails{DisclosureGroup("Details"){Text(details).font(.caption).textSelection(.enabled).fixedSize(horizontal:false,vertical:true)}}}else if let note=skillNote{Text(note).foregroundStyle(.secondary)};codexSetupNote;Text(companion.status);Toggle("Accept Codex connections at launch",isOn:binding(\.companionAutoStart));Toggle("Allow Codex connections",isOn:Binding(get:{companion.enabled},set:{on in if on{do{try companion.enable(role:session.state.settings.companionRole,standby:true)}catch{companion.disable()}}else{companion.disable()}}));Picker("Companion role",selection:binding(\.companionRole)){Text("Coach").tag("coach");Text("Opponent (Black)").tag("opponent")}.disabled(companion.enabled);if companion.connected{Button("Disconnect Companion"){companion.disconnectCurrentClient()}};if let error=companion.error{Text(error).foregroundStyle(.secondary)}}
             Section {Text("The Codex companion is a Codex task on this Mac that can see your board, coach you, or play against you, using Checkmate’s chess tools. Set Up Codex adds Checkmate to Codex once; after that, Checkmate waits on this Mac for a Codex task to connect. While the voice coach is connected, Codex is asked to wait; disconnect voice to use the companion.").foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)}
@@ -101,14 +103,18 @@ private struct SettingsForm:View {
     }.formStyle(.grouped).frame(minWidth:Metrics.settingsDetailMinimum,minHeight:Metrics.settingsFormMinimumHeight).onReceive(model.$codexSetup){codexSetup=$0}.onChange(of:selection.category){_,category in session.state.window.settingsCategory=category?.rawValue ?? "Chessboard";session.emit(semantic:false,save:true)}}
 }
 @MainActor final class SettingsWindow:NSWindowController,NSToolbarDelegate {
-    /// Escape closes Settings, as ⌘W (Window ▸ Close) does.
+    /// Escape closes Settings, as ⌘W (File ▸ Close) does.
     override func cancelOperation(_ sender:Any?){window?.performClose(sender)}
-    private let selection=SettingsSelection(),titleID=NSToolbarItem.Identifier("settings.title")
+    private let selection=SettingsSelection(),titleID=NSToolbarItem.Identifier("settings.title"),titleLabel=textLabel("Settings",15,.semibold)
+    private var titleFollowsPane:AnyCancellable?
     init(model:NativeModel){selection.category=SettingsCategory.allCases.first{$0.rawValue==model.session.state.window.settingsCategory} ?? .board;let w=NSWindow(contentRect:NSRect(x:0,y:0,width:Metrics.settingsWidth,height:Metrics.settingsHeight),styleMask:[.titled,.closable,.fullSizeContentView],backing:.buffered,defer:false);super.init(window:w)
-        w.title="Settings";w.titleVisibility = .hidden;w.isReleasedWhenClosed=false;w.autorecalculatesKeyViewLoop=true
+        // Titled by its pane (V-23); the identifier stays "Settings" so automation and the Window menu can find it.
+        w.title="Settings";w.identifier=NSUserInterfaceItemIdentifier("Settings");w.titleVisibility = .hidden;w.isReleasedWhenClosed=false;w.autorecalculatesKeyViewLoop=true
         let split=NSSplitViewController(),side=NSSplitViewItem(sidebarWithViewController:NSHostingController(rootView:SettingsSidebar(selection:selection))),detail=NSSplitViewItem(viewController:NSHostingController(rootView:SettingsForm(selection:selection,session:model.session,voice:model.voice,companion:model.companion,model:model,voiceAudio:model.voice.audio,preview:model.voicePreview,about:AboutFacts(model:model),lessonLanguages:model.lessonLanguages,usage:model.usage,library:model.learning.library)))
-        side.canCollapse=false;side.minimumThickness=Metrics.settingsSidebar;side.maximumThickness=Metrics.settingsSidebar;side.allowsFullHeightLayout=true;side.titlebarSeparatorStyle = .none;detail.titlebarSeparatorStyle = .none;split.addSplitViewItem(side);split.addSplitViewItem(detail);w.contentViewController=split
-        let toolbar=NSToolbar(identifier:"Settings.Toolbar");toolbar.delegate=self;toolbar.displayMode = .iconOnly;toolbar.centeredItemIdentifiers=[titleID];w.toolbar=toolbar;w.toolbarStyle = .unified;w.titlebarAppearsTransparent=true;w.titlebarSeparatorStyle = .none;w.setContentSize(NSSize(width:Metrics.settingsWidth,height:Metrics.settingsHeight));w.center()
+        side.canCollapse=false;side.minimumThickness=Metrics.settingsSidebar;side.maximumThickness=Metrics.settingsSidebar;side.allowsFullHeightLayout=true;side.titlebarSeparatorStyle = .none;detail.titlebarSeparatorStyle = .automatic;split.addSplitViewItem(side);split.addSplitViewItem(detail);w.contentViewController=split
+        let toolbar=NSToolbar(identifier:"Settings.Toolbar");toolbar.delegate=self;toolbar.displayMode = .iconOnly;toolbar.centeredItemIdentifiers=[titleID];w.toolbar=toolbar;w.toolbarStyle = .unified;w.setContentSize(NSSize(width:Metrics.settingsWidth,height:Metrics.settingsHeight));w.center()
+        // The titlebar is opaque with a separator over the scrolling form, so a scrolled section no longer slides under the title.
+        titleFollowsPane=selection.$category.sink{[weak self] category in let title=category?.rawValue ?? "Settings";self?.window?.title=title;self?.titleLabel.stringValue=title}
     }
     func selectCategory(_ value:String){selection.category=SettingsCategory.allCases.first{$0.rawValue==value} ?? .board}
     /// Opens Settings on one pane, as a failure's button does (V-27).
@@ -119,5 +125,5 @@ private struct SettingsForm:View {
     required init?(coder:NSCoder){fatalError()}
     func toolbarDefaultItemIdentifiers(_ t:NSToolbar)->[NSToolbarItem.Identifier]{[.flexibleSpace,titleID,.flexibleSpace]}
     func toolbarAllowedItemIdentifiers(_ t:NSToolbar)->[NSToolbarItem.Identifier]{toolbarDefaultItemIdentifiers(t)}
-    func toolbar(_ t:NSToolbar,itemForItemIdentifier id:NSToolbarItem.Identifier,willBeInsertedIntoToolbar:Bool)->NSToolbarItem?{let item=NSToolbarItem(itemIdentifier:id);item.view=textLabel("Settings",15,.semibold);item.isBordered=false;item.label="Settings";return item}
+    func toolbar(_ t:NSToolbar,itemForItemIdentifier id:NSToolbarItem.Identifier,willBeInsertedIntoToolbar:Bool)->NSToolbarItem?{let item=NSToolbarItem(itemIdentifier:id);item.view=titleLabel;item.isBordered=false;item.label="Settings";return item}
 }

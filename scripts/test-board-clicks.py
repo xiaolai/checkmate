@@ -99,10 +99,10 @@ def launch():
         raise AssertionError("Checkmate did not become active")
     # Open each drawer explicitly and wait for it, so a toggle never lands mid-animation or closes a restored drawer.
     if "AXStaticText: The Pawn" not in listing():
-        pointer("click", "Toggle Sidebar")
+        pointer("click", "Sidebar")
     wait(lambda: "AXStaticText: The Pawn" in listing(), "Lesson sidebar did not open")
     if "practice-heading" not in listing():
-        pointer("click", "Toggle Game Details")
+        pointer("click", "Details")
     wait(lambda: "practice-heading" in listing(), "Game details did not open")
 
 

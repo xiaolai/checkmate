@@ -441,7 +441,7 @@ def code(instance, identifier):
 def open_network(instance):
     wait(lambda: instance.label("e2").startswith("e2, White, pawn"), f"{instance.name} never showed its board", 40)
     if not instance.shows("Play on Network"):
-        instance.click("Toggle Sidebar")
+        instance.click("Sidebar")
     wait(lambda: instance.shows("Play on Network"), f"{instance.name} has no Play on Network row")
     instance.click("Play on Network")
     wait(lambda: instance.shows("network-host-button"), f"{instance.name} did not open the network lobby")

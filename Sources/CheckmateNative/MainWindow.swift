@@ -18,8 +18,18 @@ final class BoardWindow:NSWindow {
 }
 /// Drawers have fixed widths and open only from their toolbar buttons. A dragged divider would collapse one
 /// behind the controller's back: its toggle then needed two clicks and the board moved instead of the window edge.
+/// The system's sidebar and inspector toggles (View menu, toolbar) drive the window's drawers, whose state is the
+/// window's `desiredLeft`/`desiredRight` (D-5, D-6): the split items themselves never collapse.
 final class DrawerSplitViewController:NSSplitViewController {
+    var drawerOpen:(_ sidebar:Bool)->Bool={_ in false},toggleDrawer:(_ sidebar:Bool)->Void={_ in}
     override func splitView(_ splitView:NSSplitView,effectiveRect proposedEffectiveRect:NSRect,forDrawnRect drawnRect:NSRect,ofDividerAt dividerIndex:Int)->NSRect {.zero}
+    override func toggleSidebar(_ sender:Any?){toggleDrawer(true)}
+    override func toggleInspector(_ sender:Any?){toggleDrawer(false)}
+    override func validateUserInterfaceItem(_ item:any NSValidatedUserInterfaceItem)->Bool {
+        let sidebar=item.action == #selector(toggleSidebar(_:))
+        guard sidebar || item.action == #selector(toggleInspector(_:)) else{return super.validateUserInterfaceItem(item)}
+        (item as? NSMenuItem)?.title=GameWindow.drawerTitle(sidebar:sidebar,open:drawerOpen(sidebar));return true
+    }
 }
 final class BoardTitleView:NSView {
     weak var board:NSView?
@@ -64,11 +74,12 @@ final class BoardTitleView:NSView {
     private var announcedReviewIdentity=""
     private(set) var errorBanner:NSHostingView<StorageErrorBanner>?
     func setCoreFrame(_ frame:NSRect){coreFrame=frame;fittedOrigin=nil;fixedBoardWidth?.constant=frame.width;fixedBoardWidth?.isActive=true;window?.setFrame(frame,display:true);fittedOrigin=window?.frame.origin;window?.contentView?.layoutSubtreeIfNeeded()}
-    private let sidebarID=NSToolbarItem.Identifier("checkmate.sidebar"),inspectorID=NSToolbarItem.Identifier("checkmate.inspector"),titleID=NSToolbarItem.Identifier("checkmate.title"),settingsID=NSToolbarItem.Identifier("checkmate.settings")
+    private let titleID=NSToolbarItem.Identifier("checkmate.title")
     init(model:NativeModel){self.model=model
         let w=BoardWindow(contentRect:NSRect(x:0,y:0,width:Metrics.core,height:Metrics.core),styleMask:[.titled,.closable,.miniaturizable,.resizable,.fullSizeContentView],backing:.buffered,defer:false)
         super.init(window:w);w.title="Checkmate";w.isMovableByWindowBackground=true;w.titleVisibility = .hidden;w.titlebarSeparatorStyle = .none;w.titlebarAppearsTransparent=true;w.isReleasedWhenClosed=false;w.isRestorable=false;w.delegate=self;w.autorecalculatesKeyViewLoop=true;w.identifier=NSUserInterfaceItemIdentifier("main");w.collectionBehavior=[.fullScreenPrimary];w.tabbingMode = .disallowed
         main.view=BackgroundView();navigation=NSHostingController(rootView:SidebarContent(session:model.session,learning:model.learning,model:model,network:model.network));inspector=ToolbarInsetHostingController(rootView:DetailContent(session:model.session,learning:model.learning,model:model,voice:model.voice,relationships:relationships,inspect:{[weak self] mode in self?.toggleRelationship(mode)}))
+        split.drawerOpen={[unowned self] in $0 ? desiredLeft:desiredRight};split.toggleDrawer={[unowned self] in $0 ? toggleLeft():toggleRight()}
         _ = split.view;split.splitView.autoresizingMask=[.width,.height];split.splitView.isVertical=true;split.splitView.dividerStyle = .thin
         sidebarItem=NSSplitViewItem(sidebarWithViewController:navigation);boardItem=NSSplitViewItem(viewController:main);inspectorItem=NSSplitViewItem(inspectorWithViewController:inspector)
         for (item,width) in [(sidebarItem!,Metrics.left),(inspectorItem!,Metrics.right)] {item.minimumThickness=width;item.maximumThickness=width;item.automaticMaximumThickness=width;item.preferredThicknessFraction=NSSplitViewItem.unspecifiedDimension;item.holdingPriority = .defaultHigh;item.canCollapse=true;item.canCollapseFromWindowResize=false;item.allowsFullHeightLayout=true;item.collapseBehavior = .preferResizingSplitViewWithFixedSiblings;item.titlebarSeparatorStyle = .none;item.isCollapsed=true}
@@ -175,23 +186,34 @@ final class BoardTitleView:NSView {
     }
     /// The open mini-game review sheet's content, for the acceptance scenario.
     var miniReviewSheetShown:Bool {miniReviewSheet?.sheetParent != nil}
-    func toolbarDefaultItemIdentifiers(_ t:NSToolbar)->[NSToolbarItem.Identifier]{[.flexibleSpace,sidebarID,.sidebarTrackingSeparator,.flexibleSpace,titleID,.flexibleSpace,settingsID,.inspectorTrackingSeparator,inspectorID,.flexibleSpace]}
+    func toolbarDefaultItemIdentifiers(_ t:NSToolbar)->[NSToolbarItem.Identifier]{[.flexibleSpace,.toggleSidebar,.sidebarTrackingSeparator,.flexibleSpace,titleID,.flexibleSpace,.inspectorTrackingSeparator,.toggleInspector,.flexibleSpace]}
     func toolbarAllowedItemIdentifiers(_ t:NSToolbar)->[NSToolbarItem.Identifier]{toolbarDefaultItemIdentifiers(t)}
     func toolbar(_ t:NSToolbar,itemForItemIdentifier id:NSToolbarItem.Identifier,willBeInsertedIntoToolbar:Bool)->NSToolbarItem? {
         if id == .sidebarTrackingSeparator{return NSTrackingSeparatorToolbarItem(identifier:id,splitView:split.splitView,dividerIndex:0)};if id == .inspectorTrackingSeparator{return NSTrackingSeparatorToolbarItem(identifier:id,splitView:split.splitView,dividerIndex:1)}
         let item=NSToolbarItem(itemIdentifier:id)
+        // AppKit builds the system toggles itself; this is only a fallback with the same action.
+        if id == .toggleSidebar || id == .toggleInspector{item.action=id == .toggleSidebar ? #selector(NSSplitViewController.toggleSidebar(_:)):#selector(NSSplitViewController.toggleInspector(_:));item.target=split;item.isBordered=true;label(toolbarItem:item);return item}
         if id==titleID{item.view=titleView;item.isBordered=false;item.label="Current activity";return item}
-        item.image=NSImage(systemSymbolName:id==sidebarID ? "sidebar.left":id==inspectorID ? "sidebar.right":"gearshape",accessibilityDescription:nil);item.label=id==sidebarID ? "Toggle Sidebar":id==inspectorID ? "Toggle Game Details":"Settings";item.toolTip=item.label;item.target=self;item.action=id==sidebarID ? #selector(toggleLeft):id==inspectorID ? #selector(toggleRight):#selector(showSettings);item.isBordered=true;return item
+        return nil
     }
-    /// In lessons and puzzles the details drawer holds the guidance, and its toggle says so.
-    var guidanceShown:Bool {!model.review.active && (model.session.mode == .lesson && !model.learning.mini || model.learning.activePuzzle != nil)}
-    /// The toolbar's details toggle is named for what it holds: in lessons and puzzles it is the guidance, which is
-    /// what lets the bar do without its own guidance button. Whether it is open shows in its tooltip and View menu title.
-    private func syncGuidanceToggle(){
-        guard let item=window?.toolbar?.items.first(where:{$0.itemIdentifier==inspectorID}) else{return}
-        let label=guidanceShown ? "Lesson Guidance":"Toggle Game Details",tip=guidanceShown ? (desiredRight ? "Hide the lesson guidance (⌥⌘I)":"Show the lesson guidance (⌥⌘I)"):"Toggle Game Details"
-        if item.label != label{item.label=label};if item.toolTip != tip{item.toolTip=tip}
+    /// One noun per drawer, "Sidebar" and "Details", in the View menu, the toolbar and Help (D-6).
+    static func drawerTitle(sidebar:Bool,open:Bool)->String {(open ? "Hide ":"Show ")+(sidebar ? "Sidebar":"Details")}
+    /// The system toggle items keep their own action, which reaches the split controller; their label, image
+    /// description and tooltip name the drawer, and the tooltip says whether it will open or close, as the View menu does.
+    func label(toolbarItem item:NSToolbarItem){
+        let sidebar=item.itemIdentifier == .toggleSidebar,label=sidebar ? "Sidebar":"Details",tip=Self.drawerTitle(sidebar:sidebar,open:sidebar ? desiredLeft:desiredRight)+(sidebar ? " (⌃⌘S)":" (⌥⌘I)")
+        if item.label != label{item.label=label;item.paletteLabel=label};if item.toolTip != tip{item.toolTip=tip}
+        if item.image?.accessibilityDescription != label{item.image=NSImage(systemSymbolName:sidebar ? "sidebar.left":"sidebar.right",accessibilityDescription:label)}
     }
+    /// The system toolbar toggles reach the window controller too when the window itself is first responder.
+    @objc func toggleSidebar(_ sender:Any?){split.toggleSidebar(sender)}
+    @objc func toggleInspector(_ sender:Any?){split.toggleInspector(sender)}
+    func toolbarWillAddItem(_ notification:Notification){if let item=notification.userInfo?["item"] as? NSToolbarItem,item.itemIdentifier == .toggleSidebar || item.itemIdentifier == .toggleInspector{label(toolbarItem:item)}}
+    private func syncDrawerToggles(){for item in window?.toolbar?.items ?? [] where item.itemIdentifier == .toggleSidebar || item.itemIdentifier == .toggleInspector{label(toolbarItem:item)}}
+    /// The window's own title and subtitle come from the board-area label, for the Window menu, Mission Control and
+    /// VoiceOver (D-10); the title bar stays hidden, so the centred label is the only one drawn.
+    static func windowTitles(_ label:String)->(title:String,subtitle:String) {let parts=label.components(separatedBy:" · ");return (parts[0],parts.dropFirst().joined(separator:" · "))}
+    private func setTitle(_ label:String){titleView.label.stringValue=label;let titles=Self.windowTitles(label);if window?.title != titles.title{window?.title=titles.title};if window?.subtitle != titles.subtitle{window?.subtitle=titles.subtitle}}
     @objc func toggleLeft(){desiredLeft.toggle();rememberPanes();animateDrawers()}
     @objc func toggleRight(){desiredRight.toggle();rememberPanes();animateDrawers()}
     private func rememberPanes(){model.session.state.window.left=desiredLeft;model.session.state.window.right=desiredRight;model.session.emit(semantic:false,save:true)}
@@ -351,7 +373,7 @@ final class BoardTitleView:NSView {
     /// An arrow that crossed into another lesson says where the learner now is.
     private func announceLesson(){announce("Now in \(model.learning.localizedTitle(index:model.learning.lessonIndex)).")}
     private func announce(_ text:String){NSAccessibility.post(element:board,notification:.announcementRequested,userInfo:[.announcement:text,.priority:NSAccessibilityPriorityLevel.high.rawValue])}
-    func refresh(){syncGuidanceToggle();syncMenus();let s=model.session,l=model.learning
+    func refresh(){syncDrawerToggles();syncMenus();let s=model.session,l=model.learning
         // The learner's own side sits nearest them in practice, training and a review of their own game; lessons and
         // other reviews keep White at the bottom. Flip Board turns what is shown over until something else is (B-6);
         // the network game keeps its own flip.
@@ -361,11 +383,11 @@ final class BoardTitleView:NSView {
         reviewWorkspaceView.isHidden = !model.reviewWorkspace;controls.isHidden=model.reviewWorkspace;if workspaceFill.isActive != model.reviewWorkspace{workspaceAboveControls.isActive=false;workspaceFill.isActive=model.reviewWorkspace;workspaceAboveControls.isActive = !model.reviewWorkspace}
 playbackLineView?.isHidden=model.reviewWorkspace
         trainingLibraryView.isHidden=true
-        if model.reviewWorkspace{board.isHidden=true;welcome.isHidden=true;puzzles.isHidden=true;titleView.label.stringValue="Game review";titleView.label.isHidden=false;titleView.tabs.isHidden=true;return}
+        if model.reviewWorkspace{board.isHidden=true;welcome.isHidden=true;puzzles.isHidden=true;setTitle("Game review");titleView.label.isHidden=false;titleView.tabs.isHidden=true;return}
         board.theme=s.state.settings.boardTheme
         if model.review.active{let review=model.review;applyBoard(reviewPresentation(review));board.relationshipMode=nil;board.relationshipConnectors=[]
             if announcedReviewIdentity != review.identity{announcedReviewIdentity=review.identity;let node=review.document?.nodes[review.nodeID];let announcement=review.branch==nil ? "Review, \(node?.fullmove ?? 1), \(node?.side=="b" ? "Black":"White"), \(node?.san ?? "starting position")":"Imagined line, move \(review.branchPly)";NSAccessibility.post(element:board,notification:.announcementRequested,userInfo:[.announcement:announcement,.priority:NSAccessibilityPriorityLevel.high.rawValue])}
-            board.isHidden=false;puzzles.isHidden=true;welcome.isHidden=true;titleView.label.stringValue=review.branch==nil ? "Review · Original game":"Review · Imagined moves";titleView.label.isHidden=false;titleView.tabs.isHidden=true;board.needsDisplay=true;return}
+            board.isHidden=false;puzzles.isHidden=true;welcome.isHidden=true;setTitle(review.branch==nil ? "Review · Original game":"Review · Imagined moves");titleView.label.isHidden=false;titleView.tabs.isHidden=true;board.needsDisplay=true;return}
 
         // An exercise's own presentation replaces the activity's before relationships read the selection; it offers no inspection.
         var shown=s.mode == .network ? networkPresentation():trainingExercise.map(trainingPresentation) ?? activityPresentation()
@@ -383,7 +405,7 @@ playbackLineView?.isHidden=model.reviewWorkspace
         let trainingLibrary=model.training != nil && s.activity.place == .trainingLibrary
         board.isHidden=library || titlecard || trainingLibrary;puzzles.isHidden = !library;welcome.isHidden = !titlecard;trainingLibraryView.isHidden = !trainingLibrary
         if titlecard {welcome.rootView=WelcomeContent(title:l.localizedStepTitle(index:l.lessonIndex,step:l.step))}
-        titleView.label.stringValue=s.mode == .network ? model.network.boardTitle:s.mode == .practice ? "Practice · \(s.humanSide=="b" ? "Black":"White") vs Stockfish":s.mode == .puzzles ? "Quick puzzles":l.mini ? l.miniKind.title:s.mode == .training ? trainingExercise?.definition.title ?? "Training":l.localizedTitle(index:l.lessonIndex)+(l.attemptStatus.map{" · "+$0} ?? "")
+        setTitle(s.mode == .network ? model.network.boardTitle:s.mode == .practice ? "Practice · \(s.humanSide=="b" ? "Black":"White") vs Stockfish":s.mode == .puzzles ? "Quick puzzles":l.mini ? l.miniKind.title:s.mode == .training ? trainingExercise?.definition.title ?? "Training":l.localizedTitle(index:l.lessonIndex)+(l.attemptStatus.map{" · "+$0} ?? ""))
         let temporary=s.preview != nil || s.demonstration != nil;titleView.label.isHidden=temporary;titleView.tabs.isHidden = !temporary;titleView.tabs.setLabel(s.demonstration != nil ? "Demonstration":"Try a move",forSegment:1);titleView.tabs.selectedSegment=s.presentationHidden ? 0:1;titleView.needsLayout=true
     }
     /// Everything the board shows for one activity. Each builder sets every field, so nothing from the previous
@@ -451,7 +473,6 @@ playbackLineView?.isHidden=model.reviewWorkspace
         }
         if item.action == #selector(flipBoard){return !model.reviewWorkspace && !board.isHidden}
         if item.action == #selector(resign){return !model.review.active && model.session.canResign}
-        if item.action == #selector(toggleRight){item.title=guidanceShown ? (desiredRight ? "Hide Lesson Guidance":"Show Lesson Guidance"):"Toggle Game Details";return true}
         // Edit ▸ Undo follows `NativeModel.undoAction`: right after a deletion it puts the review back; in a review it
         // has nothing else; elsewhere it is the game's take back.
         if item.action == NSSelectorFromString("undo:"){switch model.undoAction{case .restoreReview:item.title="Undo Delete Review";return true;case .nothing:item.title="Undo";return false;case .game:item.title="Undo"}}
@@ -569,7 +590,6 @@ playbackLineView?.isHidden=model.reviewWorkspace
     func stillShowing(_ shown:(generation:Int,position:Int,history:[String]),exactly:Bool=false)->Bool {
         let now=practiceGame;return !model.review.active && !model.reviewWorkspace && model.session.mode == .practice && now.generation==shown.generation && (exactly ? now.position==shown.position && now.history==shown.history:now.history.starts(with:shown.history))}
     @objc func showSettings(){if settings==nil{settings=SettingsWindow(model:model)};settings?.showWindow(nil);settings?.window?.makeKeyAndOrderFront(nil)}
-    @objc func showAbout(){openSettings(category:.about)}
     func openSettings(category:SettingsCategory){if settings==nil{settings=SettingsWindow(model:model)};settings?.show(category:category)}
     /// Edit ▸ Undo (⌘Z) reaches here when no text field claims it: it takes back the move, as Game ▸ Take Back does. In a
     /// review it undoes the window's last undoable action instead (a saved review's deletion).

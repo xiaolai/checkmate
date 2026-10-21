@@ -28,9 +28,9 @@ def launch():
 results={}
 try:
  launch()
- if 'AXStaticText: The Pawn' not in listing():pointer('click','Toggle Sidebar')
+ if 'AXStaticText: The Pawn' not in listing():pointer('click','Sidebar')
  wait(lambda:'AXStaticText: The Pawn' in listing(),'Sidebar did not open')
- if 'practice-heading' not in listing():pointer('click','Lesson Guidance' if 'Lesson Guidance' in listing() else 'Toggle Game Details')
+ if 'practice-heading' not in listing():pointer('click','Details')
  wait(lambda:'practice-heading' in listing(),'Details did not open')
  pointer('click-square','e2');pointer('click-square','e4')
  wait(lambda:'1. e4 ' in saved()['practice']['pgn'] and saved()['practice']['fen'].split()[1]=='w','Computer did not reply')
@@ -71,14 +71,14 @@ try:
  # A lesson's arrow and check describe the position its move produces: they appear only once the rook has landed,
  # and the arrow ends on the king it attacks. Sampled while the move plays (automation playback is silent).
  stop();launch()
- if 'AXStaticText: Introduction' not in listing():pointer('click','Toggle Sidebar')
+ if 'AXStaticText: Introduction' not in listing():pointer('click','Sidebar')
  wait(lambda:'AXStaticText: Introduction' in listing(),'Sidebar did not open')
  # A square is read only once the rook step has opened.
  def label(square):
   try:return pointer('label',square)
   except subprocess.CalledProcessError:return ''
  pointer('click','Check and Checkmate')
- if 'AXPopUpButton: Transcript' not in listing():pointer('click','Lesson Guidance' if 'Lesson Guidance' in listing() else 'Toggle Game Details')
+ if 'AXPopUpButton: Transcript' not in listing():pointer('click','Details')
  wait(lambda:'AXPopUpButton: Transcript' in listing(),'The Check and Checkmate transcript picker did not appear')
  pointer('select-popup','Transcript','16. A rook on the edge')
  wait(lambda:label('h1').startswith('h1, White, rook'),'The rook step did not open on its starting board')
@@ -105,7 +105,7 @@ try:
   except subprocess.CalledProcessError:pointer('scroll-sidebar','-5')
  wait(lambda:"Current activity | Scholar's Mate" in listing(),"Scholar's Mate did not open")
  if 'AXButton: Pause' in listing():pointer('click','Pause')
- if 'AXPopUpButton: Transcript' not in listing():pointer('click','Lesson Guidance' if 'Lesson Guidance' in listing() else 'Toggle Game Details')
+ if 'AXPopUpButton: Transcript' not in listing():pointer('click','Details')
  wait(lambda:'AXPopUpButton: Transcript' in listing(),"The Scholar's Mate transcript picker did not appear")
  pointer('select-popup','Transcript','2. The weak squares')
  wait(lambda:'guards f7' in label('e8') and 'guards f2' in label('e1'),'The paused step does not show both guards')
@@ -146,7 +146,7 @@ try:
   found=re.search(r'AXPopUpButton: Transcript \| (\d+)\. ',listing());return int(found.group(1)) if found else 0
  def open_paused(title):
   pointer('click',title);wait(opened(title),f'{title} did not open')
-  if 'AXPopUpButton: Transcript' not in listing():pointer('click','Lesson Guidance' if 'Lesson Guidance' in listing() else 'Toggle Game Details')
+  if 'AXPopUpButton: Transcript' not in listing():pointer('click','Details')
   wait(lambda:'AXPopUpButton: Transcript' in listing(),f'The {title} transcript picker did not appear')
   # Opening a lesson plays it; pause first so the chosen transcript stays put.
   if 'AXButton: Pause' in listing():pointer('click','Pause')
@@ -199,10 +199,10 @@ try:
   pointer('click','Rook Practice');wait(opened('Rook Practice'),'Rook Practice did not reopen')
  subprocess.run(['/usr/sbin/screencapture','-x',str(evidence/'practice-sub-items.png')],check=True)
  stop();value=saved();value['course']['completed']=sorted(set(value['course']['completed'])|{'pawn'});(state/'state-v1.json').write_text(json.dumps(value));launch()
- if 'AXStaticText: The Pawn' not in listing():pointer('click','Toggle Sidebar')
+ if 'AXStaticText: The Pawn' not in listing():pointer('click','Sidebar')
  wait(lambda:'AXStaticText: The Pawn' in listing(),'Sidebar did not open')
  pointer('click','The Pawn')
- if 'AXPopUpButton: Transcript' not in listing():pointer('click','Lesson Guidance' if 'Lesson Guidance' in listing() else 'Toggle Game Details')
+ if 'AXPopUpButton: Transcript' not in listing():pointer('click','Details')
  wait(lambda:'Continue to The Rook' in listing(),'Continue after The Pawn does not name The Rook')
  pointer('click','Continue to The Rook');wait(lambda:'Practise: Rook Practice' in listing(),'Continue did not open The Rook')
  results['practiceSubItems']=True

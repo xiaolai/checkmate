@@ -11,13 +11,23 @@ struct AboutFacts {
 /// The About pane carries the GPL's Appropriate Legal Notices: copyright, no warranty, the license and the source.
 struct AboutPane:View {
     let facts:AboutFacts
-    private static let project=URL(string:"https://github.com/xiaolai/checkmate")!
+    static let project=URL(string:"https://github.com/xiaolai/checkmate")!,reportProblem=project.appendingPathComponent("issues/new")
+    /// The pane's acknowledgements, which the standard About panel's credits list too (D-9).
+    static let acknowledgements=[("Stockfish 19","GPL-3.0"),("chess.js 1.4.0, Jeff Hlywa","BSD-2-Clause"),("Swift MCP SDK and dependencies","MIT, Apache-2.0"),("Knight artwork, SVG Repo","CC0-1.0")]
+    static let license="Checkmate is free software: you can redistribute and modify it under the GNU General Public License, version 3 or later. It comes with no warranty.",narration="Lesson narration is AI-generated speech (OpenAI Cedar)."
+    /// The About panel's credits: the license, the acknowledgements, and where the rest is.
+    static var credits:NSAttributedString {
+        let text=([license,"","Acknowledgements"]+acknowledgements.map{"\($0.0) (\($0.1))"}+[narration,"","Privacy, licenses and links are in Settings ▸ About."]).joined(separator:"\n")
+        let style=NSMutableParagraphStyle();style.alignment = .center
+        return NSAttributedString(string:text,attributes:[.font:NSFont.systemFont(ofSize:NSFont.smallSystemFontSize),.foregroundColor:NSColor.labelColor,.paragraphStyle:style])
+    }
     /// Automation records each request in the data directory instead of opening it, so pointer tests stay silent and can still see the click arrive.
-    private func open(_ url:URL,reveal:Bool=false){
-        if NativePolicy.silent {let log=facts.dataDirectory.appendingPathComponent("opened-urls.txt"),line=Data((url.absoluteString+"\n").utf8)
+    static func open(_ url:URL,reveal:Bool=false,dataDirectory:URL){
+        if NativePolicy.silent {let log=dataDirectory.appendingPathComponent("opened-urls.txt"),line=Data((url.absoluteString+"\n").utf8)
             if let handle=try? FileHandle(forWritingTo:log){handle.seekToEndOfFile();handle.write(line);try? handle.close()}else{try? line.write(to:log)};return}
         if reveal{NSWorkspace.shared.activateFileViewerSelecting([url])}else{NSWorkspace.shared.open(url)}
     }
+    private func open(_ url:URL,reveal:Bool=false){Self.open(url,reveal:reveal,dataDirectory:facts.dataDirectory)}
     private func link(_ title:String,_ url:URL)->some View {Button(title){open(url)}.buttonStyle(.link)}
     var body:some View {
         Section {HStack(spacing:14){Image(nsImage:NSApp.applicationIconImage).resizable().frame(width:64,height:64).accessibilityHidden(true)
@@ -32,10 +42,10 @@ struct AboutPane:View {
         }
         Section {
             HStack(spacing:4){Text("Copyright © 2026");link("xiaolai",URL(string:"https://lixiaolai.com")!)}
-            Text("Checkmate is free software: you can redistribute and modify it under the GNU General Public License, version 3 or later. It comes with no warranty.")
+            Text(Self.license)
             HStack(spacing:16){link("License",NativeResources.url("Checkmate-COPYING.txt"));link("Third-Party Notices",NativeResources.url("THIRD_PARTY_NOTICES.txt"));link("Source Code",Self.project.appendingPathComponent("releases/tag/v\(facts.version)"))}
         } header:{Text("License")}
-        Section {LabeledContent("Stockfish 19",value:"GPL-3.0");LabeledContent("chess.js 1.4.0, Jeff Hlywa",value:"BSD-2-Clause");LabeledContent("Swift MCP SDK and dependencies",value:"MIT, Apache-2.0");LabeledContent("Knight artwork, SVG Repo",value:"CC0-1.0")} header:{Text("Acknowledgements")} footer:{Text("Lesson narration is AI-generated speech (OpenAI Cedar).")}
-        Section {HStack(spacing:16){link("Checkmate on GitHub",Self.project);link("Changelog",Self.project.appendingPathComponent("blob/v\(facts.version)/CHANGELOG.md"));link("Report a Problem",Self.project.appendingPathComponent("issues/new"))}}
+        Section {ForEach(Self.acknowledgements,id:\.0){LabeledContent($0.0,value:$0.1)}} header:{Text("Acknowledgements")} footer:{Text(Self.narration)}
+        Section {HStack(spacing:16){link("Checkmate on GitHub",Self.project);link("Changelog",Self.project.appendingPathComponent("blob/v\(facts.version)/CHANGELOG.md"));link("Report a Problem",Self.reportProblem)}}
     }
 }

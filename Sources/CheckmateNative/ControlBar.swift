@@ -361,7 +361,7 @@ struct ControlBarView:View {
         case .hint,.attemptHint,.trainingHint:return "⇧⌘H"
         case .newGame,.miniNewGame:return "⌘N"
         case .flipBoard:return "⇧⌘F"
-        case .playPause,.reviewPlayPause,.demoPlayPause:return "⌘P"
+        case .playPause,.reviewPlayPause,.demoPlayPause:return "⌥⌘P"
         case .previousStep,.previousLesson,.reviewPrevious,.demoPrevious,.previewPrevious:return "⌘["
         case .nextStep,.nextLesson,.reviewNext,.demoNext,.previewNext:return "⌘]"
         case .stepFromStart:return "⌘R"

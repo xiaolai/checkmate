@@ -72,7 +72,7 @@ def category(name):
     document["window"]["settingsCategory"] = name
     state_file.write_text(json.dumps(document))
     launch()
-    act("press", "Settings")
+    act("press", "Settings…")
     wait(lambda: "Settings" in act("windows"))
 
 

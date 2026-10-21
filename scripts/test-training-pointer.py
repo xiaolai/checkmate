@@ -167,7 +167,7 @@ try:
     wait(lambda: "Chessboard" in listing(), "Board did not appear")
     time.sleep(1)
     if "AXStaticText: The Pawn" not in listing():
-        pointer("click", "Toggle Sidebar")
+        pointer("click", "Sidebar")
     wait(lambda: "AXStaticText: The Pawn" in listing(), "The sidebar did not open")
     pointer("click", "Training")
     wait(lambda: "training-entry-reach-target" in listing(), "Clicking Training did not open the library")
@@ -178,7 +178,7 @@ try:
     pointer("click", "training-entry-reach-target")
     wait(lambda: active() is not None and active()["entry"] == "reach-target", "Reach the Target did not start")
     if "training-prompt" not in listing():
-        pointer("click", "Toggle Game Details")
+        pointer("click", "Details")
     wait(lambda: "training-prompt" in listing(), "The exercise drawer did not open")
     drill = active()["scenario"]["drill"]
     route = drill_route(drill)
@@ -260,7 +260,7 @@ try:
     wait(lambda: len(duel().get("history", [])) == 2, "The computer did not reply in Pawn Duel")
     wait(lambda: (duel().get("level") or {}).get("profile") == "standard", "The Pawn Duel run did not freeze its level")
     if "mini-difficulty" not in listing():
-        pointer("click", "Toggle Game Details")
+        pointer("click", "Details")
     wait(lambda: "mini-difficulty" in listing(), "The mini-game drawer did not show the level picker")
     # Calibration (WI-016) decides the levels; Pawn Duel offers Gentle (stored as beginner), Steady and Strong.
     offered = next(v["offered"] for v in json.loads((root / "Content/calibration/mini-game-results.json").read_text())["verdicts"] if v["game"] == "pawn-duel")
@@ -303,7 +303,7 @@ try:
     wait(lambda: "Chessboard" in listing(), "Board did not appear after relaunch")
     time.sleep(1)
     if "AXStaticText: The Pawn" not in listing():
-        pointer("click", "Toggle Sidebar")
+        pointer("click", "Sidebar")
     wait(lambda: "AXStaticText: The Pawn" in listing(), "The sidebar did not open after relaunch")
     pointer("click", "Training")
     wait(lambda: "training-continue" in listing(), "The unfinished exercise was not offered as Continue after relaunch")

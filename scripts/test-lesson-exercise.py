@@ -40,10 +40,10 @@ def launch():
  wait(lambda:'Chessboard' in listing(),'Board did not appear');time.sleep(1)
 def drawers(sidebar,details):
  """Opens or closes each drawer with its own toolbar button and waits for it."""
- if ('AXStaticText: The Pawn' in listing())!=sidebar:pointer('click','Toggle Sidebar')
+ if ('AXStaticText: The Pawn' in listing())!=sidebar:pointer('click','Sidebar')
  wait(lambda:('AXStaticText: The Pawn' in listing())==sidebar,'The sidebar did not '+('open' if sidebar else 'close'))
  shown=lambda:'AXPopUpButton: Transcript' in listing() or 'practice-heading' in listing()
- if shown()!=details:pointer('click','Lesson Guidance' if 'Lesson Guidance' in listing() else 'Toggle Game Details')
+ if shown()!=details:pointer('click','Details')
  wait(lambda:shown()==details,'Game details did not '+('open' if details else 'close'))
 def open_lesson(lesson_title):
  """Clicks a lesson in the sidebar. A row far down the list exists only once the list has scrolled near it, so the
@@ -91,8 +91,8 @@ try:
   before=slots('bar-nextStep');assert before==on_exercise,f'Castling: the playback controls moved between the steps: {before} then {on_exercise}'
   pointer('click','bar-nextStep');wait(title('Castling · '),'Castling: Next did not return to the exercise step')
  results['playbackSlotsStayPut']=True
- # In a lesson the details toggle is named for the guidance it holds (the bar has no guidance button of its own).
- assert 'Lesson Guidance' in listing() and 'bar-' in listing() and 'Show lesson guidance' not in listing(),'The details toggle is not named Lesson Guidance in a lesson'
+ # In a lesson the guidance is in the details drawer, whose toggle keeps its one name (the bar has no guidance button of its own).
+ assert 'Details' in listing() and 'bar-' in listing() and 'Show lesson guidance' not in listing(),'The details toggle is missing in a lesson'
  drawers(False,False)
  wait(title('Castling · Your turn'),'Castling: the title does not invite a move')
  play('e1g1')
@@ -119,8 +119,8 @@ try:
  pointer('shortcut','30','c');wait(title('Castling Rules · '),'⌘] did not return to the exercise')
  pointer('shortcut','6','c');wait(lambda:attempt('castling-rules').get('moves')==[],'⌘Z did not undo the exercise turn')
  drawers(False,True);pointer('shortcut','4','cs');wait(lambda:'Hint 1:' in listing(),'⇧⌘H did not give a hint')
- pointer('shortcut','35','c');wait(lambda:'AXButton: Pause' in listing(),'⌘P did not play the instruction')
- pointer('shortcut','35','c');wait(lambda:'AXButton: Play' in listing(),'⌘P did not pause the instruction')
+ pointer('shortcut','35','co');wait(lambda:'AXButton: Pause' in listing(),'⌥⌘P did not play the instruction')
+ pointer('shortcut','35','co');wait(lambda:'AXButton: Play' in listing(),'⌥⌘P did not pause the instruction')
  results['lessonMenuShortcuts']=True
 
  # The Fork: an off-track move, Take Back, then the authored line to success and Play on.

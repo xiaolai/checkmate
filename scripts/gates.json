@@ -143,6 +143,8 @@
     "Sources/CheckmateNative/ControlBar.swift",
     "Sources/CheckmateNative/SettingsWindow.swift",
     "Sources/CheckmateNative/AboutPane.swift",
+    "Sources/CheckmateNative/MenuCommands.swift",
+    "Sources/CheckmateNative/HelpWindow.swift",
     "Sources/CheckmateNative/LessonSettingsPane.swift",
     "Sources/CheckmateNative/UsageSettingsPane.swift",
     "Sources/CheckmateNative/LessonAutomationFixture.swift",

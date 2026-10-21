@@ -788,8 +788,10 @@ import RealtimeConnection
     /// Reads review files off the main thread, one at a time, with the drop's checks and bounded read.
     lazy var reviewFiles:ReviewFileReader={let reader=ReviewFileReader();reader.activity={[weak self] in self?.activityGeneration ?? -1};reader.supersede={[weak self] in self?.supersedeReviewOpen()};return reader}()
     /// `directory` is where the panel starts; the review scenario points it at its fixture before the panel opens.
-    func openPGN(startingIn directory:URL?=nil){let panel=NSOpenPanel();panel.allowsOtherFileTypes=true;panel.allowsMultipleSelection=false;if let directory{panel.directoryURL=directory};panel.begin{[weak self] response in guard let self,response == .OK,let url=panel.url else{return}
-        self.reviewFiles.load(url,prepare:ReviewDrop.validated,deliver:{[weak self] in self?.importReviewData($0)},rejected:{[weak self] error in self?.storageError=(error as? ReviewDrop.Rejection)?.reason ?? "The selected file could not be read. Your current game and reviews are unchanged."})}}
+    /// A file File ▸ Open… opened, for File ▸ Open Recent (R-15).
+    var openedFile:(URL)->Void={_ in}
+    func openPGN(startingIn directory:URL?=nil){let panel=NSOpenPanel();panel.allowedContentTypes=ReviewFileTypes.openable;panel.allowsMultipleSelection=false;if let directory{panel.directoryURL=directory};panel.begin{[weak self] response in guard let self,response == .OK,let url=panel.url else{return}
+        self.reviewFiles.load(url,prepare:ReviewDrop.validated,deliver:{[weak self] in self?.openedFile(url);self?.importReviewData($0)},rejected:{[weak self] error in self?.storageError=(error as? ReviewDrop.Rejection)?.reason ?? "The selected file could not be read. Your current game and reviews are unchanged."})}}
     func pasteReview(){guard let text=NSPasteboard.general.string(forType:.string) else{storageError="Copy PGN or FEN text first.";return};importReviewData(Data(text.utf8))}
     func exportReview(){
         guard let d=review.document else{return};let branches=review.branchesForSaving

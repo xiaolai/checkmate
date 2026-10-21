@@ -7,8 +7,10 @@ let target=CommandLine.arguments.count>3 ? CommandLine.arguments[3] : ""
 let windowName=CommandLine.arguments.count>4 ? CommandLine.arguments[4] : ""
 let app=AXUIElementCreateApplication(pid)
 AXUIElementSetMessagingTimeout(app,2)
-if action=="windows" {let windows=getWindows();print(windows.count);for w in windows{var v:CFTypeRef?;AXUIElementCopyAttributeValue(w,kAXTitleAttribute as CFString,&v);print(v as? String ?? "")};exit(0)}
 func getWindows()->[AXUIElement]{var v:CFTypeRef?;AXUIElementCopyAttributeValue(app,kAXWindowsAttribute as CFString,&v);return v as? [AXUIElement] ?? []}
+/// A window's title and its identifier: Settings is titled by its pane but always identified as "Settings".
+func windowNames(_ w:AXUIElement)->[String]{var t:CFTypeRef?,i:CFTypeRef?;AXUIElementCopyAttributeValue(w,kAXTitleAttribute as CFString,&t);AXUIElementCopyAttributeValue(w,kAXIdentifierAttribute as CFString,&i);return [t as? String ?? "",i as? String ?? ""]}
+if action=="windows" {let windows=getWindows();print(windows.count);for w in windows{let names=windowNames(w);print(names[1].isEmpty || names[1]==names[0] ? names[0]:names[0]+" | "+names[1])};exit(0)}
 if action=="quit" {exit(NSRunningApplication(processIdentifier:pid)?.terminate() == true ? 0:1)}
 func get(_ e:AXUIElement,_ k:String)->CFTypeRef?{var v:CFTypeRef?;AXUIElementCopyAttributeValue(e,k as CFString,&v);return v}
 var found=false
@@ -59,7 +61,7 @@ if action=="drag" {let gestureTolerance=3.0;guard let window=get(app,kAXWindowsA
 
 if action=="close-main" || action=="close-settings" {
  for w in get(app,kAXWindowsAttribute) as? [AXUIElement] ?? [] {
-  if ((get(w,kAXTitleAttribute) as? String == "Settings") == (action=="close-settings")), let value=get(w,kAXCloseButtonAttribute) {
+  if (windowNames(w).contains("Settings") == (action=="close-settings")), let value=get(w,kAXCloseButtonAttribute) {
    let button=value as! AXUIElement
    let result=AXUIElementPerformAction(button,kAXPressAction as CFString)
    print("close window: \(result.rawValue)");exit(result == .success ? 0:1)
@@ -67,6 +69,6 @@ if action=="close-main" || action=="close-settings" {
  }
  fputs("Requested window not found\n",stderr);exit(1)
 }
-if windowName.isEmpty {walk(app)} else {for w in get(app,kAXWindowsAttribute) as? [AXUIElement] ?? [] {if get(w,kAXTitleAttribute) as? String==windowName {walk(w)}}}
+if windowName.isEmpty {walk(app)} else {for w in get(app,kAXWindowsAttribute) as? [AXUIElement] ?? [] {if windowNames(w).contains(windowName) {walk(w)}}}
 if ["press","focus","select"].contains(action) && !found {fputs("Control not found: \(target)\n",stderr);exit(1)}
 if action=="list-complete" && !incomplete.isEmpty {fputs("Incomplete accessibility listing: \(incomplete.prefix(5).joined(separator:"; "))\n",stderr);exit(3)}

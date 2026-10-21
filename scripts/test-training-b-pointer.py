@@ -105,7 +105,7 @@ def open_library():
 
 def show_details():
     if "training-prompt" not in listing():
-        pointer("click", "Toggle Game Details")
+        pointer("click", "Details")
     wait(lambda: "training-prompt" in listing(), "The exercise drawer did not open")
 
 
@@ -189,7 +189,7 @@ try:
     wait(lambda: "Chessboard" in listing(), "Board did not appear")
     time.sleep(1)
     if "AXStaticText: The Pawn" not in listing():
-        pointer("click", "Toggle Sidebar")
+        pointer("click", "Sidebar")
     wait(lambda: "AXStaticText: The Pawn" in listing(), "The sidebar did not open")
     pointer("click", "Training")
     wait(lambda: "training-entry-reach-target" in listing(), "Clicking Training did not open the library")

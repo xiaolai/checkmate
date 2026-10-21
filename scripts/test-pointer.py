@@ -88,10 +88,10 @@ try:
     time.sleep(1)  # Allow initial AppKit window and drawer restoration to finish.
     # Explicitly open drawers, tolerating window restoration from previous automation runs.
     if "AXStaticText: The Pawn" not in listing():
-        pointer("click", "Toggle Sidebar")
+        pointer("click", "Sidebar")
     wait(lambda: "AXStaticText: The Pawn" in listing(), "Lesson sidebar did not open at launch")
     if "practice-heading" not in listing():
-        pointer("click", "Toggle Game Details")
+        pointer("click", "Details")
     wait(lambda: "practice-heading" in listing(), "Game details did not open")
 
     # A trackpad press that drifts within its square is still a click.
@@ -127,7 +127,7 @@ try:
 
     # Window drawer restoration can survive across automation runs. Open explicitly if needed.
     if "AXStaticText: The Pawn" not in listing():
-        pointer("click", "Toggle Sidebar")
+        pointer("click", "Sidebar")
     wait(lambda: "AXStaticText: The Pawn" in listing(), "Lesson sidebar did not open")
     # Lesson drawer controls take the same path.
     pointer("click", "The Pawn")
@@ -136,12 +136,13 @@ try:
     pointer("click", "In this lesson")
     wait(lambda: pointer("value", "In this lesson") != before, "The lesson disclosure did not respond to a click")
 
-    # About opens from the app menu as a Settings pane, and its links receive clicks.
+    # About Checkmate is the standard About panel; the About pane, with its links, opens in Settings.
     # Automation records each open request instead of launching a browser or Finder.
     opened = state / "opened-urls.txt"
     requested = lambda text: opened.exists() and text in opened.read_text()
-    pointer("menu", "Checkmate", "About Checkmate")
-    wait(lambda: "Copyright © 2026" in listing(), "About Checkmate did not open the About pane")
+    pointer("menu", "Checkmate", "Settings…")
+    pointer("click", "About")
+    wait(lambda: "Copyright © 2026" in listing(), "Settings did not open the About pane")
     pointer("click", "License")
     wait(lambda: requested("Checkmate-COPYING.txt"), "The License link did not respond to a click")
     pointer("click", "Show in Finder")
@@ -355,7 +356,7 @@ try:
     wait(lambda: "Chessboard" in listing(), "Board did not appear after relaunch")
     time.sleep(1)
     if "Review game" not in listing():
-        pointer("click", "Toggle Sidebar")
+        pointer("click", "Sidebar")
     library = json.loads((root / "Sources/CheckmateCore/Resources/game-library/manifest.json").read_text())["games"]
     # A fixed short game by id, never "the last entry": the move-table and graph checks below are written for the King Hunt.
     king_hunt = next(game for game in library if game["id"] == "lasker-thomas")
