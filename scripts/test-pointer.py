@@ -1,4 +1,5 @@
-"""Silent test-host acceptance for real pointer input: board clicks, drags and drawer controls.
+"""Silent test-host acceptance for real pointer input: board clicks, drags and drawer controls, the first-run welcome's
+buttons, and Today's Mix and Review Due in the puzzle library.
 
 Accessibility presses bypass hit-testing, so every action here is a posted mouse event.
 """
@@ -528,11 +529,105 @@ try:
         time.sleep(0.2)
     assert process.poll() is not None, "Quit did not end the app after the review pane checks"
 
+    def quit_app(when):
+        pointer("menu", "Checkmate", "Quit Checkmate")
+        deadline = time.monotonic() + 15
+        while process.poll() is None and time.monotonic() < deadline:
+            time.sleep(0.2)
+        assert process.poll() is not None, "Quit did not end the app " + when
+
+    def launch(folder, *flags):
+        return subprocess.Popen([command[0], "--automation", "--data-dir", str(folder), *flags], env=environment, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+    # The first-run welcome (L-20) with the real pointer, each answer in a new data folder of its own: Continue, Back,
+    # the voice coach's setup with its consent declined, a placement and Start Lesson; then Skip. Answering saves at
+    # once, so the progress file exists while the app still runs (a force quit must not bring the welcome back).
+    course = json.loads((root / "Sources/CheckmateCore/Resources/course.json").read_text())
+    placed = next(lesson["title"] for lesson in course["lessons"] if lesson["id"] == "safe-squares")
+    for answer in ("start", "skip"):
+        folder = pathlib.Path(tempfile.mkdtemp(prefix="checkmate-pointer-welcome-"))
+        atexit.register(shutil.rmtree, folder, ignore_errors=True)
+        process = launch(folder, "--onboarding")
+        wait(lambda: "onboarding-continue" in listing() and "onboarding-voice-language" in listing(), "--onboarding did not show the welcome")
+        if answer == "skip":
+            pointer("click", "onboarding-skip")
+        else:
+            pointer("click", "onboarding-continue")
+            wait(lambda: "onboarding-placement" in listing() and "onboarding-back" in listing(), "Continue did not reach where to start")
+            pointer("click", "onboarding-back")
+            wait(lambda: "onboarding-voice-language" in listing() and "onboarding-placement" not in listing(), "Back did not return to language and voice")
+            pointer("click", "onboarding-voice-setup")
+            wait(lambda: "voice-consent-cancel" in listing(), "Set Up the Voice Coach… did not ask for consent first")
+            pointer("click", "voice-consent-cancel")
+            wait(lambda: "voice-consent-cancel" not in listing() and "onboarding-voice-setup" in listing(), "Declining consent did not leave the voice coach unset in the welcome")
+            pointer("click", "onboarding-continue")
+            wait(lambda: "onboarding-placement" in listing(), "Continue did not reach where to start again")
+            pointer("click", "I know how the pieces move")
+            wait(lambda: "Your first lesson: " + placed in listing(), "Choosing a placement did not name its first lesson")
+            pointer("click", "onboarding-continue")
+            wait(lambda: "onboarding-start" in listing(), "Continue did not reach the first move")
+            pointer("click", "onboarding-start")
+        wait(lambda: "onboarding-continue" not in listing() and "onboarding-start" not in listing() and "onboarding-skip" not in listing(), "The welcome's " + answer + " did not close it")
+        wait(lambda: any(folder.glob("state-*")), "The welcome's " + answer + " was not saved at once")
+        quit_app("after the welcome's " + answer)
+
+    # Today's Mix and Review Due (L-29) with the real pointer, in the skipped welcome's folder. A new learner's mix
+    # starts with the first puzzle; a puzzle seeded as due for review is what Review Due opens.
+    puzzles = course["puzzles"]
+    prompts = [puzzle["exercise"].get("prompt") for puzzle in puzzles]
+    assert prompts[0] and prompts.count(prompts[0]) == 1, "The first puzzle's prompt does not tell it apart"
+    due = next(puzzle for puzzle, prompt in zip(puzzles[1:], prompts[1:]) if prompt and prompts.count(prompt) == 1)
+
+    def puzzle_open(prompt):
+        def check():
+            shown = listing()
+            return prompt in shown and "puzzle-hint" in shown and "puzzle-today-mix" not in shown
+        return check
+
+    def show_puzzle(prompt, message):
+        deadline = time.monotonic() + 3
+        while not puzzle_open(prompt)() and time.monotonic() < deadline:
+            time.sleep(0.2)
+        if not puzzle_open(prompt)():
+            pointer("click", "Details")
+        wait(puzzle_open(prompt), message)
+
+    process = launch(folder)
+    wait(lambda: "Chessboard" in listing(), "Board did not appear for the puzzle library")
+    time.sleep(1)
+    if "Quick puzzles" not in listing():
+        pointer("click", "Sidebar")
+    wait(lambda: "Quick puzzles" in listing(), "The sidebar did not open for the puzzle library")
+    pointer("click", "Quick puzzles")
+    wait(lambda: "puzzle-today-mix" in listing(), "The puzzle library did not offer Today's Mix to a new learner")
+    assert "puzzle-review-due" not in listing(), "A new learner was offered Review Due"
+    pointer("click", "puzzle-today-mix")
+    show_puzzle(prompts[0], "Today's Mix did not open the first new puzzle")
+    pointer("click", "bar-puzzleLibrary")
+    wait(lambda: "puzzle-today-mix" in listing(), "Puzzle library did not return to the library")
+    quit_app("after Today's Mix")
+    saved_state = json.loads((folder / "state-v1.json").read_text())
+    saved_state["puzzles"][due["id"]] = {"solved": False, "review": True, "attempts": 1}
+    (folder / "state-v1.json").write_text(json.dumps(saved_state))
+    process = launch(folder)
+    wait(lambda: "Chessboard" in listing(), "Board did not appear with a puzzle due")
+    time.sleep(1)
+    if "puzzle-review-due" not in listing():
+        if "Quick puzzles" not in listing():
+            pointer("click", "Sidebar")
+        wait(lambda: "Quick puzzles" in listing(), "The sidebar did not open with a puzzle due")
+        pointer("click", "Quick puzzles")
+    wait(lambda: "Review Due (1)" in listing(), "The puzzle library did not offer Review Due for the one due puzzle")
+    pointer("click", "puzzle-review-due")
+    show_puzzle(due["exercise"]["prompt"], "Review Due did not open the due puzzle")
+    quit_app("after Review Due")
+
     result = {"passed": True, "clickWithDrift": True, "clickedMove": True, "draggedMove": True, "illegalDropSnapsBack": True,
               "drawerToggles": True, "drawerMenu": True, "lessonDisclosure": True, "aboutPane": True, "coachReasoningSettings": True, "lessonSettings": True, "usageSettings": True, "usageClearConfirmation": True, "usageExport": True, "lessonJobFixture": fixture,
               "lessonConfirmCancel": fixture, "lessonConfirmReturnCancels": fixture, "lessonDiscardConfirmed": fixture, "lessonCleanupCannotCancel": fixture,
               "codexSetupMessage": True, "reviewChooserCancel": True, "reviewChooserPicks": True, "quitAlertCancelKeepsReview": True, "quitSavesReview": True,
-              "libraryRowOpensDraft": True, "librarySearchTyped": True, "librarySegments": True, "librarySectionCollapse": True, "libraryFindKeyboard": True, "libraryImportPanel": True, "libraryFileDrop": True, "boardDropUnchanged": True, "libraryRemoveConfirmed": True, "getMoreGamesPresent": True, "moveTableCellClick": True, "evaluationGraphClickAndDrag": True, "graphWheelScrollsPane": True, "returnToGameFromReview": True}
+              "libraryRowOpensDraft": True, "librarySearchTyped": True, "librarySegments": True, "librarySectionCollapse": True, "libraryFindKeyboard": True, "libraryImportPanel": True, "libraryFileDrop": True, "boardDropUnchanged": True, "libraryRemoveConfirmed": True, "getMoreGamesPresent": True, "moveTableCellClick": True, "evaluationGraphClickAndDrag": True, "graphWheelScrollsPane": True, "returnToGameFromReview": True,
+              "welcomeButtons": True, "welcomeSavedAtOnce": True, "puzzleTodayMix": True, "puzzleReviewDue": True}
     (evidence / "pointer-results.json").write_text(json.dumps(result, indent=2))
     print(json.dumps(result))
 except Exception:

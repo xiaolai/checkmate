@@ -119,7 +119,11 @@
     "reviewChooserCancel",
     "reviewChooserPicks",
     "quitAlertCancelKeepsReview",
-    "quitSavesReview"
+    "quitSavesReview",
+    "welcomeButtons",
+    "welcomeSavedAtOnce",
+    "puzzleTodayMix",
+    "puzzleReviewDue"
    ],
    "inputs": [
     "scripts/test-pointer.py", "scripts/sidebar_lessons.py",
@@ -167,7 +171,12 @@
     "Sources/CheckmateCore/Resources/THIRD_PARTY_NOTICES.txt",
     "Sources/CheckmateCore/Resources/Licenses/*",
     "Sources/CheckmateNative/PracticeHistory.swift",
-    "Sources/CheckmateNative/TypedMoveEntry.swift"
+    "Sources/CheckmateNative/TypedMoveEntry.swift",
+    "Sources/CheckmateNative/OnboardingSheet.swift",
+    "Sources/CheckmateDomain/Onboarding.swift",
+    "Sources/CheckmateDomain/TodayMix.swift",
+    "Sources/CheckmateNative/VoiceConsent.swift",
+    "Sources/CheckmateNative/App.swift"
    ]
   },
   {
