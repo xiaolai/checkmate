@@ -819,8 +819,7 @@ import RealtimeConnection
     /// takes a chess.js context each, so the returned work runs off the main actor (Export and Copy PGN both use it).
     func reviewPGN()->(@Sendable ()throws->Data)? {
         guard let d=review.document else{return nil};let branches=review.branchesForSaving
-        let analysed=fairness.engineHelpAllowed && reviewAnalyzer.batchDocument==d.id
-        let evaluations=analysed ? reviewAnalyzer.evaluations:[:],grades:[Int:MoveGrade]=analysed ? Dictionary(uniqueKeysWithValues:d.nodes.indices.dropFirst().compactMap{node in reviewAnalyzer.grade(node).map{(node,$0)}}):[:]
+        let (evaluations,grades)=reviewAnalyzer.exportedAnalysis(d)
         return {try PGNExporter.withIdeas(d,branches:branches,evaluations:evaluations,grades:grades)}
     }
     /// The title an export is named after: the saved review's own name, else its game's title.

@@ -149,6 +149,16 @@ final class LibraryOrganisationTests:XCTestCase {
         let again=try PGNImporter.parse(PGNExporter.withIdeas(back,branches:[]))[0];XCTAssertEqual(again.nodes.map(\.uci),back.nodes.map(\.uci));XCTAssertEqual(again.nodes.map(\.nags),back.nodes.map(\.nags));XCTAssertEqual(again.nodes.map(\.commentsAfter),back.nodes.map(\.commentsAfter))
     }
 
+    /// A comment may hold "}" (a ";" comment reads to the end of its line), which would end a "{…}" comment early: the
+    /// export writes it as ")", so the comment and the moves after it read back intact.
+    func testABraceInACommentCannotEndItsExportedComment()throws {
+        let document=try game("1. e4 ; a } 2. d4 b\ne5 *")
+        let exported=String(decoding:try PGNExporter.withIdeas(document,branches:[]),as:UTF8.self)
+        XCTAssertTrue(exported.contains("{ a ) 2. d4 b}"),exported)
+        let back=try PGNImporter.parse(Data(exported.utf8));XCTAssertEqual(back.count,1)
+        XCTAssertEqual(back[0].mainline.compactMap{back[0].nodes[$0].uci},["e2e4","e7e5"],"the brace did not leak moves out of the comment")
+        XCTAssertEqual(back[0].nodes[back[0].mainline[0]].commentsAfter,[" a ) 2. d4 b"],"the comment reads back as it was written, its brace aside")
+    }
     func testAPositionExportsWithItsSetUpAndHeadersAreEscaped()throws {
         let position=try game("8/8/8/8/8/8/k7/4K2R w K - 0 1")
         let exported=String(decoding:try PGNExporter.withIdeas(position,branches:[branch(0,["h1h2"])]),as:UTF8.self)

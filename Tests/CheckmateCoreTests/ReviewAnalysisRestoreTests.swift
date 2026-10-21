@@ -74,4 +74,17 @@ import CheckmateTestSupport
         let recapture=try XCTUnwrap(analyzer.moments.first{$0.id==document.mainline[3]})
         XCTAssertEqual(recapture.reason,"Capture, check or promotion","a forcing move that costs little keeps its reason")
     }
+    /// An exported PGN carries the engine's evaluations and grades only while engine help is allowed, and only for the
+    /// game they were made for (LAN-play plan D8).
+    func testExportedEvaluationsNeedEngineHelpAndTheirOwnGame()async throws {
+        let document=try PGNImporter.parse(Data(game.utf8))[0],other=try PGNImporter.parse(Data("1. d4 *".utf8))[0],engine=ScoringEngine(),analyzer=ReviewAnalyzer(engine:engine);engine.losing="e4d5"  // a graded mistake
+        func exported(_ d:GameDocument)throws -> String {let analysis=analyzer.exportedAnalysis(d);return String(decoding:try PGNExporter.withIdeas(d,branches:[],evaluations:analysis.evaluations,grades:analysis.grades),as:UTF8.self)}
+        analyzer.startBatch(document);try await settle("the analysis finished"){analyzer.batchStatus=="ready"}
+        XCTAssertTrue(try exported(document).contains("[%eval"),"engine help on: the evaluations are exported")
+        XCTAssertFalse(analyzer.exportedAnalysis(document).grades.isEmpty)
+        XCTAssertFalse(try exported(other).contains("[%eval"),"another game's analysis is not exported")
+        analyzer.fairness.participation.begin(.player)
+        let withheld=analyzer.exportedAnalysis(document);XCTAssertTrue(withheld.evaluations.isEmpty);XCTAssertTrue(withheld.grades.isEmpty)
+        XCTAssertFalse(try exported(document).contains("[%eval"),"engine help off: no evaluation leaves in the file")
+    }
 }

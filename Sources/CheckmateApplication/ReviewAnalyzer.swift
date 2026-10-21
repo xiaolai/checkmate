@@ -24,6 +24,12 @@ public struct ReviewMoment:Codable,Identifiable {public let id:Int,expectationLo
     @Published public private(set) var losses:[Int:Double]=[:]
     /// The move's grade from its latest analysis; nil when it is near the best or not analyzed.
     public func grade(_ node:Int)->MoveGrade? {MoveGrade(expectationLoss:losses[node])}
+    /// The evaluations and grades a PGN export of `document` carries: none while engine help is off (D8), and none from
+    /// another game's analysis.
+    public func exportedAnalysis(_ document:GameDocument)->(evaluations:[Int:AnalysisScore],grades:[Int:MoveGrade]) {
+        guard fairness.engineHelpAllowed,batchDocument==document.id else{return ([:],[:])}
+        return (evaluations,Dictionary(uniqueKeysWithValues:document.nodes.indices.dropFirst().compactMap{node in grade(node).map{(node,$0)}}))
+    }
     /// The threads and hash each review search asks for (R-5).
     public var resources=EngineResources.review()
     /// How many leading moments the whole-game analysis checks more deeply, when tests and measurements fix it;
