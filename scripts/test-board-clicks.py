@@ -123,17 +123,22 @@ def changed(before, after):
 DRAWN, CLEAR = 0.04, 0.005
 
 
-def launch(existing=None):
-    """Starts the automation app on a new data directory, or on `existing` to relaunch over what an earlier run saved."""
+def launch(existing=None, touch_board=True):
+    """Starts the automation app on a new data directory, or on `existing` to relaunch over what an earlier run saved.
+    With `touch_board` false, activation posts no input event at all, so nothing on the board is clicked."""
     global process, state
     state = existing or pathlib.Path(tempfile.mkdtemp(prefix="checkmate-board-clicks-state-"))
     process = subprocess.Popen(command + ["--data-dir", str(state)], env=environment, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     wait(lambda: "Chessboard" in listing(), "Board did not appear")
     time.sleep(1)  # Allow initial AppKit window and drawer restoration to finish.
     # A process launched from a shell may start inactive, and an inactive window's toolbar takes a first click
-    # only to activate; activate it first with a click in the board's empty margin.
+    # only to activate; activate it first with a click in the board's empty margin, or, without touching the board,
+    # through pointer-helper, which activates the app before any non-reading action ("frame" then only reads a frame).
     for _ in range(3):
-        board("activate")
+        if touch_board:
+            board("activate")
+        else:
+            pointer("frame", "Chessboard")
         try:
             wait(lambda: board("active") == "true", "Checkmate did not become active", timeout=5)
             break
@@ -240,12 +245,18 @@ def sketch_marks():
     pointer("click", "bar-takeBack")
     wait(lambda: label("e2").startswith("e2, White, pawn"), "Take back did not restore e2")
     cleared("A position change (Take back) did not clear the marks")
-    # Marks are never saved: drawn, then a real quit and a relaunch on the same data leave a clean board. Relaunching
-    # activates the window with a click in the board's margin, which is not a square and so clears nothing.
+    # Marks are never saved: drawn, then a real quit and a relaunch on the same data leave a clean board. The relaunch
+    # activates the app without any click on the board, and the board must come back exactly as it was, with nothing
+    # selected, so a clean board can only mean the marks were not restored, never that a click cleared them.
     draw()
+    squares = [file + rank for rank in "12345678" for file in "abcdefgh"]
+    position = {square: label(square) for square in squares}
+    assert not [text for text in position.values() if "selected" in text], "A square was selected before quitting: " + repr(position)
     pointer("shortcut", "12", "c")  # Command-Q
     process.wait(timeout=20)
-    launch(state)
+    launch(state, touch_board=False)
+    restored = {square: label(square) for square in squares}
+    assert restored == position, "The relaunched board differs from the one quit: " + repr({square: (position[square], restored[square]) for square in squares if position[square] != restored[square]})
     cleared("Marks drawn before quitting came back after a relaunch, so they reached saved state")
 
 
