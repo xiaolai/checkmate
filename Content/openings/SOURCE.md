@@ -22,6 +22,14 @@ The repository's README states:
 > qualifies for copyright, the work is released under the
 > CC0 Public Domain Dedication.
 
-They are used for two things only: the provenance allowance for bundled games (`Tools/provenance.py`,
-`bundled_board_hit`) and the opening name the game library shows for each bundled game
-(`Tools/build-game-library.py`). Updating them changes the allowance, which `Tools/test-provenance.py` pins.
+They are used for three things only: the provenance allowance for bundled games (`Tools/provenance.py`,
+`bundled_board_hit`), the opening name the game library shows for each bundled game
+(`Tools/build-game-library.py`), and the opening a review names (R-20). Updating them changes the allowance, which
+`Tools/test-provenance.py` pins.
+
+The review's book, `Sources/CheckmateCore/Resources/openings.tsv`, is derived from these five files by
+`Tools/build-openings.py` and carries the same CC0 dedication. It lists every position each line passes through,
+keyed by its placement, side to move and castling rights (the en-passant square left out), with the ECO code and name of the line that ends there
+(empty for a position no line ends on). `OpeningBook` matches a game's positions against it, so a game that reaches a
+line by another move order finds it. `python3 -I Tools/build-openings.py --check`, run by `scripts/test-unit.sh`, fails
+when the bundled book differs from what these files produce.

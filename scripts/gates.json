@@ -645,6 +645,7 @@
     "Tools/test-lesson-rules.py",
     "Tools/test-provenance.py",
     "Tools/build-game-library.py",
+    "Tools/build-openings.py",
     "Tools/render-lesson.py",
     "Tools/provenance.py",
     "Tools/kpk-oracle.py",

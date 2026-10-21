@@ -33,6 +33,17 @@ enum ReviewFormat {
         if moves.count<branch.moves.count{moves.append("…")}
         return moves.isEmpty ? head:"\(head): \(moves.joined(separator:" "))"
     }
+    /// The header's opening (R-20): "D37 · Queen's Gambit Declined: Three Knights Variation", or nil before any named
+    /// position, and the main-line move that leaves the book, nil while the game is still in it. Nil for a record the
+    /// book has no position of. Kept per record content; a book that cannot be read is logged and names nothing.
+    struct OpeningHeader:Equatable {let title:String?,leaves:Int?}
+    @MainActor private static var openings:[String:OpeningHeader?] = [:]
+    @MainActor static func openingHeader(_ d:GameDocument)->OpeningHeader? {
+        if let known=openings[d.contentHash]{return known}
+        var value:OpeningHeader?
+        do{value=try OpeningBook.bundled().classify(d).map{OpeningHeader(title:$0.opening.map{"\($0.eco) · \($0.name)"},leaves:$0.leavesTheory)}}catch{NativeLog.storage.error("The opening book could not be read: \(String(describing:error),privacy:.public)")}
+        if openings.count>=32{openings.removeAll()};openings[d.contentHash] = .some(value);return value
+    }
     /// A cancelled whole-game analysis: how far it got before the deeper check of its leading moment.
     static func partialAnalysis(completed:Int,total:Int)->String {completed<total ? String(localized:"Analyzed \(completed) of \(total) moves",bundle:.checkmate):String(localized:"Analyzed all \(total) moves; the deeper check is unfinished",bundle:.checkmate)}
     /// A header value worth showing: not empty, not "?" and not an all-unknown date.
@@ -174,6 +185,11 @@ struct ReviewHeader:View {
                 // One line each, shortened in the middle so both players' names stay readable; help shows the whole text.
                 Text(verbatim:ReviewFormat.players(document)).sectionHeading(.title3.bold()).lineLimit(1).truncationMode(.middle).help(ReviewFormat.players(document))
                 if let details=ReviewFormat.details(document){Text(verbatim:details).font(.subheadline).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle).help(details)}
+                // An opening book is help too: none during a network game.
+                if model.fairness.engineHelpAllowed,let opening=ReviewFormat.openingHeader(document) {
+                    if let title=opening.title{Text(verbatim:title).font(.subheadline).lineLimit(1).truncationMode(.tail).help(title).accessibilityIdentifier("review-opening")}
+                    if let leaves=opening.leaves{HStack(spacing:4){Text("Leaves opening theory at").foregroundStyle(.secondary);Button(ReviewFormat.moveText(document.nodes[leaves])){do{try review.select(leaves);model.saveReview()}catch{model.storageError=GameWindow.failureMessage(error)}}.buttonStyle(.link).accessibilityLabel(String(localized:"Leaves opening theory at \(ReviewFormat.moveLabel(document.nodes[leaves]))",bundle:.checkmate,comment:"The move where the reviewed game leaves the opening book, read aloud"))}.font(.subheadline).accessibilityIdentifier("review-leaves-theory")}
+                }
                 if let assistance=ReviewFormat.assistance(document){Text(verbatim:assistance).font(.subheadline).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("review-assistance")}
             }
             Spacer(minLength:0)

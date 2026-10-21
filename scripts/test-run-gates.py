@@ -70,6 +70,7 @@ cases = [
     (['Content/game-library/selection.json'], {'sidebar', 'pointer', 'review-ui', 'unit'}),
     (['Content/openings/a.tsv'], {'sidebar', 'pointer', 'review-ui', 'unit'}),
     (['Tools/build-game-library.py'], {'unit'}),
+    (['Tools/build-openings.py'], {'unit'}),
     (['Sources/CheckmateApplication/GameCollections.swift'], {'architecture', 'ui', 'sidebar', 'pointer', 'review-ui', 'unit', 'package'}),
     (['Sources/CheckmateMCPKit/BrokerClient.swift'], {'architecture', 'integration', 'unit', 'package'}),
     (['build.sh'], every),

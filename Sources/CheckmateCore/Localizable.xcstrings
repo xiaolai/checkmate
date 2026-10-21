@@ -2763,6 +2763,10 @@
     "Leave and Quit" : {},
     "Leave the game? It counts as a resignation." : {},
     "Leave the open review, then import the progress file again." : {},
+    "Leaves opening theory at" : {},
+    "Leaves opening theory at %@" : {
+      "comment" : "The move where the reviewed game leaves the opening book, read aloud"
+    },
     "Leaving…" : {},
     "Left and Right arrows step through the game. Hold Option with the arrow keys to explore squares, then press Return to choose a piece or destination. Escape clears your selection." : {},
     "Legacy puzzle progress" : {},
