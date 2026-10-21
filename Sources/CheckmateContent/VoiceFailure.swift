@@ -46,20 +46,23 @@ public enum VoiceFailure:String,Error,UserFacingError,CaseIterable,Equatable,Sen
         case .microphoneUnavailable:return "The selected microphone is not available."
         case .microphoneFormat:return "The selected microphone records in a format Checkmate cannot use."
         case .companionConnected:return "Codex is connected to Checkmate, so the voice coach cannot connect."
-        case .networkGame:return "Voice coaching is off during your network game."
-        case .notHere:return "The voice coach cannot connect to what is shown now."
+        case .networkGame:return "Voice coaching is off during your network game. The coach can connect once the game ends."
+        case .notHere:return "The voice coach cannot connect to what is shown now. Return to Practice or a training game you are playing to connect it."
         case .consentNeeded:return "The voice coach needs your agreement to what it sends to OpenAI before it connects."
         }
     }
-    public var action:VoiceAction {
+    /// The one action that can fix it now; nil when nothing can until the learner leaves where they are, which the
+    /// cause says.
+    public var action:VoiceAction? {
         switch self {
         case .noCodex,.codexTooOld,.keychainSignIn:return .getCodex
         case .signedOut,.apiKeySignIn,.otherSignIn,.signInExpired,.signInRejected,.otherProvider,.accessRefused:return .signIn
-        case .codexUnresponsive,.rateLimited,.serviceDown,.offline,.requestRefused,.noModel,.connectionLost,.timedOut,.serviceError,.connectFailed,.audioOutput,.networkGame,.notHere,.consentNeeded:return .tryAgain
+        case .codexUnresponsive,.rateLimited,.serviceDown,.offline,.requestRefused,.noModel,.connectionLost,.timedOut,.serviceError,.connectFailed,.audioOutput,.consentNeeded:return .tryAgain
         case .thinkingUnsupported,.microphoneUnavailable,.microphoneFormat:return .openVoiceSettings
         case .microphoneDenied:return .openMicrophoneSettings
         case .codexNotSetUp:return .setUpCodex
         case .companionConnected:return .openConnections
+        case .networkGame,.notHere:return nil
         }
     }
     public var userFacingMessage:String {cause}

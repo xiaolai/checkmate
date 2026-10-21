@@ -8,7 +8,7 @@ struct VoiceFailureNote:View {
     let retry:()->Void
     var body:some View {
         Text(failure.cause).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("voice-failure")
-        Button(failure.action.title){help.perform(failure.action,retry:retry)}.accessibilityIdentifier("voice-failure-action")
+        if let action=failure.action {Button(action.title){help.perform(action,retry:retry)}.accessibilityIdentifier("voice-failure-action")}
     }
 }
 
