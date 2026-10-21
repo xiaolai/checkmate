@@ -87,4 +87,18 @@ import CheckmateTestSupport
         let withheld=analyzer.exportedAnalysis(document);XCTAssertTrue(withheld.evaluations.isEmpty);XCTAssertTrue(withheld.grades.isEmpty)
         XCTAssertFalse(try exported(document).contains("[%eval"),"engine help off: no evaluation leaves in the file")
     }
+    /// The engine-help check holds on its own: a reader told of a network game before the analyzer has withdrawn its
+    /// analysis, so the analysis is still this game's, exports none of it (D8).
+    func testExportedAnalysisIsWithheldBeforeTheAnalyzerHearsOfTheGame()async throws {
+        let document=try PGNImporter.parse(Data(game.utf8))[0],engine=ScoringEngine(),participation=NetworkParticipation();engine.losing="e4d5"
+        var analyzer:ReviewAnalyzer?,heard:(batch:UUID?,evaluations:Int,grades:Int)?
+        // Registered first, so it runs before the analyzer's own observer resets the analysis.
+        participation.observe{role in guard role != nil,let analyzer else{return};let analysis=analyzer.exportedAnalysis(document);heard=(analyzer.batchDocument,analysis.evaluations.count,analysis.grades.count)}
+        let made=ReviewAnalyzer(engine:engine,fairness:FairnessPolicy(participation:participation));analyzer=made
+        made.startBatch(document);try await settle("the analysis finished"){made.batchStatus=="ready"}
+        XCTAssertFalse(made.exportedAnalysis(document).grades.isEmpty,"fixture: the analysis exports while engine help is allowed")
+        participation.begin(.player)
+        let seen=try XCTUnwrap(heard,"the earlier observer ran");XCTAssertEqual(seen.batch,document.id,"fixture: the analysis was still this game's")
+        XCTAssertEqual(seen.evaluations,0);XCTAssertEqual(seen.grades,0)
+    }
 }
