@@ -79,14 +79,16 @@ def category(name):
 try:
     launch()
     quit_app()
-    assert saved()["settings"]["voiceAutoConnect"]
+    # Voice is opt-in for a new install; MCP's startup preference stays on (it still needs Set up Codex).
+    assert not saved()["settings"]["voiceAutoConnect"]
+    assert not saved()["settings"].get("voiceConsent")
     assert saved()["settings"]["companionAutoStart"]
 
     category("Voice Coach")
     listing = act("list")
     assert "Connect voice coach on launch" in listing and "Not checked" in listing
     act("press", "Connect voice coach on launch")
-    wait(lambda: not saved()["settings"]["voiceAutoConnect"])
+    wait(lambda: saved()["settings"]["voiceAutoConnect"])
     assert saved()["settings"]["companionAutoStart"]
     quit_app()
 
@@ -94,7 +96,7 @@ try:
     assert "Start chess MCP on launch" in act("list")
     act("press", "Start chess MCP on launch")
     wait(lambda: not saved()["settings"]["companionAutoStart"])
-    assert not saved()["settings"]["voiceAutoConnect"]
+    assert saved()["settings"]["voiceAutoConnect"]
     # The manual switch works independently of the startup preference.
     act("press", "Allow chess MCP connections")
     wait(discovery.exists)
@@ -108,10 +110,12 @@ try:
     quit_app()
 
     launch()
-    assert not saved()["settings"]["voiceAutoConnect"]
+    # The choice is kept, and still connects nothing until the learner agrees on a first Connect.
+    assert saved()["settings"]["voiceAutoConnect"]
+    assert not saved()["settings"].get("voiceConsent")
     assert not saved()["settings"]["companionAutoStart"]
     quit_app()
-    result = {"passed": True, "independentToggles": True, "persistedOptOuts": True,
+    result = {"passed": True, "independentToggles": True, "persistedOptOuts": True, "voiceOptIn": True,
               "manualMCP": True, "privateDiscovery": True, "silentStartup": True}
     (evidence / "startup-settings-results.json").write_text(json.dumps(result, indent=2))
     print(json.dumps(result))

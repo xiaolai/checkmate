@@ -253,12 +253,17 @@ physical Intel Mac or macOS 14 runtime acceptance.
 After the main window opens, Checkmate makes one bounded Codex voice availability check.
 Successful authorization is reused for voice connection, without a second credential request.
 `voiceAutoConnect` controls startup voice and `companionAutoStart` controls the private MCP broker.
-Both default on for missing preferences; explicitly saved voice opt-outs remain off.
+Voice is opt-in: `voiceAutoConnect` defaults off for missing preferences (a saved value is kept),
+and startup voice also needs `voiceConsent`, which only the learner's answer to the one-time
+consent sheet sets. Every Connect button goes through `NativeModel.connectVoiceWithConsent`.
 The voice option no longer reconnects on every visit to Practice. Settings provides manual
 connection controls independently of startup preferences.
 
-Automatic MCP starts only when Codex is installed. It publishes the existing private discovery
-file without editing Codex configuration or spawning a host task. Set up Codex remains explicit.
+Automatic MCP starts only when Codex's configuration (`$CODEX_HOME/config.toml`, read as a file,
+never through `codex`) has a Checkmate registration. It publishes the existing private discovery
+file without editing Codex configuration or spawning a host task. Set up Codex remains explicit,
+and a registration that points at another copy of Checkmate is offered Repair Codex Setup.
+A failed automatic start is logged and shown in Settings → Connections.
 Voice authorization failure does not prevent local MCP availability. If both are enabled,
 the broker waits in standby while voice owns the session. A learner action, navigation, hide,
 shutdown or preference change during the check cannot be overwritten by its late completion.

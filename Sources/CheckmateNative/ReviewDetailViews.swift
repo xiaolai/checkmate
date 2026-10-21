@@ -348,15 +348,17 @@ struct ImaginedLineCallout:View {
 /// The optional voice coach in review: status, its actions and the transcript, newest first.
 struct ReviewVoiceSection:View {
     @ObservedObject var voice:VoiceCoach
+    /// Connect Voice, which asks for consent first.
+    let connect:()->Void
     @State private var transcriptShown=true
     var body:some View {
         // Voice status and failures stay visible in review.
-        let active=voice.connected || !voice.history.isEmpty || voice.status != "Disconnected"
+        let active=voice.connection != .disconnected || !voice.history.isEmpty
         if active || ReviewRolloutPolicy.reviewVoiceEnabled {VStack(alignment:.leading,spacing:Metrics.smallGap){
             Text("Voice coach").font(.headline)
             if active{Text(voice.status).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)}
             Text(voice.connected ? "Connected. Only selected verified facts are shared.":"Optional. Only selected verified facts are shared.").font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
-            HStack(spacing:Metrics.smallGap){if voice.connected{Button("Narrate Facts"){voice.narrateReview()};Button("Disconnect"){voice.disconnect()}}else if ReviewRolloutPolicy.reviewVoiceEnabled{Button("Connect Voice"){voice.connect()}}}.controlSize(.small)
+            HStack(spacing:Metrics.smallGap){if voice.connected{Button("Narrate Facts"){voice.narrateReview()};Button("Disconnect"){voice.disconnect()}}else if ReviewRolloutPolicy.reviewVoiceEnabled{Button("Connect Voice"){connect()}}}.controlSize(.small)
             if !voice.history.isEmpty{DisclosureGroup("Transcript",isExpanded:$transcriptShown){VStack(alignment:.leading,spacing:6){ForEach(Array(voice.history.reversed())){entry in VStack(alignment:.leading,spacing:1){Text(entry.role=="learner" ? "You":"Coach").font(.caption).foregroundStyle(.secondary);Text(entry.text).textSelection(.enabled).fixedSize(horizontal:false,vertical:true)}}}.padding(.top,4)}}
         }}
     }

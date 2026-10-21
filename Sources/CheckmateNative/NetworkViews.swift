@@ -129,7 +129,7 @@ struct NetworkDetail:View {
     @ViewBuilder private var voiceCoach:some View {
         if voice.networkVoiceAvailable,game.outcome==nil {
             // Connecting, and why a connection ended or was refused, show as well as a live session's state.
-            if voice.status != "Disconnected" || voice.connected {Text(voice.status).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("network-voice-status")}
+            if voice.connection != .disconnected {Text(voice.status).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("network-voice-status")}
             if voice.connected,voice.networkSession {
                 HStack {
                     Button("Stop Speaking"){voice.stopTurn()}.disabled(!voice.canStopTurn).accessibilityIdentifier("network-voice-stop")

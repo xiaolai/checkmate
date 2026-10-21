@@ -21,6 +21,9 @@ if info.get('CFBundleShortVersionString') != settings['CHECKMATE_VERSION'] or in
 microphone = info.get('NSMicrophoneUsageDescription')
 if not (isinstance(microphone, str) and microphone.strip()):
     raise RuntimeError('NSMicrophoneUsageDescription missing: macOS would terminate the app when the voice coach opens the microphone')
+# The permission prompt must say where speech goes, as the voice consent sheet does.
+if 'OpenAI' not in microphone:
+    raise RuntimeError('NSMicrophoneUsageDescription must say that speech is sent to OpenAI')
 # Release and development identities keep separate data, MCP registration and microphone permission.
 bundle_id = info.get('CFBundleIdentifier', '')
 if release_identity:

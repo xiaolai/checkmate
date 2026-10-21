@@ -11,11 +11,14 @@ brew install --cask xiaolai/tap/checkmate
 Requires macOS 14 or later. One universal app supports Apple Silicon and Intel Macs. [Development](docs/development.md),
 [release packaging](docs/releases.md), [changelog](CHANGELOG.md).
 
-At launch, Checkmate can connect the voice coach and start its private chess MCP
-broker automatically. Control these separately in Settings → Voice Coach and
-Settings → Connections. The private MCP broker starts at once; the voice coach's
-Codex availability check runs only when voice is set to connect on launch.
-Existing voice opt-outs are preserved. While voice is connected, external MCP requests are refused with an explanation until voice disconnects.
+The voice coach is off until you choose Connect. The first time, Checkmate explains
+what is sent to OpenAI, that it uses your ChatGPT plan through Codex, and that the
+microphone is used while voice is connected; it connects only if you agree, and you
+can choose there to connect it automatically at launch. At launch, Checkmate can
+also start its private chess MCP broker, once Set up Codex has registered it.
+Control these separately in Settings → Voice Coach and Settings → Connections. The
+voice coach's Codex availability check runs at launch only after you have agreed
+and set voice to connect on launch. While voice is connected, external MCP requests are refused with an explanation until voice disconnects.
 Voice runs on your ChatGPT subscription: it asks Codex for its ChatGPT sign-in
 (which Codex may keep in the keychain) and has Codex renew it when it is about to
 expire; without an installed Codex it reads Codex's sign-in file, which it never

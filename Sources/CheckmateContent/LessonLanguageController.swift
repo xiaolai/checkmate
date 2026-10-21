@@ -155,7 +155,7 @@ import Combine
     await self.checkAccountAuthenticationMetadata()
    }catch {
     guard !Task.isCancelled else{return}
-    self.accountSnapshotStale=true;self.accountStatus="Account status unavailable. Refresh explicitly after signing in."
+    self.accountSnapshotStale=true;self.accountStatus="Account status unavailable. "+userFacingMessage(error,fallback:"Refresh explicitly after signing in.")
     self.appendStaleAccountSnapshot()
    }
   }

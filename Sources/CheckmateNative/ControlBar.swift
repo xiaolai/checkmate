@@ -60,7 +60,8 @@ struct ControlBarModel:Equatable {
 
 /// The voice coach as the bar shows it.
 enum ControlBarVoice:Equatable {
-    case off(available:Bool)
+    /// Not connected: Connect, or, when the coach cannot connect now, the plain reason why.
+    case off(unavailable:VoiceUnavailability?)
     case connecting(String)
     case on(microphone:Bool,canStop:Bool)
 }
@@ -159,7 +160,7 @@ extension ControlBarModel {
     /// connects, Stop one click away while it is on, Disconnect in the microphone's menu.
     private static func voiceControls(_ voice:ControlBarVoice)->(items:[ControlBarItem],status:String?) {
         switch voice {
-        case .off(let available):return ([ControlBarItem(action:.voiceConnect,symbol:"mic",label:available ? "Connect voice coach":"Disconnect the MCP companion before connecting voice",enabled:available)],nil)
+        case .off(let reason):return ([ControlBarItem(action:.voiceConnect,symbol:"mic",label:reason?.message ?? "Connect voice coach",enabled:reason==nil)],nil)
         case .connecting(let status):return ([ControlBarItem(action:.voiceCancel,label:"Cancel voice connection",detail:status)],"Connecting voice coach")
         case .on(let microphone,let canStop):return ([
             ControlBarItem(action:.voiceStop,symbol:"stop.fill",label:"Stop coach speaking",enabled:canStop),

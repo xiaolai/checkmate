@@ -10,7 +10,7 @@ import CheckmateCore
     private var directory:URL!
     override func setUp(){directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);setenv("CHECKMATE_DATA_DIR",directory.path,1)}
     override func tearDown(){unsetenv("CHECKMATE_DATA_DIR");try? FileManager.default.removeItem(at:directory)}
-    private func bar(_ model:NativeModel,voice:ControlBarVoice = .off(available:true))->ControlBarModel {
+    private func bar(_ model:NativeModel,voice:ControlBarVoice = .off(unavailable:nil))->ControlBarModel {
         ControlBarModel.make(session:model.session,learning:model.learning,review:model.review,training:model.training,voice:voice)
     }
     private func index(_ model:NativeModel,_ id:String)throws -> Int {try XCTUnwrap(model.learning.library.lessons.firstIndex{$0.id==id})}
@@ -70,7 +70,19 @@ import CheckmateCore
         XCTAssertEqual(on.trailingGroups.first?.map(\.action),[.voiceStop,.voiceMicrophone],"Stop stays one click away");XCTAssertEqual(on.item(.voiceMicrophone)?.menu.map(\.action),[.voiceDisconnect])
         XCTAssertEqual(bar(model,voice:.connecting("Asking for the microphone…")).status,.working("Connecting voice coach"),"the long progress goes to Cancel's tooltip")
         XCTAssertEqual(bar(model,voice:.connecting("Asking for the microphone…")).item(.voiceCancel)?.detail,"Asking for the microphone…")
-        XCTAssertEqual(bar(model,voice:.off(available:false)).item(.voiceConnect)?.enabled,false)
+        XCTAssertEqual(bar(model,voice:.off(unavailable:.companionConnected)).item(.voiceConnect)?.enabled,false)
+        XCTAssertEqual(bar(model).item(.voiceConnect)?.label,"Connect voice coach")
+    }
+    /// V-10: an unavailable coach says why in plain words, for its tooltip and for VoiceOver alike.
+    func testUnavailableVoiceSaysWhy()throws {
+        let model=try NativeModel();defer{model.shutdown()}
+        for reason:VoiceUnavailability in [.companionConnected,.practiceOnly,.trainingGameOnly,.networkGame] {
+            let item=try XCTUnwrap(bar(model,voice:.off(unavailable:reason)).item(.voiceConnect))
+            XCTAssertFalse(item.enabled);XCTAssertEqual(item.label,reason.message);XCTAssertFalse(item.label.contains("MCP"))
+        }
+        XCTAssertEqual(bar(model,voice:.off(unavailable:.companionConnected)).item(.voiceConnect)?.label,"Voice is unavailable while Codex is connected to Checkmate.")
+        model.session.setConnection(enabled:true,role:"coach",lease:"companion")
+        XCTAssertEqual(model.voice.practiceVoiceUnavailability,.companionConnected,"the bar's reason comes from the coach")
     }
     /// Over a coach demonstration the voice coach keeps its controls: Stop stays one click away, Cancel while connecting.
     func testVoiceControlsStayOverADemonstration()throws {

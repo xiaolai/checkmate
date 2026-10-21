@@ -3,7 +3,10 @@ import Foundation
 import OSLog
 /// User-visible error text: located import errors and app errors only; system errors use the
 /// caller's fallback so file paths and type dumps never reach the window.
+/// An error that carries its own plain-language message for the learner.
+public protocol UserFacingError:Error {var userFacingMessage:String {get}}
 public func userFacingMessage(_ error:Error,fallback:String)->String {
+    if let described=error as? UserFacingError {return described.userFacingMessage}
     if let located=error as? ReviewImportError {return located.errorDescription ?? fallback}
     if let app=error as? CheckmateError {switch app{case .invalid(let text),.unavailable(let text):return text;case .stale:return "The position changed; try again.";case .cancelled:return "The operation was cancelled."}}
     return fallback
