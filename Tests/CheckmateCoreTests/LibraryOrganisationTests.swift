@@ -69,6 +69,23 @@ final class LibraryOrganisationTests:XCTestCase {
         try handle.seekToEnd();try handle.write(contentsOf:Data(repeating:0x20,count:100));try handle.close()
         try store.save(games[1],cursor:2,branches:[]);XCTAssertEqual(try store.libraryBytes(),try scanned(folder));XCTAssertEqual(store.measurements,2)
     }
+    /// Writes a review's record as another program would, in place (the folder's date stays put) or by replacing it
+    /// whole (written beside it and renamed over it, which changes the folder's date), under a new name.
+    private func rename(_ url:URL,to name:String,inPlace:Bool)throws {
+        var saved=try JSONDecoder().decode(SavedReview.self,from:Data(contentsOf:url));saved.name=name;let data=try JSONEncoder().encode(saved)
+        if inPlace{let handle=try FileHandle(forWritingTo:url);try handle.truncate(atOffset:0);try handle.write(contentsOf:data);try handle.close()}else{try data.write(to:url,options:.atomic)}
+    }
+    /// A review rewritten in place by another program and then opened shows its new title from then on: after the
+    /// store's own saves and deletions, and to a store that reads the saved index afresh.
+    func testAReviewRewrittenInPlaceAndThenOpenedIsListedWithItsNewTitle()throws {
+        let store=ReviewStore(directory:folder),first=try game("[White \"Old\"]\n[Black \"B\"]\n\n1. e4 e5 *"),second=try game("1. d4 d5 *")
+        try store.save(first,cursor:1,branches:[]);try store.save(second,cursor:1,branches:[]);XCTAssertEqual(try store.list().count,2)
+        try rename(store.documentURL(first.id),to:"Renamed elsewhere",inPlace:true)
+        XCTAssertEqual(try store.load(first.id).name,"Renamed elsewhere")
+        try store.save(second,cursor:2,branches:[]);XCTAssertEqual(try store.list().first{$0.id==first.id}?.title,"Renamed elsewhere")
+        try store.delete(second.id);XCTAssertEqual(try store.list().map(\.title),["Renamed elsewhere"])
+        XCTAssertEqual(try ReviewStore(directory:folder).list().map(\.title),["Renamed elsewhere"],"the saved index holds the new title")
+    }
 
     // MARK: R-11
 

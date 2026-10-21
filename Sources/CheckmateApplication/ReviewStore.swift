@@ -210,9 +210,12 @@ public final class ReviewStore {
             saved=SavedReview(schemaVersion:1,document:document,cursor:cursor,branches:branches,updatedAt:saved.updatedAt,learnerSide:saved.learnerSide,name:saved.name)
         }
         // A re-read record is not yet on disk in its new numbering: the next save rewrites it whole, never only its cursor.
-        try validateBranches(saved.branches,document:saved.document);stamps[id]=stamp(id);branchCache[id]=rederived ? nil:saved.branches;persisted[id]=rederived ? nil:saved.document;preserved[id]=nil;hashes[id]=saved.document.contentHash;sides[id]=saved.learnerSide
+        try validateBranches(saved.branches,document:saved.document);let fresh=stamp(id),changed=stamps[id] != fresh;stamps[id]=fresh;branchCache[id]=rederived ? nil:saved.branches;persisted[id]=rederived ? nil:saved.document;preserved[id]=nil;hashes[id]=saved.document.contentHash;sides[id]=saved.learnerSide
         let cursorFile=cursorURL(id)
         if let size=(try? cursorFile.resourceValues(forKeys:[.fileSizeKey]))?.fileSize,size<=4096,let data=try? Data(contentsOf:cursorFile),let metadata=try? JSONDecoder().decode(Cursor.self,from:data),metadata.schemaVersion==1,metadata.updatedAt>=saved.updatedAt,let cursor=rederived ? Self.node(metadata.cursor,of:stored,in:document):(stored.nodes.indices.contains(metadata.cursor) ? metadata.cursor:nil){saved.cursor=cursor;saved.updatedAt=metadata.updatedAt}
+        // A record that changed since the store last read it (rewritten in place by something else) has its list entry
+        // made again from what was read, so neither the list nor the next saved index pairs the new stamp with the old entry.
+        if changed,let at=index?.firstIndex(where:{$0.id==id}){index?[at]=ReviewIndexEntry.of(saved.document,name:saved.name,updatedAt:saved.updatedAt);index!.sort{$0.updatedAt>$1.updatedAt}}
         return saved
     }
     /// The node of `target` reached by the moves that reach `node` in `source` (the same move twice among siblings is
