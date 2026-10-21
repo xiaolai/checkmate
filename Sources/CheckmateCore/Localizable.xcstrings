@@ -136,6 +136,16 @@
         }
       }
     },
+    "%@ can block the check on %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ can block the check on %2$@."
+          }
+        }
+      }
+    },
     "%@ can no longer be reached within %lld moves." : {
       "localizations" : {
         "en" : {
@@ -199,6 +209,16 @@
     },
     "%@ credit status: unlimited (provider-reported)" : {},
     "%@ declined the draw" : {},
+    "%@ does not attack %@ on %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ does not attack %2$@ on %3$@."
+          }
+        }
+      }
+    },
     "%@ doesn't allow spectators." : {},
     "%@ has %lld seconds left" : {
       "localizations" : {
@@ -280,6 +300,66 @@
         }
       }
     },
+    "%@ on %@ attacks %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ on %2$@ attacks %3$@."
+          }
+        }
+      }
+    },
+    "%@ on %@ belongs to %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ on %2$@ belongs to %3$@."
+          }
+        }
+      }
+    },
+    "%@ on %@ can capture %@ back." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ on %2$@ can capture %3$@ back."
+          }
+        }
+      }
+    },
+    "%@ on %@ can capture %@ on %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ on %2$@ can capture %3$@ on %4$@."
+          }
+        }
+      }
+    },
+    "%@ on %@ can capture %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ on %2$@ can capture %3$@."
+          }
+        }
+      }
+    },
+    "%@ on %@ cannot land on %@, where a piece of its own side stands." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ on %2$@ cannot land on %3$@, where a piece of its own side stands."
+          }
+        }
+      }
+    },
     "%@ on %@ covers %@. Check pins and legal replies before treating coverage as a capture." : {
       "localizations" : {
         "en" : {
@@ -290,12 +370,42 @@
         }
       }
     },
+    "%@ on %@ defends %@ on %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ on %2$@ defends %3$@ on %4$@."
+          }
+        }
+      }
+    },
+    "%@ on %@ does not attack %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ on %2$@ does not attack %3$@."
+          }
+        }
+      }
+    },
     "%@ on %@ is %@'s, and it's %@'s move." : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
             "value" : "%1$@ on %2$@ is %3$@'s, and it's %4$@'s move."
+          }
+        }
+      }
+    },
+    "%@ on %@ is in the way." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ on %2$@ is in the way."
           }
         }
       }
@@ -1036,6 +1146,28 @@
         }
       }
     },
+    "%lld more squares are still missing." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld more square is still missing."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld more squares are still missing."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%lld moves" : {
       "localizations" : {
         "en" : {
@@ -1686,6 +1818,7 @@
       }
     },
     "After that move you do not threaten checkmate." : {},
+    "After that move, your king is still in check." : {},
     "Agree" : {},
     "All" : {},
     "All %lld" : {},
@@ -1990,6 +2123,7 @@
       }
     },
     "Castling is not allowed here." : {},
+    "Castling is not allowed in this position." : {},
     "Castling kingside is not allowed here." : {},
     "Castling moves the king two squares toward a rook, and the rook jumps over the king." : {},
     "Castling queenside is not allowed here." : {},
@@ -2504,12 +2638,32 @@
       }
     },
     "Free pieces" : {},
+    "From %@, %@ attacks only %@ on %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "From %1$@, %2$@ attacks only %3$@ on %4$@."
+          }
+        }
+      }
+    },
     "From %@, %@ controls %@ in the center." : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
             "value" : "From %1$@, %2$@ controls %3$@ in the center."
+          }
+        }
+      }
+    },
+    "From %@, %@ does not attack two of your opponent's pieces." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "From %1$@, %2$@ does not attack two of your opponent's pieces."
           }
         }
       }
@@ -3119,6 +3273,7 @@
       }
     },
     "Movetext token is too long." : {},
+    "Moving there would put %@ in check." : {},
     "Mute microphone" : {},
     "My games" : {},
     "My imagined lines (%lld of %lld)" : {
@@ -3281,6 +3436,7 @@
     "Only a finished training game can be reviewed." : {},
     "Only a pawn reaching the last rank promotes." : {},
     "Only a pawn reaching the last rank promotes; this move takes no promotion piece." : {},
+    "Only a pawn that reaches the last rank becomes a new piece." : {},
     "Only a training game can be reviewed." : {},
     "Only move" : {},
     "Only standard chess is supported." : {},
@@ -4009,26 +4165,42 @@
     "That draw offer is no longer open." : {},
     "That is check, but the king can still escape, block or capture." : {},
     "That is not the en-passant capture." : {},
+    "That is not where %@ stands." : {},
     "That is stalemate, a draw. Look for a move that gives check." : {},
     "That lesson is not available." : {},
     "That move could not be sent. Try again." : {},
     "That move could not be shown." : {},
+    "That move does not capture anything." : {},
     "That move does not get your king out of check." : {},
+    "That move does not give check, so it is not checkmate." : {},
     "That move does not give check." : {},
     "That move does not promote a pawn." : {},
+    "That move gives check, but it is not checkmate." : {},
     "That move is legal, but it is not castling." : {},
     "That move is legal, but it leaves the idea of this exercise. Undo it and try again." : {},
     "That move is legal, but it misses the follow-up. Undo it and look again, or ask for a hint." : {},
     "That move is not allowed here." : {},
+    "That move is not castling. To castle, move the king two squares toward a rook." : {},
     "That move is not legal here, so it was not counted." : {},
     "That move is not legal here." : {},
     "That move is not possible." : {},
     "That move isn't legal." : {},
     "That move would leave your king in check." : {},
+    "That move would put your own king in check." : {},
     "That piece has no legal move here." : {},
     "That position can't start a game. Choose a different move." : {},
     "That position is already over. Choose a different move." : {},
     "That square holds your own piece." : {},
+    "That square is %@, not %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "That square is %1$@, not %2$@."
+          }
+        }
+      }
+    },
     "That square is not a safe neighboring square. Try another step." : {},
     "That was today’s mix. Well played!" : {
       "comment" : "Heading at the end of Today’s Mix"
@@ -4167,6 +4339,9 @@
     "The instruction describes the starting position; your game stays as it is." : {},
     "The job could not finish. Completed work is preserved." : {},
     "The king and rook moved together when castling." : {},
+    "The king can escape to %@." : {},
+    "The king may not castle out of check, through an attacked square or into check." : {},
+    "The king never counts here: it can never be captured." : {},
     "The king to move is attacked right now." : {},
     "The king to move is not attacked right now." : {},
     "The language or voice changed while it ran; its results are kept for the earlier choice." : {},
@@ -4363,6 +4538,7 @@
     "There is at least one. Look again." : {},
     "There is no change to undo." : {},
     "There is no draw to claim now." : {},
+    "There is no piece on %@." : {},
     "There is no saved exercise to continue." : {},
     "There is no window to capture." : {},
     "There's no piece of yours on %@." : {},
@@ -4602,6 +4778,8 @@
     "Try a name, player, event or year." : {},
     "Try a player, event, year or opening." : {},
     "Try again" : {},
+    "Try another answer." : {},
+    "Try another step." : {},
     "Try moving %@ on %@. Ask for another hint to see the move." : {
       "localizations" : {
         "en" : {

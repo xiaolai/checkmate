@@ -376,9 +376,13 @@ def validate_puzzle(puzzle):
     for mark in puzzle['highlights']:
         assert isinstance(mark, dict) and set(mark) == {'sq', 'kind'} and mark['kind'] in HIGHLIGHTS, f'{where}: highlight {mark}'
     if kind == 'choice':
-        assert set(exercise) == {'kind', 'prompt', 'choices', 'answer'}, f'{where}: choice fields'
+        assert set(exercise) == {'kind', 'prompt', 'choices', 'answer', 'why'}, f'{where}: choice fields'
         choices = exercise['choices']
         assert 2 <= len(choices) <= 4 and len(set(choices)) == len(choices) and exercise['answer'] in choices, f'{where}: choices'
+        # Each wrong choice says why it fails (L-7); shown as text, never recorded.
+        why = exercise['why']
+        assert isinstance(why, dict) and set(why) == set(choices) - {exercise['answer']}, f'{where}: one why line per wrong choice'
+        assert all(isinstance(line, str) and line.strip() and line.endswith('.') for line in why.values()), f'{where}: why lines are sentences'
         return
     assert board is not None and isinstance(exercise.get('claim'), dict), f'{where}: a board puzzle states a claim'
     if kind == 'squares':

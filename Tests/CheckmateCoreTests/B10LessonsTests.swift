@@ -255,7 +255,7 @@ final class B10LessonsStoreTests:XCTestCase {
   let session=try GameSession(engine:nil),player=try LearningPlayer(session:session),id="course:safe-squares:1";player.openPuzzle(id:id)
   player.click("h8");XCTAssertEqual(player.feedback,"Choose a square next to the king.");XCTAssertNil(session.state.puzzles[id],"A misclick is not recorded as a mistake")
   player.click("a2");XCTAssertNil(session.state.puzzles[id],"A safe step is not a mistake")
-  player.click("a3");XCTAssertEqual(player.feedback,"That square is not a safe neighboring square. Try another step.","The bishop on c5 attacks a3")
+  player.click("a3");XCTAssertEqual(player.feedback,"The bishop on c5 attacks a3. Try another step.","the step names what makes it unsafe (L-7)")
   XCTAssertEqual(session.state.puzzles[id]?.attempts,1);XCTAssertEqual(session.state.puzzles[id]?.review,true);XCTAssertFalse(player.passed)
   player.shutdown()
  }

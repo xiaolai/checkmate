@@ -14,6 +14,8 @@ public enum PuzzleStatusFilter:String,CaseIterable,Sendable {case all,unsolved,r
 import Combine
 @MainActor public final class LearningPlayer:ObservableObject {
     public let library:CourseLibrary
+    /// The puzzles' claims and authored wrong-answer lines (L-7).
+    let puzzleNotes:PuzzleNotes
     public let session:GameSession
     public weak var audio:NarrationService?
     public var packs:LessonPackStore? {didSet{reloadLocalizedPacks()}}
@@ -159,7 +161,7 @@ import Combine
     /// Shown in the puzzle library once the learner moves past the last puzzle of a set, instead of starting it again.
     @Published public private(set) var setSummary:PuzzleSetSummary?
     /// `course` replaces the packaged course; tests use it to bind an exercise to a step other than the last.
-    public init(session:GameSession,course:CourseLibrary?=nil) throws {self.session=session;library=try course ?? CourseLibrary();puzzles=Dictionary(library.puzzles.map{($0.id,$0)},uniquingKeysWith:{first,_ in first})
+    public init(session:GameSession,course:CourseLibrary?=nil) throws {self.session=session;library=try course ?? CourseLibrary();puzzleNotes=try PuzzleNotes();puzzles=Dictionary(library.puzzles.map{($0.id,$0)},uniquingKeysWith:{first,_ in first})
         // A saved lesson this course no longer has opens the first lesson at its start, never at a step derived from the
         // unknown lesson's transcript position.
         if let index=library.lessons.firstIndex(where:{$0.id==session.state.course.lessonID}){lastLessonIndex=index;step=library.resumeStep(in:library.lessons[index],progress:session.state.course)}else{lastLessonIndex=0;step=0};if let filters=session.state.puzzleFilters {(query,topic,level,filter)=Self.restored(filters,topics:library.puzzles.map(\.topic),levels:library.levels)}
@@ -273,28 +275,29 @@ import Combine
     public func hint(){guard canHint,let p=activePuzzle else{return};let rung=p.hints[puzzleHints];puzzleHints+=1;hintTexts.append(rung.text)
         let square=p.exercise.kind=="path" ? frame.board?.first(where:{$0.value=="wk"})?.key ?? rung.square:rung.square;if let square{frame.hl.append(Highlight(sq:square,kind:"hint"))};publish()}
     public func showPuzzleLibrary(){pause();go(.puzzleLibrary);picked=[];feedback="";frame=CourseFrame();publish()}
-    public func checkAnswer(){guard let e=exercise else{return};answer(e.matches(picked))}
-    public func choose(_ choice:String){guard activePuzzle != nil,!passed else{return};pause();answer(exercise?.matches([choice])==true)}
+    public func checkAnswer(){guard let e=exercise else{return};answer(e.matches(picked),given:picked)}
+    public func choose(_ choice:String){guard activePuzzle != nil,!passed else{return};pause();answer(exercise?.matches([choice])==true,given:[choice])}
     public func clearSelection(){if attemptStep{attempt.clearSelection();return};picked=[];publish()}
-    public func noSquares(){guard activePuzzle != nil,!passed else{return};picked=[];pause();answer(exercise?.matches([])==true)}
+    public func noSquares(){guard activePuzzle != nil,!passed else{return};picked=[];pause();answer(exercise?.matches([])==true,given:[])}
     public func restartPath(){guard let p=activePuzzle,!passed else{return};picked=[];feedback="";frame.board=p.board;publish()}
     public func click(_ sq:String){guard ChessRules.validSquare(sq) else{return}
         if mini {clickMini(sq);return};if attemptStep{attempt.click(sq);return};guard activePuzzle != nil else{return};pause()
         guard let e=exercise,!passed else{return}
         switch e.kind {case "squares":
-            if e.answers?.count==1 {picked=[sq];answer(e.matches(picked))}
+            if e.answers?.count==1 {picked=[sq];answer(e.matches(picked),given:picked)}
             else if let i=picked.firstIndex(of:sq){picked.remove(at:i)}else{picked.append(sq)}
-        case "move":let mover=e.from.flatMap{frame.board?[$0]?.first};if let from=picked.first {if from==sq{picked=[];return};if let mover,frame.board?[sq]?.first==mover{picked=[sq];break};let correct=e.matches([from,sq]);if correct,activePuzzle != nil,var board=frame.board{try? CourseLibrary.apply(&board,moves:[[from,sq]]);frame.board=board};picked=[];answer(correct)}else if let piece=frame.board?[sq],mover.map({piece.first==$0}) ?? true {picked=[sq]}
+        case "move":let mover=e.from.flatMap{frame.board?[$0]?.first};if let from=picked.first {if from==sq{picked=[];return};if let mover,frame.board?[sq]?.first==mover{picked=[sq];break};let correct=e.matches([from,sq]);if correct,activePuzzle != nil,var board=frame.board{try? CourseLibrary.apply(&board,moves:[[from,sq]]);frame.board=board};picked=[];answer(correct,given:[from,sq])}else if let piece=frame.board?[sq],mover.map({piece.first==$0}) ?? true {picked=[sq]}
         // A square that is not a king step is a misclick, not a mistake; an unsafe neighbour is a mistake whose own
         // guidance stays visible instead of the generic "Not quite".
-        case "path":if var board=frame.board,let from=board.first(where:{$0.value=="wk"})?.key {if from==sq{return};if CourseLibrary.safeKingStep(board,from:from,to:sq){try? CourseLibrary.apply(&board,moves:[[from,sq]]);frame.board=board;if sq==e.to{answer(true)}else{feedback=String(localized:"Safe step. Keep going!",bundle:.checkmate)}}else if !CourseLibrary.attacks(board,from:from,to:sq){feedback=String(localized:"Choose a square next to the king.",bundle:.checkmate)}else{answer(false,hint:String(localized:"That square is not a safe neighboring square. Try another step.",bundle:.checkmate))}}
+        case "path":if var board=frame.board,let from=board.first(where:{$0.value=="wk"})?.key {if from==sq{return};if CourseLibrary.safeKingStep(board,from:from,to:sq){try? CourseLibrary.apply(&board,moves:[[from,sq]]);frame.board=board;if sq==e.to{answer(true)}else{feedback=String(localized:"Safe step. Keep going!",bundle:.checkmate)}}else if !CourseLibrary.attacks(board,from:from,to:sq){feedback=String(localized:"Choose a square next to the king.",bundle:.checkmate)}else{answer(false,hint:PuzzleRefutation.unsafeStep(board,from:from,to:sq).map{Sentences.join($0,String(localized:"Try another step.",bundle:.checkmate))} ?? String(localized:"That square is not a safe neighboring square. Try another step.",bundle:.checkmate))}}
         default:break};publish()
     }
     /// A correct answer after a mistake in this visit is a later solve, and one after a hint is solved with help: each
     /// says so, counts as solved but not as solved alone, and stays queued for review.
-    private func answer(_ correct:Bool,revealed:Bool=false,hint:String?=nil){guard let p=activePuzzle,!passed else{return};pause()
+    /// A wrong answer says why it fails (L-7): the given answer's refutation, or a choice's authored line.
+    private func answer(_ correct:Bool,revealed:Bool=false,given:[String]?=nil,hint:String?=nil){guard let p=activePuzzle,!passed else{return};pause()
         let later=correct && !revealed && mistake,helped=correct && !revealed && puzzleHints>0
-        var record=session.state.puzzles[p.id] ?? PuzzleProgress();record.record(correct:correct,revealed:revealed,afterMistake:mistake,hints:puzzleHints,at:now(),calendar:calendar);session.state.puzzles[p.id]=record;if !correct{mistake=true};passed=correct || revealed;feedback=passed ? Sentences.join(revealed ? solution(p.exercise):helped ? String(localized:"Correct, with help from a hint. It counts as solved with help and comes back for review.",bundle:.checkmate):later ? String(localized:"Correct, on a later try. It counts as solved and comes back for review.",bundle:.checkmate):String(localized:"Correct.",bundle:.checkmate),p.explanation):hint ?? String(localized:"Not quite. Look again and try another answer.",bundle:.checkmate);session.emit(semantic:false,save:true);publish()
+        var record=session.state.puzzles[p.id] ?? PuzzleProgress();record.record(correct:correct,revealed:revealed,afterMistake:mistake,hints:puzzleHints,at:now(),calendar:calendar);session.state.puzzles[p.id]=record;if !correct{mistake=true};passed=correct || revealed;feedback=passed ? Sentences.join(revealed ? solution(p.exercise):helped ? String(localized:"Correct, with help from a hint. It counts as solved with help and comes back for review.",bundle:.checkmate):later ? String(localized:"Correct, on a later try. It counts as solved and comes back for review.",bundle:.checkmate):String(localized:"Correct.",bundle:.checkmate),p.explanation):hint ?? given.flatMap{PuzzleRefutation.line(p,answer:$0,notes:puzzleNotes)}.map{Sentences.join($0,String(localized:"Try another answer.",bundle:.checkmate))} ?? String(localized:"Not quite. Look again and try another answer.",bundle:.checkmate);session.emit(semantic:false,save:true);publish()
     }
     public func reveal(){guard activePuzzle != nil else{return};answer(false,revealed:true)}
     private func solution(_ e:Exercise)->String {switch e.kind {case "choice":return e.answer ?? "";case "squares":return (e.answers ?? []).isEmpty ? String(localized:"No squares",bundle:.checkmate):(e.answers ?? []).joined(separator:", ");case "move":return "\(e.from ?? "") → \(e.to ?? "")";default:return String(localized:"Walk safely from \(e.from ?? "") to \(e.to ?? "").",bundle:.checkmate)}}

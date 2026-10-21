@@ -32,6 +32,13 @@ final class PuzzleCoachingTests:XCTestCase {
         for puzzle in p.library.puzzles {p.openPuzzle(id:puzzle.id);XCTAssertTrue(p.canHint,puzzle.id);p.hint();XCTAssertFalse(p.hintTexts.isEmpty,puzzle.id);XCTAssertFalse(p.hintTexts.contains{$0.isEmpty},puzzle.id)}
         p.openPuzzle(id:"course:intro:1");p.choose("White");XCTAssertTrue(p.passed);XCTAssertFalse(p.canHint,"a solved puzzle needs no hint")
     }
+    /// A wrong answer says why it fails (L-7), then invites another try.
+    @MainActor func testAWrongAnswerSaysWhyItFails()throws {
+        let (_,p)=try player();defer{p.shutdown()}
+        p.openPuzzle(id:"extra-1");p.click("f3");p.click("e5");XCTAssertEqual(p.feedback,"The pawn on d6 can capture your knight back. Try another answer.")
+        p.openPuzzle(id:"course:intro:1");p.choose("Black");XCTAssertEqual(p.feedback,"Black always moves second, after White's first move. Try another answer.")
+        p.openPuzzle(id:"extra-4");p.click("a7");p.checkAnswer();XCTAssertEqual(p.feedback,"The knight on c6 defends the pawn on a7. Try another answer.")
+    }
     /// Skip moves on and records nothing: the skipped puzzle stays not tried and is not marked for review.
     @MainActor func testSkipLeavesThePuzzleUntried()throws {
         let (s,p)=try player();defer{p.shutdown()}

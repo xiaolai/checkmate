@@ -17801,7 +17801,11 @@
           "Black",
           "Whoever wins a coin toss"
         ],
-        "answer": "White"
+        "answer": "White",
+        "why": {
+          "Black": "Black always moves second, after White's first move.",
+          "Whoever wins a coin toss": "A coin toss can decide who plays White, but White still moves first."
+        }
       },
       "board": null,
       "highlights": [],
@@ -17880,7 +17884,12 @@
           "a8",
           "h8"
         ],
-        "answer": "h1"
+        "answer": "h1",
+        "why": {
+          "a1": "a1 is on White's left: the files start at a on the left.",
+          "a8": "a8 is a far corner, on Black's side of the board.",
+          "h8": "h8 is on the right, but at the far end, on Black's side."
+        }
       },
       "board": null,
       "highlights": [],
@@ -17970,7 +17979,12 @@
           "The pawn must stop and wait",
           "The pawn goes back to the second rank"
         ],
-        "answer": "White wins the game"
+        "answer": "White wins the game",
+        "why": {
+          "The pawn becomes a queen": "Pawns never become queens in Pawn Duel: reaching the far rank wins at once.",
+          "The pawn must stop and wait": "The pawn does not wait: reaching the far rank ends the game.",
+          "The pawn goes back to the second rank": "Nothing goes back in Pawn Duel: reaching the far rank wins at once."
+        }
       },
       "board": null,
       "highlights": [],
@@ -18136,7 +18150,11 @@
           "Only the pawns",
           "Both rooks and pawns"
         ],
-        "answer": "Only the rooks"
+        "answer": "Only the rooks",
+        "why": {
+          "Only the pawns": "The pawns never move in Rook Sweep: they are what the rooks capture.",
+          "Both rooks and pawns": "Only the rooks move. The pawns stay where they are."
+        }
       },
       "board": null,
       "highlights": [],
@@ -18269,7 +18287,11 @@
           "Black wins",
           "A draw"
         ],
-        "answer": "A draw"
+        "answer": "A draw",
+        "why": {
+          "White wins": "White's bishop moves only on light squares, so it can never reach the black pieces on dark squares.",
+          "Black wins": "Black's bishop moves only on dark squares, so it can never reach the white pieces on light squares."
+        }
       },
       "board": {
         "d3": "wb",
@@ -18647,7 +18669,11 @@
           "Nine points",
           "It has no point value: it is never traded or captured"
         ],
-        "answer": "It has no point value: it is never traded or captured"
+        "answer": "It has no point value: it is never traded or captured",
+        "why": {
+          "One point": "One point is what a pawn is worth. The king is never traded, so it has no value in points.",
+          "Nine points": "Nine points is what a queen is worth. The king is never traded, so it has no value in points."
+        }
       },
       "board": null,
       "highlights": [],
@@ -18791,7 +18817,12 @@
           "c1",
           "d8"
         ],
-        "answer": "d1"
+        "answer": "d1",
+        "why": {
+          "e1": "e1 is where the white king starts, next to the queen.",
+          "c1": "c1 is where one of the white bishops starts.",
+          "d8": "d8 is where the black queen starts."
+        }
       },
       "board": null,
       "highlights": [],
@@ -18904,7 +18935,12 @@
           "King c1, rook b1",
           "King d1, rook c1"
         ],
-        "answer": "King c1, rook d1"
+        "answer": "King c1, rook d1",
+        "why": {
+          "King b1, rook c1": "The king moves exactly two squares, from e1 to c1, not three.",
+          "King c1, rook b1": "The rook jumps over the king, so it lands on d1, right beside it.",
+          "King d1, rook c1": "The king moves two squares, not one, and the rook lands on the other side of it."
+        }
       },
       "board": null,
       "highlights": [],
@@ -18962,7 +18998,11 @@
           "No: no square between them may be attacked",
           "Only after the bishop is captured"
         ],
-        "answer": "Yes: only the rook passes over b1"
+        "answer": "Yes: only the rook passes over b1",
+        "why": {
+          "No: no square between them may be attacked": "That rule is only for the squares the king uses. The king never touches b1; only the rook crosses it.",
+          "Only after the bishop is captured": "Nothing needs capturing. The bishop attacks only b1, which the king never crosses."
+        }
       },
       "board": null,
       "highlights": [],
@@ -19074,7 +19114,11 @@
           "Black wins",
           "A draw by stalemate"
         ],
-        "answer": "A draw by stalemate"
+        "answer": "A draw by stalemate",
+        "why": {
+          "White wins by checkmate": "Black's king is not in check, so it cannot be checkmate.",
+          "Black wins": "Black has no legal move at all, so Black cannot win this game."
+        }
       },
       "board": {
         "h1": "bk",
@@ -19104,7 +19148,11 @@
           "A rook and a pawn",
           "Two pawns"
         ],
-        "answer": "A rook and a pawn"
+        "answer": "A rook and a pawn",
+        "why": {
+          "A queen": "A queen is worth 9 points, but a knight and a bishop make only 6.",
+          "Two pawns": "Two pawns make only 2 points, but a knight and a bishop make 6."
+        }
       },
       "board": null,
       "highlights": [],
@@ -19243,7 +19291,12 @@
           "A pawn on the b-file captures on e5",
           "A bishop gives check on e5"
         ],
-        "answer": "A bishop captures on e5"
+        "answer": "A bishop captures on e5",
+        "why": {
+          "A bishop moves to e5 without capturing": "The x in Bxe5 means a capture.",
+          "A pawn on the b-file captures on e5": "A capital B means a bishop. A pawn capture starts with a small letter, as in dxe5.",
+          "A bishop gives check on e5": "Check is written with a + at the end, as in Bxe5+. The x means a capture."
+        }
       },
       "board": null,
       "highlights": [],
@@ -19295,7 +19348,11 @@
           "Move the knight",
           "Say \"I'm adjusting\" and choose again"
         ],
-        "answer": "Move the knight"
+        "answer": "Move the knight",
+        "why": {
+          "Move the bishop instead": "A piece you touch on purpose is the piece you have to play, as long as it can legally go somewhere.",
+          "Say \"I'm adjusting\" and choose again": "You may say it only before you touch a piece, and only to straighten it."
+        }
       },
       "board": null,
       "highlights": [],
@@ -19316,7 +19373,11 @@
           "Shake hands and congratulate them",
           "Ask to take back your last move"
         ],
-        "answer": "Shake hands and congratulate them"
+        "answer": "Shake hands and congratulate them",
+        "why": {
+          "Leave without a word": "Leaving without a word is unkind. Good players shake hands, win or lose.",
+          "Ask to take back your last move": "Moves cannot be taken back in a real game. Shake hands and learn from it."
+        }
       },
       "board": null,
       "highlights": [],
@@ -19337,7 +19398,11 @@
           "With your left hand",
           "With either hand, whenever you like"
         ],
-        "answer": "With your right hand"
+        "answer": "With your right hand",
+        "why": {
+          "With your left hand": "Use the hand you moved with to stop your clock, whichever hand that was.",
+          "With either hand, whenever you like": "Stop your clock straight after moving, and use the hand you moved with."
+        }
       },
       "board": null,
       "highlights": [],
@@ -19359,7 +19424,12 @@
           "Ignore it and keep playing",
           "Make an illegal move back"
         ],
-        "answer": "Pause the clock and call the arbiter"
+        "answer": "Pause the clock and call the arbiter",
+        "why": {
+          "Argue until they agree": "Arguing does not settle it. The arbiter decides.",
+          "Ignore it and keep playing": "If you keep playing, the illegal move may stand. Pause the clock and call the arbiter.",
+          "Make an illegal move back": "Two wrongs do not fix it. Pause the clock and call the arbiter."
+        }
       },
       "board": null,
       "highlights": [],
@@ -19500,7 +19570,12 @@
           "Move the same knight again and again",
           "Push the pawns on the edge first"
         ],
-        "answer": "Bring out knights and bishops, then castle"
+        "answer": "Bring out knights and bishops, then castle",
+        "why": {
+          "Bring the queen out early and attack with her alone": "A queen alone is easy to chase, and you lose time moving her again and again.",
+          "Move the same knight again and again": "Moving one piece again and again leaves the rest of your army at home.",
+          "Push the pawns on the edge first": "Edge pawns do little to help your other pieces come out. Bring out knights and bishops first."
+        }
       },
       "board": null,
       "highlights": [],

@@ -170,6 +170,39 @@ class PuzzleLinkTests(unittest.TestCase):
                 self.prep.validate_sections(case)
 
 
+class ChoiceWhyTests(unittest.TestCase):
+    """Every wrong choice of a choice puzzle carries its own authored line saying why it fails (L-7)."""
+    def setUp(self):
+        self.prep = publisher.module('prepare', 'prepare-lesson-scripts.py')
+        self.content = json.loads((HERE.parent / 'Content/course-scripts.en-GB.json').read_text())
+
+    def testEveryWrongChoiceSaysWhy(self):
+        choices = [p for p in self.content['puzzles'] if p['exercise']['kind'] == 'choice']
+        self.assertEqual(len(choices), 17)
+        for puzzle in choices:
+            exercise = puzzle['exercise']
+            self.assertEqual(set(exercise['why']), set(exercise['choices']) - {exercise['answer']}, puzzle['id'])
+            self.prep.validate_puzzle(puzzle)
+        runtime = json.loads((HERE.parent / 'Sources/CheckmateCore/Resources/course.json').read_text())
+        self.assertEqual(runtime['puzzles'], self.content['puzzles'], 'the app shows the authored lines')
+
+    def testAMissingOrStrayLineIsRejected(self):
+        base = next(p for p in self.content['puzzles'] if p['id'] == 'course:intro:1')
+        def variant(why):
+            puzzle = json.loads(json.dumps(base))
+            puzzle['exercise']['why'] = why
+            return puzzle
+        cases = {'missing': {'Black': 'Black moves second.'}, 'for the answer': dict(base['exercise']['why'], White='No.'),
+                 'empty': dict(base['exercise']['why'], Black=' '), 'no full stop': dict(base['exercise']['why'], Black='Black moves second')}
+        for name, why in cases.items():
+            with self.subTest(name), self.assertRaises(AssertionError):
+                self.prep.validate_puzzle(variant(why))
+        without = json.loads(json.dumps(base))
+        del without['exercise']['why']
+        with self.assertRaises(AssertionError):
+            self.prep.validate_puzzle(without)
+
+
 class NarrationClaimTests(unittest.TestCase):
     """Recorded narration must not name app controls or lessons that do not exist; card and title edits are reviewed."""
     def setUp(self):
