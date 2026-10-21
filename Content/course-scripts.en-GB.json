@@ -7869,7 +7869,7 @@
       ],
       "practice": {
         "fen": "rnbq1rk1/ppp1bppp/3p1n2/4p3/2B1P3/2NP1N2/PPP2PPP/R1BQK2R w KQ - 3 6",
-        "goal": "Castle kingside to make your king safe, then keep bringing out your pieces.",
+        "goal": "Castle kingside to make your king safe: move just your king two squares, from e1 to g1, and the rook follows on its own. Then keep bringing out your pieces.",
         "beat": "castling:15",
         "teaching": [
           {

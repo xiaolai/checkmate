@@ -232,6 +232,13 @@ class LessonPracticeTests(unittest.TestCase):
             self.assertIn('beat', self.lessons[lesson_id]['practice'], lesson_id)
             self.prep.validate_lesson(self.lessons[lesson_id])
 
+    def testCastlingExerciseSaysHowToCastleInTheApp(self):
+        """On the board the learner moves only the king, two squares; the app moves the rook. The goal, shown before
+        the first move, says so (the lesson's narration describes castling on a real board)."""
+        goal = self.lessons['castling']['practice']['goal']
+        self.assertIn('move just your king two squares, from e1 to g1', goal)
+        self.assertIn('the rook follows on its own', goal)
+
     def testFieldsBeatAndTexts(self):
         self.rejects('fork', lambda p: p.__setitem__('hint', 'x'), 'practice fields')
         self.rejects('fork', lambda p: p.pop('offTrack'), 'teaching and offTrack go together')
