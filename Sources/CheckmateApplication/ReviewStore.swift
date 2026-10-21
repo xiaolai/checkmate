@@ -49,37 +49,46 @@ public final class ReviewStore {
     static let trashRetention:TimeInterval=30*24*3600
     private var trashChecked=false
     /// Bytes of every file in the library outside the Trash, kept up to date by the store's own writes so a save never
-    /// walks the folder (R-28). It holds only while every file in the folder and its Quarantine still has the size and
-    /// modification date the store last saw: a file added, removed or edited in place by anything else changes them, and
-    /// the next save measures again.
-    private var usedBytes:Int?,usedStamp:[String:String]?
-    /// How many times the library has been measured by a full walk; tests read it.
-    private(set) var measurements=0
+    /// walks the folder (R-28). It holds while the folder and its Quarantine keep the modification dates the store last
+    /// saw, which catches a file added or removed by anything else, and while each file a change touches keeps the size
+    /// and modification date the store last saw, which catches one of those edited in place. So a change stats those two
+    /// folders and its own files, never the whole folder. A record document edited in place is caught by `list()`, which
+    /// drops the total; another file edited in place is caught when a change next touches it.
+    private var usedBytes:Int?,usedDates:[Double]?,ownStamps:[String:String]=[:]
+    /// `measurements` counts full walks of the library, and `looked` every file or folder the running total stats;
+    /// tests read both.
+    private(set) var measurements=0,looked=0
     /// Each Trash folder's size, by its modification date, so a save does not reread every deleted review.
     private var trashSizes:[String:(stamp:Double,bytes:Int)]=[:]
     private func modified(_ url:URL)throws -> Double {FileManager.default.fileExists(atPath:url.path) ? ((try FileManager.default.attributesOfItem(atPath:url.path)[.modificationDate] as? Date)?.timeIntervalSinceReferenceDate ?? 0):-1}
-    /// Each entry's size and modification date, by name, in the folder (the Trash is sized on its own) and its Quarantine.
-    private func folderStamp()throws -> [String:String] {
-        let files=FileManager.default,keys:Set<URLResourceKey>=[.fileSizeKey,.contentModificationDateKey]
-        return try [directory,directory.appendingPathComponent("Quarantine")].reduce(into:[:]){stamps,folder in guard files.fileExists(atPath:folder.path) else{return}
-            for file in try files.contentsOfDirectory(at:folder,includingPropertiesForKeys:Array(keys)) where !(folder==directory && file.lastPathComponent==trashURL.lastPathComponent){let values=try file.resourceValues(forKeys:keys);stamps[file.lastPathComponent+(folder==directory ? "":"@"+folder.lastPathComponent)]="\(values.fileSize ?? -1):\(values.contentModificationDate?.timeIntervalSinceReferenceDate ?? 0)"}}
+    /// The modification dates of the folder and its Quarantine, which change when a file is added to or removed from them.
+    private func folderDates()throws -> [Double] {looked+=2;return [try modified(directory),try modified(directory.appendingPathComponent("Quarantine"))]}
+    /// A file's size and modification date, read fresh (a URL's resource values are cached), or "absent".
+    private func ownStamp(_ url:URL)->String {
+        looked+=1;guard let attributes=try? FileManager.default.attributesOfItem(atPath:url.path) else{return "absent"}
+        return "\(attributes[.size] as? Int ?? -1):\((attributes[.modificationDate] as? Date)?.timeIntervalSinceReferenceDate ?? 0)"
     }
-    private func size(_ url:URL)throws -> Int {FileManager.default.fileExists(atPath:url.path) ? ((try FileManager.default.attributesOfItem(atPath:url.path)[.size] as? Int) ?? 0):0}
+    private func size(_ url:URL)throws -> Int {looked+=1;return FileManager.default.fileExists(atPath:url.path) ? ((try FileManager.default.attributesOfItem(atPath:url.path)[.size] as? Int) ?? 0):0}
     /// The library's size outside the Trash: the running total, or a full walk when it is unknown or stale.
     func libraryBytes()throws -> Int {
         lock.lock();defer{lock.unlock()}
-        if let used=usedBytes,try folderStamp()==usedStamp{return used}
-        measurements+=1;var total=0;let enumerator=FileManager.default.enumerator(at:directory,includingPropertiesForKeys:[.isRegularFileKey,.fileSizeKey])
-        while let file=enumerator?.nextObject() as? URL {if enumerator?.level==1,file.lastPathComponent==trashURL.lastPathComponent{enumerator?.skipDescendants();continue};let values=try file.resourceValues(forKeys:[.isRegularFileKey,.fileSizeKey]);if values.isRegularFile==true{total+=values.fileSize ?? 0}}
-        usedBytes=total;usedStamp=try folderStamp();return total
+        if let used=usedBytes,try folderDates()==usedDates{return used}
+        measurements+=1;var total=0,stamps:[String:String]=[:];let enumerator=FileManager.default.enumerator(at:directory,includingPropertiesForKeys:[.isRegularFileKey,.fileSizeKey])
+        while let file=enumerator?.nextObject() as? URL {
+            if enumerator?.level==1,file.lastPathComponent==trashURL.lastPathComponent{enumerator?.skipDescendants();continue}
+            let values=try file.resourceValues(forKeys:[.isRegularFileKey,.fileSizeKey]);guard values.isRegularFile==true else{continue}
+            total+=values.fileSize ?? 0;if enumerator?.level==1{stamps[file.lastPathComponent]=ownStamp(file)}
+        }
+        usedBytes=total;usedDates=try folderDates();ownStamps=stamps;return total
     }
-    /// Runs one of the store's own changes to `files` and moves the running total by what they gained or lost. A total
-    /// that was already stale, or a change that fails partway, leaves it unknown, to be measured again.
+    /// Runs one of the store's own changes to `files` (all in the folder itself) and moves the running total by what
+    /// they gained or lost. A total that was already stale, or a change that fails partway, leaves it unknown, to be
+    /// measured again.
     private func tracking<T>(_ files:[URL],_ change:()throws->T)throws -> T {
         func measured()throws -> Int {try files.reduce(0){$0+(try size($1))}}
-        let known=try usedBytes != nil && folderStamp()==usedStamp,before=try known ? measured():0
+        let known=try usedBytes != nil && folderDates()==usedDates && files.allSatisfy{ownStamp($0)==(ownStamps[$0.lastPathComponent] ?? "absent")},before=try known ? measured():0
         let result:T;do{result=try change()}catch{usedBytes=nil;throw error}
-        if known,let used=usedBytes{let after=try measured();usedBytes=used-before+after;usedStamp=try folderStamp()}else{usedBytes=nil}
+        if known,let used=usedBytes{let after=try measured();usedBytes=used-before+after;usedDates=try folderDates();for file in files{ownStamps[file.lastPathComponent]=ownStamp(file)}}else{usedBytes=nil}
         return result
     }
     private var indexURL:URL {directory.appendingPathComponent("index.json")}

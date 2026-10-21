@@ -54,6 +54,19 @@ final class LibraryOrganisationTests:XCTestCase {
         XCTAssertThrowsError(try store.save(second,cursor:1,branches:[]),"a stale total would let this save pass the quota")
         XCTAssertEqual(store.measurements,2);XCTAssertEqual(try store.libraryBytes(),try scanned(folder))
     }
+    /// A cursor save looks at its own files and the folder's dates, never at every file in the library, and a cursor
+    /// file edited in place is still noticed by the next save that touches it.
+    func testACursorSaveLooksOnlyAtItsOwnFiles()throws {
+        let store=ReviewStore(directory:folder),games=try (1...40).map{try game("[White \"W\($0)\"]\n[Black \"B\"]\n\n1. e4 e5 *")}
+        for document in games{try store.save(document,cursor:1,branches:[])}
+        let before=store.looked;try store.save(games[0],cursor:2,branches:[])
+        XCTAssertLessThan(store.looked-before,games.count,"a cursor save stats a few files, not each of the library's \(games.count*2)")
+        XCTAssertEqual(store.measurements,1);XCTAssertEqual(try store.libraryBytes(),try scanned(folder))
+        // Spaces added to a cursor file keep it readable but change its size without touching the folder's date.
+        let cursor=folder.appendingPathComponent(games[1].id.uuidString+".cursor.json"),handle=try FileHandle(forWritingTo:cursor)
+        try handle.seekToEnd();try handle.write(contentsOf:Data(repeating:0x20,count:100));try handle.close()
+        try store.save(games[1],cursor:2,branches:[]);XCTAssertEqual(try store.libraryBytes(),try scanned(folder));XCTAssertEqual(store.measurements,2)
+    }
 
     // MARK: R-11
 
