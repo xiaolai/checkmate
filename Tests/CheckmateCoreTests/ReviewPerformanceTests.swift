@@ -66,9 +66,10 @@ import CheckmateCore
             try await engine.prepare();let start=Date();analyzer.startBatch(document)
             while ["pending","deepening"].contains(analyzer.batchStatus),Date().timeIntervalSince(start)<300{try await Task.sleep(for:.milliseconds(50))}
             let seconds=Date().timeIntervalSince(start);XCTAssertEqual(analyzer.batchStatus,"ready",name)
-            // The batch stored each search's evidence, so these read it back without searching again.
+            // The batch stored each search's evidence, so these read it back at its budget, after the timing; a deeper
+            // moment's read-back also runs the learner's full quick baseline, which the batch does not.
             var quick:[Int]=[],deep:[Int]=[],count=0,budgetMs=0;let deepened=analyzer.moments.prefix(plan.moments).map(\.id)
-            for node in document.mainline{let e=try await analyzer.analyze(document:document,node:node,revision:0);if let d=e.root.lines.first?.depth{quick.append(d)};count+=searches(e);budgetMs+=searches(e)*plan.quickBudget}
+            for node in document.mainline{let e=try await analyzer.analyze(document:document,node:node,revision:0,budget:plan.quickBudget);if let d=e.root.lines.first?.depth{quick.append(d)};count+=searches(e);budgetMs+=searches(e)*max(EngineSearchPolicy.minimumMs,plan.quickBudget)}
             for node in deepened{let e=try await analyzer.analyze(document:document,node:node,revision:0,budget:ReviewPolicy.deepBudget);if let d=e.root.lines.first?.depth{deep.append(d)};count+=searches(e);budgetMs+=searches(e)*ReviewPolicy.deepBudget}
             let worst=ReviewPolicy.worstCaseMs(plies:document.mainline.count,plan)
             runs.append(["game":name,"plies":document.mainline.count,"quickBudgetMs":plan.quickBudget,"moments":plan.moments,"deepened":deepened.count,"seconds":(seconds*10).rounded()/10,"worstCaseSeconds":Double(worst)/1000,"searches":count,"overheadMsPerSearch":count==0 ? 0:Int((seconds*1000-Double(budgetMs))/Double(count)),"quickDepthMean":mean(quick),"quickDepthMin":quick.min() ?? 0,"deepDepths":deep])

@@ -6,7 +6,8 @@ import CheckmateTestSupport
 @testable import CheckmateApplication
 
 /// Scores every legal move, so the played move's line is in the root search; `losses` gives a move's White-relative
-/// win/draw/loss (the default is a sure win for the side to move). Records the budget and resources of each search.
+/// win/draw/loss (the default is a sure win for the side to move). Records the budget and resources of each search, at
+/// least the engine's shortest search, as the real engine clamps it.
 @MainActor private final class GradingEngine:TestEngineService {
     var searches:[(budget:Int,resources:EngineResources?)]=[],wdl:[String:[Int]]=[:]
     func analyze(fen:String,skill:Int,budget:Int,multiPv:Int)async throws -> EngineAnalysis {try lines(fen:fen,budget:budget,resources:nil)}
@@ -14,7 +15,7 @@ import CheckmateTestSupport
         let position=try ChessRules(fen:startFEN);for move in moves{try position.move(uci:move)};return try lines(fen:position.fen,budget:budget,resources:resources)
     }
     private func lines(fen:String,budget:Int,resources:EngineResources?)throws -> EngineAnalysis {
-        searches.append((budget,resources))
+        searches.append((max(EngineSearchPolicy.minimumMs,budget),resources))
         let rules=try ChessRules(fen:fen),win=rules.turn=="w" ? [1000,0,0]:[0,0,1000]
         let moves=rules.moves().sorted{(wdl[$0.uci]==nil ? 0:1)<(wdl[$1.uci]==nil ? 0:1)}
         return EngineAnalysis(bestMove:moves.first?.uci,budgetMs:budget,lines:moves.enumerated().map{index,move in AnalysisLine(depth:20,multiPv:index+1,score:AnalysisScore(kind:"cp",value:30),pv:[move.uci],san:[move.san],wdl:wdl[move.uci] ?? win)})
@@ -96,32 +97,39 @@ import CheckmateTestSupport
     /// more briefly and check fewer moments more deeply, never below the quick floor.
     func testTheWholeGameAnalysisFitsItsBudget() {
         let lengths=[40,100,180,300],plans=lengths.map{ReviewPolicy.batchPlan(plies:$0)}
-        XCTAssertEqual(plans,[ReviewBatchPlan(quickBudget:500,moments:5),ReviewBatchPlan(quickBudget:227,moments:3),ReviewBatchPlan(quickBudget:125,moments:1),ReviewBatchPlan(quickBudget:53,moments:0)])
-        for (plies,plan) in zip(lengths,plans){XCTAssertLessThanOrEqual(ReviewPolicy.worstCaseMs(plies:plies,plan),ReviewPolicy.batchBudgetMs,"\(plies) plies");XCTAssertGreaterThanOrEqual(plan.quickBudget,ReviewPolicy.quickFloor)}
+        XCTAssertEqual(plans,[ReviewBatchPlan(quickBudget:500,moments:5),ReviewBatchPlan(quickBudget:227,moments:3),ReviewBatchPlan(quickBudget:125,moments:1),ReviewBatchPlan(quickBudget:100,moments:0)])
         XCTAssertEqual(ReviewPolicy.worstCaseMs(plies:100,plans[1]),79_880)
+        // The engine searches at least its minimum, so a plan never asks for less and the worst case counts no less.
+        XCTAssertEqual(ReviewPolicy.quickFloor,EngineSearchPolicy.minimumMs);XCTAssertEqual(EngineSearchPolicy.minimumMs,100)
+        XCTAssertEqual(ReviewPolicy.worstCaseMs(plies:100,ReviewBatchPlan(quickBudget:50,moments:0)),2*100*(100+ReviewPolicy.searchOverheadMs))
+        for plies in 1...400{let plan=ReviewPolicy.batchPlan(plies:plies);XCTAssertGreaterThanOrEqual(plan.quickBudget,EngineSearchPolicy.minimumMs,"\(plies) plies")
+            XCTAssertEqual(ReviewPolicy.worstCaseMs(plies:plies,plan)<=ReviewPolicy.batchBudgetMs,plies<=ReviewPolicy.longestFittingGame,"\(plies) plies")}
         // Ten seconds below the 90-second acceptance limit, for the app and the engine's own start.
         XCTAssertEqual(ReviewPolicy.batchBudgetMs,80_000)
-        // Every search costs its budget and a fixed overhead, so past the floor's limit no plan fits; the limit is 153 moves.
-        XCTAssertEqual(ReviewPolicy.longestFittingGame,307)
-        XCTAssertLessThanOrEqual(ReviewPolicy.worstCaseMs(plies:307,ReviewPolicy.batchPlan(plies:307)),ReviewPolicy.batchBudgetMs)
-        XCTAssertGreaterThan(ReviewPolicy.worstCaseMs(plies:308,ReviewPolicy.batchPlan(plies:308)),ReviewPolicy.batchBudgetMs)
+        // Every search costs at least the engine's minimum and a fixed overhead, so past 222 plies (111 moves) no plan fits.
+        XCTAssertEqual(ReviewPolicy.longestFittingGame,222)
+        XCTAssertLessThanOrEqual(ReviewPolicy.worstCaseMs(plies:222,ReviewPolicy.batchPlan(plies:222)),ReviewPolicy.batchBudgetMs)
+        XCTAssertGreaterThan(ReviewPolicy.worstCaseMs(plies:223,ReviewPolicy.batchPlan(plies:223)),ReviewPolicy.batchBudgetMs)
         XCTAssertEqual(ReviewPolicy.batchPlan(plies:1),ReviewBatchPlan(quickBudget:500,moments:5))
     }
     /// R-5: a long game's whole-game analysis searches at its plan's budget, deepens its plan's moments, and comes back
-    /// from storage as ready without a search; a position chosen afterwards reads the same stored evidence.
+    /// from storage as ready without a search; a position the learner chooses keeps the full quick budget, and so does the
+    /// baseline of a deeper look the learner asks for.
     func testALongGameFollowsItsPlan()async throws {
         let library=URL(fileURLWithPath:#filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("Sources/CheckmateCore/Resources/game-library/world-championship.pgn")
         // Carlsen–Nepomniachtchi, game 6 of 2021, the longest game in the library; only it is parsed, not the whole file.
         let text=try String(contentsOf:library,encoding:.utf8),game=try XCTUnwrap(text.components(separatedBy:"\n\n[Event").first{$0.contains("[Date \"2021.12.03\"]")})
         let document=try XCTUnwrap(PGNImporter.parse(Data(("[Event"+game).utf8)).first),plan=ReviewPolicy.batchPlan(plies:document.mainline.count)
-        XCTAssertEqual(document.mainline.count,271);XCTAssertEqual(plan,ReviewBatchPlan(quickBudget:56,moments:1))
+        XCTAssertEqual(document.mainline.count,271);XCTAssertEqual(plan,ReviewBatchPlan(quickBudget:100,moments:0))
         let engine=GradingEngine(),analyzer=ReviewAnalyzer(engine:engine,cacheDirectory:folder)
         analyzer.startBatch(document);try await settle("the analysis finished"){analyzer.batchStatus=="ready"}
         XCTAssertEqual(engine.searches.filter{$0.budget==plan.quickBudget}.count,document.mainline.count,"every position at the plan's quick budget")
         XCTAssertEqual(engine.searches.filter{$0.budget==ReviewPolicy.deepBudget}.count,plan.moments,"the deeper check reuses the stored baseline")
         XCTAssertEqual(engine.searches.count,document.mainline.count+plan.moments)
-        let before=engine.searches.count;_=try await analyzer.analyze(document:document,node:document.mainline[10],revision:0)
-        XCTAssertEqual(engine.searches.count,before,"a chosen position reads the batch's evidence")
+        var before=engine.searches.count;let chosen=try await analyzer.analyze(document:document,node:document.mainline[10],revision:0)
+        XCTAssertEqual(chosen.budgetMs,ReviewPolicy.quickBudget);XCTAssertEqual(engine.searches.dropFirst(before).map(\.budget),[ReviewPolicy.quickBudget],"a chosen position searches at the full quick budget")
+        before=engine.searches.count;_=try await analyzer.analyze(document:document,node:document.mainline[20],revision:0,budget:ReviewPolicy.deepBudget)
+        XCTAssertEqual(engine.searches.dropFirst(before).map(\.budget),[ReviewPolicy.deepBudget,ReviewPolicy.quickBudget],"a deeper look is judged against the full quick budget")
         let restored=GradingEngine(),again=ReviewAnalyzer(engine:restored,cacheDirectory:folder);again.restore(document)
         try await settle("the stored analysis came back"){again.batchStatus=="ready"};XCTAssertTrue(restored.searches.isEmpty)
     }

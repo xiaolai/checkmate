@@ -30,14 +30,14 @@ import Combine
         capabilities=try await withTaskCancellationHandler(operation:{try await Task.detached{try worker.prepare(ticket:ticket)}.value},onCancel:{worker.cancelPreparation(ticket)})
     }
     public func analyze(fen:String,skill:Int=20,budget:Int=350,multiPv:Int=3) async throws -> EngineAnalysis {
-        try await analyzeHistory(startFEN:fen,moves:[],profile:.skill(max(0,min(20,skill))),budget:max(100,min(1000,budget)),multiPv:max(1,min(3,multiPv)))
+        try await analyzeHistory(startFEN:fen,moves:[],profile:.skill(max(0,min(20,skill))),budget:max(EngineSearchPolicy.minimumMs,min(1000,budget)),multiPv:max(1,min(3,multiPv)))
     }
     public func analyzeHistory(startFEN:String,moves:[String],profile:OpponentProfile,budget:Int,multiPv:Int,searchMoves:[String]=[])async throws -> EngineAnalysis {
-        try await search(startFEN:startFEN,moves:moves,profile:profile,limit:.movetime(max(100,min(3000,budget))),multiPv:multiPv,searchMoves:searchMoves)
+        try await search(startFEN:startFEN,moves:moves,profile:profile,limit:.movetime(max(EngineSearchPolicy.minimumMs,min(3000,budget))),multiPv:multiPv,searchMoves:searchMoves)
     }
     /// A review search with its own threads and hash (R-5); the engine is shared, so they apply to this search only.
     public func analyzeHistory(startFEN:String,moves:[String],profile:OpponentProfile,budget:Int,multiPv:Int,searchMoves:[String],resources:EngineResources)async throws -> EngineAnalysis {
-        try await search(startFEN:startFEN,moves:moves,profile:profile,limit:.movetime(max(100,min(3000,budget))),multiPv:multiPv,searchMoves:searchMoves,resources:resources)
+        try await search(startFEN:startFEN,moves:moves,profile:profile,limit:.movetime(max(EngineSearchPolicy.minimumMs,min(3000,budget))),multiPv:multiPv,searchMoves:searchMoves,resources:resources)
     }
     /// A node-limited search searches exactly as far on every Mac (assistance plan A5).
     public func analyzeHistory(startFEN:String,moves:[String],profile:OpponentProfile,limit:EngineSearchLimit,multiPv:Int)async throws -> EngineAnalysis {
@@ -49,7 +49,7 @@ import Combine
     }
     /// A time as the budgeted search bounds it; a node count within what any search here asks for.
     private static func bounded(_ limit:EngineSearchLimit)->EngineSearchLimit {
-        switch limit {case .movetime(let budget):return .movetime(max(100,min(3000,budget)));case .nodes(let nodes):return .nodes(max(1000,min(5_000_000,nodes)))}
+        switch limit {case .movetime(let budget):return .movetime(max(EngineSearchPolicy.minimumMs,min(3000,budget)));case .nodes(let nodes):return .nodes(max(1000,min(5_000_000,nodes)))}
     }
     private func search(startFEN:String,moves:[String],profile:OpponentProfile,limit:EngineSearchLimit,multiPv:Int,searchMoves:[String],resources:EngineResources?=nil)async throws -> EngineAnalysis {
         if binaryIdentity.isEmpty{binaryIdentity=try await identityTask.value}

@@ -29,7 +29,8 @@ public struct ReviewMoment:Codable,Identifiable {public let id:Int,expectationLo
     /// otherwise the game's plan decides.
     var momentsToDeepen:Int?
     /// The game's whole-game plan (R-5): its quick budget and deeper moments, from its length so the batch fits its
-    /// budget. The batch, a restore and a chosen position all read it, so they share the same stored evidence.
+    /// budget. The batch and a restore read it, so they share the same stored evidence; a position the learner chooses
+    /// keeps the full quick budget.
     private func plan(_ document:GameDocument)->ReviewBatchPlan {let plan=ReviewPolicy.batchPlan(plies:document.mainline.count);return ReviewBatchPlan(quickBudget:plan.quickBudget,moments:momentsToDeepen ?? plan.moments)}
     private var batchTask:Task<Void,Never>?,batchSearch:Task<ReviewEvidence,Error>?,generation=0,selectedCount=0
     private var cache:[String:ReviewEvidence]=[:]
@@ -91,7 +92,7 @@ public struct ReviewMoment:Codable,Identifiable {public let id:Int,expectationLo
             while !finished {
                 guard !Task.isCancelled,self.generation==epoch else{return}
                 while self.selectedCount>0{try? await Task.sleep(for:.milliseconds(10));guard !Task.isCancelled,self.generation==epoch else{return}}
-                let search=Task{try await self.comparison(document:document,node:node,revision:0,budget:ReviewPolicy.deepBudget)};self.batchSearch=search
+                let search=Task{try await self.comparison(document:document,node:node,revision:0,budget:ReviewPolicy.deepBudget,baseline:self.plan(document).quickBudget)};self.batchSearch=search
                 do{let evidence=try await search.value;guard self.generation==epoch else{return};self.recordMoment(evidence,document:document);self.recordEvaluation(evidence,document:document);finished=true}
                 catch{if !search.isCancelled{finished=true}}
             }
@@ -143,16 +144,17 @@ public struct ReviewMoment:Codable,Identifiable {public let id:Int,expectationLo
         if evidence.nodeID==document.mainline.first{evaluations[0]=evidence.root.lines.first?.score}
     }
     public static func expectationLoss(root:AnalysisLine?,played:AnalysisLine?,mover:String)->Double? {guard let root=root,let played=played,root.score.bound==nil,played.score.bound==nil,let best=root.wdl,let actual=played.wdl,best.count==3,actual.count==3 else{return nil};func expected(_ wdl:[Int])->Double {Double(wdl[mover=="w" ? 0:2])+Double(wdl[1])/2};return max(0,(expected(best)-expected(actual))/1000)}
-    /// `node`'s evidence at `budget`, or at the game's quick budget, which the whole-game analysis stored.
+    /// `node`'s evidence at `budget`, or at the full quick budget: a position the learner chooses is never searched at the
+    /// shorter budget a long game's whole-game analysis uses, and a deeper look at it is judged against the full one.
     public func analyze(document:GameDocument,node:Int,revision:Int,budget:Int?=nil)async throws -> ReviewEvidence {
         try fairness.requireEngineHelp();selectedCount+=1;batchSearch?.cancel();defer{selectedCount-=1}
-        let budget=budget ?? plan(document).quickBudget,evidence=try await tracked{try await self.comparison(document:document,node:node,revision:revision,budget:budget)};try fairness.requireEngineHelp();return evidence
+        let budget=budget ?? ReviewPolicy.quickBudget,evidence=try await tracked{try await self.comparison(document:document,node:node,revision:revision,budget:budget,baseline:ReviewPolicy.quickBudget)};try fairness.requireEngineHelp();return evidence
     }
-    private func comparison(document:GameDocument,node:Int,revision:Int,budget:Int)async throws -> ReviewEvidence {
+    private func comparison(document:GameDocument,node:Int,revision:Int,budget:Int,baseline:Int)async throws -> ReviewEvidence {
         let quick=try await compute(document:document,node:node,revision:revision,budget:budget)
         // Deeper work is selected explicitly, never hidden in the quick budget.
         if budget<ReviewPolicy.deepBudget{return quick}
-        let baseline=try await compute(document:document,node:node,revision:revision,budget:plan(document).quickBudget)
+        let baseline=try await compute(document:document,node:node,revision:revision,budget:baseline)
         return judged(quick,baseline:baseline,document:document,node:node,revision:revision)
     }
     /// Whether a deep line keeps the quick baseline's score: deep enough, exact, and the same kind and value within tolerance.
