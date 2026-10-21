@@ -563,9 +563,10 @@ try:
             pointer("click", "onboarding-continue")
             wait(lambda: "onboarding-placement" in listing(), "Continue did not reach where to start again")
             pointer("click", "I know how the pieces move")
-            wait(lambda: "Your first lesson: " + placed in listing(), "Choosing a placement did not name its first lesson")
             pointer("click", "onboarding-continue")
+            # The first move's page, not the placement's, names the lesson the chosen placement opens.
             wait(lambda: "onboarding-start" in listing(), "Continue did not reach the first move")
+            wait(lambda: "Your first lesson: " + placed in listing(), "Choosing a placement did not name its first lesson")
             pointer("click", "onboarding-start")
         wait(lambda: "onboarding-continue" not in listing() and "onboarding-start" not in listing() and "onboarding-skip" not in listing(), "The welcome's " + answer + " did not close it")
         wait(lambda: any(folder.glob("state-*")), "The welcome's " + answer + " was not saved at once")
