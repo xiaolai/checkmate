@@ -773,23 +773,29 @@ import RealtimeConnection
     }
     /// `learnerSide` is the learner's own side when the record is a game they played (a network game).
     func importReviewData(_ data:Data,learnerSide:String?=nil){
-        parseForReview(data,delay:NativePolicy.silent ? min(2000,max(0,automationReviewImportDelayMs)):0,fallback:String(localized:"This record could not be imported. Your current game and reviews are unchanged.",bundle:.checkmate)){documents,skipped in
-            // Unreadable games in a collection are skipped, and the learner is told which.
+        // Many games (R-9) join the library as a collection, searchable and sortable there, with the first selected; the
+        // collection reads them once, under its own limit rather than the review's.
+        let collection={self.showReviewWorkspace();self.library.load();self.library.importCollection(data)}
+        parseForReview(data,delay:NativePolicy.silent ? min(2000,max(0,automationReviewImportDelayMs)):0,fallback:String(localized:"This record could not be imported. Your current game and reviews are unchanged.",bundle:.checkmate),several:collection){documents,skipped in
+            // Unreadable games beside the readable ones are skipped, and the learner is told which.
             if let first=skipped.first{self.storageError=String(localized:"\(skipped.count) games in this file could not be read and were skipped.",bundle:.checkmate)+" "+(first.errorDescription ?? "")}
             if documents.count==1{self.reviewSides[documents[0].id]=learnerSide;self.openReview(documents[0],draft:true);return}
-            // Many games (R-9) join the library as a collection, searchable and sortable there, with the first selected.
-            self.showReviewWorkspace();self.library.load();self.library.importCollection(data)
+            // The review parse may still find several games where the lexer's recovery found one.
+            collection()
         }
     }
     /// One cancellable parse for every review made from text (the current game, a file, a paste or a drop): it replaces
     /// any older open or import, runs detached under the import overlay and its Cancel, and presents only while no
-    /// other activity was chosen. A record with no readable game fails with `fallback` or its own reason.
-    private func parseForReview(_ data:Data,provenance:ReviewProvenance = .imported,delay:Int=0,fallback:String,present:@escaping (_ documents:[GameDocument],_ skipped:[ReviewImportError])throws->Void){
+    /// other activity was chosen. A record with no readable game fails with `fallback` or its own reason. With `several`,
+    /// a record of several readable games is not parsed for review but handed to `several` instead.
+    private func parseForReview(_ data:Data,provenance:ReviewProvenance = .imported,delay:Int=0,fallback:String,several:(()->Void)?=nil,present:@escaping (_ documents:[GameDocument],_ skipped:[ReviewImportError])throws->Void){
         reviewOpenGeneration+=1;cancelReviewImport();let generation=reviewOpenGeneration,token=ReviewImportCancellation();reviewImportCancellation=token;importingReview=true
+        let routes=several != nil
         reviewImportTask=Task{do{
             if delay>0{try await Task.sleep(for:.milliseconds(delay))}
-            let report=try await withTaskCancellationHandler(operation:{try await Task.detached{try PGNImporter.parseReport(data,provenance:provenance,cancelled:{token.cancelled})}.value},onCancel:{token.cancel()})
+            let report=try await withTaskCancellationHandler(operation:{try await Task.detached{try routes && PGNImporter.holdsSeveralRecords(data,cancelled:{token.cancelled}) ? nil:PGNImporter.parseReport(data,provenance:provenance,cancelled:{token.cancelled})}.value},onCancel:{token.cancel()})
             guard !Task.isCancelled,reviewOpenGeneration==generation else{return};importingReview=false
+            guard let report else{several?();return}
             guard !report.documents.isEmpty else{throw CheckmateError.invalid(String(localized:"No games found in this record.",bundle:.checkmate))}
             try present(report.documents,report.skipped)
         }catch{guard !Task.isCancelled else{return};importingReview=false;storageError=userFacingMessage(error,fallback:fallback)}}

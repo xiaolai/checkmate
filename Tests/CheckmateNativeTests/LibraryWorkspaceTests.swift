@@ -32,6 +32,16 @@ import CheckmateCore
         let preview=try XCTUnwrap(model.library.preview);XCTAssertEqual(preview.details,["Club Night"]);XCTAssertEqual(preview.summary,"Unfinished · 1 move")
         model.library.open(rows[1]);try await settle("the second game to open"){model.review.document?.header("White")=="W2"}
     }
+    /// A file of more games than one review reads (1,000) is still within a collection's limit (20,000): it becomes a
+    /// collection, not a refusal.
+    func testAFileOfMoreGamesThanAReviewReadsBecomesACollection()async throws {
+        let model=try NativeModel();defer{model.shutdown()}
+        let games=(1...ReviewPolicy.maximumRecords+1).map{"[Event \"Big Club\"]\n[White \"W\($0)\"]\n[Black \"B\($0)\"]\n\n1. e4 e5 *"}.joined(separator:"\n\n")
+        model.importReviewData(Data(games.utf8))
+        try await settle("the collection to be selected"){(model.library.selection?.hasPrefix("collection:")==true && !model.library.catalog.collections.isEmpty) || model.storageError != nil}
+        XCTAssertNil(model.storageError);XCTAssertNil(model.review.document,"nothing opens until the learner chooses")
+        XCTAssertEqual(model.library.catalog.collections.map{$0.0.records.count},[ReviewPolicy.maximumRecords+1])
+    }
     /// R-11: the library's Saved scope lists every saved review, follows renames, and the sidebar keeps a short list
     /// that always includes the review open.
     func testSavedReviewsAreListedRenamedAndKeptShortInTheSidebar()async throws {

@@ -211,6 +211,15 @@ final class GameCollectionsTests:XCTestCase {
         // Rejected as soon as the limit passes: a full read would check for cancellation about 15,600 times.
         XCTAssertLessThan(tokens,2_000,"The limit was checked only after \(tokens) cancellation checks")
     }
+    /// A record opened for review is routed by how many readable games it holds, counted by the lexer alone, so a file
+    /// with more games than a review reads still reaches the collection path.
+    func testSeveralReadableGamesAreCountedByTheLexer() throws {
+        let games=(1...ReviewPolicy.maximumRecords+1).map{"[White \"W\($0)\"]\n[Black \"B\($0)\"]\n\n1. e4 e5 *"}.joined(separator:"\n\n")
+        XCTAssertTrue(PGNImporter.holdsSeveralRecords(Data(games.utf8)))
+        XCTAssertEqual(try PGNImporter.splitRecords(Data(games.utf8),maximumRecords:1,stoppingAt:2).records.count,2,"counting stops at the second game, before any limit")
+        XCTAssertFalse(PGNImporter.holdsSeveralRecords(Data("1. e4 e5 *".utf8)))
+        XCTAssertFalse(PGNImporter.holdsSeveralRecords(Data("[Event \"Bad\\q\"]\n\n1. d4 *\n\n[Event \"Good\"]\n\n1. e4 *\n".utf8)),"an unreadable record is not a game")
+    }
     func testABrokenHeaderDoesNotSalvageTheRestOfItsRecord() throws {
         let text="[Event \"Bad\"]\n[White \"Esc\\q\"]\n[Black \"Gamma\"]\n[Result \"1-0\"]\n\n1. e4 e5 1-0\n\n[Event \"Good\"]\n[White \"A\"]\n[Black \"B\"]\n[Result \"0-1\"]\n\n1. f3 e5 2. g4 Qh4# 0-1\n"
         let split=try PGNImporter.splitRecords(Data(text.utf8),maximumRecords:100,cancelled:{false})

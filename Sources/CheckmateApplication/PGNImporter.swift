@@ -123,7 +123,8 @@ public enum PGNImporter {
     public struct RecordSpan:Equatable,Sendable {public let offset:Int,length:Int,tags:[String:String]}
     /// Splits a PGN collection into records with the importer's own lexer and record boundaries (`refuseOversizedCollection`).
     /// A lexical error makes the record it falls in unreadable; reading resumes at the next line that starts a header.
-    public static func splitRecords(_ data:Data,maximumRecords:Int,cancelled:@escaping ()->Bool={false})throws -> (records:[RecordSpan],unreadable:Int) {
+    /// Reading stops once `enough` readable records are found.
+    public static func splitRecords(_ data:Data,maximumRecords:Int,stoppingAt enough:Int=Int.max,cancelled:@escaping ()->Bool={false})throws -> (records:[RecordSpan],unreadable:Int) {
         guard data.count<=ReviewPolicy.maximumBytes else{throw ReviewImportError(record:1,token:0,reason:String(localized:"File exceeds the 16 MiB limit.",bundle:.checkmate))}
         let utf8=String(data:data,encoding:.utf8)
         guard var source=utf8 ?? String(data:data,encoding:.windowsCP1252) ?? String(data:data,encoding:.isoLatin1) else{throw ReviewImportError(record:1,token:0,reason:String(localized:"The file is not readable text.",bundle:.checkmate))}
@@ -149,6 +150,7 @@ public enum PGNImporter {
         }
         func overLimit()->ReviewImportError? {spans.count+unreadable>maximumRecords ? ReviewImportError(record:spans.count+unreadable,token:scanner.count,reason:String(localized:"The file has more than \(maximumRecords) games.",bundle:.checkmate)):nil}
         while true {
+            if spans.count>=enough{return (spans,unreadable)}
             // Checked before every token, so a file of millions of tiny records is refused as soon as it passes the limit.
             if let problem=overLimit(){throw problem}
             let before=scanner.i,token:Token?
@@ -174,6 +176,9 @@ public enum PGNImporter {
         if let problem=overLimit(){throw problem}
         return (spans,unreadable)
     }
+    /// Whether `data` holds at least two readable games, by the lexer alone and without the review's record limit: such a
+    /// record is a collection (R-9). Text that cannot be split is not, and is left to the review parse to explain.
+    public static func holdsSeveralRecords(_ data:Data,cancelled:@escaping ()->Bool={false})->Bool {((try? splitRecords(data,maximumRecords:Int.max,stoppingAt:2,cancelled:cancelled))?.records.count ?? 0)>=2}
     /// Untrusted text bounded by Unicode scalars (so also by UTF-8 bytes, at most four per scalar), never by grapheme
     /// clusters, which a run of combining marks can make arbitrarily long.
     public static func bounded(_ text:String,scalars limit:Int)->String {
