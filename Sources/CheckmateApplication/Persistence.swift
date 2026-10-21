@@ -20,7 +20,7 @@ public final class StateStore {
         return value
     }
     public static func validate(_ value:ApplicationState) throws {
-        guard value.course.step>=0,(value.course.positions?.count ?? 0)<=1000,value.puzzles.values.allSatisfy({(0...PuzzleProgress.maximumAttempts).contains($0.attempts)}) else{throw CheckmateError.invalid(String(localized:"Saved learning progress has invalid bounds.",bundle:.checkmate))}
+        guard value.course.step>=0,(value.course.positions?.count ?? 0)<=1000,value.puzzles.values.allSatisfy({(0...PuzzleProgress.maximumAttempts).contains($0.attempts) && $0.box.map{(1...PuzzleProgress.maximumBox).contains($0)} ?? true}) else{throw CheckmateError.invalid(String(localized:"Saved learning progress has invalid bounds.",bundle:.checkmate))}
         if let games=value.miniGames {
             guard games.count<=MiniGameKind.allCases.count else{throw CheckmateError.invalid(String(localized:"Too many saved mini-games.",bundle:.checkmate))}
             for (id,game) in games {

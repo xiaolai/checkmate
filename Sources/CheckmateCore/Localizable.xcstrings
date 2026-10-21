@@ -3690,11 +3690,15 @@
       "comment" : "Verb: open the game for review"
     },
     "Review Current Game" : {},
+    "Review Due (%lld)" : {
+      "comment" : "Opens the puzzles due for review; the number is how many"
+    },
     "Review Mistakes" : {},
     "Review Previous Game" : {},
     "Review This Game" : {},
     "Review actions" : {},
     "Review document integrity failed." : {},
+    "Review due" : {},
     "Review library record limit exceeded." : {},
     "Review library record limit reached." : {},
     "Review library storage limit reached; export or delete older reviews." : {},

@@ -5,10 +5,11 @@ import CheckmateContent
 import CheckmateSupport
 import Foundation
 /// A quick-puzzle status filter; the raw value is saved and the view supplies the title (D-12).
-public enum PuzzleStatusFilter:String,CaseIterable,Sendable {case all,unsolved,review
+public enum PuzzleStatusFilter:String,CaseIterable,Sendable {case all,unsolved,review,due
     /// Older saves stored the shown title.
     public init(stored:String?){self=stored.flatMap(Self.init(rawValue:)) ?? ["Unsolved":.unsolved,"To review":.review][stored ?? ""] ?? .all}
-    public func admits(_ progress:PuzzleProgress?)->Bool {switch self{case .all:return true;case .unsolved:return progress?.countsAsSolved != true;case .review:return progress?.review==true}}
+    /// `due`: on its review schedule at `now` (L-11).
+    public func admits(_ progress:PuzzleProgress?,at now:Date)->Bool {switch self{case .all:return true;case .unsolved:return progress?.countsAsSolved != true;case .review:return progress?.review==true;case .due:return progress?.isDue(at:now)==true}}
 }
 import Combine
 @MainActor public final class LearningPlayer:ObservableObject {
@@ -197,7 +198,7 @@ import Combine
     public var duration:Double {library.playbackDuration(lesson:lessonIndex,step:step,narrationSeconds:narrationSeconds,pieceDuration:Double(session.state.settings.pieceDuration)/1000,useCues:localizedPacks[lessonIndex]==nil)}
     public var winner:String? {mini ? miniGame?.winner:nil}
     public var destinations:[String] {if attemptStep{return attempt.destinations};return mini && !miniThinking ? picked.first.map{miniGame?.destinations(from:$0) ?? []} ?? []:[]}
-    public var filteredPuzzles:[Puzzle] {library.puzzles.filter {p in (topic==nil || topic==p.topic)&&(level==nil || level==p.level)&&filter.admits(session.state.puzzles[p.id])&&(query.isEmpty || (p.title+" "+p.exercise.prompt).localizedCaseInsensitiveContains(query))}}
+    public var filteredPuzzles:[Puzzle] {let clock=now();return library.puzzles.filter {p in (topic==nil || topic==p.topic)&&(level==nil || level==p.level)&&filter.admits(session.state.puzzles[p.id],at:clock)&&(query.isEmpty || (p.title+" "+p.exercise.prompt).localizedCaseInsensitiveContains(query))}}
     /// `fromTraining`: a training lesson link; reading it keeps the course bookmark (see `seek`), so it reopens at its
     /// own reading position, and the course lesson at its bookmark.
     public func openLesson(index:Int,resume:Bool=true,fromTraining:Bool=false) {guard library.lessons.indices.contains(index) else{return};pause();go(.lesson(index:index,fromTraining:fromTraining));let lesson=current,bookmark=lesson.id==session.state.course.lessonID ? library.resumeStep(in:lesson,progress:session.state.course):nil,reading=session.state.course.positions?[lesson.id].flatMap{id in lesson.beats.firstIndex{$0.id==id}};step=(fromTraining ? reading ?? bookmark:bookmark ?? reading) ?? 0;seek(step:resume ? step:0);onLessonOpened?()}
@@ -228,6 +229,10 @@ import Combine
     public func skip(){guard activePuzzle != nil,!passed else{return};next()}
     /// After a set's summary: the puzzles to review, from the first.
     public func reviewMistakes(){filter = .review;setSummary=nil;if let first=filteredPuzzles.first{openPuzzle(id:first.id)}}
+    /// The puzzles due for review now, whatever the library's other filters say (L-11).
+    public var dueCount:Int {let clock=now();return library.puzzles.filter{session.state.puzzles[$0.id]?.isDue(at:clock)==true}.count}
+    /// The due puzzles, from the first; the other filters are cleared so none of them is hidden.
+    public func reviewDue(){topic=nil;level=nil;query="";filter = .due;setSummary=nil;if let first=filteredPuzzles.first{openPuzzle(id:first.id)}}
     /// The lesson's own puzzles (linked by its id), for its Check Yourself button; nil when it has none.
     public func checkYourselfTitle(index:Int)->String? {guard library.lessons.indices.contains(index) else{return nil};let count=library.puzzles(for:library.lessons[index].id).count;return count==0 ? nil:String(localized:"Check Yourself: \(count) Puzzles",bundle:.checkmate,comment:"A lesson’s quiz title, shown in the sidebar")}
     /// Opens the lesson's first puzzle, with the library showing just that lesson's puzzles.
@@ -277,7 +282,7 @@ import Combine
     /// says so, counts as solved but not as solved alone, and stays queued for review.
     private func answer(_ correct:Bool,revealed:Bool=false,hint:String?=nil){guard let p=activePuzzle,!passed else{return};pause()
         let later=correct && !revealed && mistake,helped=correct && !revealed && puzzleHints>0
-        var record=session.state.puzzles[p.id] ?? PuzzleProgress();record.record(correct:correct,revealed:revealed,afterMistake:mistake,hints:puzzleHints);session.state.puzzles[p.id]=record;if !correct{mistake=true};passed=correct || revealed;feedback=passed ? Sentences.join(revealed ? solution(p.exercise):helped ? String(localized:"Correct, with help from a hint. It counts as solved with help and comes back for review.",bundle:.checkmate):later ? String(localized:"Correct, on a later try. It counts as solved and comes back for review.",bundle:.checkmate):String(localized:"Correct.",bundle:.checkmate),p.explanation):hint ?? String(localized:"Not quite. Look again and try another answer.",bundle:.checkmate);session.emit(semantic:false,save:true);publish()
+        var record=session.state.puzzles[p.id] ?? PuzzleProgress();record.record(correct:correct,revealed:revealed,afterMistake:mistake,hints:puzzleHints,at:now(),calendar:calendar);session.state.puzzles[p.id]=record;if !correct{mistake=true};passed=correct || revealed;feedback=passed ? Sentences.join(revealed ? solution(p.exercise):helped ? String(localized:"Correct, with help from a hint. It counts as solved with help and comes back for review.",bundle:.checkmate):later ? String(localized:"Correct, on a later try. It counts as solved and comes back for review.",bundle:.checkmate):String(localized:"Correct.",bundle:.checkmate),p.explanation):hint ?? String(localized:"Not quite. Look again and try another answer.",bundle:.checkmate);session.emit(semantic:false,save:true);publish()
     }
     public func reveal(){guard activePuzzle != nil else{return};answer(false,revealed:true)}
     private func solution(_ e:Exercise)->String {switch e.kind {case "choice":return e.answer ?? "";case "squares":return (e.answers ?? []).isEmpty ? String(localized:"No squares",bundle:.checkmate):(e.answers ?? []).joined(separator:", ");case "move":return "\(e.from ?? "") → \(e.to ?? "")";default:return String(localized:"Walk safely from \(e.from ?? "") to \(e.to ?? "").",bundle:.checkmate)}}

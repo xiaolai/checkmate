@@ -145,12 +145,29 @@ public struct PuzzleProgress:Codable,Equatable {
     /// `afterMistake`: an earlier answer in this visit was wrong, so a correct one is a later solve.
     /// `hints`: hints shown in this visit before the answer; a correct answer after one is an assisted solve, which
     /// counts as solved but stays queued for review.
-    public mutating func record(correct:Bool,revealed:Bool=false,afterMistake:Bool=false,hints:Int=0){
+    /// `now` and `calendar` place the answer on the review schedule (`box`, `dueAt`).
+    public mutating func record(correct:Bool,revealed:Bool=false,afterMistake:Bool=false,hints:Int=0,at now:Date=Date(),calendar:Calendar = .current){
         let alone=correct && !revealed && hints==0
         if attempts==0{firstTry=alone && !afterMistake}
         if correct && afterMistake && !revealed{solvedLater=true}
         if correct && !revealed{self.hints=min(self.hints ?? hints,hints);if hints>0{assisted=true}}
         solved = solved || alone && !afterMistake;review = !alone || afterMistake;attempts=attempts<Self.maximumAttempts ? attempts+1:Self.maximumAttempts
+        schedule(clean:alone && !afterMistake,at:now,calendar:calendar)
+    }
+    /// The Leitner ladder (L-11): box n comes back `boxDays[n-1]` days after the day it was last placed.
+    public static let boxDays=[1,3,7,14,30],maximumBox=boxDays.count
+    /// When the last answer was given, the box it left the puzzle in and the start of the day it is due again; nil in
+    /// records saved before the schedule was kept.
+    public var lastAttempt:Date?,box:Int?,dueAt:Date?
+    /// Due for review at `now`. A record saved without a schedule is due exactly when it was queued for review.
+    public func isDue(at now:Date)->Bool {dueAt.map{$0<=now} ?? review}
+    /// A clean solve when due (or never scheduled) moves one box up; a solve before then leaves the schedule alone, so
+    /// solving again early cannot skip ahead. Anything else (a miss, hint or reveal) goes back to box 1, due tomorrow.
+    private mutating func schedule(clean:Bool,at now:Date,calendar:Calendar){
+        lastAttempt=now
+        if clean && !(dueAt.map{$0<=now} ?? true){return}
+        let next=clean ? min((box ?? 1)+1,Self.maximumBox):1;box=next
+        dueAt=calendar.date(byAdding:.day,value:Self.boxDays[next-1],to:calendar.startOfDay(for:now))
     }
 }
 public struct WindowState:Codable {public var left=false,right=false,settingsCategory="board";public var frame:[Double]?;public init(){}}

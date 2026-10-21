@@ -388,6 +388,8 @@ struct PuzzleLibraryContent:View {
     @ObservedObject var learning:LearningPlayer
     @ObservedObject var session:GameSession
     var body:some View {let puzzles=learning.filteredPuzzles;VStack(alignment:.leading,spacing:Metrics.padding){Text("Quick puzzles").sectionHeading(.largeTitle.bold());Text(PuzzleRowFormat.heading(session.state.puzzles)).foregroundStyle(.secondary)
+        // An offer, never a reminder (L-11): it shows only when puzzles are due.
+        let due=learning.dueCount;if due>0{HStack(spacing:Metrics.smallGap){Button(String(localized:"Review Due (\(due))",bundle:.checkmate,comment:"Opens the puzzles due for review; the number is how many")){learning.reviewDue()}.accessibilityIdentifier("puzzle-review-due")}}
         if let summary=learning.setSummary {GroupBox {VStack(alignment:.leading,spacing:Metrics.smallGap){Text("You Reached the End of This Set").sectionHeading();Text(summary.text);if summary.toReview>0{Button("Review Mistakes"){learning.reviewMistakes()}.accessibilityIdentifier("puzzle-review-mistakes")}}.frame(maxWidth:.infinity,alignment:.leading)}.accessibilityElement(children:.contain).accessibilityIdentifier("puzzle-set-summary")}
         TextField("Search exercises",text:$learning.query).textFieldStyle(.roundedBorder)
         HStack {Picker("Topic",selection:$learning.topic){Text("All topics").tag(String?.none);ForEach(learning.topicGroups,id:\.title){group in Section(group.title){ForEach(group.topics,id:\.self){Text($0).tag(String?.some($0))}}}};Picker("Level",selection:$learning.level){Text("All levels").tag(String?.none);ForEach(learning.levels,id:\.self){Text($0).tag(String?.some($0))}};Picker("Status",selection:$learning.filter){ForEach(PuzzleStatusFilter.allCases,id:\.self){Text($0.title).tag($0)}}}
@@ -397,6 +399,6 @@ struct PuzzleLibraryContent:View {
             .accessibilityValue(row.accessibilityValue)}}
     }.padding(Metrics.sectionGap)}
 }
-extension PuzzleStatusFilter {var title:String{switch self{case .all:return String(localized:"All",bundle:.checkmate);case .unsolved:return String(localized:"Unsolved",bundle:.checkmate);case .review:return String(localized:"To review",bundle:.checkmate)}}}
+extension PuzzleStatusFilter {var title:String{switch self{case .all:return String(localized:"All",bundle:.checkmate);case .unsolved:return String(localized:"Unsolved",bundle:.checkmate);case .review:return String(localized:"To review",bundle:.checkmate);case .due:return String(localized:"Review due",bundle:.checkmate)}}}
 struct WelcomeContent:View {let title:String;var body:some View {VStack(spacing:Metrics.sectionGap){Image("LessonKnight",bundle:.main).resizable().renderingMode(.template).scaledToFit().foregroundStyle(.primary).frame(width:Metrics.mascotSize,height:Metrics.mascotSize).accessibilityHidden(true);Text(title).sectionHeading(.largeTitle.bold())}.frame(maxWidth:.infinity,maxHeight:.infinity,alignment:.center)}}
 /// Exercise controls under the board: hint, try again or next, and the way back to the library.
