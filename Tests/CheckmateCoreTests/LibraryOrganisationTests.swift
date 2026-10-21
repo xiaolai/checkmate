@@ -86,6 +86,15 @@ final class LibraryOrganisationTests:XCTestCase {
         try store.delete(second.id);XCTAssertEqual(try store.list().map(\.title),["Renamed elsewhere"])
         XCTAssertEqual(try ReviewStore(directory:folder).list().map(\.title),["Renamed elsewhere"],"the saved index holds the new title")
     }
+    /// A review replaced whole by another program changes the folder's date, so the same store lists its new title,
+    /// also after its own next change.
+    func testAReviewReplacedWholeByAnotherProgramIsListedWithItsNewTitle()throws {
+        let store=ReviewStore(directory:folder),first=try game("[White \"Old\"]\n[Black \"B\"]\n\n1. e4 e5 *"),second=try game("1. d4 d5 *")
+        try store.save(first,cursor:1,branches:[]);try store.save(second,cursor:1,branches:[]);XCTAssertEqual(try store.list().count,2)
+        try rename(store.documentURL(first.id),to:"Replaced elsewhere",inPlace:false)
+        try store.save(second,cursor:2,branches:[]);XCTAssertEqual(try store.list().first{$0.id==first.id}?.title,"Replaced elsewhere")
+        XCTAssertEqual(try store.libraryBytes(),try scanned(folder))
+    }
 
     // MARK: R-11
 
