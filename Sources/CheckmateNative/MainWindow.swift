@@ -52,6 +52,9 @@ final class BoardTitleView:NSView {
     private var fullscreenWidth:NSLayoutConstraint?
     var desiredLeft=false,desiredRight=false,animating=false,fixedBoardWidth:NSLayoutConstraint?,settings:SettingsWindow?
     private var observations:Set<AnyCancellable>=[]
+    /// Shows a promotion menu at a point of a view and returns whether an item was chosen; tests answer it without a
+    /// modal menu loop.
+    var presentPromotionMenu:(NSMenu,NSPoint,NSView)->Bool={menu,point,view in menu.popUp(positioning:nil,at:point,in:view)}
     private var coreFrame:NSRect?
     private var fittedLayout=false
     /// Where the window last stood when fitting or the learner placed it: while fitted, a move from here is the learner's
@@ -145,6 +148,9 @@ final class BoardTitleView:NSView {
         let sound=model.session.onMove;model.session.onMove={[weak self] move in sound?(move);guard let self=self else{return};self.board.animate(move,duration:Double(self.model.session.state.settings.pieceDuration)/1000);self.announce(move)}
         let miniSound=model.learning.onMiniMove;model.learning.onMiniMove={[weak self] move in miniSound?(move);guard let self else{return};self.board.animate(move,landing:self.model.learning.miniGame?.board,duration:Double(self.model.session.state.settings.pieceDuration)/1000);if self.model.learning.miniGame?.computer==true,move.color=="b"{self.announce("The computer played \(move.san).")}}
         let attemptSound=model.learning.onAttemptMove;model.learning.onAttemptMove={[weak self] move in attemptSound?(move);guard let self else{return};self.board.animate(move,landing:self.model.learning.attempt.board,duration:Double(self.model.session.state.settings.pieceDuration)/1000);self.announce(self.attemptAnnouncement(for:move))}
+        let trainingSound=model.training?.onMove;model.training?.onMove={[weak self] move in trainingSound?(move);guard let self else{return};self.board.animate(move,duration:Double(self.model.session.state.settings.pieceDuration)/1000);self.announce(self.trainingAnnouncement(for:move))}
+        // A training exercise's feedback and hints are shown in the details drawer, as a puzzle's are: open it when one appears.
+        if let training=model.training{training.$exercise.map{$0?.feedback ?? ""}.removeDuplicates().merge(with:training.$exercise.map{$0?.hintText ?? ""}.removeDuplicates()).filter{!$0.isEmpty}.receive(on:RunLoop.main).sink{[weak self] _ in guard let self,self.trainingExercise != nil else{return};self.showDetails()}.store(in:&observations)}
         let attemptReset=model.learning.onAttemptReset;model.learning.onAttemptReset={[weak self] in attemptReset?();self?.board.cancelAnimation()}
         board.refusedDrop={[weak self] from,to in guard let self,self.model.learning.attemptStep,!self.model.review.active else{return};self.model.learning.attempt.refused(from:from,to:to)}
         let miniReset=model.learning.onMiniReset;model.learning.onMiniReset={[weak self] in miniReset?();self?.board.cancelAnimation()}
@@ -239,11 +245,11 @@ final class BoardTitleView:NSView {
         // Inspection hides the move dots but not the move: a playable destination of the inspected piece leaves
         // inspection and plays, so P or A pressed by accident can never make a legal move unplayable.
         let attempt=model.learning.attemptStep ? model.learning.attempt:nil
-        if relationships.mode != nil{let plays=s.mode == .practice && s.selected != sq && s.inspection?.legalNow==true && s.destinations.contains(sq) || attempt.map{$0.selected != sq && $0.destinations.contains(sq)} == true;if plays{relationships.dismiss()}else{if s.mode == .practice{try? s.inspectPiece(sq)};relationships.select(board.position[sq] == nil ? nil:sq);refresh();return}}
+        if relationships.mode != nil{let plays=s.mode == .practice && s.selected != sq && s.inspection?.legalNow==true && s.destinations.contains(sq) || attempt.map{$0.selected != sq && $0.destinations.contains(sq)} == true;if plays{relationships.dismiss()}else{if s.mode == .practice{do{try s.inspectPiece(sq)}catch{showError(error)}};relationships.select(board.position[sq] == nil ? nil:sq);refresh();return}}
         if s.mode == .practice {
         if let from=s.selected,s.inspection?.legalNow==true,s.destinations.contains(sq),(s.presentationHidden || s.preview==nil && s.demonstration==nil) {let promotion=s.rules.moves(from).contains{$0.to==sq && $0.promotion != nil};if promotion {let shown=practiceGame;showPromotionMenu(at:sq,action:#selector(promote(_:))){PracticePromotion(from:from,to:sq,piece:$0,game:shown)};return}}
         do{try s.select(sq)}catch{showError(error)}
-    }else if let training=model.training,trainingExercise != nil{training.click(sq)}
+    }else if let training=model.training,trainingExercise != nil{training.click(sq);askTrainingPromotion(training,reaching:sq)}
     else if model.learning.attemptStep,let from=model.learning.attempt.selected,model.learning.attempt.destinations.contains(sq),model.learning.attempt.needsPromotion(from:from,to:sq) {let shown=model.learning.attempt.identity;showPromotionMenu(at:sq,action:#selector(promoteAttempt(_:))){AttemptPromotion(from:from,to:sq,piece:$0,identity:shown)};return}
     else{model.learning.click(sq)};refresh()}
     /// A lesson exercise's promotion, bound to the attempt and move it was offered for: a choice made after the attempt
@@ -268,12 +274,30 @@ final class BoardTitleView:NSView {
         if l.attemptStep{return l.attempt.learnerToMove && board.position[square]?.first=="w"}
         return l.mini || l.activePuzzle != nil && l.exercise?.kind=="move"
     }
-    /// The promotion choices at a square; each item carries `payload(piece)` for its action.
-    private func showPromotionMenu(at sq:String,action:Selector,payload:(String)->Any){
+    /// The promotion choices at a square; each item carries `payload(piece)` for its action. Returns whether one was chosen.
+    @discardableResult private func showPromotionMenu(at sq:String,action:Selector,payload:(String)->Any)->Bool {
         let menu=NSMenu()
         for (title,piece) in [("Queen","q"),("Rook","r"),("Bishop","b"),("Knight","n")]{let item=NSMenuItem(title:title,action:action,keyEquivalent:"");item.target=self;item.image=promotionImage(piece);item.toolTip="Promote to a "+title.lowercased();item.representedObject=payload(piece);menu.addItem(item)}
-        menu.popUp(positioning:nil,at:board.squareRect(sq).origin,in:board)
+        return presentPromotionMenu(menu,board.squareRect(sq).origin,board)
     }
+    /// A training promotion, bound to the attempt, its saved revision and the move the menu was opened for: a choice
+    /// made after any of them changed (an agent's action, a restart, a cancel) does nothing.
+    struct TrainingPromotion {let from:String,to:String,piece:String,attempt:String,revision:Int}
+    /// Whether `pending` is still the shown exercise's open promotion, for the attempt and revision it was offered on.
+    private func trainingPromotionOpen(from:String,to:String,attempt:String,revision:Int)->Bool {
+        guard let exercise=trainingExercise,!exercise.finished,let pending=exercise.pendingPromotion else{return false}
+        return pending.from==from && pending.to==to && exercise.snapshot.id==attempt && exercise.snapshot.revision==revision
+    }
+    /// A move to the last rank asks for its piece through the board's menu, as practice does; closing the menu without
+    /// a choice cancels the promotion, which counts nothing. Only the click that reached the promotion square asks; one
+    /// left open by an agent keeps the drawer's chooser.
+    private func askTrainingPromotion(_ training:TrainingController,reaching sq:String){
+        guard let exercise=trainingExercise,!exercise.finished,let pending=exercise.pendingPromotion,pending.to==sq else{return}
+        let attempt=exercise.snapshot.id,revision=exercise.snapshot.revision
+        let chosen=showPromotionMenu(at:pending.to,action:#selector(promoteTraining(_:))){TrainingPromotion(from:pending.from,to:pending.to,piece:$0,attempt:attempt,revision:revision)}
+        if !chosen,trainingPromotionOpen(from:pending.from,to:pending.to,attempt:attempt,revision:revision){training.cancelPromotion()}
+    }
+    @objc func promoteTraining(_ item:NSMenuItem){guard let choice=item.representedObject as? TrainingPromotion,!model.review.active,let training=model.training,trainingPromotionOpen(from:choice.from,to:choice.to,attempt:choice.attempt,revision:choice.revision) else{refresh();return};training.attempt(from:choice.from,to:choice.to,promotion:choice.piece);refresh()}
     private func promotionImage(_ piece:String)->NSImage {
         let symbol=["q":"♛","r":"♜","b":"♝","n":"♞"][piece] ?? ""
         let size=NSSize(width:Metrics.promotionIconSize,height:Metrics.promotionIconSize)
@@ -308,6 +332,14 @@ final class BoardTitleView:NSView {
         var text=(move.color=="w" ? "You played ":"The computer played ")+move.san+"."
         if rules.checkmate{text+=" Checkmate."}else if rules.check{text+=move.color=="w" ? " Check.":" Your king is in check."}else if rules.draw{text+=" The game is drawn."}
         switch attempt.phase {case .achieved?:text+=" Well done! "+(attempt.judgement?.feedback ?? "");case .offTrack?,.failed?:text+=" "+(attempt.judgement?.feedback ?? "");default:break}
+        return text
+    }
+    /// What VoiceOver hears when a training move lands: who played it, and check or mate from its notation. The
+    /// exercise's result is in its feedback, which the drawer and the bar show.
+    func trainingAnnouncement(for move:MoveRecord)->String {
+        let learner=move.color==trainingExercise?.scenario.learner
+        var text=(learner ? "You played ":"The opponent played ")+move.san+"."
+        if move.san.hasSuffix("#"){text+=" Checkmate."}else if move.san.hasSuffix("+"){text+=learner ? " Check.":" Your king is in check."}
         return text
     }
     /// The bar takes a second row when its sides no longer fit beside the centre group; the board yields the height.
@@ -422,12 +454,12 @@ playbackLineView?.isHidden=model.reviewWorkspace
             if model.learning.miniGame?.history.isEmpty != false{model.learning.restartMini();return}
             // The sheet answers for the mini-game it was shown over: one replaced meanwhile (an agent, a restart) is kept.
             let shown=model.learning.miniGame.map{($0.kind,$0.opponentSeed)}
-            let alert=NSAlert();alert.messageText="Start a new \(model.learning.miniKind.title) game?";alert.informativeText="This replaces the current mini-game.";alert.addButton(withTitle:"New Game");alert.addButton(withTitle:"Cancel");alert.beginSheetModal(for:window!){[weak self] response in guard response == .alertFirstButtonReturn,let self,self.model.learning.mini,let game=self.model.learning.miniGame,let shown,game.kind==shown.0,game.opponentSeed==shown.1 else{return};self.model.learning.restartMini()};return
+            let alert=NSAlert();alert.messageText="Start a new \(model.learning.miniKind.title) game?";alert.informativeText="This replaces the current mini-game.";alert.addButton(withTitle:"New Game").hasDestructiveAction=true;alert.addButton(withTitle:"Cancel");present(alert){[weak self] response in guard response == .alertFirstButtonReturn,let self,self.model.learning.mini,let game=self.model.learning.miniGame,let shown,game.kind==shown.0,game.opponentSeed==shown.1 else{return};self.model.learning.restartMini()};return
         }
         guard model.session.mode == .practice else{return};let a=NSAlert();a.messageText="Start a new game?";a.informativeText=model.session.state.practice.previousGame.isEmpty ? "Your current game will be available under Restore Previous Game.":"Your current game will be available under Restore Previous Game, replacing the game kept there now."
         let side=NSPopUpButton(frame:NSRect(x:0,y:0,width:220,height:28));side.addItems(withTitles:["Play as White","Play as Black"]);side.selectItem(at:model.session.humanSide=="b" ? 1:0);side.setAccessibilityLabel("Your side");a.accessoryView=side
         let shown=practiceGame
-        a.addButton(withTitle:"New Game");a.addButton(withTitle:"Cancel");a.beginSheetModal(for:window!){r in guard r == .alertFirstButtonReturn,self.stillShowing(shown) else{return};self.board.cancelAnimation();self.model.session.newGame(side:side.indexOfSelectedItem==1 ? "b":"w")}}
+        a.addButton(withTitle:"New Game");a.addButton(withTitle:"Cancel");present(a){r in guard r == .alertFirstButtonReturn,self.stillShowing(shown) else{return};self.board.cancelAnimation();self.model.session.newGame(side:side.indexOfSelectedItem==1 ? "b":"w")}}
     @objc func claimDraw(){if model.session.mode == .network{model.network.claimDraw();return};guard !model.review.active,model.session.mode == .practice else{return};model.session.claimDraw();refresh()}
     // MARK: The network game's menu items (LAN-play plan D9)
     /// The Game menu's base items in network mode: Resign, Offer Draw, Claim Draw, Flip Board and Leave Game. The only
@@ -498,10 +530,10 @@ playbackLineView?.isHidden=model.reviewWorkspace
     }
     @objc func resign(){
         if model.session.mode == .network{model.resignNetworkGame();return}
-        guard !model.review.active,model.session.mode == .practice,!model.session.finished,let window=window else{return}
-        let a=NSAlert();a.messageText="Resign this game?";a.informativeText="The game is recorded as a loss. Start a new game or review it afterwards.";a.addButton(withTitle:"Resign");let cancel=a.addButton(withTitle:"Cancel");cancel.keyEquivalent="\r";a.window.defaultButtonCell=cancel.cell as? NSButtonCell
+        guard !model.review.active,model.session.mode == .practice,!model.session.finished else{return}
+        let a=NSAlert.destructive("Resign this game?","The game is recorded as a loss. Start a new game or review it afterwards.",action:"Resign")
         let shown=practiceGame
-        a.beginSheetModal(for:window){[weak self] r in guard r == .alertFirstButtonReturn,let self,self.stillShowing(shown) else{return};self.model.session.resign();self.refresh()}
+        present(a){[weak self] r in guard r == .alertFirstButtonReturn,let self,self.stillShowing(shown) else{return};self.model.session.resign();self.refresh()}
     }
     /// The practice game a sheet or menu was shown over. Moves played meanwhile keep it the same game (`exactly` also
     /// requires the same position in it); a new, restored or forked game (an agent can start one while the sheet is
@@ -545,11 +577,7 @@ playbackLineView?.isHidden=model.reviewWorkspace
     @objc func lessonFromStart(){performBar(#selector(lessonFromStart))}
     @objc func barHint(){performBar(#selector(barHint))}
     @objc func restorePrevious(){guard !model.review.active,!model.reviewWorkspace else{return};board.cancelAnimation();do{try model.session.restorePrevious()}catch{showError(error)}}
-    func showError(_ error:Error){
-        // ROLE_FORBIDDEN is an MCP contract code; people see what it means.
-        let message=(error as? CheckmateError).flatMap{if case .invalid("ROLE_FORBIDDEN")=$0{return "This move can’t be played now. Wait for your turn."};return nil} ?? userFacingMessage(error,fallback:"That action could not be completed.")
-        let alert=NSAlert();alert.messageText=message;alert.beginSheetModal(for:window!)
-    }
+    func showError(_ error:Error){present(Self.failureAlert(error))}
     /// The board area stays square while the learner resizes, with drawers open or closed: its side follows the edge
     /// dragged most and never exceeds the screen.
     func windowWillResize(_ sender:NSWindow,to frameSize:NSSize)->NSSize {

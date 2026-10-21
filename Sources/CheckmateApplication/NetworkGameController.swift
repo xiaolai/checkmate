@@ -222,6 +222,8 @@ import OSLog
     public func click(_ square:String){
         guard ChessNotation.validSquare(square),seat != nil else{return}
         if seat == .spectator{flash(Self.watchingNotice);return}
+        // Clicking the selected square again clears the selection, as in practice and training.
+        if selected==square{selected=nil;destinations=[];objectWillChange.send();return}
         // Board insight (assistance plan A1) lets the learner pick any piece to inspect, also off their turn; it never
         // shows dots for a move they cannot make.
         guard canMove else{guard inspectable,pending==nil else{return};selected=rules.piece(square)==nil ? nil:square;destinations=[];objectWillChange.send();return}

@@ -183,9 +183,9 @@ import CheckmateCore
             let restoreAX=await ax("restore-failure-paused",[["kind":"text","value":failureMessage],["kind":"enabled","title":"Return to game","expected":true],["kind":"press","title":"Dismiss"]])
             try await Task.sleep(for:.milliseconds(700))
             let quietAfterDismiss = !model.session.busy && model.session.rules.history.count==failHistory && model.storageError==nil && game.errorBanner?.isHidden==true
-            // The practice pane heading reflects the pause ("Game paused." replaces "Your next move.") and keeps its own Return to game.
+            // The practice pane heading reflects the pause ("Game paused" replaces the game-state heading) and keeps its own Return to game.
             let leftWasOpen=game.desiredLeft,rightWasOpen=game.desiredRight;game.showDetails();game.refresh();try await Task.sleep(for:.milliseconds(900));try? await game.capture(directory+"/restore-failure-details.png")
-            let detailsAX=await ax("restore-failure-details",[["kind":"text","value":"Game paused."],["kind":"text","value":"Your game is paused because a saved review could not be restored."],["kind":"enabled","title":"Return to game","expected":true]])
+            let detailsAX=await ax("restore-failure-details",[["kind":"text","value":"Game paused"],["kind":"text","value":"Your game is paused because a saved review could not be restored."],["kind":"enabled","title":"Return to game","expected":true]])
             // Both drawers closed: recovery needs no drawer; the bottom transport's Resume game is pressed out of process.
             if game.desiredLeft{game.toggleLeft()};if game.desiredRight{game.toggleRight()};try await Task.sleep(for:.milliseconds(900));game.refresh();try? await game.capture(directory+"/restore-failure-drawers-closed.png")
             let drawersClosed = !game.desiredLeft && !game.desiredRight

@@ -198,11 +198,12 @@ try:
     origin, target = move[:2], move[2:4]
     variant_chip = True
 
-    # The chooser opens on the last rank; Cancel leaves the pawn and counts nothing.
+    # The board's promotion menu opens on the last rank, as in practice; closing it leaves the pawn and counts nothing.
     pointer("drag-square", origin, target)
-    wait(lambda: "training-promotion-cancel" in listing(), "Reaching the last rank did not open the promotion chooser")
-    pointer("click", "training-promotion-cancel")
-    wait(lambda: "training-promotion-cancel" not in listing(), "Cancel did not close the chooser")
+    wait(lambda: pointer("menu-open", "Knight") == "true", "Reaching the last rank did not open the promotion menu")
+    pointer("escape")
+    wait(lambda: pointer("menu-open", "Knight") != "true", "Escape did not close the promotion menu")
+    wait(lambda: "training-promotion-cancel" not in listing(), "Closing the menu left the promotion pending")
     assert label(origin).startswith(f"{origin}, {COLOURS[learner]}, pawn"), "Cancelling moved the pawn"
     time.sleep(SAVE_SETTLE)
     assert not active()["actions"] and not attempts(), "Cancelling the chooser was counted"
@@ -210,8 +211,8 @@ try:
 
     # Choosing a knight is a legal promotion and solves it.
     pointer("drag-square", origin, target)
-    wait(lambda: "training-promotion-cancel" in listing(), "The chooser did not reopen")
-    pointer("click", "Knight")
+    wait(lambda: pointer("menu-open", "Knight") == "true", "The promotion menu did not reopen")
+    pointer("choose-menu-item", "Knight")
     wait(lambda: label(target).startswith(f"{target}, {COLOURS[learner]}, knight"), "The knight promotion did not land")
     wait(lambda: "Solved · first try · no recorded help" in listing(), "The promotion was not graded correct")
     promotion_chosen = True
@@ -372,8 +373,8 @@ try:
     for ply, (origin, target) in enumerate(zip(path, path[1:]), start=1):
         pointer("drag-square", origin, target)
         if target == path[-1]:
-            wait(lambda: "training-promotion-cancel" in listing(), "The pawn race's promotion did not open the chooser")
-            pointer("click", "Queen")
+            wait(lambda: pointer("menu-open", "Queen") == "true", "The pawn race's promotion did not open the promotion menu")
+            pointer("choose-menu-item", "Queen")
             wait(lambda: label(target).startswith(f"{target}, White, queen"), "The pawn race's promotion did not land")
         else:
             wait(lambda: label(target).startswith(f"{target}, White, pawn"), "The pawn race's push did not land")

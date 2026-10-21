@@ -83,14 +83,16 @@ extension TrainingController {
             state.snapshot.actions.append(.move(from:from,to:to,promotion:outcome.promotion));state.line.append(move)
             state.board=moved;state.lastMove=(from,to)
             if let reply,let replied{state.snapshot.actions.append(.reply(reply.uci));state.line.append(reply.uci);state.board=replied;state.lastMove=(reply.from,reply.to)}
+            // The learner's move and the published reply are committed together, and land in that order.
+            let land={[weak self] in self?.landed(outcome,from:legality.fen);if let reply{self?.landed(reply,from:outcome.after)}}
             if let after=prepared.after,let next=node.next?[move] {
                 state.node=next;state.current=after;clearHints(&state)
                 state.feedback="Good. "+(reply.map{"The reply was \($0.san). "} ?? "")+"Keep going: find the next move."
-                save(state);return
+                if save(state){land()};return
             }
             if right{state.feedback="Correct. "+praise+(reply.map{"The best reply, \($0.san), does not change that. "} ?? "")+scenario.explanation}
             else{state.feedback=(reply.map{"After \($0.san) it goes wrong. "} ?? miss(state)+" ")+scenario.explanation}
-            finish(state,right ? .correct:.incorrect)
+            if finish(state,right ? .correct:.incorrect){land()}
         }catch{fault()}
     }
     /// Everything a legal ply needs, prepared before anything is recorded so a fault voids only this ply: the published

@@ -296,7 +296,7 @@ struct NetworkHostSheet:View {
         Task{
             switch await Task.detached(operation:{Result{try GameLibrary.load()}}).value {
             case .success(let loaded):library=loaded;if !libraryGame.isEmpty{choose(libraryGame,in:loaded,keeping:chosen)}
-            case .failure(let error):libraryProblem="The game library could not be read: \(error)"
+            case .failure(let error):libraryProblem=userFacingMessage(error,fallback:"The game library could not be read.")
             }
         }
     }
@@ -309,7 +309,7 @@ struct NetworkHostSheet:View {
             guard libraryGame==id else{return}
             switch read {
             case .success(let found):positions=found;game.form.start=chosen.flatMap{kept in found.first{$0==kept}} ?? found[found.count/2]
-            case .failure(let error):libraryProblem="This library game could not be read: \(error)"
+            case .failure(let error):libraryProblem=userFacingMessage(error,fallback:"This library game could not be read.")
             }
         }
     }

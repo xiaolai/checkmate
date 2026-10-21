@@ -208,8 +208,13 @@ extension ControlBarModel {
             bar.status = .text(TrainingPanel.resultLabel(exercise))
             if TrainingPanel.canRetry(exercise){bar.trailing.append(ControlBarItem(action:.trainingTryAgain,symbol:"arrow.counterclockwise",label:"Try again"))}
             bar.trailing.append(ControlBarItem(action:.trainingNextExercise,label:"Next exercise",prominent:true))
+        } else if !exercise.feedback.isEmpty {
+            // The latest feedback line, which may be long: it sits at the leading edge, where the status truncates.
+            bar.status = .text(exercise.feedback);bar.statusInCentre=false
         } else {
             bar.status = .turn(side:exercise.scenario.learner,label:exercise.scenario.learner=="w" ? "You are White":"You are Black")
+        }
+        if !exercise.finished {
             bar.trailing.append(ControlBarItem(action:.trainingHint,symbol:"lightbulb",label:TrainingPanel.hintTitle(exercise),enabled:!TrainingPanel.hintDisabled(exercise,thinking:training.games.thinking)))
             if exercise.scenario.drill != nil || exercise.task == .game{bar.trailing.append(ControlBarItem(action:.trainingTakeBack,symbol:"arrow.uturn.backward",label:"Take back a move",enabled:canTakeBack(training,exercise)))}
         }

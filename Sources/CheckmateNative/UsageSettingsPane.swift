@@ -74,7 +74,7 @@ struct UsageSettingsPane:View {
         panel.begin{response in guard response == .OK,let url=panel.url else{return};Task{do{try? await ledger.flush();try ledger.exportJSON().write(to:url,options:.atomic);error=nil}catch{self.error=userFacingMessage(error,fallback:"Usage history could not be exported. Choose another location.")}}}
     }
     private func clear(){
-        let alert=NSAlert();alert.messageText="Clear usage history?";alert.informativeText=ledger.unavailable ? "The unreadable history file is kept, and a new history starts with this session’s activity. Your lessons, recordings and progress are kept.":"This removes completed Checkmate usage history. Activity still running remains recorded. Your lessons, recordings and progress are kept.";let clear=alert.addButton(withTitle:"Clear history");clear.keyEquivalent="";let cancel=alert.addButton(withTitle:"Cancel");cancel.keyEquivalent="\r";alert.window.defaultButtonCell=cancel.cell as? NSButtonCell
+        let alert=NSAlert.destructive("Clear usage history?",ledger.unavailable ? "The unreadable history file is kept, and a new history starts with this session’s activity. Your lessons, recordings and progress are kept.":"This removes completed Checkmate usage history. Activity still running remains recorded. Your lessons, recordings and progress are kept.",action:"Clear history")
         guard alert.runModal() == .alertFirstButtonReturn else{return}
         Task{do{try ledger.clear();try await ledger.flush();error=nil}catch{self.error="Usage history could not be cleared."}}
     }
