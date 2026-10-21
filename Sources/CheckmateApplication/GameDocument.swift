@@ -6,6 +6,8 @@ import Foundation
 public struct PGNHeader:Codable,Equatable {public let name:String,value:String;public init(_ name:String,_ value:String){self.name=name;self.value=value}}
 public struct GameNode:Codable,Equatable,Identifiable {
     public let id:Int,parent:Int?,children:[Int],uci:String?,san:String?,beforeFEN:String,afterFEN:String,ply:Int,fullmove:Int,side:String,commentsBefore:[String],commentsAfter:[String],nags:[Int]
+    /// The move as shown to the learner: "12. Nf3" for White, "12… Nf5" for Black. PGN's "12..." is for records only.
+    public var moveText:String {"\(fullmove)\(side=="w" ? ".":"…") \(san ?? "")"}
 }
 public struct ReviewPositionStatus:Codable,Equatable {
     public let check:Bool,checkmate:Bool,stalemate:Bool,insufficientMaterial:Bool,claimableThreefold:Bool,claimableFiftyMove:Bool,automaticFivefold:Bool,automaticSeventyFiveMove:Bool

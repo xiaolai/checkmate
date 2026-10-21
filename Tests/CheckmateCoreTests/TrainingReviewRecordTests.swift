@@ -33,7 +33,7 @@ import CheckmateCore
         XCTAssertEqual(document.mainline.map{"\(document.nodes[$0].fullmove)\(document.nodes[$0].side)"},["37b","38w","38b"])
         XCTAssertEqual(document.result,"0-1");XCTAssertEqual(document.header("Event"),"Finish the Game");XCTAssertEqual(document.header("Black"),"You")
         XCTAssertEqual(document.title,"\(try XCTUnwrap(document.header("White"))) – You","a saved review is named by its players")
-        XCTAssertEqual(try ReviewExplanation.make(document:document,node:document.mainline[0]).title,"37... Qb7","the review numbers moves from the start's own FEN")
+        XCTAssertEqual(try ReviewExplanation.make(document:document,node:document.mainline[0]).title,"37… Qb7","the review numbers moves from the start's own FEN")
         XCTAssertEqual(try practiceBytes(session),practice,"the practice game is untouched");XCTAssertEqual(session.rules.pgn,practicePGN)
     }
     func testThePreludeAndAnEndedGameAreRecordedAsPlayed()async throws {

@@ -21,7 +21,7 @@ import CheckmateSupport
         let (library,game)=try century()
         let positions=try NetworkLibraryStart.positions(of:game,in:library)
         XCTAssertEqual(positions.count,game.plies);XCTAssertEqual(positions.map(\.ply),Array(1...game.plies))
-        XCTAssertEqual(positions[0].move,"After 1. Nf3");XCTAssertEqual(positions[1].move,"After 1... Nf6")
+        XCTAssertEqual(positions[0].move,"After 1. Nf3");XCTAssertEqual(positions[1].move,"After 1… Nf6")
         let kb1=positions[78]
         XCTAssertEqual(kb1.move,"After 40. Kb1");XCTAssertEqual(kb1.gameID,"byrne-fischer");XCTAssertEqual(kb1.title,game.title)
         XCTAssertEqual(kb1.fen,try NetworkRulesTests.centuryStart(),"the position the record replays to")

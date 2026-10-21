@@ -35,7 +35,7 @@ enum ReviewFormat {
     static func variationMoveText(_ n:GameNode,first:Bool)->String {first || n.side=="w" ? moveText(n):n.san ?? ""}
     /// The accessibility label of a move, e.g. "2, Black, dxc4"; acceptance gates find moves by it.
     static func moveLabel(_ n:GameNode)->String {"\(n.fullmove), \(PieceName.side(n.side)), \(n.san ?? "")"}
-    static func moveText(_ n:GameNode)->String {"\(n.fullmove)\(n.side=="w" ? ".":"…") \(n.san ?? "")"}
+    static func moveText(_ n:GameNode)->String {n.moveText}
     /// "Leaves opening theory at 12… Nf5" as one localized sentence, the move a link the header opens by selecting it.
     static func leavesTheory(_ n:GameNode)->AttributedString {var move=AttributedString(moveText(n));move.link=URL(string:"checkmate-review:leaves-theory");return AttributedString(localized:"Leaves opening theory at \(move)",bundle:.checkmate,comment:"The move where the reviewed game leaves the opening book, shown as a link and read aloud")}
     /// An imagined line's name, e.g. "After 18…Nf5: 19.Qh5 Kh8 …": the move it branches after, then its first `plies`

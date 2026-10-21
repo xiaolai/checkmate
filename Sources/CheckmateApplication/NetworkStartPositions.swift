@@ -22,7 +22,7 @@ public struct NetworkLibraryStart:Equatable {
         let document=documents[0];try GameLibrary.verify(document,matches:game)
         return document.mainline.map{id in
             let node=document.nodes[id]
-            return NetworkLibraryStart(gameID:game.id,title:game.title,ply:node.ply,fen:node.afterFEN,move:String(localized:"After \(node.fullmove)\(node.side=="b" ? "...":".") \(node.san ?? "")",bundle:.checkmate))
+            return NetworkLibraryStart(gameID:game.id,title:game.title,ply:node.ply,fen:node.afterFEN,move:String(localized:"After \(node.moveText)",bundle:.checkmate,comment:"A start position for a network game: after a numbered move, as in After 12… Nf5"))
         }
     }
 }

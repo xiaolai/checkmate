@@ -71,7 +71,7 @@ final class LearnerJargonTests:XCTestCase {
         XCTAssertEqual(texts.count,9,"every pattern was found")
         // Retry mode's every message (R-18), for the learner's own game and for a game of others.
         let phases:[ReviewRetry.Phase]=[.trying(tries:0,last:nil),.trying(tries:1,last:.played("Nf5")),.trying(tries:1,last:.worse("Nf5")),.judging(tries:1),.solved("Nf5"),.revealed("Nf5"),.revealed(nil)]
-        texts+=phases.flatMap{phase in [true,false].map{ReviewRetry.message(phase,played:"12... Nf5",mover:"Black",own:$0)}}+[ReviewRetry.summary(solved:1,total:1),ReviewRetry.summary(solved:2,total:3)]
+        texts+=phases.flatMap{phase in [true,false].map{ReviewRetry.message(phase,played:"12… Nf5",mover:"b",own:$0)}}+[ReviewRetry.summary(solved:1,total:1),ReviewRetry.summary(solved:2,total:3)]
         for text in texts {XCTAssertFalse(Self.jargon(in:text),text)}
     }
     /// L-25: a finished mini-game's review reads as plain words, not as a search report: no forced or proved wins and no

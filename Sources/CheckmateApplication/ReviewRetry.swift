@@ -88,7 +88,7 @@ import Foundation
         guard let phase else{return ""}
         if phase == .finished{return Self.summary(solved:solved,total:targets.count)}
         guard let target,let d=review.document else{return ""};let n=d.nodes[target]
-        return Self.message(phase,played:"\(n.fullmove)\(n.side=="w" ? ".":"...") \(n.san ?? "")",mover:n.side,own:side != nil)
+        return Self.message(phase,played:n.moveText,mover:n.side,own:side != nil)
     }
     /// `mover` is the side ("w" or "b") that played the retried move; `own` says it was the learner.
     nonisolated public static func message(_ phase:Phase,played:String,mover:String,own:Bool)->String {

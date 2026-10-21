@@ -1795,18 +1795,11 @@
     "Acknowledgements" : {},
     "Add the piece to promote to, such as %@." : {},
     "Adjusted to supported values" : {},
+    "After %@" : {
+      "comment" : "A start position for a network game: after a numbered move, as in After 12… Nf5"
+    },
     "After %@ it goes wrong." : {},
     "After %@. Earlier position; moves can't be played here." : {},
-    "After %lld%@ %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "After %1$lld%2$@ %3$@"
-          }
-        }
-      }
-    },
     "After %lld%@%@" : {
       "localizations" : {
         "en" : {
@@ -1894,22 +1887,13 @@
       "comment" : "A network game's agreed help, from its record"
     },
     "Assistance: %@ for both players." : {},
+    "At %@, both king and rook change squares. Inspect the king's safety afterward." : {},
     "At %@: %lld won, %lld drawn, %lld lost" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
             "value" : "At %1$@: %2$lld won, %3$lld drawn, %4$lld lost"
-          }
-        }
-      }
-    },
-    "At %lld%@ %@, both king and rook change squares. Inspect the king's safety afterward." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "At %1$lld%2$@ %3$@, both king and rook change squares. Inspect the king's safety afterward."
           }
         }
       }
@@ -3947,16 +3931,7 @@
         }
       }
     },
-    "Revisit %lld%@ %@: compare the material before the capture with the opponent's legal replies." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Revisit %1$lld%2$@ %3$@: compare the material before the capture with the opponent's legal replies."
-          }
-        }
-      }
-    },
+    "Revisit %@: compare the material before the capture with the opponent's legal replies." : {},
     "Rook" : {},
     "Rooks" : {},
     "Round %@" : {

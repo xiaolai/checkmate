@@ -58,6 +58,12 @@ import CheckmateTestSupport
         try retry.next();XCTAssertEqual(retry.phase,.finished);XCTAssertEqual(retry.message,"You found a better move in 1 of 2 positions.")
         retry.end();XCTAssertFalse(retry.active)
     }
+    /// The review's text numbers a move one way, the retry panel's included: "1. f3" for White, "1… e5" for Black,
+    /// never PGN's "1... e5".
+    func testAMoveIsNumberedOneWayInTheReviewsText() throws {
+        let document=try XCTUnwrap(PGNImporter.parse(Data("1. f3 e5 *".utf8)).first),main=document.mainline
+        XCTAssertEqual(main.map{document.nodes[$0].moveText},["1. f3","1… e5"])
+    }
     func testTheBoardTriesAMoveWithoutPlayingIt()async throws {
         let (review,_,retry,_,_)=try await analyzed()
         try retry.start(side:"w");try await retry.choose("g2");XCTAssertEqual(review.selected,"g2","the first square chooses the piece")

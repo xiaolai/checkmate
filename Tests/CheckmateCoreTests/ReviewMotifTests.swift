@@ -51,8 +51,8 @@ final class ReviewMotifTests:XCTestCase {
         let plain=try ReviewExplanation.make(document:document,node:0)
         XCTAssertFalse(plain.summary.contains("counting each side"));XCTAssertFalse(plain.summary.contains(" moves recorded"))
         let analyzed=try ReviewExplanation.make(document:document,node:0,losses:[line[0]:0,line[3]:0.15,line[5]:0.9,line[6]:0.05])
-        XCTAssertEqual(analyzed.summary,"The costliest moves were 3... Nf6 (blunder) and 2... Nc6 (mistake). Start with 3... Nf6: compare it with the engine's choice.")
-        XCTAssertEqual(try ReviewExplanation.make(document:document,node:0,losses:[line[5]:0.9]).summary,"The costliest move was 3... Nf6 (blunder). Start there: compare it with the engine's choice.")
+        XCTAssertEqual(analyzed.summary,"The costliest moves were 3… Nf6 (blunder) and 2… Nc6 (mistake). Start with 3… Nf6: compare it with the engine's choice.")
+        XCTAssertEqual(try ReviewExplanation.make(document:document,node:0,losses:[line[5]:0.9]).summary,"The costliest move was 3… Nf6 (blunder). Start there: compare it with the engine's choice.")
         XCTAssertTrue(try ReviewExplanation.make(document:document,node:0,losses:[line[0]:0.01]).summary.hasPrefix("The analysis found no mistakes or blunders in this game. "))
     }
 }
