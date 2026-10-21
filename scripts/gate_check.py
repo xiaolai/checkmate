@@ -20,6 +20,9 @@ OPTIONAL_SKIPS = {
     'ReviewPerformanceTests testImportNavigationAndSelectedLatency',
     'ReviewPerformanceTests testMaximumMainlineNavigationScale',
     'ReviewPerformanceTests testSelectedQuickP95OnActualGame',
+    # Wall-time measurement of whole-game analysis (CHECKMATE_REVIEW_RESOURCES); the budget arithmetic itself is
+    # ReviewGradeAndDepthTests testTheWholeGameAnalysisFitsItsBudget, which always runs.
+    'ReviewPerformanceTests testWholeGameAnalysisFitsItsBudget',
 }
 EXPECTED_FALSE = {('layout-verification.json', 'settledFrameJump')}
 
