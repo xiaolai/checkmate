@@ -671,6 +671,17 @@
         }
       }
     },
+    "%@, ahead by %lld" : {
+      "comment" : "A side's captures and its material lead in points, read by VoiceOver: White captured 1 knight, ahead by 3",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@, ahead by %2$lld"
+          }
+        }
+      }
+    },
     "%@, clip %lld" : {
       "comment" : "Where a problem happened: a lesson's place, then the clip's number",
       "localizations" : {
@@ -792,6 +803,29 @@
         }
       }
     },
+    "%lld bishops" : {
+      "comment" : "Captured pieces of one kind, in a list read by VoiceOver: White captured 1 bishop and 2 pawns",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld bishop"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld bishops"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%lld exercises" : {
       "localizations" : {
         "en" : {
@@ -874,6 +908,29 @@
                 "stringUnit" : {
                   "state" : "translated",
                   "value" : "%lld games in this file could not be read and were skipped."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld knights" : {
+      "comment" : "Captured pieces of one kind, in a list read by VoiceOver: White captured 1 knight and 2 pawns",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld knight"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld knights"
                 }
               }
             }
@@ -1219,6 +1276,29 @@
         }
       }
     },
+    "%lld pawns" : {
+      "comment" : "Captured pieces of one kind, in a list read by VoiceOver: White captured 1 knight and 2 pawns",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld pawn"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld pawns"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%lld people are watching." : {
       "localizations" : {
         "en" : {
@@ -1286,6 +1366,29 @@
         }
       }
     },
+    "%lld queens" : {
+      "comment" : "Captured pieces of one kind, in a list read by VoiceOver: White captured 1 queen and 2 pawns",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld queen"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld queens"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%lld reviews could not be saved." : {
       "localizations" : {
         "en" : {
@@ -1301,6 +1404,29 @@
                 "stringUnit" : {
                   "state" : "translated",
                   "value" : "%lld reviews could not be saved."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld rooks" : {
+      "comment" : "Captured pieces of one kind, in a list read by VoiceOver: White captured 2 rooks and 1 pawn",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld rook"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld rooks"
                 }
               }
             }
@@ -1719,6 +1845,12 @@
     "Black" : {},
     "Black bishop" : {
       "comment" : "A piece by side and kind, opening a label, as in: Black bishop on c5"
+    },
+    "Black captured %@" : {
+      "comment" : "Read by VoiceOver beside the board: Black captured 1 knight and 2 pawns"
+    },
+    "Black captured nothing" : {
+      "comment" : "Read by VoiceOver beside the board when Black has taken no pieces"
     },
     "Black is better" : {},
     "Black is slightly better" : {},
@@ -4445,6 +4577,12 @@
     "White" : {},
     "White bishop" : {
       "comment" : "A piece by side and kind, opening a label, as in: White bishop on c4"
+    },
+    "White captured %@" : {
+      "comment" : "Read by VoiceOver beside the board: White captured 1 knight and 2 pawns"
+    },
+    "White captured nothing" : {
+      "comment" : "Read by VoiceOver beside the board when White has taken no pieces"
     },
     "White has no pawns left, so this can no longer happen in this game. Undo your moves or start again." : {},
     "White is better" : {},

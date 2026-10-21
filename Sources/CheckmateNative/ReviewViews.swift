@@ -35,6 +35,7 @@ struct ReviewDetailContent:View {
     var body:some View {VStack(alignment:.leading,spacing:Metrics.sectionGap){
         if let d=review.document {
             ReviewHeader(review:review,model:model,document:d)
+            MaterialRow(balance:MaterialBalance(board:review.board),blackAtBottom:model.reviewLearnerSide(d)=="b")
             ReviewAnalysisSection(review:review,model:model,analyzer:analyzer,document:d)
             ReviewMoveSection(review:review,model:model,analyzer:analyzer,document:d)
             ReviewPositionPanel(review:review,model:model,analyzer:analyzer,document:d)
