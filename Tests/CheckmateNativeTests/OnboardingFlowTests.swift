@@ -30,6 +30,26 @@ import CheckmateCore
         flow.next();flow.placement = .knowsRules;flow.skip()
         XCTAssertEqual(closed,1);XCTAssertEqual(model.learning.lessonIndex,before);XCTAssertEqual(model.session.state.settings,settings)
     }
+    /// What the next launch decides, read from the data folder the way the app reads it before its model loads.
+    private func welcomedOnLaunch()throws->Bool {Onboarding.shows(firstRun:try !StateStore(directory:directory).hasSavedProgress(),silent:false,requested:false)}
+    func testStartingOrSkippingIsRememberedAtOnceAndAcrossLaunches()throws {
+        for start in [true,false] {
+            try? FileManager.default.removeItem(at:directory)
+            XCTAssertTrue(try welcomedOnLaunch(),"an empty data folder is a first run")
+            let model=try NativeModel();let flow=OnboardingFlow(model:model){}
+            if start {flow.start()} else {flow.skip()}
+            XCTAssertFalse(try welcomedOnLaunch(),"\(start ? "starting":"skipping") is saved at once, so even a force quit does not bring the welcome back")
+            XCTAssertNil(model.storageError);model.shutdown()
+            let again=try NativeModel();again.shutdown()
+            XCTAssertFalse(try welcomedOnLaunch(),"a relaunch reading the same folder does not welcome the learner again")
+        }
+    }
+    func testAnExistingLearnersOldSaveNeverShowsTheWelcome()throws {
+        try StateStore(directory:directory).save(ApplicationState())
+        XCTAssertFalse(try welcomedOnLaunch(),"a save from before the welcome existed means the learner has been here before")
+        let model=try NativeModel();model.shutdown()
+        XCTAssertFalse(try welcomedOnLaunch())
+    }
     func testVoiceIsSetUpOnlyThroughTheConsentQuestion()throws {
         let model=try NativeModel();defer{model.shutdown()}
         var asked=0;model.askVoiceConsent={_,reply in asked+=1;reply(.cancel)}

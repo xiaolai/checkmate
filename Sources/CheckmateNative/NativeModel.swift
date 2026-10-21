@@ -50,7 +50,7 @@ import RealtimeConnection
         return reason.isEmpty ? String(localized:"The review could not be saved. Export the original PGN before quitting.",bundle:.checkmate):String(localized:"The review could not be saved: \(reason.trimmingCharacters(in:CharacterSet(charactersIn:"."))). Export the original PGN before quitting.",bundle:.checkmate)
     }
     private var reviewSaveTask:Task<Void,Never>?
-    private static let progressSaveFailure=String(localized:"Your progress could not be saved. Export it before quitting.",bundle:.checkmate)
+    static let progressSaveFailure=String(localized:"Your progress could not be saved. Export it before quitting.",bundle:.checkmate)
     private var shuttingDown=false
     private var connectionStartup:ConnectionStartup<ClientSecret>?
     /// Which Checkmate Codex starts for chess MCP, read from Codex's configuration at launch and after Set up Codex

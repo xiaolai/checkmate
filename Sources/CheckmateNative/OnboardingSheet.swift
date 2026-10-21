@@ -12,13 +12,16 @@ import CheckmateCore
     init(model:NativeModel,close:@escaping ()->Void){self.model=model;self.close=close}
     func next(){if let next=step.next{step=next}}
     func back(){if let previous=step.previous{step=previous}}
-    func skip(){close()}
+    func skip(){remember();close()}
     /// Closes the welcome and opens the placed lesson, where the first move is made.
     func start(){
-        close()
+        remember();close()
         guard let index=Onboarding.lessonIndex(placement,in:model.learning.library) else{model.storageError=String(localized:"This lesson could not be opened. Nothing was changed.",bundle:.checkmate);return}
         model.lesson(index)
     }
+    /// The welcome shows only while the data folder holds no saved progress, so answering it saves now rather than at
+    /// quit: a force quit or crash after Skip must not bring it back.
+    private func remember(){do{try model.store.save(model.session.state)}catch{NativeLog.storage.error("Saving after the welcome failed");model.storageError=NativeModel.progressSaveFailure}}
     /// The Settings pane's way in: the consent question first, then the connection.
     func setUpVoice(){model.connectVoiceFromSettings()}
     var lessonTitle:String {Onboarding.lessonIndex(placement,in:model.learning.library).map{model.learning.library.lessons[$0].title} ?? ""}
