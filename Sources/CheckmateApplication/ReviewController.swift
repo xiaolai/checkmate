@@ -55,7 +55,15 @@ public struct ReviewBranch:Codable,Equatable {public let id:UUID,root:Int;public
     public var displayFEN:String? {displayRules?.fen}
     public var board:Position {displayRules?.board ?? [:]}
     public var destinations:[String] {selected.flatMap{displayRules?.moves($0).map(\.to)} ?? []}
-    public var explanation:ReviewExplanation? {guard let d=document else{return nil};let shown=fairness.engineHelpAllowed ? evidence:nil,key=identity+":\(branchPly):\(shown?.createdAt.timeIntervalSince1970 ?? 0)";if let cache=explanationCache,cache.0==key{return cache.1};let result:ReviewExplanation?;if branch != nil,let rules=displayRules{result=ReviewExplanation.imagined(rules:rules)}else{result=try? ReviewExplanation.make(document:d,node:nodeID,evidence:shown)};if let result=result{explanationCache=(key,result)};return result}
+    /// The whole-game analysis the overview reads (R-24); the app sets its own.
+    public weak var analyzer:ReviewAnalyzer?
+    /// What each mainline move gave up, for the overview: only a finished analysis of this game, and never while
+    /// engine help is withheld; a partial one counts only for the costly moves it has already found.
+    private var overviewLosses:[Int:Double]? {
+        guard nodeID==0,branch==nil,fairness.engineHelpAllowed,let d=document,let analyzer,analyzer.batchDocument==d.id else{return nil}
+        return analyzer.batchStatus=="ready" || analyzer.losses.values.contains(where:{MoveGrade(expectationLoss:$0).map{$0 != .inaccuracy} ?? false}) ? analyzer.losses:nil
+    }
+    public var explanation:ReviewExplanation? {guard let d=document else{return nil};let shown=fairness.engineHelpAllowed ? evidence:nil,losses=overviewLosses,key=identity+":\(branchPly):\(shown?.createdAt.timeIntervalSince1970 ?? 0):\(losses?.hashValue ?? 0)";if let cache=explanationCache,cache.0==key{return cache.1};let result:ReviewExplanation?;if branch != nil,let rules=displayRules{result=ReviewExplanation.imagined(rules:rules)}else{result=try? ReviewExplanation.make(document:d,node:nodeID,evidence:shown,losses:losses)};if let result=result{explanationCache=(key,result)};return result}
     /// Shows `document` and records the review in the session's activity, over the place it returns to.
     public func open(_ document:GameDocument,practice:GameSession,draft:Bool=false){load(document);practice.enterReview(document:document.id,draft:draft)}
     /// The review's own content only; the caller changes the session's activity.

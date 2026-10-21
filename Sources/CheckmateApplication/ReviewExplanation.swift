@@ -8,7 +8,9 @@ public struct ReviewExplanation:Codable,Equatable {
     public let title:String,summary:String,facts:[ReviewFact],takeaways:[String],historyNote:String?
     static let standardStart="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
     private static let centralSquares=Set(["d4","d5","e4","e5"])
-    public static func make(document:GameDocument,node:Int,evidence:ReviewEvidence?=nil)throws -> ReviewExplanation {
+    /// `losses` is the whole-game analysis of `document` (what each mainline move gave up), nil when there is none to
+    /// show: the overview then names the moves that cost the most, rather than a count of moves.
+    public static func make(document:GameDocument,node:Int,evidence:ReviewEvidence?=nil,losses:[Int:Double]?=nil)throws -> ReviewExplanation {
         guard document.nodes.indices.contains(node) else{throw CheckmateError.invalid(String(localized:"Unknown review node.",bundle:.checkmate))}
         let n=document.nodes[node],rules=try document.snapshotRules(at:node),status=try document.status(at:node,using:rules)
         var facts:[ReviewFact]=[]
@@ -19,6 +21,7 @@ public struct ReviewExplanation:Codable,Equatable {
             if let capture=move.captured{let square=move.flags.contains("e") ? String(move.to.prefix(1))+String(move.from.suffix(1)):move.to;add("capture",String(localized:"This captures \(PieceName.phrase(capture,.object)) on \(square).",bundle:.checkmate),[square,move.to])}
             if let promotion=move.promotion{add("promotion",String(localized:"The pawn became \(PieceName.phrase(promotion,.became)).",bundle:.checkmate),[move.to])}
             if move.flags.contains("k") || move.flags.contains("q"){let rank=move.color=="w" ? "1":"8",rookFrom=(move.flags.contains("k") ? "h":"a")+rank,rookTo=(move.flags.contains("k") ? "f":"d")+rank;add("castle",String(localized:"The king and rook moved together when castling.",bundle:.checkmate),[move.from,move.to,rookFrom,rookTo])}
+            for motif in ReviewMotifs.find(before:before.board,after:rules.board,from:move.from,to:move.to){add(motif.kind.rawValue,motif.text,motif.squares)}
             let controlled=ChessRules.squares.filter{rules.attackers($0,move.color).contains(move.to)}
             let enemy=controlled.filter{rules.piece($0).map{$0.color != move.color} ?? false}
             if !enemy.isEmpty {add("coverage",String(localized:"\(PieceName.phrase(mover,.opening)) on \(move.to) covers \(enemy.joined(separator:", ")). Check pins and legal replies before treating coverage as a capture.",bundle:.checkmate),[move.to]+enemy)}
@@ -73,8 +76,18 @@ public struct ReviewExplanation:Codable,Equatable {
         if let capture=captures.first {takeaways.append(String(localized:"Revisit \(capture.fullmove)\(capture.side=="w" ? ".":"...") \(capture.san ?? ""): compare the material before the capture with the opponent's legal replies.",bundle:.checkmate))}
         if let castle=document.mainline.map({document.nodes[$0]}).first(where:{$0.san?.hasPrefix("O-O")==true}){takeaways.append(String(localized:"At \(castle.fullmove)\(castle.side=="w" ? ".":"...") \(castle.san ?? ""), both king and rook change squares. Inspect the king's safety afterward.",bundle:.checkmate))}
         }
-        let overview=Sentences.join(String(localized:"\(document.mainline.count) moves recorded, counting each side's moves separately.",bundle:.checkmate),takeaways.first ?? String(localized:"Inspect the recorded position.",bundle:.checkmate))
+        let overview=node==0 ? Self.overview(document:document,losses:losses,fallback:takeaways.first):""
         return ReviewExplanation(title:node==0 ? String(localized:"Game overview",bundle:.checkmate):"\(n.fullmove)\(n.side=="w" ? ".":"...") \(n.san ?? String(localized:"Position",bundle:.checkmate))",summary:node==0 ? overview:Sentences.join(facts.prefix(3).map(\.text)),facts:facts,takeaways:Array(takeaways.prefix(3)),historyNote:!document.historyAvailable ? String(localized:"This FEN contains no earlier move history; repetition before this position is unknown.",bundle:.checkmate):document.startingFEN.split(separator:" ").prefix(4) != Self.standardStart.split(separator:" ").prefix(4) ? String(localized:"This game starts from a set-up position; moves before it are unknown, so earlier repetitions are not counted.",bundle:.checkmate):nil)
+    }
+    /// The game's turning points from its analysis, costliest first: up to three moves graded a mistake or a blunder.
+    static func overview(document:GameDocument,losses:[Int:Double]?,fallback:String?)->String {
+        guard let losses else{return fallback ?? String(localized:"Inspect the recorded position.",bundle:.checkmate)}
+        let costly=document.mainline.compactMap{id in losses[id].flatMap{loss in MoveGrade(expectationLoss:loss).flatMap{$0 == .inaccuracy ? nil:(id,loss,$0)}}}.sorted{$0.1>$1.1}.prefix(3)
+        guard let first=costly.first else{return Sentences.join(String(localized:"The analysis found no mistakes or blunders in this game.",bundle:.checkmate),fallback ?? "")}
+        func label(_ id:Int)->String {let n=document.nodes[id];return "\(n.fullmove)\(n.side=="w" ? ".":"...") \(n.san ?? "")"}
+        let named=costly.map{$0.2 == .blunder ? String(localized:"\(label($0.0)) (blunder)",bundle:.checkmate,comment:"A move and its grade, as in: 12. Nf3 (blunder)"):String(localized:"\(label($0.0)) (mistake)",bundle:.checkmate,comment:"A move and its grade, as in: 12. Nf3 (mistake)")}
+        // One move and several are two sentences, not a plural form: the one-move sentence names no count.
+        return costly.count==1 ? String(localized:"The costliest move was \(named[0]). Start there: compare it with the engine's choice.",bundle:.checkmate,comment:"The game overview when the analysis found one costly move, with its grade, as in: 12. Nf3 (blunder)"):String(localized:"The costliest moves were \(Plural.list(named)). Start with \(label(first.0)): compare it with the engine's choice.",bundle:.checkmate,comment:"The game overview: two or three costly moves, each with its grade, then the costliest one again")
     }
     public static func imagined(rules:ChessRules)->ReviewExplanation {
         let text=rules.checkmate ? String(localized:"This imagined position is checkmate.",bundle:.checkmate):rules.check ? String(localized:"\(PieceName.side(rules.turn)) is in check in this imagined position.",bundle:.checkmate):String(localized:"This is a separate imagined position, with \(PieceName.side(rules.turn)) to move. The original record is unchanged.",bundle:.checkmate)

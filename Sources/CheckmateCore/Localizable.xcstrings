@@ -77,6 +77,12 @@
         }
       }
     },
+    "%@ (blunder)" : {
+      "comment" : "A move and its grade, as in: 12. Nf3 (blunder)"
+    },
+    "%@ (mistake)" : {
+      "comment" : "A move and its grade, as in: 12. Nf3 (mistake)"
+    },
     "%@ account credit balance: %@" : {
       "localizations" : {
         "en" : {
@@ -1049,28 +1055,6 @@
         }
       }
     },
-    "%lld moves recorded, counting each side's moves separately." : {
-      "localizations" : {
-        "en" : {
-          "variations" : {
-            "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "%lld move recorded, counting each side's moves separately."
-                }
-              },
-              "other" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "%lld moves recorded, counting each side's moves separately."
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "%lld not tried." : {
       "comment" : "Puzzles not tried yet"
     },
@@ -1817,6 +1801,26 @@
     "Audio belonged to another recording response." : {},
     "Authorizing voice…" : {},
     "Available" : {},
+    "Back rank: the black king on %@ has no free square in front of it, and %@ on %@ can reach %@ with check. Watch for a back-rank checkmate." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Back rank: the black king on %1$@ has no free square in front of it, and %2$@ on %3$@ can reach %4$@ with check. Watch for a back-rank checkmate."
+          }
+        }
+      }
+    },
+    "Back rank: the white king on %@ has no free square in front of it, and %@ on %@ can reach %@ with check. Watch for a back-rank checkmate." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Back rank: the white king on %1$@ has no free square in front of it, and %2$@ on %3$@ can reach %4$@ with check. Watch for a back-rank checkmate."
+          }
+        }
+      }
+    },
     "Back to %@" : {},
     "Back to Game" : {},
     "Back to Games" : {},
@@ -2289,6 +2293,16 @@
     "Disconnect the voice coach before generating lesson recordings." : {},
     "Disconnect the voice coach before generating or playing lesson recordings." : {},
     "Disconnected" : {},
+    "Discovered attack: moving away from %@ opens the line of %@ on %@ to %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Discovered attack: moving away from %1$@ opens the line of %2$@ on %3$@ to %4$@."
+          }
+        }
+      }
+    },
     "Dismiss" : {},
     "Dismiss Piece Inspection" : {},
     "Done" : {
@@ -2468,6 +2482,17 @@
     "Follow each White piece's lines and jumps. A line stops at the first piece in the way; a pinned piece still attacks." : {},
     "Follow every line into the square and see which pieces could capture there." : {},
     "For each piece, ask whether a piece of its own side could capture back if it were taken." : {},
+    "Fork: %@ on %@ attacks %@ at once." : {
+      "comment" : "A tactic in a reviewed move, as in: Fork: the knight on c7 attacks the black king on e8 and the black rook on a8 at once.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Fork: %1$@ on %2$@ attacks %3$@ at once."
+          }
+        }
+      }
+    },
     "Free pieces" : {},
     "From %@, %@ controls %@ in the center." : {
       "localizations" : {
@@ -2566,6 +2591,16 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Handicap: you get %1$@; %2$@ gets %3$@."
+          }
+        }
+      }
+    },
+    "Hanging piece: %@ is attacked by %@ on %@ and nothing defends it." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Hanging piece: %1$@ is attacked by %2$@ on %3$@ and nothing defends it."
           }
         }
       }
@@ -3281,6 +3316,26 @@
     "Piece and move sounds" : {},
     "Piece movement" : {},
     "Pieces" : {},
+    "Pin: %@ on %@ pins %@ against %@ behind it." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Pin: %1$@ on %2$@ pins %3$@ against %4$@ behind it."
+          }
+        }
+      }
+    },
+    "Pin: %@ on %@ pins %@ to %@; moving it would expose the king." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Pin: %1$@ on %2$@ pins %3$@ to %4$@; moving it would expose the king."
+          }
+        }
+      }
+    },
     "Plan: %@" : {},
     "Play" : {
       "comment" : "Verb: start playback of a lesson"
@@ -3769,6 +3824,16 @@
     "Sign in to Codex with ChatGPT for subscription lesson translation." : {},
     "Sign in, then try again." : {},
     "Simplified game · its own rules, not full chess" : {},
+    "Skewer: %@ on %@ attacks %@, with %@ behind it on the same line." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Skewer: %1$@ on %2$@ attacks %3$@, with %4$@ behind it on the same line."
+          }
+        }
+      }
+    },
     "Skill" : {},
     "Skip" : {},
     "Skipped" : {},
@@ -3937,6 +4002,7 @@
     "The Codex companion accepts connections only from this Mac. A Codex task you connect can read the current game, its position and moves, and your saved reviews, including the names, events and comments in imported games." : {},
     "The Codex companion is a Codex task on this Mac that can see your board, coach you, or play against you, using Checkmate’s chess tools. Set Up Codex adds Checkmate to Codex once; after that, Checkmate waits on this Mac for a Codex task to connect. While the voice coach is connected, Codex is asked to wait; disconnect voice to use the companion." : {},
     "The account could not generate this recording." : {},
+    "The analysis found no mistakes or blunders in this game." : {},
     "The answer is %@." : {},
     "The answer is None." : {},
     "The answer is: %@." : {},
@@ -3975,6 +4041,20 @@
     "The computer played %@." : {},
     "The computer's reply did not fit this position. Press Resume to try again." : {},
     "The context moves must show how the pawn arrived." : {},
+    "The costliest move was %@. Start there: compare it with the engine's choice." : {
+      "comment" : "The game overview when the analysis found one costly move, with its grade, as in: 12. Nf3 (blunder)"
+    },
+    "The costliest moves were %@. Start with %@: compare it with the engine's choice." : {
+      "comment" : "The game overview: two or three costly moves, each with its grade, then the costliest one again",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "The costliest moves were %1$@. Start with %2$@: compare it with the engine's choice."
+          }
+        }
+      }
+    },
     "The current progress is too large to keep before importing." : {},
     "The data folder may be full or read-only." : {},
     "The defender captured %@. Keep it protected, or out of the king's reach." : {},
@@ -6458,6 +6538,18 @@
       }
     },
     "restricted or conditional" : {},
+    "review.motif.named" : {
+      "comment" : "A piece by color and kind with its square, as in: the black rook on a8",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ on %2$@"
+          }
+        }
+      }
+    },
     "rook" : {
       "comment" : "A piece's bare name, as in the list label: knight e4"
     },

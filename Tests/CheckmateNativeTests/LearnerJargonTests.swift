@@ -1,6 +1,7 @@
 import XCTest
 @testable import CheckmateNative
 import CheckmateCore
+import CheckmateRules
 @testable import CheckmateContent
 @testable import CheckmateApplication
 @testable import CheckmateMacPlatform
@@ -54,6 +55,20 @@ final class LearnerJargonTests:XCTestCase {
         Text("Game of \\(count) half-moves")
         """.write(to:file,atomically:true,encoding:.utf8)
         XCTAssertEqual(try Self.phrases(in:file).filter{Self.jargon(in:$0.text)}.map(\.line),[1,5])
+    }
+    /// R-24: the review's tactical patterns, game overview and opening line live in a scanned module, and the text
+    /// they build at run time is plain too.
+    func testReviewPatternsAndOverviewSayNoJargon()throws {
+        let sources=root.appendingPathComponent("Sources/CheckmateApplication")
+        for name in ["ReviewMotifs.swift","ReviewExplanation.swift","OpeningBook.swift"] {XCTAssertTrue(FileManager.default.fileExists(atPath:sources.appendingPathComponent(name).path),"\(name) is in a scanned module")}
+        let document=try PGNImporter.parse(Data("1. e4 e5 2. Qh5 Nc6 3. Bc4 Nf6 4. Qxf7# 1-0".utf8))[0]
+        let losses:[[Int:Double]?]=[nil,[:],[document.mainline[5]:0.9]]
+        var texts=try losses.map{try ReviewExplanation.make(document:document,node:0,losses:$0).summary}
+        for (fen,uci) in [("r3k3/8/8/1N6/8/8/8/4K3 w - - 0 1","b5c7"),("4k3/8/2n5/8/8/8/8/4KB2 w - - 0 1","f1b5"),("4q3/8/8/4k3/8/8/8/R6K w - - 0 1","a1e1"),("4k3/8/3p4/8/8/5N2/8/4K3 w - - 0 1","f3e5"),("6k1/5ppp/8/8/8/8/P4PPP/R5K1 w - - 0 1","a1e1"),("7k/6q1/8/8/3N4/8/1B6/4K3 w - - 0 1","d4b5")] {
+            let rules=try ChessRules(fen:fen),before=rules.board,move=try rules.move(uci:uci);texts+=ReviewMotifs.find(before:before,after:rules.board,from:move.from,to:move.to).map(\.text)
+        }
+        XCTAssertEqual(texts.count,9,"every pattern was found")
+        for text in texts {XCTAssertFalse(Self.jargon(in:text),text)}
     }
     /// Settings ▸ Connections shows the broker's typed state and problem; each is plain and distinct.
     @MainActor func testCompanionStatesAndProblemsArePlain() {
