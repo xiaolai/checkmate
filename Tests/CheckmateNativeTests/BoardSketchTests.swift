@@ -39,6 +39,12 @@ final class BoardSketchTests:XCTestCase {
         b.position=["e4":"wp","e7":"bp"];XCTAssertEqual(b.sketch.marks,[],"a move clears them")
         rightDrag(b,"e7","e5");b.displaySource="review";XCTAssertEqual(b.sketch.marks,[],"another board clears them")
     }
+    func testALeftClickAnywhereOnTheBoardClearsTheMarks(){
+        let b=board();rightDrag(b,"a2","a4");rightDrag(b,"h3","h3");XCTAssertEqual(b.sketch.marks.count,2)
+        b.mouseDown(with:mouse(.leftMouseDown,centre(b,"h5")));XCTAssertEqual(b.sketch.marks,[],"the press clears them, as on Lichess")
+        b.mouseUp(with:mouse(.leftMouseUp,centre(b,"h5")))
+        rightDrag(b,"a2","a4");b.mouseDown(with:mouse(.leftMouseDown,NSPoint(x:b.boardRect.maxX+5,y:b.boardRect.midY)));XCTAssertEqual(b.sketch.marks.count,1,"a press beside the board keeps them")
+    }
     func testRightButtonEventsNeverPlayAndLeftPlayNeverDraws(){
         let b=board();var activated:[String]=[];b.activate={sq in activated.append(sq);if sq=="e2"{b.selected="e2";b.destinations=["e3","e4"]}}
         rightDrag(b,"e2","e4");rightDrag(b,"e2","e2");XCTAssertEqual(activated,[]);XCTAssertFalse(b.dragging)
@@ -47,7 +53,7 @@ final class BoardSketchTests:XCTestCase {
         b.rightMouseDown(with:mouse(.rightMouseDown,centre(b,"e4")));b.rightMouseUp(with:mouse(.rightMouseUp,centre(b,"e4")));XCTAssertTrue(b.dragging)
         b.mouseUp(with:mouse(.leftMouseUp,centre(b,"e4")))
         XCTAssertEqual(activated,["e2","e4"])
-        XCTAssertEqual(b.sketch.marks,[BoardSketch.Mark(from:"e2",to:"e4",brush:.green),BoardSketch.Mark(from:"e2",to:"e2",brush:.green)],"only the marks drawn before the left drag")
+        XCTAssertEqual(b.sketch.marks,[],"the left press cleared the earlier marks, and the right press during the drag drew none")
         XCTAssertNil(b.menu,"the board has no context menu for the right button to compete with")
     }
     func testEveryBrushReadsOnBothSquaresOfEveryTheme(){

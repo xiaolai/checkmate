@@ -3,7 +3,7 @@ import CheckmateCore
 
 /// The learner's own arrows and circles on the board (B-11), on their own layer: a right-drag draws an arrow, a
 /// right-click a circle. They belong to the board shown and only to the learner: nothing reads them, they are never
-/// saved, and a move or another board clears them.
+/// saved, and a left click on the board (as on Lichess), a move or another board clears them.
 struct BoardSketch:Equatable {
     /// The colour, chosen by the modifiers held as on Lichess: none green, Shift or Control red, Option or Command blue,
     /// both groups yellow.

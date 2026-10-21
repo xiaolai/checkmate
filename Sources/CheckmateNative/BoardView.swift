@@ -261,7 +261,7 @@ final class BoardView:NSView,NSAccessibilityCustomRotorItemSearchDelegate {
         path.lineWidth=side*BoardOverlay.haloWidth;path.stroke()
     }
     required init?(coder:NSCoder){fatalError()}
-    override func mouseDown(with e:NSEvent){keyboardFocusVisible=false;window?.makeFirstResponder(self);drag=nil;let point=convert(e.locationInWindow,from:nil);press=square(at:point).map{($0,point)};if let sq=press?.square{focus=sq};needsDisplay=true}
+    override func mouseDown(with e:NSEvent){keyboardFocusVisible=false;window?.makeFirstResponder(self);drag=nil;let point=convert(e.locationInWindow,from:nil);press=square(at:point).map{($0,point)};if let sq=press?.square{focus=sq;sketch.clear()};needsDisplay=true}
     override func mouseDragged(with e:NSEvent){
         guard let press=press else{return};let point=convert(e.locationInWindow,from:nil)
         if drag==nil {
