@@ -41,7 +41,7 @@ struct MiniGameReviewSheet:View {
             else {ForEach(Array(review.facts.enumerated()),id:\.offset){index,fact in
                 HStack(alignment:.firstTextBaseline) {
                     Text(fact.text).fixedSize(horizontal:false,vertical:true).frame(maxWidth:.infinity,alignment:.leading).accessibilityIdentifier("mini-review-fact")
-                    if let show {Button("Show on Board"){show(index)}.accessibilityIdentifier("mini-review-show-on-board")}
+                    if let show {Button("Show on Board"){show(index)}.accessibilityIdentifier("mini-review-show-on-board-\(index+1)")}
                 }
             }}
             if !review.complete {Text(MiniGameReviewWording.incomplete).font(.caption).foregroundStyle(.secondary)}
