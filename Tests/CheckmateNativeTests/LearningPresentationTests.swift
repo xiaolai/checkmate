@@ -18,17 +18,20 @@ import CheckmateCore
         var missed=PuzzleProgress();missed.record(correct:false)
         let wrong=PuzzleRowFormat(p,record:missed);XCTAssertTrue(wrong.review);XCTAssertNil(wrong.mark);XCTAssertEqual(wrong.accessibilityValue,"Not solved yet, to review, \(p.level)")
         var hinted=PuzzleProgress();hinted.record(correct:true,hints:1)
-        let helped=PuzzleRowFormat(p,record:hinted);XCTAssertTrue(helped.review);XCTAssertEqual(helped.mark,.assisted)
+        let helped=PuzzleRowFormat(p,record:hinted);XCTAssertTrue(helped.review);XCTAssertEqual(helped.mark,.notFirstTry)
         XCTAssertEqual(helped.accessibilityValue,"Solved with hints, to review, \(p.level)")
+        var corrected=PuzzleProgress();corrected.record(correct:false);corrected.record(correct:true,afterMistake:true)
+        let later=PuzzleRowFormat(p,record:corrected);XCTAssertTrue(later.review);XCTAssertEqual(later.mark,.notFirstTry);XCTAssertEqual(later.markHelp,"Solved on a later try")
+        XCTAssertEqual(later.accessibilityValue,"Solved on a later try, to review, \(p.level)");XCTAssertEqual(helped.markHelp,"Solved with hints")
         var alone=PuzzleProgress();alone.record(correct:true)
-        let solved=PuzzleRowFormat(p,record:alone);XCTAssertFalse(solved.review);XCTAssertEqual(solved.mark,.solved);XCTAssertEqual(solved.accessibilityValue,"Solved, \(p.level)")
-        XCTAssertEqual(PuzzleRowFormat.Mark.solved.symbol,"checkmark.circle.fill");XCTAssertEqual(PuzzleRowFormat.Mark.assisted.symbol,"checkmark.circle")
-        XCTAssertNotEqual(PuzzleRowFormat.Mark.solved.help,PuzzleRowFormat.Mark.assisted.help,"an assisted solve is told apart from mastery")
+        let solved=PuzzleRowFormat(p,record:alone);XCTAssertEqual(solved.markHelp,"Solved");XCTAssertFalse(solved.review);XCTAssertEqual(solved.mark,.solved);XCTAssertEqual(solved.accessibilityValue,"Solved, \(p.level)")
+        XCTAssertEqual(PuzzleRowFormat.Mark.solved.symbol,"checkmark.circle.fill");XCTAssertEqual(PuzzleRowFormat.Mark.notFirstTry.symbol,"checkmark.circle","a solve that was not first try is told apart from mastery")
     }
-    /// The library heading counts assisted solves as solved, and still counts them to review.
+    /// The library heading counts assisted and later solves as solved, and still counts them to review.
     func testTheLibraryHeadingCountsAssistedSolves(){
         var hinted=PuzzleProgress();hinted.record(correct:true,hints:1);var alone=PuzzleProgress();alone.record(correct:true);var missed=PuzzleProgress();missed.record(correct:false)
-        XCTAssertEqual(PuzzleRowFormat.heading(["a":hinted,"b":alone,"c":missed]),"2 solved · 2 to review")
+        var later=PuzzleProgress();later.record(correct:false);later.record(correct:true,afterMistake:true)
+        XCTAssertEqual(PuzzleRowFormat.heading(["a":hinted,"b":alone,"c":missed,"d":later]),"3 solved · 3 to review")
     }
     /// The course-complete card appears on the last main lesson once every main lesson is explored, and offers next steps.
     func testTheCourseCompleteCardAppearsAtTheEndOfAFinishedCourse()throws {

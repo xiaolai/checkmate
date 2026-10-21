@@ -114,6 +114,7 @@ public struct PuzzleProgress:Codable,Equatable {
     /// Whether the record's very first answer was correct and not revealed; nil in records saved before it was kept.
     public var firstTry:Bool?
     /// Answered correctly after a mistake in the same visit: worked out, but not first time, so `solved` stays false.
+    /// It counts as solved and stays queued for review.
     public var solvedLater:Bool?
     /// The fewest hints shown before a correct answer that was not revealed; nil until such an answer.
     public var hints:Int?
@@ -121,8 +122,9 @@ public struct PuzzleProgress:Codable,Equatable {
     /// before it was kept; for those, a fewest-hints count above 0 means every correct answer was hinted.
     public var assisted:Bool?
     private var solvedWithHelp:Bool {assisted ?? ((hints ?? 0)>0)}
-    /// Counts toward progress as solved: solved alone, or with help. Only `solved` and `solvedFirstTime` are mastery.
-    public var countsAsSolved:Bool {solved || solvedWithHelp}
+    /// Counts toward progress as solved: solved alone, with help or on a later try. Only `solved` and `solvedFirstTime`
+    /// are mastery.
+    public var countsAsSolved:Bool {solved || solvedWithHelp || solvedLater==true}
     public var standing:PuzzleStanding {solved ? .solved:solvedWithHelp ? .solvedWithHints:solvedLater==true ? .solvedLater:attempts>0 ? .notSolved:.notTried}
     /// Solved with the first answer ever given. An older record without `firstTry` claims it only when its one answer
     /// was correct; with more answers the first is unknown, so it is not claimed.

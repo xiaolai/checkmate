@@ -2,19 +2,19 @@ import CheckmateCore
 
 /// One puzzle library row: what it shows and what VoiceOver reads. `PuzzleLibraryContent` draws these values.
 struct PuzzleRowFormat:Equatable {
-    /// Solved alone, or solved with help; an assisted solve is marked apart from mastery.
+    /// Solved alone, or solved but not first time (with hints or on a later try), which is marked apart from mastery.
     enum Mark:Equatable {
-        case solved,assisted
+        case solved,notFirstTry
         var symbol:String {self == .solved ? "checkmark.circle.fill":"checkmark.circle"}
-        var help:String {self == .solved ? PuzzleStanding.solved.title:PuzzleStanding.solvedWithHints.title}
     }
-    let title:String,detail:String,review:Bool,mark:Mark?,accessibilityValue:String
+    /// `markHelp`: the mark's tooltip, the puzzle's standing; nil without a mark.
+    let title:String,detail:String,review:Bool,mark:Mark?,markHelp:String?,accessibilityValue:String
     init(_ puzzle:Puzzle,record:PuzzleProgress) {
         title=puzzle.title;detail="\(puzzle.topic) · \(puzzle.level)";review=record.review
-        mark=record.solved ? .solved:record.countsAsSolved ? .assisted:nil
+        mark=record.solved ? .solved:record.countsAsSolved ? .notFirstTry:nil;markHelp=mark == nil ? nil:record.standing.title
         accessibilityValue=([record.standing.title]+(record.review ? ["to review"]:[])+[puzzle.level]).joined(separator:", ")
     }
-    /// The library heading: solves, alone or with help, and puzzles queued for review.
+    /// The library heading: every solve, first time or not, and puzzles queued for review.
     static func heading(_ progress:[String:PuzzleProgress])->String {
         "\(progress.values.filter(\.countsAsSolved).count) solved · \(progress.values.filter(\.review).count) to review"
     }

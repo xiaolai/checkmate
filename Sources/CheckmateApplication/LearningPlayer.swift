@@ -232,11 +232,11 @@ import Combine
         case "path":if var board=frame.board,let from=board.first(where:{$0.value=="wk"})?.key {if from==sq{return};if CourseLibrary.safeKingStep(board,from:from,to:sq){try? CourseLibrary.apply(&board,moves:[[from,sq]]);frame.board=board;if sq==e.to{answer(true)}else{feedback="Safe step. Keep going!"}}else if !CourseLibrary.attacks(board,from:from,to:sq){feedback="Choose a square next to the king."}else{answer(false,hint:"That square is not a safe neighboring square. Try another step.")}}
         default:break};publish()
     }
-    /// A correct answer after a mistake in this visit is a later solve: it says so, and the puzzle is not marked solved.
-    /// A correct answer after a hint counts as solved with help: it says so, and the puzzle stays queued for review.
+    /// A correct answer after a mistake in this visit is a later solve, and one after a hint is solved with help: each
+    /// says so, counts as solved but not as solved alone, and stays queued for review.
     private func answer(_ correct:Bool,revealed:Bool=false,hint:String?=nil){guard let p=activePuzzle,!passed else{return};pause()
         let later=correct && !revealed && mistake,helped=correct && !revealed && puzzleHints>0
-        var record=session.state.puzzles[p.id] ?? PuzzleProgress();record.record(correct:correct,revealed:revealed,afterMistake:mistake,hints:puzzleHints);session.state.puzzles[p.id]=record;if !correct{mistake=true};passed=correct || revealed;feedback=passed ? (revealed ? solution(p.exercise)+" ":helped ? "Correct, with help from a hint. It counts as solved with help and comes back for review. ":later ? "Correct, on a later try. Solve it first time to mark it solved. ":"Correct. ")+p.explanation:hint ?? "Not quite. Look again and try another answer.";session.emit(semantic:false,save:true);publish()
+        var record=session.state.puzzles[p.id] ?? PuzzleProgress();record.record(correct:correct,revealed:revealed,afterMistake:mistake,hints:puzzleHints);session.state.puzzles[p.id]=record;if !correct{mistake=true};passed=correct || revealed;feedback=passed ? (revealed ? solution(p.exercise)+" ":helped ? "Correct, with help from a hint. It counts as solved with help and comes back for review. ":later ? "Correct, on a later try. It counts as solved and comes back for review. ":"Correct. ")+p.explanation:hint ?? "Not quite. Look again and try another answer.";session.emit(semantic:false,save:true);publish()
     }
     public func reveal(){guard activePuzzle != nil else{return};answer(false,revealed:true)}
     private func solution(_ e:Exercise)->String {switch e.kind {case "choice":return e.answer ?? "";case "squares":return (e.answers ?? []).isEmpty ? "No squares":(e.answers ?? []).joined(separator:", ");case "move":return "\(e.from ?? "") → \(e.to ?? "")";default:return "Walk safely from \(e.from ?? "") to \(e.to ?? "")."}}

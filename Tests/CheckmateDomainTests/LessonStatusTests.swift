@@ -40,7 +40,7 @@ final class LessonStatusTests:XCTestCase {
         hinted.record(correct:true,hints:2);XCTAssertEqual(hinted.hints,1,"the fewest hints is kept")
         hinted.record(correct:true);XCTAssertTrue(hinted.solved);XCTAssertEqual(hinted.hints,0);XCTAssertFalse(hinted.solvedFirstTime,"the first answer needed a hint");XCTAssertFalse(hinted.review);XCTAssertEqual(hinted.standing,.solved)
         var plain=PuzzleProgress();XCTAssertEqual(plain.standing,.notTried);XCTAssertNil(plain.hints)
-        plain.record(correct:false);XCTAssertEqual(plain.standing,.notSolved);XCTAssertFalse(plain.countsAsSolved);plain.record(correct:true,afterMistake:true);XCTAssertEqual(plain.standing,.solvedLater);XCTAssertEqual(plain.hints,0);XCTAssertNil(plain.assisted);XCTAssertFalse(plain.countsAsSolved)
+        plain.record(correct:false);XCTAssertEqual(plain.standing,.notSolved);XCTAssertFalse(plain.countsAsSolved);plain.record(correct:true,afterMistake:true);XCTAssertEqual(plain.standing,.solvedLater);XCTAssertEqual(plain.hints,0);XCTAssertNil(plain.assisted);XCTAssertTrue(plain.countsAsSolved,"a later solve counts as solved");XCTAssertTrue(plain.review,"and stays queued for review");XCTAssertFalse(plain.solvedFirstTime)
         // A hinted solve after an unhinted later solve is still assisted, though the fewest hints is then 0.
         plain.record(correct:true,afterMistake:true,hints:1);XCTAssertEqual(plain.hints,0);XCTAssertTrue(plain.countsAsSolved);XCTAssertEqual(plain.standing,.solvedWithHints);XCTAssertTrue(plain.review)
         var revealed=PuzzleProgress();revealed.record(correct:false,revealed:true,hints:2);XCTAssertNil(revealed.hints,"a revealed answer is not a solve");XCTAssertNil(revealed.assisted);XCTAssertFalse(revealed.countsAsSolved);XCTAssertEqual(revealed.standing,.notSolved)
@@ -81,6 +81,8 @@ final class LessonStatusTests:XCTestCase {
         // A record saved with hints but before `assisted` was kept: a hint count above 0 means every solve was hinted.
         let hinted=try JSONDecoder().decode(PuzzleProgress.self,from:Data(#"{"solved":false,"review":true,"attempts":1,"firstTry":false,"hints":1}"#.utf8))
         XCTAssertNil(hinted.assisted);XCTAssertTrue(hinted.countsAsSolved);XCTAssertEqual(hinted.standing,.solvedWithHints)
+        let later=try JSONDecoder().decode(PuzzleProgress.self,from:Data(#"{"solved":false,"review":true,"attempts":2,"firstTry":false,"solvedLater":true}"#.utf8))
+        XCTAssertTrue(later.countsAsSolved);XCTAssertEqual(later.standing,.solvedLater)
     }
     /// Hints and first-try success for lesson exercises and puzzles are saved, read back, and are this build's own fields.
     func testHintsAndFirstTriesRoundTrip()throws {
