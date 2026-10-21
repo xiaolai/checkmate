@@ -114,10 +114,18 @@ public struct PuzzleProgress:Codable,Equatable {
     /// Whether the record's very first answer was correct and not revealed; nil in records saved before it was kept.
     public var firstTry:Bool?
     /// Answered correctly after a mistake in the same visit: worked out, but not first time, so `solved` stays false.
+    /// It counts as solved and stays queued for review.
     public var solvedLater:Bool?
     /// The fewest hints shown before a correct answer that was not revealed; nil until such an answer.
     public var hints:Int?
-    public var standing:PuzzleStanding {solved ? .solved:(hints ?? 0)>0 ? .solvedWithHints:solvedLater==true ? .solvedLater:attempts>0 ? .notSolved:.notTried}
+    /// Answered correctly, not revealed, after a hint: solved with help. Nil until such an answer, and in records saved
+    /// before it was kept; for those, a fewest-hints count above 0 means every correct answer was hinted.
+    public var assisted:Bool?
+    private var solvedWithHelp:Bool {assisted ?? ((hints ?? 0)>0)}
+    /// Counts toward progress as solved: solved alone, with help or on a later try. Only `solved` and `solvedFirstTime`
+    /// are mastery.
+    public var countsAsSolved:Bool {solved || solvedWithHelp || solvedLater==true}
+    public var standing:PuzzleStanding {solved ? .solved:solvedWithHelp ? .solvedWithHints:solvedLater==true ? .solvedLater:attempts>0 ? .notSolved:.notTried}
     /// Solved with the first answer ever given. An older record without `firstTry` claims it only when its one answer
     /// was correct; with more answers the first is unknown, so it is not claimed.
     public var solvedFirstTime:Bool {firstTry ?? (solved && attempts==1)}
@@ -125,12 +133,13 @@ public struct PuzzleProgress:Codable,Equatable {
     /// rather than leaving the range `StateStore.validate` accepts, which would refuse every later save. A count above
     /// the bound (never loaded, only constructed) is pulled back to it, and the arithmetic cannot overflow.
     /// `afterMistake`: an earlier answer in this visit was wrong, so a correct one is a later solve.
-    /// `hints`: hints shown in this visit before the answer; a correct answer after one is an assisted solve.
+    /// `hints`: hints shown in this visit before the answer; a correct answer after one is an assisted solve, which
+    /// counts as solved but stays queued for review.
     public mutating func record(correct:Bool,revealed:Bool=false,afterMistake:Bool=false,hints:Int=0){
         let alone=correct && !revealed && hints==0
         if attempts==0{firstTry=alone && !afterMistake}
         if correct && afterMistake && !revealed{solvedLater=true}
-        if correct && !revealed{self.hints=min(self.hints ?? hints,hints)}
+        if correct && !revealed{self.hints=min(self.hints ?? hints,hints);if hints>0{assisted=true}}
         solved = solved || alone && !afterMistake;review = !alone || afterMistake;attempts=attempts<Self.maximumAttempts ? attempts+1:Self.maximumAttempts
     }
 }
