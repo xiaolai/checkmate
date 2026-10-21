@@ -35,7 +35,7 @@ import CheckmateTestSupport
         let after=try ChessRules(fen:document.nodes[document.mainline[0]].afterFEN)
         XCTAssertEqual(review.bestMove,after.moves().first?.uci,"the arrow is the engine's choice in the position shown, Black's reply")
         fairness.participation.begin(.player)
-        XCTAssertNil(review.evaluationShare,"no evaluation during a network game");XCTAssertNil(review.bestMove,"no best move during a network game")
+        XCTAssertNil(review.evaluationShare,"no evaluation during a network game");XCTAssertNil(review.shownScore,"nor its words, which read the same score");XCTAssertNil(review.bestMove,"no best move during a network game")
         fairness.participation.end();XCTAssertNil(review.evaluationShare,"joining cleared the analysis; it shows again only once analyzed again");XCTAssertEqual(analyzer.bestMoves,[:])
     }
     func testAnImaginedLineShowsItsOwnAnalysis()async throws {

@@ -3,6 +3,7 @@ import AppKit
 @testable import CheckmateNative
 import CheckmateCore
 @testable import CheckmateApplication
+import CheckmateDomain
 
 /// R-8 and R-17 on the review board: the Lichess key model and its Go menu, and the evaluation bar's place.
 @MainActor final class ReviewGoTests:XCTestCase {
@@ -64,5 +65,24 @@ import CheckmateCore
         XCTAssertEqual(plain.white.minY,board.minY);XCTAssertEqual(plain.white.height,300,accuracy:0.001);XCTAssertEqual(plain.black.height,100,accuracy:0.001)
         let flipped=BoardView.evaluationBar(board:board,share:0.75,blackAtBottom:true)
         XCTAssertEqual(flipped.white.maxY,board.maxY);XCTAssertEqual(flipped.white.height,300,accuracy:0.001)
+    }
+    /// The bar is drawn, so VoiceOver gets it in plain words too, only while it is shown.
+    func testTheEvaluationBarIsReadAloudOnlyWhileShown() throws {
+        let board=BoardView(frame:NSRect(x:0,y:0,width:440,height:440))
+        func bar()->NSAccessibilityElement? {board.accessibilityChildren()?.compactMap{$0 as? NSAccessibilityElement}.first{$0.accessibilityIdentifier()=="board-evaluation"}}
+        board.evaluationLabel="Evaluation: White ahead by 1.2 pawns"
+        XCTAssertNil(bar(),"no bar, nothing to read")
+        board.evaluation=0.75
+        let element=try XCTUnwrap(bar());XCTAssertEqual(element.accessibilityRole(),.staticText);XCTAssertEqual(element.accessibilityLabel(),"Evaluation: White ahead by 1.2 pawns")
+        board.evaluationLabel=nil;XCTAssertNil(bar(),"a bar without words is not announced as an empty element")
+        board.evaluationLabel="Evaluation: even";board.evaluation=nil;XCTAssertNil(bar())
+    }
+    func testTheEvaluationIsSaidInPlainWordsFromWhitesSide() {
+        XCTAssertEqual(ReviewFormat.evaluationLabel(AnalysisScore(kind:"cp",value:120)),"Evaluation: White ahead by 1.2 pawns")
+        XCTAssertEqual(ReviewFormat.evaluationLabel(AnalysisScore(kind:"cp",value:-250)),"Evaluation: Black ahead by 2.5 pawns")
+        XCTAssertEqual(ReviewFormat.evaluationLabel(AnalysisScore(kind:"cp",value:4)),"Evaluation: even","what shows as 0.0 is even")
+        XCTAssertEqual(ReviewFormat.evaluationLabel(AnalysisScore(kind:"mate",value:3)),"Evaluation: White can force checkmate in 3 moves")
+        XCTAssertEqual(ReviewFormat.evaluationLabel(AnalysisScore(kind:"mate",value:-1)),"Evaluation: Black can force checkmate in 1 move")
+        XCTAssertEqual(ReviewFormat.evaluationLabel(AnalysisScore(kind:"mate",value:0)),"Evaluation: checkmate")
     }
 }

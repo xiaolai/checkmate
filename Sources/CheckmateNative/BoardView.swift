@@ -24,6 +24,14 @@ final class BoardHeaderAccessibility:NSAccessibilityElement {
     override func accessibilityLabel()->String? {guard let board=board else{return nil};return column ? String(localized:"File \(board.gridFile(index))",bundle:.checkmate,comment:"A board column and its letter"):String(localized:"Rank \(board.gridRank(index))",bundle:.checkmate,comment:"A board row and its number")}
     override func accessibilityFrame()->NSRect {guard let b=board,let w=b.window else{return .zero};let r=b.boardRect,s=r.width/8,m=Metrics.boardMargin;return w.convertToScreen(b.convert(column ? NSRect(x:r.minX+CGFloat(index)*s,y:r.minY-m,width:s,height:m):NSRect(x:r.minX-m,y:r.maxY-CGFloat(index+1)*s,width:m,height:s),to:nil))}
 }
+/// The review's evaluation bar, read aloud in plain words over the bar's own frame (R-17).
+final class EvaluationBarAccessibility:NSAccessibilityElement {
+    weak var board:BoardView?
+    init(board:BoardView){self.board=board;super.init();setAccessibilityParent(board);setAccessibilityIdentifier("board-evaluation")}
+    override func accessibilityRole()->NSAccessibility.Role? {.staticText}
+    override func accessibilityLabel()->String? {board?.evaluationLabel}
+    override func accessibilityFrame()->NSRect {guard let b=board,let w=b.window,let share=b.evaluation else{return .zero};let parts=BoardView.evaluationBar(board:b.boardRect,share:share,blackAtBottom:b.blackAtBottom);return w.convertToScreen(b.convert(parts.white.union(parts.black),to:nil))}
+}
 /// Review files are read off the main thread, one at a time, shared by Finder opens and board drops: a newer read
 /// replaces an older one, and a read that finishes after another activity was chosen is discarded, so a slow file
 /// never replaces what the learner opened or chose since. Starting a read first supersedes any older open or import
@@ -103,6 +111,9 @@ final class BoardView:NSView,NSAccessibilityCustomRotorItemSearchDelegate {
     var guards:[[String]]=[]
     /// White's share of the review's evaluation bar, 0...1, drawn in the margin right of the board (R-17); nil hides it.
     var evaluation:Double? {didSet{if evaluation != oldValue{needsDisplay=true}}}
+    /// The bar in plain words for VoiceOver; read only while the bar is shown.
+    var evaluationLabel:String?
+    private lazy var evaluationElement=EvaluationBarAccessibility(board:self)
     var relationshipConnectors:[RelationshipConnector]=[]
     var relationshipMode:RelationshipMode? {didSet{if relationshipMode != oldValue{updateBreathing()}}}
     var inspectRelationship:((RelationshipMode)->Void)?,dismissRelationships:(()->Bool)?
@@ -205,8 +216,8 @@ final class BoardView:NSView,NSAccessibilityCustomRotorItemSearchDelegate {
     var reviewNavigation=false
     override func accessibilityHelp()->String? {reviewNavigation ? String(localized:"Left and Right arrows step through the line shown, an imagined one too. Up and Down arrows switch between other moves played from the same position. Home and End go to the line's start and end. Hold Option with the arrow keys to explore squares, then press Return to choose a piece or destination. Escape clears your selection.",bundle:.checkmate):String(localized:"Use arrow keys to explore squares and Space or Return to choose a piece or destination. Escape clears your selection.",bundle:.checkmate)}
     override func isAccessibilityElement()->Bool {true}
-    /// The 64 squares first, then the sixteen headers.
-    override func accessibilityChildren()->[Any]? {squares+columnHeaders+rowHeaders}
+    /// The 64 squares first, then the sixteen headers, then the evaluation bar while it is shown.
+    override func accessibilityChildren()->[Any]? {squares+columnHeaders+rowHeaders+(evaluation != nil && evaluationLabel != nil ? [evaluationElement]:[])}
     override var accessibilityFocusedUIElement:Any? {squares.first{$0.square==focus}}
     override func accessibilityHitTest(_ point:NSPoint)->Any? {guard let window=window else{return self};let local=convert(window.convertPoint(fromScreen:point),from:nil);guard let sq=square(at:local) else{return self};return squares.first{$0.square==sq}}
     var boardRect:NSRect {let side=max(0,min(bounds.width,bounds.height)-Metrics.boardMargin*2);return NSRect(x:(bounds.width-side)/2,y:(bounds.height-side)/2,width:side,height:side)}

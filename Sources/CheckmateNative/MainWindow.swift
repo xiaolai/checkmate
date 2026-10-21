@@ -407,6 +407,8 @@ final class BoardTitleView:NSView {
         board.blackAtBottom = !model.reviewWorkspace && natural != (s.mode != .network && flipped==boardSubject)
         board.reviewNavigation=model.review.active
         board.evaluation=model.review.active && !model.reviewWorkspace ? model.review.evaluationShare:nil
+        // The same score in words: nil with the bar, and nil while engine help is withheld (shownScore is then nil).
+        board.evaluationLabel=board.evaluation==nil ? nil:model.review.shownScore.flatMap(ReviewFormat.evaluationLabel)
         reviewWorkspaceView.isHidden = !model.reviewWorkspace;controls.isHidden=model.reviewWorkspace;if workspaceFill.isActive != model.reviewWorkspace{workspaceAboveControls.isActive=false;workspaceFill.isActive=model.reviewWorkspace;workspaceAboveControls.isActive = !model.reviewWorkspace}
 playbackLineView?.isHidden=model.reviewWorkspace
         trainingLibraryView.isHidden=true

@@ -98,6 +98,13 @@ enum ReviewFormat {
         if s.kind=="mate"{return bound+(s.value==0 ? "#":s.value>0 ? "M\(s.value)":"−M\(-s.value)")}
         let pawns=Double(s.value)/100,text=String(format:"%.1f",abs(pawns));return bound+(text=="0.0" ? text:(pawns>0 ? "+":"−")+text)
     }
+    /// The evaluation bar in plain words, from White's side, for VoiceOver: "Evaluation: White ahead by 1.2 pawns". Like
+    /// the bar it ignores a bound; nil only for a score kind it cannot read.
+    static func evaluationLabel(_ s:AnalysisScore)->String? {
+        if s.kind=="mate"{let moves=abs(s.value);return s.value==0 ? String(localized:"Evaluation: checkmate",bundle:.checkmate,comment:"The evaluation bar read aloud when the position is already checkmate"):s.value>0 ? String(localized:"Evaluation: White can force checkmate in \(moves) moves",bundle:.checkmate,comment:"The evaluation bar read aloud"):String(localized:"Evaluation: Black can force checkmate in \(moves) moves",bundle:.checkmate,comment:"The evaluation bar read aloud")}
+        guard s.kind=="cp" else{return nil};let pawns=Double(s.value)/100,text=String(format:"%.1f",abs(pawns))
+        return text=="0.0" ? String(localized:"Evaluation: even",bundle:.checkmate,comment:"The evaluation bar read aloud when neither side is ahead"):pawns>0 ? String(localized:"Evaluation: White ahead by \(text) pawns",bundle:.checkmate,comment:"The evaluation bar read aloud; the number is in pawns"):String(localized:"Evaluation: Black ahead by \(text) pawns",bundle:.checkmate,comment:"The evaluation bar read aloud; the number is in pawns")
+    }
     /// The overview's takeaways without any the summary already says.
     static func takeaways(_ e:ReviewExplanation?)->[String] {guard let e else{return []};return e.takeaways.filter{let item=$0.trimmingCharacters(in:.whitespaces);return !item.isEmpty && !e.summary.contains(item)}}
     static let evaluationLimit=5.0

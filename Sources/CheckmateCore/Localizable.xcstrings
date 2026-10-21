@@ -2558,6 +2558,64 @@
     },
     "Evaluation graph, not on the main line" : {},
     "Evaluation, part %lld" : {},
+    "Evaluation: Black ahead by %@ pawns" : {
+      "comment" : "The evaluation bar read aloud; the number is in pawns"
+    },
+    "Evaluation: Black can force checkmate in %lld moves" : {
+      "comment" : "The evaluation bar read aloud",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Evaluation: Black can force checkmate in %lld move"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Evaluation: Black can force checkmate in %lld moves"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Evaluation: White ahead by %@ pawns" : {
+      "comment" : "The evaluation bar read aloud; the number is in pawns"
+    },
+    "Evaluation: White can force checkmate in %lld moves" : {
+      "comment" : "The evaluation bar read aloud",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Evaluation: White can force checkmate in %lld move"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Evaluation: White can force checkmate in %lld moves"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Evaluation: checkmate" : {
+      "comment" : "The evaluation bar read aloud when the position is already checkmate"
+    },
+    "Evaluation: even" : {
+      "comment" : "The evaluation bar read aloud when neither side is ahead"
+    },
     "Even" : {},
     "Event" : {},
     "Every lesson already has translated text in %@." : {},
