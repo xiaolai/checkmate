@@ -32,8 +32,13 @@ struct Metrics {
     /// Drawers open and close at their own pace, apart from the learner's piece speed (D-27); Reduce Motion makes it 0.
     static let drawerAnimation=0.3,frameInterval=1.0/60,settingsWidth:CGFloat=780,settingsHeight:CGFloat=560,settingsSidebar:CGFloat=190
 }
+/// The system font in a text style, optionally at another weight, or with digits of one width for numbers that line up.
+func styledFont(_ style:NSFont.TextStyle,_ weight:NSFont.Weight = .regular,monospacedDigits:Bool=false)->NSFont {
+    if monospacedDigits{return NSFont.monospacedDigitSystemFont(ofSize:NSFont.preferredFont(forTextStyle:style).pointSize,weight:weight)}
+    let base=NSFont.preferredFont(forTextStyle:style);return weight == .regular ? base:NSFont(descriptor:base.fontDescriptor.addingAttributes([.traits:[NSFontDescriptor.TraitKey.weight:weight.rawValue]]),size:0) ?? base
+}
 /// A wrapping label in a system text style, optionally at another weight.
-func textLabel(_ text:String,_ style:NSFont.TextStyle = .body,_ weight:NSFont.Weight = .regular)->NSTextField {let l=NSTextField(labelWithString:text),base=NSFont.preferredFont(forTextStyle:style);l.font=weight == .regular ? base:NSFont(descriptor:base.fontDescriptor.addingAttributes([.traits:[NSFontDescriptor.TraitKey.weight:weight.rawValue]]),size:0) ?? base;l.lineBreakMode = .byWordWrapping;return l}
+func textLabel(_ text:String,_ style:NSFont.TextStyle = .body,_ weight:NSFont.Weight = .regular)->NSTextField {let l=NSTextField(labelWithString:text);l.font=styledFont(style,weight);l.lineBreakMode = .byWordWrapping;return l}
 extension View {
     /// A section heading: its text style, and the heading trait so VoiceOver lists it and can jump between headings.
     func sectionHeading(_ style:Font = .headline)->some View {font(style).accessibilityAddTraits(.isHeader)}

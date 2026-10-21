@@ -432,7 +432,7 @@ import RealtimeConnection
                 if report.duplicate {alert.messageText=String(localized:"Already imported",bundle:.checkmate);alert.informativeText=report.summary;alert.runModal();return}
                 alert.messageText=String(localized:"Import game and progress?",bundle:.checkmate)
                 alert.informativeText=report.summary+String(localized:" A separate copy of your current state will be kept in Backups.",bundle:.checkmate)
-                let text=NSTextView(frame:NSRect(x:0,y:0,width:480,height:180));text.string=report.details;text.isEditable=false;text.isSelectable=true;text.font = .systemFont(ofSize:NSFont.systemFontSize);text.textContainerInset=NSSize(width:8,height:8);text.setAccessibilityLabel(String(localized:"Import recovery report",bundle:.checkmate))
+                let text=NSTextView(frame:NSRect(x:0,y:0,width:480,height:180));text.string=report.details;text.isEditable=false;text.isSelectable=true;text.font=styledFont(.body);text.textContainerInset=NSSize(width:8,height:8);text.setAccessibilityLabel(String(localized:"Import recovery report",bundle:.checkmate))
                 let scroll=NSScrollView(frame:text.frame);scroll.hasVerticalScroller=true;scroll.borderType = .noBorder;scroll.documentView=text;alert.accessoryView=scroll
                 alert.addButton(withTitle:String(localized:"Import",bundle:.checkmate));alert.addButton(withTitle:String(localized:"Cancel",bundle:.checkmate))
                 guard alert.runModal() == .alertFirstButtonReturn else{return}

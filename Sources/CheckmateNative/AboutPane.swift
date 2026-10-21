@@ -19,7 +19,7 @@ struct AboutPane:View {
     static var credits:NSAttributedString {
         let text=([license,"",String(localized:"Acknowledgements",bundle:.checkmate)]+acknowledgements.map{"\($0.0) (\($0.1))"}+[narration,"",String(localized:"Privacy, licenses and links are in Settings ▸ About.",bundle:.checkmate)]).joined(separator:"\n")
         let style=NSMutableParagraphStyle();style.alignment = .center
-        return NSAttributedString(string:text,attributes:[.font:NSFont.systemFont(ofSize:NSFont.smallSystemFontSize),.foregroundColor:NSColor.labelColor,.paragraphStyle:style])
+        return NSAttributedString(string:text,attributes:[.font:styledFont(.subheadline),.foregroundColor:NSColor.labelColor,.paragraphStyle:style])
     }
     /// Automation records each request in the data directory instead of opening it, so pointer tests stay silent and can still see the click arrive.
     static func open(_ url:URL,reveal:Bool=false,dataDirectory:URL){

@@ -31,16 +31,26 @@ final class TextStyleAccessibilityTests:XCTestCase {
             XCTAssertTrue(all.contains("\(heading).sectionHeading("),"\(heading) is a heading")
             XCTAssertFalse(all.contains("\(heading).font("),"\(heading) is styled without the heading trait")
         }
-        // Text follows text styles; the one fixed size allowed is a piece glyph sized to its board square, which
-        // scales with the board rather than with the text.
+        // Text follows text styles, in SwiftUI and AppKit alike. The fixed sizes allowed scale with what they are drawn
+        // in rather than with the text: a piece glyph or coordinate sized to its board square, a symbol sized to its image;
+        // a size read from a text style is a text style.
+        let fixed=try NSRegularExpression(pattern:#"(?:\.system\(size|\b\w*[sS]ystemFont\(ofSize|NSFont\(name:[^,]*,\s*size|\.custom\([^,]*,\s*size):\s*([^,)]+)"#)
+        let scaled=["Self.square","size","Self.coordinateFontSize(side:s","s*0.16","rect.height"]
+        var found=0
         for (name,text) in files {
-            for part in text.components(separatedBy:".font(.system(size:").dropFirst() {XCTAssertTrue(part.hasPrefix("Self.square"),"\(name) fixes a font size; use a text style")}
+            for match in fixed.matches(in:text,range:NSRange(text.startIndex...,in:text)) {
+                found+=1;let size=Range(match.range(at:1),in:text).map{String(text[$0])} ?? ""
+                XCTAssertTrue(scaled.contains{size==$0 || $0=="Self.square" && size.hasPrefix($0)} || size.hasPrefix("NSFont.preferredFont(forTextStyle:"),"\(name) fixes a font size (\(size)); use a text style")
+            }
         }
+        XCTAssertGreaterThanOrEqual(found,5,"the check sees the board's scaled glyphs, so it reads the sources it means to")
     }
     func testWindowLabelsUseTextStyles(){
         XCTAssertEqual(textLabel("Notes").font?.pointSize,NSFont.preferredFont(forTextStyle:.body).pointSize)
         let title=textLabel("Settings",.title3,.semibold)
         XCTAssertEqual(title.font?.pointSize,NSFont.preferredFont(forTextStyle:.title3).pointSize)
         XCTAssertEqual((title.font?.fontDescriptor.object(forKey:.traits) as? [NSFontDescriptor.TraitKey:Any])?[.weight] as? CGFloat ?? 0,NSFont.Weight.semibold.rawValue,accuracy:0.01)
+        // The library's result badge: digits of one width, at its text style's size.
+        XCTAssertEqual(styledFont(.caption1,.medium,monospacedDigits:true).pointSize,NSFont.preferredFont(forTextStyle:.caption1).pointSize)
     }
 }

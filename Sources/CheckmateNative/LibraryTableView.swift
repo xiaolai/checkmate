@@ -187,7 +187,7 @@ private func label(_ font:NSFont,_ color:NSColor = .labelColor)->NSTextField {
 /// button named by the full title, which opens the game.
 final class GameRowCell:NSTableCellView {
     static let identifier=NSUserInterfaceItemIdentifier("library-game")
-    private let title=label(.systemFont(ofSize:NSFont.systemFontSize,weight:.semibold)),details=label(.systemFont(ofSize:NSFont.smallSystemFontSize),.secondaryLabelColor),facts=label(.systemFont(ofSize:NSFont.smallSystemFontSize-1),.secondaryLabelColor)
+    private let title=label(styledFont(.body,.semibold)),details=label(styledFont(.subheadline),.secondaryLabelColor),facts=label(styledFont(.footnote),.secondaryLabelColor)
     private let badge=ResultBadge()
     private var action:()->Void={}
     private var rowLabel=""
@@ -215,7 +215,7 @@ final class GameRowCell:NSTableCellView {
 /// The result in a rounded badge, hidden from accessibility (the row's label already ends with it).
 final class ResultBadge:NSView {
     var text="" {didSet{field.stringValue=text;invalidateIntrinsicContentSize()}}
-    private let field=label(.monospacedDigitSystemFont(ofSize:NSFont.smallSystemFontSize-1,weight:.medium))
+    private let field=label(styledFont(.caption1,.medium,monospacedDigits:true))
     init(){
         super.init(frame:.zero);translatesAutoresizingMaskIntoConstraints=false;wantsLayer=true;addSubview(field)
         field.setContentCompressionResistancePriority(.required,for:.horizontal)
@@ -253,7 +253,7 @@ final class HeaderButton:NSButton {
         self.toggle=toggle;self.open=open;isEnabled=enabled
         let configuration=NSImage.SymbolConfiguration(pointSize:9,weight:.semibold)
         image=(open ? AppSymbol.expanded:.collapsed).nsImage()?.withSymbolConfiguration(configuration);contentTintColor = .secondaryLabelColor
-        attributedTitle=NSAttributedString(string:" "+section.title,attributes:[.font:NSFont.systemFont(ofSize:NSFont.smallSystemFontSize,weight:.semibold),.foregroundColor:NSColor.secondaryLabelColor])
+        attributedTitle=NSAttributedString(string:" "+section.title,attributes:[.font:styledFont(.subheadline,.semibold),.foregroundColor:NSColor.secondaryLabelColor])
         setAccessibilityLabel(section.title);setAccessibilityIdentifier("library-section-"+section.id)
         setAccessibilityHelp(open ? String(localized:"Hides this event's games.",bundle:.checkmate):String(localized:"Shows this event's games.",bundle:.checkmate))
     }
@@ -271,12 +271,12 @@ final class MenuAction:NSObject {
 /// A Classics or collection header; a collection's has Rename… and Remove… buttons (Remove asks before removing).
 final class SectionHeaderCell:NSTableCellView {
     static let identifier=NSUserInterfaceItemIdentifier("library-section")
-    private let title=label(.systemFont(ofSize:NSFont.smallSystemFontSize,weight:.semibold),.secondaryLabelColor)
+    private let title=label(styledFont(.subheadline,.semibold),.secondaryLabelColor)
     private let rename=NSButton(title:String(localized:"Rename…",bundle:.checkmate),target:nil,action:nil),remove=NSButton(title:String(localized:"Remove…",bundle:.checkmate),target:nil,action:nil)
     private var onRename:()->Void={},onRemove:()->Void={}
     init(){
         super.init(frame:.zero)
-        for button in [rename,remove]{button.bezelStyle = .inline;button.isBordered=false;button.controlSize = .small;button.font = .systemFont(ofSize:NSFont.smallSystemFontSize);button.contentTintColor = .controlAccentColor;button.target=self;button.translatesAutoresizingMaskIntoConstraints=false}
+        for button in [rename,remove]{button.bezelStyle = .inline;button.isBordered=false;button.controlSize = .small;button.font=styledFont(.subheadline);button.contentTintColor = .controlAccentColor;button.target=self;button.translatesAutoresizingMaskIntoConstraints=false}
         rename.action=#selector(renamePressed);remove.action=#selector(removePressed)
         addSubview(title);addSubview(rename);addSubview(remove);title.setAccessibilityRole(headingRole)
         NSLayoutConstraint.activate([title.leadingAnchor.constraint(equalTo:leadingAnchor,constant:4),title.centerYAnchor.constraint(equalTo:centerYAnchor,constant:3),
@@ -302,7 +302,7 @@ final class SectionHeaderCell:NSTableCellView {
 /// A collection that could not be read: its error, in the error colour.
 final class BrokenCell:NSTableCellView {
     static let identifier=NSUserInterfaceItemIdentifier("library-broken")
-    private let message=label(.systemFont(ofSize:NSFont.smallSystemFontSize),NativeColors.error)
+    private let message=label(styledFont(.subheadline),NativeColors.error)
     init(){
         super.init(frame:.zero)
         let icon=NSImageView(image:AppSymbol.warning.nsImage() ?? NSImage());icon.contentTintColor=NativeColors.error;icon.translatesAutoresizingMaskIntoConstraints=false
