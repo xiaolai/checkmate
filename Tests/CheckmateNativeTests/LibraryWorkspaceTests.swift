@@ -42,14 +42,15 @@ import CheckmateCore
         XCTAssertNil(model.storageError);XCTAssertNil(model.review.document,"nothing opens until the learner chooses")
         XCTAssertEqual(model.library.catalog.collections.map{$0.0.records.count},[ReviewPolicy.maximumRecords+1])
     }
-    /// A file of more games than a collection holds (20,000) is refused with that reason, and nothing is added or opened.
+    /// A file of more games than a collection holds (20,000) is refused with that reason alone, the count grouped as the
+    /// app shows counts and no record or token named, and nothing is added or opened.
     func testAFileOfMoreGamesThanACollectionHoldsIsRefused()async throws {
         let model=try NativeModel();defer{model.shutdown()}
         let games=(1...GameCollectionStore.maximumRecords+1).map{"[White \"W\($0)\"]\n\n1. e4 *"}.joined(separator:"\n\n")
         model.importReviewData(Data(games.utf8))
         for _ in 0..<3000 where model.storageError==nil{try await Task.sleep(for:.milliseconds(20))}
         let message=try XCTUnwrap(model.storageError,"the import was refused")
-        XCTAssertTrue(message.hasSuffix(String(localized:"The file has more than \(GameCollectionStore.maximumRecords) games.",bundle:.checkmate)),message)
+        XCTAssertEqual(GameCollectionStore.maximumRecords,20_000);XCTAssertEqual(message,"The file has more than 20,000 games.")
         XCTAssertTrue(model.library.catalog.collections.isEmpty,"nothing joined the library");XCTAssertNil(model.review.document,"nothing opened")
     }
     /// R-11: the library's Saved scope lists every saved review, follows renames, and the sidebar keeps a short list

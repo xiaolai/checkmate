@@ -16,10 +16,22 @@ final class B10ReviewImportTests:XCTestCase {
         // The token count that runs before the first game refuses it; the in-loop backstop said "Too many game records."
         // only after building 1000 games.
         XCTAssertThrowsError(try PGNImporter.parse(Data(String(repeating:"*\n",count:ReviewPolicy.maximumRecords+1).utf8))){error in
-            let problem=error as? ReviewImportError;XCTAssertEqual(problem?.record,ReviewPolicy.maximumRecords+1)
-            // Shown text formats its numbers for the reader's locale, as "1,000" in English.
-            XCTAssertTrue(problem?.reason.contains("more than \(ReviewPolicy.maximumRecords.formatted()) games")==true,"\(error)")
+            // The limit is the file's, so the refusal names no record or token, and its count is formatted for the
+            // reader's locale, as "1,000" in English.
+            let problem=error as? ReviewImportError;XCTAssertNil(problem?.record)
+            XCTAssertEqual(userFacingMessage(error,fallback:"?"),"The file has more than \(ReviewPolicy.maximumRecords.formatted()) games; split it into smaller files.")
         }
+    }
+    /// A refusal of the whole file (its size, its emptiness, or a collection's game count) is not located at a record
+    /// and token, while a problem inside a game still is.
+    func testAFileLevelRefusalNamesNoRecordOrToken(){
+        func refusal(_ attempt:()throws->Void)->String? {do{try attempt();return nil}catch{return userFacingMessage(error,fallback:"?")}}
+        XCTAssertEqual(refusal{_ = try PGNImporter.parseReport(Data(" \n".utf8))},"The file is empty.")
+        XCTAssertEqual(refusal{_ = try PGNImporter.parseReport(Data(count:ReviewPolicy.maximumBytes+1))},"File exceeds the 16 MiB limit.")
+        XCTAssertEqual(refusal{_ = try PGNImporter.splitRecords(Data(count:ReviewPolicy.maximumBytes+1),maximumRecords:3)},"File exceeds the 16 MiB limit.")
+        let games=(1...1_001).map{"[White \"W\($0)\"]\n\n1. e4 *"}.joined(separator:"\n\n")
+        XCTAssertEqual(refusal{_ = try PGNImporter.splitRecords(Data(games.utf8),maximumRecords:1_000)},"The file has more than 1,000 games.")
+        XCTAssertEqual(refusal{_ = try PGNImporter.parse(Data("1. e9 *".utf8))}?.hasPrefix("Record 1, token "),true,"a problem inside a game keeps its place")
     }
     func testALexicalErrorEndsTheCountWithoutRefusingTheFile()throws {
         let report=try PGNImporter.parseReport(Data("[Event \"A\"]\n1. e4 *\n\n[Event \"B\"]\n1. d4 {never closed".utf8))

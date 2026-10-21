@@ -11,10 +11,10 @@ public enum PGNImporter {
     /// Every readable game, plus the games that could not be read: one bad game in a collection is skipped and
     /// reported, never allowed to fail the whole file. A file with no readable game fails with its first problem.
     public static func parseReport(_ data:Data,provenance:ReviewProvenance = .imported,cancelled:@escaping ()->Bool={false})throws -> (documents:[GameDocument],skipped:[ReviewImportError]) {
-        guard data.count<=ReviewPolicy.maximumBytes else{throw ReviewImportError(record:1,token:0,reason:String(localized:"File exceeds the 16 MiB limit.",bundle:.checkmate))}
+        guard data.count<=ReviewPolicy.maximumBytes else{throw ReviewImportError(file:String(localized:"File exceeds the 16 MiB limit.",bundle:.checkmate))}
         // The PGN standard's character set is ISO 8859-1; many exports (ChessBase, TWIC) still use it.
-        guard var source=String(data:data,encoding:.utf8) ?? String(data:data,encoding:.windowsCP1252) ?? String(data:data,encoding:.isoLatin1) else{throw ReviewImportError(record:1,token:0,reason:String(localized:"The file is not readable text.",bundle:.checkmate))}
-        if source.first=="\u{feff}"{source.removeFirst()};guard !source.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty else{throw ReviewImportError(record:1,token:0,reason:String(localized:"The file is empty.",bundle:.checkmate))}
+        guard var source=String(data:data,encoding:.utf8) ?? String(data:data,encoding:.windowsCP1252) ?? String(data:data,encoding:.isoLatin1) else{throw ReviewImportError(file:String(localized:"The file is not readable text.",bundle:.checkmate))}
+        if source.first=="\u{feff}"{source.removeFirst()};guard !source.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty else{throw ReviewImportError(file:String(localized:"The file is empty.",bundle:.checkmate))}
         var trimmed=source.trimmingCharacters(in:.whitespacesAndNewlines)
         if trimmed.split(separator:" ").count==4,!trimmed.contains("["),trimmed.split(whereSeparator:{$0.isWhitespace}).first?.filter({$0=="/"}).count==7{trimmed+=" 0 1"}
         if let boardField=trimmed.split(whereSeparator:{$0.isWhitespace}).first,boardField.filter({$0=="/"}).count==7,!trimmed.contains("[") {
@@ -43,7 +43,7 @@ public enum PGNImporter {
         }};do{try advance()}catch is ReviewImportError{}}}
         do{token=try scanner.next()}catch let problem as ReviewImportError{skipped.append(problem);consumed=true;try skipGame(movetext:false)}
         while token != nil {
-            if cancelled(){throw CheckmateError.cancelled};guard records.count<ReviewPolicy.maximumRecords else{throw ReviewImportError(record:records.count+1,token:index,reason:String(localized:"Too many game records.",bundle:.checkmate))}
+            if cancelled(){throw CheckmateError.cancelled};guard records.count<ReviewPolicy.maximumRecords else{throw ReviewImportError(file:String(localized:"Too many game records.",bundle:.checkmate))}
             scanner.record=records.count+skipped.count+1;nesting=0
             // Commentary before a game's headers (or after the last result) belongs to no move. The game's text starts
             // with it, because its root keeps it: re-reading that text alone must give the same tree.
@@ -116,7 +116,7 @@ public enum PGNImporter {
                 skipped.append(problem);if let pending=lookahead{lookahead=nil;skipped.append(pending)};if consumed,let last=token,case .tag=last.kind{failedInHeaders=true};if !ended || consumed{try skipGame(movetext:!failedInHeaders,depth:failedInHeaders ? 0:nesting)}
             }
         }
-        guard !records.isEmpty else{throw skipped.first ?? ReviewImportError(record:1,token:0,reason:String(localized:"No game records.",bundle:.checkmate))};return (records,skipped)
+        guard !records.isEmpty else{throw skipped.first ?? ReviewImportError(file:String(localized:"No game records.",bundle:.checkmate))};return (records,skipped)
     }
     /// One record of a collection as the importer divides it: its byte range in the file and its header tags. Only the
     /// lexer runs (no replay, no document): a record is fully validated when it is opened.
@@ -125,9 +125,9 @@ public enum PGNImporter {
     /// A lexical error makes the record it falls in unreadable; reading resumes at the next line that starts a header.
     /// Reading stops once `enough` readable records are found.
     public static func splitRecords(_ data:Data,maximumRecords:Int,stoppingAt enough:Int=Int.max,cancelled:@escaping ()->Bool={false})throws -> (records:[RecordSpan],unreadable:Int) {
-        guard data.count<=ReviewPolicy.maximumBytes else{throw ReviewImportError(record:1,token:0,reason:String(localized:"File exceeds the 16 MiB limit.",bundle:.checkmate))}
+        guard data.count<=ReviewPolicy.maximumBytes else{throw ReviewImportError(file:String(localized:"File exceeds the 16 MiB limit.",bundle:.checkmate))}
         let utf8=String(data:data,encoding:.utf8)
-        guard var source=utf8 ?? String(data:data,encoding:.windowsCP1252) ?? String(data:data,encoding:.isoLatin1) else{throw ReviewImportError(record:1,token:0,reason:String(localized:"The file is not readable text.",bundle:.checkmate))}
+        guard var source=utf8 ?? String(data:data,encoding:.windowsCP1252) ?? String(data:data,encoding:.isoLatin1) else{throw ReviewImportError(file:String(localized:"The file is not readable text.",bundle:.checkmate))}
         // Foundation may or may not keep a UTF-8 byte order mark in the decoded text; the bytes decide where text starts.
         if source.first=="\u{feff}"{source.removeFirst()};let base=utf8 != nil && data.starts(with:[0xEF,0xBB,0xBF]) ? 3:0
         let chars=Array(source.unicodeScalars),results=Set(["1-0","0-1","1/2-1/2","*"]),spellings=["1/2":"1/2-1/2","½-½":"1/2-1/2"]
@@ -148,7 +148,7 @@ public enum PGNImporter {
             }
             return chars.count
         }
-        func overLimit()->ReviewImportError? {spans.count+unreadable>maximumRecords ? ReviewImportError(record:spans.count+unreadable,token:scanner.count,reason:String(localized:"The file has more than \(maximumRecords) games.",bundle:.checkmate)):nil}
+        func overLimit()->ReviewImportError? {spans.count+unreadable>maximumRecords ? ReviewImportError(file:String(localized:"The file has more than \(maximumRecords) games.",bundle:.checkmate)):nil}
         while true {
             if spans.count>=enough{return (spans,unreadable)}
             // Checked before every token, so a file of millions of tiny records is refused as soon as it passes the limit.
@@ -199,7 +199,7 @@ public enum PGNImporter {
             }
             if count>ReviewPolicy.maximumRecords{break}
         }}catch is ReviewImportError{}
-        guard count<=ReviewPolicy.maximumRecords else{throw ReviewImportError(record:count,token:scanner.count-1,reason:String(localized:"The file has more than \(ReviewPolicy.maximumRecords) games; split it into smaller files.",bundle:.checkmate))}
+        guard count<=ReviewPolicy.maximumRecords else{throw ReviewImportError(file:String(localized:"The file has more than \(ReviewPolicy.maximumRecords) games; split it into smaller files.",bundle:.checkmate))}
     }
     /// Accept common legal overspecification/check-suffix omissions, but never resolve ambiguity by guessing.
     private static func legalMove(_ san:String,rules:ChessRules)throws -> MoveRecord? {
