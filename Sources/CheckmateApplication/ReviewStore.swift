@@ -59,6 +59,8 @@ public final class ReviewStore {
     ///   folder's date. Full saves come from deliberate actions, so the cost is paid rarely.
     /// - `list()` re-stats every review on first load and whenever the folder's date changes (a file added or removed
     ///   behind the store's back).
+    /// - On a volume whose dates may be too coarse to show a change (`preciseDates`), no folder date is trusted: `list()`
+    ///   re-stats every review and every save measures the library.
     /// So a review document edited in place by something else, while the folder's date stays put, is not seen by
     /// `list()` until the folder changes or the store loads again; a full save still measures it for the quota.
     private var usedBytes:Int?,usedDates:[Double]?,ownStamps:[String:String]=[:],listedDate:Double?
@@ -68,6 +70,11 @@ public final class ReviewStore {
     /// Internal test seam: runs between the store's last look at the folder and its own change, where a change by
     /// another program would land.
     var beforeChange:(()->Void)?
+    /// Whether the volume holding a folder keeps modification dates fine enough to show every change (APFS keeps
+    /// nanoseconds). On any other volume two changes within one tick can leave a folder's date as it was, so the store
+    /// trusts no folder date there: the list checks each review and the byte total is measured on every save. Internal
+    /// so tests can model a coarse volume.
+    var preciseDates:(URL)->Bool={(try? $0.resourceValues(forKeys:[.volumeTypeNameKey]))?.volumeTypeName?.lowercased()=="apfs"}
     /// Each Trash folder's size, by its modification date, so a save does not reread every deleted review.
     private var trashSizes:[String:(stamp:Double,bytes:Int)]=[:]
     private func modified(_ url:URL)throws -> Double {FileManager.default.fileExists(atPath:url.path) ? ((try FileManager.default.attributesOfItem(atPath:url.path)[.modificationDate] as? Date)?.timeIntervalSinceReferenceDate ?? 0):-1}
@@ -83,7 +90,7 @@ public final class ReviewStore {
     /// date it recorded, or a full walk when the total is unknown or stale.
     func libraryBytes()throws -> Int {
         lock.lock();defer{lock.unlock()}
-        if let used=usedBytes,try folderDates()==usedDates,ownStamps.allSatisfy({ownStamp(directory.appendingPathComponent($0.key))==$0.value}){return used}
+        if let used=usedBytes,preciseDates(directory),try folderDates()==usedDates,ownStamps.allSatisfy({ownStamp(directory.appendingPathComponent($0.key))==$0.value}){return used}
         measurements+=1;var total=0,stamps:[String:String]=[:],found:Set<String>=[];let enumerator=FileManager.default.enumerator(at:directory,includingPropertiesForKeys:[.isRegularFileKey,.fileSizeKey])
         while let file=enumerator?.nextObject() as? URL {
             if enumerator?.level==1,file.lastPathComponent==trashURL.lastPathComponent{enumerator?.skipDescendants();continue}
@@ -107,7 +114,7 @@ public final class ReviewStore {
     private func tracking<T>(_ files:[URL],_ change:()throws->T)throws -> T {
         func measured()throws -> Int {try files.reduce(0){$0+(try size($1))}}
         let known=usedBytes != nil && files.allSatisfy{ownStamp($0)==(ownStamps[$0.lastPathComponent] ?? "absent")},before=try known ? measured():0
-        let dates=try folderDates(),listed=listedDate != nil && listedDate==dates[0],counted=known && dates==usedDates
+        let precise=preciseDates(directory),dates=try folderDates(),listed=precise && listedDate != nil && listedDate==dates[0],counted=precise && known && dates==usedDates
         beforeChange?();let result:T;do{result=try change()}catch{usedBytes=nil;listedDate=nil;names=nil;throw error}
         let now=try folderDates(),marks=files.map(ownStamp),found=try folderNames()
         var expected=names;for (file,stamp) in zip(files,marks){if stamp=="absent"{expected?.remove(file.lastPathComponent)}else{expected?.insert(file.lastPathComponent)}}
@@ -256,7 +263,7 @@ public final class ReviewStore {
         }
         // The folder's date is unchanged since the store last confirmed its index: no review was added or removed.
         looked+=1;let date=try modified(directory)
-        if let index,listedDate==date{return index}
+        if let index,listedDate==date,preciseDates(directory){return index}
         let listing=try FileManager.default.contentsOfDirectory(at:directory,includingPropertiesForKeys:nil);names=Set(listing.map(\.lastPathComponent)).subtracting([trashURL.lastPathComponent])
         let documentIDs=Set(listing.filter{$0.pathExtension=="json"}.compactMap{UUID(uuidString:$0.deletingPathExtension().lastPathComponent)})
         preserved=preserved.filter{documentIDs.contains($0.key) && $0.value==stamp($0.key)}

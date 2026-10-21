@@ -119,6 +119,21 @@ final class LibraryOrganisationTests:XCTestCase {
         XCTAssertThrowsError(try store.save(second,cursor:1,branches:[]),"a stale total would let this save pass the quota")
         XCTAssertEqual(store.measurements,measured+1);XCTAssertEqual(try store.libraryBytes(),try scanned(folder))
     }
+    /// On a volume whose dates may be too coarse to show a change, the store trusts no folder date: the list checks
+    /// each review and the byte total is measured again, so a review added within the same tick is still found.
+    func testAVolumeWithCoarseDatesTrustsNoFolderDate()throws {
+        let store=ReviewStore(directory:folder),games=try (1...10).map{try game("[White \"W\($0)\"]\n[Black \"B\"]\n\n1. e4 e5 *")}
+        store.preciseDates={_ in false}
+        for document in games{try store.save(document,cursor:1,branches:[])};XCTAssertEqual(try store.list().count,games.count)
+        let before=store.looked;XCTAssertEqual(try store.list().count,games.count)
+        XCTAssertGreaterThanOrEqual(store.looked-before,games.count,"the list checks each review")
+        let measured=store.measurements;XCTAssertEqual(try store.libraryBytes(),try scanned(folder));XCTAssertEqual(store.measurements,measured+1,"the total is measured again")
+        // A review added while the folder's date stays put, as on a volume that keeps whole seconds.
+        let date=try XCTUnwrap(FileManager.default.attributesOfItem(atPath:folder.path)[.modificationDate] as? Date),late=try game("[White \"Late\"]\n[Black \"B\"]\n\n1. c4 *")
+        try JSONEncoder().encode(SavedReview(schemaVersion:1,document:late,cursor:0,branches:[],updatedAt:Date())).write(to:store.documentURL(late.id))
+        try FileManager.default.setAttributes([.modificationDate:date],ofItemAtPath:folder.path)
+        XCTAssertEqual(try store.list().count,games.count+1);XCTAssertEqual(try store.libraryBytes(),try scanned(folder))
+    }
 
     // MARK: R-11
 
