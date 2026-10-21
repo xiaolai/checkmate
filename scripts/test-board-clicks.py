@@ -73,11 +73,14 @@ def replied(white_move):
 
 
 def toggle(name):
-    """A toggle's value, or None when the drawer no longer shows it."""
-    try:
-        return pointer("value", name)
-    except subprocess.CalledProcessError:
+    """A toggle's value, or None when the drawer no longer shows it. Any other failure, such as a name that picks out
+    several elements, fails the gate rather than reading as a closed drawer."""
+    result = subprocess.run([str(helpers["pointer-helper"]), str(process.pid), "value", name], capture_output=True, text=True)
+    if result.returncode == 0:
+        return result.stdout.strip()
+    if result.stderr.startswith("Not found"):
         return None
+    raise AssertionError(f"Reading {name} failed: {result.stderr.strip() or result.returncode}")
 
 
 def select(square):

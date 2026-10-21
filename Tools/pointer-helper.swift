@@ -150,7 +150,7 @@ case "click-left":guard let d=Double(b),d.isFinite,d>=0,d<=200 else{fputs("Offse
 // The accessibility help (VoiceOver hint) of a named element or, failing that, of the nearest ancestor that has one.
 case "help":unambiguous(a);guard var e=element(a) else{fputs("Not found: \(a)\n",stderr);exit(2)};for _ in 0..<4{if let h=get(e,kAXHelpAttribute) as? String,!h.isEmpty{print(h);exit(0)};guard let p=get(e,kAXParentAttribute) else{break};e=p as! AXUIElement};print("")
 case "select-popup":
-    let popup=element(a);reveal(popup);guard let popup,let bounds=frame(popup) else{fputs("Popup not found: \(a)\n",stderr);exit(2)};click(CGPoint(x:bounds.maxX-12,y:bounds.midY))
+    unambiguous(a);let popup=element(a);reveal(popup);guard let popup,let bounds=frame(popup) else{fputs("Popup not found: \(a)\n",stderr);exit(2)};click(CGPoint(x:bounds.maxX-12,y:bounds.midY))
     var option:AXUIElement?
     for _ in 0..<20 {
         option=find(popup){role,n in role=="AXMenuItem" && n.contains(b)} ?? find(app){role,n in role=="AXMenuItem" && n.contains(b)}
@@ -171,8 +171,8 @@ case "shortcut":guard let code=CGKeyCode(a) else{fputs("Key code must be a numbe
 case "return":key(36)
 // Whether a control accepts input, as AXEnabled reports it.
 // The element's screen frame as "x y width height", for checks that a control stays where it was.
-case "frame":guard let e=element(a),let f=frame(e) else{fputs("Not found: \(a)\n",stderr);exit(2)};print("\(f.minX) \(f.minY) \(f.width) \(f.height)")
-case "enabled":guard let e=element(a) else{fputs("Not found: \(a)\n",stderr);exit(2)};print((get(e,kAXEnabledAttribute) as? Bool) ?? false)
+case "frame":unambiguous(a);guard let e=element(a),let f=frame(e) else{fputs("Not found: \(a)\n",stderr);exit(2)};print("\(f.minX) \(f.minY) \(f.width) \(f.height)")
+case "enabled":unambiguous(a);guard let e=element(a) else{fputs("Not found: \(a)\n",stderr);exit(2)};print((get(e,kAXEnabledAttribute) as? Bool) ?? false)
 // Clicks a button inside the window that shows the given text, and every further text given after the button: an
 // alert's Cancel, never another window's.
 case "dialog-click":
@@ -184,7 +184,7 @@ case "go-folder":key(5,flags:[.maskCommand,.maskShift]);usleep(250_000);type(a);
 case "click-at","drag-across":
     let fractions=([b]+CommandLine.arguments.dropFirst(5)).compactMap{Double($0)}.filter{$0>=0 && $0<=1}
     guard fractions.count==(action=="click-at" ? 1:2),CommandLine.arguments.count==(action=="click-at" ? 5:6) else{fputs("Fractions must be numbers from 0 to 1\n",stderr);exit(1)}
-    let e=element(a);reveal(e);guard let e,let f=frame(e),f.width>0 else{fputs("Not found: \(a)\n",stderr);exit(2)}
+    unambiguous(a);let e=element(a);reveal(e);guard let e,let f=frame(e),f.width>0 else{fputs("Not found: \(a)\n",stderr);exit(2)}
     let points=fractions.map{CGPoint(x:f.minX+f.width*CGFloat($0),y:f.midY)};if points.count==1{click(points[0])}else{gesture(from:points[0],to:points[1])}
 // A wheel turn of the given lines over a named element's centre, as a person scrolls a pane by pointing anywhere in it.
 case "wheel":guard let lines=Int32(b),abs(lines)<=20 else{fputs("Scroll lines must be a whole number from -20 to 20, found \(b)\n",stderr);exit(1)};unambiguous(a);let p=center(element(a),a);unobstructed(p);post(.mouseMoved,p);usleep(80_000);let event=made(CGEvent(scrollWheelEvent2Source:source,units:.line,wheelCount:1,wheel1:lines,wheel2:0,wheel3:0),"scroll");event.location=p;event.post(tap:.cghidEventTap);usleep(300_000)
@@ -193,7 +193,7 @@ case "click-square":click(center(square(a),a))
 case "drift-square":guard let d=Double(b),d.isFinite,abs(d)<=1000 else{fputs("Drift distance must be a number of points from -1000 to 1000, found \(b)\n",stderr);exit(1)};let p=center(square(a),a);gesture(from:p,to:CGPoint(x:p.x+d,y:p.y+d*0.3))
 case "drag-square":gesture(from:center(square(a),a),to:center(square(b),b))
 case "label":guard let e=square(a) else{fputs("Not found: \(a)\n",stderr);exit(2)};print(names(e).first ?? "")
-case "value":guard let e=element(a) else{fputs("Not found: \(a)\n",stderr);exit(2)};print(get(e,kAXValueAttribute).map{"\($0)"} ?? "")
+case "value":unambiguous(a);guard let e=element(a) else{fputs("Not found: \(a)\n",stderr);exit(2)};print(get(e,kAXValueAttribute).map{"\($0)"} ?? "")
 case "scroll-sidebar":guard a.isEmpty || Int32(a) != nil else{fputs("Scroll lines must be a whole number, found \(a)\n",stderr);exit(1)};guard let area=inWindows({role,n in role=="AXOutline" && n.contains("Sidebar")}),let bounds=frame(area),let window=windowOf(area),let windowBounds=frame(window) else{exit(2)};let point=CGPoint(x:bounds.minX+min(80,bounds.width/2),y:windowBounds.midY);unobstructed(point);post(.mouseMoved,point);let event=made(CGEvent(scrollWheelEvent2Source:source,units:.line,wheelCount:1,wheel1:Int32(a) ?? -5,wheel2:0,wheel3:0),"scroll");event.location=point;event.post(tap:.cghidEventTap);usleep(250_000)
 case "choose-menu-item":let item=find(app){role,n in role=="AXMenuItem" && n.contains(a)};click(center(item,a))
 case "menu-open":print(find(app){role,n in role=="AXMenuItem" && n.contains(a)}.flatMap(frame).map{$0.width>0 && $0.height>0} ?? false)
@@ -209,7 +209,7 @@ case "key":guard let code=CGKeyCode(a) else{fputs("Key code must be a number, fo
 // drag from Finder delivers. Prints the drag operation the destination accepted ("copy", "none", ...).
 case "drop-file":
     let file=URL(fileURLWithPath:a);guard FileManager.default.isReadableFile(atPath:file.path) else{fputs("No such file: \(a)\n",stderr);exit(1)}
-    let target=element(b);reveal(target);let destination=center(target,b);unobstructed(destination)
+    unambiguous(b);let target=element(b);reveal(target);let destination=center(target,b);unobstructed(destination)
     DropSession.run(file,to:destination)
 default:fputs("Unknown action\n",stderr);exit(1)
 }
