@@ -26,6 +26,8 @@ public enum TrainingMoveGrade:Equatable {
     private let rules:ChessRules
     /// The presented position, after any context moves.
     public private(set) var fen:String
+    /// The square a pawn may capture on en passant in that position, or nil.
+    public var enPassant:String? {TypedMove.enPassant(fen:fen)}
     private var cachedOutcomes:[MoveOutcome]?
     /// Validates a complete FEN (one king each, the side not to move not in check, consistent castling rights), then
     /// replays the context moves, any of which may fail.
@@ -79,6 +81,6 @@ public enum TrainingMoveGrade:Equatable {
     }
     /// Why a geometric or legal rule refuses an attempt, in words a beginner can act on; typed moves give the same reasons.
     private func reason(piece:String,from:String,to:String,board:Position)throws -> String {
-        TypedMove.refusal(piece:piece,from:from,to:to,board:board,enPassant:fen.split(separator:" ").dropFirst(3).first.map(String.init),inCheck:try rules.isCheck())
+        TypedMove.refusal(piece:piece,from:from,to:to,board:board,enPassant:enPassant,inCheck:try rules.isCheck())
     }
 }

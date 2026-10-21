@@ -51,27 +51,30 @@ public enum TypedMove {
         return [piece("p",prefix[...])].compactMap{$0}
     }
 
-    /// Resolves `text` against `moves`, the moves of the side to move. With `squaresAsTyped`, a move typed as squares is
-    /// passed on unchecked, for an exercise that grades raw attempts itself.
-    public static func resolve(_ text:String,moves:[MoveRecord],board:Position,turn:String,inCheck:Bool,squaresAsTyped:Bool=false)->Resolution {
+    /// A position's en passant square, from its FEN's fourth field: nil when there is none.
+    public static func enPassant(fen:String)->String? {let field=fen.split(separator:" ").dropFirst(3).first.map(String.init);return field=="-" ? nil:field}
+    /// Resolves `text` against `moves`, the moves of the side to move, where `enPassant` is the square a pawn may capture
+    /// on now. With `squaresAsTyped`, a move typed as squares is passed on unchecked, for an exercise that grades raw
+    /// attempts itself.
+    public static func resolve(_ text:String,moves:[MoveRecord],board:Position,turn:String,enPassant:String?,inCheck:Bool,squaresAsTyped:Bool=false)->Resolution {
         let trimmed=text.trimmingCharacters(in:.whitespaces)
         guard !trimmed.isEmpty else{return .refused(String(localized:"Type a move, such as e4 or Nf3.",bundle:.checkmate))}
         let readings=readings(trimmed)
         guard !readings.isEmpty else{return .refused(String(localized:"“\(trimmed)” is not a move. Type a move such as e4, Nf3, O-O or e2e4.",bundle:.checkmate))}
         var first:Resolution?
         for reading in readings {
-            let result=resolve(reading,moves:moves,board:board,turn:turn,inCheck:inCheck,squaresAsTyped:squaresAsTyped)
+            let result=resolve(reading,moves:moves,board:board,turn:turn,enPassant:enPassant,inCheck:inCheck,squaresAsTyped:squaresAsTyped)
             if case .move=result{return result};if first==nil{first=result}
         }
         return first!
     }
-    private static func resolve(_ reading:Reading,moves:[MoveRecord],board:Position,turn:String,inCheck:Bool,squaresAsTyped:Bool)->Resolution {
+    private static func resolve(_ reading:Reading,moves:[MoveRecord],board:Position,turn:String,enPassant:String?,inCheck:Bool,squaresAsTyped:Bool)->Resolution {
         switch reading {
         case .squares(let from,let to,let promotion):
             if squaresAsTyped{return .move(Choice(from:from,to:to,promotion:promotion))}
             guard let piece=board[from] else{return .refused(String(localized:"There's no piece on \(from).",bundle:.checkmate))}
             guard piece.hasPrefix(turn) else{return .refused(String(localized:"The \(names[String(piece.suffix(1))] ?? "piece") on \(from) is \(side(String(piece.prefix(1))))'s, and it's \(side(turn))'s move.",bundle:.checkmate))}
-            return choose(moves.filter{$0.from==from && $0.to==to},promotion:promotion,example:from+to+"q",board:board,turn:turn,inCheck:inCheck){refusal(piece:piece,from:from,to:to,board:board,enPassant:nil,inCheck:inCheck)}
+            return choose(moves.filter{$0.from==from && $0.to==to},promotion:promotion,example:from+to+"q",board:board,turn:turn,inCheck:inCheck){refusal(piece:piece,from:from,to:to,board:board,enPassant:enPassant,inCheck:inCheck)}
         case .castle(let kingside):
             let matches=moves.filter{$0.piece=="k" && $0.flags.contains(kingside ? "k":"q")}
             if let move=matches.first{return .move(Choice(from:move.from,to:move.to,promotion:nil))}
@@ -90,8 +93,8 @@ public enum TypedMove {
             return choose(matches,promotion:promotion,example:to+"=Q",board:board,turn:turn,inCheck:inCheck){
                 let own=board.filter{$0.value==turn+kind && fits($0.key)}.keys.sorted()
                 if own.isEmpty{return String(localized:"You have no \(name)\(file != nil || rank != nil ? " there":"").",bundle:.checkmate)}
-                let reaching=own.filter{follows(from:$0,to:to,board:board,enPassant:nil)}
-                if own.count==1 || reaching.count==1{return refusal(piece:turn+kind,from:reaching.first ?? own[0],to:to,board:board,enPassant:nil,inCheck:inCheck)}
+                let reaching=own.filter{follows(from:$0,to:to,board:board,enPassant:enPassant)}
+                if own.count==1 || reaching.count==1{return refusal(piece:turn+kind,from:reaching.first ?? own[0],to:to,board:board,enPassant:enPassant,inCheck:inCheck)}
                 return String(localized:"No \(name) of yours can move to \(to).",bundle:.checkmate)
             }
         }

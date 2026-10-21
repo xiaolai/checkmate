@@ -46,6 +46,19 @@ import CheckmateCore
         XCTAssertNotNil(game.submitTypedMove(first.from+unreachable));XCTAssertEqual(model.learning.miniGame?.history.count,0,"a refused move changes nothing")
         XCTAssertNil(game.submitTypedMove(first.from+first.to));XCTAssertEqual(model.learning.miniGame?.history.count,1)
     }
+    /// An en passant capture typed in SAN lands on an empty square: a training exercise and a lesson puzzle read it from
+    /// the position's en passant square, not only from the pieces.
+    func testAnEnPassantCaptureIsTypedInTrainingAndInAPuzzle()throws {
+        setenv("CHECKMATE_TRAINING_ENABLED","1",1);setenv("CHECKMATE_TRAINING_B","1",1);defer{unsetenv("CHECKMATE_TRAINING_ENABLED");unsetenv("CHECKMATE_TRAINING_B")}
+        let model=try NativeModel(),game=GameWindow(model:model);defer{model.session.cancelWork();game.window?.delegate=nil;model.shutdown()}
+        model.startTraining("special-moves",variant:"en-passant-available");game.refresh()
+        let exercise=try XCTUnwrap(model.training?.exercise),answer=try XCTUnwrap(exercise.scenario.nodes?.first?.accepted.first)
+        let from=String(answer.prefix(2)),to=String(answer.dropFirst(2).prefix(2));XCTAssertNil(exercise.board[to],"fixture: the capture lands on an empty square")
+        XCTAssertNil(game.submitTypedMove("\(from.first!)x\(to)"));XCTAssertEqual(model.training?.exercise?.status,.correct)
+        model.puzzles();model.learning.openPuzzle(id:"course:promotion-en-passant:2");game.refresh()
+        XCTAssertEqual(model.learning.exercise?.from,"d5");XCTAssertNil(model.learning.frame.board?["c6"],"fixture: the capture lands on an empty square")
+        XCTAssertNil(game.submitTypedMove("dxc6"));XCTAssertTrue(model.learning.passed)
+    }
     func testReviewTakesNoTypedMove()throws {
         let model=try NativeModel(),game=GameWindow(model:model);defer{model.session.cancelWork();game.window?.delegate=nil;model.shutdown()}
         model.openReview(try PGNImporter.parse(Data("1. e4 e5 *".utf8))[0]);game.refresh()

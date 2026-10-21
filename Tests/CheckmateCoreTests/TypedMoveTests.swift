@@ -6,7 +6,7 @@ import XCTest
 final class TypedMoveTests:XCTestCase {
     private func resolve(_ text:String,_ fen:String?=nil,asTyped:Bool=false)throws -> TypedMove.Resolution {
         let rules=try ChessRules();if let fen{try rules.load(fen)}
-        return TypedMove.resolve(text,moves:rules.moves(),board:rules.board,turn:rules.turn,inCheck:rules.check,squaresAsTyped:asTyped)
+        return TypedMove.resolve(text,moves:rules.moves(),board:rules.board,turn:rules.turn,enPassant:TypedMove.enPassant(fen:fen ?? rules.fen),inCheck:rules.check,squaresAsTyped:asTyped)
     }
     private func move(_ from:String,_ to:String,_ promotion:String?=nil)->TypedMove.Resolution {.move(TypedMove.Choice(from:from,to:to,promotion:promotion))}
     private func refusal(_ resolution:TypedMove.Resolution,file:StaticString=#filePath,line:UInt=#line)->String {guard case .refused(let text)=resolution else{XCTFail("expected a refusal, got \(resolution)",file:file,line:line);return ""};return text}
@@ -74,15 +74,24 @@ final class TypedMoveTests:XCTestCase {
     func testAGradedExerciseGetsTheMoveAsTyped()throws {
         XCTAssertEqual(try resolve("e2e5",asTyped:true),move("e2","e5"))
         let rules=try ChessRules(),board=rules.board
-        XCTAssertEqual(TypedMove.resolve("Nf3",moves:TypedMove.reachable(board:board,turn:"w",enPassant:nil),board:board,turn:"w",inCheck:false),move("g1","f3"))
-        XCTAssertEqual(TypedMove.resolve("e4",moves:TypedMove.reachable(board:board,turn:"w",enPassant:nil),board:board,turn:"w",inCheck:false),move("e2","e4"))
+        XCTAssertEqual(TypedMove.resolve("Nf3",moves:TypedMove.reachable(board:board,turn:"w",enPassant:nil),board:board,turn:"w",enPassant:nil,inCheck:false),move("g1","f3"))
+        XCTAssertEqual(TypedMove.resolve("e4",moves:TypedMove.reachable(board:board,turn:"w",enPassant:nil),board:board,turn:"w",enPassant:nil,inCheck:false),move("e2","e4"))
         let check:Position=["e1":"wk","e8":"br","h8":"bk","a1":"wr"]
-        XCTAssertEqual(TypedMove.resolve("Ra2",moves:TypedMove.reachable(board:check,turn:"w",enPassant:nil),board:check,turn:"w",inCheck:true),move("a1","a2"),"reachable is not legal: the exercise grades it")
-        XCTAssertEqual(TypedMove.resolve("O-O",moves:TypedMove.reachable(board:["e1":"wk","h1":"wr"],turn:"w",enPassant:nil),board:["e1":"wk","h1":"wr"],turn:"w",inCheck:false),move("e1","g1"))
+        XCTAssertEqual(TypedMove.resolve("Ra2",moves:TypedMove.reachable(board:check,turn:"w",enPassant:nil),board:check,turn:"w",enPassant:nil,inCheck:true),move("a1","a2"),"reachable is not legal: the exercise grades it")
+        XCTAssertEqual(TypedMove.resolve("O-O",moves:TypedMove.reachable(board:["e1":"wk","h1":"wr"],turn:"w",enPassant:nil),board:["e1":"wk","h1":"wr"],turn:"w",enPassant:nil,inCheck:false),move("e1","g1"))
+    }
+    /// An en passant capture lands on an empty square, so it is read and explained only with the position's en passant square.
+    func testAnEnPassantCaptureIsReadAndExplained()throws {
+        XCTAssertEqual(TypedMove.enPassant(fen:"4k3/8/8/3Pp3/8/8/8/4K3 w - e6 0 1"),"e6");XCTAssertNil(TypedMove.enPassant(fen:"4k3/8/8/8/8/8/8/4K3 w - - 0 1"))
+        XCTAssertEqual(try resolve("dxe6","4k3/8/8/3Pp3/8/8/8/4K3 w - e6 0 1"),move("d5","e6"))
+        XCTAssertEqual(refusal(try resolve("dxe6","8/8/8/K2Pp2r/8/8/8/4k3 w - e6 0 1")),"That move would leave your king in check.","both pawns leave the rank and the rook checks the king")
+        XCTAssertEqual(refusal(try resolve("d5e6","8/8/8/K2Pp2r/8/8/8/4k3 w - e6 0 1")),"That move would leave your king in check.")
+        let board:Position=["e1":"wk","e8":"bk","d5":"wp","e5":"bp"],reach=TypedMove.reachable(board:board,turn:"w",enPassant:"e6")
+        XCTAssertEqual(TypedMove.resolve("dxe6",moves:reach,board:board,turn:"w",enPassant:"e6",inCheck:false),move("d5","e6"),"an exercise reads the capture from where the pawn can reach")
     }
     /// A board with its own rules and no king (a mini-game) never blames a king that is not there.
     func testABoardWithoutAKingRefusesPlainly(){
         let board:Position=["e2":"wp","d7":"bp"]
-        XCTAssertEqual(TypedMove.resolve("e2e3",moves:[],board:board,turn:"w",inCheck:false),.refused("That move is not allowed here."))
+        XCTAssertEqual(TypedMove.resolve("e2e3",moves:[],board:board,turn:"w",enPassant:nil,inCheck:false),.refused("That move is not allowed here."))
     }
 }

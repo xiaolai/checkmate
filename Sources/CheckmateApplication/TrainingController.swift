@@ -37,6 +37,8 @@ public struct PreparedTrainingExercise {
         /// played in this attempt after the context moves (learner moves and replies) and the rules at that position.
         public internal(set) var node=0,stage=0,line:[String]=[]
         var current:TrainingLegality?
+        /// The square a pawn may capture on en passant in the position the learner moves in now, or nil.
+        @MainActor public var enPassant:String? {(current ?? legality)?.enPassant}
         /// Playable games: why play is paused (the defender failed, or the game grew too long to save), the break
         /// reminder after many moves, and a draw the learner may claim now.
         public internal(set) var paused:String?,reminder=false,claimable:String?
