@@ -22,7 +22,7 @@ struct WorkspaceInspector:View {
     var body:some View {
         if let preview=library.preview {
             VStack(alignment:.leading,spacing:Metrics.smallGap){
-                Text(verbatim:preview.title).font(.headline).accessibilityAddTraits(.isHeader)
+                Text(verbatim:preview.title).sectionHeading()
                 ForEach(preview.details,id:\.self){Text(verbatim:$0).foregroundStyle(.secondary)}
                 if let problem=preview.problem{Text(verbatim:problem).foregroundStyle(Color(nsColor:NativeColors.error))}
                 else{
@@ -32,9 +32,9 @@ struct WorkspaceInspector:View {
                 }
             }.accessibilityElement(children:.contain).accessibilityIdentifier("library-preview")
         } else {
-            Text("PGN game records").font(.headline)
+            Text("PGN game records").sectionHeading()
             Text("Open a finished or unfinished game, including its recorded moves and variations.")
-            Text("FEN positions").font(.headline)
+            Text("FEN positions").sectionHeading()
             Text("Explore a single board position. Earlier moves and repetition history are not included.").foregroundStyle(.secondary)
         }
     }

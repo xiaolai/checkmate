@@ -76,14 +76,22 @@ struct LessonSettingsPane:View {
         }
     }
     private var groups:[LessonGroup] {LessonLanguageController.groups(library)}
+    /// The list's status columns. Their titles are hidden from VoiceOver, so each cell names its column and says a
+    /// blank cell's meaning; nil is a status still being read.
+    static let statusColumns=["Translated","Recorded","Out of Date"]
+    static func statusCells(_ status:LessonStoredStatus?)->[(column:String,shown:String,spoken:String)] {
+        guard let status else{return zip(statusColumns,["…","…",""]).map{($0,$1,"Loading")}}
+        let translated=status.translated ? "Yes":"No"
+        return zip(statusColumns,[(translated,translated),(status.recordedText,status.recordedText),(status.stale ? "Yes":"",status.stale ? "Yes":"No")]).map{($0,$1.0,$1.1)}
+    }
     /// L-27: every lesson with what is stored for the chosen language and voice, grouped by course section, and its own
     /// Translate and Record.
     private var lessonList:some View {
         ScrollView {
             Grid(alignment:.leading,horizontalSpacing:Metrics.smallGap,verticalSpacing:4) {
-                GridRow{Text("Lesson");Text("Translated");Text("Recorded");Text("Out of Date");Color.clear.gridCellUnsizedAxes([.horizontal,.vertical])}.font(.caption.bold()).foregroundStyle(.secondary).accessibilityHidden(true)
+                GridRow{Text("Lesson");ForEach(Self.statusColumns,id:\.self){Text($0)};Color.clear.gridCellUnsizedAxes([.horizontal,.vertical])}.font(.caption.bold()).foregroundStyle(.secondary).accessibilityHidden(true)
                 ForEach(groups,id:\.lessons){group in
-                    Text(group.title).font(.caption.bold()).padding(.top,4).gridCellColumns(5).accessibilityAddTraits(.isHeader)
+                    Text(group.title).sectionHeading(.caption.bold()).padding(.top,4).gridCellColumns(5)
                     ForEach(group.lessons,id:\.self){lessonRow($0)}
                 }
             }.frame(maxWidth:.infinity,alignment:.leading)
@@ -93,9 +101,7 @@ struct LessonSettingsPane:View {
         let lesson=library.lessons[index],status=controller.lessonStatuses.indices.contains(index) ? controller.lessonStatuses[index]:nil,idle = !controller.busy && !controller.planning
         return GridRow {
             Text(lesson.title).lineLimit(1).truncationMode(.tail)
-            Text(status.map{$0.translated ? "Yes":"No"} ?? "…")
-            Text(status?.recordedText ?? "…")
-            Text(status?.stale==true ? "Yes":"").help(status?.stale==true ? "A stored file for this lesson can no longer be used. Translate or record the lesson again, or remove what is stored.":"")
+            ForEach(Self.statusCells(status),id:\.column){cell in Text(cell.shown).accessibilityLabel(cell.column).accessibilityValue(cell.spoken).help(cell.column=="Out of Date" && status?.stale==true ? "A stored file for this lesson can no longer be used. Translate or record the lesson again, or remove what is stored.":"")}
             HStack(spacing:4) {
                 Button("Translate"){confirmLesson(index,"translate")}.disabled(!idle || status==nil || status?.translated==true)
                     .accessibilityLabel("Translate \(lesson.title)").accessibilityIdentifier("lesson-row-translate-\(lesson.id)")

@@ -26,7 +26,16 @@ final class TextStyleAccessibilityTests:XCTestCase {
             XCTAssertTrue(all.contains("Text(\(heading)).sectionHeading("),"\(heading) is a heading")
             XCTAssertFalse(all.contains("Text(\(heading)).font("),"\(heading) is styled without the heading trait")
         }
-        XCTAssertFalse(all.contains(".font(.system(size:"),"fixed font sizes give way to text styles")
+        // The library preview's title and the lesson list's course sections are computed headings too.
+        for heading in ["Text(verbatim:preview.title)","Text(group.title)"] {
+            XCTAssertTrue(all.contains("\(heading).sectionHeading("),"\(heading) is a heading")
+            XCTAssertFalse(all.contains("\(heading).font("),"\(heading) is styled without the heading trait")
+        }
+        // Text follows text styles; the one fixed size allowed is a piece glyph sized to its board square, which
+        // scales with the board rather than with the text.
+        for (name,text) in files {
+            for part in text.components(separatedBy:".font(.system(size:").dropFirst() {XCTAssertTrue(part.hasPrefix("Self.square"),"\(name) fixes a font size; use a text style")}
+        }
     }
     func testWindowLabelsUseTextStyles(){
         XCTAssertEqual(textLabel("Notes").font?.pointSize,NSFont.preferredFont(forTextStyle:.body).pointSize)
