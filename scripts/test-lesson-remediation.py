@@ -133,10 +133,10 @@ try:
   click_lesson(parent);wait(lambda:'Practice: '+activity in listing(),f'{parent} does not offer {activity}')
   pointer('click','Practice: '+activity);wait(opened(activity),f'Practice did not open {activity}')
   click_lesson(parent);wait(lambda:'Practice: '+activity in listing(),f'The {parent} row did not open its lesson')
-  pointer('click',activity);wait(opened(activity),f'A click on the {activity} row text did not open it')
+  pointer('click',lesson_row(activity));wait(opened(activity),f'A click on the {activity} row text did not open it')
   click_lesson(parent);wait(lambda:'Practice: '+activity in listing(),f'The {parent} row did not open its lesson')
   pointer('click-left',lesson_row(activity),'30');wait(opened(activity),f'A click on the indent of the {activity} row did not open it')
-  hint=pointer('help',activity);assert hint=='Practice activity for '+parent,f'{activity} row hint: {hint!r}'
+  hint=pointer('help',lesson_row(activity));assert hint=='Practice activity for '+parent,f'{activity} row hint: {hint!r}'
  # On a lesson's last transcript the toolbar arrow goes to the next main lesson, skipping practice; earlier it only
  # advances the transcript, and the final lesson has no next lesson.
  def steps_of(title):return course['stepTitles'][next(i for i,l in enumerate(course['lessons']) if l['title']==title)]

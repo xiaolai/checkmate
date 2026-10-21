@@ -155,7 +155,9 @@ try:
     # The keyboard on a delete confirmation: Return and Escape both cancel, only a click on Delete deletes, and
     # ⌘Z right after puts the review back.
     act("select", "Review game")
-    wait(lambda: "AXButton: Review Current Game" in act("list"))
+    wait(lambda: "Choose a game or position to explore." in act("list"))
+    act("press", "review-start-more")
+    wait(lambda: "Review Current Game" in act("list"))
     act("press", "Review Current Game")
     wait(lambda: "AXButton: Save Review" in act("list"))
     act("press", "Save Review")

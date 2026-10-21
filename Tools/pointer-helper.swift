@@ -146,9 +146,9 @@ if !["label","value","enabled","menu-open"].contains(action){NSRunningApplicatio
 switch action {
 case "click":unambiguous(a);let e=element(a);reveal(e);if let e,let w=windowOf(e),let wf=frame(w),let f=frame(e),!wf.contains(CGPoint(x:f.midX,y:f.midY)){fputs("Not visible after scrolling: \(a) element \(f) window \(wf)\n",stderr);exit(2)};click(center(e,a))
 // A real click a given number of points left of a named element's leading edge: the indent of a sidebar row.
-case "click-left":guard let d=Double(b),d.isFinite,d>=0,d<=200 else{fputs("Offset must be 0 to 200 points, found \(b)\n",stderr);exit(1)};let e=element(a);reveal(e);guard let e,let f=frame(e) else{fputs("Not found: \(a)\n",stderr);exit(2)};click(CGPoint(x:f.minX-d,y:f.midY))
+case "click-left":guard let d=Double(b),d.isFinite,d>=0,d<=200 else{fputs("Offset must be 0 to 200 points, found \(b)\n",stderr);exit(1)};unambiguous(a);let e=element(a);reveal(e);guard let e,let f=frame(e) else{fputs("Not found: \(a)\n",stderr);exit(2)};click(CGPoint(x:f.minX-d,y:f.midY))
 // The accessibility help (VoiceOver hint) of a named element or, failing that, of the nearest ancestor that has one.
-case "help":guard var e=element(a) else{fputs("Not found: \(a)\n",stderr);exit(2)};for _ in 0..<4{if let h=get(e,kAXHelpAttribute) as? String,!h.isEmpty{print(h);exit(0)};guard let p=get(e,kAXParentAttribute) else{break};e=p as! AXUIElement};print("")
+case "help":unambiguous(a);guard var e=element(a) else{fputs("Not found: \(a)\n",stderr);exit(2)};for _ in 0..<4{if let h=get(e,kAXHelpAttribute) as? String,!h.isEmpty{print(h);exit(0)};guard let p=get(e,kAXParentAttribute) else{break};e=p as! AXUIElement};print("")
 case "select-popup":
     let popup=element(a);reveal(popup);guard let popup,let bounds=frame(popup) else{fputs("Popup not found: \(a)\n",stderr);exit(2)};click(CGPoint(x:bounds.maxX-12,y:bounds.midY))
     var option:AXUIElement?
@@ -187,7 +187,7 @@ case "click-at","drag-across":
     let e=element(a);reveal(e);guard let e,let f=frame(e),f.width>0 else{fputs("Not found: \(a)\n",stderr);exit(2)}
     let points=fractions.map{CGPoint(x:f.minX+f.width*CGFloat($0),y:f.midY)};if points.count==1{click(points[0])}else{gesture(from:points[0],to:points[1])}
 // A wheel turn of the given lines over a named element's centre, as a person scrolls a pane by pointing anywhere in it.
-case "wheel":guard let lines=Int32(b),abs(lines)<=20 else{fputs("Scroll lines must be a whole number from -20 to 20, found \(b)\n",stderr);exit(1)};let p=center(element(a),a);unobstructed(p);post(.mouseMoved,p);usleep(80_000);let event=made(CGEvent(scrollWheelEvent2Source:source,units:.line,wheelCount:1,wheel1:lines,wheel2:0,wheel3:0),"scroll");event.location=p;event.post(tap:.cghidEventTap);usleep(300_000)
+case "wheel":guard let lines=Int32(b),abs(lines)<=20 else{fputs("Scroll lines must be a whole number from -20 to 20, found \(b)\n",stderr);exit(1)};unambiguous(a);let p=center(element(a),a);unobstructed(p);post(.mouseMoved,p);usleep(80_000);let event=made(CGEvent(scrollWheelEvent2Source:source,units:.line,wheelCount:1,wheel1:lines,wheel2:0,wheel3:0),"scroll");event.location=p;event.post(tap:.cghidEventTap);usleep(300_000)
 case "click-square":click(center(square(a),a))
 // Press a square and drift by the given distance before releasing, as a slightly moving trackpad click does.
 case "drift-square":guard let d=Double(b),d.isFinite,abs(d)<=1000 else{fputs("Drift distance must be a number of points from -1000 to 1000, found \(b)\n",stderr);exit(1)};let p=center(square(a),a);gesture(from:p,to:CGPoint(x:p.x+d,y:p.y+d*0.3))

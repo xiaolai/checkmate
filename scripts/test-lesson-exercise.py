@@ -123,7 +123,7 @@ try:
  teaching=practice['fork']['teaching']
  off=next(m for m in ['a2a3','h2h3','b2b3','g2g3'] if m not in teaching[0]['accepted'])
  play(off);wait(title('The Fork · Try again'),'The Fork: an off-track move was not called out')
- pointer('click','Take Back');wait(title('The Fork · Your turn'),'The Fork: Take Back did not return to the learner')
+ pointer('click','bar-attemptUndo');wait(title('The Fork · Your turn'),'The Fork: Take Back did not return to the learner')
  wait(lambda:attempt('fork').get('moves')==[],'The Fork: Take Back left moves behind in the saved attempt')
  node=0;played=[]
  while True:
