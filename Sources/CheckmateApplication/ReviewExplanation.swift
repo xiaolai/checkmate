@@ -69,7 +69,7 @@ public struct ReviewExplanation:Codable,Equatable {
         if let capture=captures.first {takeaways.append("Revisit \(capture.fullmove)\(capture.side=="w" ? ".":"...") \(capture.san ?? ""): compare the material before the capture with the opponent's legal replies.")}
         if let castle=document.mainline.map({document.nodes[$0]}).first(where:{$0.san?.hasPrefix("O-O")==true}){takeaways.append("At \(castle.fullmove)\(castle.side=="w" ? ".":"...") \(castle.san ?? ""), both king and rook change squares. Inspect the king's safety afterward.")}
         }
-        let overview="\(document.mainline.count) recorded half-moves. "+(takeaways.first ?? "Inspect the recorded position.")
+        let overview="\(document.mainline.count) moves recorded, counting each side's moves separately. "+(takeaways.first ?? "Inspect the recorded position.")
         return ReviewExplanation(title:node==0 ? "Game overview":"\(n.fullmove)\(n.side=="w" ? ".":"...") \(n.san ?? "Position")",summary:node==0 ? overview:facts.prefix(3).map(\.text).joined(separator:" "),facts:facts,takeaways:Array(takeaways.prefix(3)),historyNote:!document.historyAvailable ? "This FEN contains no earlier move history; repetition before this position is unknown.":document.startingFEN.split(separator:" ").prefix(4) != Self.standardStart.split(separator:" ").prefix(4) ? "This game starts from a set-up position; moves before it are unknown, so earlier repetitions are not counted.":nil)
     }
     public static func imagined(rules:ChessRules)->ReviewExplanation {

@@ -86,7 +86,7 @@ public enum PGNImporter {
                         let glyphs=["!!":3,"??":4,"!?":5,"?!":6,"!":1,"?":2];var nag:Int?
                         for suffix in ["!!","??","!?","?!","!","?"] where san.hasSuffix(suffix){nag=glyphs[suffix];san.removeLast(suffix.count);break}
                         guard builders.count<ReviewPolicy.maximumNodes else{throw failure("Tree node limit exceeded.")}
-                        guard depth>0 || builders[cursor].ply<ReviewPolicy.maximumMainlinePlies else{throw failure("Mainline exceeds 2000 plies.")}
+                        guard depth>0 || builders[cursor].ply<ReviewPolicy.maximumMainlinePlies else{throw failure("This game has more than 2,000 moves, counting each side's moves separately, which is more than Checkmate can review.")}
                         // Built at the first move, so an empty or comment-only variation costs no chess.js context.
                         let board=try rules ?? ChessRules(fen:builders[initial].fen);rules=board
                         guard let move=try legalMove(san,rules:board) else{throw failure("Illegal or ambiguous SAN: \(san).")}

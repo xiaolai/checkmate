@@ -25,7 +25,7 @@ import CheckmateCore
         var opened:[URL]=[],panes:[SettingsCategory]=[],retries=0
         help.openURL={opened.append($0)};help.showSettings={panes.append($0)}
         for action in VoiceAction.allCases {help.perform(action){retries+=1}}
-        XCTAssertEqual(opened,[VoiceHelp.microphoneSettings,VoiceHelp.getCodex]);XCTAssertEqual(panes,[.voice,.connections,.voice])
+        XCTAssertEqual(opened,[VoiceHelp.microphoneSettings,VoiceHelp.getCodex]);XCTAssertEqual(panes,[.voice,.connections,.voice,.connections])
         XCTAssertEqual(retries,1,"only Try Again tries again")
         XCTAssertEqual(VoiceHelp.microphoneSettings.scheme,"x-apple.systempreferences");XCTAssertEqual(VoiceHelp.getCodex.scheme,"https")
     }
@@ -57,6 +57,28 @@ import CheckmateCore
         try await waitFor("the connection fails"){voice.failure != nil}
         try await waitFor("the question is dropped"){model.voiceHelp.pendingQuestion==nil}
         XCTAssertEqual(voice.failure,.offline)
+    }
+    /// A typed question stays in the field until the coach receives it: a connection that fails, at once or later,
+    /// keeps the learner's words; a delivered question clears the field.
+    func testATypedQuestionStaysUntilDelivered()async throws {
+        let model=try model();defer{model.shutdown()};let voice=model.voice,help=model.voiceHelp
+        voice.automationAuthorizationFailure=VoiceFailure.offline
+        help.draft="Is this move safe?";help.submit();XCTAssertEqual(help.pendingQuestion,"Is this move safe?")
+        try await waitFor("the connection fails"){voice.failure != nil}
+        try await waitFor("the question is dropped"){help.pendingQuestion==nil}
+        XCTAssertEqual(help.draft,"Is this move safe?","a failed connection keeps the question")
+        // Refused before connecting (Codex holds the session): nothing waits, and the words stay.
+        voice.automationAuthorizationFailure=nil;model.session.setConnection(enabled:true,role:"coach")
+        help.submit();XCTAssertFalse(voice.connecting);XCTAssertNil(help.pendingQuestion)
+        XCTAssertEqual(help.draft,"Is this move safe?","an immediate refusal keeps the question")
+        model.session.setConnection(enabled:false,role:"coach")
+        // Delivered: the field clears once the coach has the question.
+        voice.voiceDouble=true;help.submit()
+        try await waitFor("the question is asked"){voice.history.contains{$0.role=="learner" && $0.text=="Is this move safe?"}}
+        XCTAssertEqual(help.draft,"","a delivered question clears the field")
+        // Connected, a question goes straight in and clears; whitespace alone sends nothing and stays.
+        help.draft="And now?";help.submit();XCTAssertEqual(help.draft,"");XCTAssertTrue(voice.history.contains{$0.text=="And now?"})
+        help.draft="  ";help.submit();XCTAssertEqual(help.draft,"  ")
     }
     /// V-21: a voice failure and the coach's answer reach VoiceOver.
     func testFailuresAndAnswersAreAnnounced()async throws {

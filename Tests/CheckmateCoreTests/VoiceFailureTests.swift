@@ -33,6 +33,39 @@ import CodexAuth
         XCTAssertEqual(VoiceFailure.from(CheckmateError.unavailable("Codex could not complete thread/start.")),.connectFailed)
         XCTAssertEqual(VoiceFailure.from(CheckmateError.unavailable("x"),fallback:.microphoneUnavailable),.microphoneUnavailable)
     }
+    /// A known refusal keeps its own cause and action: Codex holding the session, a network game, a place the coach
+    /// does not connect to, and consent withdrawn. Only an error nothing recognises is "could not connect".
+    func testKnownRefusalsKeepTheirCause() {
+        XCTAssertEqual(VoiceFailure.from(CheckmateError.invalid("SESSION_IN_USE")),.companionConnected)
+        XCTAssertEqual(VoiceFailure.from(ProtocolFailure("SESSION_IN_USE","Another Codex task is connected.")),.companionConnected)
+        XCTAssertEqual(VoiceFailure.from(CheckmateError.invalid(FairnessPolicy.refusal)),.networkGame)
+        XCTAssertEqual(VoiceFailure.from(CheckmateError.invalid("UNSUPPORTED_MODE")),.notHere)
+        XCTAssertEqual(VoiceFailure.from(ProtocolFailure("UNSUPPORTED_MODE","The voice coach connects only to a training game being played.")),.notHere)
+        XCTAssertEqual(VoiceFailure.companionConnected.action,.openConnections);XCTAssertEqual(VoiceFailure.consentNeeded.action,.tryAgain)
+        XCTAssertEqual(VoiceFailure.from(CheckmateError.invalid("INVALID_ARGUMENT")),.connectFailed,"an unknown code is still unknown")
+        XCTAssertEqual(VoiceFailure.from(URLError(.badServerResponse)),.connectFailed)
+    }
+    /// A refusal that reaches the connection attempt is shown as its own failure, not "could not connect".
+    func testAConnectRefusedByCodexSaysSo()async throws {
+        let s=try GameSession(engine:nil);s.state.settings.voiceConsent=true;let v=try VoiceCoach(session:s);defer{v.disconnect()}
+        v.automationAuthorizationFailure=CheckmateError.invalid("SESSION_IN_USE");v.connect()
+        for _ in 0..<300 where v.failure==nil {try await Task.sleep(for:.milliseconds(10))}
+        XCTAssertEqual(v.failure,.companionConnected);XCTAssertEqual(v.connection,.failed(VoiceFailure.companionConnected.cause))
+        v.automationAuthorizationFailure=CheckmateError.invalid("NETWORK_GAME");v.connect()
+        for _ in 0..<300 where v.failure != .networkGame {try await Task.sleep(for:.milliseconds(10))}
+        XCTAssertEqual(v.failure,.networkGame)
+        v.automationAuthorizationFailure=VoiceFailure.consentNeeded;v.connect()
+        for _ in 0..<300 where v.failure != .consentNeeded {try await Task.sleep(for:.milliseconds(10))}
+        XCTAssertEqual(v.failure,.consentNeeded)
+    }
+    /// Practice voice refused for the activity shown has its own code, so SESSION_IN_USE always means Codex.
+    func testOpenVoiceRefusalsNameTheirCause()throws {
+        let s=try GameSession(engine:nil)
+        s.setConnection(enabled:true,role:"coach")
+        XCTAssertThrowsError(try s.openVoice()){XCTAssertEqual(String(describing:$0),"SESSION_IN_USE")}
+        s.setConnection(enabled:false,role:"coach");s.suspendForReview()
+        XCTAssertThrowsError(try s.openVoice()){XCTAssertEqual(String(describing:$0),"UNSUPPORTED_MODE")}
+    }
     /// The learner's thinking levels are three efforts; any other effort still has a name.
     func testThinkingLevelsNameTheirEffort() {
         XCTAssertEqual(CoachThinking.allCases.map(\.title),["Quick","Balanced","Thorough"])
