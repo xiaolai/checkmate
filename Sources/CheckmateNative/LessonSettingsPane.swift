@@ -79,10 +79,12 @@ struct LessonSettingsPane:View {
     /// The list's status columns. Their titles are hidden from VoiceOver, so each cell names its column and says a
     /// blank cell's meaning; nil is a status still being read.
     static let statusColumns=["Translated","Recorded","Out of Date"]
-    static func statusCells(_ status:LessonStoredStatus?)->[(column:String,shown:String,spoken:String)] {
-        guard let status else{return zip(statusColumns,["…","…",""]).map{($0,$1,"Loading")}}
+    static let staleHelp="A stored file for this lesson can no longer be used. Translate or record the lesson again, or remove what is stored."
+    /// Each cell's tooltip comes with it, so the view never tells the columns apart by their shown titles (D-12).
+    static func statusCells(_ status:LessonStoredStatus?)->[(column:String,shown:String,spoken:String,help:String)] {
+        guard let status else{return zip(statusColumns,["…","…",""]).map{($0,$1,"Loading","")}}
         let translated=status.translated ? "Yes":"No"
-        return zip(statusColumns,[(translated,translated),(status.recordedText,status.recordedText),(status.stale ? "Yes":"",status.stale ? "Yes":"No")]).map{($0,$1.0,$1.1)}
+        return zip(statusColumns,[(translated,translated,""),(status.recordedText,status.recordedText,""),(status.stale ? "Yes":"",status.stale ? "Yes":"No",status.stale ? staleHelp:"")]).map{($0,$1.0,$1.1,$1.2)}
     }
     /// L-27: every lesson with what is stored for the chosen language and voice, grouped by course section, and its own
     /// Translate and Record.
@@ -101,7 +103,7 @@ struct LessonSettingsPane:View {
         let lesson=library.lessons[index],status=controller.lessonStatuses.indices.contains(index) ? controller.lessonStatuses[index]:nil,idle = !controller.busy && !controller.planning
         return GridRow {
             Text(lesson.title).lineLimit(1).truncationMode(.tail)
-            ForEach(Self.statusCells(status),id:\.column){cell in Text(cell.shown).accessibilityLabel(cell.column).accessibilityValue(cell.spoken).help(cell.column=="Out of Date" && status?.stale==true ? "A stored file for this lesson can no longer be used. Translate or record the lesson again, or remove what is stored.":"")}
+            ForEach(Self.statusCells(status),id:\.column){cell in Text(cell.shown).accessibilityLabel(cell.column).accessibilityValue(cell.spoken).help(cell.help)}
             HStack(spacing:Metrics.tightGap) {
                 Button("Translate"){confirmLesson(index,"translate")}.disabled(!idle || status==nil || status?.translated==true)
                     .accessibilityLabel("Translate \(lesson.title)").accessibilityIdentifier("lesson-row-translate-\(lesson.id)")

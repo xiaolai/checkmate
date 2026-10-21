@@ -8,7 +8,7 @@ enum AppSymbol:String,CaseIterable {
     case lesson="book",gameActivity="gamecontroller",miniGame="gamecontroller.fill",exercise="target",allSavedReviews="list.bullet"
     // Marks
     case done="checkmark.circle.fill",solvedLater="checkmark.circle",toReview="arrow.uturn.backward.circle",continueHere="bookmark.fill",markerOff="circle",markerOn="largecircle.fill.circle",warning="exclamationmark.triangle.fill",limited="exclamationmark.circle",protection="link"
-    case search="magnifyingglass",habit="eye",imaginedLine="arrow.triangle.branch",moreActions="ellipsis.circle",expanded="chevron.down",collapsed="chevron.right"
+    case earlierPosition="clock.arrow.circlepath",search="magnifyingglass",habit="eye",imaginedLine="arrow.triangle.branch",moreActions="ellipsis.circle",expanded="chevron.down",collapsed="chevron.right"
     // Actions
     case continueLearning="arrow.forward.circle",hint="lightbulb",play="play.fill",pause="pause.fill",startOver="arrow.counterclockwise",undo="arrow.uturn.backward"
     case previous="chevron.backward",next="chevron.forward",previousLesson="chevron.backward.2",nextLesson="chevron.forward.2",replayFromStart="backward.end",firstPosition="backward.end.fill",lastPosition="forward.end.fill"

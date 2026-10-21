@@ -39,7 +39,7 @@ struct PracticeMoveList:View {
             let records=session.rules.records,labels=Self.labels(records),game=PracticeHistory.Game(generation:session.gameGeneration,position:session.position,history:session.rules.history),shown=history.ply(in:game)
             if let shown {
                 VStack(alignment:.leading,spacing:Metrics.smallGap){
-                    Label(shown==0 ? "Starting position":"Earlier position, after \(labels[shown-1])",systemImage:"clock.arrow.circlepath").font(.callout.bold())
+                    Label(shown==0 ? "Starting position":"Earlier position, after \(labels[shown-1])",symbol:.earlierPosition).font(.callout.bold())
                     Text("You can look, but moves can't be played here.").foregroundStyle(.secondary)
                     Button("Back to Game"){history.close()}.accessibilityIdentifier("practice-history-back")
                 }.padding(Metrics.smallGap).frame(maxWidth:.infinity,alignment:.leading).background(RoundedRectangle(cornerRadius:6).fill(Color.accentColor.opacity(0.12))).accessibilityElement(children:.contain).accessibilityIdentifier("practice-history-marker")
