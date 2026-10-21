@@ -256,6 +256,23 @@
    ]
   },
   {
+   "name": "rtl",
+   "run": "python3 scripts/test-rtl.py",
+   "result": "rtl-results.json",
+   "key": "rightToLeft",
+   "prebuilt": true,
+   "requires": ["complete", "toolbarMirrored", "boardSquare", "boardKeptItsPlace", "sidebarOnTheRight", "detailsOnTheLeft", "titleCentred", "boardNotMirrored", "pointerMove"],
+   "inputs": [
+    "scripts/test-rtl.py",
+    "Tools/board-click-helper.swift",
+    "Tools/pointer-helper.swift",
+    "Tools/ax-helper.swift",
+    "Sources/CheckmateNative/BoardView.swift",
+    "Sources/CheckmateNative/MainWindow.swift",
+    "Sources/CheckmateMacPlatform/WindowGeometry.swift"
+   ]
+  },
+  {
    "name": "training-pointer",
    "run": "python3 scripts/test-training-pointer.py",
    "result": "training-pointer-results.json",
