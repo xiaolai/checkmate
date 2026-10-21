@@ -572,6 +572,19 @@ import RealtimeConnection
         if let window=NSApp.mainWindow{alert.beginSheetModal(for:window){[weak self] response in if response == .alertFirstButtonReturn{self?.deleteReview(id)}}}
         else if alert.runModal() == .alertFirstButtonReturn{deleteReview(id)}
     }
+    /// Restart from the drawer, the bar or the menu. Past the first exchange it asks first, with Cancel the default; a
+    /// confirmation answered after the attempt was replaced (left, restarted, reloaded) does nothing.
+    func requestRestartAttempt(){
+        let attempt:LessonAttemptController=learning.attempt
+        guard attempt.restartNeedsConfirmation,let shown=attempt.record?.id else{attempt.restart();return}
+        let alert=NSAlert();alert.messageText="Start this exercise again?"
+        alert.informativeText="The moves of this attempt are cleared. Anything you have already achieved in it stays achieved."
+        let restart=alert.addButton(withTitle:"Start Again");restart.keyEquivalent=""
+        let cancel=alert.addButton(withTitle:"Cancel");cancel.keyEquivalent="\r"
+        alert.window.defaultButtonCell=cancel.cell as? NSButtonCell
+        let answered:(NSApplication.ModalResponse)->Void={[weak self] response in guard response == .alertFirstButtonReturn,let self,self.learning.attempt.record?.id==shown else{return};self.learning.attempt.restart()}
+        if let window=NSApp.mainWindow{alert.beginSheetModal(for:window,completionHandler:answered)}else{answered(alert.runModal())}
+    }
     func deleteReview(_ id:UUID){
         guard deletingReviewID==nil else{return}
         // A saved review still loading is abandoned with its "Loading review…" overlay, never left showing it.

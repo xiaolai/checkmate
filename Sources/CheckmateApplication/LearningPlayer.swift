@@ -84,6 +84,8 @@ import Combine
     public func goToAttempt(){guard let step=invitationStep else{return};seek(step:step)}
     /// After saved progress is replaced (an import): the exercise shown is read again from it.
     public func reloadAttempt(){attempt.close();syncAttempt();rebuild()}
+    /// What the saved progress shows of lesson `index`: explored, practised or mastered (`LessonStatus`).
+    public func status(index:Int)->LessonStatus {LessonStatus.of(library.lessons[index],in:library,course:session.state.course,puzzles:session.state.puzzles)}
     public var practiceAvailable:Bool {!MiniGameKind.available(lessonID:current.id).isEmpty || current.practice != nil || !library.practice(for:lessonIndex).isEmpty}
     /// The lesson shown, or the last one shown while elsewhere (the sidebar and Settings follow it).
     public var lessonIndex:Int {session.activity.place.lessonIndex ?? lastLessonIndex}
@@ -200,8 +202,10 @@ import Combine
         case "path":if var board=frame.board,let from=board.first(where:{$0.value=="wk"})?.key {if from==sq{return};if CourseLibrary.safeKingStep(board,from:from,to:sq){try? CourseLibrary.apply(&board,moves:[[from,sq]]);frame.board=board;if sq==e.to{answer(true)}else{feedback="Safe step. Keep going!"}}else if !CourseLibrary.attacks(board,from:from,to:sq){feedback="Choose a square next to the king."}else{answer(false,hint:"That square is not a safe neighboring square. Try another step.")}}
         default:break};publish()
     }
+    /// A correct answer after a mistake in this visit is a later solve: it says so, and the puzzle is not marked solved.
     private func answer(_ correct:Bool,revealed:Bool=false,hint:String?=nil){guard let p=activePuzzle,!passed else{return};pause()
-        var record=session.state.puzzles[p.id] ?? PuzzleProgress();record.record(correct:correct,revealed:revealed || mistake);session.state.puzzles[p.id]=record;if !correct{mistake=true};passed=correct || revealed;feedback=passed ? (revealed ? solution(p.exercise)+" ":"Correct. ")+p.explanation:hint ?? "Not quite. Look again and try another answer.";session.emit(semantic:false,save:true);publish()
+        let later=correct && !revealed && mistake
+        var record=session.state.puzzles[p.id] ?? PuzzleProgress();record.record(correct:correct,revealed:revealed,afterMistake:mistake);session.state.puzzles[p.id]=record;if !correct{mistake=true};passed=correct || revealed;feedback=passed ? (revealed ? solution(p.exercise)+" ":later ? "Correct, on a later try. Solve it first time to mark it solved. ":"Correct. ")+p.explanation:hint ?? "Not quite. Look again and try another answer.";session.emit(semantic:false,save:true);publish()
     }
     public func reveal(){guard activePuzzle != nil else{return};answer(false,revealed:true)}
     private func solution(_ e:Exercise)->String {switch e.kind {case "choice":return e.answer ?? "";case "squares":return (e.answers ?? []).isEmpty ? "No squares":(e.answers ?? []).joined(separator:", ");case "move":return "\(e.from ?? "") → \(e.to ?? "")";default:return "Walk safely from \(e.from ?? "") to \(e.to ?? "")."}}

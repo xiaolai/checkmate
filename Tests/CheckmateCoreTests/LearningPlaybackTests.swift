@@ -20,6 +20,15 @@ final class LearningPlaybackTests:XCTestCase {
         let s=try GameSession(engine:nil),p=try LearningPlayer(session:s)
         p.openPuzzle(id:"extra-1");p.reveal();XCTAssertFalse(s.state.puzzles["extra-1"]!.solved);XCTAssertTrue(s.state.puzzles["extra-1"]!.review)
     }
+    /// A correct answer after a mistake says so and is recorded as a later solve, never as solved.
+    @MainActor func testACorrectAnswerAfterAMistakeIsALaterSolve() throws {
+        let s=try GameSession(engine:nil),p=try LearningPlayer(session:s);defer{p.shutdown()}
+        p.openPuzzle(id:"course:intro:1");p.choose("Black");XCTAssertFalse(p.passed);p.choose("White");XCTAssertTrue(p.passed)
+        XCTAssertTrue(p.feedback.hasPrefix("Correct, on a later try. Solve it first time to mark it solved. "),p.feedback)
+        let later=try XCTUnwrap(s.state.puzzles["course:intro:1"]);XCTAssertFalse(later.solved);XCTAssertEqual(later.solvedLater,true);XCTAssertFalse(later.solvedFirstTime)
+        p.openPuzzle(id:"course:castling:2");p.choose("King c1, rook d1");XCTAssertTrue(p.feedback.hasPrefix("Correct. "),p.feedback)
+        XCTAssertTrue(s.state.puzzles["course:castling:2"]!.solvedFirstTime)
+    }
     func testPawnDuelAndKingPathRules() {
         let board=["d5":"wp","e6":"bp"]
         XCTAssertTrue(CourseLibrary.pawnMoves(board,from:"d5").contains("e6"))

@@ -5,6 +5,8 @@ import CheckmateCore
 struct LessonAttemptPanel:View {
     @ObservedObject var learning:LearningPlayer
     let continueLesson:()->Void
+    /// Restart, confirmed first when it would lose more than the first exchange (`NativeModel.requestRestartAttempt`).
+    let restart:()->Void
     private var attempt:LessonAttemptController {learning.attempt}
     private var practice:LessonPractice? {attempt.practice}
     private var headline:String {
@@ -42,7 +44,7 @@ struct LessonAttemptPanel:View {
             HStack {
                 Button(hintLabel){attempt.hint()}.disabled(!(attempt.learnerToMove || attempt.phase == .offTrack)).accessibilityIdentifier("lesson-attempt-hint")
                 Button("Undo turn"){attempt.undo()}.disabled(!attempt.hasMoves).accessibilityIdentifier("lesson-attempt-undo")
-                Button("Restart"){attempt.restart()}.disabled(!attempt.hasMoves).accessibilityIdentifier("lesson-attempt-restart")
+                Button("Restart"){restart()}.disabled(!attempt.hasMoves).accessibilityIdentifier("lesson-attempt-restart")
             }
             if let next=learning.library.nextMainLesson(after:learning.lessonIndex) {
                 Button("Continue to \(learning.localizedTitle(index:next))"){learning.complete();continueLesson()}.accessibilityIdentifier("lesson-attempt-continue")
