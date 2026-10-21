@@ -19,6 +19,16 @@ public struct LessonJobPlan:Equatable,Sendable {
   return parts.joined(separator:" ")
  }
 }
+/// What is stored for one lesson in one language and voice, as Settings' lesson list shows it (L-27). `stale` is a
+/// stored file this version cannot use (damaged, or made for another version), which counts as missing.
+public struct LessonStoredStatus:Equatable,Sendable {
+ public let translated:Bool,recorded:Int,clips:Int,stale:Bool
+ public init(translated:Bool,recorded:Int,clips:Int,stale:Bool){self.translated=translated;self.recorded=recorded;self.clips=clips;self.stale=stale}
+ /// "None", "3 of 12" or "All 12".
+ public var recordedText:String {recorded==0 ? "None":recorded==clips ? "All \(clips)":"\(recorded) of \(clips)"}
+}
+/// A part of the course in Settings' lesson picker, with its lessons' indices.
+public struct LessonGroup:Equatable,Sendable {public let title:String,lessons:[Int]}
 @MainActor public final class LessonLanguageController:ObservableObject {
  public let library:CourseLibrary,store:LessonPackStore,usage:UsageLedger
  @Published public var language="en" {didSet{if oldValue != language{selectionChanged()}}}
@@ -61,7 +71,26 @@ public struct LessonJobPlan:Equatable,Sendable {
    accountMonitor=Timer.scheduledTimer(withTimeInterval:3,repeats:true){[weak self] _ in Task{@MainActor in await self?.checkAccountAuthenticationMetadata()}}
   }
   let store=self.store;if let problem=store.unavailableReason{status=problem}else{Task.detached{try? store.sweepStale(library:library)}}}
- private func selectionChanged(invalidatePreview:Bool=true){if invalidatePreview{previewURL=nil;inspection="";storedStatus="Checking stored lesson data…";onSelectionChange()};selectionTask?.cancel();selectionGeneration=UUID();let generation=selectionGeneration;guard !busy,library.lessons.indices.contains(selectedLesson) else{return};let source=LessonTranslation.source(library:library,index:selectedLesson),locale=language,voice=self.voice,store=self.store;selectionTask=Task{[weak self] in
+ /// What is stored for each lesson in the chosen language and voice, in course order (L-27); empty while it is read.
+ @Published public private(set) var lessonStatuses:[LessonStoredStatus]=[]
+ private var statusTask:Task<Void,Never>?,statusKey=""
+ /// The lessons grouped by course section, in course order (L-26).
+ public nonisolated static func groups(_ library:CourseLibrary)->[LessonGroup] {
+  var groups:[LessonGroup]=[]
+  for (index,lesson) in library.lessons.enumerated() {if groups.last?.title==lesson.section{groups[groups.count-1]=LessonGroup(title:lesson.section,lessons:groups[groups.count-1].lessons+[index])}else{groups.append(LessonGroup(title:lesson.section,lessons:[index]))}}
+  return groups
+ }
+ /// Reads every lesson's status when the language or voice changes, or (`force`) after stored files changed.
+ private func refreshStatuses(force:Bool){
+  let key=language+"|"+voice;guard force || key != statusKey else{return};if key != statusKey{lessonStatuses=[]};statusKey=key;statusTask?.cancel()
+  guard store.unavailableReason==nil else{lessonStatuses=[];return}
+  let store=store,library=library,locale=language,voice=self.voice
+  statusTask=Task{[weak self] in
+   let statuses=await Task.detached{library.lessons.indices.map{store.status(source:LessonTranslation.source(library:library,index:$0),locale:locale,voice:voice)}}.value
+   guard let self,!Task.isCancelled,self.language==locale,self.voice==voice else{return};self.lessonStatuses=statuses
+  }
+ }
+ private func selectionChanged(invalidatePreview:Bool=true){refreshStatuses(force:!invalidatePreview);if invalidatePreview{previewURL=nil;inspection="";storedStatus="Checking stored lesson data…";onSelectionChange()};selectionTask?.cancel();selectionGeneration=UUID();let generation=selectionGeneration;guard !busy,library.lessons.indices.contains(selectedLesson) else{return};let source=LessonTranslation.source(library:library,index:selectedLesson),locale=language,voice=self.voice,store=self.store;selectionTask=Task{[weak self] in
    // Damaged text and damaged recordings are reported apart, each with the narrowest action that repairs it.
    let result=await Task.detached{()->(String,String) in let translation:LessonTranslation?;do{translation=try store.translation(source:source,locale:locale)}catch{return ("","This lesson's stored translation is damaged or out of date. Choose Discard translated text, then Translate it again.")};guard let translation else{return ("","No translated text or recordings for this selection.")};let text=([translation.title]+translation.teaches+translation.beats.map{$0.stepTitle+"\n"+$0.say}).joined(separator:"\n\n");do{if let pack=try store.completePack(source:source,locale:locale,voice:voice){return (text,"Complete offline lesson: \(pack.clips.count) verified recordings.")};let count=(try store.partialPack(source:source,locale:locale,voice:voice))?.clips.count ?? 0;return (text,"Translated text stored; \(count) of \(source.beats.count) recordings stored. Incomplete lessons use English.")}catch{return (text,"Translated text stored, but this voice's stored recordings are damaged or out of date. Choose Remove stored lesson, then Record / Resume; the translated text is kept.")}}.value
    guard let self,!Task.isCancelled,self.selectionGeneration==generation,!self.busy else{return};self.inspection=result.0;self.storedStatus=result.1
@@ -93,13 +122,21 @@ public struct LessonJobPlan:Equatable,Sendable {
  /// Before Translate or Record for every lesson: confirms the sign-in, then counts what is still to do, so the learner
  /// can confirm a long job before anything is requested. Nil, with the reason in `status`, when there is nothing to
  /// confirm: the sign-in failed, the selection changed meanwhile, or every lesson is already done.
- public func planAll(mode:String) async -> LessonJobPlan? {
+ public func planAll(mode:String) async -> LessonJobPlan? {await plan(mode:mode,only:nil)}
+ /// A row's Translate or Record in the lesson list: selects that lesson, then checks the sign-in and counts its work
+ /// exactly as for every lesson, so nothing is requested until the learner confirms.
+ public func plan(mode:String,lesson:Int) async -> LessonJobPlan? {
+  guard library.lessons.indices.contains(lesson) else{return nil}
+  guard !busy,!planning else{status="Wait for the current job to finish, or cancel it.";return nil}
+  allLessons=false;selectedLesson=lesson;return await plan(mode:mode,only:lesson)
+ }
+ private func plan(mode:String,only:Int?) async -> LessonJobPlan? {
   guard mode=="translate" || mode=="record" else{return nil}
   if let problem=startProblem(mode:mode){status=problem;return nil}
   let locale=language,chosenVoice=voice,store=store,library=library;planning=true;defer{planning=false};status="Checking your sign-in…"
   do{_=try await translator.accountStatus()}catch{status="Nothing was started: your sign-in could not be confirmed. "+userFacingMessage(error,fallback:"Sign in, then try again.");return nil}
   let counts=await Task.detached{()->(lessons:Int,clips:Int,untranslated:Int) in var lessons=0,clips=0,untranslated=0
-   for index in library.lessons.indices {let source=LessonTranslation.source(library:library,index:index)
+   for index in only.map({[$0]}) ?? Array(library.lessons.indices) {let source=LessonTranslation.source(library:library,index:index)
     // Damaged text or recordings count as missing: this is a count for the confirmation, and the job itself replaces
     // or reports each damaged file.
     let text:LessonTranslation?;do{text=try store.translation(source:source,locale:locale)}catch{text=nil}
@@ -108,8 +145,9 @@ public struct LessonJobPlan:Equatable,Sendable {
     let stored:Int;do{stored=try store.partialPack(source:source,locale:locale,voice:chosenVoice)?.clips.count ?? 0}catch{stored=0}
     let missing=source.beats.count-stored;if missing>0{lessons+=1;clips+=missing}}
    return (lessons,clips,untranslated)}.value
-  guard language==locale,voice==chosenVoice,allLessons else{status="The selection changed while it was checked. Choose \(mode=="translate" ? "Translate":"Record / Resume") again.";return nil}
+  guard language==locale,voice==chosenVoice,only==nil ? allLessons:(!allLessons && selectedLesson==only) else{status="The selection changed while it was checked. Choose \(mode=="translate" ? "Translate":"Record / Resume") again.";return nil}
   let name=LessonLanguages.name(locale)
+  if counts.lessons==0,only != nil{status=mode=="translate" ? "This lesson already has translated text in \(name).":counts.untranslated>0 ? "This lesson has no translated text yet; translate it first.":"This lesson already has all its recordings.";return nil}
   if counts.lessons==0{status=mode=="translate" ? "Every lesson already has translated text in \(name).":"Every translated lesson already has all its recordings."+(counts.untranslated>0 ? " \(counts.untranslated) lessons have no translated text yet; translate them first.":"");return nil}
   let activity:UsageActivity=mode=="translate" ? .translation:.lessonRecording,each=usage.records.filter{$0.activity==activity && $0.status == .completed}.map{$0.updatedAt.timeIntervalSince($0.startedAt)}.sorted()
   let typical=each.isEmpty ? nil:each[each.count/2]
@@ -190,7 +228,7 @@ public struct LessonJobPlan:Equatable,Sendable {
  public func cancel(){guard canCancel else{return};task?.cancel();status="Cancelling…"}
  /// Called after Play preview starts: a preview that could not play says so instead of staying silent.
  public func reportPreviewPlayback(failure:String?){if let failure{status=failure}}
- public func remove(){guard !busy,library.lessons.indices.contains(selectedLesson) else{return};beforeRemove();previewURL=nil;let indices=allLessons ? Array(library.lessons.indices):[selectedLesson];do{for i in indices{try store.remove(source:LessonTranslation.source(library:library,index:i),locale:language,voice:voice)};status="Recordings removed. Translated text and lesson progress are preserved.";onPacksChanged()}catch{status="The recordings could not be removed."}}
+ public func remove(){guard !busy,library.lessons.indices.contains(selectedLesson) else{return};beforeRemove();previewURL=nil;let indices=allLessons ? Array(library.lessons.indices):[selectedLesson];do{for i in indices{try store.remove(source:LessonTranslation.source(library:library,index:i),locale:language,voice:voice)};status="Recordings removed. Translated text and lesson progress are preserved.";refreshStatuses(force:true);onPacksChanged()}catch{status="The recordings could not be removed."}}
  /// Removes one recorded clip of the selected lesson, so Record / Resume re-records only that clip instead of the lesson.
  public func removeClip(step:Int){guard !busy,!allLessons,library.lessons.indices.contains(selectedLesson),library.lessons[selectedLesson].beats.indices.contains(step) else{return};beforeRemove();previewURL=nil;let source=LessonTranslation.source(library:library,index:selectedLesson);do{let removed=try store.removeClip(source:source,locale:language,voice:voice,beatID:source.beats[step].id);status=removed ? "Clip \(step+1) removed. Record / Resume records it again; until then this lesson plays in English.":"Clip \(step+1) has no stored recording.";selectionChanged(invalidatePreview:false);if removed{onPacksChanged()}}catch{status="The clip could not be removed."}}
  public func discardTranslation(){guard !busy,library.lessons.indices.contains(selectedLesson) else{return};beforeRemove();previewURL=nil;let indices=allLessons ? Array(library.lessons.indices):[selectedLesson];do{for index in indices{try store.discardTranslation(source:LessonTranslation.source(library:library,index:index),locale:language)};inspection="";status="Translation and recordings discarded. Translate explicitly to create a replacement.";selectionChanged();onPacksChanged()}catch{status="The translation could not be discarded."}}
@@ -220,7 +258,7 @@ public struct LessonJobPlan:Equatable,Sendable {
   guard generation==accountSnapshotGeneration,!accountSnapshotStale,current != previous else{return}
   accountSnapshotStale=true;accountStatus="Codex sign-in file changed. Refresh account status to confirm current limits.";appendStaleAccountSnapshot()
  }
- public func shutdown(){accountMonitor?.invalidate();accountMonitor=nil;task?.cancel();accountTask?.cancel();selectionTask?.cancel()}
+ public func shutdown(){accountMonitor?.invalidate();accountMonitor=nil;task?.cancel();accountTask?.cancel();selectionTask?.cancel();statusTask?.cancel()}
 }
 /// Ends a lesson job outright (voice coach became active, or repeated failures): not one lesson's problem.
 struct LessonJobStopped:Error,LocalizedError {let message:String;var errorDescription:String? {message}}
