@@ -639,7 +639,7 @@ import CheckmateCore
         // Matches the review workspace and the training panel: nothing to review is not offered. A training game shown
         // is the current game there; an unfinished one is not reviewed (mini-games plan D6).
         if item.action == #selector(reviewCurrent){return model?.canReviewCurrent==true}
-        if item.action == #selector(reviewPrevious){return model?.session.state.practice.previousGame.isEmpty==false}
+        if item.action == #selector(reviewPrevious){return model?.canReviewPrevious==true}
         if item.action == #selector(findInLibrary){return model?.reviewWorkspace==true}
         if item.action == #selector(copyFEN){return model?.shownRecord?.fen != nil}
         if item.action == #selector(copyPGN){return model?.shownRecord?.pgn != nil}

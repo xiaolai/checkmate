@@ -4959,9 +4959,9 @@
       "comment" : "A line of the voice conversation the learner said"
     },
     "Your ChatGPT account cannot use live voice." : {},
+    "Your Codex sign-in has expired and could not be renewed. Open Codex and sign in again with your ChatGPT account, then try again." : {},
     "Your Codex sign-in has expired and could not be renewed. Open Codex and sign in again, then translate again." : {},
-    "Your Codex sign-in has expired." : {},
-    "Your Codex sign-in was not accepted." : {},
+    "Your Codex sign-in was not accepted, which usually means it is too old. Open Codex and sign in again with your ChatGPT account, then try again." : {},
     "Your Mac could not play the coach's voice." : {},
     "Your account has used live voice a lot recently, so it is paused for now." : {},
     "Your attempt is paused." : {},

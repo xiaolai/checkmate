@@ -32,6 +32,16 @@ import CodexAuth
         XCTAssertEqual(VoiceFailure.microphoneDenied.action,.openMicrophoneSettings);XCTAssertEqual(VoiceFailure.noCodex.action,.getCodex)
         XCTAssertEqual(VoiceFailure.signInExpired.action,.signIn);XCTAssertEqual(VoiceFailure.codexNotSetUp.action,.setUpCodex);XCTAssertEqual(VoiceFailure.offline.action,.tryAgain)
     }
+    /// L-32: an aged-out sign-in (Codex could not renew it, or the voice service refused it) says what renews it, as
+    /// lesson translation does, rather than only that it failed.
+    func testAStaleSignInSaysHowToRenewIt() {
+        for failure in [VoiceFailure.signInExpired,.signInRejected] {
+            XCTAssertTrue(failure.cause.contains("Open Codex and sign in again with your ChatGPT account"),"\(failure): \(failure.cause)")
+            XCTAssertEqual(failure.action,.signIn)
+        }
+        XCTAssertEqual(VoiceFailure.from(CodexAuthError(.expired)),.signInExpired,"a refresh that did not renew the sign-in")
+        XCTAssertEqual(VoiceFailure.from(RealtimeError(.authExpired)),.signInRejected,"a token the voice service refused after a refresh")
+    }
     /// Unknown errors are one failure; the error's own words stay in the log.
     func testAnyErrorMapsToOneFailure() {
         XCTAssertEqual(VoiceFailure.from(VoiceFailure.rateLimited),.rateLimited)

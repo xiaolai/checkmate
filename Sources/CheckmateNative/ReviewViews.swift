@@ -23,7 +23,7 @@ struct ReviewWorkspaceContent:View {
     @ViewBuilder private var secondaryActions:some View {
         Button("Paste PGN or FEN"){model.pasteReview()}
         Button("Review Current Game"){model.reviewCurrent()}.disabled(model.session.rules.history.isEmpty)
-        if !model.session.state.practice.previousGame.isEmpty{Button("Review Previous Game"){model.reviewCurrent(previous:true)}}
+        if model.canReviewPrevious{Button("Review Previous Game"){model.reviewCurrent(previous:true)}}
     }
 }
 struct ReviewDetailContent:View {

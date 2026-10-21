@@ -739,8 +739,12 @@ import RealtimeConnection
         if let exercise=shownTrainingExercise{return training?.canReview(exercise)==true}
         return !session.rules.history.isEmpty
     }
+    /// Whether File ▸ Review Previous Game has a game to open: the practice game's previous game, and never while
+    /// training is shown, where "previous game" would wrongly mean the practice game beside it (L-32).
+    var canReviewPrevious:Bool {session.activity.place.mode != .training && !session.state.practice.previousGame.isEmpty}
     /// The game's text is read here; parsing it (seconds for a long game) runs detached, under the import overlay and its Cancel.
     func reviewCurrent(previous:Bool=false){
+        if previous,!canReviewPrevious{return}
         // A training game on screen is what "current" means there; an unfinished one is not reviewed and never falls
         // back to the unrelated practice game.
         if !previous,let exercise=shownTrainingExercise {

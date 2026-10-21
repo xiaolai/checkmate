@@ -26,8 +26,9 @@ public enum VoiceFailure:String,Error,UserFacingError,CaseIterable,Equatable,Sen
         case .signedOut:return String(localized:"Codex on this Mac is not signed in with your ChatGPT account.",bundle:.checkmate)
         case .apiKeySignIn:return String(localized:"Codex on this Mac is signed in with an API key, and voice uses your ChatGPT subscription instead.",bundle:.checkmate)
         case .otherSignIn:return String(localized:"Codex on this Mac is signed in another way, and voice needs a ChatGPT sign-in.",bundle:.checkmate)
-        case .signInExpired:return String(localized:"Your Codex sign-in has expired.",bundle:.checkmate)
-        case .signInRejected:return String(localized:"Your Codex sign-in was not accepted.",bundle:.checkmate)
+        // A sign-in Codex could not renew stays stale until the learner signs in again (L-32): say how.
+        case .signInExpired:return String(localized:"Your Codex sign-in has expired and could not be renewed. Open Codex and sign in again with your ChatGPT account, then try again.",bundle:.checkmate)
+        case .signInRejected:return String(localized:"Your Codex sign-in was not accepted, which usually means it is too old. Open Codex and sign in again with your ChatGPT account, then try again.",bundle:.checkmate)
         case .keychainSignIn:return String(localized:"Codex keeps its sign-in in the keychain, and this version of Codex cannot share it with Checkmate.",bundle:.checkmate)
         case .otherProvider:return String(localized:"Codex on this Mac uses a service other than ChatGPT, so voice cannot use its sign-in.",bundle:.checkmate)
         case .codexUnresponsive:return String(localized:"Codex on this Mac did not answer when Checkmate asked for its sign-in.",bundle:.checkmate)

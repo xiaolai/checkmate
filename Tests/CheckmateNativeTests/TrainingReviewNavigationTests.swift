@@ -85,4 +85,20 @@ import CheckmateCore
         model.reviewCurrent()
         XCTAssertNil(model.review.document);XCTAssertFalse(model.importingReview,"nothing fell back to the practice game")
     }
+    /// L-32: File ▸ Review Previous Game names the practice game's previous game, which is not what a learner in
+    /// training means; it is off there (menu and review workspace alike) and does nothing if reached anyway.
+    func testReviewPreviousGameIsOffInTraining()throws {
+        let model=try NativeModel();defer{model.shutdown()}
+        let training=try XCTUnwrap(model.training);training.games.engine=ScriptedDefender()
+        model.session.state.practice.previousGame="1. e4 e5 2. Nf3 Nc6"
+        let app=AppDelegate();app.model=model
+        let item=NSMenuItem(title:"",action:#selector(AppDelegate.reviewPrevious),keyEquivalent:"")
+        XCTAssertTrue(app.validateMenuItem(item),"outside training the previous practice game is offered");XCTAssertTrue(model.canReviewPrevious)
+        model.startTraining("finish-the-game",variant:"kqk")
+        XCTAssertFalse(app.validateMenuItem(item),"a training game is shown: the practice game's previous game is not offered");XCTAssertFalse(model.canReviewPrevious)
+        model.reviewCurrent(previous:true)
+        XCTAssertNil(model.review.document);XCTAssertFalse(model.importingReview,"nothing opened the practice game's previous game")
+        model.trainingLibrary()
+        XCTAssertFalse(app.validateMenuItem(item),"the training library is training too")
+    }
 }
