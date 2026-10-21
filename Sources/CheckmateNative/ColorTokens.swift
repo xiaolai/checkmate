@@ -16,6 +16,9 @@ struct BoardPalette {
     /// Check's glow, its ring and the last move's tint are the same in every theme; BoardPlayTests checks their
     /// contrast against each theme's squares (B-15).
     static let check=rgb(1.0,0.15,0.10),checkRing=rgb(0.30,0.02,0.02),lastMove=rgb(1.0,0.84,0.18)
+    /// The learner's own marks (B-11), the same in every theme: a bright brush inside a near-black casing, so each reads
+    /// on both squares; BoardSketchTests checks both contrasts.
+    static let sketchCasing=rgb(0.08,0.08,0.08),sketchGreen=rgb(0.20,0.78,0.30),sketchRed=rgb(0.96,0.26,0.20),sketchBlue=rgb(0.30,0.56,1.0),sketchYellow=rgb(1.0,0.84,0.15)
     private static func rgb(_ r:CGFloat,_ g:CGFloat,_ b:CGFloat)->NSColor {NSColor(srgbRed:r,green:g,blue:b,alpha:1)}
     /// `dark` dims the bright squares for a dark window; marks keep their contrast on both squares (D-36).
     static func theme(_ name:String,dark:Bool=false)->BoardPalette {

@@ -33,6 +33,8 @@ enum BoardOverlay {
     static let cornerRadius:CGFloat=0.20
     static let coverageOpacity:CGFloat=0.5,destinationOpacity:CGFloat=0.75,dragOriginOpacity:CGFloat=0.3
     static let pieceOutlineWidth:CGFloat = -1.5
+    /// The learner's own marks (B-11): a bold stroke inside a thin dark casing, and a circle just inside its square.
+    static let sketchWidth:CGFloat=0.07,sketchCasing:CGFloat=0.012,sketchCircleInset:CGFloat=0.07
     static func breath(at elapsed:TimeInterval)->CGFloat {
         CGFloat((1-cos(2 * .pi * elapsed/breathPeriod))/2)
     }

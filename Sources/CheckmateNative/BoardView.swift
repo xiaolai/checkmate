@@ -88,8 +88,13 @@ final class BoardView:NSView,NSAccessibilityCustomRotorItemSearchDelegate {
     /// or another activity never keeps it, even one with a same-coloured piece on the destination.
     /// What the board is showing, apart from its pieces (see GameWindow's presentations). A move animation belongs to the
     /// source it started in: any change of source ends it, even to a board with identical pieces.
-    var displaySource="" {didSet{if displaySource != oldValue{cancelAnimation()}}}
-    var position:Position=[:] {didSet{if position != oldValue,let current=transition{if let next=current.advanced(to:position){transition=next}else{cancelAnimation()}}}}
+    var displaySource="" {didSet{if displaySource != oldValue{cancelAnimation();sketch.clear()}}}
+    var position:Position=[:] {didSet{if position != oldValue{sketch.clear()};if position != oldValue,let current=transition{if let next=current.advanced(to:position){transition=next}else{cancelAnimation()}}}}
+    /// The learner's own arrows and circles (B-11): a move or another board clears them.
+    private(set) var sketch=BoardSketch() {didSet{if sketch != oldValue{needsDisplay=true}}}
+    /// The arrow a right-drag is drawing, shown until the button is released.
+    private(set) var sketchPreview:BoardSketch.Mark?
+    private var rightPress:(square:String,brush:BoardSketch.Brush)?
     var destinations:[String]=[],attacked:[String]=[],highlights:[Highlight]=[],counts:[String]=[],explicitMotion:PieceMotion?,theme="wood"
     var focus="e2" {didSet{if focus != oldValue{noteFocusRingMaskChanged()}}}
     var arrows:[[String]]=[] {didSet{if arrows != oldValue{arrowElapsed=0;arrowStart=ProcessInfo.processInfo.systemUptime;updateBreathing()}}}
@@ -262,6 +267,11 @@ final class BoardView:NSView,NSAccessibilityCustomRotorItemSearchDelegate {
         guard let target=target,target != drag.from,selected==drag.from,dropsAnywhere || destinationsPlayable && destinations.contains(target) else{if let target,target != drag.from{refusedDrop?(drag.from,target)};return}
         focus=target;droppedMove=(drag.from,target);activate?(target);droppedMove=nil
     }
+    // The right button only draws (B-11): it never selects, plays or drags, and a press during a left-button press or
+    // drag is ignored. The board has no context menu, so nothing else answers it.
+    override func rightMouseDown(with e:NSEvent){guard press==nil,drag==nil else{return};rightPress=square(at:convert(e.locationInWindow,from:nil)).map{($0,BoardSketch.Brush(modifiers:e.modifierFlags))};sketchPreview=nil}
+    override func rightMouseDragged(with e:NSEvent){guard let rightPress else{return};let target=square(at:convert(e.locationInWindow,from:nil));let preview=target.flatMap{$0==rightPress.square ? nil:BoardSketch.Mark(from:rightPress.square,to:$0,brush:rightPress.brush)};if preview != sketchPreview{sketchPreview=preview;needsDisplay=true}}
+    override func rightMouseUp(with e:NSEvent){defer{rightPress=nil;sketchPreview=nil;needsDisplay=true};guard let rightPress,let target=square(at:convert(e.locationInWindow,from:nil)) else{return};sketch.toggle(BoardSketch.Mark(from:rightPress.square,to:target,brush:rightPress.brush))}
     override func keyDown(with e:NSEvent){if e.modifierFlags.intersection([.command,.control,.option]).isEmpty,reviewKey?(e.keyCode)==true{return};let modifiers=e.modifierFlags.intersection([.command,.control,.option]);if !modifiers.isEmpty && !(modifiers == .option && (123...126).contains(e.keyCode)){super.keyDown(with:e);return};if let char=e.charactersIgnoringModifiers?.lowercased(),char=="p" || char=="a"{inspectRelationship?(char=="p" ? .protected:.attacked);return};keyboardFocusVisible=true;if e.keyCode==36 || e.keyCode==49{activate?(focus);return};if e.keyCode==53{if press != nil || drag != nil{press=nil;drag=nil;if let window{cursor(at:convert(window.mouseLocationOutsideOfEventStream,from:nil)).set()}};if dismissRelationships?()==true{needsDisplay=true;return};selected=nil;destinations=[];clearSelection?();needsDisplay=true;return};var f=Int(focus.utf8.first!-97),r=Int(focus.suffix(1))!-1;let step=blackAtBottom ? -1:1;switch e.keyCode{case 123:f-=step;case 124:f+=step;case 125:r-=step;case 126:r+=step;default:super.keyDown(with:e);return};focus=String(UnicodeScalar(97+max(0,min(7,f)))!)+String(max(0,min(7,r))+1);needsDisplay=true;if let square=squares.first(where:{$0.square==focus}){NSAccessibility.post(element:square,notification:.focusedUIElementChanged)}}
     /// Only a game record is taken (`ReviewDrop.accepts`); anything else shows no copy badge and cannot be dropped.
     override func draggingEntered(_ sender:NSDraggingInfo)->NSDragOperation {ReviewDrop.accepts(sender.draggingPasteboard) ? .copy:[]}
@@ -283,9 +293,10 @@ final class BoardView:NSView,NSAccessibilityCustomRotorItemSearchDelegate {
         animationStart=ProcessInfo.processInfo.systemUptime;animationDuration=duration;let timer=Timer(timeInterval:Metrics.frameInterval,repeats:true){[weak self] _ in guard let self=self else{return};self.needsDisplay=true;if self.animationProgress>=1{self.cancelAnimation()}};self.timer=timer;RunLoop.main.add(timer,forMode:.common)}
     /// Monotonic, so a clock change never stalls or skips a move.
     private var animationProgress:Double {animationDuration>0 ? min(1,max(0,(ProcessInfo.processInfo.systemUptime-animationStart)/animationDuration)):1}
-    /// Layers draw bottom to top: squares and their marks, guard lines and relationships, arrows, pieces, then coordinates.
+    /// Layers draw bottom to top: squares and their marks, guard lines and relationships, arrows, pieces, the learner's
+    /// own marks, then coordinates.
     override func draw(_ dirty:NSRect){let s=boardRect.width/8;guard s>0 else{return}
-        let palette=self.palette;drawSquares(palette,side:s);drawRelationships(palette,side:s);drawArrows(palette,side:s);drawPieces(side:s);drawLabels(palette,side:s)
+        let palette=self.palette;drawSquares(palette,side:s);drawRelationships(palette,side:s);drawArrows(palette,side:s);drawPieces(side:s);BoardSketch.draw(sketch.marks+(sketchPreview.map{[$0]} ?? []),on:self,side:s);drawLabels(palette,side:s)
     }
     private func drawSquares(_ palette:BoardPalette,side s:CGFloat){
         for sq in ChessRules.squares {let rect=squareRect(sq),parity=(Int(sq.utf8.first!-97)+Int(sq.suffix(1))!-1)%2; (parity==0 ? palette.darkSquare:palette.lightSquare).setFill();rect.fill()
