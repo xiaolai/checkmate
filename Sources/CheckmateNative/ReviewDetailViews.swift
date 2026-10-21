@@ -128,14 +128,21 @@ enum ReviewFormat {
     @MainActor static func readout(_ d:GameDocument,index:Int,score:AnalysisScore?,grade:MoveGrade?)->String {
         let head=position(d,index:index)+(index>0 ? grade?.glyph ?? "":"");return score.map{"\(head) \(self.score($0))"} ?? "\(head), no score"
     }
-    /// A graph point as VoiceOver reads it: "2. Nf3, +0.8, inaccuracy".
+    /// A graph point as VoiceOver reads it: "2. Nf3, +0.8, inaccuracy"; one whole format per shape.
     @MainActor static func pointLabel(_ d:GameDocument,index:Int,score:AnalysisScore?,grade:MoveGrade?)->String {
-        ([position(d,index:index),score.map{self.score($0)} ?? "no score"]+(index>0 ? [grade?.name.lowercased()].compactMap{$0}:[])).joined(separator:", ")
+        let move=position(d,index:index),named=index>0 ? grade?.name.lowercased():nil
+        switch (score.map{self.score($0)},named) {
+        case let (value?,named?):return String(localized:"\(move), \(value), \(named)",bundle:.checkmate,comment:"A graph point: the move, its score, its grade")
+        case let (value?,nil):return String(localized:"\(move), \(value)",bundle:.checkmate,comment:"A graph point: the move, its score")
+        case let (nil,named?):return String(localized:"\(move), no score, \(named)",bundle:.checkmate,comment:"A graph point: the move without a score, then its grade")
+        case (nil,nil):return String(localized:"\(move), no score",bundle:.checkmate,comment:"A graph point: the move without a score")
+        }
     }
-    /// The graph's label carries the selected position, since a chart reports no value; the pointer gate reads its
-    /// "position N of M" part.
-    @MainActor static func graphLabel(_ d:GameDocument,index:Int?,last:Int,score:AnalysisScore?,grade:MoveGrade?)->String {
-        guard let index else{return String(localized:"Evaluation graph, not on the main line",bundle:.checkmate)};return String(localized:"Evaluation graph, position \(index) of \(last), ",bundle:.checkmate)+pointLabel(d,index:index,score:score,grade:grade)
+    /// The graph's label carries the selected move, its score and grade, since a chart reports no value; the pointer
+    /// gate reads the move number from it.
+    @MainActor static func graphLabel(_ d:GameDocument,index:Int?,score:AnalysisScore?,grade:MoveGrade?)->String {
+        guard let index else{return String(localized:"Evaluation graph, not on the main line",bundle:.checkmate)}
+        return String(localized:"Evaluation graph, \(pointLabel(d,index:index,score:score,grade:grade))",bundle:.checkmate,comment:"The evaluation graph's label: the selected move, its score and grade")
     }
     /// The engine comparison's caption, with the depth its first line reached.
     static func evidenceCaption(provisional:Bool,depth:Int?)->String {(provisional ? String(localized:"Provisional engine estimate",bundle:.checkmate):String(localized:"Deeper engine comparison",bundle:.checkmate))+(depth.map{$0>0 ? " · depth \($0)":""} ?? "")}
@@ -233,6 +240,9 @@ struct EvaluationGraph:View,AXChartDescriptorRepresentable {
     private struct Sample:Identifiable {let id:Int,value:Double,run:Int}
     /// Samples grouped into runs of known scores, so a gap is drawn as a gap.
     private var points:[Sample] {var result:[Sample]=[],run=0;for (i,value) in samples.enumerated(){if let value{result.append(Sample(id:i,value:value,run:run))}else{run+=1}};return result}
+    @Namespace private var rotor
+    /// Every key-moment rotor entry lands on the graph itself, the one element that reads the selected move.
+    private static let rotorTarget="evaluation-graph"
     private var last:Int {max(1,samples.count-1)}
     private var selected:Int? {review.branch==nil ? ReviewFormat.mainlineIndex(document,node:review.nodeID):nil}
     private func choose(_ index:Int){let node=ReviewFormat.node(document,index:max(0,min(last,index)));guard review.branch != nil || review.nodeID != node else{return};do{try review.select(node);model.saveReview()}catch{model.storageError=GameWindow.failureMessage(error)}}
@@ -265,8 +275,11 @@ struct EvaluationGraph:View,AXChartDescriptorRepresentable {
             .padding(.horizontal,Metrics.tightGap).padding(.vertical,1).background(.regularMaterial,in:RoundedRectangle(cornerRadius:3)).padding(3).allowsHitTesting(false).accessibilityHidden(true)}}
         .frame(height:64).padding(.vertical,2).background(ReviewCard(radius:6))
         .help("Evaluation from White's side: light above the line favors White, dark below favors Black. Click or drag to choose a position.")
-        // A chart element reports no AXValue, so the selected position, its move, score and grade are part of its label.
-        .accessibilityElement(children:.ignore).accessibilityLabel(ReviewFormat.graphLabel(document,index:selected,last:last,score:selected.flatMap(score),grade:selected.flatMap(grade))).accessibilityIdentifier("review-evaluation-graph")
+        // A chart element reports no AXValue, so the selected move, its score and grade are part of its label.
+        .accessibilityElement(children:.ignore).accessibilityLabel(ReviewFormat.graphLabel(document,index:selected,score:selected.flatMap(score),grade:selected.flatMap(grade))).accessibilityIdentifier("review-evaluation-graph")
+        // VoiceOver's rotor steps through the key moments marked on the graph; choosing one selects its move.
+        .accessibilityRotorEntry(id:Self.rotorTarget,in:rotor)
+        .accessibilityRotor(String(localized:"Key Moments",bundle:.checkmate)){ForEach(markers){m in AccessibilityRotorEntry(Text(verbatim:ReviewFormat.pointLabel(document,index:m.id,score:score(m.id),grade:grade(m.id))),id:Self.rotorTarget,in:rotor){choose(m.id)}}}
         .accessibilityAdjustableAction{direction in switch direction{case .increment:choose((selected ?? -1)+1);case .decrement:choose((selected ?? 1)-1);default:break}}
         .accessibilityChartDescriptor(self)
     }

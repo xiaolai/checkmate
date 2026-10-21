@@ -136,11 +136,16 @@ import CheckmateCore
         XCTAssertEqual(ReviewFormat.readout(d,index:3,score:AnalysisScore(kind:"cp",value:80),grade:.inaccuracy),"2. Nf3?! +0.8")
         XCTAssertEqual(ReviewFormat.readout(d,index:2,score:AnalysisScore(kind:"mate",value:-2),grade:nil),"1… e5 −M2")
         XCTAssertEqual(ReviewFormat.readout(d,index:0,score:nil,grade:nil),"Start, no score")
-        let label=ReviewFormat.graphLabel(d,index:3,last:3,score:AnalysisScore(kind:"cp",value:80),grade:.inaccuracy)
-        XCTAssertEqual(label,"Evaluation graph, position 3 of 3, 2. Nf3, +0.8, inaccuracy")
-        XCTAssertNotNil(label.range(of:#"Evaluation graph, position (\d+) of (\d+)"#,options:.regularExpression),"the pointer gate reads the position from this label")
-        XCTAssertEqual(ReviewFormat.graphLabel(d,index:nil,last:3,score:nil,grade:nil),"Evaluation graph, not on the main line")
+        let label=ReviewFormat.graphLabel(d,index:3,score:AnalysisScore(kind:"cp",value:80),grade:.inaccuracy)
+        XCTAssertEqual(label,"Evaluation graph, 2. Nf3, +0.8, inaccuracy")
+        XCTAssertEqual(ReviewFormat.graphLabel(d,index:2,score:nil,grade:.mistake),"Evaluation graph, 1… e5, no score, mistake")
+        XCTAssertEqual(ReviewFormat.graphLabel(d,index:0,score:AnalysisScore(kind:"cp",value:20),grade:.blunder),"Evaluation graph, Start, +0.2","the start has no grade")
+        // The pointer gate reads the selected move from this label: "Start", "N." or "N…".
+        let gate=#"Evaluation graph, (?:Start|\d+(?:\.|…) )"#
+        for index in 0...3 {XCTAssertNotNil(ReviewFormat.graphLabel(d,index:index,score:nil,grade:nil).range(of:gate,options:.regularExpression),"the pointer gate reads position \(index)")}
+        XCTAssertEqual(ReviewFormat.graphLabel(d,index:nil,score:nil,grade:nil),"Evaluation graph, not on the main line")
         XCTAssertEqual(ReviewFormat.pointLabel(d,index:1,score:AnalysisScore(kind:"cp",value:30),grade:nil),"1. e4, +0.3")
+        XCTAssertEqual(ReviewFormat.pointLabel(d,index:1,score:nil,grade:nil),"1. e4, no score")
     }
     /// R-23: the engine comparison says how deep the search went.
     func testEvidenceCaptionShowsDepth() {

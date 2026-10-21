@@ -413,18 +413,22 @@ try:
     practice = json.loads((state / "state-v1.json").read_text())["practice"]
 
     def graph_position():
-        match = re.search(r"Evaluation graph, position (\d+) of (\d+)", listing())
-        return (int(match[1]), int(match[2])) if match else None
+        # The graph's label names the selected move ("Evaluation graph, 12… Nf6, +0.4, mistake"); the game starts with
+        # White, so "Start" is ply 0, "N." ply 2N-1 and "N…" ply 2N.
+        match = re.search(r"Evaluation graph, (?:(Start)|(\d+)(\.|…) )", listing())
+        if not match:
+            return None
+        return 0 if match[1] else 2 * int(match[2]) - (1 if match[3] == "." else 0)
 
     for fraction, expected in [(0.005, 0), (0.995, plies), (17.25 / plies, 17)]:
         pointer("click-at", graph, f"{fraction:.4f}")
-        wait(lambda: graph_position() == (expected, plies), f"A click at {fraction:.3f} of the graph did not select position {expected}: {graph_position()}")
+        wait(lambda: graph_position() == expected, f"A click at {fraction:.3f} of the graph did not select ply {expected}: {graph_position()}")
     pointer("drag-across", graph, "0.2000", f"{30 / plies:.4f}")
-    wait(lambda: graph_position() == (30, plies), f"Dragging across the graph did not follow to position 30: {graph_position()}")
+    wait(lambda: graph_position() == 30, f"Dragging across the graph did not follow to ply 30: {graph_position()}")
     before = pointer("frame", graph)
     pointer("wheel", graph, "-4")
     wait(lambda: pointer("frame", graph) != before, "A wheel turn over the graph did not scroll the pane")
-    assert graph_position() == (30, plies), "Scrolling over the graph changed the position"
+    assert graph_position() == 30, "Scrolling over the graph changed the position"
     assert json.loads((state / "state-v1.json").read_text())["practice"] == practice, "Using the graph changed the practice game"
     back_to_game("an original review")
     open_library_game()
