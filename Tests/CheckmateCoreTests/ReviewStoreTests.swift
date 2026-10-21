@@ -13,7 +13,9 @@ final class ReviewStoreTests:XCTestCase {
         let directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);defer{try? FileManager.default.removeItem(at:directory)}
         let store=ReviewStore(directory:directory),d=try PGNImporter.parse(Data("1. e4 *".utf8))[0]
         try store.save(d,cursor:1,branches:[]);XCTAssertEqual(try store.load(d.id).document,d)
-        try Data("corrupt".utf8).write(to:store.documentURL(d.id));XCTAssertTrue(try store.list().isEmpty)
+        // Overwritten in place, which leaves the folder's date alone, so the record is checked when a store loads the
+        // library (the list trusts its index until the folder changes).
+        try Data("corrupt".utf8).write(to:store.documentURL(d.id));XCTAssertTrue(try ReviewStore(directory:directory).list().isEmpty)
         XCTAssertTrue(FileManager.default.fileExists(atPath:directory.appendingPathComponent("Quarantine").path))
     }
     func testRecoveryIndexAndExport()throws {

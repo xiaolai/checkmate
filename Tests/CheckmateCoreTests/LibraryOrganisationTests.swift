@@ -54,13 +54,15 @@ final class LibraryOrganisationTests:XCTestCase {
         XCTAssertThrowsError(try store.save(second,cursor:1,branches:[]),"a stale total would let this save pass the quota")
         XCTAssertEqual(store.measurements,2);XCTAssertEqual(try store.libraryBytes(),try scanned(folder))
     }
-    /// A cursor save looks at its own files and the folder's dates, never at every file in the library, and a cursor
-    /// file edited in place is still noticed by the next save that touches it.
+    /// A cursor save and the review list look at their own files and the folder's dates, a fixed handful whatever the
+    /// library's size, and a cursor file edited in place is still noticed by the next save that touches it.
     func testACursorSaveLooksOnlyAtItsOwnFiles()throws {
         let store=ReviewStore(directory:folder),games=try (1...40).map{try game("[White \"W\($0)\"]\n[Black \"B\"]\n\n1. e4 e5 *")}
         for document in games{try store.save(document,cursor:1,branches:[])}
-        let before=store.looked;try store.save(games[0],cursor:2,branches:[])
-        XCTAssertLessThan(store.looked-before,games.count,"a cursor save stats a few files, not each of the library's \(games.count*2)")
+        var before=store.looked;XCTAssertEqual(try store.list().count,games.count)
+        XCTAssertLessThanOrEqual(store.looked-before,2,"listing the reviews reads the folder's date, not each review")
+        before=store.looked;try store.save(games[0],cursor:2,branches:[])
+        XCTAssertLessThanOrEqual(store.looked-before,16,"a cursor save stats a few files, not each of the library's \(games.count*2)")
         XCTAssertEqual(store.measurements,1);XCTAssertEqual(try store.libraryBytes(),try scanned(folder))
         // Spaces added to a cursor file keep it readable but change its size without touching the folder's date.
         let cursor=folder.appendingPathComponent(games[1].id.uuidString+".cursor.json"),handle=try FileHandle(forWritingTo:cursor)

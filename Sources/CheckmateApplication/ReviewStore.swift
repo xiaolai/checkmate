@@ -48,15 +48,21 @@ public final class ReviewStore {
     /// A deleted review waits in `Trash/<id>/` this long, so its deletion can be undone, unless the library needs room.
     static let trashRetention:TimeInterval=30*24*3600
     private var trashChecked=false
-    /// Bytes of every file in the library outside the Trash, kept up to date by the store's own writes so a save never
-    /// walks the folder (R-28). It holds while the folder and its Quarantine keep the modification dates the store last
-    /// saw, which catches a file added or removed by anything else, and while each file a change touches keeps the size
-    /// and modification date the store last saw, which catches one of those edited in place. So a change stats those two
-    /// folders and its own files, never the whole folder. A record document edited in place is caught by `list()`, which
-    /// drops the total; another file edited in place is caught when a change next touches it.
-    private var usedBytes:Int?,usedDates:[Double]?,ownStamps:[String:String]=[:]
-    /// `measurements` counts full walks of the library, and `looked` every file or folder the running total stats;
-    /// tests read both.
+    /// What the store knows about its folder, kept by its own changes so that the hot path never looks at every review
+    /// (R-28). The cost model, for a library of n reviews:
+    /// - A cursor save and `list()` stat a fixed number of files. `list()` trusts its index while the folder's
+    ///   modification date is the one the store last saw; a cursor save stats the folder, its Quarantine and the files it
+    ///   writes, and moves the running byte total by what they gained or lost.
+    /// - A full save is O(n) stats: before its quota check it re-stats every file the store knows, because the quota is
+    ///   a safety limit that must hold even against a file edited in place by something else, which changes neither
+    ///   folder's date. Full saves come from deliberate actions, so the cost is paid rarely.
+    /// - `list()` re-stats every review on first load and whenever the folder's date changes (a file added or removed
+    ///   behind the store's back).
+    /// So a review document edited in place by something else, while the folder's date stays put, is not seen by
+    /// `list()` until the folder changes or the store loads again; a full save still measures it for the quota.
+    private var usedBytes:Int?,usedDates:[Double]?,ownStamps:[String:String]=[:],listedDate:Double?
+    /// `measurements` counts full walks of the library, and `looked` every file or folder that the byte total and the
+    /// review list stat; tests read both.
     private(set) var measurements=0,looked=0
     /// Each Trash folder's size, by its modification date, so a save does not reread every deleted review.
     private var trashSizes:[String:(stamp:Double,bytes:Int)]=[:]
@@ -69,10 +75,11 @@ public final class ReviewStore {
         return "\(attributes[.size] as? Int ?? -1):\((attributes[.modificationDate] as? Date)?.timeIntervalSinceReferenceDate ?? 0)"
     }
     private func size(_ url:URL)throws -> Int {looked+=1;return FileManager.default.fileExists(atPath:url.path) ? ((try FileManager.default.attributesOfItem(atPath:url.path)[.size] as? Int) ?? 0):0}
-    /// The library's size outside the Trash: the running total, or a full walk when it is unknown or stale.
+    /// The library's size outside the Trash: the running total once every file the store knows still has the size and
+    /// date it recorded, or a full walk when the total is unknown or stale.
     func libraryBytes()throws -> Int {
         lock.lock();defer{lock.unlock()}
-        if let used=usedBytes,try folderDates()==usedDates{return used}
+        if let used=usedBytes,try folderDates()==usedDates,ownStamps.allSatisfy({ownStamp(directory.appendingPathComponent($0.key))==$0.value}){return used}
         measurements+=1;var total=0,stamps:[String:String]=[:];let enumerator=FileManager.default.enumerator(at:directory,includingPropertiesForKeys:[.isRegularFileKey,.fileSizeKey])
         while let file=enumerator?.nextObject() as? URL {
             if enumerator?.level==1,file.lastPathComponent==trashURL.lastPathComponent{enumerator?.skipDescendants();continue}
@@ -83,12 +90,14 @@ public final class ReviewStore {
     }
     /// Runs one of the store's own changes to `files` (all in the folder itself) and moves the running total by what
     /// they gained or lost. A total that was already stale, or a change that fails partway, leaves it unknown, to be
-    /// measured again.
+    /// measured again. The review list's folder date moves with the change only if it was current before it.
     private func tracking<T>(_ files:[URL],_ change:()throws->T)throws -> T {
         func measured()throws -> Int {try files.reduce(0){$0+(try size($1))}}
-        let known=try usedBytes != nil && folderDates()==usedDates && files.allSatisfy{ownStamp($0)==(ownStamps[$0.lastPathComponent] ?? "absent")},before=try known ? measured():0
-        let result:T;do{result=try change()}catch{usedBytes=nil;throw error}
-        if known,let used=usedBytes{let after=try measured();usedBytes=used-before+after;usedDates=try folderDates();for file in files{ownStamps[file.lastPathComponent]=ownStamp(file)}}else{usedBytes=nil}
+        let dates=try folderDates(),listed=listedDate != nil && listedDate==dates[0]
+        let known=usedBytes != nil && dates==usedDates && files.allSatisfy{ownStamp($0)==(ownStamps[$0.lastPathComponent] ?? "absent")},before=try known ? measured():0
+        let result:T;do{result=try change()}catch{usedBytes=nil;listedDate=nil;throw error}
+        let now=try folderDates();listedDate=listed ? now[0]:nil
+        if known,let used=usedBytes{let after=try measured();usedBytes=used-before+after;usedDates=now;for file in files{let stamp=ownStamp(file);ownStamps[file.lastPathComponent]=stamp=="absent" ? nil:stamp}}else{usedBytes=nil}
         return result
     }
     private var indexURL:URL {directory.appendingPathComponent("index.json")}
@@ -119,7 +128,7 @@ public final class ReviewStore {
     }
     private func cursorURL(_ id:UUID)->URL {directory.appendingPathComponent(id.uuidString+".cursor.json")}
     private func saveCursor(_ id:UUID,cursor:Int,date:Date)throws {guard !futureSchema(cursorURL(id)) else{return};try atomicWriter(JSONEncoder().encode(Cursor(schemaVersion:1,cursor:cursor,updatedAt:date)),cursorURL(id))}
-    private func stamp(_ id:UUID)->String {let values=try? documentURL(id).resourceValues(forKeys:[.fileSizeKey,.contentModificationDateKey]);return "\(values?.fileSize ?? -1):\(values?.contentModificationDate?.timeIntervalSince1970 ?? 0)"}
+    private func stamp(_ id:UUID)->String {looked+=1;let values=try? documentURL(id).resourceValues(forKeys:[.fileSizeKey,.contentModificationDateKey]);return "\(values?.fileSize ?? -1):\(values?.contentModificationDate?.timeIntervalSince1970 ?? 0)"}
     public let directory:URL
     public convenience init(directory:URL){self.init(directory:directory,atomicWriter:{try $0.write(to:$1,options:.atomic)})}
     /// Internal fault-injection seam; production writes retain Foundation atomic replacement.
@@ -227,13 +236,16 @@ public final class ReviewStore {
             do{for folder in try trashed() where folder.deleted<cutoff{try purge(folder.url);NativeLog.storage.info("Removed a review deleted over 30 days ago")}}
             catch{NativeLog.storage.error("The review Trash could not be emptied: \(String(describing:error),privacy:.public)")}
         }
+        // The folder's date is unchanged since the store last confirmed its index: no review was added or removed.
+        looked+=1;let date=try modified(directory)
+        if let index,listedDate==date{return index}
         let documentIDs=Set(try FileManager.default.contentsOfDirectory(at:directory,includingPropertiesForKeys:nil).filter{$0.pathExtension=="json"}.compactMap{UUID(uuidString:$0.deletingPathExtension().lastPathComponent)})
         preserved=preserved.filter{documentIDs.contains($0.key) && $0.value==stamp($0.key)}
         let readableIDs=documentIDs.subtracting(preserved.keys)
-        if let index=index,Set(index.map(\.id))==readableIDs,index.allSatisfy({stamps[$0.id]==stamp($0.id)}){return index}
+        if let index=index,Set(index.map(\.id))==readableIDs,index.allSatisfy({stamps[$0.id]==stamp($0.id)}){listedDate=date;return index}
         if index==nil {
             let file=directory.appendingPathComponent("index.json")
-            if let size=(try? file.resourceValues(forKeys:[.fileSizeKey]))?.fileSize,size<=ReviewPolicy.maximumIndexBytes,let data=try? Data(contentsOf:file),let saved=try? JSONDecoder().decode(Index.self,from:data),saved.schemaVersion==1,saved.titleRule==Self.titleRule,saved.entries.count<=ReviewPolicy.maximumSavedRecords,Set(saved.entries.map(\.id)).count==saved.entries.count,Set(saved.entries.map(\.id))==readableIDs,saved.entries.allSatisfy({saved.stamps[$0.id.uuidString]==stamp($0.id)}){index=saved.entries;stamps=Dictionary(uniqueKeysWithValues:saved.entries.map{($0.id,stamp($0.id))});for entry in saved.entries{if let hash=saved.hashes?[entry.id.uuidString]{hashes[entry.id]=hash}};return saved.entries}
+            if let size=(try? file.resourceValues(forKeys:[.fileSizeKey]))?.fileSize,size<=ReviewPolicy.maximumIndexBytes,let data=try? Data(contentsOf:file),let saved=try? JSONDecoder().decode(Index.self,from:data),saved.schemaVersion==1,saved.titleRule==Self.titleRule,saved.entries.count<=ReviewPolicy.maximumSavedRecords,Set(saved.entries.map(\.id)).count==saved.entries.count,Set(saved.entries.map(\.id))==readableIDs,saved.entries.allSatisfy({saved.stamps[$0.id.uuidString]==stamp($0.id)}){index=saved.entries;stamps=Dictionary(uniqueKeysWithValues:saved.entries.map{($0.id,saved.stamps[$0.id.uuidString] ?? stamp($0.id))});for entry in saved.entries{if let hash=saved.hashes?[entry.id.uuidString]{hashes[entry.id]=hash}};listedDate=date;return saved.entries}
         }
         // Directory scan is also recovery for an interrupted index write. It occurs once per store.
         usedBytes=nil;var entries:[ReviewIndexEntry]=[]
@@ -245,10 +257,12 @@ public final class ReviewStore {
             catch{try quarantine(url,id:id)}
         }
         guard entries.count<=ReviewPolicy.maximumSavedRecords else{throw CheckmateError.invalid(String(localized:"Review library record limit exceeded.",bundle:.checkmate))}
-        index=entries.sorted{$0.updatedAt>$1.updatedAt};try writeIndex();return index!
+        // The date read before the scan: the scan's own quarantines and index write move it, so the next call checks each
+        // review once more rather than trust a date that could also hide a change made during the scan.
+        index=entries.sorted{$0.updatedAt>$1.updatedAt};try writeIndex();listedDate=date;return index!
     }
     private func quarantine(_ url:URL,id:UUID)throws {let quarantine=directory.appendingPathComponent("Quarantine");try FileManager.default.createDirectory(at:quarantine,withIntermediateDirectories:true);try FileManager.default.moveItem(at:url,to:quarantine.appendingPathComponent(UUID().uuidString+"-"+url.lastPathComponent));validated[id]=nil;persisted[id]=nil;hashes[id]=nil;quarantinedSinceTaken+=1;usedBytes=nil}
-    private func writeIndex()throws {guard !futureSchema(directory.appendingPathComponent("index.json")) else{return};let entries=index ?? [];let data=try JSONEncoder().encode(Index(schemaVersion:1,entries:entries,stamps:Dictionary(uniqueKeysWithValues:entries.map{($0.id.uuidString,stamp($0.id))}),hashes:Dictionary(uniqueKeysWithValues:entries.compactMap{entry in hashes[entry.id].map{(entry.id.uuidString,$0)}}),titleRule:Self.titleRule));try atomicWriter(data,indexURL)}
+    private func writeIndex()throws {guard !futureSchema(directory.appendingPathComponent("index.json")) else{return};let entries=index ?? [];let data=try JSONEncoder().encode(Index(schemaVersion:1,entries:entries,stamps:Dictionary(uniqueKeysWithValues:entries.map{($0.id.uuidString,stamps[$0.id] ?? stamp($0.id))}),hashes:Dictionary(uniqueKeysWithValues:entries.compactMap{entry in hashes[entry.id].map{(entry.id.uuidString,$0)}}),titleRule:Self.titleRule));try atomicWriter(data,indexURL)}
     /// The saved record whose original text has this hash, so the same game opened again (for example by an agent)
     /// reuses its record instead of filling the library with copies. Records indexed before hashes were kept are
     /// found once they have been loaded or saved again.
