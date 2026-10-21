@@ -99,6 +99,7 @@ private struct SettingsForm:View {
         case .practice:
             Section("Opponent"){OpponentSettingsContent(session:session)}
             Section("Guidance"){Picker("Practice guidance",selection:binding(\.coachingMode)){Text("Guided game").tag("guided");Text("On request").tag("on_request");Text("Quiet").tag("quiet")}}
+            Section{Toggle("Analyze When Opened",isOn:binding(\.reviewAutoAnalyze)).accessibilityIdentifier("review-auto-analyze")} header:{Text("Game review")} footer:{Text("Opening a game for review analyzes it with Stockfish. Moves already analyzed are not searched again, and nothing is analyzed during a network game.").foregroundStyle(.secondary)}
         }
     }.formStyle(.grouped).frame(minWidth:Metrics.settingsDetailMinimum,minHeight:Metrics.settingsFormMinimumHeight).onReceive(model.$codexSetup){codexSetup=$0}.onChange(of:selection.category){_,category in session.state.window.settingsCategory=category?.rawValue ?? "Chessboard";session.emit(semantic:false,save:true)}}
 }

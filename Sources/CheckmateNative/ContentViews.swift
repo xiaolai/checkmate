@@ -66,6 +66,8 @@ struct DetailContent:View {
         if let result {switch result {case "1/2-1/2":return "Drawn game";case "1-0","0-1":return result==(learner=="w" ? "1-0":"0-1") ? "You won":"You lost";default:return "Game over"}}
         return thinking ? "Stockfish is thinking":learnerToMove ? "Your move":"Opponent's move"
     }
+    /// A finished game's summary line: its result and how many moves were played, e.g. "1–0 · 23 moves".
+    static func practiceSummary(result:String,plies:Int)->String {let moves=(plies+1)/2;return "\(ReviewFormat.result(result)) · \(moves) \(moves==1 ? "move":"moves")"}
     /// Runs a learner's practice action; one that cannot be done is said in the drawer, never dropped.
     @MainActor static func attempt(_ session:GameSession,_ action:() throws -> Void){do{try action()}catch{session.report(GameWindow.failureMessage(error))}}
     @State private var lessonGoalsShown=false
@@ -105,6 +107,12 @@ struct DetailContent:View {
             if p.status=="analyzing"{ProgressView("Comparing moves…")};if let error=p.error{Text(error).foregroundStyle(.secondary)}
         } else {
             if session.explicitResumeRequired {Text("Game paused").font(.title2.bold());Text(session.message);Text("Your game is paused because a saved review could not be restored.");Button("Return to game"){model.resumeAfterFailedRestore()}}
+            // A finished game sums itself up and offers its review as the default button (B-7).
+            else if session.finished,let result=session.state.practice.ending?.result ?? session.rules.ending?.result {VStack(alignment:.leading,spacing:Metrics.smallGap){
+                Text(Self.practiceHeading(session)).font(.title2.bold()).accessibilityIdentifier("practice-heading");Text(session.message)
+                Text(Self.practiceSummary(result:result,plies:session.rules.history.count)).foregroundStyle(.secondary).monospacedDigit()
+                Button("Review This Game"){model.reviewCurrent()}.buttonStyle(.borderedProminent).keyboardShortcut(.defaultAction).disabled(!model.canReviewCurrent).accessibilityIdentifier("practice-review-this-game")
+            }.padding(10).frame(maxWidth:.infinity,alignment:.leading).background(ReviewCard(radius:8))}
             else {Text(Self.practiceHeading(session)).font(.title2.bold()).accessibilityIdentifier("practice-heading");Text(session.message)}
             if session.pausedOpponent {Text("The companion opponent disconnected.");Button("Continue with Stockfish"){model.companion.disable();session.continueWithStockfish()}}
             OpponentSettingsContent(session:session)

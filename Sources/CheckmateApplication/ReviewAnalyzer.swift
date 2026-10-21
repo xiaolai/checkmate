@@ -19,6 +19,16 @@ public struct ReviewMoment:Codable,Identifiable {public let id:Int,expectationLo
     /// White-POV scores of `batchDocument`'s mainline, by node: node N holds the position after N's move (the parent's
     /// search of the played move), node 0 the start (the first move's parent best line). A deep pass replaces a quick one.
     @Published public private(set) var evaluations:[Int:AnalysisScore]=[:]
+    /// What each graded mainline move of `batchDocument` gave up, by node, from the same passes as `evaluations` (R-1).
+    @Published public private(set) var losses:[Int:Double]=[:]
+    /// The move's grade from its latest analysis; nil when it is near the best or not analyzed.
+    public func grade(_ node:Int)->MoveGrade? {MoveGrade(expectationLoss:losses[node])}
+    /// The threads and hash each review search asks for (R-5).
+    public var resources=EngineResources.review()
+    /// How many leading moments the whole-game analysis checks more deeply, when tests and measurements fix it;
+    /// otherwise the game's length decides. The batch and a restore read the same count, so restored evidence matches.
+    var momentsToDeepen:Int?
+    private func deepenCount(_ document:GameDocument)->Int {momentsToDeepen ?? ReviewPolicy.momentsToDeepen(plies:document.mainline.count)}
     private var batchTask:Task<Void,Never>?,batchSearch:Task<ReviewEvidence,Error>?,generation=0,selectedCount=0
     private var cache:[String:ReviewEvidence]=[:]
     /// Cache writes still running, by record; forgetting a record waits for them so a late write cannot restore its files.
@@ -55,7 +65,7 @@ public struct ReviewMoment:Codable,Identifiable {public let id:Int,expectationLo
     /// Stops the running analysis. What it finished stays shown: the run is "partial", and starting it again (Resume)
     /// searches only the positions not yet stored. A finished, failed or idle analysis keeps its status.
     public func cancelBatch(){generation+=1;batchTask?.cancel();batchSearch?.cancel();batchTask=nil;batchSearch=nil;if ["pending","deepening"].contains(batchStatus){batchStatus="partial"}}
-    public func reset(){cancelBatch();batchDocument=nil;completed=0;failed=0;total=0;moments=[];evaluations=[:];batchStatus="idle"}
+    public func reset(){cancelBatch();batchDocument=nil;completed=0;failed=0;total=0;moments=[];evaluations=[:];losses=[:];batchStatus="idle"}
     /// Whether a whole-game analysis of this record is still running.
     public func batchRunning(_ id:UUID)->Bool {batchDocument==id && ["pending","deepening"].contains(batchStatus)}
     /// Removes a purged review's stored analysis (one that left the Trash) from memory and disk; analysis other
@@ -66,14 +76,14 @@ public struct ReviewMoment:Codable,Identifiable {public let id:Int,expectationLo
     /// Starting again while the same record's analysis runs keeps its progress, and a record without moves has no game
     /// to analyze, so neither restarts the batch nor reports an empty "ready".
     /// The same record's finished scores stay on the graph while it runs again; another record's go.
-    public func startBatch(_ document:GameDocument){guard fairness.engineHelpAllowed,!batchRunning(document.id),!document.mainline.isEmpty else{return};cancelBatch();if batchDocument != document.id{evaluations=[:]};batchDocument=document.id;completed=0;failed=0;total=document.mainline.count;moments=[];batchStatus="pending";let epoch=generation
+    public func startBatch(_ document:GameDocument){guard fairness.engineHelpAllowed,!batchRunning(document.id),!document.mainline.isEmpty else{return};cancelBatch();if batchDocument != document.id{evaluations=[:];losses=[:]};batchDocument=document.id;completed=0;failed=0;total=document.mainline.count;moments=[];batchStatus="pending";let epoch=generation
         batchTask=Task{for node in document.mainline {guard !Task.isCancelled,self.generation==epoch else{return};while self.selectedCount>0{try? await Task.sleep(nanoseconds:10_000_000);guard !Task.isCancelled,self.generation==epoch else{return}};var done=false
             while !done {guard !Task.isCancelled,self.generation==epoch else{return};while self.selectedCount>0{try? await Task.sleep(nanoseconds:10_000_000);guard !Task.isCancelled else{return}};let search=Task{try await self.compute(document:document,node:node,revision:0,budget:ReviewPolicy.quickBudget)};self.batchSearch=search
                 do{let evidence=try await search.value;guard self.generation==epoch else{return};self.recordMoment(evidence,document:document);self.recordEvaluation(evidence,document:document);done=true}catch{if !search.isCancelled{guard self.generation==epoch else{return};self.failed+=1;done=true}}}
             self.completed+=1
         }
         guard self.generation==epoch else{return};self.batchStatus="deepening"
-        let targets=Array(self.moments.prefix(ReviewPolicy.criticalMomentsToDeepen)).map(\.id)
+        let targets=Array(self.moments.prefix(self.deepenCount(document))).map(\.id)
         for node in targets {
             var finished=false
             while !finished {
@@ -89,26 +99,28 @@ public struct ReviewMoment:Codable,Identifiable {public let id:Int,expectationLo
     /// Shows `document`'s stored whole-game analysis without a search. Every way into or out of a review clears the
     /// analysis so the engine is free (PL-1); this brings back what was finished, from memory or disk. Every position
     /// stored, with the deeper check of its leading moments, is "ready"; some is "partial", and Resume searches only the
-    /// rest; none leaves the analyzer idle.
-    public func restore(_ document:GameDocument){guard fairness.engineHelpAllowed,!batchRunning(document.id),!document.mainline.isEmpty else{return};reset();let epoch=generation,engine=engine
+    /// rest; none leaves the analyzer idle. With `analyze` ("Analyze When Opened", R-4) a run that is not ready goes on
+    /// to analyze what is missing: `startBatch` checks fairness again and searches only positions not stored.
+    public func restore(_ document:GameDocument,analyze:Bool=false){guard fairness.engineHelpAllowed,!batchRunning(document.id),!document.mainline.isEmpty else{return};reset();let epoch=generation,engine=engine
         batchTask=Task{
-            var found:[Int:ReviewEvidence]=[:],moments:[ReviewMoment]=[],evaluations:[Int:AnalysisScore]=[:],deepened=false
+            var found:[Int:ReviewEvidence]=[:],moments:[ReviewMoment]=[],evaluations:[Int:AnalysisScore]=[:],losses:[Int:Double]=[:],deepened=false
             // An engine whose files cannot be identified, or a history that cannot be hashed, has no stored evidence:
             // nothing is shown, and Analyze reports the failure when it searches.
             do{let identity=try await engine.identity()
                 for node in document.mainline {guard !Task.isCancelled,self.generation==epoch else{return};if let evidence=try await self.stored(document:document,node:node,budget:ReviewPolicy.quickBudget,identity:identity){found[node]=evidence}}
-                for node in document.mainline {if let evidence=found[node]{moments=Self.recording(evidence,document:document,in:moments);Self.evaluate(evidence,document:document,into:&evaluations)}}
+                for node in document.mainline {if let evidence=found[node]{moments=Self.recording(evidence,document:document,in:moments);Self.evaluate(evidence,document:document,into:&evaluations,losses:&losses)}}
                 // The batch deepens its leading moments only once every position is in, so a stored run is ready only then.
                 deepened=found.count==document.mainline.count
-                if deepened{for node in moments.prefix(ReviewPolicy.criticalMomentsToDeepen).map(\.id){
+                if deepened{for node in moments.prefix(self.deepenCount(document)).map(\.id){
                     guard !Task.isCancelled,self.generation==epoch else{return}
                     guard let baseline=found[node],let deep=try await self.stored(document:document,node:node,budget:ReviewPolicy.deepBudget,identity:identity) else{deepened=false;break}
-                    let evidence=self.judged(deep,baseline:baseline,document:document,node:node,revision:0);moments=Self.recording(evidence,document:document,in:moments);Self.evaluate(evidence,document:document,into:&evaluations)
+                    let evidence=self.judged(deep,baseline:baseline,document:document,node:node,revision:0);moments=Self.recording(evidence,document:document,in:moments);Self.evaluate(evidence,document:document,into:&evaluations,losses:&losses)
                 }}
             }catch{return}
             // Stored evidence is engine output too: withheld while participating (D8).
-            guard !Task.isCancelled,self.generation==epoch,self.fairness.engineHelpAllowed,!found.isEmpty else{return}
-            self.batchDocument=document.id;self.total=document.mainline.count;self.completed=found.count;self.failed=0;self.moments=moments;self.evaluations=evaluations;self.batchStatus=deepened ? "ready":"partial";self.batchTask=nil
+            guard !Task.isCancelled,self.generation==epoch,self.fairness.engineHelpAllowed else{return}
+            if !found.isEmpty{self.batchDocument=document.id;self.total=document.mainline.count;self.completed=found.count;self.failed=0;self.moments=moments;self.evaluations=evaluations;self.losses=losses;self.batchStatus=deepened ? "ready":"partial"}
+            self.batchTask=nil;if analyze && !deepened{self.startBatch(document)}
         }
     }
     private func recordMoment(_ evidence:ReviewEvidence,document:GameDocument){moments=Self.recording(evidence,document:document,in:moments)}
@@ -121,10 +133,11 @@ public struct ReviewMoment:Codable,Identifiable {public let id:Int,expectationLo
         if forcing || costly || evidence.nodeID==document.mainline.last {result.append(ReviewMoment(id:evidence.nodeID,expectationLoss:loss,reason:reason,provisional:evidence.provisional));result.sort{($0.expectationLoss ?? 0)>($1.expectationLoss ?? 0)}}
         return result
     }
-    private func recordEvaluation(_ evidence:ReviewEvidence,document:GameDocument){Self.evaluate(evidence,document:document,into:&evaluations)}
-    private static func evaluate(_ evidence:ReviewEvidence,document:GameDocument,into evaluations:inout [Int:AnalysisScore]){
-        // A newer result without a score leaves a gap rather than keeping an older pass's score.
+    private func recordEvaluation(_ evidence:ReviewEvidence,document:GameDocument){Self.evaluate(evidence,document:document,into:&evaluations,losses:&losses)}
+    private static func evaluate(_ evidence:ReviewEvidence,document:GameDocument,into evaluations:inout [Int:AnalysisScore],losses:inout [Int:Double]){
+        // A newer result without a score leaves a gap rather than keeping an older pass's score or grade.
         evaluations[evidence.nodeID]=evidence.played?.lines.first?.score
+        losses[evidence.nodeID]=expectationLoss(root:evidence.root.lines.first,played:evidence.played?.lines.first,mover:document.nodes[evidence.nodeID].side)
         if evidence.nodeID==document.mainline.first{evaluations[0]=evidence.root.lines.first?.score}
     }
     public static func expectationLoss(root:AnalysisLine?,played:AnalysisLine?,mover:String)->Double? {guard let root=root,let played=played,root.score.bound==nil,played.score.bound==nil,let best=root.wdl,let actual=played.wdl,best.count==3,actual.count==3 else{return nil};func expected(_ wdl:[Int])->Double {Double(wdl[mover=="w" ? 0:2])+Double(wdl[1])/2};return max(0,(expected(best)-expected(actual))/1000)}
@@ -139,28 +152,38 @@ public struct ReviewMoment:Codable,Identifiable {public let id:Int,expectationLo
         let baseline=try await compute(document:document,node:node,revision:revision,budget:ReviewPolicy.quickBudget)
         return judged(quick,baseline:baseline,document:document,node:node,revision:revision)
     }
+    /// Whether a deep line keeps the quick baseline's score: deep enough, exact, and the same kind and value within tolerance.
+    private static func supported(_ deep:AnalysisLine?,_ initial:AnalysisLine?)->Bool {
+        guard let deep=deep,let initial=initial,deep.depth>=ReviewQualityPolicy.minimumDepth,deep.score.bound==nil,initial.score.bound==nil,deep.score.kind==initial.score.kind else{return false}
+        if deep.score.kind=="mate"{return deep.score.value==initial.score.value}
+        return deep.score.kind=="cp" && abs(deep.score.value-initial.score.value)<=ReviewQualityPolicy.stableCpTolerance
+    }
     /// A deeper result is labelled only where the quick baseline supports it; otherwise it stays provisional.
     private func judged(_ quick:ReviewEvidence,baseline:ReviewEvidence,document:GameDocument,node:Int,revision:Int)->ReviewEvidence {
         let a=quick.root.lines.first,b=baseline.root.lines.first,c=quick.played?.lines.first,d=baseline.played?.lines.first
-        func supported(_ deep:AnalysisLine?,_ initial:AnalysisLine?)->Bool {
-            guard let deep=deep,let initial=initial,deep.depth>=ReviewQualityPolicy.minimumDepth,deep.score.bound==nil,initial.score.bound==nil,deep.score.kind==initial.score.kind else{return false}
-            if deep.score.kind=="mate"{return deep.score.value==initial.score.value}
-            return deep.score.kind=="cp" && abs(deep.score.value-initial.score.value)<=ReviewQualityPolicy.stableCpTolerance
-        }
-        let stable=a?.pv.first==b?.pv.first && supported(a,b) && (quick.played==nil || supported(c,d))
+        let stable=a?.pv.first==b?.pv.first && Self.supported(a,b) && (quick.played==nil || Self.supported(c,d))
         let quality:String
-        if stable,ReviewRolloutPolicy.reviewQualityLabels,let a=a,let c=c {quality=MoveQuality.compare(best:a.score,played:c.score,mover:document.nodes[node].side,stable:true)}else{quality=stable ? "unrated":"provisional"}
+        if stable,let a=a,let c=c {quality=MoveQuality.compare(best:a.score,played:c.score,mover:document.nodes[node].side,stable:true)}else{quality=stable ? "unrated":"provisional"}
         return copy(quick,document:document,node:node,revision:revision,quality:quality,provisional:!stable)
     }
-    public func analyzeBranch(document:GameDocument,root:Int,moves:[String],revision:Int)async throws -> ReviewEvidence {
+    /// An imagined line's position at `budget`. A deeper search (Look Deeper, R-23) also runs the quick baseline, and is
+    /// provisional unless the baseline supports it, as a recorded position's is.
+    public func analyzeBranch(document:GameDocument,root:Int,moves:[String],revision:Int,budget:Int=ReviewPolicy.quickBudget)async throws -> ReviewEvidence {
         try fairness.requireEngineHelp();selectedCount+=1;batchSearch?.cancel();defer{selectedCount-=1}
         let history=try document.history(to:root)+moves,rules=try document.rules(at:root)
         for move in moves{try rules.move(uci:move)}
-        let engine=engine,start=document.startingFEN
-        let analysis=rules.over ? EngineAnalysis():try await trackedAnalysis{[fairness] in try fairness.requireEngineHelp();return try await engine.analyzeHistory(startFEN:start,moves:history,profile:.skill(20),budget:ReviewPolicy.quickBudget,multiPv:3)}
+        let engine=engine,start=document.startingFEN,resources=resources,deep=budget>=ReviewPolicy.deepBudget,searched=deep ? ReviewPolicy.deepBudget:ReviewPolicy.quickBudget
+        let analysis=rules.over ? EngineAnalysis():try await trackedAnalysis{[fairness] in try fairness.requireEngineHelp();return try await engine.analyzeHistory(startFEN:start,moves:history,profile:.skill(20),budget:searched,multiPv:3,searchMoves:[],resources:resources)}
         try Task.checkCancellation();try fairness.requireEngineHelp()
-        return ReviewEvidence(schemaVersion:1,documentID:document.id,documentHash:document.contentHash,nodeID:root,historyHash:reviewHash(Data((document.startingFEN+"|"+history.joined(separator:" ")).utf8)),revision:revision,engineVersion:engine.capabilities.name+" "+engine.binaryIdentity,options:AnalysisPolicy.options,budgetMs:ReviewPolicy.quickBudget,createdAt:Date(),root:analysis,played:nil,quality:"provisional",provisional:true)
+        let evidence=ReviewEvidence(schemaVersion:1,documentID:document.id,documentHash:document.contentHash,nodeID:root,historyHash:reviewHash(Data((document.startingFEN+"|"+history.joined(separator:" ")).utf8)),revision:revision,engineVersion:engine.capabilities.name+" "+engine.binaryIdentity,options:Self.options(resources),budgetMs:searched,createdAt:Date(),root:analysis,played:nil,quality:"provisional",provisional:true)
+        guard deep,!rules.over else{return evidence}
+        let quick=try await trackedAnalysis{[fairness] in try fairness.requireEngineHelp();return try await engine.analyzeHistory(startFEN:start,moves:history,profile:.skill(20),budget:ReviewPolicy.quickBudget,multiPv:3,searchMoves:[],resources:resources)}
+        try Task.checkCancellation();try fairness.requireEngineHelp()
+        let stable=Self.supported(analysis.lines.first,quick.lines.first) && analysis.lines.first?.pv.first==quick.lines.first?.pv.first
+        return copy(evidence,document:document,node:root,revision:revision,quality:stable ? "unrated":"provisional",provisional:!stable)
     }
+    /// The options a review search runs with: the analysis policy's, with the review's threads and hash.
+    static func options(_ resources:EngineResources)->[String:String] {AnalysisPolicy.options.merging(resources.options){_,review in review}}
     private func copy(_ result:ReviewEvidence,document:GameDocument,node:Int,revision:Int,quality:String?=nil,provisional:Bool?=nil)->ReviewEvidence {ReviewEvidence(schemaVersion:1,documentID:document.id,documentHash:document.contentHash,nodeID:node,historyHash:result.historyHash,revision:revision,engineVersion:result.engineVersion,options:result.options,budgetMs:result.budgetMs,createdAt:result.createdAt,root:result.root,played:result.played,quality:quality ?? result.quality,provisional:provisional ?? result.provisional)}
     private func compute(document:GameDocument,node:Int,revision:Int,budget:Int)async throws -> ReviewEvidence {
         try Task.checkCancellation();try fairness.requireEngineHelp();try await engine.prepare();try fairness.requireEngineHelp();let hash=try document.historyHash(to:node),selected=document.nodes[node],rootNode=selected.parent ?? node,rootHistory=try document.history(to:rootNode)
@@ -170,12 +193,12 @@ public struct ReviewMoment:Codable,Identifiable {public let id:Int,expectationLo
         try Task.checkCancellation();try fairness.requireEngineHelp()
         if let found{return copy(found,document:document,node:node,revision:revision)}
         let terminal=try autoreleasepool{try document.status(at:rootNode).terminal}
-        let root=terminal ? EngineAnalysis(bestMove:nil,budgetMs:budget):try await engine.analyzeHistory(startFEN:document.startingFEN,moves:rootHistory,profile:.skill(20),budget:budget,multiPv:3)
+        let resources=resources,root=terminal ? EngineAnalysis(bestMove:nil,budgetMs:budget):try await engine.analyzeHistory(startFEN:document.startingFEN,moves:rootHistory,profile:.skill(20),budget:budget,multiPv:3,searchMoves:[],resources:resources)
         try Task.checkCancellation();try fairness.requireEngineHelp()
         let played:EngineAnalysis?
-        if let uci=selected.uci,let line=root.lines.first(where:{$0.pv.first==uci}){played=EngineAnalysis(bestMove:uci,budgetMs:budget,lines:[line])}else if let uci=selected.uci,!terminal{played=try await engine.analyzeHistory(startFEN:document.startingFEN,moves:rootHistory,profile:.skill(20),budget:budget,multiPv:1,searchMoves:[uci])}else{played=nil}
+        if let uci=selected.uci,let line=root.lines.first(where:{$0.pv.first==uci}){played=EngineAnalysis(bestMove:uci,budgetMs:budget,lines:[line])}else if let uci=selected.uci,!terminal{played=try await engine.analyzeHistory(startFEN:document.startingFEN,moves:rootHistory,profile:.skill(20),budget:budget,multiPv:1,searchMoves:[uci],resources:resources)}else{played=nil}
         try Task.checkCancellation();try fairness.requireEngineHelp()
-        let result=ReviewEvidence(schemaVersion:1,documentID:document.id,documentHash:document.contentHash,nodeID:node,historyHash:hash,revision:revision,engineVersion:engine.capabilities.name+" "+engine.binaryIdentity,options:AnalysisPolicy.options,budgetMs:budget,createdAt:Date(),root:root,played:played,quality:"provisional",provisional:true)
+        let result=ReviewEvidence(schemaVersion:1,documentID:document.id,documentHash:document.contentHash,nodeID:node,historyHash:hash,revision:revision,engineVersion:engine.capabilities.name+" "+engine.binaryIdentity,options:Self.options(resources),budgetMs:budget,createdAt:Date(),root:root,played:played,quality:"provisional",provisional:true)
         if cache.count>=128,let oldest=cache.min(by:{$0.value.createdAt<$1.value.createdAt})?.key{cache.removeValue(forKey:oldest)};cache[key]=result
         if let disk{let write=writeCache,token=UUID(),task=Task.detached{_ = try? write(disk,result,key)};pendingWrites[token]=(document.id,task);await task.value;pendingWrites[token]=nil};return result
     }

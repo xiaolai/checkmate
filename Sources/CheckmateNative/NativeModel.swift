@@ -553,7 +553,8 @@ import RealtimeConnection
             try coordinator.enter(prepared:staged,from:place,wasReviewing:reviewing,beforeReviewRestore:{self.draftDiscardApproved=nil},afterReviewRestore:{self.restoringReview=false;self.saveReview();self.onReview?()})
             if case .importProgress=next{onImport?()}
             // The analysis cleared on the way in (PL-1) comes back from storage, with no search.
-            if case .review=next,let document=review.document{reviewAnalyzer.restore(document)}
+            // With "Analyze When Opened" (R-4), what is not stored is then analyzed; never during a network game.
+            if case .review=next,let document=review.document{reviewAnalyzer.restore(document,analyze:session.state.settings.reviewAutoAnalyze)}
         } catch {
             switch next {
             case .practiceFork:storageError=userFacingMessage(error,fallback:"Practice could not start from this position. The review was closed; your game is unchanged.");return false

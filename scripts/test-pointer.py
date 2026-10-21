@@ -382,8 +382,8 @@ try:
     open_library_game()
     pointer("click", "11, White, Qxh7+")
     wait(lambda: label("h7").startswith("h7, White, queen"), "Clicking a move-table cell did not show that position")
-    pointer("click", "Analyze Whole Game")
-    wait(lambda: "review-evaluation-graph" in listing(), "Whole-game analysis did not draw the evaluation graph", timeout=300)
+    # Opening a review analyzes the whole game by itself ("Analyze When Opened", on by default).
+    wait(lambda: "review-evaluation-graph" in listing(), "Opening the review did not analyze the game and draw the evaluation graph", timeout=300)
     graph, plies = "review-evaluation-graph", king_hunt["plies"]
     practice = json.loads((state / "state-v1.json").read_text())["practice"]
 

@@ -35,6 +35,10 @@ import Combine
     public func analyzeHistory(startFEN:String,moves:[String],profile:OpponentProfile,budget:Int,multiPv:Int,searchMoves:[String]=[])async throws -> EngineAnalysis {
         try await search(startFEN:startFEN,moves:moves,profile:profile,limit:.movetime(max(100,min(3000,budget))),multiPv:multiPv,searchMoves:searchMoves)
     }
+    /// A review search with its own threads and hash (R-5); the engine is shared, so they apply to this search only.
+    public func analyzeHistory(startFEN:String,moves:[String],profile:OpponentProfile,budget:Int,multiPv:Int,searchMoves:[String],resources:EngineResources)async throws -> EngineAnalysis {
+        try await search(startFEN:startFEN,moves:moves,profile:profile,limit:.movetime(max(100,min(3000,budget))),multiPv:multiPv,searchMoves:searchMoves,resources:resources)
+    }
     /// A node-limited search searches exactly as far on every Mac (assistance plan A5).
     public func analyzeHistory(startFEN:String,moves:[String],profile:OpponentProfile,limit:EngineSearchLimit,multiPv:Int)async throws -> EngineAnalysis {
         try await search(startFEN:startFEN,moves:moves,profile:profile,limit:Self.bounded(limit),multiPv:multiPv,searchMoves:[])
@@ -47,7 +51,7 @@ import Combine
     private static func bounded(_ limit:EngineSearchLimit)->EngineSearchLimit {
         switch limit {case .movetime(let budget):return .movetime(max(100,min(3000,budget)));case .nodes(let nodes):return .nodes(max(1000,min(5_000_000,nodes)))}
     }
-    private func search(startFEN:String,moves:[String],profile:OpponentProfile,limit:EngineSearchLimit,multiPv:Int,searchMoves:[String])async throws -> EngineAnalysis {
+    private func search(startFEN:String,moves:[String],profile:OpponentProfile,limit:EngineSearchLimit,multiPv:Int,searchMoves:[String],resources:EngineResources?=nil)async throws -> EngineAnalysis {
         if binaryIdentity.isEmpty{binaryIdentity=try await identityTask.value}
         guard waiting<8 else{throw CheckmateError.unavailable("BUSY")};waiting+=1;defer{waiting-=1}
         // A clock that stops while the Mac sleeps: waking must not turn a short wait into a false "BUSY".
@@ -66,7 +70,7 @@ import Combine
         let legal=rules.moves()
         guard searchMoves.allSatisfy({uci in legal.contains{$0.uci==uci}}) else{throw CheckmateError.invalid("Illegal searchmoves constraint.")}
         let worker=worker,fen=rules.fen,epoch=worker.reserve(),lines=max(1,min(16,multiPv,max(1,searchMoves.isEmpty ? legal.count:searchMoves.count)))
-        var result=try await withTaskCancellationHandler(operation:{try await Task.detached(priority:.userInitiated){try worker.search(startFEN:start,moves:canonical,finalFEN:fen,profile:profile,limit:limit,multiPv:lines,searchMoves:searchMoves,epoch:epoch)}.value},onCancel:{worker.cancel(expected:epoch)})
+        var result=try await withTaskCancellationHandler(operation:{try await Task.detached(priority:.userInitiated){try worker.search(startFEN:start,moves:canonical,finalFEN:fen,profile:profile,limit:limit,multiPv:lines,searchMoves:searchMoves,epoch:epoch,resources:resources)}.value},onCancel:{worker.cancel(expected:epoch)})
         // Cancelling cannot take back a search that finished before the cancellation: its result is dropped here.
         try Task.checkCancellation()
         capabilities=worker.metadata()

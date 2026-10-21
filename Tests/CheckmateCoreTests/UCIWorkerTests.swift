@@ -37,7 +37,8 @@ for raw in sys.stdin:
  if s.startswith('position'):
   note('positions',s);moved=' moves ' in s
  elif s=='uci':
-  print('id name Fake UCI',flush=True);print('option name Skill Level type spin default 20 min 0 max 20',flush=True);print('option name UCI_LimitStrength type check default false',flush=True);print('uciok',flush=True)
+  print('id name Fake UCI',flush=True);print('option name Skill Level type spin default 20 min 0 max 20',flush=True);print('option name UCI_LimitStrength type check default false',flush=True);print('option name Threads type spin default 1 min 1 max 1024',flush=True);print('option name Hash type spin default 16 min 1 max 33554432',flush=True);print('uciok',flush=True)
+ elif s.startswith('setoption'):note('options',s)
  elif s=='isready':print('readyok',flush=True)
  elif s.startswith('go'):
   note('searches',s)
@@ -161,6 +162,20 @@ for raw in sys.stdin:
             _ = try await engine.analyzeHistory(startFEN:fen,moves:[],profile:.skill(20),budget:350,multiPv:1)
         }
         XCTAssertEqual(try lines(directory,"searches"),["go nodes 400000","go nodes 1000","go movetime 350","go movetime 350"])
+    }
+    /// R-5: a review search's threads and hash replace the analysis policy's for that search only.
+    func testReviewResourcesApplyToTheirSearchOnly()async throws {
+        let (path,directory)=try executable();defer{try? FileManager.default.removeItem(at:directory)}
+        let engine=NativeEngine(executable:path),fen=try ChessRules().fen
+        try await withoutCalibration {
+            for _ in 0..<2{_ = try await engine.analyzeHistory(startFEN:fen,moves:[],profile:.skill(20),budget:100,multiPv:1,searchMoves:[],resources:EngineResources(threads:6,hashMB:128))}
+            for _ in 0..<2{_ = try await engine.analyzeHistory(startFEN:fen,moves:[],profile:.skill(20),budget:100,multiPv:1)}
+        }
+        // An option is sent only when its value changes: Stockfish rebuilds its threads and hash table on every
+        // Threads or Hash command, which once cost a review a tenth of a second per search.
+        let options=try lines(directory,"options")
+        XCTAssertEqual(options.filter{$0.contains(" Threads ") || $0.contains(" Hash ")},["setoption name Hash value 128","setoption name Threads value 6","setoption name Hash value 32","setoption name Threads value 1"])
+        XCTAssertEqual(options.filter{$0=="setoption name Skill Level value 20"}.count,1,"an unchanged option is not sent again")
     }
     /// A silent run's calibration node count replaces either limit: the override the measurements rely on.
     func testCalibrationNodesReplaceEitherLimit()async throws {

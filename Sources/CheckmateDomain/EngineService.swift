@@ -14,10 +14,16 @@ import Foundation
     /// A search with an explicit limit that may also be constrained to `searchMoves` (mini-game plan D4), so a level's
     /// every search, the beginner opponent's candidate searches included, is node-limited.
     func analyzeHistory(startFEN:String,moves:[String],profile:OpponentProfile,limit:EngineSearchLimit,multiPv:Int,searchMoves:[String])async throws -> EngineAnalysis
+    /// A budgeted search that may use `resources` in place of the analysis policy's threads and hash (R-5).
+    func analyzeHistory(startFEN:String,moves:[String],profile:OpponentProfile,budget:Int,multiPv:Int,searchMoves:[String],resources:EngineResources)async throws -> EngineAnalysis
 }
 public extension EngineService {
     /// An engine that cannot tell its identity before preparing reports it as it stands.
     func identity()async throws -> String {binaryIdentity}
+    /// An engine without adjustable resources searches as it always does.
+    func analyzeHistory(startFEN:String,moves:[String],profile:OpponentProfile,budget:Int,multiPv:Int,searchMoves:[String],resources:EngineResources)async throws -> EngineAnalysis {
+        try await analyzeHistory(startFEN:startFEN,moves:moves,profile:profile,budget:budget,multiPv:multiPv,searchMoves:searchMoves)
+    }
     func analyzeHistory(startFEN:String,moves:[String],profile:OpponentProfile,budget:Int,multiPv:Int)async throws -> EngineAnalysis {
         try await analyzeHistory(startFEN:startFEN,moves:moves,profile:profile,budget:budget,multiPv:multiPv,searchMoves:[])
     }
