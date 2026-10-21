@@ -19,6 +19,8 @@ import Combine
             if FileManager.default.fileExists(atPath:network.path){let hash=try reviewFileHash(network);guard !bundled || hash==EngineRuntimePolicy.networkSHA256 else{throw CheckmateError.unavailable("The bundled engine network is invalid.")};return binary+":network:"+hash}
             guard !bundled else{throw CheckmateError.unavailable("The bundled engine network is missing.")};return binary
         }}
+    /// The bundled files' hashes only: no process starts.
+    public func identity()async throws -> String {if binaryIdentity.isEmpty{binaryIdentity=try await identityTask.value};return binaryIdentity}
     public func prepare()async throws {
         if binaryIdentity.isEmpty{binaryIdentity=try await identityTask.value}
         guard capabilities.name=="Unknown engine" else{return}

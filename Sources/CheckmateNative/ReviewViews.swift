@@ -36,8 +36,8 @@ struct ReviewDetailContent:View {
             ReviewMoveSection(review:review,model:model,analyzer:analyzer,document:d)
             ReviewPositionPanel(review:review,model:model,document:d)
             if !review.authoredBranches.isEmpty{DisclosureGroup("My imagined lines (\(review.authoredBranches.count) of \(ReviewPolicy.maximumBranches))"){VStack(alignment:.leading,spacing:4){ForEach(review.authoredBranches,id:\.id){branch in HStack{
-                Button("Idea from position \(branch.root) · \(branch.moves.count) moves"){do{try review.openSavedBranch(branch.id)}catch{model.storageError=userFacingMessage(error,fallback:"This imagined line could not be opened.")}}.buttonStyle(.link)
-                Spacer();Button("Delete",role:.destructive){do{try review.deleteBranch(branch.id);model.saveReview()}catch{model.storageError=userFacingMessage(error,fallback:"This imagined line could not be deleted.")}}.controlSize(.small).accessibilityLabel("Delete idea from position \(branch.root)")}}}.padding(.top,4)}}
+                Button(ReviewFormat.ideaLabel(d,branch)){do{try review.openSavedBranch(branch.id)}catch{model.storageError=userFacingMessage(error,fallback:"This imagined line could not be opened.")}}.buttonStyle(.link)
+                Spacer();Button("Delete",role:.destructive){do{try review.deleteBranch(branch.id);model.saveReview()}catch{model.storageError=userFacingMessage(error,fallback:"This imagined line could not be deleted.")}}.controlSize(.small).accessibilityLabel("Delete idea: \(ReviewFormat.ideaLabel(d,branch))")}}}.padding(.top,4)}}
             ReviewVoiceSection(voice:voice)
             // The review control bar has no way back to the game, and the workspace hides it.
             Button("Return to game"){model.returnToGame()}.buttonStyle(.borderless)

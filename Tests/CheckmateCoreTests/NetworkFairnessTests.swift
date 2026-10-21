@@ -245,7 +245,7 @@ import CheckmateCore
             engine.holding=true;analyzer.startBatch(document)
             try await settle({engine.held>=1},"the batch's first search is held")
             s.fairness.participation.begin(role)
-            XCTAssertEqual(analyzer.batchStatus,"cancelled","joining cancels the batch (\(role))")
+            XCTAssertEqual(analyzer.batchStatus,"idle","joining cancels the batch and withdraws what it showed (\(role))");XCTAssertNil(analyzer.batchDocument)
             engine.holding=false;engine.releaseAll();try await Task.sleep(for:.milliseconds(50))
             XCTAssertTrue(analyzer.moments.isEmpty);XCTAssertTrue(analyzer.evaluations.isEmpty);XCTAssertEqual(engine.callsWhileParticipating,0)
             s.fairness.participation.end()

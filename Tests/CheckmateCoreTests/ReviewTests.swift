@@ -15,6 +15,16 @@ final class GameDocumentTests:XCTestCase {
         XCTAssertEqual(try PGNImporter.parse(data)[0].title,"Imported game")
         XCTAssertEqual(try PGNImporter.parse(Data("[Event \" \" ]\n[White \"Alice\"]\n[Black \"Bob\"]\n1. d4 *".utf8))[0].title,"Alice – Bob")
     }
+    /// R-10: a record is named by its players, with the round when known; the event names it only when no player is.
+    func testTitleNamesThePlayersThenTheEvent()throws {
+        func title(_ headers:String)throws -> String {try PGNImporter.parse(Data((headers+"\n1. d4 *").utf8))[0].title}
+        XCTAssertEqual(try title("[Event \"London\"]\n[Round \"3\"]\n[White \"Lasker\"]\n[Black \"Thomas\"]"),"Lasker – Thomas · Round 3")
+        XCTAssertEqual(try title("[Event \"London\"]\n[Round \"?\"]\n[White \"Lasker\"]\n[Black \"?\"]"),"Lasker – Black","an unknown round and player are left out")
+        XCTAssertEqual(try title("[Event \"London\"]\n[Round \"-\"]\n[White \"?\"]\n[Black \"Thomas\"]"),"White – Thomas")
+        XCTAssertEqual(try title("[Event \"London\"]\n[Round \"3\"]\n[White \"?\"]\n[Black \"?\"]"),"London","no player known: the event")
+        XCTAssertEqual(try title("[Event \"?\"]\n[Round \"3\"]"),"Imported game")
+        XCTAssertEqual(try title("[White \"\(String(repeating:"W",count:ReviewPolicy.maximumTitleScalars))\"]").unicodeScalars.count,ReviewPolicy.maximumTitleScalars)
+    }
     func testTreeAndOriginalRoundTrip()throws {
         let source="[Event \"Tree\"]\n[Result \"*\"]\n\n{before} 1. e4 {after} $1 (1. d4 d5 (1... Nf6)) e5 *"
         let document=try PGNImporter.parse(Data(source.utf8))[0]

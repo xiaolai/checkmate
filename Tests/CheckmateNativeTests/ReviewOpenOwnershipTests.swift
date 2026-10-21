@@ -101,6 +101,17 @@ final class ReviewStoreStartPositionTests:XCTestCase {
         XCTAssertFalse(model.importingReview,"Loading review… stayed visible for an abandoned load");XCTAssertFalse(model.review.active)
         XCTAssertEqual(model.reviews.map(\.id),[ids[0]])
     }
+    /// R-12: Edit ▸ Undo after deleting a saved review puts it back in the library.
+    func testUndoPutsADeletedReviewBack()async throws {
+        let model=try NativeModel();defer{model.shutdown()}
+        let document=try PGNImporter.parse(Data("1. e4 e5 *".utf8))[0];model.openReview(document);XCTAssertTrue(model.returnToGame())
+        try await settle("the library to list it"){model.reviews.map(\.id)==[document.id]}
+        let undo=UndoManager();undo.groupsByEvent=false
+        undo.beginUndoGrouping();model.deleteReview(document.id,undo:undo);try await settle("the deletion"){model.deletingReviewID==nil && model.reviews.isEmpty};undo.endUndoGrouping()
+        XCTAssertTrue(undo.canUndo);XCTAssertEqual(undo.undoActionName,"Delete Review")
+        undo.undo();try await settle("the restored review"){model.reviews.map(\.id)==[document.id]}
+        XCTAssertEqual(try model.reviewStore.load(document.id).document.id,document.id);XCTAssertNil(model.storageError)
+    }
 }
 
 /// A file read started later is never discarded because an earlier file's parse finished during it.

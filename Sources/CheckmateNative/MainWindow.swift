@@ -6,8 +6,9 @@ import ScreenCaptureKit
 import CheckmateCore
 final class BoardWindow:NSWindow {
     /// Edit ▸ Undo (⌘Z): a text field in focus handles it first; otherwise the window would answer it with its own
-    /// empty undo manager and the game never heard it. It goes to the game instead: take back, undo turn.
-    @objc func undo(_ sender:Any?){(windowController as? GameWindow)?.undo()}
+    /// empty undo manager and the game never heard it. It goes to the game instead: take back, undo turn; in a review,
+    /// where nothing is taken back, the game window sends it to this window's undo manager.
+    @objc func undo(_ sender:Any?){(windowController as? GameWindow)?.undo(sender)}
     override func validateMenuItem(_ item:NSMenuItem)->Bool {
         if item.action == #selector(undo(_:)),let controller=windowController as? GameWindow{return controller.validateMenuItem(item)}
         return super.validateMenuItem(item)
@@ -410,6 +411,9 @@ playbackLineView?.isHidden=model.reviewWorkspace
             return shown?.enabled ?? false
         }
         if item.action == #selector(toggleRight){item.title=guidanceShown ? (desiredRight ? "Hide Lesson Guidance":"Show Lesson Guidance"):"Toggle Game Details";return true}
+        // Edit ▸ Undo in a review or the review workspace undoes the window's last undoable action, a saved review's
+        // deletion; elsewhere it is the game's take back.
+        if item.action == NSSelectorFromString("undo:"){let reviewing=model.review.active || model.reviewWorkspace;item.title=reviewing ? (window?.undoManager?.undoMenuItemTitle ?? "Undo"):"Undo";if reviewing{return window?.undoManager?.canUndo ?? false}}
         if item.action == #selector(undo as () -> Void) || item.action == NSSelectorFromString("undo:"),!model.review.active,!model.reviewWorkspace {
             if model.learning.attemptStep{if item.action == #selector(undo as () -> Void){item.title="Undo Turn"};return model.learning.attempt.hasMoves}
             if let exercise=trainingExercise{return model.training.map{ControlBarModel.canTakeBack($0,exercise)} ?? false}
@@ -512,8 +516,9 @@ playbackLineView?.isHidden=model.reviewWorkspace
         let now=practiceGame;return !model.review.active && !model.reviewWorkspace && model.session.mode == .practice && now.generation==shown.generation && (exactly ? now.position==shown.position && now.history==shown.history:now.history.starts(with:shown.history))}
     @objc func showSettings(){if settings==nil{settings=SettingsWindow(model:model)};settings?.showWindow(nil);settings?.window?.makeKeyAndOrderFront(nil)}
     @objc func showAbout(){showSettings();settings?.selectCategory("About")}
-    /// Edit ▸ Undo (⌘Z) reaches here when no text field claims it: it takes back the move, as Game ▸ Take Back does.
-    @objc func undo(_ sender:Any?){undo()}
+    /// Edit ▸ Undo (⌘Z) reaches here when no text field claims it: it takes back the move, as Game ▸ Take Back does. In a
+    /// review it undoes the window's last undoable action instead (a saved review's deletion).
+    @objc func undo(_ sender:Any?){if model.review.active || model.reviewWorkspace{window?.undoManager?.undo();return};undo()}
     @objc func undo(){
         guard !model.review.active,!model.reviewWorkspace else{return};board.cancelAnimation()
         if model.learning.mini{model.learning.undoMini()}
