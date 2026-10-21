@@ -107,6 +107,18 @@ final class LibraryOrganisationTests:XCTestCase {
         XCTAssertEqual(try store.list().map(\.id).sorted{$0.uuidString<$1.uuidString},(games+[intruder]).map(\.id).sorted{$0.uuidString<$1.uuidString})
         XCTAssertEqual(try store.libraryBytes(),try scanned(folder))
     }
+    /// A quarantined file grown in place leaves both folders' dates alone; it is measured before the next save like a
+    /// file in the folder itself.
+    func testAQuarantinedFileGrownInPlaceIsMeasuredBeforeTheNextSave()throws {
+        let store=ReviewStore(directory:folder),first=try game("1. e4 *"),second=try game("1. d4 *")
+        try store.save(first,cursor:1,branches:[])
+        let quarantine=folder.appendingPathComponent("Quarantine"),held=quarantine.appendingPathComponent("held.json")
+        try FileManager.default.createDirectory(at:quarantine,withIntermediateDirectories:true);try Data("{}".utf8).write(to:held)
+        XCTAssertEqual(try store.libraryBytes(),try scanned(folder));let measured=store.measurements
+        let handle=try FileHandle(forWritingTo:held);try handle.truncate(atOffset:UInt64(ReviewPolicy.maximumLibraryBytes));try handle.close()
+        XCTAssertThrowsError(try store.save(second,cursor:1,branches:[]),"a stale total would let this save pass the quota")
+        XCTAssertEqual(store.measurements,measured+1);XCTAssertEqual(try store.libraryBytes(),try scanned(folder))
+    }
 
     // MARK: R-11
 

@@ -54,7 +54,7 @@ public final class ReviewStore {
     ///   modification date is the one the store last saw; a cursor save stats the folder, its Quarantine and the files it
     ///   writes, and moves the running byte total by what they gained or lost. Each of the store's own changes also reads
     ///   the folder's names (no stats) to confirm that nothing else was added or removed while it ran.
-    /// - A full save is O(n) stats: before its quota check it re-stats every file the store knows, because the quota is
+    /// - A full save is O(n) stats: before its quota check it re-stats every file the store knows (the Quarantine's too), because the quota is
     ///   a safety limit that must hold even against a file edited in place by something else, which changes neither
     ///   folder's date. Full saves come from deliberate actions, so the cost is paid rarely.
     /// - `list()` re-stats every review on first load and whenever the folder's date changes (a file added or removed
@@ -89,7 +89,9 @@ public final class ReviewStore {
             if enumerator?.level==1,file.lastPathComponent==trashURL.lastPathComponent{enumerator?.skipDescendants();continue}
             if enumerator?.level==1{found.insert(file.lastPathComponent)}
             let values=try file.resourceValues(forKeys:[.isRegularFileKey,.fileSizeKey]);guard values.isRegularFile==true else{continue}
-            total+=values.fileSize ?? 0;if enumerator?.level==1{stamps[file.lastPathComponent]=ownStamp(file)}
+            // Every file is stamped by its path in the folder, a quarantined one too: grown in place, it changes no
+            // folder's date either.
+            total+=values.fileSize ?? 0;stamps[file.pathComponents.suffix(enumerator?.level ?? 1).joined(separator:"/")]=ownStamp(file)
         }
         usedBytes=total;usedDates=try folderDates();ownStamps=stamps;names=found;return total
     }
