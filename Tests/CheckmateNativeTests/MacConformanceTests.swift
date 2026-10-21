@@ -93,9 +93,8 @@ import CheckmateCore
 
     // D-10: the window's title and subtitle name the activity, for the Window menu, Mission Control and VoiceOver.
     func testWindowTitleFollowsTheActivity()throws {try withMenus{_,game,_ in
-        XCTAssertEqual(GameWindow.windowTitles("Practice · White vs Stockfish").title,"Practice");XCTAssertEqual(GameWindow.windowTitles("Practice · White vs Stockfish").subtitle,"White vs Stockfish")
-        XCTAssertEqual(GameWindow.windowTitles("Game review").title,"Game review");XCTAssertEqual(GameWindow.windowTitles("Game review").subtitle,"")
-        game.refresh();XCTAssertEqual(game.window?.title,"Practice");XCTAssertEqual(game.window?.subtitle,"White vs Stockfish")
+        XCTAssertEqual(GameWindow.boardLabel(title:"Practice",subtitle:"White vs Stockfish"),"Practice · White vs Stockfish");XCTAssertEqual(GameWindow.boardLabel(title:"Game review",subtitle:""),"Game review")
+        game.refresh();XCTAssertEqual(game.window?.title,"Practice");XCTAssertEqual(game.window?.subtitle,"White vs Stockfish");XCTAssertEqual(game.titleView.label.stringValue,"Practice · White vs Stockfish")
     }}
 
     // V-23: Settings is titled by its pane and draws a real titlebar over scrolled content; it stays findable by identifier.

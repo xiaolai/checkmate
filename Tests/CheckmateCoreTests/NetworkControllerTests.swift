@@ -83,7 +83,6 @@ private final class ScriptedDiscovery:NetworkDiscovery {
         let piece=mac.game.board[from]
         mac.game.click(from);mac.game.click(to)
         XCTAssertEqual(mac.game.pending?.uci,from+to,"the move is pending",file:file,line:line);XCTAssertEqual(mac.game.notice,NetworkGameController.sendingNotice,file:file,line:line)
-        XCTAssertEqual(mac.game.boardTitle,mac.game.title+" · Sending…","the board area says so too",file:file,line:line)
         XCTAssertEqual(mac.game.board[from],piece,"the board waits for the game's answer",file:file,line:line)
         lan.scheduler.run()
         XCTAssertNil(mac.game.pending,"the answer cleared the pending move",file:file,line:line);XCTAssertNil(mac.game.notice,file:file,line:line)
@@ -118,7 +117,7 @@ private final class ScriptedDiscovery:NetworkDiscovery {
         XCTAssertEqual(cy.game.title,"Ana vs Ben");XCTAssertEqual(cy.game.statusText,"Ana's move.")
         // D10: a spectator's board accepts no moves; a click says so.
         cy.game.click("e2");XCTAssertEqual(cy.game.notice,NetworkGameController.watchingNotice);XCTAssertNil(cy.game.selected);XCTAssertNil(cy.game.pending)
-        XCTAssertEqual(cy.game.boardTitle,"Ana vs Ben · You're watching");XCTAssertEqual(cy.heard.lines.last,"You're watching")
+        XCTAssertEqual(cy.game.notice,"You're watching");XCTAssertEqual(cy.heard.lines.last,"You're watching")
         cy.game.play(from:"e2",to:"e4");lan.scheduler.run();XCTAssertEqual(ana.game.board["e2"],"wp","nothing reached the game")
 
         play(ana,"f2","f3",lan)

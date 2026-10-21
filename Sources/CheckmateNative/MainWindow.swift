@@ -220,10 +220,11 @@ final class BoardTitleView:NSView {
     @objc func toggleInspector(_ sender:Any?){split.toggleInspector(sender)}
     func toolbarWillAddItem(_ notification:Notification){if let item=notification.userInfo?["item"] as? NSToolbarItem,item.itemIdentifier == .toggleSidebar || item.itemIdentifier == .toggleInspector{label(toolbarItem:item)}}
     private func syncDrawerToggles(){for item in window?.toolbar?.items ?? [] where item.itemIdentifier == .toggleSidebar || item.itemIdentifier == .toggleInspector{label(toolbarItem:item)}}
-    /// The window's own title and subtitle come from the board-area label, for the Window menu, Mission Control and
+    /// The board-area label: the activity, then what it shows. Its parts stay apart, so a translation can order them.
+    static func boardLabel(title:String,subtitle:String)->String {subtitle.isEmpty ? title:String(localized:"\(title) · \(subtitle)",bundle:.checkmate,comment:"The board-area title: the activity, then what it shows")}
+    /// The window's own title and subtitle are the board-area label's parts, for the Window menu, Mission Control and
     /// VoiceOver (D-10); the title bar stays hidden, so the centred label is the only one drawn.
-    static func windowTitles(_ label:String)->(title:String,subtitle:String) {let parts=label.components(separatedBy:" · ");return (parts[0],parts.dropFirst().joined(separator:" · "))}
-    private func setTitle(_ label:String){titleView.label.stringValue=label;let titles=Self.windowTitles(label);if window?.title != titles.title{window?.title=titles.title};if window?.subtitle != titles.subtitle{window?.subtitle=titles.subtitle}}
+    private func setTitle(_ title:String,subtitle:String=""){titleView.label.stringValue=Self.boardLabel(title:title,subtitle:subtitle);if window?.title != title{window?.title=title};if window?.subtitle != subtitle{window?.subtitle=subtitle}}
     @objc func toggleLeft(){desiredLeft.toggle();rememberPanes();animateDrawers()}
     @objc func toggleRight(){desiredRight.toggle();rememberPanes();animateDrawers()}
     private func rememberPanes(){model.session.state.window.left=desiredLeft;model.session.state.window.right=desiredRight;model.session.emit(semantic:false,save:true)}
@@ -416,7 +417,13 @@ playbackLineView?.isHidden=model.reviewWorkspace
         let trainingLibrary=model.training != nil && s.activity.place == .trainingLibrary
         board.isHidden=library || titlecard || trainingLibrary;puzzles.isHidden = !library;welcome.isHidden = !titlecard;trainingLibraryView.isHidden = !trainingLibrary
         if titlecard {welcome.rootView=WelcomeContent(title:l.localizedStepTitle(index:l.lessonIndex,step:l.step))}
-        setTitle(s.mode == .network ? model.network.boardTitle:s.mode == .practice ? String(localized:"Practice · \(s.humanSide=="b" ? "Black":"White") vs Stockfish",bundle:.checkmate):s.mode == .puzzles ? String(localized:"Quick puzzles",bundle:.checkmate):l.mini ? l.miniKind.title:s.mode == .training ? trainingExercise?.definition.title ?? String(localized:"Training",bundle:.checkmate):l.localizedTitle(index:l.lessonIndex)+(l.attemptStatus.map{" · "+$0} ?? ""))
+        // A network game's notice follows its title ("Ana vs Ben · You're watching"), so it is seen with the details drawer closed too.
+        if s.mode == .network{setTitle(model.network.title,subtitle:model.network.notice ?? "")}
+        else if s.mode == .practice{setTitle(String(localized:"Practice",bundle:.checkmate),subtitle:s.humanSide=="b" ? String(localized:"Black vs Stockfish",bundle:.checkmate):String(localized:"White vs Stockfish",bundle:.checkmate))}
+        else if s.mode == .puzzles{setTitle(String(localized:"Quick puzzles",bundle:.checkmate))}
+        else if l.mini{setTitle(l.miniKind.title)}
+        else if s.mode == .training{setTitle(trainingExercise?.definition.title ?? String(localized:"Training",bundle:.checkmate))}
+        else {setTitle(l.localizedTitle(index:l.lessonIndex),subtitle:l.attemptStatus ?? "")}
         let temporary=s.preview != nil || s.demonstration != nil;titleView.label.isHidden=temporary;titleView.tabs.isHidden = !temporary;titleView.tabs.setLabel(s.demonstration != nil ? String(localized:"Demonstration",bundle:.checkmate):String(localized:"Try a Move",bundle:.checkmate),forSegment:1);titleView.tabs.selectedSegment=s.presentationHidden ? 0:1;titleView.needsLayout=true
     }
     /// Everything the board shows for one activity. Each builder sets every field, so nothing from the previous

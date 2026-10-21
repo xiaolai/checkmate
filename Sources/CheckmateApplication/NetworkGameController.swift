@@ -272,9 +272,6 @@ import OSLog
         defer{onSettle()}
         pending=nil;pendingRevision=nil;pendingSeen=false;if notice==Self.sendingNotice{notice=nil}
     }
-    /// The board area's centred title, with the notice after it while one shows ("Ana vs Ben · You're watching"), so
-    /// it is seen with the details drawer closed too.
-    public var boardTitle:String {notice.map{"\(title) · \($0)"} ?? title}
     /// A notice that clears itself after a moment; VoiceOver hears it too.
     private func flash(_ text:String){
         flashNumber+=1;let number=flashNumber;notice=text;announce(text)
