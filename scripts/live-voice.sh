@@ -10,7 +10,7 @@ report=${1:?Usage: scripts/live-voice.sh <report.json>}
 # The tree is fingerprinted before building and again after the run; a change in between certifies nothing.
 before=$(mktemp /tmp/checkmate-live-voice.XXXXXX);trap 'rm -f "$before"' EXIT
 python3 scripts/source-hashes.py . > "$before"
-swift build --product CheckmateAcceptance
+python3 scripts/fresh-sources.py .build -- swift build --product CheckmateAcceptance
 .build/debug/CheckmateAcceptance --live-voice "$report"
 python3 - "$report" "$before" <<'PY'
 import json,subprocess,sys

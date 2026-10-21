@@ -9,7 +9,7 @@ evidence=${CHECKMATE_EVIDENCE_DIR:?Set CHECKMATE_EVIDENCE_DIR}
 swiftpm_tmp=$(getconf DARWIN_USER_TEMP_DIR)
 xcrun swiftc Tools/legacy-store-test.swift -o "$evidence/legacy-store-test"
 "$evidence/legacy-store-test" Tools/legacy-export.js "$evidence/legacy-export.json"
-TMPDIR="$swiftpm_tmp" swift build --build-tests > "$evidence/swift-build-tests.log" 2>&1
+TMPDIR="$swiftpm_tmp" python3 scripts/fresh-sources.py .build -- swift build --build-tests > "$evidence/swift-build-tests.log" 2>&1
 bin=$(TMPDIR="$swiftpm_tmp" swift build --show-bin-path)
 runner=$(xcrun --find xctest)
 : > "$evidence/swift-tests.log"
@@ -30,5 +30,6 @@ python3 -I Tools/test-prepare-training-content.py
 # KPK oracle (mini-game plan WI-019): both implementations compared on every legal position.
 python3 -I Tools/test-kpk-oracle.py
 python3 scripts/test-run-gates.py
+python3 -I scripts/test-fresh-sources.py
 # Every engine and voice entry is classified for network-game fairness (LAN-play plan D8).
 python3 -I scripts/test-fairness-inventory.py > /dev/null

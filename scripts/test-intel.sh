@@ -8,7 +8,7 @@ mkdir -p "$checkmate_evidence"
 checkmate_scratch="$PWD/.build-intel"
 # SwiftPM keeps its build locks in TMPDIR: always the user's temp folder (see build.sh).
 checkmate_swiftpm_tmp=$(getconf DARWIN_USER_TEMP_DIR)
-TMPDIR="$checkmate_swiftpm_tmp" swift build --build-tests --arch x86_64 --scratch-path "$checkmate_scratch" > "$checkmate_evidence/build.log" 2>&1
+TMPDIR="$checkmate_swiftpm_tmp" python3 scripts/fresh-sources.py "$checkmate_scratch" -- swift build --build-tests --arch x86_64 --scratch-path "$checkmate_scratch" > "$checkmate_evidence/build.log" 2>&1
 checkmate_bin=$(TMPDIR="$checkmate_swiftpm_tmp" swift build --show-bin-path --arch x86_64 --scratch-path "$checkmate_scratch")
 checkmate_runner=$(xcrun --find xctest)
 lipo -verify_arch x86_64 "$checkmate_runner"

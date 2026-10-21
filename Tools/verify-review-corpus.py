@@ -19,5 +19,6 @@ for e in entries:
     if split=='held-out':held_out+=1
 if len(entries)<80 or held_out<20:raise SystemExit('Corpus acceptance count failed.')
 print(json.dumps({'targets':len(entries),'heldOut':held_out,'parentGroups':len(groups),'hashesVerified':True},separators=(',',':')),flush=True)
-arguments=['swift','test','--scratch-path',os.environ.get('CHECKMATE_BUILD_PATH') or '.build-review','--filter','ReviewCorpus']
+scratch=os.environ.get('CHECKMATE_BUILD_PATH') or '.build-review'
+arguments=[sys.executable,'scripts/fresh-sources.py',scratch,'--','swift','test','--scratch-path',scratch,'--filter','ReviewCorpus']
 sys.exit(subprocess.run(arguments,cwd=root,env={**os.environ,'CHECKMATE_AUTOMATION':'1','CHECKMATE_REVIEW_CORPUS':str(corpus)}).returncode)

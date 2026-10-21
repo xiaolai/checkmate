@@ -73,6 +73,7 @@ cases = [
     (['Sources/CheckmateApplication/GameCollections.swift'], {'architecture', 'ui', 'sidebar', 'pointer', 'review-ui', 'unit', 'package'}),
     (['Sources/CheckmateMCPKit/BrokerClient.swift'], {'architecture', 'integration', 'unit', 'package'}),
     (['build.sh'], every),
+    (['scripts/fresh-sources.py'], every),
     (['Sources/CheckmateApplication/GameSession.swift'], every),
     (['scripts/release.sh'], set()),
 ]
