@@ -156,7 +156,7 @@ import Combine
     public var duration:Double {library.playbackDuration(lesson:lessonIndex,step:step,narrationSeconds:narrationSeconds,pieceDuration:Double(session.state.settings.pieceDuration)/1000,useCues:localizedPacks[lessonIndex]==nil)}
     public var winner:String? {mini ? miniGame?.winner:nil}
     public var destinations:[String] {if attemptStep{return attempt.destinations};return mini && !miniThinking ? picked.first.map{miniGame?.destinations(from:$0) ?? []} ?? []:[]}
-    public var filteredPuzzles:[Puzzle] {library.puzzles.filter {p in (topic=="All topics" || topic==p.topic)&&(level=="All levels" || level==p.level)&&(filter=="All" || (filter=="To review" ? session.state.puzzles[p.id]?.review==true:session.state.puzzles[p.id]?.solved != true))&&(query.isEmpty || (p.title+" "+p.exercise.prompt).localizedCaseInsensitiveContains(query))}}
+    public var filteredPuzzles:[Puzzle] {library.puzzles.filter {p in (topic=="All topics" || topic==p.topic)&&(level=="All levels" || level==p.level)&&(filter=="All" || (filter=="To review" ? session.state.puzzles[p.id]?.review==true:session.state.puzzles[p.id]?.countsAsSolved != true))&&(query.isEmpty || (p.title+" "+p.exercise.prompt).localizedCaseInsensitiveContains(query))}}
     /// `fromTraining`: a training lesson link; reading it keeps the course bookmark (see `seek`), so it reopens at its
     /// own reading position, and the course lesson at its bookmark.
     public func openLesson(index:Int,resume:Bool=true,fromTraining:Bool=false) {guard library.lessons.indices.contains(index) else{return};pause();go(.lesson(index:index,fromTraining:fromTraining));let lesson=current,bookmark=lesson.id==session.state.course.lessonID ? library.resumeStep(in:lesson,progress:session.state.course):nil,reading=session.state.course.positions?[lesson.id].flatMap{id in lesson.beats.firstIndex{$0.id==id}};step=(fromTraining ? reading ?? bookmark:bookmark ?? reading) ?? 0;seek(step:resume ? step:0);onLessonOpened?()}
@@ -233,9 +233,10 @@ import Combine
         default:break};publish()
     }
     /// A correct answer after a mistake in this visit is a later solve: it says so, and the puzzle is not marked solved.
+    /// A correct answer after a hint counts as solved with help: it says so, and the puzzle stays queued for review.
     private func answer(_ correct:Bool,revealed:Bool=false,hint:String?=nil){guard let p=activePuzzle,!passed else{return};pause()
         let later=correct && !revealed && mistake,helped=correct && !revealed && puzzleHints>0
-        var record=session.state.puzzles[p.id] ?? PuzzleProgress();record.record(correct:correct,revealed:revealed,afterMistake:mistake,hints:puzzleHints);session.state.puzzles[p.id]=record;if !correct{mistake=true};passed=correct || revealed;feedback=passed ? (revealed ? solution(p.exercise)+" ":helped ? "Correct, with help from a hint. Solve it without one to mark it solved. ":later ? "Correct, on a later try. Solve it first time to mark it solved. ":"Correct. ")+p.explanation:hint ?? "Not quite. Look again and try another answer.";session.emit(semantic:false,save:true);publish()
+        var record=session.state.puzzles[p.id] ?? PuzzleProgress();record.record(correct:correct,revealed:revealed,afterMistake:mistake,hints:puzzleHints);session.state.puzzles[p.id]=record;if !correct{mistake=true};passed=correct || revealed;feedback=passed ? (revealed ? solution(p.exercise)+" ":helped ? "Correct, with help from a hint. It counts as solved with help and comes back for review. ":later ? "Correct, on a later try. Solve it first time to mark it solved. ":"Correct. ")+p.explanation:hint ?? "Not quite. Look again and try another answer.";session.emit(semantic:false,save:true);publish()
     }
     public func reveal(){guard activePuzzle != nil else{return};answer(false,revealed:true)}
     private func solution(_ e:Exercise)->String {switch e.kind {case "choice":return e.answer ?? "";case "squares":return (e.answers ?? []).isEmpty ? "No squares":(e.answers ?? []).joined(separator:", ");case "move":return "\(e.from ?? "") → \(e.to ?? "")";default:return "Walk safely from \(e.from ?? "") to \(e.to ?? "")."}}

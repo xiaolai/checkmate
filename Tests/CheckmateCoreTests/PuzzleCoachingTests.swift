@@ -16,8 +16,10 @@ final class PuzzleCoachingTests:XCTestCase {
         p.hint();XCTAssertEqual(p.puzzleHints,1);XCTAssertTrue(p.frame.hl.contains(Highlight(sq:"f3",kind:"hint")));XCTAssertEqual(p.hintTexts,["Move the highlighted piece."])
         p.hint();XCTAssertEqual(p.hintTexts.count,2);XCTAssertEqual(p.hintTexts[1],"Look for a capture where no enemy piece can take your piece back.");XCTAssertFalse(p.canHint,"after the ladder, Reveal is what is left")
         p.hint();XCTAssertEqual(p.puzzleHints,2)
-        p.click("f3");p.click("h4");XCTAssertTrue(p.passed);XCTAssertTrue(p.feedback.hasPrefix("Correct, with help from a hint. Solve it without one to mark it solved. "),p.feedback)
-        let record=try XCTUnwrap(s.state.puzzles["extra-1"]);XCTAssertEqual(record.hints,2);XCTAssertFalse(record.solved);XCTAssertTrue(record.review);XCTAssertEqual(record.standing,.solvedWithHints)
+        p.click("f3");p.click("h4");XCTAssertTrue(p.passed);XCTAssertTrue(p.feedback.hasPrefix("Correct, with help from a hint. It counts as solved with help and comes back for review. "),p.feedback)
+        let record=try XCTUnwrap(s.state.puzzles["extra-1"]);XCTAssertEqual(record.hints,2);XCTAssertFalse(record.solved);XCTAssertTrue(record.countsAsSolved);XCTAssertTrue(record.review);XCTAssertEqual(record.standing,.solvedWithHints)
+        p.filter="Unsolved";XCTAssertFalse(p.filteredPuzzles.contains{$0.id=="extra-1"},"an assisted solve counts as solved")
+        p.filter="To review";XCTAssertTrue(p.filteredPuzzles.contains{$0.id=="extra-1"},"and it comes back for review");p.filter="All"
         p.openPuzzle(id:"extra-1");XCTAssertEqual(p.puzzleHints,0,"each visit starts without hints");XCTAssertFalse(p.frame.hl.contains{$0.kind=="hint"})
     }
     /// A choice puzzle's hint rules out a wrong choice; squares and path puzzles say what to look for.
