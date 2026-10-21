@@ -59,6 +59,10 @@ final class BoardTitleView:NSView {
     private(set) var trainingLibraryView:NSHostingView<TrainingLibraryHost>!
     var leftExtent:CGFloat {Metrics.left+split.splitView.dividerThickness}
     var rightExtent:CGFloat {Metrics.right+split.splitView.dividerThickness}
+    /// How far the open drawers reach left of the board: the sidebar's width, or in a right-to-left layout, where
+    /// AppKit puts the sidebar on the right, the inspector's. The board keeps its place by moving the window that far.
+    func extentLeftOfBoard(sidebar:Bool,inspector:Bool)->CGFloat {split.splitView.userInterfaceLayoutDirection == .rightToLeft ? (inspector ? rightExtent:0):(sidebar ? leftExtent:0)}
+    private var openExtentLeftOfBoard:CGFloat {extentLeftOfBoard(sidebar:!sidebarItem.isCollapsed,inspector:!inspectorItem.isCollapsed)}
     var availableFrameOverride:NSRect?
     private var fullscreen=false,fullscreenTransition=false
     private var normalCoreFrame:NSRect?
@@ -228,7 +232,7 @@ final class BoardTitleView:NSView {
         let width=fixedBoardWidth ?? main.view.widthAnchor.constraint(equalToConstant:main.view.frame.width);fixedBoardWidth=width
         let available=availableFrameOverride ?? window.screen?.visibleFrame ?? window.frame
         let core=coreFrame ?? window.frame,left=desiredLeft ? leftExtent:0,right=desiredRight ? rightExtent:0
-        var target=NSRect(x:core.minX-left,y:core.minY,width:core.width+left+right,height:core.height)
+        var target=NSRect(x:core.minX-extentLeftOfBoard(sidebar:desiredLeft,inspector:desiredRight),y:core.minY,width:core.width+left+right,height:core.height)
         fittedLayout=fullscreen || !available.contains(target)
         if !fullscreen {
             target.size.width=min(target.width,available.width);target.origin.x=max(available.minX,min(available.maxX-target.width,target.minX));target.size.height=min(target.height,available.height);target.origin.y=max(available.minY,min(available.maxY-target.height,target.minY))
@@ -662,7 +666,7 @@ playbackLineView?.isHidden=model.reviewWorkspace
         boardItem.minimumThickness=min(Metrics.minimum,max(Metrics.minimumFitted,side))
         let frame=NSRect(x:window.frame.minX,y:window.frame.maxY-side,width:side+drawers,height:side)
         fixedBoardWidth?.constant=side;window.setFrame(frame,display:true)
-        coreFrame=NSRect(x:frame.minX+(sidebarItem.isCollapsed ? 0:leftExtent),y:frame.minY,width:side,height:side);fittedOrigin=window.frame.origin;rememberFrame()
+        coreFrame=NSRect(x:frame.minX+openExtentLeftOfBoard,y:frame.minY,width:side,height:side);fittedOrigin=window.frame.origin;rememberFrame()
     }
     func window(_ window:NSWindow,willUseFullScreenContentSize proposedSize:NSSize)->NSSize {window.screen?.frame.size ?? proposedSize}
     func windowWillEnterFullScreen(_ notification:Notification){(window as? BoardWindow)?.drawerOrigins=nil;(window as? BoardWindow)?.drawerViewport=nil;if NativePolicy.silent{print("fullscreen: will enter")};guard let window=window else{return};fullscreenTransition=true;fullscreen=true;normalCoreFrame=coreFrame;fixedBoardWidth?.isActive=false;installFullscreenLayout(window)}
@@ -685,7 +689,7 @@ playbackLineView?.isHidden=model.reviewWorkspace
         if let core=normalCoreFrame,let window=window {
             coreFrame=core
             let left=sidebarItem.isCollapsed ? 0:leftExtent,right=inspectorItem.isCollapsed ? 0:rightExtent
-            let proposed=NSRect(x:core.minX-left,y:core.minY,width:core.width+left+right,height:core.height)
+            let proposed=NSRect(x:core.minX-openExtentLeftOfBoard,y:core.minY,width:core.width+left+right,height:core.height)
             let restored=WindowGeometry.restored([Double(proposed.minX),Double(proposed.minY),Double(proposed.width),Double(proposed.height)],screens:NSScreen.screens.map(\.visibleFrame),drawers:Double(left+right),minimumSide:Double(Metrics.minimumFitted))
             fittedLayout = abs(restored.width-proposed.width)>1 || abs(restored.height-proposed.height)>1
             let boardWidth=restored.width-left-right
@@ -695,9 +699,9 @@ playbackLineView?.isHidden=model.reviewWorkspace
         titleView.syncCenter();DispatchQueue.main.async{[weak self] in self?.titleView.syncCenter()};animateDrawers()
     }
 
-    private func rememberFrame(){guard !animating,!fullscreenTransition,let window=window,!window.styleMask.contains(.fullScreen) else{return};let frame=window.frame;if !fittedLayout{coreFrame?.origin=NSPoint(x:frame.minX+(sidebarItem.isCollapsed ? 0:leftExtent),y:frame.minY)}else if let placed=fittedOrigin{coreFrame?.origin.x+=frame.minX-placed.x;coreFrame?.origin.y+=frame.minY-placed.y};fittedOrigin=frame.origin;let preferred=coreFrame ?? frame;model.session.state.window.frame=[Double(preferred.minX),Double(preferred.minY),Double(preferred.width),Double(preferred.height)];model.session.emit(semantic:false,save:true)}
+    private func rememberFrame(){guard !animating,!fullscreenTransition,let window=window,!window.styleMask.contains(.fullScreen) else{return};let frame=window.frame;if !fittedLayout{coreFrame?.origin=NSPoint(x:frame.minX+openExtentLeftOfBoard,y:frame.minY)}else if let placed=fittedOrigin{coreFrame?.origin.x+=frame.minX-placed.x;coreFrame?.origin.y+=frame.minY-placed.y};fittedOrigin=frame.origin;let preferred=coreFrame ?? frame;model.session.state.window.frame=[Double(preferred.minX),Double(preferred.minY),Double(preferred.width),Double(preferred.height)];model.session.emit(semantic:false,save:true)}
     func windowDidMove(_ notification:Notification){rememberFrame()}
-    func windowDidEndLiveResize(_ notification:Notification){if let window=window{let side=min(main.view.frame.width,window.frame.height);coreFrame=NSRect(x:window.frame.minX+(sidebarItem.isCollapsed ? 0:leftExtent),y:window.frame.minY,width:side,height:side)};fittedLayout=false;rememberFrame()}
+    func windowDidEndLiveResize(_ notification:Notification){if let window=window{let side=min(main.view.frame.width,window.frame.height);coreFrame=NSRect(x:window.frame.minX+openExtentLeftOfBoard,y:window.frame.minY,width:side,height:side)};fittedLayout=false;rememberFrame()}
     func windowDidResize(_ notification:Notification){if fullscreen,let parent=split.view.superview{split.view.frame=parent.bounds};squareAfterResize();titleView.syncCenter();DispatchQueue.main.async{[weak self] in self?.titleView.syncCenter()}}
     /// Closing the window quits, so it asks the same questions as Quit; a cancelled quit keeps the window open.
     func windowShouldClose(_ sender:NSWindow)->Bool{NSApp.terminate(nil);return false}
