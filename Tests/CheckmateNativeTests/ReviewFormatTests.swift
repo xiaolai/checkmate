@@ -17,6 +17,10 @@ import CheckmateCore
         XCTAssertEqual(sans(black,ReviewFormat.rows(black,line:black.mainline)),["17:-/Kd7","18:Kd2/Kc6","19:Kc2/-"])
         XCTAssertEqual(ReviewFormat.moveLabel(black.nodes[black.mainline[0]]),"17, Black, Kd7")
         XCTAssertEqual(ReviewFormat.moveText(black.nodes[black.mainline[0]]),"17… Kd7")
+        // The leaves-theory line is one sentence, the move a link inside it rather than a button beside a fragment.
+        let leaves=ReviewFormat.leavesTheory(black.nodes[black.mainline[0]])
+        XCTAssertEqual(String(leaves.characters),"Leaves opening theory at 17… Kd7")
+        XCTAssertEqual(leaves.runs.compactMap{$0.link == nil ? nil:String(leaves[$0.range].characters)},["17… Kd7"])
         XCTAssertEqual(ReviewFormat.rows(white,line:[]),[])
     }
     func testHeaderLeavesOutUnknownParts() throws {

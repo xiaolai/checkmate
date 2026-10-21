@@ -26,6 +26,7 @@ import CheckmateCore
         XCTAssertEqual(hits(#"parts.append("in your answer")"#),["in your answer"])
         XCTAssertEqual(hits("let x=compute(\n  \"Shown later\")"),["Shown later"])
         XCTAssertEqual(hits(#"let x=String(localized:"Hello there",bundle:.checkmate)"#),[])
+        XCTAssertEqual(hits(#"let x=AttributedString(localized:"Leaves opening theory at \(move)",bundle:.checkmate)"#),[])
         XCTAssertEqual(hits(#"Text("Hello there");Button("Open Game"){}"#),[])
         XCTAssertEqual(hits(#"let event=d.header("Event")"#),[])
         XCTAssertEqual(hits(#"precondition(ok,"The state is broken")"#),[])
@@ -58,6 +59,9 @@ import CheckmateCore
         func fragments(_ code:String)->[String] {lint.analyse(code).fragments.map(\.text)}
         XCTAssertEqual(fragments(#"let a=String(localized:"Hide ",bundle:.checkmate)+b;Text(" · Check");let c=String(localized:", not done yet",bundle:.checkmate)"#),["Hide "," · Check",", not done yet"])
         XCTAssertEqual(fragments(#"let a=String(localized:"Hide \(noun)",bundle:.checkmate);Text("Opponent:");let v=Text(verbatim:" x")"#),[])
+        // So is a key that stops at a preposition or an article, its sentence finished by the view beside it.
+        XCTAssertEqual(fragments(#"HStack{Text("Leaves opening theory at");Button(move){}};let a=String(localized:"Move it to",bundle:.checkmate);Text("Captured by the");Text("Choose a")"#),["Leaves opening theory at","Move it to","Captured by the","Choose a"])
+        XCTAssertEqual(fragments(#"Text("Sort By");Button("Sign In"){};Toggle("Play On",isOn:$on);Text("Allow the coach to play a move you ask for");let a=AttributedString(localized:"Leaves opening theory at \(move)",bundle:.checkmate)"#),[],"a title-case control and a whole sentence ending in a preposition are finished")
         // A color beside a piece name cannot agree with the piece's gender: the color and piece are one phrase, one key.
         func composed(_ code:String)->[String] {lint.analyse(code).composed.map(\.text)}
         XCTAssertEqual(composed(#"let a=String(localized:"Move the \(PieceName.color(c)) \(PieceName.of(p)) to \(s).",bundle:.checkmate);let b=String(localized:"\(PieceName.side(c)) \(name) on \(s)",bundle:.checkmate)"#),["Move the \u{1} \u{1} to \u{1}.","\u{1} \u{1} on \u{1}"])
@@ -114,7 +118,7 @@ import CheckmateCore
         struct Catalog:Decodable {struct Entry:Decodable {let extractionState:String?};let strings:[String:Entry]}
         let catalog=try JSONDecoder().decode(Catalog.self,from:Data(contentsOf:Self.sources.appendingPathComponent("CheckmateCore/Localizable.xcstrings")))
         XCTAssertGreaterThan(catalog.strings.count,1000,"the catalog was read")
-        XCTAssertEqual(catalog.strings.filter{$0.value.extractionState != "stale" && LocalizationLint.isFragment($0.key)}.keys.sorted(),[],"a key starting or ending with a space, or starting with a joining mark, is a piece of a sentence")
+        XCTAssertEqual(catalog.strings.filter{$0.value.extractionState != "stale" && LocalizationLint.isFragment($0.key)}.keys.sorted(),[],"a key starting or ending with a space, starting with a joining mark, or stopping at a preposition or article, is a piece of a sentence")
     }
 
     func testTheCatalogShipsEnglish() {
@@ -182,9 +186,10 @@ private struct LocalizationLint {
         if first(prose,text) != nil || first(phrase,text) != nil {return true}
         return first(word,text) != nil && (text.contains("\u{1}") || first(edge,text) != nil) && text.contains(" ") && !text.contains{"{}=".contains($0)}
     }
-    /// A key starting or ending with a space, or starting with a joining mark: a piece of a sentence, which a translator
-    /// cannot reorder.
-    static func isFragment(_ key:String)->Bool {guard let first=key.first,let last=key.last else{return false};return first.isWhitespace || ",;.·".contains(first) || last.isWhitespace}
+    /// A key starting or ending with a space, starting with a joining mark, or stopping at a lowercase preposition or
+    /// article ("Leaves opening theory at" beside a move button): a piece of a sentence, which a translator cannot reorder.
+    /// A title-case control ("Sort By") and a sentence ending in its own preposition ("a move you ask for") are whole.
+    static func isFragment(_ key:String)->Bool {guard let first=key.first,let last=key.last else{return false};return first.isWhitespace || ",;.·".contains(first) || last.isWhitespace || key.range(of:#"(?:^|\s)(?:at|on|to|of|the|a|an)$"#,options:.regularExpression) != nil}
     /// A color or side beside a piece name ("the \(color) \(piece)", "\(side) piece", "\(side)'s knight"), or an article,
     /// possessive or other determiner before one, perhaps with a word or two between ("the \(piece)", "a \(name)",
     /// "your own \(piece)", "every \(kind)"): neither the color nor the determiner can agree with the piece's gender. An
@@ -282,7 +287,7 @@ private struct LocalizationLint {
     func kind(_ frame:Snapshot?)->Kind? {
         guard let frame else{return nil}
         let callee=frame.callee,last=String(callee.split(separator:".").last ?? "")
-        if callee=="String" && ["localized","defaultValue"].contains(frame.label ?? "") || ["LocalizedStringResource","LocalizedStringKey","String.LocalizationValue"].contains(callee){return .localized}
+        if ["String","AttributedString"].contains(callee) && ["localized","defaultValue"].contains(frame.label ?? "") || ["LocalizedStringResource","LocalizedStringKey","String.LocalizationValue"].contains(callee){return .localized}
         if callee.hasPrefix("NativeLog.") || developerCallees.contains(callee) || developerCallees.contains(last) && callee.contains(".") || frame.label.map({developerLabels.contains($0)}) == true || callee=="NSFont" && frame.label=="name" {return .developer}
         if (swiftUI.contains(callee) || callee.hasPrefix(".") && swiftUI.contains("."+last)) && frame.label==nil {return .swiftUI}
         return nil
@@ -364,7 +369,7 @@ private struct LocalizationLint {
         for literal in literals {
             let line=lineOf(literal.start)
             guard !skipped.contains(line) else{continue}
-            let isKey=literal.stack.last.map{$0.callee=="String" && $0.label=="localized" || kind($0) == .swiftUI && literal.prefix.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty} ?? false
+            let isKey=literal.stack.last.map{["String","AttributedString"].contains($0.callee) && $0.label=="localized" || kind($0) == .swiftUI && literal.prefix.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty} ?? false
             if isKey,Self.isFragment(literal.text){fragments.append((line,literal.text))}
             // A key is translated whole; any other literal that is not developer text may still be shown as it is.
             if isKey || kind(literal.stack.last) != .developer,isComposed(literal){composed.append((line,literal.text))}

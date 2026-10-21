@@ -2973,9 +2973,8 @@
     "Leave and Quit" : {},
     "Leave the game? It counts as a resignation." : {},
     "Leave the open review, then import the progress file again." : {},
-    "Leaves opening theory at" : {},
     "Leaves opening theory at %@" : {
-      "comment" : "The move where the reviewed game leaves the opening book, read aloud"
+      "comment" : "The move where the reviewed game leaves the opening book, shown as a link and read aloud"
     },
     "Leaving…" : {},
     "Left and Right arrows step through the line shown, an imagined one too. Up and Down arrows switch between other moves played from the same position. Home and End go to the line's start and end. Hold Option with the arrow keys to explore squares, then press Return to choose a piece or destination. Escape clears your selection." : {},

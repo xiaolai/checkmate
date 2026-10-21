@@ -36,6 +36,8 @@ enum ReviewFormat {
     /// The accessibility label of a move, e.g. "2, Black, dxc4"; acceptance gates find moves by it.
     static func moveLabel(_ n:GameNode)->String {"\(n.fullmove), \(PieceName.side(n.side)), \(n.san ?? "")"}
     static func moveText(_ n:GameNode)->String {"\(n.fullmove)\(n.side=="w" ? ".":"…") \(n.san ?? "")"}
+    /// "Leaves opening theory at 12… Nf5" as one localized sentence, the move a link the header opens by selecting it.
+    static func leavesTheory(_ n:GameNode)->AttributedString {var move=AttributedString(moveText(n));move.link=URL(string:"checkmate-review:leaves-theory");return AttributedString(localized:"Leaves opening theory at \(move)",bundle:.checkmate,comment:"The move where the reviewed game leaves the opening book, shown as a link and read aloud")}
     /// An imagined line's name, e.g. "After 18…Nf5: 19.Qh5 Kh8 …": the move it branches after, then its first `plies`
     /// moves. The list stops at a move that cannot be played, so a damaged idea is still named.
     static func ideaLabel(_ d:GameDocument,_ branch:ReviewBranch,plies:Int=3)->String {
@@ -206,7 +208,8 @@ struct ReviewHeader:View {
                 // An opening book is help too: none during a network game.
                 if model.fairness.engineHelpAllowed,let opening=ReviewFormat.openingHeader(document) {
                     if let title=opening.title{Text(verbatim:title).font(.subheadline).lineLimit(1).truncationMode(.tail).help(title).accessibilityIdentifier("review-opening")}
-                    if let leaves=opening.leaves{HStack(spacing:4){Text("Leaves opening theory at").foregroundStyle(.secondary);Button(ReviewFormat.moveText(document.nodes[leaves])){do{try review.select(leaves);model.saveReview()}catch{model.storageError=GameWindow.failureMessage(error)}}.buttonStyle(.link).accessibilityLabel(String(localized:"Leaves opening theory at \(ReviewFormat.moveLabel(document.nodes[leaves]))",bundle:.checkmate,comment:"The move where the reviewed game leaves the opening book, read aloud"))}.font(.subheadline).accessibilityIdentifier("review-leaves-theory")}
+                    // One sentence with the move as a link inside it, so a translator can put the move where the language needs it.
+                    if let leaves=opening.leaves{Text(ReviewFormat.leavesTheory(document.nodes[leaves])).font(.subheadline).foregroundStyle(.secondary).environment(\.openURL,OpenURLAction{_ in do{try review.select(leaves);model.saveReview()}catch{model.storageError=GameWindow.failureMessage(error)};return .handled}).accessibilityLabel(String(localized:"Leaves opening theory at \(ReviewFormat.moveLabel(document.nodes[leaves]))",bundle:.checkmate,comment:"The move where the reviewed game leaves the opening book, shown as a link and read aloud")).accessibilityAddTraits(.isLink).accessibilityIdentifier("review-leaves-theory")}
                 }
                 if let assistance=ReviewFormat.assistance(document){Text(verbatim:assistance).font(.subheadline).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("review-assistance")}
             }
