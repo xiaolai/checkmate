@@ -57,7 +57,7 @@ import CheckmateCore
         let d=try game("1. f3 e5 2. g4 Qh4# 0-1"),line=d.mainline
         let scores:[Int:AnalysisScore]=[0:AnalysisScore(kind:"cp",value:20),line[0]:AnalysisScore(kind:"cp",value:-2500),line[2]:AnalysisScore(kind:"mate",value:-1),line[3]:AnalysisScore(kind:"cp",value:300)]
         // The engine's last value is overruled by the checkmate on the board: Black mates, so the limit for Black.
-        XCTAssertEqual(ReviewFormat.series(d,evaluations:scores,outcome:ReviewFormat.finalOutcome(d)),[0.2,-10,nil,-10,-10])
+        XCTAssertEqual(ReviewFormat.series(d,evaluations:scores,outcome:ReviewFormat.finalOutcome(d)),[0.2,-5,nil,-5,-5])
         let open=try game("1. e4 *");XCTAssertEqual(ReviewFormat.series(open,evaluations:[:],outcome:ReviewFormat.finalOutcome(open)),[nil,nil],"No score is a gap, not 0")
         XCTAssertEqual(ReviewFormat.mainlineIndex(d,node:line[1]),2);XCTAssertNil(ReviewFormat.mainlineIndex(d,node:nil));XCTAssertEqual(ReviewFormat.node(d,index:0),0);XCTAssertEqual(ReviewFormat.node(d,index:99),line.last)
     }
@@ -90,7 +90,7 @@ import CheckmateCore
     func testFinalOutcomeFollowsTheRecordedEnding() throws {
         XCTAssertEqual(ReviewFormat.finalOutcome(try game("1. e4 e5 1/2-1/2")),0)
         XCTAssertNil(ReviewFormat.finalOutcome(try game("1. e4 e5 1-0")))
-        XCTAssertEqual(ReviewFormat.finalOutcome(try game("1. f3 e5 2. g4 Qh4# 0-1")),-10)
+        XCTAssertEqual(ReviewFormat.finalOutcome(try game("1. f3 e5 2. g4 Qh4# 0-1")),-5)
         let d=try game("1. e4 e5 1/2-1/2")
         XCTAssertEqual(ReviewFormat.series(d,evaluations:[d.mainline[1]:AnalysisScore(kind:"cp",value:90)],outcome:ReviewFormat.finalOutcome(d)),[nil,nil,0])
         XCTAssertNil(ReviewFormat.finalOutcome(try game("[SetUp \"1\"]\n[FEN \"4k3/8/8/8/8/8/8/4K3 w - - 0 1\"]\n\n*")),"No moves, no outcome")
@@ -110,10 +110,42 @@ import CheckmateCore
         XCTAssertEqual(ReviewFormat.partialAnalysis(completed:12,total:40),"Analyzed 12 of 40 moves")
         XCTAssertEqual(ReviewFormat.partialAnalysis(completed:40,total:40),"Analyzed all 40 moves; the deeper check is unfinished")
     }
-    /// Only moments the engine rates as costly get a dot; a capture or check that costs little does not.
-    func testOnlyCostlyMomentsAreMarked() {
-        let moments=[ReviewMoment(id:3,expectationLoss:0.25,reason:"Engine alternatives are worth comparing",provisional:true),ReviewMoment(id:5,expectationLoss:0.02,reason:"Capture, check or promotion",provisional:true),ReviewMoment(id:7,expectationLoss:nil,reason:"Capture, check or promotion",provisional:true)]
-        XCTAssertEqual(ReviewFormat.costly(moments),[3])
+    /// R-16: the graph is clamped to ±5 pawns, so an ordinary advantage is visible beside a decisive one.
+    func testTheGraphLimitIsFivePawns() {XCTAssertEqual(ReviewFormat.evaluationLimit,5)}
+    /// R-7: the importer's annotation glyphs are shown after the move, move glyphs first; an unknown one is left out.
+    func testAnnotationGlyphsAndTheirMeanings() throws {
+        let d=try game("1. e4! e5?! 2. Nf3 $14 Nc6 $200 3. Bb5 $3 $16 *"),line=d.mainline
+        XCTAssertEqual(line.map{ReviewFormat.glyphs(d.nodes[$0].nags)},["!","?!","⩲","","!! ±"])
+        XCTAssertEqual(ReviewFormat.glyphMeanings(d.nodes[line[4]].nags),"Brilliant move, White is better");XCTAssertNil(ReviewFormat.glyphMeanings(d.nodes[line[3]].nags))
+        XCTAssertEqual([1,2,3,4,5,6,7,10,13,14,15,16,17,18,19].map{ReviewFormat.glyphs([$0])},["!","?","!!","??","!?","?!","□","=","∞","⩲","⩱","±","∓","+−","−+"])
+    }
+    /// R-7: the record's own comments, without the clock and evaluation commands some sites embed in them.
+    func testCommentsLeaveOutEmbeddedCommands() throws {
+        let d=try game("{Opening note} 1. e4 {A strong  start [%clk 0:05:00]} e5 {[%eval 0.3]} 2. Nf3 *"),line=d.mainline
+        XCTAssertEqual(ReviewFormat.comments(d.nodes[0]),["Opening note"])
+        XCTAssertEqual(ReviewFormat.comments(d.nodes[line[0]]),["A strong start"]);XCTAssertEqual(ReviewFormat.comments(d.nodes[line[1]]),[])
+    }
+    /// R-1: a graded move explains its grade in plain words, from the side that played it.
+    func testGradeLineSaysWhatTheMoveGaveUp() {
+        XCTAssertEqual(ReviewFormat.gradeLine(.mistake,loss:0.153,side:"w"),"Mistake (?): this move gave up about 15% of White's chances.")
+        XCTAssertEqual(ReviewFormat.gradeLine(.blunder,loss:0.6,side:"b"),"Blunder (??): this move gave up about 60% of Black's chances.")
+    }
+    /// R-16/R-29: hovering or moving through the graph reads the move, its score and its grade.
+    func testGraphReadoutNamesTheMoveScoreAndGrade() throws {
+        let d=try game("1. e4 e5 2. Nf3 *")
+        XCTAssertEqual(ReviewFormat.readout(d,index:3,score:AnalysisScore(kind:"cp",value:80),grade:.inaccuracy),"2. Nf3?! +0.8")
+        XCTAssertEqual(ReviewFormat.readout(d,index:2,score:AnalysisScore(kind:"mate",value:-2),grade:nil),"1… e5 −M2")
+        XCTAssertEqual(ReviewFormat.readout(d,index:0,score:nil,grade:nil),"Start, no score")
+        let label=ReviewFormat.graphLabel(d,index:3,last:3,score:AnalysisScore(kind:"cp",value:80),grade:.inaccuracy)
+        XCTAssertEqual(label,"Evaluation graph, position 3 of 3, 2. Nf3, +0.8, inaccuracy")
+        XCTAssertNotNil(label.range(of:#"Evaluation graph, position (\d+) of (\d+)"#,options:.regularExpression),"the pointer gate reads the position from this label")
+        XCTAssertEqual(ReviewFormat.graphLabel(d,index:nil,last:3,score:nil,grade:nil),"Evaluation graph, not on the main line")
+        XCTAssertEqual(ReviewFormat.pointLabel(d,index:1,score:AnalysisScore(kind:"cp",value:30),grade:nil),"1. e4, +0.3")
+    }
+    /// R-23: the engine comparison says how deep the search went.
+    func testEvidenceCaptionShowsDepth() {
+        XCTAssertEqual(ReviewFormat.evidenceCaption(provisional:false,depth:24),"Deeper engine comparison · depth 24")
+        XCTAssertEqual(ReviewFormat.evidenceCaption(provisional:true,depth:nil),"Provisional engine estimate")
     }
     /// An engine fixture with win/draw/loss: Black's 1...e5 looks costly to the quick pass and fine to the deep one; with
     /// `scorelessDeep` the deep pass returns no line for the played move.
@@ -145,7 +177,8 @@ import CheckmateCore
         XCTAssertEqual(analyzer.evaluations[d.mainline[1]]?.value,0,"The deep score replaced the quick one")
     }
     func testADeepResultWithoutAScoreLeavesAGap() async throws {
-        let analyzer=ReviewAnalyzer(engine:WDLFixture(scorelessDeep:true)),d=try game("1. e4 e5 2. Nf3 *");try await runBatch(analyzer,d)
+        // Only the costliest moment is deepened here, so the final move keeps its quick score beside the gap.
+        let analyzer=ReviewAnalyzer(engine:WDLFixture(scorelessDeep:true)),d=try game("1. e4 e5 2. Nf3 *");analyzer.momentsToDeepen=1;try await runBatch(analyzer,d)
         XCTAssertNil(analyzer.evaluations[d.mainline[1]],"An older quick score stood in for a missing deep one")
         XCTAssertNotNil(analyzer.evaluations[d.mainline[2]])
     }

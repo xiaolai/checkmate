@@ -22,6 +22,9 @@ final class UCIWorker:@unchecked Sendable {
     /// Test seam: runs between a process's launch and its registration, where a cancellation once left it untracked.
     var afterLaunch:(()->Void)?
     private(set) var capabilities=EngineCapabilities()
+    /// The option values the running process holds. Each is sent only when it changes: Stockfish rebuilds its threads
+    /// and hash table on every Threads or Hash command, even an unchanged one. A new process starts with none.
+    private var applied:[String:String]=[:]
     init(executable:URL,startupAllowance:TimeInterval=10){self.executable=executable;self.startupAllowance=startupAllowance}
     deinit{cancel()}
     func reserve()->Int {lifecycle.lock();defer{lifecycle.unlock()};generation+=1;return generation}
@@ -73,14 +76,14 @@ final class UCIWorker:@unchecked Sendable {
     private func start(epoch:Int)throws {
         guard isCurrent(epoch) else{throw CheckmateError.cancelled}
         lifecycle.lock();let alive=process?.isRunning==true;lifecycle.unlock();if alive{return}
-        pending=UCILines();capabilities=EngineCapabilities();let process=Process(),inPipe=Pipe(),outPipe=Pipe()
+        pending=UCILines();capabilities=EngineCapabilities();applied=[:];let process=Process(),inPipe=Pipe(),outPipe=Pipe()
         process.executableURL=executable;process.currentDirectoryURL=executable.deletingLastPathComponent();process.environment=ProcessInfo.processInfo.environment.merging(EngineRuntimePolicy.environment){_,policy in policy};process.standardInput=inPipe;process.standardOutput=outPipe;process.standardError=FileHandle.nullDevice;signal(SIGPIPE,SIG_IGN)
         try process.run();afterLaunch?();lifecycle.lock();guard generation==epoch else{lifecycle.unlock();Self.stop(process);throw CheckmateError.cancelled};self.process=process;starting=process;lifecycle.unlock();input=inPipe.fileHandleForWriting;output=outPipe.fileHandleForReading
         try send("uci");try barrier("uciok");try send("isready");try barrier("readyok")
         lifecycle.lock();if starting===process{starting=nil};lifecycle.unlock()
     }
     /// `limit` is a time in milliseconds or a node count (A5); the calibration nodes of a silent run replace either.
-    func search(startFEN:String,moves:[String],finalFEN:String,profile:OpponentProfile,limit:EngineSearchLimit,multiPv:Int,searchMoves:[String],epoch:Int)throws -> EngineAnalysis {
+    func search(startFEN:String,moves:[String],finalFEN:String,profile:OpponentProfile,limit:EngineSearchLimit,multiPv:Int,searchMoves:[String],epoch:Int,resources:EngineResources?=nil)throws -> EngineAnalysis {
         serial.lock();defer{serial.unlock()}
         guard isCurrent(epoch) else{throw CheckmateError.cancelled}
         // The position command is one line: a line break in it would end the command early and stop Stockfish.
@@ -92,10 +95,10 @@ final class UCIWorker:@unchecked Sendable {
         let timeout=DispatchWorkItem{[weak self] in self?.cancel(expected:epoch)};DispatchQueue.global().asyncAfter(deadline:.now()+(budget>0 ? Double(budget)/1000+2:10),execute:timeout);defer{timeout.cancel()}
         do {
             guard isCurrent(epoch) else{throw CheckmateError.cancelled};try send("ucinewgame")
-            var options=AnalysisPolicy.options;for (key,value) in profile.options{options[key]=value};options["MultiPV"]=String(multiPv)
+            var options=AnalysisPolicy.options;for (key,value) in profile.options{options[key]=value};for (key,value) in resources?.options ?? [:]{options[key]=value};options["MultiPV"]=String(multiPv)
             if profile.mode=="elo"{guard let range=capabilities.eloRange else{throw CheckmateError.unavailable("Engine Elo mode unavailable.")};options["UCI_Elo"]=String(max(range.lowerBound,min(range.upperBound,profile.value)))}
             if profile.mode=="skill"{options["Skill Level"]=String(max(capabilities.skillRange.lowerBound,min(capabilities.skillRange.upperBound,profile.value)))}
-            for (key,value) in options.sorted(by:{$0.key<$1.key}) where capabilities.options.contains(key){try send("setoption name \(key) value \(value)")}
+            for (key,value) in options.sorted(by:{$0.key<$1.key}) where capabilities.options.contains(key) && applied[key] != value{try send("setoption name \(key) value \(value)");applied[key]=value}
             try send("isready");try barrier("readyok")
             try send("position fen \(startFEN)"+(moves.isEmpty ? "":" moves "+moves.joined(separator:" ")))
             let calibrationNodes=NativePolicy.silent ? Int(ProcessInfo.processInfo.environment["CHECKMATE_CALIBRATION_NODES"] ?? ""):nil
