@@ -72,6 +72,13 @@ final class GameCollectionsTests:XCTestCase {
             XCTAssertEqual(try store.data(index.records[1],in:index),Data("[White \"Zeta\"]\n[Result \"*\"]\n\n1. e4 *".utf8))
         }
     }
+    /// Importing a renamed collection's file again returns the collection under its current name, as a load would.
+    func testReimportingARenamedCollectionKeepsItsNewName() throws {
+        let store=GameCollectionStore(directory:library),data=Data(fixture.utf8),first=try store.importCollection(data,name:"a.pgn")
+        try store.rename(first.sha256,to:"Club games")
+        XCTAssertEqual(try store.importCollection(data,name:"a.pgn").name,"Club games")
+        XCTAssertEqual(try store.load().collections.map(\.name),["Club games"])
+    }
     func testACorruptedRangeFailsWhenOpened() throws {
         let store=GameCollectionStore(directory:library),index=try store.importCollection(Data(fixture.utf8),name:"fixture.pgn")
         let moved=CollectionRecord(offset:index.records[0].offset+1,length:index.records[0].length,sha256:index.records[0].sha256,tags:[:])

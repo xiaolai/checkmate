@@ -94,14 +94,14 @@ public final class GameCollectionStore:@unchecked Sendable {
     public func importCollection(_ data:Data,name:String?,cancelled:@escaping ()->Bool={false})throws -> CollectionIndex {
         guard data.count<=ReviewPolicy.maximumBytes else{throw CheckmateError.invalid(String(localized:"This file is larger than 16 MiB; split it into smaller files.",bundle:.checkmate))}
         let sha=reviewHash(data),removed=removalCount(sha)
-        if let existing=try? readIndex(sha),FileManager.default.fileExists(atPath:file(sha).path){return existing}
+        if let existing=try? readIndex(sha),FileManager.default.fileExists(atPath:file(sha).path){return existing.named(storedName(sha) ?? existing.name)}
         let read=try Self.index(data,sha:sha,name:name ?? String(localized:"Collection",bundle:.checkmate),importedAt:Date(),cancelled:cancelled),index=name==nil ? read.named(PGNImporter.bounded(Self.fallbackName(read.records),scalars:Self.maximumName)):read
         let encoded=try JSONEncoder().encode(index)
         return try exclusive{
             // Removed while it was being read: the import is cancelled and nothing is written.
             guard removalCount(sha)==removed,!cancelled() else{throw CheckmateError.cancelled}
             // Checked again under the lock: another import of the same bytes may have finished meanwhile.
-            if let existing=try? readIndex(sha){return existing}
+            if let existing=try? readIndex(sha){return existing.named(storedName(sha) ?? existing.name)}
             let stored=FileManager.default.fileExists(atPath:file(sha).path)
             // Only the bytes this import adds are charged: an unreadable index it replaces is subtracted.
             let replaced=[indexFile(sha),nameFile(sha)].reduce(0){$0+(((try? FileManager.default.attributesOfItem(atPath:$1.path))?[.size] as? Int) ?? 0)},label=Data(index.name.utf8)
