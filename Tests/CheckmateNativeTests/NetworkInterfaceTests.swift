@@ -73,6 +73,18 @@ import CheckmateCore
         ben.offerDraw();lan.scheduler.run();XCTAssertEqual(GameWindow.networkItemEnabled(offer,network:true,game:game),false,"an offer is open")
     }
 
+    /// While a move is on its way the board-area label says so after the game's title, and the window's subtitle carries
+    /// it, so it is seen with the details drawer closed; the game's answer clears both.
+    func testTheBoardLabelSaysAMoveIsOnItsWay()throws {
+        let model=try NativeModel(),window=GameWindow(model:model);defer{window.window?.delegate=nil;model.shutdown()}
+        let lan=LAN(),ben=try hostedGame(model,lan),game=model.network;model.playOnNetwork()
+        game.click("e2");game.click("e4");XCTAssertEqual(game.notice,NetworkGameController.sendingNotice,"fixture: the move is pending")
+        window.refresh();XCTAssertFalse(game.title.isEmpty)
+        XCTAssertEqual(window.titleView.label.stringValue,game.title+" · Sending…");XCTAssertEqual(window.window?.title,game.title);XCTAssertEqual(window.window?.subtitle,"Sending…")
+        lan.scheduler.run();XCTAssertNil(game.notice);XCTAssertEqual(ben.board["e4"],"wp","fixture: the move arrived")
+        window.refresh();XCTAssertEqual(window.titleView.label.stringValue,game.title);XCTAssertEqual(window.window?.subtitle,"")
+    }
+
     /// D9: away from the network place the sidebar says "Network game · your move" while it is; in network mode the
     /// control bar carries the game (B-1); fairness holds while the host's seat is taken.
     func testTheBadgeAndTheNetworkControlBar()throws {
