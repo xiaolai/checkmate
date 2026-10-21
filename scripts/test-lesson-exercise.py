@@ -6,7 +6,7 @@ exercise and coming back; promotion through the native menu; a relaunch restorin
 staying exactly as it was throughout.
 """
 import json,os,pathlib,shutil,subprocess,tempfile,time
-import test_host;test_host.require('lesson exercise pointer acceptance')
+import sidebar_lessons,test_host;test_host.require('lesson exercise pointer acceptance')
 root=pathlib.Path(__file__).resolve().parents[1];evidence=pathlib.Path(os.environ['CHECKMATE_EVIDENCE_DIR']);evidence.mkdir(parents=True,exist_ok=True)
 helpers={}
 for name in ['pointer-helper','ax-helper']:
@@ -46,13 +46,8 @@ def drawers(sidebar,details):
  if shown()!=details:pointer('click','Details')
  wait(lambda:shown()==details,'Game details did not '+('open' if details else 'close'))
 def open_lesson(lesson_title):
- """Clicks a lesson in the sidebar. A row far down the list exists only once the list has scrolled near it, so the
- sidebar is scrolled down step by step (as lesson-remediation does) until the click lands."""
- for attempt in range(8):
-  try:pointer('click',lesson_title);return
-  except subprocess.CalledProcessError:
-   if attempt==7:raise
-   pointer('scroll-sidebar','-120');time.sleep(.5)
+ """Clicks a lesson in the sidebar by its row identifier, scrolling it into view first."""
+ sidebar_lessons.click(pointer,lesson_title)
 def exercise(lesson_title,lesson_id):
  """Opens a lesson from the sidebar, pauses it and goes to its exercise step through the drawer button."""
  drawers(True,True)

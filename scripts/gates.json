@@ -121,7 +121,7 @@
     "quitSavesReview"
    ],
    "inputs": [
-    "scripts/test-pointer.py",
+    "scripts/test-pointer.py", "scripts/sidebar_lessons.py",
     "Sources/CheckmateNative/Review*.swift",
     "Sources/CheckmateNative/LibraryTableView.swift",
     "Sources/CheckmateNative/LibraryPreview.swift",
@@ -179,7 +179,7 @@
     "silent"
    ],
    "inputs": [
-    "scripts/test-lesson-remediation.py",
+    "scripts/test-lesson-remediation.py", "scripts/sidebar_lessons.py",
     "Tools/ax-helper.swift",
     "Tools/pointer-helper.swift",
     "Sources/CheckmateNative/BoardView.swift",
@@ -216,7 +216,7 @@
     "silent"
    ],
    "inputs": [
-    "scripts/test-lesson-exercise.py",
+    "scripts/test-lesson-exercise.py", "scripts/sidebar_lessons.py",
     "Tools/ax-helper.swift",
     "Tools/pointer-helper.swift",
     "Sources/CheckmateNative/BoardView.swift",

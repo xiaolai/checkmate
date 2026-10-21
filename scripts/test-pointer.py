@@ -13,6 +13,7 @@ import subprocess
 import tempfile
 import time
 
+import sidebar_lessons
 import test_host
 test_host.require("native pointer acceptance")
 root = pathlib.Path(__file__).resolve().parents[1]
@@ -134,7 +135,7 @@ try:
         pointer("click", "Sidebar")
     wait(lambda: "AXStaticText: The Pawn" in listing(), "Lesson sidebar did not open")
     # Lesson drawer controls take the same path.
-    pointer("click", "The Pawn")
+    pointer("click", sidebar_lessons.row("The Pawn"))
     wait(lambda: "In this lesson" in listing(), "The lesson did not open")
     before = pointer("value", "In this lesson")
     pointer("click", "In this lesson")
@@ -218,7 +219,7 @@ try:
         wait(lambda: "Recordings removed." in listing(), "Confirmed recording removal failed")
         wait(lambda: "French lesson:" in listing(), "Recording removal discarded translated inspection text")
         pointer("close-window", "Settings")
-        pointer("click", "Introduction")
+        pointer("click", sidebar_lessons.row("Introduction"))
         wait(lambda: "This lesson is playing in English because" in listing(), "Removed recording did not fall back to English")
         subprocess.run(["screencapture", "-x", str(evidence / "fallback-lesson.png")], check=True)
         pointer("menu", "Checkmate", "Settings…")
