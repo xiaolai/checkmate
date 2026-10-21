@@ -25,6 +25,13 @@ https://www.svgrepo.com/svg/201803/horse-chess . Original artwork and recorded
 provenance are in Artwork/Upstream. Adaptations: grayscale palette,
 scaling, positioning and an Icon Composer graphite background.
 
+Board pieces: Cburnett's chess piece set from Wikimedia Commons, BSD-3-Clause
+(the author offers GFDL, BSD or GPL; Checkmate uses BSD), copyright Cburnett.
+Only the author's own uploads are used. The original SVGs, the license text and
+recorded provenance are in Artwork/Upstream/cburnett-pieces; the license is
+bundled as Sources/CheckmateCore/Resources/Licenses/cburnett-pieces.txt.
+Adaptation: the paths are drawn natively in the board's piece colours.
+
 Cedar lesson recordings: AI-generated OpenAI speech. The bundled
 course-narration.json records the model, voice, input and final asset hashes.
 

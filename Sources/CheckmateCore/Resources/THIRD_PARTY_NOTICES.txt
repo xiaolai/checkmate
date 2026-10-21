@@ -34,6 +34,10 @@ Dock icon: user-supplied horse artwork, CC0 listing at
 https://www.svgrepo.com/svg/201803/horse-chess
 Provenance retained in Artwork/Upstream/.
 
+Board pieces: Cburnett's chess piece set (Wikimedia Commons), copyright
+Cburnett, BSD-3-Clause. Full license: Licenses/cburnett-pieces.txt.
+Original SVGs and provenance: Artwork/Upstream/cburnett-pieces in the source above.
+
 Course: native-owned British-English rewrite of the owner's chess-kids-video
 snapshot, 40 lessons/947 beats. Board actions and answer keys are preserved.
 Lesson narration: AI-generated OpenAI Cedar, gpt-4o-mini-tts-2025-12-15,

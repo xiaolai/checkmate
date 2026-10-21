@@ -13,7 +13,7 @@ struct AboutPane:View {
     let facts:AboutFacts
     static let project=URL(string:"https://github.com/xiaolai/checkmate")!,reportProblem=project.appendingPathComponent("issues/new")
     /// The pane's acknowledgements, which the standard About panel's credits list too (D-9).
-    static let acknowledgements=[(String(localized:"Stockfish 19",bundle:.checkmate),"GPL-3.0"),("chess.js 1.4.0, Jeff Hlywa","BSD-2-Clause"),(String(localized:"Swift MCP SDK and dependencies",bundle:.checkmate),"MIT, Apache-2.0"),(String(localized:"Knight artwork, SVG Repo",bundle:.checkmate),"CC0-1.0")]
+    static let acknowledgements=[(String(localized:"Stockfish 19",bundle:.checkmate),"GPL-3.0"),("chess.js 1.4.0, Jeff Hlywa","BSD-2-Clause"),(String(localized:"Swift MCP SDK and dependencies",bundle:.checkmate),"MIT, Apache-2.0"),(String(localized:"Knight artwork, SVG Repo",bundle:.checkmate),"CC0-1.0"),(String(localized:"Chess pieces, Cburnett",bundle:.checkmate),"BSD-3-Clause")]
     static let license=String(localized:"Checkmate is free software: you can redistribute and modify it under the GNU General Public License, version 3 or later. It comes with no warranty.",bundle:.checkmate),narration=String(localized:"Lesson narration is AI-generated speech (OpenAI Cedar).",bundle:.checkmate)
     /// The About panel's credits: the license, the acknowledgements, and where the rest is.
     static var credits:NSAttributedString {

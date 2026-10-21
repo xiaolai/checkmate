@@ -139,6 +139,7 @@
     "Tools/ax-helper.swift",
     "Tools/pointer-helper.swift",
     "Sources/CheckmateNative/BoardView.swift",
+    "Sources/CheckmateNative/PieceArtwork.swift",
     "Sources/CheckmateNative/BoardOverlay.swift",
     "Sources/CheckmateNative/MainWindow.swift",
     "Sources/CheckmateNative/ContentViews.swift",
@@ -184,6 +185,7 @@
     "Tools/ax-helper.swift",
     "Tools/pointer-helper.swift",
     "Sources/CheckmateNative/BoardView.swift",
+    "Sources/CheckmateNative/PieceArtwork.swift",
     "Sources/CheckmateNative/BoardOverlay.swift",
     "Sources/CheckmateNative/MainWindow.swift",
     "Sources/CheckmateNative/ContentViews.swift",
@@ -221,6 +223,7 @@
     "Tools/ax-helper.swift",
     "Tools/pointer-helper.swift",
     "Sources/CheckmateNative/BoardView.swift",
+    "Sources/CheckmateNative/PieceArtwork.swift",
     "Sources/CheckmateNative/MainWindow.swift",
     "Sources/CheckmateNative/ContentViews.swift",
     "Sources/CheckmateNative/ControlBar.swift",
@@ -245,6 +248,7 @@
     "Tools/pointer-helper.swift",
     "Tools/ax-helper.swift",
     "Sources/CheckmateNative/BoardView.swift",
+    "Sources/CheckmateNative/PieceArtwork.swift",
     "Sources/CheckmateNative/BoardOverlay.swift",
     "Sources/CheckmateNative/MainWindow.swift",
     "Sources/CheckmateNative/ContentViews.swift",
@@ -296,6 +300,7 @@
     "Tools/ax-helper.swift",
     "Sources/CheckmateNative/Training*.swift",
     "Sources/CheckmateNative/BoardView.swift",
+    "Sources/CheckmateNative/PieceArtwork.swift",
     "Sources/CheckmateNative/MainWindow.swift",
     "Sources/CheckmateNative/ContentViews.swift",
     "Sources/CheckmateNative/ControlBar.swift",
@@ -339,6 +344,7 @@
     "Tools/ax-helper.swift",
     "Sources/CheckmateNative/Training*.swift",
     "Sources/CheckmateNative/BoardView.swift",
+    "Sources/CheckmateNative/PieceArtwork.swift",
     "Sources/CheckmateNative/MainWindow.swift",
     "Sources/CheckmateNative/ContentViews.swift",
     "Sources/CheckmateNative/ControlBar.swift",
@@ -370,6 +376,7 @@
     "Sources/CheckmateCore/Resources/course*.json",
     "Sources/CheckmateCore/Resources/course/*",
     "Sources/CheckmateNative/BoardView.swift",
+    "Sources/CheckmateNative/PieceArtwork.swift",
     "Sources/CheckmateNative/ContentViews.swift",
     "Sources/CheckmateNative/ControlBar.swift",
     "Sources/CheckmateNative/MainWindow.swift"
@@ -387,6 +394,7 @@
     "Sources/CheckmateNative/ContentViews.swift",
     "Sources/CheckmateNative/ControlBar.swift",
     "Sources/CheckmateNative/BoardView.swift",
+    "Sources/CheckmateNative/PieceArtwork.swift",
     "Sources/CheckmateMacPlatform/WindowGeometry.swift"
    ]
   },
@@ -404,6 +412,7 @@
     "Sources/CheckmateNative/ContentViews.swift",
     "Sources/CheckmateNative/ControlBar.swift",
     "Sources/CheckmateNative/BoardView.swift",
+    "Sources/CheckmateNative/PieceArtwork.swift",
     "Sources/CheckmateNative/BoardOverlay.swift",
     "Sources/CheckmateNative/Review*.swift",
     "Sources/CheckmateNative/Relationship*.swift",
@@ -479,6 +488,7 @@
     "Sources/CheckmateNative/ControlBar.swift",
     "Sources/CheckmateNative/MainWindow.swift",
     "Sources/CheckmateNative/BoardView.swift",
+    "Sources/CheckmateNative/PieceArtwork.swift",
     "Sources/CheckmateApplication/Review*.swift",
     "Sources/CheckmateApplication/PGNImporter.swift",
     "Sources/CheckmateApplication/GameDocument.swift",
@@ -510,6 +520,7 @@
     "Sources/CheckmateNative/MainWindow.swift",
     "Sources/CheckmateNative/ContentViews.swift",
     "Sources/CheckmateNative/BoardView.swift",
+    "Sources/CheckmateNative/PieceArtwork.swift",
     "Sources/CheckmateNative/ReviewDetailViews.swift",
     "Sources/CheckmateNative/ReviewLibraryViews.swift",
     "Sources/CheckmateNative/LibraryTableView.swift",
@@ -540,7 +551,8 @@
     "Sources/CheckmateNative/NativeNetwork.swift",
     "Sources/CheckmateNative/MainWindow.swift",
     "Sources/CheckmateNative/ContentViews.swift",
-    "Sources/CheckmateNative/BoardView.swift"
+    "Sources/CheckmateNative/BoardView.swift",
+    "Sources/CheckmateNative/PieceArtwork.swift"
    ]
   },
   {
@@ -572,7 +584,8 @@
     "Sources/CheckmateNative/NativeNetwork.swift",
     "Sources/CheckmateNative/MainWindow.swift",
     "Sources/CheckmateNative/ContentViews.swift",
-    "Sources/CheckmateNative/BoardView.swift"
+    "Sources/CheckmateNative/BoardView.swift",
+    "Sources/CheckmateNative/PieceArtwork.swift"
    ]
   },
   {

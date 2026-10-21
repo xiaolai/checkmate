@@ -1923,6 +1923,7 @@
     "Checks, captures, promotions and the final move." : {},
     "Chess" : {},
     "Chess engine" : {},
+    "Chess pieces, Cburnett" : {},
     "Chess relationships resource is missing or unreadable: %@" : {},
     "Chess rules could not initialize." : {},
     "Chess rules resource is invalid." : {},

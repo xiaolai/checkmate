@@ -1,0 +1,25 @@
+{
+  "source": "https://commons.wikimedia.org/wiki/Category:SVG_chess_pieces",
+  "author": "Cburnett (https://commons.wikimedia.org/wiki/User:Cburnett)",
+  "license": "BSD-3-Clause",
+  "license_url": "https://commons.wikimedia.org/wiki/Template:BSD",
+  "license_choice": "Each file page carries {{self|GFDL|migration=relicense|BSD|GPL}} with author {{U|Cburnett}}: the author's own release under a license of the user's choice. Cburnett added the BSD option himself on 2007-01-12. Checkmate uses BSD.",
+  "revisions": "Only Cburnett's own last upload of each file (2007-01-03) is used; later uploads by other users are not. Archive URL pattern: https://upload.wikimedia.org/wikipedia/commons/archive/<hash path>/<superseded timestamp>!Chess_<piece>45.svg",
+  "verified_on": "2026-10-21",
+  "evidence": "Each file's SHA-1 equals the SHA-1 that the Commons API (prop=imageinfo&iiprop=user|timestamp|sha1) reports for Cburnett's 2007-01-03 revision.",
+  "files": {
+    "Chess_klt45.svg": {"commons_sha1": "3e10903ac5f0a37584c1b1a383abcabeac588276", "sha256": "27908053afaa7bbd657175e0eb0d9783d55d5be473f855f3ce90cc57919b89d2"},
+    "Chess_qlt45.svg": {"commons_sha1": "17a554bd078c697b0d4685a3740aa9e9e4092251", "sha256": "644d44fdb9acd13e8bba96df6e18fb378145551655af6e8fcbef845a17104d9a"},
+    "Chess_rlt45.svg": {"commons_sha1": "62121a4770d82a4093254a0efdf3304cfaebb087", "sha256": "5c481f49a40d0f19628e0c14b95899b79eb23a003b0dc65472d9934148ad2c2a"},
+    "Chess_blt45.svg": {"commons_sha1": "ce7ba142a35dd3ca6b46ffa54cf8f1026d2a22d8", "sha256": "c0bd7abbe41b7785a670517b1a6f8b14de865ee688c85def3713c1a51c0ac499"},
+    "Chess_nlt45.svg": {"commons_sha1": "a7660e97869c127ac2b8103e61a5332a44800c25", "sha256": "f42ec7ddbf1e12fe09715494ff9aec6865eec5e25adcceaf59a2a857a10c5c4f"},
+    "Chess_plt45.svg": {"commons_sha1": "1325d83948cef24dba779e080648135e04d99745", "sha256": "46e0fb8ec962f67aaa8833eb68b77df28508fb0cebd8b7814ae05a33e2f0a4f6"},
+    "Chess_kdt45.svg": {"commons_sha1": "bcb92de2513541f6fb1b51605b59d91799d9ca7b", "sha256": "04f6683b3e7f30952ec1465e21aa1fdccd2713e833af96ec5e87d0d5eda6847f"},
+    "Chess_qdt45.svg": {"commons_sha1": "a1082cde5c86104d8d5f0e4398439b8da9ec086c", "sha256": "ef7102c46ea5e1ae3242728c4a7beb8f9bf4667ba036f5fff8e3b5d2de33a449"},
+    "Chess_rdt45.svg": {"commons_sha1": "b66a2d4a3e36acda44ea1acc99f90ca19dac1d99", "sha256": "258dfd1f6bc5860ec2c7cc7f0cc1c651ca1b4c53ddf31bfa9b4e88eac24f82c2"},
+    "Chess_bdt45.svg": {"commons_sha1": "5d3598addb9da11011f5e3c85361a6b10805ee16", "sha256": "ed4a6b214a80a18cadd6e057d75272dc3f125eccc07eb27ed823ee76ef7db25b"},
+    "Chess_ndt45.svg": {"commons_sha1": "d4c45f4450229c38a56578e84563475a73f6b1ef", "sha256": "3fb4b77d8347a8f04c7fb10f735178827abe4c5f74b92a5a1073ea3ba5e00ce2"},
+    "Chess_pdt45.svg": {"commons_sha1": "6d097283a843b065980f802c8ed64efce27edc8e", "sha256": "411878101f3473658154c93b77a0e39305d256ef6cb04276974b428bf022389d"}
+  },
+  "adaptations": "The path data and styles are transcribed into Sources/CheckmateNative/PieceArtwork.swift and drawn natively; white and black take the board palette's piece colours. PieceArtworkTests checks the transcription against these files."
+}

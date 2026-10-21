@@ -283,10 +283,6 @@ final class BoardView:NSView,NSAccessibilityCustomRotorItemSearchDelegate {
         animationStart=ProcessInfo.processInfo.systemUptime;animationDuration=duration;let timer=Timer(timeInterval:Metrics.frameInterval,repeats:true){[weak self] _ in guard let self=self else{return};self.needsDisplay=true;if self.animationProgress>=1{self.cancelAnimation()}};self.timer=timer;RunLoop.main.add(timer,forMode:.common)}
     /// Monotonic, so a clock change never stalls or skips a move.
     private var animationProgress:Double {animationDuration>0 ? min(1,max(0,(ProcessInfo.processInfo.systemUptime-animationStart)/animationDuration)):1}
-    private func glyph(_ piece:String,rect:NSRect,alpha:CGFloat=1){let symbols=["k":"♚","q":"♛","r":"♜","b":"♝","n":"♞","p":"♟"],white=piece.first=="w",size=rect.width*0.8
-        let attrs:[NSAttributedString.Key:Any]=[.font:NSFont(name:"Arial Unicode MS",size:size) ?? NSFont.systemFont(ofSize:size),.foregroundColor:(white ? BoardPalette.lightPiece:BoardPalette.darkPiece).withAlphaComponent(alpha),.strokeColor:BoardPalette.pieceOutline.withAlphaComponent(alpha),.strokeWidth:white ? BoardOverlay.pieceOutlineWidth:0]
-        let value=symbols[String(piece.suffix(1)),default:"♟"] as NSString,s=value.size(withAttributes:attrs);value.draw(at:NSPoint(x:rect.midX-s.width/2,y:rect.midY-s.height/2),withAttributes:attrs)
-    }
     /// Layers draw bottom to top: squares and their marks, guard lines and relationships, arrows, pieces, then coordinates.
     override func draw(_ dirty:NSRect){let s=boardRect.width/8;guard s>0 else{return}
         let palette=self.palette;drawSquares(palette,side:s);drawRelationships(palette,side:s);drawArrows(palette,side:s);drawPieces(side:s);drawLabels(palette,side:s)
@@ -351,12 +347,12 @@ final class BoardView:NSView,NSAccessibilityCustomRotorItemSearchDelegate {
         let progress=animationProgress,ease=progress*progress*(3-2*progress)
         // Routes sit beneath the pieces, preserving both silhouettes and endpoint identity.
         for sq in ChessRules.squares {let rect=squareRect(sq)
-            if let piece=position[sq],!moves.contains(where:{$0.to==sq}),explicitMotion?.from != sq {glyph(piece,rect:rect,alpha:drag?.from==sq ? BoardOverlay.dragOriginOpacity:1)}
-            if let piece=captured[sq],progress<1{glyph(piece,rect:rect,alpha:CGFloat(1-progress))}
+            if let piece=position[sq],!moves.contains(where:{$0.to==sq}),explicitMotion?.from != sq {PieceArtwork.draw(piece,in:rect,alpha:drag?.from==sq ? BoardOverlay.dragOriginOpacity:1)}
+            if let piece=captured[sq],progress<1{PieceArtwork.draw(piece,in:rect,alpha:CGFloat(1-progress))}
         }
-        for m in moves {let a=squareRect(m.from),b=squareRect(m.to);glyph(m.piece,rect:NSRect(x:a.minX+(b.minX-a.minX)*ease,y:a.minY+(b.minY-a.minY)*ease,width:s,height:s))}
-        if let m=explicitMotion,let piece=position[m.from]{let a=squareRect(m.from),b=squareRect(m.to),t=m.t*m.t*(3-2*m.t);glyph(piece,rect:NSRect(x:a.minX+(b.minX-a.minX)*t,y:a.minY+(b.minY-a.minY)*t,width:s,height:s))}
-        if let d=drag,let piece=position[d.from]{glyph(piece,rect:NSRect(x:d.point.x-s/2,y:d.point.y-s/2,width:s,height:s))}
+        for m in moves {let a=squareRect(m.from),b=squareRect(m.to);PieceArtwork.draw(m.piece,in:NSRect(x:a.minX+(b.minX-a.minX)*ease,y:a.minY+(b.minY-a.minY)*ease,width:s,height:s))}
+        if let m=explicitMotion,let piece=position[m.from]{let a=squareRect(m.from),b=squareRect(m.to),t=m.t*m.t*(3-2*m.t);PieceArtwork.draw(piece,in:NSRect(x:a.minX+(b.minX-a.minX)*t,y:a.minY+(b.minY-a.minY)*t,width:s,height:s))}
+        if let d=drag,let piece=position[d.from]{PieceArtwork.draw(piece,in:NSRect(x:d.point.x-s/2,y:d.point.y-s/2,width:s,height:s))}
     }
     /// Coordinates grow with the squares, from the minimum size up to what the margin around the board can hold.
     static func coordinateFontSize(side s:CGFloat)->CGFloat {min(Metrics.boardMargin-6,max(Metrics.coordinateSize,(s*0.14).rounded()))}

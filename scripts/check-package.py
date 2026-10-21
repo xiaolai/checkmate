@@ -133,6 +133,9 @@ for pin in json.loads((root / 'Package.resolved').read_text())['pins']:
     license_text = resources / 'Licenses' / f"{pin['identity']}.txt"
     if not (license_text.is_file() and license_text.stat().st_size > 0):
         raise RuntimeError(f'License text missing for {pin["identity"]}: {license_text.name}')
+# The board's BSD-licensed piece artwork must carry its notice in the binary distribution.
+if not (resources / 'Licenses' / 'cburnett-pieces.txt').is_file():
+    raise RuntimeError('License text missing for the piece artwork: cburnett-pieces.txt')
 engine = json.loads((resources / 'stockfish-build.json').read_text())
 if not hashlib.sha256((resources / 'stockfish').read_bytes()).hexdigest() == engine['binarySHA256']:
     raise RuntimeError('Package verification failed')
