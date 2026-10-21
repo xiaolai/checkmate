@@ -75,16 +75,25 @@ if bundle.name != 'Checkmate_CheckmateAssets.bundle':
 resources = bundle / 'Contents/Resources/Resources'
 if not resources.is_dir():
     resources = bundle / 'Resources'
-# The String Catalog compiles to en.lproj tables. A missing key falls back to its English text, so only the plural
-# table shows the loss: without it every count reads "1 moves". build.sh copies the tables into the app as well,
-# where SwiftUI's Text("…") and AppKit look by default.
+# The String Catalog compiles to .lproj tables. For the source language the compiler emits only the plural table
+# (Localizable.stringsdict): every other English string is the code's own text. A missing key falls back to that text,
+# so the plural table shows the loss: without it every count reads "1 moves". Each shipped .lproj must hold exactly what
+# the compiler makes of the catalog, in the resource bundle and in the app, where SwiftUI's Text("…") and AppKit look.
+import tempfile
+with tempfile.TemporaryDirectory() as compiled:
+    subprocess.run(['xcrun', 'xcstringstool', 'compile', str(root / 'Sources/CheckmateCore/Localizable.xcstrings'), '--output-directory', compiled], check=True, capture_output=True)
+    expected = {str(f.relative_to(compiled)) for f in pathlib.Path(compiled).rglob('*') if f.is_file()}
+if 'en.lproj/Localizable.stringsdict' not in expected:
+    raise RuntimeError(f'The String Catalog compiled to {sorted(expected)}, without en.lproj/Localizable.stringsdict')
 localized = resources.parent
-for tables in (localized / 'en.lproj', app / 'Contents/Resources/en.lproj'):
-    if not (tables / 'Localizable.strings').is_file():
-        raise RuntimeError(f'Compiled String Catalog missing: {tables.relative_to(app)}/Localizable.strings')
-    plurals = tables / 'Localizable.stringsdict'
-    if not (plurals.is_file() and '%lld moves' in plistlib.loads(plurals.read_bytes())):
-        raise RuntimeError(f'Plural variations missing: {tables.relative_to(app)}/Localizable.stringsdict lacks "%lld moves"')
+for tables in (localized, app / 'Contents/Resources'):
+    shipped = {str(f.relative_to(tables)) for d in tables.glob('*.lproj') for f in d.rglob('*') if f.is_file()}
+    if shipped != expected:
+        raise RuntimeError(f'Compiled String Catalog in {tables.relative_to(app)} is {sorted(shipped)}, not {sorted(expected)}')
+    plurals = tables / 'en.lproj/Localizable.stringsdict'
+    # The compiler writes the table as UTF-16, which Python 3.9's plistlib refuses; plutil reads it.
+    if '%lld moves' not in plistlib.loads(subprocess.run(['plutil', '-convert', 'xml1', '-o', '-', str(plurals)], check=True, capture_output=True).stdout):
+        raise RuntimeError(f'Plural variations missing: {plurals.relative_to(app)} lacks "%lld moves"')
 course = json.loads((resources / 'course.json').read_text())
 if not (len(course['lessons']) == 39 and len(course['puzzles']) == 82):
     raise RuntimeError(f"Bundled course has {len(course['lessons'])} lessons and {len(course['puzzles'])} puzzles, not 39 and 82")
