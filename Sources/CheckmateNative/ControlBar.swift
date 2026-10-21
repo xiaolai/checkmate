@@ -312,7 +312,7 @@ struct ControlBarView:View {
     /// Leading actions at their full size, then the status within `room`, shortened when it does not fit.
     private func leading(room:CGFloat)->some View {
         HStack(spacing:Self.groupGap) {
-            if !model.leading.isEmpty{HStack(spacing:Self.itemGap){ForEach(model.leading){button($0)}}.fixedSize().background(measure(0))}
+            if !model.leading.isEmpty{HStack(spacing:Self.itemGap){ForEach(model.leading){button($0)}}.modifier(BarGlassGroup()).fixedSize().background(measure(0))}
             let statusRoom=room-(model.leading.isEmpty ? 0:Self.groupGap)
             if !model.statusInCentre,let status=model.status,statusRoom>=Self.statusMinimum{StatusPill(status:status).frame(maxWidth:statusRoom,alignment:.leading).background(place("status"))}
         }
@@ -322,13 +322,13 @@ struct ControlBarView:View {
         HStack(spacing:Self.groupGap) {
             if model.statusInCentre,let status=model.status{StatusPill(status:status).background(place("status"))}
             if model.clocks,let network,let lowTime{NetworkBarClocks(game:network,warning:lowTime).background(place("clocks"))}
-            if !model.centre.isEmpty{HStack(spacing:Self.itemGap){ForEach(model.centre){button($0)}}.accessibilityElement(children:.contain).accessibilityLabel("Playback")}
+            if !model.centre.isEmpty{HStack(spacing:Self.itemGap){ForEach(model.centre){button($0)}}.modifier(BarGlassGroup()).accessibilityElement(children:.contain).accessibilityLabel("Playback")}
         }.fixedSize()
     }
     private var trailing:some View {
         HStack(spacing:Self.groupGap) {
-            if !model.trailing.isEmpty{HStack(spacing:Self.itemGap){ForEach(model.trailing){button($0)}}}
-            ForEach(Array(model.trailingGroups.enumerated()),id:\.offset){_,group in HStack(spacing:Self.itemGap){ForEach(group){button($0)}}}
+            if !model.trailing.isEmpty{HStack(spacing:Self.itemGap){ForEach(model.trailing){button($0)}}.modifier(BarGlassGroup())}
+            ForEach(Array(model.trailingGroups.enumerated()),id:\.offset){_,group in HStack(spacing:Self.itemGap){ForEach(group){button($0)}}.modifier(BarGlassGroup())}
         }.fixedSize()
     }
     /// Each control is identified by its action, whatever its label says now, so checks can follow one slot.
@@ -337,18 +337,18 @@ struct ControlBarView:View {
         if let symbol=item.symbol {
             if item.menu.isEmpty {
                 Button{perform(item.action)}label:{icon(symbol,primary:item.primary)}
-                    .buttonStyle(.bordered).controlSize(.large).disabled(!item.enabled).help(Self.tooltip(item)).accessibilityLabel(item.label)
+                    .modifier(BarButtonStyle()).controlSize(.large).disabled(!item.enabled).help(Self.tooltip(item)).accessibilityLabel(item.label)
             } else if item.action == .more {
                 Menu{entries(item)}label:{icon(symbol,primary:false)}
-                    .menuStyle(.button).buttonStyle(.bordered).controlSize(.large).fixedSize().disabled(!item.enabled).help(Self.tooltip(item)).accessibilityLabel(item.label)
+                    .menuStyle(.button).modifier(BarButtonStyle()).controlSize(.large).fixedSize().disabled(!item.enabled).help(Self.tooltip(item)).accessibilityLabel(item.label)
             } else {
                 Menu{entries(item)}label:{icon(symbol,primary:false)}primaryAction:{perform(item.action)}
-                    .menuStyle(.button).buttonStyle(.bordered).controlSize(.large).fixedSize().disabled(!item.enabled).help(Self.tooltip(item)).accessibilityLabel(item.label)
+                    .menuStyle(.button).modifier(BarButtonStyle()).controlSize(.large).fixedSize().disabled(!item.enabled).help(Self.tooltip(item)).accessibilityLabel(item.label)
             }
         } else if item.prominent {
-            Button(item.label){perform(item.action)}.buttonStyle(.borderedProminent).controlSize(.large).disabled(!item.enabled).help(Self.tooltip(item))
+            Button(item.label){perform(item.action)}.modifier(BarButtonStyle(prominent:true)).controlSize(.large).disabled(!item.enabled).help(Self.tooltip(item))
         } else {
-            Button(item.label){perform(item.action)}.buttonStyle(.bordered).controlSize(.large).disabled(!item.enabled).help(Self.tooltip(item))
+            Button(item.label){perform(item.action)}.modifier(BarButtonStyle()).controlSize(.large).disabled(!item.enabled).help(Self.tooltip(item))
         }
     }
     private func entries(_ item:ControlBarItem)->some View {ForEach(item.menu){entry in Button(entry.label){perform(entry.action)}.disabled(!entry.enabled).help(Self.tooltip(entry))}}
@@ -371,6 +371,23 @@ struct ControlBarView:View {
     /// Every icon sits in the same square, so swapping play for pause or one chevron for two never resizes a slot.
     private func icon(_ symbol:AppSymbol,primary:Bool)->some View {
         symbol.image.imageScale(primary ? .large:.medium).frame(width:primary ? 26:20,height:20)
+    }
+}
+
+/// The bar's buttons in Liquid Glass on macOS 26 and later (D-35), and the bordered styles before it. The style draws
+/// the button only: its action, label, identifier and hit area are the same in both.
+struct BarButtonStyle:ViewModifier {
+    var prominent=false
+    @ViewBuilder func body(content:Content)->some View {
+        if #available(macOS 26,*) {if prominent{content.buttonStyle(.glassProminent)}else{content.buttonStyle(.glass)}}
+        else if prominent {content.buttonStyle(.borderedProminent)} else {content.buttonStyle(.bordered)}
+    }
+}
+/// One group of bar buttons shares a glass container on macOS 26 and later, so neighbouring glass blends as one
+/// surface; before it the group is drawn as it is.
+struct BarGlassGroup:ViewModifier {
+    @ViewBuilder func body(content:Content)->some View {
+        if #available(macOS 26,*) {GlassEffectContainer(spacing:ControlBarView.itemGap){content}} else {content}
     }
 }
 
