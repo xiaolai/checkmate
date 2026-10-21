@@ -23,7 +23,8 @@ import Combine
     public func identity()async throws -> String {if binaryIdentity.isEmpty{binaryIdentity=try await identityTask.value};return binaryIdentity}
     public func prepare()async throws {
         if binaryIdentity.isEmpty{binaryIdentity=try await identityTask.value}
-        guard capabilities.name=="Unknown engine" else{return}
+        // Nothing ingested yet means not prepared; the engine's display name is never the test (D-12).
+        guard capabilities == EngineCapabilities() else{return}
         // A cancelled preparation (a Review request withdrawn during a cold start) stops its own startup, so it does not
         // hold the worker until the startup watchdog while an allowed search waits behind it.
         let worker=worker,ticket=worker.preparationTicket();defer{worker.forgetPreparation(ticket)}
