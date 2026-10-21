@@ -47,12 +47,16 @@ func center(_ e:AXUIElement?,_ what:String)->CGPoint{guard let e=e,let f=frame(e
 let source=CGEventSource(stateID:.hidSystemState)
 // An event that cannot be created stops the action (exit 4) rather than leaving it half performed.
 func made(_ event:CGEvent?,_ what:String)->CGEvent{guard let event else{fputs("Could not create a \(what) event\n",stderr);exit(4)};return event}
-func post(_ type:CGEventType,_ p:CGPoint){made(CGEvent(mouseEventSource:source,mouseType:type,mouseCursorPosition:p,mouseButton:.left),"mouse").post(tap:.cghidEventTap)}
+// The button follows the event type: right-button events carry the right button, every other event the left.
+func post(_ type:CGEventType,_ p:CGPoint){made(CGEvent(mouseEventSource:source,mouseType:type,mouseCursorPosition:p,mouseButton:[.rightMouseDown,.rightMouseDragged,.rightMouseUp].contains(type) ? .right:.left),"mouse").post(tap:.cghidEventTap)}
+/// The press, drag and release events of one button.
+struct MouseButton{let down:CGEventType,dragged:CGEventType,up:CGEventType
+    static let left=MouseButton(down:.leftMouseDown,dragged:.leftMouseDragged,up:.leftMouseUp),right=MouseButton(down:.rightMouseDown,dragged:.rightMouseDragged,up:.rightMouseUp)}
 // Moves the pointer between press and release as a trackpad press or a drag does.
-func gesture(from a:CGPoint,to b:CGPoint){
-    unobstructed(a);unobstructed(b);post(.mouseMoved,a);usleep(80_000);post(.leftMouseDown,a);usleep(60_000)
-    let steps=max(1,Int(hypot(b.x-a.x,b.y-a.y)/4));for k in 1...steps{let t=CGFloat(k)/CGFloat(steps);post(.leftMouseDragged,CGPoint(x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t));usleep(12_000)}
-    post(.leftMouseUp,b);usleep(150_000)
+func gesture(from a:CGPoint,to b:CGPoint,_ button:MouseButton = .left){
+    unobstructed(a);unobstructed(b);post(.mouseMoved,a);usleep(80_000);post(button.down,a);usleep(60_000)
+    let steps=max(1,Int(hypot(b.x-a.x,b.y-a.y)/4));for k in 1...steps{let t=CGFloat(k)/CGFloat(steps);post(button.dragged,CGPoint(x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t));usleep(12_000)}
+    post(button.up,b);usleep(150_000)
 }
 // The nearest parent with a role, giving up at a `stop` role or after 60 levels.
 func ancestor(_ e:AXUIElement,_ role:String,stop:String?=nil)->AXUIElement? {var current=e;for _ in 0..<60{guard let parent=get(current,kAXParentAttribute) else{return nil};let p=parent as! AXUIElement;let r=get(p,kAXRoleAttribute) as? String;if r==role{return p};if let stop,r==stop{return nil};current=p};return nil}
@@ -132,7 +136,7 @@ func owner(at p:CGPoint)->pid_t?{var hit:AXUIElement?;guard AXUIElementCopyEleme
 func unobstructed(_ p:CGPoint){for _ in 0..<3{if owner(at:p)==pid{return};NSRunningApplication(processIdentifier:pid)?.activate(options:[.activateAllWindows]);usleep(400_000)}
     let found=owner(at:p);if found==pid{return}
     guard let other=found else{fputs("Hit-testing at \(p) found no element, so the pointer cannot be shown to reach pid \(pid)\n",stderr);exit(3)};fputs("Click at \(p) is covered by \(NSRunningApplication(processIdentifier:other)?.localizedName ?? "pid \(other)")\n",stderr);exit(3)}
-func click(_ p:CGPoint){unobstructed(p);post(.mouseMoved,p);usleep(80_000);post(.leftMouseDown,p);usleep(70_000);post(.leftMouseUp,p);usleep(150_000)}
+func click(_ p:CGPoint,_ button:MouseButton = .left){unobstructed(p);post(.mouseMoved,p);usleep(80_000);post(button.down,p);usleep(70_000);post(button.up,p);usleep(150_000)}
 // Keys go to whichever app is focused, so they wait until this one is: otherwise exit 3, as for a covered click.
 func focused()->pid_t?{var value:CFTypeRef?;guard AXUIElementCopyAttributeValue(AXUIElementCreateSystemWide(),kAXFocusedApplicationAttribute as CFString,&value) == .success,let value else{return nil};var owner:pid_t=0;AXUIElementGetPid(value as! AXUIElement,&owner);return owner}
 func requireFocus(){for _ in 0..<10{if focused()==pid{return};NSRunningApplication(processIdentifier:pid)?.activate(options:[.activateAllWindows]);usleep(200_000)}
@@ -189,6 +193,10 @@ case "click-at","drag-across":
 // A wheel turn of the given lines over a named element's centre, as a person scrolls a pane by pointing anywhere in it.
 case "wheel":guard let lines=Int32(b),abs(lines)<=20 else{fputs("Scroll lines must be a whole number from -20 to 20, found \(b)\n",stderr);exit(1)};unambiguous(a);let p=center(element(a),a);unobstructed(p);post(.mouseMoved,p);usleep(80_000);let event=made(CGEvent(scrollWheelEvent2Source:source,units:.line,wheelCount:1,wheel1:lines,wheel2:0,wheel3:0),"scroll");event.location=p;event.post(tap:.cghidEventTap);usleep(300_000)
 case "click-square":click(center(square(a),a))
+// The right button, with the same exact-name and unambiguous rules as "click": a right-click on one named element, or a
+// right-drag from the centre of one to the centre of another (the board's squares are named "board-square-e2").
+case "right-click":unambiguous(a);let e=element(a);reveal(e);click(center(e,a),.right)
+case "right-drag":guard !b.isEmpty else{fputs("Usage: right-drag <from> <to>\n",stderr);exit(1)};unambiguous(a);unambiguous(b);let from=element(a);reveal(from);gesture(from:center(from,a),to:center(element(b),b),.right)
 // Press a square and drift by the given distance before releasing, as a slightly moving trackpad click does.
 case "drift-square":guard let d=Double(b),d.isFinite,abs(d)<=1000 else{fputs("Drift distance must be a number of points from -1000 to 1000, found \(b)\n",stderr);exit(1)};let p=center(square(a),a);gesture(from:p,to:CGPoint(x:p.x+d,y:p.y+d*0.3))
 case "drag-square":gesture(from:center(square(a),a),to:center(square(b),b))
