@@ -3,7 +3,7 @@
 Every action is a posted mouse event (accessibility presses bypass hit-testing): the library entries, square
 selection with Submit and None, a clicked and a dragged move, Hint, Try again, Back to training, and Pawn Duel
 opened from the library with its level picker (the levels calibration offers, shown as Gentle, Steady and Strong) and
-"Start a New Game at" the chosen level. The app runs with its own automation identifier and data directory, training enabled.
+"Start a New Game at" the chosen level, then its side picker set to Black and a clicked move as Black. The app runs with its own automation identifier and data directory, training enabled.
 """
 import atexit
 import json
@@ -274,6 +274,19 @@ try:
     wait(lambda: (duel().get("level") or {}).get("profile") == "beginner" and not duel().get("history"), "Start a New Game at Gentle did not start one at it")
     wait(lambda: "mini-new-level" not in listing(), "The new game still offered another one")
     level_picker = True
+    # The side picker (L-23): Black, chosen before any move, starts a game at once in which the computer opens as White
+    # and the learner's clicks move Black's pawns.
+    wait(lambda: "mini-side" in listing(), "Pawn Duel against the computer did not offer the side picker")
+    pointer("select-popup", "mini-side", "Black")
+    wait(lambda: (saved().get("settings") or {}).get("miniLearnerSides", {}).get("pawn-duel") == "b", "The chosen side was not saved")
+    wait(lambda: ((saved().get("miniGameRecords") or {}).get("pawn-duel") or {}).get("side", {}).get("side") == "b", "The new game was not recorded as played from Black")
+    assert "mini-new-side" not in listing(), "A game with no move offered a new game instead of starting one"
+    wait(lambda: len(duel().get("history", [])) == 1, "The computer did not open as White")
+    pointer("click-square", "b7")
+    pointer("click-square", "b6")
+    wait(lambda: label("b6").startswith("b6, Black, pawn"), "A clicked move as Black did not land")
+    wait(lambda: len(duel().get("history", [])) == 3, "The computer did not reply to the move as Black")
+    side_picker = True
     pointer("click", "Back to Training")
     wait(lambda: "training-entry-pawn-duel" in listing(), "Back to training did not return to the library")
     legacy_from_library = True
@@ -312,7 +325,7 @@ try:
     resumed_after_quit = True
 
     result = {"passed": True, "pilotEntries": pilot, "drillDragAndClick": drill_dragged, "selectionSubmit": selection_submitted,
-              "hintRecordedHelp": hint_recorded, "legacyFromLibrary": legacy_from_library, "levelPicker": level_picker, "suggestionPractised": suggestion_practised, "resumedAfterQuit": resumed_after_quit}
+              "hintRecordedHelp": hint_recorded, "legacyFromLibrary": legacy_from_library, "levelPicker": level_picker, "sidePickerPlayedBlack": side_picker, "suggestionPractised": suggestion_practised, "resumedAfterQuit": resumed_after_quit}
     (evidence / "training-pointer-results.json").write_text(json.dumps(result, indent=2))
     print(json.dumps(result))
 except Exception:
