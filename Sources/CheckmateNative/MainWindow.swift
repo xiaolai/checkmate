@@ -15,6 +15,9 @@ final class BoardWindow:NSWindow {
         if item.action == #selector(undo(_:)),let controller=windowController as? GameWindow{return controller.validateMenuItem(item)}
         return super.validateMenuItem(item)
     }
+    /// File ▸ Close (⌘W) and the close button ask the delegate here: AppKit's own performClose plays the alert sound
+    /// when the close is refused, and a refusal here only means Quit's questions were answered with Cancel.
+    override func performClose(_ sender:Any?){if delegate?.windowShouldClose?(self)==false{return};close()}
     var drawerViewport:NSRect?,drawerOrigins:ClosedRange<CGFloat>?
     override func setFrame(_ frameRect:NSRect,display flag:Bool){var frame=frameRect;if let available=drawerViewport{frame.origin.x=max(available.minX,min(available.maxX-frame.width,frame.minX));frame.origin.y=max(available.minY,min(available.maxY-frame.height,frame.minY))};if let range=drawerOrigins{frame.origin.x=max(range.lowerBound,min(range.upperBound,frame.minX))};super.setFrame(frame,display:flag)}
 }

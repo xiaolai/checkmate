@@ -50,6 +50,9 @@ import CheckmateCore
     func testCloseReachesTheWindowAndQuits()throws {try withMenus{_,game,_ in
         let close=try XCTUnwrap(item("Close",in:"File")),window=try XCTUnwrap(game.window),action=try XCTUnwrap(close.action);var quits=0
         XCTAssertTrue(window.delegate===game);XCTAssertTrue(window.styleMask.contains(.closable));game.quit={quits+=1}
+        // AppKit's performClose plays the alert sound when the close is refused; the board window asks itself, silently.
+        XCTAssertTrue(window is BoardWindow);let own=#selector(NSWindow.performClose(_:))
+        XCTAssertNotEqual(BoardWindow.instanceMethod(for:own),NSWindow.instanceMethod(for:own),"Close would go through AppKit's refusal, which beeps")
         XCTAssertTrue(NSApp.sendAction(action,to:window,from:close),"⌘W is not delivered to the window")
         XCTAssertEqual(quits,1,"⌘W did not reach windowShouldClose")
     }}
