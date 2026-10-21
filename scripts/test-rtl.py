@@ -23,7 +23,9 @@ helpers = {}
 for name in ("pointer-helper", "ax-helper", "board-click-helper"):
     helpers[name] = evidence / name
     subprocess.run(["xcrun", "swiftc", str(root / "Tools" / (name + ".swift")), "-o", str(helpers[name])], check=True)
-right_to_left = ["-AppleLanguages", "(ar)", "-NSForceRightToLeftWritingDirection", "YES"]
+# Xcode's Right-to-Left Pseudolanguage: AppleTextDirection mirrors the layout, NSForceRightToLeftWritingDirection the
+# text. Arabic alone does nothing while the app has no Arabic localization.
+right_to_left = ["-AppleLanguages", "(ar)", "-AppleTextDirection", "YES", "-NSForceRightToLeftWritingDirection", "YES"]
 command = [str(root / "build/CheckmateAutomation.app/Contents/MacOS/CheckmateNative"), "--automation"]
 environment = {key: value for key, value in os.environ.items() if key != "CHECKMATE_AUTOMATION"}
 state = pathlib.Path(tempfile.mkdtemp(prefix="checkmate-rtl-state-"))
@@ -59,8 +61,9 @@ def wait(predicate, message, timeout=15):
 
 
 def title_text():
-    """The board-area title is the static text that names the activity and its players, as "Practice · …"."""
-    found = re.findall(r"^AXStaticText: (Practice · [^|\n]+?)(?: \||$)", listing(), re.M)
+    """The board-area title is the static text that names the activity and its players, as "Practice · …"; its
+    accessibility label is "Current activity"."""
+    found = re.findall(r"^AXStaticText: Current activity \| (Practice · [^|\n]+?)(?: \||$)", listing(), re.M)
     assert found, "The board-area title was not found"
     return found[0]
 
@@ -101,12 +104,14 @@ def scenario():
     sidebar, details = frame("frame", "The Pawn"), frame("frame", "practice-heading")
     title = frame("frame", title_text())
     results["frames"] = {"boardClosed": closed, "board": board, "window": window, "sidebar": sidebar, "details": details, "title": title}
-    check("boardSquare", abs(board["w"] - board["h"]) <= 1, board)
+    # "Chessboard" is the board area around the grid; the eight-by-eight grid of squares is what stays square.
+    a1, h1, a8 = frame("square-frame", "a1"), frame("square-frame", "h1"), frame("square-frame", "a8")
+    grid = {"w": h1["maxX"] - a1["x"], "h": a1["y"] + a1["h"] - a8["y"]}
+    check("boardSquare", abs(grid["w"] - grid["h"]) <= 1, grid)
     check("boardKeptItsPlace", abs(board["x"] - closed["x"]) <= 1 and abs(board["w"] - closed["w"]) <= 1, {"closed": closed, "open": board})
     check("sidebarOnTheRight", sidebar["x"] >= board["maxX"] and sidebar["maxX"] <= window["maxX"], {"sidebar": sidebar, "board": board})
     check("detailsOnTheLeft", details["maxX"] <= board["x"] and details["x"] >= window["x"], {"details": details, "board": board})
     check("titleCentred", abs(title["midX"] - board["midX"]) <= 2, {"title": title, "board": board})
-    a1, h1, a8 = frame("square-frame", "a1"), frame("square-frame", "h1"), frame("square-frame", "a8")
     check("boardNotMirrored", a1["x"] < h1["x"] and a1["y"] > a8["y"] and a1["x"] <= board["x"] + a1["w"], {"a1": a1, "h1": h1, "a8": a8})
     subprocess.run(["screencapture", "-x", str(evidence / "rtl-window.png")], check=True)
     pointer("click-square", "e2")
