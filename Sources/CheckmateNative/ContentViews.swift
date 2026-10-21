@@ -209,7 +209,8 @@ struct DetailContent:View {
             // The title toggles too; by default only the chevron does.
             DisclosureGroup(isExpanded:$lessonGoalsShown){ForEach(learning.teaches,id:\.self){Text($0)}} label:{Text("In this lesson").contentShape(Rectangle()).onTapGesture{lessonGoalsShown.toggle()}}
             if session.state.course.completed.contains(learning.current.id),let title=learning.checkYourselfTitle(index:learning.lessonIndex) {Button(title){model.checkYourself(learning.lessonIndex)}.disabled(!model.fairness.engineHelpAllowed).accessibilityIdentifier("lesson-check-yourself")}
-            if session.state.course.completed.contains(learning.current.id),let next=learning.library.nextMainLesson(after:learning.lessonIndex) {Button("Continue to \(learning.localizedTitle(index:next))"){model.continueLesson()}}
+            // On an exercise step the attempt panel carries the one Continue button.
+            if !learning.attemptStep,session.state.course.completed.contains(learning.current.id),let next=learning.library.nextMainLesson(after:learning.lessonIndex) {Button("Continue to \(learning.localizedTitle(index:next))"){model.continueLesson()}}
             if CourseCompleteCard.shown(learning) {
                 GroupBox {VStack(alignment:.leading,spacing:Metrics.smallGap){
                     Text(CourseCompleteCard.title).sectionHeading()
