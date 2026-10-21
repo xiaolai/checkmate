@@ -86,7 +86,38 @@ import CheckmateCore
         // A count among several varies only its own words, through a catalog substitution.
         XCTAssertEqual(String(localized:"\(0) of \(1) moves could not be analyzed.",bundle:.checkmate),"0 of 1 move could not be analyzed.")
         XCTAssertEqual(String(localized:"\(1) operations · \(2) sessions",bundle:.checkmate),"1 operation · 2 sessions")
-        XCTAssertEqual(String(localized:"Move the \("white") \("rook") from \("a1") to \("a8") in at most \(1) moves.",bundle:.checkmate),"Move the white rook from a1 to a8 in at most 1 move.")
+        XCTAssertEqual(String(localized:"Move \("the white rook") from \("a1") to \("a8") in at most \(1) moves.",bundle:.checkmate),"Move the white rook from a1 to a8 in at most 1 move.")
+    }
+
+    /// A piece named by color and kind is one key for each color and kind, and the English reads as it did when the
+    /// color and the piece were separate words.
+    func testPieceNamesByColorKeepTheirEnglish()throws {
+        XCTAssertEqual(PieceName.the("w","n"),"the white knight");XCTAssertEqual(PieceName.the("b","q"),"the black queen");XCTAssertEqual(PieceName.the("W",nil),"the white piece")
+        XCTAssertEqual(PieceName.named("w","r"),"White rook");XCTAssertEqual(PieceName.named("b","k"),"Black king")
+        XCTAssertEqual(PieceName.listed("w","p"),"White, pawn");XCTAssertEqual(PieceName.listed("b","B"),"Black, bishop")
+        XCTAssertEqual(RelationshipInspection.label(color:"w",piece:"n",square:"f3"),"White knight on f3");XCTAssertEqual(RelationshipInspection.label(color:"b",piece:"q",square:"d8"),"Black queen on d8")
+        let mate=try ReviewExplanation.make(document:PGNImporter.parse(Data("1. f3 e5 2. g4 Qh4# 0-1".utf8))[0],node:0)
+        XCTAssertEqual(mate.takeaways.first,"The final White king has no legal answer to check. Replay the last moves to see how its escape squares disappeared.")
+        // Generated training text, against English templates written out here.
+        let names=["p":"pawn","n":"knight","b":"bishop","r":"rook","q":"queen","k":"king"],kinds=["p","n","b","r","q","k"]
+        func the(_ piece:String)->String {"the \(piece.first=="w" ? "white":"black") \(names[String(piece.last!)]!)"}
+        var reached=0,occupied=0,empty=0
+        for seed in 0..<60 {
+            for color:Character in ["w","b"] {
+                if let s=TrainingGenerator.reachTarget(seed:UInt64(seed),tier:1+seed%3,color:color,piece:kinds[seed%6]),let d=s.drill,let budget=s.budget {
+                    XCTAssertEqual(s.prompt,s.shortest==true ? "Move \(the(d.piece)) from \(d.start) to \(d.target) in the fewest moves: \(budget).":"Move \(the(d.piece)) from \(d.start) to \(d.target) in at most \(budget) move\(budget==1 ? "":"s").");reached+=1
+                }
+                let side=color=="w" ? "White":"Black"
+                for defenders in [false,true] {
+                    guard let s=defenders ? TrainingGenerator.findDefenders(seed:UInt64(seed),tier:1+seed%3,color:color):TrainingGenerator.findAttackers(seed:UInt64(seed),tier:1+seed%3,color:color),let target=s.target,let board=s.diagram else{continue}
+                    let on=board[target].map{" (\(the($0)))"} ?? "";if !on.isEmpty{occupied+=1}
+                    XCTAssertEqual(s.prompt,defenders ? "Select every \(side) piece that protects the piece on \(target)\(on). Choose None if nothing protects it.":"Select every \(side) piece that attacks \(target)\(on). Choose None if no \(side) piece attacks it.")
+                    XCTAssertEqual(s.hints,[defenders ? "Which other \(side) pieces attack \(target)? Follow their lines and jumps; a line stops at the first piece in the way. A pinned piece or a king still counts as protecting here.":"Follow each \(side) piece's lines and jumps. A line stops at the first piece in the way; a pinned piece still attacks."])
+                    if s.expected?.squares?.isEmpty==true {XCTAssertEqual(s.explanation,"No \(side) piece \(defenders ? "protects":"attacks") \(target).");empty+=1}
+                }
+            }
+        }
+        XCTAssertGreaterThan(reached,20);XCTAssertGreaterThan(occupied,20);XCTAssertGreaterThan(empty,0,"the seeds reach every form pinned here")
     }
 }
 

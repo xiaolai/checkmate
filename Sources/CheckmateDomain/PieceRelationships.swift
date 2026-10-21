@@ -39,7 +39,7 @@ public struct RelationshipInspection:Codable,Equatable {
     public let relations:[PieceRelationship]
     public var selectedLabel:String {Self.label(color:color,piece:piece,square:square)}
     /// "White knight on f3": a piece by side, kind and square, as the relationship list and the board name it.
-    public static func label(color:String,piece:String,square:String)->String {String(localized:"\(PieceName.side(color)) \(PieceName.of(piece)) on \(square)",bundle:.checkmate,comment:"A piece by side, kind and square, such as White knight on f3")}
+    public static func label(color:String,piece:String,square:String)->String {String(localized:"\(PieceName.named(color,piece)) on \(square)",bundle:.checkmate,comment:"A piece by side and kind, then its square, such as White knight on f3")}
     public var emptyMessage:String {mode == .protected ? String(localized:"No friendly piece covers this piece’s square or can recapture a current legal capture.",bundle:.checkmate):String(localized:"No opposing piece attacks this piece in the displayed position.",bundle:.checkmate)}
     public var note:String {
         if !legalContext{return String(localized:"Diagram coverage only: this board does not supply a full legal position and turn.",bundle:.checkmate)}

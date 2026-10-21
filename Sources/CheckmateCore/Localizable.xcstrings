@@ -24,17 +24,6 @@
         }
       }
     },
-    "%@ %@ on %@" : {
-      "comment" : "A piece by side, kind and square, such as White knight on f3",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$@ %2$@ on %3$@"
-          }
-        }
-      }
-    },
     "%@ %@ to %@, capturing the %@ on %@." : {
       "comment" : "A move described: the piece, its squares, what it captured",
       "localizations" : {
@@ -228,6 +217,17 @@
     "%@ offered a draw." : {},
     "%@ offers a draw" : {},
     "%@ offers a draw." : {},
+    "%@ on %@" : {
+      "comment" : "A piece by side and kind, then its square, such as White knight on f3",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ on %2$@"
+          }
+        }
+      }
+    },
     "%@ or %@" : {
       "comment" : "Two alternatives inside a sentence, such as two moves",
       "localizations" : {
@@ -1550,10 +1550,31 @@
     "Bishop" : {},
     "Bishops" : {},
     "Black" : {},
+    "Black bishop" : {
+      "comment" : "A piece by side and kind, opening a label, as in: Black bishop on c5"
+    },
     "Black is better" : {},
     "Black is slightly better" : {},
     "Black is winning" : {},
+    "Black king" : {
+      "comment" : "A piece by side and kind, opening a label, as in: Black king on e8"
+    },
+    "Black knight" : {
+      "comment" : "A piece by side and kind, opening a label, as in: Black knight on f6"
+    },
+    "Black pawn" : {
+      "comment" : "A piece by side and kind, opening a label, as in: Black pawn on e5"
+    },
+    "Black piece" : {
+      "comment" : "A piece by side, opening a label, when its kind is unknown"
+    },
     "Black played %@." : {},
+    "Black queen" : {
+      "comment" : "A piece by side and kind, opening a label, as in: Black queen on d8"
+    },
+    "Black rook" : {
+      "comment" : "A piece by side and kind, opening a label, as in: Black rook on a8"
+    },
     "Black to move" : {},
     "Black to move · Check" : {},
     "Black vs Stockfish" : {},
@@ -1561,6 +1582,27 @@
     "Black wins!" : {},
     "Black won" : {},
     "Black's assistance" : {},
+    "Black, bishop" : {
+      "comment" : "The piece on a board square, in VoiceOver's comma-separated description of the square: side, then kind"
+    },
+    "Black, king" : {
+      "comment" : "The piece on a board square, in VoiceOver's comma-separated description of the square: side, then kind"
+    },
+    "Black, knight" : {
+      "comment" : "The piece on a board square, in VoiceOver's comma-separated description of the square: side, then kind"
+    },
+    "Black, pawn" : {
+      "comment" : "The piece on a board square, in VoiceOver's comma-separated description of the square: side, then kind"
+    },
+    "Black, piece" : {
+      "comment" : "The piece on a board square, in VoiceOver's comma-separated description of the square, when its kind is unknown"
+    },
+    "Black, queen" : {
+      "comment" : "The piece on a board square, in VoiceOver's comma-separated description of the square: side, then kind"
+    },
+    "Black, rook" : {
+      "comment" : "The piece on a board square, in VoiceOver's comma-separated description of the square: side, then kind"
+    },
     "Block the line" : {},
     "Blunder" : {},
     "Board insight" : {},
@@ -2111,7 +2153,8 @@
     "First steps" : {},
     "First steps gives more opportunities to practice. You can always use hints or take back a move." : {},
     "Flip Board" : {},
-    "Follow each %@ piece's lines and jumps. A line stops at the first piece in the way; a pinned piece still attacks." : {},
+    "Follow each Black piece's lines and jumps. A line stops at the first piece in the way; a pinned piece still attacks." : {},
+    "Follow each White piece's lines and jumps. A line stops at the first piece in the way; a pinned piece still attacks." : {},
     "Follow every line into the square and see which pieces could capture there." : {},
     "For each piece, ask whether a piece of its own side could capture back if it were taken." : {},
     "Free pieces" : {},
@@ -2518,6 +2561,40 @@
     "Move" : {
       "comment" : "Noun: one move in a chess game"
     },
+    "Move %@ from %@ to %@ in at most %lld moves." : {
+      "comment" : "A training prompt: the piece, as in the white knight, its start and target squares, then the most moves allowed",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Move %1$@ from %2$@ to %3$@ in at most %4$lld move."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Move %1$@ from %2$@ to %3$@ in at most %4$lld moves."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Move %@ from %@ to %@ in the fewest moves: %lld." : {
+      "comment" : "A training prompt: the piece, as in the white knight, its start and target squares, then the number of moves",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Move %1$@ from %2$@ to %3$@ in the fewest moves: %4$lld."
+          }
+        }
+      }
+    },
     "Move %lld, %@–%@: this move let %@ force a win in %lld moves." : {
       "comment" : "The second and third values are board squares; the fourth is a side, such as White",
       "localizations" : {
@@ -2655,38 +2732,6 @@
     "Move sound could not play." : {},
     "Move sounds" : {},
     "Move taken back." : {},
-    "Move the %@ %@ from %@ to %@ in at most %lld moves." : {
-      "localizations" : {
-        "en" : {
-          "variations" : {
-            "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Move the %1$@ %2$@ from %3$@ to %4$@ in at most %5$lld move."
-                }
-              },
-              "other" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Move the %1$@ %2$@ from %3$@ to %4$@ in at most %5$lld moves."
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "Move the %@ %@ from %@ to %@ in the fewest moves: %lld." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Move the %1$@ %2$@ from %3$@ to %4$@ in the fewest moves: %5$lld."
-          }
-        }
-      }
-    },
     "Move the highlighted king one step at a time." : {},
     "Move the highlighted piece." : {},
     "Movement practice · only the marked piece moves" : {},
@@ -2768,27 +2813,11 @@
         }
       }
     },
-    "No %@ piece attacks %@." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "No %1$@ piece attacks %2$@."
-          }
-        }
-      }
-    },
-    "No %@ piece protects %@." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "No %1$@ piece protects %2$@."
-          }
-        }
-      }
-    },
+    "No Black piece attacks %@." : {},
+    "No Black piece protects %@." : {},
     "No Squares" : {},
+    "No White piece attacks %@." : {},
+    "No White piece protects %@." : {},
     "No collections yet" : {},
     "No en passant. Pawns stay pawns at the far rank." : {},
     "No exercises match these filters." : {},
@@ -3349,48 +3378,54 @@
     "Select All" : {},
     "Select a language, then translate a lesson." : {},
     "Select a piece, then a destination to test your idea." : {},
-    "Select every %@ piece that attacks %@ (the %@ %@). Choose None if no %@ piece attacks it." : {
-      "comment" : "A training prompt: the side, the square, then the side and kind of the piece on it",
+    "Select every Black piece that attacks %@ (%@). Choose None if no Black piece attacks it." : {
+      "comment" : "A training prompt: the square, then the piece on it, as in the white knight",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Select every %1$@ piece that attacks %2$@ (the %3$@ %4$@). Choose None if no %5$@ piece attacks it."
+            "value" : "Select every Black piece that attacks %1$@ (%2$@). Choose None if no Black piece attacks it."
           }
         }
       }
     },
-    "Select every %@ piece that attacks %@. Choose None if no %@ piece attacks it." : {
+    "Select every Black piece that attacks %@. Choose None if no Black piece attacks it." : {},
+    "Select every Black piece that protects the piece on %@ (%@). Choose None if nothing protects it." : {
+      "comment" : "A training prompt: the square, then the piece on it, as in the black knight",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Select every %1$@ piece that attacks %2$@. Choose None if no %3$@ piece attacks it."
+            "value" : "Select every Black piece that protects the piece on %1$@ (%2$@). Choose None if nothing protects it."
           }
         }
       }
     },
-    "Select every %@ piece that protects the piece on %@ (the %@ %@). Choose None if nothing protects it." : {
-      "comment" : "A training prompt: the side, the square, then the side and kind of the piece on it",
+    "Select every Black piece that protects the piece on %@. Choose None if nothing protects it." : {},
+    "Select every White piece that attacks %@ (%@). Choose None if no White piece attacks it." : {
+      "comment" : "A training prompt: the square, then the piece on it, as in the black knight",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Select every %1$@ piece that protects the piece on %2$@ (the %3$@ %4$@). Choose None if nothing protects it."
+            "value" : "Select every White piece that attacks %1$@ (%2$@). Choose None if no White piece attacks it."
           }
         }
       }
     },
-    "Select every %@ piece that protects the piece on %@. Choose None if nothing protects it." : {
+    "Select every White piece that attacks %@. Choose None if no White piece attacks it." : {},
+    "Select every White piece that protects the piece on %@ (%@). Choose None if nothing protects it." : {
+      "comment" : "A training prompt: the square, then the piece on it, as in the white knight",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Select every %1$@ piece that protects the piece on %2$@. Choose None if nothing protects it."
+            "value" : "Select every White piece that protects the piece on %1$@ (%2$@). Choose None if nothing protects it."
           }
         }
       }
     },
+    "Select every White piece that protects the piece on %@. Choose None if nothing protects it." : {},
     "Select one of your movable pieces." : {},
     "Select one of your own pieces." : {},
     "Selected" : {},
@@ -3689,7 +3724,8 @@
     "The file has more than %lld games; split it into smaller files." : {},
     "The file is empty." : {},
     "The file is not readable text." : {},
-    "The final %@ king has no legal answer to check. Replay the last moves to see how its escape squares disappeared." : {},
+    "The final Black king has no legal answer to check. Replay the last moves to see how its escape squares disappeared." : {},
+    "The final White king has no legal answer to check. Replay the last moves to see how its escape squares disappeared." : {},
     "The final position is stalemate. When ahead, leave the opposing king a legal move unless your move gives checkmate." : {},
     "The game could not be exported. Choose another location." : {},
     "The game could not be set up." : {},
@@ -4276,22 +4312,35 @@
     "Where echo cancellation is available, speak to interrupt the coach; otherwise the microphone pauses while the coach speaks. Assisted moves require your spoken request." : {},
     "Which check leaves the king no square, no block and no capture?" : {},
     "Which of your opponent's checks would be mate?" : {},
-    "Which other %@ pieces attack %@? Follow their lines and jumps; a line stops at the first piece in the way. A pinned piece or a king still counts as protecting here." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Which other %1$@ pieces attack %2$@? Follow their lines and jumps; a line stops at the first piece in the way. A pinned piece or a king still counts as protecting here."
-          }
-        }
-      }
-    },
+    "Which other Black pieces attack %@? Follow their lines and jumps; a line stops at the first piece in the way. A pinned piece or a king still counts as protecting here." : {},
+    "Which other White pieces attack %@? Follow their lines and jumps; a line stops at the first piece in the way. A pinned piece or a king still counts as protecting here." : {},
     "White" : {},
+    "White bishop" : {
+      "comment" : "A piece by side and kind, opening a label, as in: White bishop on c4"
+    },
     "White has no pawns left, so this can no longer happen in this game. Undo your moves or start again." : {},
     "White is better" : {},
     "White is slightly better" : {},
     "White is winning" : {},
+    "White king" : {
+      "comment" : "A piece by side and kind, opening a label, as in: White king on e1"
+    },
+    "White knight" : {
+      "comment" : "A piece by side and kind, opening a label, as in: White knight on f3"
+    },
+    "White pawn" : {
+      "comment" : "A piece by side and kind, opening a label, as in: White pawn on e4"
+    },
+    "White piece" : {
+      "comment" : "A piece by side, opening a label, when its kind is unknown"
+    },
     "White played %@." : {},
+    "White queen" : {
+      "comment" : "A piece by side and kind, opening a label, as in: White queen on d1"
+    },
+    "White rook" : {
+      "comment" : "A piece by side and kind, opening a label, as in: White rook on a1"
+    },
     "White to move" : {},
     "White to move · Check" : {},
     "White vs Stockfish" : {},
@@ -4299,6 +4348,27 @@
     "White wins!" : {},
     "White won" : {},
     "White's assistance" : {},
+    "White, bishop" : {
+      "comment" : "The piece on a board square, in VoiceOver's comma-separated description of the square: side, then kind"
+    },
+    "White, king" : {
+      "comment" : "The piece on a board square, in VoiceOver's comma-separated description of the square: side, then kind"
+    },
+    "White, knight" : {
+      "comment" : "The piece on a board square, in VoiceOver's comma-separated description of the square: side, then kind"
+    },
+    "White, pawn" : {
+      "comment" : "The piece on a board square, in VoiceOver's comma-separated description of the square: side, then kind"
+    },
+    "White, piece" : {
+      "comment" : "The piece on a board square, in VoiceOver's comma-separated description of the square, when its kind is unknown"
+    },
+    "White, queen" : {
+      "comment" : "The piece on a board square, in VoiceOver's comma-separated description of the square: side, then kind"
+    },
+    "White, rook" : {
+      "comment" : "The piece on a board square, in VoiceOver's comma-separated description of the square: side, then kind"
+    },
     "Why?" : {},
     "Win with a fork" : {},
     "Win with a pin" : {},
@@ -4585,9 +4655,6 @@
     "bishops" : {
       "comment" : "Two or more pieces of one kind, inside a sentence"
     },
-    "black" : {
-      "comment" : "A piece's color inside a sentence, as in the black rook"
-    },
     "blocking the attack" : {},
     "board insight" : {
       "comment" : "Assistance level inside a sentence"
@@ -4858,6 +4925,27 @@
     "the accepted moves are exactly those that allow no mate in one" : {},
     "the answer set differs from the geometry: %@" : {},
     "the answer set differs from the oracle" : {},
+    "the black bishop" : {
+      "comment" : "A piece by color and kind inside a sentence, as in: Move the black bishop from c8 to g4"
+    },
+    "the black king" : {
+      "comment" : "A piece by color and kind inside a sentence, as in: Move the black king from e8 to e7"
+    },
+    "the black knight" : {
+      "comment" : "A piece by color and kind inside a sentence, as in: Move the black knight from b8 to c6"
+    },
+    "the black pawn" : {
+      "comment" : "A piece by color and kind inside a sentence, as in: Move the black pawn from e7 to e5"
+    },
+    "the black piece" : {
+      "comment" : "A piece by color inside a sentence, when its kind is unknown"
+    },
+    "the black queen" : {
+      "comment" : "A piece by color and kind inside a sentence, as in: Move the black queen from d8 to h4"
+    },
+    "the black rook" : {
+      "comment" : "A piece by color and kind inside a sentence, as in: Move the black rook from a8 to a1"
+    },
     "the classification differs from the oracle" : {},
     "the context moves must end with the pawn's two-square step" : {},
     "the context moves must show the king or rook moving" : {},
@@ -4882,6 +4970,27 @@
     "the stated line starts with the learner's capture" : {},
     "the target must be one of the learner's pieces, not the king" : {},
     "the teaching graph names an illegal root move" : {},
+    "the white bishop" : {
+      "comment" : "A piece by color and kind inside a sentence, as in: Move the white bishop from c1 to g5"
+    },
+    "the white king" : {
+      "comment" : "A piece by color and kind inside a sentence, as in: Move the white king from e1 to e2"
+    },
+    "the white knight" : {
+      "comment" : "A piece by color and kind inside a sentence, as in: Move the white knight from b1 to c3"
+    },
+    "the white pawn" : {
+      "comment" : "A piece by color and kind inside a sentence, as in: Move the white pawn from e2 to e4"
+    },
+    "the white piece" : {
+      "comment" : "A piece by color inside a sentence, when its kind is unknown"
+    },
+    "the white queen" : {
+      "comment" : "A piece by color and kind inside a sentence, as in: Move the white queen from d1 to h5"
+    },
+    "the white rook" : {
+      "comment" : "A piece by color and kind inside a sentence, as in: Move the white rook from a1 to a8"
+    },
     "this objective belongs to increment %@" : {},
     "threefold repetition" : {
       "comment" : "A draw's reason, inside a sentence"
@@ -4919,9 +5028,6 @@
     },
     "variant %@ is graded by another evaluator" : {
       "comment" : "Why a training scenario is invalid; the variant is an identifier"
-    },
-    "white" : {
-      "comment" : "A piece's color inside a sentence, as in the white rook"
     },
     "with a mate in one available this is a mate-in-one task" : {},
     "your opponent" : {

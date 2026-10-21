@@ -61,7 +61,7 @@ public struct ReviewExplanation:Codable,Equatable {
         // The recorded result stays independent of the board; a confirmed contradiction is explained, never rewritten.
         let boardResult=finalStatus.checkmate ? (final.turn=="w" ? "0-1":"1-0"):finalStatus.stalemate ? "1/2-1/2":nil
         let contradiction=boardResult.flatMap{expected in document.result != "*" && document.result != expected ? String(localized:"The record states \(document.result), which differs from this final board; the original record is kept unchanged.",bundle:.checkmate):nil} ?? ""
-        if finalStatus.checkmate{takeaways.append(Sentences.join(String(localized:"The final \(PieceName.side(final.turn)) king has no legal answer to check. Replay the last moves to see how its escape squares disappeared.",bundle:.checkmate),contradiction))}
+        if finalStatus.checkmate{takeaways.append(Sentences.join((final.turn=="w" ? String(localized:"The final White king has no legal answer to check. Replay the last moves to see how its escape squares disappeared.",bundle:.checkmate):String(localized:"The final Black king has no legal answer to check. Replay the last moves to see how its escape squares disappeared.",bundle:.checkmate)),contradiction))}
         else if finalStatus.stalemate{takeaways.append(Sentences.join(String(localized:"The final position is stalemate. When ahead, leave the opposing king a legal move unless your move gives checkmate.",bundle:.checkmate),contradiction))}
         else if document.result=="*" {takeaways.append(String(localized:"The record stops with \(PieceName.side(final.turn)) to move. Start by inspecting the threats in that actual position.",bundle:.checkmate))}
         else {
