@@ -124,3 +124,13 @@ extension GameWindow {
         if let window{alert.beginSheetModal(for:window,completionHandler:handler)}else{handler(alert.runModal())}
     }
 }
+extension NSEvent {
+    /// A key press for the acceptance gates, with the characters and flags the keyboard sends. A press without its
+    /// characters matches any menu item that has no key with the same modifiers, such as the "Zoom All" alternate AppKit
+    /// adds to the Window menu, which then takes Option with an arrow before the board sees it.
+    static func keyboardKey(_ code:UInt16,_ modifiers:NSEvent.ModifierFlags=[],windowNumber:Int)->NSEvent {
+        let keys:[UInt16:(Int,NSEvent.ModifierFlags)]=[123:(NSLeftArrowFunctionKey,[.function,.numericPad]),124:(NSRightArrowFunctionKey,[.function,.numericPad]),125:(NSDownArrowFunctionKey,[.function,.numericPad]),126:(NSUpArrowFunctionKey,[.function,.numericPad]),115:(NSHomeFunctionKey,.function),119:(NSEndFunctionKey,.function),49:(32,[]),36:(13,[]),53:(27,[])]
+        guard let (character,flags)=keys[code],let scalar=UnicodeScalar(character) else{preconditionFailure("No keyboard characters for key code \(code)")}
+        return NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:modifiers.union(flags),timestamp:ProcessInfo.processInfo.systemUptime,windowNumber:windowNumber,context:nil,characters:String(Character(scalar)),charactersIgnoringModifiers:String(Character(scalar)),isARepeat:false,keyCode:code)!
+    }
+}

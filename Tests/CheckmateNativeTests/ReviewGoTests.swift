@@ -45,6 +45,23 @@ import CheckmateDomain
         XCTAssertFalse(game.validateMenuItem(next),"a text field keeps its arrow keys");typing.removeFromSuperview()
         game.window?.makeFirstResponder(game.board);game.goReview(next);XCTAssertEqual(model.review.nodeID,document.mainline[0])
     }
+    /// In an imagined line the board's own keys (Option with an arrow, Space, Return, Escape) pass every menu and reach
+    /// the board, which plays a move with them; the menus take only the Go keys. The Window menu carries the "Zoom All"
+    /// alternate AppKit adds to it (no key, Option), which a key press without its characters would match.
+    func testTheBoardsOwnKeysReachItPastEveryMenuInAnImaginedLine()throws {
+        let model=try NativeModel(),game=GameWindow(model:model),app=AppDelegate(),before=NSApp.mainMenu
+        defer{NSApp.mainMenu=before;game.window?.delegate=nil;model.shutdown()}
+        app.model=model;app.installMenus(window:game,model:model)
+        let windows=try XCTUnwrap(NSApp.windowsMenu),answer=ZoomAll(),zoomAll=NSMenuItem(title:"Zoom All",action:#selector(ZoomAll.zoomAll(_:)),keyEquivalent:"");zoomAll.keyEquivalentModifierMask = .option;zoomAll.isAlternate=true;zoomAll.target=answer;windows.addItem(zoomAll)
+        let document=try PGNImporter.parse(Data("1. e4 e5 *".utf8))[0];model.review.open(document,practice:model.session);try model.review.beginBranch();try model.review.selectSquare("e2");try model.review.selectSquare("e4")
+        game.refresh();game.window?.makeFirstResponder(game.board);game.board.focus="e4";let menu=try XCTUnwrap(NSApp.mainMenu),number=game.window!.windowNumber
+        func press(_ code:UInt16,_ modifiers:NSEvent.ModifierFlags=[])->Bool {let event=NSEvent.keyboardKey(code,modifiers,windowNumber:number);if menu.performKeyEquivalent(with:event){return true};game.board.keyDown(with:event);return false}
+        for (code,modifiers) in [(126,NSEvent.ModifierFlags.option),(126,.option),(126,.option),(49,[]),(125,.option),(125,.option),(36,[])] {XCTAssertFalse(press(UInt16(code),modifiers),"key \(code) \(modifiers.rawValue) went to a menu")}
+        XCTAssertEqual(model.review.board["e5"],"bp");XCTAssertEqual(model.review.branch?.moves.count,2,"Option-arrows, Space and Return play 1… e5")
+        XCTAssertFalse(press(53));XCTAssertTrue(press(123),"← is the Go menu's Previous Move");XCTAssertEqual(model.review.branchPly,1)
+    }
+    /// Answers the Window menu's "Zoom All" so it stays enabled, as AppKit's own one is.
+    private final class ZoomAll:NSObject {@objc func zoomAll(_ sender:Any?){}}
     /// R-8: the move list shows the record's variations, nested ones too, and kept ideas inline, each under the row of
     /// the move it replaces, rather than inside a disclosure.
     func testVariationsAndIdeasSitInlineUnderTheMoveTheyReplace()throws {
