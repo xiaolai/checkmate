@@ -94,7 +94,7 @@ struct DetailContent:View {
     let history:PracticeHistory
     let inspect:(RelationshipMode)->Void
     /// The practice drawer's heading, from the game shown: its result once it is over, Stockfish thinking, or whose move it is.
-    @MainActor static func practiceHeading(_ s:GameSession)->String {practiceHeading(result:s.finished ? s.state.practice.ending?.result ?? s.rules.ending?.result ?? "*":nil,learner:s.humanSide,thinking:s.busyReason=="opponent",learnerToMove:s.rules.turn==s.humanSide)}
+    @MainActor static func practiceHeading(_ s:GameSession)->String {practiceHeading(result:s.finished ? s.state.practice.ending?.result ?? s.rules.ending?.result ?? "*":nil,learner:s.humanSide,thinking:s.busyReason == .opponent,learnerToMove:s.rules.turn==s.humanSide)}
     /// `result` is the finished game's PGN result, nil while it is in play.
     static func practiceHeading(result:String?,learner:String,thinking:Bool,learnerToMove:Bool)->String {
         if let result {switch result {case "1/2-1/2":return "Drawn game";case "1-0","0-1":return result==(learner=="w" ? "1-0":"0-1") ? "You won":"You lost";default:return "Game over"}}

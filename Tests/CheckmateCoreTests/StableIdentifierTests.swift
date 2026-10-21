@@ -20,10 +20,13 @@ import CheckmateCore
     func testPuzzleFiltersRestoreIdentifiersAndOlderTitles() {
         XCTAssertEqual(PuzzleStatusFilter(stored:"review"),.review);XCTAssertEqual(PuzzleStatusFilter(stored:"To review"),.review)
         XCTAssertEqual(PuzzleStatusFilter(stored:"Unsolved"),.unsolved);XCTAssertEqual(PuzzleStatusFilter(stored:nil),.all);XCTAssertEqual(PuzzleStatusFilter(stored:"All"),.all)
-        let old=LearningPlayer.restored(["query":"fork","topic":"All topics","level":"All levels","status":"To review"])
-        XCTAssertEqual(old.0,"fork");XCTAssertNil(old.1);XCTAssertNil(old.2);XCTAssertEqual(old.3,.review)
-        let current=LearningPlayer.restored(["topic":"Pins","level":"Beginner","status":"unsolved"])
+        let topics=["Pins","Forks"],levels=["Beginner","Developing"]
+        let old=LearningPlayer.restored(["query":"fork","topic":"All topics","level":"All levels","status":"To review"],topics:topics,levels:levels)
+        XCTAssertEqual(old.0,"fork");XCTAssertNil(old.1,"an older save's every-topic word shows every topic");XCTAssertNil(old.2);XCTAssertEqual(old.3,.review)
+        let current=LearningPlayer.restored(["topic":"Pins","level":"Beginner","status":"unsolved"],topics:topics,levels:levels)
         XCTAssertEqual(current.1,"Pins");XCTAssertEqual(current.2,"Beginner");XCTAssertEqual(current.3,.unsolved)
+        let retired=LearningPlayer.restored(["topic":"Skewers","level":"Expert"],topics:topics,levels:levels)
+        XCTAssertNil(retired.1,"a topic the course no longer offers shows every puzzle");XCTAssertNil(retired.2);XCTAssertEqual(retired.3,.all)
     }
     /// The MCP projection still carries the same words, now from typed states.
     func testSessionStatesKeepTheirWireWords() {
@@ -31,9 +34,9 @@ import CheckmateCore
         XCTAssertEqual([PreviewStatus.choosing,.analyzing,.ready,.error].map(\.rawValue),["choosing","analyzing","ready","error"])
         XCTAssertEqual([BusyReason.opponent,.analysis].map(\.rawValue),["opponent","analysis"])
     }
-    func testAnIdleVoiceCoachHasNoStatusMessage()throws {
+    func testAnIdleVoiceCoachIsATypedStateNotAWord()throws {
         let coach=try VoiceCoach(session:try GameSession(engine:nil))
-        XCTAssertNil(coach.statusMessage,"idle is the absence of a message, not a word to compare");XCTAssertEqual(coach.status,"Disconnected")
+        XCTAssertEqual(coach.connection,.disconnected,"idle is a state to compare, not shown text");XCTAssertEqual(coach.status,"Disconnected")
     }
     func testPluralFormsAndListsAreWholeStrings() {
         XCTAssertEqual(Plural.count(1,one:"%d move",other:"%d moves"),"1 move");XCTAssertEqual(Plural.count(3,one:"%d move",other:"%d moves"),"3 moves")

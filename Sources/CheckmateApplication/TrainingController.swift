@@ -404,7 +404,7 @@ public struct PreparedTrainingExercise {
         do {
             switch state.definition.objective {
             case .reachTarget:if let drill=state.scenario.drill,let current=state.drillState,let distance=drill.distance(from:current){state.hintText=Plural.count(distance,one:"The shortest route from here takes %d more move.",other:"The shortest route from here takes %d more moves.")}
-            case .findAttackers,.findDefenders,.kingSafeSquares:let count=try correctSquares(state).count;state.hintText=count==0 ? "Think carefully: is there any at all?":"There \(count==1 ? "is":"are") \(count) to find."
+            case .findAttackers,.findDefenders,.kingSafeSquares:let count=try correctSquares(state).count;state.hintText=count==0 ? "Think carefully: is there any at all?":Plural.count(count,one:"There is %d to find.",other:"There are %d to find.")
             case .mateInOne:if let from=try state.legality?.matingMoves().sorted().first.map({String($0.prefix(2))}){state.hintSquares=[from];state.hintText="The highlighted piece can give checkmate."}
             case .escapeCheck:if let legality=state.legality{let board=try legality.board(),turn=try legality.turn();if let king=board.first(where:{$0.value==turn+"k"})?.key{state.hintSquares=TrainingGeometry.attackers(of:king,color:turn=="w" ? "b":"w",board:board).sorted();state.hintText="The highlighted piece is giving check: move away, block the line, or capture it."}}
             case .classifyStatus:if let legality=state.legality{state.hintText=try legality.status() == .check || legality.status() == .checkmate ? "The king to move is attacked right now.":"The king to move is not attacked right now."}

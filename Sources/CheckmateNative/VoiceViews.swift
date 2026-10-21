@@ -32,10 +32,10 @@ struct VoiceCoachCard:View {
         let unavailable=voice.practiceVoiceUnavailability
         if voice.connected {
             Text(voice.status).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
-            HStack{Button("Check That Again"){voice.recheck()}.accessibilityIdentifier("voice-recheck");Button("Stop Speaking"){voice.stopTurn()}.disabled(!voice.canStopTurn).accessibilityIdentifier("voice-stop");Button("Disconnect"){voice.disconnect()}.accessibilityIdentifier("voice-disconnect")}
+            VoiceCoachControls(voice:voice,idPrefix:"voice",actions:[.init(id:"recheck",title:"Check That Again"){voice.recheck()}])
         } else if voice.connecting {
             Text(voice.status).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
-            Button("Cancel"){voice.disconnect()}.accessibilityIdentifier("voice-cancel")
+            VoiceCoachControls(voice:voice,idPrefix:"voice")
         } else {
             if let failure=voice.failure {VoiceFailureNote(failure:failure,help:model.voiceHelp){model.connectPracticeVoice()}}
             else if !idle,voice.connection != .disconnected {Text(voice.status).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)}
@@ -44,7 +44,7 @@ struct VoiceCoachCard:View {
                 Text(VoiceUnavailability.codexMissing.message).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
                 Button(VoiceAction.getCodex.title){model.voiceHelp.perform(.getCodex){}}.accessibilityIdentifier("voice-get-codex")
             case .connect:
-                Button("Connect Voice Coach"){model.connectPracticeVoice()}.disabled(unavailable != nil).accessibilityIdentifier("voice-connect")
+                VoiceCoachControls(voice:voice,idPrefix:"voice"){model.connectPracticeVoice()}.disabled(unavailable != nil)
                 // V-9: a disabled control says why.
                 if let unavailable {Text(unavailable.message).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)}
             }
@@ -91,7 +91,7 @@ struct VoiceSettingsContent:View {
             else if let failure=voice.failure,!voice.connected,!voice.connecting{VoiceFailureNote(failure:failure,help:model.voiceHelp){model.connectVoiceFromSettings()}}
             HStack{
                 Button("Check Availability"){model.checkVoiceAvailability()}.disabled(voice.checkingAvailability || voice.connecting || voice.connected)
-                Button(voice.connected ? "Disconnect":voice.connecting ? "Cancel":"Connect"){if voice.connected || voice.connecting{voice.disconnect()}else{model.connectVoiceFromSettings()}}.disabled(session.companionEnabled)
+                VoiceCoachControls(voice:voice,idPrefix:"voice-settings"){model.connectVoiceFromSettings()}.disabled(session.companionEnabled)
             }
             // V-9: why a control is off.
             if session.companionEnabled{Text("Connect is off while Codex is connected to Checkmate. Turn off Allow Codex connections in Connections to use voice.").font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)}

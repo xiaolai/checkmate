@@ -61,7 +61,7 @@ import CheckmateCore
     func testOffTrackOffersOneProminentTakeBack()throws {
         let model=try NativeModel();defer{model.shutdown()}
         let castling=try index(model,"castling");model.lesson(castling);model.learning.pause();model.learning.goToAttempt()
-        XCTAssertEqual(bar(model).item(.attemptUndo)?.label,"Undo turn");XCTAssertEqual(bar(model).item(.attemptUndo)?.prominent,false)
+        XCTAssertEqual(bar(model).item(.attemptUndo)?.label,"Undo Turn");XCTAssertEqual(bar(model).item(.attemptUndo)?.prominent,false)
         model.learning.click("e1");model.learning.click("f1");XCTAssertEqual(model.learning.attempt.phase,.offTrack)
         let shown=bar(model);XCTAssertEqual(shown.trailing.map(\.action),[.attemptUndo,.attemptRestart])
         XCTAssertEqual(shown.item(.attemptUndo)?.label,"Take Back");XCTAssertEqual(shown.item(.attemptUndo)?.prominent,true);XCTAssertEqual(shown.item(.attemptUndo)?.enabled,true)
@@ -104,13 +104,13 @@ import CheckmateCore
         XCTAssertTrue(try XCTUnwrap(bar(model).item(.more)).menu.allSatisfy(\.enabled))
         let take=try XCTUnwrap(bar(model).item(.takeBack))
         XCTAssertEqual(ControlBarView.tooltip(take),"Take back move (⌘Z)");XCTAssertEqual(ControlBarView.tooltip(try XCTUnwrap(bar(model).item(.hint))),"Hint (⇧⌘H)")
-        XCTAssertEqual(ControlBarView.tooltip(try XCTUnwrap(bar(model).item(.newGame))),"New game… (⌘N)");XCTAssertEqual(ControlBarView.tooltip(try XCTUnwrap(bar(model).item(.tryMove))),"Try a move","no shortcut, no suffix")
+        XCTAssertEqual(ControlBarView.tooltip(try XCTUnwrap(bar(model).item(.newGame))),"New Game… (⌘N)");XCTAssertEqual(ControlBarView.tooltip(try XCTUnwrap(bar(model).item(.tryMove))),"Try a Move","no shortcut, no suffix")
         XCTAssertEqual(ControlBarView.tooltip(more.menu[0]),"Flip Board (⇧⌘F)")
         model.session.resign();XCTAssertEqual(bar(model).item(.more)?.menu.first{$0.action == .resign}?.enabled,false,"nothing left to resign")
     }
     /// B-5: the bar's Hint follows the step-by-step hint: the second request shows the move, and then there is no more.
     func testTheHintButtonFollowsTheHintStep(){
-        XCTAssertEqual(ControlBarModel.practiceHint(step:0,available:true),ControlBarItem(action:.hint,symbol:"lightbulb",label:"Hint",enabled:true))
+        XCTAssertEqual(ControlBarModel.practiceHint(step:0,available:true),ControlBarItem(action:.hint,symbol:.hint,label:"Hint",enabled:true))
         XCTAssertEqual(ControlBarModel.practiceHint(step:1,available:true).label,"Show Move");XCTAssertTrue(ControlBarModel.practiceHint(step:1,available:true).enabled)
         XCTAssertFalse(ControlBarModel.practiceHint(step:2,available:true).enabled,"the move is on the board");XCTAssertFalse(ControlBarModel.practiceHint(step:0,available:false).enabled)
     }

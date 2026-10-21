@@ -34,7 +34,7 @@ import CheckmateCore
         }
         XCTAssertNil(offending("Set Up Codex"));XCTAssertNil(offending("Export Saved File…"));XCTAssertEqual(offending("Return to game"),"game");XCTAssertEqual(offending("Practise here"),"here")
         var checked=0,failures:[String]=[]
-        for line in try sourceLines() {for title in matches(#"(?:\bButton|\bMenu|NSMenuItem\(title:|withTitle:|NSButton\(title:)\(?"([^"\\]+)""#,line.text) {
+        for line in try sourceLines() {for title in matches(#"(?:\bButton|\bMenu|NSMenuItem\(title:|withTitle:|NSButton\(title:|\baction:)\(?"([^"\\]+)""#,line.text) {
             checked+=1;if let word=offending(title){failures.append("\(line.file):\(line.line) \(title) (\(word))")}
         }}
         XCTAssertGreaterThan(checked,100,"the lint saw the app's commands")
@@ -50,6 +50,38 @@ import CheckmateCore
         for line in try sourceLines() {for pattern in patterns {for hit in matches(pattern,line.text) where !allowed.contains(where:{line.file==$0.file && ($0.fragment.isEmpty || hit.contains($0.fragment))}) {failures.append("\(line.file):\(line.line) \(hit)")}}}
         XCTAssertEqual(failures,[],"compare a typed identifier, and map it to text only in the view")
         XCTAssertFalse(matches(patterns[0],#"if label=="Return to game"{"#).isEmpty,"the scan catches a comparison")
+    }
+    /// Counted text is a whole format string per form (D-13): no English suffix or verb glued on by a count test.
+    func testCountedTextUsesWholeForms()throws {
+        let pattern=#"==\s*1\s*\?\s*"[A-Za-z]*"\s*:\s*"[A-Za-z]*""#
+        let failures=try sourceLines().filter{!matches(pattern,$0.text).isEmpty}.map{"\($0.file):\($0.line)"}
+        XCTAssertEqual(failures,[],"use Plural.count with a whole sentence for each form")
+        XCTAssertFalse(matches(pattern,#"\(n) move\(n==1 ? "":"s")"#).isEmpty,"the scan catches a glued suffix")
+    }
+    /// Shown text uses US spelling (D-16). A word inside a literal counts; identifiers, comments and one-word wire values
+    /// ("cancelled" in the MCP job states) do not. The calibration file is exempt: its text is part of the source hash
+    /// its recorded results were made against, so it changes only with a new calibration run.
+    func testShownTextUsesUSSpelling()throws {
+        let word=try NSRegularExpression(pattern:#"(?i)(?<=[ "])(?:colou?rs?|coloured|favou?rs?|centred?|practise[sd]?|labelled|cancelled|cancelling|behaviour|analyse[sd]?|defence|grey|licence|organis\w*|recognis\w*)(?=[ .,;:!?"])"#)
+        let british=try NSRegularExpression(pattern:#"(?i)colour|favour|centre|practis|labell|cancell|behaviour|analyse|defence|grey|licence|organis|recognis"#)
+        func hits(_ text:String)->[String] {
+            let ns=text as NSString
+            return word.matches(in:text,range:NSRange(location:0,length:ns.length)).compactMap{m in
+                let found=ns.substring(with:m.range)
+                guard british.firstMatch(in:found,range:NSRange(location:0,length:(found as NSString).length)) != nil else{return nil}
+                let before=ns.substring(to:m.range.location),end=m.range.location+m.range.length
+                let quotes=before.replacingOccurrences(of:#"\""#,with:"").filter{$0=="\""}.count
+                guard quotes % 2 == 1 else{return nil}
+                if before.hasSuffix("\"") && end<ns.length && ns.substring(with:NSRange(location:end,length:1))=="\"" {return nil}
+                return found
+            }
+        }
+        var failures:[String]=[]
+        for line in try sourceLines() where !line.text.trimmingCharacters(in:.whitespaces).hasPrefix("//") && line.file != "CheckmateDomain/PositionGameCalibration.swift" {
+            for found in hits(line.text) {failures.append("\(line.file):\(line.line) \(found)")}
+        }
+        XCTAssertEqual(failures,[],"write US English in shown text")
+        XCTAssertEqual(hits(#"Text("Board colours")"#),["colours"]);XCTAssertEqual(hits(#"var centre:[Item]=[]"#),[]);XCTAssertEqual(hits(#"job.status="cancelled""#),[])
     }
     func testSettingsCategoryRestoresItsIdentifierAndOlderTitles() {
         for category in SettingsCategory.allCases {XCTAssertEqual(SettingsCategory(stored:category.rawValue),category)}

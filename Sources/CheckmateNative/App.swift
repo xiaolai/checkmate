@@ -326,7 +326,7 @@ import CheckmateCore
             model.session.cancelWork()
             try await compareFromParent(3);let terminalAX=await ax("practise-disabled-imagined-mate",[["kind":"enabled","title":"Practice Here","expected":false]])
             let terminalLineVerified=axPassed(terminalAX,0) && model.review.displayRules?.checkmate==true
-            if !terminalLineVerified{failures.append("Imagined checkmate left Practise here enabled")}
+            if !terminalLineVerified{failures.append("Imagined checkmate left Practice Here enabled")}
             model.returnToGame();model.session.cancelWork()
             // The review pane in light and dark: the workspace and its game library (all, a search, the World
             // Championships grouped by event, My games, a narrow window), then a fixed short library game's overview,

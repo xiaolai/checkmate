@@ -51,7 +51,7 @@ public enum TrainingGenerator {
             let budget=distance+limits.slack,shortest=tier>=3
             let prompt=shortest ? "Move the \(colorName(color).lowercased()) \(name) from \(start) to \(target) in the fewest moves: \(budget).":"Move the \(colorName(color).lowercased()) \(name) from \(start) to \(target) in at most \(budget) moves."
             let id="gen-reach-target-\(piece)-t\(tier)-\(own)-\(seedText(seed))"
-            return TrainingScenario(id:id,entry:"reach-target",variant:name,tier:tier,cluster:cluster("reach",[own+piece,start,target]+pieces.sorted{$0.key<$1.key}.map{$0.key+$0.value}),learner:own,prompt:prompt,explanation:"A shortest route takes \(distance) move\(distance==1 ? "":"s").",hints:[movementHint(piece)],drill:drill,budget:budget,shortest:shortest,expected:TrainingExpected(distance:distance),generation:TrainingGeneration(generator:"reach-target",version:version,seed:seedText(seed),candidates:candidate))
+            return TrainingScenario(id:id,entry:"reach-target",variant:name,tier:tier,cluster:cluster("reach",[own+piece,start,target]+pieces.sorted{$0.key<$1.key}.map{$0.key+$0.value}),learner:own,prompt:prompt,explanation:Plural.count(distance,one:"A shortest route takes %d move.",other:"A shortest route takes %d moves."),hints:[movementHint(piece)],drill:drill,budget:budget,shortest:shortest,expected:TrainingExpected(distance:distance),generation:TrainingGeneration(generator:"reach-target",version:version,seed:seedText(seed),candidates:candidate))
         }
         return nil
     }

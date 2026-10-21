@@ -91,7 +91,7 @@ import CheckmateCore
     func testSettingsTitleFollowsThePane()throws {let model=try NativeModel();defer{model.shutdown()}
         let settings=SettingsWindow(model:model);settings.show(category:.sound);defer{settings.close()}
         XCTAssertEqual(settings.window?.title,"Sound");XCTAssertEqual(settings.window?.identifier?.rawValue,"Settings")
-        settings.selectCategory("About");XCTAssertEqual(settings.window?.title,"About")
+        settings.selectCategory(.about);XCTAssertEqual(settings.window?.title,"About")
         XCTAssertEqual(settings.window?.titlebarAppearsTransparent,false)
     }
 

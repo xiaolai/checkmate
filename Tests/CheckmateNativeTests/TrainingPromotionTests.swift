@@ -34,7 +34,7 @@ import CheckmateCore
             XCTAssertEqual(shown.last?.items.map(\.title),["Queen","Rook","Bishop","Knight"],"reaching the last rank opens the board's promotion menu")
             XCTAssertEqual(shown.last?.items.map(\.keyEquivalent),["q","r","b","n"],"B-13: each piece has its key");XCTAssertTrue(shown.last?.items.allSatisfy{$0.keyEquivalentModifierMask.isEmpty} ?? false,"the key alone chooses")
             XCTAssertNil(model.training?.exercise?.pendingPromotion,"closing the menu cancels the promotion")
-            XCTAssertEqual(model.training?.exercise?.feedback,"Promotion cancelled. Nothing was counted.")
+            XCTAssertEqual(model.training?.exercise?.feedback,"Promotion canceled. Nothing was counted.")
             XCTAssertEqual(model.training?.exercise?.snapshot.actions,[],"cancelling is not an answer")
             XCTAssertFalse(model.training?.exercise?.finished ?? true);XCTAssertEqual(game.board.position[from],pawn)
             // A choice from a menu that has since closed is stale and does nothing.
