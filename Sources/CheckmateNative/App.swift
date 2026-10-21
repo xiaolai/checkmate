@@ -665,8 +665,7 @@ import CheckmateCore
         guard let url=urls.count==1 ? urls[0]:chooseReviewFile(urls) else{return}
         let file=url.resolvingSymlinksInPath()
         guard let values=try? file.resourceValues(forKeys:[.isRegularFileKey,.fileSizeKey]),values.isRegularFile==true,let size=values.fileSize,size<=ReviewPolicy.maximumBytes else{model.storageError=String(localized:"This file could not be opened for review. Use a PGN or FEN file up to 16 MiB.",bundle:.checkmate);return}
-        recents.note(url)
-        reviewFiles.load(file,deliver:{[weak model] in model?.importReviewData($0)},failed:{[weak model] in model?.storageError=String(localized:"This file could not be read.",bundle:.checkmate)})
+        reviewFiles.load(file,deliver:{[weak self,weak model] data in self?.recents.note(url);model?.importReviewData(data)},failed:{[weak model] in model?.storageError=String(localized:"This file could not be read.",bundle:.checkmate)})
     }
     /// A draft review holding the learner's imagined lines is never discarded without asking. A seated network player
     /// is asked last, just before closing, since leaving resigns; once everything agrees, the network game is left and the app waits until

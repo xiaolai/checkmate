@@ -148,7 +148,9 @@ import CheckmateCore
         app.clearRecents();app.menuNeedsUpdate(menu);XCTAssertEqual(menu.items.map(\.title),["Clear Menu"]);XCTAssertFalse(menu.items[0].isEnabled)
         try FileManager.default.createDirectory(at:directory,withIntermediateDirectories:true)
         let file=directory.appendingPathComponent("game.pgn");try Data("1. e4 e5 *\n".utf8).write(to:file)
-        app.application(NSApp,open:[file]);XCTAssertEqual(app.recents.urls().map(\.lastPathComponent),["game.pgn"])
+        // A file joins once it has been read, off the main thread.
+        app.application(NSApp,open:[file]);let end=Date().addingTimeInterval(5);while app.recents.urls().isEmpty && Date()<end{RunLoop.main.run(until:Date().addingTimeInterval(0.02))}
+        XCTAssertEqual(app.recents.urls().map(\.lastPathComponent),["game.pgn"])
     }}
 
     // V-19: updates are checked on request against the latest release; automatic checks are opt-in and never in tests.
