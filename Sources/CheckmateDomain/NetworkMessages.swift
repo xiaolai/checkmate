@@ -114,7 +114,7 @@ public enum NetworkCodec {
         do{header=try JSONDecoder().decode(Header.self,from:data)}catch{throw NetworkCodecError.malformed(String(localized:"no protocol version",bundle:.checkmate))}
         guard header.protocol.major==NetworkProtocolVersion.current.major else{throw NetworkCodecError.protocolMismatch(peer:header.protocol)}
         let wire:Wire
-        do{wire=try JSONDecoder().decode(Wire.self,from:data)}catch{throw NetworkCodecError.malformed("invalid field")}
+        do{wire=try JSONDecoder().decode(Wire.self,from:data)}catch{throw NetworkCodecError.malformed(String(localized:"invalid field",bundle:.checkmate,comment:"Why a network message cannot be read"))}
         return try wire.message()
     }
     private struct Header:Decodable {let `protocol`:NetworkProtocolVersion}
@@ -167,11 +167,11 @@ public enum NetworkCodec {
         private static func wire(_ capabilities:NetworkCapabilities?)->[String]? {capabilities.flatMap{$0.tokens.isEmpty ? nil:$0.tokens}}
         private func capabilitiesValue()throws -> NetworkCapabilities? {
             guard let capabilities else{return nil}
-            guard let value=NetworkCapabilities(capabilities) else{throw NetworkCodecError.malformed("invalid capabilities")}
+            guard let value=NetworkCapabilities(capabilities) else{throw NetworkCodecError.malformed(String(localized:"invalid capabilities",bundle:.checkmate,comment:"Why a network message cannot be read"))}
             return value
         }
-        private func need<T>(_ value:T?,_ field:String)throws -> T {guard let value else{throw NetworkCodecError.malformed("missing \(field)")};return value}
-        private func check(_ condition:Bool,_ field:String)throws {guard condition else{throw NetworkCodecError.malformed("invalid \(field)")}}
+        private func need<T>(_ value:T?,_ field:String)throws -> T {guard let value else{throw NetworkCodecError.malformed(String(localized:"missing \(field)",bundle:.checkmate,comment:"A network message lacks this field; the field is a protocol name"))};return value}
+        private func check(_ condition:Bool,_ field:String)throws {guard condition else{throw NetworkCodecError.malformed(String(localized:"invalid \(field)",bundle:.checkmate,comment:"A network message field has a wrong value; the field is a protocol name"))}}
         private func revisionValue()throws -> Int {let value=try need(revision,"revision");try check((0...NetworkLimits.maximumRevision).contains(value),"revision");return value}
         private func uciValue()throws -> String {let value=try need(uci,"uci");try check(ChessNotation.validUCI(value),"uci");return value}
         private func clocksValue()throws -> NetworkClocks? {try check(clocks?.valid ?? true,"clocks");return clocks}
@@ -201,7 +201,7 @@ public enum NetworkCodec {
             case "snapshotPart":
                 let position=try need(index,"index"),text=try need(data,"data")
                 try check((0..<NetworkLimits.maximumSnapshotParts).contains(position),"index")
-                guard let bytes=Data(base64Encoded:text),!bytes.isEmpty,bytes.count<=NetworkLimits.maximumSnapshotPartBytes else{throw NetworkCodecError.malformed("invalid data")}
+                guard let bytes=Data(base64Encoded:text),!bytes.isEmpty,bytes.count<=NetworkLimits.maximumSnapshotPartBytes else{throw NetworkCodecError.malformed(String(localized:"invalid data",bundle:.checkmate,comment:"Why a network message cannot be read"))}
                 return .snapshotPart(snapshotID:try need(snapshotID,"snapshotID"),index:position,data:bytes)
             case "snapshotEnd":return .snapshotEnd(snapshotID:try need(snapshotID,"snapshotID"))
             case "moved":
@@ -210,10 +210,10 @@ public enum NetworkCodec {
             case "rejected":return .rejected(commandID:try need(commandID,"commandID"),reason:NetworkRejectReason(rawValue:try need(reason,"reason")) ?? .unknown)
             case "drawOffered":return .drawOffered(NetworkDrawOffer(offerID:try need(offerID,"offerID"),by:try need(by,"by")))
             case "drawDeclined":return .drawDeclined(offerID:try need(offerID,"offerID"))
-            case "clock":guard let clocks=try clocksValue() else{throw NetworkCodecError.malformed("missing clocks")};return .clock(clocks)
+            case "clock":guard let clocks=try clocksValue() else{throw NetworkCodecError.malformed(String(localized:"missing clocks",bundle:.checkmate,comment:"Why a network message cannot be read"))};return .clock(clocks)
             case "ended":return .ended(NetworkEnded(outcome:NetworkOutcome(result:try need(result,"result"),termination:try need(termination,"termination")),revision:try revisionValue(),clocks:try clocksValue()))
             case "ping":return .ping(nonce:try need(nonce,"nonce"))
-            default:throw NetworkCodecError.malformed("unknown type")
+            default:throw NetworkCodecError.malformed(String(localized:"unknown type",bundle:.checkmate,comment:"Why a network message cannot be read"))
             }
         }
     }

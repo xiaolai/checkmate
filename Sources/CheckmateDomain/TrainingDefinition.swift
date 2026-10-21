@@ -108,16 +108,16 @@ public struct TrainingEntryDefinition:Codable,Equatable,Identifiable {
     /// Fails loudly on any definition this build cannot honour exactly.
     public func validate()throws {
         func fail(_ reason:String)throws -> Never {throw CheckmateError.invalid(String(localized:"Training entry \(id): \(reason)",bundle:.checkmate))}
-        guard id.count<=48,id.range(of:Self.idPattern,options:.regularExpression) != nil else{try fail("invalid identifier")}
+        guard id.count<=48,id.range(of:Self.idPattern,options:.regularExpression) != nil else{try fail(String(localized:"invalid identifier",bundle:.checkmate,comment:"Why a training entry is invalid"))}
         guard !title.isEmpty,title.count<=60,!summary.isEmpty,summary.count<=300 else{try fail(String(localized:"invalid title or summary",bundle:.checkmate))}
         guard !rules.isEmpty,rules.allSatisfy({!$0.isEmpty && $0.count<=400}) else{try fail(String(localized:"plain rules are required",bundle:.checkmate))}
-        guard ruleMode==objective.ruleMode,illegalInput==objective.illegalInput,actions==objective.actions else{try fail("rule mode, input policy and actions must match the objective")}
+        guard ruleMode==objective.ruleMode,illegalInput==objective.illegalInput,actions==objective.actions else{try fail(String(localized:"rule mode, input policy and actions must match the objective",bundle:.checkmate,comment:"Why a training entry is invalid"))}
         guard (objective == .legacyGame)==(legacyKind != nil) else{try fail(String(localized:"a legacy game names exactly one mini-game",bundle:.checkmate))}
         // Legacy progress is stored under the mini-game's own key, so the entry carries that key as its identifier.
         guard legacyKind.map({$0.rawValue==id}) ?? true else{try fail(String(localized:"a legacy game's identifier is its mini-game's",bundle:.checkmate))}
         guard origin==(objective == .legacyGame ? .existing:.new) else{try fail(String(localized:"only legacy games are existing entries",bundle:.checkmate))}
         guard !skills.isEmpty,Set(skills).count==skills.count else{try fail(String(localized:"skills must be listed once each",bundle:.checkmate))}
-        guard Set(variants).count==variants.count,variants.allSatisfy({$0.range(of:Self.idPattern,options:.regularExpression) != nil}) else{try fail("invalid variants")}
+        guard Set(variants).count==variants.count,variants.allSatisfy({$0.range(of:Self.idPattern,options:.regularExpression) != nil}) else{try fail(String(localized:"invalid variants",bundle:.checkmate,comment:"Why a training entry is invalid"))}
         // Every scenario of a new exercise names one of its variants, so an entry without any could never be played.
         guard objective == .legacyGame || !variants.isEmpty else{try fail(String(localized:"a new exercise lists its variants",bundle:.checkmate))}
         guard (1...3).contains(tiers) else{try fail(String(localized:"one to three tiers",bundle:.checkmate))}

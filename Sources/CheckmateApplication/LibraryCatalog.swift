@@ -54,7 +54,7 @@ public struct LibraryCatalog:Sendable,Equatable {
         // Under its event's section a championship game shows the players and game only; the full title is its label.
         let championship=game.category != "classic"
         let title=championship ? "\(game.white) – \(game.black), \(game.roundLabel ?? game.round)":game.title
-        let details=championship ? "":([game.white=="?" ? nil:"\(game.white) – \(game.black)",game.year.map(String.init),game.kind=="traditional" ? "traditional finish":game.kind=="illustrative" ? "illustrative":nil].compactMap{$0}).joined(separator:" · ")
+        let details=championship ? "":([game.white=="?" ? nil:"\(game.white) – \(game.black)",game.year.map(String.init),game.kind=="traditional" ? String(localized:"traditional finish",bundle:.checkmate,comment:"A library game's kind"):game.kind=="illustrative" ? String(localized:"illustrative",bundle:.checkmate,comment:"A library game's kind"):nil].compactMap{$0}).joined(separator:" · ")
         let label=championship ? "\(game.title), \(game.result)":([game.white=="?" ? game.title:"\(game.white) – \(game.black)",game.white=="?" ? nil:game.title,game.year.map(String.init),game.result].compactMap{$0}).joined(separator:", ")
         // The event's whole year span is searchable: a match that ran into the next year is found by either year.
         let years=(event?.years ?? []).map(String.init)+[game.year.map(String.init) ?? ""]
@@ -65,7 +65,7 @@ public struct LibraryCatalog:Sendable,Equatable {
     static func collectionRow(_ record:CollectionRecord,index:Int,collection:CollectionIndex)->LibraryRow {
         func known(_ name:String)->String? {guard let value=record.tags[name]?.trimmingCharacters(in:.whitespacesAndNewlines),!value.isEmpty,value.contains(where:{$0 != "?" && $0 != "."}) else{return nil};return value}
         let white=known("White") ?? String(localized:"White",bundle:.checkmate),black=known("Black") ?? String(localized:"Black",bundle:.checkmate),year=known("Date").map{String($0.prefix(4))}.flatMap{$0.allSatisfy(\.isNumber) ? $0:nil}
-        let round=known("Round").map{String(localized:"Round ",bundle:.checkmate,comment:"A tournament round, followed by its number")+$0},result=known("Result") ?? "*"
+        let round=known("Round").map{String(localized:"Round \($0)",bundle:.checkmate,comment:"A tournament round and its number")},result=known("Result") ?? "*"
         let details=[known("Event"),year,round].compactMap{$0}.joined(separator:" · ")
         let key=folded([white,black,known("Event") ?? "",year ?? "",known("Round") ?? "",known("Opening") ?? "",known("ECO") ?? "",known("Site") ?? ""].joined(separator:" "))
         let label=["\(white) – \(black)",known("Event"),year,result].compactMap{$0}.joined(separator:", ")
@@ -75,10 +75,10 @@ public struct LibraryCatalog:Sendable,Equatable {
     /// A saved review: its name (or its game's title), then the game's event and year; a renamed review also names its
     /// players, and every review says when it was last saved.
     static func savedRow(_ entry:ReviewIndexEntry)->LibraryRow {
-        let players=entry.white != nil || entry.black != nil ? "\(entry.white ?? "White") – \(entry.black ?? "Black")":nil
+        let white=entry.white ?? String(localized:"White",bundle:.checkmate),black=entry.black ?? String(localized:"Black",bundle:.checkmate),players=entry.white != nil || entry.black != nil ? "\(white) – \(black)":nil
         let year=entry.date.map{String($0.prefix(4))}.flatMap{$0.count==4 && $0.allSatisfy(\.isNumber) ? $0:nil}
         let details=[entry.name==nil ? nil:players,entry.event,year].compactMap{$0}.joined(separator:" · ")
-        let saved=String(localized:"Saved ",bundle:.checkmate)+entry.updatedAt.formatted(date:.abbreviated,time:.shortened)
+        let saved=String(localized:"Saved \(entry.updatedAt.formatted(date:.abbreviated,time:.shortened))",bundle:.checkmate,comment:"When a review was last saved")
         let key=folded([entry.title,entry.white ?? "",entry.black ?? "",entry.event ?? "",entry.date ?? ""].joined(separator:" "))
         return LibraryRow(id:"saved:"+entry.id.uuidString,source:.saved(entry.id),title:entry.title,details:details,result:entry.result,facts:saved,accessibilityLabel:[entry.title,details.isEmpty ? nil:details,entry.result,saved].compactMap{$0}.joined(separator:", "),searchKey:key,
                           sortPlayers:players.map(folded) ?? "",sortDate:entry.date ?? "",sortEvent:folded(entry.event ?? ""))

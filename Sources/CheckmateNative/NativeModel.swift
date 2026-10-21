@@ -75,7 +75,7 @@ import RealtimeConnection
     /// "Return to Game"/"Resume Game" action. A new game, restore, import, fork or lesson clears it with the position.
     var restoreResumePending:Bool {session.explicitResumeRequired}
     static let failedRestoreMessage=String(localized:"The saved review could not be restored; its file is preserved.",bundle:.checkmate)
-    static let failedRestorePausedMessage=failedRestoreMessage+String(localized:" Your game is paused. Choose Return to Game to continue.",bundle:.checkmate)
+    static let failedRestorePausedMessage=Sentences.join(failedRestoreMessage,String(localized:"Your game is paused. Choose Return to Game to continue.",bundle:.checkmate))
     func resumeAfterFailedRestore(){storageError=nil;practice()}
     init() throws {
         if !NativePolicy.silent {Task.detached{CodexSubscriptionClient.cleanAbandonedPrivateHomes()}}
@@ -337,7 +337,7 @@ import RealtimeConnection
     func mayQuitDuringLessonJob()->Bool {
         guard lessonLanguages.busy else{return true}
         if let confirm=confirmQuitDuringLessonJob{return confirm()};if NativePolicy.silent{return true}
-        let alert=NSAlert.destructive(String(localized:"Stop the lesson job and quit?",bundle:.checkmate),String(localized:"A lesson \(lessonLanguages.recording ? "recording":"translation") is running. Completed text and clips are kept; the item in progress, already charged, is lost. Record / Resume continues later.",bundle:.checkmate),action:String(localized:"Quit Anyway",bundle:.checkmate),cancel:String(localized:"Keep Working",bundle:.checkmate))
+        let alert=NSAlert.destructive(String(localized:"Stop the lesson job and quit?",bundle:.checkmate),lessonLanguages.recording ? String(localized:"A lesson recording is running. Completed text and clips are kept; the item in progress, already charged, is lost. Record / Resume continues later.",bundle:.checkmate):String(localized:"A lesson translation is running. Completed text and clips are kept; the item in progress, already charged, is lost. Record / Resume continues later.",bundle:.checkmate),action:String(localized:"Quit Anyway",bundle:.checkmate),cancel:String(localized:"Keep Working",bundle:.checkmate))
         return alert.runModal() == .alertFirstButtonReturn
     }
     /// Saves progress and every review before quitting; returns false when the learner chose to stay. A "Don't Save"
@@ -352,7 +352,7 @@ import RealtimeConnection
     private func mayQuitAfterSavingReviews()->Bool {
         saveReview(immediate:true);let unsaved=pendingReviewSnapshots.count;guard unsaved>0 else{return true}
         if let confirm=confirmQuitWithUnsavedReviews{return confirm(unsaved)};if NativePolicy.silent && !Self.quitAlertFixture{return true}
-        let alert=NSAlert.destructive(unsaved==1 ? String(localized:"A review could not be saved.",bundle:.checkmate):String(localized:"\(unsaved) reviews could not be saved.",bundle:.checkmate),(reviewSaveWarning ?? String(localized:"Its latest imagined lines are only in memory.",bundle:.checkmate))+String(localized:" Cancel to keep working, or quit without them.",bundle:.checkmate),action:String(localized:"Quit Anyway",bundle:.checkmate))
+        let alert=NSAlert.destructive(unsaved==1 ? String(localized:"A review could not be saved.",bundle:.checkmate):String(localized:"\(unsaved) reviews could not be saved.",bundle:.checkmate),Sentences.join(reviewSaveWarning ?? String(localized:"Its latest imagined lines are only in memory.",bundle:.checkmate),String(localized:"Cancel to keep working, or quit without them.",bundle:.checkmate)),action:String(localized:"Quit Anyway",bundle:.checkmate))
         return alert.runModal() == .alertFirstButtonReturn
     }
     /// Saves before quitting. A failure offers Export Progress… (the in-memory state) instead of losing the last
@@ -361,7 +361,7 @@ import RealtimeConnection
         saveTask?.cancel()
         do{try store.save(session.state);return true}catch{
             if NativePolicy.silent{return true}
-            let alert=NSAlert.destructive(String(localized:"Your latest progress could not be saved.",bundle:.checkmate),userFacingMessage(error,fallback:String(localized:"The data folder may be full or read-only.",bundle:.checkmate))+String(localized:" Export it to keep it, or quit without it.",bundle:.checkmate),action:String(localized:"Quit Anyway",bundle:.checkmate),alternative:String(localized:"Export Progress…",bundle:.checkmate))
+            let alert=NSAlert.destructive(String(localized:"Your latest progress could not be saved.",bundle:.checkmate),Sentences.join(userFacingMessage(error,fallback:String(localized:"The data folder may be full or read-only.",bundle:.checkmate)),String(localized:"Export it to keep it, or quit without it.",bundle:.checkmate)),action:String(localized:"Quit Anyway",bundle:.checkmate),alternative:String(localized:"Export Progress…",bundle:.checkmate))
             switch alert.runModal(){
             case .alertThirdButtonReturn:
                 let panel=NSSavePanel();panel.nameFieldStringValue="checkmate-state.json";guard panel.runModal() == .OK,let url=panel.url else{return false}
@@ -431,7 +431,7 @@ import RealtimeConnection
                 let alert=NSAlert()
                 if report.duplicate {alert.messageText=String(localized:"Already imported",bundle:.checkmate);alert.informativeText=report.summary;alert.runModal();return}
                 alert.messageText=String(localized:"Import game and progress?",bundle:.checkmate)
-                alert.informativeText=report.summary+String(localized:" A separate copy of your current state will be kept in Backups.",bundle:.checkmate)
+                alert.informativeText=Sentences.join(report.summary,String(localized:"A separate copy of your current state will be kept in Backups.",bundle:.checkmate))
                 let text=NSTextView(frame:NSRect(x:0,y:0,width:480,height:180));text.string=report.details;text.isEditable=false;text.isSelectable=true;text.font=styledFont(.body);text.textContainerInset=NSSize(width:8,height:8);text.setAccessibilityLabel(String(localized:"Import recovery report",bundle:.checkmate))
                 let scroll=NSScrollView(frame:text.frame);scroll.hasVerticalScroller=true;scroll.borderType = .noBorder;scroll.documentView=text;alert.accessoryView=scroll
                 alert.addButton(withTitle:String(localized:"Import",bundle:.checkmate));alert.addButton(withTitle:String(localized:"Cancel",bundle:.checkmate))

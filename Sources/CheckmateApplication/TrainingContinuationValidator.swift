@@ -28,7 +28,7 @@ import Foundation
         let literal=String(decoding:try JSONSerialization.data(withJSONObject:spec,options:[.sortedKeys]),as:UTF8.self)
         let text=try runtime.evaluate("(()=>{try{return JSON.stringify({ok:true,value:TrainingSearch.\(function)(\(literal))})}catch(e){return JSON.stringify({ok:false,error:String(e)})}})()")
         guard let data=text.data(using:.utf8),let object=try JSONSerialization.jsonObject(with:data) as? [String:Any] else{throw CheckmateError.invalid(String(localized:"The training search returned nothing.",bundle:.checkmate))}
-        guard object["ok"] as? Bool==true,let value=object["value"] else{throw CheckmateError.invalid(String(localized:"Training search failed: \(object["error"] as? String ?? "unknown error")",bundle:.checkmate))}
+        guard object["ok"] as? Bool==true,let value=object["value"] else{throw CheckmateError.invalid((object["error"] as? String).map{String(localized:"Training search failed: \($0)",bundle:.checkmate)} ?? String(localized:"Training search failed: unknown error",bundle:.checkmate))}
         return try JSONDecoder().decode(type,from:JSONSerialization.data(withJSONObject:value))
     }
     private func spend(_ used:Int,exhausted:Bool)throws {
@@ -89,19 +89,19 @@ import Foundation
         guard let nodes=scenario.nodes,let plies=scenario.plies else{throw CheckmateError.invalid(String(localized:"missing teaching graph",bundle:.checkmate))}
         var visited=Set<Int>()
         func certify(_ index:Int,line:[String],plies:Int)throws {
-            guard visited.insert(index).inserted else{throw CheckmateError.invalid("teaching node \(index) is reached twice")}
+            guard visited.insert(index).inserted else{throw CheckmateError.invalid("teaching node \(index) is reached twice")} // not localized: scenario authoring check
             let node=nodes[index]
             let legality=try TrainingLegality(fen:scenario.fen ?? "",prelude:(scenario.prelude ?? [])+line,runtimeFactory:runtimeFactory)
-            guard try legality.fingerprint()==node.fingerprint else{throw CheckmateError.invalid("teaching node \(index) fingerprint differs from the position")}
+            guard try legality.fingerprint()==node.fingerprint else{throw CheckmateError.invalid("teaching node \(index) fingerprint differs from the position")} // not localized: scenario authoring check
             let found=try classify(scenario,line:line,plies:plies)
-            guard Set(node.accepted)==found.accepted,node.accepted.count==found.accepted.count else{throw CheckmateError.invalid("node \(index) accepted moves differ from the search: \(found.accepted.sorted())")}
-            guard Set(node.replies.keys)==Set(found.replies.keys) else{throw CheckmateError.invalid("node \(index) shows replies for different moves than the search")}
+            guard Set(node.accepted)==found.accepted,node.accepted.count==found.accepted.count else{throw CheckmateError.invalid("node \(index) accepted moves differ from the search: \(found.accepted.sorted())")} // not localized: scenario authoring check
+            guard Set(node.replies.keys)==Set(found.replies.keys) else{throw CheckmateError.invalid("node \(index) shows replies for different moves than the search")} // not localized: scenario authoring check
             for (move,reply) in node.replies {
                 let keeps=try holds(scenario,line:line+[move,reply],plies:max(0,plies-2))
-                guard keeps==found.accepted.contains(move) else{throw CheckmateError.invalid("node \(index): \(reply) after \(move) does not \(keeps ? "refute it":"keep the goal reachable")")}
+                guard keeps==found.accepted.contains(move) else{throw CheckmateError.invalid("node \(index): \(reply) after \(move) does not \(keeps ? "refute it":"keep the goal reachable")")} // not localized: scenario authoring check
             }
             for (move,next) in node.next ?? [:] {
-                guard plies>=3,let reply=node.replies[move] else{throw CheckmateError.invalid("node \(index) continues past the horizon or without a reply")}
+                guard plies>=3,let reply=node.replies[move] else{throw CheckmateError.invalid("node \(index) continues past the horizon or without a reply")} // not localized: scenario authoring check
                 try certify(next,line:line+[move,reply],plies:plies-2)
             }
         }

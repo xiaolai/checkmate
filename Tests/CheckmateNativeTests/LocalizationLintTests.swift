@@ -37,26 +37,56 @@ import CheckmateCore
         XCTAssertEqual(hits(#"let m=["Some key":1]"#),[])
         XCTAssertEqual(hits(#"let id="board-square""#),[])
         XCTAssertEqual(lint.analyse(#"precondition(ok,String(localized:"The state is broken",bundle:.checkmate))"#).misplaced,[1])
+        // An interpolation hides the capital the first pattern looks for, and a piece of a sentence has too few words.
+        XCTAssertEqual(hits(#"text="\(who) castled kingside""#),["\u{1} castled kingside"])
+        XCTAssertEqual(hits(#"sheet.title="\(kind.title) review""#),["\u{1} review"])
+        XCTAssertEqual(hits(#"text+=", check";text+=" en passant";s=flag ? "you get ":"x""#),[", check"," en passant","you get "])
+        XCTAssertEqual(hits(#"Text(done ? String(localized:"Checking more deeply",bundle:.checkmate):"\(a) / \(b) moves")"#),["\u{1} / \u{1} moves"])
+        XCTAssertEqual(hits(#"parts.append(x ? "capture destination":"possible destination, not playable now")"#),["capture destination","possible destination, not playable now"])
+        XCTAssertEqual(hits(#"let id="gen-\(entry)-t\(tier)";let p="\(dir)/file.json";let s="\(a) \(b)";let q="\(n)s";let k="selected""#),[])
+        XCTAssertEqual(hits(#"status=text+"\nRefreshed \(date)""#),["\nRefreshed \u{1}"])
+        XCTAssertEqual(hits(#"lines.append("Account-wide token activity unavailable.");let h="Content-Type""#),["Account-wide token activity unavailable."])
+        XCTAssertEqual(hits(#"let id="lesson:\(n)";let js="g.load(\(fen))";let f="(()=>{const g=new exports.Chess();g.loadPgn(\(p))})()""#),[])
+        // Text inside an interpolation reaches the screen too, and a localized sentence does not translate it.
+        XCTAssertEqual(hits(#"let a=String(localized:"\(side=="b" ? "Black":"White") to move",bundle:.checkmate)"#),["Black","White"])
+        XCTAssertEqual(hits(#"let a=String(localized:"\(x ? String(localized:"Black",bundle:.checkmate):name) to move",bundle:.checkmate)"#),[])
+        // A catalog key that is a piece of a sentence cannot be reordered by a translator.
+        func fragments(_ code:String)->[String] {lint.analyse(code).fragments.map(\.text)}
+        XCTAssertEqual(fragments(#"let a=String(localized:"Hide ",bundle:.checkmate)+b;Text(" · Check");let c=String(localized:", not done yet",bundle:.checkmate)"#),["Hide "," · Check",", not done yet"])
+        XCTAssertEqual(fragments(#"let a=String(localized:"Hide \(noun)",bundle:.checkmate);Text("Opponent:");let v=Text(verbatim:" x")"#),[])
     }
 
     func testShownTextGoesThroughTheCatalog()throws {
         let files=try XCTUnwrap(FileManager.default.enumerator(at:Self.sources,includingPropertiesForKeys:nil)).compactMap{$0 as? URL}.filter{$0.pathExtension=="swift"}
         XCTAssertGreaterThan(files.count,50,"the scan found the sources")
-        let lint=LocalizationLint(),calibrated=try calibrated();var scanned=0,bypassing:[String]=[],misplaced:[String]=[]
+        let lint=LocalizationLint(),calibrated=try calibrated();var scanned=0,bypassing:[String]=[],misplaced:[String]=[],fragments:[String]=[]
         for url in files {
             let file=String(url.path.dropFirst(Self.sources.path.count+1))
             guard !Self.skippedTargets.contains(String(file.prefix{$0 != "/"})),!Self.skippedFiles.contains(file),!calibrated.contains(file) else{continue}
             let found=lint.analyse(try String(contentsOf:url,encoding:.utf8));scanned+=found.literals
-            bypassing+=found.hits.map{"\(file):\($0.line) \($0.text)"};misplaced+=found.misplaced.map{"\(file):\($0)"}
+            bypassing+=found.hits.map{"\(file):\($0.line) \($0.text)"};misplaced+=found.misplaced.map{"\(file):\($0)"};fragments+=found.fragments.map{"\(file):\($0.line) \($0.text)"}
         }
         XCTAssertGreaterThan(scanned,5000,"the lint saw the app's literals")
         XCTAssertEqual(bypassing,[],"shown text: use String(localized:…,bundle:.checkmate), or mark developer text with // not localized: <reason>")
         XCTAssertEqual(misplaced,[],"developer text (a precondition, log or tag) is not shown: keep it out of the String Catalog")
+        XCTAssertEqual(fragments,[],"a piece of a sentence cannot be reordered: localize the whole sentence, with interpolations for what varies")
+    }
+
+    /// Every key the code uses is a whole text, never a piece joined to others (stale keys are no longer in the code).
+    func testTheCatalogHoldsNoFragments()throws {
+        struct Catalog:Decodable {struct Entry:Decodable {let extractionState:String?};let strings:[String:Entry]}
+        let catalog=try JSONDecoder().decode(Catalog.self,from:Data(contentsOf:Self.sources.appendingPathComponent("CheckmateCore/Localizable.xcstrings")))
+        XCTAssertGreaterThan(catalog.strings.count,1000,"the catalog was read")
+        XCTAssertEqual(catalog.strings.filter{$0.value.extractionState != "stale" && LocalizationLint.isFragment($0.key)}.keys.sorted(),[],"a key starting or ending with a space, or starting with a joining mark, is a piece of a sentence")
     }
 
     func testTheCatalogShipsEnglish() {
         XCTAssertTrue(Bundle.checkmate.localizations.contains("en"),"the resource bundle carries the compiled String Catalog")
         XCTAssertEqual(String(localized:"\(1) moves",bundle:.checkmate),"1 move")
+        // A count among several varies only its own words, through a catalog substitution.
+        XCTAssertEqual(String(localized:"\(0) of \(1) moves could not be analyzed.",bundle:.checkmate),"0 of 1 move could not be analyzed.")
+        XCTAssertEqual(String(localized:"\(1) operations · \(2) sessions",bundle:.checkmate),"1 operation · 2 sessions")
+        XCTAssertEqual(String(localized:"Move the \("white") \("rook") from \("a1") to \("a8") in at most \(1) moves.",bundle:.checkmate),"Move the white rook from a1 to a8 in at most 1 move.")
     }
 }
 
@@ -72,7 +102,20 @@ private struct LocalizationLint {
     struct Literal {let start:Int,end:Int,text:String,stack:[Snapshot],prefix:String}
     enum Kind {case localized,developer,swiftUI}
 
-    private let prose=try! NSRegularExpression(pattern:#"^[\W\x{01}]*(?:[A-Z](?:[a-z’']+(?:$|[ ,.…?!:;\x{01}’'])| [a-z])|[a-z][a-z’']* [a-z’']+ [a-z])"#)
+    private let prose=try! NSRegularExpression(pattern:#"^[\W\x{01}]*(?:[A-Z](?:[a-z’']+(?:$|[ ,.…?!:;\x{01}’'])|[a-z’']*-[a-z]+ [a-z]| [a-z])|[a-z][a-z’']* [a-z’']+ [a-z])"#)
+    /// Prose the pattern above misses: a lowercase word in a literal that interpolates ("\(n) moves", "\(name) review"),
+    /// or in a piece of a sentence that starts or ends with a space (", check", " en passant", "you get "), and a
+    /// lowercase phrase of two words or more ("capture destination", "possible destination, not playable now").
+    private let word=try! NSRegularExpression(pattern:#"(?:^|\s)[a-z][a-z’']+(?=$|[\s,.…?!:;\x{01}])"#),edge=try! NSRegularExpression(pattern:#"^\W*\s|\s$"#)
+    private let phrase=try! NSRegularExpression(pattern:#"^[a-z][a-z’']*(?:[,;]? [a-z][a-z’']*)+[.!?…]?$"#)
+    /// An identifier ("lesson:\(id)") has no space, and code ("g.load(\(fen))", "()=>{…}") has its own punctuation.
+    func isProse(_ text:String)->Bool {
+        if first(prose,text) != nil || first(phrase,text) != nil {return true}
+        return first(word,text) != nil && (text.contains("\u{1}") || first(edge,text) != nil) && text.contains(" ") && !text.contains{"{}=".contains($0)}
+    }
+    /// A key starting or ending with a space, or starting with a joining mark: a piece of a sentence, which a translator
+    /// cannot reorder.
+    static func isFragment(_ key:String)->Bool {guard let first=key.first,let last=key.last else{return false};return first.isWhitespace || ",;.·".contains(first) || last.isWhitespace}
     private let swiftUI:Set<String>=["Text","Button","Toggle","Label","Picker","Section","Menu","LabeledContent","GroupBox","TextField","SecureField","Link","DisclosureGroup","ProgressView","Stepper","ControlGroup","Tab",".help",".accessibilityLabel",".accessibilityHint",".accessibilityValue",".navigationTitle",".alert",".confirmationDialog",".value"]
     private let developerCallees:Set<String>=["print","NSLog","fatalError","precondition","preconditionFailure","assert","assertionFailure","Logger","appendingPathComponent","appendingPathExtension","NSUserInterfaceItemIdentifier","Notification.Name","header","known","tag","PGNHeader","ProtocolFailure","setAccessibilityIdentifier","accessibilityIdentifier","identifier","hasPrefix","hasSuffix","contains","starts","components","firstIndex","lastIndex","split","range"]
     private let developerLabels:Set<String>=["fileURLWithPath","forKey","path","forHTTPHeaderField","debugDescription","instructions","comment","identifier","withIdentifier","systemName","systemImage","systemSymbolName","named","forResource","withExtension","ofType"]
@@ -84,8 +127,11 @@ private struct LocalizationLint {
     private func has(_ pattern:String,_ text:String)->Bool {first(try! NSRegularExpression(pattern:pattern),text) != nil}
     private static func isIdentifier(_ c:Character)->Bool {c.isLetter || c.isNumber || c=="_" || c=="."}
 
-    func scan(_ s:[Character])->[Literal] {
-        let n=s.count;var i=0,stack:[Frame]=[],out:[Literal]=[]
+    func scan(_ s:[Character])->[Literal] {scan(s,from:0,to:s.count,outer:[])}
+    /// Scans `s[from..<to]`. A literal inside an interpolation is scanned too, under a barrier frame: "\(white ? "White":"Black")"
+    /// puts English into a localized sentence unless the inner text is localized itself.
+    func scan(_ s:[Character],from:Int,to n:Int,outer:[Snapshot])->[Literal] {
+        var i=from,stack:[Frame]=[],out:[Literal]=[]
         func starts(_ p:String,_ at:Int)->Bool {let p=Array(p);return at+p.count<=n && Array(s[at..<at+p.count])==p}
         func find(_ p:String,_ from:Int)->Int? {var k=from;while k<n {if starts(p,k){return k};k+=1};return nil}
         func label(_ at:Int)->String? {
@@ -99,22 +145,24 @@ private struct LocalizationLint {
             if starts("\"\"\"",i){i=find("\"\"\"",i+3).map{$0+3} ?? n;continue}
             if starts("#\"",i){i=find("\"#",i+2).map{$0+2} ?? n;continue}
             if c=="\"" {
-                let start=i;i+=1;var parts=""
+                let start=i,current=outer+stack.map{Snapshot(frame:$0,label:$0.label)};i+=1;var parts="",nested:[Literal]=[]
                 while i<n,s[i] != "\"",s[i] != "\n" {
                     if starts("\\(",i){
-                        var depth=1;i+=2
+                        var depth=1;i+=2;let inner=i
                         while i<n,depth>0 {
                             if s[i]=="("{depth+=1}else if s[i]==")"{depth-=1}
                             else if s[i]=="\""{i+=1;while i<n,s[i] != "\""{i+=s[i]=="\\" ? 2:1}}
                             i+=1
                         }
-                        parts.append("\u{1}");continue
+                        let barrier=Snapshot(frame:Frame(callee:"\\(",start:inner-2,argumentStart:inner),label:nil)
+                        nested+=scan(s,from:inner,to:max(inner,i-1),outer:current+[barrier]);parts.append("\u{1}");continue
                     }
-                    if s[i]=="\\"{parts+=String(s[i..<min(i+2,n)]);i+=2;continue}
+                    // A line break or tab reads as the space it is, so "\nRefreshed …" still starts a sentence.
+                    if s[i]=="\\"{parts+=i+1<n && "nt".contains(s[i+1]) ? "\n":String(s[i..<min(i+2,n)]);i+=2;continue}
                     parts.append(s[i]);i+=1
                 }
                 let prefix=stack.last.map{String(s[$0.argumentStart..<start])} ?? ""
-                out.append(Literal(start:start,end:min(i+1,n),text:parts,stack:stack.map{Snapshot(frame:$0,label:$0.label)},prefix:prefix));i+=1;continue
+                out.append(Literal(start:start,end:min(i+1,n),text:parts,stack:current,prefix:prefix));out+=nested;i+=1;continue
             }
             if c=="(" {
                 var k=i;while k>0,Self.isIdentifier(s[k-1]){k-=1}
@@ -130,7 +178,7 @@ private struct LocalizationLint {
     func kind(_ frame:Snapshot?)->Kind? {
         guard let frame else{return nil}
         let callee=frame.callee,last=String(callee.split(separator:".").last ?? "")
-        if callee=="String" && frame.label=="localized" || ["LocalizedStringResource","LocalizedStringKey","String.LocalizationValue"].contains(callee){return .localized}
+        if callee=="String" && ["localized","defaultValue"].contains(frame.label ?? "") || ["LocalizedStringResource","LocalizedStringKey","String.LocalizationValue"].contains(callee){return .localized}
         if callee.hasPrefix("NativeLog.") || developerCallees.contains(callee) || developerCallees.contains(last) && callee.contains(".") || frame.label.map({developerLabels.contains($0)}) == true || callee=="NSFont" && frame.label=="name" {return .developer}
         if (swiftUI.contains(callee) || callee.hasPrefix(".") && swiftUI.contains("."+last)) && frame.label==nil {return .swiftUI}
         return nil
@@ -164,19 +212,22 @@ private struct LocalizationLint {
         return out
     }
 
-    /// Prose literals that bypass the catalog, and the lines where developer text was put into it.
-    func analyse(_ text:String)->(literals:Int,hits:[(line:Int,text:String)],misplaced:[Int]) {
+    /// Prose literals that bypass the catalog, the lines where developer text was put into it, and catalog keys that are
+    /// pieces of a sentence.
+    func analyse(_ text:String)->(literals:Int,hits:[(line:Int,text:String)],misplaced:[Int],fragments:[(line:Int,text:String)]) {
         let s=Array(text),lines=text.components(separatedBy:"\n");var lineStarts=[0]
         for line in lines {lineStarts.append(lineStarts.last!+line.count+1)}
         func lineOf(_ offset:Int)->Int {var low=0,high=lineStarts.count;while low<high {let mid=(low+high)/2;if lineStarts[mid]<=offset{low=mid+1}else{high=mid}};return low}
-        let skipped=excludedLines(lines),literals=scan(s);var hits:[(line:Int,text:String)]=[],misplaced:[Int]=[]
+        let skipped=excludedLines(lines),literals=scan(s);var hits:[(line:Int,text:String)]=[],misplaced:[Int]=[],fragments:[(line:Int,text:String)]=[]
         for literal in literals {
             let line=lineOf(literal.start)
-            guard !skipped.contains(line),first(prose,literal.text) != nil else{continue}
+            guard !skipped.contains(line) else{continue}
+            if Self.isFragment(literal.text),let frame=literal.stack.last,frame.callee=="String" && frame.label=="localized" || kind(frame) == .swiftUI && literal.prefix.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty {fragments.append((line,literal.text))}
+            guard isProse(literal.text) else{continue}
             if !isAccountedFor(s,literal){hits.append((line,literal.text));continue}
             guard let frame=literal.stack.last,frame.callee=="String",kind(frame) == .localized,literal.stack.count>1,kind(literal.stack[literal.stack.count-2]) == .developer,let end=frame.frame.end,s[frame.frame.start..<end].filter({$0=="\""}).count==2 else{continue}
             misplaced.append(line)
         }
-        return (literals.count,hits,misplaced)
+        return (literals.count,hits,misplaced,fragments)
     }
 }

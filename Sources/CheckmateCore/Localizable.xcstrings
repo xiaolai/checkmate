@@ -2,61 +2,68 @@
   "sourceLanguage" : "en",
   "strings" : {
     "" : {},
-    " %lld lessons have no translated text yet; translate them first." : {},
-    " A separate copy of your current state will be kept in Backups." : {},
-    " Cancel to keep working, or quit without them." : {},
-    " Castling also moves the rook from %@ to %@." : {
+    "%@ %@" : {
+      "comment" : "Two whole sentences, one after the other",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : " Castling also moves the rook from %1$@ to %2$@."
+            "value" : "%1$@ %2$@"
           }
         }
       }
     },
-    " Check." : {},
-    " Checkmate." : {},
-    " Checkmate. You win." : {},
-    " Choose another option." : {},
-    " Export it to keep it, or quit without it." : {},
-    " Gives check." : {},
-    " It uses your ChatGPT plan through Codex. The microphone is on only while the voice coach is connected; disconnect it at any time." : {},
-    " Notes on your moves are things worth reviewing, not wrong answers." : {},
-    " Problems are listed below." : {},
-    " Promotes to a %@." : {},
-    " That move is not legal here, so it was not counted." : {},
-    " The board has not changed." : {},
-    " The game is drawn." : {},
-    " The opponent's king is in check." : {},
-    " The record states %@, which differs from this final board; the original record is kept unchanged." : {},
-    " Well done! " : {},
-    " Whatever you choose, that file is kept." : {},
-    " Your customized companion skill was kept." : {},
-    " Your game is paused. Choose Return to Game to continue." : {},
-    " Your king is in check." : {},
-    " Your progress is unchanged." : {},
-    " Your saved progress was not changed." : {},
-    " wins by checkmate." : {},
-    " · Check" : {},
-    " · Round %@" : {},
-    "%@ %@ window: %lld%% used" : {
-      "comment" : "A provider usage window: its name, primary or secondary, and the share used",
+    "%@ %@ can move to %@. Type which one, such as %@ or %@." : {
+      "comment" : "A typed move two or more pieces could make: how many, which kind, the square, then examples to type",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "%1$@ %2$@ window: %3$lld%% used"
+            "value" : "%1$@ %2$@ can move to %3$@. Type which one, such as %4$@ or %5$@."
           }
         }
       }
     },
-    "%@ %@s can move to %@. Type which one, such as " : {
+    "%@ %@ on %@" : {
+      "comment" : "A piece by side, kind and square, such as White knight on f3",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "%1$@ %2$@s can move to %3$@. Type which one, such as "
+            "value" : "%1$@ %2$@ on %3$@"
+          }
+        }
+      }
+    },
+    "%@ %@ to %@, capturing the %@ on %@." : {
+      "comment" : "A move described: the piece, its squares, what it captured",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ %2$@ to %3$@, capturing the %4$@ on %5$@."
+          }
+        }
+      }
+    },
+    "%@ %@ to %@." : {
+      "comment" : "A move described: the piece and its squares",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ %2$@ to %3$@."
+          }
+        }
+      }
+    },
+    "%@ (%@)" : {
+      "comment" : "A toolbar tooltip: the action, then its keyboard shortcut",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ (%2$@)"
           }
         }
       }
@@ -91,7 +98,50 @@
         }
       }
     },
-    "%@ can no longer be reached within %lld moves. " : {
+    "%@ allows %@ for both players." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ allows %2$@ for both players."
+          }
+        }
+      }
+    },
+    "%@ and %@" : {
+      "comment" : "Two ways of defending a piece, inside a sentence",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ and %2$@"
+          }
+        }
+      }
+    },
+    "%@ attack %@." : {
+      "comment" : "Two or more pieces' squares, then the square they attack",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ attack %2$@."
+          }
+        }
+      }
+    },
+    "%@ attacks %@." : {
+      "comment" : "One piece's square, then the square it attacks",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ attacks %2$@."
+          }
+        }
+      }
+    },
+    "%@ can no longer be reached within %lld moves." : {
       "localizations" : {
         "en" : {
           "variations" : {
@@ -99,13 +149,13 @@
               "one" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%@ can no longer be reached within %lld move. "
+                  "value" : "%@ can no longer be reached within %lld move."
                 }
               },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%@ can no longer be reached within %lld moves. "
+                  "value" : "%@ can no longer be reached within %lld moves."
                 }
               }
             }
@@ -113,35 +163,208 @@
         }
       }
     },
+    "%@ castled kingside" : {
+      "comment" : "A move announcement: who castled"
+    },
+    "%@ castled queenside" : {
+      "comment" : "A move announcement: who castled"
+    },
     "%@ credit status: unlimited (provider-reported)" : {},
     "%@ declined the draw" : {},
     "%@ doesn't allow spectators." : {},
+    "%@ has %lld seconds left" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%@ has %lld second left"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%@ has %lld seconds left"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%@ has as many spectators as it allows." : {},
     "%@ has been away for a while. Claim the win, or keep waiting." : {},
     "%@ has different assistance than the one you accepted." : {},
+    "%@ has no move." : {},
     "%@ has no seat to join." : {},
+    "%@ has stopped." : {},
     "%@ is already over." : {},
+    "%@ is away. Their seat is held for 2 minutes." : {},
     "%@ is in check and must answer it." : {},
     "%@ is in check in this imagined position." : {},
+    "%@ is joining…" : {},
     "%@ is not a castling attempt" : {},
     "%@ is not a mixed-practice evaluator" : {},
     "%@ is not graded as a rule error" : {},
     "%@ is reviewed only once a game is finished, so this one has no review." : {},
     "%@ is to move in the displayed position." : {},
-    "%@ left the game. " : {},
+    "%@ is watching." : {
+      "comment" : "One person watches the network game"
+    },
+    "%@ left the game." : {},
+    "%@ moved the %@ from %@ to %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ moved the %2$@ from %3$@ to %4$@."
+          }
+        }
+      }
+    },
     "%@ no longer holds your seat." : {},
     "%@ offered a draw." : {},
     "%@ offers a draw" : {},
     "%@ offers a draw." : {},
-    "%@ ran out of time. " : {},
-    "%@ reached the far rank. " : {},
-    "%@ review" : {},
+    "%@ or %@" : {
+      "comment" : "Two alternatives inside a sentence, such as two moves",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ or %2$@"
+          }
+        }
+      }
+    },
+    "%@ played %@ to %@" : {
+      "comment" : "A move announcement: who, the piece, its square",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ played %2$@ to %3$@"
+          }
+        }
+      }
+    },
+    "%@ played %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ played %2$@."
+          }
+        }
+      }
+    },
+    "%@ primary window: %lld%% used" : {
+      "comment" : "A provider usage window: its name and the share used",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ primary window: %2$lld%% used"
+          }
+        }
+      }
+    },
+    "%@ primary window: %lld%% used; resets %@" : {
+      "comment" : "A provider usage window: its name, the share used and when it resets",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ primary window: %2$lld%% used; resets %3$@"
+          }
+        }
+      }
+    },
+    "%@ protect %@." : {
+      "comment" : "Two or more pieces' squares, then the square they protect",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ protect %2$@."
+          }
+        }
+      }
+    },
+    "%@ protects %@." : {
+      "comment" : "One piece's square, then the square it protects",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ protects %2$@."
+          }
+        }
+      }
+    },
+    "%@ ran out of time." : {},
+    "%@ reached the far rank." : {},
+    "%@ reported · %lld not reported" : {
+      "comment" : "Time reported, then how many operations reported none\nTokens reported, then how many operations reported none",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ reported · %2$lld not reported"
+          }
+        }
+      }
+    },
+    "%@ resigned." : {},
+    "%@ review" : {
+      "comment" : "The title of a finished mini-game's review sheet"
+    },
+    "%@ secondary window: %lld%% used" : {
+      "comment" : "A provider usage window: its name and the share used",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ secondary window: %2$lld%% used"
+          }
+        }
+      }
+    },
+    "%@ secondary window: %lld%% used; resets %@" : {
+      "comment" : "A provider usage window: its name, the share used and when it resets",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ secondary window: %2$lld%% used; resets %3$@"
+          }
+        }
+      }
+    },
     "%@ used a hint" : {},
     "%@ uses a different version of Checkmate." : {},
+    "%@ vs %@" : {
+      "comment" : "A network game's title: White's name, then Black's",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ vs %2$@"
+          }
+        }
+      }
+    },
     "%@ was accepted twice." : {},
     "%@ wins the game." : {},
     "%@ wins the game. Checkmate quits once your resignation has gone out." : {},
+    "%@ wins." : {},
+    "%@ wins. You can review the game afterwards." : {
+      "comment" : "Resigning the network game: what follows"
+    },
     "%@ · %@" : {
+      "comment" : "The board-area title: the activity, then what it shows",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -194,12 +417,199 @@
         }
       }
     },
+    "%@ – %@ · Round %@" : {
+      "comment" : "A game title: the two players, then the tournament round",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ – %2$@ · Round %3$@"
+          }
+        }
+      }
+    },
+    "%@'s game" : {
+      "comment" : "A hosted game's name on the network, as other players see it"
+    },
+    "%@'s move." : {},
+    "%@, %@" : {
+      "comment" : "A graph point: the move, its score",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@, %2$@"
+          }
+        }
+      }
+    },
+    "%@, %@, %@" : {
+      "comment" : "A graph point: the move, its score, its grade",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@, %2$@, %3$@"
+          }
+        }
+      }
+    },
+    "%@, capturing a %@" : {
+      "comment" : "A move announcement, then the piece it captured",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@, capturing a %2$@"
+          }
+        }
+      }
+    },
+    "%@, capturing a %@ en passant" : {
+      "comment" : "A move announcement, then the piece it captured en passant",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@, capturing a %2$@ en passant"
+          }
+        }
+      }
+    },
+    "%@, check" : {
+      "comment" : "A move announcement that gives check"
+    },
+    "%@, checkmate" : {
+      "comment" : "A move announcement that gives checkmate"
+    },
+    "%@, clip %lld" : {
+      "comment" : "Where a problem happened: a lesson's place, then the clip's number",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@, clip %2$lld"
+          }
+        }
+      }
+    },
+    "%@, continue here" : {
+      "comment" : "A lesson's status, then that the learner continues from it"
+    },
+    "%@, done" : {
+      "comment" : "A lesson checkpoint that is done"
+    },
+    "%@, no score" : {
+      "comment" : "A graph point: the move without a score\nThe graph's hover readout of a position without a score"
+    },
+    "%@, no score, %@" : {
+      "comment" : "A graph point: the move without a score, then its grade",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@, no score, %2$@"
+          }
+        }
+      }
+    },
+    "%@, not done yet" : {
+      "comment" : "A lesson checkpoint that is not done yet"
+    },
+    "%@, promoting to a %@" : {
+      "comment" : "A move announcement, then the piece the pawn became",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@, promoting to a %2$@"
+          }
+        }
+      }
+    },
+    "%@, then %@" : {
+      "comment" : "Steps of a route, one after the other",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@, then %2$@"
+          }
+        }
+      }
+    },
+    "%@. %@" : {
+      "comment" : "A lesson's status, then why it is closed",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@. %2$@"
+          }
+        }
+      }
+    },
+    "%@: %@" : {
+      "comment" : "A defending piece, then what it does",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@: %2$@"
+          }
+        }
+      }
+    },
+    "%@: %@." : {
+      "comment" : "A side, then its pieces and their squares",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@: %2$@."
+          }
+        }
+      }
+    },
     "%lld / %lld" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
             "value" : "%1$lld / %2$lld"
+          }
+        }
+      }
+    },
+    "%lld / %lld moves" : {
+      "comment" : "Whole-game analysis progress: moves analyzed of all moves",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld / %2$#@moves@"
+          },
+          "substitutions" : {
+            "moves" : {
+              "argNum" : 2,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg move"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg moves"
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -337,6 +747,51 @@
         }
       }
     },
+    "%lld lessons have no translated text yet; translate them first." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld lesson has no translated text yet; translate it first."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld lessons have no translated text yet; translate them first."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld minutes" : {
+      "comment" : "A count of whole minutes; the catalog holds its plural forms",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld minute"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld minutes"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%lld moves" : {
       "localizations" : {
         "en" : {
@@ -359,12 +814,70 @@
         }
       }
     },
-    "%lld of %lld lessons explored" : {
+    "%lld moves recorded, counting each side's moves separately." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld move recorded, counting each side's moves separately."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld moves recorded, counting each side's moves separately."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld not tried." : {
+      "comment" : "Puzzles not tried yet"
+    },
+    "%lld of %lld" : {
+      "comment" : "How many main lessons are explored, of the course total\nRecorded clips, of the lesson's clips",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "%1$lld of %2$lld lessons explored"
+            "value" : "%1$lld of %2$lld"
+          }
+        }
+      }
+    },
+    "%lld of %lld lessons explored" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld of %2$#@lessons@ explored"
+          },
+          "substitutions" : {
+            "lessons" : {
+              "argNum" : 2,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg lesson"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg lessons"
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -373,8 +886,73 @@
       "localizations" : {
         "en" : {
           "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld of %2$#@moves@ could not be analyzed."
+          },
+          "substitutions" : {
+            "moves" : {
+              "argNum" : 2,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg move"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg moves"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld of %lld positions have no score." : {
+      "comment" : "The evaluation graph's summary: positions without a score",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld of %2$#@positions@ have no score."
+          },
+          "substitutions" : {
+            "positions" : {
+              "argNum" : 2,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg position"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg positions"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld of %lld solved on your own." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
             "state" : "new",
-            "value" : "%1$lld of %2$lld moves could not be analyzed."
+            "value" : "%1$lld of %2$lld solved on your own."
           }
         }
       }
@@ -383,8 +961,30 @@
       "localizations" : {
         "en" : {
           "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$lld operations with reported counters · %2$lld unknown · %3$lld incomplete"
+            "state" : "translated",
+            "value" : "%1$#@operations@ with reported counters · %2$lld unknown · %3$lld incomplete"
+          },
+          "substitutions" : {
+            "operations" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg operation"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg operations"
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -393,8 +993,50 @@
       "localizations" : {
         "en" : {
           "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$lld operations · %2$lld sessions"
+            "state" : "translated",
+            "value" : "%1$#@operations@ · %2$#@sessions@"
+          },
+          "substitutions" : {
+            "operations" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg operation"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg operations"
+                    }
+                  }
+                }
+              }
+            },
+            "sessions" : {
+              "argNum" : 2,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg session"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg sessions"
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -466,7 +1108,28 @@
         }
       }
     },
-    "%lld reviews could not be saved." : {},
+    "%lld reviews could not be saved." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld review could not be saved."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld reviews could not be saved."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%lld saved reviews could not be read and were moved to the Quarantine folder inside Reviews. Nothing was deleted." : {
       "localizations" : {
         "en" : {
@@ -512,7 +1175,88 @@
       }
     },
     "%lld solved with a hint or on a later try." : {},
-    "%lld suggested boards from a newer version of Checkmate are kept for it." : {},
+    "%lld solved · %lld to review" : {
+      "comment" : "The puzzle library heading: puzzles solved, then puzzles to review",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld solved · %2$lld to review"
+          }
+        }
+      }
+    },
+    "%lld suggested boards from a newer version of Checkmate are kept for it." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld suggested board from a newer version of Checkmate is kept for it."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld suggested boards from a newer version of Checkmate are kept for it."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld to review." : {
+      "comment" : "Puzzles marked for review"
+    },
+    "%lld tokens" : {
+      "comment" : "A count of tokens; the catalog holds its plural forms",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld token"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld tokens"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld uses" : {
+      "comment" : "How many times an activity ran; the catalog holds its plural forms",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld use"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld uses"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%lld." : {},
     "%lld. %@" : {
       "localizations" : {
@@ -524,10 +1268,20 @@
         }
       }
     },
-    ", not done yet" : {},
-    ", promoting to a %@" : {},
-    ". Compare what happens after the capture before calling the piece safe." : {},
-    "; resets %@" : {},
+    "?! inaccuracy · ? mistake · ?? blunder; estimates may change." : {
+      "comment" : "The move grades' glyphs and what they mean"
+    },
+    "A %@ cannot move from %@ to %@." : {
+      "comment" : "A typed move the piece cannot make",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "A %1$@ cannot move from %2$@ to %3$@."
+          }
+        }
+      }
+    },
     "A bishop slides diagonally and stays on squares of one color. It cannot pass through pieces." : {},
     "A board pattern held back for fresh practice." : {},
     "A check, capture, promotion or the final move" : {},
@@ -537,8 +1291,9 @@
     "A hint is unavailable. Please try again." : {},
     "A king steps one square in any direction, and never onto a square an enemy piece attacks." : {},
     "A knight jumps in an L: two squares one way and one square sideways. It hops over pieces." : {},
-    "A legal reply is " : {},
-    "A lesson %@ is running. Completed text and clips are kept; the item in progress, already charged, is lost. Record / Resume continues later." : {},
+    "A legal reply is %@. Compare what happens after the capture before calling the piece safe." : {},
+    "A lesson recording is running. Completed text and clips are kept; the item in progress, already charged, is lost. Record / Resume continues later." : {},
+    "A lesson translation is running. Completed text and clips are kept; the item in progress, already charged, is lost. Record / Resume continues later." : {},
     "A lesson uses the selected language after all its recordings are complete. Otherwise, the whole lesson plays in English." : {},
     "A library game's position" : {},
     "A listener is not on loopback." : {},
@@ -583,6 +1338,7 @@
     "A saved move no longer applies." : {},
     "A saved reply no longer applies." : {},
     "A saved undo no longer applies." : {},
+    "A separate copy of your current state will be kept in Backups." : {},
     "A shortest route takes %lld moves." : {
       "localizations" : {
         "en" : {
@@ -607,7 +1363,6 @@
     },
     "A stored file for this lesson can no longer be used. Translate or record the lesson again, or remove what is stored." : {},
     "A suggested board from a newer version of Checkmate is kept for it." : {},
-    "Abandoned" : {},
     "About" : {},
     "About Checkmate" : {},
     "Accept Codex connections at launch" : {},
@@ -619,11 +1374,15 @@
     "Account limits unavailable." : {},
     "Account status" : {},
     "Account status has not been refreshed. Voice subscription attribution is unknown." : {},
-    "Account status unavailable. " : {},
+    "Account status unavailable." : {},
+    "Account-wide lifetime token activity: %@" : {
+      "comment" : "The count is shown ungrouped, as the provider reports it"
+    },
+    "Account-wide token activity unavailable." : {},
     "Acknowledgements" : {},
     "Add the piece to promote to, such as %@." : {},
     "Adjusted to supported values" : {},
-    "After %@ it goes wrong. " : {},
+    "After %@ it goes wrong." : {},
     "After %@. Earlier position; moves can't be played here." : {},
     "After %lld%@ %@" : {
       "localizations" : {
@@ -649,7 +1408,6 @@
     "Agree" : {},
     "All" : {},
     "All %lld" : {},
-    "All captured" : {},
     "All lessons" : {},
     "All levels" : {},
     "All retained" : {},
@@ -675,8 +1433,30 @@
       "localizations" : {
         "en" : {
           "stringUnit" : {
-            "state" : "new",
-            "value" : "Analyzed %1$lld of %2$lld moves"
+            "state" : "translated",
+            "value" : "Analyzed %1$lld of %2$#@moves@"
+          },
+          "substitutions" : {
+            "moves" : {
+              "argNum" : 2,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg move"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg moves"
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -695,34 +1475,36 @@
     "Ask the Coach…" : {},
     "Asking the coach for help marks this game as solved with help." : {},
     "Assistance" : {},
-    "Assistance: " : {},
+    "Assistance: %@" : {
+      "comment" : "A network game's agreed help, from its record"
+    },
     "Assistance: %@ for both players." : {},
-    "At %@ you had a checkmate, and played %@." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "At %1$@ you had a checkmate, and played %2$@."
-          }
-        }
-      }
-    },
-    "At %@, after %@, your opponent could checkmate at once." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "At %1$@, after %2$@, your opponent could checkmate at once."
-          }
-        }
-      }
-    },
     "At %lld%@ %@, both king and rook change squares. Inspect the king's safety afterward." : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
             "value" : "At %1$lld%2$@ %3$@, both king and rook change squares. Inspect the king's safety afterward."
+          }
+        }
+      }
+    },
+    "At move %lld you had a checkmate, and played %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "At move %1$lld you had a checkmate, and played %2$@."
+          }
+        }
+      }
+    },
+    "At move %lld, after %@, your opponent could checkmate at once." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "At move %1$lld, after %2$@, your opponent could checkmate at once."
           }
         }
       }
@@ -740,12 +1522,22 @@
     "Back to the game." : {},
     "Backup too large" : {},
     "Balanced" : {},
-    "Before %@, the engine's leading option is %@. %@" : {
+    "Before %@, the engine's leading option is %@. The deeper search supports comparing this alternative." : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Before %1$@, the engine's leading option is %2$@. %3$@"
+            "value" : "Before %1$@, the engine's leading option is %2$@. The deeper search supports comparing this alternative."
+          }
+        }
+      }
+    },
+    "Before %@, the engine's leading option is %@. This short search is provisional; compare its legal replies rather than treating it as a verdict." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Before %1$@, the engine's leading option is %2$@. This short search is provisional; compare its legal replies rather than treating it as a verdict."
           }
         }
       }
@@ -763,6 +1555,9 @@
     "Black is winning" : {},
     "Black played %@." : {},
     "Black to move" : {},
+    "Black to move · Check" : {},
+    "Black vs Stockfish" : {},
+    "Black wins by checkmate." : {},
     "Black wins!" : {},
     "Black won" : {},
     "Black's assistance" : {},
@@ -791,6 +1586,7 @@
     "Cached input (subset)" : {},
     "Cached text input (subset)" : {},
     "Can capture this pawn en passant, landing on %@." : {},
+    "Can capture this pawn en passant, landing on the passed square." : {},
     "Can recapture on %@ after the %@ on %@ plays %@." : {
       "localizations" : {
         "en" : {
@@ -805,6 +1601,7 @@
     "Cancel Analysis" : {},
     "Cancel Import" : {},
     "Cancel Voice Coach" : {},
+    "Cancel to keep working, or quit without them." : {},
     "Canceled. Completed text and clips are preserved." : {},
     "Canceling…" : {},
     "Cannot recapture after the %@ on %@ plays %@; that recapture would leave its own king in check." : {
@@ -821,9 +1618,20 @@
     "Capture, check or promotion" : {},
     "Captures are checked with the attacking side to move. Solid lines indicate a legal capture; dashed lines show geometric attacks restricted by king safety. This does not predict the opponent’s choice." : {},
     "Castling" : {},
-    "Castling %@ is not allowed here." : {},
+    "Castling also moves the rook from %@ to %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Castling also moves the rook from %1$@ to %2$@."
+          }
+        }
+      }
+    },
     "Castling is not allowed here." : {},
+    "Castling kingside is not allowed here." : {},
     "Castling moves the king two squares toward a rook, and the rook jumps over the king." : {},
+    "Castling queenside is not allowed here." : {},
     "Castling rights do not match the pieces." : {},
     "Cedar" : {},
     "Changelog" : {},
@@ -861,6 +1669,7 @@
     "Check for Updates…" : {},
     "Check that %@ is writable, then open Checkmate again." : {},
     "Check your internet connection, then try again." : {},
+    "Check." : {},
     "Checking engine strength settings…" : {},
     "Checking key moments more deeply" : {},
     "Checking offline lesson recordings. Try Play again shortly." : {},
@@ -892,13 +1701,16 @@
     "Checkmate needs Local Network access to find games." : {},
     "Checkmate on GitHub" : {},
     "Checkmate was updated or moved while open, so lesson narration is unavailable. Quit and reopen Checkmate to hear it." : {},
-    "Checkmate! " : {},
-    "Checkmate. " : {},
+    "Checkmate!" : {},
+    "Checkmate." : {},
     "Checkmate. Stockfish wins." : {},
     "Checkmate. The computer won this game. Undo your moves or start again." : {},
     "Checkmate. The game is over." : {},
     "Checkmate. You win!" : {},
-    "Checkmate: " : {},
+    "Checkmate. You win." : {},
+    "Checkmate: %@." : {
+      "comment" : "The moves that give checkmate"
+    },
     "Checks, captures, promotions and the final move." : {},
     "Chess" : {},
     "Chess engine" : {},
@@ -921,6 +1733,7 @@
     "Choose a valid language identifier." : {},
     "Choose a valid promotion." : {},
     "Choose an exercise from the library." : {},
+    "Choose another option." : {},
     "Chosen under Advanced." : {},
     "Claim Draw" : {},
     "Claim Win" : {},
@@ -946,7 +1759,9 @@
     "Coach" : {},
     "Coach is thinking…" : {},
     "Coach volume" : {},
-    "Coach: " : {},
+    "Coach: %@" : {
+      "comment" : "A line of the voice conversation the coach said"
+    },
     "Coach: chosen automatically · %@" : {},
     "Coach: chosen automatically, the newest one your account can use" : {},
     "Code" : {},
@@ -991,12 +1806,36 @@
     "Codex will no longer start Checkmate’s chess tools, and Checkmate’s companion skill is removed. A skill you edited is kept." : {},
     "Collection" : {},
     "Comment exceeds text limit." : {},
+    "Comment in the record: %@" : {
+      "comment" : "A comment from the game record, read aloud"
+    },
     "Companion role" : {},
     "Compare Best Line · Before This Move" : {},
     "Compare the possible continuations; these short searches do not establish a precise difference." : {},
     "Compare trades" : {},
     "Comparing moves…" : {},
-    "Complete offline lesson: %lld verified recordings." : {},
+    "Complete offline lesson: %lld verified recordings." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Complete offline lesson: %lld verified recording."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Complete offline lesson: %lld verified recordings."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "Completed. Matching translated text and verified clips are reused when resuming." : {},
     "Computer" : {},
     "Computer wins. Try again!" : {},
@@ -1027,15 +1866,25 @@
     "Copy PGN" : {},
     "Copy PGN or FEN text first." : {},
     "Copyright © 2026" : {},
-    "Correct, on a later try. It counts as solved and comes back for review. " : {},
-    "Correct, with help from a hint. It counts as solved with help and comes back for review. " : {},
-    "Correct. " : {},
+    "Correct, on a later try. It counts as solved and comes back for review." : {},
+    "Correct, with help from a hint. It counts as solved with help and comes back for review." : {},
+    "Correct." : {},
     "Could legally capture this piece if %@ were to move in this position." : {},
     "Couldn't look for games on your network." : {},
     "Couldn't open %@ with that code." : {},
     "Couldn't reach %@ securely." : {},
     "Couldn't reach %@." : {},
-    "Course " : {},
+    "Course %@" : {},
+    "Course %@: %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Course %1$@: %2$@"
+          }
+        }
+      }
+    },
     "Course progress" : {},
     "Cover that square, give the king room, or stop the checking piece." : {},
     "Covers this square in the diagram. Legal captures cannot be established from this diagram alone." : {},
@@ -1054,6 +1903,9 @@
     "Date" : {},
     "Decline" : {},
     "Deeper engine comparison" : {},
+    "Deeper engine comparison · depth %lld" : {
+      "comment" : "The engine comparison's caption and the search depth it reached"
+    },
     "Default Order" : {},
     "Delete" : {},
     "Delete Saved Review…" : {},
@@ -1098,23 +1950,24 @@
       "comment" : "A game result: neither side wins"
     },
     "Draw agreed." : {},
-    "Draw by %@." : {},
-    "Draw by agreement" : {},
     "Draw by fivefold repetition." : {},
     "Draw by stalemate." : {},
+    "Draw by the 75-move rule." : {},
     "Draw by the fifty-move rule." : {},
     "Draw by the seventy-five-move rule." : {},
     "Draw by threefold repetition." : {},
     "Draw claimed by %@." : {},
     "Draw claimed by %@. The goal is checkmate, so this one is not solved." : {},
     "Draw." : {},
-    "Draw. " : {},
-    "Draw: " : {},
+    "Draw: %@" : {
+      "comment" : "The reason is a phrase, such as threefold repetition"
+    },
     "Draw: 40 turns without a capture or pawn move." : {},
     "Draw: neither side can checkmate." : {},
     "Draw: neither side has enough material to checkmate." : {},
     "Draw: neither side has enough pieces left to checkmate." : {},
     "Draw: no remaining target can be reached." : {},
+    "Draw: the game cannot go on." : {},
     "Draw: the same position appeared three times." : {},
     "Drawn game" : {},
     "Drop a PGN or FEN file." : {},
@@ -1125,7 +1978,28 @@
     "Duplicate training scenario identifiers." : {},
     "Duration" : {},
     "Each clip is one recording request on your signed-in account, in the %@ voice." : {},
-    "Each fact below was proved by checking every reply, up to %lld single moves ahead, under this game’s rules." : {},
+    "Each fact below was proved by checking every reply, up to %lld single moves ahead, under this game’s rules." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Each fact below was proved by checking every reply, up to %lld single move ahead, under this game’s rules."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Each fact below was proved by checking every reply, up to %lld single moves ahead, under this game’s rules."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "Each lesson is one translation request on your signed-in account." : {},
     "Earlier position, after %@" : {},
     "Edit" : {},
@@ -1170,22 +2044,15 @@
     "Evaluation after each move of the main line, from White's side." : {},
     "Evaluation from White's side: light above the line favors White, dark below favors Black. Click or drag to choose a position." : {},
     "Evaluation graph" : {},
-    "Evaluation graph, not on the main line" : {},
-    "Evaluation graph, position %lld of %lld, " : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Evaluation graph, position %1$lld of %2$lld, "
-          }
-        }
-      }
+    "Evaluation graph, %@" : {
+      "comment" : "The evaluation graph's label: the selected move, its score and grade"
     },
+    "Evaluation graph, not on the main line" : {},
     "Evaluation, part %lld" : {},
     "Even" : {},
     "Event" : {},
     "Every lesson already has translated text in %@." : {},
-    "Every piece there was to capture is taken. " : {},
+    "Every piece there was to capture is taken." : {},
     "Every translated lesson already has all its recordings." : {},
     "Existing game" : {},
     "Existing games" : {},
@@ -1197,14 +2064,14 @@
     "Export Progress…" : {},
     "Export Saved File…" : {},
     "Export contents" : {},
+    "Export it to keep it, or quit without it." : {},
     "Export…" : {},
     "Extra high" : {},
     "FEN positions" : {},
-    "Far rank" : {},
     "Fast" : {},
     "File" : {},
-    "File " : {
-      "comment" : "A board column, followed by its letter"
+    "File %@" : {
+      "comment" : "A board column and its letter"
     },
     "File exceeds the 16 MiB limit." : {},
     "File to review" : {},
@@ -1243,7 +2110,6 @@
     "First position" : {},
     "First steps" : {},
     "First steps gives more opportunities to practice. You can always use hints or take back a move." : {},
-    "Fivefold repetition" : {},
     "Flip Board" : {},
     "Follow each %@ piece's lines and jumps. A line stops at the first piece in the way; a pinned piece still attacks." : {},
     "Follow every line into the square and see which pieces could capture there." : {},
@@ -1294,23 +2160,36 @@
     "Give the collection a name." : {},
     "Give the play code to the person you're playing, and the watch code to anyone watching." : {},
     "Give the play code to the person you're playing." : {},
+    "Gives check." : {},
     "Go back to the game to play a move." : {},
     "Go through the pieces one at a time and ask which ones could be captured right now." : {},
     "Go to Your Turn" : {},
     "Good move" : {},
-    "Good. " : {},
+    "Good." : {},
     "Graphite" : {},
     "Guidance" : {},
     "Guided" : {},
     "Guided game" : {},
-    "Guided hint: " : {},
+    "Guided hint: %@" : {},
     "Handicap" : {},
-    "Handicap: %@; %@." : {
+    "Handicap: %@ gets %@; %@ gets %@." : {
+      "comment" : "A spectator: White's name and help, then Black's",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Handicap: %1$@; %2$@."
+            "value" : "Handicap: %1$@ gets %2$@; %3$@ gets %4$@."
+          }
+        }
+      }
+    },
+    "Handicap: %@ gets %@; you get %@." : {
+      "comment" : "The learner plays Black",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Handicap: %1$@ gets %2$@; you get %3$@."
           }
         }
       }
@@ -1326,14 +2205,26 @@
       }
     },
     "Handicap: different assistance for each side" : {},
+    "Handicap: you get %@; %@ gets %@." : {
+      "comment" : "The learner plays White",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Handicap: you get %1$@; %2$@ gets %3$@."
+          }
+        }
+      }
+    },
     "Header exceeds text limit." : {},
     "Header inside variation." : {},
     "Header name is too long." : {},
     "Heard as written" : {},
     "Help" : {},
-    "Hide " : {},
     "Hide Checkmate" : {},
+    "Hide Details" : {},
     "Hide Others" : {},
+    "Hide Sidebar" : {},
     "Hides this event's games." : {},
     "Hint" : {
       "comment" : "Noun: ask for a hint"
@@ -1348,7 +2239,7 @@
         }
       }
     },
-    "Hint: " : {},
+    "Hint: %@" : {},
     "Hints" : {},
     "Hints on request" : {},
     "Hints used: %@ %lld · %@ %lld" : {
@@ -1392,7 +2283,12 @@
     "Imported game" : {},
     "Imported position" : {},
     "Importing" : {},
-    "Importing %@…" : {},
+    "Importing %@…" : {
+      "comment" : "Shown while a game file imports; the value is its name"
+    },
+    "Importing games…" : {
+      "comment" : "Shown while pasted or dropped games import"
+    },
     "In this lesson" : {},
     "Inaccuracy" : {},
     "Increment B fields on an Increment A scenario" : {},
@@ -1404,7 +2300,6 @@
     "Inspect the recorded position." : {},
     "Install Codex on this Mac first." : {},
     "Install and sign in to Codex on this Mac to translate lessons." : {},
-    "Insufficient material" : {},
     "Interesting move" : {},
     "Invalid FEN: %@" : {},
     "Invalid PGN header." : {},
@@ -1413,7 +2308,7 @@
     "Invalid chess operation." : {},
     "Invalid completed lesson" : {},
     "Invalid context move." : {},
-    "Invalid course " : {},
+    "Invalid course %@ entry" : {},
     "Invalid header escape." : {},
     "Invalid legacy puzzle entry" : {},
     "Invalid local recording." : {},
@@ -1452,6 +2347,7 @@
     "It is an even trade" : {},
     "It is not “%@”." : {},
     "It isn't your turn." : {},
+    "It uses your ChatGPT plan through Codex. The microphone is on only while the voice coach is connected; disconnect it at any time." : {},
     "It's not your move yet." : {},
     "Its %lld games leave My games. Reviews you saved from them are kept." : {
       "localizations" : {
@@ -1477,6 +2373,9 @@
     },
     "Its file is deleted from My games. Reviews you saved from it are kept." : {},
     "Its latest imagined lines are only in memory." : {},
+    "Its stated termination is %@." : {
+      "comment" : "The value is the PGN record's own word, such as normal or time forfeit"
+    },
     "Join" : {},
     "Join %@?" : {},
     "Join with the play code, or watch with the watch code." : {},
@@ -1488,7 +2387,8 @@
     "Keep Working" : {},
     "Keep custom settings" : {},
     "Keep going: find the next move." : {},
-    "Keep your skills sharp with puzzles%@ a game." : {},
+    "Keep your skills sharp with puzzles or a game." : {},
+    "Keep your skills sharp with puzzles, training or a game." : {},
     "Key Moments" : {},
     "Key moment, %@" : {},
     "King and pawn" : {},
@@ -1512,9 +2412,11 @@
     "Leaving…" : {},
     "Left and Right arrows step through the game. Hold Option with the arrow keys to explore squares, then press Return to choose a piece or destination. Escape clears your selection." : {},
     "Legacy puzzle progress" : {},
-    "Legacy puzzle: " : {},
+    "Legacy puzzle: %@" : {},
     "Legacy strength" : {},
-    "Legal escapes include " : {},
+    "Legal escapes include %@." : {
+      "comment" : "Up to three moves, separated by commas"
+    },
     "Lesson" : {},
     "Lesson %lld of %lld, clip %lld of %lld" : {
       "localizations" : {
@@ -1593,12 +2495,15 @@
     "Major pieces" : {},
     "Malformed voice event" : {},
     "Marin" : {},
-    "Marked in the record: " : {},
+    "Marked in the record: %@" : {
+      "comment" : "The record's own annotation of a move, then what it means"
+    },
     "Mastered" : {},
     "Medium" : {},
     "Microphone" : {},
     "Microphone input level" : {},
     "Microphone test — speak for five seconds" : {},
+    "Mini-game: %@" : {},
     "Mini-games" : {},
     "Minimize" : {},
     "Minor pieces" : {},
@@ -1753,9 +2658,21 @@
     "Move the %@ %@ from %@ to %@ in at most %lld moves." : {
       "localizations" : {
         "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Move the %1$@ %2$@ from %3$@ to %4$@ in at most %5$lld moves."
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Move the %1$@ %2$@ from %3$@ to %4$@ in at most %5$lld move."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Move the %1$@ %2$@ from %3$@ to %4$@ in at most %5$lld moves."
+                }
+              }
+            }
           }
         }
       }
@@ -1775,7 +2692,9 @@
     "Movement practice · only the marked piece moves" : {},
     "Moves" : {},
     "Moves in this line" : {},
-    "Moves that work: " : {},
+    "Moves that work: %@." : {
+      "comment" : "Moves separated by commas"
+    },
     "Moves: %lld" : {},
     "Moves: %lld of %lld" : {
       "localizations" : {
@@ -1813,7 +2732,7 @@
       }
     },
     "Narration" : {},
-    "Narration could not be verified, so here is the explanation as text: " : {},
+    "Narration could not be verified, so here is the explanation as text: %@" : {},
     "Narration could not play." : {},
     "Narration could not play. You can still read the transcript." : {},
     "Narration volume" : {},
@@ -1871,9 +2790,30 @@
     },
     "No Squares" : {},
     "No collections yet" : {},
-    "No en passant. Pawns stay pawns at the far rank. " : {},
+    "No en passant. Pawns stay pawns at the far rank." : {},
     "No exercises match these filters." : {},
-    "No forced win was proved within %lld single moves of any position in this game." : {},
+    "No forced win was proved within %lld single moves of any position in this game." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "No forced win was proved within %lld single move of any position in this game."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "No forced win was proved within %lld single moves of any position in this game."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "No friendly piece covers this piece’s square or can recapture a current legal capture." : {},
     "No game records." : {},
     "No game was found in this record." : {},
@@ -1887,21 +2827,20 @@
     "No king to move." : {},
     "No move could be suggested just now. Ask for a hint again to retry." : {},
     "No move reaches the goal here." : {},
-    "No moves" : {},
     "No moves were played." : {},
     "No new board could be made this time. Try again." : {},
     "No opposing piece attacks this piece in the displayed position." : {},
     "No outdated translations or recordings to remove." : {},
     "No packaged engine move" : {},
     "No position." : {},
-    "No progress" : {},
     "No recorded Checkmate activity in this time range." : {},
     "No review is open." : {},
     "No saved reviews match your search" : {},
     "No saved reviews yet" : {},
     "No squares" : {},
     "No stored recordings for this selection." : {},
-    "No time estimate yet: there are no earlier %@ on this Mac to judge from." : {},
+    "No time estimate yet: there are no earlier recordings on this Mac to judge from." : {},
+    "No time estimate yet: there are no earlier translations on this Mac to judge from." : {},
     "No translated text or recordings for this selection." : {},
     "No voice coach is available to your account right now." : {},
     "No: a piece is in the way" : {},
@@ -1919,18 +2858,21 @@
     "Not connected" : {},
     "Not quite. Is the king under attack, and does the side to move have a legal move?" : {},
     "Not quite. Look again and try another answer." : {},
-    "Not quite. Look again: " : {},
+    "Not quite. Look again: %@." : {
+      "comment" : "The right answers, separated by semicolons"
+    },
     "Not quite. Take back your move and try again." : {},
-    "Not quite. The answer is: %@. " : {},
+    "Not quite. The answer is: %@." : {},
     "Not quite: some of your squares are wrong or missing." : {},
     "Not solved last time." : {},
     "Not solved this time" : {},
     "Not solved yet" : {},
     "Not started" : {},
     "Not tried" : {},
+    "Notes on your moves are things worth reviewing, not wrong answers." : {},
     "Nothing urgent" : {},
     "Nothing was started." : {},
-    "Nothing was started: your sign-in could not be confirmed. " : {},
+    "Nothing was started: your sign-in could not be confirmed." : {},
     "Now in %@." : {},
     "Now make a move that gives nothing away." : {},
     "Now win material, or checkmate." : {},
@@ -1946,7 +2888,7 @@
     "On request" : {},
     "One good move: %@." : {},
     "One of your pieces is in danger" : {},
-    "One shortest route from here: " : {},
+    "One shortest route from here: %@." : {},
     "Only a finished training game can be reviewed." : {},
     "Only a pawn reaching the last rank promotes." : {},
     "Only a pawn reaching the last rank promotes; this move takes no promotion piece." : {},
@@ -2022,6 +2964,9 @@
     "Play as Black" : {},
     "Play as White" : {},
     "Play code" : {},
+    "Play code, %@" : {
+      "comment" : "The play code, read one character at a time"
+    },
     "Play demonstration" : {},
     "Play on Network" : {},
     "Play on · Computer’s turn" : {},
@@ -2051,7 +2996,6 @@
     "Practice game" : {},
     "Practice guidance" : {},
     "Practice position (history unavailable)" : {},
-    "Practice · %@ vs Stockfish" : {},
     "Practice · White vs Stockfish" : {},
     "Practiced" : {},
     "Preparing a preview…" : {},
@@ -2075,11 +3019,13 @@
     "Privacy" : {},
     "Privacy, licenses and links are in Settings ▸ About." : {},
     "Problem" : {},
+    "Problems are listed below." : {},
     "Progress imported" : {},
     "Promote to a bishop" : {},
     "Promote to a knight" : {},
     "Promote to a queen" : {},
     "Promote to a rook" : {},
+    "Promotes to a %@." : {},
     "Promotion" : {},
     "Promotion canceled. Nothing was counted." : {},
     "Protect it" : {},
@@ -2090,10 +3036,13 @@
     "Provider estimates are not actual charges." : {},
     "Provider reports included usage is currently unavailable." : {},
     "Provisional engine estimate" : {},
-    "Puzzle attempts: " : {},
+    "Provisional engine estimate · depth %lld" : {
+      "comment" : "The engine comparison's caption and the search depth it reached"
+    },
+    "Puzzle attempts: %@" : {},
     "Puzzle library" : {},
     "Puzzle progress" : {},
-    "Puzzle progress: " : {},
+    "Puzzle progress: %@" : {},
     "Puzzles" : {},
     "Queen" : {},
     "Queens" : {},
@@ -2106,8 +3055,8 @@
     "Quit Checkmate" : {},
     "Random" : {},
     "Random Side" : {},
-    "Rank " : {
-      "comment" : "A board row, followed by its number"
+    "Rank %@" : {
+      "comment" : "A board row and its number"
     },
     "Reach the far rank with a pawn, capture every opposing pawn, or leave the opponent without a move." : {},
     "Read Aloud" : {},
@@ -2162,7 +3111,7 @@
     "Ready tomorrow." : {},
     "Ready — microphone off" : {},
     "Ready — microphone unavailable" : {},
-    "Ready — microphone unavailable. " : {},
+    "Ready — microphone unavailable." : {},
     "Ready. Start a new Codex task using $%@." : {},
     "Ready. Turn on Allow Codex connections below, then start a new Codex task using $%@." : {},
     "Reasoning (subset)" : {},
@@ -2230,6 +3179,9 @@
     "Redo" : {},
     "Refresh Account Status" : {},
     "Refresh explicitly after signing in." : {},
+    "Refreshed %@" : {
+      "comment" : "When the account status was last read"
+    },
     "Refreshing account status…" : {},
     "Related lessons" : {},
     "Remove" : {
@@ -2241,7 +3193,7 @@
     "Remove Outdated Translations…" : {},
     "Remove Stored Lesson" : {},
     "Remove clip %lld?" : {},
-    "Remove collection " : {},
+    "Remove collection %@" : {},
     "Remove outdated translations?" : {},
     "Remove stored lesson language?" : {},
     "Remove “%@”?" : {
@@ -2278,11 +3230,10 @@
     "Rename" : {},
     "Rename Collection" : {},
     "Rename Saved Review" : {},
-    "Rename collection " : {},
+    "Rename collection %@" : {},
     "Rename…" : {},
     "Renewing the voice session…" : {},
     "Repair Codex Setup" : {},
-    "Repeated position" : {},
     "Replay the instruction" : {},
     "Replay the original instruction (your game stays as it is)" : {},
     "Replay transcript" : {},
@@ -2326,14 +3277,24 @@
     "Review playback" : {},
     "Review read-back failed." : {},
     "Review tree integrity failed." : {},
-    "Review · Imagined moves" : {},
-    "Review · Original game" : {},
     "Review, %lld, %@, %@" : {
+      "comment" : "Announced when a review opens: move number, side, move",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
             "value" : "Review, %1$lld, %2$@, %3$@"
+          }
+        }
+      }
+    },
+    "Review, %lld, %@, starting position" : {
+      "comment" : "Announced when a review opens at the start: move number, side",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Review, %1$lld, %2$@, starting position"
           }
         }
       }
@@ -2350,8 +3311,8 @@
     },
     "Rook" : {},
     "Rooks" : {},
-    "Round " : {
-      "comment" : "A tournament round, followed by its number"
+    "Round %@" : {
+      "comment" : "A tournament round and its number"
     },
     "Route complete!" : {},
     "Routes completed: %lld" : {},
@@ -2366,7 +3327,9 @@
     "Save This Position for Later" : {},
     "Save this review before leaving?" : {},
     "Saved" : {},
-    "Saved " : {},
+    "Saved %@" : {
+      "comment" : "When a review was last saved"
+    },
     "Saved game checksum does not match its history." : {},
     "Saved learning progress has invalid bounds." : {},
     "Saved lesson exercises have invalid bounds." : {},
@@ -2386,22 +3349,44 @@
     "Select All" : {},
     "Select a language, then translate a lesson." : {},
     "Select a piece, then a destination to test your idea." : {},
-    "Select every %@ piece that attacks %@%@. Choose None if no %@ piece attacks it." : {
+    "Select every %@ piece that attacks %@ (the %@ %@). Choose None if no %@ piece attacks it." : {
+      "comment" : "A training prompt: the side, the square, then the side and kind of the piece on it",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Select every %1$@ piece that attacks %2$@%3$@. Choose None if no %4$@ piece attacks it."
+            "value" : "Select every %1$@ piece that attacks %2$@ (the %3$@ %4$@). Choose None if no %5$@ piece attacks it."
           }
         }
       }
     },
-    "Select every %@ piece that protects the piece on %@%@. Choose None if nothing protects it." : {
+    "Select every %@ piece that attacks %@. Choose None if no %@ piece attacks it." : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Select every %1$@ piece that protects the piece on %2$@%3$@. Choose None if nothing protects it."
+            "value" : "Select every %1$@ piece that attacks %2$@. Choose None if no %3$@ piece attacks it."
+          }
+        }
+      }
+    },
+    "Select every %@ piece that protects the piece on %@ (the %@ %@). Choose None if nothing protects it." : {
+      "comment" : "A training prompt: the side, the square, then the side and kind of the piece on it",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Select every %1$@ piece that protects the piece on %2$@ (the %3$@ %4$@). Choose None if nothing protects it."
+          }
+        }
+      }
+    },
+    "Select every %@ piece that protects the piece on %@. Choose None if nothing protects it." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Select every %1$@ piece that protects the piece on %2$@. Choose None if nothing protects it."
           }
         }
       }
@@ -2414,19 +3399,20 @@
     "Sending…" : {},
     "Services" : {},
     "Set Up Codex" : {},
-    "Setting: " : {},
+    "Setting: %@" : {},
     "Settings" : {},
     "Settings…" : {},
     "Share" : {},
     "Short exercises for the basics. This is foundational practice, not a complete beginner course." : {},
     "Show" : {},
-    "Show " : {},
     "Show Advanced Settings" : {},
     "Show All" : {},
     "Show Backup" : {},
     "Show Backups…" : {},
+    "Show Details" : {},
     "Show Move" : {},
     "Show Review" : {},
+    "Show Sidebar" : {},
     "Show a good move" : {},
     "Show answer" : {},
     "Show in Finder" : {},
@@ -2467,6 +3453,9 @@
     "Spoken language" : {},
     "Spot forks" : {},
     "Spot pins" : {},
+    "Stale account snapshot from %@:" : {
+      "comment" : "Introduces the last account status read, kept after a failed refresh"
+    },
     "Stale collection index." : {},
     "Stalemate" : {},
     "Stalemate: Black has no legal move, but the king is not in check, so the game is a draw. Undo your last move and leave the king a square." : {},
@@ -2558,7 +3547,6 @@
     "Take back move" : {},
     "Take back your move first, then ask again." : {},
     "Take turns moving White and Black on this device." : {},
-    "Targets unreachable" : {},
     "Terminal position cannot start practice." : {},
     "Test Microphone" : {},
     "Test My Idea" : {},
@@ -2581,6 +3569,7 @@
     "That move is legal, but it leaves the idea of this exercise. Undo it and try again." : {},
     "That move is legal, but it misses the follow-up. Undo it and look again, or ask for a hint." : {},
     "That move is not allowed here." : {},
+    "That move is not legal here, so it was not counted." : {},
     "That move is not legal here." : {},
     "That move is not possible." : {},
     "That move isn't legal." : {},
@@ -2600,7 +3589,6 @@
         }
       }
     },
-    "The %@ is longer than 2000 moves." : {},
     "The %@ listener failed: %@." : {
       "localizations" : {
         "en" : {
@@ -2637,12 +3625,13 @@
     "The account could not generate this recording." : {},
     "The answer is %@." : {},
     "The answer is None." : {},
-    "The answer is: " : {},
+    "The answer is: %@." : {},
     "The answer was shown last time." : {},
     "The assistance stays the same for the whole game, and each Mac counts the hints its player uses." : {},
     "The authored opening does not match the position at node %lld." : {},
     "The best line could not be shown." : {},
-    "The best reply, %@, does not change that. " : {},
+    "The best reply, %@, does not change that." : {},
+    "The board has not changed." : {},
     "The capture could not be encoded as PNG." : {},
     "The castling square must be c or g on the side to move's back rank." : {},
     "The change could not be undone." : {},
@@ -2690,16 +3679,9 @@
         }
       }
     },
-    "The engine's leading option is %@. %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "The engine's leading option is %1$@. %2$@"
-          }
-        }
-      }
-    },
+    "The engine prefers another move by approximately %@ pawns in this short search." : {},
+    "The engine's leading option is %@. It is a provisional suggestion from a short search." : {},
+    "The engine's leading option is %@. It remained the leading option in the deeper search." : {},
     "The exchange could not be resolved." : {},
     "The export could not be written. Choose another location." : {},
     "The fifty-move draw can be claimed." : {},
@@ -2771,7 +3753,8 @@
     "The network game you were watching ended when Checkmate closed." : {},
     "The network game's rules failed: %@." : {},
     "The operation was canceled." : {},
-    "The opponent played " : {},
+    "The opponent played %@." : {},
+    "The opponent's king is in check." : {},
     "The other Mac uses Checkmate network protocol %@; this one uses %@. Update Checkmate on both Macs to play together." : {
       "localizations" : {
         "en" : {
@@ -2814,28 +3797,22 @@
     "The practice defender stopped responding, so the game is paused. Nothing is counted; try again." : {},
     "The preview could not be played. Check account access and connectivity." : {},
     "The preview could not be played. Try again." : {},
+    "The previous game is longer than 2000 moves." : {},
     "The previous game's practice start is beyond its moves." : {},
     "The progress file could not be imported. Your current progress is unchanged." : {},
     "The progress is too large to export." : {},
     "The provider selected an unsupported recording model. No clip was saved." : {},
+    "The record does not state why play ended; legal moves may still remain." : {},
+    "The record states %@, which differs from this final board; the original record is kept unchanged." : {},
     "The record stops with %@ to move. Start by inspecting the threats in that actual position." : {},
-    "The recorded result is %@. %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "The recorded result is %1$@. %2$@"
-          }
-        }
-      }
-    },
+    "The recorded result is %@." : {},
     "The recorded searches prefer a different continuation; replay the line to see its consequences." : {},
     "The recording did not match the requested script, or its audio was invalid. Retry explicitly." : {},
     "The recording model or voice is not supported by this generation profile." : {},
     "The recording transcript was too long." : {},
     "The recording was too long." : {},
     "The recordings could not be removed." : {},
-    "The reply was %@. " : {},
+    "The reply was %@." : {},
     "The review changed while this was open, so nothing was started or saved. Choose Practice Here again." : {},
     "The review changed while you were choosing. Choose Practice Here again." : {},
     "The review could not be deleted. Its saved record is preserved; try again." : {},
@@ -2851,13 +3828,15 @@
     "The saved exercise changed while it was being opened, so it was not continued. Choose Continue again; your progress is unchanged." : {},
     "The saved file is damaged or comes from a newer version of Checkmate." : {},
     "The saved file is not a regular file." : {},
+    "The saved game is longer than 2000 moves." : {},
     "The saved game's practice start is beyond its moves." : {},
     "The saved review could not be opened; its file is preserved." : {},
     "The saved review could not be restored; its file is preserved." : {},
     "The selected file could not be read. Your current game and reviews are unchanged." : {},
     "The selected microphone is not available." : {},
     "The selected microphone records in a format Checkmate cannot use." : {},
-    "The selection changed while it was checked. Choose %@ again." : {},
+    "The selection changed while it was checked. Choose Record / Resume again." : {},
+    "The selection changed while it was checked. Choose Translate again." : {},
     "The seventy-five-move automatic draw applies." : {},
     "The shortest route from here takes %lld more moves." : {
       "localizations" : {
@@ -2899,7 +3878,9 @@
     "The translation request is too large." : {},
     "The translation response is invalid." : {},
     "The translation response is too large." : {},
-    "The unfinished exercise could not be recorded: " : {},
+    "The unfinished exercise could not be recorded: %@" : {
+      "comment" : "The value is the reason, a whole sentence"
+    },
     "The unreadable history file is kept, and a new history starts with this session’s activity. Your lessons, recordings and progress are kept." : {},
     "The voice coach available to your account cannot think at the level you chose." : {},
     "The voice coach cannot connect to what is shown now. Return to Practice or a training game you are playing to connect it." : {},
@@ -2970,7 +3951,9 @@
       }
     },
     "This collection could not be read." : {},
-    "This collection could not be read: " : {},
+    "This collection could not be read: %@" : {
+      "comment" : "A library collection that failed to load, then why"
+    },
     "This collection is no longer in the library." : {},
     "This collection's file is damaged." : {},
     "This does not change your game." : {},
@@ -2980,7 +3963,9 @@
     "This exercise asks you to choose squares, not to play a move." : {},
     "This exercise can no longer be saved, so it was not opened. Your progress is unchanged." : {},
     "This exercise could not be opened. Nothing was changed." : {},
-    "This exercise could not be started: " : {},
+    "This exercise could not be started: %@" : {
+      "comment" : "The value is the reason, a whole sentence"
+    },
     "This exercise did not match its checked answers, so it has been withdrawn. Nothing was counted." : {},
     "This exercise has changed since you last tried it, so it starts again." : {},
     "This exercise is finished." : {},
@@ -3038,7 +4023,9 @@
     "This removes the saved review and its imagined lines; Edit ▸ Undo puts them back. Your current game and the original imported file are kept." : {},
     "This removes translated text and recordings made for earlier versions of these lessons, which this version can no longer use. Current translations, recordings and your progress are kept." : {},
     "This replaces the current mini-game." : {},
-    "This result could not be recorded, so the exercise is still open: " : {},
+    "This result could not be recorded, so the exercise is still open: %@" : {
+      "comment" : "The value is the reason, a whole sentence"
+    },
     "This review can no longer be read aloud." : {},
     "This review is already in the library." : {},
     "This review is no longer in the Trash." : {},
@@ -3053,9 +4040,7 @@
     "This turn's explanation is already queued. Put everything in one speak_explanation call." : {},
     "Thorough" : {},
     "Threaten mate" : {},
-    "Threefold repetition" : {},
     "Time control" : {},
-    "Time forfeit" : {},
     "Time not reported" : {},
     "Time ran out against a lone king. Draw." : {},
     "Time range" : {},
@@ -3106,6 +4091,7 @@
       }
     },
     "Training search failed: %@" : {},
+    "Training search failed: unknown error" : {},
     "Transcript" : {},
     "Transcript playback" : {},
     "Transcript verification compares the provider’s transcript with the requested script. Listen to the preview to judge spoken accuracy, clarity and suitability before recording the full lesson." : {},
@@ -3182,6 +4168,7 @@
     "Turn on Narration and raise Narration volume under Lesson playback to hear the preview." : {},
     "Two bishops" : {},
     "Two players on this device" : {},
+    "Two-player games finished: %lld" : {},
     "Type a Move" : {},
     "Type a Move…" : {},
     "Type a move, such as e4 or Nf3." : {},
@@ -3273,11 +4260,15 @@
     "Walnut" : {},
     "Watch" : {},
     "Watch code" : {},
+    "Watch code, %@" : {
+      "comment" : "The watch code, read one character at a time"
+    },
     "Watching %@" : {},
     "Well done" : {},
     "Well done!" : {},
     "What You Need" : {},
     "What's inside" : {},
+    "Whatever you choose, that file is kept." : {},
     "When castling is not allowed" : {},
     "When en passant is not allowed" : {},
     "When the voice coach is connected, what you say and the current position are sent to OpenAI, authorized by your Codex sign-in." : {},
@@ -3302,6 +4293,9 @@
     "White is winning" : {},
     "White played %@." : {},
     "White to move" : {},
+    "White to move · Check" : {},
+    "White vs Stockfish" : {},
+    "White wins by checkmate." : {},
     "White wins!" : {},
     "White won" : {},
     "White's assistance" : {},
@@ -3329,13 +4323,34 @@
     "Yes" : {},
     "Yes, castling is allowed" : {},
     "Yes, en passant is allowed" : {},
-    "Yes: %@. " : {},
+    "Yes: %@." : {},
     "You" : {
       "comment" : "The learner’s player name in a training game’s record"
     },
     "You Explored the Whole Course" : {},
     "You Reached the End of This Set" : {},
-    "You and the defender have played %lld moves between you, and the game is saved. Take a break, or keep going." : {},
+    "You and the defender have played %lld moves between you, and the game is saved. Take a break, or keep going." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "You and the defender have played %lld move between you, and the game is saved. Take a break, or keep going."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "You and the defender have played %lld moves between you, and the game is saved. Take a break, or keep going."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "You are Black" : {},
     "You are White" : {},
     "You can also drop a PGN file on the window." : {},
@@ -3349,18 +4364,32 @@
     "You cannot castle while your king is in check." : {},
     "You come out ahead" : {},
     "You come out behind" : {},
-    "You have %lld seconds left" : {},
-    "You have kept the maximum of %lld imagined lines. Delete one to start another." : {},
-    "You have no %@%@." : {
+    "You have %lld seconds left" : {
       "localizations" : {
         "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "You have no %1$@%2$@."
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "You have %lld second left"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "You have %lld seconds left"
+                }
+              }
+            }
           }
         }
       }
     },
+    "You have kept the maximum of %lld imagined lines. Delete one to start another." : {},
+    "You have no %@ there." : {},
+    "You have no %@." : {},
+    "You have no move." : {},
     "You have tried this board before, so this is practice." : {},
     "You have version %@. Download the new version from GitHub, or update it with Homebrew." : {},
     "You lost" : {},
@@ -3370,7 +4399,6 @@
     "You play White. Choose a piece to explore." : {},
     "You play White. Select a piece, then its destination. The computer plays Black." : {},
     "You play White. Start by making room for your pieces." : {},
-    "You played " : {},
     "You played %@." : {},
     "You reached %@ in %lld moves." : {
       "comment" : "The first value is a board square, such as e4",
@@ -3395,15 +4423,21 @@
         }
       }
     },
+    "You resigned." : {},
     "You resigned. Stockfish wins." : {},
-    "You saved it by " : {},
+    "You saved it by %@." : {
+      "comment" : "How the learner's move defended the piece"
+    },
     "You used a hint" : {},
     "You were checkmated." : {},
     "You win!" : {},
+    "You win." : {},
     "You won" : {},
     "You're watching" : {},
     "You're watching this game, so you can't move." : {},
-    "You: " : {},
+    "You: %@" : {
+      "comment" : "A line of the voice conversation the learner said"
+    },
     "Your ChatGPT account cannot use live voice." : {},
     "Your Codex sign-in has expired and could not be renewed. Open Codex and sign in again, then translate again." : {},
     "Your Codex sign-in has expired." : {},
@@ -3416,11 +4450,13 @@
     "Your current game will be available under Restore Previous Game, replacing the game kept there now." : {},
     "Your current game will be available under Restore Previous Game." : {},
     "Your current practice is backed up and becomes Previous game, replacing that shortcut’s older game. The imported record stays unchanged." : {},
+    "Your customized companion skill was kept." : {},
     "Your data" : {},
     "Your draw offer is open." : {},
     "Your draw offer is still open." : {},
     "Your game had to stop." : {},
     "Your game is paused because a saved review could not be restored." : {},
+    "Your game is paused. Choose Return to Game to continue." : {},
     "Your game stopped when this Mac went to sleep." : {},
     "Your idea" : {},
     "Your idea · move %lld of %lld" : {
@@ -3433,6 +4469,7 @@
         }
       }
     },
+    "Your king is in check." : {},
     "Your king or rook has moved, so White can no longer castle in this game. Undo your moves or start again." : {},
     "Your king would be attacked on %@." : {},
     "Your latest progress could not be saved." : {},
@@ -3450,11 +4487,13 @@
     "Your opponent is Strong: Stockfish at full strength with a short think. It resists well, but it is not perfect." : {},
     "Your opponent threatens checkmate" : {},
     "Your progress could not be saved. Export it before quitting." : {},
+    "Your progress is unchanged." : {},
     "Your saved attempt could not be replayed, so the exercise starts again." : {},
     "Your saved attempt was made by a newer version of Checkmate, so it starts again here. Your first move or hint replaces it." : {},
     "Your saved file is unchanged." : {},
     "Your saved game resumes." : {},
     "Your saved progress could not be backed up for this version of Checkmate, so it was not replaced." : {},
+    "Your saved progress was not changed." : {},
     "Your seat is kept for you, so practice help stays off until you review this game or go back to games." : {},
     "Your side" : {},
     "Your side:" : {},
@@ -3497,6 +4536,9 @@
     "a survival goal names its target and belongs to Save Your Piece" : {},
     "accepted evasions differ from the oracle" : {},
     "accepted mates differ from the oracle: %@" : {},
+    "an Increment B scenario names its evaluator" : {
+      "comment" : "Why a training scenario is invalid"
+    },
     "an attacked square cannot hold the asked side's own piece" : {},
     "an ending starts from its position with the halfmove clock at 0" : {},
     "an exchange question states its line and offers the three results" : {},
@@ -3504,18 +4546,86 @@
     "answering a threat" : {},
     "at least one move must save the piece" : {},
     "attack and protection" : {},
+    "attacked by %@ %@" : {
+      "comment" : "A square's description: the piece attacking it, then whether that is restricted",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "attacked by %1$@ %2$@"
+          }
+        }
+      }
+    },
+    "attacked by %lld, defended by %lld" : {
+      "comment" : "A square's description: how many pieces attack and defend it",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "attacked by %1$lld, defended by %2$lld"
+          }
+        }
+      }
+    },
+    "attacks %@ %@" : {
+      "comment" : "A square's description: the piece it attacks, then whether that is restricted",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "attacks %1$@ %2$@"
+          }
+        }
+      }
+    },
+    "bishop" : {
+      "comment" : "A piece's name inside a sentence"
+    },
+    "bishops" : {
+      "comment" : "Two or more pieces of one kind, inside a sentence"
+    },
+    "black" : {
+      "comment" : "A piece's color inside a sentence, as in the black rook"
+    },
     "blocking the attack" : {},
     "board insight" : {
       "comment" : "Assistance level inside a sentence"
     },
+    "capture destination" : {},
     "captures and trades" : {},
     "capturing the attacker" : {},
+    "castling, promotion and en passant" : {},
+    "check, mate and draws" : {},
     "classification offers exactly the four labels" : {},
+    "collapsed" : {
+      "comment" : "A library section that hides its games"
+    },
+    "duplicate identifiers" : {
+      "comment" : "Why a saved training record cannot be read"
+    },
     "en passant has %@; curate exactly the oracle's one reason" : {},
+    "entry, variant, tier or cluster does not match the catalog" : {
+      "comment" : "Why a training scenario is invalid"
+    },
     "every saving move shares one method; classify it under that method" : {},
     "exceeds its bounds" : {},
     "existing games have no scenarios" : {},
+    "expanded" : {
+      "comment" : "A library section that shows its games"
+    },
     "finishing a won game" : {},
+    "fivefold repetition" : {
+      "comment" : "A draw's reason, inside a sentence"
+    },
+    "forks, pins and mating threats" : {},
+    "game habits" : {},
+    "guarded by %@" : {
+      "comment" : "A square's description: the square guarding it"
+    },
+    "guards %@" : {
+      "comment" : "A square's description: the square it guards"
+    },
     "guided hints" : {
       "comment" : "Assistance level inside a sentence"
     },
@@ -3525,32 +4635,131 @@
       "comment" : "Assistance level inside a sentence"
     },
     "how the pieces move" : {},
+    "illustrative" : {
+      "comment" : "A library game's kind"
+    },
+    "in check" : {
+      "comment" : "A king's square, in its spoken description"
+    },
     "in your answer" : {},
     "include a plausible illegal castling attempt" : {},
     "include at least one plausible but unsafe square" : {},
     "include at least one plausible illegal attempt" : {},
+    "inconsistent summary" : {
+      "comment" : "Why a saved training record cannot be read"
+    },
+    "invalid %@" : {
+      "comment" : "A network message field has a wrong value; the field is a protocol name"
+    },
     "invalid active attempt" : {},
+    "invalid capabilities" : {
+      "comment" : "Why a network message cannot be read"
+    },
+    "invalid data" : {
+      "comment" : "Why a network message cannot be read"
+    },
+    "invalid drill" : {
+      "comment" : "Why a training scenario is invalid"
+    },
     "invalid drill piece, square or fixed piece" : {},
+    "invalid field" : {
+      "comment" : "Why a network message cannot be read"
+    },
     "invalid focus square, stated move or asked color" : {},
+    "invalid identifier" : {
+      "comment" : "Why a training entry is invalid\nWhy a training scenario is invalid"
+    },
     "invalid retry item" : {},
+    "invalid square, piece or move" : {
+      "comment" : "Why a training scenario is invalid"
+    },
+    "invalid summary" : {
+      "comment" : "Why a saved training record cannot be read"
+    },
     "invalid teaching node" : {},
     "invalid title or summary" : {},
+    "invalid variants" : {
+      "comment" : "Why a training entry is invalid"
+    },
     "it could not be completed." : {
       "comment" : "Follows a lesson’s name and a colon"
     },
+    "king" : {
+      "comment" : "A piece's name inside a sentence"
+    },
     "king destinations differ from the oracle: %@" : {},
+    "kings" : {
+      "comment" : "Two or more pieces of one kind, inside a sentence"
+    },
+    "knight" : {
+      "comment" : "A piece's name inside a sentence"
+    },
+    "knights" : {
+      "comment" : "Two or more pieces of one kind, inside a sentence"
+    },
+    "learner, prompt, explanation and hints are required" : {
+      "comment" : "Why a training scenario is invalid"
+    },
+    "less than $0.01" : {
+      "comment" : "A cost below one cent"
+    },
+    "less than 0.01" : {
+      "comment" : "A credit amount below one hundredth"
+    },
+    "library.preview.pieceOnSquare" : {
+      "comment" : "A piece and the square it stands on, in a list",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ %2$@"
+          }
+        }
+      }
+    },
+    "macOS %@ or later" : {
+      "comment" : "The oldest macOS version the app runs on"
+    },
+    "missing %@" : {
+      "comment" : "A network message lacks this field; the field is a protocol name"
+    },
+    "missing clocks" : {
+      "comment" : "Why a network message cannot be read"
+    },
+    "missing diagram" : {
+      "comment" : "Why a training scenario is invalid"
+    },
     "missing evaluator or position" : {},
     "missing teaching graph" : {},
     "more than eight pieces besides the kings" : {},
+    "move destination" : {},
     "moving it away" : {},
     "name at least one plausible passive move that fails" : {},
     "name the tempting capture that fails" : {},
     "needs a legal mate and a legal non-mating move" : {},
-    "neither side has enough material to checkmate" : {},
+    "neither side has enough material to checkmate" : {
+      "comment" : "A draw's reason, inside a sentence"
+    },
+    "network.bar.playerClock" : {
+      "comment" : "A player's clock: the player, then the time left",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@, %2$@"
+          }
+        }
+      }
+    },
     "no accepted move makes a fork" : {},
     "no accepted move makes or uses a pin" : {},
     "no help" : {
       "comment" : "Assistance level inside a sentence"
+    },
+    "no king" : {
+      "comment" : "Why a training scenario is invalid"
     },
     "no protocol version" : {},
     "not a game objective" : {},
@@ -3564,8 +4773,73 @@
     "only move objectives have a teaching graph" : {},
     "only searched objectives have a goal and horizon" : {},
     "part of the last move" : {},
+    "pawn" : {
+      "comment" : "A piece's name inside a sentence"
+    },
+    "pawns" : {
+      "comment" : "Two or more pieces of one kind, inside a sentence"
+    },
+    "piece" : {
+      "comment" : "A piece's name inside a sentence, when its kind is unknown"
+    },
+    "pieces" : {
+      "comment" : "Two or more pieces, inside a sentence, when their kind is unknown"
+    },
     "plain rules are required" : {},
+    "possible destination, not playable now" : {},
+    "protected by %@ %@" : {
+      "comment" : "A square's description: the piece protecting it, then whether that is restricted",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "protected by %1$@ %2$@"
+          }
+        }
+      }
+    },
+    "protecting it" : {},
+    "protects %@ %@" : {
+      "comment" : "A square's description: the piece it protects, then whether that is restricted",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "protects %1$@ %2$@"
+          }
+        }
+      }
+    },
+    "queen" : {
+      "comment" : "A piece's name inside a sentence"
+    },
+    "queens" : {
+      "comment" : "Two or more pieces of one kind, inside a sentence"
+    },
+    "reached by %lld White and %lld Black" : {
+      "comment" : "An empty square's description: how many pieces of each side reach it",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "reached by %1$lld White and %2$lld Black"
+          }
+        }
+      }
+    },
     "restricted or conditional" : {},
+    "rook" : {
+      "comment" : "A piece's name inside a sentence"
+    },
+    "rooks" : {
+      "comment" : "Two or more pieces of one kind, inside a sentence"
+    },
+    "rule mode, input policy and actions must match the objective" : {
+      "comment" : "Why a training entry is invalid"
+    },
+    "selected" : {
+      "comment" : "A board square's state, in its spoken description"
+    },
     "shown by a hint" : {},
     "skills must be listed once each" : {},
     "some moves must succeed and some must fail" : {},
@@ -3573,6 +4847,13 @@
     "standard chess needs a FEN and no diagram" : {},
     "suggested move from %@" : {},
     "suggested move to %@" : {},
+    "target square" : {},
+    "the 50-move rule" : {
+      "comment" : "A draw's reason, inside a sentence"
+    },
+    "the 75-move rule" : {
+      "comment" : "A draw's reason, inside a sentence"
+    },
     "the accepted moves are exactly the checkmates" : {},
     "the accepted moves are exactly those that allow no mate in one" : {},
     "the answer set differs from the geometry: %@" : {},
@@ -3582,7 +4863,6 @@
     "the context moves must show the king or rook moving" : {},
     "the drill's piece is not the learner's" : {},
     "the exchange result differs from the oracle" : {},
-    "the game cannot go on." : {},
     "the genuine concerns differ: %@" : {},
     "the host's game" : {},
     "the learner must be the side to move" : {},
@@ -3591,6 +4871,10 @@
     "the mating piece must not be capturable" : {},
     "the move budget cannot be met, or a shortest-route task allows slack" : {},
     "the opponent must threaten mate now" : {},
+    "the played move" : {},
+    "the position cannot be read." : {
+      "comment" : "Why a start position is invalid, after Invalid FEN:"
+    },
     "the root fingerprint differs from the presented position" : {},
     "the search exceeded %lld positions, so nothing is certified" : {},
     "the shortest route differs from the oracle" : {},
@@ -3599,12 +4883,30 @@
     "the target must be one of the learner's pieces, not the king" : {},
     "the teaching graph names an illegal root move" : {},
     "this objective belongs to increment %@" : {},
+    "threefold repetition" : {
+      "comment" : "A draw's reason, inside a sentence"
+    },
+    "to review" : {
+      "comment" : "A puzzle queued for review, in its spoken description"
+    },
     "too many enemy pieces for an exact route search" : {},
+    "traditional finish" : {
+      "comment" : "A library game's kind"
+    },
     "translate and inspect it before recording." : {},
     "two active attempts" : {},
     "unavailable lesson destination" : {},
     "under a minute" : {},
+    "unknown mini-game" : {
+      "comment" : "Why a saved training record cannot be read"
+    },
+    "unknown type" : {
+      "comment" : "Why a network message cannot be read"
+    },
     "unreachable teaching nodes" : {},
+    "unsupported version %lld" : {
+      "comment" : "Why a saved training record cannot be read"
+    },
     "validated by validator %lld, current is %lld" : {
       "localizations" : {
         "en" : {
@@ -3615,11 +4917,26 @@
         }
       }
     },
+    "variant %@ is graded by another evaluator" : {
+      "comment" : "Why a training scenario is invalid; the variant is an identifier"
+    },
+    "white" : {
+      "comment" : "A piece's color inside a sentence, as in the white rook"
+    },
     "with a mate in one available this is a mate-in-one task" : {},
+    "your opponent" : {
+      "comment" : "Stands in for an unknown opponent's name inside a sentence"
+    },
     "“%@” is not a move. Type a move such as e4, Nf3, O-O or e2e4." : {},
     "“What should I be thinking about here?”" : {},
     "“Why was my last move a mistake?”" : {},
-    "•" : {}
+    "•" : {},
+    "• %@" : {
+      "comment" : "One problem in a list"
+    },
+    "… and %lld more" : {
+      "comment" : "Ends a list cut short; the number of entries not shown"
+    }
   },
   "version" : "1.0"
 }

@@ -12,11 +12,11 @@ struct PuzzleRowFormat:Equatable {
     init(_ puzzle:Puzzle,record:PuzzleProgress) {
         title=puzzle.title;detail="\(puzzle.topic) · \(puzzle.level)";review=record.review
         mark=record.solved ? .solved:record.countsAsSolved ? .notFirstTry:nil;markHelp=mark == nil ? nil:record.standing.title
-        accessibilityValue=([record.standing.title]+(record.review ? ["to review"]:[])+[puzzle.level]).joined(separator:", ")
+        accessibilityValue=([record.standing.title]+(record.review ? [String(localized:"to review",bundle:.checkmate,comment:"A puzzle queued for review, in its spoken description")]:[])+[puzzle.level]).joined(separator:", ")
     }
     /// The library heading: every solve, first time or not, and puzzles queued for review.
     static func heading(_ progress:[String:PuzzleProgress])->String {
-        "\(progress.values.filter(\.countsAsSolved).count) solved · \(progress.values.filter(\.review).count) to review"
+        String(localized:"\(progress.values.filter(\.countsAsSolved).count) solved · \(progress.values.filter(\.review).count) to review",bundle:.checkmate,comment:"The puzzle library heading: puzzles solved, then puzzles to review")
     }
 }
 
@@ -29,5 +29,5 @@ enum CourseCompleteCard {
     static let title=String(localized:"You Explored the Whole Course",bundle:.checkmate)
     @MainActor static func shown(_ learning:LearningPlayer)->Bool {learning.courseComplete && learning.library.nextMainLesson(after:learning.lessonIndex)==nil}
     static func actions(trainingAvailable:Bool)->[Action] {Action.allCases.filter{$0 != .training || trainingAvailable}}
-    static func message(trainingAvailable:Bool)->String {String(localized:"Keep your skills sharp with puzzles\(trainingAvailable ? ", training or":" or") a game.",bundle:.checkmate)}
+    static func message(trainingAvailable:Bool)->String {trainingAvailable ? String(localized:"Keep your skills sharp with puzzles, training or a game.",bundle:.checkmate):String(localized:"Keep your skills sharp with puzzles or a game.",bundle:.checkmate)}
 }

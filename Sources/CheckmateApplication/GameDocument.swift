@@ -26,7 +26,7 @@ public struct GameDocument:Codable,Equatable,Identifiable {
     public var title:String {
         func known(_ name:String)->String? {guard let value=header(name)?.trimmingCharacters(in:.whitespacesAndNewlines),!value.isEmpty,value != "?" else{return nil};return value}
         let title:String
-        if known("White") != nil || known("Black") != nil{title="\(known("White") ?? "White") – \(known("Black") ?? "Black")"+(known("Round").flatMap{$0=="-" ? nil:String(localized:" · Round \($0)",bundle:.checkmate)} ?? "")}
+        if known("White") != nil || known("Black") != nil{let white=known("White") ?? String(localized:"White",bundle:.checkmate),black=known("Black") ?? String(localized:"Black",bundle:.checkmate);title=known("Round").flatMap{$0=="-" ? nil:String(localized:"\(white) – \(black) · Round \($0)",bundle:.checkmate,comment:"A game title: the two players, then the tournament round")} ?? "\(white) – \(black)"}
         else if let event=known("Event"){title=event}
         else if let own=provenance.ownGameTitle{title=own}
         else{title=historyAvailable ? String(localized:"Imported game",bundle:.checkmate):String(localized:"Imported position",bundle:.checkmate)}

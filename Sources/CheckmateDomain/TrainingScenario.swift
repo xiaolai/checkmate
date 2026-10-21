@@ -176,12 +176,12 @@ public struct TrainingScenario:Codable,Equatable,Identifiable {
     }
     /// Structural checks every scenario passes before any evaluator sees it. Legality is checked in Rules/Application.
     public func validateStructure(for definition:TrainingEntryDefinition)throws {
-        guard id.count<=96,id.range(of:"\\A[a-z0-9]+([:-][a-z0-9]+)*\\z",options:.regularExpression) != nil else{try fail("invalid identifier")}
-        guard entry==definition.id,definition.variants.contains(variant),(1...definition.tiers).contains(tier),!cluster.isEmpty else{try fail("entry, variant, tier or cluster does not match the catalog")}
-        guard ["w","b"].contains(learner),!prompt.isEmpty,!explanation.isEmpty,!hints.isEmpty else{try fail("learner, prompt, explanation and hints are required")}
+        guard id.count<=96,id.range(of:"\\A[a-z0-9]+([:-][a-z0-9]+)*\\z",options:.regularExpression) != nil else{try fail(String(localized:"invalid identifier",bundle:.checkmate,comment:"Why a training scenario is invalid"))}
+        guard entry==definition.id,definition.variants.contains(variant),(1...definition.tiers).contains(tier),!cluster.isEmpty else{try fail(String(localized:"entry, variant, tier or cluster does not match the catalog",bundle:.checkmate,comment:"Why a training scenario is invalid"))}
+        guard ["w","b"].contains(learner),!prompt.isEmpty,!explanation.isEmpty,!hints.isEmpty else{try fail(String(localized:"learner, prompt, explanation and hints are required",bundle:.checkmate,comment:"Why a training scenario is invalid"))}
         guard (review != nil) != (generation != nil) else{try fail(String(localized:"a scenario is either curated (reviewed) or generated, not both",bundle:.checkmate))}
         let squares=[target].compactMap{$0}+(diagram.map{Array($0.keys)} ?? [])+(expected?.squares ?? [])
-        guard squares.allSatisfy(ChessNotation.validSquare),diagram?.values.allSatisfy(Self.validPiece) ?? true,((expected?.moves ?? [])+(expected?.wrong ?? [])+(prelude ?? [])).allSatisfy(ChessNotation.validUCI) else{try fail("invalid square, piece or move")}
+        guard squares.allSatisfy(ChessNotation.validSquare),diagram?.values.allSatisfy(Self.validPiece) ?? true,((expected?.moves ?? [])+(expected?.wrong ?? [])+(prelude ?? [])).allSatisfy(ChessNotation.validUCI) else{try fail(String(localized:"invalid square, piece or move",bundle:.checkmate,comment:"Why a training scenario is invalid"))}
         try validateRuleMode(definition.ruleMode)
         guard (focus ?? []).allSatisfy(ChessNotation.validSquare),(stated ?? []).allSatisfy(ChessNotation.validUCI),askColor.map({["w","b"].contains($0)}) ?? true else{try fail(String(localized:"invalid focus square, stated move or asked color",bundle:.checkmate))}
         guard definition.increment == .beginner else {
@@ -210,12 +210,12 @@ public struct TrainingScenario:Codable,Equatable,Identifiable {
     }
     /// Increment B: the evaluator, its goal and horizon, its teaching graph and its question format.
     private func validateBeginner(_ definition:TrainingEntryDefinition)throws {
-        guard let check else{try fail("an Increment B scenario names its evaluator")}
+        guard let check else{try fail(String(localized:"an Increment B scenario names its evaluator",bundle:.checkmate,comment:"Why a training scenario is invalid"))}
         if definition.objective == .mixedPractice {
             guard TrainingCheck.mixed.contains(check) else{try fail(String(localized:"\(check.rawValue) is not a mixed-practice evaluator",bundle:.checkmate))}
             guard let skills,!skills.isEmpty,let primarySkill,skills.contains(primarySkill) else{try fail(String(localized:"a mixed case lists its skills and primary skill",bundle:.checkmate))}
         } else {
-            guard check==TrainingCheck.focused(definition.objective,variant:variant) else{try fail("variant \(variant) is graded by another evaluator")}
+            guard check==TrainingCheck.focused(definition.objective,variant:variant) else{try fail(String(localized:"variant \(variant) is graded by another evaluator",bundle:.checkmate,comment:"Why a training scenario is invalid; the variant is an identifier"))}
             guard skills==nil,primarySkill==nil,source==nil else{try fail(String(localized:"only mixed cases carry skill rows",bundle:.checkmate))}
         }
         if check.searched {

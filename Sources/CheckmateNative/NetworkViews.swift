@@ -100,7 +100,7 @@ struct NetworkDetail:View {
             }
         }
         if !game.spectators.isEmpty {
-            Text(game.spectators.count==1 ? "\(game.spectators[0]) is watching.":String(localized:"\(game.spectators.count) people are watching.",bundle:.checkmate)).font(.caption).foregroundStyle(.secondary).accessibilityIdentifier("network-spectators")
+            Text(game.spectators.count==1 ? String(localized:"\(game.spectators[0]) is watching.",bundle:.checkmate,comment:"One person watches the network game"):String(localized:"\(game.spectators.count) people are watching.",bundle:.checkmate)).font(.caption).foregroundStyle(.secondary).accessibilityIdentifier("network-spectators")
         }
         Divider()
         if game.canTryAgain{
@@ -135,7 +135,7 @@ struct NetworkDetail:View {
             // Connecting, and why a connection ended or was refused, show as well as a live session's state.
             if voice.connection != .disconnected {Text(voice.status).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("network-voice-status")}
             VoiceCoachControls(voice:voice,idPrefix:"network-voice",owned:voice.networkSession){model.connectNetworkVoice()}
-            ForEach(Array(model.networkVoiceHistory.suffix(3).reversed())){entry in Text((entry.role=="learner" ? String(localized:"You: ",bundle:.checkmate):String(localized:"Coach: ",bundle:.checkmate))+entry.text).font(.caption).fixedSize(horizontal:false,vertical:true)}
+            ForEach(Array(model.networkVoiceHistory.suffix(3).reversed())){entry in Text(entry.role=="learner" ? String(localized:"You: \(entry.text)",bundle:.checkmate,comment:"A line of the voice conversation the learner said"):String(localized:"Coach: \(entry.text)",bundle:.checkmate,comment:"A line of the voice conversation the coach said")).font(.caption).fixedSize(horizontal:false,vertical:true)}
         }
     }
     private var leaveTitle:String {
@@ -148,10 +148,10 @@ struct NetworkDetail:View {
     private func codes(_ play:NetworkCode)->some View {
         VStack(alignment:.leading,spacing:Metrics.tightGap){
             Text("Play code").font(.caption).foregroundStyle(.secondary)
-            Text(play.grouped).font(.system(.title2,design:.monospaced).bold()).textSelection(.enabled).accessibilityLabel("Play code, "+Self.spelled(play)).accessibilityIdentifier("network-play-code")
+            Text(play.grouped).font(.system(.title2,design:.monospaced).bold()).textSelection(.enabled).accessibilityLabel(String(localized:"Play code, \(Self.spelled(play))",bundle:.checkmate,comment:"The play code, read one character at a time")).accessibilityIdentifier("network-play-code")
             if let watch=game.watchCode {
                 Text("Watch code").font(.caption).foregroundStyle(.secondary)
-                Text(watch.grouped).font(.system(.title3,design:.monospaced)).textSelection(.enabled).accessibilityLabel("Watch code, "+Self.spelled(watch)).accessibilityIdentifier("network-watch-code")
+                Text(watch.grouped).font(.system(.title3,design:.monospaced)).textSelection(.enabled).accessibilityLabel(String(localized:"Watch code, \(Self.spelled(watch))",bundle:.checkmate,comment:"The watch code, read one character at a time")).accessibilityIdentifier("network-watch-code")
             }
             Text(game.hostPhase == .waiting ? (game.watchCode==nil ? String(localized:"Give the play code to the person you're playing.",bundle:.checkmate):String(localized:"Give the play code to the person you're playing, and the watch code to anyone watching.",bundle:.checkmate)):game.watchCode==nil ? "":String(localized:"Anyone who wants to watch needs the watch code.",bundle:.checkmate)).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
         }

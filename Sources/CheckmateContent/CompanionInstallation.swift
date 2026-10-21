@@ -28,9 +28,9 @@ public enum CompanionInstallation {
     static func markerFile(home: URL, bundleIdentifier: String?) -> URL { skillFolder(home: home, bundleIdentifier: bundleIdentifier).appendingPathComponent(".checkmate-installed.sha256") }
     /// The skill text this build installs: a development build renames the bundled skill to match its folder.
     static func installedText(_ bundled: Data, bundleIdentifier: String?) -> Data {
-        let released = "---\nname: checkmate-companion\n", text = String(decoding: bundled, as: UTF8.self)
+        let released = "---\nname: checkmate-companion\n", text = String(decoding: bundled, as: UTF8.self) // not localized: skill file front matter
         guard !isRelease(bundleIdentifier), text.hasPrefix(released) else { return bundled }
-        return Data(("---\nname: " + skillName(bundleIdentifier: bundleIdentifier) + "\n" + text.dropFirst(released.count)).utf8)
+        return Data(("---\nname: " + skillName(bundleIdentifier: bundleIdentifier) + "\n" + text.dropFirst(released.count)).utf8) // not localized: skill file front matter
     }
     private static func hash(_ data: Data) -> String { SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined() }
     public static func skillState(bundled: Data, bundleIdentifier: String? = Bundle.main.bundleIdentifier, home: URL = FileManager.default.homeDirectoryForCurrentUser) -> SkillState {

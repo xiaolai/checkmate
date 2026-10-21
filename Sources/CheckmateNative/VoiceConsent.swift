@@ -1,5 +1,6 @@
 import AppKit
 import CheckmateSupport
+import CheckmateCore
 
 /// The learner's answer to the voice consent sheet: connect (and whether to connect again at launch), or not now.
 enum VoiceConsentAnswer:Equatable {case cancel,connect(autoConnect:Bool)}
@@ -9,7 +10,7 @@ enum VoiceConsentAnswer:Equatable {case cancel,connect(autoConnect:Bool)}
 @MainActor enum VoiceConsent {
     /// The About pane's sentence, so the two never disagree.
     static let sentToOpenAI=String(localized:"When the voice coach is connected, what you say and the current position are sent to OpenAI, authorized by your Codex sign-in.",bundle:.checkmate)
-    static let explanation=sentToOpenAI+String(localized:" It uses your ChatGPT plan through Codex. The microphone is on only while the voice coach is connected; disconnect it at any time.",bundle:.checkmate)
+    static let explanation=Sentences.join(sentToOpenAI,String(localized:"It uses your ChatGPT plan through Codex. The microphone is on only while the voice coach is connected; disconnect it at any time.",bundle:.checkmate))
     static let autoConnectLabel=String(localized:"Connect voice coach on launch",bundle:.checkmate)
 
     /// Shows the question as a sheet on the front window (or as a window when there is none) and replies once.

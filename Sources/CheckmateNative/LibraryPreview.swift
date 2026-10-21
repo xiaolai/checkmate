@@ -8,7 +8,7 @@ struct LibraryPreview:Equatable {
     static func of(_ row:LibraryRow,document:GameDocument)->LibraryPreview {
         func known(_ tag:String)->String? {guard let value=document.header(tag)?.trimmingCharacters(in:.whitespacesAndNewlines),value.contains(where:{$0 != "?" && $0 != "."}) else{return nil};return PGNImporter.bounded(value,scalars:120)}
         let last=document.mainline.last.map{document.nodes[$0]},plies=document.mainline.count
-        let details=[known("Event"),known("Site"),known("Date").map{$0.replacingOccurrences(of:".??",with:"")},known("Round").map{String(localized:"Round ",bundle:.checkmate,comment:"A tournament round, followed by its number")+$0}].compactMap{$0}
+        let details=[known("Event"),known("Site"),known("Date").map{$0.replacingOccurrences(of:".??",with:"")},known("Round").map{String(localized:"Round \($0)",bundle:.checkmate,comment:"A tournament round and its number")}].compactMap{$0}
         return LibraryPreview(id:row.id,title:row.title,details:details,result:document.result,moves:(plies+1)/2,fen:last?.afterFEN ?? document.startingFEN,problem:nil)
     }
     static func unreadable(_ row:LibraryRow,_ message:String)->LibraryPreview {LibraryPreview(id:row.id,title:row.title,details:[],result:row.result,moves:0,fen:nil,problem:message)}
@@ -55,16 +55,16 @@ struct PositionThumbnail:View {
     }
     /// "White: king g1, rook f1. Black: king g8."
     static func description(_ fen:String)->String {
-        let order=["k","q","r","b","n","p"],names=["king","queen","rook","bishop","knight","pawn"],files=["a","b","c","d","e","f","g","h"],board=squares(fen)
+        let order=["k","q","r","b","n","p"],files=["a","b","c","d","e","f","g","h"],board=squares(fen)
         func side(_ color:String,_ title:String)->String? {
             // Kings first, pawns last; within a kind, from a8 towards h1.
             let pieces=board.indices.compactMap{index -> (kind:Int,text:String)? in
                 guard let piece=board[index],piece.hasPrefix(color),let kind=order.firstIndex(of:String(piece.suffix(1))) else{return nil}
-                return (kind,"\(names[kind]) \(files[index%8])\(8-index/8)")
+                return (kind,String(localized:"library.preview.pieceOnSquare",defaultValue:"\(PieceName.of(order[kind])) \(files[index%8]+String(8-index/8))",bundle:.checkmate,comment:"A piece and the square it stands on, in a list"))
             }
-            return pieces.isEmpty ? nil:title+": "+pieces.sorted{$0.kind<$1.kind}.map(\.text).joined(separator:", ")
+            return pieces.isEmpty ? nil:String(localized:"\(title): \(pieces.sorted{$0.kind<$1.kind}.map(\.text).joined(separator:", ")).",bundle:.checkmate,comment:"A side, then its pieces and their squares")
         }
-        return [side("w",String(localized:"White",bundle:.checkmate)),side("b",String(localized:"Black",bundle:.checkmate))].compactMap{$0}.map{$0+"."}.joined(separator:" ")
+        return [side("w",String(localized:"White",bundle:.checkmate)),side("b",String(localized:"Black",bundle:.checkmate))].compactMap{$0}.reduce(""){Sentences.join($0,$1)}
     }
     var body:some View {
         let board=Self.squares(fen),palette=BoardPalette.theme(theme),symbols=["k":"♚","q":"♛","r":"♜","b":"♝","n":"♞","p":"♟"]

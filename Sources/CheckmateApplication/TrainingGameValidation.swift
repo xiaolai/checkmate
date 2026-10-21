@@ -16,8 +16,8 @@ import CheckmateRules
             guard (scenario.prelude ?? []).isEmpty,fen.split(separator:" ").dropFirst(4).first=="0" else{try fail(String(localized:"an ending starts from its position with the halfmove clock at 0",bundle:.checkmate))}
             let piece=scenario.variant=="kqk" ? "q":"r"
             let mine=board.filter{$0.value.first==learner}.map{String($0.value.last!)}.sorted(),theirs=board.filter{$0.value.first != learner}.map(\.value)
-            guard mine==["k",piece].sorted(),theirs.count==1 else{try fail("a \(scenario.variant) ending is king and \(piece == "q" ? "queen":"rook") against a lone king")}
-            guard let square=board.first(where:{$0.value==scenario.learner+piece})?.key,let king=board.first(where:{$0.value.first != learner})?.key else{try fail("missing pieces")}
+            guard mine==["k",piece].sorted(),theirs.count==1 else{try fail("a \(scenario.variant) ending is king and \(piece == "q" ? "queen":"rook") against a lone king")} // not localized: scenario authoring check
+            guard let square=board.first(where:{$0.value==scenario.learner+piece})?.key,let king=board.first(where:{$0.value.first != learner})?.key else{try fail("missing pieces")} // not localized: scenario authoring check
             if TrainingGeometry.attacks(from:king,board:board).contains(square),TrainingGeometry.defenders(of:square,board:board).isEmpty{try fail(String(localized:"the mating piece must not be capturable",bundle:.checkmate))}
         case .guidedGame:
             guard scenario.workflow=="guided-game" else{try fail(String(localized:"a guided game belongs to the guided-game workflow",bundle:.checkmate))}

@@ -24,13 +24,13 @@ import CheckmateRules
     }
     /// A movement drill's route. The drill's encoding (pieces, squares, an empty start, the budget) is structural.
     private static func validateDrill(_ scenario:TrainingScenario,expected:TrainingExpected,fail:(String)throws -> Never)throws {
-        guard let drill=scenario.drill,let budget=scenario.budget,drill.start != drill.target,drill.pieces[drill.target].map({$0.first != drill.color}) ?? true else{try fail("invalid drill")}
+        guard let drill=scenario.drill,let budget=scenario.budget,drill.start != drill.target,drill.pieces[drill.target].map({$0.first != drill.color}) ?? true else{try fail(String(localized:"invalid drill",bundle:.checkmate,comment:"Why a training scenario is invalid"))}
         guard let distance=drill.distance(from:drill.initial),distance==expected.distance else{try fail(String(localized:"the shortest route differs from the oracle",bundle:.checkmate))}
         guard budget>=distance,scenario.shortest != true || budget==distance else{try fail(String(localized:"the move budget cannot be met, or a shortest-route task allows slack",bundle:.checkmate))}
     }
     /// Attackers or defenders of the marked square on a diagram.
     private static func validateRecognition(_ scenario:TrainingScenario,objective:TrainingObjectiveKind,expected:TrainingExpected,fail:(String)throws -> Never)throws {
-        guard let diagram=scenario.diagram,let target=scenario.target else{try fail("missing diagram")}
+        guard let diagram=scenario.diagram,let target=scenario.target else{try fail(String(localized:"missing diagram",bundle:.checkmate,comment:"Why a training scenario is invalid"))}
         let color=Character(scenario.learner)
         let answer=objective == .findDefenders ? TrainingGeometry.defenders(of:target,board:diagram):TrainingGeometry.attackers(of:target,color:color,board:diagram)
         if objective == .findDefenders{guard let occupant=diagram[target],occupant.first==color,occupant.last != "k" else{try fail(String(localized:"the marked square must hold one of the asked side's pieces, not its king",bundle:.checkmate))}}
@@ -57,7 +57,7 @@ import CheckmateRules
             }
         case .kingSafeSquares:
             let answer=try validateKingSquares(legality,expected:expected,fail:fail),board=try legality.board()
-            guard let king=board.first(where:{$0.value==scenario.learner+"k"})?.key else{try fail("no king")}
+            guard let king=board.first(where:{$0.value==scenario.learner+"k"})?.key else{try fail(String(localized:"no king",bundle:.checkmate,comment:"Why a training scenario is invalid"))}
             let neighbours=TrainingGeometry.attacks(from:king,board:board).filter{board[$0]?.first.map(String.init) != scenario.learner}
             guard !neighbours.subtracting(answer).isEmpty else{try fail(String(localized:"include at least one plausible but unsafe square",bundle:.checkmate))}
         default:

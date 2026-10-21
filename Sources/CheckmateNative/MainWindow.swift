@@ -191,7 +191,7 @@ final class BoardTitleView:NSView {
         if reviewer.sheetOpen,let review=reviewer.review {
             guard miniReviewSheet==nil,let window else{return}
             let sheet=NSWindow(contentViewController:NSHostingController(rootView:MiniGameReviewSheet(review:review,voice:model.voice,read:{[weak model] in model?.readMiniReviewAloud()},close:{[weak reviewer] in reviewer?.dismissSheet()})))
-            sheet.title="\(review.kind.title) review";miniReviewSheet=sheet;window.beginSheet(sheet)
+            sheet.title=String(localized:"\(review.kind.title) review",bundle:.checkmate,comment:"The title of a finished mini-game's review sheet");miniReviewSheet=sheet;window.beginSheet(sheet)
         } else if let sheet=miniReviewSheet {miniReviewSheet=nil;window?.endSheet(sheet)}
     }
     /// The open mini-game review sheet's content, for the acceptance scenario.
@@ -207,11 +207,11 @@ final class BoardTitleView:NSView {
         return nil
     }
     /// One noun per drawer, "Sidebar" and "Details", in the View menu, the toolbar and Help (D-6).
-    static func drawerTitle(sidebar:Bool,open:Bool)->String {(open ? String(localized:"Hide ",bundle:.checkmate):String(localized:"Show ",bundle:.checkmate))+(sidebar ? String(localized:"Sidebar",bundle:.checkmate):String(localized:"Details",bundle:.checkmate))}
+    static func drawerTitle(sidebar:Bool,open:Bool)->String {sidebar ? open ? String(localized:"Hide Sidebar",bundle:.checkmate):String(localized:"Show Sidebar",bundle:.checkmate):open ? String(localized:"Hide Details",bundle:.checkmate):String(localized:"Show Details",bundle:.checkmate)}
     /// The system toggle items keep their own action, which reaches the split controller; their label, image
     /// description and tooltip name the drawer, and the tooltip says whether it will open or close, as the View menu does.
     func label(toolbarItem item:NSToolbarItem){
-        let sidebar=item.itemIdentifier == .toggleSidebar,label=sidebar ? String(localized:"Sidebar",bundle:.checkmate):String(localized:"Details",bundle:.checkmate),tip=Self.drawerTitle(sidebar:sidebar,open:sidebar ? desiredLeft:desiredRight)+(sidebar ? " (⌃⌘S)":" (⌥⌘I)")
+        let sidebar=item.itemIdentifier == .toggleSidebar,label=sidebar ? String(localized:"Sidebar",bundle:.checkmate):String(localized:"Details",bundle:.checkmate),action=Self.drawerTitle(sidebar:sidebar,open:sidebar ? desiredLeft:desiredRight),shortcut=sidebar ? "⌃⌘S":"⌥⌘I",tip=String(localized:"\(action) (\(shortcut))",bundle:.checkmate,comment:"A toolbar tooltip: the action, then its keyboard shortcut")
         if item.label != label{item.label=label;item.paletteLabel=label};if item.toolTip != tip{item.toolTip=tip}
         if item.image?.accessibilityDescription != label{item.image=NSImage(systemSymbolName:sidebar ? "sidebar.left":"sidebar.right",accessibilityDescription:label)}
     }
@@ -360,25 +360,26 @@ final class BoardTitleView:NSView {
     /// What VoiceOver hears for a move that just landed; nil outside practice or during review.
     func announcement(for move:MoveRecord)->String? {
         let s=model.session;guard s.mode == .practice,!model.review.active else{return nil}
-        var text=move.color==s.humanSide ? String(localized:"You played \(move.san).",bundle:.checkmate):move.color=="w" ? String(localized:"White played \(move.san).",bundle:.checkmate):String(localized:"Black played \(move.san).",bundle:.checkmate)
-        if s.rules.checkmate{text+=move.color==s.humanSide ? String(localized:" Checkmate. You win.",bundle:.checkmate):String(localized:" Checkmate.",bundle:.checkmate)}else if s.rules.check{text+=move.color==s.humanSide ? String(localized:" Check.",bundle:.checkmate):String(localized:" Your king is in check.",bundle:.checkmate)}else if s.rules.draw{text+=String(localized:" The game is drawn.",bundle:.checkmate)}
-        return text
+        let played=move.color==s.humanSide ? String(localized:"You played \(move.san).",bundle:.checkmate):move.color=="w" ? String(localized:"White played \(move.san).",bundle:.checkmate):String(localized:"Black played \(move.san).",bundle:.checkmate)
+        let mine=move.color==s.humanSide
+        let after=s.rules.checkmate ? (mine ? String(localized:"Checkmate. You win.",bundle:.checkmate):String(localized:"Checkmate.",bundle:.checkmate)):s.rules.check ? (mine ? String(localized:"Check.",bundle:.checkmate):String(localized:"Your king is in check.",bundle:.checkmate)):s.rules.draw ? String(localized:"The game is drawn.",bundle:.checkmate):""
+        return Sentences.join(played,after)
     }
     /// What VoiceOver hears when a lesson exercise move lands: the move, check or mate, and the exercise's outcome.
     func attemptAnnouncement(for move:MoveRecord)->String {
         let attempt=model.learning.attempt!,rules=attempt.rules
-        var text=move.color=="w" ? String(localized:"You played \(move.san).",bundle:.checkmate):String(localized:"The computer played \(move.san).",bundle:.checkmate)
-        if rules.checkmate{text+=String(localized:" Checkmate.",bundle:.checkmate)}else if rules.check{text+=move.color=="w" ? String(localized:" Check.",bundle:.checkmate):String(localized:" Your king is in check.",bundle:.checkmate)}else if rules.draw{text+=String(localized:" The game is drawn.",bundle:.checkmate)}
-        switch attempt.phase {case .achieved?:text+=String(localized:" Well done! ",bundle:.checkmate)+(attempt.judgement?.feedback ?? "");case .offTrack?,.failed?:text+=" "+(attempt.judgement?.feedback ?? "");default:break}
-        return text
+        let played=move.color=="w" ? String(localized:"You played \(move.san).",bundle:.checkmate):String(localized:"The computer played \(move.san).",bundle:.checkmate)
+        let after=rules.checkmate ? String(localized:"Checkmate.",bundle:.checkmate):rules.check ? (move.color=="w" ? String(localized:"Check.",bundle:.checkmate):String(localized:"Your king is in check.",bundle:.checkmate)):rules.draw ? String(localized:"The game is drawn.",bundle:.checkmate):""
+        let feedback=attempt.judgement?.feedback ?? ""
+        switch attempt.phase {case .achieved?:return Sentences.join(played,after,String(localized:"Well done!",bundle:.checkmate),feedback);case .offTrack?,.failed?:return Sentences.join(played,after,feedback);default:return Sentences.join(played,after)}
     }
     /// What VoiceOver hears when a training move lands: who played it, and check or mate from its notation. The
     /// exercise's result is in its feedback, which the drawer and the bar show.
     func trainingAnnouncement(for move:MoveRecord)->String {
         let learner=move.color==trainingExercise?.scenario.learner
-        var text=(learner ? String(localized:"You played ",bundle:.checkmate):String(localized:"The opponent played ",bundle:.checkmate))+move.san+"."
-        if move.san.hasSuffix("#"){text+=String(localized:" Checkmate.",bundle:.checkmate)}else if move.san.hasSuffix("+"){text+=learner ? String(localized:" Check.",bundle:.checkmate):String(localized:" Your king is in check.",bundle:.checkmate)}
-        return text
+        let played=learner ? String(localized:"You played \(move.san).",bundle:.checkmate):String(localized:"The opponent played \(move.san).",bundle:.checkmate)
+        let after=move.san.hasSuffix("#") ? String(localized:"Checkmate.",bundle:.checkmate):move.san.hasSuffix("+") ? (learner ? String(localized:"Check.",bundle:.checkmate):String(localized:"Your king is in check.",bundle:.checkmate)):""
+        return Sentences.join(played,after)
     }
     /// The bar takes a second row when its sides no longer fit beside the centre group; the board yields the height.
     private func setControlRows(_ rows:Int){let height=Metrics.header+CGFloat(max(0,rows-1))*(ControlBarView.rowHeight+Metrics.smallGap);if controlsHeight.constant != height{controlsHeight.constant=height}}
@@ -398,8 +399,8 @@ playbackLineView?.isHidden=model.reviewWorkspace
         if model.reviewWorkspace{board.isHidden=true;welcome.isHidden=true;puzzles.isHidden=true;setTitle(String(localized:"Game review",bundle:.checkmate));titleView.label.isHidden=false;titleView.tabs.isHidden=true;return}
         board.theme=s.state.settings.boardTheme
         if model.review.active{let review=model.review;applyBoard(reviewPresentation(review));board.relationshipMode=nil;board.relationshipConnectors=[]
-            if announcedReviewIdentity != review.identity{announcedReviewIdentity=review.identity;let node=review.document?.nodes[review.nodeID];let announcement=review.branch==nil ? String(localized:"Review, \(node?.fullmove ?? 1), \(node?.side=="b" ? "Black":"White"), \(node?.san ?? "starting position")",bundle:.checkmate):String(localized:"Imagined line, move \(review.branchPly)",bundle:.checkmate);NSAccessibility.post(element:board,notification:.announcementRequested,userInfo:[.announcement:announcement,.priority:NSAccessibilityPriorityLevel.high.rawValue])}
-            board.isHidden=false;puzzles.isHidden=true;welcome.isHidden=true;setTitle(review.branch==nil ? String(localized:"Review · Original game",bundle:.checkmate):String(localized:"Review · Imagined moves",bundle:.checkmate));titleView.label.isHidden=false;titleView.tabs.isHidden=true;board.needsDisplay=true;return}
+            if announcedReviewIdentity != review.identity{announcedReviewIdentity=review.identity;let node=review.document?.nodes[review.nodeID];let announcement=review.branch==nil ? (node?.san).map{String(localized:"Review, \(node?.fullmove ?? 1), \(PieceName.side(node?.side=="b" ? "b":"w")), \($0)",bundle:.checkmate,comment:"Announced when a review opens: move number, side, move")} ?? String(localized:"Review, \(node?.fullmove ?? 1), \(PieceName.side(node?.side=="b" ? "b":"w")), starting position",bundle:.checkmate,comment:"Announced when a review opens at the start: move number, side"):String(localized:"Imagined line, move \(review.branchPly)",bundle:.checkmate);NSAccessibility.post(element:board,notification:.announcementRequested,userInfo:[.announcement:announcement,.priority:NSAccessibilityPriorityLevel.high.rawValue])}
+            board.isHidden=false;puzzles.isHidden=true;welcome.isHidden=true;setTitle(String(localized:"Review",bundle:.checkmate),subtitle:review.branch==nil ? String(localized:"Original game",bundle:.checkmate):String(localized:"Imagined moves",bundle:.checkmate));titleView.label.isHidden=false;titleView.tabs.isHidden=true;board.needsDisplay=true;return}
 
         // An exercise's own presentation replaces the activity's before relationships read the selection; it offers no inspection.
         var shown=s.mode == .network ? networkPresentation():trainingExercise.map(trainingPresentation) ?? activityPresentation()
@@ -717,7 +718,7 @@ playbackLineView?.isHidden=model.reviewWorkspace
     func windowShouldClose(_ sender:NSWindow)->Bool{quit();return false}
     /// How closing quits; tests replace it.
     var quit:()->Void={NSApp.terminate(nil)}
-    func snapshot(_ path:String){Task{do{try await capture(path)}catch{FileHandle.standardError.write(Data("snapshot failed: \(error)\n".utf8))}}}
+    func snapshot(_ path:String){Task{do{try await capture(path)}catch{FileHandle.standardError.write(Data("snapshot failed: \(error)\n".utf8))}}} // not localized: automation log on standard error
     func capture(_ path:String) async throws {
         try await Self.captureWindow(window,path:path)
     }

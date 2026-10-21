@@ -50,7 +50,7 @@ public enum TrainingGenerator {
             let target=random.pick(reachable),drill=MovementDrill(piece:own+piece,start:start,target:target,pieces:pieces)
             guard let distance=distances[target] else{continue}
             let budget=distance+limits.slack,shortest=tier>=3
-            let prompt=shortest ? String(localized:"Move the \(colorName(color).lowercased()) \(name) from \(start) to \(target) in the fewest moves: \(budget).",bundle:.checkmate):String(localized:"Move the \(colorName(color).lowercased()) \(name) from \(start) to \(target) in at most \(budget) moves.",bundle:.checkmate)
+            let prompt=shortest ? String(localized:"Move the \(PieceName.color(String(color))) \(PieceName.of(piece)) from \(start) to \(target) in the fewest moves: \(budget).",bundle:.checkmate):String(localized:"Move the \(PieceName.color(String(color))) \(PieceName.of(piece)) from \(start) to \(target) in at most \(budget) moves.",bundle:.checkmate)
             let id="gen-reach-target-\(piece)-t\(tier)-\(own)-\(seedText(seed))"
             return TrainingScenario(id:id,entry:"reach-target",variant:name,tier:tier,cluster:cluster("reach",[own+piece,start,target]+pieces.sorted{$0.key<$1.key}.map{$0.key+$0.value}),learner:own,prompt:prompt,explanation:String(localized:"A shortest route takes \(distance) moves.",bundle:.checkmate),hints:[movementHint(piece)],drill:drill,budget:budget,shortest:shortest,expected:TrainingExpected(distance:distance),generation:TrainingGeneration(generator:"reach-target",version:version,seed:seedText(seed),candidates:candidate))
         }
@@ -117,11 +117,16 @@ public enum TrainingGenerator {
             guard limits.answers.contains(answer.count),wantEmpty==answer.isEmpty else{continue}
             if tier>1,lookalikes(board,target:target,color:color).isEmpty{continue}
             let side=colorName(color),entry=defenders ? "find-defenders":"find-attackers"
-            let occupant=board[target].map{" (the \(colorName($0.first!).lowercased()) \(pieceNames[String($0.last!)] ?? "piece"))"} ?? ""
-            let prompt=defenders ? String(localized:"Select every \(side) piece that protects the piece on \(target)\(occupant). Choose None if nothing protects it.",bundle:.checkmate):String(localized:"Select every \(side) piece that attacks \(target)\(occupant). Choose None if no \(side) piece attacks it.",bundle:.checkmate)
+            let prompt:String
+            if let occupant=board[target] {
+                let theirs=PieceName.color(String(occupant.first!)),piece=PieceName.of(String(occupant.last!))
+                prompt=defenders ? String(localized:"Select every \(side) piece that protects the piece on \(target) (the \(theirs) \(piece)). Choose None if nothing protects it.",bundle:.checkmate,comment:"A training prompt: the side, the square, then the side and kind of the piece on it"):String(localized:"Select every \(side) piece that attacks \(target) (the \(theirs) \(piece)). Choose None if no \(side) piece attacks it.",bundle:.checkmate,comment:"A training prompt: the side, the square, then the side and kind of the piece on it")
+            }else{
+                prompt=defenders ? String(localized:"Select every \(side) piece that protects the piece on \(target). Choose None if nothing protects it.",bundle:.checkmate):String(localized:"Select every \(side) piece that attacks \(target). Choose None if no \(side) piece attacks it.",bundle:.checkmate)
+            }
             let hint=defenders ? String(localized:"Which other \(side) pieces attack \(target)? Follow their lines and jumps; a line stops at the first piece in the way. A pinned piece or a king still counts as protecting here.",bundle:.checkmate):String(localized:"Follow each \(side) piece's lines and jumps. A line stops at the first piece in the way; a pinned piece still attacks.",bundle:.checkmate)
             let pieces=answer.sorted().joined(separator:", ")
-            let explanation=answer.isEmpty ? (defenders ? String(localized:"No \(side) piece protects \(target).",bundle:.checkmate):String(localized:"No \(side) piece attacks \(target).",bundle:.checkmate)):defenders ? (answer.count==1 ? "\(pieces) protects \(target).":"\(pieces) protect \(target)."):(answer.count==1 ? "\(pieces) attacks \(target).":"\(pieces) attack \(target).")
+            let explanation=answer.isEmpty ? (defenders ? String(localized:"No \(side) piece protects \(target).",bundle:.checkmate):String(localized:"No \(side) piece attacks \(target).",bundle:.checkmate)):defenders ? (answer.count==1 ? String(localized:"\(pieces) protects \(target).",bundle:.checkmate,comment:"One piece's square, then the square it protects"):String(localized:"\(pieces) protect \(target).",bundle:.checkmate,comment:"Two or more pieces' squares, then the square they protect")):(answer.count==1 ? String(localized:"\(pieces) attacks \(target).",bundle:.checkmate,comment:"One piece's square, then the square it attacks"):String(localized:"\(pieces) attack \(target).",bundle:.checkmate,comment:"Two or more pieces' squares, then the square they attack"))
             return TrainingScenario(id:"gen-\(entry)-t\(tier)-\(own)-\(seedText(seed))",entry:entry,variant:defenders ? "defenders":"attackers",tier:tier,cluster:cluster(defenders ? "defend":"attack",[own,target]+board.sorted{$0.key<$1.key}.map{$0.key+$0.value}),learner:own,prompt:prompt,explanation:explanation,hints:[hint],diagram:board,target:target,expected:TrainingExpected(squares:answer.sorted()),generation:TrainingGeneration(generator:entry,version:version,seed:seedText(seed),candidates:candidate))
         }
         return nil

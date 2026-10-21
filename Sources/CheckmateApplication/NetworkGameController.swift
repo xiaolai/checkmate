@@ -328,7 +328,7 @@ import OSLog
     public var nameValid:Bool {Self.validName(playerName) != nil}
     static func validName(_ text:String)->String? {let name=text.trimmingCharacters(in:.whitespacesAndNewlines);return NetworkText.valid(name) ? name:nil}
     /// What a hosted game is called on the network: "Ana's game".
-    public static func gameName(host:String)->String {"\(host)'s game"}
+    public static func gameName(host:String)->String {String(localized:"\(host)'s game",bundle:.checkmate,comment:"A hosted game's name on the network, as other players see it")}
 
     // MARK: Starting a session
     /// Hosts a game with the sheet's settings (D10) and opens its listeners; false, with `lobbyMessage`, if it cannot.
@@ -508,8 +508,8 @@ import OSLog
         let next:String
         switch part {
         case nil:next=Self.lobbyTitle
-        case .host?:next=whiteName != nil && blackName != nil ? "\(players.name(.white)) vs \(players.name(.black))":gameName
-        case .guest?,.spectator?:next=record != nil ? "\(players.name(.white)) vs \(players.name(.black))":part == .guest ? String(localized:"Joining \(gameName)",bundle:.checkmate):String(localized:"Watching \(gameName)",bundle:.checkmate)
+        case .host?:next=whiteName != nil && blackName != nil ? String(localized:"\(players.name(.white)) vs \(players.name(.black))",bundle:.checkmate,comment:"A network game's title: White's name, then Black's"):gameName
+        case .guest?,.spectator?:next=record != nil ? String(localized:"\(players.name(.white)) vs \(players.name(.black))",bundle:.checkmate,comment:"A network game's title: White's name, then Black's"):part == .guest ? String(localized:"Joining \(gameName)",bundle:.checkmate):String(localized:"Watching \(gameName)",bundle:.checkmate)
         }
         update(\.title,next)
     }
@@ -693,13 +693,13 @@ import OSLog
         case .denied:return String(localized:"Waiting for Local Network access…",bundle:.checkmate)
         case .waiting:return String(localized:"Waiting for someone to join. Share the play code.",bundle:.checkmate)
         case .reconnecting:return String(localized:"Reconnecting to \(gameName)…",bundle:.checkmate)
-        case .away:return holdExpired ? String(localized:"\(opponentName) has been away for a while. Claim the win, or keep waiting.",bundle:.checkmate):"\(opponentName) is away. Their seat is held for 2 minutes."
+        case .away:return holdExpired ? String(localized:"\(opponentName) has been away for a while. Claim the win, or keep waiting.",bundle:.checkmate):String(localized:"\(opponentName) is away. Their seat is held for 2 minutes.",bundle:.checkmate)
         case .stopped:return leaving ? String(localized:"Leaving…",bundle:.checkmate):nil
         case .live:
             if leaving{return String(localized:"Leaving…",bundle:.checkmate)}
-            if hostPhase == .reserved{return "\(opponentName) is joining…"}
+            if hostPhase == .reserved{return String(localized:"\(opponentName) is joining…",bundle:.checkmate)}
             let turn:NetworkSide=rules.turn=="b" ? .black:.white
-            return turn==learnerSide ? String(localized:"Your move.",bundle:.checkmate):"\(players.name(turn))'s move."
+            return turn==learnerSide ? String(localized:"Your move.",bundle:.checkmate):String(localized:"\(players.name(turn))'s move.",bundle:.checkmate)
         }
     }
 }

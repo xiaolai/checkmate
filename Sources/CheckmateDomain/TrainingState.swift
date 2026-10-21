@@ -196,18 +196,18 @@ public struct TrainingState:Codable,Equatable {
     /// Fails on any record this build could not have written: an unreadable record is preserved raw instead.
     public func validate()throws {
         func fail(_ reason:String)throws -> Never {throw CheckmateError.invalid(String(localized:"Training record: \(reason)",bundle:.checkmate))}
-        guard version==Self.version else{try fail("unsupported version \(version)")}
+        guard version==Self.version else{try fail(String(localized:"unsupported version \(version)",bundle:.checkmate,comment:"Why a saved training record cannot be read"))}
         guard attempts.count<=Self.maximumAttempts,events.count<=Self.maximumEvents,retrySlots.count<=Self.maximumRetries,attemptedPositions.count<=Self.maximumPositions,(0...Self.maximumCount).contains(finishedAttempts) else{try fail(String(localized:"exceeds its bounds",bundle:.checkmate))}
         // A newer-version item's identifier is read from its raw record; `readable` admitted only string identifiers.
         let retryIDs=retrySlots.map{slot->String in switch slot {case .item(let item):return item.id;case .newer(.object(let fields)):if case .string(let id)?=fields["id"]{return id};return "";case .newer:return ""}}
-        guard Set(attempts.map(\.id)).count==attempts.count,Set(events.map(\.id)).count==events.count,Set(retryIDs).count==retryIDs.count else{try fail("duplicate identifiers")}
+        guard Set(attempts.map(\.id)).count==attempts.count,Set(events.map(\.id)).count==events.count,Set(retryIDs).count==retryIDs.count else{try fail(String(localized:"duplicate identifiers",bundle:.checkmate,comment:"Why a saved training record cannot be read"))}
         guard active==nil || newerActive==nil else{try fail(String(localized:"two active attempts",bundle:.checkmate))}
-        guard creditedRuns.keys.allSatisfy({MiniGameKind(rawValue:$0) != nil}),events.allSatisfy({MiniGameKind(rawValue:$0.kind) != nil}) else{try fail("unknown mini-game")}
+        guard creditedRuns.keys.allSatisfy({MiniGameKind(rawValue:$0) != nil}),events.allSatisfy({MiniGameKind(rawValue:$0.kind) != nil}) else{try fail(String(localized:"unknown mini-game",bundle:.checkmate,comment:"Why a saved training record cannot be read"))}
         for summary in summaries.values {
             let outcomes=[summary.firstTryNoRecordedHelp,summary.assistedCompletions,summary.practiceCompletions,summary.incorrect,summary.revealed,summary.abandoned]
-            guard ([summary.attempts,summary.legacyWins,summary.legacyLosses,summary.legacyDraws,summary.twoPlayerFinishes]+outcomes).allSatisfy({(0...Self.maximumCount).contains($0)}),summary.clusters.count<=Self.maximumClusters,summary.days.count<=Self.maximumDays else{try fail("invalid summary")}
+            guard ([summary.attempts,summary.legacyWins,summary.legacyLosses,summary.legacyDraws,summary.twoPlayerFinishes]+outcomes).allSatisfy({(0...Self.maximumCount).contains($0)}),summary.clusters.count<=Self.maximumClusters,summary.days.count<=Self.maximumDays else{try fail(String(localized:"invalid summary",bundle:.checkmate,comment:"Why a saved training record cannot be read"))}
             // Every attempt adds exactly one outcome, so they total the attempts (both capped alike at the ceiling).
-            guard min(outcomes.reduce(0,+),Self.maximumCount)==summary.attempts,Set(summary.clusters).count==summary.clusters.count,Set(summary.days).count==summary.days.count else{try fail("inconsistent summary")}
+            guard min(outcomes.reduce(0,+),Self.maximumCount)==summary.attempts,Set(summary.clusters).count==summary.clusters.count,Set(summary.days).count==summary.days.count else{try fail(String(localized:"inconsistent summary",bundle:.checkmate,comment:"Why a saved training record cannot be read"))}
         }
         // A retry counts from the finished attempts when it was queued, which can only have grown since.
         // `notBefore` is a `yyyy-MM-dd` record of the day computed when queued (scheduling re-derives it from `addedAt`).

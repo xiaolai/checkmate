@@ -37,7 +37,7 @@ struct NetworkBarClocks:View {
                 Text(NetworkDetail.clock(left)).font(.system(.callout,design:.monospaced)).fontWeight(clocks.active==side ? .semibold:.regular)
                     .foregroundStyle(NetworkDetail.low(left) ? Color(nsColor:NativeColors.error):clocks.active==side ? .primary:.secondary)
             }
-            .accessibilityElement(children:.ignore).accessibilityLabel("\(game.players.name(side)), "+NetworkDetail.spokenClock(left)).accessibilityIdentifier("bar-\(colour)-clock")
+            .accessibilityElement(children:.ignore).accessibilityLabel(String(localized:"network.bar.playerClock",defaultValue:"\(game.players.name(side)), \(NetworkDetail.spokenClock(left))",bundle:.checkmate,comment:"A player's clock: the player, then the time left")).accessibilityIdentifier("bar-\(colour)-clock")
         }
     }
 }

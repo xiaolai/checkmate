@@ -141,7 +141,7 @@ struct TrainingVoiceCoach:View {
             if voice.connection != .disconnected {Text(voice.status).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("training-voice-status")}
             VoiceCoachControls(voice:voice,idPrefix:"training-voice",owned:voice.trainingSession,connect:voice.trainingVoiceAvailable ? {connect()}:nil)
             if voice.trainingVoiceAvailable && !voice.connected && !voice.connecting {Text(Self.helpCaption).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)}
-            if voice.trainingSession || voice.history.last?.source == .training {ForEach(Array(voice.history.suffix(3).reversed())){entry in Text((entry.role=="learner" ? String(localized:"You: ",bundle:.checkmate):String(localized:"Coach: ",bundle:.checkmate))+entry.text).font(.caption).fixedSize(horizontal:false,vertical:true)}}
+            if voice.trainingSession || voice.history.last?.source == .training {ForEach(Array(voice.history.suffix(3).reversed())){entry in Text(entry.role=="learner" ? String(localized:"You: \(entry.text)",bundle:.checkmate,comment:"A line of the voice conversation the learner said"):String(localized:"Coach: \(entry.text)",bundle:.checkmate,comment:"A line of the voice conversation the coach said")).font(.caption).fixedSize(horizontal:false,vertical:true)}}
         }
     }
 }

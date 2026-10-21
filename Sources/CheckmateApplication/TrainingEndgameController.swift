@@ -26,7 +26,7 @@ import Foundation
         case .steady:sentence=String(localized:"Your opponent is Steady: Stockfish at a low skill level. It plays real chess but makes mistakes.",bundle:.checkmate)
         case .strong:sentence=String(localized:"Your opponent is Strong: Stockfish at full strength with a short think. It resists well, but it is not perfect.",bundle:.checkmate)
         }
-        return check == .guidedGame ? sentence+String(localized:" Notes on your moves are things worth reviewing, not wrong answers.",bundle:.checkmate):sentence
+        return check == .guidedGame ? Sentences.join(sentence,String(localized:"Notes on your moves are things worth reviewing, not wrong answers.",bundle:.checkmate)):sentence
     }
     /// The beginner opponent's last decision, for tests: the severe-mistake run it began with.
     var lastDecision:OpponentDecision?
@@ -60,14 +60,14 @@ extension TrainingController {
         let learner=state.scenario.learner,turn=try position.turn()
         if state.scenario.check == .positionGame {return try positionGameEnding(state,position,mover:turn=="w" ? "b":"w")}
         switch try position.status() {
-        case .checkmate:return turn==learner ? (.incorrect,String(localized:"You were checkmated.",bundle:.checkmate)):(.correct,String(localized:"Checkmate! ",bundle:.checkmate)+state.scenario.explanation)
+        case .checkmate:return turn==learner ? (.incorrect,String(localized:"You were checkmated.",bundle:.checkmate)):(.correct,Sentences.join(String(localized:"Checkmate!",bundle:.checkmate),state.scenario.explanation))
         case .stalemate:
             if turn==learner{return (.incorrect,String(localized:"Stalemate: you have no legal move and are not in check, so the game is a draw.",bundle:.checkmate))}
             if state.scenario.check == .guidedGame{return (.incorrect,String(localized:"Stalemate: your opponent has no legal move and is not in check, so the game is a draw.",bundle:.checkmate))}
             return (.incorrect,String(localized:"Stalemate: the defender has no legal move and is not in check, so the game is a draw. Leave the king a square while you close in.",bundle:.checkmate))
         default:break
         }
-        if state.scenario.check == .ending,try !position.board().values.contains(matingPiece(state)){return (.incorrect,String(localized:"The defender captured your \(state.scenario.variant=="krk" ? "rook":"queen"). Keep it protected, or out of the king's reach.",bundle:.checkmate))}
+        if state.scenario.check == .ending,try !position.board().values.contains(matingPiece(state)){return (.incorrect,String(localized:"The defender captured your \(PieceName.of(state.scenario.variant=="krk" ? "r":"q")). Keep it protected, or out of the king's reach.",bundle:.checkmate))}
         if let reason=try position.automaticDraw(){return (.incorrect,String(localized:"The game is drawn: \(reason).",bundle:.checkmate))}
         return nil
     }
@@ -110,7 +110,7 @@ extension TrainingController {
             switch try position.grade(from:from,to:to,promotion:promotion) {
             case .selection(let message):state.feedback=message;exercise=state;publish()
             case .needsPromotion:state.pendingPromotion=(from,to);state.feedback=String(localized:"Choose a piece to promote to.",bundle:.checkmate);exercise=state;publish()
-            case .ruleError(let reason):state.feedback=reason+String(localized:" That move is not legal here, so it was not counted.",bundle:.checkmate);exercise=state;publish()
+            case .ruleError(let reason):state.feedback=Sentences.join(reason,String(localized:"That move is not legal here, so it was not counted.",bundle:.checkmate));exercise=state;publish()
             case .legal(let outcome):
                 let after=try addGamePly(&state,outcome,before:position,learner:true,played:true)
                 state.snapshot.actions.append(.move(from:from,to:to,promotion:outcome.promotion));state.feedback=""

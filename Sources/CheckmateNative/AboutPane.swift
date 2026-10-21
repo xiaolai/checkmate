@@ -32,7 +32,7 @@ struct AboutPane:View {
     var body:some View {
         Section {HStack(spacing:14){Image(nsImage:NSApp.applicationIconImage).resizable().frame(width:64,height:64).accessibilityHidden(true)
             VStack(alignment:.leading,spacing:3){Text("Checkmate").sectionHeading(.title2.weight(.semibold));Text("Version \(facts.version) (\(facts.build))").foregroundStyle(.secondary).textSelection(.enabled);Text("Learn and practice chess on your Mac.")}}}
-        Section("What's inside"){LabeledContent("Chess engine",value:String(localized:"Stockfish 19, on this Mac",bundle:.checkmate));LabeledContent("Lessons",value:"\(facts.lessons)");LabeledContent("Practice activities",value:"\(facts.practiceActivities)");LabeledContent("Puzzles",value:"\(facts.puzzles)");LabeledContent("Lesson recordings",value:"\(facts.recordings)");LabeledContent("Requires",value:"macOS \(facts.minimumSystem) or later")}
+        Section("What's inside"){LabeledContent("Chess engine",value:String(localized:"Stockfish 19, on this Mac",bundle:.checkmate));LabeledContent("Lessons",value:"\(facts.lessons)");LabeledContent("Practice activities",value:"\(facts.practiceActivities)");LabeledContent("Puzzles",value:"\(facts.puzzles)");LabeledContent("Lesson recordings",value:"\(facts.recordings)");LabeledContent("Requires",value:String(localized:"macOS \(facts.minimumSystem) or later",bundle:.checkmate,comment:"The oldest macOS version the app runs on"))}
         Section("Privacy"){
             LabeledContent{Button("Show in Finder"){open(facts.dataDirectory,reveal:true)}}label:{Text("Games, progress and settings are stored only on this Mac.")}
             Text("Stockfish, lessons and puzzles work offline.")

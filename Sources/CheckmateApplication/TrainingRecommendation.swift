@@ -25,7 +25,7 @@ public enum TrainingRecommendation {
             }
             if gamesWon+gamesLost+gamesDrawn>0{out.append(String(localized:"Games against the computer: won \(gamesWon), lost \(gamesLost), drawn \(gamesDrawn)",bundle:.checkmate))}
             if routesCompleted>0{out.append(String(localized:"Routes completed: \(routesCompleted)",bundle:.checkmate))}
-            if twoPlayerGames>0{out.append("Two-player games finished: \(twoPlayerGames)")}
+            if twoPlayerGames>0{out.append(String(localized:"Two-player games finished: \(twoPlayerGames)",bundle:.checkmate))}
             return out
         }
     }

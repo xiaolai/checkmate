@@ -37,10 +37,10 @@ extension TrainingController {
             let correct=try correctChoices(state),right=correct.contains(option)
             state.snapshot.actions.append(.choose(option))
             if state.scenario.check == .diagnosis {
-                guard right else{state.feedback=String(localized:"Not quite. Look again: ",bundle:.checkmate)+correct.sorted().joined(separator:"; ")+".";finish(state,.incorrect);return}
-                state.stage=1;state.feedback=String(localized:"Yes: \(option.prefix(1).lowercased()+option.dropFirst()). ",bundle:.checkmate)+state.prompt;save(state);return
+                guard right else{let answers=correct.sorted().joined(separator:"; ");state.feedback=String(localized:"Not quite. Look again: \(answers).",bundle:.checkmate,comment:"The right answers, separated by semicolons");finish(state,.incorrect);return}
+                state.stage=1;state.feedback=Sentences.join(String(localized:"Yes: \(option.prefix(1).lowercased()+option.dropFirst()).",bundle:.checkmate),state.prompt);save(state);return
             }
-            state.feedback=(right ? String(localized:"Correct. ",bundle:.checkmate):String(localized:"Not quite. The answer is: \(correct.sorted().joined(separator:" or ")). ",bundle:.checkmate))+state.scenario.explanation
+            state.feedback=Sentences.join(right ? String(localized:"Correct.",bundle:.checkmate):String(localized:"Not quite. The answer is: \(Sentences.either(correct.sorted())).",bundle:.checkmate),state.scenario.explanation)
             finish(state,right ? .correct:.incorrect)
         }catch{fault()}
     }
@@ -64,9 +64,11 @@ extension TrainingController {
     /// The technique a saving move used, named from its actual tags (plan: defense method coverage).
     private func technique(_ state:Exercise,before:Position,outcome:MoveOutcome)->String {
         guard state.scenario.check == .defense,let target=state.scenario.goal?.target,let after=TrainingMaterial.board(fen:outcome.after) else{return ""}
-        let names:[TrainingMaterial.DefenseMethod:String]=[.moveAway:String(localized:"moving it away",bundle:.checkmate),.captureAttacker:String(localized:"capturing the attacker",bundle:.checkmate),.protect:"protecting it",.block:String(localized:"blocking the attack",bundle:.checkmate),.other:String(localized:"a move that meets the threat",bundle:.checkmate)]
+        let names:[TrainingMaterial.DefenseMethod:String]=[.moveAway:String(localized:"moving it away",bundle:.checkmate),.captureAttacker:String(localized:"capturing the attacker",bundle:.checkmate),.protect:String(localized:"protecting it",bundle:.checkmate),.block:String(localized:"blocking the attack",bundle:.checkmate),.other:String(localized:"a move that meets the threat",bundle:.checkmate)]
         let tags=TrainingMaterial.defenseTags(before:before,after:after,from:outcome.from,to:outcome.to,target:target,learner:Character(state.scenario.learner))
-        return String(localized:"You saved it by ",bundle:.checkmate)+TrainingMaterial.DefenseMethod.allCases.filter(tags.contains).compactMap{names[$0]}.joined(separator:" and ")+". "
+        let used=TrainingMaterial.DefenseMethod.allCases.filter(tags.contains).compactMap{names[$0]}
+        let methods=used.dropFirst().reduce(used.first ?? ""){String(localized:"\($0) and \($1)",bundle:.checkmate,comment:"Two ways of defending a piece, inside a sentence")}
+        return String(localized:"You saved it by \(methods).",bundle:.checkmate,comment:"How the learner's move defended the piece")
     }
     /// A move at a teaching node. Only the move stage takes one: a diagnosis answers its question first.
     func attemptBeginner(from:String,to:String,promotion:String?){
@@ -76,7 +78,7 @@ extension TrainingController {
         do {
             guard try legality.fingerprint()==node.fingerprint else{suspend();return}
             let grade=try legality.grade(from:from,to:to,promotion:promotion,castling:scenario.check == .castle)
-            guard case .legal(let outcome)=grade else{gradeNonlegal(grade,state,from:from,to:to,promotion:promotion,ending:" "+scenario.explanation);return}
+            guard case .legal(let outcome)=grade else{gradeNonlegal(grade,state,from:from,to:to,promotion:promotion,ending:scenario.explanation);return}
             let move=outcome.uci,right=node.accepted.contains(move)
             guard let prepared=try continuation(state,node:node,move:move,right:right) else{suspend();return}
             let reply=prepared.reply,praise=right ? technique(state,before:state.board,outcome:outcome):""
@@ -88,11 +90,11 @@ extension TrainingController {
             let land={[weak self] in self?.landed(outcome,from:legality.fen);if let reply{self?.landed(reply,from:outcome.after)}}
             if let after=prepared.after,let next=node.next?[move] {
                 state.node=next;state.current=after;clearHints(&state)
-                state.feedback=String(localized:"Good. ",bundle:.checkmate)+(reply.map{String(localized:"The reply was \($0.san). ",bundle:.checkmate)} ?? "")+String(localized:"Keep going: find the next move.",bundle:.checkmate)
+                state.feedback=Sentences.join(String(localized:"Good.",bundle:.checkmate),reply.map{String(localized:"The reply was \($0.san).",bundle:.checkmate)} ?? "",String(localized:"Keep going: find the next move.",bundle:.checkmate))
                 if save(state){land()};return
             }
-            if right{state.feedback=String(localized:"Correct. ",bundle:.checkmate)+praise+(reply.map{String(localized:"The best reply, \($0.san), does not change that. ",bundle:.checkmate)} ?? "")+scenario.explanation}
-            else{state.feedback=(reply.map{String(localized:"After \($0.san) it goes wrong. ",bundle:.checkmate)} ?? miss(state)+" ")+scenario.explanation}
+            if right{state.feedback=Sentences.join(String(localized:"Correct.",bundle:.checkmate),praise,reply.map{String(localized:"The best reply, \($0.san), does not change that.",bundle:.checkmate)} ?? "",scenario.explanation)}
+            else{state.feedback=Sentences.join(reply.map{String(localized:"After \($0.san) it goes wrong.",bundle:.checkmate)} ?? miss(state),scenario.explanation)}
             if finish(state,right ? .correct:.incorrect){land()}
         }catch{fault()}
     }
@@ -150,11 +152,11 @@ extension TrainingController {
     func beginnerSolution(_ state:Exercise)throws -> String {
         switch state.task {
         case .select:let squares=try beginnerSquares(state).sorted();return squares.isEmpty ? String(localized:"The answer is None.",bundle:.checkmate):String(localized:"The answer is \(squares.joined(separator:", ")).",bundle:.checkmate)
-        case .choose:return String(localized:"The answer is: ",bundle:.checkmate)+(try correctChoices(state)).sorted().joined(separator:" or ")+"."
+        case .choose:let answers=Sentences.either(try correctChoices(state).sorted());return String(localized:"The answer is: \(answers).",bundle:.checkmate)
         case .move:
             guard let legality=state.current,let node=state.scenario.nodes?[state.node] else{return ""}
             let moves=try legality.outcomes().filter{node.accepted.contains($0.uci)}.map(\.san)
-            return moves.isEmpty ? String(localized:"No move reaches the goal here.",bundle:.checkmate):String(localized:"Moves that work: ",bundle:.checkmate)+moves.joined(separator:", ")+"."
+            return moves.isEmpty ? String(localized:"No move reaches the goal here.",bundle:.checkmate):String(localized:"Moves that work: \(moves.joined(separator:", ")).",bundle:.checkmate,comment:"Moves separated by commas")
         case .game:return ""
         }
     }

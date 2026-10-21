@@ -21,21 +21,20 @@ public enum NetworkWording {
     public static let miniGameNote=String(localized:"The game is played by the mini-game's own rules, with no assistance. Review afterwards shows what a proof search found.",bundle:.checkmate)
     /// Under the names in a mini-game, and the lobby's label: "Pawn Duel: Reach the far rank, …".
     public static func miniGame(_ kind:MiniGameKind)->String {"\(kind.title): \(kind.rules)"}
-    static let pieces=["p":"pawn","n":"knight","b":"bishop","r":"rook","q":"queen","k":"king"]
     /// A move that just landed (D10): "Ben played knight to f3", "You castled kingside", "Ana played pawn to e8,
     /// capturing a rook, promoting to a queen, check".
     public static func move(_ move:MoveRecord,players:Players)->String {
         let who=players.subject(move.color=="b" ? .black:.white)
         var text:String
         // chess.js flags: k and q castle, e captures en passant.
-        if move.flags.contains("k") {text="\(who) castled kingside"}
-        else if move.flags.contains("q") {text="\(who) castled queenside"}
+        if move.flags.contains("k") {text=String(localized:"\(who) castled kingside",bundle:.checkmate,comment:"A move announcement: who castled")}
+        else if move.flags.contains("q") {text=String(localized:"\(who) castled queenside",bundle:.checkmate,comment:"A move announcement: who castled")}
         else {
-            text="\(who) played \(pieces[move.piece] ?? "a piece") to \(move.to)"
-            if let captured=move.captured {text+=", capturing a \(pieces[captured] ?? "piece")"+(move.flags.contains("e") ? " en passant":"")}
-            if let promotion=move.promotion {text+=String(localized:", promoting to a \(pieces[promotion] ?? "piece")",bundle:.checkmate)}
+            text=String(localized:"\(who) played \(PieceName.of(move.piece)) to \(move.to)",bundle:.checkmate,comment:"A move announcement: who, the piece, its square")
+            if let captured=move.captured {text=move.flags.contains("e") ? String(localized:"\(text), capturing a \(PieceName.of(captured)) en passant",bundle:.checkmate,comment:"A move announcement, then the piece it captured en passant"):String(localized:"\(text), capturing a \(PieceName.of(captured))",bundle:.checkmate,comment:"A move announcement, then the piece it captured")}
+            if let promotion=move.promotion {text=String(localized:"\(text), promoting to a \(PieceName.of(promotion))",bundle:.checkmate,comment:"A move announcement, then the piece the pawn became")}
         }
-        if move.san.hasSuffix("#") {text+=", checkmate"}else if move.san.hasSuffix("+") {text+=", check"}
+        if move.san.hasSuffix("#") {text=String(localized:"\(text), checkmate",bundle:.checkmate,comment:"A move announcement that gives checkmate")}else if move.san.hasSuffix("+") {text=String(localized:"\(text), check",bundle:.checkmate,comment:"A move announcement that gives check")}
         return text
     }
     // MARK: Assistance (assistance plan A3, A7, A12)
@@ -49,7 +48,7 @@ public enum NetworkWording {
     /// What the Accept sheet asks the joiner to agree to (A3), before their side is known: "Ana's game allows hints on
     /// request for both players." A handicap names the colours, which the game checks, and never a guess at "you".
     public static func offer(_ terms:NetworkAssistance,game:String)->String {
-        if terms.symmetric{return "\(game) allows \(phrase(terms.white)) for both players."}
+        if terms.symmetric{return String(localized:"\(game) allows \(phrase(terms.white)) for both players.",bundle:.checkmate)}
         return String(localized:"Handicap: White gets \(phrase(terms.white)), Black gets \(phrase(terms.black)). You see which side you play once you join.",bundle:.checkmate)
     }
     /// The in-game line under the names (A12): "Assistance: hints on request for both players.", "Handicap: you get
@@ -57,8 +56,12 @@ public enum NetworkWording {
     public static func terms(_ terms:NetworkAssistance,players:Players)->String? {
         guard terms != .off else{return nil}
         if terms.symmetric{return String(localized:"Assistance: \(phrase(terms.white)) for both players.",bundle:.checkmate)}
-        func gets(_ side:NetworkSide)->String {(side==players.learner ? "you get ":"\(players.name(side)) gets ")+phrase(terms.level(side))}
-        return String(localized:"Handicap: \(gets(.white)); \(gets(.black)).",bundle:.checkmate)
+        let white=phrase(terms.white),black=phrase(terms.black)
+        switch players.learner {
+        case .white?:return String(localized:"Handicap: you get \(white); \(players.name(.black)) gets \(black).",bundle:.checkmate,comment:"The learner plays White")
+        case .black?:return String(localized:"Handicap: \(players.name(.white)) gets \(white); you get \(black).",bundle:.checkmate,comment:"The learner plays Black")
+        case nil:return String(localized:"Handicap: \(players.name(.white)) gets \(white); \(players.name(.black)) gets \(black).",bundle:.checkmate,comment:"A spectator: White's name and help, then Black's")
+        }
     }
     /// Each side's assisted moves (A7), White first: "Hints used: Ana 3 · Ben 0". Self-reported, so never "verified".
     public static func hintsUsed(_ game:NetworkPublicGame,players:Players)->String {
@@ -68,7 +71,7 @@ public enum NetworkWording {
     public static func usedHint(_ side:NetworkSide,players:Players)->String {side==players.learner ? String(localized:"You used a hint",bundle:.checkmate):String(localized:"\(players.name(side)) used a hint",bundle:.checkmate)}
     /// The suggested move under the board's arrow: "Hint: Nf3", or "Guided hint: Nf3" for one a guided turn showed by
     /// itself.
-    public static func hint(san:String?,uci:String,automatic:Bool)->String {(automatic ? String(localized:"Guided hint: ",bundle:.checkmate):String(localized:"Hint: ",bundle:.checkmate))+(san ?? uci)}
+    public static func hint(san:String?,uci:String,automatic:Bool)->String {let move=san ?? uci;return automatic ? String(localized:"Guided hint: \(move)",bundle:.checkmate):String(localized:"Hint: \(move)",bundle:.checkmate)}
     public static let findingHint=String(localized:"Finding a hint…",bundle:.checkmate)
     /// A verified record this Mac's rules could not show, after one more try (input stays off meanwhile).
     public static let recordUnreadable=String(localized:"This Mac couldn't show the game's latest position. Leave the game and join again.",bundle:.checkmate)
@@ -82,7 +85,7 @@ public enum NetworkWording {
     /// "You have 30 seconds left", "Ben has 10 seconds left".
     public static func clock(_ side:NetworkSide,threshold:Int,players:Players)->String {
         let seconds=threshold/1000
-        return side==players.learner ? String(localized:"You have \(seconds) seconds left",bundle:.checkmate):"\(players.name(side)) has \(seconds) seconds left"
+        return side==players.learner ? String(localized:"You have \(seconds) seconds left",bundle:.checkmate):String(localized:"\(players.name(side)) has \(seconds) seconds left",bundle:.checkmate)
     }
     /// How the game ended, from the learner's side of the board: "Ben resigned. You win."
     public static func result(_ outcome:NetworkOutcome,players:Players)->String {
@@ -105,17 +108,17 @@ public enum NetworkWording {
             }
         }
         let winner:NetworkSide=outcome.result == .whiteWins ? .white:.black,loser=winner.opponent
-        let wins=players.subject(winner)+(winner==players.learner ? " win.":" wins.")
+        let wins=winner==players.learner ? String(localized:"You win.",bundle:.checkmate):String(localized:"\(players.name(winner)) wins.",bundle:.checkmate)
         switch outcome.termination {
-        case .checkmate:return String(localized:"Checkmate. ",bundle:.checkmate)+wins
+        case .checkmate:return Sentences.join(String(localized:"Checkmate.",bundle:.checkmate),wins)
         // A mini-game's own wins (protocol 1.3).
-        case .farRank:return String(localized:"\(players.subject(winner)) reached the far rank. ",bundle:.checkmate)+wins
-        case .allCaptured:return String(localized:"Every piece there was to capture is taken. ",bundle:.checkmate)+wins
-        case .noMoves:return "\(players.subject(loser)) \(loser==players.learner ? "have":"has") no move. "+wins
-        case .resignation:return "\(players.subject(loser)) resigned. "+wins
-        case .time:return String(localized:"\(players.subject(loser)) ran out of time. ",bundle:.checkmate)+wins
+        case .farRank:return Sentences.join(String(localized:"\(players.subject(winner)) reached the far rank.",bundle:.checkmate),wins)
+        case .allCaptured:return Sentences.join(String(localized:"Every piece there was to capture is taken.",bundle:.checkmate),wins)
+        case .noMoves:return Sentences.join(loser==players.learner ? String(localized:"You have no move.",bundle:.checkmate):String(localized:"\(players.name(loser)) has no move.",bundle:.checkmate),wins)
+        case .resignation:return Sentences.join(loser==players.learner ? String(localized:"You resigned.",bundle:.checkmate):String(localized:"\(players.name(loser)) resigned.",bundle:.checkmate),wins)
+        case .time:return Sentences.join(String(localized:"\(players.subject(loser)) ran out of time.",bundle:.checkmate),wins)
         // D4: the host claimed the win after the guest stayed away past the hold.
-        case .abandoned:return String(localized:"\(players.subject(loser)) left the game. ",bundle:.checkmate)+wins
+        case .abandoned:return Sentences.join(String(localized:"\(players.subject(loser)) left the game.",bundle:.checkmate),wins)
         default:return wins
         }
     }
@@ -142,7 +145,7 @@ public enum NetworkWording {
     /// lost is the game having stopped: interrupted, no result. Nil when nothing needs saying: this Mac left, or the
     /// game ended with a result.
     public static func stop(_ stop:NetworkClientStop,game:String,wasLive:Bool)->String? {
-        let lost=wasLive ? "\(game) has stopped.":String(localized:"Couldn't reach \(game).",bundle:.checkmate)
+        let lost=wasLive ? String(localized:"\(game) has stopped.",bundle:.checkmate):String(localized:"Couldn't reach \(game).",bundle:.checkmate)
         switch stop {
         case .left,.finished:return nil
         case .couldNotReach,.failed:return lost
@@ -152,7 +155,7 @@ public enum NetworkWording {
         case .assistanceChanged:return Self.assistanceChanged(game)
         case .closedByHost(let reason):
             switch reason {
-            case .hostLeft:return "\(game) has stopped."
+            case .hostLeft:return String(localized:"\(game) has stopped.",bundle:.checkmate)
             case .seatTaken:return String(localized:"Someone else is already playing in \(game).",bundle:.checkmate)
             case .gameOver:return String(localized:"\(game) is already over.",bundle:.checkmate)
             case .notAllowed:return String(localized:"\(game) doesn't allow spectators.",bundle:.checkmate)

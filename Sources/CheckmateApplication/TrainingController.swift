@@ -171,11 +171,11 @@ public struct PreparedTrainingExercise {
             // An unfinished attempt that cannot be recorded as abandoned is never overwritten by the new one.
             if let old=training.active,staged.trainingWritable {
                 do{try TrainingStore.finish(old,outcome:.abandoned,in:&staged,now:now(),calendar:calendar);abandoning=true}
-                catch{throw CheckmateError.unavailable(String(localized:"The unfinished exercise could not be recorded: ",bundle:.checkmate)+userFacing(error)+String(localized:" Your progress is unchanged.",bundle:.checkmate))}
+                catch{throw CheckmateError.unavailable(Sentences.join(String(localized:"The unfinished exercise could not be recorded: \(userFacing(error))",bundle:.checkmate,comment:"The value is the reason, a whole sentence"),String(localized:"Your progress is unchanged.",bundle:.checkmate)))}
             }
             let retry=prepared.retry || TrainingStore.attempted(prepared.scenario,in:training),id=UUID().uuidString
             let snapshot=TrainingSessionSnapshot(id:id,entry:prepared.definition.id,scenario:prepared.scenario,freshness:prepared.freshness.rawValue,startedAt:now(),retry:retry,opponent:frozenOpponent(prepared.scenario,attempt:id))
-            do{state=try initial(prepared.definition,snapshot:snapshot,legality:prepared.legality)}catch{throw CheckmateError.unavailable(String(localized:"This exercise could not be started: ",bundle:.checkmate)+userFacing(error)+String(localized:" Your progress is unchanged.",bundle:.checkmate))}
+            do{state=try initial(prepared.definition,snapshot:snapshot,legality:prepared.legality)}catch{throw CheckmateError.unavailable(Sentences.join(String(localized:"This exercise could not be started: \(userFacing(error))",bundle:.checkmate,comment:"The value is the reason, a whole sentence"),String(localized:"Your progress is unchanged.",bundle:.checkmate)))}
         }
         // `begin(staged:)` saves `state` first, after the workspace is left: the same rule `save` applies is checked
         // here, against the record it will be saved into, so that save cannot be refused (a resumed attempt already
@@ -299,8 +299,8 @@ public struct PreparedTrainingExercise {
         switch grade {
         case .selection(let message):state.feedback=message;exercise=state;publish()
         case .needsPromotion:state.pendingPromotion=(from,to);state.feedback=String(localized:"Choose a piece to promote to.",bundle:.checkmate);exercise=state;publish()
-        case .ruleError(let reason) where state.definition.illegalInput == .ruleError:state.snapshot.actions.append(.move(from:from,to:to,promotion:promotion));state.feedback=reason+String(localized:" The board has not changed.",bundle:.checkmate)+ending;finish(state,.incorrect)
-        case .ruleError(let reason):state.feedback=reason+String(localized:" That move is not legal here, so it was not counted.",bundle:.checkmate);exercise=state;publish()
+        case .ruleError(let reason) where state.definition.illegalInput == .ruleError:state.snapshot.actions.append(.move(from:from,to:to,promotion:promotion));state.feedback=Sentences.join(reason,String(localized:"The board has not changed.",bundle:.checkmate),ending);finish(state,.incorrect)
+        case .ruleError(let reason):state.feedback=Sentences.join(reason,String(localized:"That move is not legal here, so it was not counted.",bundle:.checkmate));exercise=state;publish()
         case .legal:break
         }
     }
@@ -348,7 +348,7 @@ public struct PreparedTrainingExercise {
             let expected=try correctSquares(state)
             state.snapshot.actions.append(.submit(squares:answer.sorted()))
             let right=Set(answer)==expected && answer.count==expected.count
-            state.feedback=right ? String(localized:"Correct. ",bundle:.checkmate)+state.scenario.explanation:none ? (expected.isEmpty ? "":String(localized:"There is at least one. Look again.",bundle:.checkmate)):String(localized:"Not quite: some of your squares are wrong or missing.",bundle:.checkmate)
+            state.feedback=right ? Sentences.join(String(localized:"Correct.",bundle:.checkmate),state.scenario.explanation):none ? (expected.isEmpty ? "":String(localized:"There is at least one. Look again.",bundle:.checkmate)):String(localized:"Not quite: some of your squares are wrong or missing.",bundle:.checkmate)
             finish(state,right ? .correct:.incorrect)
         }catch{fault()}
     }
@@ -359,7 +359,7 @@ public struct PreparedTrainingExercise {
             let status=try state.legality?.status() ?? .neither
             state.snapshot.actions.append(.choose(option))
             let right=option==status.label
-            state.feedback=right ? String(localized:"Correct. ",bundle:.checkmate)+state.scenario.explanation:String(localized:"Not quite. Is the king under attack, and does the side to move have a legal move?",bundle:.checkmate)
+            state.feedback=right ? Sentences.join(String(localized:"Correct.",bundle:.checkmate),state.scenario.explanation):String(localized:"Not quite. Is the king under attack, and does the side to move have a legal move?",bundle:.checkmate)
             finish(state,right ? .correct:.incorrect)
         }catch{fault()}
     }
@@ -372,11 +372,11 @@ public struct PreparedTrainingExercise {
         switch state.definition.objective {
         case .reachTarget:
             guard let drill=state.scenario.drill,let current=state.drillState,from==current.square else{state.feedback=String(localized:"Move only the marked piece.",bundle:.checkmate);exercise=state;publish();return}
-            guard let next=drill.apply(current,to:to) else{state.feedback=String(localized:"The \(TrainingGenerator.pieceNames[String(drill.piece.last!)] ?? "piece") cannot move from \(from) to \(to) here.",bundle:.checkmate);exercise=state;publish();return}
+            guard let next=drill.apply(current,to:to) else{state.feedback=String(localized:"The \(PieceName.of(String(drill.piece.suffix(1)))) cannot move from \(from) to \(to) here.",bundle:.checkmate);exercise=state;publish();return}
             state.drillState=next;state.board=drill.board(next);state.lastMove=(from,to);state.snapshot.actions.append(.move(from:from,to:to,promotion:nil))
             let budget=state.scenario.budget ?? .max,used=state.movesUsed,remaining=drill.distance(from:next)
-            if next.square==drill.target{state.feedback=String(localized:"You reached \(drill.target) in \(used) moves.",bundle:.checkmate,comment:"The first value is a board square, such as e4")+" "+state.scenario.explanation;finish(state,.correct)}
-            else if remaining.map({used+$0>budget}) ?? true{state.feedback=remaining==nil ? String(localized:"The piece can no longer reach \(drill.target) from here.",bundle:.checkmate):String(localized:"\(drill.target) can no longer be reached within \(budget) moves. ",bundle:.checkmate)+state.scenario.explanation;finish(state,.incorrect)}
+            if next.square==drill.target{state.feedback=Sentences.join(String(localized:"You reached \(drill.target) in \(used) moves.",bundle:.checkmate,comment:"The first value is a board square, such as e4"),state.scenario.explanation);finish(state,.correct)}
+            else if remaining.map({used+$0>budget}) ?? true{state.feedback=remaining==nil ? String(localized:"The piece can no longer reach \(drill.target) from here.",bundle:.checkmate):Sentences.join(String(localized:"\(drill.target) can no longer be reached within \(budget) moves.",bundle:.checkmate),state.scenario.explanation);finish(state,.incorrect)}
             else{state.feedback="";save(state)}
         case .mateInOne,.escapeCheck:
             guard let legality=state.legality else{return}
@@ -386,7 +386,7 @@ public struct PreparedTrainingExercise {
                 let board=try boardAfter(outcome.after)
                 state.snapshot.actions.append(.move(from:from,to:to,promotion:outcome.promotion));state.lastMove=(from,to);state.board=board
                 let right=state.definition.objective == .escapeCheck || outcome.checkmate
-                state.feedback=right ? String(localized:"Correct. ",bundle:.checkmate)+state.scenario.explanation:outcome.check ? String(localized:"That is check, but the king can still escape, block or capture.",bundle:.checkmate):outcome.stalemate ? String(localized:"That is stalemate, a draw. Look for a move that gives check.",bundle:.checkmate):String(localized:"That move does not give check.",bundle:.checkmate)
+                state.feedback=right ? Sentences.join(String(localized:"Correct.",bundle:.checkmate),state.scenario.explanation):outcome.check ? String(localized:"That is check, but the king can still escape, block or capture.",bundle:.checkmate):outcome.stalemate ? String(localized:"That is stalemate, a draw. Look for a move that gives check.",bundle:.checkmate):String(localized:"That move does not give check.",bundle:.checkmate)
                 if finish(state,right ? .correct:.incorrect){landed(outcome,from:legality.fen)}
             }catch{fault()}
         default:break
@@ -457,13 +457,14 @@ public struct PreparedTrainingExercise {
     private func solutionText(_ state:Exercise)throws -> String {
         switch state.definition.objective {
         case .findAttackers,.findDefenders,.kingSafeSquares:let squares=try correctSquares(state).sorted();return squares.isEmpty ? String(localized:"The answer is None.",bundle:.checkmate):String(localized:"The answer is \(squares.joined(separator:", ")).",bundle:.checkmate)
-        case .mateInOne:return String(localized:"Checkmate: ",bundle:.checkmate)+(try state.legality?.outcomes().filter(\.checkmate).map(\.san).joined(separator:" or ") ?? "")+"."
-        case .escapeCheck:return String(localized:"Legal escapes include ",bundle:.checkmate)+(try state.legality?.outcomes().prefix(3).map(\.san).joined(separator:", ") ?? "")+"."
-        case .classifyStatus:return String(localized:"The answer is \(try state.legality?.status().label ?? "Neither").",bundle:.checkmate)
+        case .mateInOne:let mates=Sentences.either(try state.legality?.outcomes().filter(\.checkmate).map(\.san) ?? []);return String(localized:"Checkmate: \(mates).",bundle:.checkmate,comment:"The moves that give checkmate")
+        case .escapeCheck:let escapes=try state.legality?.outcomes().prefix(3).map(\.san).joined(separator:", ") ?? "";return String(localized:"Legal escapes include \(escapes).",bundle:.checkmate,comment:"Up to three moves, separated by commas")
+        case .classifyStatus:let label=try state.legality?.status().label ?? String(localized:"Neither",bundle:.checkmate);return String(localized:"The answer is \(label).",bundle:.checkmate)
         case .reachTarget:
             guard let drill=state.scenario.drill,let current=state.drillState else{return ""}
             guard let route=Self.drillRoute(drill,from:current) else{return String(localized:"The piece can no longer reach \(drill.target) from here.",bundle:.checkmate)}
-            return String(localized:"One shortest route from here: ",bundle:.checkmate)+route.joined(separator:", then ")+"."
+            let steps=route.dropFirst().reduce(route.first ?? ""){String(localized:"\($0), then \($1)",bundle:.checkmate,comment:"Steps of a route, one after the other")}
+            return String(localized:"One shortest route from here: \(steps).",bundle:.checkmate)
         default:return try beginnerSolution(state)
         }
     }
@@ -488,7 +489,7 @@ public struct PreparedTrainingExercise {
         state.snapshot.revision+=1;state.snapshot.opponent?.witness=state.snapshot.revision
         var staged=session.state
         do{try TrainingStore.finish(state.snapshot,outcome:outcome,in:&staged,now:now(),calendar:calendar);session.state.training=staged.training}
-        catch where session.state.trainingWritable{refuse(String(localized:"This result could not be recorded, so the exercise is still open: ",bundle:.checkmate)+userFacing(error));return false}
+        catch where session.state.trainingWritable{refuse(String(localized:"This result could not be recorded, so the exercise is still open: \(userFacing(error))",bundle:.checkmate,comment:"The value is the reason, a whole sentence"));return false}
         catch{notice=userFacing(error)}
         exercise=state;publish();session.emit(semantic:false,save:true);return true
     }
@@ -530,4 +531,8 @@ public struct PreparedTrainingExercise {
     /// A review over the board owns it, as it does for practice and mini-games: a pending defender reply is cancelled
     /// (its answer is never applied) and asked for again when the review returns here.
     public func pauseForReview(){games.cancel()}
+}
+extension Sentences {
+    /// Alternatives inside a sentence ("Qh7# or Qg7#"), each joined by a translated "or".
+    static func either(_ items:[String])->String {items.dropFirst().reduce(items.first ?? ""){String(localized:"\($0) or \($1)",bundle:.checkmate,comment:"Two alternatives inside a sentence, such as two moves")}}
 }

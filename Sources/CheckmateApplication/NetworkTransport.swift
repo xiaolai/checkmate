@@ -15,8 +15,8 @@ public struct NetworkAccessKey:Equatable,CustomStringConvertible {
     public let gameID:NetworkGameID,role:NetworkListenerRole,code:NetworkCode
     public init(gameID:NetworkGameID,role:NetworkListenerRole,code:NetworkCode){self.gameID=gameID;self.role=role;self.code=code}
     /// HKDF's `info`: "checkmate-lan v1 seat" or "checkmate-lan v1 watch".
-    public var info:String {"checkmate-lan v1 \(role.rawValue)"}
-    public var description:String {"NetworkAccessKey(\(gameID), \(role.rawValue), code redacted)"}
+    public var info:String {"checkmate-lan v1 \(role.rawValue)"} // not localized: HKDF info string, part of the wire protocol
+    public var description:String {"NetworkAccessKey(\(gameID), \(role.rawValue), code redacted)"} // not localized: debug description
 }
 /// D7's transport bounds and the connect deadline. Always `standard` in the app; tests shorten the deadlines.
 public struct NetworkTransportLimits:Equatable {
@@ -59,7 +59,7 @@ public struct NetworkHostingConfiguration:Equatable {
     public func key(_ role:NetworkListenerRole)->NetworkAccessKey? {
         switch role {case .seat:return NetworkAccessKey(gameID:gameID,role:.seat,code:seatCode);case .watch:return watchCode.map{NetworkAccessKey(gameID:gameID,role:.watch,code:$0)}}
     }
-    public static let watchSuffix=" · watch"
+    public static let watchSuffix=" · watch" // not localized: Bonjour service-name suffix that discovery strips
     /// Bonjour instance names are at most 63 bytes of UTF-8; the name is cut at a character so the suffix fits.
     public func serviceName(for role:NetworkListenerRole)->String {
         let suffix=role == .watch ? Self.watchSuffix:""
@@ -73,7 +73,7 @@ public struct NetworkHostingConfiguration:Equatable {
 public struct NetworkTransportConnection:Hashable,CustomStringConvertible {
     public let number:UInt64
     public init(number:UInt64){self.number=number}
-    public var description:String {"transport connection \(number)"}
+    public var description:String {"transport connection \(number)"} // not localized: debug description
 }
 public enum NetworkHostingEvent:Equatable {
     /// Every listener is ready at these endpoints (a loopback test or an injected discovery source connects to them).

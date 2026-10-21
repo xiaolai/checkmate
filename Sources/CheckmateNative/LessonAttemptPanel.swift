@@ -31,7 +31,7 @@ struct LessonAttemptPanel:View {
             ForEach(Array(zip(practice?.checkpoints ?? [],attempt.judgement?.done ?? []).enumerated()),id:\.offset){_,item in
                 Label(item.0.label,systemImage:(item.1 ? AppSymbol.done:.markerOff).rawValue)
                     .foregroundStyle(item.1 ? Color.accentColor:Color.secondary)
-                    .accessibilityLabel(item.0.label+(item.1 ? ", done":String(localized:", not done yet",bundle:.checkmate)))
+                    .accessibilityLabel(item.1 ? String(localized:"\(item.0.label), done",bundle:.checkmate,comment:"A lesson checkpoint that is done"):String(localized:"\(item.0.label), not done yet",bundle:.checkmate,comment:"A lesson checkpoint that is not done yet"))
             }
             if learning.playing,attempt.hasMoves {Text("The instruction describes the starting position; your game stays as it is.").font(.caption).foregroundStyle(.secondary)}
             if let text=attempt.notice ?? attempt.judgement?.feedback {Text(text).textSelection(.enabled).accessibilityIdentifier("lesson-attempt-feedback")}

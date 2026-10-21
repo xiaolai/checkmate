@@ -7,7 +7,7 @@ public struct NetworkConnectionID:Hashable,Comparable,CustomStringConvertible {
     public let generation:UInt64
     public init(generation:UInt64){self.generation=generation}
     public static func <(a:NetworkConnectionID,b:NetworkConnectionID)->Bool {a.generation<b.generation}
-    public var description:String {"connection \(generation)"}
+    public var description:String {"connection \(generation)"} // not localized: a log description
 }
 /// The host game is always in exactly one phase (D4).
 public enum NetworkHostPhase:String,Equatable {

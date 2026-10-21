@@ -55,13 +55,13 @@ public enum PGNImporter {
             var headers:[PGNHeader]=[],names:Set<String>=[]
             while token != nil,case let .tag(name,value)=token!.kind {guard names.insert(name).inserted else{failedInHeaders=true;throw ReviewImportError(record:recordNumber,token:index,reason:String(localized:"Duplicate header \(name).",bundle:.checkmate))};headers.append(PGNHeader(name,value));try advance()}
             func failure(_ reason:String)->ReviewImportError {ReviewImportError(record:recordNumber,token:index,reason:reason)}
-            let variant=headers.first{$0.name=="Variant"}?.value.lowercased();guard variant==nil || ["standard","normal","normal chess","chess","from position"].contains(variant!) else{throw failure(String(localized:"Only standard chess is supported.",bundle:.checkmate))}
+            let variant=headers.first{$0.name=="Variant"}?.value.lowercased();guard variant==nil || ["standard","normal","normal chess","chess","from position"].contains(variant!) else{throw failure(String(localized:"Only standard chess is supported.",bundle:.checkmate))} // not localized: PGN Variant tag values
             // A FEN header alone (common in exports) is a custom start; SetUp 1 without a FEN, or SetUp 0 with one, conflicts.
             var fen=headers.first{$0.name=="FEN"}?.value;if let value=fen,value.split(separator:" ").count==4{fen=value+" 0 1"}
             let setup=headers.first{$0.name=="SetUp"}?.value
             guard setup==nil || ["0","1"].contains(setup!),setup != "1" || fen != nil,fen==nil || setup != "0" else{throw failure(String(localized:"Custom positions require SetUp 1 and FEN together.",bundle:.checkmate))}
             // An unreadable start position is this game's problem, reported like any other; it never fails the file.
-            let root:ChessRules;do{if let fen=fen{try validateFEN(fen)};root=try ChessRules(fen:fen)}catch CheckmateError.cancelled{throw CheckmateError.cancelled}catch{throw failure(String(localized:"Invalid FEN: \(userFacingMessage(error,fallback:"the position cannot be read."))",bundle:.checkmate))}
+            let root:ChessRules;do{if let fen=fen{try validateFEN(fen)};root=try ChessRules(fen:fen)}catch CheckmateError.cancelled{throw CheckmateError.cancelled}catch{throw failure(String(localized:"Invalid FEN: \(userFacingMessage(error,fallback:String(localized:"the position cannot be read.",bundle:.checkmate,comment:"Why a start position is invalid, after Invalid FEN:")))",bundle:.checkmate))}
             let starting=root.fen;var builders=[Builder(parent:nil,fen:starting,ply:0,before:preamble)],marker:String?,markerEnd:Int?
             func sequence(parent initial:Int,depth:Int)throws {
                 guard depth<=ReviewPolicy.maximumDepth else{throw failure(String(localized:"Variation nesting exceeds 32.",bundle:.checkmate))};var cursor=initial,played=false,leading:[String]=[],rules:ChessRules?

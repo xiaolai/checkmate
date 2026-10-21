@@ -139,7 +139,7 @@ public enum CompanionProblem:CaseIterable,Equatable,Sendable {
         }
     }catch{respond(c,Self.failure(error),status:400)}}
     public static func failure(_ error:Error)->[String:Any] {ProtocolErrors.failure(error)}
-    private func respond(_ c:NWConnection,_ result:Any,status:Int=200){let data=(try? JSONSerialization.data(withJSONObject:result,options:[.fragmentsAllowed,.sortedKeys])) ?? Data("{}".utf8);var reply=Data("HTTP/1.1 \(status) \(status==200 ? "OK":"Error")\r\nContent-Type: application/json\r\nContent-Length: \(data.count)\r\nConnection: close\r\n\r\n".utf8);reply.append(data);c.send(content:reply,completion:.contentProcessed{_ in c.cancel()})}
+    private func respond(_ c:NWConnection,_ result:Any,status:Int=200){let data=(try? JSONSerialization.data(withJSONObject:result,options:[.fragmentsAllowed,.sortedKeys])) ?? Data("{}".utf8);var reply=Data("HTTP/1.1 \(status) \(status==200 ? "OK":"Error")\r\nContent-Type: application/json\r\nContent-Length: \(data.count)\r\nConnection: close\r\n\r\n".utf8);reply.append(data);c.send(content:reply,completion:.contentProcessed{_ in c.cancel()})} // not localized: HTTP status reason phrase
 }
 /// How an MCP client keeps its lease (`BrokerClient`). A missed heartbeat, such as one that outlasts a main-thread
 /// stall, is retried soon instead of ending the heartbeats; they stop only when the broker refuses the lease or the

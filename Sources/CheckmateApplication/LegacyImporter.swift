@@ -12,7 +12,7 @@ public struct ImportReport:Codable,Equatable {
     public init(){}
     public var summary:String {duplicate ? String(localized:"This archive was already imported. Your newer progress is unchanged.",bundle:.checkmate):String(localized:"Recovered \(recovered.count) fields or records. Adjusted \(adjusted.count). Skipped \(ignored.count).",bundle:.checkmate)}
     public var details:String {
-        [(String(localized:"Recovered",bundle:.checkmate),recovered),(String(localized:"Adjusted to supported values",bundle:.checkmate),adjusted),(String(localized:"Skipped",bundle:.checkmate),ignored)].filter{!$0.1.isEmpty}.map{title,items in title+"\n"+items.prefix(50).map{"• "+$0}.joined(separator:"\n")+(items.count>50 ? "\n… and \(items.count-50) more":"")}.joined(separator:"\n\n")
+        [(String(localized:"Recovered",bundle:.checkmate),recovered),(String(localized:"Adjusted to supported values",bundle:.checkmate),adjusted),(String(localized:"Skipped",bundle:.checkmate),ignored)].filter{!$0.1.isEmpty}.map{title,items in title+"\n"+items.prefix(50).map{"• "+$0}.joined(separator:"\n")+(items.count>50 ? "\n"+String(localized:"… and \(items.count-50) more",bundle:.checkmate,comment:"Ends a list cut short; the number of entries not shown"):"")}.joined(separator:"\n\n")
     }
 }
 public enum LegacyImporter {
@@ -23,7 +23,7 @@ public enum LegacyImporter {
     private static func settingsReport(_ raw:[String:Any],normalized:AppSettings,report:inout ImportReport)throws {
         let output=try JSONSerialization.jsonObject(with:JSONEncoder().encode(normalized)) as! [String:Any]
         for (key,value) in raw.sorted(by:{$0.key<$1.key}) {
-            let label=String(localized:"Setting: ",bundle:.checkmate)+name(key)
+            let label=String(localized:"Setting: \(name(key))",bundle:.checkmate)
             guard let result=output[key] else{report.ignored.append(label);continue}
             let a=try? JSONSerialization.data(withJSONObject:["v":value],options:.sortedKeys),b=try JSONSerialization.data(withJSONObject:["v":result],options:.sortedKeys)
             if a==b {report.recovered.append(label)}else{report.adjusted.append(label)}
@@ -37,8 +37,8 @@ public enum LegacyImporter {
         value.course.step=step;value.course.segmentID=lesson.beats[step].id
         value.course.completed=value.course.completed.filter{id in let valid=course.lessons.contains{$0.id==id};if !valid{report.ignored.append(String(localized:"Invalid completed lesson",bundle:.checkmate))};return valid}
         value.course.answered=value.course.answered.filter{id in let valid=course.knownAnswerID(id);if !valid{report.ignored.append(String(localized:"Invalid answered exercise",bundle:.checkmate))};return valid}
-        let known=Set(course.puzzles.map(\.id));value.puzzles=value.puzzles.filter{id,_ in if !known.contains(id){report.ignored.append(String(localized:"Puzzle progress: ",bundle:.checkmate)+name(id));return false};return true}
-        for id in value.puzzles.keys where value.puzzles[id]!.attempts<0{value.puzzles[id]!.attempts=0;report.adjusted.append(String(localized:"Puzzle attempts: ",bundle:.checkmate)+name(id))}
+        let known=Set(course.puzzles.map(\.id));value.puzzles=value.puzzles.filter{id,_ in if !known.contains(id){report.ignored.append(String(localized:"Puzzle progress: \(name(id))",bundle:.checkmate));return false};return true}
+        for id in value.puzzles.keys where value.puzzles[id]!.attempts<0{value.puzzles[id]!.attempts=0;report.adjusted.append(String(localized:"Puzzle attempts: \(name(id))",bundle:.checkmate))}
     }
     @discardableResult public static func apply(_ data:Data,to target:inout ApplicationState,course:CourseLibrary)throws -> ImportReport {
         guard data.count<=StateStore.maximumBytes,let root=try JSONSerialization.jsonObject(with:data) as? [String:Any] else{throw CheckmateError.invalid(String(localized:"Invalid progress archive.",bundle:.checkmate))}
@@ -54,7 +54,7 @@ public enum LegacyImporter {
             // Decoding keeps only the mini-games this version knows; the rest are skipped, and none kept is none recovered.
             let games=(root["miniGames"] as? [String:Any])?.keys.sorted() ?? [],dropped=games.filter{imported.miniGames?[$0]==nil}
             report.recovered=root.keys.filter{supported.contains($0) && $0 != "settings" && ($0 != "miniGames" || games.isEmpty || dropped.count<games.count)}.sorted().map{name($0)}
-            report.ignored += root.keys.filter{!supported.contains($0)}.sorted().map{name($0)}+dropped.map{"Mini-game: "+name($0)}
+            report.ignored += root.keys.filter{!supported.contains($0)}.sorted().map{name($0)}+dropped.map{String(localized:"Mini-game: \(name($0))",bundle:.checkmate)}
             if let raw=root["settings"] as? [String:Any]{try settingsReport(raw,normalized:imported.settings,report:&report)}
             imported.importedArchives=Array(Set(imported.importedArchives+target.importedArchives+[hash])).sorted();target=imported;return report
         }
@@ -87,9 +87,9 @@ public enum LegacyImporter {
                 next.course.step=course.resumeStep(in:lesson,progress:oldProgress);next.course.segmentID=lesson.beats[next.course.step].id
                 if integer(p["step"]) != next.course.step{report.adjusted.append(String(localized:"Lesson transcript",bundle:.checkmate))}else{report.recovered.append(String(localized:"Lesson transcript",bundle:.checkmate))}
                 func entries(_ key:String,_ accepts:(String)->Bool)->[String] {
-                    guard let values=p[key] as? [Any] else{if p[key] != nil{report.ignored.append(String(localized:"Course ",bundle:.checkmate)+key)};return []}
+                    guard let values=p[key] as? [Any] else{if p[key] != nil{report.ignored.append(String(localized:"Course \(key)",bundle:.checkmate))};return []}
                     var accepted:[String]=[]
-                    for entry in values {if let id=entry as? String,accepts(id){accepted.append(id);report.recovered.append(String(localized:"Course ",bundle:.checkmate)+key+": "+name(id))}else{report.ignored.append(String(localized:"Invalid course ",bundle:.checkmate)+key+" entry")}}
+                    for entry in values {if let id=entry as? String,accepts(id){accepted.append(id);report.recovered.append(String(localized:"Course \(key): \(name(id))",bundle:.checkmate))}else{report.ignored.append(String(localized:"Invalid course \(key) entry",bundle:.checkmate))}}
                     return Array(Set(accepted)).sorted()
                 }
                 next.course.completed=entries("completed"){id in course.lessons.contains{$0.id==id}}
@@ -100,14 +100,14 @@ public enum LegacyImporter {
             if let puzzles=raw as? [String:Any] {
                 let known=Set(course.puzzles.map(\.id))
                 for (id,value) in puzzles.sorted(by:{$0.key<$1.key}) {
-                    let label=String(localized:"Puzzle progress: ",bundle:.checkmate)+name(id)
+                    let label=String(localized:"Puzzle progress: \(name(id))",bundle:.checkmate)
                     guard known.contains(id),let record=value as? [String:Any],let solved=boolean(record["solved"]),let review=boolean(record["review"]),let attempts=integer(record["attempts"]),attempts>=0 else{report.ignored.append(label);continue}
                     var progress=PuzzleProgress();progress.solved=solved;progress.review=review;progress.attempts=attempts;next.puzzles[id]=progress;report.recovered.append(label)
                 }
             }else{report.ignored.append(String(localized:"Puzzle progress",bundle:.checkmate))}
         }
         if let raw=value("checkmate-progress") {
-            if let ids=raw as? [Any] {for value in ids {guard let id=value as? String,course.puzzles.contains(where:{$0.id==id}) else{report.ignored.append(String(localized:"Invalid legacy puzzle entry",bundle:.checkmate));continue};if next.puzzles[id]==nil{var progress=PuzzleProgress();progress.solved=true;next.puzzles[id]=progress};report.recovered.append(String(localized:"Legacy puzzle: ",bundle:.checkmate)+name(id))}}else{report.ignored.append(String(localized:"Legacy puzzle progress",bundle:.checkmate))}
+            if let ids=raw as? [Any] {for value in ids {guard let id=value as? String,course.puzzles.contains(where:{$0.id==id}) else{report.ignored.append(String(localized:"Invalid legacy puzzle entry",bundle:.checkmate));continue};if next.puzzles[id]==nil{var progress=PuzzleProgress();progress.solved=true;next.puzzles[id]=progress};report.recovered.append(String(localized:"Legacy puzzle: \(name(id))",bundle:.checkmate))}}else{report.ignored.append(String(localized:"Legacy puzzle progress",bundle:.checkmate))}
         }
         // Legacy practice games were always played as White, whatever the settings say.
         if importedPractice{next.settings.practiceSide="w"}

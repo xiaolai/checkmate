@@ -200,12 +200,12 @@ enum LibraryListItem {
         panel.begin{[weak self] response in guard response == .OK,let url=panel.url else{return};self?.importCollection(url)}
     }
     /// One import at a time, cancellable; the file is checked and read with the drop's bounded reader.
-    func importCollection(_ url:URL){importCollection(label:url.lastPathComponent,name:url.lastPathComponent,reveal:false){try ReviewDrop.bounded(ReviewDrop.validated(url))}}
+    func importCollection(_ url:URL){importCollection(progress:String(localized:"Importing \(PGNImporter.bounded(url.lastPathComponent,scalars:40))…",bundle:.checkmate,comment:"Shown while a game file imports; the value is its name"),name:url.lastPathComponent,reveal:false){try ReviewDrop.bounded(ReviewDrop.validated(url))}}
     /// A record of many games opened, pasted or dropped for review (R-9) joins My games as a collection, named after its
     /// games' event, and its first game is selected for the learner to open.
-    func importCollection(_ data:Data){scope = .myGames;query="";importCollection(label:"games",name:nil,reveal:true){data}}
-    private func importCollection(label:String,name:String?,reveal:Bool,read:@escaping @Sendable ()throws->Data){
-        cancelImport();let token=ReviewImportCancellation();importToken=token;importing=label;revealing=nil
+    func importCollection(_ data:Data){scope = .myGames;query="";importCollection(progress:String(localized:"Importing games…",bundle:.checkmate,comment:"Shown while pasted or dropped games import"),name:nil,reveal:true){data}}
+    private func importCollection(progress:String,name:String?,reveal:Bool,read:@escaping @Sendable ()throws->Data){
+        cancelImport();let token=ReviewImportCancellation();importToken=token;importing=progress;revealing=nil
         let started=collectionsGeneration,store=store,delay=NativePolicy.silent ? min(5000,max(0,automationImportDelayMs)):0
         importTask=Task{
             do{

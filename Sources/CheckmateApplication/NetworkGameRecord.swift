@@ -47,10 +47,10 @@ public struct NetworkCrashFile {
         public let part:Part
         public init(game:NetworkPublicGame,part:Part){self.game=game;self.part=part}
         /// "Your network game with Ben ended when Checkmate closed."
-        public var notice:String {
+        public var notice:String {let opponent=String(localized:"your opponent",bundle:.checkmate,comment:"Stands in for an unknown opponent's name inside a sentence")
             switch part {
-            case .white:return String(localized:"Your network game with \(game.blackName ?? "your opponent") ended when Checkmate closed.",bundle:.checkmate)
-            case .black:return String(localized:"Your network game with \(game.whiteName ?? "your opponent") ended when Checkmate closed.",bundle:.checkmate)
+            case .white:return String(localized:"Your network game with \(game.blackName ?? opponent) ended when Checkmate closed.",bundle:.checkmate)
+            case .black:return String(localized:"Your network game with \(game.whiteName ?? opponent) ended when Checkmate closed.",bundle:.checkmate)
             case .spectator:return String(localized:"The network game you were watching ended when Checkmate closed.",bundle:.checkmate)
             }
         }

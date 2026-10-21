@@ -225,9 +225,14 @@ public final class CodexSubscriptionClient: LessonTranslationProvider, @unchecke
                     let safeName = Self.safeLabel(name)
                     for key in ["primary", "secondary"] {
                         if let window = rates[key] as? [String: Any], let percent = Self.number(window["usedPercent"]), percent <= 100 {
-                            var line = String(localized:"\(safeName) \(key) window: \(Int(percent))% used",bundle:.checkmate,comment:"A provider usage window: its name, primary or secondary, and the share used")
-                            if let reset = Self.number(window["resetsAt"]), reset <= 32_503_680_000 { line += String(localized:"; resets \(Date(timeIntervalSince1970: reset).formatted())",bundle:.checkmate) }
-                            lines.append(line); windows += 1
+                            let used = Int(percent), resets = Self.number(window["resetsAt"]).flatMap { $0 <= 32_503_680_000 ? Date(timeIntervalSince1970: $0).formatted() : nil }
+                            switch (key == "primary", resets) {
+                            case (true, nil): lines.append(String(localized:"\(safeName) primary window: \(used)% used",bundle:.checkmate,comment:"A provider usage window: its name and the share used"))
+                            case (true, let resets?): lines.append(String(localized:"\(safeName) primary window: \(used)% used; resets \(resets)",bundle:.checkmate,comment:"A provider usage window: its name, the share used and when it resets"))
+                            case (false, nil): lines.append(String(localized:"\(safeName) secondary window: \(used)% used",bundle:.checkmate,comment:"A provider usage window: its name and the share used"))
+                            case (false, let resets?): lines.append(String(localized:"\(safeName) secondary window: \(used)% used; resets \(resets)",bundle:.checkmate,comment:"A provider usage window: its name, the share used and when it resets"))
+                            }
+                            windows += 1
                         }
                     }
                     if let credits = rates["credits"] as? [String: Any] {
@@ -241,9 +246,9 @@ public final class CodexSubscriptionClient: LessonTranslationProvider, @unchecke
             do {
                 let result = try await channel.rpc("account/usage/read", [:])
                 if let summary = result["summary"] as? [String: Any], let lifetime = Self.number(summary["lifetimeTokens"]) {
-                    lines.append("Account-wide lifetime token activity: \(Int64(lifetime))")
-                } else { lines.append("Account-wide token activity unavailable.") }
-            } catch { if Task.isCancelled { throw CancellationError() }; lines.append("Account-wide token activity unavailable.") }
+                    lines.append(String(localized:"Account-wide lifetime token activity: \(String(Int64(lifetime)))",bundle:.checkmate,comment:"The count is shown ungrouped, as the provider reports it"))
+                } else { lines.append(String(localized:"Account-wide token activity unavailable.",bundle:.checkmate)) }
+            } catch { if Task.isCancelled { throw CancellationError() }; lines.append(String(localized:"Account-wide token activity unavailable.",bundle:.checkmate)) }
             lines.append(String(localized:"Voice subscription quota attribution is unknown. Actual charges are not reported here.",bundle:.checkmate))
             return lines.joined(separator: "\n")
         }, onCancel: { channel.requestClose() })

@@ -10,10 +10,10 @@ public struct TrainingMoment:Equatable {
     public let kind:Kind,ply:Int,fen:String,played:String
     /// The move number is the position's own (its FEN's fullmove field): a game may start after move one.
     public var label:String {
-        let move="move \(Self.moveNumber(fen:fen,ply:ply))"
+        let move=Self.moveNumber(fen:fen,ply:ply)
         switch kind {
-        case .mateFind:return String(localized:"At \(move) you had a checkmate, and played \(played).",bundle:.checkmate)
-        case .mateAvoid:return String(localized:"At \(move), after \(played), your opponent could checkmate at once.",bundle:.checkmate)
+        case .mateFind:return String(localized:"At move \(move) you had a checkmate, and played \(played).",bundle:.checkmate)
+        case .mateAvoid:return String(localized:"At move \(move), after \(played), your opponent could checkmate at once.",bundle:.checkmate)
         }
     }
     /// The move number of the position `fen` (its fullmove field), or one counted from `ply` when the field is missing.
@@ -35,7 +35,7 @@ public struct TrainingMoment:Equatable {
         if rights(beforeFEN),!rights(afterFEN),!castled{return String(localized:"Worth reviewing: your king can no longer castle. Castling is often the quickest way to a safe king.",bundle:.checkmate)}
         if let piece=after[played.to],piece.last != "k" {
             if !takers.isEmpty,!defended || takers.contains(where:{TrainingMaterial.value(after[$0]!)<TrainingMaterial.value(piece)}) {
-                return String(localized:"Worth reviewing: your \(TrainingGenerator.pieceNames[String(piece.last!)] ?? "piece") on \(played.to) can be taken. Is it protected well enough?",bundle:.checkmate)
+                return String(localized:"Worth reviewing: your \(PieceName.of(String(piece.last!))) on \(played.to) can be taken. Is it protected well enough?",bundle:.checkmate)
             }
         }
         let home:[String]=learner=="w" ? ["b1","g1","c1","f1"]:["b8","g8","c8","f8"]

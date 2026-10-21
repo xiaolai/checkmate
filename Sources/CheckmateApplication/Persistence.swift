@@ -43,11 +43,11 @@ public final class StateStore {
         // A saved or imported game, current or previous, starts from a legal position and stays within the length the app can replay.
         let rules=try ChessRules()
         // An over-long game is refused from its text before it is replayed; the history is read once and gives its ply count.
-        func replay(_ pgn:String,_ name:String)throws -> Int {let tooLong=CheckmateError.invalid(String(localized:"The \(name) is longer than 2000 moves.",bundle:.checkmate));guard mainlineMoveCount(pgn)<=ReviewPolicy.maximumMainlinePlies else{throw tooLong};try rules.restore(pgn);let records=rules.records;_ = try PGNImporter.validateFEN(records.first?.before ?? rules.fen);guard records.count<=ReviewPolicy.maximumMainlinePlies else{throw tooLong};return records.count}
-        let plies=value.practice.pgn.isEmpty ? 0:try replay(value.practice.pgn,"saved game");if !value.practice.fen.isEmpty,value.practice.fen != rules.fen{throw CheckmateError.invalid(String(localized:"Saved game checksum does not match its history.",bundle:.checkmate))}
+        func replay(_ pgn:String,previous:Bool)throws -> Int {let tooLong=CheckmateError.invalid(previous ? String(localized:"The previous game is longer than 2000 moves.",bundle:.checkmate):String(localized:"The saved game is longer than 2000 moves.",bundle:.checkmate));guard mainlineMoveCount(pgn)<=ReviewPolicy.maximumMainlinePlies else{throw tooLong};try rules.restore(pgn);let records=rules.records;_ = try PGNImporter.validateFEN(records.first?.before ?? rules.fen);guard records.count<=ReviewPolicy.maximumMainlinePlies else{throw tooLong};return records.count}
+        let plies=value.practice.pgn.isEmpty ? 0:try replay(value.practice.pgn,previous:false);if !value.practice.fen.isEmpty,value.practice.fen != rules.fen{throw CheckmateError.invalid(String(localized:"Saved game checksum does not match its history.",bundle:.checkmate))}
         // Take Back's boundary lies within its game, or Take Back stays disabled until play passes it.
         guard (0...plies).contains(value.practice.startPly) else{throw CheckmateError.invalid(String(localized:"The saved game's practice start is beyond its moves.",bundle:.checkmate))}
-        let previousPlies=value.practice.previousGame.isEmpty ? 0:try replay(value.practice.previousGame,"previous game")
+        let previousPlies=value.practice.previousGame.isEmpty ? 0:try replay(value.practice.previousGame,previous:true)
         guard (0...previousPlies).contains(value.practice.previousStartPly) else{throw CheckmateError.invalid(String(localized:"The previous game's practice start is beyond its moves.",bundle:.checkmate))}
     }
     /// The mainline moves `ChessRules.restore` (chess.js's PGN grammar) would replay, counted from the text alone so the

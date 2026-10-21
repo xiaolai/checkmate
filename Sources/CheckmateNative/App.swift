@@ -50,9 +50,9 @@ import CheckmateCore
     private func recoverFromLaunchFailure(_ error:Error,_ notification:Notification){
         let store=StateStore(directory:StateStore.defaultDirectory()),stateProblem:Bool={do{_ = try store.load();return false}catch{return true}}()
         let alert=NSAlert()
-        guard stateProblem else{alert.messageText=String(localized:"Checkmate could not start.",bundle:.checkmate);alert.informativeText=userFacingMessage(error,fallback:String(localized:"A part of the app could not be opened. Reinstall Checkmate if this continues.",bundle:.checkmate))+String(localized:" Your saved progress was not changed.",bundle:.checkmate);alert.addButton(withTitle:String(localized:"Quit",bundle:.checkmate));_ = presentRecovery(alert);quit();return}
+        guard stateProblem else{alert.messageText=String(localized:"Checkmate could not start.",bundle:.checkmate);alert.informativeText=Sentences.join(userFacingMessage(error,fallback:String(localized:"A part of the app could not be opened. Reinstall Checkmate if this continues.",bundle:.checkmate)),String(localized:"Your saved progress was not changed.",bundle:.checkmate));alert.addButton(withTitle:String(localized:"Quit",bundle:.checkmate));_ = presentRecovery(alert);quit();return}
         alert.messageText=String(localized:"Checkmate could not open your saved progress.",bundle:.checkmate)
-        alert.informativeText=userFacingMessage(error,fallback:String(localized:"The saved file is damaged or comes from a newer version of Checkmate.",bundle:.checkmate))+String(localized:" Whatever you choose, that file is kept.",bundle:.checkmate)
+        alert.informativeText=Sentences.join(userFacingMessage(error,fallback:String(localized:"The saved file is damaged or comes from a newer version of Checkmate.",bundle:.checkmate)),String(localized:"Whatever you choose, that file is kept.",bundle:.checkmate))
         let hasBackup=FileManager.default.fileExists(atPath:store.backupURL.path),choices:[LaunchRecoveryChoice]=[.startFresh]+(hasBackup ? [.restoreBackup]:[])+[.export,.quit]
         for choice in choices{alert.addButton(withTitle:choice.title)}
         let index=presentRecovery(alert).rawValue-NSApplication.ModalResponse.alertFirstButtonReturn.rawValue,original=error
@@ -61,7 +61,7 @@ import CheckmateCore
             case .restoreBackup:try store.restoreBackup();applicationDidFinishLaunching(notification);return
             case .export:let panel=NSSavePanel();panel.nameFieldStringValue="checkmate-saved-state.json";if panel.runModal() == .OK,let url=panel.url{try store.export(to:url)};recoverFromLaunchFailure(error,notification);return
             case .quit:quit();return
-        }}catch{let failure=NSAlert();failure.messageText=String(localized:"That did not work",bundle:.checkmate);failure.informativeText=userFacingMessage(error,fallback:String(localized:"Your saved file is unchanged.",bundle:.checkmate))+String(localized:" Choose another option.",bundle:.checkmate);failure.runModal();recoverFromLaunchFailure(original,notification)}
+        }}catch{let failure=NSAlert();failure.messageText=String(localized:"That did not work",bundle:.checkmate);failure.informativeText=Sentences.join(userFacingMessage(error,fallback:String(localized:"Your saved file is unchanged.",bundle:.checkmate)),String(localized:"Choose another option.",bundle:.checkmate));failure.runModal();recoverFromLaunchFailure(original,notification)}
     }
     func runReviewBatchScenario(directory:String){guard let model=model else{return};Task{do{
         let root=URL(fileURLWithPath:directory);let warmBaseline=CommandLine.arguments.contains("--warm-engine-baseline");if warmBaseline{_ = try await model.reviewAnalyzer.engine.analyze(fen:try ChessRules().fen,skill:20,budget:100,multiPv:1)};try Data("ready".utf8).write(to:root.appendingPathComponent("baseline-ready"));try await Task.sleep(for:.seconds(2))
@@ -121,9 +121,9 @@ import CheckmateCore
                 if openTicks>100{panel.cancel(nil);timer.invalidate()}
             }
             RunLoop.main.add(acceptTimer,forMode:.common);RunLoop.main.add(acceptTimer,forMode:.modalPanel);model.openPGN(startingIn:openDirectory);try JSONSerialization.data(withJSONObject:["pid":ProcessInfo.processInfo.processIdentifier,"path":panelFile.path]).write(to:URL(fileURLWithPath:directory+"/open-panel-ready.json"));try await Task.sleep(for:.seconds(8));acceptTimer.invalidate();await settleImport()
-            FileHandle.standardError.write(Data("Open accepted attempts \(openTicks)\n".utf8))
+            FileHandle.standardError.write(Data("Open accepted attempts \(openTicks)\n".utf8)) // not localized: automation log on standard error
             let openPanelAccepted=model.review.document?.title.contains("Accepted Open panel")==true
-            FileHandle.standardError.write(Data("Panel import title \(model.review.document?.title ?? "nil") error \(model.storageError ?? "nil")\n".utf8))
+            FileHandle.standardError.write(Data("Panel import title \(model.review.document?.title ?? "nil") error \(model.storageError ?? "nil")\n".utf8)) // not localized: automation log on standard error
             if !openPanelAccepted{failures.append("Open panel accepted-file path failed")}
             game.board.dropReview?(try Data(contentsOf:file));await settleImport()
             let dropCallbackPassed=model.review.document?.title.contains("File callback entry")==true
@@ -131,7 +131,7 @@ import CheckmateCore
             // R-9: a file of several games joins the library as a collection with its first game selected, and no
             // chooser; its second game opens from the library like any other.
             let collection="[Event \"First collection item\"]\n1. e4 *\n\n[Event \"Second collection item\"]\n1. d4 *"
-            FileHandle.standardError.write(Data("Starting collection\n".utf8))
+            FileHandle.standardError.write(Data("Starting collection\n".utf8)) // not localized: automation log on standard error
             model.importReviewData(Data(collection.utf8));await settleImport()
             for _ in 0..<250 where model.library.selection?.hasPrefix("collection:") != true {try? await Task.sleep(for:.milliseconds(20))}
             let collectionRows=model.library.visibleRows.filter{$0.id.hasPrefix("collection:")}

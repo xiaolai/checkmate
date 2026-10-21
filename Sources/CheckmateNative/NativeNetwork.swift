@@ -47,7 +47,7 @@ extension NativeModel {
                     guest.leave();return finish(["passed":true,"stage":"joined","denied":false])
                 }
                 if case .stopped=guest.link,joined {return finish(["passed":false,"stage":stage,"message":guest.statusText ?? "stopped"])}
-                guard remaining>0 else{return finish(["passed":false,"stage":stage,"message":"timed out","found":guest.games.map(\.displayName)])}
+                guard remaining>0 else{return finish(["passed":false,"stage":stage,"message":"timed out","found":guest.games.map(\.displayName)])} // not localized: automation evidence
                 DispatchQueue.main.asyncAfter(deadline:.now()+0.25){poll(remaining-1)}
             }
             poll(240)
@@ -98,7 +98,7 @@ extension NativeModel {
     func resignNetworkGame(){
         let game=network;guard game.canResign else{return}
         let session=game.sessionID
-        confirmNetwork(message:String(localized:"Resign this game?",bundle:.checkmate),detail:"\(game.opponentName) wins. You can review the game afterwards.",action:String(localized:"Resign",bundle:.checkmate,comment:"Verb: give up the game"),identifier:"network-resign",answer:confirmResigningNetworkGame){[weak self] in
+        confirmNetwork(message:String(localized:"Resign this game?",bundle:.checkmate),detail:String(localized:"\(game.opponentName) wins. You can review the game afterwards.",bundle:.checkmate,comment:"Resigning the network game: what follows"),action:String(localized:"Resign",bundle:.checkmate,comment:"Verb: give up the game"),identifier:"network-resign",answer:confirmResigningNetworkGame){[weak self] in
             guard let game=self?.network,game.sessionID==session,game.canResign else{return}
             game.resign()
         }

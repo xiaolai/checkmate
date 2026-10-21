@@ -18,7 +18,7 @@ import CheckmateCore
         let key=(fen ?? board.keys.sorted().map{$0+":"+board[$0]!}.joined(separator:";"))+":"+(selected ?? "")+":"+(mode?.rawValue ?? "")
         guard key != cacheKey else{return};cacheKey=key
         guard let selected=selected,let piece=board[selected] else{selectedLabel=nil;mode=nil;report=nil;error=nil;return}
-        selectedLabel="\(piece.first=="w" ? "White":"Black") \(RelationshipInspection.pieceNames[String(piece.suffix(1)),default:"piece"]) on \(selected)"
+        selectedLabel=RelationshipInspection.label(color:String(piece.prefix(1)),piece:String(piece.suffix(1)),square:selected)
         guard let mode=mode else{report=nil;error=nil;return}
         do{let rules=try ChessRules(fen:fen);report=try rules.relationships(selected,mode:mode,diagram:fen==nil ? board:nil);error=nil}
         catch{report=nil;self.error=String(localized:"This piece’s relationships could not be calculated.",bundle:.checkmate)}

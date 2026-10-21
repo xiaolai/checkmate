@@ -15,9 +15,9 @@ public struct LessonJobPlan:Equatable,Sendable {
   var parts=[mode=="translate" ? String(localized:"Each lesson is one translation request on your signed-in account.",bundle:.checkmate):String(localized:"Each clip is one recording request on your signed-in account, in the \(voice.capitalized) voice.",bundle:.checkmate)]
   if mode != "translate",untranslated>0{parts.append(String(localized:"\(untranslated) lessons have no translated text yet and are skipped; translate them first.",bundle:.checkmate))}
   if let seconds{let minutes=Int((seconds/60).rounded(.up));parts.append(seconds<60 ? String(localized:"Estimated time: less than a minute, judged from earlier runs on this Mac.",bundle:.checkmate):String(localized:"Estimated time: about \(minutes) minutes, judged from earlier runs on this Mac.",bundle:.checkmate))}
-  else{parts.append(String(localized:"No time estimate yet: there are no earlier \(mode=="translate" ? "translations":"recordings") on this Mac to judge from.",bundle:.checkmate))}
+  else{parts.append(mode=="translate" ? String(localized:"No time estimate yet: there are no earlier translations on this Mac to judge from.",bundle:.checkmate):String(localized:"No time estimate yet: there are no earlier recordings on this Mac to judge from.",bundle:.checkmate))}
   parts.append(String(localized:"You can cancel at any time; finished work is kept.",bundle:.checkmate))
-  return parts.joined(separator:" ")
+  return Sentences.join(parts)
  }
 }
 /// What is stored for one lesson in one language and voice, as Settings' lesson list shows it (L-27). `stale` is a
@@ -26,7 +26,7 @@ public struct LessonStoredStatus:Equatable,Sendable {
  public let translated:Bool,recorded:Int,clips:Int,stale:Bool
  public init(translated:Bool,recorded:Int,clips:Int,stale:Bool){self.translated=translated;self.recorded=recorded;self.clips=clips;self.stale=stale}
  /// "None", "3 of 12" or "All 12".
- public var recordedText:String {recorded==0 ? String(localized:"None",bundle:.checkmate):recorded==clips ? String(localized:"All \(clips)",bundle:.checkmate):"\(recorded) of \(clips)"}
+ public var recordedText:String {recorded==0 ? String(localized:"None",bundle:.checkmate):recorded==clips ? String(localized:"All \(clips)",bundle:.checkmate):String(localized:"\(recorded) of \(clips)",bundle:.checkmate,comment:"Recorded clips, of the lesson's clips")}
 }
 /// A part of the course in Settings' lesson picker, with its lessons' indices.
 public struct LessonGroup:Equatable,Sendable {public let title:String,lessons:[Int]}
@@ -137,7 +137,7 @@ public struct LessonGroup:Equatable,Sendable {public let title:String,lessons:[I
   guard mode=="translate" || mode=="record" else{return nil}
   if let problem=startProblem(mode:mode){status=problem;return nil}
   let locale=language,chosenVoice=voice,store=store,library=library;planning=true;defer{planning=false};status=String(localized:"Checking your sign-in…",bundle:.checkmate)
-  do{_=try await translator.accountStatus()}catch{status=String(localized:"Nothing was started: your sign-in could not be confirmed. ",bundle:.checkmate)+userFacingMessage(error,fallback:String(localized:"Sign in, then try again.",bundle:.checkmate));return nil}
+  do{_=try await translator.accountStatus()}catch{status=Sentences.join(String(localized:"Nothing was started: your sign-in could not be confirmed.",bundle:.checkmate),userFacingMessage(error,fallback:String(localized:"Sign in, then try again.",bundle:.checkmate)));return nil}
   let counts=await Task.detached{()->(lessons:Int,clips:Int,untranslated:Int) in var lessons=0,clips=0,untranslated=0
    for index in only.map({[$0]}) ?? Array(library.lessons.indices) {let source=LessonTranslation.source(library:library,index:index)
     // Damaged text or recordings count as missing: this is a count for the confirmation, and the job itself replaces
@@ -148,10 +148,10 @@ public struct LessonGroup:Equatable,Sendable {public let title:String,lessons:[I
     let stored:Int;do{stored=try store.partialPack(source:source,locale:locale,voice:chosenVoice)?.clips.count ?? 0}catch{stored=0}
     let missing=source.beats.count-stored;if missing>0{lessons+=1;clips+=missing}}
    return (lessons,clips,untranslated)}.value
-  guard language==locale,voice==chosenVoice,only==nil ? allLessons:(!allLessons && selectedLesson==only) else{status=String(localized:"The selection changed while it was checked. Choose \(mode=="translate" ? "Translate":"Record / Resume") again.",bundle:.checkmate);return nil}
+  guard language==locale,voice==chosenVoice,only==nil ? allLessons:(!allLessons && selectedLesson==only) else{status=mode=="translate" ? String(localized:"The selection changed while it was checked. Choose Translate again.",bundle:.checkmate):String(localized:"The selection changed while it was checked. Choose Record / Resume again.",bundle:.checkmate);return nil}
   let name=LessonLanguages.name(locale)
   if counts.lessons==0,only != nil{status=mode=="translate" ? String(localized:"This lesson already has translated text in \(name).",bundle:.checkmate):counts.untranslated>0 ? String(localized:"This lesson has no translated text yet; translate it first.",bundle:.checkmate):String(localized:"This lesson already has all its recordings.",bundle:.checkmate);return nil}
-  if counts.lessons==0{status=mode=="translate" ? String(localized:"Every lesson already has translated text in \(name).",bundle:.checkmate):String(localized:"Every translated lesson already has all its recordings.",bundle:.checkmate)+(counts.untranslated>0 ? String(localized:" \(counts.untranslated) lessons have no translated text yet; translate them first.",bundle:.checkmate):"");return nil}
+  if counts.lessons==0{status=mode=="translate" ? String(localized:"Every lesson already has translated text in \(name).",bundle:.checkmate):Sentences.join(String(localized:"Every translated lesson already has all its recordings.",bundle:.checkmate),counts.untranslated>0 ? String(localized:"\(counts.untranslated) lessons have no translated text yet; translate them first.",bundle:.checkmate):"");return nil}
   let activity:UsageActivity=mode=="translate" ? .translation:.lessonRecording,each=usage.records.filter{$0.activity==activity && $0.status == .completed}.map{$0.updatedAt.timeIntervalSince($0.startedAt)}.sorted()
   let typical=each.isEmpty ? nil:each[each.count/2]
   status=String(localized:"Waiting for you to confirm.",bundle:.checkmate)
@@ -215,16 +215,16 @@ public struct LessonGroup:Equatable,Sendable {public let title:String,lessons:[I
          changedPacks=true;self.usage.finish(operationID:operation,status:.completed);try Task.checkCancellation();if mode=="preview",shown(voice:true){self.previewURL=try self.store.clipURL(pack:pack,beatID:beat.id)}
          consecutive=0
         }catch{self.usage.finish(operationID:operation,status:Task.isCancelled ? .cancelled:(self.usage.records.first(where:{$0.id==operation})?.tokens==nil ? .incomplete:.failed));throw error}
-       }catch{try problem(source.lessonID+":"+beat.id,place+", clip \(clipNumber)",error)}
+       }catch{try problem(source.lessonID+":"+beat.id,String(localized:"\(place), clip \(clipNumber)",bundle:.checkmate,comment:"Where a problem happened: a lesson's place, then the clip's number"),error)}
       }
      }
     }catch{try problem(source.lessonID,place,error)}
    }
    if self.generation==id{self.failedLastRun=failed}
    let moved = !shown(voice:true)
-   self.status=(problems.isEmpty ? (mode=="preview" && !moved ? String(localized:"Preview ready. Choose Play Preview to listen.",bundle:.checkmate):String(localized:"Completed. Matching translated text and verified clips are reused when resuming.",bundle:.checkmate)):String(localized:"Finished with \(problems.count) problems; everything else is done and kept. Resume retries them last.",bundle:.checkmate))+(moved ? " "+String(localized:"The language or voice changed while it ran; its results are kept for the earlier choice.",bundle:.checkmate):"")
+   self.status=Sentences.join(problems.isEmpty ? (mode=="preview" && !moved ? String(localized:"Preview ready. Choose Play Preview to listen.",bundle:.checkmate):String(localized:"Completed. Matching translated text and verified clips are reused when resuming.",bundle:.checkmate)):String(localized:"Finished with \(problems.count) problems; everything else is done and kept. Resume retries them last.",bundle:.checkmate),moved ? String(localized:"The language or voice changed while it ran; its results are kept for the earlier choice.",bundle:.checkmate):"")
    // A job that ends early keeps this run's failures and last run's unreached ones, so Resume still tries them last.
-   }catch let stop as LessonJobStopped{if self.generation==id{self.failedLastRun=failed.union(retryLast)};self.status=stop.message+(problems.isEmpty ? "":String(localized:" Problems are listed below.",bundle:.checkmate))}
+   }catch let stop as LessonJobStopped{if self.generation==id{self.failedLastRun=failed.union(retryLast)};self.status=Sentences.join(stop.message,problems.isEmpty ? "":String(localized:"Problems are listed below.",bundle:.checkmate))}
    catch {if self.generation==id{self.failedLastRun=failed.union(retryLast)};self.status=Task.isCancelled ? String(localized:"Canceled. Completed text and clips are preserved.",bundle:.checkmate):userFacingMessage(error,fallback:String(localized:"The job could not finish. Completed work is preserved.",bundle:.checkmate))}
   }
  }
@@ -244,16 +244,16 @@ public struct LessonGroup:Equatable,Sendable {public let title:String,lessons:[I
    do {
     let text=try await self.translator.accountStatus();try Task.checkCancellation()
     self.lastAccountStatus=text;self.lastAccountRefresh=Date();self.accountAuthStamp=requestedStamp;self.accountSnapshotGeneration=UUID();self.accountSnapshotStale=false
-    self.accountStatus=text+"\nRefreshed \(self.lastAccountRefresh!.formatted())"
+    self.accountStatus=text+"\n"+String(localized:"Refreshed \(self.lastAccountRefresh!.formatted())",bundle:.checkmate,comment:"When the account status was last read")
     await self.checkAccountAuthenticationMetadata()
    }catch {
     guard !Task.isCancelled else{return}
-    self.accountSnapshotStale=true;self.accountStatus=String(localized:"Account status unavailable. ",bundle:.checkmate)+userFacingMessage(error,fallback:String(localized:"Refresh explicitly after signing in.",bundle:.checkmate))
+    self.accountSnapshotStale=true;self.accountStatus=Sentences.join(String(localized:"Account status unavailable.",bundle:.checkmate),userFacingMessage(error,fallback:String(localized:"Refresh explicitly after signing in.",bundle:.checkmate)))
     self.appendStaleAccountSnapshot()
    }
   }
  }
- private func appendStaleAccountSnapshot(){if let previous=lastAccountStatus,let date=lastAccountRefresh{accountStatus += "\nStale account snapshot from \(date.formatted()):\n"+previous}}
+ private func appendStaleAccountSnapshot(){if let previous=lastAccountStatus,let date=lastAccountRefresh{accountStatus += "\n"+String(localized:"Stale account snapshot from \(date.formatted()):",bundle:.checkmate,comment:"Introduces the last account status read, kept after a failed refresh")+"\n"+previous}}
  /// Read-only metadata check: never reads credentials and never contacts the provider.
  public func checkAccountAuthenticationMetadata()async {
   guard let metadata=accountAuthMetadata,let previous=accountAuthStamp,lastAccountRefresh != nil,!accountSnapshotStale else{return}

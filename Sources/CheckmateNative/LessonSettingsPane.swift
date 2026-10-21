@@ -56,7 +56,7 @@ struct LessonSettingsPane:View {
             if audioConflict{Text("Disconnect the voice coach before generating or playing lesson recordings.").font(.caption).foregroundStyle(.secondary)}
             if controller.busy{ProgressView().controlSize(.small)}
             Text(controller.status).textSelection(.enabled).accessibilityIdentifier("lesson-job-status")
-            if !controller.problems.isEmpty{VStack(alignment:.leading,spacing:Metrics.tightGap){ForEach(Array(controller.problems.enumerated()),id:\.offset){_,problem in Text("• "+problem).textSelection(.enabled)}}.font(.caption).accessibilityElement(children:.contain).accessibilityLabel("Lesson job problems").accessibilityIdentifier("lesson-job-problems")}
+            if !controller.problems.isEmpty{VStack(alignment:.leading,spacing:Metrics.tightGap){ForEach(Array(controller.problems.enumerated()),id:\.offset){_,problem in Text(String(localized:"• \(problem)",bundle:.checkmate,comment:"One problem in a list")).textSelection(.enabled)}}.font(.caption).accessibilityElement(children:.contain).accessibilityLabel("Lesson job problems").accessibilityIdentifier("lesson-job-problems")}
             Text("Transcript verification compares the provider’s transcript with the requested script. Listen to the preview to judge spoken accuracy, clarity and suitability before recording the full lesson.").font(.caption).foregroundStyle(.secondary)
             Text("A lesson uses the selected language after all its recordings are complete. Otherwise, the whole lesson plays in English.").font(.caption).foregroundStyle(.secondary)
         }

@@ -42,13 +42,13 @@ public struct PuzzleSetSummary:Equatable {
         self.init(total:puzzles.count,solved:standings.filter{$0 == .solved}.count,helped:standings.filter{$0 == .solvedWithHints || $0 == .solvedLater}.count,toReview:records.filter(\.review).count,notTried:standings.filter{$0 == .notTried}.count)
     }
     public var text:String {
-        var parts=["\(solved) of \(total) solved on your own."]
-        if helped>0{parts.append(String(localized:"\(helped) solved with a hint or on a later try.",bundle:.checkmate))};if toReview>0{parts.append("\(toReview) to review.")};if notTried>0{parts.append("\(notTried) not tried.")}
-        return parts.joined(separator:" ")
+        var parts=[String(localized:"\(solved) of \(total) solved on your own.",bundle:.checkmate)]
+        if helped>0{parts.append(String(localized:"\(helped) solved with a hint or on a later try.",bundle:.checkmate))};if toReview>0{parts.append(String(localized:"\(toReview) to review.",bundle:.checkmate,comment:"Puzzles marked for review"))};if notTried>0{parts.append(String(localized:"\(notTried) not tried.",bundle:.checkmate,comment:"Puzzles not tried yet"))}
+        return Sentences.join(parts)
     }
 }
 /// How many of the course's main lessons have been explored to their end.
-public struct CourseStanding:Equatable {public let explored:Int,total:Int;public var text:String {"\(explored) of \(total)"}}
+public struct CourseStanding:Equatable {public let explored:Int,total:Int;public var text:String {String(localized:"\(explored) of \(total)",bundle:.checkmate,comment:"How many main lessons are explored, of the course total")}}
 extension CourseLibrary {
     public func standing(_ course:CourseProgress)->CourseStanding {
         let main=lessons.filter{!$0.isPractice}.map(\.id),done=Set(course.completed)

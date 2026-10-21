@@ -26,8 +26,8 @@ struct UsageSettingsPane:View {
                     if !group.isEmpty {
                         DisclosureGroup("Breakdown") {
                             Text("\(group.count) operations · \(Set(group.map(\.sessionID)).count) sessions").font(.caption).foregroundStyle(.secondary)
-                            Text(known.isEmpty ? String(localized:"Tokens not reported",bundle:.checkmate):"\(UsageFormat.tokens(known.reduce(0,+))) reported · \(group.count-known.count) not reported").font(.caption).foregroundStyle(.secondary)
-                            Text(durations.isEmpty ? String(localized:"Time not reported",bundle:.checkmate):"\(UsageFormat.minutes(durations.reduce(0,+))) reported · \(group.count-durations.count) not reported").font(.caption).foregroundStyle(.secondary)
+                            Text(known.isEmpty ? String(localized:"Tokens not reported",bundle:.checkmate):String(localized:"\(UsageFormat.tokens(known.reduce(0,+))) reported · \(group.count-known.count) not reported",bundle:.checkmate,comment:"Tokens reported, then how many operations reported none")).font(.caption).foregroundStyle(.secondary)
+                            Text(durations.isEmpty ? String(localized:"Time not reported",bundle:.checkmate):String(localized:"\(UsageFormat.minutes(durations.reduce(0,+))) reported · \(group.count-durations.count) not reported",bundle:.checkmate,comment:"Time reported, then how many operations reported none")).font(.caption).foregroundStyle(.secondary)
                             let narrated=group.compactMap(\.narration)
                             if !narrated.isEmpty{Text("Narrated segments: \(narrated.filter{$0 == .verified}.count) heard as written · \(narrated.filter{$0 == .unverified}.count) shown as text instead · \(narrated.filter{$0 == .interrupted}.count) stopped").font(.caption).foregroundStyle(.secondary).accessibilityIdentifier("usage-narration-outcomes")}
                         }

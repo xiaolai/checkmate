@@ -45,7 +45,7 @@ public final class ChessRules {
     public var fiftyMoveClaim:Bool {(try? fiftyMoveRuleReached()) ?? false}
     /// How the game ended by the rules, or nil while it continues.
     public var ending:(result:String,reason:String)? {try? rulesEnding()}
-    public var status:String {checkmate ? String(localized:"Checkmate",bundle:.checkmate) : draw ? String(localized:"Draw",bundle:.checkmate,comment:"A game result: neither side wins") : (turn == "w" ? String(localized:"White to move",bundle:.checkmate) : String(localized:"Black to move",bundle:.checkmate)) + (check ? String(localized:" · Check",bundle:.checkmate) : "")}
+    public var status:String {checkmate ? String(localized:"Checkmate",bundle:.checkmate) : draw ? String(localized:"Draw",bundle:.checkmate,comment:"A game result: neither side wins") : check ? (turn == "w" ? String(localized:"White to move · Check",bundle:.checkmate) : String(localized:"Black to move · Check",bundle:.checkmate)) : (turn == "w" ? String(localized:"White to move",bundle:.checkmate) : String(localized:"Black to move",bundle:.checkmate))}
     public func piece(_ square:String)->ChessPiece? {guard Self.validSquare(square) else{return nil};return try? pieceAt(square)}
     public var board:[String:String] {(try? currentBoard()) ?? [:]}
     public func moves(_ square:String?=nil)->[MoveRecord] {(try? legalMoves(from:square)) ?? []}
@@ -114,7 +114,7 @@ public final class ChessRules {
     public func isInsufficientMaterial()throws -> Bool {try flag("game.isInsufficientMaterial()")}
     /// How the game ended by the rules, or nil while it continues; a runtime failure throws rather than reading as play on.
     private func rulesEnding()throws -> (result:String,reason:String)? {
-        if try isCheckmate(){let white=try currentTurn()=="b";return (white ? "1-0":"0-1",(white ? String(localized:"White",bundle:.checkmate):String(localized:"Black",bundle:.checkmate))+String(localized:" wins by checkmate.",bundle:.checkmate))}
+        if try isCheckmate(){let white=try currentTurn()=="b";return (white ? "1-0":"0-1",white ? String(localized:"White wins by checkmate.",bundle:.checkmate):String(localized:"Black wins by checkmate.",bundle:.checkmate))}
         if try isStalemate(){return ("1/2-1/2",String(localized:"Draw by stalemate.",bundle:.checkmate))}
         if try isInsufficientMaterial(){return ("1/2-1/2",String(localized:"Draw: neither side has enough material to checkmate.",bundle:.checkmate))}
         switch try ruleDraw() {

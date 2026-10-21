@@ -64,7 +64,7 @@ private struct SettingsForm:View {
             do {
                 let skill=try Data(contentsOf:NativeResources.url("companion-skill.md"))
                 let state=try await Task.detached {try CompanionInstallation.register(executable:executable,codex:codex,skill:skill)}.value
-                companionSetupStatus=SettingsWindow.setupReady(connectionsAllowed:companion.enabled,skill:CompanionInstallation.skillName())+(state == .customized ? String(localized:" Your customized companion skill was kept.",bundle:.checkmate):"")
+                companionSetupStatus=Sentences.join(SettingsWindow.setupReady(connectionsAllowed:companion.enabled,skill:CompanionInstallation.skillName()),state == .customized ? String(localized:"Your customized companion skill was kept.",bundle:.checkmate):"")
             } catch {companionSetupStatus=userFacingMessage(error,fallback:String(localized:"Codex setup failed. Check that Codex is installed and try again.",bundle:.checkmate));companionSetupDetails=(error as? CompanionInstallation.CodexCommandFailure)?.details}
             companionSetupRunning=false;model.refreshCodexSetup()
         }

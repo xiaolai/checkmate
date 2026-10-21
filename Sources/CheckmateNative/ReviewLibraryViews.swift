@@ -63,9 +63,9 @@ struct GameLibraryBrowser:View {
                 Button("Import Collection…"){library.chooseCollection()}.disabled(library.importing != nil).help("Import a downloaded PGN file, or drop one on the list.")
                 Button("Get More Games"){library.openMoreGames()}.accessibilityHint("Opens a page of free PGN downloads in your browser.")
                 Spacer()
-                if let name=library.importing {
+                if let progress=library.importing {
                     ProgressView().controlSize(.small).accessibilityLabel("Importing")
-                    Text(verbatim:String(localized:"Importing \(PGNImporter.bounded(name,scalars:40))…",bundle:.checkmate)).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                    Text(verbatim:progress).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                     Button("Cancel"){library.cancelImport()}.controlSize(.small)
                 }
             }

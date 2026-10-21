@@ -74,7 +74,7 @@ extension TrainingValidationService {
         func requireNoAction(_ value:Bool)throws {guard noAction==value else{try fail(value ? "this no-action case must be marked noAction":String(localized:"only a case where acting is wrong is marked noAction",bundle:.checkmate))}}
         /// A one-move rule task: the accepted moves are exactly `answer`, and no reply is shown.
         func simple(_ answer:Set<String>,_ what:String)throws {
-            guard !answer.isEmpty,accepted==answer,root?.accepted.count==answer.count else{try fail("accepted \(what) differ from the rules: \(answer.sorted())")}
+            guard !answer.isEmpty,accepted==answer,root?.accepted.count==answer.count else{try fail("accepted \(what) differ from the rules: \(answer.sorted())")} // not localized: scenario authoring check
             guard root?.replies.isEmpty==true,scenario.nodes?.count==1 else{try fail("a one-move rule task shows no reply")}
         }
     }
@@ -134,7 +134,7 @@ extension TrainingValidationService {
     }
     private static func validateCastle(_ c:BeginnerContext)throws {
         let scenario=c.scenario,board=c.board
-        try c.simple(try TrainingSpecialRules.castlingMoves(c.legality),"castling moves");try c.requireNoAction(false)
+        try c.simple(try TrainingSpecialRules.castlingMoves(c.legality),"castling moves");try c.requireNoAction(false) // not localized: scenario authoring check
         guard let wrong=c.expected.wrong,!wrong.isEmpty else{try c.fail(String(localized:"include a plausible illegal castling attempt",bundle:.checkmate))}
         for attempt in wrong {
             // A castling attempt: the king two files along its rank, or onto its own rook.
@@ -151,7 +151,7 @@ extension TrainingValidationService {
         let scenario=c.scenario
         guard scenario.choices==TrainingCastleReason.choices,let destination=scenario.target else{try c.fail(String(localized:"a castling question names the king's square and offers every reason",bundle:.checkmate))}
         let reasons=try TrainingSpecialRules.castleReasons(c.legality,destination:destination)
-        guard reasons.count==1,let reason=reasons.first,reason.label==c.expected.choice else{try c.fail("castling has \(reasons.map(\.rawValue).sorted()); curate exactly the oracle's one reason")}
+        guard reasons.count==1,let reason=reasons.first,reason.label==c.expected.choice else{try c.fail("castling has \(reasons.map(\.rawValue).sorted()); curate exactly the oracle's one reason")} // not localized: scenario authoring check
         try c.requireNoAction(reason != .allowed)
         if reason == .moved{guard try showsCastlerMoving(scenario,fen:c.fen,destination:destination,runtimeFactory:c.runtimeFactory) else{try c.fail(String(localized:"the context moves must show the king or rook moving",bundle:.checkmate))}}
     }
@@ -181,7 +181,7 @@ extension TrainingValidationService {
         if create{guard try c.legality.matingMoves().isEmpty else{try c.fail(String(localized:"with a mate in one available this is a mate-in-one task",bundle:.checkmate))}}
         if let validator=c.validator {
             let found=try validator.threat(scenario,create:create)
-            guard Set(found.accepted)==accepted,c.root?.replies==found.replies else{try c.fail("mate-threat answers differ from the exact one-reply query: \(found.accepted)")}
+            guard Set(found.accepted)==accepted,c.root?.replies==found.replies else{try c.fail("mate-threat answers differ from the exact one-reply query: \(found.accepted)")} // not localized: scenario authoring check
             if !create{guard found.opponentThreat else{try c.fail(String(localized:"the opponent must threaten mate now",bundle:.checkmate))}}
         }
     }
@@ -196,7 +196,7 @@ extension TrainingValidationService {
             let found=try (c.validator ?? TrainingContinuationValidator(runtimeFactory:c.runtimeFactory)).threat(scenario,create:false)
             // The learner's own move created the threat, so none need exist yet; the answers are re-derived exactly.
             guard Set(found.accepted)==accepted,root.replies==found.replies else{try c.fail(String(localized:"the accepted moves are exactly those that allow no mate in one",bundle:.checkmate))}
-        default:try c.fail("unknown moment")
+        default:try c.fail("unknown moment") // not localized: scenario authoring check
         }
     }
     /// The concerns genuinely present in a diagnosis position, re-derived by the bounded searches; nil when the

@@ -149,7 +149,7 @@ public final class GameCollectionStore:@unchecked Sendable {
                 // A rebuilt index counts against the quota like any other byte of the library.
                 let previous=((try? FileManager.default.attributesOfItem(atPath:indexFile(sha).path))?[.size] as? Int) ?? 0
                 guard usedBytes()-previous+encoded.count+(stored==nil ? label.count:0)<=quotaBytes else{throw CheckmateError.invalid(String(localized:"The game library is full, so this collection's index could not be rebuilt. Remove a collection.",bundle:.checkmate))}
-                NativeLog.storage.info("Rebuilt a collection's index, named from its \(stored==nil ? "games' Event":"stored name",privacy:.public)")
+                NativeLog.storage.info("Rebuilt a collection's index, named from its \(stored==nil ? "games' Event":"stored name",privacy:.public)") // not localized: a log line
                 if stored==nil{try durableWrite(label,to:nameFile(sha))};try durableWrite(encoded,to:indexFile(sha));collections.append(index)
             }catch{broken.append(BrokenCollection(id:sha,name:stored ?? String(localized:"Collection",bundle:.checkmate),error:userFacingMessage(error,fallback:String(localized:"This collection could not be read.",bundle:.checkmate))))}
         }

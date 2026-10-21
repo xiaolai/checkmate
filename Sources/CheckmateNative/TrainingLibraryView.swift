@@ -19,11 +19,11 @@ enum TrainingLabels {
         case .attackProtection:return String(localized:"attack and protection",bundle:.checkmate)
         case .threatResponse:return String(localized:"answering a threat",bundle:.checkmate)
         case .captureExchange:return String(localized:"captures and trades",bundle:.checkmate)
-        case .checkMateDraw:return "check, mate and draws"
-        case .specialRules:return "castling, promotion and en passant"
-        case .elementaryTactics:return "forks, pins and mating threats"
+        case .checkMateDraw:return String(localized:"check, mate and draws",bundle:.checkmate)
+        case .specialRules:return String(localized:"castling, promotion and en passant",bundle:.checkmate)
+        case .elementaryTactics:return String(localized:"forks, pins and mating threats",bundle:.checkmate)
         case .convertingWin:return String(localized:"finishing a won game",bundle:.checkmate)
-        case .gameHabits:return "game habits"
+        case .gameHabits:return String(localized:"game habits",bundle:.checkmate)
         case .diagnosis:return String(localized:"spotting what matters",bundle:.checkmate)
     }}
 }

@@ -131,6 +131,6 @@ public enum LessonAttemptJudge {
         if rules.checkmate {return rules.turn=="b" ? String(localized:"Checkmate. You win!",bundle:.checkmate):String(localized:"Checkmate. The computer won this game. Undo your moves or start again.",bundle:.checkmate)}
         if rules.stalemate {return stalemateFails ? String(localized:"Stalemate: Black has no legal move, but the king is not in check, so the game is a draw. Undo your last move and leave the king a square.",bundle:.checkmate):String(localized:"Stalemate: the side to move has no legal move but is not in check. The game is a draw.",bundle:.checkmate)}
         if rules.insufficientMaterial {return String(localized:"Draw: neither side has enough pieces left to checkmate.",bundle:.checkmate)}
-        return String(localized:"Draw: ",bundle:.checkmate)+(rules.ending?.reason ?? String(localized:"the game cannot go on.",bundle:.checkmate))
+        return rules.ending.map{String(localized:"Draw: \($0.reason)",bundle:.checkmate,comment:"The reason is a phrase, such as threefold repetition")} ?? String(localized:"Draw: the game cannot go on.",bundle:.checkmate)
     }
 }

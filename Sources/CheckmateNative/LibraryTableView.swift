@@ -258,7 +258,7 @@ final class HeaderButton:NSButton {
         setAccessibilityHelp(open ? String(localized:"Hides this event's games.",bundle:.checkmate):String(localized:"Shows this event's games.",bundle:.checkmate))
     }
     @objc private func pressed(){toggle()}
-    override func accessibilityValue()->Any? {open ? "expanded":"collapsed"}
+    override func accessibilityValue()->Any? {open ? String(localized:"expanded",bundle:.checkmate,comment:"A library section that shows its games"):String(localized:"collapsed",bundle:.checkmate,comment:"A library section that hides its games")}
     // Announced as the event's heading; it keeps its press action, value and hint, so it still discloses the event.
     override func accessibilityRole()->NSAccessibility.Role? {headingRole}
 }
@@ -291,8 +291,8 @@ final class SectionHeaderCell:NSTableCellView {
         rename.isHidden = !(collection && section.kind == .collection(nil))
         if collection{
             let sha=String(String(section.id.dropFirst("collection:".count)).prefix(12))
-            remove.setAccessibilityLabel(String(localized:"Remove collection ",bundle:.checkmate)+section.title);remove.setAccessibilityIdentifier("library-remove-"+sha)
-            rename.setAccessibilityLabel(String(localized:"Rename collection ",bundle:.checkmate)+section.title);rename.setAccessibilityIdentifier("library-rename-"+sha)
+            remove.setAccessibilityLabel(String(localized:"Remove collection \(section.title)",bundle:.checkmate));remove.setAccessibilityIdentifier("library-remove-"+sha)
+            rename.setAccessibilityLabel(String(localized:"Rename collection \(section.title)",bundle:.checkmate));rename.setAccessibilityIdentifier("library-rename-"+sha)
         }
     }
     @objc private func renamePressed(){onRename()}
@@ -310,7 +310,7 @@ final class BrokenCell:NSTableCellView {
         NSLayoutConstraint.activate([icon.leadingAnchor.constraint(equalTo:leadingAnchor,constant:4),icon.centerYAnchor.constraint(equalTo:centerYAnchor),message.leadingAnchor.constraint(equalTo:icon.trailingAnchor,constant:6),message.trailingAnchor.constraint(lessThanOrEqualTo:trailingAnchor,constant:-6),message.centerYAnchor.constraint(equalTo:centerYAnchor)])
     }
     required init?(coder:NSCoder){nil}
-    func show(_ broken:BrokenCollection){message.stringValue=broken.error;setAccessibilityLabel(String(localized:"This collection could not be read: ",bundle:.checkmate)+broken.error)}
+    func show(_ broken:BrokenCollection){message.stringValue=broken.error;setAccessibilityLabel(String(localized:"This collection could not be read: \(broken.error)",bundle:.checkmate,comment:"A library collection that failed to load, then why"))}
     override func isAccessibilityElement()->Bool {true}
     override func accessibilityRole()->NSAccessibility.Role? {.staticText}
 }
