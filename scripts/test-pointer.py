@@ -51,6 +51,21 @@ def wait(predicate, message, timeout=15):
     raise AssertionError(message)
 
 
+def confirm_panel(press, still_open, done, message):
+    """Confirms an open or save panel. A press during the Go to Folder sheet's closing animation is dropped by the panel,
+    so it is repeated, but only while the panel is still open: a press after it closed would reach the app instead."""
+    for _ in range(4):
+        if not still_open():
+            break
+        press()
+        deadline = time.monotonic() + 3
+        while time.monotonic() < deadline and still_open() and not done():
+            time.sleep(0.2)
+        if done():
+            return
+    wait(done, message)
+
+
 def dialog(text, button):
     """Clicks a button in the window showing text, so an alert's Cancel is never confused with another window's."""
     pointer("dialog-click", text, button)
@@ -270,10 +285,9 @@ try:
     pointer("go-folder", str(state))
     # The Go to Folder sheet closes with an animation; a click on Save during it is dropped by the panel.
     wait(lambda: re.search(r"^AXPopUpButton: Where: \| " + re.escape(state.name), listing(), re.M) is not None and "Go to Folder" not in listing(), "The save panel did not move to the export folder")
-    time.sleep(0.5)
-    pointer("click", "Save")
     exported = state / "Checkmate-usage.json"
-    wait(exported.exists, "Usage JSON export was not written")
+    confirm_panel(lambda: pointer("click", "Save"), lambda: re.search(r"^AXButton: Save( \||$)", listing(), re.M) is not None,
+                  exported.exists, "Usage JSON export was not written")
     exported_usage = json.loads(exported.read_text())
     assert "records" in exported_usage, "Usage export has no record array"
     if fixture:
@@ -471,11 +485,10 @@ try:
     wait(lambda: re.search(r"^AXButton: Import( \||$)", listing(), re.M) is not None, "Import Collection… did not open the open panel")
     pointer("go-folder", str(state / "club.pgn"))
     wait(lambda: "Go to Folder" not in listing(), "The open panel did not go to the collection")
-    time.sleep(0.5)
     # Return presses the panel's default button, Import (its contents are another process's view, which accessibility
     # searches can wait on indefinitely).
-    pointer("return")
-    wait(lambda: len(stored()) == 1, "Importing through the open panel stored no collection")
+    confirm_panel(lambda: pointer("return"), lambda: "AXWindow: Open | open-panel" in listing(), lambda: len(stored()) == 1,
+                  "Importing through the open panel stored no collection")
     choose_scope("My games")
     wait(lambda: "Ada Example – Ben Sample" in listing() and "Ben Sample – Cleo Test" in listing(), "My games did not list the imported collection")
     # A real file drop on the library list imports it as a collection.
