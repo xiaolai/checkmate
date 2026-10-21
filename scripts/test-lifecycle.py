@@ -3,6 +3,9 @@ root=pathlib.Path.cwd();evidence=pathlib.Path(os.environ['CHECKMATE_EVIDENCE_DIR
 # Removed at exit, after the finally below has stopped the app (run-gates fails a gate that leaves temporary files).
 atexit.register(shutil.rmtree,state,ignore_errors=True)
 subprocess.run(['xcrun','swiftc','Tools/ax-helper.swift','-o',str(ax)],check=True)
+# A just-built executable's first run waits for the system to assess it; run the helper once here, so the timed launch
+# below measures the app and not that wait.
+subprocess.run([str(ax),str(os.getpid()),'windows'],check=True,stdout=subprocess.DEVNULL)
 env=dict(os.environ,CHECKMATE_AUTOMATION='1');args=[str(app),'--automation','--data-dir',str(state)];process=None
 
 def act(action,target=''):
