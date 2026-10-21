@@ -101,9 +101,9 @@ def launch():
     if "AXStaticText: The Pawn" not in listing():
         pointer("click", "Toggle Sidebar")
     wait(lambda: "AXStaticText: The Pawn" in listing(), "Lesson sidebar did not open")
-    if "Your next move." not in listing():
+    if "practice-heading" not in listing():
         pointer("click", "Toggle Game Details")
-    wait(lambda: "Your next move." in listing(), "Game details did not open")
+    wait(lambda: "practice-heading" in listing(), "Game details did not open")
 
 
 def drift_across_edge():

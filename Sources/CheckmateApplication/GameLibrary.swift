@@ -2,6 +2,7 @@ import CheckmateDomain
 import CheckmateSupport
 import CheckmateAssets
 import Foundation
+import OSLog
 public struct LibraryOpening:Codable,Equatable,Sendable {public let eco:String,name:String}
 /// A World Championship event of the roster (`Content/game-library/roster.json`).
 public struct LibraryEvent:Codable,Equatable,Sendable,Identifiable {
@@ -28,7 +29,7 @@ public struct GameLibrary:Sendable,Equatable {
     public static var directory:URL {NativeResources.url("game-library")}
     public static func load(from directory:URL=directory)throws -> GameLibrary {
         let manifest:Manifest
-        do{manifest=try JSONDecoder().decode(Manifest.self,from:Data(contentsOf:directory.appendingPathComponent("manifest.json")))}catch{throw CheckmateError.invalid("The game library manifest could not be read: \(error)")}
+        do{manifest=try JSONDecoder().decode(Manifest.self,from:Data(contentsOf:directory.appendingPathComponent("manifest.json")))}catch{NativeLog.storage.error("The game library manifest could not be read: \(String(describing:error),privacy:.public)");throw CheckmateError.invalid("The game library manifest could not be read.")}
         guard manifest.schemaVersion==1,!manifest.games.isEmpty,manifest.games.count<=maximumGames,Set(manifest.games.map(\.id)).count==manifest.games.count,Set(manifest.events.map(\.id)).count==manifest.events.count else{throw CheckmateError.invalid("The game library manifest is invalid.")}
         func bounded(_ text:String,empty:Bool=false)->Bool {(empty || !text.isEmpty) && text.count<=maximumText && !text.contains(where:{$0.isNewline})}
         func identifier(_ text:String)->Bool {(1...64).contains(text.count) && text.allSatisfy{$0.isASCII && ($0.isLowercase || $0.isNumber || $0=="-")}}

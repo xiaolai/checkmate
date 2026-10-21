@@ -59,6 +59,15 @@ struct DetailContent:View {
     @ObservedObject var voice:VoiceCoach
     @ObservedObject var relationships:RelationshipController
     let inspect:(RelationshipMode)->Void
+    /// The practice drawer's heading, from the game shown: its result once it is over, Stockfish thinking, or whose move it is.
+    @MainActor static func practiceHeading(_ s:GameSession)->String {practiceHeading(result:s.finished ? s.state.practice.ending?.result ?? s.rules.ending?.result ?? "*":nil,learner:s.humanSide,thinking:s.busyReason=="opponent",learnerToMove:s.rules.turn==s.humanSide)}
+    /// `result` is the finished game's PGN result, nil while it is in play.
+    static func practiceHeading(result:String?,learner:String,thinking:Bool,learnerToMove:Bool)->String {
+        if let result {switch result {case "1/2-1/2":return "Drawn game";case "1-0","0-1":return result==(learner=="w" ? "1-0":"0-1") ? "You won":"You lost";default:return "Game over"}}
+        return thinking ? "Stockfish is thinking":learnerToMove ? "Your move":"Opponent's move"
+    }
+    /// Runs a learner's practice action; one that cannot be done is said in the drawer, never dropped.
+    @MainActor static func attempt(_ session:GameSession,_ action:() throws -> Void){do{try action()}catch{session.report(GameWindow.failureMessage(error))}}
     @State private var lessonGoalsShown=false
     var body:some View {ScrollView {VStack(alignment:.leading,spacing:Metrics.sectionGap) {
         if model.reviewWorkspace {
@@ -85,18 +94,18 @@ struct DetailContent:View {
         if relationships.report==nil {
         if !session.presentationHidden,let d=session.demonstration {
             Text(d.title).font(.title2.bold());Text("Imagined moves").foregroundStyle(.secondary)
-            Picker("Line",selection:Binding(get:{d.line},set:{try? session.seekDemo(line:$0,ply:0)})){ForEach(d.lines.indices,id:\.self){i in Text(d.lines[i].label).tag(i)}}
+            Picker("Line",selection:Binding(get:{d.line},set:{line in Self.attempt(session){try session.seekDemo(line:line,ply:0)}})){ForEach(d.lines.indices,id:\.self){i in Text(d.lines[i].label).tag(i)}}
             Text(d.lines[d.line].frames[d.ply].explanation)
             if session.rules.turn==session.opponentSide{Text("Stockfish waits while this demonstration is shown. Choose Game above or close it to continue.").font(.caption).foregroundStyle(.secondary)}
             Text("\(d.ply) / \(d.lines[d.line].frames.count-1)").foregroundStyle(.secondary)
         } else if !session.presentationHidden,let p=session.preview {
             Text("Try a move").font(.title2.bold());Text("This does not change your game.").foregroundStyle(.secondary)
             if let candidate=p.candidate {Text(candidate.description)}else{Text("Select a piece, then a destination to test your idea.")}
-            if let e=p.evaluation {Text(e.comparison);Picker("Continuation",selection:Binding(get:{p.line},set:{try? session.previewAt(ply:0,line:$0)})){Text("Your move").tag("candidate");Text("Engine suggestion").tag("recommended")};Text((p.line=="candidate" ? e.candidateFrames:e.recommendedFrames).dropFirst().map(\.san).joined(separator:" · "));Button("Play my move"){try? session.playCandidate()}}
+            if let e=p.evaluation {Text(e.comparison);Picker("Continuation",selection:Binding(get:{p.line},set:{line in Self.attempt(session){try session.previewAt(ply:0,line:line)}})){Text("Your move").tag("candidate");Text("Engine suggestion").tag("recommended")};Text((p.line=="candidate" ? e.candidateFrames:e.recommendedFrames).dropFirst().map(\.san).joined(separator:" · "));Button("Play my move"){Self.attempt(session){try session.playCandidate()}}}
             if p.status=="analyzing"{ProgressView("Comparing moves…")};if let error=p.error{Text(error).foregroundStyle(.secondary)}
         } else {
-            if session.explicitResumeRequired {Text("Game paused.").font(.title2.bold());Text(session.message);Text("Your game is paused because a saved review could not be restored.");Button("Return to game"){model.resumeAfterFailedRestore()}}
-            else {Text("Your next move.").font(.title2.bold());Text(session.message)}
+            if session.explicitResumeRequired {Text("Game paused").font(.title2.bold());Text(session.message);Text("Your game is paused because a saved review could not be restored.");Button("Return to game"){model.resumeAfterFailedRestore()}}
+            else {Text(Self.practiceHeading(session)).font(.title2.bold()).accessibilityIdentifier("practice-heading");Text(session.message)}
             if session.pausedOpponent {Text("The companion opponent disconnected.");Button("Continue with Stockfish"){model.companion.disable();session.continueWithStockfish()}}
             OpponentSettingsContent(session:session)
             Text("Moves").font(.headline);Text(session.rules.history.isEmpty ? "Your story starts with one move.":session.moveListText).textSelection(.enabled)
@@ -239,17 +248,17 @@ struct TransportContent:View {
         case .attemptRestart:restartAttempt()
         case .newGame,.miniNewGame:newGame()
         case .takeBack:session.undo()
-        case .hint:session.hint()
-        case .tryMove,.tryAnotherMove:try? session.beginPreview()
+        case .hint:session.hint();showDetails()
+        case .tryMove,.tryAnotherMove:DetailContent.attempt(session){try session.beginPreview()}
         case .resumeGame:resumeGame()
         case .continueWithStockfish:continueWithStockfish()
-        case .previewPrevious:if let p=session.preview{try? session.previewAt(ply:max(0,p.ply-1),line:p.line)}
+        case .previewPrevious:if let p=session.preview{DetailContent.attempt(session){try session.previewAt(ply:max(0,p.ply-1),line:p.line)}}
         case .previewNext:
-            if let p=session.preview{let frames=(p.line=="candidate" ? p.evaluation?.candidateFrames.count:p.evaluation?.recommendedFrames.count) ?? 0;try? session.previewAt(ply:min(frames-1,p.ply+1),line:p.line)}
+            if let p=session.preview{let frames=(p.line=="candidate" ? p.evaluation?.candidateFrames.count:p.evaluation?.recommendedFrames.count) ?? 0;DetailContent.attempt(session){try session.previewAt(ply:min(frames-1,p.ply+1),line:p.line)}}
         case .returnToGame:session.closePresentation()
-        case .demoPrevious:if let d=session.demonstration{try? session.seekDemo(line:d.line,ply:max(0,d.ply-1))}
+        case .demoPrevious:if let d=session.demonstration{DetailContent.attempt(session){try session.seekDemo(line:d.line,ply:max(0,d.ply-1))}}
         case .demoPlayPause:if let d=session.demonstration{d.playing ? session.pauseDemo():session.playDemo()}
-        case .demoNext:if let d=session.demonstration{try? session.seekDemo(line:d.line,ply:min(d.lines[d.line].frames.count-1,d.ply+1))}
+        case .demoNext:if let d=session.demonstration{DetailContent.attempt(session){try session.seekDemo(line:d.line,ply:min(d.lines[d.line].frames.count-1,d.ply+1))}}
         case .voiceConnect:connectVoice()
         case .voiceCancel,.voiceDisconnect:voice.disconnect()
         case .voiceMicrophone:var settings=session.state.settings;settings.voiceMicrophone.toggle();session.updateSettings(settings)

@@ -182,9 +182,7 @@ enum LibraryListItem {
     func requestRemove(_ collection:CollectionIndex){requestRemove(collection.sha256,name:collection.name,games:collection.records.count)}
     /// Every removal is confirmed, a broken collection's included: its file may still be recoverable.
     func requestRemove(_ sha:String,name:String,games:Int?){
-        let alert=NSAlert();alert.messageText="Remove “\(PGNImporter.bounded(name,scalars:80))”?"
-        alert.informativeText=games.map{"Its \($0) game\($0==1 ? "":"s") leave My games. Reviews you saved from them are kept."} ?? "Its file is deleted from My games. Reviews you saved from it are kept."
-        let removeButton=alert.addButton(withTitle:"Remove");removeButton.keyEquivalent="";let cancel=alert.addButton(withTitle:"Cancel");cancel.keyEquivalent="\r";alert.window.defaultButtonCell=cancel.cell as? NSButtonCell
+        let alert=NSAlert.destructive("Remove “\(PGNImporter.bounded(name,scalars:80))”?",games.map{"Its \($0) game\($0==1 ? "":"s") leave My games. Reviews you saved from them are kept."} ?? "Its file is deleted from My games. Reviews you saved from it are kept.",action:"Remove")
         if let window=NSApp.mainWindow{alert.beginSheetModal(for:window){[weak self] response in if response == .alertFirstButtonReturn{self?.remove(sha)}}}
         else if alert.runModal() == .alertFirstButtonReturn{remove(sha)}
     }

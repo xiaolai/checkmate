@@ -88,7 +88,7 @@ try:
         assert "AXButton: " + title in listing, title
     assert not review_files(), "Navigation created a saved review"
     act("select", "Practice a game")
-    wait(lambda: "Your next move." in act("list"))
+    wait(lambda: "practice-heading" in act("list"))
     act("press", "e2, White, pawn")
     act("press", "e4, move destination")
     act("select", "Review game")
@@ -126,7 +126,7 @@ try:
     act("press", "Delete Saved Review…")
     wait(lambda: "AXButton: Delete" in act("list"))
     act("press", "Delete")
-    wait(lambda: "Your next move." in act("list"))
+    wait(lambda: "practice-heading" in act("list"))
     wait(lambda: len(review_files()) == len(before) - 1)
     removed = set(before) - set(review_files())
     assert len(removed) == 1

@@ -153,6 +153,7 @@ import RealtimeConnection
         session.onMove={[weak self] move in guard let self=self else{return};let settings=self.session.state.settings;let delay=NSWorkspace.shared.accessibilityDisplayShouldReduceMotion || self.movePlacedDirectly?(move)==true ? 0:settings.pieceDuration;let id=UUID();self.soundTasks[id]=Task{defer{self.soundTasks.removeValue(forKey:id)};try? await Task.sleep(nanoseconds:UInt64(delay)*1_000_000);guard !Task.isCancelled else{return};self.audio.move(move,settings:settings)}}
         learning.onMiniMove=session.onMove
         learning.onAttemptMove=session.onMove
+        training?.onMove=session.onMove
         learning.onAttemptReset={[weak self] in self?.cancelMoveSounds()}
         learning.onMiniReset={[weak self] in self?.cancelMoveSounds()}
         session.onUndo={[weak self] in guard let self=self else{return};self.cancelMoveSounds();self.audio.move(nil,settings:self.session.state.settings,undo:true)}
@@ -272,18 +273,18 @@ import RealtimeConnection
     }
     /// Sidebar Practice a game. A review opened over practice returns to it exactly as Return to game does (a Try a
     /// move or demonstration is kept, TX-8); from anywhere else the game is shown.
-    func practice(){_ = try? transition(.practice)}
-    func lesson(_ index:Int){_ = try? transition(.lesson(index))}
-    func puzzles(){_ = try? transition(.puzzles)}
-    func trainingLibrary(){_ = try? transition(.trainingLibrary)}
-    func playOnNetwork(){_ = try? transition(.network)}
+    func practice(){navigate(.practice)}
+    func lesson(_ index:Int){navigate(.lesson(index))}
+    func puzzles(){navigate(.puzzles)}
+    func trainingLibrary(){navigate(.trainingLibrary)}
+    func playOnNetwork(){navigate(.network)}
     /// A new exercise, the saved unfinished one, or an existing mini-game; a failure is shown and nothing changes.
-    func startTraining(_ entry:String,variant:String?=nil){_ = try? transition(.trainingExercise(entry:entry,variant:variant))}
-    func startTrainingScenario(_ id:String){_ = try? transition(.trainingScenario(id:id))}
-    func openTrainingLesson(_ id:String){_ = try? transition(.trainingLesson(id:id))}
-    func resumeTraining(){_ = try? transition(.trainingResume)}
-    func retryTraining(_ id:String){_ = try? transition(.trainingRetry(id:id))}
-    func playTrainingGame(_ kind:MiniGameKind,restart:Bool=false){_ = try? transition(.trainingLegacy(kind,restart:restart))}
+    func startTraining(_ entry:String,variant:String?=nil){navigate(.trainingExercise(entry:entry,variant:variant))}
+    func startTrainingScenario(_ id:String){navigate(.trainingScenario(id:id))}
+    func openTrainingLesson(_ id:String){navigate(.trainingLesson(id:id))}
+    func resumeTraining(){navigate(.trainingResume)}
+    func retryTraining(_ id:String){navigate(.trainingRetry(id:id))}
+    func playTrainingGame(_ kind:MiniGameKind,restart:Bool=false){navigate(.trainingLegacy(kind,restart:restart))}
     /// Continue opens the next main lesson from its start and plays it; practice activities are not on that path. A
     /// lesson read from training continues as one, as automatic continuation does: the way back to training stays and
     /// the course bookmark is untouched.
@@ -291,15 +292,15 @@ import RealtimeConnection
     /// The reverse of Continue: opens the previous main lesson paused on its last transcript, where the learner left it.
     func previousLessonEnd(){
         guard let previous=learning.library.previousMainLesson(before:learning.lessonIndex) else{return}
-        if learning.readingFromTraining{guard (try? transition(.trainingLesson(id:learning.library.lessons[previous].id)))==true else{return}}
-        else{guard (try? transition(.lesson(previous,resume:false)))==true else{return}}
+        if learning.readingFromTraining{guard navigate(.trainingLesson(id:learning.library.lessons[previous].id)) else{return}}
+        else{guard navigate(.lesson(previous,resume:false)) else{return}}
         learning.pause();learning.seek(step:learning.current.beats.count-1)
     }
     /// Opens one of this lesson's practice activities, the same way Continue opens a lesson.
     func openPractice(_ index:Int){guard learning.library.practice(for:learning.lessonIndex).contains(index) else{return};playLesson(index)}
     private func playLesson(_ index:Int){
-        if learning.readingFromTraining{guard (try? transition(.trainingLesson(id:learning.library.lessons[index].id)))==true else{return};learning.seek(step:0)}
-        else{guard (try? transition(.lesson(index,resume:false)))==true else{return}};learning.play()}
+        if learning.readingFromTraining{guard navigate(.trainingLesson(id:learning.library.lessons[index].id)) else{return};learning.seek(step:0)}
+        else{guard navigate(.lesson(index,resume:false)) else{return}};learning.play()}
     /// Quitting stops a running lesson translation or recording; the clip in progress is already paid for and is lost.
     /// Returns false when the learner chose to keep the app open. Tests inject an answer; automation never blocks.
     var confirmQuitDuringLessonJob:(()->Bool)?
@@ -423,8 +424,8 @@ import RealtimeConnection
         }
     }
     /// Leaves a review (or the workspace) for the place it was opened over, resuming that place.
-    @discardableResult func returnToGame()->Bool{(try? transition(.returnToGame)) ?? false}
-    func showReviewWorkspace(){_ = try? transition(.reviewWorkspace)}
+    @discardableResult func returnToGame()->Bool{navigate(.returnToGame)}
+    func showReviewWorkspace(){navigate(.reviewWorkspace)}
     func saveCurrentReview(){
         guard review.active else{return};if reviewDraft{saveDraft()}else{saveReview(immediate:true)}
     }
@@ -475,7 +476,7 @@ import RealtimeConnection
     /// Returns whether the review is open with its state restored; false when the learner kept a draft, the request was
     /// withdrawn while the draft question was up (`stillWanted`), or the restore failed.
     @discardableResult func openReview(_ document:GameDocument,saved:SavedReview?=nil,draft:Bool=false,stillWanted:()->Bool={true})->Bool{
-        (try? transition(.review(document,saved:saved,draft:draft),stillWanted:stillWanted)) ?? false
+        navigate(.review(document,saved:saved,draft:draft),stillWanted:stillWanted)
     }
     // MARK: Activity transitions (B8.2)
     /// A request to go somewhere else. Each case carries what its entry needs, so the commands that all end in practice
@@ -548,6 +549,10 @@ import RealtimeConnection
         }
         return true
     }
+    /// `transition` for the learner's own commands: a failure it throws is said in the storage warning, never dropped.
+    @discardableResult func navigate(_ next:Navigation,stillWanted:()->Bool={true})->Bool {
+        do{return try transition(next,stillWanted:stillWanted)}catch{storageError=GameWindow.failureMessage(error);return false}
+    }
     /// The message for a navigation whose staging failed, shown with nothing changed; nil when the failure is thrown.
     private static func stagingFailure(_ next:Navigation)->String? {
         switch next {
@@ -598,11 +603,7 @@ import RealtimeConnection
     }
     func requestDeleteReview(_ id:UUID){
         guard deletingReviewID==nil,let record=reviews.first(where:{$0.id==id}) else{return}
-        let alert=NSAlert();alert.messageText="Delete “\(record.title)”?"
-        alert.informativeText="This removes the saved review and its imagined lines; Edit ▸ Undo puts them back. Your current game and the original imported file are kept."
-        let delete=alert.addButton(withTitle:"Delete");delete.keyEquivalent=""
-        let cancel=alert.addButton(withTitle:"Cancel");cancel.keyEquivalent="\r"
-        alert.window.defaultButtonCell=cancel.cell as? NSButtonCell
+        let alert=NSAlert.destructive("Delete “\(record.title)”?","This removes the saved review and its imagined lines; Edit ▸ Undo puts them back. Your current game and the original imported file are kept.",action:"Delete")
         if let window=NSApp.mainWindow{alert.beginSheetModal(for:window){[weak self] response in if response == .alertFirstButtonReturn{self?.deleteReview(id,undo:window.undoManager)}}}
         else if alert.runModal() == .alertFirstButtonReturn{deleteReview(id,undo:NSApp.mainWindow?.undoManager)}
     }
@@ -611,11 +612,7 @@ import RealtimeConnection
     func requestRestartAttempt(){
         let attempt:LessonAttemptController=learning.attempt
         guard attempt.restartNeedsConfirmation,let shown=attempt.record?.id else{attempt.restart();return}
-        let alert=NSAlert();alert.messageText="Start this exercise again?"
-        alert.informativeText="The moves of this attempt are cleared. Anything you have already achieved in it stays achieved."
-        let restart=alert.addButton(withTitle:"Start Again");restart.keyEquivalent=""
-        let cancel=alert.addButton(withTitle:"Cancel");cancel.keyEquivalent="\r"
-        alert.window.defaultButtonCell=cancel.cell as? NSButtonCell
+        let alert=NSAlert.destructive("Start this exercise again?","The moves of this attempt are cleared. Anything you have already achieved in it stays achieved.",action:"Start Again")
         let answered:(NSApplication.ModalResponse)->Void={[weak self] response in guard response == .alertFirstButtonReturn,let self,self.learning.attempt.record?.id==shown else{return};self.learning.attempt.restart()}
         if let window=NSApp.mainWindow{alert.beginSheetModal(for:window,completionHandler:answered)}else{answered(alert.runModal())}
     }
@@ -630,7 +627,7 @@ import RealtimeConnection
             do {
                 let entries=try await Task.detached{try writer.delete(id)}.value
                 pendingReviewSnapshots[id]=nil;reconcileReviewSaveWarning()
-                if review.document?.id==id{_ = try? transition(.returnToGame)}
+                if review.document?.id==id{navigate(.returnToGame)}
                 reviews=entries;deletingReviewID=nil
                 undo?.registerUndo(withTarget:self){$0.restoreDeletedReview(id)};undo?.setActionName("Delete Review")
                 if review.active{saveReview()}
@@ -752,7 +749,7 @@ import RealtimeConnection
         guard practiceForkRequested,review.active,practiceForkIdentity==review.identity+":\(review.branchPly)" else{practiceForkRequested=false;practiceForkIdentity=nil;storageError="The review changed while you were choosing. Choose Practise here again.";return false};return true}
     /// Forks exactly the displayed position: an imagined line replays from its own root (for "Compare best line", the
     /// parent), with history-aware automatic terminal rules.
-    func confirmPracticeFork(side:String,preset:String){_ = try? transition(.practiceFork(side:side,preset:preset))}
+    func confirmPracticeFork(side:String,preset:String){navigate(.practiceFork(side:side,preset:preset))}
     static func exportName(_ document:GameDocument,ideas:Bool)->String {document.historyAvailable || ideas ? "review.pgn":"review.fen"}
     func showBackups(){NSWorkspace.shared.activateFileViewerSelecting([store.directory])}
     func exportState(){let panel=NSSavePanel();panel.nameFieldStringValue="checkmate-state.json";panel.begin {response in guard response == .OK,let url=panel.url else{return};do{try self.store.exportState(self.session.state,to:url)}catch{self.storageError=userFacingMessage(error,fallback:"The export could not be written. Choose another location.")}}}

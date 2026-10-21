@@ -32,8 +32,7 @@ private struct SettingsForm:View {
     private func removeCodexSetup() {
         guard !NativePolicy.silent else {companionSetupStatus="Codex setup is disabled during automation.";return}
         guard let codex=CompanionInstallation.installedCodex() else {companionSetupStatus="Codex is not installed, so there is no Checkmate setup in it to remove.";return}
-        let alert=NSAlert();alert.messageText="Remove Checkmate from Codex?";alert.informativeText="Codex will no longer start Checkmate’s chess tools, and Checkmate’s companion skill is removed. A skill you edited is kept."
-        alert.addButton(withTitle:"Remove");let cancel=alert.addButton(withTitle:"Cancel");cancel.keyEquivalent="\r";alert.window.defaultButtonCell=cancel.cell as? NSButtonCell
+        let alert=NSAlert.destructive("Remove Checkmate from Codex?","Codex will no longer start Checkmate’s chess tools, and Checkmate’s companion skill is removed. A skill you edited is kept.",action:"Remove")
         guard alert.runModal() == .alertFirstButtonReturn else{return}
         companionSetupRunning=true;companionSetupDetails=nil
         Task {

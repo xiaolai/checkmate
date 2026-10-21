@@ -69,6 +69,11 @@ public struct PreparedTrainingExercise {
     public var calendar=Calendar.current
     public var seed:()->UInt64={UInt64.random(in:1...UInt64.max)}
     public var runtimeFactory:(() throws -> any ChessScriptRuntime)?
+    /// Each committed ply, the learner's or the defender's, once it is recorded: the window animates, sounds and
+    /// announces it, as practice's `GameSession.onMove` does. A slip, a pending promotion or a refused save never lands.
+    public var onMove:((MoveRecord)->Void)?
+    /// The committed `outcome`, played from `before`, as the move record `onMove` takes.
+    func landed(_ outcome:MoveOutcome,from before:String){onMove?(MoveRecord(color:outcome.color,from:outcome.from,to:outcome.to,piece:outcome.piece,flags:outcome.flags,san:outcome.san,before:before,after:outcome.after,captured:outcome.captured,promotion:outcome.promotion))}
     /// The practice defender for playable games; the composition injects the engine.
     public let games=TrainingEndgameController()
     /// A saved attempt holds at most this many actions (`TrainingState.validate`); further actions are refused.
@@ -379,7 +384,7 @@ public struct PreparedTrainingExercise {
                 state.snapshot.actions.append(.move(from:from,to:to,promotion:outcome.promotion));state.lastMove=(from,to);state.board=board
                 let right=state.definition.objective == .escapeCheck || outcome.checkmate
                 state.feedback=right ? "Correct. "+state.scenario.explanation:outcome.check ? "That is check, but the king can still escape, block or capture.":outcome.stalemate ? "That is stalemate, a draw. Look for a move that gives check.":"That move does not give check."
-                finish(state,right ? .correct:.incorrect)
+                if finish(state,right ? .correct:.incorrect){landed(outcome,from:legality.fen)}
             }catch{fault()}
         default:break
         }

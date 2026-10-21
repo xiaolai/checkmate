@@ -113,8 +113,8 @@ extension TrainingController {
             case .legal(let outcome):
                 let after=try addGamePly(&state,outcome,before:position,learner:true,played:true)
                 state.snapshot.actions.append(.move(from:from,to:to,promotion:outcome.promotion));state.feedback=""
-                if let ending=try gameEnding(state,after){state.feedback=ending.message;finish(state,ending.outcome);return}
-                if save(state){requestReply()}
+                if let ending=try gameEnding(state,after){state.feedback=ending.message;if finish(state,ending.outcome){landed(outcome,from:position.fen)};return}
+                if save(state){landed(outcome,from:position.fen);requestReply()}
             }
         }catch{fault()}
     }
@@ -155,9 +155,9 @@ extension TrainingController {
             let after=try addGamePly(&state,outcome,before:position,learner:false,played:true)
             state.snapshot.actions.append(.reply(outcome.uci));if let severeStreak{state.snapshot.opponent?.severeStreak=severeStreak}
             // An ending that cannot be recorded keeps the position before the reply, paused so the reply can be asked again.
-            if let ending=try gameEnding(state,after){state.feedback=ending.message;if !finish(state,ending.outcome){pauseGame(notice ?? TrainingEndgameController.tooLong)};return}
+            if let ending=try gameEnding(state,after){state.feedback=ending.message;if finish(state,ending.outcome){landed(outcome,from:position.fen)}else{pauseGame(notice ?? TrainingEndgameController.tooLong)};return}
             state.feedback="The defender played \(outcome.san)."
-            if !save(state){pauseGame(TrainingEndgameController.tooLong)}
+            if save(state){landed(outcome,from:position.fen)}else{pauseGame(TrainingEndgameController.tooLong)}
         }catch{pauseGame("The defender's reply could not be checked, so the game is paused. Nothing is counted.")}
     }
     func replyFailed(attempt:String,revision:Int){

@@ -38,6 +38,21 @@ enum ReviewDrop {
         return file
     }
     static let tooLarge="This file is larger than the 16 MiB import limit."
+    /// The record files the board takes; the extension is matched without case.
+    static let recordExtensions:Set<String>=["pgn","fen"]
+    /// Whether a drag carries one game record: a single .pgn or .fen file, or, with no file, text that reads as one.
+    static func accepts(_ pasteboard:NSPasteboard)->Bool {
+        if let files=pasteboard.readObjects(forClasses:[NSURL.self],options:[.urlReadingFileURLsOnly:true]) as? [URL],!files.isEmpty{return files.count==1 && recordExtensions.contains(files[0].pathExtension.lowercased())}
+        return pasteboard.string(forType:.string).map(looksLikeRecord) ?? false
+    }
+    /// Whether text reads as a game record: a FEN position, PGN tag pairs, or movetext from move one. It is only a first
+    /// look; the importer still decides what the text holds.
+    static func looksLikeRecord(_ text:String)->Bool {
+        guard text.utf8.count<=ReviewPolicy.maximumBytes else{return false}
+        let trimmed=text.trimmingCharacters(in:.whitespacesAndNewlines),fields=trimmed.split(whereSeparator:{$0.isWhitespace})
+        if fields.count==4 || fields.count==6,fields[0].filter({$0=="/"}).count==7,fields[0].allSatisfy({"pnbrqkPNBRQK12345678/".contains($0)}),fields[1]=="w" || fields[1]=="b"{return true}
+        return trimmed.range(of:#"^\[[A-Za-z0-9_]+\s+""#,options:.regularExpression) != nil || trimmed.range(of:#"^1\.\s*(\.\.\s*)?([KQRBN][a-h1-8]?x?[a-h][1-8]|[a-h](x[a-h])?[1-8]|O-O)"#,options:.regularExpression) != nil
+    }
     /// The file's bytes, read from the one file opened (never a pipe or device, which could block or never end) and
     /// at most one byte past the import limit, so a file that grew or was replaced after its size was checked is refused unloaded.
     @Sendable static func bounded(_ url:URL)throws -> Data {
@@ -192,9 +207,10 @@ final class BoardView:NSView {
         focus=target;droppedMove=(drag.from,target);activate?(target);droppedMove=nil
     }
     override func keyDown(with e:NSEvent){if e.modifierFlags.intersection([.command,.control,.option]).isEmpty,reviewKey?(e.keyCode)==true{return};let modifiers=e.modifierFlags.intersection([.command,.control,.option]);if !modifiers.isEmpty && !(modifiers == .option && (123...126).contains(e.keyCode)){super.keyDown(with:e);return};if let char=e.charactersIgnoringModifiers?.lowercased(),char=="p" || char=="a"{inspectRelationship?(char=="p" ? .protected:.attacked);return};keyboardFocusVisible=true;if e.keyCode==36 || e.keyCode==49{activate?(focus);return};if e.keyCode==53{if press != nil || drag != nil{press=nil;drag=nil;if let window{cursor(at:convert(window.mouseLocationOutsideOfEventStream,from:nil)).set()}};if dismissRelationships?()==true{needsDisplay=true;return};selected=nil;destinations=[];clearSelection?();needsDisplay=true;return};var f=Int(focus.utf8.first!-97),r=Int(focus.suffix(1))!-1;let step=blackAtBottom ? -1:1;switch e.keyCode{case 123:f-=step;case 124:f+=step;case 125:r-=step;case 126:r+=step;default:super.keyDown(with:e);return};focus=String(UnicodeScalar(97+max(0,min(7,f)))!)+String(max(0,min(7,r))+1);needsDisplay=true;if let square=squares.first(where:{$0.square==focus}){NSAccessibility.post(element:square,notification:.focusedUIElementChanged)}}
-    override func draggingEntered(_ sender:NSDraggingInfo)->NSDragOperation {.copy}
+    /// Only a game record is taken (`ReviewDrop.accepts`); anything else shows no copy badge and cannot be dropped.
+    override func draggingEntered(_ sender:NSDraggingInfo)->NSDragOperation {ReviewDrop.accepts(sender.draggingPasteboard) ? .copy:[]}
     /// A dropped file is checked and read off the main thread (`ReviewDrop.validated`); a refusal is reported with its reason.
-    override func performDragOperation(_ sender:NSDraggingInfo)->Bool {let pasteboard=sender.draggingPasteboard;if let url=NSURL(from:pasteboard) as URL?{guard url.isFileURL else{return false}
+    override func performDragOperation(_ sender:NSDraggingInfo)->Bool {let pasteboard=sender.draggingPasteboard;guard ReviewDrop.accepts(pasteboard) else{return false};if let url=NSURL(from:pasteboard) as URL?{guard url.isFileURL else{return false}
             reviewFiles.load(url,prepare:ReviewDrop.validated,deliver:{[weak self] in self?.dropReview?($0)},rejected:{[weak self] error in self?.dropRejected?((error as? ReviewDrop.Rejection)?.reason ?? ReviewDrop.unreadable)});return true};if let text=pasteboard.string(forType:.string),text.utf8.count<=ReviewPolicy.maximumBytes{dropReview?(Data(text.utf8));return true};return false}
     func cancelAnimation(){timer?.invalidate();timer=nil;moves=[];captured=[:];transition=nil;needsDisplay=true}
     /// Animates `m` onto `landing`, the exact board the move produces (by default the placement of `m.after`). The board

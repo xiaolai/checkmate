@@ -179,7 +179,10 @@ public struct LessonProjection:Codable {
         return PieceInspection(square:i.square,piece:i.piece,color:i.color,attacks:i.attacks,destinations:i.destinations,legalNow:false,note:note)
     }
     public func select(_ sq:String) throws {
-        guard mode == .practice else{return};guard ChessRules.validSquare(sq) else{return};if finished{try inspectPiece(sq);return}
+        guard mode == .practice else{return};guard ChessRules.validSquare(sq) else{return}
+        // Clicking the selected square again clears the selection, as on the network and training boards.
+        if selected==sq{clearSelection();return}
+        if finished{try inspectPiece(sq);return}
         if !presentationHidden,(demonstration != nil || preview?.candidate != nil) {let display=try ChessRules(fen:displayFen);selected=sq;inspection=learnerInspection(sq,on:display,live:false);emit(semantic:false);return}
         if let from=selected,inspection?.legalNow==true,destinations.contains(sq) {
             if !presentationHidden,preview != nil {cancelWork();work=Task{try? await self.testMove(from:from,to:sq)}}else{try playWhite(from:from,to:sq)};return
@@ -226,6 +229,8 @@ public struct LessonProjection:Codable {
         let reason=userFacingMessage(error,fallback:"").trimmingCharacters(in:CharacterSet(charactersIn:". "))
         return reason.isEmpty || reason.allSatisfy({$0.isUppercase || $0=="_"}) ? "":" ("+reason.prefix(1).lowercased()+reason.dropFirst()+")"
     }
+    /// A learner's action that could not be done, said where the drawer shows practice errors; the game is unchanged.
+    public func report(_ message:String){error=message;emit(semantic:false)}
     public func retryEngine(){error=nil;if rules.turn==humanSide{hint()}else{reply()}}
     /// Whether Take Back has a learner move to undo; a lone opening move by Stockfish is not one, and a resigned or
     /// drawn-by-claim game is over.

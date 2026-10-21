@@ -43,3 +43,37 @@ final class ToolbarInsetHostingController<Content:View>:NSViewController {
         view=container
     }
 }
+extension NSAlert {
+    /// A confirmation of something that cannot be undone: the action is marked destructive and takes no key, and
+    /// Cancel is the default (Return) button, so only a deliberate choice runs it.
+    static func destructive(_ title:String,_ message:String,action:String)->NSAlert {
+        let alert=NSAlert();alert.messageText=title;alert.informativeText=message
+        let button=alert.addButton(withTitle:action);button.keyEquivalent="";button.hasDestructiveAction=true
+        let cancel=alert.addButton(withTitle:"Cancel");cancel.keyEquivalent="\r";alert.window.defaultButtonCell=cancel.cell as? NSButtonCell
+        return alert
+    }
+}
+extension GameWindow {
+    /// What a failed learner action says. ROLE_FORBIDDEN and the other MCP contract codes are for agents; people see
+    /// what they mean, never the code.
+    static func failureMessage(_ error:Error)->String {
+        if let app=error as? CheckmateError {
+            switch app {
+            case .invalid("ROLE_FORBIDDEN"):return "This move can’t be played now. Wait for your turn."
+            case .invalid(let text),.unavailable(let text):if text.contains(where:\.isLetter),text.allSatisfy({$0.isUppercase || $0.isNumber || $0=="_"}){return "That action is not available right now."}
+            default:break
+            }
+        }
+        return userFacingMessage(error,fallback:"That action could not be completed.")
+    }
+    /// The alert for a failure: its message, and the error's recovery suggestion, when it has one, as the detail.
+    static func failureAlert(_ error:Error)->NSAlert {
+        let alert=NSAlert();alert.messageText=failureMessage(error)
+        if let suggestion=(error as NSError).localizedRecoverySuggestion,!suggestion.isEmpty{alert.informativeText=suggestion}
+        return alert
+    }
+    /// Shows `alert` as a sheet on the window, or app-modal when the window is gone, and hands back the choice.
+    func present(_ alert:NSAlert,then handler:@escaping (NSApplication.ModalResponse)->Void={_ in}){
+        if let window{alert.beginSheetModal(for:window,completionHandler:handler)}else{handler(alert.runModal())}
+    }
+}

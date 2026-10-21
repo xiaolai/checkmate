@@ -21,6 +21,13 @@ final class GameLibraryTests:XCTestCase {
         let bytes=try FileManager.default.contentsOfDirectory(at:GameLibrary.directory,includingPropertiesForKeys:[.fileSizeKey]).reduce(0){$0+((try $1.resourceValues(forKeys:[.fileSizeKey]).fileSize) ?? 0)}
         XCTAssertLessThan(bytes,2*1024*1024)
     }
+    /// A manifest that cannot be decoded says so in a sentence; the decoder's own description is never shown.
+    func testAnUnreadableManifestSaysSoPlainly() throws {
+        let directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);defer{try? FileManager.default.removeItem(at:directory)}
+        try FileManager.default.createDirectory(at:directory,withIntermediateDirectories:true)
+        try Data("{\"schemaVersion\":\"one\"}".utf8).write(to:directory.appendingPathComponent("manifest.json"))
+        XCTAssertThrowsError(try GameLibrary.load(from:directory)){XCTAssertEqual(userFacingMessage($0,fallback:""),"The game library manifest could not be read.")}
+    }
     func testEveryGameReplaysToItsManifestEntry() throws {
         let library=try GameLibrary.load()
         for game in library.games {

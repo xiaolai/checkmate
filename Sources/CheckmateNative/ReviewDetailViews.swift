@@ -201,7 +201,7 @@ struct EvaluationGraph:View,AXChartDescriptorRepresentable {
     private var points:[Sample] {var result:[Sample]=[],run=0;for (i,value) in samples.enumerated(){if let value{result.append(Sample(id:i,value:value,run:run))}else{run+=1}};return result}
     private var last:Int {max(1,samples.count-1)}
     private var selected:Int? {review.branch==nil ? ReviewFormat.mainlineIndex(document,node:review.nodeID):nil}
-    private func choose(_ index:Int){let node=ReviewFormat.node(document,index:max(0,min(last,index)));guard review.branch != nil || review.nodeID != node else{return};try? review.select(node);model.saveReview()}
+    private func choose(_ index:Int){let node=ReviewFormat.node(document,index:max(0,min(last,index)));guard review.branch != nil || review.nodeID != node else{return};do{try review.select(node);model.saveReview()}catch{model.storageError=GameWindow.failureMessage(error)}}
     var body:some View {
         let points=self.points,singles=Set(Dictionary(grouping:points,by:\.run).filter{$0.value.count==1}.keys)
         Chart{
@@ -242,7 +242,7 @@ struct ReviewMoveSection:View {
     let document:GameDocument
     private static let rowHeight:CGFloat=22,maximumHeight:CGFloat=220
     private var moments:[ReviewMoment] {analyzer.fairness.engineHelpAllowed && analyzer.batchDocument==document.id ? analyzer.moments.filter{document.nodes.indices.contains($0.id)}:[]}
-    private func select(_ id:Int){try? review.select(id);model.saveReview()}
+    private func select(_ id:Int){do{try review.select(id);model.saveReview()}catch{model.storageError=GameWindow.failureMessage(error)}}
     var body:some View {
         let moments=self.moments,reasons=Dictionary(moments.map{($0.id,$0.reason)},uniquingKeysWith:{a,_ in a}),costly=ReviewFormat.costly(moments),rows=ReviewFormat.rows(document,line:ReviewFormat.line(document).ids)
         let ranked=moments.isEmpty ? ReviewFormat.heuristicMoments(document):moments.map(\.id),key=ReviewFormat.keyMoments(ranked,in:document,engine:!moments.isEmpty)
@@ -300,13 +300,13 @@ struct ReviewPositionPanel:View {
                     HStack(spacing:Metrics.smallGap){actions}
                     VStack(alignment:.leading,spacing:Metrics.smallGap){HStack(spacing:Metrics.smallGap){why;deeper};idea}
                 }.controlSize(.small)
-                if let pv=review.evidence?.root.lines.first?.pv,!pv.isEmpty{Button("Compare best line · before this move"){try? review.previewLine(pv,fromNode:document.nodes[review.nodeID].parent);review.seekBranch(0)}.buttonStyle(.link).controlSize(.small)}
+                if let pv=review.evidence?.root.lines.first?.pv,!pv.isEmpty{Button("Compare best line · before this move"){attempt("The best line could not be shown."){try review.previewLine(pv,fromNode:document.nodes[review.nodeID].parent);review.seekBranch(0)}}.buttonStyle(.link).controlSize(.small)}
             }
             if review.analysisStatus=="pending"{ProgressView("Analyzing offline…").controlSize(.small)}
             if let error=review.error{Text(error).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)}
             if model.fairness.engineHelpAllowed,let evidence=review.evidence{EngineEvidenceList(evidence:evidence)}
             DisclosureGroup("Verified board facts"){VStack(alignment:.leading,spacing:4){ForEach(explanation?.facts ?? []){fact in Text(verbatim:fact.text).textSelection(.enabled).fixedSize(horizontal:false,vertical:true)}}.padding(.top,4)}
-            if !document.nodes[review.nodeID].children.isEmpty{DisclosureGroup("Recorded continuations"){VStack(alignment:.leading,spacing:4){ForEach(document.nodes[review.nodeID].children,id:\.self){id in Button(document.nodes[id].san ?? "Position"){try? review.select(id)}.buttonStyle(.link)}}.padding(.top,4)}}
+            if !document.nodes[review.nodeID].children.isEmpty{DisclosureGroup("Recorded continuations"){VStack(alignment:.leading,spacing:4){ForEach(document.nodes[review.nodeID].children,id:\.self){id in Button(document.nodes[id].san ?? "Position"){attempt("That move could not be shown."){try review.select(id)}}.buttonStyle(.link)}}.padding(.top,4)}}
         }
     }
     @ViewBuilder private var actions:some View {why;deeper;idea}

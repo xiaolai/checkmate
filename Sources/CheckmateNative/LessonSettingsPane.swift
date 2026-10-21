@@ -80,7 +80,7 @@ struct LessonSettingsPane:View {
     }
     /// A destructive confirmation: Cancel is the default (Return) button, and the action runs only when chosen.
     private func confirm(_ title:String,_ message:String,action:String,perform:()->Void){
-        let alert=NSAlert();alert.messageText=title;alert.informativeText=message;let button=alert.addButton(withTitle:action);button.keyEquivalent="";let cancel=alert.addButton(withTitle:"Cancel");cancel.keyEquivalent="\r";alert.window.defaultButtonCell=cancel.cell as? NSButtonCell
+        let alert=NSAlert.destructive(title,message,action:action)
         if alert.runModal() == .alertFirstButtonReturn{perform()}
     }
 }
