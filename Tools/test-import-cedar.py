@@ -227,10 +227,28 @@ class LessonPracticeTests(unittest.TestCase):
     def testPublishedExercises(self):
         practice = {i for i, l in self.lessons.items() if 'practice' in l}
         self.assertEqual(practice, {'pawn', 'castling', 'castling-rules', 'promotion-en-passant', 'scholars-mate', 'fork', 'pin', 'skewer',
-                                    'discovered-attack', 'removing-the-defender', 'two-rook-mate', 'queen-mate', 'rook-mate'})
+                                    'discovered-attack', 'removing-the-defender', 'two-rook-mate', 'queen-mate', 'rook-mate',
+                                    'piece-values', 'puzzles-mate', 'famous-game'})
         for lesson_id in practice:
             self.assertIn('beat', self.lessons[lesson_id]['practice'], lesson_id)
             self.prep.validate_lesson(self.lessons[lesson_id])
+
+    def testAnExerciseBeforeTheLastBeatComesBeforeItsAnswer(self):
+        """A mid-lesson exercise sits on the still beat that asks for White's move; the next beat plays the answer, so
+        the learner tries first and then sees it explained, and no new beat (or recording) is needed."""
+        middle = set()
+        for lesson_id, lesson in self.lessons.items():
+            ids = [beat['id'] for beat in lesson['beats']]
+            if 'practice' not in lesson or lesson['practice']['beat'] == ids[-1]:
+                continue
+            middle.add(lesson_id)
+            index = ids.index(lesson['practice']['beat'])
+            beat, after = lesson['beats'][index], lesson['beats'][index + 1]
+            self.assertNotIn('moves', beat, lesson_id)
+            self.assertNotIn('set', after, lesson_id)
+            board, *_ = self.prep.parse_fen(lesson['practice']['fen'])
+            self.assertEqual(board.get(after['moves'][0][0], '')[:1], 'w', f'{lesson_id}: the next beat shows White\'s answer')
+        self.assertEqual(middle, {'piece-values', 'puzzles-mate', 'famous-game'})
 
     def testCastlingExerciseSaysHowToCastleInTheApp(self):
         """On the board the learner moves only the king, two squares; the app moves the rook. The goal, shown before

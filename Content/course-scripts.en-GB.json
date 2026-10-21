@@ -10025,7 +10025,24 @@
           "say": "So use piece values to judge trades and captures, but always look for checks and checkmates first. Checkmate decides the game, not points.",
           "speak": "So use piece values to judge trades and captures, but always look for checks and checkmates first. Checkmate decides the game, not points."
         }
-      ]
+      ],
+      "practice": {
+        "fen": "6k1/5ppp/1q6/8/8/8/1r3PPP/4R1K1 w - - 0 1",
+        "goal": "Black has a whole extra queen, but it is your move. Find the move that ends the game at once.",
+        "beat": "piece-values:15",
+        "checkpoints": [
+          {
+            "kind": "mate",
+            "label": "Checkmate Black's king"
+          }
+        ],
+        "opponent": "defender",
+        "hints": [
+          "Points do not decide the game: checkmate does. Black's king on g8 cannot step forwards, because its own pawns stand on f7, g7 and h7.",
+          "Your rook on e1 has an open file all the way up. Which square on the back rank checks the king with no way out?"
+        ],
+        "success": "Checkmate! Your rook reached the back rank, and Black's extra queen counted for nothing. Points help you judge trades, but checkmate ends the game."
+      }
     },
     {
       "id": "counting-material",
@@ -17232,7 +17249,24 @@
           "speak": "Before each move, also ask whether your opponent has a mate in one. Spotting it first can save the game."
         }
       ],
-      "mascot": "wq"
+      "mascot": "wq",
+      "practice": {
+        "fen": "6k1/p4ppp/2n5/8/8/8/P4PPP/4R1K1 w - - 0 1",
+        "goal": "Black's king is stuck behind its own pawns. Find the move that gives checkmate.",
+        "beat": "puzzles-mate:2",
+        "checkpoints": [
+          {
+            "kind": "mate",
+            "label": "Checkmate Black's king"
+          }
+        ],
+        "opponent": "defender",
+        "hints": [
+          "For each check you can give, ask: can the king move, can the check be blocked, can the checking piece be captured?",
+          "Your rook on e1 has an open file all the way up. Where can it check the king along the back rank?"
+        ],
+        "success": "Checkmate! Your rook checked along the back rank, the pawns on f7, g7 and h7 kept the king in, and nothing could block or take the rook."
+      }
     },
     {
       "id": "famous-game",
@@ -17731,7 +17765,24 @@
           "speak": "At the end Black was far ahead in points, yet lost. Checkmate ends the game, no matter what is left on the board."
         }
       ],
-      "mascot": "wb"
+      "mascot": "wb",
+      "practice": {
+        "fen": "rnb1kb1r/pp3ppp/2p5/4q3/4n3/3Q4/PPPB1PPP/2KR1BNR w - - 0 1",
+        "goal": "Black is a piece ahead, but the d-file is open right beside Black's king. Find White's shocking move, then checkmate the king.",
+        "beat": "famous-game:13",
+        "checkpoints": [
+          {
+            "kind": "mate",
+            "label": "Checkmate Black's king"
+          }
+        ],
+        "opponent": "defender",
+        "hints": [
+          "Sometimes giving up your strongest piece opens the way to the king. Which check can your queen give on the open d-file?",
+          "Your queen can check from d8. If the king takes her, your bishop on d2 and rook on d1 can then check the king together."
+        ],
+        "success": "Checkmate! Your queen sacrifice pulled the king onto the open d-file, and your bishop and rook finished the job. Continue to see how the real game went."
+      }
     }
   ],
   "exercises": {},

@@ -66,7 +66,7 @@ final class LessonRemediationTests:XCTestCase {
 extension LessonRemediationTests {
     @MainActor func testPracticePresetsAreLegalNonterminalAndContainBothKings()throws {
         let lessons=try CourseLibrary().lessons.filter{$0.practice != nil}
-        XCTAssertEqual(lessons.count,13)
+        XCTAssertEqual(lessons.count,16)
         for lesson in lessons {
             let r=try ChessRules(fen:lesson.practice!.fen)
             XCTAssertFalse(r.over,lesson.id);XCTAssertFalse(r.check,lesson.id)

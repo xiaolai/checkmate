@@ -148,8 +148,9 @@ extension LearningPlaybackTests {
         while player.playing,guardSteps<5000 {
             if visited.last != player.current.id{visited.append(player.current.id)}
             player.advance(by:player.duration);guardSteps+=1
-            // Playback waits on an exercise; the learner's Continue goes on along the main path.
-            if !player.playing,player.attemptStep,let next=player.library.nextMainLesson(after:player.lessonIndex){player.openLesson(index:next,resume:false);player.play()}
+            // Playback waits on an exercise; the learner's Next goes on within the lesson, and Continue along the main path.
+            if !player.playing,player.attemptStep,player.step<player.current.beats.count-1{player.next();player.play()}
+            else if !player.playing,player.attemptStep,let next=player.library.nextMainLesson(after:player.lessonIndex){player.openLesson(index:next,resume:false);player.play()}
         }
         XCTAssertEqual(visited,main)
         XCTAssertEqual(session.state.course.completed,main)

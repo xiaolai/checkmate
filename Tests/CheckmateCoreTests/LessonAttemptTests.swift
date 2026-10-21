@@ -311,12 +311,14 @@ final class LessonExerciseContentTests:XCTestCase {
         let s=try GameSession(engine:nil),p=try LearningPlayer(session:s);defer{p.shutdown()}
         s.state.settings.autoAdvance=true;s.state.settings.pauseForPractice=false
         let lessons=p.library.lessons.indices.filter{p.library.lessons[$0].practice != nil}
-        XCTAssertEqual(lessons.count,13)
+        XCTAssertEqual(lessons.count,16)
+        // These ask for White's move on a still step and explain it on the next, so the exercise comes before the answer.
+        let midLesson:Set=["piece-values","puzzles-mate","famous-game"]
         for index in lessons {
             let lesson=p.library.lessons[index],practice=try XCTUnwrap(lesson.practice)
             XCTAssertTrue(practice.playable,lesson.id);XCTAssertEqual(practice.hints?.count,2,lesson.id)
             p.openLesson(index:index,resume:false);let step=try XCTUnwrap(p.invitationStep,lesson.id)
-            XCTAssertEqual(step,lesson.beats.count-1,"\(lesson.id): the exercise is the lesson's last step")
+            XCTAssertEqual(step==lesson.beats.count-1,!midLesson.contains(lesson.id),"\(lesson.id): the exercise is the lesson's last step unless it precedes its answer")
             p.seek(step:step);XCTAssertTrue(p.attemptStep,lesson.id);XCTAssertEqual(p.frame.board,try ChessRules(fen:practice.fen).board,lesson.id)
             XCTAssertEqual(s.lesson?.attempt?.phase,"yourTurn",lesson.id);XCTAssertEqual(s.lesson?.pieces,p.frame.board,"agents see the board the learner plays")
             // Narration ending over the exercise never moves on, even with auto-advance and no practice pause.

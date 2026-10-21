@@ -18,7 +18,10 @@ final class ContinuousLessonTests:XCTestCase {
                 XCTAssertEqual(player.step,step);XCTAssertEqual(player.key,beat.id)
                 XCTAssertNil(player.exercise);XCTAssertTrue(player.playing)
                 XCTAssertEqual(session.lesson?.mode,"lesson")
+                // An exercise before the lesson's last step waits for the move; Next goes on without answering it.
+                let waits=player.attemptStep && step<lesson.beats.count-1
                 player.advance(by:player.duration);count+=1
+                if waits{XCTAssertEqual(player.feedback,"Your turn: make your move on the board.","\(lesson.id):\(step)");player.next();player.play()}
             }
         }
         XCTAssertEqual(count,710);XCTAssertEqual(session.state.course.completed.count,39)
