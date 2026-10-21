@@ -26,9 +26,11 @@ public struct ReviewMoment:Codable,Identifiable {public let id:Int,expectationLo
     /// The threads and hash each review search asks for (R-5).
     public var resources=EngineResources.review()
     /// How many leading moments the whole-game analysis checks more deeply, when tests and measurements fix it;
-    /// otherwise the game's length decides. The batch and a restore read the same count, so restored evidence matches.
+    /// otherwise the game's plan decides.
     var momentsToDeepen:Int?
-    private func deepenCount(_ document:GameDocument)->Int {momentsToDeepen ?? ReviewPolicy.momentsToDeepen(plies:document.mainline.count)}
+    /// The game's whole-game plan (R-5): its quick budget and deeper moments, from its length so the batch fits its
+    /// budget. The batch, a restore and a chosen position all read it, so they share the same stored evidence.
+    private func plan(_ document:GameDocument)->ReviewBatchPlan {let plan=ReviewPolicy.batchPlan(plies:document.mainline.count);return ReviewBatchPlan(quickBudget:plan.quickBudget,moments:momentsToDeepen ?? plan.moments)}
     private var batchTask:Task<Void,Never>?,batchSearch:Task<ReviewEvidence,Error>?,generation=0,selectedCount=0
     private var cache:[String:ReviewEvidence]=[:]
     /// Cache writes still running, by record; forgetting a record waits for them so a late write cannot restore its files.
@@ -78,12 +80,12 @@ public struct ReviewMoment:Codable,Identifiable {public let id:Int,expectationLo
     /// The same record's finished scores stay on the graph while it runs again; another record's go.
     public func startBatch(_ document:GameDocument){guard fairness.engineHelpAllowed,!batchRunning(document.id),!document.mainline.isEmpty else{return};cancelBatch();if batchDocument != document.id{evaluations=[:];losses=[:]};batchDocument=document.id;completed=0;failed=0;total=document.mainline.count;moments=[];batchStatus="pending";let epoch=generation
         batchTask=Task{for node in document.mainline {guard !Task.isCancelled,self.generation==epoch else{return};while self.selectedCount>0{try? await Task.sleep(nanoseconds:10_000_000);guard !Task.isCancelled,self.generation==epoch else{return}};var done=false
-            while !done {guard !Task.isCancelled,self.generation==epoch else{return};while self.selectedCount>0{try? await Task.sleep(nanoseconds:10_000_000);guard !Task.isCancelled else{return}};let search=Task{try await self.compute(document:document,node:node,revision:0,budget:ReviewPolicy.quickBudget)};self.batchSearch=search
+            while !done {guard !Task.isCancelled,self.generation==epoch else{return};while self.selectedCount>0{try? await Task.sleep(nanoseconds:10_000_000);guard !Task.isCancelled else{return}};let search=Task{try await self.compute(document:document,node:node,revision:0,budget:self.plan(document).quickBudget)};self.batchSearch=search
                 do{let evidence=try await search.value;guard self.generation==epoch else{return};self.recordMoment(evidence,document:document);self.recordEvaluation(evidence,document:document);done=true}catch{if !search.isCancelled{guard self.generation==epoch else{return};self.failed+=1;done=true}}}
             self.completed+=1
         }
         guard self.generation==epoch else{return};self.batchStatus="deepening"
-        let targets=Array(self.moments.prefix(self.deepenCount(document))).map(\.id)
+        let targets=Array(self.moments.prefix(self.plan(document).moments)).map(\.id)
         for node in targets {
             var finished=false
             while !finished {
@@ -107,11 +109,11 @@ public struct ReviewMoment:Codable,Identifiable {public let id:Int,expectationLo
             // An engine whose files cannot be identified, or a history that cannot be hashed, has no stored evidence:
             // nothing is shown, and Analyze reports the failure when it searches.
             do{let identity=try await engine.identity()
-                for node in document.mainline {guard !Task.isCancelled,self.generation==epoch else{return};if let evidence=try await self.stored(document:document,node:node,budget:ReviewPolicy.quickBudget,identity:identity){found[node]=evidence}}
+                for node in document.mainline {guard !Task.isCancelled,self.generation==epoch else{return};if let evidence=try await self.stored(document:document,node:node,budget:self.plan(document).quickBudget,identity:identity){found[node]=evidence}}
                 for node in document.mainline {if let evidence=found[node]{moments=Self.recording(evidence,document:document,in:moments);Self.evaluate(evidence,document:document,into:&evaluations,losses:&losses)}}
                 // The batch deepens its leading moments only once every position is in, so a stored run is ready only then.
                 deepened=found.count==document.mainline.count
-                if deepened{for node in moments.prefix(self.deepenCount(document)).map(\.id){
+                if deepened{for node in moments.prefix(self.plan(document).moments).map(\.id){
                     guard !Task.isCancelled,self.generation==epoch else{return}
                     guard let baseline=found[node],let deep=try await self.stored(document:document,node:node,budget:ReviewPolicy.deepBudget,identity:identity) else{deepened=false;break}
                     let evidence=self.judged(deep,baseline:baseline,document:document,node:node,revision:0);moments=Self.recording(evidence,document:document,in:moments);Self.evaluate(evidence,document:document,into:&evaluations,losses:&losses)
@@ -141,15 +143,16 @@ public struct ReviewMoment:Codable,Identifiable {public let id:Int,expectationLo
         if evidence.nodeID==document.mainline.first{evaluations[0]=evidence.root.lines.first?.score}
     }
     public static func expectationLoss(root:AnalysisLine?,played:AnalysisLine?,mover:String)->Double? {guard let root=root,let played=played,root.score.bound==nil,played.score.bound==nil,let best=root.wdl,let actual=played.wdl,best.count==3,actual.count==3 else{return nil};func expected(_ wdl:[Int])->Double {Double(wdl[mover=="w" ? 0:2])+Double(wdl[1])/2};return max(0,(expected(best)-expected(actual))/1000)}
-    public func analyze(document:GameDocument,node:Int,revision:Int,budget:Int=ReviewPolicy.quickBudget)async throws -> ReviewEvidence {
+    /// `node`'s evidence at `budget`, or at the game's quick budget, which the whole-game analysis stored.
+    public func analyze(document:GameDocument,node:Int,revision:Int,budget:Int?=nil)async throws -> ReviewEvidence {
         try fairness.requireEngineHelp();selectedCount+=1;batchSearch?.cancel();defer{selectedCount-=1}
-        let evidence=try await tracked{try await self.comparison(document:document,node:node,revision:revision,budget:budget)};try fairness.requireEngineHelp();return evidence
+        let budget=budget ?? plan(document).quickBudget,evidence=try await tracked{try await self.comparison(document:document,node:node,revision:revision,budget:budget)};try fairness.requireEngineHelp();return evidence
     }
     private func comparison(document:GameDocument,node:Int,revision:Int,budget:Int)async throws -> ReviewEvidence {
         let quick=try await compute(document:document,node:node,revision:revision,budget:budget)
         // Deeper work is selected explicitly, never hidden in the quick budget.
         if budget<ReviewPolicy.deepBudget{return quick}
-        let baseline=try await compute(document:document,node:node,revision:revision,budget:ReviewPolicy.quickBudget)
+        let baseline=try await compute(document:document,node:node,revision:revision,budget:plan(document).quickBudget)
         return judged(quick,baseline:baseline,document:document,node:node,revision:revision)
     }
     /// Whether a deep line keeps the quick baseline's score: deep enough, exact, and the same kind and value within tolerance.

@@ -44,29 +44,36 @@ import CheckmateCore
         XCTAssertLessThanOrEqual(p95,2000)
     }
 
-    /// R-5: the whole-game analysis of one fixed game (the first 100 plies of public-07) with the earlier settings (one
-    /// thread, 32 MB, one moment deepened) and with the review's (`EngineResources.review()`, the moments a 100-ply game deepens). Reports wall
-    /// time and the depth reached to the path in CHECKMATE_REVIEW_RESOURCES; the new run stays within the batch budget.
-    func testReviewResourcesBeforeAndAfter()async throws {
-        guard let path=ProcessInfo.processInfo.environment["CHECKMATE_REVIEW_RESOURCES"] else{throw XCTSkip("Explicit test-host measurement of review search resources.")}
-        let root=URL(fileURLWithPath:#filePath).deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("Fixtures/GameReview")
-        let full=try PGNImporter.parse(Data(contentsOf:root.appendingPathComponent("games/public-07.pgn")))[0]
+    /// R-5: the whole-game analysis of a 100-ply game (public-07's first 100 plies) and a 271-ply one (Carlsen–
+    /// Nepomniachtchi 2021, game 6) with each game's plan and `EngineResources.review()`, cold. Reports wall time, the
+    /// plan, the searches run and the overhead each cost beyond its budget to the path in CHECKMATE_REVIEW_RESOURCES;
+    /// each run stays within the 90-second acceptance limit and below the plan's worst case.
+    func testWholeGameAnalysisFitsItsBudget()async throws {
+        guard let path=ProcessInfo.processInfo.environment["CHECKMATE_REVIEW_RESOURCES"] else{throw XCTSkip("Explicit test-host measurement of the whole-game analysis budget.")}
+        let root=URL(fileURLWithPath:#filePath).deletingLastPathComponent().deletingLastPathComponent()
+        let full=try PGNImporter.parse(Data(contentsOf:root.appendingPathComponent("Fixtures/GameReview/games/public-07.pgn")))[0]
         let movetext=full.mainline.prefix(100).map{id in let n=full.nodes[id];return (n.side=="w" ? "\(n.fullmove). ":"")+(n.san ?? "")}.joined(separator:" ")+" *"
-        let document=try PGNImporter.parse(Data(movetext.utf8))[0];XCTAssertEqual(document.mainline.count,100)
-        func mean(_ values:[Int])->Double {values.isEmpty ? 0:Double(values.reduce(0,+))/Double(values.count)}
-        func run(_ resources:EngineResources,deepen:Int)async throws -> [String:Any] {
-            let engine=NativeEngine(),analyzer=ReviewAnalyzer(engine:engine);analyzer.resources=resources;analyzer.momentsToDeepen=deepen
+        let library=try String(contentsOf:root.deletingLastPathComponent().appendingPathComponent("Sources/CheckmateCore/Resources/game-library/world-championship.pgn"),encoding:.utf8)
+        let long=try XCTUnwrap(library.components(separatedBy:"\n\n[Event").first{$0.contains("[Date \"2021.12.03\"]")})
+        let games=[("public-07, first 100 plies",try PGNImporter.parse(Data(movetext.utf8))[0]),("Carlsen-Nepomniachtchi 2021 game 6",try PGNImporter.parse(Data(("[Event"+long).utf8))[0])]
+        XCTAssertEqual(games.map{$0.1.mainline.count},[100,271])
+        func mean(_ values:[Int])->Double {values.isEmpty ? 0:(Double(values.reduce(0,+))/Double(values.count)*10).rounded()/10}
+        // A position searched once when the played move is among the root's lines, twice otherwise, none when the game is over.
+        func searches(_ e:ReviewEvidence)->Int {e.root.lines.isEmpty ? 0:e.root.lines.contains{$0.pv.first==e.played?.lines.first?.pv.first} || e.played==nil ? 1:2}
+        var runs:[[String:Any]]=[]
+        for (name,document) in games {
+            let engine=NativeEngine(),analyzer=ReviewAnalyzer(engine:engine),plan=ReviewPolicy.batchPlan(plies:document.mainline.count)
             try await engine.prepare();let start=Date();analyzer.startBatch(document)
             while ["pending","deepening"].contains(analyzer.batchStatus),Date().timeIntervalSince(start)<300{try await Task.sleep(for:.milliseconds(50))}
-            let seconds=Date().timeIntervalSince(start);XCTAssertEqual(analyzer.batchStatus,"ready")
+            let seconds=Date().timeIntervalSince(start);XCTAssertEqual(analyzer.batchStatus,"ready",name)
             // The batch stored each search's evidence, so these read it back without searching again.
-            var quick:[Int]=[],deep:[Int]=[];let deepened=analyzer.moments.prefix(deepen).map(\.id)
-            for node in document.mainline{if let depth=try await analyzer.analyze(document:document,node:node,revision:0).root.lines.first?.depth{quick.append(depth)}}
-            for node in deepened{if let depth=try await analyzer.analyze(document:document,node:node,revision:0,budget:ReviewPolicy.deepBudget).root.lines.first?.depth{deep.append(depth)}}
-            return ["threads":resources.threads,"hashMB":resources.hashMB,"deepened":deepened.count,"seconds":(seconds*10).rounded()/10,"quickDepthMean":(mean(quick)*10).rounded()/10,"quickDepthMin":quick.min() ?? 0,"deepDepthMean":(mean(deep)*10).rounded()/10,"deepDepths":deep]
+            var quick:[Int]=[],deep:[Int]=[],count=0,budgetMs=0;let deepened=analyzer.moments.prefix(plan.moments).map(\.id)
+            for node in document.mainline{let e=try await analyzer.analyze(document:document,node:node,revision:0);if let d=e.root.lines.first?.depth{quick.append(d)};count+=searches(e);budgetMs+=searches(e)*plan.quickBudget}
+            for node in deepened{let e=try await analyzer.analyze(document:document,node:node,revision:0,budget:ReviewPolicy.deepBudget);if let d=e.root.lines.first?.depth{deep.append(d)};count+=searches(e);budgetMs+=searches(e)*ReviewPolicy.deepBudget}
+            let worst=ReviewPolicy.worstCaseMs(plies:document.mainline.count,plan)
+            runs.append(["game":name,"plies":document.mainline.count,"quickBudgetMs":plan.quickBudget,"moments":plan.moments,"deepened":deepened.count,"seconds":(seconds*10).rounded()/10,"worstCaseSeconds":Double(worst)/1000,"searches":count,"overheadMsPerSearch":count==0 ? 0:Int((seconds*1000-Double(budgetMs))/Double(count)),"quickDepthMean":mean(quick),"quickDepthMin":quick.min() ?? 0,"deepDepths":deep])
+            XCTAssertLessThanOrEqual(seconds,90,"\(name) stays within the acceptance limit");XCTAssertLessThanOrEqual(seconds*1000,Double(worst),"\(name) stays below its worst case")
         }
-        let before=try await run(EngineResources(threads:1,hashMB:32),deepen:1),after=try await run(EngineResources.review(),deepen:ReviewPolicy.momentsToDeepen(plies:100))
-        try JSONSerialization.data(withJSONObject:["plies":100,"processors":ProcessInfo.processInfo.activeProcessorCount,"before":before,"after":after,"workload":"public-07, first 100 plies, cold cache"],options:[.prettyPrinted,.sortedKeys]).write(to:URL(fileURLWithPath:path))
-        XCTAssertLessThanOrEqual(after["seconds"] as? Double ?? .infinity,90,"the whole-game analysis stays within its budget")
+        try JSONSerialization.data(withJSONObject:["processors":ProcessInfo.processInfo.activeProcessorCount,"threads":EngineResources.review().threads,"hashMB":EngineResources.review().hashMB,"runs":runs],options:[.prettyPrinted,.sortedKeys]).write(to:URL(fileURLWithPath:path))
     }
 }

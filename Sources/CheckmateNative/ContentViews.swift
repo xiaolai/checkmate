@@ -110,11 +110,11 @@ struct DetailContent:View {
             if p.status=="analyzing"{ProgressView("Comparing moves…")};if let error=p.error{Text(error).foregroundStyle(.secondary)}
         } else {
             if session.explicitResumeRequired {Text("Game paused").font(.title2.bold());Text(session.message);Text("Your game is paused because a saved review could not be restored.");Button("Return to game"){model.resumeAfterFailedRestore()}}
-            // A finished game sums itself up and offers its review as the default button (B-7).
+            // A finished game sums itself up and offers its review (B-7), without taking Return from the board or the coach.
             else if session.finished,let result=session.state.practice.ending?.result ?? session.rules.ending?.result {VStack(alignment:.leading,spacing:Metrics.smallGap){
                 Text(Self.practiceHeading(session)).font(.title2.bold()).accessibilityIdentifier("practice-heading");Text(session.message)
                 Text(Self.practiceSummary(result:result,plies:session.rules.history.count)).foregroundStyle(.secondary).monospacedDigit()
-                Button("Review This Game"){model.reviewCurrent()}.buttonStyle(.borderedProminent).keyboardShortcut(.defaultAction).disabled(!model.canReviewCurrent).accessibilityIdentifier("practice-review-this-game")
+                Button("Review This Game"){model.reviewCurrent()}.buttonStyle(.borderedProminent).disabled(!model.canReviewCurrent).accessibilityIdentifier("practice-review-this-game")
             }.padding(10).frame(maxWidth:.infinity,alignment:.leading).background(ReviewCard(radius:8))}
             else {Text(Self.practiceHeading(session)).font(.title2.bold()).accessibilityIdentifier("practice-heading");Text(session.message)}
             if session.pausedOpponent {Text("The companion opponent disconnected.");Button("Continue with Stockfish"){model.companion.disable();session.continueWithStockfish()}}

@@ -91,6 +91,40 @@ import CheckmateTestSupport
         let evidence=try await analyzer.analyze(document:document,node:document.mainline[0],revision:0)
         XCTAssertEqual(evidence.options["Threads"],"3");XCTAssertEqual(evidence.options["Hash"],"64");XCTAssertEqual(evidence.options["Skill Level"],"20")
     }
+    /// R-5: the whole-game analysis fits its budget. In the worst case every position searches twice (best and played
+    /// move) and so does every deeper moment, whose quick baseline is the batch's own; long games search each position
+    /// more briefly and check fewer moments more deeply, never below the quick floor.
+    func testTheWholeGameAnalysisFitsItsBudget() {
+        let lengths=[40,100,180,300],plans=lengths.map{ReviewPolicy.batchPlan(plies:$0)}
+        XCTAssertEqual(plans,[ReviewBatchPlan(quickBudget:500,moments:5),ReviewBatchPlan(quickBudget:227,moments:3),ReviewBatchPlan(quickBudget:125,moments:1),ReviewBatchPlan(quickBudget:53,moments:0)])
+        for (plies,plan) in zip(lengths,plans){XCTAssertLessThanOrEqual(ReviewPolicy.worstCaseMs(plies:plies,plan),ReviewPolicy.batchBudgetMs,"\(plies) plies");XCTAssertGreaterThanOrEqual(plan.quickBudget,ReviewPolicy.quickFloor)}
+        XCTAssertEqual(ReviewPolicy.worstCaseMs(plies:100,plans[1]),79_880)
+        // Ten seconds below the 90-second acceptance limit, for the app and the engine's own start.
+        XCTAssertEqual(ReviewPolicy.batchBudgetMs,80_000)
+        // Every search costs its budget and a fixed overhead, so past the floor's limit no plan fits; the limit is 153 moves.
+        XCTAssertEqual(ReviewPolicy.longestFittingGame,307)
+        XCTAssertLessThanOrEqual(ReviewPolicy.worstCaseMs(plies:307,ReviewPolicy.batchPlan(plies:307)),ReviewPolicy.batchBudgetMs)
+        XCTAssertGreaterThan(ReviewPolicy.worstCaseMs(plies:308,ReviewPolicy.batchPlan(plies:308)),ReviewPolicy.batchBudgetMs)
+        XCTAssertEqual(ReviewPolicy.batchPlan(plies:1),ReviewBatchPlan(quickBudget:500,moments:5))
+    }
+    /// R-5: a long game's whole-game analysis searches at its plan's budget, deepens its plan's moments, and comes back
+    /// from storage as ready without a search; a position chosen afterwards reads the same stored evidence.
+    func testALongGameFollowsItsPlan()async throws {
+        let library=URL(fileURLWithPath:#filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("Sources/CheckmateCore/Resources/game-library/world-championship.pgn")
+        // Carlsen–Nepomniachtchi, game 6 of 2021, the longest game in the library; only it is parsed, not the whole file.
+        let text=try String(contentsOf:library,encoding:.utf8),game=try XCTUnwrap(text.components(separatedBy:"\n\n[Event").first{$0.contains("[Date \"2021.12.03\"]")})
+        let document=try XCTUnwrap(PGNImporter.parse(Data(("[Event"+game).utf8)).first),plan=ReviewPolicy.batchPlan(plies:document.mainline.count)
+        XCTAssertEqual(document.mainline.count,271);XCTAssertEqual(plan,ReviewBatchPlan(quickBudget:56,moments:1))
+        let engine=GradingEngine(),analyzer=ReviewAnalyzer(engine:engine,cacheDirectory:folder)
+        analyzer.startBatch(document);try await settle("the analysis finished"){analyzer.batchStatus=="ready"}
+        XCTAssertEqual(engine.searches.filter{$0.budget==plan.quickBudget}.count,document.mainline.count,"every position at the plan's quick budget")
+        XCTAssertEqual(engine.searches.filter{$0.budget==ReviewPolicy.deepBudget}.count,plan.moments,"the deeper check reuses the stored baseline")
+        XCTAssertEqual(engine.searches.count,document.mainline.count+plan.moments)
+        let before=engine.searches.count;_=try await analyzer.analyze(document:document,node:document.mainline[10],revision:0)
+        XCTAssertEqual(engine.searches.count,before,"a chosen position reads the batch's evidence")
+        let restored=GradingEngine(),again=ReviewAnalyzer(engine:restored,cacheDirectory:folder);again.restore(document)
+        try await settle("the stored analysis came back"){again.batchStatus=="ready"};XCTAssertTrue(restored.searches.isEmpty)
+    }
     /// R-23: Look Deeper on an imagined line searches at the deep budget, with the quick baseline that judges it.
     func testLookingDeeperAtAnIdeaUsesTheDeepBudget()async throws {
         let document=try PGNImporter.parse(Data(game.utf8))[0],engine=GradingEngine(),analyzer=ReviewAnalyzer(engine:engine)
