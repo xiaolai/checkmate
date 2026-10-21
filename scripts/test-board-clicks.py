@@ -1,7 +1,8 @@
 """Silent test-host acceptance: a click on a legal practice square must play, with real pointer events.
 
 Covers the ways a second click used to be lost: drift across a square edge, a first click on an inactive
-window, a click while piece inspection is on, and clicks under the storage error banner.
+window, a click while piece inspection is on, and clicks under the storage error banner. Also drives the learner's
+right-button arrows and circles (B-11) with real clicks.
 """
 import json
 import os
@@ -88,9 +89,44 @@ def select(square):
     wait(lambda: "selected" in label(square), "Clicking " + square + " did not select it")
 
 
-def launch():
+def bmp_pixels(path):
+    """The pixels of an uncompressed 24- or 32-bit BMP from screencapture, as (width, height, [(b, g, r), ...])."""
+    data = path.read_bytes()
+    if data[:2] != b"BM":
+        raise AssertionError(f"{path.name} is not a BMP")
+    offset = int.from_bytes(data[10:14], "little")
+    width, height = int.from_bytes(data[18:22], "little", signed=True), int.from_bytes(data[22:26], "little", signed=True)
+    bits, compression = int.from_bytes(data[28:30], "little"), int.from_bytes(data[30:34], "little")
+    if bits not in (24, 32) or compression not in (0, 3) or width <= 0 or height == 0:
+        raise AssertionError(f"{path.name}: unsupported BMP ({bits} bits, compression {compression}, {width}x{height})")
+    step, stride = bits // 8, (bits * width + 31) // 32 * 4
+    pixels = [tuple(data[offset + row * stride + column * step:offset + row * stride + column * step + 3]) for row in range(abs(height)) for column in range(width)]
+    return width, abs(height), pixels
+
+
+def snapshot(square):
+    """The pixels of one square, 2 points in from its edges so a neighbour's mark or antialiasing never counts."""
+    x, y, w, h = frame("square-frame", square)
+    path = evidence / ("board-clicks-" + square + ".bmp")
+    subprocess.run(["screencapture", "-x", "-t", "bmp", "-R", f"{x + 2},{y + 2},{w - 4},{h - 4}", str(path)], check=True)
+    return bmp_pixels(path)
+
+
+def changed(before, after):
+    """The fraction of a square's pixels that differ clearly between two snapshots of it."""
+    if before[:2] != after[:2]:
+        raise AssertionError(f"The square's snapshot changed size from {before[:2]} to {after[:2]}, so it cannot be compared")
+    return sum(1 for a, b in zip(before[2], after[2]) if max(abs(x - y) for x, y in zip(a, b)) > 48) / len(before[2])
+
+
+# An arrow's shaft crosses a square in a band about 9% of its width; a circle's ring covers about a quarter of its square.
+DRAWN, CLEAR = 0.04, 0.005
+
+
+def launch(existing=None):
+    """Starts the automation app on a new data directory, or on `existing` to relaunch over what an earlier run saved."""
     global process, state
-    state = pathlib.Path(tempfile.mkdtemp(prefix="checkmate-board-clicks-state-"))
+    state = existing or pathlib.Path(tempfile.mkdtemp(prefix="checkmate-board-clicks-state-"))
     process = subprocess.Popen(command + ["--data-dir", str(state)], env=environment, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     wait(lambda: "Chessboard" in listing(), "Board did not appear")
     time.sleep(1)  # Allow initial AppKit window and drawer restoration to finish.
@@ -169,7 +205,51 @@ def rank8_clickable_under_banner():
     wait(lambda: "selected" in label("d8"), "A click near the top of d8 under the error banner did not reach the board")
 
 
-scenarios = [drift_across_edge, first_click_on_inactive_window, inspection_does_not_block_moves, rank8_clickable_under_banner]
+def play_e4():
+    select("e2")
+    pointer("click-square", "e4")
+    wait(lambda: label("e4").startswith("e4, White, pawn"), "e2-e4 did not play")
+    wait(replied("1. e4"), "Stockfish did not reply after e2-e4")
+
+
+def sketch_marks():
+    """B-11 with real right-button events: a right-drag draws an arrow and a right-click a circle, without selecting or
+    playing; a left click on the board, a position change and a quit each leave the board clean. The marks are read
+    from the screen: an arrow from a2 to a4 crosses a3, and a circle on h3 rings it. Black's first reply never reaches
+    a3 or h3, so their pixels change only with the marks."""
+    marked = ("a3", "h3")
+    clean = {}
+
+    def draw():
+        clean.update({square: snapshot(square) for square in marked})
+        pointer("right-drag", "board-square-a2", "board-square-a4")
+        wait(lambda: changed(clean["a3"], snapshot("a3")) >= DRAWN, "A right-drag from a2 to a4 did not draw an arrow across a3")
+        pointer("right-click", "board-square-h3")
+        wait(lambda: changed(clean["h3"], snapshot("h3")) >= DRAWN, "A right-click on h3 did not draw a circle")
+        assert label("a2").startswith("a2, White, pawn") and "selected" not in label("a2"), "The right button selected or moved the a2 pawn: " + label("a2")
+
+    def cleared(why):
+        wait(lambda: all(changed(clean[square], snapshot(square)) <= CLEAR for square in marked), why)
+
+    draw()
+    pointer("click-square", "h5")
+    cleared("A left click on h5 did not clear the marks")
+    play_e4()
+    draw()
+    # Take back changes the position from the control bar, away from the board, so only the position change clears them.
+    pointer("click", "bar-takeBack")
+    wait(lambda: label("e2").startswith("e2, White, pawn"), "Take back did not restore e2")
+    cleared("A position change (Take back) did not clear the marks")
+    # Marks are never saved: drawn, then a real quit and a relaunch on the same data leave a clean board. Relaunching
+    # activates the window with a click in the board's margin, which is not a square and so clears nothing.
+    draw()
+    pointer("shortcut", "12", "c")  # Command-Q
+    process.wait(timeout=20)
+    launch(state)
+    cleared("Marks drawn before quitting came back after a relaunch, so they reached saved state")
+
+
+scenarios = [drift_across_edge, first_click_on_inactive_window, inspection_does_not_block_moves, rank8_clickable_under_banner, sketch_marks]
 # A filtered run is for debugging one scenario: an unknown name fails, and the result is marked incomplete so the
 # acceptance gate (gate_check: any false flag fails) can never take a partial run for a pass.
 selected_names = [name for name in os.environ.get("CHECKMATE_BOARD_CLICK_SCENARIOS", "").split(",") if name]
