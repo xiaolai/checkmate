@@ -24,6 +24,14 @@ public final class ChessRules {
     public var turn:String {(try? currentTurn()) ?? "w"}
     public var history:[String] {(try? decoded("game.history()",[String].self)) ?? []}
     public var records:[MoveRecord] {(try? decoded("game.history({verbose:true})",[MoveRecord].self)) ?? []}
+    /// The square a pawn may capture on en passant, whether or not the capture is legal: the square a double step
+    /// (chess.js flag "b") just passed, or the set-up position's own square before any move. `fen` names it only when
+    /// the capture is legal, so it cannot explain a capture refused for exposing the king.
+    public var enPassantTarget:String? {
+        guard let last=records.last else{return (try? setUpFEN()).flatMap{$0}.flatMap{TypedMove.enPassant(fen:$0)}}
+        guard last.flags.contains("b"),let file=last.from.first,let from=last.from.last?.wholeNumberValue,let to=last.to.last?.wholeNumberValue else{return nil}
+        return "\(file)\((from+to)/2)"
+    }
     public var over:Bool {checkmate || draw}
     public var check:Bool {(try? isCheck()) ?? false}
     public var checkmate:Bool {(try? isCheckmate()) ?? false}

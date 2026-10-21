@@ -26,8 +26,8 @@ public enum TrainingMoveGrade:Equatable {
     private let rules:ChessRules
     /// The presented position, after any context moves.
     public private(set) var fen:String
-    /// The square a pawn may capture on en passant in that position, or nil.
-    public var enPassant:String? {TypedMove.enPassant(fen:fen)}
+    /// The square a pawn may capture on en passant in that position, legal or not, or nil.
+    public var enPassant:String? {rules.enPassantTarget}
     private var cachedOutcomes:[MoveOutcome]?
     /// Validates a complete FEN (one king each, the side not to move not in check, consistent castling rights), then
     /// replays the context moves, any of which may fail.

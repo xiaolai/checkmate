@@ -61,6 +61,8 @@ public final class NetworkMiniGame:NetworkChessRules,NetworkBoardModel {
     public var over:Bool {state.isFinished}
     /// For people and tools: the descriptor, the board's placement as a FEN writes it, and the side to move.
     public var fen:String {"\(rules.descriptor) \(Self.placement(state.board)) \(state.turn)"}
+    /// A mini-game has no en passant.
+    public var enPassantTarget:String? {nil}
     public var history:[String] {made.map(\.san)}
     public var records:[MoveRecord] {made}
     public var drawClaimable:Bool {false}

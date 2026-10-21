@@ -21,6 +21,8 @@ public protocol NetworkBoardModel:AnyObject {
     var over:Bool {get}
     /// The position's canonical string (the FEN in chess): the piece inspector, MCP and the voice coach name it.
     var fen:String {get}
+    /// The square a pawn may capture on en passant, legal or not, so a refused capture is explained; nil without one.
+    var enPassantTarget:String? {get}
     /// The moves since the start, as written for people (SAN in chess).
     var history:[String] {get}
     /// The moves since the start with their squares; the last is the last move marked on the board.

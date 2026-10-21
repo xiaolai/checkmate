@@ -1,12 +1,13 @@
 import XCTest
 @testable import CheckmateDomain
 @testable import CheckmateRules
+@testable import CheckmateApplication
 
 /// B-23: a typed move, in SAN or in squares, resolves against the position's moves, and a refusal says why.
 final class TypedMoveTests:XCTestCase {
     private func resolve(_ text:String,_ fen:String?=nil,asTyped:Bool=false)throws -> TypedMove.Resolution {
         let rules=try ChessRules();if let fen{try rules.load(fen)}
-        return TypedMove.resolve(text,moves:rules.moves(),board:rules.board,turn:rules.turn,enPassant:TypedMove.enPassant(fen:fen ?? rules.fen),inCheck:rules.check,squaresAsTyped:asTyped)
+        return TypedMove.resolve(text,moves:rules.moves(),board:rules.board,turn:rules.turn,enPassant:rules.enPassantTarget,inCheck:rules.check,squaresAsTyped:asTyped)
     }
     private func move(_ from:String,_ to:String,_ promotion:String?=nil)->TypedMove.Resolution {.move(TypedMove.Choice(from:from,to:to,promotion:promotion))}
     private func refusal(_ resolution:TypedMove.Resolution,file:StaticString=#filePath,line:UInt=#line)->String {guard case .refused(let text)=resolution else{XCTFail("expected a refusal, got \(resolution)",file:file,line:line);return ""};return text}
@@ -88,6 +89,17 @@ final class TypedMoveTests:XCTestCase {
         XCTAssertEqual(refusal(try resolve("d5e6","8/8/8/K2Pp2r/8/8/8/4k3 w - e6 0 1")),"That move would leave your king in check.")
         let board:Position=["e1":"wk","e8":"bk","d5":"wp","e5":"bp"],reach=TypedMove.reachable(board:board,turn:"w",enPassant:"e6")
         XCTAssertEqual(TypedMove.resolve("dxe6",moves:reach,board:board,turn:"w",enPassant:"e6",inCheck:false),move("d5","e6"),"an exercise reads the capture from where the pawn can reach")
+    }
+    /// chess.js names an en passant square only when the capture is legal, so a capture that would expose the king
+    /// along the rank must take its square from the double step itself, in a game and in a training position alike.
+    @MainActor func testAnEnPassantCaptureThatExposesTheKingIsExplainedAfterTheDoubleStep()throws {
+        let rules=try ChessRules(fen:"8/4p3/8/K2P3r/8/8/8/4k3 b - - 0 1");try rules.move(uci:"e7e5")
+        XCTAssertNil(TypedMove.enPassant(fen:rules.fen),"the engine's position string drops the square: the cause");XCTAssertEqual(rules.enPassantTarget,"e6")
+        for typed in ["dxe6","d5e6"] {XCTAssertEqual(refusal(TypedMove.resolve(typed,moves:rules.moves(),board:rules.board,turn:rules.turn,enPassant:rules.enPassantTarget,inCheck:rules.check)),"That move would leave your king in check.",typed)}
+        XCTAssertEqual(try ChessRules(fen:"8/8/8/K2Pp2r/8/8/8/4k3 w - e6 0 1").enPassantTarget,"e6","a position set up with the square keeps it");XCTAssertNil(try ChessRules().enPassantTarget)
+        try rules.move(uci:"a5b6");try rules.move(uci:"e1e2");XCTAssertNil(rules.enPassantTarget,"only on the move straight after the double step")
+        let training=try TrainingLegality(fen:"8/4p3/8/K2P3r/8/8/8/4k3 b - - 0 1",prelude:["e7e5"]);XCTAssertEqual(training.enPassant,"e6")
+        XCTAssertEqual(try training.grade(from:"d5",to:"e6",promotion:nil),.ruleError("That move would leave your king in check."))
     }
     /// A board with its own rules and no king (a mini-game) never blames a king that is not there.
     func testABoardWithoutAKingRefusesPlainly(){

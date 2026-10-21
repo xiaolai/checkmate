@@ -24,7 +24,7 @@ extension GameWindow {
             guard let seat=game.seat else{return .none}
             if seat == .spectator{return .waiting(String(localized:"You're watching this game, so you can't move.",bundle:.checkmate))}
             guard game.canMove else{return .waiting(game.pending != nil ? String(localized:"Your move is on its way.",bundle:.checkmate):game.rules.turn==game.side ? String(localized:"You can't move right now.",bundle:.checkmate):Self.notYourMove)}
-            return .ready(TypedMoveTarget(moves:game.rules.moves(nil),board:game.rules.board,turn:game.rules.turn,enPassant:TypedMove.enPassant(fen:game.rules.fen),inCheck:game.rules.check,asTyped:false){choice in
+            return .ready(TypedMoveTarget(moves:game.rules.moves(nil),board:game.rules.board,turn:game.rules.turn,enPassant:game.rules.enPassantTarget,inCheck:game.rules.check,asTyped:false){choice in
                 game.play(from:choice.from,to:choice.to,promotion:choice.promotion ?? "q");return game.pending==nil ? String(localized:"That move could not be sent. Try again.",bundle:.checkmate):nil})
         }
         if s.mode == .practice {
@@ -32,7 +32,7 @@ extension GameWindow {
             if s.finished{return .waiting(String(localized:"The game is over. Start a new game to play again.",bundle:.checkmate))}
             guard s.presentationHidden || s.preview==nil && s.demonstration==nil else{return .waiting(String(localized:"Go back to the game to play a move.",bundle:.checkmate))}
             guard s.rules.turn==s.humanSide,s.busyReason != .opponent else{return .waiting(Self.notYourMove)}
-            return .ready(TypedMoveTarget(moves:s.rules.moves(),board:s.rules.board,turn:s.rules.turn,enPassant:TypedMove.enPassant(fen:s.rules.fen),inCheck:s.rules.check,asTyped:false){choice in
+            return .ready(TypedMoveTarget(moves:s.rules.moves(),board:s.rules.board,turn:s.rules.turn,enPassant:s.rules.enPassantTarget,inCheck:s.rules.check,asTyped:false){choice in
                 do{try s.playWhite(from:choice.from,to:choice.to,promotion:choice.promotion ?? "q");return nil}catch{return Self.failureMessage(error)}})
         }
         if let training=model.training,let exercise=trainingExercise {
@@ -47,7 +47,7 @@ extension GameWindow {
         }
         if l.attemptStep,let attempt=l.attempt {
             guard attempt.learnerToMove else{return .waiting(attempt.phase == .offTrack || attempt.phase == .failed ? attempt.judgement?.feedback ?? Self.notYourMove:Self.notYourMove)}
-            return .ready(TypedMoveTarget(moves:attempt.rules.moves(),board:attempt.rules.board,turn:attempt.rules.turn,enPassant:TypedMove.enPassant(fen:attempt.rules.fen),inCheck:attempt.rules.check,asTyped:false){choice in attempt.play(from:choice.from,to:choice.to,promotion:choice.promotion);return nil})
+            return .ready(TypedMoveTarget(moves:attempt.rules.moves(),board:attempt.rules.board,turn:attempt.rules.turn,enPassant:attempt.rules.enPassantTarget,inCheck:attempt.rules.check,asTyped:false){choice in attempt.play(from:choice.from,to:choice.to,promotion:choice.promotion);return nil})
         }
         if l.mini,let game=l.miniGame {
             if game.isFinished{return .waiting(String(localized:"The game is over.",bundle:.checkmate))}
