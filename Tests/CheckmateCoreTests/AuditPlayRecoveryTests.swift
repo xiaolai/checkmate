@@ -40,7 +40,7 @@ import CheckmateCore
     func testRestoredPreviousGameKeepsItsEnding()throws {
         let s=try GameSession(engine:nil);try s.playWhite(from:"e2",to:"e4");s.resign();let resigned=s.gameOverMessage;XCTAssertTrue(s.finished)
         s.newGame();XCTAssertFalse(s.finished);try s.playWhite(from:"d2",to:"d4");try s.restorePrevious()
-        XCTAssertTrue(s.finished,"The resigned game must not restore as unfinished");XCTAssertEqual(s.gameOverMessage,resigned);XCTAssertFalse(s.canTakeBack)
+        XCTAssertTrue(s.finished,"The resigned game must not restore as unfinished");XCTAssertEqual(s.gameOverMessage,resigned)
         try s.restorePrevious();XCTAssertFalse(s.finished,"The new game swapped back stays unfinished")
         let reloaded=try GameSession(engine:nil,state:JSONDecoder().decode(ApplicationState.self,from:JSONEncoder().encode(s.state)));try reloaded.restorePrevious();XCTAssertTrue(reloaded.finished,"The previous game's ending survives a save")
     }

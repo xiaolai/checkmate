@@ -574,13 +574,12 @@ import CheckmateCore
             // Shift-Command-R: Command-R alone is Lesson ▸ Play Step from Start.
             if action == #selector(reviewCurrent){item.keyEquivalentModifierMask=[.command,.shift]}}
         let gameItem=NSMenuItem(title:"Game",action:nil,keyEquivalent:""),gameMenu=Self.makeGameMenu(target:window);gameItem.submenu=gameMenu;menu.addItem(gameItem)
-        // Lesson: the bar's playback and help, with shortcuts. Space stays with the board, which uses it to activate a square.
+        // Lesson: the bar's playback, with shortcuts (Hint is in the Game menu). Space stays with the board, which uses it to activate a square.
         let lessonItem=NSMenuItem(title:"Lesson",action:nil,keyEquivalent:""),lessonMenu=NSMenu(title:"Lesson");lessonItem.submenu=lessonMenu;menu.addItem(lessonItem)
         // In network mode the window shows only the network game's items and hides the Lesson menu (LAN-play plan D9).
         window.gameMenu=gameMenu;window.lessonMenuItem=lessonItem
-        for (name,action,key,modifiers) in [("Play",#selector(GameWindow.lessonPlayPause),"p",NSEvent.ModifierFlags.command),("Previous Step",#selector(GameWindow.lessonPrevious),"[",.command),("Next Step",#selector(GameWindow.lessonNext),"]",.command),("Play Step from Start",#selector(GameWindow.lessonFromStart),"r",.command),("Hint",#selector(GameWindow.barHint),"h",[.command,.shift])] {
+        for (name,action,key,modifiers) in [("Play",#selector(GameWindow.lessonPlayPause),"p",NSEvent.ModifierFlags.command),("Previous Step",#selector(GameWindow.lessonPrevious),"[",.command),("Next Step",#selector(GameWindow.lessonNext),"]",.command),("Play Step from Start",#selector(GameWindow.lessonFromStart),"r",.command)] {
             let item=NSMenuItem(title:name,action:action,keyEquivalent:key);item.keyEquivalentModifierMask=modifiers;item.target=window;lessonMenu.addItem(item)
-            if action == #selector(GameWindow.lessonFromStart){lessonMenu.addItem(.separator())}
         }
         let dataItem=NSMenuItem(title:"Data",action:nil,keyEquivalent:""),dataMenu=NSMenu(title:"Data");dataItem.submenu=dataMenu;menu.addItem(dataItem);let importItem=NSMenuItem(title:"Import Progress…",action:#selector(importData),keyEquivalent:""),exportItem=NSMenuItem(title:"Export Progress…",action:#selector(exportData),keyEquivalent:"");importItem.target=self;exportItem.target=self;dataMenu.addItem(importItem);dataMenu.addItem(exportItem);let backups=NSMenuItem(title:"Show Backups…",action:#selector(showBackups),keyEquivalent:"");backups.target=self;dataMenu.addItem(backups)
         let viewItem=NSMenuItem(title:"View",action:nil,keyEquivalent:""),view=NSMenu(title:"View");viewItem.submenu=view;menu.addItem(viewItem)
@@ -596,7 +595,10 @@ import CheckmateCore
     /// The Game menu, its items aimed at `target` (the window; tests read it without one).
     static func makeGameMenu(target:AnyObject?)->NSMenu {
         let gameMenu=NSMenu(title:"Game")
-        for (name,action,key) in [("New Game…",#selector(GameWindow.newGame),"n"),("Take Back Move",#selector(GameWindow.undo as (GameWindow) -> () -> Void),""),("Restore Previous Game",#selector(GameWindow.restorePrevious),""),("Offer Draw",#selector(GameWindow.offerDraw),""),("Claim Draw",#selector(GameWindow.claimDraw),""),("Resign…",#selector(GameWindow.resign),""),("Flip Board",#selector(GameWindow.flipBoard),""),("Leave Game…",#selector(GameWindow.leaveGame),"")] {let item=NSMenuItem(title:name,action:action,keyEquivalent:key);item.target=target;gameMenu.addItem(item)}
+        for (name,action,key) in [("New Game…",#selector(GameWindow.newGame),"n"),("Take Back Move",#selector(GameWindow.undo as (GameWindow) -> () -> Void),""),("Hint",#selector(GameWindow.barHint),"h"),("Restore Previous Game",#selector(GameWindow.restorePrevious),""),("Offer Draw",#selector(GameWindow.offerDraw),""),("Claim Draw",#selector(GameWindow.claimDraw),""),("Resign…",#selector(GameWindow.resign),""),("Flip Board",#selector(GameWindow.flipBoard),""),("Leave Game…",#selector(GameWindow.leaveGame),"")] {let item=NSMenuItem(title:name,action:action,keyEquivalent:key);item.target=target;gameMenu.addItem(item)}
+        // Hint (B-17) and Flip Board (B-6) take ⇧⌘H and ⇧⌘F; ⌘F stays with Find.
+        for action in [#selector(GameWindow.barHint),#selector(GameWindow.flipBoard)]{gameMenu.items.first{$0.action==action}?.keyEquivalentModifierMask=[.command,.shift]}
+        gameMenu.items.first{$0.action == #selector(GameWindow.flipBoard)}?.keyEquivalent="f"
         // The network game's own items carry stable identifiers for the native gates (LAN-play plan D9).
         for (action,identifier) in [(#selector(GameWindow.offerDraw),"network-menu-offer-draw"),(#selector(GameWindow.flipBoard),"network-menu-flip-board"),(#selector(GameWindow.leaveGame),"network-menu-leave-game")] {gameMenu.items.first{$0.action==action}?.identifier=NSUserInterfaceItemIdentifier(identifier)}
         gameMenu.addItem(.separator())

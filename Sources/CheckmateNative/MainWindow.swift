@@ -55,7 +55,7 @@ final class BoardTitleView:NSView {
     private var observations:Set<AnyCancellable>=[]
     /// Shows a promotion menu at a point of a view and returns whether an item was chosen; tests answer it without a
     /// modal menu loop.
-    var presentPromotionMenu:(NSMenu,NSPoint,NSView)->Bool={menu,point,view in menu.popUp(positioning:nil,at:point,in:view)}
+    var presentPromotionMenu:(NSMenu,NSPoint,NSView)->Bool={menu,point,view in menu.popUp(positioning:menu.items.first,at:point,in:view)}
     private var coreFrame:NSRect?
     private var fittedLayout=false
     /// Where the window last stood when fitting or the learner placed it: while fitted, a move from here is the learner's
@@ -95,7 +95,7 @@ final class BoardTitleView:NSView {
     }
     /// The board area: transport, welcome card, puzzle and training libraries, error banner and playback line.
     private func buildBoardArea(){
-        controls=VisibleHostingView(rootView:TransportContent(session:model.session,learning:model.learning,voice:model.voice,review:model.review,newGame:{[weak self] in self?.newGame()},showDetails:{[weak self] in self?.showDetails()},continueWithStockfish:{[weak model] in model?.companion.disable();model?.session.continueWithStockfish()},resumeGame:{[weak model] in model?.resumeAfterFailedRestore()},training:model.training,openTrainingLibrary:{[weak model] in model?.trainingLibrary()},continueLesson:{[weak self] in guard let self else{return};self.model.continueLesson();self.announceLesson()},restartAttempt:{[weak model] in model?.requestRestartAttempt()},previousLessonEnd:{[weak self] in guard let self else{return};self.model.previousLessonEnd();self.announceLesson()},returnToOriginal:{[weak model] in guard let model else{return};model.review.clearBranch();model.saveReview()},rowsChanged:{[weak self] rows in self?.setControlRows(rows)},framesChanged:{[weak self] frames in self?.barFrames=frames},connectVoice:{[weak model] in model?.connectPracticeVoice()}));welcome=VisibleHostingView(rootView:WelcomeContent(title:""));puzzles=VisibleHostingView(rootView:PuzzleLibraryContent(learning:model.learning,session:model.session))
+        controls=VisibleHostingView(rootView:TransportContent(session:model.session,learning:model.learning,voice:model.voice,review:model.review,network:model.network,newGame:{[weak self] in self?.newGame()},showDetails:{[weak self] in self?.showDetails()},gameCommand:{[weak self] action in if action == .resign{self?.resign()}else if action == .flipBoard{self?.flipBoard()}},lowTime:NetworkLowTimeWarning{[weak model] in guard let model else{return};model.audio.lowTime(settings:model.session.state.settings)},continueWithStockfish:{[weak model] in model?.companion.disable();model?.session.continueWithStockfish()},resumeGame:{[weak model] in model?.resumeAfterFailedRestore()},training:model.training,openTrainingLibrary:{[weak model] in model?.trainingLibrary()},continueLesson:{[weak self] in guard let self else{return};self.model.continueLesson();self.announceLesson()},restartAttempt:{[weak model] in model?.requestRestartAttempt()},previousLessonEnd:{[weak self] in guard let self else{return};self.model.previousLessonEnd();self.announceLesson()},returnToOriginal:{[weak model] in guard let model else{return};model.review.clearBranch();model.saveReview()},rowsChanged:{[weak self] rows in self?.setControlRows(rows)},framesChanged:{[weak self] frames in self?.barFrames=frames},connectVoice:{[weak model] in model?.connectPracticeVoice()}));welcome=VisibleHostingView(rootView:WelcomeContent(title:""));puzzles=VisibleHostingView(rootView:PuzzleLibraryContent(learning:model.learning,session:model.session))
         reviewWorkspaceView=VisibleHostingView(rootView:ReviewWorkspaceContent(model:model))
         // The workspace fills the board area through its constraints; its list would otherwise feed a size back into them
         // that changes with every layout pass (an endless Update Constraints loop).
@@ -280,7 +280,8 @@ final class BoardTitleView:NSView {
     /// The promotion choices at a square; each item carries `payload(piece)` for its action. Returns whether one was chosen.
     @discardableResult private func showPromotionMenu(at sq:String,action:Selector,payload:(String)->Any)->Bool {
         let menu=NSMenu()
-        for (title,piece) in [("Queen","q"),("Rook","r"),("Bishop","b"),("Knight","n")]{let item=NSMenuItem(title:title,action:action,keyEquivalent:"");item.target=self;item.image=promotionImage(piece);item.toolTip="Promote to a "+title.lowercased();item.representedObject=payload(piece);menu.addItem(item)}
+        // Each piece answers to its letter alone (B-13); Queen opens under the pointer, highlighted.
+        for (title,piece) in [("Queen","q"),("Rook","r"),("Bishop","b"),("Knight","n")]{let item=NSMenuItem(title:title,action:action,keyEquivalent:piece);item.keyEquivalentModifierMask=[];item.target=self;item.image=promotionImage(piece);item.toolTip="Promote to a "+title.lowercased();item.representedObject=payload(piece);menu.addItem(item)}
         return presentPromotionMenu(menu,board.squareRect(sq).origin,board)
     }
     /// A training promotion, bound to the attempt, its saved revision and the move the menu was opened for: a choice
@@ -351,8 +352,11 @@ final class BoardTitleView:NSView {
     private func announceLesson(){announce("Now in \(model.learning.localizedTitle(index:model.learning.lessonIndex)).")}
     private func announce(_ text:String){NSAccessibility.post(element:board,notification:.announcementRequested,userInfo:[.announcement:text,.priority:NSAccessibilityPriorityLevel.high.rawValue])}
     func refresh(){syncGuidanceToggle();syncMenus();let s=model.session,l=model.learning
-        // The learner's own side sits nearest them in practice; reviews and lessons keep White at the bottom.
-        board.blackAtBottom = !model.reviewWorkspace && !model.review.active && (s.mode == .practice && s.humanSide=="b" || trainingExercise?.scenario.learner=="b" || s.mode == .network && model.network.blackAtBottom)
+        // The learner's own side sits nearest them in practice, training and a review of their own game; lessons and
+        // other reviews keep White at the bottom. Flip Board turns what is shown over until something else is (B-6);
+        // the network game keeps its own flip.
+        let natural=model.review.active ? model.review.document.flatMap(model.reviewLearnerSide)=="b":s.mode == .practice && s.humanSide=="b" || trainingExercise?.scenario.learner=="b" || s.mode == .network && model.network.blackAtBottom
+        board.blackAtBottom = !model.reviewWorkspace && natural != (s.mode != .network && flipped==boardSubject)
         board.reviewNavigation=model.review.active && model.review.branch==nil
         reviewWorkspaceView.isHidden = !model.reviewWorkspace;controls.isHidden=model.reviewWorkspace;if workspaceFill.isActive != model.reviewWorkspace{workspaceAboveControls.isActive=false;workspaceFill.isActive=model.reviewWorkspace;workspaceAboveControls.isActive = !model.reviewWorkspace}
 playbackLineView?.isHidden=model.reviewWorkspace
@@ -440,11 +444,13 @@ playbackLineView?.isHidden=model.reviewWorkspace
             switch shown?.action {
             case .previousLesson?,.nextLesson?:item.title=shown!.label.replacingOccurrences(of:"Previous lesson:",with:"Previous Lesson:").replacingOccurrences(of:"Next lesson:",with:"Next Lesson:")
             case .playPause?,.reviewPlayPause?,.demoPlayPause?:item.title=shown!.symbol=="pause.fill" ? "Pause":"Play"
-            case .attemptHint?,.trainingHint?:item.title=shown!.label
+            case .attemptHint?,.trainingHint?,.hint?:item.title=shown!.label
             default:item.title=fallback
             }
             return shown?.enabled ?? false
         }
+        if item.action == #selector(flipBoard){return !model.reviewWorkspace && !board.isHidden}
+        if item.action == #selector(resign){return !model.review.active && model.session.canResign}
         if item.action == #selector(toggleRight){item.title=guidanceShown ? (desiredRight ? "Hide Lesson Guidance":"Show Lesson Guidance"):"Toggle Game Details";return true}
         // Edit ▸ Undo follows `NativeModel.undoAction`: right after a deletion it puts the review back; in a review it
         // has nothing else; elsewhere it is the game's take back.
@@ -464,9 +470,12 @@ playbackLineView?.isHidden=model.reviewWorkspace
             let alert=NSAlert.destructive("Start a new \(model.learning.miniKind.title) game?","This replaces the current mini-game.",action:"New Game");present(alert){[weak self] response in guard response == .alertFirstButtonReturn,let self,self.model.learning.mini,let game=self.model.learning.miniGame,let shown,game.kind==shown.0,game.opponentSeed==shown.1 else{return};self.model.learning.restartMini()};return
         }
         guard model.session.mode == .practice else{return};let a=NSAlert();a.messageText="Start a new game?";a.informativeText=model.session.state.practice.previousGame.isEmpty ? "Your current game will be available under Restore Previous Game.":"Your current game will be available under Restore Previous Game, replacing the game kept there now."
-        let side=NSPopUpButton(frame:NSRect(x:0,y:0,width:220,height:28));side.addItems(withTitles:["Play as White","Play as Black"]);side.selectItem(at:model.session.humanSide=="b" ? 1:0);side.setAccessibilityLabel("Your side");a.accessoryView=side
+        let choices=NewGameChoices.view(settings:model.session.state.settings,side:model.session.humanSide);a.accessoryView=choices.view
         let shown=practiceGame
-        a.addButton(withTitle:"New Game");a.addButton(withTitle:"Cancel");present(a){r in guard r == .alertFirstButtonReturn,self.stillShowing(shown) else{return};self.board.cancelAnimation();self.model.session.newGame(side:side.indexOfSelectedItem==1 ? "b":"w")}}
+        a.addButton(withTitle:"New Game");a.addButton(withTitle:"Cancel");present(a){r in guard r == .alertFirstButtonReturn,self.stillShowing(shown) else{return};self.board.cancelAnimation()
+            var settings=self.model.session.state.settings;let preset=NewGameChoices.strengths[choices.strength.indexOfSelectedItem].tag
+            if settings.opponentPreset != preset{settings.opponentPreset=preset;self.model.session.updateSettings(settings)}
+            self.model.session.newGame(side:NewGameChoices.side(at:choices.side.indexOfSelectedItem){Bool.random()})}}
     @objc func claimDraw(){if model.session.mode == .network{model.network.claimDraw();return};guard !model.review.active,model.session.mode == .practice else{return};model.session.claimDraw();refresh()}
     // MARK: The network game's menu items (LAN-play plan D9)
     /// The Game menu's base items in network mode: Resign, Offer Draw, Claim Draw, Flip Board and Leave Game. The only
@@ -475,7 +484,7 @@ playbackLineView?.isHidden=model.reviewWorkspace
     /// The piece inspector's items, shown in network mode only when the agreed level allows it (assistance plan A1).
     static let inspectorActions:Set<Selector>=[#selector(showProtection),#selector(showAttacks),#selector(dismissInspection)]
     /// Items that exist only for the network game, hidden elsewhere.
-    static let networkOnlyActions:Set<Selector>=[#selector(offerDraw),#selector(flipBoard),#selector(leaveGame)]
+    static let networkOnlyActions:Set<Selector>=[#selector(offerDraw),#selector(leaveGame)]
     /// The Game menu and the Lesson menu's bar item, from `AppDelegate.installMenus`.
     weak var gameMenu:NSMenu?
     weak var lessonMenuItem:NSMenuItem?
@@ -495,6 +504,7 @@ playbackLineView?.isHidden=model.reviewWorkspace
     /// other rules decide.
     static func networkItemEnabled(_ action:Selector,network:Bool,game:NetworkGameController)->Bool? {
         guard networkOnlyActions.contains(action) || network && networkActions.contains(action) else{return nil}
+        // Flip Board works everywhere (B-6): outside the network game the window decides.
         guard network else{return false}
         switch action {
         case #selector(resign):return game.canResign
@@ -505,7 +515,16 @@ playbackLineView?.isHidden=model.reviewWorkspace
         }
     }
     @objc func offerDraw(){guard model.session.mode == .network else{return};model.network.offerDraw()}
-    @objc func flipBoard(){guard model.session.mode == .network else{return};model.network.flip();refresh()}
+    @objc func flipBoard(){guard !model.reviewWorkspace else{return};if model.session.mode == .network{model.network.flip()}else{flipped=flipped==boardSubject ? nil:boardSubject};refresh()}
+    /// The subject Flip Board turned over, if it still shows.
+    private var flipped:String?
+    /// What the board shows, for Flip Board: a flip lasts while the same review, game, exercise or lesson is shown.
+    private var boardSubject:String {
+        if model.review.active{return "review:"+(model.review.document?.id.uuidString ?? "")}
+        if let exercise=trainingExercise{return "training:"+exercise.snapshot.id}
+        let s=model.session
+        switch s.mode {case .practice:return "practice:\(s.gameGeneration)";case .lesson:return "lesson:\(model.learning.lessonIndex):\(model.learning.mini)";default:return "\(s.mode)"}
+    }
     @objc func leaveGame(){guard model.session.mode == .network else{return};model.leaveNetworkGame()}
     /// D11's help: a sheet whose button opens System Settings › Privacy & Security › Local Network.
     private func syncPermissionHelp(_ shown:Bool){
@@ -537,7 +556,7 @@ playbackLineView?.isHidden=model.reviewWorkspace
     }
     @objc func resign(){
         if model.session.mode == .network{model.resignNetworkGame();return}
-        guard !model.review.active,model.session.mode == .practice,!model.session.finished else{return}
+        guard !model.review.active,model.session.canResign else{return}
         let a=NSAlert.destructive("Resign this game?","The game is recorded as a loss. Start a new game or review it afterwards.",action:"Resign")
         let shown=practiceGame
         present(a){[weak self] r in guard r == .alertFirstButtonReturn,let self,self.stillShowing(shown) else{return};self.model.session.resign();self.refresh()}

@@ -58,7 +58,7 @@ import CheckmateCore
     }
 }
 
-/// The end of a game says who won and why; a resignation or claimed draw ends it for good and is exported.
+/// The end of a game says who won and why; a resignation or claimed draw ends it and is exported (Take Back can still reopen it).
 @MainActor final class GameEndingTests:XCTestCase {
     func testFoolsMateByTheLearnerIsAWin()throws {
         let s=try GameSession(engine:nil),fork=try ChessRules();for uci in ["f2f3","e7e5","g2g4"]{try fork.move(uci:uci)};try s.installPracticeFork(fork,side:"b")
@@ -66,7 +66,7 @@ import CheckmateCore
     }
     func testResignationEndsAndIsRecorded()throws {
         let s=try GameSession(engine:nil);try s.playWhite(from:"e2",to:"e4");s.resign()
-        XCTAssertTrue(s.finished);XCTAssertFalse(s.canTakeBack);XCTAssertEqual(s.state.practice.ending?.result,"0-1")
+        XCTAssertTrue(s.finished);XCTAssertTrue(s.canTakeBack,"Take Back works after every ending");XCTAssertEqual(s.state.practice.ending?.result,"0-1")
         XCTAssertThrowsError(try s.playWhite(from:"d2",to:"d4"));XCTAssertTrue(try s.rules.recordPGN(result:s.state.practice.ending?.result).contains("[Result \"0-1\"]"))
         let saved=try JSONDecoder().decode(ApplicationState.self,from:JSONEncoder().encode(s.state));XCTAssertEqual(saved.practice.ending,s.state.practice.ending)
         s.newGame();XCTAssertFalse(s.finished);XCTAssertNil(s.state.practice.ending)

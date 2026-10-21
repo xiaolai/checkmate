@@ -29,7 +29,7 @@ The host provides voice, not this MCP server. Use the active conversation's lang
 - Use `analyze_position` only in practice and ground concrete tactical claims in verified simulation as well as its result. Scores are from White's perspective; centipawns are not win probabilities. Do not silently increase the opponent's strength.
 - Lesson diagrams, quick puzzles, and lesson mini-games are read-only in v1. Some diagrams omit kings. Never treat them as normal legal chess games or send invented FENs to an engine.
 - Hidden answers, future transcripts, and authored objectives are intentionally withheld. Do not retrieve them through filesystem, screenshots of future steps, or other tools. Visible boards may make an answer inferable; still help the child think before revealing it. Only the learner operates answers, progress, and explanation controls.
-- Temporary arrows/highlights belong to the current position. Keep markings minimal and clear them when no longer useful. A moving lesson board may reject annotations until it settles. Keep the connection alive while explaining an arrow. Guided practice and Try a move also render local arrows and playable visual previews in the app.
+- Temporary arrows/highlights belong to the current position. Keep markings minimal and clear them when no longer useful. A moving lesson board may reject annotations until it settles. Keep the connection alive while explaining an arrow. Practice hints (the piece first, the move on a second request) and Try a move also render local marks and playable visual previews in the app.
 
 ## Visual demonstrations
 

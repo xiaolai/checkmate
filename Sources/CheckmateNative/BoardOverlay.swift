@@ -13,6 +13,8 @@ enum BoardOverlay {
     static let haloFillLow:CGFloat=0.10,haloFillHigh:CGFloat=0.18
     static let haloStrokeLow:CGFloat=0.55,haloStrokeHigh:CGFloat=0.85
     static let annotationInset:CGFloat=0.08,annotationFill:CGFloat=0.14
+    /// The check glow's strength at the king's square centre, and the last move's tint (B-15).
+    static let checkGlow:CGFloat=0.5,lastMoveTint:CGFloat=0.45
     static let arrowDash:[CGFloat]=[0.12,0.09]
     static let arrowSpeed:TimeInterval=0.14 // Board squares per second.
     static func arrowDashPhase(at elapsed:TimeInterval,side:CGFloat)->CGFloat {

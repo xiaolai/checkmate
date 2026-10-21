@@ -66,11 +66,11 @@ public enum LegacyImporter {
             guard let raw=value(key) else{continue};guard let text=raw as? String else{report.ignored.append(label);continue}
             let rules=key=="spikeFEN" ? try ChessRules(fen:text):try ChessRules()
             if key != "spikeFEN"{try rules.restore(text)}
-            if key=="checkmate-previous-game"{importedPrevious=true;next.practice.previousGame=text;next.practice.previousSide="w";next.practice.previousEnding=nil;next.practice.previousStartPly=0}else{next.practice.pgn=rules.pgn;next.practice.fen=rules.fen;next.practice.ending=nil;next.practice.startPly=0;next.practice.beginnerSevereStreak=0;importedPractice=true}
+            if key=="checkmate-previous-game"{importedPrevious=true;next.practice.previousGame=text;next.practice.previousSide="w";next.practice.previousEnding=nil;next.practice.previousStartPly=0;next.practice.previousHints=0}else{next.practice.pgn=rules.pgn;next.practice.fen=rules.fen;next.practice.ending=nil;next.practice.startPly=0;next.practice.hints=0;next.practice.beginnerSevereStreak=0;importedPractice=true}
             report.recovered.append(label)
         }
         // The replaced game stays one step away under Restore Previous Game unless the archive brings its own.
-        if importedPractice,!importedPrevious,!target.practice.pgn.isEmpty{next.practice.previousGame=target.practice.pgn;next.practice.previousSide=target.settings.practiceSide;next.practice.previousEnding=target.practice.ending;next.practice.previousStartPly=target.practice.startPly}
+        if importedPractice,!importedPrevious,!target.practice.pgn.isEmpty{next.practice.previousGame=target.practice.pgn;next.practice.previousSide=target.settings.practiceSide;next.practice.previousEnding=target.practice.ending;next.practice.previousStartPly=target.practice.startPly;next.practice.previousHints=target.practice.hints}
         // Only the settings the archive carries change; everything it lacks keeps its current value, so an old archive
         // never silently re-enables voice auto-connect, the microphone or MCP, or resets opponent strength.
         if let raw=value("checkmate-settings-v1") {if let settings=raw as? [String:Any]{let current=(try? JSONSerialization.jsonObject(with:JSONEncoder().encode(target.settings)) as? [String:Any]) ?? [:];next.settings=AppSettings(raw:current.merging(settings){_,imported in imported});try settingsReport(settings,normalized:next.settings,report:&report)}else{report.ignored.append("Settings")}}

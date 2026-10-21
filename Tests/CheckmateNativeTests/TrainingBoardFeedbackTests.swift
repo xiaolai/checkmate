@@ -48,7 +48,7 @@ import CheckmateCore
         let model=try NativeModel(),game=GameWindow(model:model);defer{game.window?.delegate=nil;model.shutdown()}
         open(model,game);settle()
         let exercise=try XCTUnwrap(model.training?.exercise),learner=exercise.scenario.learner
-        let bar={ControlBarModel.make(session:model.session,learning:model.learning,review:model.review,training:model.training,voice:.off(unavailable:nil))}
+        let bar={ControlBarModel.make(session:model.session,learning:model.learning,review:model.review,training:model.training,network:model.network,voice:.off(unavailable:nil))}
         XCTAssertEqual(bar().status,.turn(side:learner,label:learner=="w" ? "You are White":"You are Black"),"no feedback yet: the bar says whose side the learner plays")
         game.desiredRight=false
         let theirs=try XCTUnwrap(exercise.board.first{!$0.value.hasPrefix(learner)}?.key)

@@ -11,7 +11,7 @@ import CheckmateCore
     override func setUp(){directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);setenv("CHECKMATE_DATA_DIR",directory.path,1)}
     override func tearDown(){unsetenv("CHECKMATE_DATA_DIR");try? FileManager.default.removeItem(at:directory)}
     private func bar(_ model:NativeModel,voice:ControlBarVoice = .off(unavailable:nil))->ControlBarModel {
-        ControlBarModel.make(session:model.session,learning:model.learning,review:model.review,training:model.training,voice:voice)
+        ControlBarModel.make(session:model.session,learning:model.learning,review:model.review,training:model.training,network:model.network,voice:voice)
     }
     private func index(_ model:NativeModel,_ id:String)throws -> Int {try XCTUnwrap(model.learning.library.lessons.firstIndex{$0.id==id})}
 
@@ -63,7 +63,7 @@ import CheckmateCore
         model.practice();model.session.cancelWork()
         let shown=bar(model)
         XCTAssertTrue(shown.statusInCentre);XCTAssertEqual(shown.status,.turn(side:"w",label:"White to move"))
-        XCTAssertEqual(shown.leading.map(\.action),[.newGame]);XCTAssertEqual(shown.leading.first?.label,"New game…");XCTAssertNil(shown.leading.first?.symbol)
+        XCTAssertEqual(shown.leading.map(\.action),[.newGame,.more],"More sits on the shorter side, so the bar keeps one row");XCTAssertEqual(shown.leading.first?.label,"New game…");XCTAssertNil(shown.leading.first?.symbol)
         XCTAssertEqual(shown.trailing.map(\.action),[.takeBack,.hint,.tryMove]);XCTAssertNil(shown.item(.tryMove)?.symbol,"Try a move is said in words")
         XCTAssertEqual(shown.trailingGroups.map{$0.map(\.action)},[[.voiceConnect]])
         let on=bar(model,voice:.on(microphone:true,canStop:true))
@@ -73,6 +73,28 @@ import CheckmateCore
         XCTAssertEqual(bar(model,voice:.off(unavailable:.companionConnected)).item(.voiceConnect)?.enabled,false)
         XCTAssertEqual(bar(model).item(.voiceConnect)?.label,"Connect voice coach")
     }
+    /// B-17: Flip Board and Resign are one click from the practice bar, in its More menu; Resign only while the game
+    /// is on. Every control's tooltip names its shortcut.
+    func testPracticeBarReachesFlipAndResignAndNamesShortcuts()throws {
+        let model=try NativeModel();defer{model.shutdown()}
+        model.practice();model.session.cancelWork()
+        let more=try XCTUnwrap(bar(model).item(.more));XCTAssertEqual(more.label,"More");XCTAssertNotNil(more.symbol)
+        XCTAssertEqual(more.menu.map(\.action),[.flipBoard,.resign]);XCTAssertEqual(more.menu.map(\.label),["Flip Board","Resign…"]);XCTAssertEqual(more.menu.map(\.enabled),[true,false],"no move played: nothing to resign yet")
+        try model.session.playWhite(from:"e2",to:"e4");model.session.cancelWork()
+        XCTAssertTrue(try XCTUnwrap(bar(model).item(.more)).menu.allSatisfy(\.enabled))
+        let take=try XCTUnwrap(bar(model).item(.takeBack))
+        XCTAssertEqual(ControlBarView.tooltip(take),"Take back move (⌘Z)");XCTAssertEqual(ControlBarView.tooltip(try XCTUnwrap(bar(model).item(.hint))),"Hint (⇧⌘H)")
+        XCTAssertEqual(ControlBarView.tooltip(try XCTUnwrap(bar(model).item(.newGame))),"New game… (⌘N)");XCTAssertEqual(ControlBarView.tooltip(try XCTUnwrap(bar(model).item(.tryMove))),"Try a move","no shortcut, no suffix")
+        XCTAssertEqual(ControlBarView.tooltip(more.menu[0]),"Flip Board (⇧⌘F)")
+        model.session.resign();XCTAssertEqual(bar(model).item(.more)?.menu.first{$0.action == .resign}?.enabled,false,"nothing left to resign")
+    }
+    /// B-5: the bar's Hint follows the step-by-step hint: the second request shows the move, and then there is no more.
+    func testTheHintButtonFollowsTheHintStep(){
+        XCTAssertEqual(ControlBarModel.practiceHint(step:0,available:true),ControlBarItem(action:.hint,symbol:"lightbulb",label:"Hint",enabled:true))
+        XCTAssertEqual(ControlBarModel.practiceHint(step:1,available:true).label,"Show Move");XCTAssertTrue(ControlBarModel.practiceHint(step:1,available:true).enabled)
+        XCTAssertFalse(ControlBarModel.practiceHint(step:2,available:true).enabled,"the move is on the board");XCTAssertFalse(ControlBarModel.practiceHint(step:0,available:false).enabled)
+    }
+
     /// V-10: an unavailable coach says why in plain words, for its tooltip and for VoiceOver alike.
     func testUnavailableVoiceSaysWhy()throws {
         let model=try NativeModel();defer{model.shutdown()}
@@ -135,6 +157,7 @@ import CheckmateCore
     /// symbols chosen are distinct shapes.)
     func testEachSymbolHasOneMeaning()throws {
         let meaning:[ControlBarAction:String]=[
+            .more:"more",.flipBoard:"flip",
             .stepFromStart:"to the start",.previousStep:"step back",.demoPrevious:"step back",.previewPrevious:"step back",.reviewPrevious:"step back",
             .nextStep:"step on",.demoNext:"step on",.previewNext:"step on",.reviewNext:"step on",
             .previousLesson:"previous lesson",.nextLesson:"next lesson",
