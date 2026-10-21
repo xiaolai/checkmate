@@ -61,6 +61,20 @@ import CheckmateCore
         XCTAssertEqual(model.learning.exercise?.from,"d5");XCTAssertNil(model.learning.frame.board?["c6"],"fixture: the capture lands on an empty square")
         XCTAssertNil(game.submitTypedMove("dxc6"));XCTAssertTrue(model.learning.passed)
     }
+    /// A puzzle holds only its board, not the move before it. An en passant capture that board allows is read and graded
+    /// as clicking it is, a wrong answer here, even when the puzzle's answer is another move.
+    func testAPuzzleGradesAnEnPassantCaptureThatIsNotItsAnswer()throws {
+        let model=try NativeModel();defer{model.shutdown()}
+        let puzzle=try XCTUnwrap(model.learning.library.puzzles.first{$0.id=="course:rook:2"}),exercise=puzzle.exercise
+        var board=try XCTUnwrap(puzzle.board);XCTAssertEqual(board[exercise.from ?? ""],"wr","fixture: White moves")
+        board["b5"]="wp";board["a5"]="bp"  // as if Black's a-pawn had just come from a7
+        func typed(_ text:String)->TypedMove.Resolution {TypedMove.resolve(text,moves:GameWindow.puzzleMoves(board:board,mover:"w"),board:board,turn:"w",enPassant:nil,inCheck:false,squaresAsTyped:true)}
+        guard case .move(let choice)=typed("bxa6") else{return XCTFail("the capture is read, not refused")}
+        XCTAssertEqual([choice.from,choice.to],["b5","a6"]);XCTAssertFalse(exercise.matches([choice.from,choice.to]),"and graded as a wrong answer, as clicking b5 then a6 is")
+        // With no pawn beside it to capture, the pawn cannot go there, and the refusal says so.
+        board["a5"]=nil;guard case .refused(let reason)=typed("bxa6") else{return XCTFail("nothing to capture")}
+        XCTAssertEqual(reason,"A pawn cannot move from b5 to a6.")
+    }
     func testReviewTakesNoTypedMove()throws {
         let model=try NativeModel(),game=GameWindow(model:model);defer{model.session.cancelWork();game.window?.delegate=nil;model.shutdown()}
         model.openReview(try PGNImporter.parse(Data("1. e4 e5 *".utf8))[0]);game.refresh()

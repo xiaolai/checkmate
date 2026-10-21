@@ -58,15 +58,18 @@ extension GameWindow {
         if l.activePuzzle != nil,let exercise=l.exercise,exercise.kind=="move" {
             if l.passed{return .waiting(String(localized:"This exercise is finished.",bundle:.checkmate))}
             let board=l.frame.board ?? [:],mover=exercise.from.flatMap{board[$0].map{String($0.prefix(1))}} ?? "w"
-            // The frame holds no en passant square, but an answer that is a pawn's diagonal step onto an empty square can
-            // only be an en passant capture, so its destination is that square.
-            let passant=(exercise.alternatives ?? [[exercise.from ?? "",exercise.to ?? ""]]).first{$0.count==2 && board[$0[0]]?.hasSuffix("p")==true && $0[0].first != $0[1].first && board[$0[1]]==nil}?[1]
             // The puzzle grades the pair of squares as clicks would: any move of one of the learner's pieces is an answer.
-            return .ready(TypedMoveTarget(moves:TypedMove.reachable(board:board,turn:mover,enPassant:passant),board:board,turn:mover,enPassant:passant,inCheck:false,asTyped:true){[weak self] choice in
+            return .ready(TypedMoveTarget(moves:Self.puzzleMoves(board:board,mover:mover),board:board,turn:mover,enPassant:nil,inCheck:false,asTyped:true){[weak self] choice in
                 guard board[choice.from]?.hasPrefix(mover)==true else{return String(localized:"There's no piece of yours on \(choice.from).",bundle:.checkmate)}
                 l.clearSelection();l.click(choice.from);l.click(choice.to);if !l.feedback.isEmpty{self?.announceTypedMove(l.feedback)};return nil})
         }
         return .none
+    }
+    /// The moves SAN is read against in a lesson puzzle: where the mover's pieces can reach, plus each en passant
+    /// capture the board allows. A puzzle holds no move history, so its board is the only source of that square, and
+    /// a typed capture is graded like a clicked one whether or not it is the answer.
+    static func puzzleMoves(board:Position,mover:String)->[MoveRecord] {
+        TypedMove.reachable(board:board,turn:mover,enPassant:nil)+TypedMove.possibleEnPassant(board:board,turn:mover).flatMap{square in TypedMove.reachable(board:board,turn:mover,enPassant:square).filter{$0.piece=="p" && $0.to==square}}
     }
     /// Plays `text` on the board that takes moves; nil when it was played, otherwise why not. Nothing changes on a refusal.
     func submitTypedMove(_ text:String)->String? {

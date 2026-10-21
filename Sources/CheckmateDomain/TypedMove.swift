@@ -151,4 +151,16 @@ public enum TypedMove {
         }
         return moves
     }
+    /// The squares a `turn` pawn could capture on en passant, had the enemy pawn beside it just made its double step:
+    /// for a board that carries no move history (a lesson puzzle). The enemy pawn stands on its fourth rank with the two
+    /// squares behind it empty.
+    public static func possibleEnPassant(board:Position,turn:String)->[String] {
+        let enemy=turn=="w" ? "b":"w",(rank,behind,start)=turn=="w" ? ("5","6","7"):("4","3","2"),files=Array("abcdefgh")
+        return files.indices.compactMap{index in
+            let file=String(files[index])
+            guard board[file+rank]==enemy+"p",board[file+behind]==nil,board[file+start]==nil else{return nil}
+            let beside=[index-1,index+1].filter{files.indices.contains($0)}.contains{board[String(files[$0])+rank]==turn+"p"}
+            return beside ? file+behind:nil
+        }
+    }
 }
