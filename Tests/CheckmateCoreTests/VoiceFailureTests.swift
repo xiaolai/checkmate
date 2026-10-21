@@ -11,16 +11,23 @@ import CodexAuth
 /// V-6, V-7, V-22, V-5: every voice or Codex problem is one plain cause with one action, the coach's model is kept for a
 /// day across launches, and voice without Codex is explained instead of failing. Silent: no sign-in, socket or audio.
 @MainActor final class VoiceFailureTests:XCTestCase {
-    /// Every failure has a cause in plain words and one action; no two causes read alike.
+    /// Every failure has a cause in plain words and at most one action; no two causes read alike. A failure that lasts
+    /// as long as the learner stays where they are (a network game, a screen the coach does not join) offers no retry,
+    /// which could only fail again: it offers nothing and its cause says when the coach becomes available.
     func testEveryFailureHasOneCauseAndOneAction() {
         let jargon=["MCP","model access","ply","half-move","Recheck","HTTP","token","realtime","Realtime","method"]
         for failure in VoiceFailure.allCases {
             XCTAssertFalse(failure.cause.isEmpty,"\(failure)");XCTAssertTrue(failure.cause.hasSuffix("."),"\(failure): \(failure.cause)")
             for word in jargon {XCTAssertFalse(failure.cause.contains(word),"\(failure) says \(word): \(failure.cause)")}
-            XCTAssertTrue(VoiceAction.allCases.contains(failure.action));XCTAssertEqual(userFacingMessage(failure,fallback:""),failure.cause)
+            XCTAssertEqual(userFacingMessage(failure,fallback:""),failure.cause)
         }
         XCTAssertEqual(Set(VoiceFailure.allCases.map(\.cause)).count,VoiceFailure.allCases.count,"each cause has its own words")
-        XCTAssertEqual(Set(VoiceFailure.allCases.map(\.action)),Set(VoiceAction.allCases),"every action is offered by some failure")
+        XCTAssertEqual(Set(VoiceFailure.allCases.compactMap(\.action)),Set(VoiceAction.allCases),"every action is offered by some failure")
+        let lastsHere:[VoiceFailure]=[.networkGame,.notHere]
+        for failure in lastsHere {XCTAssertNil(failure.action,"\(failure) offers an action that cannot work here")}
+        XCTAssertTrue(VoiceFailure.networkGame.cause.contains("once the game ends"),VoiceFailure.networkGame.cause)
+        XCTAssertTrue(VoiceFailure.notHere.cause.contains("Return to"),VoiceFailure.notHere.cause)
+        for failure in VoiceFailure.allCases where failure.action==nil {XCTAssertTrue(lastsHere.contains(failure),"\(failure) has no action")}
         for action in VoiceAction.allCases {XCTAssertEqual(action.title.split(separator:" ").filter{$0.first?.isLowercase==true},[],"\(action.title) is in title case")}
         XCTAssertEqual(VoiceFailure.microphoneDenied.action,.openMicrophoneSettings);XCTAssertEqual(VoiceFailure.noCodex.action,.getCodex)
         XCTAssertEqual(VoiceFailure.signInExpired.action,.signIn);XCTAssertEqual(VoiceFailure.codexNotSetUp.action,.setUpCodex);XCTAssertEqual(VoiceFailure.offline.action,.tryAgain)
@@ -41,7 +48,7 @@ import CodexAuth
         XCTAssertEqual(VoiceFailure.from(CheckmateError.invalid(FairnessPolicy.refusal)),.networkGame)
         XCTAssertEqual(VoiceFailure.from(CheckmateError.invalid("UNSUPPORTED_MODE")),.notHere)
         XCTAssertEqual(VoiceFailure.from(ProtocolFailure("UNSUPPORTED_MODE","The voice coach connects only to a training game being played.")),.notHere)
-        XCTAssertEqual(VoiceFailure.companionConnected.action,.openConnections);XCTAssertEqual(VoiceFailure.consentNeeded.action,.tryAgain)
+        XCTAssertEqual(VoiceFailure.companionConnected.action,.openConnections);XCTAssertNil(VoiceFailure.networkGame.action);XCTAssertNil(VoiceFailure.notHere.action);XCTAssertEqual(VoiceFailure.consentNeeded.action,.tryAgain)
         XCTAssertEqual(VoiceFailure.from(CheckmateError.invalid("INVALID_ARGUMENT")),.connectFailed,"an unknown code is still unknown")
         XCTAssertEqual(VoiceFailure.from(URLError(.badServerResponse)),.connectFailed)
     }
