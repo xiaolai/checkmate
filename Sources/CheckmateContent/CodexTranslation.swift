@@ -62,7 +62,7 @@ public final class CodexSubscriptionClient: LessonTranslationProvider, @unchecke
     private static func codexSignIn(margin: TimeInterval) -> @Sendable () async throws -> Token {
         let credentials = Result { try Credentials(CodexAuthConfiguration(margin: margin, timeout: VoiceGateway.codexTimeout, clientName: "checkmate",
             guardAccess: { _ in if NativePolicy.silent { throw CheckmateError.unavailable("Live translation is disabled during automation.") } },
-            log: { NativeLog.voice.debug("\($0)") })) }
+            log: { NativeLog.course.debug("\($0)") })) }
         return { try await credentials.get().token() }
     }
     /// What a sign-in state means for translating. Every state that is not ready names its own fix.
@@ -95,7 +95,7 @@ public final class CodexSubscriptionClient: LessonTranslationProvider, @unchecke
         do { token = try await signIn() }
         catch let failure as CodexAuthError {
             if failure.errorClass == .cancelled || Task.isCancelled { throw CancellationError() }
-            NativeLog.voice.error("Translation sign-in unavailable: \(failure.state.rawValue, privacy: .public)")
+            NativeLog.course.error("Translation sign-in unavailable: \(failure.state.rawValue, privacy: .public)")
             throw Self.signInFailure(failure.state)
         }
         return try CodexChannel(executable: executable, token: token,
@@ -315,7 +315,7 @@ private final class CodexChannel: @unchecked Sendable {
             try? FileManager.default.removeItem(at: scratch)
             if let error = error as? CheckmateError { throw error }
             if let error = error as? CodexAuthError {
-                NativeLog.voice.error("Private translation sign-in refused: \(error.message, privacy: .public)")
+                NativeLog.course.error("Private translation sign-in refused: \(error.message, privacy: .public)")
             }
             throw CheckmateError.unavailable("Codex sign-in or private translation setup is unavailable.")
         }
@@ -419,7 +419,7 @@ private final class CodexChannel: @unchecked Sendable {
         catch {
             if attemptedTool { throw CheckmateError.unavailable("Translation stopped because Codex attempted a tool operation.") }
             if lock.withLock({ closed }) || Task.isCancelled { throw CancellationError() }
-            NativeLog.voice.error("Codex refused \(method, privacy: .public): \(String(describing: error), privacy: .public)")
+            NativeLog.course.error("Codex refused \(method, privacy: .public): \(String(describing: error), privacy: .public)")
             throw unavailable
         }
         guard let object = result as? [String: Any] else { throw unavailable }
@@ -479,7 +479,7 @@ private final class CodexChannel: @unchecked Sendable {
         let servers = try await rpc("mcpServerStatus/list", ["limit": 100])
         guard let data = servers["data"] as? [[String: Any]], data.isEmpty,
               servers["nextCursor"] == nil || servers["nextCursor"] is NSNull
-        else { throw CheckmateError.unavailable("Codex unexpectedly inherited an MCP connection. Translation was stopped.") }
+        else { throw CheckmateError.unavailable("Codex had another connection open, so Checkmate stopped the translation to keep it private.") }
         return account
     }
 }

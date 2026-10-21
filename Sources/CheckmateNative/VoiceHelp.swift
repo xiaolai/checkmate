@@ -17,6 +17,9 @@ import CheckmateCore
     var openURL:(URL)->Void={_ in}
     /// A typed question waiting for the coach to connect; it is dropped if the connection does not open.
     @Published private(set) var pendingQuestion:String?
+    /// What the learner has typed in Ask the Coach. It stays until the coach receives it, so a refused or failed
+    /// connection never loses the learner's words.
+    @Published var draft=""
     private weak var model:NativeModel?
     private var announced=Set<String>()
     private var observations=Set<AnyCancellable>()
@@ -38,12 +41,14 @@ import CheckmateCore
         announced=Set(voice.history.map(\.id))
         voice.$history.receive(on:RunLoop.main).sink{[weak self] history in self?.historyChanged(history)}.store(in:&observations)
     }
+    /// Asks the typed question in `draft`.
+    func submit(){ask(draft)}
     /// V-3: asks the coach a typed question, connecting it first (without a greeting) when it is not connected.
     func ask(_ text:String){
         let question=text.trimmingCharacters(in:.whitespacesAndNewlines);guard !question.isEmpty,let model else{return}
         model.connectVoiceWithConsent{[weak self,weak model] in
             guard let self,let model else{return};let voice=model.voice
-            if voice.connected{voice.ask(question);return}
+            if voice.connected{deliver(question);return}
             if !voice.connecting{if model.session.mode == .training{voice.connectTraining()}else{voice.connect(greet:false)}}
             // Set after connecting: connecting first disconnects, which would drop a question already waiting.
             if voice.connecting{pendingQuestion=question}
@@ -55,17 +60,24 @@ import CheckmateCore
         case .openMicrophoneSettings:openURL(Self.microphoneSettings)
         case .getCodex:openURL(Self.getCodex)
         case .signIn,.openVoiceSettings:showSettings(.voice)
-        case .setUpCodex:showSettings(.connections)
+        case .setUpCodex,.openConnections:showSettings(.connections)
         case .tryAgain:retry()
         }
     }
     private func connectionChanged(){
         guard let voice=model?.voice,pendingQuestion != nil else{return}
         switch voice.connection {
-        case .ready:let question=pendingQuestion!;pendingQuestion=nil;voice.ask(question)
+        case .ready:let question=pendingQuestion!;pendingQuestion=nil;deliver(question)
         case .authorizing,.connecting:break
         default:pendingQuestion=nil
         }
+    }
+    /// Gives the coach `question`; the field clears only once the coach has it and the learner has not typed since.
+    private func deliver(_ question:String){
+        guard let voice=model?.voice else{return};let before=voice.history.last?.id
+        voice.ask(question)
+        guard let last=voice.history.last,last.id != before,last.role=="learner" else{return}
+        if draft.trimmingCharacters(in:.whitespacesAndNewlines)==question{draft=""}
     }
     /// Each coach answer is announced once, when it arrives.
     private func historyChanged(_ history:[VoiceHistory]){

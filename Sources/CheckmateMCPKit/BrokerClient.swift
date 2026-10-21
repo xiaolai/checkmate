@@ -77,7 +77,7 @@ public actor BrokerClient {
         do { current = try Discovery.read(file); discovery = current }
         catch {
             let code = (error as? ProtocolFailure)?.code ?? "APP_NOT_READY"
-            return ProtocolFailure(code, code == "INCOMPATIBLE_SCHEMA" ? "This Checkmate MCP server and the running Checkmate app are different versions. In the running app choose Settings → Connections → Set Up Codex, then start a new Codex task." : "Open Checkmate and turn on Allow Codex connections in Settings → Connections.").result
+            return ProtocolFailure(code, code == "INCOMPATIBLE_SCHEMA" ? "This Checkmate companion and the running Checkmate app are different versions. In the running app choose Settings → Connections → Set Up Codex, then start a new Codex task." : "Open Checkmate and turn on Allow Codex connections in Settings → Connections.").result
         }
         let requestID = UUID().uuidString
         do {

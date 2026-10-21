@@ -263,7 +263,7 @@ final class CodexTranslationTests: XCTestCase {
         for scenario in ["unsafeConfig", "unsafeReads", "unsafeParent", "unsafeNetwork", "unsafeFeature", "unsafeProfileKey", "unsafeNetworkKey", "unsafeExtraProfile", "unsafeWorkspaceRoots", "unsafeSelection", "unsafeApproval", "unsafeSearch", "unsafeWrite", "unsafeThreadProfile", "unsafeThreadNetwork", "unsafeThreadExtra", "unsafeProjectDocs", "inheritedMCP"] {
             let fixture = try Fixture(scenario)
             do { _ = try await fixture.client.translate(source: LessonTranslation.source(library: try CourseLibrary(), index: 0), locale: "fr", onUsage: { _, _, _ in }); XCTFail("Unsafe isolation succeeded") }
-            catch { XCTAssertTrue(String(describing: error).contains(scenario != "inheritedMCP" ? "private translation isolation" : "inherited an MCP")) }
+            catch { XCTAssertTrue(String(describing: error).contains(scenario != "inheritedMCP" ? "private translation isolation" : "another connection open")) }
             try await fixture.assertCleaned()
         }
     }
@@ -303,5 +303,12 @@ final class CodexTranslationTests: XCTestCase {
         XCTAssertFalse(status.contains("DO-NOT-EXPORT")); XCTAssertFalse(status.contains("Provider thread estimate"))
         XCTAssertTrue(status.contains("Actual charges are not reported"))
         try await fixture.assertCleaned()
+    }
+    /// Translation is lesson work: its log lines go to the course category, never to voice.
+    func testTranslationLogsUnderTheCourseCategory() throws {
+        let file = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("Sources/CheckmateContent/CodexTranslation.swift")
+        let source = try String(contentsOf: file, encoding: .utf8)
+        XCTAssertFalse(source.contains("NativeLog.voice"), "translation logs under voice")
+        XCTAssertTrue(source.contains("NativeLog.course"), "translation logs nothing under course")
     }
 }

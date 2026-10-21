@@ -189,15 +189,15 @@ import RealtimeConnection
             startMCP: { try broker.enable(role: "coach", standby: true) }, codexSetUp: { true }, stillCurrent: { true }, silent: false)
         startup.start()
         for _ in 0..<200 where broker.error == nil { try await Task.sleep(for: .milliseconds(10)) }
-        XCTAssertEqual(broker.error, "Could not publish the private connection file."); XCTAssertFalse(broker.enabled)
-        // A start refused at once (the session is held) is shown the same way.
+        XCTAssertEqual(broker.problem, .discoveryFailed); XCTAssertEqual(broker.error, CompanionProblem.discoveryFailed.message); XCTAssertFalse(broker.enabled)
+        // A start refused at once because the voice coach holds the session says so, and what to do.
         let held = try GameSession(engine: nil), refused = try CompanionBroker(session: held, directory: blocked)
         defer { refused.disable() }
         _ = try held.openVoice()
         let immediate = ConnectionStartup(settings: { AppSettings() }, check: { String?.none }, connectVoice: { _ in },
             startMCP: { try refused.enable(role: "coach") }, codexSetUp: { true }, stillCurrent: { true }, silent: false)
         immediate.start(); await settle()
-        XCTAssertEqual(refused.error, "The companion could not start. Check local connectivity and try enabling MCP again."); XCTAssertFalse(refused.enabled)
+        XCTAssertEqual(refused.problem, .voiceConnected); XCTAssertEqual(refused.error, CompanionProblem.voiceConnected.message); XCTAssertFalse(refused.enabled)
     }
 }
 
@@ -227,20 +227,23 @@ import RealtimeConnection
             return try JSONSerialization.jsonObject(with: data) as! [String: Any]
         }
         XCTAssertTrue(broker.enabled); XCTAssertFalse(broker.connected)
+        for _ in 0..<100 where broker.state != .waitingForVoice { try await Task.sleep(for: .milliseconds(10)) }
+        XCTAssertEqual(broker.state, .waitingForVoice, "Settings says Codex waits for the voice coach")
         let rejected = try await read()
         XCTAssertEqual((rejected["error"] as? [String: Any])?["code"] as? String, "SESSION_IN_USE")
         XCTAssertEqual(session.voiceLease, voiceLease)
-        broker.suspend(true); broker.suspend(false)
+        broker.suspend(true); XCTAssertEqual(broker.state, .paused)
+        broker.suspend(false); XCTAssertEqual(broker.state, .waitingForVoice, "showing the app again still waits for voice")
         XCTAssertFalse(session.companionEnabled)
         session.closeVoice()
         let accepted = try await read()
         XCTAssertNil(accepted["error"])
-        XCTAssertTrue(broker.connected); XCTAssertTrue(session.companionEnabled)
+        XCTAssertTrue(broker.connected); XCTAssertTrue(session.companionEnabled); XCTAssertEqual(broker.state, .connected)
         XCTAssertThrowsError(try session.openVoice())
         broker.release()
-        XCTAssertFalse(session.companionEnabled)
+        XCTAssertFalse(session.companionEnabled); XCTAssertEqual(broker.state, .waiting); XCTAssertEqual(broker.status, CompanionState.waiting.text)
         _ = try session.openVoice()
-        broker.disable()
+        broker.disable(); XCTAssertEqual(broker.state, .off)
         XCTAssertNotNil(session.voiceLease)
         session.closeVoice()
     }

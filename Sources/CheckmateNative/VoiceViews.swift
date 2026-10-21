@@ -20,7 +20,8 @@ struct VoiceCoachCard:View {
     @MainActor static func offer(_ voice:VoiceCoach)->Offer {voice.capability?.usable==false ? .getCodex:.connect}
     @ObservedObject var voice:VoiceCoach
     let model:NativeModel
-    @State private var question=""
+    @ObservedObject private var help:VoiceHelp
+    init(voice:VoiceCoach,model:NativeModel){self.voice=voice;self.model=model;_help=ObservedObject(wrappedValue:model.voiceHelp)}
     private var idle:Bool {voice.connection == .disconnected && voice.history.isEmpty}
     var body:some View {
         Divider();Text("Voice Coach").font(.headline)
@@ -49,7 +50,7 @@ struct VoiceCoachCard:View {
             }
         }
         if unavailable == nil || voice.connected {
-            TextField("Ask the Coach…",text:$question).onSubmit{model.voiceHelp.ask(question);question=""}.disabled(voice.connecting).accessibilityIdentifier("voice-ask")
+            TextField("Ask the Coach…",text:$help.draft).onSubmit{help.submit()}.disabled(voice.connecting).accessibilityIdentifier("voice-ask")
         }
         ForEach(Array(voice.history.reversed())){entry in VStack(alignment:.leading){Text(entry.role=="learner" ? "You":"Coach").font(.caption).foregroundStyle(.secondary);Text(entry.text).textSelection(.enabled)}}
     }

@@ -1,3 +1,4 @@
+import CheckmateDomain
 import CheckmateSupport
 import CodexAuth
 import Foundation
@@ -5,7 +6,7 @@ import RealtimeConnection
 
 /// The one thing the learner can do about a voice or Codex problem (V-6). Each is a button.
 public enum VoiceAction:String,CaseIterable,Sendable {
-    case openMicrophoneSettings="Open Microphone Settings",tryAgain="Try Again",signIn="Sign In",getCodex="Get Codex",setUpCodex="Set Up Codex",openVoiceSettings="Open Voice Settings"
+    case openMicrophoneSettings="Open Microphone Settings",tryAgain="Try Again",signIn="Sign In",getCodex="Get Codex",setUpCodex="Set Up Codex",openVoiceSettings="Open Voice Settings",openConnections="Open Connection Settings"
     public var title:String {rawValue}
 }
 
@@ -15,6 +16,7 @@ public enum VoiceFailure:String,Error,UserFacingError,CaseIterable,Equatable,Sen
     case noCodex,codexNotSetUp,codexTooOld,signedOut,apiKeySignIn,otherSignIn,signInExpired,signInRejected,keychainSignIn,otherProvider,codexUnresponsive
     case accessRefused,rateLimited,serviceDown,offline,requestRefused,noModel,thinkingUnsupported
     case connectionLost,timedOut,serviceError,connectFailed,audioOutput,microphoneDenied,microphoneUnavailable,microphoneFormat
+    case companionConnected,networkGame,notHere,consentNeeded
     public var cause:String {
         switch self {
         case .noCodex:return "Voice needs the Codex app, and it is not on this Mac."
@@ -43,16 +45,21 @@ public enum VoiceFailure:String,Error,UserFacingError,CaseIterable,Equatable,Sen
         case .microphoneDenied:return "Checkmate is not allowed to use the microphone."
         case .microphoneUnavailable:return "The selected microphone is not available."
         case .microphoneFormat:return "The selected microphone records in a format Checkmate cannot use."
+        case .companionConnected:return "Codex is connected to Checkmate, so the voice coach cannot connect."
+        case .networkGame:return "Voice coaching is off during your network game."
+        case .notHere:return "The voice coach cannot connect to what is shown now."
+        case .consentNeeded:return "The voice coach needs your agreement to what it sends to OpenAI before it connects."
         }
     }
     public var action:VoiceAction {
         switch self {
         case .noCodex,.codexTooOld,.keychainSignIn:return .getCodex
         case .signedOut,.apiKeySignIn,.otherSignIn,.signInExpired,.signInRejected,.otherProvider,.accessRefused:return .signIn
-        case .codexUnresponsive,.rateLimited,.serviceDown,.offline,.requestRefused,.noModel,.connectionLost,.timedOut,.serviceError,.connectFailed,.audioOutput:return .tryAgain
+        case .codexUnresponsive,.rateLimited,.serviceDown,.offline,.requestRefused,.noModel,.connectionLost,.timedOut,.serviceError,.connectFailed,.audioOutput,.networkGame,.notHere,.consentNeeded:return .tryAgain
         case .thinkingUnsupported,.microphoneUnavailable,.microphoneFormat:return .openVoiceSettings
         case .microphoneDenied:return .openMicrophoneSettings
         case .codexNotSetUp:return .setUpCodex
+        case .companionConnected:return .openConnections
         }
     }
     public var userFacingMessage:String {cause}
@@ -88,8 +95,25 @@ public enum VoiceFailure:String,Error,UserFacingError,CaseIterable,Equatable,Sen
         if let failure=error as? VoiceFailure {return failure}
         if let failure=error as? CodexAuthError {NativeLog.voice.error("Voice sign-in unavailable: \(failure.state.rawValue, privacy: .public)");return signIn(failure.state)}
         if let failure=error as? RealtimeError {NativeLog.voice.error("Voice request failed: \(failure.errorClass.rawValue, privacy: .public), HTTP \(failure.status, privacy: .public)");return realtime(failure.errorClass)}
+        if let code=refusalCode(error),let failure=refusal(code) {NativeLog.voice.error("Voice refused: \(code, privacy: .public)");return failure}
         NativeLog.voice.error("Voice failed: \(String(describing:error), privacy: .public)")
         return fallback
+    }
+    /// A session refusal by its code: Codex holds the session, a network game allows no coach (`FairnessPolicy.refusal`),
+    /// or the coach does not connect to what is shown. Any other code is not a refusal.
+    public static func refusal(_ code:String)->VoiceFailure? {
+        switch code {
+        case "SESSION_IN_USE":return .companionConnected
+        case "NETWORK_GAME":return .networkGame
+        case "UNSUPPORTED_MODE":return .notHere
+        default:return nil
+        }
+    }
+    private static func refusalCode(_ error:Error)->String? {
+        if let failure=error as? ProtocolFailure {return failure.code}
+        if case .invalid(let code)? = error as? CheckmateError {return code}
+        if case .unavailable(let code)? = error as? CheckmateError {return code}
+        return nil
     }
 }
 
