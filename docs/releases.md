@@ -40,6 +40,11 @@ records the commit in the app's Info.plist (`CheckmateSourceCommit`). After it f
 archive and `SHA256SUMS`, then dispatches `update-homebrew.yml`, which rewrites the
 `xiaolai/tap` cask (it refuses to re-publish or downgrade and needs the `HOMEBREW_TAP_TOKEN`
 secret).
+After publishing, run release hygiene: only the most recent release is kept. `bash scripts/release-hygiene.sh` lists
+every older GitHub release (with its assets), every older `v*` tag on origin and here, the older
+`build/release/Checkmate-<version>*` files and, on each host named in `CHECKMATE_HYGIENE_HOSTS`, the older
+`~/Developer/checkmate-release-<version>*` directories; `--apply` removes them. It refuses unless the current version
+is GitHub's latest release, so it never leaves none. GitHub deletions are permanent.
 Packaging refuses a tree whose source hashes differ from the accepted run. Final verification also runs the
 mounted, notarized app once with `--package-check` (engine move, rules and lessons; no window, state or audio).
 

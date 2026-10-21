@@ -650,6 +650,7 @@
   "Release.entitlements": "release signing; finish-release.sh verify checks the signed app",
   "scripts/finish-release.sh": "release",
   "scripts/publish-release.sh": "release",
+  "scripts/release-hygiene.sh": "release (after publishing; dry run by default)",
   "Tools/audio-probe.swift": "manual live-audio probe",
   "Tools/audit-lesson-rules.py": "content authoring",
   "Tools/calibrate-opponents.swift": "offline calibration",
