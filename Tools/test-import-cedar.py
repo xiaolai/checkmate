@@ -138,6 +138,38 @@ class PracticeRelationTests(unittest.TestCase):
 
 
 
+class PuzzleLinkTests(unittest.TestCase):
+    """Every puzzle checks one lesson, named by its stable id; every lesson names its course section."""
+    def setUp(self):
+        self.prep = publisher.module('prepare', 'prepare-lesson-scripts.py')
+        self.content = json.loads((HERE.parent / 'Content/course-scripts.en-GB.json').read_text())
+
+    def testPublishedPuzzlesNameTheLessonTheyCheck(self):
+        titles = {l['id']: l['title'] for l in self.content['lessons']}
+        for puzzle in self.content['puzzles']:
+            self.assertEqual(puzzle['topic'], titles[puzzle['lesson']], puzzle['id'])
+        extras = {p['id']: p['lesson'] for p in self.content['puzzles'] if not p['id'].startswith('course:')}
+        self.assertEqual(extras, {'extra-1': 'puzzles-material', 'extra-2': 'fork', 'extra-3': 'puzzles-mate', 'extra-4': 'counting-material'})
+        self.prep.validate_links(self.content['lessons'], self.content['puzzles'])
+        self.prep.validate_sections(self.content['lessons'])
+
+    def testInvalidLinksAndSectionsAreRejected(self):
+        lessons = [{'id': 'fork', 'title': 'The Fork', 'section': 'Tactics'}, {'id': 'pin', 'title': 'The Pin', 'section': 'Tactics'}]
+        def puzzle(**fields):
+            return dict({'id': 'extra-9', 'topic': 'The Fork', 'lesson': 'fork'}, **fields)
+        for name, case in {'unknown lesson': puzzle(lesson='forks'), 'topic is not the title': puzzle(topic='Forks'),
+                           'a course puzzle of another lesson': puzzle(id='course:pin:1')}.items():
+            with self.subTest(name), self.assertRaises(AssertionError):
+                self.prep.validate_links(lessons, [case])
+        self.prep.validate_links(lessons, [puzzle(), puzzle(id='course:fork:1')])
+        split = [dict(id='a', section='One'), dict(id='b', section='Two'), dict(id='c', section='One')]
+        practice = [dict(id='rook', section='Pieces'), dict(id='rook-practice', practiceFor='rook', section='Rules')]
+        for name, case in {'split section': split, 'practice outside its lesson': practice,
+                           'no section': [dict(id='a')]}.items():
+            with self.subTest(name), self.assertRaises(AssertionError):
+                self.prep.validate_sections(case)
+
+
 class NarrationClaimTests(unittest.TestCase):
     """Recorded narration must not name app controls or lessons that do not exist; card and title edits are reviewed."""
     def setUp(self):

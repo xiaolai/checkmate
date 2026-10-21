@@ -114,11 +114,16 @@ import Combine
 @Published public var level="All levels" {didSet{saveFilters()}}
 @Published public var filter="All" {didSet{saveFilters()}}
     private var timer:Timer?,lastTick:Date?,mistake=false
+    /// Hints taken on the puzzle shown in this visit, and their words; a new visit starts without any.
+    @Published public private(set) var puzzleHints=0
+    @Published public private(set) var hintTexts:[String]=[]
+    /// Shown in the puzzle library once the learner moves past the last puzzle of a set, instead of starting it again.
+    @Published public private(set) var setSummary:PuzzleSetSummary?
     /// `course` replaces the packaged course; tests use it to bind an exercise to a step other than the last.
     public init(session:GameSession,course:CourseLibrary?=nil) throws {self.session=session;library=try course ?? CourseLibrary();puzzles=Dictionary(library.puzzles.map{($0.id,$0)},uniquingKeysWith:{first,_ in first})
         // A saved lesson this course no longer has opens the first lesson at its start, never at a step derived from the
         // unknown lesson's transcript position.
-        if let index=library.lessons.firstIndex(where:{$0.id==session.state.course.lessonID}){lastLessonIndex=index;step=library.resumeStep(in:library.lessons[index],progress:session.state.course)}else{lastLessonIndex=0;step=0};if let filters=session.state.puzzleFilters {query=filters["query"] ?? "";topic=filters["topic"] ?? "All topics";level=filters["level"] ?? "All levels";filter=filters["status"] ?? "All"}
+        if let index=library.lessons.firstIndex(where:{$0.id==session.state.course.lessonID}){lastLessonIndex=index;step=library.resumeStep(in:library.lessons[index],progress:session.state.course)}else{lastLessonIndex=0;step=0};if let filters=session.state.puzzleFilters {query=filters["query"] ?? "";topic=Self.known(filters["topic"],in:library.puzzles.map(\.topic),all:"All topics");level=Self.known(filters["level"],in:library.levels,all:"All levels");filter=filters["status"] ?? "All"}
         activityObservation=session.$activity.removeDuplicates().sink{[weak self] activity in
             // Navigating anywhere but this game (a review over it keeps its place) ends its post-game review.
             switch activity.place{case .miniGame:break;default:self?.miniReview.cancel()}
@@ -133,7 +138,16 @@ import Combine
         attempt.replyDelay={[weak self] in MiniGameOpponent.replyDelay+Duration.milliseconds(Int64(self?.session.state.settings.pieceDuration ?? 0))}}
     /// Restoring filters from the saved state (an import) writes nothing back: only the learner's own edits save.
     private var restoringFilters=false
-    public func reloadFilters(){let filters=session.state.puzzleFilters ?? [:];restoringFilters=true;defer{restoringFilters=false};query=filters["query"] ?? "";topic=filters["topic"] ?? "All topics";level=filters["level"] ?? "All levels";filter=filters["status"] ?? "All"}
+    public func reloadFilters(){let filters=session.state.puzzleFilters ?? [:];restoringFilters=true;defer{restoringFilters=false};query=filters["query"] ?? "";topic=Self.known(filters["topic"],in:library.puzzles.map(\.topic),all:"All topics");level=Self.known(filters["level"],in:library.levels,all:"All levels");filter=filters["status"] ?? "All"}
+    /// A saved topic or level this course no longer offers (an older topic name) shows every puzzle instead of none.
+    private static func known(_ value:String?,in values:[String],all:String)->String {value.flatMap{values.contains($0) ? $0:nil} ?? all}
+    /// The topic picker's groups (course sections, in course order) and the levels the course uses.
+    public var topicGroups:[(title:String,topics:[String])] {library.topicGroups}
+    public var levels:[String] {library.levels}
+    /// How far the course has come, where Continue Learning goes, and whether every main lesson is explored.
+    public var courseProgress:CourseStanding {library.standing(session.state.course)}
+    public var continueIndex:Int? {library.continueIndex(session.state.course)}
+    public var courseComplete:Bool {library.complete(session.state.course)}
     private func saveFilters(){guard !restoringFilters else{return};session.state.puzzleFilters=["query":query,"topic":topic,"level":level,"status":filter];session.emit(semantic:false,save:true)}
     public var current:CourseLesson {library.lessons[lessonIndex]}
     public var beat:CourseBeat {current.beats[step]}
@@ -160,12 +174,23 @@ import Combine
     public func replay(){if attemptStep{pauseNarration();seconds=0;soundedMoves=[];play();return};rewind();play()}
     public func tick(wallDelta:Double){if let time=audio?.playbackTime,session.state.settings.narration{advance(by:max(0,time-seconds))}else{advance(by:wallDelta)}}
     public func advance(by delta:Double) {guard playing else{return};seconds=min(duration,seconds+max(0,delta));rebuild();if seconds>=duration {if attemptStep{pauseNarration();if step==current.beats.count-1{complete()}else{feedback="Your turn: make your move on the board."};publish();return};pause();if step<current.beats.count-1 {if session.state.settings.autoAdvance {seek(step:step+1);play()}}else{complete(continuePlayback:session.state.settings.autoAdvance)};publish()}}
+    /// On a puzzle: the next one in the filtered set. Past the last one the set ends with its summary in the library
+    /// rather than starting over.
     public func next(){guard !mini else{return};if let id=activePuzzle?.id {
-            let filtered=filteredPuzzles;guard !filtered.isEmpty else{showPuzzleLibrary();return}
-            if let i=filtered.firstIndex(where:{$0.id==id}){openPuzzle(id:filtered[(i+1)%filtered.count].id);return}
             let order=library.puzzles.map(\.id),current=order.firstIndex(of:id) ?? -1
-            openPuzzle(id:(filtered.first{(order.firstIndex(of:$0.id) ?? 0)>current} ?? filtered[0]).id);return
+            if let following=filteredPuzzles.first(where:{(order.firstIndex(of:$0.id) ?? -1)>current}){openPuzzle(id:following.id);return}
+            showPuzzleLibrary();setSummary=PuzzleSetSummary(puzzleSet,progress:session.state.puzzles);return
         };if step<current.beats.count-1{seek(step:step+1)}else{complete()}}
+    /// The set a summary describes: the chosen topic, level and search, whatever their status now.
+    private var puzzleSet:[Puzzle] {library.puzzles.filter{p in (topic=="All topics" || topic==p.topic)&&(level=="All levels" || level==p.level)&&(query.isEmpty || (p.title+" "+p.exercise.prompt).localizedCaseInsensitiveContains(query))}}
+    /// Moves on without answering: nothing is recorded, so the puzzle stays not tried and is not marked for review.
+    public func skip(){guard activePuzzle != nil,!passed else{return};next()}
+    /// After a set's summary: the puzzles to review, from the first.
+    public func reviewMistakes(){filter="To review";setSummary=nil;if let first=filteredPuzzles.first{openPuzzle(id:first.id)}}
+    /// The lesson's own puzzles (linked by its id), for its Check Yourself button; nil when it has none.
+    public func checkYourselfTitle(index:Int)->String? {guard library.lessons.indices.contains(index) else{return nil};let count=library.puzzles(for:library.lessons[index].id).count;return count==0 ? nil:"Check Yourself: \(count) \(count==1 ? "Puzzle":"Puzzles")"}
+    /// Opens the lesson's first puzzle, with the library showing just that lesson's puzzles.
+    public func checkYourself(index:Int){guard library.lessons.indices.contains(index),let first=library.puzzles(for:library.lessons[index].id).first else{return};topic=first.topic;level="All levels";filter="All";query="";openPuzzle(id:first.id)}
     public func complete(continuePlayback:Bool=false){
         // Narration ending over the exercise stops only the narration: a reply the computer is choosing still comes.
         if attemptStep{pauseNarration()}else{pause()}
@@ -183,7 +208,12 @@ import Combine
             play()
         }
     }
-    public func openPuzzle(id:String) {guard let puzzle=library.puzzles.first(where:{$0.id==id}) else{return};pause();go(.puzzle(id:puzzle.id));picked=[];feedback="";passed=false;mistake=false;frame=CourseFrame(board:puzzle.board,hl:puzzle.highlights);publish()}
+    public func openPuzzle(id:String) {guard let puzzle=library.puzzles.first(where:{$0.id==id}) else{return};pause();go(.puzzle(id:puzzle.id));picked=[];feedback="";passed=false;mistake=false;puzzleHints=0;hintTexts=[];setSummary=nil;frame=CourseFrame(board:puzzle.board,hl:puzzle.highlights);publish()}
+    /// Whether the puzzle shown has another rung on its hint ladder; after the last one only Reveal is left.
+    public var canHint:Bool {activePuzzle.map{!passed && puzzleHints<$0.hints.count} ?? false}
+    /// The next rung: its words, and a hint highlight on the piece it points at (a path puzzle's king where it stands now).
+    public func hint(){guard canHint,let p=activePuzzle else{return};let rung=p.hints[puzzleHints];puzzleHints+=1;hintTexts.append(rung.text)
+        let square=p.exercise.kind=="path" ? frame.board?.first(where:{$0.value=="wk"})?.key ?? rung.square:rung.square;if let square{frame.hl.append(Highlight(sq:square,kind:"hint"))};publish()}
     public func showPuzzleLibrary(){pause();go(.puzzleLibrary);picked=[];feedback="";frame=CourseFrame();publish()}
     public func checkAnswer(){guard let e=exercise else{return};answer(e.matches(picked))}
     public func choose(_ choice:String){guard activePuzzle != nil,!passed else{return};pause();answer(exercise?.matches([choice])==true)}
@@ -204,8 +234,8 @@ import Combine
     }
     /// A correct answer after a mistake in this visit is a later solve: it says so, and the puzzle is not marked solved.
     private func answer(_ correct:Bool,revealed:Bool=false,hint:String?=nil){guard let p=activePuzzle,!passed else{return};pause()
-        let later=correct && !revealed && mistake
-        var record=session.state.puzzles[p.id] ?? PuzzleProgress();record.record(correct:correct,revealed:revealed,afterMistake:mistake);session.state.puzzles[p.id]=record;if !correct{mistake=true};passed=correct || revealed;feedback=passed ? (revealed ? solution(p.exercise)+" ":later ? "Correct, on a later try. Solve it first time to mark it solved. ":"Correct. ")+p.explanation:hint ?? "Not quite. Look again and try another answer.";session.emit(semantic:false,save:true);publish()
+        let later=correct && !revealed && mistake,helped=correct && !revealed && puzzleHints>0
+        var record=session.state.puzzles[p.id] ?? PuzzleProgress();record.record(correct:correct,revealed:revealed,afterMistake:mistake,hints:puzzleHints);session.state.puzzles[p.id]=record;if !correct{mistake=true};passed=correct || revealed;feedback=passed ? (revealed ? solution(p.exercise)+" ":helped ? "Correct, with help from a hint. Solve it without one to mark it solved. ":later ? "Correct, on a later try. Solve it first time to mark it solved. ":"Correct. ")+p.explanation:hint ?? "Not quite. Look again and try another answer.";session.emit(semantic:false,save:true);publish()
     }
     public func reveal(){guard activePuzzle != nil else{return};answer(false,revealed:true)}
     private func solution(_ e:Exercise)->String {switch e.kind {case "choice":return e.answer ?? "";case "squares":return (e.answers ?? []).isEmpty ? "No squares":(e.answers ?? []).joined(separator:", ");case "move":return "\(e.from ?? "") → \(e.to ?? "")";default:return "Walk safely from \(e.from ?? "") to \(e.to ?? "")."}}

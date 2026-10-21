@@ -16,7 +16,7 @@ struct LessonAttemptPanel:View {
         switch phase {
         case .yourTurn:return "Your turn. Move a White piece on the board."
         case .computerTurn:return "The computer is about to move."
-        case .offTrack:return "Not quite. Undo your move and try again."
+        case .offTrack:return "Not quite. Take back your move and try again."
         case .failed:return "This attempt cannot reach the goal any more."
         case .achieved:return "Well done!"
         case .playingOn:return attempt.rules.turn=="w" ? "Play on: your move.":"Play on: the computer is about to move."
@@ -41,9 +41,13 @@ struct LessonAttemptPanel:View {
                 if attempt.phase == .achieved,attempt.judgement?.ending==nil {Button("Play on"){attempt.playOn()}.accessibilityIdentifier("lesson-attempt-play-on")}
                 if attempt.thinking {ProgressView().controlSize(.small).help("The computer is thinking")}
             }
+            // Off track the refutation stays on the board until the learner takes the move back: one prominent way back.
             HStack {
-                Button(hintLabel){attempt.hint()}.disabled(!(attempt.learnerToMove || attempt.phase == .offTrack)).accessibilityIdentifier("lesson-attempt-hint")
-                Button("Undo turn"){attempt.undo()}.disabled(!attempt.hasMoves).accessibilityIdentifier("lesson-attempt-undo")
+                if attempt.phase == .offTrack {Button("Take Back"){attempt.undo()}.buttonStyle(.borderedProminent).accessibilityIdentifier("lesson-attempt-undo")}
+                else {
+                    Button(hintLabel){attempt.hint()}.disabled(!attempt.learnerToMove).accessibilityIdentifier("lesson-attempt-hint")
+                    Button("Undo turn"){attempt.undo()}.disabled(!attempt.hasMoves).accessibilityIdentifier("lesson-attempt-undo")
+                }
                 Button("Restart"){restart()}.disabled(!attempt.hasMoves).accessibilityIdentifier("lesson-attempt-restart")
             }
             if let next=learning.library.nextMainLesson(after:learning.lessonIndex) {

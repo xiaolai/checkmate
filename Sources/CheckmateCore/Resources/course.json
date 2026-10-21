@@ -4,6 +4,7 @@
     {
       "id": "intro",
       "title": "Introduction",
+      "section": "Getting Started",
       "mascot": "wk",
       "teaches": [
         "Two players face each other across the board: White has the light pieces and Black the dark ones.",
@@ -820,6 +821,7 @@
     {
       "id": "board",
       "title": "The Chessboard",
+      "section": "Getting Started",
       "teaches": [
         "The board has sixty-four squares, alternating light and dark.",
         "Each player has a light square in the right-hand corner nearest to them.",
@@ -1286,6 +1288,7 @@
     {
       "id": "pawn",
       "title": "The Pawn",
+      "section": "The Pieces",
       "mascot": "wp",
       "teaches": [
         "Each player starts with eight pawns, on the second rank for White and the seventh rank for Black.",
@@ -1930,6 +1933,7 @@
     {
       "id": "pawn-duel",
       "title": "Pawn Duel",
+      "section": "The Pieces",
       "mascot": "bp",
       "practiceFor": "pawn",
       "teaches": [
@@ -2368,6 +2372,7 @@
     {
       "id": "rook",
       "title": "The Rook",
+      "section": "The Pieces",
       "mascot": "wr",
       "teaches": [
         "The rook moves in straight lines, along ranks and files, never diagonally.",
@@ -2823,6 +2828,7 @@
     {
       "id": "rook-practice",
       "title": "Rook Practice",
+      "section": "The Pieces",
       "mascot": "wr",
       "practiceFor": "rook",
       "teaches": [
@@ -3307,6 +3313,7 @@
     {
       "id": "bishop",
       "title": "The Bishop",
+      "section": "The Pieces",
       "mascot": "wb",
       "teaches": [
         "The bishop moves along diagonals, any distance, while the path is clear.",
@@ -3773,6 +3780,7 @@
     {
       "id": "bishop-practice",
       "title": "Bishop Practice",
+      "section": "The Pieces",
       "mascot": "wb",
       "practiceFor": "bishop",
       "teaches": [
@@ -4335,6 +4343,7 @@
     {
       "id": "queen",
       "title": "The Queen",
+      "section": "The Pieces",
       "mascot": "wq",
       "teaches": [
         "The queen combines the rook's straight lines with the bishop's diagonals, sliding any distance along a clear path.",
@@ -4922,6 +4931,7 @@
     {
       "id": "queen-practice",
       "title": "Queen Practice",
+      "section": "The Pieces",
       "mascot": "bq",
       "teaches": [
         "In Queen Against Pawns, eight white pawns face one black queen, and White moves first.",
@@ -5347,6 +5357,7 @@
     {
       "id": "knight",
       "title": "The Knight",
+      "section": "The Pieces",
       "mascot": "wn",
       "teaches": [
         "A knight jumps in an L: two squares along a rank or file, then one square sideways.",
@@ -6003,6 +6014,7 @@
     {
       "id": "knight-practice",
       "title": "Knight Practice",
+      "section": "The Pieces",
       "mascot": "wn",
       "teaches": [
         "In Knight Capture only the knights move; every other piece is a target that stays still.",
@@ -6652,6 +6664,7 @@
     {
       "id": "king",
       "title": "The King",
+      "section": "The Pieces",
       "mascot": "wk",
       "teaches": [
         "The king moves one square at a time, in any direction.",
@@ -7160,6 +7173,7 @@
     {
       "id": "safe-squares",
       "title": "Safe Squares",
+      "section": "The Rules",
       "mascot": "wk",
       "teaches": [
         "A square is attacked when an enemy piece could reach it by its normal movement.",
@@ -7885,6 +7899,7 @@
     {
       "id": "check-and-checkmate",
       "title": "Check and Checkmate",
+      "section": "The Rules",
       "mascot": "wk",
       "teaches": [
         "Check means the king is attacked, and it must be answered on the very next move.",
@@ -8458,6 +8473,7 @@
     {
       "id": "setting-up",
       "title": "Setting Up the Board",
+      "section": "The Rules",
       "mascot": "wq",
       "teaches": [
         "Turn the board so the right-hand corner square nearest each player is light.",
@@ -9302,6 +9318,7 @@
     {
       "id": "castling",
       "title": "Castling",
+      "section": "The Rules",
       "mascot": "wk",
       "teaches": [
         "In castling the king slides two squares towards a rook, which then hops over and lands on the king's far side.",
@@ -9854,6 +9871,7 @@
     {
       "id": "castling-rules",
       "title": "Castling Rules",
+      "section": "The Rules",
       "mascot": "wr",
       "teaches": [
         "Nothing may stand between the king and the rook you castle with.",
@@ -10404,6 +10422,7 @@
     {
       "id": "promotion-en-passant",
       "title": "Promotion and En Passant",
+      "section": "The Rules",
       "mascot": "wq",
       "teaches": [
         "A pawn that reaches the far rank is promoted at once to a queen, rook, bishop or knight of its own colour.",
@@ -10964,6 +10983,7 @@
     {
       "id": "draws",
       "title": "Draws",
+      "section": "The Rules",
       "mascot": "wk",
       "teaches": [
         "A draw means neither player wins; each usually scores half a point.",
@@ -11456,6 +11476,7 @@
     {
       "id": "piece-values",
       "title": "Piece Values",
+      "section": "The Rules",
       "mascot": "wq",
       "teaches": [
         "A pawn is worth 1 point, a knight 3, a bishop 3, a rook 5 and a queen 9.",
@@ -11905,6 +11926,7 @@
     {
       "id": "counting-material",
       "title": "Counting Material",
+      "section": "The Rules",
       "mascot": "wp",
       "teaches": [
         "To count material, add up the points of each side's pieces, leaving out the kings.",
@@ -12448,6 +12470,7 @@
     {
       "id": "notation",
       "title": "Chess Notation",
+      "section": "The Rules",
       "mascot": "wn",
       "teaches": [
         "Moves are written with square names: the file letter, then the rank number.",
@@ -13403,6 +13426,7 @@
     {
       "id": "etiquette",
       "title": "Good Manners at the Board",
+      "section": "The Rules",
       "mascot": "wn",
       "teaches": [
         "Greet your opponent before the game and shake hands after it.",
@@ -14026,6 +14050,7 @@
     {
       "id": "tournaments",
       "title": "Playing in a Tournament",
+      "section": "The Rules",
       "mascot": "wk",
       "teaches": [
         "A tournament is played in rounds, and the pairings say whom you play and with which colour.",
@@ -14454,6 +14479,7 @@
     {
       "id": "rules-review",
       "title": "Rules Review",
+      "section": "The Rules",
       "mascot": "wr",
       "teaches": [
         "Each piece has its own way of moving; in ordinary moves, only the knight jumps over pieces.",
@@ -14948,6 +14974,7 @@
     {
       "id": "opening",
       "title": "Opening Principles",
+      "section": "Openings and Tactics",
       "mascot": "wn",
       "teaches": [
         "The opening is the first part of the game, when both sides get their pieces ready.",
@@ -16276,6 +16303,7 @@
     {
       "id": "scholars-mate",
       "title": "Scholar's Mate",
+      "section": "Openings and Tactics",
       "mascot": "wq",
       "teaches": [
         "Scholar's Mate is an early attack by a queen and a bishop on f7 (or on f2 against White).",
@@ -17597,6 +17625,7 @@
     {
       "id": "fork",
       "title": "The Fork",
+      "section": "Openings and Tactics",
       "mascot": "wn",
       "teaches": [
         "A fork is one piece attacking two enemy pieces at the same time.",
@@ -18108,6 +18137,7 @@
     {
       "id": "pin",
       "title": "The Pin",
+      "section": "Openings and Tactics",
       "mascot": "wb",
       "teaches": [
         "A pin is an attack on a piece that cannot or should not move off its line, because a more valuable piece stands behind it.",
@@ -18658,6 +18688,7 @@
     {
       "id": "skewer",
       "title": "The Skewer",
+      "section": "Openings and Tactics",
       "mascot": "wr",
       "teaches": [
         "A skewer attacks a valuable piece that must move away, uncovering a piece behind it.",
@@ -19137,6 +19168,7 @@
     {
       "id": "discovered-attack",
       "title": "Discovered Attacks",
+      "section": "Openings and Tactics",
       "mascot": "wb",
       "teaches": [
         "Moving one piece can unveil an attack by another piece standing behind it: a discovered attack.",
@@ -19821,6 +19853,7 @@
     {
       "id": "removing-the-defender",
       "title": "Removing the Defender",
+      "section": "Openings and Tactics",
       "mascot": "wr",
       "teaches": [
         "A guarded piece is hard to win, but it becomes easy once its guard is gone.",
@@ -20339,6 +20372,7 @@
     {
       "id": "two-rook-mate",
       "title": "Two-Rook Checkmate",
+      "section": "Checkmates",
       "mascot": "wr",
       "teaches": [
         "Two rooks can checkmate a lone king without help from their own king.",
@@ -20819,6 +20853,7 @@
     {
       "id": "queen-mate",
       "title": "Queen Checkmate",
+      "section": "Checkmates",
       "mascot": "wq",
       "teaches": [
         "A queen and king can always force checkmate against a lone king, as long as you avoid stalemate.",
@@ -21306,6 +21341,7 @@
     {
       "id": "rook-mate",
       "title": "Rook Checkmate",
+      "section": "Checkmates",
       "mascot": "wr",
       "teaches": [
         "With its own king helping, a single rook is enough to force mate against a bare king.",
@@ -21723,6 +21759,7 @@
     {
       "id": "puzzles-material",
       "title": "Winning Material Puzzles",
+      "section": "Putting It Together",
       "teaches": [
         "Winning material means capturing more points than you give back.",
         "Before capturing, count who attacks and who defends the target.",
@@ -22427,6 +22464,7 @@
     {
       "id": "puzzles-mate",
       "title": "Mate in One Puzzles",
+      "section": "Putting It Together",
       "teaches": [
         "A mate in one is a single move that checkmates.",
         "For each check, ask: can the king move, can the check be blocked, can the checker be captured?",
@@ -22933,6 +22971,7 @@
     {
       "id": "famous-game",
       "title": "A Famous Short Game",
+      "section": "Putting It Together",
       "teaches": [
         "Bring out your knights and bishops before going after material.",
         "A king left in the centre can be attacked along open files.",
@@ -27710,6 +27749,7 @@
       "id": "course:intro:1",
       "title": "Introduction · 1",
       "topic": "Introduction",
+      "lesson": "intro",
       "level": "Foundation",
       "exercise": {
         "kind": "choice",
@@ -27730,6 +27770,7 @@
       "id": "course:intro:2",
       "title": "Introduction · 2",
       "topic": "Introduction",
+      "lesson": "intro",
       "level": "Foundation",
       "exercise": {
         "kind": "squares",
@@ -27759,6 +27800,7 @@
       "id": "course:board:1",
       "title": "The Chessboard · 1",
       "topic": "The Chessboard",
+      "lesson": "board",
       "level": "Foundation",
       "exercise": {
         "kind": "squares",
@@ -27785,6 +27827,7 @@
       "id": "course:board:2",
       "title": "The Chessboard · 2",
       "topic": "The Chessboard",
+      "lesson": "board",
       "level": "Foundation",
       "exercise": {
         "kind": "choice",
@@ -27806,6 +27849,7 @@
       "id": "course:pawn:1",
       "title": "The Pawn · 1",
       "topic": "The Pawn",
+      "lesson": "pawn",
       "level": "Foundation",
       "exercise": {
         "kind": "squares",
@@ -27840,6 +27884,7 @@
       "id": "course:pawn:2",
       "title": "The Pawn · 2",
       "topic": "The Pawn",
+      "lesson": "pawn",
       "level": "Foundation",
       "exercise": {
         "kind": "squares",
@@ -27872,6 +27917,7 @@
       "id": "course:pawn-duel:1",
       "title": "Pawn Duel · 1",
       "topic": "Pawn Duel",
+      "lesson": "pawn-duel",
       "level": "Foundation",
       "exercise": {
         "kind": "choice",
@@ -27893,6 +27939,7 @@
       "id": "course:pawn-duel:2",
       "title": "Pawn Duel · 2",
       "topic": "Pawn Duel",
+      "lesson": "pawn-duel",
       "level": "Developing",
       "exercise": {
         "kind": "squares",
@@ -27925,6 +27972,7 @@
       "id": "course:rook:1",
       "title": "The Rook · 1",
       "topic": "The Rook",
+      "lesson": "rook",
       "level": "Foundation",
       "exercise": {
         "kind": "squares",
@@ -27965,6 +28013,7 @@
       "id": "course:rook:2",
       "title": "The Rook · 2",
       "topic": "The Rook",
+      "lesson": "rook",
       "level": "Foundation",
       "exercise": {
         "kind": "move",
@@ -27998,6 +28047,7 @@
       "id": "course:rook-practice:1",
       "title": "Rook Practice · 1",
       "topic": "Rook Practice",
+      "lesson": "rook-practice",
       "level": "Foundation",
       "exercise": {
         "kind": "squares",
@@ -28034,6 +28084,7 @@
       "id": "course:rook-practice:2",
       "title": "Rook Practice · 2",
       "topic": "Rook Practice",
+      "lesson": "rook-practice",
       "level": "Foundation",
       "exercise": {
         "kind": "choice",
@@ -28054,6 +28105,7 @@
       "id": "course:bishop:1",
       "title": "The Bishop · 1",
       "topic": "The Bishop",
+      "lesson": "bishop",
       "level": "Foundation",
       "exercise": {
         "kind": "squares",
@@ -28092,6 +28144,7 @@
       "id": "course:bishop:2",
       "title": "The Bishop · 2",
       "topic": "The Bishop",
+      "lesson": "bishop",
       "level": "Developing",
       "exercise": {
         "kind": "move",
@@ -28120,6 +28173,7 @@
       "id": "course:bishop-practice:1",
       "title": "Bishop Practice · 1",
       "topic": "Bishop Practice",
+      "lesson": "bishop-practice",
       "level": "Foundation",
       "exercise": {
         "kind": "squares",
@@ -28163,6 +28217,7 @@
       "id": "course:bishop-practice:2",
       "title": "Bishop Practice · 2",
       "topic": "Bishop Practice",
+      "lesson": "bishop-practice",
       "level": "Foundation",
       "exercise": {
         "kind": "choice",
@@ -28198,6 +28253,7 @@
       "id": "course:queen:1",
       "title": "The Queen · 1",
       "topic": "The Queen",
+      "lesson": "queen",
       "level": "Foundation",
       "exercise": {
         "kind": "squares",
@@ -28249,6 +28305,7 @@
       "id": "course:queen:2",
       "title": "The Queen · 2",
       "topic": "The Queen",
+      "lesson": "queen",
       "level": "Developing",
       "exercise": {
         "kind": "move",
@@ -28287,6 +28344,7 @@
       "id": "course:queen-practice:1",
       "title": "Queen Practice · 1",
       "topic": "Queen Practice",
+      "lesson": "queen-practice",
       "level": "Foundation",
       "exercise": {
         "kind": "squares",
@@ -28320,6 +28378,7 @@
       "id": "course:queen-practice:2",
       "title": "Queen Practice · 2",
       "topic": "Queen Practice",
+      "lesson": "queen-practice",
       "level": "Foundation",
       "exercise": {
         "kind": "squares",
@@ -28357,6 +28416,7 @@
       "id": "course:knight:1",
       "title": "The Knight · 1",
       "topic": "The Knight",
+      "lesson": "knight",
       "level": "Foundation",
       "exercise": {
         "kind": "squares",
@@ -28395,6 +28455,7 @@
       "id": "course:knight:2",
       "title": "The Knight · 2",
       "topic": "The Knight",
+      "lesson": "knight",
       "level": "Developing",
       "exercise": {
         "kind": "move",
@@ -28433,6 +28494,7 @@
       "id": "course:knight-practice:1",
       "title": "Knight Practice · 1",
       "topic": "Knight Practice",
+      "lesson": "knight-practice",
       "level": "Foundation",
       "exercise": {
         "kind": "squares",
@@ -28470,6 +28532,7 @@
       "id": "course:knight-practice:2",
       "title": "Knight Practice · 2",
       "topic": "Knight Practice",
+      "lesson": "knight-practice",
       "level": "Foundation",
       "exercise": {
         "kind": "squares",
@@ -28505,6 +28568,7 @@
       "id": "course:king:1",
       "title": "The King · 1",
       "topic": "The King",
+      "lesson": "king",
       "level": "Foundation",
       "exercise": {
         "kind": "squares",
@@ -28531,6 +28595,7 @@
       "id": "course:king:2",
       "title": "The King · 2",
       "topic": "The King",
+      "lesson": "king",
       "level": "Foundation",
       "exercise": {
         "kind": "choice",
@@ -28551,6 +28616,7 @@
       "id": "course:safe-squares:1",
       "title": "Safe Squares · 1",
       "topic": "Safe Squares",
+      "lesson": "safe-squares",
       "level": "Foundation",
       "exercise": {
         "kind": "path",
@@ -28581,6 +28647,7 @@
       "id": "course:safe-squares:2",
       "title": "Safe Squares · 2",
       "topic": "Safe Squares",
+      "lesson": "safe-squares",
       "level": "Foundation",
       "exercise": {
         "kind": "squares",
@@ -28610,6 +28677,7 @@
       "id": "course:check-and-checkmate:1",
       "title": "Check and Checkmate · 1",
       "topic": "Check and Checkmate",
+      "lesson": "check-and-checkmate",
       "level": "Foundation",
       "exercise": {
         "kind": "move",
@@ -28636,6 +28704,7 @@
       "id": "course:check-and-checkmate:2",
       "title": "Check and Checkmate · 2",
       "topic": "Check and Checkmate",
+      "lesson": "check-and-checkmate",
       "level": "Foundation",
       "exercise": {
         "kind": "move",
@@ -28669,6 +28738,7 @@
       "id": "course:setting-up:1",
       "title": "Setting Up the Board · 1",
       "topic": "Setting Up the Board",
+      "lesson": "setting-up",
       "level": "Foundation",
       "exercise": {
         "kind": "choice",
@@ -28690,6 +28760,7 @@
       "id": "course:setting-up:2",
       "title": "Setting Up the Board · 2",
       "topic": "Setting Up the Board",
+      "lesson": "setting-up",
       "level": "Foundation",
       "exercise": {
         "kind": "squares",
@@ -28745,6 +28816,7 @@
       "id": "course:castling:1",
       "title": "Castling · 1",
       "topic": "Castling",
+      "lesson": "castling",
       "level": "Foundation",
       "exercise": {
         "kind": "move",
@@ -28779,6 +28851,7 @@
       "id": "course:castling:2",
       "title": "Castling · 2",
       "topic": "Castling",
+      "lesson": "castling",
       "level": "Foundation",
       "exercise": {
         "kind": "choice",
@@ -28800,6 +28873,7 @@
       "id": "course:castling-rules:1",
       "title": "Castling Rules · 1",
       "topic": "Castling Rules",
+      "lesson": "castling-rules",
       "level": "Developing",
       "exercise": {
         "kind": "move",
@@ -28836,6 +28910,7 @@
       "id": "course:castling-rules:2",
       "title": "Castling Rules · 2",
       "topic": "Castling Rules",
+      "lesson": "castling-rules",
       "level": "Developing",
       "exercise": {
         "kind": "choice",
@@ -28856,6 +28931,7 @@
       "id": "course:promotion-en-passant:1",
       "title": "Promotion and En Passant · 1",
       "topic": "Promotion and En Passant",
+      "lesson": "promotion-en-passant",
       "level": "Foundation",
       "exercise": {
         "kind": "move",
@@ -28882,6 +28958,7 @@
       "id": "course:promotion-en-passant:2",
       "title": "Promotion and En Passant · 2",
       "topic": "Promotion and En Passant",
+      "lesson": "promotion-en-passant",
       "level": "Developing",
       "exercise": {
         "kind": "move",
@@ -28910,6 +28987,7 @@
       "id": "course:draws:1",
       "title": "Draws · 1",
       "topic": "Draws",
+      "lesson": "draws",
       "level": "Foundation",
       "exercise": {
         "kind": "move",
@@ -28944,6 +29022,7 @@
       "id": "course:draws:2",
       "title": "Draws · 2",
       "topic": "Draws",
+      "lesson": "draws",
       "level": "Foundation",
       "exercise": {
         "kind": "choice",
@@ -28973,6 +29052,7 @@
       "id": "course:piece-values:1",
       "title": "Piece Values · 1",
       "topic": "Piece Values",
+      "lesson": "piece-values",
       "level": "Foundation",
       "exercise": {
         "kind": "choice",
@@ -28993,6 +29073,7 @@
       "id": "course:piece-values:2",
       "title": "Piece Values · 2",
       "topic": "Piece Values",
+      "lesson": "piece-values",
       "level": "Foundation",
       "exercise": {
         "kind": "move",
@@ -29026,6 +29107,7 @@
       "id": "course:counting-material:1",
       "title": "Counting Material · 1",
       "topic": "Counting Material",
+      "lesson": "counting-material",
       "level": "Foundation",
       "exercise": {
         "kind": "squares",
@@ -29066,6 +29148,7 @@
       "id": "course:counting-material:2",
       "title": "Counting Material · 2",
       "topic": "Counting Material",
+      "lesson": "counting-material",
       "level": "Developing",
       "exercise": {
         "kind": "squares",
@@ -29107,6 +29190,7 @@
       "id": "course:notation:1",
       "title": "Chess Notation · 1",
       "topic": "Chess Notation",
+      "lesson": "notation",
       "level": "Foundation",
       "exercise": {
         "kind": "choice",
@@ -29128,6 +29212,7 @@
       "id": "course:notation:2",
       "title": "Chess Notation · 2",
       "topic": "Chess Notation",
+      "lesson": "notation",
       "level": "Foundation",
       "exercise": {
         "kind": "move",
@@ -29158,6 +29243,7 @@
       "id": "course:etiquette:1",
       "title": "Good Manners at the Board · 1",
       "topic": "Good Manners at the Board",
+      "lesson": "etiquette",
       "level": "Foundation",
       "exercise": {
         "kind": "choice",
@@ -29178,6 +29264,7 @@
       "id": "course:etiquette:2",
       "title": "Good Manners at the Board · 2",
       "topic": "Good Manners at the Board",
+      "lesson": "etiquette",
       "level": "Foundation",
       "exercise": {
         "kind": "choice",
@@ -29198,6 +29285,7 @@
       "id": "course:tournaments:1",
       "title": "Playing in a Tournament · 1",
       "topic": "Playing in a Tournament",
+      "lesson": "tournaments",
       "level": "Foundation",
       "exercise": {
         "kind": "choice",
@@ -29218,6 +29306,7 @@
       "id": "course:tournaments:2",
       "title": "Playing in a Tournament · 2",
       "topic": "Playing in a Tournament",
+      "lesson": "tournaments",
       "level": "Foundation",
       "exercise": {
         "kind": "choice",
@@ -29239,6 +29328,7 @@
       "id": "course:rules-review:1",
       "title": "Rules Review · 1",
       "topic": "Rules Review",
+      "lesson": "rules-review",
       "level": "Developing",
       "exercise": {
         "kind": "move",
@@ -29273,6 +29363,7 @@
       "id": "course:rules-review:2",
       "title": "Rules Review · 2",
       "topic": "Rules Review",
+      "lesson": "rules-review",
       "level": "Developing",
       "exercise": {
         "kind": "move",
@@ -29301,6 +29392,7 @@
       "id": "course:opening:1",
       "title": "Opening Principles · 1",
       "topic": "Opening Principles",
+      "lesson": "opening",
       "level": "Foundation",
       "exercise": {
         "kind": "move",
@@ -29355,6 +29447,7 @@
       "id": "course:opening:2",
       "title": "Opening Principles · 2",
       "topic": "Opening Principles",
+      "lesson": "opening",
       "level": "Foundation",
       "exercise": {
         "kind": "choice",
@@ -29376,6 +29469,7 @@
       "id": "course:scholars-mate:1",
       "title": "Scholar's Mate · 1",
       "topic": "Scholar's Mate",
+      "lesson": "scholars-mate",
       "level": "Foundation",
       "exercise": {
         "kind": "move",
@@ -29429,6 +29523,7 @@
       "id": "course:scholars-mate:2",
       "title": "Scholar's Mate · 2",
       "topic": "Scholar's Mate",
+      "lesson": "scholars-mate",
       "level": "Foundation",
       "exercise": {
         "kind": "move",
@@ -29492,6 +29587,7 @@
       "id": "course:fork:1",
       "title": "The Fork · 1",
       "topic": "The Fork",
+      "lesson": "fork",
       "level": "Foundation",
       "exercise": {
         "kind": "move",
@@ -29526,6 +29622,7 @@
       "id": "course:fork:2",
       "title": "The Fork · 2",
       "topic": "The Fork",
+      "lesson": "fork",
       "level": "Foundation",
       "exercise": {
         "kind": "move",
@@ -29559,6 +29656,7 @@
       "id": "course:pin:1",
       "title": "The Pin · 1",
       "topic": "The Pin",
+      "lesson": "pin",
       "level": "Foundation",
       "exercise": {
         "kind": "squares",
@@ -29600,6 +29698,7 @@
       "id": "course:pin:2",
       "title": "The Pin · 2",
       "topic": "The Pin",
+      "lesson": "pin",
       "level": "Developing",
       "exercise": {
         "kind": "squares",
@@ -29646,6 +29745,7 @@
       "id": "course:skewer:1",
       "title": "The Skewer · 1",
       "topic": "The Skewer",
+      "lesson": "skewer",
       "level": "Developing",
       "exercise": {
         "kind": "move",
@@ -29675,6 +29775,7 @@
       "id": "course:skewer:2",
       "title": "The Skewer · 2",
       "topic": "The Skewer",
+      "lesson": "skewer",
       "level": "Developing",
       "exercise": {
         "kind": "move",
@@ -29704,6 +29805,7 @@
       "id": "course:discovered-attack:1",
       "title": "Discovered Attacks · 1",
       "topic": "Discovered Attacks",
+      "lesson": "discovered-attack",
       "level": "Developing",
       "exercise": {
         "kind": "move",
@@ -29738,6 +29840,7 @@
       "id": "course:discovered-attack:2",
       "title": "Discovered Attacks · 2",
       "topic": "Discovered Attacks",
+      "lesson": "discovered-attack",
       "level": "Developing",
       "exercise": {
         "kind": "move",
@@ -29770,6 +29873,7 @@
       "id": "course:removing-the-defender:1",
       "title": "Removing the Defender · 1",
       "topic": "Removing the Defender",
+      "lesson": "removing-the-defender",
       "level": "Foundation",
       "exercise": {
         "kind": "squares",
@@ -29806,6 +29910,7 @@
       "id": "course:removing-the-defender:2",
       "title": "Removing the Defender · 2",
       "topic": "Removing the Defender",
+      "lesson": "removing-the-defender",
       "level": "Developing",
       "exercise": {
         "kind": "move",
@@ -29840,6 +29945,7 @@
       "id": "course:two-rook-mate:1",
       "title": "Two-Rook Checkmate · 1",
       "topic": "Two-Rook Checkmate",
+      "lesson": "two-rook-mate",
       "level": "Foundation",
       "exercise": {
         "kind": "move",
@@ -29865,6 +29971,7 @@
       "id": "course:two-rook-mate:2",
       "title": "Two-Rook Checkmate · 2",
       "topic": "Two-Rook Checkmate",
+      "lesson": "two-rook-mate",
       "level": "Developing",
       "exercise": {
         "kind": "move",
@@ -29890,6 +29997,7 @@
       "id": "course:queen-mate:1",
       "title": "Queen Checkmate · 1",
       "topic": "Queen Checkmate",
+      "lesson": "queen-mate",
       "level": "Foundation",
       "exercise": {
         "kind": "squares",
@@ -29917,6 +30025,7 @@
       "id": "course:queen-mate:2",
       "title": "Queen Checkmate · 2",
       "topic": "Queen Checkmate",
+      "lesson": "queen-mate",
       "level": "Developing",
       "exercise": {
         "kind": "move",
@@ -29951,6 +30060,7 @@
       "id": "course:rook-mate:1",
       "title": "Rook Checkmate · 1",
       "topic": "Rook Checkmate",
+      "lesson": "rook-mate",
       "level": "Foundation",
       "exercise": {
         "kind": "move",
@@ -29975,6 +30085,7 @@
       "id": "course:rook-mate:2",
       "title": "Rook Checkmate · 2",
       "topic": "Rook Checkmate",
+      "lesson": "rook-mate",
       "level": "Developing",
       "exercise": {
         "kind": "move",
@@ -29999,6 +30110,7 @@
       "id": "course:puzzles-material:1",
       "title": "Winning Material Puzzles · 1",
       "topic": "Winning Material Puzzles",
+      "lesson": "puzzles-material",
       "level": "Developing",
       "exercise": {
         "kind": "move",
@@ -30040,6 +30152,7 @@
       "id": "course:puzzles-material:2",
       "title": "Winning Material Puzzles · 2",
       "topic": "Winning Material Puzzles",
+      "lesson": "puzzles-material",
       "level": "Developing",
       "exercise": {
         "kind": "move",
@@ -30087,6 +30200,7 @@
       "id": "course:puzzles-mate:1",
       "title": "Mate in One Puzzles · 1",
       "topic": "Mate in One Puzzles",
+      "lesson": "puzzles-mate",
       "level": "Foundation",
       "exercise": {
         "kind": "move",
@@ -30123,6 +30237,7 @@
       "id": "course:puzzles-mate:2",
       "title": "Mate in One Puzzles · 2",
       "topic": "Mate in One Puzzles",
+      "lesson": "puzzles-mate",
       "level": "Foundation",
       "exercise": {
         "kind": "move",
@@ -30150,6 +30265,7 @@
       "id": "course:famous-game:1",
       "title": "A Famous Short Game · 1",
       "topic": "A Famous Short Game",
+      "lesson": "famous-game",
       "level": "Developing",
       "exercise": {
         "kind": "move",
@@ -30205,6 +30321,7 @@
       "id": "course:famous-game:2",
       "title": "A Famous Short Game · 2",
       "topic": "A Famous Short Game",
+      "lesson": "famous-game",
       "level": "Developing",
       "exercise": {
         "kind": "move",
@@ -30256,7 +30373,8 @@
     {
       "id": "extra-1",
       "title": "Safe captures",
-      "topic": "Safe captures",
+      "topic": "Winning Material Puzzles",
+      "lesson": "puzzles-material",
       "level": "Developing",
       "exercise": {
         "kind": "move",
@@ -30294,7 +30412,8 @@
     {
       "id": "extra-2",
       "title": "Forks",
-      "topic": "Forks",
+      "topic": "The Fork",
+      "lesson": "fork",
       "level": "Developing",
       "exercise": {
         "kind": "move",
@@ -30328,7 +30447,8 @@
     {
       "id": "extra-3",
       "title": "Mate in one",
-      "topic": "Mate in one",
+      "topic": "Mate in One Puzzles",
+      "lesson": "puzzles-mate",
       "level": "Developing",
       "exercise": {
         "kind": "move",
@@ -30361,7 +30481,8 @@
     {
       "id": "extra-4",
       "title": "Defended pieces",
-      "topic": "Defended pieces",
+      "topic": "Counting Material",
+      "lesson": "counting-material",
       "level": "Developing",
       "exercise": {
         "kind": "squares",

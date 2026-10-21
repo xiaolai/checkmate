@@ -33,15 +33,20 @@ public struct CourseBeat:Decodable {
 }
 /// `practiceFor` names the main lesson a practice activity belongs to. It groups the activity under that lesson and
 /// keeps it off the main path; its identity, narration and saved progress are those of any other lesson.
-public struct CourseLesson:Decodable {public let id:String,title:String,teaches:[String]?,mascot:String?,practiceFor:String?,practice:LessonPractice?,beats:[CourseBeat]
+/// `section` names the part of the course the lesson is in; a section's lessons are adjacent.
+public struct CourseLesson:Decodable {public let id:String,title:String,section:String,teaches:[String]?,mascot:String?,practiceFor:String?,practice:LessonPractice?,beats:[CourseBeat]
     public var isPractice:Bool {practiceFor != nil}
 }
+/// What an exercise's answer claims, as checked by the content tools; `type` names the idea ("fork", "mate", …).
+public struct ExerciseClaim:Codable,Equatable {public let type:String}
 public struct Exercise:Codable {
     public let kind:String,prompt:String,answers:[String]?,allowNone:Bool?,choices:[String]?,answer:String?,from:String?,to:String?,alternatives:[[String]]?
+    public let claim:ExerciseClaim?
     public var referenceAnswer:[String] {switch kind {case "choice":return answer.map{[$0]} ?? [];case "squares":return answers ?? [];case "move":return alternatives?.first ?? [from ?? "",to ?? ""];default:return []}}
     public func matches(_ value:[String])->Bool {switch kind {case "choice":return value.count==1 && value.first==answer;case "squares":return value.count==(answers ?? []).count && Set(value).count==value.count && Set(value)==Set(answers ?? []);case "move":return (alternatives ?? [[from ?? "",to ?? ""]]).contains(value);default:return false}}
 }
-public struct Puzzle:Codable {public let id:String,title:String,topic:String,level:String,exercise:Exercise,board:Position?,highlights:[Highlight],context:String,explanation:String}
+/// `lesson` is the stable id of the lesson the puzzle checks; `topic` is that lesson's title, as shown.
+public struct Puzzle:Codable {public let id:String,title:String,topic:String,lesson:String,level:String,exercise:Exercise,board:Position?,highlights:[Highlight],context:String,explanation:String}
 public struct Tone:Codable,Equatable {public let at:Double,duration:Double,from:Double,to:Double,gain:Double,wave:String;public init(at:Double,duration:Double,from:Double,to:Double,gain:Double,wave:String){self.at=at;self.duration=duration;self.from=from;self.to=to;self.gain=gain;self.wave=wave}}
 public struct CourseTiming:Codable,Equatable {
     public let frameRate:Double,movementStart:Double,movementInterval:Double,pieceDuration:Double,removalDelay:Double,minimumCountSpacing:Double,postNarrationGap:Double
@@ -67,6 +72,12 @@ public struct CourseLibrary:Decodable {
     public func nextMainLesson(after index:Int)->Int? {guard lessons.indices.contains(index) else{return nil};return lessons.indices.first{$0>index && !lessons[$0].isPractice}}
     /// Where the main path came from: the nearest main lesson before this one. For a practice activity that is its parent.
     public func previousMainLesson(before index:Int)->Int? {guard lessons.indices.contains(index) else{return nil};return lessons.indices.last{$0<index && !lessons[$0].isPractice}}
+    /// The course's sections in course order, each with its lessons' ids.
+    public var sections:[(title:String,lessons:[String])] {lessons.reduce(into:[]){sections,lesson in if sections.last?.title==lesson.section{sections[sections.count-1].lessons.append(lesson.id)}else{sections.append((lesson.section,[lesson.id]))}}}
+    /// The puzzle levels, in the order the course first uses them.
+    public var levels:[String] {puzzles.reduce(into:[]){levels,puzzle in if !levels.contains(puzzle.level){levels.append(puzzle.level)}}}
+    /// The puzzles that check a lesson, in course order.
+    public func puzzles(for lessonID:String)->[Puzzle] {puzzles.filter{$0.lesson==lessonID}}
     public func knownAnswerID(_ id:String)->Bool {exercises[id] != nil || retiredExerciseIDs?.contains(id)==true}
     /// Cue fractions are relative to narration duration, so longer translated clips never race at English speed.
     /// Explicit cues are measured against the bundled recording; recordings without them use paced illustration.

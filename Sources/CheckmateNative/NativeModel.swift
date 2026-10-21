@@ -296,6 +296,8 @@ import RealtimeConnection
     func practice(){navigate(.practice)}
     func lesson(_ index:Int){navigate(.lesson(index))}
     func puzzles(){navigate(.puzzles)}
+    /// A lesson's Check Yourself: its own puzzles, when the puzzles may be opened now.
+    func checkYourself(_ index:Int){if navigate(.puzzles){learning.checkYourself(index:index)}}
     func trainingLibrary(){navigate(.trainingLibrary)}
     func playOnNetwork(){navigate(.network)}
     /// A new exercise, the saved unfinished one, or an existing mini-game; a failure is shown and nothing changes.

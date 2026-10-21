@@ -49,7 +49,10 @@ struct SidebarContent:View {
         }
         // A practice activity sits indented under its lesson, off the main path but one click away. The icon is the
         // row's kind; how far the learner has taken it (explored, practised, mastered) is a trailing badge VoiceOver reads.
-        Section("Learn & explore") {ForEach(Array(learning.library.lessons.enumerated()),id:\.element.id){i,l in let status=learning.status(index:i);Label {Text(learning.localizedTitle(index:i))} icon:{Image(systemName:l.isPractice ? "gamecontroller":"book")}.badge(status.title.map{Text($0)}).accessibilityValue(status.title ?? "Not started").padding(.leading,l.isPractice ? Metrics.practiceIndent:0).accessibilityHint(participating ? FairnessPolicy.destinationUnavailable:practiceHint(l)).tag("lesson:\(i)").selectionDisabled(participating)}}
+        Section {
+            if let next=learning.continueIndex {Button{model.lesson(next)}label:{Label("Continue Learning",systemImage:"arrow.forward.circle")}.disabled(participating).help(participating ? FairnessPolicy.destinationUnavailable:"Open \(learning.localizedTitle(index:next))").accessibilityIdentifier("sidebar-continue-learning")}
+            ForEach(Array(learning.library.lessons.enumerated()),id:\.element.id){i,l in let status=learning.status(index:i),here=i==learning.continueIndex;Label {HStack(spacing:Metrics.smallGap){Text(learning.localizedTitle(index:i));if here{Image(systemName:"bookmark.fill").foregroundStyle(.tint).help("Continue here").accessibilityHidden(true)}}} icon:{Image(systemName:l.isPractice ? "gamecontroller":"book")}.badge(status.title.map{Text($0)}).accessibilityValue((status.title ?? "Not started")+(here ? ", continue here":"")).padding(.leading,l.isPractice ? Metrics.practiceIndent:0).accessibilityHint(participating ? FairnessPolicy.destinationUnavailable:practiceHint(l)).tag("lesson:\(i)").selectionDisabled(participating)}
+        } header:{HStack{Text("Learn & explore");Spacer();Text(learning.courseProgress.text).monospacedDigit().accessibilityLabel("\(learning.courseProgress.explored) of \(learning.courseProgress.total) lessons explored")}.accessibilityElement(children:.combine).accessibilityIdentifier("sidebar-course-progress")}
     }.listStyle(.sidebar).scrollContentBackground(.hidden).overlay(alignment:.bottom){if model.importingReview{VStack{ProgressView("Loading review…");Button("Cancel import"){model.cancelReviewImport()}}.padding().background(.regularMaterial)}}}
 }
 struct DetailContent:View {
@@ -159,18 +162,27 @@ struct DetailContent:View {
         } else {
             if let prompt=learning.exercise?.prompt {Text(prompt).font(.title2.bold())}
             Text(learning.activePuzzle?.context ?? learning.subtitle).textSelection(.enabled)
+            ForEach(Array(learning.hintTexts.enumerated()),id:\.offset){index,hint in Text("Hint \(index+1): \(hint)").foregroundStyle(.secondary).accessibilityIdentifier("puzzle-hint-\(index+1)")}
         }
         if let e=learning.activePuzzle?.exercise {
             if e.kind=="choice" {ForEach(e.choices ?? [],id:\.self){choice in Button(choice){learning.choose(choice)}.disabled(learning.passed)}}
             if e.kind=="squares" {if e.answers?.count != 1{Button("Check my answer"){learning.checkAnswer()}.disabled(learning.picked.isEmpty || learning.passed)};if e.allowNone==true{Button("No squares"){learning.noSquares()}.disabled(learning.passed)}}
             if e.kind=="path"{Button("Restart path"){learning.restartPath()}}
-            Button("Reveal answer"){learning.reveal()}.disabled(learning.passed)
+            HStack{Button(learning.puzzleHints==0 ? "Hint":"Another Hint"){learning.hint()}.disabled(!learning.canHint).accessibilityIdentifier("puzzle-hint");Button("Reveal answer"){learning.reveal()}.disabled(learning.passed)}
         }
         if !learning.feedback.isEmpty{Text(learning.feedback).foregroundStyle(.secondary)}
         if session.mode == .lesson {
             // The title toggles too; by default only the chevron does.
             DisclosureGroup(isExpanded:$lessonGoalsShown){ForEach(learning.teaches,id:\.self){Text($0)}} label:{Text("In this lesson").contentShape(Rectangle()).onTapGesture{lessonGoalsShown.toggle()}}
+            if session.state.course.completed.contains(learning.current.id),let title=learning.checkYourselfTitle(index:learning.lessonIndex) {Button(title){model.checkYourself(learning.lessonIndex)}.disabled(!model.fairness.engineHelpAllowed).accessibilityIdentifier("lesson-check-yourself")}
             if session.state.course.completed.contains(learning.current.id),let next=learning.library.nextMainLesson(after:learning.lessonIndex) {Button("Continue to \(learning.localizedTitle(index:next))"){model.continueLesson()}}
+            if learning.courseComplete,learning.library.nextMainLesson(after:learning.lessonIndex)==nil {
+                GroupBox {VStack(alignment:.leading,spacing:Metrics.smallGap){
+                    Text("You Explored the Whole Course").font(.headline)
+                    Text("Keep your skills sharp with puzzles, training or a game.").foregroundStyle(.secondary)
+                    HStack{Button("Quick Puzzles"){model.puzzles()};if model.training != nil{Button("Training"){model.trainingLibrary()}};Button("Play a Game"){model.practice()}}
+                }.frame(maxWidth:.infinity,alignment:.leading)}.accessibilityElement(children:.contain).accessibilityIdentifier("course-complete")
+            }
         } else {Button("Next puzzle"){learning.next()}.disabled(!learning.passed)}
     }
 }
@@ -273,6 +285,8 @@ struct TransportContent:View {
         case .returnToOriginal:returnToOriginal()
         case .puzzleLibrary:learning.showPuzzleLibrary()
         case .nextPuzzle:learning.next()
+        case .puzzleHint:learning.hint()
+        case .skipPuzzle:learning.skip()
         case .trainingHint:training?.hint()
         case .trainingTakeBack:training?.undo()
         case .trainingTryAgain:training?.retry()
@@ -304,10 +318,12 @@ struct PuzzleLibraryContent:View {
     @ObservedObject var learning:LearningPlayer
     @ObservedObject var session:GameSession
     var body:some View {let puzzles=learning.filteredPuzzles;VStack(alignment:.leading,spacing:Metrics.padding){Text("Quick puzzles").font(.largeTitle.bold());Text("\(session.state.puzzles.values.filter(\.solved).count) solved · \(session.state.puzzles.values.filter(\.review).count) to review").foregroundStyle(.secondary)
+        if let summary=learning.setSummary {GroupBox {VStack(alignment:.leading,spacing:Metrics.smallGap){Text("You Reached the End of This Set").font(.headline);Text(summary.text);if summary.toReview>0{Button("Review Mistakes"){learning.reviewMistakes()}.accessibilityIdentifier("puzzle-review-mistakes")}}.frame(maxWidth:.infinity,alignment:.leading)}.accessibilityElement(children:.contain).accessibilityIdentifier("puzzle-set-summary")}
         TextField("Search exercises",text:$learning.query).textFieldStyle(.roundedBorder)
-        HStack {Picker("Topic",selection:$learning.topic){Text("All topics").tag("All topics");ForEach(Array(Set(learning.library.puzzles.map(\.topic))).sorted(),id:\.self){Text($0).tag($0)}};Picker("Level",selection:$learning.level){ForEach(["All levels","Foundation","Developing"],id:\.self){Text($0).tag($0)}};Picker("Status",selection:$learning.filter){ForEach(["All","Unsolved","To review"],id:\.self){Text($0).tag($0)}}}
+        HStack {Picker("Topic",selection:$learning.topic){Text("All topics").tag("All topics");ForEach(learning.topicGroups,id:\.title){group in Section(group.title){ForEach(group.topics,id:\.self){Text($0).tag($0)}}}};Picker("Level",selection:$learning.level){ForEach(["All levels"]+learning.levels,id:\.self){Text($0).tag($0)}};Picker("Status",selection:$learning.filter){ForEach(["All","Unsolved","To review"],id:\.self){Text($0).tag($0)}}}
         Text("\(puzzles.count) exercises").foregroundStyle(.secondary)
-        List(puzzles,id:\.id){p in Button{learning.openPuzzle(id:p.id)}label:{HStack{VStack(alignment:.leading){Text(p.title);Text(p.topic).font(.caption).foregroundStyle(.secondary)};Spacer();if session.state.puzzles[p.id]?.solved==true{Image(systemName:"checkmark.circle.fill").foregroundStyle(Color(nsColor:NativeColors.success))}}}.buttonStyle(.plain)}
+        List(puzzles,id:\.id){p in let record=session.state.puzzles[p.id] ?? PuzzleProgress();Button{learning.openPuzzle(id:p.id)}label:{HStack{VStack(alignment:.leading){Text(p.title);Text("\(p.topic) · \(p.level)").font(.caption).foregroundStyle(.secondary)};Spacer();if record.review{Image(systemName:"arrow.uturn.backward.circle").foregroundStyle(.secondary).help("To review").accessibilityHidden(true)};if record.solved{Image(systemName:"checkmark.circle.fill").foregroundStyle(Color(nsColor:NativeColors.success)).accessibilityHidden(true)}}}.buttonStyle(.plain)
+            .accessibilityValue(([record.standing.title]+(record.review ? ["to review"]:[])+[p.level]).joined(separator:", "))}
         if puzzles.isEmpty{Text("No exercises match these filters.")}
     }.padding(Metrics.sectionGap)}
 }

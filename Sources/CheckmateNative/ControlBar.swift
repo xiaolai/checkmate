@@ -11,7 +11,7 @@ enum ControlBarAction:Hashable {
     case voiceConnect,voiceCancel,voiceMicrophone,voiceStop,voiceDisconnect
     case backFromMiniGame,miniUndo,miniNewGame
     case reviewFirst,reviewPrevious,reviewPlayPause,reviewNext,reviewLast,returnToOriginal
-    case puzzleLibrary,nextPuzzle
+    case puzzleLibrary,nextPuzzle,puzzleHint,skipPuzzle
     case trainingHint,trainingTakeBack,trainingTryAgain,trainingNextExercise,trainingLibrary,backToTraining
 }
 
@@ -79,7 +79,7 @@ extension ControlBarModel {
         if session.mode == .training,let training {var bar=trainingBar(training,session:session);if trainingVoice,case .training=session.activity.place,training.exercise?.task == .game{bar.trailingGroups.insert(voiceControls(voice).items,at:0)};return bar}
         if session.mode == .lesson {return lessonBar(learning)}
         if learning.activePuzzle != nil {
-            return ControlBarModel(leading:[ControlBarItem(action:.puzzleLibrary,symbol:"square.grid.2x2",label:"Puzzle library")],trailing:[ControlBarItem(action:.nextPuzzle,label:"Next puzzle",enabled:learning.passed,prominent:learning.passed)])
+            return ControlBarModel(leading:[ControlBarItem(action:.puzzleLibrary,symbol:"square.grid.2x2",label:"Puzzle library")],trailing:learning.passed ? [ControlBarItem(action:.nextPuzzle,label:"Next puzzle",prominent:true)]:[ControlBarItem(action:.puzzleHint,label:learning.puzzleHints==0 ? "Hint":"Another Hint",enabled:learning.canHint),ControlBarItem(action:.skipPuzzle,label:"Skip")])
         }
         return ControlBarModel()
     }
@@ -104,11 +104,13 @@ extension ControlBarModel {
             bar.status = attempt.thinking ? .working(status):.turn(side:attempt.rules.turn,label:status)
             if attempt.waitingToResume{bar.leading.append(ControlBarItem(action:.resumeAttempt,label:"Resume your attempt",prominent:true))}
             let hint=attempt.canShowMove ? "Show me a move":(attempt.record?.hints ?? 0)==0 ? "Hint":"Another hint"
-            bar.trailing=[
-                ControlBarItem(action:.attemptHint,symbol:"lightbulb",label:hint,enabled:attempt.learnerToMove || attempt.phase == .offTrack),
+            // Off track the refutation stays on the board until the learner takes the move back; Hint could only repeat the advice.
+            if attempt.phase == .offTrack {bar.trailing=[ControlBarItem(action:.attemptUndo,label:"Take Back",prominent:true),ControlBarItem(action:.attemptRestart,symbol:"arrow.counterclockwise",label:"Restart")]}
+            else {bar.trailing=[
+                ControlBarItem(action:.attemptHint,symbol:"lightbulb",label:hint,enabled:attempt.learnerToMove),
                 ControlBarItem(action:.attemptUndo,symbol:"arrow.uturn.backward",label:"Undo turn",enabled:attempt.hasMoves),
                 ControlBarItem(action:.attemptRestart,symbol:"arrow.counterclockwise",label:"Restart",enabled:attempt.hasMoves),
-            ]
+            ]}
         } else {
             var text="Step \(step+1) of \(last+1)"
             if let next{text+=" · next: \(learning.localizedTitle(index:next))"}
