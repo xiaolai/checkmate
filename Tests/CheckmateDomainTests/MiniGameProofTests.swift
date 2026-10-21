@@ -183,7 +183,7 @@ final class MiniGameProofTests:XCTestCase {
         XCTAssertEqual(game.winner,"b")
         let review=MiniGameReview.run(game,cpuSeconds:{0},stop:{false})
         XCTAssertTrue(review.consistent);XCTAssertTrue(review.complete);XCTAssertEqual(review.answers.count,5)
-        XCTAssertEqual(review.facts.map(\.text),["Move 1: you had a forced win in 1 move here.","Move 1, a1–b1: this move let the opponent force a win in 2 moves."])
+        XCTAssertEqual(review.facts.map(\.text),["Move 1: you could have won here in 1 move.","Move 1, a1–b1: after this move, the computer could win in 2 moves, whatever you did."])
         let positions=try XCTUnwrap(MiniGameReview.positions(of:game))
         for fact in review.facts {XCTAssertTrue(Self.replays(positions[fact.ply],fact.line,winner:fact.kind == .forcedWin ? fact.side:(fact.side=="w" ? "b":"w")),fact.text)}
         var broken=game;broken.history[2].board["c3"]="wp"

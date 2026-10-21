@@ -1463,28 +1463,6 @@
         }
       }
     },
-    "%lld proved facts about this game." : {
-      "localizations" : {
-        "en" : {
-          "variations" : {
-            "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "%lld proved fact about this game."
-                }
-              },
-              "other" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "%lld proved facts about this game."
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "%lld queens" : {
       "comment" : "Captured pieces of one kind, in a list read by VoiceOver: White captured 1 queen and 2 pawns",
       "localizations" : {
@@ -1624,6 +1602,28 @@
                 "stringUnit" : {
                   "state" : "translated",
                   "value" : "%lld suggested boards from a newer version of Checkmate are kept for it."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld things to look at from this game." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld thing to look at from this game."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld things to look at from this game."
                 }
               }
             }
@@ -2169,7 +2169,6 @@
     "Checking key moments more deeply" : {},
     "Checking offline lesson recordings. Try Play again shortly." : {},
     "Checking stored lesson data…" : {},
-    "Checking the game for forced wins…" : {},
     "Checking this lesson’s offline recordings…" : {},
     "Checking your Codex sign-in…" : {},
     "Checking your move…" : {},
@@ -2196,6 +2195,28 @@
     "Checkmate is up to date." : {},
     "Checkmate needs Local Network access to find games." : {},
     "Checkmate on GitHub" : {},
+    "Checkmate tried every possible reply, up to %lld turns ahead, so each of these is certain." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Checkmate tried every possible reply, up to %lld turn ahead, so each of these is certain."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Checkmate tried every possible reply, up to %lld turns ahead, so each of these is certain."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "Checkmate was updated or moved while open, so lesson narration is unavailable. Quit and reopen Checkmate to hear it." : {},
     "Checkmate!" : {},
     "Checkmate." : {},
@@ -2486,28 +2507,6 @@
     "Duplicate training scenario identifiers." : {},
     "Duration" : {},
     "Each clip is one recording request on your signed-in account, in the %@ voice." : {},
-    "Each fact below was proved by checking every reply, up to %lld single moves ahead, under this game’s rules." : {
-      "localizations" : {
-        "en" : {
-          "variations" : {
-            "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Each fact below was proved by checking every reply, up to %lld single move ahead, under this game’s rules."
-                }
-              },
-              "other" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Each fact below was proved by checking every reply, up to %lld single moves ahead, under this game’s rules."
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "Each lesson is one translation request on your signed-in account." : {},
     "Earlier position, after %@" : {},
     "Edit" : {},
@@ -3055,6 +3054,7 @@
     "Look for a check that leaves the king no safe square, no block and no capture." : {},
     "Look for a move that attacks the enemy king." : {},
     "Look for one move that attacks two pieces at the same time." : {},
+    "Looking back over the game…" : {},
     "Looking for games…" : {},
     "Major pieces" : {},
     "Malformed voice event" : {},
@@ -3116,16 +3116,16 @@
         }
       }
     },
-    "Move %lld, %@–%@: this move let %@ force a win in %lld moves." : {
-      "comment" : "The second and third values are board squares; the fourth is a side, such as White",
+    "Move %lld, %@–%@: after this move, %@ could win in %lld moves, whatever %@ did." : {
+      "comment" : "The second and third values are board squares; the fourth is the side that could win, such as White, and the sixth the side that moved",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Move %1$lld, %2$@–%3$@: this move let %4$@ force a win in %#@moves@."
+            "value" : "Move %1$lld, %2$@–%3$@: after this move, %4$@ could win in %#@n@."
           },
           "substitutions" : {
-            "moves" : {
+            "n" : {
               "argNum" : 5,
               "formatSpecifier" : "lld",
               "variations" : {
@@ -3139,7 +3139,7 @@
                   "other" : {
                     "stringUnit" : {
                       "state" : "translated",
-                      "value" : "%arg moves"
+                      "value" : "%arg moves, whatever %6$@ did"
                     }
                   }
                 }
@@ -3149,16 +3149,16 @@
         }
       }
     },
-    "Move %lld, %@–%@: this move let the opponent force a win in %lld moves." : {
+    "Move %lld, %@–%@: after this move, the computer could win in %lld moves, whatever you did." : {
       "comment" : "The second and third values are board squares, such as e2 and e4",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Move %1$lld, %2$@–%3$@: this move let the opponent force a win in %#@moves@."
+            "value" : "Move %1$lld, %2$@–%3$@: after this move, the computer could win in %#@n@."
           },
           "substitutions" : {
-            "moves" : {
+            "n" : {
               "argNum" : 4,
               "formatSpecifier" : "lld",
               "variations" : {
@@ -3172,7 +3172,7 @@
                   "other" : {
                     "stringUnit" : {
                       "state" : "translated",
-                      "value" : "%arg moves"
+                      "value" : "%arg moves, whatever you did"
                     }
                   }
                 }
@@ -3182,16 +3182,16 @@
         }
       }
     },
-    "Move %lld: %@ had a forced win in %lld moves here." : {
-      "comment" : "The second value is the side to move, such as White",
+    "Move %lld: %@ could have won here in %lld moves, whatever %@ did." : {
+      "comment" : "The second value is the side to move, such as White; the fourth is the other side",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Move %1$lld: %2$@ had a forced win in %#@moves@ here."
+            "value" : "Move %1$lld: %2$@ could have won here in %#@n@."
           },
           "substitutions" : {
-            "moves" : {
+            "n" : {
               "argNum" : 3,
               "formatSpecifier" : "lld",
               "variations" : {
@@ -3205,7 +3205,7 @@
                   "other" : {
                     "stringUnit" : {
                       "state" : "translated",
-                      "value" : "%arg moves"
+                      "value" : "%arg moves, whatever %4$@ did"
                     }
                   }
                 }
@@ -3215,15 +3215,15 @@
         }
       }
     },
-    "Move %lld: you had a forced win in %lld moves here." : {
+    "Move %lld: you could have won here in %lld moves, whatever the computer did." : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Move %1$lld: you had a forced win in %#@moves@ here."
+            "value" : "Move %1$lld: you could have won here in %#@n@."
           },
           "substitutions" : {
-            "moves" : {
+            "n" : {
               "argNum" : 2,
               "formatSpecifier" : "lld",
               "variations" : {
@@ -3237,7 +3237,7 @@
                   "other" : {
                     "stringUnit" : {
                       "state" : "translated",
-                      "value" : "%arg moves"
+                      "value" : "%arg moves, whatever the computer did"
                     }
                   }
                 }
@@ -3304,6 +3304,28 @@
     "Narration could not play. You can still read the transcript." : {},
     "Narration volume" : {},
     "Neither" : {},
+    "Neither side could have made sure of a win within %lld turns at any point in this game." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Neither side could have made sure of a win within %lld turn at any point in this game."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Neither side could have made sure of a win within %lld turns at any point in this game."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "Neither side has enough material to give checkmate: the position is drawn." : {},
     "Network game · your move" : {},
     "New" : {
@@ -3336,28 +3358,6 @@
     "No collections yet" : {},
     "No en passant. Pawns stay pawns at the far rank." : {},
     "No exercises match these filters." : {},
-    "No forced win was proved within %lld single moves of any position in this game." : {
-      "localizations" : {
-        "en" : {
-          "variations" : {
-            "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "No forced win was proved within %lld single move of any position in this game."
-                }
-              },
-              "other" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "No forced win was proved within %lld single moves of any position in this game."
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "No friendly piece covers this piece’s square or can recapture a current legal capture." : {},
     "No game records." : {},
     "No game was found in this record." : {},
@@ -4003,6 +4003,7 @@
     "Show Backups…" : {},
     "Show Best Move Arrow" : {},
     "Show Details" : {},
+    "Show Final Position" : {},
     "Show Move" : {},
     "Show Review" : {},
     "Show Sidebar" : {},
@@ -4010,6 +4011,7 @@
     "Show answer" : {},
     "Show in Finder" : {},
     "Show me a move" : {},
+    "Show on Board" : {},
     "Show the board after %@" : {},
     "Showing the most recent 100 operations. Export includes all retained history." : {},
     "Shown as text instead" : {},
@@ -4438,7 +4440,6 @@
     "The review could not be renamed. Try again." : {},
     "The review could not be saved. Export the original PGN before quitting." : {},
     "The review could not be saved: %@. Export the original PGN before quitting." : {},
-    "The review ran out of time before it had checked every position." : {},
     "The rules played another move." : {},
     "The saved attempt continues after the exercise ended." : {},
     "The saved attempt continues past a move that left the exercise." : {},
@@ -4541,6 +4542,7 @@
     "There is no piece on %@." : {},
     "There is no saved exercise to continue." : {},
     "There is no window to capture." : {},
+    "There was not enough time to look at every position in this game." : {},
     "There's no piece of yours on %@." : {},
     "There's no piece on %@." : {},
     "These are square-control relationships. Kings cannot be captured or recaptured." : {},

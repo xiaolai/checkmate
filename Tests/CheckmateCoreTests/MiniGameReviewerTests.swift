@@ -33,10 +33,24 @@ import CheckmateCore
         try await waitFor{player.miniReview.review != nil}
         let review=try XCTUnwrap(player.miniReview.review)
         XCTAssertTrue(player.miniReview.sheetOpen);XCTAssertTrue(review.consistent);XCTAssertTrue(review.complete)
-        XCTAssertEqual(review.facts.map(\.text),["Move 1: you had a forced win in 1 move here."])
+        XCTAssertEqual(review.facts.map(\.text),["Move 1: you could have won here in 1 move."])
         XCTAssertEqual(player.miniReview.identity,MiniGameReviewer.Identity(try XCTUnwrap(player.miniGame)))
         player.miniReview.dismissSheet();XCTAssertFalse(player.miniReview.sheetOpen);player.miniReview.showSheet();XCTAssertTrue(player.miniReview.sheetOpen)
         player.restartMini();XCTAssertEqual(player.miniReview.status,.idle);XCTAssertFalse(player.miniReview.sheetOpen)
+        player.shutdown()
+    }
+    /// L-25: Show on Board puts a fact's position on the board with its squares marked and closes the sheet; the final
+    /// position comes back on request, and a restart forgets the fact shown.
+    func testShowOnBoardShowsTheFactsPositionUntilTheEndIsShownAgain()async throws {
+        let (_,player)=try player()
+        player.click("a1");player.click("a7");try await waitFor{player.miniReview.review != nil}
+        let final=try XCTUnwrap(player.miniGame?.board);XCTAssertTrue(player.miniReview.sheetOpen)
+        player.showMiniFact(5);XCTAssertNil(player.miniShownFact,"a fact the review does not have shows nothing");XCTAssertEqual(player.frame.board,final)
+        player.showMiniFact(0)
+        XCTAssertEqual(player.miniShownFact,0);XCTAssertEqual(player.frame.board,Self.almostWon().board,"the position before move 1")
+        XCTAssertEqual(Set(player.frame.hl.filter{$0.kind=="focus"}.map(\.sq)),["a1","a7"]);XCTAssertFalse(player.miniReview.sheetOpen,"the sheet closes so the board can be seen")
+        player.showMiniEnd();XCTAssertNil(player.miniShownFact);XCTAssertEqual(player.frame.board,final)
+        player.showMiniFact(0);player.restartMini();XCTAssertNil(player.miniShownFact)
         player.shutdown()
     }
     func testRestartUndoAndNavigationDuringAnalysisLeaveNoStaleResult()async throws {

@@ -195,8 +195,10 @@ final class BoardTitleView:NSView {
         let reviewer=model.network.miniReview.sheetOpen ? model.network.miniReview:model.learning.miniReview
         if reviewer.sheetOpen,let review=reviewer.review {
             guard miniReviewSheet==nil,let window else{return}
-            let sheet=NSWindow(contentViewController:NSHostingController(rootView:MiniGameReviewSheet(review:review,voice:model.voice,read:{[weak model] in model?.readMiniReviewAloud()},close:{[weak reviewer] in reviewer?.dismissSheet()})))
-            sheet.title=String(localized:"\(review.kind.title) review",bundle:.checkmate,comment:"The title of a finished mini-game's review sheet");miniReviewSheet=sheet;window.beginSheet(sheet)
+            // Show on Board only for the lesson's or library's game: the network game's board is not the learning one.
+            let learning=reviewer===model.learning.miniReview ? model.learning:nil
+            let sheet=MiniGameReviewSheet.window(MiniGameReviewSheet(review:review,voice:model.voice,read:{[weak model] in model?.readMiniReviewAloud()},close:{[weak reviewer] in reviewer?.dismissSheet()},show:learning.map{learning in {[weak learning] in learning?.showMiniFact($0)}}))
+            miniReviewSheet=sheet;window.beginSheet(sheet)
         } else if let sheet=miniReviewSheet {miniReviewSheet=nil;window?.endSheet(sheet)}
     }
     /// The open mini-game review sheet's content, for the acceptance scenario.

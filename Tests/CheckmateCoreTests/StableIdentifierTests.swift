@@ -44,8 +44,8 @@ import CheckmateCore
         XCTAssertEqual(moves(1),"1 move");XCTAssertEqual(moves(3),"3 moves");XCTAssertEqual(moves(0),"0 moves")
         XCTAssertEqual(String(localized:"\("Draw") · \(1) moves",bundle:.checkmate),"Draw · 1 move","a count after another value")
         XCTAssertEqual(String(localized:"Removed \(1) outdated files (\("2 KB")).",bundle:.checkmate),"Removed 1 outdated file (2 KB).")
-        XCTAssertEqual(String(localized:"Move \(12): you had a forced win in \(1) moves here.",bundle:.checkmate),"Move 12: you had a forced win in 1 move here.","the plural follows the second number, not the first")
-        XCTAssertEqual(String(localized:"Move \(1): you had a forced win in \(2) moves here.",bundle:.checkmate),"Move 1: you had a forced win in 2 moves here.")
+        XCTAssertEqual(String(localized:"Move \(12): you could have won here in \(1) moves, whatever the computer did.",bundle:.checkmate),"Move 12: you could have won here in 1 move.","the plural follows the second number, not the first")
+        XCTAssertEqual(String(localized:"Move \(1): you could have won here in \(2) moves, whatever the computer did.",bundle:.checkmate),"Move 1: you could have won here in 2 moves, whatever the computer did.")
         XCTAssertEqual(String(localized:"There are \(1) to find.",bundle:.checkmate),"There is 1 to find.")
         XCTAssertEqual(Plural.list(["Forks"]),"Forks");XCTAssertEqual(Plural.list(["Forks","Pins"]),"Forks and Pins");XCTAssertEqual(Plural.list(["Forks","Pins","Skewers"]),"Forks, Pins, and Skewers")
     }

@@ -368,8 +368,21 @@ import Combine
         if !wasFinished,game.isFinished{miniReview.start(game,learner:miniLearnerSide)}
         onMiniMove?(MoveRecord(color:color,from:move.from,to:move.to,piece:String(piece.suffix(1)),flags:captured==nil ? "n":"c",san:move.from+"–"+move.to,before:"",after:"",captured:captured.map{String($0.suffix(1))},promotion:nil))
     }
+    /// The review fact whose position the board shows instead of the finished game's end (L-25); nil for the game itself.
+    @Published public private(set) var miniShownFact:Int?
+    /// Show on Board: the position a fact of the finished game's review is about, its squares marked, with the sheet
+    /// closed so the board can be seen. The game itself is unchanged; `showMiniEnd` and anything that syncs the game
+    /// (restart, undo) return to it.
+    public func showMiniFact(_ index:Int){
+        guard mini,let game=miniGame,game.isFinished,let facts=miniReview.review?.facts,facts.indices.contains(index),let positions=MiniGameReview.positions(of:game) else{return}
+        let fact=facts[index];guard positions.indices.contains(fact.ply) else{return}
+        miniShownFact=index;miniReview.dismissSheet();picked=[]
+        frame=CourseFrame(board:positions[fact.ply].board,hl:fact.squares.map{Highlight(sq:$0,kind:"focus")});publish()
+    }
+    public func showMiniEnd(){syncMini()}
     /// Every save of the board rewrites its level's witness, so a later mismatch can only come from another build.
     private func syncMini(){
+        if miniShownFact != nil{miniShownFact=nil}
         guard var game=miniGame else{return};game.stampWitness();if game != miniGame{miniGame=game};miniTurn=game.turn
         let highlights=game.snapshot.lastMove.map{[Highlight(sq:$0.from,kind:"last"),Highlight(sq:$0.to,kind:"last")]} ?? []
         frame=CourseFrame(board:game.board,hl:highlights,counts:game.kind.solo ? Array(MiniGameRules.corners.dropFirst(game.snapshot.cornerIndex)):nil)

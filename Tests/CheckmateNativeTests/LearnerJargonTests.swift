@@ -2,6 +2,7 @@ import XCTest
 @testable import CheckmateNative
 import CheckmateCore
 import CheckmateRules
+@testable import CheckmateDomain
 @testable import CheckmateContent
 @testable import CheckmateApplication
 @testable import CheckmateMacPlatform
@@ -72,6 +73,21 @@ final class LearnerJargonTests:XCTestCase {
         let phases:[ReviewRetry.Phase]=[.trying(tries:0,last:nil),.trying(tries:1,last:.played("Nf5")),.trying(tries:1,last:.worse("Nf5")),.judging(tries:1),.solved("Nf5"),.revealed("Nf5"),.revealed(nil)]
         texts+=phases.flatMap{phase in [true,false].map{ReviewRetry.message(phase,played:"12... Nf5",mover:"Black",own:$0)}}+[ReviewRetry.summary(solved:1,total:1),ReviewRetry.summary(solved:2,total:3)]
         for text in texts {XCTAssertFalse(Self.jargon(in:text),text)}
+    }
+    /// L-25: a finished mini-game's review reads as plain words, not as a search report: no forced or proved wins and no
+    /// single moves, with the computer or the side named, for games against the computer and on one device alike.
+    func testAMiniGameReviewSpeaksPlainly()throws {
+        let search=try NSRegularExpression(pattern:#"\bforced?\b|\bprov(ed|en)\b|single moves?|\bopponent\b"#,options:[.caseInsensitive])
+        func plain(_ text:String)->Bool {search.firstMatch(in:text,range:NSRange(text.startIndex...,in:text))==nil && !Self.jargon(in:text)}
+        var texts=[MiniGameReviewWording.method,MiniGameReviewWording.running,MiniGameReviewWording.incomplete,MiniGameReviewWording.noFacts]
+        for computer in [true,false] {
+            var game=MiniGameState(kind:.rookSweep,computer:computer);game.snapshot.board=["a1":"wr","h2":"wp","e5":"br","a7":"bp"]
+            for move in [("a1","b1"),("e5","h5"),("b1","b2"),("h5","h2")] {XCTAssertTrue(game.play(MiniGameMove(from:move.0,to:move.1)))}
+            let review=MiniGameReview.run(game,cpuSeconds:{0},stop:{false});XCTAssertEqual(review.facts.count,computer ? 2:3,"\(review.facts.map(\.text))")
+            texts+=review.facts.map(\.text)+[MiniGameReviewWording.summary(review)]
+        }
+        XCTAssertTrue(texts.contains("Move 1, a1–b1: after this move, Black could win in 2 moves, whatever White did."),"\(texts)")
+        for text in texts {XCTAssertTrue(plain(text),text)}
     }
     /// Settings ▸ Connections shows the broker's typed state and problem; each is plain and distinct.
     @MainActor func testCompanionStatesAndProblemsArePlain() {

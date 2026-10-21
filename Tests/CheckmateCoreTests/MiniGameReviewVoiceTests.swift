@@ -12,7 +12,7 @@ import CheckmateCore
 @MainActor final class MiniGameReviewVoiceTests:XCTestCase {
     struct Fixture {let session:GameSession,player:LearningPlayer,voice:VoiceCoach;var events:[[String:Any]] {box.events};let box:Box}
     final class Box {var events:[[String:Any]]=[]}
-    static let fact="Move 1: you had a forced win in 1 move here."
+    static let fact="Move 1: you could have won here in 1 move."
     func fixture(library:Bool=false,facts:Bool=true,consent:Bool=true)throws->Fixture {
         let session=try GameSession(engine:nil),player=try LearningPlayer(session:session),voice=try VoiceCoach(session:session),box=Box()
         session.state.settings.pieceDuration=0;session.state.settings.voiceMicrophone=true;session.state.settings.voiceConsent=consent

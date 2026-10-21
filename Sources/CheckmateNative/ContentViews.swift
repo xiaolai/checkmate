@@ -183,7 +183,7 @@ struct DetailContent:View {
             Text(learning.miniGame?.computer != true ? String(localized:"Take turns moving White and Black on this device.",bundle:.checkmate):learning.miniLearnerSide=="b" ? String(localized:"You play Black. The computer plays White and moves first. Select a piece, then its destination.",bundle:.checkmate):String(localized:"You play White. Select a piece, then its destination. The computer plays Black.",bundle:.checkmate))
         }
         if let record=learning.miniRecordText {Text(record).foregroundStyle(.secondary).accessibilityIdentifier("mini-record")}
-        if learning.miniGame?.isFinished==true {Button {learning.restartMini()} label:{Label("Play again",symbol:.startOver)}.accessibilityIdentifier("mini-play-again");miniAdvice;MiniGameReviewSection(reviewer:learning.miniReview)}
+        if learning.miniGame?.isFinished==true {Button {learning.restartMini()} label:{Label("Play again",symbol:.startOver)}.accessibilityIdentifier("mini-play-again");miniAdvice;MiniGameReviewSection(reviewer:learning.miniReview);MiniGameShownFact(learning:learning)}
         Text(learning.miniKind.rules).foregroundStyle(.secondary)
         if !learning.feedback.isEmpty{Text(learning.feedback)}
     }

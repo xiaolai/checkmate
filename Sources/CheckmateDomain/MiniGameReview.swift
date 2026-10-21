@@ -112,7 +112,9 @@ public struct MiniGameReview:Equatable {
             if case .win(let plies)=before.result,plies>0,let line=before.line {
                 var continuing=false;if ply>=2,case .win(_)?=answers[ply-2]?.result{continuing=true}
                 if !continuing {
-                    let text=computer ? String(localized:"Move \(number): you had a forced win in \(moves(plies)) moves here.",bundle:.checkmate):String(localized:"Move \(number): \(name(side)) had a forced win in \(moves(plies)) moves here.",bundle:.checkmate,comment:"The second value is the side to move, such as White")
+                    // Plain words for a learner (L-25): a win in one move needs no "whatever the reply", which the catalog's
+                    // plural forms leave out.
+                    let text=computer ? String(localized:"Move \(number): you could have won here in \(moves(plies)) moves, whatever the computer did.",bundle:.checkmate):String(localized:"Move \(number): \(name(side)) could have won here in \(moves(plies)) moves, whatever \(name(side=="w" ? "b":"w")) did.",bundle:.checkmate,comment:"The second value is the side to move, such as White; the fourth is the other side")
                     facts.append(MiniGameFact(kind:.forcedWin,ply:ply,side:side,plies:plies,line:line,text:text,squares:line.first.map{[$0.from,$0.to]} ?? []))
                 }
             }
@@ -121,7 +123,7 @@ public struct MiniGameReview:Equatable {
             let safeBefore:Bool
             switch before.result {case .win,.draw:safeBefore=true;case .loss:safeBefore=false;case .unknown:safeBefore=before.clearPlies>=plies+1}
             guard safeBefore else{continue}
-            let opponent=side=="w" ? "b":"w",text=computer ? String(localized:"Move \(number), \(played.from)–\(played.to): this move let the opponent force a win in \(moves(plies)) moves.",bundle:.checkmate,comment:"The second and third values are board squares, such as e2 and e4"):String(localized:"Move \(number), \(played.from)–\(played.to): this move let \(name(opponent)) force a win in \(moves(plies)) moves.",bundle:.checkmate,comment:"The second and third values are board squares; the fourth is a side, such as White")
+            let opponent=side=="w" ? "b":"w",text=computer ? String(localized:"Move \(number), \(played.from)–\(played.to): after this move, the computer could win in \(moves(plies)) moves, whatever you did.",bundle:.checkmate,comment:"The second and third values are board squares, such as e2 and e4"):String(localized:"Move \(number), \(played.from)–\(played.to): after this move, \(name(opponent)) could win in \(moves(plies)) moves, whatever \(name(side)) did.",bundle:.checkmate,comment:"The second and third values are board squares; the fourth is the side that could win, such as White, and the sixth the side that moved")
             facts.append(MiniGameFact(kind:.allowedWin,ply:ply,side:side,plies:plies,line:[played]+line,text:text,squares:[played.from,played.to]+(line.first.map{[$0.from,$0.to]} ?? [])))
         }
         return facts

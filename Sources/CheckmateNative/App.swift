@@ -569,7 +569,7 @@ import CheckmateCore
             model.learning.restartMini();try? await Task.sleep(for:.milliseconds(300))
             let review:[String:Any]=["sheetShown":sheetShown,"facts":facts,"closedByReturn":closed,"noneAfterRestart":!game.miniReviewSheetShown && model.learning.miniReview.status == .idle,"readAloud":reading]
             let readAloud=reading["connected"] as? Bool==true && reading["scripts"] as? [String]==facts && reading["otherRequests"] as? Int==0 && reading["capturing"] as? Bool==false && reading["stopped"] as? Bool==true && reading["readAgain"] as? Bool==true && reading["endedByReturn"] as? Bool==true
-            let reviewed=sheetShown && facts==["Move 1: you had a forced win in 1 move here."] && closed && review["noneAfterRestart"] as? Bool==true && readAloud
+            let reviewed=sheetShown && facts==["Move 1: you could have won here in 1 move."] && closed && review["noneAfterRestart"] as? Bool==true && readAloud
             let allPlayed=passed && games.count==MiniGameKind.allCases.count && games.allSatisfy{$0["passed"] as? Bool==true} && reviewed
             try? JSONSerialization.data(withJSONObject:["passed":allPlayed,"games":games,"clicks":clicks,"board":board,"review":review],options:.prettyPrinted).write(to:URL(fileURLWithPath:directory+"/pawn-duel-results.json"))
             NSApp.terminate(nil)
