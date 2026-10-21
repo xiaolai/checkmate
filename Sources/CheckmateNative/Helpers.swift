@@ -28,7 +28,12 @@ func symbolButton(_ symbol:String,_ label:String,_ target:AnyObject,_ action:Sel
     let b=NSButton(image:NSImage(systemSymbolName:symbol,accessibilityDescription:label)!,target:target,action:action)
     b.bezelStyle = .toolbar;b.imagePosition = .imageOnly;b.toolTip=label;b.setAccessibilityLabel(label);return b
 }
-func textLabel(_ text:String,_ size:CGFloat=13,_ weight:NSFont.Weight = .regular)->NSTextField {let l=NSTextField(labelWithString:text);l.font = .systemFont(ofSize:size,weight:weight);l.lineBreakMode = .byWordWrapping;return l}
+/// A wrapping label in a system text style, optionally at another weight.
+func textLabel(_ text:String,_ style:NSFont.TextStyle = .body,_ weight:NSFont.Weight = .regular)->NSTextField {let l=NSTextField(labelWithString:text),base=NSFont.preferredFont(forTextStyle:style);l.font=weight == .regular ? base:NSFont(descriptor:base.fontDescriptor.addingAttributes([.traits:[NSFontDescriptor.TraitKey.weight:weight.rawValue]]),size:0) ?? base;l.lineBreakMode = .byWordWrapping;return l}
+extension View {
+    /// A section heading: its text style, and the heading trait so VoiceOver lists it and can jump between headings.
+    func sectionHeading(_ style:Font = .headline)->some View {font(style).accessibilityAddTraits(.isHeader)}
+}
 final class BackgroundView:NSView {override func draw(_ rect:NSRect){NativeColors.windowBackground.setFill();rect.fill()};override func viewDidChangeEffectiveAppearance(){super.viewDidChangeEffectiveAppearance();needsDisplay=true}}
 /// Hosts scrolling SwiftUI drawer content below the toolbar of a full-height split item. Left to SwiftUI, the
 /// toolbar inset is applied twice there, so its hit-testing containers cover most of every button and toggle

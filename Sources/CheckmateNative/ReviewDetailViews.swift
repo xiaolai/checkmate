@@ -162,7 +162,7 @@ struct ReviewHeader:View {
             VStack(alignment:.leading,spacing:2){
                 // Imported header text is shown as written, never interpreted as Markdown.
                 // One line each, shortened in the middle so both players' names stay readable; help shows the whole text.
-                Text(verbatim:ReviewFormat.players(document)).font(.title3.bold()).lineLimit(1).truncationMode(.middle).help(ReviewFormat.players(document))
+                Text(verbatim:ReviewFormat.players(document)).sectionHeading(.title3.bold()).lineLimit(1).truncationMode(.middle).help(ReviewFormat.players(document))
                 if let details=ReviewFormat.details(document){Text(verbatim:details).font(.subheadline).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle).help(details)}
                 if let assistance=ReviewFormat.assistance(document){Text(verbatim:assistance).font(.subheadline).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("review-assistance")}
             }
@@ -194,7 +194,7 @@ struct ReviewAnalysisSection:View {
     var body:some View {
         let mine=analyzer.batchDocument==document.id
         VStack(alignment:.leading,spacing:Metrics.smallGap){
-            Text("Evaluation").font(.headline)
+            Text("Evaluation").sectionHeading()
             // No engine output during a network game (LAN-play plan D8): the graph and its controls wait until it ends.
             if !model.fairness.engineHelpAllowed{Text(FairnessPolicy.analysisHidden).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)}
             else if ReviewFormat.line(document).ids.isEmpty{Text("This position has no moves to analyze as a game; Why? analyzes the position itself.").font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)}
@@ -303,7 +303,7 @@ struct ReviewMoveSection:View {
         let graded=analyzer.fairness.engineHelpAllowed && analyzer.batchDocument==document.id,anyGrade=graded && ReviewFormat.line(document).ids.contains{analyzer.grade($0) != nil}
         let ranked=moments.isEmpty ? ReviewFormat.heuristicMoments(document):moments.map(\.id),key=ReviewFormat.keyMoments(ranked,in:document,engine:!moments.isEmpty)
         if !rows.isEmpty {VStack(alignment:.leading,spacing:Metrics.smallGap){
-            Text("Moves").font(.headline)
+            Text("Moves").sectionHeading()
             if !key.isEmpty {
                 ViewThatFits(in:.horizontal){ForEach([5,4,3,2,1],id:\.self){count in HStack(spacing:4){ForEach(ReviewFormat.keyMoments(ranked,in:document,limit:count,engine:!moments.isEmpty),id:\.self){id in
                     Button(ReviewFormat.moveText(document.nodes[id])){select(id)}.buttonStyle(.bordered).controlSize(.small).accessibilityLabel("Key moment, "+ReviewFormat.moveLabel(document.nodes[id])).help(reasons[id] ?? "A check, capture, promotion or the final move")}}}}
@@ -351,7 +351,7 @@ struct ReviewPositionPanel:View {
     var body:some View {
         let explanation=review.explanation
         VStack(alignment:.leading,spacing:Metrics.smallGap){
-            Text(verbatim:explanation?.title ?? document.title).font(.headline).fixedSize(horizontal:false,vertical:true)
+            Text(verbatim:explanation?.title ?? document.title).sectionHeading().fixedSize(horizontal:false,vertical:true)
             if let summary=explanation?.summary,!summary.isEmpty{Text(verbatim:summary).fixedSize(horizontal:false,vertical:true)}
             if let note=explanation?.historyNote{Text(verbatim:note).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)}
             if review.nodeID==0{ForEach(ReviewFormat.takeaways(explanation),id:\.self){item in HStack(alignment:.firstTextBaseline,spacing:6){Text("•").foregroundStyle(.secondary);Text(verbatim:item).fixedSize(horizontal:false,vertical:true)}}}
@@ -404,7 +404,7 @@ struct ImaginedLineCallout:View {
     @ObservedObject var model:NativeModel
     let branch:ReviewBranch,document:GameDocument
     var body:some View {VStack(alignment:.leading,spacing:Metrics.smallGap){
-        Label("Imagined line",systemImage:"lightbulb").font(.headline)
+        Label("Imagined line",systemImage:"lightbulb").sectionHeading()
         Text(branch.id==review.previewBranchID ? "A preview line: it is not kept unless you play a move in it.":"Either side can make legal moves here. The imported game is preserved.").font(.callout).fixedSize(horizontal:false,vertical:true)
         IdeaMoves(review:review,branch:branch,document:document)
         HStack(spacing:Metrics.smallGap){
@@ -426,7 +426,7 @@ struct ReviewVoiceSection:View {
         // Voice status and failures stay visible in review.
         let active=voice.connection != .disconnected || !voice.history.isEmpty
         if active || ReviewRolloutPolicy.reviewVoiceEnabled {VStack(alignment:.leading,spacing:Metrics.smallGap){
-            Text("Voice coach").font(.headline)
+            Text("Voice coach").sectionHeading()
             if active{Text(voice.status).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)}
             Text(voice.connected ? "Connected. Only selected verified facts are shared.":"Optional. Only selected verified facts are shared.").font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
             HStack(spacing:Metrics.smallGap){if voice.connected{Button("Narrate Facts"){voice.narrateReview()};Button("Disconnect"){voice.disconnect()}}else if ReviewRolloutPolicy.reviewVoiceEnabled{Button("Connect Voice"){connect()}}}.controlSize(.small)

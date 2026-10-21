@@ -105,7 +105,7 @@ private struct SettingsForm:View {
 @MainActor final class SettingsWindow:NSWindowController,NSToolbarDelegate {
     /// Escape closes Settings, as ⌘W (File ▸ Close) does.
     override func cancelOperation(_ sender:Any?){window?.performClose(sender)}
-    private let selection=SettingsSelection(),titleID=NSToolbarItem.Identifier("settings.title"),titleLabel=textLabel("Settings",15,.semibold)
+    private let selection=SettingsSelection(),titleID=NSToolbarItem.Identifier("settings.title"),titleLabel=textLabel("Settings",.title3,.semibold)
     private var titleFollowsPane:AnyCancellable?
     init(model:NativeModel){selection.category=SettingsCategory.allCases.first{$0.rawValue==model.session.state.window.settingsCategory} ?? .board;let w=NSWindow(contentRect:NSRect(x:0,y:0,width:Metrics.settingsWidth,height:Metrics.settingsHeight),styleMask:[.titled,.closable,.fullSizeContentView],backing:.buffered,defer:false);super.init(window:w)
         // Titled by its pane (V-23); the identifier stays "Settings" so automation and the Window menu can find it.

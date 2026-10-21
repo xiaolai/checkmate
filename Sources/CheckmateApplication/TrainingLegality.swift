@@ -76,20 +76,8 @@ public enum TrainingMoveGrade:Equatable {
         }
         return .ruleError(try reason(piece:piece,from:from,to:to,board:board))
     }
-    /// Why a geometric or legal rule refuses an attempt, in words a beginner can act on.
+    /// Why a geometric or legal rule refuses an attempt, in words a beginner can act on; typed moves give the same reasons.
     private func reason(piece:String,from:String,to:String,board:Position)throws -> String {
-        let name=TrainingGenerator.pieceNames[String(piece.last!)] ?? "piece",inCheck=try rules.isCheck()
-        guard let (fx,fy)=TrainingGeometry.coordinates(from),let (tx,ty)=TrainingGeometry.coordinates(to) else{return "That move is not possible."}
-        if piece.last=="k",fy==ty,abs(fx-tx)==2{return inCheck ? "You cannot castle while your king is in check.":"Castling is not allowed here."}
-        let follows:Bool
-        if piece.last=="p" {
-            let forward=piece.first=="w" ? 1:-1,home=piece.first=="w" ? 1:6,ep=fen.split(separator:" ").dropFirst(3).first.map(String.init)
-            let push=tx==fx && board[to]==nil && (ty==fy+forward || fy==home && ty==fy+2*forward && TrainingGeometry.square(fx,fy+forward).map{board[$0]==nil}==true)
-            let capture=abs(tx-fx)==1 && ty==fy+forward && (board[to] != nil || ep==to)
-            follows=push || capture
-        } else {follows=TrainingGeometry.attacks(from:from,board:board).contains(to)}
-        guard follows else{return "A \(name) cannot move from \(from) to \(to)."}
-        if piece.last=="k"{return "Your king would be attacked on \(to)."}
-        return inCheck ? "That move does not get your king out of check.":"That move would leave your king in check."
+        TypedMove.refusal(piece:piece,from:from,to:to,board:board,enPassant:fen.split(separator:" ").dropFirst(3).first.map(String.init),inCheck:try rules.isCheck())
     }
 }

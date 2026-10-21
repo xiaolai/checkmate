@@ -10,7 +10,7 @@ struct GameLibraryBrowser:View {
     @State private var dropTargeted=false
     private var sections:[LibrarySection] {library.shown}
     var body:some View {VStack(alignment:.leading,spacing:Metrics.smallGap){
-        Text("Game library").font(.headline).accessibilityAddTraits(.isHeader)
+        Text("Game library").sectionHeading()
         ViewThatFits(in:.horizontal){
             HStack(spacing:Metrics.smallGap){search.frame(minWidth:150);scopePicker.pickerStyle(.segmented).controlSize(.small).fixedSize();sortPicker}
             HStack(spacing:Metrics.smallGap){search.frame(minWidth:160);scopePicker.pickerStyle(.menu).fixedSize();sortPicker}

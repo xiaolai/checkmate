@@ -48,15 +48,15 @@ import CheckmateCore
         let menu=AppDelegate.makeGameMenu(target:nil),lesson=NSMenuItem(title:"Lesson",action:nil,keyEquivalent:"")
         func visible()->[String] {menu.items.filter{!$0.isHidden}.map{$0.isSeparatorItem ? "—":$0.title}}
         GameWindow.syncMenus(menu,lesson:lesson,network:true)
-        XCTAssertEqual(visible(),["Offer Draw","Claim Draw","Resign…","Flip Board","Leave Game…"]);XCTAssertTrue(lesson.isHidden)
+        XCTAssertEqual(visible(),["Offer Draw","Claim Draw","Resign…","Flip Board","Leave Game…","Type a Move…"]);XCTAssertTrue(lesson.isHidden)
         XCTAssertEqual(menu.items.compactMap{$0.identifier?.rawValue}.filter{$0.hasPrefix("network-")},["network-menu-offer-draw","network-menu-flip-board","network-menu-leave-game"])
         GameWindow.syncMenus(menu,lesson:lesson,network:false)
-        XCTAssertEqual(visible(),["New Game…","Take Back Move","Hint","Restore Previous Game","Claim Draw","Resign…","Flip Board","—","Protected by","Attacked by","Dismiss Piece Inspection","—","Connect Voice Coach","Stop Speaking"]);XCTAssertFalse(lesson.isHidden)
+        XCTAssertEqual(visible(),["New Game…","Take Back Move","Hint","Restore Previous Game","Claim Draw","Resign…","Flip Board","Type a Move…","—","Protected by","Attacked by","Dismiss Piece Inspection","—","Connect Voice Coach","Stop Speaking"]);XCTAssertFalse(lesson.isHidden)
         GameWindow.syncMenus(menu,lesson:lesson,network:true);GameWindow.syncMenus(menu,lesson:lesson,network:true)
-        XCTAssertEqual(visible(),["Offer Draw","Claim Draw","Resign…","Flip Board","Leave Game…"],"repeated syncs change nothing")
+        XCTAssertEqual(visible(),["Offer Draw","Claim Draw","Resign…","Flip Board","Leave Game…","Type a Move…"],"repeated syncs change nothing")
         // Assistance plan A1: at board insight the network game's menu also shows the piece inspector.
         GameWindow.syncMenus(menu,lesson:lesson,network:true,inspector:true)
-        XCTAssertEqual(Set(visible()),["Offer Draw","Claim Draw","Resign…","Flip Board","Leave Game…","Protected by","Attacked by","Dismiss Piece Inspection"])
+        XCTAssertEqual(Set(visible()),["Offer Draw","Claim Draw","Resign…","Flip Board","Leave Game…","Type a Move…","Protected by","Attacked by","Dismiss Piece Inspection"])
     }
 
     /// The network items follow the network game; outside network mode the shared items keep the window's own rules.
@@ -112,6 +112,18 @@ import CheckmateCore
         let model=try NativeModel();defer{model.shutdown()};model.playOnNetwork()
         XCTAssertEqual(bar(model),ControlBarModel(),"nothing to act on in the lobby")
         let lan=LAN();_=try hostedGame(model,lan);XCTAssertFalse(bar(model).clocks)
+    }
+
+    /// B-23: a typed move in a network game goes out like a clicked one, only on the learner's turn.
+    func testATypedMoveInANetworkGame()throws {
+        let model=try NativeModel(),window=GameWindow(model:model);defer{window.window?.delegate=nil;model.shutdown()}
+        let lan=LAN(),ben=try hostedGame(model,lan),game=model.network;model.playOnNetwork();window.refresh()
+        XCTAssertTrue(window.typedMoveAvailable)
+        XCTAssertEqual(window.submitTypedMove("e5"),"A pawn cannot move from e2 to e5.");XCTAssertNil(game.pending)
+        XCTAssertNil(window.submitTypedMove("e4"));lan.scheduler.run();XCTAssertEqual(game.board["e4"],"wp")
+        XCTAssertEqual(window.submitTypedMove("d4"),"It's not your move yet.")
+        ben.play(from:"e7",to:"e5");lan.scheduler.run()
+        XCTAssertNil(window.submitTypedMove("Nf3"));lan.scheduler.run();XCTAssertEqual(game.board["f3"],"wn")
     }
 
     /// D9: Leave and Resign ask first when they count as a resignation; Cancel keeps the game; quitting asks too, then

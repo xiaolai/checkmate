@@ -57,7 +57,7 @@ struct TrainingLibraryView:View {
     /// Whether this build offers an entry: saved work and suggestions for a disabled increment stay hidden.
     private func offered(_ id:String)->Bool {training.catalog?.entry(id).map(TrainingRolloutPolicy.offered) ?? false}
     var body:some View {ScrollView{VStack(alignment:.leading,spacing:Metrics.padding){
-        Text("Training").font(.largeTitle.bold())
+        Text("Training").sectionHeading(.largeTitle.bold())
         Text("Short exercises for the basics. This is foundational practice, not a complete beginner course.").foregroundStyle(.secondary)
         if let error=training.contentError{Text(error).foregroundStyle(Color(nsColor:NativeColors.error))}
         if let notice=training.notice{Text(notice).accessibilityIdentifier("training-notice")}
@@ -67,7 +67,7 @@ struct TrainingLibraryView:View {
         }
         let suggestions=training.suggestions.filter{offered($0.item.entry)}
         if !suggestions.isEmpty {
-            Text("Suggested practice").font(.title3.bold()).padding(.top,Metrics.smallGap)
+            Text("Suggested practice").sectionHeading(.title3.bold()).padding(.top,Metrics.smallGap)
             Text("Boards worth another try. Suggestions never lock anything; every entry stays open.").font(.caption).foregroundStyle(.secondary)
             ForEach(Array(suggestions.enumerated()),id:\.element.item.id){position,suggestion in
                 HStack(alignment:.top){
@@ -82,11 +82,11 @@ struct TrainingLibraryView:View {
         }
         ForEach([(TrainingOrigin.new,"New exercises"),(.existing,"Existing games")],id:\.0){origin,heading in
             let group=entries.filter{$0.origin==origin}
-            if !group.isEmpty{Text("\(heading) (\(group.count))").font(.title3.bold()).padding(.top,Metrics.smallGap)}
+            if !group.isEmpty{Text("\(heading) (\(group.count))").sectionHeading(.title3.bold()).padding(.top,Metrics.smallGap)}
             ForEach(group,id:\.id){entry in row(entry)}
         }
         if !beginner.isEmpty {
-            Text("Beginner skills (\(beginner.count))").font(.title3.bold()).padding(.top,Metrics.smallGap)
+            Text("Beginner skills (\(beginner.count))").sectionHeading(.title3.bold()).padding(.top,Metrics.smallGap)
             Text("Preview: these exercises are machine-checked, but an editor has not reviewed them yet.").font(.caption).foregroundStyle(.secondary)
             ForEach(beginner,id:\.id){entry in row(entry)}
         }

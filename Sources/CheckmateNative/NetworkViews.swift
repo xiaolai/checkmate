@@ -17,7 +17,7 @@ struct NetworkDetail:View {
     @State private var hosting=false
     var body:some View {
         VStack(alignment:.leading,spacing:Metrics.smallGap){
-            Text(game.title).font(.title2.bold()).accessibilityIdentifier("network-title")
+            Text(game.title).sectionHeading(.title2.bold()).accessibilityIdentifier("network-title")
             if game.part==nil{lobby}else{session}
             if let notice=game.notice{Text(notice).foregroundStyle(.secondary).accessibilityIdentifier("network-notice")}
         }
@@ -32,9 +32,13 @@ struct NetworkDetail:View {
         Text("Play a game against someone on your local network, or watch one.").fixedSize(horizontal:false,vertical:true)
         Button("Host a Game…"){hosting=true}.controlSize(.large).accessibilityIdentifier("network-host-button")
         Divider()
-        Text("Games on your network").font(.headline)
+        Text("Games on your network").sectionHeading()
         if game.localNetworkDenied {
             Text("Checkmate needs Local Network access to find games.").fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("network-access-needed")
+            Button("Local Network Settings…"){model.openLocalNetworkSettings()}.accessibilityIdentifier("network-permission-settings")
+        }else if game.games.isEmpty,game.browseTimedOut {
+            // B-26: ten seconds without a game; a missing Local Network permission is the usual reason.
+            Text(NetworkGameController.browseTimeoutHelp).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("network-no-games")
             Button("Local Network Settings…"){model.openLocalNetworkSettings()}.accessibilityIdentifier("network-permission-settings")
         }else if game.games.isEmpty {
             Text(game.browsing ? "Looking for games…":"No games found yet.").foregroundStyle(.secondary).accessibilityIdentifier("network-no-games")
@@ -208,7 +212,7 @@ struct NetworkAcceptSheet:View {
     let accept:()->Void,decline:()->Void
     var body:some View {
         VStack(alignment:.leading,spacing:Metrics.padding){
-            Text(NetworkWording.joinQuestion(game.displayName)).font(.title2.bold())
+            Text(NetworkWording.joinQuestion(game.displayName)).sectionHeading(.title2.bold())
             Text(NetworkWording.offer(game.assistance,game:game.name)).fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("network-accept-terms")
             Text(NetworkWording.termsFixed).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
             HStack {
@@ -234,7 +238,7 @@ struct NetworkHostSheet:View {
     @State private var positions:[NetworkLibraryStart]=[]
     var body:some View {
         VStack(alignment:.leading,spacing:Metrics.padding){
-            Text("Host a Game").font(.title2.bold())
+            Text("Host a Game").sectionHeading(.title2.bold())
             Form {
                 TextField("Your name",text:$game.playerName).accessibilityIdentifier("network-host-name")
                 Picker("Your side",selection:$game.form.side){Text("White").tag(NetworkSideChoice.white);Text("Black").tag(NetworkSideChoice.black);Text("Random").tag(NetworkSideChoice.random)}.accessibilityIdentifier("network-host-side")

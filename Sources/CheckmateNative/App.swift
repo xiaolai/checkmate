@@ -231,7 +231,7 @@ import CheckmateCore
             game.board.automationReduceMotion=false;game.board.animate(move,duration:1)
             if !game.board.moveAnimationActive{failures.append("Normal motion override did not start animation")};game.board.cancelAnimation()
             game.board.automationReduceMotion=nil;game.board.selected=nil;game.board.updateBreathing();game.refresh()
-            let accessibleSquares=game.board.accessibilityChildren()?.compactMap{$0 as? NSAccessibilityElement} ?? []
+            let accessibleSquares=game.board.accessibilityChildren()?.compactMap{$0 as? SquareAccessibility} ?? []
             if accessibleSquares.count != 64 || game.board.accessibilityLabel() != "Chessboard"{failures.append("Board accessibility tree incomplete")}
             game.window?.makeFirstResponder(game.board)
             @MainActor func key(_ code:UInt16){if let event=NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:[],timestamp:ProcessInfo.processInfo.systemUptime,windowNumber:game.window!.windowNumber,context:nil,characters:"",charactersIgnoringModifiers:"",isARepeat:false,keyCode:code){NSApp.sendEvent(event)}}
@@ -614,7 +614,7 @@ import CheckmateCore
     /// The Game menu, its items aimed at `target` (the window; tests read it without one).
     static func makeGameMenu(target:AnyObject?)->NSMenu {
         let gameMenu=NSMenu(title:"Game")
-        for (name,action,key) in [("New Game…",#selector(GameWindow.newGame),"n"),("Take Back Move",#selector(GameWindow.undo as (GameWindow) -> () -> Void),""),("Hint",#selector(GameWindow.barHint),"h"),("Restore Previous Game",#selector(GameWindow.restorePrevious),""),("Offer Draw",#selector(GameWindow.offerDraw),""),("Claim Draw",#selector(GameWindow.claimDraw),""),("Resign…",#selector(GameWindow.resign),""),("Flip Board",#selector(GameWindow.flipBoard),""),("Leave Game…",#selector(GameWindow.leaveGame),"")] {let item=NSMenuItem(title:name,action:action,keyEquivalent:key);item.target=target;gameMenu.addItem(item)}
+        for (name,action,key) in [("New Game…",#selector(GameWindow.newGame),"n"),("Take Back Move",#selector(GameWindow.undo as (GameWindow) -> () -> Void),""),("Hint",#selector(GameWindow.barHint),"h"),("Restore Previous Game",#selector(GameWindow.restorePrevious),""),("Offer Draw",#selector(GameWindow.offerDraw),""),("Claim Draw",#selector(GameWindow.claimDraw),""),("Resign…",#selector(GameWindow.resign),""),("Flip Board",#selector(GameWindow.flipBoard),""),("Leave Game…",#selector(GameWindow.leaveGame),""),("Type a Move…",#selector(GameWindow.typeMove),"l")] {let item=NSMenuItem(title:name,action:action,keyEquivalent:key);item.target=target;gameMenu.addItem(item)}
         // Hint (B-17) and Flip Board (B-6) take ⇧⌘H and ⇧⌘F; ⌘F stays with Find.
         for action in [#selector(GameWindow.barHint),#selector(GameWindow.flipBoard)]{gameMenu.items.first{$0.action==action}?.keyEquivalentModifierMask=[.command,.shift]}
         gameMenu.items.first{$0.action == #selector(GameWindow.flipBoard)}?.keyEquivalent="f"

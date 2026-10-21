@@ -20,7 +20,7 @@ import CheckmateCore
         let model=try NativeModel(),relationships=RelationshipController()
         defer{model.shutdown()}
         try model.session.playWhite(from:"e2",to:"e4");model.session.resign();XCTAssertTrue(model.session.finished);XCTAssertTrue(model.canReviewCurrent)
-        let host=NSHostingView(rootView:DetailContent(session:model.session,learning:model.learning,model:model,voice:model.voice,relationships:relationships,inspect:{_ in}))
+        let host=NSHostingView(rootView:DetailContent(session:model.session,learning:model.learning,model:model,voice:model.voice,relationships:relationships,history:PracticeHistory(),inspect:{_ in}))
         let window=NSWindow(contentRect:NSRect(x:0,y:0,width:360,height:900),styleMask:[.titled],backing:.buffered,defer:false);window.isReleasedWhenClosed=false;window.contentView=host
         defer{window.close()};window.orderFront(nil);window.layoutIfNeeded()
         for _ in 0..<20{RunLoop.main.run(until:Date().addingTimeInterval(0.02))}

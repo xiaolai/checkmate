@@ -102,6 +102,11 @@ import OSLog
     /// Games found on the network, each shown as "Ana's game · K7QD" (D3).
     @Published public private(set) var games:[NetworkDiscoveredGame]=[]
     @Published public private(set) var browsing=false
+    /// B-26: this look has found no game in `browseTimeout`; the lobby points to the Local Network setting. A game
+    /// found clears it, and each new look starts the time again.
+    @Published public private(set) var browseTimedOut=false
+    public static let browseTimeout:Duration = .seconds(10)
+    public static let browseTimeoutHelp="No games found. If a game is open on another Mac, check that Checkmate is allowed in System Settings ▸ Privacy & Security ▸ Local Network."
     /// One of D11's two denial signals was seen and access has not come back since.
     @Published public private(set) var localNetworkDenied=false
     /// Show the permission help (D11), until dismissed or access comes back.
@@ -140,6 +145,8 @@ import OSLog
     private var recordUnreadable=false,retryingRecord=false
     /// The clock announcement waiting for its threshold; each reading replaces it, so one is ever pending.
     private var clockAlarm:NetworkScheduledWork?
+    /// The time limit of the current look; cancelled when the lobby stops looking.
+    private var browseAlarm:NetworkScheduledWork?
     /// What the waiting alarm is for: the side, the threshold it announces, and when.
     private var clockAlarmTarget:(side:NetworkSide,threshold:Int,due:NetworkInstant)?
     /// The game revision of the turn in which a hint was shown to the learner (A7); their move in that turn says so.
@@ -297,15 +304,21 @@ import OSLog
         if wanted {
             let number=browseNumber
             Self.browse(services.discovery,on:services.scheduler,Self.relay(services.delivery){[weak self] (update:NetworkDiscoveryUpdate) in self?.discovered(update,browse:number)})
+            browseAlarm=Self.alarm(services.scheduler,at:services.scheduler.now+Self.browseTimeout,services.delivery){[weak self] in self?.browseLimitReached(number)}
         }else{
             Self.stopBrowsing(services.discovery,on:services.scheduler)
-            if !games.isEmpty{games=[]}
+            if let alarm=browseAlarm{browseAlarm=nil;services.scheduler.enqueue{alarm.cancel()}}
+            if !games.isEmpty{games=[]};if browseTimedOut{browseTimedOut=false}
         }
+    }
+    private func browseLimitReached(_ browse:Int){
+        guard browse==browseNumber,browsing else{return}
+        browseAlarm=nil;if games.isEmpty,!browseTimedOut{browseTimedOut=true;announce(Self.browseTimeoutHelp)}
     }
     private func discovered(_ update:NetworkDiscoveryUpdate,browse:Int){
         guard browse==browseNumber,browsing else{return}
         switch update {
-        case .games(let found):if games != found{games=found};if lobbyMessage != nil{lobbyMessage=nil};accessRestored()
+        case .games(let found):if games != found{games=found};if lobbyMessage != nil{lobbyMessage=nil};if !found.isEmpty,browseTimedOut{browseTimedOut=false};accessRestored()
         case .denied:askForPermission()
         case .failed(let detail):NativeLog.lifecycle.error("Network discovery failed: \(detail,privacy:.public)");lobbyMessage="Couldn't look for games on your network."
         }

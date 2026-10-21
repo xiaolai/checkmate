@@ -7,7 +7,7 @@ struct TrainingPanel:View {
     var body:some View {
         if let exercise=training.exercise {
             let definition=exercise.definition,scenario=exercise.scenario
-            Text(definition.title).font(.title2.bold())
+            Text(definition.title).sectionHeading(.title2.bold())
             Text(exercise.prompt).fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("training-prompt")
             if let fresh=TrainingRecommendation.freshnessLabel(exercise.snapshot.freshness){Text(fresh).font(.caption).foregroundStyle(.secondary).accessibilityIdentifier("training-freshness")}
             if exercise.snapshot.retry{Text("You have tried this board before, so this is practice.").font(.caption).foregroundStyle(.secondary)}
@@ -87,7 +87,7 @@ struct TrainingPanel:View {
         if training.canReview(exercise){Button("Review this game"){model.reviewTraining()}.accessibilityIdentifier("training-review-game")}
         // After the game: up to two exact moments to try again.
         if exercise.finished,!exercise.moments.isEmpty {
-            Text("Moments to review").font(.headline)
+            Text("Moments to review").sectionHeading()
             ForEach(Array(exercise.moments.enumerated()),id:\.offset){index,moment in
                 Text(moment.label).fixedSize(horizontal:false,vertical:true)
                 Button("Try this moment again"){training.retryMoment(index)}.accessibilityIdentifier("training-moment-\(index)")
@@ -137,7 +137,7 @@ struct TrainingVoiceCoach:View {
     static let helpCaption="Asking the coach for help marks this game as solved with help."
     var body:some View {
         if voice.trainingSession || voice.trainingVoiceAvailable || !voice.history.isEmpty && voice.connection != .disconnected {
-            Divider();Text("Voice coach").font(.headline)
+            Divider();Text("Voice coach").sectionHeading()
             if voice.connection != .disconnected {Text(voice.status).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("training-voice-status")}
             if voice.connected,voice.trainingSession {
                 HStack {

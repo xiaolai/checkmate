@@ -5,6 +5,8 @@ import QuartzCore
 import ScreenCaptureKit
 import CheckmateCore
 final class BoardWindow:NSWindow {
+    /// Arrow keys nothing focused handled step through the practice moves (`GameWindow.historyArrow`).
+    override func keyDown(with event:NSEvent){if (windowController as? GameWindow)?.historyKey(event)==true{return};super.keyDown(with:event)}
     /// Edit ▸ Undo (⌘Z): a text field in focus handles it first; otherwise the window would answer it with its own
     /// empty undo manager and the game never heard it. It goes to the game window instead, which follows
     /// `NativeModel.undoAction`: a just-deleted review's restore, or the game's take back and undo turn.
@@ -33,7 +35,7 @@ final class DrawerSplitViewController:NSSplitViewController {
 }
 final class BoardTitleView:NSView {
     weak var board:NSView?
-    let label=textLabel("Practice · White vs Stockfish",15,.semibold),tabs=NSSegmentedControl(labels:["Game","Demonstration"],trackingMode:.selectOne,target:nil,action:nil)
+    let label=textLabel("Practice · White vs Stockfish",.title3,.semibold),tabs=NSSegmentedControl(labels:["Game","Demonstration"],trackingMode:.selectOne,target:nil,action:nil)
     override init(frame:NSRect){super.init(frame:frame);addSubview(label);addSubview(tabs);label.alignment = .center;tabs.isHidden=true}
     required init?(coder:NSCoder){fatalError()}
     override var mouseDownCanMoveWindow:Bool {true}
@@ -43,7 +45,7 @@ final class BoardTitleView:NSView {
 
 }
 @MainActor final class GameWindow:NSWindowController,NSWindowDelegate,NSToolbarDelegate,NSMenuItemValidation {
-    let relationships=RelationshipController()
+    let relationships=RelationshipController(),history=PracticeHistory()
     let model:NativeModel,board=BoardView(),split=DrawerSplitViewController(),main=NSViewController()
     var navigation:NSViewController!,inspector:NSViewController!
     let titleView=BoardTitleView(frame:NSRect(x:0,y:0,width:300,height:28))
@@ -78,7 +80,7 @@ final class BoardTitleView:NSView {
     init(model:NativeModel){self.model=model
         let w=BoardWindow(contentRect:NSRect(x:0,y:0,width:Metrics.core,height:Metrics.core),styleMask:[.titled,.closable,.miniaturizable,.resizable,.fullSizeContentView],backing:.buffered,defer:false)
         super.init(window:w);w.title="Checkmate";w.isMovableByWindowBackground=true;w.titleVisibility = .hidden;w.titlebarSeparatorStyle = .none;w.titlebarAppearsTransparent=true;w.isReleasedWhenClosed=false;w.isRestorable=false;w.delegate=self;w.autorecalculatesKeyViewLoop=true;w.identifier=NSUserInterfaceItemIdentifier("main");w.collectionBehavior=[.fullScreenPrimary];w.tabbingMode = .disallowed
-        main.view=BackgroundView();navigation=NSHostingController(rootView:SidebarContent(session:model.session,learning:model.learning,model:model,network:model.network));inspector=ToolbarInsetHostingController(rootView:DetailContent(session:model.session,learning:model.learning,model:model,voice:model.voice,relationships:relationships,inspect:{[weak self] mode in self?.toggleRelationship(mode)}))
+        main.view=BackgroundView();navigation=NSHostingController(rootView:SidebarContent(session:model.session,learning:model.learning,model:model,network:model.network));inspector=ToolbarInsetHostingController(rootView:DetailContent(session:model.session,learning:model.learning,model:model,voice:model.voice,relationships:relationships,history:history,inspect:{[weak self] mode in self?.toggleRelationship(mode)}))
         split.drawerOpen={[unowned self] in $0 ? desiredLeft:desiredRight};split.toggleDrawer={[unowned self] in $0 ? toggleLeft():toggleRight()}
         _ = split.view;split.splitView.autoresizingMask=[.width,.height];split.splitView.isVertical=true;split.splitView.dividerStyle = .thin
         sidebarItem=NSSplitViewItem(sidebarWithViewController:navigation);boardItem=NSSplitViewItem(viewController:main);inspectorItem=NSSplitViewItem(inspectorWithViewController:inspector)
@@ -102,6 +104,7 @@ final class BoardTitleView:NSView {
         board.reviewKey={[weak self] key in guard let self=self,self.model.review.active,self.model.review.branch==nil else{return false};switch key{case 123:self.model.review.step(-1);case 124:self.model.review.step(1);case 125:self.model.review.last();case 126:self.model.review.first();case 49:self.model.review.playing ? self.model.review.pause():self.model.review.play();default:return false};self.refresh();return true}
         board.dropReview={[weak self] data in self?.model.importReviewData(data)};board.dropRejected={[weak self] reason in self?.model.storageError=reason}
         model.review.objectWillChange.sink{[weak self] _ in DispatchQueue.main.async{self?.refresh()}}.store(in:&observations)
+        history.choose={[weak self] index in self?.showPracticeMove(index)};history.objectWillChange.sink{[weak self] _ in DispatchQueue.main.async{self?.refresh()}}.store(in:&observations)
         model.onImport={[weak self] in guard let self=self else{return};self.desiredLeft=self.model.session.state.window.left;self.desiredRight=self.model.session.state.window.right;self.animateDrawers()};board.onLayout={[weak self] in self?.titleView.needsLayout=true;self?.titleView.syncCenter()};board.activate={[weak self] square in self?.select(square)};board.canDrag={[weak self] square in self?.dragMoves(square) ?? false};model.movePlacedDirectly={[weak self] move in self?.board.isDropped(move) ?? false};board.inspectRelationship={[weak self] mode in self?.toggleRelationship(mode)};board.dismissRelationships={[weak self] in guard let self=self else{return false};let dismissed=self.relationships.dismiss();if dismissed{self.refresh()};return dismissed};board.clearSelection={[weak self] in guard let self=self else{return};if self.model.review.active{self.model.review.clearSelection();self.refresh()}else if self.model.session.mode == .network{self.model.network.clearSelection();self.refresh()}else if self.model.session.mode == .practice{self.model.session.clearSelection()}else if let training=self.model.training,self.trainingExercise != nil{training.clearSelection();self.refresh()}else{self.model.learning.clearSelection()}};titleView.board=board;titleView.tabs.target=self;titleView.tabs.action=#selector(selectTab)
     }
     /// The board area: transport, welcome card, puzzle and training libraries, error banner and playback line.
@@ -269,6 +272,7 @@ final class BoardTitleView:NSView {
         }
         // Inspection hides the move dots but not the move: a playable destination of the inspected piece leaves
         // inspection and plays, so P or A pressed by accident can never make a legal move unplayable.
+        if s.mode == .practice,shownHistoryPly != nil{refuseHistoryMove();return}
         let attempt=model.learning.attemptStep ? model.learning.attempt:nil
         if relationships.mode != nil{let plays=s.mode == .practice && s.selected != sq && s.inspection?.legalNow==true && s.destinations.contains(sq) || attempt.map{$0.selected != sq && $0.destinations.contains(sq)} == true;if plays{relationships.dismiss()}else{if s.mode == .practice{do{try s.inspectPiece(sq)}catch{showError(error)}};relationships.select(board.position[sq] == nil ? nil:sq);refresh();return}}
         if s.mode == .practice {
@@ -293,7 +297,7 @@ final class BoardTitleView:NSView {
         if model.review.active{return true}
         let l=model.learning,s=model.session
         if s.mode == .network{return model.network.canDrag(square)}
-        if s.mode == .practice{return board.position[square]?.first.map(String.init)==s.humanSide}
+        if s.mode == .practice{return shownHistoryPly==nil && board.position[square]?.first.map(String.init)==s.humanSide}
         // Selecting squares is click-only; a piece the learner moves may be dragged.
         if let exercise=trainingExercise{return !exercise.finished && (exercise.task == .move || exercise.task == .game && model.training?.games.thinking == false) && board.position[square]?.first.map(String.init)==exercise.scenario.learner}
         if l.attemptStep{return l.attempt.learnerToMove && board.position[square]?.first=="w"}
@@ -432,6 +436,9 @@ playbackLineView?.isHidden=model.reviewWorkspace
         if practice,s.displayView=="game" {if let last=s.rules.records.last{p.highlights.insert(contentsOf:[Highlight(sq:last.from,kind:"last"),Highlight(sq:last.to,kind:"last")],at:0)};if s.rules.check,let king=s.rules.board.first(where:{$0.value==s.rules.turn+"k"})?.key{p.highlights.append(Highlight(sq:king,kind:"check"))}}
         if !practice {p.highlights+=l.frame.hl+l.picked.map{Highlight(sq:$0,kind:"focus")};p.arrows=l.frame.arrows+p.arrows;p.guards=l.frame.guards;p.counts=l.frame.counts ?? [];p.motion=l.frame.motion.map{motion in var landed=motion;if board.shouldReduceMotion{landed.t=1};return landed}}
         if !s.presentationHidden,let d=s.demonstration {let frame=d.lines[d.line].frames[d.ply];p.arrows=frame.arrows+p.arrows;p.highlights+=frame.highlights}
+        // An earlier position of the game (B-9): its pieces and the move that led there, and nothing to play or inspect.
+        if practice,let ply=shownHistoryPly{let records=s.rules.records;guard let earlier=TrainingMaterial.board(fen:records[ply].before) else{preconditionFailure("A recorded position has an unreadable FEN: \(records[ply].before)")}
+            p=BoardPresentation(source:"history:\(s.gameGeneration):\(ply)",position:earlier,selected:nil,destinations:[],playable:false,dropsAnywhere:false,attacked:[],highlights:ply>0 ? [Highlight(sq:records[ply-1].from,kind:"last"),Highlight(sq:records[ply-1].to,kind:"last")]:[],arrows:[],guards:[],counts:[],motion:nil)}
         return p
     }
     /// The network game: its own board, selection and legal dots; a pending move shows its lifted piece and target.
@@ -455,6 +462,7 @@ playbackLineView?.isHidden=model.reviewWorkspace
         return BoardPresentation(source:"training",position:model.session.displayBoard,selected:exercise.picked,destinations:[],playable:true,dropsAnywhere:exercise.task == .move || exercise.task == .game,attacked:[],highlights:(exercise.lastMove.map{[Highlight(sq:$0.from,kind:"last"),Highlight(sq:$0.to,kind:"last")]} ?? [])+target+exercise.selection.map{Highlight(sq:$0,kind:"answer")}+exercise.hintSquares.map{Highlight(sq:$0,kind:"hint")}+coach.squares.map{Highlight(sq:$0,kind:"focus")}+model.voice.trainingFocus.map{Highlight(sq:$0,kind:"focus")},arrows:coach.arrows,guards:[],counts:[],motion:nil)
     }
     func validateMenuItem(_ item:NSMenuItem)->Bool {
+        if item.action == #selector(typeMove){return typedMoveAvailable}
         // The network game's own items act on its controller (LAN-play plan D9); in network mode nothing else in the
         // Game or Lesson menu shows (`syncMenus`).
         if let action=item.action,let enabled=Self.networkItemEnabled(action,network:model.session.mode == .network,game:model.network){return enabled}
@@ -501,7 +509,7 @@ playbackLineView?.isHidden=model.reviewWorkspace
     // MARK: The network game's menu items (LAN-play plan D9)
     /// The Game menu's base items in network mode: Resign, Offer Draw, Claim Draw, Flip Board and Leave Game. The only
     /// others it shows are `inspectorActions`, and those only at board insight or more.
-    static let networkActions:Set<Selector>=[#selector(resign),#selector(offerDraw),#selector(claimDraw),#selector(flipBoard),#selector(leaveGame)]
+    static let networkActions:Set<Selector>=[#selector(resign),#selector(offerDraw),#selector(claimDraw),#selector(flipBoard),#selector(leaveGame),#selector(typeMove)]
     /// The piece inspector's items, shown in network mode only when the agreed level allows it (assistance plan A1).
     static let inspectorActions:Set<Selector>=[#selector(showProtection),#selector(showAttacks),#selector(dismissInspection)]
     /// Items that exist only for the network game, hidden elsewhere.

@@ -64,7 +64,12 @@ def frame(*arguments):
 
 
 def replied(white_move):
-    return lambda: re.search(r"(^|\s)" + re.escape(white_move) + r"  \S+", listing()) is not None
+    """Black's reply follows the move in the drawer's move list, where each move is a button named "1. e4", "1... e5"."""
+    number = white_move.split(".")[0]
+    def check():
+        shown = listing()
+        return re.search(r"^AXButton: (.* \| )?" + re.escape(white_move) + r"( \||$)", shown, re.M) is not None and re.search(r"^AXButton: (.* \| )?" + re.escape(number) + r"\.\.\. \S+", shown, re.M) is not None
+    return check
 
 
 def toggle(name):

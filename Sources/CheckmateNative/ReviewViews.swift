@@ -7,8 +7,8 @@ struct ReviewWorkspaceContent:View {
     var body:some View {VStack(spacing:Metrics.sectionGap){
         VStack(spacing:Metrics.smallGap){
             HStack(spacing:Metrics.smallGap){
-                Image(systemName:"doc.text.magnifyingglass").font(.system(size:28)).foregroundStyle(.secondary).accessibilityHidden(true)
-                VStack(alignment:.leading,spacing:2){Text("Game review").font(.title.bold());Text("Choose a game or position to explore.").foregroundStyle(.secondary)}
+                Image(systemName:"doc.text.magnifyingglass").font(.largeTitle).foregroundStyle(.secondary).accessibilityHidden(true)
+                VStack(alignment:.leading,spacing:2){Text("Game review").sectionHeading(.title.bold());Text("Choose a game or position to explore.").foregroundStyle(.secondary)}
             }
             ViewThatFits(in:.horizontal){HStack(spacing:Metrics.smallGap){actions};VStack(spacing:Metrics.smallGap){actions}}
             Text((model.session.rules.history.isEmpty ? "Play a move to review your current game. ":"")+"You can also drop a PGN file on the window.").font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.center)
@@ -109,7 +109,7 @@ struct ReviewPracticeSheet:View {
         guard target != nil,model.review.practiceForkTarget==target else{model.practiceForkRequested=false;model.storageError="The review changed while this was open, so nothing was started or saved. Choose Practise here again.";return false};return true
     }
     var body:some View {VStack(alignment:.leading,spacing:Metrics.sectionGap){
-        Text("Practise from this position").font(.headline)
+        Text("Practise from this position").sectionHeading()
         Text("Your current practice is backed up and becomes Previous game, replacing that shortcut’s older game. The imported record stays unchanged.")
         Picker("Play as",selection:$side){Text("White").tag("w");Text("Black").tag("b")}
         Picker("Opponent",selection:$preset){if ReviewRolloutPolicy.beginnerOpponentEnabled{Text("First steps").tag("first_steps")};Text("Gentle").tag("gentle");Text("Club").tag("club");Text("Keep custom settings").tag("custom")}

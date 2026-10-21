@@ -31,7 +31,7 @@ struct AboutPane:View {
     private func link(_ title:String,_ url:URL)->some View {Button(title){open(url)}.buttonStyle(.link)}
     var body:some View {
         Section {HStack(spacing:14){Image(nsImage:NSApp.applicationIconImage).resizable().frame(width:64,height:64).accessibilityHidden(true)
-            VStack(alignment:.leading,spacing:3){Text("Checkmate").font(.title2.weight(.semibold));Text("Version \(facts.version) (\(facts.build))").foregroundStyle(.secondary).textSelection(.enabled);Text("Learn and practice chess on your Mac.")}}}
+            VStack(alignment:.leading,spacing:3){Text("Checkmate").sectionHeading(.title2.weight(.semibold));Text("Version \(facts.version) (\(facts.build))").foregroundStyle(.secondary).textSelection(.enabled);Text("Learn and practice chess on your Mac.")}}}
         Section("What's inside"){LabeledContent("Chess engine",value:"Stockfish 19, on this Mac");LabeledContent("Lessons",value:"\(facts.lessons)");LabeledContent("Practice activities",value:"\(facts.practiceActivities)");LabeledContent("Puzzles",value:"\(facts.puzzles)");LabeledContent("Lesson recordings",value:"\(facts.recordings)");LabeledContent("Requires",value:"macOS \(facts.minimumSystem) or later")}
         Section("Privacy"){
             LabeledContent{Button("Show in Finder"){open(facts.dataDirectory,reveal:true)}}label:{Text("Games, progress and settings are stored only on this Mac.")}

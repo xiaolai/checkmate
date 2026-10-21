@@ -161,7 +161,9 @@
     "Sources/CheckmateCore/Resources/course*.json",
     "Sources/CheckmateCore/Resources/*COPYING*",
     "Sources/CheckmateCore/Resources/THIRD_PARTY_NOTICES.txt",
-    "Sources/CheckmateCore/Resources/Licenses/*"
+    "Sources/CheckmateCore/Resources/Licenses/*",
+    "Sources/CheckmateNative/PracticeHistory.swift",
+    "Sources/CheckmateNative/TypedMoveEntry.swift"
    ]
   },
   {
@@ -248,7 +250,9 @@
     "Sources/CheckmateNative/ControlBar.swift",
     "Sources/CheckmateMacPlatform/WindowGeometry.swift",
     "Sources/CheckmateDomain/PieceRelationships.swift",
-    "Sources/CheckmateNative/Relationship*.swift"
+    "Sources/CheckmateNative/Relationship*.swift",
+    "Sources/CheckmateNative/PracticeHistory.swift",
+    "Sources/CheckmateNative/TypedMoveEntry.swift"
    ]
   },
   {
@@ -490,7 +494,8 @@
     "Sources/CheckmateNative/BoardView.swift",
     "Sources/CheckmateNative/ReviewDetailViews.swift",
     "Sources/CheckmateNative/ReviewLibraryViews.swift",
-    "Sources/CheckmateNative/LibraryTableView.swift"
+    "Sources/CheckmateNative/LibraryTableView.swift",
+    "Sources/CheckmateNative/TypedMoveEntry.swift"
    ]
   },
   {

@@ -6,12 +6,12 @@ struct RelationshipContent:View {
     let label:String,inspect:(RelationshipMode)->Void
     var body:some View {
         VStack(alignment:.leading,spacing:Metrics.smallGap){
-            Text(label).font(.headline)
+            Text(label).sectionHeading()
             HStack {ForEach(RelationshipMode.allCases,id:\.self){mode in
                 Toggle(mode.title,isOn:Binding(get:{relationships.mode==mode},set:{value in if value != (relationships.mode==mode){inspect(mode)}})).toggleStyle(.button).help("\(mode.title) · \(mode.shortcut) while the board has focus").accessibilityValue(relationships.mode==mode ? "On":"Off")
             }}
             if let report=relationships.report {
-                Text(report.mode.title).font(.title2.bold())
+                Text(report.mode.title).sectionHeading(.title2.bold())
                 if report.relations.isEmpty{Text(report.emptyMessage)}
                 ForEach(report.relations,id:\.square){relation in
                     VStack(alignment:.leading,spacing:Metrics.smallGap){

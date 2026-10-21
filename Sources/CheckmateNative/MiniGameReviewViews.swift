@@ -17,7 +17,7 @@ struct MiniGameReviewSection:View {
         case .idle:EmptyView()
         case .running:ProgressView(MiniGameReviewWording.running).accessibilityIdentifier("mini-review-running")
         case .ready(let review):
-            Text("Game review").font(.headline)
+            Text("Game review").sectionHeading()
             Text(MiniGameReviewWording.summary(review)).foregroundStyle(.secondary)
             Button("Show Review"){reviewer.showSheet()}.accessibilityIdentifier("mini-review-show")
         }
@@ -30,7 +30,7 @@ struct MiniGameReviewSheet:View {
     let read:()->Void,close:()->Void
     var body:some View {
         VStack(alignment:.leading,spacing:Metrics.sectionGap) {
-            Text("\(review.kind.title) review").font(.title2.bold())
+            Text("\(review.kind.title) review").sectionHeading(.title2.bold())
             Text(MiniGameReviewWording.method).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
             if review.facts.isEmpty {Text(MiniGameReviewWording.noFacts).accessibilityIdentifier("mini-review-none")}
             else {ForEach(Array(review.facts.enumerated()),id:\.offset){Text($0.element.text).fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("mini-review-fact")}}

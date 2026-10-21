@@ -84,6 +84,7 @@ struct DetailContent:View {
     @ObservedObject var model:NativeModel
     @ObservedObject var voice:VoiceCoach
     @ObservedObject var relationships:RelationshipController
+    let history:PracticeHistory
     let inspect:(RelationshipMode)->Void
     /// The practice drawer's heading, from the game shown: its result once it is over, Stockfish thinking, or whose move it is.
     @MainActor static func practiceHeading(_ s:GameSession)->String {practiceHeading(result:s.finished ? s.state.practice.ending?.result ?? s.rules.ending?.result ?? "*":nil,learner:s.humanSide,thinking:s.busyReason=="opponent",learnerToMove:s.rules.turn==s.humanSide)}
@@ -107,8 +108,8 @@ struct DetailContent:View {
             else if learning.activePuzzle != nil || session.mode == .lesson {lessonOrPuzzleDetail}
             else if session.mode == .training,let training=model.training {
                 if case .training=session.activity.place,training.exercise != nil {TrainingPanel(model:model,training:training)}
-                else {Text("Training").font(.title2.bold());Text("Choose an exercise from the library.")}
-            } else {Text("Quick puzzles").font(.title2.bold());Text("Choose an exercise from the library.")}
+                else {Text("Training").sectionHeading(.title2.bold());Text("Choose an exercise from the library.")}
+            } else {Text("Quick puzzles").sectionHeading(.title2.bold());Text("Choose an exercise from the library.")}
         }
     }
     }.frame(maxWidth:.infinity,alignment:.leading).padding(Metrics.sectionGap)}.id(session.mode == .lesson ? learning.current.id+(learning.mini ? ":"+learning.miniKind.rawValue:""):session.mode.rawValue)}
@@ -116,13 +117,13 @@ struct DetailContent:View {
         if !model.fairness.engineHelpAllowed{Text(FairnessPolicy.practicePaused).foregroundStyle(.secondary).accessibilityIdentifier("practice-network-paused")}
         if relationships.report==nil {
         if !session.presentationHidden,let d=session.demonstration {
-            Text(d.title).font(.title2.bold());Text("Imagined moves").foregroundStyle(.secondary)
+            Text(d.title).sectionHeading(.title2.bold());Text("Imagined moves").foregroundStyle(.secondary)
             Picker("Line",selection:Binding(get:{d.line},set:{line in Self.attempt(session){try session.seekDemo(line:line,ply:0)}})){ForEach(d.lines.indices,id:\.self){i in Text(d.lines[i].label).tag(i)}}
             Text(d.lines[d.line].frames[d.ply].explanation)
             if session.rules.turn==session.opponentSide{Text("Stockfish waits while this demonstration is shown. Choose Game above or close it to continue.").font(.caption).foregroundStyle(.secondary)}
             Text("\(d.ply) / \(d.lines[d.line].frames.count-1)").foregroundStyle(.secondary)
         } else if !session.presentationHidden,let p=session.preview {
-            Text("Try a move").font(.title2.bold());Text("This does not change your game.").foregroundStyle(.secondary)
+            Text("Try a move").sectionHeading(.title2.bold());Text("This does not change your game.").foregroundStyle(.secondary)
             if let candidate=p.candidate {Text(candidate.description)}else{Text("Select a piece, then a destination to test your idea.")}
             if let e=p.evaluation {Text(e.comparison);Picker("Continuation",selection:Binding(get:{p.line},set:{line in Self.attempt(session){try session.previewAt(ply:0,line:line)}})){Text("Your move").tag("candidate");Text("Engine suggestion").tag("recommended")};Text((p.line=="candidate" ? e.candidateFrames:e.recommendedFrames).dropFirst().map(\.san).joined(separator:" · "));Button("Play my move"){Self.attempt(session){try session.playCandidate()}}}
             if p.status=="analyzing"{ProgressView("Comparing moves…")};if let error=p.error{Text(error).foregroundStyle(.secondary)}
@@ -137,7 +138,7 @@ struct DetailContent:View {
             else {Text(Self.practiceHeading(session)).font(.title2.bold()).accessibilityIdentifier("practice-heading");Text(session.message)}
             if session.pausedOpponent {Text("The companion opponent disconnected.");Button("Continue with Stockfish"){model.companion.disable();session.continueWithStockfish()}}
             OpponentSettingsContent(session:session)
-            Text("Moves").font(.headline);Text(session.rules.history.isEmpty ? "Your story starts with one move.":session.moveListText).textSelection(.enabled)
+            PracticeMoveList(session:session,history:history)
         }
         }
         VoiceCoachCard(voice:voice,model:model)
@@ -354,8 +355,8 @@ struct LessonProgressContent:View {
 struct PuzzleLibraryContent:View {
     @ObservedObject var learning:LearningPlayer
     @ObservedObject var session:GameSession
-    var body:some View {let puzzles=learning.filteredPuzzles;VStack(alignment:.leading,spacing:Metrics.padding){Text("Quick puzzles").font(.largeTitle.bold());Text(PuzzleRowFormat.heading(session.state.puzzles)).foregroundStyle(.secondary)
-        if let summary=learning.setSummary {GroupBox {VStack(alignment:.leading,spacing:Metrics.smallGap){Text("You Reached the End of This Set").font(.headline);Text(summary.text);if summary.toReview>0{Button("Review Mistakes"){learning.reviewMistakes()}.accessibilityIdentifier("puzzle-review-mistakes")}}.frame(maxWidth:.infinity,alignment:.leading)}.accessibilityElement(children:.contain).accessibilityIdentifier("puzzle-set-summary")}
+    var body:some View {let puzzles=learning.filteredPuzzles;VStack(alignment:.leading,spacing:Metrics.padding){Text("Quick puzzles").sectionHeading(.largeTitle.bold());Text(PuzzleRowFormat.heading(session.state.puzzles)).foregroundStyle(.secondary)
+        if let summary=learning.setSummary {GroupBox {VStack(alignment:.leading,spacing:Metrics.smallGap){Text("You Reached the End of This Set").sectionHeading();Text(summary.text);if summary.toReview>0{Button("Review Mistakes"){learning.reviewMistakes()}.accessibilityIdentifier("puzzle-review-mistakes")}}.frame(maxWidth:.infinity,alignment:.leading)}.accessibilityElement(children:.contain).accessibilityIdentifier("puzzle-set-summary")}
         TextField("Search exercises",text:$learning.query).textFieldStyle(.roundedBorder)
         HStack {Picker("Topic",selection:$learning.topic){Text("All topics").tag("All topics");ForEach(learning.topicGroups,id:\.title){group in Section(group.title){ForEach(group.topics,id:\.self){Text($0).tag($0)}}}};Picker("Level",selection:$learning.level){ForEach(["All levels"]+learning.levels,id:\.self){Text($0).tag($0)}};Picker("Status",selection:$learning.filter){ForEach(["All","Unsolved","To review"],id:\.self){Text($0).tag($0)}}}
         Text("\(puzzles.count) exercises").foregroundStyle(.secondary)
@@ -364,5 +365,5 @@ struct PuzzleLibraryContent:View {
         if puzzles.isEmpty{Text("No exercises match these filters.")}
     }.padding(Metrics.sectionGap)}
 }
-struct WelcomeContent:View {let title:String;var body:some View {VStack(spacing:Metrics.sectionGap){Image("LessonKnight",bundle:.main).resizable().renderingMode(.template).scaledToFit().foregroundStyle(.primary).frame(width:Metrics.mascotSize,height:Metrics.mascotSize).accessibilityHidden(true);Text(title).font(.largeTitle.bold())}.frame(maxWidth:.infinity,maxHeight:.infinity,alignment:.center)}}
+struct WelcomeContent:View {let title:String;var body:some View {VStack(spacing:Metrics.sectionGap){Image("LessonKnight",bundle:.main).resizable().renderingMode(.template).scaledToFit().foregroundStyle(.primary).frame(width:Metrics.mascotSize,height:Metrics.mascotSize).accessibilityHidden(true);Text(title).sectionHeading(.largeTitle.bold())}.frame(maxWidth:.infinity,maxHeight:.infinity,alignment:.center)}}
 /// Exercise controls under the board: hint, try again or next, and the way back to the library.

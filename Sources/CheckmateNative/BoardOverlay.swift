@@ -9,7 +9,7 @@ enum BoardOverlay {
     static let breathPeriod:TimeInterval=2.8
     static let refreshInterval:TimeInterval=1.0/30
     static let haloInset:CGFloat=0.10,haloExpansion:CGFloat=0.025
-    static let haloWidth:CGFloat=0.022,focusWidth:CGFloat=0.025
+    static let haloWidth:CGFloat=0.022
     static let haloFillLow:CGFloat=0.10,haloFillHigh:CGFloat=0.18
     static let haloStrokeLow:CGFloat=0.55,haloStrokeHigh:CGFloat=0.85
     static let annotationInset:CGFloat=0.08,annotationFill:CGFloat=0.14
