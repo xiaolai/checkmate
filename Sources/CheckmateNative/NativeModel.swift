@@ -626,7 +626,7 @@ import RealtimeConnection
     }
     func requestDeleteReview(_ id:UUID){
         guard deletingReviewID==nil,let record=reviews.first(where:{$0.id==id}) else{return}
-        let alert=NSAlert.destructive("Delete “\(record.title)”?","This removes the saved review and its imagined lines; Edit ▸ Undo puts them back. Your current game and the original imported file are kept.",action:"Delete")
+        let alert=NSAlert.destructive("Delete “\(record.title)”?","This removes the saved review and its imagined lines; Edit ▸ Undo puts them back. Your current game and the original imported file are kept.",action:"Delete",identifier:"review-delete")
         if let window=NSApp.mainWindow{alert.beginSheetModal(for:window){[weak self] response in if response == .alertFirstButtonReturn{self?.deleteReview(id)}}}
         else if alert.runModal() == .alertFirstButtonReturn{deleteReview(id)}
     }
