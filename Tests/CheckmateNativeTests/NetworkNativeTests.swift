@@ -20,6 +20,11 @@ import CheckmateCore
         XCTAssertTrue(model.review.fairness===model.fairness);XCTAssertTrue(model.session.network===model.network)
         if let training=model.training{XCTAssertTrue(training.games.fairness===model.fairness)}
     }
+    /// D-33: a closed lesson row says why in its value, so VoiceOver hears it without hovering.
+    func testAClosedLessonRowSaysWhy(){
+        XCTAssertEqual(SidebarContent.lessonValue(status:"Explored",here:true,closedReason:nil),"Explored, continue here")
+        XCTAssertEqual(SidebarContent.lessonValue(status:"Not started",here:false,closedReason:FairnessPolicy.destinationUnavailable),"Not started. "+FairnessPolicy.destinationUnavailable)
+    }
     func testLessonsPuzzlesAndTrainingAreClosedDuringANetworkGame()throws {
         let model=try NativeModel();defer{model.shutdown()}
         model.playOnNetwork();XCTAssertEqual(model.session.activity,.at(.network))

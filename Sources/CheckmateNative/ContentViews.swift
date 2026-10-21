@@ -50,6 +50,11 @@ struct SidebarContent:View {
     private var participating:Bool {!model.fairness.engineHelpAllowed}
     /// Why a closed destination is closed, shown under its title and read as its value, not only on hover (D-33).
     private var closedReason:String? {participating ? FairnessPolicy.destinationUnavailable:nil}
+    /// A lesson row's VoiceOver value: its status, whether learning continues here, and why it is closed.
+    static func lessonValue(status:String,here:Bool,closedReason:String?)->String {
+        let value=here ? String(localized:"\(status), continue here",bundle:.checkmate,comment:"A lesson's status, then that the learner continues from it"):status
+        return closedReason.map{String(localized:"\(value). \($0)",bundle:.checkmate,comment:"A lesson's status, then why it is closed")} ?? value
+    }
     private func destination(_ title:String,symbol:AppSymbol,tag:String)->some View {
         Label{VStack(alignment:.leading,spacing:1){Text(title);if let closedReason{Text(closedReason).font(.caption).foregroundStyle(.secondary)}}}icon:{symbol.image}
             .tag(tag).selectionDisabled(closedReason != nil).accessibilityValue(closedReason ?? "")
@@ -73,15 +78,17 @@ struct SidebarContent:View {
             }
         }
         // The mini-games, otherwise reached only inside their lessons (L-33). Each opens from its lesson, as there.
+        // Closed during a network game, they say why under the heading and as each row's value, not only on hover (D-33).
         Section("Mini-games"){
-            ForEach(SidebarSelection.miniGames(learning.library),id:\.kind){entry in Label(entry.kind.title,symbol:.miniGame).accessibilityIdentifier("sidebar-mini-"+entry.kind.rawValue).tag("mini:"+entry.kind.rawValue).selectionDisabled(participating).help(participating ? FairnessPolicy.destinationUnavailable:"")}
+            if let closedReason{Text(closedReason).font(.caption).foregroundStyle(.secondary).accessibilityIdentifier("sidebar-mini-closed")}
+            ForEach(SidebarSelection.miniGames(learning.library),id:\.kind){entry in Label(entry.kind.title,symbol:.miniGame).accessibilityIdentifier("sidebar-mini-"+entry.kind.rawValue).tag("mini:"+entry.kind.rawValue).selectionDisabled(participating).accessibilityValue(closedReason ?? "").help(closedReason ?? "")}
         }
         // A practice activity sits indented under its lesson, off the main path but one click away. The icon is the
         // row's kind; how far the learner has taken it (explored, practiced, mastered) is a trailing badge VoiceOver reads.
         Section {
             if let closedReason{Text(closedReason).font(.caption).foregroundStyle(.secondary).accessibilityIdentifier("sidebar-learn-closed")}
             if let next=learning.continueIndex {Button{model.lesson(next)}label:{Label("Continue Learning",symbol:.continueLearning)}.disabled(participating).help(participating ? FairnessPolicy.destinationUnavailable:String(localized:"Open \(learning.localizedTitle(index:next))",bundle:.checkmate)).accessibilityIdentifier("sidebar-continue-learning")}
-            ForEach(Array(learning.library.lessons.enumerated()),id:\.element.id){i,l in let status=learning.status(index:i),here=i==learning.continueIndex;Label {HStack(spacing:Metrics.smallGap){Text(learning.localizedTitle(index:i));if here{AppSymbol.continueHere.image.foregroundStyle(.tint).help("Continue here").accessibilityHidden(true)}}} icon:{(l.isPractice ? AppSymbol.gameActivity:.lesson).image}.badge(status.title.map{Text($0)}).accessibilityValue((status.title ?? String(localized:"Not started",bundle:.checkmate))+(here ? ", continue here":"")+(closedReason.map{". "+$0} ?? "")).padding(.leading,l.isPractice ? Metrics.practiceIndent:0).accessibilityHint(participating ? FairnessPolicy.destinationUnavailable:practiceHint(l)).accessibilityIdentifier("sidebar-lesson-"+l.id).tag("lesson:\(i)").selectionDisabled(participating)}
+            ForEach(Array(learning.library.lessons.enumerated()),id:\.element.id){i,l in let status=learning.status(index:i),here=i==learning.continueIndex;Label {HStack(spacing:Metrics.smallGap){Text(learning.localizedTitle(index:i));if here{AppSymbol.continueHere.image.foregroundStyle(.tint).help("Continue here").accessibilityHidden(true)}}} icon:{(l.isPractice ? AppSymbol.gameActivity:.lesson).image}.badge(status.title.map{Text($0)}).accessibilityValue(Self.lessonValue(status:status.title ?? String(localized:"Not started",bundle:.checkmate),here:here,closedReason:closedReason)).padding(.leading,l.isPractice ? Metrics.practiceIndent:0).accessibilityHint(participating ? FairnessPolicy.destinationUnavailable:practiceHint(l)).accessibilityIdentifier("sidebar-lesson-"+l.id).tag("lesson:\(i)").selectionDisabled(participating)}
         } header:{HStack{Text("Learn & explore");Spacer();Text(learning.courseProgress.text).monospacedDigit().accessibilityLabel("\(learning.courseProgress.explored) of \(learning.courseProgress.total) lessons explored")}.accessibilityElement(children:.combine).accessibilityIdentifier("sidebar-course-progress")}
     }.listStyle(.sidebar).scrollContentBackground(.hidden).overlay(alignment:.bottom){if model.importingReview{VStack{ProgressView("Loading review…");Button("Cancel Import"){model.cancelReviewImport()}}.padding().background(.regularMaterial)}}}
 }
