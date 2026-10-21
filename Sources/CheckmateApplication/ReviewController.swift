@@ -111,6 +111,39 @@ public struct ReviewBranch:Codable,Equatable {public let id:UUID,root:Int;public
         let route=currentRoute;guard route.count>1,let index=route.firstIndex(of:nodeID) else{return 0};return Double(index)/Double(route.count-1)
     }
     public func step(_ delta:Int){if branch != nil{seekBranch(branchPly+delta);return};guard document != nil else{return};let route=currentRoute,index=route.firstIndex(of:nodeID) ?? 0;try? select(route[max(0,min(route.count-1,index+delta))])}
+    /// ← in the key model (R-8, after Lichess): one move back along the line shown, an imagined one included. Leaving
+    /// an idea's first move lands on the recorded move it starts from, and the idea is kept.
+    public func back()throws {
+        guard let branch=branch,let document=document else{step(-1);return}
+        if branchPly>1{seekBranch(branchPly-1)}else{try select(branchPly==1 ? branch.root:document.nodes[branch.root].parent ?? branch.root)}
+    }
+    /// → in the key model: one move on along the line shown, the recorded line's first continuation or the idea's.
+    public func forward(){step(1)}
+    /// A line from the shown move's position: a recorded move, or a kept idea shown at `ply`.
+    public enum Line:Equatable {case node(Int),idea(UUID,ply:Int)}
+    public struct Variation:Equatable {public let line:Line,move:String}
+    /// The shown move and its alternatives from the same position, by move: recorded moves first in their order,
+    /// then kept ideas that play something else there. ↑/↓ step through them; empty at the game's start.
+    public var variations:[Variation] {
+        guard let d=document else{return []}
+        let root:Int,prefix:[String]
+        if let branch,branchPly>0{root=branch.root;prefix=Array(branch.moves.prefix(branchPly-1))}
+        else{guard let parent=d.nodes[branch?.root ?? nodeID].parent else{return []};root=parent;prefix=[]}
+        var lines:[Variation]=[],seen=Set<String>()
+        if prefix.isEmpty{for child in d.nodes[root].children{if let uci=d.nodes[child].uci,seen.insert(uci).inserted{lines.append(Variation(line:.node(child),move:uci))}}}
+        for idea in rememberedBranches+(branch.map{[$0]} ?? []) where idea.root==root && idea.moves.count>prefix.count && Array(idea.moves.prefix(prefix.count))==prefix && seen.insert(idea.moves[prefix.count]).inserted {lines.append(Variation(line:.idea(idea.id,ply:prefix.count+1),move:idea.moves[prefix.count]))}
+        return lines
+    }
+    /// The move that led to the shown position, nil at the game's start.
+    private var shownMove:String? {if let branch,branchPly>0{return branch.moves[branchPly-1]};return document?.nodes[branch?.root ?? nodeID].uci}
+    /// ↑ (-1) and ↓ (+1) in the key model: the previous or next alternative to the shown move, stopping at either end.
+    public func variation(_ delta:Int)throws {
+        let lines=variations;guard let move=shownMove,let index=lines.firstIndex(where:{$0.move==move}),lines.indices.contains(index+delta) else{return}
+        switch lines[index+delta].line {
+        case .node(let id):try select(id)
+        case .idea(let id,let ply):try openSavedBranch(id);seekBranch(ply)
+        }
+    }
     public func first(){if branch != nil{seekBranch(0)}else{try? select(0)}}
     public func last(){if let branch=branch{seekBranch(branch.moves.count)}else{try? select(currentRoute.last ?? 0)}}
     public func pause(){playback?.cancel();playback=nil;playing=false}

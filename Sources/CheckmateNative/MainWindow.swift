@@ -108,7 +108,9 @@ final class BoardTitleView:NSView {
         // A lesson or review just opened starts clean, with its guidance showing.
         let opened={[weak self] in guard let self else{return};self.relationships.dismiss();self.board.cancelAnimation();self.showDetails();self.refresh()}
         model.learning.onLessonOpened=opened;model.onReview=opened
-        board.reviewKey={[weak self] key in guard let self=self,self.model.review.active,self.model.review.branch==nil else{return false};switch key{case 123:self.model.review.step(-1);case 124:self.model.review.step(1);case 125:self.model.review.last();case 126:self.model.review.first();case 49:self.model.review.playing ? self.model.review.pause():self.model.review.play();default:return false};self.refresh();return true}
+        // The review's key model (R-8): ←/→ along the line shown, ↑/↓ between alternatives, Home/End to its ends. Space
+        // plays the original game; in an imagined line it chooses the focused square, as Return does.
+        board.reviewKey={[weak self] key in guard let self=self,self.model.review.active else{return false};guard let command=ReviewGo(key:key,imagined:self.model.review.branch != nil) else{return false};self.go(command);return true}
         board.dropReview={[weak self] data in self?.model.importReviewData(data)};board.dropRejected={[weak self] reason in self?.model.storageError=reason}
         model.review.objectWillChange.sink{[weak self] _ in DispatchQueue.main.async{self?.refresh()}}.store(in:&observations)
         history.choose={[weak self] index in self?.showPracticeMove(index)};history.objectWillChange.sink{[weak self] _ in DispatchQueue.main.async{self?.refresh()}}.store(in:&observations)
@@ -392,7 +394,7 @@ final class BoardTitleView:NSView {
         // the network game keeps its own flip. A mini-game played from Black against the computer puts Black nearest.
         let natural=model.review.active ? model.review.document.flatMap(model.reviewLearnerSide)=="b":s.mode == .practice && s.humanSide=="b" || trainingExercise?.scenario.learner=="b" || s.mode == .network && model.network.blackAtBottom || l.mini && l.miniGame?.computer==true && l.miniLearnerSide=="b"
         board.blackAtBottom = !model.reviewWorkspace && natural != (s.mode != .network && flipped==boardSubject)
-        board.reviewNavigation=model.review.active && model.review.branch==nil
+        board.reviewNavigation=model.review.active
         reviewWorkspaceView.isHidden = !model.reviewWorkspace;controls.isHidden=model.reviewWorkspace;if workspaceFill.isActive != model.reviewWorkspace{workspaceAboveControls.isActive=false;workspaceFill.isActive=model.reviewWorkspace;workspaceAboveControls.isActive = !model.reviewWorkspace}
 playbackLineView?.isHidden=model.reviewWorkspace
         trainingLibraryView.isHidden=true
@@ -478,6 +480,8 @@ playbackLineView?.isHidden=model.reviewWorkspace
     }
     func validateMenuItem(_ item:NSMenuItem)->Bool {
         if item.action == #selector(typeMove){return typedMoveAvailable}
+        // Go (R-8) only while a review's board has the keyboard, so its plain arrow keys never reach a text field.
+        if item.action == #selector(goReview(_:)){return model.review.active && !model.reviewWorkspace && !board.isHidden && window?.firstResponder === board}
         // The network game's own items act on its controller (LAN-play plan D9); in network mode nothing else in the
         // Game or Lesson menu shows (`syncMenus`).
         if let action=item.action,let enabled=Self.networkItemEnabled(action,network:model.session.mode == .network,game:model.network){return enabled}
@@ -559,6 +563,13 @@ playbackLineView?.isHidden=model.reviewWorkspace
         }
     }
     @objc func offerDraw(){guard model.session.mode == .network else{return};model.network.offerDraw()}
+    /// A Go command (R-8), from the board's keys or the Go menu.
+    func go(_ command:ReviewGo){
+        let review=model.review;guard review.active,!model.reviewWorkspace else{return}
+        do{switch command{case .previousMove:try review.back();case .nextMove:review.forward();case .previousVariation:try review.variation(-1);case .nextVariation:try review.variation(1);case .firstMove:review.first();case .lastMove:review.last();case .playPause:review.playing ? review.pause():review.play()}}catch{showError(error)}
+        refresh()
+    }
+    @objc func goReview(_ item:NSMenuItem){guard let command=ReviewGo(rawValue:item.tag) else{return};go(command)}
     @objc func flipBoard(){guard !model.reviewWorkspace else{return};if model.session.mode == .network{model.network.flip()}else{flipped=flipped==boardSubject ? nil:boardSubject};refresh()}
     /// The subject Flip Board turned over, if it still shows.
     private var flipped:String?

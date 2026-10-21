@@ -198,9 +198,10 @@ final class BoardView:NSView,NSAccessibilityCustomRotorItemSearchDelegate {
         else{target=forward ? candidates.first:candidates.last}
         guard let target else{return nil};let result=NSAccessibilityCustomRotor.ItemResult(targetElement:target);result.customLabel=target.label(pressure:kind == .attacked);return result
     }
-    /// In a review's original game the plain arrow keys step through moves; Option with the arrow keys explores squares.
+    /// In a review the plain arrow keys move through the game and its imagined lines (R-8); Option with the arrow keys
+    /// explores squares.
     var reviewNavigation=false
-    override func accessibilityHelp()->String? {reviewNavigation ? String(localized:"Left and Right arrows step through the game. Hold Option with the arrow keys to explore squares, then press Return to choose a piece or destination. Escape clears your selection.",bundle:.checkmate):String(localized:"Use arrow keys to explore squares and Space or Return to choose a piece or destination. Escape clears your selection.",bundle:.checkmate)}
+    override func accessibilityHelp()->String? {reviewNavigation ? String(localized:"Left and Right arrows step through the line shown, an imagined one too. Up and Down arrows switch between other moves played from the same position. Home and End go to the line's start and end. Hold Option with the arrow keys to explore squares, then press Return to choose a piece or destination. Escape clears your selection.",bundle:.checkmate):String(localized:"Use arrow keys to explore squares and Space or Return to choose a piece or destination. Escape clears your selection.",bundle:.checkmate)}
     override func isAccessibilityElement()->Bool {true}
     /// The 64 squares first, then the sixteen headers.
     override func accessibilityChildren()->[Any]? {squares+columnHeaders+rowHeaders}

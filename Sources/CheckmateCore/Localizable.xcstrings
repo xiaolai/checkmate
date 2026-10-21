@@ -2473,6 +2473,7 @@
         }
       }
     },
+    "First Move" : {},
     "First Steps" : {},
     "First position" : {},
     "First steps" : {},
@@ -2540,6 +2541,9 @@
     "Give the play code to the person you're playing, and the watch code to anyone watching." : {},
     "Give the play code to the person you're playing." : {},
     "Gives check." : {},
+    "Go" : {
+      "comment" : "The menu of commands that move through a reviewed game"
+    },
     "Go back to the game to play a move." : {},
     "Go through the pieces one at a time and ask which ones could be captured right now." : {},
     "Go to Your Turn" : {},
@@ -2650,6 +2654,9 @@
     "Illegal or ambiguous SAN: %@." : {},
     "Imagined continuation" : {},
     "Imagined line" : {},
+    "Imagined line, %@" : {
+      "comment" : "A kept imagined line in the move list, read aloud, then its name"
+    },
     "Imagined line, move %lld" : {},
     "Imagined move %lld, %@" : {
       "localizations" : {
@@ -2788,6 +2795,7 @@
     "Knight artwork, SVG Repo" : {},
     "Knights" : {},
     "Language" : {},
+    "Last Move" : {},
     "Last position" : {},
     "Later" : {},
     "Learn & explore" : {},
@@ -2803,7 +2811,7 @@
       "comment" : "The move where the reviewed game leaves the opening book, read aloud"
     },
     "Leaving…" : {},
-    "Left and Right arrows step through the game. Hold Option with the arrow keys to explore squares, then press Return to choose a piece or destination. Escape clears your selection." : {},
+    "Left and Right arrows step through the line shown, an imagined one too. Up and Down arrows switch between other moves played from the same position. Home and End go to the line's start and end. Hold Option with the arrow keys to explore squares, then press Return to choose a piece or destination. Escape clears your selection." : {},
     "Legacy puzzle progress" : {},
     "Legacy puzzle: %@" : {},
     "Legacy strength" : {},
@@ -3143,8 +3151,10 @@
     "New game" : {},
     "Next Exercise" : {},
     "Next Lesson:" : {},
+    "Next Move" : {},
     "Next Puzzle" : {},
     "Next Step" : {},
+    "Next Variation" : {},
     "Next corner: %@" : {},
     "Next imagined move" : {},
     "Next lesson:" : {},
@@ -3365,6 +3375,7 @@
     "Play on: your move." : {},
     "Play review" : {},
     "Playback" : {},
+    "Played next:" : {},
     "Players" : {},
     "Players, event, year or opening" : {},
     "Playing %@…" : {},
@@ -3398,7 +3409,9 @@
     "Preview ready. Choose Play Preview to listen." : {},
     "Preview: these exercises are machine-checked, but an editor has not reviewed them yet." : {},
     "Previous Lesson:" : {},
+    "Previous Move" : {},
     "Previous Step" : {},
+    "Previous Variation" : {},
     "Previous game" : {},
     "Previous imagined move" : {},
     "Previous lesson:" : {},
@@ -3548,7 +3561,6 @@
     },
     "Record / Resume" : {},
     "Recorded" : {},
-    "Recorded continuations" : {},
     "Recording did not finish. Completed clips are preserved." : {},
     "Recording stopped because the provider attempted a tool." : {},
     "Recording stopped because the voice coach is active. Completed clips are kept." : {},
@@ -4611,6 +4623,9 @@
     "Use the voice coach with OpenAI?" : {},
     "Variation needs a preceding move." : {},
     "Variation nesting exceeds 32." : {},
+    "Variation, %@" : {
+      "comment" : "A move of a recorded variation in the move list, read aloud, as in: Variation, 2, Black, dxc4"
+    },
     "Verified board facts" : {},
     "Version %@ (%@)" : {
       "localizations" : {

@@ -23,7 +23,7 @@ import CheckmateCore
 
     // D-2, D-3, D-1, D-8: the standard menus in the standard order; Data folds into File; Help and Services are the system's.
     func testMenusFollowTheStandardOrderWithHelpAndServices()throws {try withMenus{_,_,_ in
-        XCTAssertEqual(NSApp.mainMenu?.items.dropFirst().map(\.title),["File","Edit","View","Game","Lesson","Window","Help"])
+        XCTAssertEqual(NSApp.mainMenu?.items.dropFirst().map(\.title),["File","Edit","View","Go","Game","Lesson","Window","Help"])
         XCTAssertNil(top("Data"),"Data folds into File")
         let help=try XCTUnwrap(top("Help"));XCTAssertTrue(NSApp.helpMenu===help,"menu search needs the system's Help menu")
         XCTAssertEqual(help.items.map(\.title),["Checkmate Help","Report a Problem"])

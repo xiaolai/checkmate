@@ -15,6 +15,24 @@ enum ReviewFormat {
         }
         return rows
     }
+    /// One line of the move list (R-8): a row of the main line, a recorded variation (`depth` 1 replaces a main-line
+    /// move, 2 a move of a variation, and so on) or a kept idea, each under the row of the move it replaces.
+    enum Entry:Equatable {case row(MoveRow),line([Int],depth:Int),idea(ReviewBranch)}
+    @MainActor static func entries(_ d:GameDocument,ideas:[ReviewBranch])->[Entry] {
+        // A variation runs along the record's first choices; the alternatives inside it, then the ideas played from its
+        // positions, follow it. An idea from the end of a line follows that line too.
+        func lines(replacing id:Int,depth:Int)->[Entry] {
+            guard let parent=d.nodes[id].parent else{return []}
+            return d.nodes[parent].children.dropFirst().flatMap{start->[Entry] in
+                var line=[start];while let last=line.last,let next=d.nodes[last].children.first{line.append(next)}
+                return [.line(line,depth:depth)]+line.dropFirst().flatMap{lines(replacing:$0,depth:depth+1)}+ideas.filter{line.contains($0.root)}.map{.idea($0)}
+            }
+        }
+        let main=line(d).ids,end:[Entry]=ideas.filter{$0.root==main.last}.map{.idea($0)}
+        return rows(d,line:main).flatMap{row->[Entry] in [.row(row)]+[row.white,row.black].compactMap{$0}.flatMap{id in lines(replacing:id,depth:1)+ideas.filter{$0.root==d.nodes[id].parent}.map{.idea($0)}}}+end
+    }
+    /// A variation's move: numbered at the line's start and on White's moves, as in "1… c5 2. Nf3 d6".
+    static func variationMoveText(_ n:GameNode,first:Bool)->String {first || n.side=="w" ? moveText(n):n.san ?? ""}
     /// The accessibility label of a move, e.g. "2, Black, dxc4"; acceptance gates find moves by it.
     static func moveLabel(_ n:GameNode)->String {"\(n.fullmove), \(PieceName.side(n.side)), \(n.san ?? "")"}
     static func moveText(_ n:GameNode)->String {"\(n.fullmove)\(n.side=="w" ? ".":"…") \(n.san ?? "")"}
@@ -341,22 +359,48 @@ struct ReviewMoveSection:View {
                     Button(ReviewFormat.moveText(document.nodes[id])){select(id)}.buttonStyle(.bordered).controlSize(.small).accessibilityLabel("Key moment, \(ReviewFormat.moveLabel(document.nodes[id]))").help(reasons[id] ?? String(localized:"A check, capture, promotion or the final move",bundle:.checkmate))}}}}
                 Text(anyGrade ? String(localized:"?! inaccuracy · ? mistake · ?? blunder; estimates may change.",bundle:.checkmate,comment:"The move grades' glyphs and what they mean"):moments.isEmpty ? String(localized:"Checks, captures, promotions and the final move.",bundle:.checkmate):String(localized:"Moments to start with; estimates may change.",bundle:.checkmate)).font(.caption).foregroundStyle(.secondary).lineLimit(1)
             }
+            let entries=ReviewFormat.entries(document,ideas:review.authoredBranches)
             ScrollViewReader{proxy in
-                ScrollView{LazyVStack(spacing:0){ForEach(Array(rows.enumerated()),id:\.offset){index,row in
-                    HStack(spacing:Metrics.tightGap){
+                ScrollView{LazyVStack(spacing:0){ForEach(Array(entries.enumerated()),id:\.offset){index,entry in
+                    switch entry {
+                    case .row(let row):HStack(spacing:Metrics.tightGap){
                         Text("\(row.number).").monospacedDigit().foregroundStyle(.secondary).frame(width:34,alignment:.trailing)
                         cell(row.white,graded:graded,empty:row.white==nil && index==0 ? "…":"");cell(row.black,graded:graded,empty:"")
                     }.frame(height:Self.rowHeight).id(index)
+                    case .line(let ids,let depth):variation(ids,depth:depth).id(index)
+                    case .idea(let branch):idea(branch).id(index)
+                    }
                 }}.padding(.vertical,2)}
-                .frame(height:CGFloat(min(rows.count,Self.visibleRows))*Self.rowHeight+4)
+                .frame(height:CGFloat(min(entries.count,Self.visibleRows))*Self.rowHeight+4)
                 .background(ReviewCard(radius:6))
-                .onAppear{scroll(proxy,rows)}.onChange(of:review.nodeID){_,_ in withAnimation(.easeInOut(duration:0.15)){scroll(proxy,rows)}}
+                .onAppear{scroll(proxy,entries)}.onChange(of:review.nodeID){_,_ in withAnimation(.easeInOut(duration:0.15)){scroll(proxy,entries)}}
             }
         }
         // VoiceOver's rotor steps through the key moments in the move list.
         .accessibilityRotor(String(localized:"Key Moments",bundle:.checkmate)){ForEach(key,id:\.self){id in AccessibilityRotorEntry(Text(verbatim:ReviewFormat.moveLabel(document.nodes[id])),id:id,in:rotor)}}}
     }
-    private func scroll(_ proxy:ScrollViewProxy,_ rows:[ReviewFormat.MoveRow]){guard let row=rows.firstIndex(where:{$0.white==review.nodeID || $0.black==review.nodeID}) else{return};proxy.scrollTo(row,anchor:.center)}
+    private func scroll(_ proxy:ScrollViewProxy,_ entries:[ReviewFormat.Entry]){
+        let shown=entries.firstIndex{entry in switch entry{case .row(let row):return row.white==review.nodeID || row.black==review.nodeID;case .line(let ids,_):return ids.contains(review.nodeID);case .idea(let branch):return branch.id==review.branch?.id}}
+        guard let shown else{return};proxy.scrollTo(shown,anchor:.center)
+    }
+    /// A recorded variation, inline and indented by its depth; each move shows its position, and ↑/↓ reach it too.
+    private func variation(_ ids:[Int],depth:Int)->some View {
+        ScrollView(.horizontal,showsIndicators:false){HStack(spacing:2){ForEach(Array(ids.enumerated()),id:\.element){index,id in
+            let n=document.nodes[id],chosen=review.branch==nil && review.nodeID==id
+            Button(ReviewFormat.variationMoveText(n,first:index==0)){select(id)}.buttonStyle(.plain).font(.callout).monospacedDigit()
+                .foregroundStyle(chosen ? Color.primary:Color.secondary).fontWeight(chosen ? .semibold:.regular).padding(.horizontal,3)
+                .background(RoundedRectangle(cornerRadius:4).fill(chosen ? Color.accentColor.opacity(0.25):Color.clear))
+                .accessibilityLabel(String(localized:"Variation, \(ReviewFormat.moveLabel(n))",bundle:.checkmate,comment:"A move of a recorded variation in the move list, read aloud, as in: Variation, 2, Black, dxc4")).accessibilityAddTraits(chosen ? .isSelected:[])
+        }}.padding(.leading,CGFloat(26+12*depth))}.frame(height:Self.rowHeight)
+    }
+    /// A kept idea, inline under the move it replaces; choosing it opens it at its first move.
+    private func idea(_ branch:ReviewBranch)->some View {
+        let open=review.branch?.id==branch.id
+        return Button(ReviewFormat.ideaLabel(document,branch)){do{try review.openSavedBranch(branch.id);review.seekBranch(1)}catch{model.storageError=userFacingMessage(error,fallback:String(localized:"This imagined line could not be opened.",bundle:.checkmate))}}
+            .buttonStyle(.plain).font(.callout).italic().foregroundStyle(open ? Color.primary:Color.secondary).lineLimit(1).truncationMode(.tail)
+            .padding(.leading,38).frame(maxWidth:.infinity,minHeight:Self.rowHeight,maxHeight:Self.rowHeight,alignment:.leading)
+            .accessibilityLabel(String(localized:"Imagined line, \(ReviewFormat.ideaLabel(document,branch))",bundle:.checkmate,comment:"A kept imagined line in the move list, read aloud, then its name")).accessibilityAddTraits(open ? .isSelected:[])
+    }
     /// A move: its SAN, the record's own annotation glyphs, then the engine's grade in its colour.
     @ViewBuilder private func cell(_ id:Int?,graded:Bool,empty:String)->some View {
         if let id {
@@ -409,7 +453,7 @@ struct ReviewPositionPanel:View {
             if let error=review.error{Text(error).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)}
             if model.fairness.engineHelpAllowed,let evidence=review.evidence{EngineEvidenceList(evidence:evidence)}
             DisclosureGroup("Verified board facts"){VStack(alignment:.leading,spacing:Metrics.tightGap){ForEach(explanation?.facts ?? []){fact in Text(verbatim:fact.text).textSelection(.enabled).fixedSize(horizontal:false,vertical:true)}}.padding(.top,Metrics.tightGap)}
-            if !document.nodes[review.nodeID].children.isEmpty{DisclosureGroup("Recorded continuations"){VStack(alignment:.leading,spacing:Metrics.tightGap){ForEach(document.nodes[review.nodeID].children,id:\.self){id in Button(document.nodes[id].san ?? String(localized:"Position",bundle:.checkmate,comment:"Noun: the arrangement of pieces on the board")){attempt(String(localized:"That move could not be shown.",bundle:.checkmate)){try review.select(id)}}.buttonStyle(.link)}}.padding(.top,Metrics.tightGap)}}
+            if document.nodes[review.nodeID].children.count>1{HStack(spacing:Metrics.tightGap){Text("Played next:").foregroundStyle(.secondary);ForEach(document.nodes[review.nodeID].children,id:\.self){id in Button(document.nodes[id].san ?? String(localized:"Position",bundle:.checkmate,comment:"Noun: the arrangement of pieces on the board")){attempt(String(localized:"That move could not be shown.",bundle:.checkmate)){try review.select(id)}}.buttonStyle(.link)}}}
         }
     }
     @ViewBuilder private var actions:some View {why;deeper;idea}
