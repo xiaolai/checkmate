@@ -54,22 +54,28 @@ import CheckmateCore
         func fragments(_ code:String)->[String] {lint.analyse(code).fragments.map(\.text)}
         XCTAssertEqual(fragments(#"let a=String(localized:"Hide ",bundle:.checkmate)+b;Text(" · Check");let c=String(localized:", not done yet",bundle:.checkmate)"#),["Hide "," · Check",", not done yet"])
         XCTAssertEqual(fragments(#"let a=String(localized:"Hide \(noun)",bundle:.checkmate);Text("Opponent:");let v=Text(verbatim:" x")"#),[])
+        // A color beside a piece name cannot agree with the piece's gender: the color and piece are one phrase, one key.
+        func composed(_ code:String)->[String] {lint.analyse(code).composed.map(\.text)}
+        XCTAssertEqual(composed(#"let a=String(localized:"Move the \(PieceName.color(c)) \(PieceName.of(p)) to \(s).",bundle:.checkmate);let b=String(localized:"\(PieceName.side(c)) \(name) on \(s)",bundle:.checkmate)"#),["Move the \u{1} \u{1} to \u{1}.","\u{1} \u{1} on \u{1}"])
+        XCTAssertEqual(composed(#"let a=String(localized:"Select every \(side) piece here.",bundle:.checkmate);let b=String(localized:"Follow each \(side) piece's lines.",bundle:.checkmate);Text("\(side)’s king is in check")"#),["Select every \u{1} piece here.","Follow each \u{1} piece's lines.","\u{1}’s king is in check"])
+        XCTAssertEqual(composed(#"let a=String(localized:"\(PieceName.side(c)) moved the \(PieceName.of(p)).",bundle:.checkmate);let b=String(localized:"It is \(side(turn))'s move.",bundle:.checkmate);let c=String(localized:"Move \(PieceName.the(c,p)) to \(s).",bundle:.checkmate);let d="\(side) \(piece)""#),[])
     }
 
     func testShownTextGoesThroughTheCatalog()throws {
         let files=try XCTUnwrap(FileManager.default.enumerator(at:Self.sources,includingPropertiesForKeys:nil)).compactMap{$0 as? URL}.filter{$0.pathExtension=="swift"}
         XCTAssertGreaterThan(files.count,50,"the scan found the sources")
-        let lint=LocalizationLint(),calibrated=try calibrated();var scanned=0,bypassing:[String]=[],misplaced:[String]=[],fragments:[String]=[]
+        let lint=LocalizationLint(),calibrated=try calibrated();var scanned=0,bypassing:[String]=[],misplaced:[String]=[],fragments:[String]=[],composed:[String]=[]
         for url in files {
             let file=String(url.path.dropFirst(Self.sources.path.count+1))
             guard !Self.skippedTargets.contains(String(file.prefix{$0 != "/"})),!Self.skippedFiles.contains(file),!calibrated.contains(file) else{continue}
             let found=lint.analyse(try String(contentsOf:url,encoding:.utf8));scanned+=found.literals
-            bypassing+=found.hits.map{"\(file):\($0.line) \($0.text)"};misplaced+=found.misplaced.map{"\(file):\($0)"};fragments+=found.fragments.map{"\(file):\($0.line) \($0.text)"}
+            bypassing+=found.hits.map{"\(file):\($0.line) \($0.text)"};misplaced+=found.misplaced.map{"\(file):\($0)"};fragments+=found.fragments.map{"\(file):\($0.line) \($0.text)"};composed+=found.composed.map{"\(file):\($0.line) \($0.text)"}
         }
         XCTAssertGreaterThan(scanned,5000,"the lint saw the app's literals")
         XCTAssertEqual(bypassing,[],"shown text: use String(localized:…,bundle:.checkmate), or mark developer text with // not localized: <reason>")
         XCTAssertEqual(misplaced,[],"developer text (a precondition, log or tag) is not shown: keep it out of the String Catalog")
         XCTAssertEqual(fragments,[],"a piece of a sentence cannot be reordered: localize the whole sentence, with interpolations for what varies")
+        XCTAssertEqual(composed,[],"a color beside a piece name cannot agree with it: name the piece with PieceName.the, .named or .listed")
     }
 
     /// Every key the code uses is a whole text, never a piece joined to others (stale keys are no longer in the code).
@@ -130,7 +136,8 @@ private struct LocalizationLint {
     }
     /// A frame as it stood at one literal: its label then, and its end once the scan closes it.
     struct Snapshot {let frame:Frame,label:String?;var callee:String {frame.callee}}
-    struct Literal {let start:Int,end:Int,text:String,stack:[Snapshot],prefix:String}
+    /// `interpolations` holds the source of each "\(…)", in order: one for each \u{1} in `text`.
+    struct Literal {let start:Int,end:Int,text:String,stack:[Snapshot],prefix:String,interpolations:[String]}
     enum Kind {case localized,developer,swiftUI}
 
     private let prose=try! NSRegularExpression(pattern:#"^[\W\x{01}]*(?:[A-Z](?:[a-z’']+(?:$|[ ,.…?!:;\x{01}’'])|[a-z’']*-[a-z]+ [a-z]| [a-z])|[a-z][a-z’']* [a-z’']+ [a-z])"#)
@@ -147,6 +154,16 @@ private struct LocalizationLint {
     /// A key starting or ending with a space, or starting with a joining mark: a piece of a sentence, which a translator
     /// cannot reorder.
     static func isFragment(_ key:String)->Bool {guard let first=key.first,let last=key.last else{return false};return first.isWhitespace || ",;.·".contains(first) || last.isWhitespace}
+    /// A color or side beside a piece name ("the \(color) \(piece)", "\(side) piece", "\(side)'s knight"): the color cannot
+    /// agree with the piece's gender, nor the article with both. An interpolation counts as a color or a piece by its source.
+    private let colorSource=try! NSRegularExpression(pattern:#"^(?:side|theirs|ours|color|colour)$|\bPieceName\.(?:side|color)\(|\bcolorName\(|(?:^|[^.\w])side\("#)
+    private let pieceSource=try! NSRegularExpression(pattern:#"^(?:piece|pieces|name)$|\bPieceName\.(?:of|plural)\("#)
+    private let composition=try! NSRegularExpression(pattern:#"\x{02}(?:['’]s)?\s+(?:\x{03}|(?:pawn|knight|bishop|rook|queen|king|piece)s?\b)"#)
+    func isComposed(_ literal:Literal)->Bool {
+        var sources=literal.interpolations.makeIterator()
+        let shape=String(literal.text.map{c->Character in guard c=="\u{1}",let source=sources.next()?.trimmingCharacters(in:.whitespaces) else{return c};return first(colorSource,source) != nil ? "\u{2}":first(pieceSource,source) != nil ? "\u{3}":c})
+        return first(composition,shape) != nil
+    }
     private let swiftUI:Set<String>=["Text","Button","Toggle","Label","Picker","Section","Menu","LabeledContent","GroupBox","TextField","SecureField","Link","DisclosureGroup","ProgressView","Stepper","ControlGroup","Tab",".help",".accessibilityLabel",".accessibilityHint",".accessibilityValue",".navigationTitle",".alert",".confirmationDialog",".value"]
     private let developerCallees:Set<String>=["print","NSLog","fatalError","precondition","preconditionFailure","assert","assertionFailure","Logger","appendingPathComponent","appendingPathExtension","NSUserInterfaceItemIdentifier","Notification.Name","header","known","tag","PGNHeader","ProtocolFailure","setAccessibilityIdentifier","accessibilityIdentifier","identifier","hasPrefix","hasSuffix","contains","starts","components","firstIndex","lastIndex","split","range"]
     private let developerLabels:Set<String>=["fileURLWithPath","forKey","path","forHTTPHeaderField","debugDescription","instructions","comment","identifier","withIdentifier","systemName","systemImage","systemSymbolName","named","forResource","withExtension","ofType"]
@@ -176,7 +193,7 @@ private struct LocalizationLint {
             if starts("\"\"\"",i){i=find("\"\"\"",i+3).map{$0+3} ?? n;continue}
             if starts("#\"",i){i=find("\"#",i+2).map{$0+2} ?? n;continue}
             if c=="\"" {
-                let start=i,current=outer+stack.map{Snapshot(frame:$0,label:$0.label)};i+=1;var parts="",nested:[Literal]=[]
+                let start=i,current=outer+stack.map{Snapshot(frame:$0,label:$0.label)};i+=1;var parts="",nested:[Literal]=[],interpolations:[String]=[]
                 while i<n,s[i] != "\"",s[i] != "\n" {
                     if starts("\\(",i){
                         var depth=1;i+=2;let inner=i
@@ -186,14 +203,14 @@ private struct LocalizationLint {
                             i+=1
                         }
                         let barrier=Snapshot(frame:Frame(callee:"\\(",start:inner-2,argumentStart:inner),label:nil)
-                        nested+=scan(s,from:inner,to:max(inner,i-1),outer:current+[barrier]);parts.append("\u{1}");continue
+                        nested+=scan(s,from:inner,to:max(inner,i-1),outer:current+[barrier]);interpolations.append(String(s[inner..<max(inner,i-1)]));parts.append("\u{1}");continue
                     }
                     // A line break or tab reads as the space it is, so "\nRefreshed …" still starts a sentence.
                     if s[i]=="\\"{parts+=i+1<n && "nt".contains(s[i+1]) ? "\n":String(s[i..<min(i+2,n)]);i+=2;continue}
                     parts.append(s[i]);i+=1
                 }
                 let prefix=stack.last.map{String(s[$0.argumentStart..<start])} ?? ""
-                out.append(Literal(start:start,end:min(i+1,n),text:parts,stack:current,prefix:prefix));out+=nested;i+=1;continue
+                out.append(Literal(start:start,end:min(i+1,n),text:parts,stack:current,prefix:prefix,interpolations:interpolations));out+=nested;i+=1;continue
             }
             if c=="(" {
                 var k=i;while k>0,Self.isIdentifier(s[k-1]){k-=1}
@@ -243,22 +260,24 @@ private struct LocalizationLint {
         return out
     }
 
-    /// Prose literals that bypass the catalog, the lines where developer text was put into it, and catalog keys that are
-    /// pieces of a sentence.
-    func analyse(_ text:String)->(literals:Int,hits:[(line:Int,text:String)],misplaced:[Int],fragments:[(line:Int,text:String)]) {
+    /// Prose literals that bypass the catalog, the lines where developer text was put into it, catalog keys that are
+    /// pieces of a sentence, and catalog keys that put a color beside a piece name.
+    func analyse(_ text:String)->(literals:Int,hits:[(line:Int,text:String)],misplaced:[Int],fragments:[(line:Int,text:String)],composed:[(line:Int,text:String)]) {
         let s=Array(text),lines=text.components(separatedBy:"\n");var lineStarts=[0]
         for line in lines {lineStarts.append(lineStarts.last!+line.count+1)}
         func lineOf(_ offset:Int)->Int {var low=0,high=lineStarts.count;while low<high {let mid=(low+high)/2;if lineStarts[mid]<=offset{low=mid+1}else{high=mid}};return low}
-        let skipped=excludedLines(lines),literals=scan(s);var hits:[(line:Int,text:String)]=[],misplaced:[Int]=[],fragments:[(line:Int,text:String)]=[]
+        let skipped=excludedLines(lines),literals=scan(s);var hits:[(line:Int,text:String)]=[],misplaced:[Int]=[],fragments:[(line:Int,text:String)]=[],composed:[(line:Int,text:String)]=[]
         for literal in literals {
             let line=lineOf(literal.start)
             guard !skipped.contains(line) else{continue}
-            if Self.isFragment(literal.text),let frame=literal.stack.last,frame.callee=="String" && frame.label=="localized" || kind(frame) == .swiftUI && literal.prefix.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty {fragments.append((line,literal.text))}
+            let isKey=literal.stack.last.map{$0.callee=="String" && $0.label=="localized" || kind($0) == .swiftUI && literal.prefix.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty} ?? false
+            if isKey,Self.isFragment(literal.text){fragments.append((line,literal.text))}
+            if isKey,isComposed(literal){composed.append((line,literal.text))}
             guard isProse(literal.text) else{continue}
             if !isAccountedFor(s,literal){hits.append((line,literal.text));continue}
             guard let frame=literal.stack.last,frame.callee=="String",kind(frame) == .localized,literal.stack.count>1,kind(literal.stack[literal.stack.count-2]) == .developer,let end=frame.frame.end,s[frame.frame.start..<end].filter({$0=="\""}).count==2 else{continue}
             misplaced.append(line)
         }
-        return (literals.count,hits,misplaced,fragments)
+        return (literals.count,hits,misplaced,fragments,composed)
     }
 }
