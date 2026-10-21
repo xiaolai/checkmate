@@ -463,7 +463,7 @@ import RealtimeConnection
         if immediate {
             var saved=true
             for (id,snapshot) in pendingReviewSnapshots {
-                let result=Result{try reviewSaves.flush(snapshot.document,cursor:snapshot.cursor,branches:snapshot.branches)}
+                let result=Result{try reviewSaves.flush(snapshot.document,cursor:snapshot.cursor,branches:snapshot.branches,learnerSide:reviewSides[id])}
                 finishReviewSave(id,snapshot:snapshot,result:result)
                 if pendingReviewSnapshots[id] != nil,!review.active || review.document?.id==id{saved=false}
             }
@@ -473,7 +473,7 @@ import RealtimeConnection
         let snapshots=pendingReviewSnapshots
         reviewSaveTask=Task{[weak self] in try? await Task.sleep(for:.milliseconds(250));guard let self,!Task.isCancelled,!self.shuttingDown else{return}
             for (id,snapshot) in snapshots {
-                self.reviewSaves.save(snapshot.document,cursor:snapshot.cursor,branches:snapshot.branches){[weak self] result in Task{@MainActor in
+                self.reviewSaves.save(snapshot.document,cursor:snapshot.cursor,branches:snapshot.branches,learnerSide:self.reviewSides[id]){[weak self] result in Task{@MainActor in
                     guard let self=self,!self.shuttingDown,self.reviewSaveGeneration==generation else{return}
                     self.finishReviewSave(id,snapshot:snapshot,result:result)
                 }}
@@ -493,8 +493,8 @@ import RealtimeConnection
     private func reconcileReviewSaveWarning(){if pendingReviewSnapshots.isEmpty,let warning=reviewSaveWarning{if storageError==warning{storageError=nil};reviewSaveWarning=nil}}
     /// Returns whether the review is open with its state restored; false when the learner kept a draft, the request was
     /// withdrawn while the draft question was up (`stillWanted`), or the restore failed.
-    /// The learner's side in each game they reviewed from their own play this run (B-6), so its review opens from
-    /// their side; an imported record has none and opens from White's.
+    /// The learner's side in each review of a game they played (B-6), so it opens from their side; it is saved with the
+    /// review and read back when a saved review opens. An imported record has none and opens from White's.
     private var reviewSides:[UUID:String]=[:]
     func reviewLearnerSide(_ document:GameDocument)->String? {reviewSides[document.id]}
     @discardableResult func openReview(_ document:GameDocument,saved:SavedReview?=nil,draft:Bool=false,stillWanted:()->Bool={true})->Bool{
@@ -621,7 +621,7 @@ import RealtimeConnection
             if delay>0{try await Task.sleep(for:.milliseconds(delay))}
             let saved=try await Task.detached{try store.load(id)}.value
             guard !Task.isCancelled,!shuttingDown,reviewOpenGeneration==generation else{return};importingReview=false
-            openReview(saved.document,saved:saved)
+            reviewSides[saved.document.id]=saved.learnerSide;openReview(saved.document,saved:saved)
         }catch{guard !Task.isCancelled,!shuttingDown,reviewOpenGeneration==generation else{return};importingReview=false;draftDiscardApproved=nil;storageError="The saved review could not be opened; its file is preserved."}}
     }
     func requestDeleteReview(_ id:UUID){

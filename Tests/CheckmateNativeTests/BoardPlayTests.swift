@@ -45,6 +45,32 @@ import CheckmateCore
         for _ in 0..<300 where model.review.document?.id==document.id || !model.review.active{try await Task.sleep(for:.milliseconds(10))}
         let imported=try XCTUnwrap(model.review.document);XCTAssertNil(model.reviewLearnerSide(imported));game.refresh();XCTAssertFalse(game.board.blackAtBottom,"an imported game opens from White's side")
     }
+    /// B-6: the learner's side is saved with the review, so a saved review reopened after a restart opens from it.
+    func testASavedReviewReopensFromTheLearnersSideAfterARestart()async throws {
+        var model:NativeModel?=try NativeModel()
+        model!.practice();model!.session.newGame(side:"b");model!.session.cancelWork()
+        model!.reviewCurrent();for _ in 0..<300 where !model!.review.active{try await Task.sleep(for:.milliseconds(10))}
+        let id=try XCTUnwrap(model!.review.document?.id);model!.saveCurrentReview()
+        XCTAssertEqual(try model!.reviewStore.load(id).learnerSide,"b","the side is saved with the review");model!.shutdown();model=nil
+        let restarted=try NativeModel(),game=GameWindow(model:restarted);defer{game.window?.delegate=nil;restarted.shutdown()}
+        restarted.openSavedReview(id);for _ in 0..<300 where !restarted.review.active{try await Task.sleep(for:.milliseconds(10))}
+        let document=try XCTUnwrap(restarted.review.document);XCTAssertEqual(restarted.reviewLearnerSide(document),"b")
+        game.refresh();XCTAssertTrue(game.board.blackAtBottom,"the reopened review opens from Black's side")
+    }
+    /// B-6: the learner's side round-trips through the store, survives a cursor-only save, and a save written before
+    /// the field existed (or with a value it cannot hold) reads as no side: White at the bottom, as before.
+    func testTheReviewStoreKeepsTheLearnersSideAndReadsOldSaves()throws {
+        let root=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);defer{try? FileManager.default.removeItem(at:root)}
+        try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)
+        let document=try PGNImporter.parse(Data("1. e4 e5 *".utf8))[0],store=ReviewStore(directory:root)
+        try store.save(document,cursor:0,branches:[],learnerSide:"b");XCTAssertEqual(try ReviewStore(directory:root).load(document.id).learnerSide,"b")
+        try store.save(document,cursor:1,branches:[],learnerSide:"b");let reread=try ReviewStore(directory:root).load(document.id);XCTAssertEqual(reread.learnerSide,"b");XCTAssertEqual(reread.cursor,1)
+        try store.save(document,cursor:1,branches:[],learnerSide:"w");XCTAssertEqual(try ReviewStore(directory:root).load(document.id).learnerSide,"w","a changed side is written, not skipped as a cursor-only save")
+        let url=root.appendingPathComponent(document.id.uuidString+".json")
+        var old=try XCTUnwrap(JSONSerialization.jsonObject(with:try Data(contentsOf:url)) as? [String:Any]);old["learnerSide"]=nil
+        try JSONSerialization.data(withJSONObject:old).write(to:url);XCTAssertNil(try ReviewStore(directory:root).load(document.id).learnerSide,"an old save has no side")
+        old["learnerSide"]="x";try JSONSerialization.data(withJSONObject:old).write(to:url);XCTAssertNil(try ReviewStore(directory:root).load(document.id).learnerSide,"a value that is not a side is ignored")
+    }
     /// B-17: Hint sits in the Game menu on ⇧⌘H, and Flip Board on ⇧⌘F; neither collides with another shortcut.
     func testTheGameMenuCarriesHintAndFlipShortcuts(){
         let menu=AppDelegate.makeGameMenu(target:nil)

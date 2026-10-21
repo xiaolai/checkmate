@@ -1,7 +1,9 @@
 import CheckmateDomain
 import CheckmateSupport
 import Foundation
-public struct SavedReview:Codable {public let schemaVersion:Int,document:GameDocument;public var cursor:Int,branches:[ReviewBranch],updatedAt:Date}
+/// `learnerSide` ("w" or "b") is the learner's own side when the review is of a game they played, so it reopens from
+/// that side; saves written before it existed have none and open from White's.
+public struct SavedReview:Codable {public let schemaVersion:Int,document:GameDocument;public var cursor:Int,branches:[ReviewBranch],updatedAt:Date;public var learnerSide:String?=nil}
 public struct ReviewIndexEntry:Codable,Identifiable {public let id:UUID,title:String,result:String,updatedAt:Date}
 /// Call from an I/O task. Cached validation/index avoid reparsing the library on cursor saves.
 public final class ReviewStore {
@@ -14,6 +16,8 @@ public final class ReviewStore {
     private var validated:[UUID:GameDocument]=[:]
     private var stamps:[UUID:String]=[:]
     private var branchCache:[UUID:[ReviewBranch]]=[:]
+    /// The learner's side each record was last written or read with: a changed side rewrites the record.
+    private var sides:[UUID:String]=[:]
     /// Content hash of each saved record's original text, kept in the index so a repeated open can find its record.
     private var hashes:[UUID:String]=[:]
     private var quarantinedSinceTaken=0
@@ -69,17 +73,18 @@ public final class ReviewStore {
         guard branches.count<=ReviewPolicy.maximumBranches,Set(branches.map(\.id)).count==branches.count else{throw CheckmateError.invalid("Invalid saved branches.")}
         for branch in branches{let rules=try document.snapshotRules(at:branch.root);guard branch.moves.count<=ReviewPolicy.maximumBranchPlies else{throw CheckmateError.invalid("Branch too long.")};for move in branch.moves{try rules.move(uci:move)}}
     }
-    public func save(_ document:GameDocument,cursor:Int,branches:[ReviewBranch])throws {
+    public func save(_ document:GameDocument,cursor:Int,branches:[ReviewBranch],learnerSide:String?=nil)throws {
         lock.lock();defer{lock.unlock()};try prepare();guard !futureSchema(documentURL(document.id)) else{throw CheckmateError.unavailable("This review requires a newer Checkmate version; its file is preserved.")};try validate(document)
         guard document.nodes.indices.contains(cursor) else{throw CheckmateError.invalid("Invalid saved review cursor.")}
         var entries=try list()
-        if branchCache[document.id]==branches,entries.contains(where:{$0.id==document.id}),persisted[document.id]==document,!futureSchema(cursorURL(document.id)) {
+        guard learnerSide.map({["w","b"].contains($0)}) ?? true else{throw CheckmateError.invalid("Invalid saved review side.")}
+        if branchCache[document.id]==branches,sides[document.id]==learnerSide,entries.contains(where:{$0.id==document.id}),persisted[document.id]==document,!futureSchema(cursorURL(document.id)) {
             let date=Date();try saveCursor(document.id,cursor:cursor,date:date)
             entries.removeAll{$0.id==document.id};entries.append(ReviewIndexEntry(id:document.id,title:document.title,result:document.result,updatedAt:date));index=entries.sorted{$0.updatedAt>$1.updatedAt};try writeIndex();return
         }
         try validateBranches(branches,document:document)
         guard entries.contains(where:{$0.id==document.id}) || entries.count<ReviewPolicy.maximumSavedRecords else{throw CheckmateError.invalid("Review library record limit reached.")}
-        let saved=SavedReview(schemaVersion:1,document:document,cursor:cursor,branches:branches,updatedAt:Date()),data=try JSONEncoder().encode(saved)
+        let saved=SavedReview(schemaVersion:1,document:document,cursor:cursor,branches:branches,updatedAt:Date(),learnerSide:learnerSide),data=try JSONEncoder().encode(saved)
         guard data.count<=ReviewPolicy.maximumSavedBytes else{throw CheckmateError.invalid("Saved review exceeds storage limit.")}
         let enumerator=FileManager.default.enumerator(at:directory,includingPropertiesForKeys:[.isRegularFileKey,.fileSizeKey])
         var total=0
@@ -91,7 +96,7 @@ public final class ReviewStore {
         guard total+data.count<=ReviewPolicy.maximumLibraryBytes else{throw CheckmateError.invalid("Review library storage limit reached; export or delete older reviews.")}
         let url=documentURL(document.id);try atomicWriter(data,url);try FileManager.default.setAttributes([.posixPermissions:0o600],ofItemAtPath:url.path)
         guard try Data(contentsOf:url)==data else{throw CheckmateError.unavailable("Review read-back failed.")}
-        persisted[document.id]=document;hashes[document.id]=document.contentHash
+        persisted[document.id]=document;hashes[document.id]=document.contentHash;sides[document.id]=learnerSide
         entries.removeAll{$0.id==document.id};entries.append(ReviewIndexEntry(id:document.id,title:document.title,result:document.result,updatedAt:saved.updatedAt));index=entries.sorted{$0.updatedAt>$1.updatedAt};stamps[document.id]=stamp(document.id);branchCache[document.id]=branches;try saveCursor(document.id,cursor:cursor,date:saved.updatedAt);try writeIndex()
     }
     public func load(_ id:UUID)throws -> SavedReview {
@@ -102,6 +107,8 @@ public final class ReviewStore {
         // payload need not have the fields understood by this reader.
         if let envelope=try JSONSerialization.jsonObject(with:data) as? [String:Any],let version=envelope["schemaVersion"] as? Int,version>1 {throw CheckmateError.unavailable("This review requires a newer Checkmate version; its file is preserved.")}
         var saved=try JSONDecoder().decode(SavedReview.self,from:data)
+        // A side this reader cannot hold is ignored, as if the record had none.
+        if let side=saved.learnerSide,!["w","b"].contains(side){saved.learnerSide=nil}
         guard saved.schemaVersion<=1 else{throw CheckmateError.unavailable("This review requires a newer Checkmate version; its file is preserved.")}
         guard saved.schemaVersion==1,saved.document.id==id,saved.document.nodes.indices.contains(saved.cursor) else{throw CheckmateError.invalid("Invalid review version or cursor.")}
         // A re-read tree must still hold the cursor and every idea at the same positions, found by their recorded moves
@@ -110,10 +117,10 @@ public final class ReviewStore {
         if rederived{
             guard let cursor=Self.node(saved.cursor,of:stored,in:document) else{throw CheckmateError.invalid("Invalid review version or cursor.")}
             let branches=try saved.branches.map{branch->ReviewBranch in guard let root=Self.node(branch.root,of:stored,in:document) else{throw CheckmateError.invalid("Invalid saved branches.")};return branch.rooted(at:root)}
-            saved=SavedReview(schemaVersion:1,document:document,cursor:cursor,branches:branches,updatedAt:saved.updatedAt)
+            saved=SavedReview(schemaVersion:1,document:document,cursor:cursor,branches:branches,updatedAt:saved.updatedAt,learnerSide:saved.learnerSide)
         }
         // A re-read record is not yet on disk in its new numbering: the next save rewrites it whole, never only its cursor.
-        try validateBranches(saved.branches,document:saved.document);stamps[id]=stamp(id);branchCache[id]=rederived ? nil:saved.branches;persisted[id]=rederived ? nil:saved.document;preserved[id]=nil;hashes[id]=saved.document.contentHash
+        try validateBranches(saved.branches,document:saved.document);stamps[id]=stamp(id);branchCache[id]=rederived ? nil:saved.branches;persisted[id]=rederived ? nil:saved.document;preserved[id]=nil;hashes[id]=saved.document.contentHash;sides[id]=saved.learnerSide
         let cursorFile=cursorURL(id)
         if let size=(try? cursorFile.resourceValues(forKeys:[.fileSizeKey]))?.fileSize,size<=4096,let data=try? Data(contentsOf:cursorFile),let metadata=try? JSONDecoder().decode(Cursor.self,from:data),metadata.schemaVersion==1,metadata.updatedAt>=saved.updatedAt,let cursor=rederived ? Self.node(metadata.cursor,of:stored,in:document):(stored.nodes.indices.contains(metadata.cursor) ? metadata.cursor:nil){saved.cursor=cursor;saved.updatedAt=metadata.updatedAt}
         return saved
@@ -213,26 +220,26 @@ public final class ReviewStore {
 
 /// One serial writer orders background autosaves and synchronous close/quit flushes.
 public final class ReviewSaveCoordinator {
-    private struct Request {let document:GameDocument,cursor:Int,branches:[ReviewBranch],completion:(Result<[ReviewIndexEntry],Error>)->Void}
+    private struct Request {let document:GameDocument,cursor:Int,branches:[ReviewBranch],learnerSide:String?,completion:(Result<[ReviewIndexEntry],Error>)->Void}
     private let queue=DispatchQueue(label:"checkmate.review-save"),lock=NSLock()
     private let store:ReviewStore
     /// The latest unsaved request per record: a save of one review never replaces another review's queued save.
     private var latest:[UUID:Request]=[:],draining=false
     private var deleted:Set<UUID>=[]
     public init(store:ReviewStore){self.store=store}
-    public func save(_ document:GameDocument,cursor:Int,branches:[ReviewBranch],completion:@escaping(Result<[ReviewIndexEntry],Error>)->Void){
-        lock.lock();guard !deleted.contains(document.id) else{lock.unlock();completion(.failure(CheckmateError.cancelled));return};latest[document.id]=Request(document:document,cursor:cursor,branches:branches,completion:completion);let start = !draining;draining=true;lock.unlock()
+    public func save(_ document:GameDocument,cursor:Int,branches:[ReviewBranch],learnerSide:String?=nil,completion:@escaping(Result<[ReviewIndexEntry],Error>)->Void){
+        lock.lock();guard !deleted.contains(document.id) else{lock.unlock();completion(.failure(CheckmateError.cancelled));return};latest[document.id]=Request(document:document,cursor:cursor,branches:branches,learnerSide:learnerSide,completion:completion);let start = !draining;draining=true;lock.unlock()
         guard start else{return};queue.async{while true{self.lock.lock();guard let id=self.latest.keys.first,let request=self.latest.removeValue(forKey:id) else{self.draining=false;self.lock.unlock();return};self.lock.unlock()
-            do{try self.store.save(request.document,cursor:request.cursor,branches:request.branches);request.completion(.success(try self.store.list()))}catch{request.completion(.failure(error))}
+            do{try self.store.save(request.document,cursor:request.cursor,branches:request.branches,learnerSide:request.learnerSide);request.completion(.success(try self.store.list()))}catch{request.completion(.failure(error))}
         }}
     }
     private final class FlushResult {var value:Result<[ReviewIndexEntry],Error>?}
-    public func flush(_ document:GameDocument,cursor:Int,branches:[ReviewBranch])throws->[ReviewIndexEntry]{
+    public func flush(_ document:GameDocument,cursor:Int,branches:[ReviewBranch],learnerSide:String?=nil)throws->[ReviewIndexEntry]{
         lock.lock();latest[document.id]=nil;lock.unlock()
         let finished=DispatchSemaphore(value:0),result=FlushResult()
         // async plus acknowledgement keeps validation and disk I/O off the main
         // thread even when close/termination must wait for durable completion.
-        queue.async{do{self.lock.lock();let blocked=self.deleted.contains(document.id);self.lock.unlock();guard !blocked else{throw CheckmateError.cancelled};try self.store.save(document,cursor:cursor,branches:branches);result.value = .success(try self.store.list())}catch{result.value = .failure(error)};finished.signal()}
+        queue.async{do{self.lock.lock();let blocked=self.deleted.contains(document.id);self.lock.unlock();guard !blocked else{throw CheckmateError.cancelled};try self.store.save(document,cursor:cursor,branches:branches,learnerSide:learnerSide);result.value = .success(try self.store.list())}catch{result.value = .failure(error)};finished.signal()}
         finished.wait();return try result.value!.get()
     }
     /// Order deletion after any in-flight save and reject late autosaves for this record.
