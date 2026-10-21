@@ -118,9 +118,12 @@ import CheckmateCore
             let acceptTimer=Timer.scheduledTimer(withTimeInterval:0.1,repeats:true){timer in
                 guard let panel=NSApp.windows.compactMap({$0 as? NSOpenPanel}).first else{return};openTicks+=1
                 // A liveness bound: the helper types the fixture's path into Go to Folder, which takes a few seconds.
-                if openTicks>100{panel.cancel(nil);timer.invalidate()}
+                if openTicks>300{panel.cancel(nil);timer.invalidate()}
             }
-            RunLoop.main.add(acceptTimer,forMode:.common);RunLoop.main.add(acceptTimer,forMode:.modalPanel);model.openPGN(startingIn:openDirectory);try JSONSerialization.data(withJSONObject:["pid":ProcessInfo.processInfo.processIdentifier,"path":panelFile.path]).write(to:URL(fileURLWithPath:directory+"/open-panel-ready.json"));try await Task.sleep(for:.seconds(8));acceptTimer.invalidate();await settleImport()
+            RunLoop.main.add(acceptTimer,forMode:.common);RunLoop.main.add(acceptTimer,forMode:.modalPanel);model.openPGN(startingIn:openDirectory);try JSONSerialization.data(withJSONObject:["pid":ProcessInfo.processInfo.processIdentifier,"path":panelFile.path]).write(to:URL(fileURLWithPath:directory+"/open-panel-ready.json"))
+            // Waits for the outcome, not a fixed time: the helper's Go to Folder and Open click take 7 seconds or more, and a fixed
+            // wait left the accepted file's read too little time. The bound matches the panel's liveness bound above.
+            for _ in 0..<320 where model.review.document?.title.contains("Accepted Open panel") != true && model.storageError==nil {try await Task.sleep(for:.milliseconds(100))};acceptTimer.invalidate();await settleImport()
             FileHandle.standardError.write(Data("Open accepted attempts \(openTicks)\n".utf8)) // not localized: automation log on standard error
             let openPanelAccepted=model.review.document?.title.contains("Accepted Open panel")==true
             FileHandle.standardError.write(Data("Panel import title \(model.review.document?.title ?? "nil") error \(model.storageError ?? "nil")\n".utf8)) // not localized: automation log on standard error
