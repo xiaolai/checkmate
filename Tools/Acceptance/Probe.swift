@@ -316,8 +316,8 @@ import SaidGuard
     /// What the downgrade fixture records before the downgrade, to compare with what the older app leaves behind. A
     /// malformed manifest fails to decode, which reports the fixture as failed instead of trapping.
     struct DowngradeManifest:Codable {let reviewID:UUID,originalHash:String,practicePGN:String,skill:Int,elo:Int,answered:[String],branchRoot:Int,branchMoves:[String],exportedMoves:[[String]]}
-    /// A document's main line as UCI moves, for comparing what was exported with what is read back.
-    static func mainlineMoves(_ document:GameDocument)->[String] {document.mainline.compactMap{document.nodes[$0].uci}}
+    /// Every line of a document, start to end, as UCI moves: the export holds the imagined line as a variation.
+    static func lines(_ document:GameDocument)throws -> [[String]] {try document.nodes.filter{$0.children.isEmpty}.map{try document.history(to:$0.id)}}
     @MainActor static func downgradeFixture(_ root:URL,prepare:Bool)throws {
         let store=StateStore(directory:root.appendingPathComponent("Data")),reviews=ReviewStore(directory:store.directory.appendingPathComponent("Reviews"))
         let manifest=root.appendingPathComponent("downgrade-fixture.json")
@@ -330,14 +330,15 @@ import SaidGuard
             try reviews.save(document,cursor:2,branches:[idea])
             try PGNExporter.withIdeas(document,branches:[idea]).write(to:root.appendingPathComponent("exported-original-and-ideas.pgn"),options:.atomic)
             try FileManager.default.copyItem(at:store.directory,to:root.appendingPathComponent("BeforeDowngrade"))
-            let exported=try PGNImporter.parse(Data(contentsOf:root.appendingPathComponent("exported-original-and-ideas.pgn"))).map(mainlineMoves)
+            let records=try PGNImporter.parse(Data(contentsOf:root.appendingPathComponent("exported-original-and-ideas.pgn")))
+            guard records.count==1 else{throw CheckmateError.invalid("Export is not one game")};let exported=try lines(records[0])
             let encoder=JSONEncoder();encoder.outputFormatting=[.prettyPrinted,.sortedKeys]
             try encoder.encode(DowngradeManifest(reviewID:document.id,originalHash:document.contentHash,practicePGN:state.practice.pgn,skill:17,elo:1800,answered:state.course.answered,branchRoot:idea.root,branchMoves:idea.moves,exportedMoves:exported)).write(to:manifest,options:.atomic)
         } else {
             let expected=try JSONDecoder().decode(DowngradeManifest.self,from:Data(contentsOf:manifest)),state=try store.load(),review=try reviews.load(expected.reviewID)
             guard state.settings.skill==expected.skill,state.settings.opponentElo==expected.elo,state.practice.pgn==expected.practicePGN,state.course.completed==["intro","board"],state.course.answered==expected.answered,review.document.contentHash==expected.originalHash,review.cursor==2,review.branches.count==1,review.branches[0].root==expected.branchRoot,review.branches[0].moves==expected.branchMoves else{throw CheckmateError.invalid("Downgrade fixture lost data")}
-            let exported=try PGNImporter.parse(Data(contentsOf:root.appendingPathComponent("exported-original-and-ideas.pgn"))).map(mainlineMoves)
-            guard exported.count==2,exported==expected.exportedMoves else{throw CheckmateError.invalid("Export lost an imagined line")}
+            let records=try PGNImporter.parse(Data(contentsOf:root.appendingPathComponent("exported-original-and-ideas.pgn")))
+            guard records.count==1,try lines(records[0])==expected.exportedMoves,expected.exportedMoves.contains(["e2e4","e7e5"]),expected.exportedMoves.contains(["e2e4","c7c5"]) else{throw CheckmateError.invalid("Export lost an imagined line")}
         }
     }
 

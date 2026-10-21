@@ -142,7 +142,7 @@ final class GapShellReviewTestsGeometry:XCTestCase {
         for i in 0..<ReviewPolicy.maximumSavedRecords{let id=UUID(),url=model.reviewStore.documentURL(id);try Data("{}".utf8).write(to:url);let v=try url.resourceValues(forKeys:[.fileSizeKey,.contentModificationDateKey])
             stamps[id.uuidString]="\(v.fileSize ?? -1):\(v.contentModificationDate?.timeIntervalSince1970 ?? 0)";entries.append(ReviewIndexEntry(id:id,title:"Game \(i)",result:"*",updatedAt:Date()))}
         let encoded=try JSONSerialization.jsonObject(with:JSONEncoder().encode(entries))
-        try JSONSerialization.data(withJSONObject:["schemaVersion":1,"entries":encoded,"stamps":stamps,"titleRule":1]).write(to:reviews.appendingPathComponent("index.json"))
+        try JSONSerialization.data(withJSONObject:["schemaVersion":1,"entries":encoded,"stamps":stamps,"titleRule":2]).write(to:reviews.appendingPathComponent("index.json"))
         XCTAssertEqual(try ReviewStore(directory:reviews).list().count,ReviewPolicy.maximumSavedRecords,"fixture: the forged index must be trusted")
         let document=try game("1. e4 e5 *");model.openReview(document)
         XCTAssertFalse(model.saveReview(immediate:true))

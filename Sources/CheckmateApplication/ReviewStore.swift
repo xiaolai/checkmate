@@ -2,9 +2,25 @@ import CheckmateDomain
 import CheckmateSupport
 import Foundation
 /// `learnerSide` ("w" or "b") is the learner's own side when the review is of a game they played, so it reopens from
-/// that side; saves written before it existed have none and open from White's.
-public struct SavedReview:Codable {public let schemaVersion:Int,document:GameDocument;public var cursor:Int,branches:[ReviewBranch],updatedAt:Date;public var learnerSide:String?=nil}
-public struct ReviewIndexEntry:Codable,Identifiable {public let id:UUID,title:String,result:String,updatedAt:Date}
+/// that side; saves written before it existed have none and open from White's. `name` is the learner's own name for the
+/// review (R-11), absent until they rename it.
+public struct SavedReview:Codable {public let schemaVersion:Int,document:GameDocument;public var cursor:Int,branches:[ReviewBranch],updatedAt:Date;public var learnerSide:String?=nil;public var name:String?=nil}
+/// `title` is the learner's name for the review when it has one (`name`), else its game's title. The game's players,
+/// event and date (known tags only, bounded) let the library search and sort saved reviews without opening them.
+public struct ReviewIndexEntry:Codable,Identifiable,Equatable {
+    public let id:UUID,title:String,result:String,updatedAt:Date;public var name:String?=nil,white:String?=nil,black:String?=nil,event:String?=nil,date:String?=nil
+    static func of(_ document:GameDocument,name:String?,updatedAt:Date)->ReviewIndexEntry {
+        func known(_ tag:String)->String? {guard let value=document.header(tag)?.trimmingCharacters(in:.whitespacesAndNewlines),value.contains(where:{$0 != "?" && $0 != "."}) else{return nil};return PGNImporter.bounded(value,scalars:GameCollectionStore.maximumTag)}
+        return ReviewIndexEntry(id:document.id,title:name ?? document.title,result:document.result,updatedAt:updatedAt,name:name,white:known("White"),black:known("Black"),event:known("Event"),date:known("Date"))
+    }
+    /// A name as the learner may give it: control characters become spaces, the ends are trimmed and the length is
+    /// bounded like a title; nothing left means no name.
+    public static func cleanName(_ text:String?)->String? {
+        guard let text else{return nil}
+        let spaced=String(String.UnicodeScalarView(text.unicodeScalars.map{CharacterSet.controlCharacters.contains($0) ? " ":$0})).trimmingCharacters(in:.whitespacesAndNewlines)
+        return spaced.isEmpty ? nil:String(String.UnicodeScalarView(spaced.unicodeScalars.prefix(ReviewPolicy.maximumTitleScalars)))
+    }
+}
 /// Call from an I/O task. Cached validation/index avoid reparsing the library on cursor saves.
 public final class ReviewStore {
     private let lock=NSRecursiveLock()
@@ -25,11 +41,41 @@ public final class ReviewStore {
     /// `hashes` is absent from indexes written before it existed; readers that predate it ignore it. `titleRule` names
     /// the `GameDocument.title` rule its titles were made by: an index from another rule (or none) is rebuilt once.
     private struct Index:Codable {let schemaVersion:Int,entries:[ReviewIndexEntry],stamps:[String:String],hashes:[String:String]?,titleRule:Int?}
-    /// 1: the players, then the event.
-    private static let titleRule=1
+    /// 1: the players, then the event. 2: as 1, and each entry also holds the learner's name for the review and its
+    /// game's players, event and date.
+    private static let titleRule=2
     /// A deleted review waits in `Trash/<id>/` this long, so its deletion can be undone, unless the library needs room.
     static let trashRetention:TimeInterval=30*24*3600
     private var trashChecked=false
+    /// Bytes of every file in the library outside the Trash, kept up to date by the store's own writes so a save never
+    /// walks the folder (R-28). It holds only while the folder (and its Quarantine) still has the modification dates
+    /// the store last saw: a file added or removed by anything else changes them, and the next save measures again.
+    private var usedBytes:Int?,usedStamp:[Double]?
+    /// How many times the library has been measured by a full walk; tests read it.
+    private(set) var measurements=0
+    /// Each Trash folder's size, by its modification date, so a save does not reread every deleted review.
+    private var trashSizes:[String:(stamp:Double,bytes:Int)]=[:]
+    private func modified(_ url:URL)throws -> Double {FileManager.default.fileExists(atPath:url.path) ? ((try FileManager.default.attributesOfItem(atPath:url.path)[.modificationDate] as? Date)?.timeIntervalSinceReferenceDate ?? 0):-1}
+    private func folderStamp()throws -> [Double] {[try modified(directory),try modified(directory.appendingPathComponent("Quarantine"))]}
+    private func size(_ url:URL)throws -> Int {FileManager.default.fileExists(atPath:url.path) ? ((try FileManager.default.attributesOfItem(atPath:url.path)[.size] as? Int) ?? 0):0}
+    /// The library's size outside the Trash: the running total, or a full walk when it is unknown or stale.
+    func libraryBytes()throws -> Int {
+        lock.lock();defer{lock.unlock()}
+        if let used=usedBytes,try folderStamp()==usedStamp{return used}
+        measurements+=1;var total=0;let enumerator=FileManager.default.enumerator(at:directory,includingPropertiesForKeys:[.isRegularFileKey,.fileSizeKey])
+        while let file=enumerator?.nextObject() as? URL {if enumerator?.level==1,file.lastPathComponent==trashURL.lastPathComponent{enumerator?.skipDescendants();continue};let values=try file.resourceValues(forKeys:[.isRegularFileKey,.fileSizeKey]);if values.isRegularFile==true{total+=values.fileSize ?? 0}}
+        usedBytes=total;usedStamp=try folderStamp();return total
+    }
+    /// Runs one of the store's own changes to `files` and moves the running total by what they gained or lost. A total
+    /// that was already stale, or a change that fails partway, leaves it unknown, to be measured again.
+    private func tracking<T>(_ files:[URL],_ change:()throws->T)throws -> T {
+        func measured()throws -> Int {try files.reduce(0){$0+(try size($1))}}
+        let known=try usedBytes != nil && folderStamp()==usedStamp,before=try known ? measured():0
+        let result:T;do{result=try change()}catch{usedBytes=nil;throw error}
+        if known,let used=usedBytes{let after=try measured();usedBytes=used-before+after;usedStamp=try folderStamp()}else{usedBytes=nil}
+        return result
+    }
+    private var indexURL:URL {directory.appendingPathComponent("index.json")}
     /// Called with each deleted review that leaves the Trash for good (expired or making room), on the thread that
     /// purged it, so what was kept for its Undo (its engine analysis) goes with it.
     public var onPurge:((UUID)->Void)?
@@ -40,10 +86,13 @@ public final class ReviewStore {
     /// The Trash's folders, oldest deletion first, with their sizes.
     private func trashed()throws -> [(url:URL,deleted:Date,bytes:Int)] {
         let files=FileManager.default;guard files.fileExists(atPath:trashURL.path) else{return []}
-        return try files.contentsOfDirectory(at:trashURL,includingPropertiesForKeys:[.creationDateKey]).map{folder in
+        let folders=try files.contentsOfDirectory(at:trashURL,includingPropertiesForKeys:[.creationDateKey]);trashSizes=trashSizes.filter{path,_ in folders.contains{$0.path==path}}
+        return try folders.map{folder in
+            let stamp=try modified(folder),deleted=try folder.resourceValues(forKeys:[.creationDateKey]).creationDate ?? .distantPast
+            if let cached=trashSizes[folder.path],cached.stamp==stamp{return (folder,deleted,cached.bytes)}
             var bytes=0;let enumerator=files.enumerator(at:folder,includingPropertiesForKeys:[.isRegularFileKey,.fileSizeKey])
             while let file=enumerator?.nextObject() as? URL {let values=try file.resourceValues(forKeys:[.isRegularFileKey,.fileSizeKey]);if values.isRegularFile==true{bytes+=values.fileSize ?? 0}}
-            return (folder,try folder.resourceValues(forKeys:[.creationDateKey]).creationDate ?? .distantPast,bytes)
+            trashSizes[folder.path]=(stamp,bytes);return (folder,deleted,bytes)
         }.sorted{$0.deleted<$1.deleted}
     }
     private func futureSchema(_ url:URL)->Bool {
@@ -74,30 +123,45 @@ public final class ReviewStore {
         for branch in branches{let rules=try document.snapshotRules(at:branch.root);guard branch.moves.count<=ReviewPolicy.maximumBranchPlies else{throw CheckmateError.invalid("Branch too long.")};for move in branch.moves{try rules.move(uci:move)}}
     }
     public func save(_ document:GameDocument,cursor:Int,branches:[ReviewBranch],learnerSide:String?=nil)throws {
-        lock.lock();defer{lock.unlock()};try prepare();guard !futureSchema(documentURL(document.id)) else{throw CheckmateError.unavailable("This review requires a newer Checkmate version; its file is preserved.")};try validate(document)
+        lock.lock();defer{lock.unlock()};try write(document,cursor:cursor,branches:branches,learnerSide:learnerSide,name:nil,date:nil)
+    }
+    /// Gives a saved review the learner's own name, or with nil or only spaces gives it back its game's title. The
+    /// review keeps its place in the recent list.
+    public func rename(_ id:UUID,to name:String?)throws {
+        lock.lock();defer{lock.unlock()}
+        guard let entry=try list().first(where:{$0.id==id}) else{throw CheckmateError.invalid("This review is no longer in the library.")}
+        let saved=try load(id);try write(saved.document,cursor:saved.cursor,branches:saved.branches,learnerSide:saved.learnerSide,name:.some(ReviewIndexEntry.cleanName(name)),date:entry.updatedAt)
+    }
+    /// `name` nil keeps the record's current name; `date` nil stamps the write with now.
+    private func write(_ document:GameDocument,cursor:Int,branches:[ReviewBranch],learnerSide:String?,name requested:String??,date fixed:Date?)throws {
+        try prepare();guard !futureSchema(documentURL(document.id)) else{throw CheckmateError.unavailable("This review requires a newer Checkmate version; its file is preserved.")};try validate(document)
         guard document.nodes.indices.contains(cursor) else{throw CheckmateError.invalid("Invalid saved review cursor.")}
         var entries=try list()
         guard learnerSide.map({["w","b"].contains($0)}) ?? true else{throw CheckmateError.invalid("Invalid saved review side.")}
-        if branchCache[document.id]==branches,sides[document.id]==learnerSide,entries.contains(where:{$0.id==document.id}),persisted[document.id]==document,!futureSchema(cursorURL(document.id)) {
-            let date=Date();try saveCursor(document.id,cursor:cursor,date:date)
-            entries.removeAll{$0.id==document.id};entries.append(ReviewIndexEntry(id:document.id,title:document.title,result:document.result,updatedAt:date));index=entries.sorted{$0.updatedAt>$1.updatedAt};try writeIndex();return
+        let current=entries.first{$0.id==document.id},name=requested ?? current?.name
+        if branchCache[document.id]==branches,sides[document.id]==learnerSide,let current,current.name==name,persisted[document.id]==document,!futureSchema(cursorURL(document.id)) {
+            let date=fixed ?? Date()
+            try tracking([cursorURL(document.id),indexURL]){try saveCursor(document.id,cursor:cursor,date:date)
+                entries.removeAll{$0.id==document.id};entries.append(.of(document,name:name,updatedAt:date));index=entries.sorted{$0.updatedAt>$1.updatedAt};try writeIndex()};return
         }
         try validateBranches(branches,document:document)
-        guard entries.contains(where:{$0.id==document.id}) || entries.count<ReviewPolicy.maximumSavedRecords else{throw CheckmateError.invalid("Review library record limit reached.")}
-        let saved=SavedReview(schemaVersion:1,document:document,cursor:cursor,branches:branches,updatedAt:Date(),learnerSide:learnerSide),data=try JSONEncoder().encode(saved)
+        guard current != nil || entries.count<ReviewPolicy.maximumSavedRecords else{throw CheckmateError.invalid("Review library record limit reached.")}
+        let saved=SavedReview(schemaVersion:1,document:document,cursor:cursor,branches:branches,updatedAt:fixed ?? Date(),learnerSide:learnerSide,name:name),data=try JSONEncoder().encode(saved)
         guard data.count<=ReviewPolicy.maximumSavedBytes else{throw CheckmateError.invalid("Saved review exceeds storage limit.")}
-        let enumerator=FileManager.default.enumerator(at:directory,includingPropertiesForKeys:[.isRegularFileKey,.fileSizeKey])
-        var total=0
-        while let file=enumerator?.nextObject() as? URL {if file==documentURL(document.id){continue};if enumerator?.level==1,file.lastPathComponent==trashURL.lastPathComponent{enumerator?.skipDescendants();continue};let values=try file.resourceValues(forKeys:[.isRegularFileKey,.fileSizeKey]);if values.isRegularFile==true{total+=values.fileSize ?? 0}}
+        // The record being replaced does not count against its own new version.
+        var total=try libraryBytes()-size(documentURL(document.id))
         // The Trash counts toward the library, but gives way, oldest deletion first, before a save is refused.
         var trash=try trashed()
         while total+trash.reduce(0,{$0+$1.bytes})+data.count>ReviewPolicy.maximumLibraryBytes,let oldest=trash.first {try purge(oldest.url);trash.removeFirst();NativeLog.storage.info("Removed a deleted review to make room in the library")}
         total+=trash.reduce(0){$0+$1.bytes}
         guard total+data.count<=ReviewPolicy.maximumLibraryBytes else{throw CheckmateError.invalid("Review library storage limit reached; export or delete older reviews.")}
-        let url=documentURL(document.id);try atomicWriter(data,url);try FileManager.default.setAttributes([.posixPermissions:0o600],ofItemAtPath:url.path)
-        guard try Data(contentsOf:url)==data else{throw CheckmateError.unavailable("Review read-back failed.")}
-        persisted[document.id]=document;hashes[document.id]=document.contentHash;sides[document.id]=learnerSide
-        entries.removeAll{$0.id==document.id};entries.append(ReviewIndexEntry(id:document.id,title:document.title,result:document.result,updatedAt:saved.updatedAt));index=entries.sorted{$0.updatedAt>$1.updatedAt};stamps[document.id]=stamp(document.id);branchCache[document.id]=branches;try saveCursor(document.id,cursor:cursor,date:saved.updatedAt);try writeIndex()
+        let url=documentURL(document.id)
+        try tracking([url,cursorURL(document.id),indexURL]){
+            try atomicWriter(data,url);try FileManager.default.setAttributes([.posixPermissions:0o600],ofItemAtPath:url.path)
+            guard try Data(contentsOf:url)==data else{throw CheckmateError.unavailable("Review read-back failed.")}
+            persisted[document.id]=document;hashes[document.id]=document.contentHash;sides[document.id]=learnerSide
+            entries.removeAll{$0.id==document.id};entries.append(.of(document,name:name,updatedAt:saved.updatedAt));index=entries.sorted{$0.updatedAt>$1.updatedAt};stamps[document.id]=stamp(document.id);branchCache[document.id]=branches;try saveCursor(document.id,cursor:cursor,date:saved.updatedAt);try writeIndex()
+        }
     }
     public func load(_ id:UUID)throws -> SavedReview {
         lock.lock();defer{lock.unlock()};let url=documentURL(id),size=try url.resourceValues(forKeys:[.fileSizeKey]).fileSize ?? 0
@@ -109,6 +173,7 @@ public final class ReviewStore {
         var saved=try JSONDecoder().decode(SavedReview.self,from:data)
         // A side this reader cannot hold is ignored, as if the record had none.
         if let side=saved.learnerSide,!["w","b"].contains(side){saved.learnerSide=nil}
+        saved.name=ReviewIndexEntry.cleanName(saved.name)
         guard saved.schemaVersion<=1 else{throw CheckmateError.unavailable("This review requires a newer Checkmate version; its file is preserved.")}
         guard saved.schemaVersion==1,saved.document.id==id,saved.document.nodes.indices.contains(saved.cursor) else{throw CheckmateError.invalid("Invalid review version or cursor.")}
         // A re-read tree must still hold the cursor and every idea at the same positions, found by their recorded moves
@@ -117,7 +182,7 @@ public final class ReviewStore {
         if rederived{
             guard let cursor=Self.node(saved.cursor,of:stored,in:document) else{throw CheckmateError.invalid("Invalid review version or cursor.")}
             let branches=try saved.branches.map{branch->ReviewBranch in guard let root=Self.node(branch.root,of:stored,in:document) else{throw CheckmateError.invalid("Invalid saved branches.")};return branch.rooted(at:root)}
-            saved=SavedReview(schemaVersion:1,document:document,cursor:cursor,branches:branches,updatedAt:saved.updatedAt,learnerSide:saved.learnerSide)
+            saved=SavedReview(schemaVersion:1,document:document,cursor:cursor,branches:branches,updatedAt:saved.updatedAt,learnerSide:saved.learnerSide,name:saved.name)
         }
         // A re-read record is not yet on disk in its new numbering: the next save rewrites it whole, never only its cursor.
         try validateBranches(saved.branches,document:saved.document);stamps[id]=stamp(id);branchCache[id]=rederived ? nil:saved.branches;persisted[id]=rederived ? nil:saved.document;preserved[id]=nil;hashes[id]=saved.document.contentHash;sides[id]=saved.learnerSide
@@ -155,10 +220,10 @@ public final class ReviewStore {
             if let size=(try? file.resourceValues(forKeys:[.fileSizeKey]))?.fileSize,size<=ReviewPolicy.maximumIndexBytes,let data=try? Data(contentsOf:file),let saved=try? JSONDecoder().decode(Index.self,from:data),saved.schemaVersion==1,saved.titleRule==Self.titleRule,saved.entries.count<=ReviewPolicy.maximumSavedRecords,Set(saved.entries.map(\.id)).count==saved.entries.count,Set(saved.entries.map(\.id))==readableIDs,saved.entries.allSatisfy({saved.stamps[$0.id.uuidString]==stamp($0.id)}){index=saved.entries;stamps=Dictionary(uniqueKeysWithValues:saved.entries.map{($0.id,stamp($0.id))});for entry in saved.entries{if let hash=saved.hashes?[entry.id.uuidString]{hashes[entry.id]=hash}};return saved.entries}
         }
         // Directory scan is also recovery for an interrupted index write. It occurs once per store.
-        var entries:[ReviewIndexEntry]=[]
+        usedBytes=nil;var entries:[ReviewIndexEntry]=[]
         for url in try FileManager.default.contentsOfDirectory(at:directory,includingPropertiesForKeys:nil) where url.pathExtension=="json" {
             guard let id=UUID(uuidString:url.deletingPathExtension().lastPathComponent) else{continue}
-            do{let saved=try load(id);entries.append(ReviewIndexEntry(id:id,title:saved.document.title,result:saved.document.result,updatedAt:saved.updatedAt))}
+            do{let saved=try load(id);entries.append(.of(saved.document,name:saved.name,updatedAt:saved.updatedAt))}
             catch let error as CocoaError where [.fileReadNoPermission,.fileReadUnknown,.fileReadNoSuchFile].contains(error.code){throw error}
             catch let error as CheckmateError{if case .unavailable=error{if futureSchema(url){preserved[id]=stamp(id);continue};throw error};try quarantine(url,id:id)}
             catch{try quarantine(url,id:id)}
@@ -166,8 +231,8 @@ public final class ReviewStore {
         guard entries.count<=ReviewPolicy.maximumSavedRecords else{throw CheckmateError.invalid("Review library record limit exceeded.")}
         index=entries.sorted{$0.updatedAt>$1.updatedAt};try writeIndex();return index!
     }
-    private func quarantine(_ url:URL,id:UUID)throws {let quarantine=directory.appendingPathComponent("Quarantine");try FileManager.default.createDirectory(at:quarantine,withIntermediateDirectories:true);try FileManager.default.moveItem(at:url,to:quarantine.appendingPathComponent(UUID().uuidString+"-"+url.lastPathComponent));validated[id]=nil;persisted[id]=nil;hashes[id]=nil;quarantinedSinceTaken+=1}
-    private func writeIndex()throws {guard !futureSchema(directory.appendingPathComponent("index.json")) else{return};let entries=index ?? [];let data=try JSONEncoder().encode(Index(schemaVersion:1,entries:entries,stamps:Dictionary(uniqueKeysWithValues:entries.map{($0.id.uuidString,stamp($0.id))}),hashes:Dictionary(uniqueKeysWithValues:entries.compactMap{entry in hashes[entry.id].map{(entry.id.uuidString,$0)}}),titleRule:Self.titleRule));try atomicWriter(data,directory.appendingPathComponent("index.json"))}
+    private func quarantine(_ url:URL,id:UUID)throws {let quarantine=directory.appendingPathComponent("Quarantine");try FileManager.default.createDirectory(at:quarantine,withIntermediateDirectories:true);try FileManager.default.moveItem(at:url,to:quarantine.appendingPathComponent(UUID().uuidString+"-"+url.lastPathComponent));validated[id]=nil;persisted[id]=nil;hashes[id]=nil;quarantinedSinceTaken+=1;usedBytes=nil}
+    private func writeIndex()throws {guard !futureSchema(directory.appendingPathComponent("index.json")) else{return};let entries=index ?? [];let data=try JSONEncoder().encode(Index(schemaVersion:1,entries:entries,stamps:Dictionary(uniqueKeysWithValues:entries.map{($0.id.uuidString,stamp($0.id))}),hashes:Dictionary(uniqueKeysWithValues:entries.compactMap{entry in hashes[entry.id].map{(entry.id.uuidString,$0)}}),titleRule:Self.titleRule));try atomicWriter(data,indexURL)}
     /// The saved record whose original text has this hash, so the same game opened again (for example by an agent)
     /// reuses its record instead of filling the library with copies. Records indexed before hashes were kept are
     /// found once they have been loaded or saved again.
@@ -181,18 +246,22 @@ public final class ReviewStore {
         // The record and its cursor move to `Trash/<id>/`, replacing an earlier deletion of the same record; the folder's
         // creation date is the deletion date.
         let files=FileManager.default,previousIndex=index,folder=trashURL(id),sources=[documentURL(id),cursorURL(id)].filter{files.fileExists(atPath:$0.path)}
-        if !sources.isEmpty{if files.fileExists(atPath:folder.path){try files.removeItem(at:folder)};try files.createDirectory(at:folder,withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])}
         var moved:[(URL,URL)]=[]
         do {
-            for source in sources {
-                let target=folder.appendingPathComponent(source.lastPathComponent)
-                try files.moveItem(at:source,to:target);moved.append((source,target))
+            // The Trash is made inside the tracked change: making it changes the library folder's date, which would
+            // otherwise read as a change by something else and cost a full measurement.
+            try tracking([documentURL(id),cursorURL(id),indexURL]){
+                if !sources.isEmpty{if files.fileExists(atPath:folder.path){try files.removeItem(at:folder)};try files.createDirectory(at:folder,withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])}
+                for source in sources {
+                    let target=folder.appendingPathComponent(source.lastPathComponent)
+                    try files.moveItem(at:source,to:target);moved.append((source,target))
+                }
+                index?.removeAll{$0.id==id};try writeIndex()
             }
-            index?.removeAll{$0.id==id};try writeIndex()
         } catch {
             index=previousIndex
             for (source,target) in moved.reversed(){try files.moveItem(at:target,to:source)}
-            if !sources.isEmpty{try files.removeItem(at:folder)}
+            if !sources.isEmpty,files.fileExists(atPath:folder.path){try files.removeItem(at:folder)}
             throw error
         }
         validated[id]=nil;persisted[id]=nil;branchCache[id]=nil;stamps[id]=nil;hashes[id]=nil
@@ -206,9 +275,11 @@ public final class ReviewStore {
         guard entries.count<ReviewPolicy.maximumSavedRecords else{throw CheckmateError.invalid("Review library record limit reached.")}
         var moved:[(URL,URL)]=[]
         do {
-            for target in [documentURL(id),cursorURL(id)] {let source=folder.appendingPathComponent(target.lastPathComponent);if files.fileExists(atPath:source.path){try files.moveItem(at:source,to:target);moved.append((source,target))}}
-            let saved=try load(id)
-            entries.append(ReviewIndexEntry(id:id,title:saved.document.title,result:saved.document.result,updatedAt:saved.updatedAt));index=entries.sorted{$0.updatedAt>$1.updatedAt};try writeIndex()
+            try tracking([documentURL(id),cursorURL(id),indexURL]){
+                for target in [documentURL(id),cursorURL(id)] {let source=folder.appendingPathComponent(target.lastPathComponent);if files.fileExists(atPath:source.path){try files.moveItem(at:source,to:target);moved.append((source,target))}}
+                let saved=try load(id)
+                entries.append(.of(saved.document,name:saved.name,updatedAt:saved.updatedAt));index=entries.sorted{$0.updatedAt>$1.updatedAt};try writeIndex()
+            }
         } catch {
             index=entries.filter{$0.id != id};validated[id]=nil;persisted[id]=nil;branchCache[id]=nil;stamps[id]=nil;hashes[id]=nil
             for (source,target) in moved.reversed(){try files.moveItem(at:target,to:source)}
@@ -253,5 +324,7 @@ public final class ReviewSaveCoordinator {
         let entries=try queue.sync{try store.restore(id);return try store.list()}
         lock.lock();deleted.remove(id);lock.unlock();return entries
     }
+    /// Renames after any in-flight save of the record, so a late autosave keeps the new name.
+    public func rename(_ id:UUID,to name:String?)throws->[ReviewIndexEntry]{try queue.sync{try store.rename(id,to:name);return try store.list()}}
 
 }

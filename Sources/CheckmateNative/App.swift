@@ -128,34 +128,33 @@ import CheckmateCore
             game.board.dropReview?(try Data(contentsOf:file));await settleImport()
             let dropCallbackPassed=model.review.document?.title.contains("File callback entry")==true
             if !dropCallbackPassed{failures.append("Board drop callback import failed")}
-            // Exercise the actual chooser and choose its second item, without UI scraping.
+            // R-9: a file of several games joins the library as a collection with its first game selected, and no
+            // chooser; its second game opens from the library like any other.
             let collection="[Event \"First collection item\"]\n1. e4 *\n\n[Event \"Second collection item\"]\n1. d4 *"
-            var chooserHandled=false,chooserTicks=0
-            let chooserTimer=Timer.scheduledTimer(withTimeInterval:0.05,repeats:true){timer in
-                chooserTicks+=1
-                if chooserTicks>40{NSApp.stopModal(withCode:.alertSecondButtonReturn);timer.invalidate()}
-                guard let window=NSApp.modalWindow else{return}
-                FileHandle.standardError.write(Data("Chooser tick \(chooserTicks) window \(window.title)\n".utf8))
-                func picker(_ view:NSView)->NSPopUpButton? {if let found=view as? NSPopUpButton{return found};for child in view.subviews{if let found=picker(child){return found}};return nil}
-                if let root=window.contentView,let selection=picker(root),selection.numberOfItems==2{selection.selectItem(at:1);chooserHandled=true;NSApp.stopModal(withCode:.alertFirstButtonReturn);timer.invalidate()}
-            }
-            RunLoop.main.add(chooserTimer,forMode:.common);RunLoop.main.add(chooserTimer,forMode:.modalPanel)
             FileHandle.standardError.write(Data("Starting collection\n".utf8))
-            model.importReviewData(Data(collection.utf8));await settleImport();chooserTimer.invalidate()
-            let collectionPassed=chooserHandled && model.review.document?.title.contains("Second collection item")==true
-            if !collectionPassed{failures.append("Collection chooser second item failed")}
-            // A newer activity (here another opened record) during the chooser's modal loop wins over the later choice.
-            let duringChooserRecord=Data("[Event \"Opened during chooser\"]\n1. c4 *".utf8);var staleChooserHandled=false,staleTicks=0
-            let staleTimer=Timer.scheduledTimer(withTimeInterval:0.05,repeats:true){timer in
-                staleTicks+=1;if staleTicks>40{NSApp.stopModal(withCode:.alertSecondButtonReturn);timer.invalidate()}
-                guard let window=NSApp.modalWindow else{return}
-                func picker(_ view:NSView)->NSPopUpButton? {if let found=view as? NSPopUpButton{return found};for child in view.subviews{if let found=picker(child){return found}};return nil}
-                if let root=window.contentView,let selection=picker(root),selection.numberOfItems==2{selection.selectItem(at:1);MainActor.assumeIsolated{if let record=try? PGNImporter.parse(duringChooserRecord).first{model.openReview(record)}};staleChooserHandled=true;NSApp.stopModal(withCode:.alertFirstButtonReturn);timer.invalidate()}
-            }
-            RunLoop.main.add(staleTimer,forMode:.common);RunLoop.main.add(staleTimer,forMode:.modalPanel)
-            model.importReviewData(Data("[Event \"Third collection item\"]\n1. e4 *\n\n[Event \"Fourth collection item\"]\n1. d4 *".utf8));await settleImport();staleTimer.invalidate()
-            let staleChooserPassed=staleChooserHandled && model.review.document?.header("Event")=="Opened during chooser"
-            if !staleChooserPassed{failures.append("Chooser choice replaced an activity selected during its modal loop")}
+            model.importReviewData(Data(collection.utf8));await settleImport()
+            for _ in 0..<250 where model.library.selection?.hasPrefix("collection:") != true {try? await Task.sleep(for:.milliseconds(20))}
+            let collectionRows=model.library.visibleRows.filter{$0.id.hasPrefix("collection:")}
+            let collectionListed=model.reviewWorkspace && model.library.scope == .myGames && collectionRows.count==2 && model.library.selection==collectionRows.first?.id && NSApp.modalWindow==nil
+            if !collectionListed{failures.append("A file of several games was not listed as a selected collection")}
+            if let second=collectionRows.last{model.library.open(second)}
+            for _ in 0..<250 where model.review.document?.title.contains("Second collection item") != true {try? await Task.sleep(for:.milliseconds(20))}
+            let collectionPassed=collectionListed && model.review.document?.title.contains("Second collection item")==true
+            if model.review.document?.title.contains("Second collection item") != true{failures.append("The collection's second game did not open from the library")}
+            // A newer activity (here another opened record) chosen while a collection is still importing keeps the board:
+            // the import lands in the library without taking over.
+            let duringImportRecord=Data("[Event \"Opened during chooser\"]\n1. c4 *".utf8)
+            model.importReviewData(Data("[Event \"Third collection item\"]\n1. e4 *\n\n[Event \"Fourth collection item\"]\n1. d4 *".utf8));await settleImport()
+            if let record=try? PGNImporter.parse(duringImportRecord).first{model.openReview(record)}
+            for _ in 0..<250 where model.library.visibleRows.filter({$0.id.hasPrefix("collection:")}).count<4 && model.library.scope == .myGames {try? await Task.sleep(for:.milliseconds(20))}
+            try? await Task.sleep(for:.milliseconds(300))
+            let staleChooserPassed=model.review.document?.header("Event")=="Opened during chooser"
+            if !staleChooserPassed{failures.append("A collection import replaced an activity selected while it ran")}
+            // The library is left as the timing below expects it: every scope, and no collections of the learner's.
+            for (collection,_) in model.library.catalog.collections{model.library.remove(collection.sha256)}
+            for _ in 0..<250 where !model.library.catalog.collections.isEmpty {try? await Task.sleep(for:.milliseconds(20))}
+            if !model.library.catalog.collections.isEmpty{failures.append("The imported collections could not be removed")}
+            model.library.scope = .all
             let chooserRecord=model.review.document!
             model.returnToGame();let resumedOnExplicitReturn=model.session.busyReason=="opponent";model.session.cancelWork();game.window?.makeKeyAndOrderFront(nil);NSApp.activate(ignoringOtherApps:true)
             if !resumedOnExplicitReturn{failures.append("Explicit Return to game did not resume the suspended opponent reply")}
@@ -466,7 +465,7 @@ import CheckmateCore
             model.returnToGame();model.session.cancelWork()
             let paneCapturesPassed=paneCaptures.count==16 && captureDefects.isEmpty && narrowed && axPassed(libraryAX,0) && axPassed(libraryAX,1) && collectionImported && graphReady
             if !paneCapturesPassed{failures.append("Review pane captures incomplete (captures=\(paneCaptures) defects=\(captureDefects) narrowed=\(narrowed) libraryListed=\(axPassed(libraryAX,0)) collectionImported=\(collectionImported) graphReady=\(graphReady))")}
-            let result:[String:Any]=["passed":failures.isEmpty,"reviewPaneCaptures":paneCapturesPassed,"staleLibraryOpenDropped":staleLibraryOpenDropped,"newestLibraryOpenWins":newestOpenWins,"libraryHeadings":eventHeading && collectionHeading,"paneCaptureSizes":paneSizes,"libraryBudgets":["phases":phases,"tableCounts":tableCounts,"keystrokeMs":keystrokeMs,"rows":timedRows,"rowsShown":keystrokesShown,"workspaceVisibleMs":workspaceVisibleMs,"slowestKeystrokeMs":slowestKeystrokeMs,"passed":budgetsPassed],"renderedImportError":renderedErrorPassed,"readableImportError":readableError,"staleChooserRejected":staleChooserPassed,"explicitReturnResumesReply":resumedOnExplicitReturn,"failedRestoreNoReplyUntilExplicitReturn":failedRestorePassed,"failedRestoreCallbacksHeld":callbacksHeld,"failedRestoreResumeWithDrawersClosed":drawersClosed && axPassed(resumeAX,1) && resumedByExplicitAction,"failedRestoreReplacementCleared":replacementCleared,"ideaMovesListed":ideaMovesListed,"noReplyDuringReview":noReplyDuringReview,"reviewVoiceRendered":reviewVoicePassed,"savedReviewRowSelected":savedRowSelected,"practiceForkParentPly0":forkPly0Verified,"practiceForkParentPly1":forkPly1Verified,"practiceForkImaginedMateDisabled":terminalLineVerified,"accessibilityChecks":axLog,"failures":failures,"geometry":geometry,"openPanelAccepted":openPanelAccepted,"openPanelCancel":openPanelCancelled,"savedRestore":savedRestorePassed,"savedLoadLesson":savedLoadLessonPassed,"savedLoadImport":savedLoadImportPassed,"savedLoadLatest":savedLoadLatestPassed,"savedLoadSameID":savedLoadSameIDPassed,"savedLoadStaleError":savedLoadErrorPassed,"staleImportCancelled":staleImportPassed,"closeFlush":closeFlushPassed,"reviewDocumentFile":model.reviewStore.documentURL(docs[0].id).path,"expectedPersistedCursor":docs[0].mainline.last!,"expectedSavedIdeas":savedIdeas.count,"pasteEntry":pastePassed,"dropCallbackEntry":dropCallbackPassed,"collectionChooser":collectionPassed,"appearances":appearances,"reducedMotionInjected":true,"defaultMotionMatchesWorkspace":defaultMotion,"accessibilitySquares":accessibleSquares.count,"mouseBranch":mouseBranchVerified,"keyboardBranch":keyboardBranchVerified,"keyboardNavigation":rightArrowVerified && leftArrowVerified,"typingFocusPreserved":typingPreserved,"hiddenPracticeMenuGuard":menuGuardPassed,"reviewAnnotationScoped":annotationRendered && annotationCleared,"fullscreenEntered":entered,"practicePreserved":preservedPractice,"blackPracticeTitle":blackPracticeTitle,"originalHashPreserved":originalHash==docs[0].contentHash,"silent":NativePolicy.silent]
+            let result:[String:Any]=["passed":failures.isEmpty,"reviewPaneCaptures":paneCapturesPassed,"staleLibraryOpenDropped":staleLibraryOpenDropped,"newestLibraryOpenWins":newestOpenWins,"libraryHeadings":eventHeading && collectionHeading,"paneCaptureSizes":paneSizes,"libraryBudgets":["phases":phases,"tableCounts":tableCounts,"keystrokeMs":keystrokeMs,"rows":timedRows,"rowsShown":keystrokesShown,"workspaceVisibleMs":workspaceVisibleMs,"slowestKeystrokeMs":slowestKeystrokeMs,"passed":budgetsPassed],"renderedImportError":renderedErrorPassed,"readableImportError":readableError,"staleChooserRejected":staleChooserPassed,"explicitReturnResumesReply":resumedOnExplicitReturn,"failedRestoreNoReplyUntilExplicitReturn":failedRestorePassed,"failedRestoreCallbacksHeld":callbacksHeld,"failedRestoreResumeWithDrawersClosed":drawersClosed && axPassed(resumeAX,1) && resumedByExplicitAction,"failedRestoreReplacementCleared":replacementCleared,"ideaMovesListed":ideaMovesListed,"noReplyDuringReview":noReplyDuringReview,"reviewVoiceRendered":reviewVoicePassed,"savedReviewRowSelected":savedRowSelected,"practiceForkParentPly0":forkPly0Verified,"practiceForkParentPly1":forkPly1Verified,"practiceForkImaginedMateDisabled":terminalLineVerified,"accessibilityChecks":axLog,"failures":failures,"geometry":geometry,"openPanelAccepted":openPanelAccepted,"openPanelCancel":openPanelCancelled,"savedRestore":savedRestorePassed,"savedLoadLesson":savedLoadLessonPassed,"savedLoadImport":savedLoadImportPassed,"savedLoadLatest":savedLoadLatestPassed,"savedLoadSameID":savedLoadSameIDPassed,"savedLoadStaleError":savedLoadErrorPassed,"staleImportCancelled":staleImportPassed,"closeFlush":closeFlushPassed,"reviewDocumentFile":model.reviewStore.documentURL(docs[0].id).path,"expectedPersistedCursor":docs[0].mainline.last!,"expectedSavedIdeas":savedIdeas.count,"pasteEntry":pastePassed,"dropCallbackEntry":dropCallbackPassed,"collectionImport":collectionPassed,"appearances":appearances,"reducedMotionInjected":true,"defaultMotionMatchesWorkspace":defaultMotion,"accessibilitySquares":accessibleSquares.count,"mouseBranch":mouseBranchVerified,"keyboardBranch":keyboardBranchVerified,"keyboardNavigation":rightArrowVerified && leftArrowVerified,"typingFocusPreserved":typingPreserved,"hiddenPracticeMenuGuard":menuGuardPassed,"reviewAnnotationScoped":annotationRendered && annotationCleared,"fullscreenEntered":entered,"practicePreserved":preservedPractice,"blackPracticeTitle":blackPracticeTitle,"originalHashPreserved":originalHash==docs[0].contentHash,"silent":NativePolicy.silent]
             try JSONSerialization.data(withJSONObject:result,options:[.prettyPrinted,.sortedKeys]).write(to:URL(fileURLWithPath:directory+"/review-ui-results.json"));NSApp.terminate(nil)
         }catch{try? JSONSerialization.data(withJSONObject:["passed":false,"error":String(describing:error)]).write(to:URL(fileURLWithPath:directory+"/review-ui-results.json"));NSApp.terminate(nil)}
     }}

@@ -12,8 +12,9 @@ struct GameLibraryBrowser:View {
     var body:some View {VStack(alignment:.leading,spacing:Metrics.smallGap){
         Text("Game library").font(.headline).accessibilityAddTraits(.isHeader)
         ViewThatFits(in:.horizontal){
-            HStack(spacing:Metrics.smallGap){search.frame(minWidth:150);scopePicker.pickerStyle(.segmented).controlSize(.small).fixedSize()}
-            HStack(spacing:Metrics.smallGap){search.frame(minWidth:160);scopePicker.pickerStyle(.menu).fixedSize()}
+            HStack(spacing:Metrics.smallGap){search.frame(minWidth:150);scopePicker.pickerStyle(.segmented).controlSize(.small).fixedSize();sortPicker}
+            HStack(spacing:Metrics.smallGap){search.frame(minWidth:160);scopePicker.pickerStyle(.menu).fixedSize();sortPicker}
+            VStack(alignment:.leading,spacing:Metrics.smallGap){search.frame(minWidth:160);HStack(spacing:Metrics.smallGap){scopePicker.pickerStyle(.menu).fixedSize();sortPicker}}
         }
         results.frame(maxWidth:.infinity,maxHeight:.infinity)
             .overlay{if dropTargeted{RoundedRectangle(cornerRadius:6).stroke(Color.accentColor,lineWidth:3).allowsHitTesting(false)}}
@@ -29,20 +30,31 @@ struct GameLibraryBrowser:View {
     private var scopePicker:some View {
         Picker("Show",selection:$library.scope){ForEach(LibraryScope.allCases){Text($0.title).tag($0)}}.labelsHidden().accessibilityLabel("Show").accessibilityIdentifier("library-scope")
     }
+    /// The order of the games in each section (R-21).
+    private var sortPicker:some View {
+        Picker("Sort By",selection:$library.sort){ForEach(LibrarySort.allCases){Text($0.title).tag($0)}}.pickerStyle(.menu).fixedSize().help("Sort By")
+            .accessibilityLabel("Sort By").accessibilityIdentifier("library-sort")
+    }
     @ViewBuilder private var results:some View {
         switch library.bundled {
-        case .loading:ProgressView("Loading the game library…").frame(maxWidth:.infinity,maxHeight:.infinity)
-        case .failed(let message) where library.scope != .myGames:
+        case .loading where library.scope != .saved:ProgressView("Loading the game library…").frame(maxWidth:.infinity,maxHeight:.infinity)
+        case .failed(let message) where library.scope != .myGames && library.scope != .saved:
             VStack(spacing:Metrics.smallGap){Text("The game library could not be loaded.").font(.headline);Text(verbatim:message).foregroundStyle(.secondary).multilineTextAlignment(.center)}.foregroundStyle(Color(nsColor:NativeColors.error)).frame(maxWidth:.infinity,maxHeight:.infinity).accessibilityElement(children:.combine)
         default:
             let shown=sections
             if shown.isEmpty || shown.allSatisfy({$0.rows.isEmpty && $0.kind == .collection(nil)}) {
                 VStack(spacing:Metrics.smallGap){
-                    Text(library.query.isEmpty ? (library.scope == .myGames ? "No collections yet":"No games"):"No games match your search").font(.headline)
-                    Text(library.query.isEmpty ? (library.scope == .myGames ? "Import a PGN collection, or drop a PGN file here.":""):"Try a player, event, year or opening.").foregroundStyle(.secondary)
+                    Text(Self.emptyTitle(scope:library.scope,searching:!library.query.isEmpty)).font(.headline)
+                    Text(Self.emptyHint(scope:library.scope,searching:!library.query.isEmpty)).foregroundStyle(.secondary)
                 }.frame(maxWidth:.infinity,maxHeight:.infinity).accessibilityElement(children:.combine)
             } else {LibraryTable(library:library,version:library.shownVersion,selection:library.selection,focusRequests:library.listFocusRequests)}
         }
+    }
+    static func emptyTitle(scope:LibraryScope,searching:Bool)->String {
+        switch (scope,searching) {case (.saved,false):"No saved reviews yet";case (.saved,true):"No saved reviews match your search";case (.myGames,false):"No collections yet";case (_,false):"No games";case (_,true):"No games match your search"}
+    }
+    static func emptyHint(scope:LibraryScope,searching:Bool)->String {
+        switch (scope,searching) {case (.saved,false):"A game you review is saved here when you return to your game.";case (.saved,true):"Try a name, player, event or year.";case (.myGames,false):"Import a PGN collection, or drop a PGN file here.";case (_,false):"";case (_,true):"Try a player, event, year or opening."}
     }
     private var footer:some View {
         VStack(alignment:.leading,spacing:4){

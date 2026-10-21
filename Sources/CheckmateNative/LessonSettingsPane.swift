@@ -25,6 +25,8 @@ struct LessonSettingsPane:View {
         if let voice{settings.lessonVoice=voice;controller.voice=voice}
         session.updateSettings(settings)
     }
+    // L-26: the pane is split by task (choose the language, choose lessons, run a job, manage what is stored), and the
+    // lesson picker and list follow the course's sections.
     var body:some View {
         Section("Lesson language") {
             TextField("Search languages",text:$search).accessibilityIdentifier("lesson-language-search")
@@ -32,10 +34,15 @@ struct LessonSettingsPane:View {
                 ForEach(Array(Set(languages+[controller.language])).sorted{name($0)<name($1)},id:\.self){Text(name($0)).tag($0)}
             }.disabled(controller.busy).accessibilityIdentifier("lesson-language")
             HStack{TextField("Custom language / locale",text:$customLocale).accessibilityIdentifier("lesson-custom-locale");Button("Use language"){let locale=customLocale.trimmingCharacters(in:.whitespacesAndNewlines);select(language:locale)}.disabled(controller.busy || LessonLanguages.normalizedSelection(customLocale)==nil)}
-            Text("Choose a language, then translate explicitly. Language selection does not start a request. Speech quality varies by language.").font(.caption).foregroundStyle(.secondary)
-            Picker("Scope",selection:$controller.allLessons){Text("Selected lesson").tag(false);Text("All lessons").tag(true)}.disabled(controller.busy)
-            Picker("Lesson",selection:$controller.selectedLesson){ForEach(Array(library.lessons.enumerated()),id:\.element.id){index,lesson in Text(lesson.title).tag(index)}}.disabled(controller.busy || controller.allLessons)
             Picker("Recording voice",selection:Binding(get:{controller.voice},set:{select(voice:$0)})){Text("Cedar").tag("cedar");Text("Marin").tag("marin")}.disabled(controller.busy)
+            Text("Choose a language, then translate explicitly. Language selection does not start a request. Speech quality varies by language.").font(.caption).foregroundStyle(.secondary)
+        }
+        Section("Lessons") {
+            Picker("Scope",selection:$controller.allLessons){Text("Selected lesson").tag(false);Text("All lessons").tag(true)}.disabled(controller.busy)
+            Picker("Lesson",selection:$controller.selectedLesson){ForEach(groups,id:\.lessons){group in Section(group.title){ForEach(group.lessons,id:\.self){Text(library.lessons[$0].title).tag($0)}}}}.disabled(controller.busy || controller.allLessons).accessibilityIdentifier("lesson-picker")
+            if controller.language != "en"{lessonList}
+        }
+        Section("Translate and record") {
             HStack {
                 Button("Translate"){if controller.allLessons{confirmAll("translate")}else{controller.translate()}}.disabled(controller.busy || controller.planning || controller.language=="en").accessibilityIdentifier("lesson-translate")
                 Button("Generate preview"){controller.preview()}.disabled(controller.busy || audioConflict || controller.language=="en")
@@ -45,8 +52,17 @@ struct LessonSettingsPane:View {
             HStack {
                 Button("Record / Resume"){if controller.allLessons{confirmAll("record")}else{controller.record()}}.disabled(controller.busy || controller.planning || audioConflict || controller.language=="en")
                 Button("Cancel"){controller.cancel()}.disabled(!controller.canCancel).accessibilityIdentifier("lesson-job-cancel")
-                Button("Remove stored lesson",role:.destructive){confirmRemove()}.disabled(controller.busy || controller.language=="en")
             }
+            if audioConflict{Text("Disconnect the voice coach before generating or playing lesson recordings.").font(.caption).foregroundStyle(.secondary)}
+            if controller.busy{ProgressView().controlSize(.small)}
+            Text(controller.status).textSelection(.enabled).accessibilityIdentifier("lesson-job-status")
+            if !controller.problems.isEmpty{VStack(alignment:.leading,spacing:4){ForEach(Array(controller.problems.enumerated()),id:\.offset){_,problem in Text("• "+problem).textSelection(.enabled)}}.font(.caption).accessibilityElement(children:.contain).accessibilityLabel("Lesson job problems").accessibilityIdentifier("lesson-job-problems")}
+            Text("Transcript verification compares the provider’s transcript with the requested script. Listen to the preview to judge spoken accuracy, clarity and suitability before recording the full lesson.").font(.caption).foregroundStyle(.secondary)
+            Text("A lesson uses the selected language after all its recordings are complete. Otherwise, the whole lesson plays in English.").font(.caption).foregroundStyle(.secondary)
+        }
+        Section("Stored lessons") {
+            Text(controller.storedStatus).font(.caption).foregroundStyle(.secondary)
+            Button("Remove stored lesson",role:.destructive){confirmRemove()}.disabled(controller.busy || controller.language=="en")
             // One bad clip is re-recorded alone: remove it, then Record / Resume records only what is missing.
             HStack {
                 Picker("Clip",selection:$clip){ForEach(Array(clipTitles.enumerated()),id:\.offset){index,title in Text("\(index+1). \(title)").tag(index)}}.accessibilityIdentifier("lesson-clip")
@@ -54,26 +70,51 @@ struct LessonSettingsPane:View {
             }.disabled(controller.busy || controller.allLessons || controller.language=="en").onChange(of:controller.selectedLesson){clip=0}
             Button("Discard translated text…",role:.destructive){confirmDiscard()}.disabled(!controller.canDiscardTranslation)
             Button("Remove outdated translations…"){confirmPurge()}.disabled(controller.busy)
-            if audioConflict{Text("Disconnect the voice coach before generating or playing lesson recordings.").font(.caption).foregroundStyle(.secondary)}
-            if controller.busy{ProgressView().controlSize(.small)}
-            Text(controller.storedStatus).font(.caption).foregroundStyle(.secondary)
-            Text(controller.status).textSelection(.enabled).accessibilityIdentifier("lesson-job-status")
-            if !controller.problems.isEmpty{VStack(alignment:.leading,spacing:4){ForEach(Array(controller.problems.enumerated()),id:\.offset){_,problem in Text("• "+problem).textSelection(.enabled)}}.font(.caption).accessibilityElement(children:.contain).accessibilityLabel("Lesson job problems").accessibilityIdentifier("lesson-job-problems")}
-            Text("Transcript verification compares the provider’s transcript with the requested script. Listen to the preview to judge spoken accuracy, clarity and suitability before recording the full lesson.").font(.caption).foregroundStyle(.secondary)
-            Text("A lesson uses the selected language after all its recordings are complete. Otherwise, the whole lesson plays in English.").font(.caption).foregroundStyle(.secondary)
         }
         if !controller.inspection.isEmpty {
             Section("Translated text") {ScrollView{Text(controller.inspection).textSelection(.enabled).frame(maxWidth:.infinity,alignment:.leading)}.frame(minHeight:Metrics.lessonInspectionMinimum,maxHeight:Metrics.lessonInspectionMaximum)}
         }
     }
+    private var groups:[LessonGroup] {LessonLanguageController.groups(library)}
+    /// L-27: every lesson with what is stored for the chosen language and voice, grouped by course section, and its own
+    /// Translate and Record.
+    private var lessonList:some View {
+        ScrollView {
+            Grid(alignment:.leading,horizontalSpacing:Metrics.smallGap,verticalSpacing:4) {
+                GridRow{Text("Lesson");Text("Translated");Text("Recorded");Text("Out of Date");Color.clear.gridCellUnsizedAxes([.horizontal,.vertical])}.font(.caption.bold()).foregroundStyle(.secondary).accessibilityHidden(true)
+                ForEach(groups,id:\.lessons){group in
+                    Text(group.title).font(.caption.bold()).padding(.top,4).gridCellColumns(5).accessibilityAddTraits(.isHeader)
+                    ForEach(group.lessons,id:\.self){lessonRow($0)}
+                }
+            }.frame(maxWidth:.infinity,alignment:.leading)
+        }.frame(minHeight:Metrics.lessonInspectionMinimum,maxHeight:Metrics.lessonInspectionMaximum).accessibilityIdentifier("lesson-status-list")
+    }
+    private func lessonRow(_ index:Int)->some View {
+        let lesson=library.lessons[index],status=controller.lessonStatuses.indices.contains(index) ? controller.lessonStatuses[index]:nil,idle = !controller.busy && !controller.planning
+        return GridRow {
+            Text(lesson.title).lineLimit(1).truncationMode(.tail)
+            Text(status.map{$0.translated ? "Yes":"No"} ?? "…")
+            Text(status?.recordedText ?? "…")
+            Text(status?.stale==true ? "Yes":"").help(status?.stale==true ? "A stored file for this lesson can no longer be used. Translate or record the lesson again, or remove what is stored.":"")
+            HStack(spacing:4) {
+                Button("Translate"){confirmLesson(index,"translate")}.disabled(!idle || status==nil || status?.translated==true)
+                    .accessibilityLabel("Translate \(lesson.title)").accessibilityIdentifier("lesson-row-translate-\(lesson.id)")
+                Button("Record"){confirmLesson(index,"record")}.disabled(!idle || audioConflict || status?.translated != true || status?.recorded==status?.clips)
+                    .accessibilityLabel("Record \(lesson.title)").accessibilityIdentifier("lesson-row-record-\(lesson.id)")
+            }.controlSize(.small)
+        }.accessibilityElement(children:.contain).accessibilityIdentifier("lesson-status-\(lesson.id)")
+    }
     /// Every lesson is a long job billed to the learner's account: the sign-in is checked and the work counted first,
     /// and nothing is requested until the learner confirms the counts.
-    private func confirmAll(_ mode:String){Task{@MainActor in
-        guard let plan=await controller.planAll(mode:mode) else{return}
+    private func confirmAll(_ mode:String){Task{@MainActor in run(await controller.planAll(mode:mode),mode)}}
+    /// One lesson from the list goes through the same check and confirmation.
+    private func confirmLesson(_ index:Int,_ mode:String){Task{@MainActor in run(await controller.plan(mode:mode,lesson:index),mode)}}
+    private func run(_ plan:LessonJobPlan?,_ mode:String){
+        guard let plan else{return}
         let alert=NSAlert();alert.messageText=plan.title;alert.informativeText=plan.message;alert.addButton(withTitle:plan.action);alert.addButton(withTitle:"Cancel")
         guard alert.runModal() == .alertFirstButtonReturn else{controller.declinePlan();return}
         if mode=="translate"{controller.translate()}else{controller.record()}
-    }}
+    }
     private func confirmPurge(){
         confirm("Remove outdated translations?","This removes translated text and recordings made for earlier versions of these lessons, which this version can no longer use. Current translations, recordings and your progress are kept.",action:"Remove"){controller.purgeOutdated()}
     }

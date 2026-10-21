@@ -101,6 +101,14 @@ public final class LessonPackStore:@unchecked Sendable {
   return removed
  }
  public func completePack(source:LessonTranslation,locale:String,voice:String)throws->LessonPack? {try validatedPack(source:source,locale:locale,voice:voice)?.0}
+ /// What is stored for one lesson, for Settings' lesson list. A text or manifest file that cannot be used is reported
+ /// as stale and counted as missing; the job that replaces it, or Remove and Discard, clear it.
+ public func status(source:LessonTranslation,locale:String,voice:String)->LessonStoredStatus {
+  var stale=false
+  let translated:Bool;do{translated=try translation(source:source,locale:locale) != nil}catch{translated=false;stale=true}
+  let recorded:Int;do{recorded=try partialPack(source:source,locale:locale,voice:voice)?.clips.count ?? 0}catch{recorded=0;stale=true}
+  return LessonStoredStatus(translated:translated,recorded:recorded,clips:source.beats.count,stale:stale)
+ }
  public func saveClip(pcm:Data,transcript:String,beatID:String,source:LessonTranslation,locale:String,voice:String,model:String)throws->LessonPack {
   lock.lock();defer{lock.unlock()};guard LessonRecording.acceptedModel(model),["cedar","marin"].contains(voice) else{throw CheckmateError.invalid("The recording model or voice is not supported by this generation profile.")};guard let translation=try translation(source:source,locale:locale),let beat=translation.beats.first(where:{$0.id==beatID}) else{throw CheckmateError.invalid("Translate the lesson before recording.")};let seconds=try LessonRecording.validate(pcm:pcm,transcript:transcript,script:beat.speak,language:locale),wav=try LessonRecording.wav(pcm)
   var pack=try partialPack(source:source,locale:locale,voice:voice) ?? LessonPack(sourceFingerprint:source.fingerprint,locale:locale,voice:voice,translation:translation,clips:[])

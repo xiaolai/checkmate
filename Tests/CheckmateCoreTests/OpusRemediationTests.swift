@@ -163,7 +163,7 @@ final class OpusImportMessageTests:XCTestCase {
         let d=try PGNImporter.parse(Data("[SetUp \"1\"]\n[FEN \"7k/4P3/8/8/8/8/8/K7 w - - 0 1\"]\n*".utf8))[0],session=try GameSession(engine:nil),review=ReviewController()
         review.open(d,practice:session);try review.previewLine(["e7e8"]);XCTAssertEqual(review.branch?.moves,["e7e8q"])
         review.clearBranch();try review.beginBranch();try review.playBranch("e7e8")
-        XCTAssertEqual(review.branch?.moves,["e7e8q"]);XCTAssertEqual(try PGNImporter.parse(PGNExporter.withIdeas(d,branches:review.branchesForSaving)).count,2)
+        XCTAssertEqual(review.branch?.moves,["e7e8q"]);let exported=try PGNImporter.parse(PGNExporter.withIdeas(d,branches:review.branchesForSaving));XCTAssertEqual(exported.count,1);XCTAssertEqual(exported[0].nodes.compactMap(\.uci),["e7e8q"])
     }
     func testEngineReceivesValidatedCanonicalHistory()async throws {
         let (path,directory)=try fakeEngine();defer{try? FileManager.default.removeItem(at:directory)}

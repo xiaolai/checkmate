@@ -13,6 +13,8 @@ public struct CollectionIndex:Codable,Equatable,Sendable,Identifiable {
     public static let schemaVersion=1
     public let schemaVersion:Int,sha256:String,name:String,bytes:Int,importedAt:Date,records:[CollectionRecord],unreadable:Int
     public var id:String {sha256}
+    /// The same collection under another name (its stored name file wins over the name its index was built with).
+    func named(_ name:String)->CollectionIndex {CollectionIndex(schemaVersion:schemaVersion,sha256:sha256,name:name,bytes:bytes,importedAt:importedAt,records:records,unreadable:unreadable)}
 }
 /// A collection whose file or index could not be read: shown with its error in its own section.
 public struct BrokenCollection:Equatable,Sendable,Identifiable {public let id:String,name:String,error:String;public init(id:String,name:String,error:String){self.id=id;self.name=name;self.error=error}}
@@ -70,7 +72,7 @@ public final class GameCollectionStore:@unchecked Sendable {
         let temporary=directory.appendingPathComponent(".\(url.lastPathComponent).\(UUID().uuidString).tmp")
         guard FileManager.default.createFile(atPath:temporary.path,contents:nil,attributes:[.posixPermissions:0o600]) else{throw CheckmateError.invalid("The library could not be written.")}
         do{let handle=try FileHandle(forWritingTo:temporary);defer{try? handle.close()};try handle.write(contentsOf:data);try handle.synchronize()
-            guard rename(temporary.path,url.path)==0 else{throw CheckmateError.invalid("The library could not be written.")}}catch{try? FileManager.default.removeItem(at:temporary);throw error}
+            guard Darwin.rename(temporary.path,url.path)==0 else{throw CheckmateError.invalid("The library could not be written.")}}catch{try? FileManager.default.removeItem(at:temporary);throw error}
         try syncDirectory()
     }
     private let removalsLock=NSLock()
@@ -86,12 +88,13 @@ public final class GameCollectionStore:@unchecked Sendable {
         guard !records.isEmpty else{throw CheckmateError.invalid("No games were found in this file.")}
         return CollectionIndex(schemaVersion:CollectionIndex.schemaVersion,sha256:sha,name:PGNImporter.bounded(name,scalars:maximumName),bytes:data.count,importedAt:importedAt,records:records,unreadable:split.unreadable)
     }
-    /// Imports a collection; the same content imported again is stored once and returns the existing index.
-    public func importCollection(_ data:Data,name:String,cancelled:@escaping ()->Bool={false})throws -> CollectionIndex {
+    /// Imports a collection; the same content imported again is stored once and returns the existing index. Without a
+    /// name (a record pasted or dropped) it is named after its games' most common event.
+    public func importCollection(_ data:Data,name:String?,cancelled:@escaping ()->Bool={false})throws -> CollectionIndex {
         guard data.count<=ReviewPolicy.maximumBytes else{throw CheckmateError.invalid("This file is larger than 16 MiB; split it into smaller files.")}
         let sha=reviewHash(data),removed=removalCount(sha)
         if let existing=try? readIndex(sha),FileManager.default.fileExists(atPath:file(sha).path){return existing}
-        let index=try Self.index(data,sha:sha,name:name,importedAt:Date(),cancelled:cancelled)
+        let read=try Self.index(data,sha:sha,name:name ?? "Collection",importedAt:Date(),cancelled:cancelled),index=name==nil ? read.named(PGNImporter.bounded(Self.fallbackName(read.records),scalars:Self.maximumName)):read
         let encoded=try JSONEncoder().encode(index)
         return try exclusive{
             // Removed while it was being read: the import is cancelled and nothing is written.
@@ -135,7 +138,7 @@ public final class GameCollectionStore:@unchecked Sendable {
             if let index=try? readIndex(sha){
                 // A collection from an older build keeps its index's name from now on; a name not written is tried again.
                 if stored==nil{do{try durableWrite(Data(index.name.utf8),to:nameFile(sha))}catch{NativeLog.storage.error("A collection's name could not be stored: \(String(describing:error),privacy:.public)")}}
-                collections.append(index);continue
+                collections.append(stored.map{index.named($0)} ?? index);continue
             }
             do{
                 let data=try Data(contentsOf:file(sha));guard reviewHash(data)==sha else{throw CheckmateError.invalid("This collection's file is damaged.")}
@@ -152,6 +155,18 @@ public final class GameCollectionStore:@unchecked Sendable {
         // An index or name left without its file is removed with it.
         for name in names where name.hasSuffix(".index.json") && !names.contains(String(name.dropLast(11))+".pgn") || name.hasSuffix(".name") && !names.contains(String(name.dropLast(5))+".pgn"){try? FileManager.default.removeItem(at:directory.appendingPathComponent(name))}
         return (collections.sorted{$0.importedAt<$1.importedAt},broken)
+    }
+    /// Gives a collection a new name, kept in its name file (so a rebuilt index keeps it too). Spaces and control
+    /// characters at the ends are dropped; an empty name is refused.
+    public func rename(_ sha:String,to name:String)throws {
+        guard Self.isDigest(sha) else{throw CheckmateError.invalid("Unknown collection.")}
+        guard let clean=ReviewIndexEntry.cleanName(name).map({PGNImporter.bounded($0,scalars:Self.maximumName)}) else{throw CheckmateError.invalid("Give the collection a name.")}
+        try exclusive{
+            guard FileManager.default.fileExists(atPath:file(sha).path) else{throw CheckmateError.invalid("This collection is no longer in the library.")}
+            let label=Data(clean.utf8),previous=FileManager.default.fileExists(atPath:nameFile(sha).path) ? ((try FileManager.default.attributesOfItem(atPath:nameFile(sha).path)[.size] as? Int) ?? 0):0
+            guard usedBytes()-previous+label.count<=quotaBytes else{throw CheckmateError.invalid("The game library is full (\(quotaBytes/1024/1024) MiB). Remove a collection first.")}
+            try durableWrite(label,to:nameFile(sha))
+        }
     }
     /// Deletes the collection's file, index and name; an import of the same content still running is cancelled.
     public func remove(_ sha:String)throws {

@@ -68,9 +68,10 @@ final class B10ReviewImportTests:XCTestCase {
     func testAFENOnlyReviewExportsWithoutASpuriousGame()throws {
         let position=try PGNImporter.parse(Data("8/8/8/4k3/8/8/8/4K2R w K - 0 1".utf8))[0];var idea=ReviewBranch(root:0);idea.moves=["e1f2"]
         let records=try PGNImporter.parse(PGNExporter.withIdeas(position,branches:[idea]))
-        XCTAssertEqual(records.count,2,"The position and the idea, with no extra empty game")
-        XCTAssertEqual(records[0].startingFEN,position.startingFEN);XCTAssertEqual(records[0].nodes.count,1)
-        XCTAssertEqual(try records[1].history(to:try XCTUnwrap(records[1].mainline.last)),["e1f2"])
+        XCTAssertEqual(records.count,1,"One record from the position, with no extra empty game")
+        // A position has no move to vary, so the imagined line is its record's moves, marked as imagined.
+        XCTAssertEqual(records[0].startingFEN,position.startingFEN);XCTAssertEqual(records[0].nodes.count,2)
+        XCTAssertEqual(try records[0].history(to:try XCTUnwrap(records[0].mainline.last)),["e1f2"]);XCTAssertEqual(records[0].nodes[0].commentsBefore,[PGNExporter.imaginedMarker],"A comment before the first move belongs to the position")
     }
     func testOnlyWhatTheImporterBuiltSkipsTheReParse()throws {
         let document=try PGNImporter.parse(Data("1. e4 {note} e5 *".utf8))[0]
