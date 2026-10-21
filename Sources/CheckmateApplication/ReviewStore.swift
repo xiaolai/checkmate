@@ -52,7 +52,8 @@ public final class ReviewStore {
     /// (R-28). The cost model, for a library of n reviews:
     /// - A cursor save and `list()` stat a fixed number of files. `list()` trusts its index while the folder's
     ///   modification date is the one the store last saw; a cursor save stats the folder, its Quarantine and the files it
-    ///   writes, and moves the running byte total by what they gained or lost.
+    ///   writes, and moves the running byte total by what they gained or lost. Each of the store's own changes also reads
+    ///   the folder's names (no stats) to confirm that nothing else was added or removed while it ran.
     /// - A full save is O(n) stats: before its quota check it re-stats every file the store knows, because the quota is
     ///   a safety limit that must hold even against a file edited in place by something else, which changes neither
     ///   folder's date. Full saves come from deliberate actions, so the cost is paid rarely.
@@ -64,6 +65,9 @@ public final class ReviewStore {
     /// `measurements` counts full walks of the library, and `looked` every file or folder that the byte total and the
     /// review list stat; tests read both.
     private(set) var measurements=0,looked=0
+    /// Internal test seam: runs between the store's last look at the folder and its own change, where a change by
+    /// another program would land.
+    var beforeChange:(()->Void)?
     /// Each Trash folder's size, by its modification date, so a save does not reread every deleted review.
     private var trashSizes:[String:(stamp:Double,bytes:Int)]=[:]
     private func modified(_ url:URL)throws -> Double {FileManager.default.fileExists(atPath:url.path) ? ((try FileManager.default.attributesOfItem(atPath:url.path)[.modificationDate] as? Date)?.timeIntervalSinceReferenceDate ?? 0):-1}
@@ -80,24 +84,33 @@ public final class ReviewStore {
     func libraryBytes()throws -> Int {
         lock.lock();defer{lock.unlock()}
         if let used=usedBytes,try folderDates()==usedDates,ownStamps.allSatisfy({ownStamp(directory.appendingPathComponent($0.key))==$0.value}){return used}
-        measurements+=1;var total=0,stamps:[String:String]=[:];let enumerator=FileManager.default.enumerator(at:directory,includingPropertiesForKeys:[.isRegularFileKey,.fileSizeKey])
+        measurements+=1;var total=0,stamps:[String:String]=[:],found:Set<String>=[];let enumerator=FileManager.default.enumerator(at:directory,includingPropertiesForKeys:[.isRegularFileKey,.fileSizeKey])
         while let file=enumerator?.nextObject() as? URL {
             if enumerator?.level==1,file.lastPathComponent==trashURL.lastPathComponent{enumerator?.skipDescendants();continue}
+            if enumerator?.level==1{found.insert(file.lastPathComponent)}
             let values=try file.resourceValues(forKeys:[.isRegularFileKey,.fileSizeKey]);guard values.isRegularFile==true else{continue}
             total+=values.fileSize ?? 0;if enumerator?.level==1{stamps[file.lastPathComponent]=ownStamp(file)}
         }
-        usedBytes=total;usedDates=try folderDates();ownStamps=stamps;return total
+        usedBytes=total;usedDates=try folderDates();ownStamps=stamps;names=found;return total
     }
+    /// The names in the folder itself, but the Trash, as the store last read them; nil when not read since its last
+    /// change it could not account for.
+    private var names:Set<String>?
+    private func folderNames()throws -> Set<String> {Set(try FileManager.default.contentsOfDirectory(atPath:directory.path)).subtracting([trashURL.lastPathComponent])}
     /// Runs one of the store's own changes to `files` (all in the folder itself) and moves the running total by what
-    /// they gained or lost. A total that was already stale, or a change that fails partway, leaves it unknown, to be
-    /// measured again. The review list's folder date moves with the change only if it was current before it.
+    /// they gained or lost. What the store knew is carried past the change only if it still held at the last look before
+    /// it (the folder's dates as recorded), and if afterwards the folder holds exactly the names it held, give or take
+    /// `files`, and its Quarantine is as it was: anything else is another program's change, made meanwhile, so the total,
+    /// the list's folder date and the names are left unknown, to be read again.
     private func tracking<T>(_ files:[URL],_ change:()throws->T)throws -> T {
         func measured()throws -> Int {try files.reduce(0){$0+(try size($1))}}
-        let dates=try folderDates(),listed=listedDate != nil && listedDate==dates[0]
-        let known=usedBytes != nil && dates==usedDates && files.allSatisfy{ownStamp($0)==(ownStamps[$0.lastPathComponent] ?? "absent")},before=try known ? measured():0
-        let result:T;do{result=try change()}catch{usedBytes=nil;listedDate=nil;throw error}
-        let now=try folderDates();listedDate=listed ? now[0]:nil
-        if known,let used=usedBytes{let after=try measured();usedBytes=used-before+after;usedDates=now;for file in files{let stamp=ownStamp(file);ownStamps[file.lastPathComponent]=stamp=="absent" ? nil:stamp}}else{usedBytes=nil}
+        let known=usedBytes != nil && files.allSatisfy{ownStamp($0)==(ownStamps[$0.lastPathComponent] ?? "absent")},before=try known ? measured():0
+        let dates=try folderDates(),listed=listedDate != nil && listedDate==dates[0],counted=known && dates==usedDates
+        beforeChange?();let result:T;do{result=try change()}catch{usedBytes=nil;listedDate=nil;names=nil;throw error}
+        let now=try folderDates(),marks=files.map(ownStamp),found=try folderNames()
+        var expected=names;for (file,stamp) in zip(files,marks){if stamp=="absent"{expected?.remove(file.lastPathComponent)}else{expected?.insert(file.lastPathComponent)}}
+        let alone=expected==found && now[1]==dates[1];names=alone ? found:nil;listedDate=listed && alone ? now[0]:nil
+        if counted,alone,let used=usedBytes{let after=try measured();usedBytes=used-before+after;usedDates=now;for (file,stamp) in zip(files,marks){ownStamps[file.lastPathComponent]=stamp=="absent" ? nil:stamp}}else{usedBytes=nil}
         return result
     }
     private var indexURL:URL {directory.appendingPathComponent("index.json")}
@@ -242,7 +255,8 @@ public final class ReviewStore {
         // The folder's date is unchanged since the store last confirmed its index: no review was added or removed.
         looked+=1;let date=try modified(directory)
         if let index,listedDate==date{return index}
-        let documentIDs=Set(try FileManager.default.contentsOfDirectory(at:directory,includingPropertiesForKeys:nil).filter{$0.pathExtension=="json"}.compactMap{UUID(uuidString:$0.deletingPathExtension().lastPathComponent)})
+        let listing=try FileManager.default.contentsOfDirectory(at:directory,includingPropertiesForKeys:nil);names=Set(listing.map(\.lastPathComponent)).subtracting([trashURL.lastPathComponent])
+        let documentIDs=Set(listing.filter{$0.pathExtension=="json"}.compactMap{UUID(uuidString:$0.deletingPathExtension().lastPathComponent)})
         preserved=preserved.filter{documentIDs.contains($0.key) && $0.value==stamp($0.key)}
         let readableIDs=documentIDs.subtracting(preserved.keys)
         if let index=index,Set(index.map(\.id))==readableIDs,index.allSatisfy({stamps[$0.id]==stamp($0.id)}){listedDate=date;return index}
@@ -261,10 +275,11 @@ public final class ReviewStore {
         }
         guard entries.count<=ReviewPolicy.maximumSavedRecords else{throw CheckmateError.invalid(String(localized:"Review library record limit exceeded.",bundle:.checkmate))}
         // The date read before the scan: the scan's own quarantines and index write move it, so the next call checks each
-        // review once more rather than trust a date that could also hide a change made during the scan.
-        index=entries.sorted{$0.updatedAt>$1.updatedAt};try writeIndex();listedDate=date;return index!
+        // review once more rather than trust a date that could also hide a change made during the scan. The names read
+        // before it are stale too.
+        index=entries.sorted{$0.updatedAt>$1.updatedAt};try writeIndex();listedDate=date;names=nil;return index!
     }
-    private func quarantine(_ url:URL,id:UUID)throws {let quarantine=directory.appendingPathComponent("Quarantine");try FileManager.default.createDirectory(at:quarantine,withIntermediateDirectories:true);try FileManager.default.moveItem(at:url,to:quarantine.appendingPathComponent(UUID().uuidString+"-"+url.lastPathComponent));validated[id]=nil;persisted[id]=nil;hashes[id]=nil;quarantinedSinceTaken+=1;usedBytes=nil}
+    private func quarantine(_ url:URL,id:UUID)throws {let quarantine=directory.appendingPathComponent("Quarantine");try FileManager.default.createDirectory(at:quarantine,withIntermediateDirectories:true);try FileManager.default.moveItem(at:url,to:quarantine.appendingPathComponent(UUID().uuidString+"-"+url.lastPathComponent));validated[id]=nil;persisted[id]=nil;hashes[id]=nil;quarantinedSinceTaken+=1;usedBytes=nil;names=nil}
     private func writeIndex()throws {guard !futureSchema(directory.appendingPathComponent("index.json")) else{return};let entries=index ?? [];let data=try JSONEncoder().encode(Index(schemaVersion:1,entries:entries,stamps:Dictionary(uniqueKeysWithValues:entries.map{($0.id.uuidString,stamps[$0.id] ?? stamp($0.id))}),hashes:Dictionary(uniqueKeysWithValues:entries.compactMap{entry in hashes[entry.id].map{(entry.id.uuidString,$0)}}),titleRule:Self.titleRule));try atomicWriter(data,indexURL)}
     /// The saved record whose original text has this hash, so the same game opened again (for example by an agent)
     /// reuses its record instead of filling the library with copies. Records indexed before hashes were kept are

@@ -95,6 +95,18 @@ final class LibraryOrganisationTests:XCTestCase {
         try store.save(second,cursor:2,branches:[]);XCTAssertEqual(try store.list().first{$0.id==first.id}?.title,"Replaced elsewhere")
         XCTAssertEqual(try store.libraryBytes(),try scanned(folder))
     }
+    /// A file another program adds between the store's look at the folder and its own change is not taken for part of
+    /// that change: the list and the byte total still find it.
+    func testAFileAddedDuringTheStoresOwnChangeIsNotTakenForPartOfIt()throws {
+        let store=ReviewStore(directory:folder),games=try (1...3).map{try game("[White \"W\($0)\"]\n[Black \"B\"]\n\n1. e4 e5 *")}
+        for document in games{try store.save(document,cursor:1,branches:[])};XCTAssertEqual(try store.list().count,3)
+        let intruder=try game("[White \"Intruder\"]\n[Black \"B\"]\n\n1. c4 *"),target=store.documentURL(intruder.id)
+        let data=try JSONEncoder().encode(SavedReview(schemaVersion:1,document:intruder,cursor:0,branches:[],updatedAt:Date()));var added=false
+        store.beforeChange={guard !added else{return};added=true;do{try data.write(to:target)}catch{XCTFail("the other program could not write: \(error)")}}
+        try store.save(games[0],cursor:2,branches:[]);XCTAssertTrue(added,"the other program wrote during the store's change")
+        XCTAssertEqual(try store.list().map(\.id).sorted{$0.uuidString<$1.uuidString},(games+[intruder]).map(\.id).sorted{$0.uuidString<$1.uuidString})
+        XCTAssertEqual(try store.libraryBytes(),try scanned(folder))
+    }
 
     // MARK: R-11
 
