@@ -385,14 +385,16 @@ struct BarButtonStyle:ViewModifier {
 }
 /// A glass capsule with the bordered button's footprint: 8 points either side of the label, 28 high. The system glass
 /// button is 12 points wider, which wraps the practice bar into a second row at 600 points and shrinks the board.
+/// Dimming goes on the label: the glass draws in its own layer, which an opacity outside it does not reach. A disabled
+/// button keeps a plain capsule around a faded label, as a disabled bordered button keeps its bezel, and loses the tint.
 @available(macOS 26,*) private struct BarGlassButton:ButtonStyle {
     let prominent:Bool
     @Environment(\.isEnabled) private var enabled
     func makeBody(configuration:Configuration)->some View {
         configuration.label.padding(.horizontal,8).frame(minHeight:28)
-            .foregroundStyle(prominent ? AnyShapeStyle(.white):AnyShapeStyle(.primary)).opacity(enabled ? 1:0.45)
-            .glassEffect(prominent ? .regular.tint(.accentColor).interactive():.regular.interactive(),in:.capsule)
-            .contentShape(.capsule).opacity(configuration.isPressed ? 0.8:1)
+            .foregroundStyle(prominent&&enabled ? AnyShapeStyle(.white):AnyShapeStyle(.primary)).opacity(enabled ? (configuration.isPressed ? 0.8:1):0.45)
+            .glassEffect(!enabled ? .regular:prominent ? .regular.tint(.accentColor).interactive():.regular.interactive(),in:.capsule)
+            .contentShape(.capsule)
     }
 }
 /// One group of bar buttons shares a glass container on macOS 26 and later, so neighbouring glass blends as one
