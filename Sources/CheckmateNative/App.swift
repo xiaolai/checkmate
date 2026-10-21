@@ -520,11 +520,13 @@ import CheckmateCore
             // WI-018: a game won by a clicked move opens its review sheet with the proved fact; Return closes it, and a
             // new game shows none. D5, with the voice double: Read Aloud, clicked with pointer events, opens a reading of
             // that review alone, which asks only for the fact's exact text as a script; Return also ends the reading.
-            // The sheet's buttons in their window, leading first: SwiftUI hosts each as an AppKit control without a title
-            // or identifier, so the reading control (Read Aloud, then Stop Reading) is the one before Done.
+            // The sheet's bottom row of buttons, leading first: SwiftUI hosts each as an AppKit control without a title
+            // or identifier, so the reading control (Read Aloud, then Stop Reading) is the one before Done. Each fact's
+            // Show on Board sits higher, in that fact's row.
             @MainActor func buttons(_ root:NSView?)->[NSPoint] {
                 func find(_ view:NSView)->[NSView] {(view is NSControl && !view.isHidden ? [view]:[])+view.subviews.flatMap(find)}
-                return (root.map(find) ?? []).map{$0.convert($0.bounds,to:nil)}.sorted{$0.minX<$1.minX}.map{NSPoint(x:$0.midX,y:$0.midY)}
+                let frames=(root.map(find) ?? []).map{$0.convert($0.bounds,to:nil)},bottom=frames.map(\.midY).min() ?? 0
+                return frames.filter{abs($0.midY-bottom)<4}.sorted{$0.minX<$1.minX}.map{NSPoint(x:$0.midX,y:$0.midY)}
             }
             @MainActor func press(_ point:NSPoint,in sheet:NSWindow)async {
                 for type in [NSEvent.EventType.leftMouseDown,.leftMouseUp] {
