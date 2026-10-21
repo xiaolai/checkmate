@@ -1,6 +1,7 @@
 // Standalone test-host helper for the native review scenario, run concurrently with scripts/test-review-ui.sh:
 // 1. answers the scenario's numbered accessibility requests (rendered text/visibility, enabled state,
-//    real pointer clicks, selected sidebar row) from outside the app process;
+//    real pointer clicks by title or identifier, real keys, the board's squares, selected sidebar row) from outside
+//    the app process;
 // 2. selects the actual fixture row in the real Open panel and presses Open;
 // 3. after normal termination, reads back the persisted review cursor and ideas.
 import AppKit
@@ -21,6 +22,13 @@ func find(_ element:AXUIElement,_ text:String,button:Bool=false,roles:Set<String
     return nil
 }
 func find(_ element:AXUIElement,_ text:String,button:Bool=false,roles:Set<String>?=nil)->AXUIElement? {var budget=40000;return find(element,text,button:button,roles:roles,budget:&budget)}
+func identifier(_ element:AXUIElement)->String {value(element,"AXIdentifier") as? String ?? ""}
+/// Every element whose accessibility identifier passes `match`, depth first.
+func collect(_ element:AXUIElement,_ match:(String)->Bool,depth:Int=0,budget:inout Int,into found:inout [AXUIElement]) {
+    budget-=1;if budget<0 || depth>45 {return};if match(identifier(element)){found.append(element)}
+    for child in value(element,kAXChildrenAttribute) as? [AXUIElement] ?? []{collect(child,match,depth:depth+1,budget:&budget,into:&found)}
+}
+func collect(_ element:AXUIElement,_ match:(String)->Bool)->[AXUIElement] {var budget=40000,found:[AXUIElement]=[];collect(element,match,budget:&budget,into:&found);return found}
 /// A file's entry in a panel, in any of its views: never the panel window, whose title can repeat the file name.
 let fileEntryRoles:Set<String>=[kAXStaticTextRole,kAXTextFieldRole,kAXCellRole,kAXRowRole,kAXImageRole]
 let keySource=CGEventSource(stateID:.hidSystemState)
@@ -120,6 +128,31 @@ func run(_ check:[String:Any],in app:AXUIElement,pid:Int)->[String:Any] {
         let title=check["title"] as? String ?? ""
         guard let button=find(app,title,button:true) else{result["found"]=false;result["passed"]=false;return result}
         let clicked=click(button,pid:pid);result["found"]=true;result["pointerClick"]=clicked;result["passed"]=clicked
+    case "pressIdentifier":
+        // A control or board square by its accessibility identifier, clicked with the real pointer.
+        let wanted=check["identifier"] as? String ?? ""
+        guard !wanted.isEmpty,let element=collect(app,{$0==wanted}).first else{result["found"]=false;result["passed"]=false;return result}
+        let clicked=click(element,pid:pid);result["found"]=true;result["pointerClick"]=clicked;result["passed"]=clicked
+    case "keys":
+        // Real key presses, posted as the keyboard does, to the app under test once it is frontmost.
+        let codes=check["codes"] as? [Int] ?? []
+        NSRunningApplication(processIdentifier:pid_t(pid))?.activate(options:[]);Thread.sleep(forTimeInterval:0.3)
+        let frontmost=NSWorkspace.shared.frontmostApplication?.processIdentifier==pid_t(pid);result["frontmost"]=frontmost
+        guard !codes.isEmpty,frontmost else{result["passed"]=false;return result}
+        for code in codes{key(CGKeyCode(code))};result["passed"]=true
+    case "board":
+        // The board as drawn: 64 square cells and their union square to the point. With "evaluation", the evaluation
+        // bar is read aloud with those words and stands right of the board, as tall as it.
+        let squares=collect(app,{$0.hasPrefix("board-square-")}).compactMap(rect),union=squares.reduce(CGRect.null){$0.union($1)}
+        let skew=squares.map{abs($0.width-$0.height)}.max() ?? .infinity
+        result["squares"]=squares.count;result["skew"]=Double(skew);result["union"]=union.isNull ? []:[union.minX,union.minY,union.width,union.height].map{Double($0)}
+        var passed=squares.count==64 && skew<=1 && !union.isNull && abs(union.width-union.height)<=1.5
+        if let words=check["evaluation"] as? String {
+            let bar=collect(app,{$0=="board-evaluation"}).first,said=bar.flatMap{value($0,kAXDescriptionAttribute) as? String},frame=bar.flatMap(rect)
+            result["evaluationSaid"]=said ?? NSNull();result["evaluationFrame"]=frame.map{[$0.minX,$0.minY,$0.width,$0.height].map{Double($0)}} ?? []
+            passed=passed && !words.isEmpty && said==words && frame.map{$0.minX>=union.maxX-0.5 && abs($0.height-union.height)<=2} ?? false
+        }
+        result["passed"]=passed
     case "selectedRow":
         let text=check["value"] as? String ?? ""
         guard var row=find(app,text) else{result["found"]=false;result["passed"]=false;return result}

@@ -248,6 +248,22 @@ import CheckmateCore
             model.review.annotate(arrows:[["e2","e4"]],highlights:[Highlight(sq:"e4",kind:"focus")],ttl:5000);game.refresh();let annotationRendered=game.board.arrows.contains(["e2","e4"]) && game.board.highlights.contains(where:{$0.sq=="e4" && $0.kind=="focus"});if !annotationRendered{failures.append("Scoped review annotation was not rendered")}
             key(124);let annotationCleared=model.review.arrows.isEmpty && model.review.highlights.isEmpty;if !annotationCleared{failures.append("Review annotation survived navigation")};let rightArrowVerified=model.review.nodeID==docs[0].mainline.first;if !rightArrowVerified{failures.append("Right arrow failed review navigation")};key(123);let leftArrowVerified=model.review.nodeID==0;if !leftArrowVerified{failures.append("Left arrow failed review navigation")}
             let typing=NSTextField(string:"Review search text");typing.frame=NSRect(x:0,y:0,width:180,height:24);game.window!.contentView!.addSubview(typing);game.window!.makeFirstResponder(typing);key(124);let typingPreserved=model.review.nodeID==0;if !typingPreserved{failures.append("Review captured text-field arrow typing")};typing.removeFromSuperview();game.window!.makeFirstResponder(game.board)
+            // R-8 with real keys, one at a time from a position each one would leave: a focused text field keeps every Go
+            // key (its text and the review position stay), and the board, focused again, takes the same key.
+            var goKeyChecks:[String:Bool]=[:]
+            let field=NSTextField(string:"Review search text");field.frame=NSRect(x:0,y:0,width:180,height:24);game.window!.contentView!.addSubview(field)
+            let mainD5=docs[0].mainline[1],variationNf6=docs[0].nodes[docs[0].mainline[0]].children.first{$0 != mainD5}
+            for code in [123,124,126,125,115,119] {
+                let start=code==126 ? variationNf6:mainD5;guard let start else{goKeyChecks["\(code)-start"]=false;continue}
+                try model.review.select(start);game.refresh();game.window!.makeFirstResponder(field);try await Task.sleep(for:.milliseconds(200))
+                let inField=await ax("go-key-\(code)-in-text-field",[["kind":"keys","codes":[code]]]);try await Task.sleep(for:.milliseconds(300))
+                goKeyChecks["\(code)-field"]=axPassed(inField,0) && model.review.nodeID==start && field.stringValue=="Review search text" && (game.window!.firstResponder as? NSText)?.delegate === field
+                game.window!.makeFirstResponder(game.board);try await Task.sleep(for:.milliseconds(200))
+                let onBoard=await ax("go-key-\(code)-on-board",[["kind":"keys","codes":[code]]]);try await Task.sleep(for:.milliseconds(300))
+                goKeyChecks["\(code)-board"]=axPassed(onBoard,0) && model.review.nodeID != start
+            }
+            field.removeFromSuperview();try model.review.select(0);game.refresh();game.window!.makeFirstResponder(game.board)
+            let goKeysStayInTextField=goKeyChecks.count==12 && goKeyChecks.values.allSatisfy{$0};if !goKeysStayInTextField{failures.append("Go keys with a text field focused: \(goKeyChecks.filter{!$0.value}.keys.sorted())")}
             game.newGame();game.undo();game.restorePrevious();let menuGuardPassed=model.session.rules.fen==practice;if !menuGuardPassed{failures.append("Game menu action mutated hidden practice during review")}
             // Review voice status and newest-first transcript are rendered in the review drawer (no network, no audio).
             game.showDetails();model.voice.receive(["type":"session.updated"])
@@ -435,7 +451,7 @@ import CheckmateCore
                 narrowed=window.frame.width<wide.width-100 && abs(window.frame.width-window.frame.height-(wide.width-wide.height))<=2
                 if !narrowed{failures.append("Narrow library window stayed \(Int(window.frame.width)) points wide (was \(Int(wide.width)))")}
                 await shoot("library-narrow");window.setFrame(wide,display:true);try await Task.sleep(for:.milliseconds(500))}
-            var graphReady=false,staleLibraryOpenDropped=false
+            var graphReady=false,staleLibraryOpenDropped=false,evaluationBarKeepsBoardSquare=false,retryChecks:[String:Bool]=[:]
             // An open whose read is overtaken by navigation (back to practice) never opens: the newer activity stands.
             if let row=library.catalog.classics.first(where:{$0.id=="library:lasker-thomas"}) {
                 library.open(row);model.practice();try await Task.sleep(for:.milliseconds(1500))
@@ -464,17 +480,50 @@ import CheckmateCore
                 library.open(row);for _ in 0..<100{if model.review.document?.provenance==GameLibrary.provenance{break};try await Task.sleep(for:.milliseconds(100))}
                 if let d=model.review.document,d.provenance==GameLibrary.provenance{
                     game.showDetails();try await Task.sleep(for:.milliseconds(900));await shoot("overview")
+                    let plainBoardAX=await ax("board-before-analysis",[["kind":"board"]])
                     model.reviewAnalyzer.startBatch(d);let begun=Date();while model.reviewAnalyzer.batchRunning(d.id),Date().timeIntervalSince(begun)<240{try await Task.sleep(for:.milliseconds(200))}
                     graphReady=model.reviewAnalyzer.batchStatus=="ready" && ReviewFormat.series(d,evaluations:model.reviewAnalyzer.evaluations,outcome:ReviewFormat.finalOutcome(d)).allSatisfy{$0 != nil}
                     let middle=d.mainline[d.mainline.count/2];try model.review.select(middle);try await Task.sleep(for:.milliseconds(900));await shoot("analysis")
+                    // R-17: the bar is read aloud and stands beside the board without making it any less square or smaller.
+                    let barAX=await ax("evaluation-bar",[["kind":"board","evaluation":game.board.evaluationLabel ?? ""]])
+                    let before=plainBoardAX.first?["union"] as? [Double] ?? [],after=barAX.first?["union"] as? [Double] ?? []
+                    evaluationBarKeepsBoardSquare=game.board.evaluation != nil && axPassed(plainBoardAX,0) && axPassed(barAX,0) && before.count==4 && after.count==4 && abs(before[2]-after[2])<=1 && abs(before[3]-after[3])<=1
+                    if !evaluationBarKeepsBoardSquare{failures.append("Evaluation bar: shown \(game.board.evaluation != nil), before \(plainBoardAX), with bar \(barAX)")}
                     try model.review.beginBranch();if let move=model.review.displayRules?.moves().first{try model.review.playBranch(move.from+move.to+(move.promotion ?? ""))};try await Task.sleep(for:.milliseconds(900));await shoot("imagined")
                     model.review.clearBranch()
+                    // R-18 with the pointer: start retry mode, play the game's own move twice on the board, see the
+                    // engine's choice, then the summary. The game's own move is wrong at once, so no search decides it.
+                    let retry=model.reviewRetry;game.refresh();try await Task.sleep(for:.milliseconds(500))
+                    @MainActor func until(_ done:()->Bool)async {for _ in 0..<40{if done(){return};try? await Task.sleep(for:.milliseconds(100))}}
+                    @MainActor func shows(_ name:String)async -> Bool {axPassed(await ax(name,[["kind":"text","value":retry.message]]),0)}
+                    let startAX=await ax("retry-start",[["kind":"pressIdentifier","identifier":"review-retry-start"]]);await until{retry.active}
+                    retryChecks["started"]=axPassed(startAX,0) && retry.active
+                    if retry.active {
+                        while retry.index+1<retry.targets.count{try retry.next()};game.refresh();try await Task.sleep(for:.milliseconds(500))
+                        if let target=retry.target,let uci=d.nodes[target].uci,let san=d.nodes[target].san,uci.count==4 {
+                            let move:[[String:Any]]=[["kind":"pressIdentifier","identifier":"board-square-"+uci.prefix(2)],["kind":"pressIdentifier","identifier":"board-square-"+uci.suffix(2)]]
+                            retryChecks["prompt"]=await shows("retry-prompt")
+                            let firstAX=await ax("retry-first-try",move);await until{retry.phase == .trying(tries:1,last:.played(san))}
+                            retryChecks["firstTry"]=axPassed(firstAX,0) && axPassed(firstAX,1) && retry.phase == .trying(tries:1,last:.played(san)) && model.review.branch==nil
+                            retryChecks["firstVerdict"]=await shows("retry-first-verdict")
+                            let secondAX=await ax("retry-second-try",move);await until{if case .revealed? = retry.phase{return true};return false}
+                            if case .revealed(let answer)? = retry.phase{retryChecks["revealed"]=axPassed(secondAX,0) && axPassed(secondAX,1) && answer != nil && model.review.branch != nil}else{retryChecks["revealed"]=false}
+                            retryChecks["answerShown"]=await shows("retry-answer")
+                            let summaryAX=await ax("retry-summary",[["kind":"pressIdentifier","identifier":"review-retry-next"]]);await until{retry.phase == .finished}
+                            retryChecks["summary"]=axPassed(summaryAX,0) && retry.phase == .finished
+                            retryChecks["summaryShown"]=await shows("retry-summary-text")
+                            let doneAX=await ax("retry-done",[["kind":"pressIdentifier","identifier":"review-retry-stop"]]);await until{!retry.active}
+                            retryChecks["done"]=axPassed(doneAX,0) && !retry.active
+                        }else{retryChecks["target"]=false}
+                    }
+                    retry.end()
                 }
             }
+            let retryWithPointer=retryChecks.count==9 && retryChecks.values.allSatisfy{$0};if !retryWithPointer{failures.append("Retry mode with the pointer: \(retryChecks)")}
             model.returnToGame();model.session.cancelWork()
             let paneCapturesPassed=paneCaptures.count==16 && captureDefects.isEmpty && narrowed && axPassed(libraryAX,0) && axPassed(libraryAX,1) && collectionImported && graphReady
             if !paneCapturesPassed{failures.append("Review pane captures incomplete (captures=\(paneCaptures) defects=\(captureDefects) narrowed=\(narrowed) libraryListed=\(axPassed(libraryAX,0)) collectionImported=\(collectionImported) graphReady=\(graphReady))")}
-            let result:[String:Any]=["passed":failures.isEmpty,"reviewPaneCaptures":paneCapturesPassed,"staleLibraryOpenDropped":staleLibraryOpenDropped,"newestLibraryOpenWins":newestOpenWins,"libraryHeadings":eventHeading && collectionHeading,"paneCaptureSizes":paneSizes,"libraryBudgets":["phases":phases,"tableCounts":tableCounts,"keystrokeMs":keystrokeMs,"rows":timedRows,"rowsShown":keystrokesShown,"workspaceVisibleMs":workspaceVisibleMs,"slowestKeystrokeMs":slowestKeystrokeMs,"passed":budgetsPassed],"renderedImportError":renderedErrorPassed,"readableImportError":readableError,"staleChooserRejected":staleChooserPassed,"explicitReturnResumesReply":resumedOnExplicitReturn,"failedRestoreNoReplyUntilExplicitReturn":failedRestorePassed,"failedRestoreCallbacksHeld":callbacksHeld,"failedRestoreResumeWithDrawersClosed":drawersClosed && axPassed(resumeAX,1) && resumedByExplicitAction,"failedRestoreReplacementCleared":replacementCleared,"ideaMovesListed":ideaMovesListed,"noReplyDuringReview":noReplyDuringReview,"reviewVoiceRendered":reviewVoicePassed,"savedReviewRowSelected":savedRowSelected,"practiceForkParentPly0":forkPly0Verified,"practiceForkParentPly1":forkPly1Verified,"practiceForkImaginedMateDisabled":terminalLineVerified,"accessibilityChecks":axLog,"failures":failures,"geometry":geometry,"openPanelAccepted":openPanelAccepted,"openPanelCancel":openPanelCancelled,"savedRestore":savedRestorePassed,"savedLoadLesson":savedLoadLessonPassed,"savedLoadImport":savedLoadImportPassed,"savedLoadLatest":savedLoadLatestPassed,"savedLoadSameID":savedLoadSameIDPassed,"savedLoadStaleError":savedLoadErrorPassed,"staleImportCancelled":staleImportPassed,"closeFlush":closeFlushPassed,"reviewDocumentFile":model.reviewStore.documentURL(docs[0].id).path,"expectedPersistedCursor":docs[0].mainline.last!,"expectedSavedIdeas":savedIdeas.count,"pasteEntry":pastePassed,"dropCallbackEntry":dropCallbackPassed,"collectionImport":collectionPassed,"appearances":appearances,"reducedMotionInjected":true,"defaultMotionMatchesWorkspace":defaultMotion,"accessibilitySquares":accessibleSquares.count,"mouseBranch":mouseBranchVerified,"keyboardBranch":keyboardBranchVerified,"keyboardNavigation":rightArrowVerified && leftArrowVerified,"typingFocusPreserved":typingPreserved,"hiddenPracticeMenuGuard":menuGuardPassed,"reviewAnnotationScoped":annotationRendered && annotationCleared,"fullscreenEntered":entered,"practicePreserved":preservedPractice,"blackPracticeTitle":blackPracticeTitle,"originalHashPreserved":originalHash==docs[0].contentHash,"silent":NativePolicy.silent]
+            let result:[String:Any]=["passed":failures.isEmpty,"reviewPaneCaptures":paneCapturesPassed,"goKeysStayInTextField":goKeysStayInTextField,"evaluationBarKeepsBoardSquare":evaluationBarKeepsBoardSquare,"retryWithPointer":retryWithPointer,"staleLibraryOpenDropped":staleLibraryOpenDropped,"newestLibraryOpenWins":newestOpenWins,"libraryHeadings":eventHeading && collectionHeading,"paneCaptureSizes":paneSizes,"libraryBudgets":["phases":phases,"tableCounts":tableCounts,"keystrokeMs":keystrokeMs,"rows":timedRows,"rowsShown":keystrokesShown,"workspaceVisibleMs":workspaceVisibleMs,"slowestKeystrokeMs":slowestKeystrokeMs,"passed":budgetsPassed],"renderedImportError":renderedErrorPassed,"readableImportError":readableError,"staleChooserRejected":staleChooserPassed,"explicitReturnResumesReply":resumedOnExplicitReturn,"failedRestoreNoReplyUntilExplicitReturn":failedRestorePassed,"failedRestoreCallbacksHeld":callbacksHeld,"failedRestoreResumeWithDrawersClosed":drawersClosed && axPassed(resumeAX,1) && resumedByExplicitAction,"failedRestoreReplacementCleared":replacementCleared,"ideaMovesListed":ideaMovesListed,"noReplyDuringReview":noReplyDuringReview,"reviewVoiceRendered":reviewVoicePassed,"savedReviewRowSelected":savedRowSelected,"practiceForkParentPly0":forkPly0Verified,"practiceForkParentPly1":forkPly1Verified,"practiceForkImaginedMateDisabled":terminalLineVerified,"accessibilityChecks":axLog,"failures":failures,"geometry":geometry,"openPanelAccepted":openPanelAccepted,"openPanelCancel":openPanelCancelled,"savedRestore":savedRestorePassed,"savedLoadLesson":savedLoadLessonPassed,"savedLoadImport":savedLoadImportPassed,"savedLoadLatest":savedLoadLatestPassed,"savedLoadSameID":savedLoadSameIDPassed,"savedLoadStaleError":savedLoadErrorPassed,"staleImportCancelled":staleImportPassed,"closeFlush":closeFlushPassed,"reviewDocumentFile":model.reviewStore.documentURL(docs[0].id).path,"expectedPersistedCursor":docs[0].mainline.last!,"expectedSavedIdeas":savedIdeas.count,"pasteEntry":pastePassed,"dropCallbackEntry":dropCallbackPassed,"collectionImport":collectionPassed,"appearances":appearances,"reducedMotionInjected":true,"defaultMotionMatchesWorkspace":defaultMotion,"accessibilitySquares":accessibleSquares.count,"mouseBranch":mouseBranchVerified,"keyboardBranch":keyboardBranchVerified,"keyboardNavigation":rightArrowVerified && leftArrowVerified,"typingFocusPreserved":typingPreserved,"hiddenPracticeMenuGuard":menuGuardPassed,"reviewAnnotationScoped":annotationRendered && annotationCleared,"fullscreenEntered":entered,"practicePreserved":preservedPractice,"blackPracticeTitle":blackPracticeTitle,"originalHashPreserved":originalHash==docs[0].contentHash,"silent":NativePolicy.silent]
             try JSONSerialization.data(withJSONObject:result,options:[.prettyPrinted,.sortedKeys]).write(to:URL(fileURLWithPath:directory+"/review-ui-results.json"));NSApp.terminate(nil)
         }catch{try? JSONSerialization.data(withJSONObject:["passed":false,"error":String(describing:error)]).write(to:URL(fileURLWithPath:directory+"/review-ui-results.json"));NSApp.terminate(nil)}
     }}
