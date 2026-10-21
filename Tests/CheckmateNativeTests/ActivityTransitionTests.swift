@@ -39,9 +39,9 @@ import CheckmateCore
     func testEveryExitFromAReviewStopsItsWholeGameAnalysis()throws {
         let model=try NativeModel();defer{model.shutdown()}
         let exits:[(String,(NativeModel)->Void)]=[
-            ("Return to game",{$0.returnToGame()}),("Practice a game",{$0.practice()}),("a lesson",{$0.lesson(0)}),
+            ("Return to Game",{$0.returnToGame()}),("Practice a game",{$0.practice()}),("a lesson",{$0.lesson(0)}),
             ("Quick puzzles",{$0.puzzles()}),("Review game",{$0.showReviewWorkspace()}),
-            ("Practise here",{$0.practiceFromReview();$0.confirmPracticeFork(side:"b",preset:"custom")})]
+            ("Practice Here",{$0.practiceFromReview();$0.confirmPracticeFork(side:"b",preset:"custom")})]
         for (name,exit) in exits {
             let d=try document();XCTAssertTrue(model.openReview(d,draft:false));model.reviewAnalyzer.startBatch(d)
             XCTAssertTrue(model.reviewAnalyzer.batchRunning(d.id),"fixture: the batch runs")
@@ -59,7 +59,7 @@ import CheckmateCore
         var imported=model.session.state;let game=try ChessRules();try game.restore("1. e4 *");imported.practice.pgn=game.pgn;imported.practice.fen=game.fen;imported.practice.startPly=0;imported.settings.practiceSide="w"
         _ = try model.installImport(imported)
         XCTAssertEqual(model.session.activity,.at(.practice));XCTAssertFalse(model.reviewWorkspace);XCTAssertFalse(model.session.reviewSuspended)
-        XCTAssertEqual(model.session.busyReason,"opponent","Stockfish replies on the imported game")
+        XCTAssertEqual(model.session.busyReason,.opponent,"Stockfish replies on the imported game")
         model.returnToGame();XCTAssertEqual(model.session.mode,.practice,"leaving afterwards restored the lesson over the imported game")
         model.session.cancelWork()
     }
@@ -154,9 +154,9 @@ import CheckmateCore
         try model.companion.enable(role:"coach");try model.session.beginPreview()
         // As the board does: the second click of Try a move starts the session's own analysis work.
         try model.session.select("e2");try model.session.select("e4")
-        for _ in 0..<40 where model.session.preview?.status != "analyzing"{try await Task.sleep(for:.milliseconds(5))};XCTAssertEqual(model.session.preview?.status,"analyzing","fixture: the analysis runs")
-        model.setAway(true);for _ in 0..<40 where model.session.preview?.status=="analyzing"{try await Task.sleep(for:.milliseconds(25))}
-        XCTAssertEqual(model.session.preview?.status,"choosing");XCTAssertNil(model.session.preview?.error)
+        for _ in 0..<40 where model.session.preview?.status != .analyzing{try await Task.sleep(for:.milliseconds(5))};XCTAssertEqual(model.session.preview?.status,.analyzing,"fixture: the analysis runs")
+        model.setAway(true);for _ in 0..<40 where model.session.preview?.status == .analyzing{try await Task.sleep(for:.milliseconds(25))}
+        XCTAssertEqual(model.session.preview?.status,.choosing);XCTAssertNil(model.session.preview?.error)
         model.setAway(false);model.companion.disable()
     }
 

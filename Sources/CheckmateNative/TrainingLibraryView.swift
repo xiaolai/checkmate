@@ -10,7 +10,7 @@ enum TrainingLabels {
     }}
     /// A subskill's button title.
     static func variant(_ id:String)->String {
-        let names=["move-away":"Move it away","protect":"Protect it","capture-attacker":"Capture the attacker","block":"Block the line","mixed-method":"Any defence","free-piece":"Free pieces","poisoned-capture":"Poisoned captures","compare-exchange":"Compare trades","anticipate-recapture":"Expect the recapture","castle-legal":"Castling","castle-unavailable":"When castling is not allowed","promotion":"Promotion","en-passant-available":"En passant","en-passant-unavailable":"When en passant is not allowed","fork-recognize":"Spot forks","pin-recognize":"Spot pins","fork-realize":"Win with a fork","pin-realize":"Win with a pin","mate-threat-create":"Threaten mate","mate-threat-prevent":"Stop a mate threat","kqk":"King and queen","krk":"King and rook","mixed":"Mixed","kpk":"King and pawn","kbbk":"Two bishops","pawns":"Pawns","knights":"Knights","bishops":"Bishops","rooks":"Rooks","queens":"Queens","minor-pieces":"Minor pieces","major-pieces":"Major pieces"]
+        let names=["move-away":"Move it away","protect":"Protect it","capture-attacker":"Capture the attacker","block":"Block the line","mixed-method":"Any defense","free-piece":"Free pieces","poisoned-capture":"Poisoned captures","compare-exchange":"Compare trades","anticipate-recapture":"Expect the recapture","castle-legal":"Castling","castle-unavailable":"When castling is not allowed","promotion":"Promotion","en-passant-available":"En passant","en-passant-unavailable":"When en passant is not allowed","fork-recognize":"Spot forks","pin-recognize":"Spot pins","fork-realize":"Win with a fork","pin-realize":"Win with a pin","mate-threat-create":"Threaten mate","mate-threat-prevent":"Stop a mate threat","kqk":"King and queen","krk":"King and rook","mixed":"Mixed","kpk":"King and pawn","kbbk":"Two bishops","pawns":"Pawns","knights":"Knights","bishops":"Bishops","rooks":"Rooks","queens":"Queens","minor-pieces":"Minor pieces","major-pieces":"Major pieces"]
         return names[id] ?? id.replacingOccurrences(of:"-",with:" ").capitalized
     }
     /// What a mixed case practised, shown only after the learner has answered.
@@ -63,7 +63,7 @@ struct TrainingLibraryView:View {
         if let notice=training.notice{Text(notice).accessibilityIdentifier("training-notice")}
         ForEach(training.keptForNewerVersion,id:\.self){Text($0).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("training-newer-version")}
         if let active=training.resumable,offered(active.entry),let definition=training.catalog?.entry(active.entry) {
-            Button{model.resumeTraining()}label:{Label("Continue \(definition.title)",systemImage:"play.fill")}.controlSize(.large).accessibilityIdentifier("training-continue")
+            Button{model.resumeTraining()}label:{Label("Continue \(definition.title)",symbol:.play)}.controlSize(.large).accessibilityIdentifier("training-continue")
         }
         let suggestions=training.suggestions.filter{offered($0.item.entry)}
         if !suggestions.isEmpty {
@@ -76,7 +76,7 @@ struct TrainingLibraryView:View {
                         Text(suggestion.explanation).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
                     }
                     Spacer(minLength:0)
-                    Button(suggestion.due ? "Practice again":"Try it now"){model.retryTraining(suggestion.item.id)}.accessibilityIdentifier(Self.suggestionIdentifier(suggestion.item.entry,earlier:suggestions[..<position].filter{$0.item.entry==suggestion.item.entry}.count))
+                    Button(suggestion.due ? "Practice Again":"Try It Now"){model.retryTraining(suggestion.item.id)}.accessibilityIdentifier(Self.suggestionIdentifier(suggestion.item.entry,earlier:suggestions[..<position].filter{$0.item.entry==suggestion.item.entry}.count))
                 }
             }
         }
@@ -93,9 +93,9 @@ struct TrainingLibraryView:View {
     }.frame(maxWidth:.infinity,alignment:.leading).padding(Metrics.sectionGap)}}
     private func row(_ entry:TrainingEntryDefinition)->some View {Group{
         Button{open(entry)}label:{HStack(alignment:.top){
-            Image(systemName:entry.legacyKind != nil ? "gamecontroller":"target").frame(width:Metrics.padding*2).accessibilityHidden(true)
+            (entry.legacyKind != nil ? AppSymbol.gameActivity:.exercise).image.frame(width:Metrics.padding*2).accessibilityHidden(true)
             VStack(alignment:.leading,spacing:2){
-                HStack{Text(entry.title).font(.headline);Text(entry.origin == .existing ? "Existing game":entry.increment == .beginner ? "Preview":"New").font(.caption).padding(.horizontal,4).background(.quaternary,in:Capsule())}
+                HStack{Text(entry.title).font(.headline);Text(entry.origin == .existing ? "Existing game":entry.increment == .beginner ? "Preview":"New").font(.caption).padding(.horizontal,Metrics.tightGap).background(.quaternary,in:Capsule())}
                 Text(entry.summary).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
                 Text(TrainingLabels.ruleMode(entry.ruleMode)).font(.caption).foregroundStyle(.secondary)
                 ForEach(TrainingRecommendation.progress(entry.id,in:training.training).lines,id:\.self){Text($0).font(.caption)}
@@ -113,7 +113,7 @@ struct TrainingLibraryView:View {
         }
         TrainingLessonLinks(model:model,entry:entry).padding(.leading,Metrics.padding*2)
         if let kind=entry.legacyKind,TrainingRolloutPolicy.beginnerEnabled,let bridge=training.provider?.bridge(for:kind) {
-            Button("Try the same idea in normal chess"){model.startTrainingScenario(bridge.id)}.controlSize(.small).padding(.leading,Metrics.padding*2).accessibilityIdentifier("training-bridge-"+kind.rawValue)
+            Button("Try the Same Idea in Normal Chess"){model.startTrainingScenario(bridge.id)}.controlSize(.small).padding(.leading,Metrics.padding*2).accessibilityIdentifier("training-bridge-"+kind.rawValue)
         }
         Divider()
     }}

@@ -6,10 +6,10 @@ public enum PGNImporter {
     private enum Kind {case tag(String,String),word(String),comment(String),open,close}
     private struct Token {let kind:Kind,start:Int,end:Int}
     private struct Builder {var parent:Int?,children:[Int]=[],move:MoveRecord?=nil,fen:String,ply:Int,before:[String]=[],after:[String]=[],nags:[Int]=[]}
-    public static func parse(_ data:Data,provenance:String="Imported",cancelled:@escaping ()->Bool={false})throws -> [GameDocument] {try parseReport(data,provenance:provenance,cancelled:cancelled).documents}
+    public static func parse(_ data:Data,provenance:ReviewProvenance = .imported,cancelled:@escaping ()->Bool={false})throws -> [GameDocument] {try parseReport(data,provenance:provenance,cancelled:cancelled).documents}
     /// Every readable game, plus the games that could not be read: one bad game in a collection is skipped and
     /// reported, never allowed to fail the whole file. A file with no readable game fails with its first problem.
-    public static func parseReport(_ data:Data,provenance:String="Imported",cancelled:@escaping ()->Bool={false})throws -> (documents:[GameDocument],skipped:[ReviewImportError]) {
+    public static func parseReport(_ data:Data,provenance:ReviewProvenance = .imported,cancelled:@escaping ()->Bool={false})throws -> (documents:[GameDocument],skipped:[ReviewImportError]) {
         guard data.count<=ReviewPolicy.maximumBytes else{throw ReviewImportError(record:1,token:0,reason:"File exceeds the 16 MiB limit.")}
         // The PGN standard's character set is ISO 8859-1; many exports (ChessBase, TWIC) still use it.
         guard var source=String(data:data,encoding:.utf8) ?? String(data:data,encoding:.windowsCP1252) ?? String(data:data,encoding:.isoLatin1) else{throw ReviewImportError(record:1,token:0,reason:"The file is not readable text.")}

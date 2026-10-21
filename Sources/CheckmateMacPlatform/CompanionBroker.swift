@@ -83,7 +83,7 @@ public enum CompanionProblem:CaseIterable,Equatable,Sendable {
     /// Ends the current lease (the client left, timed out or was disconnected). The app's suspension while hidden is
     /// kept: a lease expiring because heartbeats are refused while hidden must not resume play.
     public func release(){for deadline in deadlines.values{deadline.cancel()};deadlines.removeAll();for task in pending.values{task.cancel()};pending.removeAll();requestOwners.removeAll();tools.reset();owner=nil;lease=nil;connected=false;if session.companionEnabled || session.companionLease != nil || reservesSession{session.setConnection(enabled:enabled && reservesSession,role:configuredRole,suspended:session.suspended)};updateWaitingStatus()}
-    /// The learner's "Disconnect companion": the current client loses the session for good, rather than reclaiming
+    /// The learner's "Disconnect Companion": the current client loses the session for good, rather than reclaiming
     /// it on its next request. Another Codex task can still connect.
     public func disconnectCurrentClient(){if let owner{revokedClients.insert(owner)};release()}
     public func suspend(_ value:Bool){guard enabled else{return};session.setConnection(enabled:enabled && (reservesSession || connected),role:configuredRole,lease:lease,suspended:value);if value{state = .paused}else if connected{state = .connected}else{updateWaitingStatus()}}

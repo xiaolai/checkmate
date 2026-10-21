@@ -50,7 +50,7 @@ struct NetworkDetail:View {
             let badge=entry.variant.map(\.title) ?? NetworkWording.badge(entry.assistance)
             Button{chosen=entry.gameID.text}label:{
                 HStack(spacing:Metrics.smallGap){
-                    Label(entry.displayName,systemImage:selected ? "largecircle.fill.circle":"circle")
+                    Label(entry.displayName,systemImage:(selected ? AppSymbol.markerOn:.markerOff).rawValue)
                     // A12: the advertised assistance, from the TXT record, for display only; joining checks the terms.
                     if let badge{Text(badge).font(.caption).padding(.horizontal,6).padding(.vertical,1).background(Capsule().fill(.quaternary))}
                 }.frame(maxWidth:.infinity,alignment:.leading).contentShape(Rectangle())
@@ -107,7 +107,7 @@ struct NetworkDetail:View {
             Button("Try Again"){game.tryAgain()}.controlSize(.large).accessibilityIdentifier("network-try-again")
             Text(NetworkWording.seatHeld).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("network-seat-held")
         }
-        if game.canReview{Button("Review this game"){model.reviewNetworkGame()}.controlSize(.large).accessibilityIdentifier("network-review")}
+        if game.canReview{Button("Review This Game"){model.reviewNetworkGame()}.controlSize(.large).accessibilityIdentifier("network-review")}
         if game.ruleset != nil,game.canReview,game.miniReview.status == .running {ProgressView(MiniGameReviewWording.running).controlSize(.small).accessibilityIdentifier("network-mini-review-running")}
         if game.sessionOpen && game.outcome==nil {
             Button(leaveTitle){model.leaveNetworkGame()}.accessibilityIdentifier("network-leave")
@@ -134,13 +134,7 @@ struct NetworkDetail:View {
         if voice.networkVoiceAvailable,game.outcome==nil {
             // Connecting, and why a connection ended or was refused, show as well as a live session's state.
             if voice.connection != .disconnected {Text(voice.status).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("network-voice-status")}
-            if voice.connected,voice.networkSession {
-                HStack {
-                    Button("Stop Speaking"){voice.stopTurn()}.disabled(!voice.canStopTurn).accessibilityIdentifier("network-voice-stop")
-                    Button("Disconnect Coach"){voice.disconnect()}.accessibilityIdentifier("network-voice-disconnect")
-                }
-            } else if voice.connecting {Button("Cancel Voice Coach"){voice.disconnect()}.accessibilityIdentifier("network-voice-cancel")}
-            else {Button("Connect Voice Coach"){model.connectNetworkVoice()}.accessibilityIdentifier("network-voice-connect")}
+            VoiceCoachControls(voice:voice,idPrefix:"network-voice",owned:voice.networkSession){model.connectNetworkVoice()}
             ForEach(Array(model.networkVoiceHistory.suffix(3).reversed())){entry in Text((entry.role=="learner" ? "You: ":"Coach: ")+entry.text).font(.caption).fixedSize(horizontal:false,vertical:true)}
         }
     }
@@ -152,7 +146,7 @@ struct NetworkDetail:View {
     }
     /// The codes the host shares, grouped for reading, and read out symbol by symbol.
     private func codes(_ play:NetworkCode)->some View {
-        VStack(alignment:.leading,spacing:4){
+        VStack(alignment:.leading,spacing:Metrics.tightGap){
             Text("Play code").font(.caption).foregroundStyle(.secondary)
             Text(play.grouped).font(.system(.title2,design:.monospaced).bold()).textSelection(.enabled).accessibilityLabel("Play code, "+Self.spelled(play)).accessibilityIdentifier("network-play-code")
             if let watch=game.watchCode {
@@ -196,8 +190,9 @@ struct NetworkDetail:View {
     /// Under twenty seconds a clock shows red (B-2).
     static func low(_ milliseconds:Int)->Bool {milliseconds<20_000}
     static func spokenClock(_ milliseconds:Int)->String {
-        let seconds=(max(0,milliseconds)+999)/1000,minutes=seconds/60,rest=seconds%60
-        return [minutes>0 ? "\(minutes) minute\(minutes==1 ? "":"s")":nil,rest>0 || minutes==0 ? "\(rest) second\(rest==1 ? "":"s")":nil].compactMap{$0}.joined(separator:" ")
+        let seconds=(max(0,milliseconds)+999)/1000,formatter=DateComponentsFormatter()
+        formatter.unitsStyle = .full;formatter.allowedUnits=seconds<60 ? [.second]:[.minute,.second];formatter.zeroFormattingBehavior = .dropAll
+        return formatter.string(from:TimeInterval(seconds)) ?? Plural.count(seconds,one:"%d second",other:"%d seconds")
     }
 }
 /// A discovered game as a sheet's item: the Accept sheet is tied to the game it was opened for.

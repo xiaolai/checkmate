@@ -66,7 +66,7 @@ final class ReviewSaveCoordinatorTests:XCTestCase {
     func testQueuedSavesOfDifferentReviewsAreAllWritten()throws {
         let root=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);defer{try? FileManager.default.removeItem(at:root)}
         let store=ReviewStore(directory:root),coordinator=ReviewSaveCoordinator(store:store)
-        let documents=try ["1. e4 *","1. d4 *","1. c4 *"].map{try PGNImporter.parse(Data($0.utf8),provenance:$0)[0]}
+        let documents=try ["1. e4 *","1. d4 *","1. c4 *"].map{try PGNImporter.parse(Data($0.utf8))[0]}
         let done=expectation(description:"queued saves");done.expectedFulfillmentCount=2
         coordinator.save(documents[0],cursor:0,branches:[]){if case .success=$0{done.fulfill()}}
         coordinator.save(documents[1],cursor:0,branches:[]){if case .success=$0{done.fulfill()}}

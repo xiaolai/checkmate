@@ -33,7 +33,7 @@ struct LessonSettingsPane:View {
             Picker("Language",selection:Binding(get:{controller.language},set:{select(language:$0)})) {
                 ForEach(Array(Set(languages+[controller.language])).sorted{name($0)<name($1)},id:\.self){Text(name($0)).tag($0)}
             }.disabled(controller.busy).accessibilityIdentifier("lesson-language")
-            HStack{TextField("Custom language / locale",text:$customLocale).accessibilityIdentifier("lesson-custom-locale");Button("Use language"){let locale=customLocale.trimmingCharacters(in:.whitespacesAndNewlines);select(language:locale)}.disabled(controller.busy || LessonLanguages.normalizedSelection(customLocale)==nil)}
+            HStack{TextField("Custom language / locale",text:$customLocale).accessibilityIdentifier("lesson-custom-locale");Button("Use Language"){let locale=customLocale.trimmingCharacters(in:.whitespacesAndNewlines);select(language:locale)}.disabled(controller.busy || LessonLanguages.normalizedSelection(customLocale)==nil)}
             Picker("Recording voice",selection:Binding(get:{controller.voice},set:{select(voice:$0)})){Text("Cedar").tag("cedar");Text("Marin").tag("marin")}.disabled(controller.busy)
             Text("Choose a language, then translate explicitly. Language selection does not start a request. Speech quality varies by language.").font(.caption).foregroundStyle(.secondary)
         }
@@ -45,8 +45,8 @@ struct LessonSettingsPane:View {
         Section("Translate and record") {
             HStack {
                 Button("Translate"){if controller.allLessons{confirmAll("translate")}else{controller.translate()}}.disabled(controller.busy || controller.planning || controller.language=="en").accessibilityIdentifier("lesson-translate")
-                Button("Generate preview"){controller.preview()}.disabled(controller.busy || audioConflict || controller.language=="en")
-                Button("Play preview"){if let url=controller.previewURL{controller.playPreview?(url)}}.disabled(controller.busy || audioConflict || controller.previewURL==nil || !narrationAudible)
+                Button("Generate Preview"){controller.preview()}.disabled(controller.busy || audioConflict || controller.language=="en")
+                Button("Play Preview"){if let url=controller.previewURL{controller.playPreview?(url)}}.disabled(controller.busy || audioConflict || controller.previewURL==nil || !narrationAudible)
             }
             if controller.previewURL != nil,!narrationAudible{Text("Turn on Narration and raise Narration volume under Lesson playback to hear the preview.").font(.caption).foregroundStyle(.secondary)}
             HStack {
@@ -56,20 +56,20 @@ struct LessonSettingsPane:View {
             if audioConflict{Text("Disconnect the voice coach before generating or playing lesson recordings.").font(.caption).foregroundStyle(.secondary)}
             if controller.busy{ProgressView().controlSize(.small)}
             Text(controller.status).textSelection(.enabled).accessibilityIdentifier("lesson-job-status")
-            if !controller.problems.isEmpty{VStack(alignment:.leading,spacing:4){ForEach(Array(controller.problems.enumerated()),id:\.offset){_,problem in Text("• "+problem).textSelection(.enabled)}}.font(.caption).accessibilityElement(children:.contain).accessibilityLabel("Lesson job problems").accessibilityIdentifier("lesson-job-problems")}
+            if !controller.problems.isEmpty{VStack(alignment:.leading,spacing:Metrics.tightGap){ForEach(Array(controller.problems.enumerated()),id:\.offset){_,problem in Text("• "+problem).textSelection(.enabled)}}.font(.caption).accessibilityElement(children:.contain).accessibilityLabel("Lesson job problems").accessibilityIdentifier("lesson-job-problems")}
             Text("Transcript verification compares the provider’s transcript with the requested script. Listen to the preview to judge spoken accuracy, clarity and suitability before recording the full lesson.").font(.caption).foregroundStyle(.secondary)
             Text("A lesson uses the selected language after all its recordings are complete. Otherwise, the whole lesson plays in English.").font(.caption).foregroundStyle(.secondary)
         }
         Section("Stored lessons") {
             Text(controller.storedStatus).font(.caption).foregroundStyle(.secondary)
-            Button("Remove stored lesson",role:.destructive){confirmRemove()}.disabled(controller.busy || controller.language=="en")
+            Button("Remove Stored Lesson",role:.destructive){confirmRemove()}.disabled(controller.busy || controller.language=="en")
             // One bad clip is re-recorded alone: remove it, then Record / Resume records only what is missing.
             HStack {
                 Picker("Clip",selection:$clip){ForEach(Array(clipTitles.enumerated()),id:\.offset){index,title in Text("\(index+1). \(title)").tag(index)}}.accessibilityIdentifier("lesson-clip")
-                Button("Remove clip",role:.destructive){confirmRemoveClip()}.accessibilityIdentifier("lesson-remove-clip")
+                Button("Remove Clip",role:.destructive){confirmRemoveClip()}.accessibilityIdentifier("lesson-remove-clip")
             }.disabled(controller.busy || controller.allLessons || controller.language=="en").onChange(of:controller.selectedLesson){clip=0}
-            Button("Discard translated text…",role:.destructive){confirmDiscard()}.disabled(!controller.canDiscardTranslation)
-            Button("Remove outdated translations…"){confirmPurge()}.disabled(controller.busy)
+            Button("Discard Translated Text…",role:.destructive){confirmDiscard()}.disabled(!controller.canDiscardTranslation)
+            Button("Remove Outdated Translations…"){confirmPurge()}.disabled(controller.busy)
         }
         if !controller.inspection.isEmpty {
             Section("Translated text") {ScrollView{Text(controller.inspection).textSelection(.enabled).frame(maxWidth:.infinity,alignment:.leading)}.frame(minHeight:Metrics.lessonInspectionMinimum,maxHeight:Metrics.lessonInspectionMaximum)}
@@ -88,10 +88,10 @@ struct LessonSettingsPane:View {
     /// Translate and Record.
     private var lessonList:some View {
         ScrollView {
-            Grid(alignment:.leading,horizontalSpacing:Metrics.smallGap,verticalSpacing:4) {
+            Grid(alignment:.leading,horizontalSpacing:Metrics.smallGap,verticalSpacing:Metrics.tightGap) {
                 GridRow{Text("Lesson");ForEach(Self.statusColumns,id:\.self){Text($0)};Color.clear.gridCellUnsizedAxes([.horizontal,.vertical])}.font(.caption.bold()).foregroundStyle(.secondary).accessibilityHidden(true)
                 ForEach(groups,id:\.lessons){group in
-                    Text(group.title).sectionHeading(.caption.bold()).padding(.top,4).gridCellColumns(5)
+                    Text(group.title).sectionHeading(.caption.bold()).padding(.top,Metrics.tightGap).gridCellColumns(5)
                     ForEach(group.lessons,id:\.self){lessonRow($0)}
                 }
             }.frame(maxWidth:.infinity,alignment:.leading)
@@ -102,7 +102,7 @@ struct LessonSettingsPane:View {
         return GridRow {
             Text(lesson.title).lineLimit(1).truncationMode(.tail)
             ForEach(Self.statusCells(status),id:\.column){cell in Text(cell.shown).accessibilityLabel(cell.column).accessibilityValue(cell.spoken).help(cell.column=="Out of Date" && status?.stale==true ? "A stored file for this lesson can no longer be used. Translate or record the lesson again, or remove what is stored.":"")}
-            HStack(spacing:4) {
+            HStack(spacing:Metrics.tightGap) {
                 Button("Translate"){confirmLesson(index,"translate")}.disabled(!idle || status==nil || status?.translated==true)
                     .accessibilityLabel("Translate \(lesson.title)").accessibilityIdentifier("lesson-row-translate-\(lesson.id)")
                 Button("Record"){confirmLesson(index,"record")}.disabled(!idle || audioConflict || status?.translated != true || status?.recorded==status?.clips)

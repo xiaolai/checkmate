@@ -44,7 +44,7 @@ public enum ReviewRecordSource {
             var parsed:GameDocument?,saved:SavedReview?;let store=store
             switch args["source"] as? String {case "saved":guard let id=UUID(uuidString:args["gameId"] as? String ?? "") else{throw ProtocolFailure("INVALID_ARGUMENT")};saved=try await Task.detached{try store.load(id)}.value
             // The game's text is read here; parsing it (seconds for a long game) runs off the main thread.
-            case "current":let data=try ReviewRecordSource.data(session.rules,result:session.state.practice.ending?.result);parsed=try await Task.detached{try PGNImporter.parse(data,provenance:"Current game")[0]}.value
+            case "current":let data=try ReviewRecordSource.data(session.rules,result:session.state.practice.ending?.result);parsed=try await Task.detached{try PGNImporter.parse(data,provenance:.currentGame)[0]}.value
             case "paste":guard let text=args["text"] as? String else{throw ProtocolFailure("INVALID_ARGUMENT")};let token=ReviewImportCancellation();let data=Data(text.utf8);let documents=try await withTaskCancellationHandler(operation:{try await Task.detached{try PGNImporter.parse(data,cancelled:{token.cancelled})}.value},onCancel:{token.cancel()});let index=args["record"] as? Int ?? 0;guard documents.indices.contains(index) else{throw ProtocolFailure("INVALID_ARGUMENT")};parsed=documents[index]
             default:throw ProtocolFailure("INVALID_ARGUMENT")}
             // The same game opened again reopens its saved record, with its position and ideas, instead of adding a

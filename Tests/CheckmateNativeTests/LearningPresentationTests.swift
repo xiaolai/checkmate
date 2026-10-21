@@ -25,7 +25,7 @@ import CheckmateCore
         XCTAssertEqual(later.accessibilityValue,"Solved on a later try, to review, \(p.level)");XCTAssertEqual(helped.markHelp,"Solved with hints")
         var alone=PuzzleProgress();alone.record(correct:true)
         let solved=PuzzleRowFormat(p,record:alone);XCTAssertEqual(solved.markHelp,"Solved");XCTAssertFalse(solved.review);XCTAssertEqual(solved.mark,.solved);XCTAssertEqual(solved.accessibilityValue,"Solved, \(p.level)")
-        XCTAssertEqual(PuzzleRowFormat.Mark.solved.symbol,"checkmark.circle.fill");XCTAssertEqual(PuzzleRowFormat.Mark.notFirstTry.symbol,"checkmark.circle","a solve that was not first try is told apart from mastery")
+        XCTAssertEqual(PuzzleRowFormat.Mark.solved.symbol.rawValue,"checkmark.circle.fill");XCTAssertEqual(PuzzleRowFormat.Mark.notFirstTry.symbol.rawValue,"checkmark.circle","a solve that was not first try is told apart from mastery")
     }
     /// The library heading counts assisted and later solves as solved, and still counts them to review.
     func testTheLibraryHeadingCountsAssistedSolves(){

@@ -20,7 +20,7 @@ public enum TrainingRecommendation {
                 if practice>0{out.append("Solved again in practice: \(practice)")}
                 // Both lists keep only their newest entries, so a count at the bound means at least that many.
                 func atLeast(_ count:Int,_ bound:Int)->String {count>=bound ? "\(count)+":"\(count)"}
-                out.append("Board patterns practised: \(atLeast(clusters,TrainingState.maximumClusters)) · Days practised: \(atLeast(days,TrainingState.maximumDays))")
+                out.append("Board patterns practiced: \(atLeast(clusters,TrainingState.maximumClusters)) · Days practiced: \(atLeast(days,TrainingState.maximumDays))")
             }
             if gamesWon+gamesLost+gamesDrawn>0{out.append("Games against the computer: won \(gamesWon), lost \(gamesLost), drawn \(gamesDrawn)")}
             if routesCompleted>0{out.append("Routes completed: \(routesCompleted)")}
@@ -77,8 +77,8 @@ public enum TrainingRecommendation {
             switch (remaining,dayReached) {
             case (0,true):when="Ready to try again."
             case (0,false):when="Ready tomorrow."
-            case (let n,true):when="Ready after \(n) more exercise\(n==1 ? "":"s")."
-            case (let n,false):when="Ready tomorrow, after \(n) more exercise\(n==1 ? "":"s")."
+            case (let n,true):when=Plural.count(n,one:"Ready after %d more exercise.",other:"Ready after %d more exercises.")
+            case (let n,false):when=Plural.count(n,one:"Ready tomorrow, after %d more exercise.",other:"Ready tomorrow, after %d more exercises.")
             }
             return Suggestion(item:item,due:remaining==0 && dayReached,explanation:item.reason+" "+when)
         }.sorted{($0.due ? 0:1,$0.item.addedAt)<($1.due ? 0:1,$1.item.addedAt)}

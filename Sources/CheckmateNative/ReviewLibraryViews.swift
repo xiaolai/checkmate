@@ -43,10 +43,11 @@ struct GameLibraryBrowser:View {
         default:
             let shown=sections
             if shown.isEmpty || shown.allSatisfy({$0.rows.isEmpty && $0.kind == .collection(nil)}) {
-                VStack(spacing:Metrics.smallGap){
-                    Text(Self.emptyTitle(scope:library.scope,searching:!library.query.isEmpty)).font(.headline)
-                    Text(Self.emptyHint(scope:library.scope,searching:!library.query.isEmpty)).foregroundStyle(.secondary)
-                }.frame(maxWidth:.infinity,maxHeight:.infinity).accessibilityElement(children:.combine)
+                let searching = !library.query.isEmpty,hint=Self.emptyHint(scope:library.scope,searching:searching)
+                ContentUnavailableView{Label(Self.emptyTitle(scope:library.scope,searching:searching),symbol:searching ? .search:.library)}
+                    description:{if !hint.isEmpty{Text(hint)}}
+                    actions:{if searching{Button("Clear Search"){library.query=""}}}
+                    .frame(maxWidth:.infinity,maxHeight:.infinity)
             } else {LibraryTable(library:library,version:library.shownVersion,selection:library.selection,focusRequests:library.listFocusRequests)}
         }
     }
@@ -57,7 +58,7 @@ struct GameLibraryBrowser:View {
         switch (scope,searching) {case (.saved,false):"A game you review is saved here when you return to your game.";case (.saved,true):"Try a name, player, event or year.";case (.myGames,false):"Import a PGN collection, or drop a PGN file here.";case (_,false):"";case (_,true):"Try a player, event, year or opening."}
     }
     private var footer:some View {
-        VStack(alignment:.leading,spacing:4){
+        VStack(alignment:.leading,spacing:Metrics.tightGap){
             HStack(spacing:Metrics.smallGap){
                 Button("Import Collection…"){library.chooseCollection()}.disabled(library.importing != nil).help("Import a downloaded PGN file, or drop one on the list.")
                 Button("Get More Games"){library.openMoreGames()}.accessibilityHint("Opens a page of free PGN downloads in your browser.")

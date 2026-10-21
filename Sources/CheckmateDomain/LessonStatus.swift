@@ -8,7 +8,7 @@ import Foundation
 public enum LessonStatus:String,Equatable,CaseIterable {
     case notStarted,explored,practised,mastered
     /// The sidebar's badge; nil when there is nothing to claim.
-    public var title:String? {switch self {case .notStarted:return nil;case .explored:return "Explored";case .practised:return "Practised";case .mastered:return "Mastered"}}
+    public var title:String? {switch self {case .notStarted:return nil;case .explored:return "Explored";case .practised:return "Practiced";case .mastered:return "Mastered"}}
     public static func of(_ lesson:CourseLesson,in library:CourseLibrary,course:CourseProgress,puzzles:[String:PuzzleProgress])->LessonStatus {
         if lesson.practice?.playable==true,course.practised?.contains(lesson.id)==true {
             let linked=library.puzzles(for:lesson.id)

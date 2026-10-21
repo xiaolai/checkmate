@@ -23,7 +23,7 @@ public struct ReviewExplanation:Codable,Equatable {
             let enemy=controlled.filter{rules.piece($0).map{$0.color != move.color} ?? false}
             if !enemy.isEmpty {add("coverage","The \(name) on \(move.to) covers \(enemy.joined(separator:", ")). Check pins and legal replies before treating coverage as a capture.",[move.to]+enemy)}
             else if move.piece=="p",!controlled.isEmpty {add("coverage","The pawn on \(move.to) controls \(controlled.joined(separator:", ")). Another piece needs a legal route to use those squares; this does not establish why the pawn was moved.",[move.to]+controlled)}
-            else {let centre=controlled.filter{centralSquares.contains($0)};if !centre.isEmpty{add("centre","From \(move.to), the \(name) controls \(centre.joined(separator:", ")) in the centre.",[move.to]+centre)}}
+            else {let centre=controlled.filter{centralSquares.contains($0)};if !centre.isEmpty{add("centre","From \(move.to), the \(name) controls \(centre.joined(separator:", ")) in the center.",[move.to]+centre)}}
             let opponent=move.color=="w" ? "b":"w",attackers=rules.attackers(move.to,opponent)
             if !attackers.isEmpty {add("attack","The piece on \(move.to) is covered by an opposing piece from \(attackers.joined(separator:", ")). This is an attack map, not proof that a capture wins material.",[move.to]+attackers)}
             let replies=rules.moves().filter{$0.to==move.to && $0.captured != nil}

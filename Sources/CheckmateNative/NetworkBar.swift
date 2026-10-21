@@ -12,7 +12,7 @@ extension ControlBarModel {
         bar.clocks=game.timeControl != .untimed
         if game.canAnswerDraw{bar.trailing+=[ControlBarItem(action:.acceptDraw,label:"Accept Draw",prominent:true),ControlBarItem(action:.declineDraw,label:"Decline")]}
         if game.learnerSide != nil{bar.trailing+=[ControlBarItem(action:.offerDraw,label:"Offer Draw",enabled:game.canOfferDraw),ControlBarItem(action:.resign,label:"Resign…",enabled:game.canResign)]}
-        bar.trailing.append(ControlBarItem(action:.flipBoard,symbol:"arrow.up.arrow.down",label:"Flip Board",enabled:game.seat != nil))
+        bar.trailing.append(ControlBarItem(action:.flipBoard,symbol:.flipBoard,label:"Flip Board",enabled:game.seat != nil))
         return bar
     }
 }

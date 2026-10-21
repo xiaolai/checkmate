@@ -97,7 +97,7 @@ import CheckmateCore
         var training=TrainingState();var summary=TrainingEntrySummary();summary.firstTryNoRecordedHelp=2;summary.assistedCompletions=1;summary.clusters=["a","b"];summary.days=["2027-03-01"]
         training.summaries["mate-in-one"]=summary
         var games=TrainingEntrySummary();games.legacyWins=3;games.legacyLosses=1;games.twoPlayerFinishes=2;training.summaries["pawn-duel"]=games
-        XCTAssertEqual(TrainingRecommendation.progress("mate-in-one",in:training).lines,["Solved on the first try with no recorded help: 2","Solved with recorded help: 1","Board patterns practised: 2 · Days practised: 1"])
+        XCTAssertEqual(TrainingRecommendation.progress("mate-in-one",in:training).lines,["Solved on the first try with no recorded help: 2","Solved with recorded help: 1","Board patterns practiced: 2 · Days practiced: 1"])
         XCTAssertEqual(TrainingRecommendation.progress("pawn-duel",in:training).lines,["Games against the computer: won 3, lost 1, drawn 0","Two-player games finished: 2"])
         XCTAssertEqual(TrainingRecommendation.progress("escape-check",in:training).lines,[])
         let words=(TrainingRecommendation.progress("mate-in-one",in:training).lines+TrainingRecommendation.progress("pawn-duel",in:training).lines).joined(separator:" ").lowercased()

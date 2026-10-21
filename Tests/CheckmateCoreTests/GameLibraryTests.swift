@@ -44,7 +44,7 @@ final class GameLibraryTests:XCTestCase {
             let rules=try d.rules(at:last);XCTAssertEqual(rules.checkmate,game.ending=="checkmate",game.id)
             XCTAssertEqual(d.result,game.result,game.id);XCTAssertEqual(game.ending=="draw",game.result=="1/2-1/2",game.id)
             if game.ending=="checkmate"{XCTAssertEqual(d.result,final.side=="w" ? "1-0":"0-1",game.id)}
-            XCTAssertEqual(d.provenance,"Library game")
+            XCTAssertEqual(d.provenance,.libraryGame)
         }
     }
     func testTitlesAndRoundsAreGenerated() throws {

@@ -18,8 +18,8 @@ final class PuzzleCoachingTests:XCTestCase {
         p.hint();XCTAssertEqual(p.puzzleHints,2)
         p.click("f3");p.click("h4");XCTAssertTrue(p.passed);XCTAssertTrue(p.feedback.hasPrefix("Correct, with help from a hint. It counts as solved with help and comes back for review. "),p.feedback)
         let record=try XCTUnwrap(s.state.puzzles["extra-1"]);XCTAssertEqual(record.hints,2);XCTAssertFalse(record.solved);XCTAssertTrue(record.countsAsSolved);XCTAssertTrue(record.review);XCTAssertEqual(record.standing,.solvedWithHints)
-        p.filter="Unsolved";XCTAssertFalse(p.filteredPuzzles.contains{$0.id=="extra-1"},"an assisted solve counts as solved")
-        p.filter="To review";XCTAssertTrue(p.filteredPuzzles.contains{$0.id=="extra-1"},"and it comes back for review");p.filter="All"
+        p.filter = .unsolved;XCTAssertFalse(p.filteredPuzzles.contains{$0.id=="extra-1"},"an assisted solve counts as solved")
+        p.filter = .review;XCTAssertTrue(p.filteredPuzzles.contains{$0.id=="extra-1"},"and it comes back for review");p.filter = .all
         p.openPuzzle(id:"extra-1");XCTAssertEqual(p.puzzleHints,0,"each visit starts without hints");XCTAssertFalse(p.frame.hl.contains{$0.kind=="hint"})
     }
     /// A choice puzzle's hint rules out a wrong choice; squares and path puzzles say what to look for.
@@ -45,7 +45,7 @@ final class PuzzleCoachingTests:XCTestCase {
         p.skip();XCTAssertNil(p.activePuzzle,"the set does not start over");XCTAssertEqual(s.activity.place,.puzzleLibrary)
         let summary=try XCTUnwrap(p.setSummary);XCTAssertEqual(summary,PuzzleSetSummary(total:2,solved:0,helped:0,toReview:1,notTried:1))
         XCTAssertEqual(summary.text,"0 of 2 solved on your own. 1 to review. 1 not tried.")
-        p.reviewMistakes();XCTAssertEqual(p.filter,"To review");XCTAssertEqual(p.activePuzzle?.id,set[0].id);XCTAssertNil(p.setSummary)
+        p.reviewMistakes();XCTAssertEqual(p.filter,.review);XCTAssertEqual(p.activePuzzle?.id,set[0].id);XCTAssertNil(p.setSummary)
         p.openPuzzle(id:set[0].id);XCTAssertNil(p.setSummary,"opening a puzzle clears the summary")
     }
     /// Check Yourself opens the first puzzle linked to the lesson by its id, with the library filtered to that lesson.
@@ -53,8 +53,8 @@ final class PuzzleCoachingTests:XCTestCase {
         let (_,p)=try player();defer{p.shutdown()}
         let fork=try XCTUnwrap(p.library.lessons.firstIndex{$0.id=="fork"});XCTAssertEqual(p.library.puzzles(for:"fork").map(\.id),["course:fork:1","course:fork:2","extra-2"])
         XCTAssertEqual(p.checkYourselfTitle(index:fork),"Check Yourself: 3 Puzzles")
-        p.level="Developing";p.filter="To review";p.query="zzz"
-        p.checkYourself(index:fork);XCTAssertEqual(p.activePuzzle?.id,"course:fork:1");XCTAssertEqual(p.topic,"The Fork");XCTAssertEqual([p.level,p.filter,p.query],["All levels","All","",])
+        p.level="Developing";p.filter = .review;p.query="zzz"
+        p.checkYourself(index:fork);XCTAssertEqual(p.activePuzzle?.id,"course:fork:1");XCTAssertEqual(p.topic,"The Fork");XCTAssertNil(p.level);XCTAssertEqual(p.filter,.all);XCTAssertEqual(p.query,"")
         let intro=try XCTUnwrap(p.library.lessons.firstIndex{$0.id=="intro"});XCTAssertEqual(p.checkYourselfTitle(index:intro),"Check Yourself: 2 Puzzles")
         let practice=try XCTUnwrap(p.library.lessons.firstIndex{$0.id=="pawn-duel"})
         if p.library.puzzles(for:"pawn-duel").isEmpty {XCTAssertNil(p.checkYourselfTitle(index:practice),"no puzzles, no button")}
@@ -66,8 +66,8 @@ final class PuzzleCoachingTests:XCTestCase {
         let groups=p.topicGroups;XCTAssertEqual(groups.first?.title,"Getting Started");XCTAssertEqual(groups.first?.topics,["Introduction","The Chessboard"])
         XCTAssertEqual(groups.flatMap(\.topics).count,Set(p.library.puzzles.map(\.topic)).count);XCTAssertTrue(groups.allSatisfy{!$0.topics.isEmpty})
         XCTAssertEqual(p.levels,["Foundation","Developing"])
-        s.state.puzzleFilters=["topic":"Forks","level":"Expert","status":"All","query":""];p.reloadFilters();XCTAssertEqual(p.topic,"All topics");XCTAssertEqual(p.level,"All levels")
-        let restored=try LearningPlayer(session:s);defer{restored.shutdown()};XCTAssertEqual(restored.topic,"All topics");XCTAssertEqual(restored.level,"All levels")
+        s.state.puzzleFilters=["topic":"Forks","level":"Expert","status":"All","query":""];p.reloadFilters();XCTAssertNil(p.topic);XCTAssertNil(p.level)
+        let restored=try LearningPlayer(session:s);defer{restored.shutdown()};XCTAssertNil(restored.topic);XCTAssertNil(restored.level)
         s.state.puzzleFilters=["topic":"The Fork","level":"Developing"];p.reloadFilters();XCTAssertEqual(p.topic,"The Fork");XCTAssertEqual(p.level,"Developing")
     }
     /// The course says how many main lessons are explored, where to continue, and when the whole course is done.

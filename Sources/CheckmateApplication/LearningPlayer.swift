@@ -3,6 +3,12 @@ import CheckmateRules
 import CheckmateContent
 import CheckmateSupport
 import Foundation
+/// A quick-puzzle status filter; the raw value is saved and the view supplies the title (D-12).
+public enum PuzzleStatusFilter:String,CaseIterable,Sendable {case all,unsolved,review
+    /// Older saves stored the shown title.
+    public init(stored:String?){self=stored.flatMap(Self.init(rawValue:)) ?? ["Unsolved":.unsolved,"To review":.review][stored ?? ""] ?? .all}
+    public func admits(_ progress:PuzzleProgress?)->Bool {switch self{case .all:return true;case .unsolved:return progress?.countsAsSolved != true;case .review:return progress?.review==true}}
+}
 import Combine
 @MainActor public final class LearningPlayer:ObservableObject {
     public let library:CourseLibrary
@@ -110,9 +116,10 @@ import Combine
     private func go(_ place:Place){if let index=place.lessonIndex{lastLessonIndex=index};if var visit=session.activity.review{visit.returnTo=place;session.enter(.reviewing(visit))}else{session.enter(.at(place))}}
     @Published public private(set) var miniTurn="w"
     @Published public var query="" {didSet{saveFilters()}}
-@Published public var topic="All topics" {didSet{saveFilters()}}
-@Published public var level="All levels" {didSet{saveFilters()}}
-@Published public var filter="All" {didSet{saveFilters()}}
+    /// `nil` shows every topic or level; a value is a course topic or level, never a shown "All" title (D-12).
+    @Published public var topic:String? {didSet{saveFilters()}}
+    @Published public var level:String? {didSet{saveFilters()}}
+    @Published public var filter=PuzzleStatusFilter.all {didSet{saveFilters()}}
     private var timer:Timer?,lastTick:Date?,mistake=false
     /// Hints taken on the puzzle shown in this visit, and their words; a new visit starts without any.
     @Published public private(set) var puzzleHints=0
@@ -123,7 +130,7 @@ import Combine
     public init(session:GameSession,course:CourseLibrary?=nil) throws {self.session=session;library=try course ?? CourseLibrary();puzzles=Dictionary(library.puzzles.map{($0.id,$0)},uniquingKeysWith:{first,_ in first})
         // A saved lesson this course no longer has opens the first lesson at its start, never at a step derived from the
         // unknown lesson's transcript position.
-        if let index=library.lessons.firstIndex(where:{$0.id==session.state.course.lessonID}){lastLessonIndex=index;step=library.resumeStep(in:library.lessons[index],progress:session.state.course)}else{lastLessonIndex=0;step=0};if let filters=session.state.puzzleFilters {query=filters["query"] ?? "";topic=Self.known(filters["topic"],in:library.puzzles.map(\.topic),all:"All topics");level=Self.known(filters["level"],in:library.levels,all:"All levels");filter=filters["status"] ?? "All"}
+        if let index=library.lessons.firstIndex(where:{$0.id==session.state.course.lessonID}){lastLessonIndex=index;step=library.resumeStep(in:library.lessons[index],progress:session.state.course)}else{lastLessonIndex=0;step=0};if let filters=session.state.puzzleFilters {(query,topic,level,filter)=Self.restored(filters,topics:library.puzzles.map(\.topic),levels:library.levels)}
         activityObservation=session.$activity.removeDuplicates().sink{[weak self] activity in
             // Navigating anywhere but this game (a review over it keeps its place) ends its post-game review.
             switch activity.place{case .miniGame:break;default:self?.miniReview.cancel()}
@@ -138,9 +145,12 @@ import Combine
         attempt.replyDelay={[weak self] in MiniGameOpponent.replyDelay+Duration.milliseconds(Int64(self?.session.state.settings.pieceDuration ?? 0))}}
     /// Restoring filters from the saved state (an import) writes nothing back: only the learner's own edits save.
     private var restoringFilters=false
-    public func reloadFilters(){let filters=session.state.puzzleFilters ?? [:];restoringFilters=true;defer{restoringFilters=false};query=filters["query"] ?? "";topic=Self.known(filters["topic"],in:library.puzzles.map(\.topic),all:"All topics");level=Self.known(filters["level"],in:library.levels,all:"All levels");filter=filters["status"] ?? "All"}
-    /// A saved topic or level this course no longer offers (an older topic name) shows every puzzle instead of none.
-    private static func known(_ value:String?,in values:[String],all:String)->String {value.flatMap{values.contains($0) ? $0:nil} ?? all}
+    public func reloadFilters(){restoringFilters=true;defer{restoringFilters=false};(query,topic,level,filter)=Self.restored(session.state.puzzleFilters ?? [:],topics:library.puzzles.map(\.topic),levels:library.levels)}
+    /// A topic or level this course no longer offers (an older topic name, or a save from before stable identifiers that
+    /// stored "All topics") shows every puzzle instead of none; an older shown status ("To review") still restores.
+    static func restored(_ f:[String:String],topics:[String],levels:[String])->(String,String?,String?,PuzzleStatusFilter){(f["query"] ?? "",f["topic"].flatMap{topics.contains($0) ? $0:nil},f["level"].flatMap{levels.contains($0) ? $0:nil},PuzzleStatusFilter(stored:f["status"]))}
+    public var filtersActive:Bool {!query.isEmpty || topic != nil || level != nil || filter != .all}
+    public func clearFilters(){query="";topic=nil;level=nil;filter = .all}
     /// The topic picker's groups (course sections, in course order) and the levels the course uses.
     public var topicGroups:[(title:String,topics:[String])] {library.topicGroups}
     public var levels:[String] {library.levels}
@@ -148,7 +158,7 @@ import Combine
     public var courseProgress:CourseStanding {library.standing(session.state.course)}
     public var continueIndex:Int? {library.continueIndex(session.state.course)}
     public var courseComplete:Bool {library.complete(session.state.course)}
-    private func saveFilters(){guard !restoringFilters else{return};session.state.puzzleFilters=["query":query,"topic":topic,"level":level,"status":filter];session.emit(semantic:false,save:true)}
+    private func saveFilters(){guard !restoringFilters else{return};session.state.puzzleFilters=["query":query,"topic":topic,"level":level,"status":filter.rawValue].compactMapValues{$0};session.emit(semantic:false,save:true)}
     public var current:CourseLesson {library.lessons[lessonIndex]}
     public var beat:CourseBeat {current.beats[step]}
     public var key:String {beat.id ?? current.id+":"+String(step)}
@@ -156,7 +166,7 @@ import Combine
     public var duration:Double {library.playbackDuration(lesson:lessonIndex,step:step,narrationSeconds:narrationSeconds,pieceDuration:Double(session.state.settings.pieceDuration)/1000,useCues:localizedPacks[lessonIndex]==nil)}
     public var winner:String? {mini ? miniGame?.winner:nil}
     public var destinations:[String] {if attemptStep{return attempt.destinations};return mini && !miniThinking ? picked.first.map{miniGame?.destinations(from:$0) ?? []} ?? []:[]}
-    public var filteredPuzzles:[Puzzle] {library.puzzles.filter {p in (topic=="All topics" || topic==p.topic)&&(level=="All levels" || level==p.level)&&(filter=="All" || (filter=="To review" ? session.state.puzzles[p.id]?.review==true:session.state.puzzles[p.id]?.countsAsSolved != true))&&(query.isEmpty || (p.title+" "+p.exercise.prompt).localizedCaseInsensitiveContains(query))}}
+    public var filteredPuzzles:[Puzzle] {library.puzzles.filter {p in (topic==nil || topic==p.topic)&&(level==nil || level==p.level)&&filter.admits(session.state.puzzles[p.id])&&(query.isEmpty || (p.title+" "+p.exercise.prompt).localizedCaseInsensitiveContains(query))}}
     /// `fromTraining`: a training lesson link; reading it keeps the course bookmark (see `seek`), so it reopens at its
     /// own reading position, and the course lesson at its bookmark.
     public func openLesson(index:Int,resume:Bool=true,fromTraining:Bool=false) {guard library.lessons.indices.contains(index) else{return};pause();go(.lesson(index:index,fromTraining:fromTraining));let lesson=current,bookmark=lesson.id==session.state.course.lessonID ? library.resumeStep(in:lesson,progress:session.state.course):nil,reading=session.state.course.positions?[lesson.id].flatMap{id in lesson.beats.firstIndex{$0.id==id}};step=(fromTraining ? reading ?? bookmark:bookmark ?? reading) ?? 0;seek(step:resume ? step:0);onLessonOpened?()}
@@ -182,15 +192,15 @@ import Combine
             showPuzzleLibrary();setSummary=PuzzleSetSummary(puzzleSet,progress:session.state.puzzles);return
         };if step<current.beats.count-1{seek(step:step+1)}else{complete()}}
     /// The set a summary describes: the chosen topic, level and search, whatever their status now.
-    private var puzzleSet:[Puzzle] {library.puzzles.filter{p in (topic=="All topics" || topic==p.topic)&&(level=="All levels" || level==p.level)&&(query.isEmpty || (p.title+" "+p.exercise.prompt).localizedCaseInsensitiveContains(query))}}
+    private var puzzleSet:[Puzzle] {library.puzzles.filter{p in (topic==nil || topic==p.topic)&&(level==nil || level==p.level)&&(query.isEmpty || (p.title+" "+p.exercise.prompt).localizedCaseInsensitiveContains(query))}}
     /// Moves on without answering: nothing is recorded, so the puzzle stays not tried and is not marked for review.
     public func skip(){guard activePuzzle != nil,!passed else{return};next()}
     /// After a set's summary: the puzzles to review, from the first.
-    public func reviewMistakes(){filter="To review";setSummary=nil;if let first=filteredPuzzles.first{openPuzzle(id:first.id)}}
+    public func reviewMistakes(){filter = .review;setSummary=nil;if let first=filteredPuzzles.first{openPuzzle(id:first.id)}}
     /// The lesson's own puzzles (linked by its id), for its Check Yourself button; nil when it has none.
-    public func checkYourselfTitle(index:Int)->String? {guard library.lessons.indices.contains(index) else{return nil};let count=library.puzzles(for:library.lessons[index].id).count;return count==0 ? nil:"Check Yourself: \(count) \(count==1 ? "Puzzle":"Puzzles")"}
+    public func checkYourselfTitle(index:Int)->String? {guard library.lessons.indices.contains(index) else{return nil};let count=library.puzzles(for:library.lessons[index].id).count;return count==0 ? nil:Plural.count(count,one:"Check Yourself: %d Puzzle",other:"Check Yourself: %d Puzzles")}
     /// Opens the lesson's first puzzle, with the library showing just that lesson's puzzles.
-    public func checkYourself(index:Int){guard library.lessons.indices.contains(index),let first=library.puzzles(for:library.lessons[index].id).first else{return};topic=first.topic;level="All levels";filter="All";query="";openPuzzle(id:first.id)}
+    public func checkYourself(index:Int){guard library.lessons.indices.contains(index),let first=library.puzzles(for:library.lessons[index].id).first else{return};topic=first.topic;level=nil;filter = .all;query="";openPuzzle(id:first.id)}
     public func complete(continuePlayback:Bool=false){
         // Narration ending over the exercise stops only the narration: a reply the computer is choosing still comes.
         if attemptStep{pauseNarration()}else{pause()}

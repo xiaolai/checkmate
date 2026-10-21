@@ -7,13 +7,13 @@ import Combine
 /// lessons a recording job skips because they have no translated text.
 public struct LessonJobPlan:Equatable,Sendable {
  public let mode:String,language:String,voice:String,lessons:Int,clips:Int,untranslated:Int,seconds:Double?
- private static func count(_ n:Int,_ noun:String)->String {"\(n) \(noun)\(n==1 ? "":"s")"}
- public var title:String {mode=="translate" ? "Translate \(Self.count(lessons,"lesson")) into \(language)?":"Record \(Self.count(clips,"clip")) for \(Self.count(lessons,"lesson"))?"}
+ private static func lessonCount(_ n:Int)->String {Plural.count(n,one:"%d lesson",other:"%d lessons")}
+ public var title:String {mode=="translate" ? Plural.count(lessons,one:"Translate %d lesson into %@?",other:"Translate %d lessons into %@?",language):Plural.count(clips,one:"Record %d clip for %@?",other:"Record %d clips for %@?",Self.lessonCount(lessons))}
  public var action:String {mode=="translate" ? "Translate":"Record"}
  public var message:String {
   var parts=[mode=="translate" ? "Each lesson is one translation request on your signed-in account.":"Each clip is one recording request on your signed-in account, in the \(voice.capitalized) voice."]
-  if mode != "translate",untranslated>0{parts.append("\(Self.count(untranslated,"lesson")) \(untranslated==1 ? "has":"have") no translated text yet and \(untranslated==1 ? "is":"are") skipped; translate \(untranslated==1 ? "it":"them") first.")}
-  if let seconds{let minutes=Int((seconds/60).rounded(.up));parts.append(seconds<60 ? "Estimated time: less than a minute, judged from earlier runs on this Mac.":"Estimated time: about \(Self.count(minutes,"minute")), judged from earlier runs on this Mac.")}
+  if mode != "translate",untranslated>0{parts.append(Plural.count(untranslated,one:"%d lesson has no translated text yet and is skipped; translate it first.",other:"%d lessons have no translated text yet and are skipped; translate them first."))}
+  if let seconds{let minutes=Int((seconds/60).rounded(.up));parts.append(seconds<60 ? "Estimated time: less than a minute, judged from earlier runs on this Mac.":Plural.count(minutes,one:"Estimated time: about %d minute, judged from earlier runs on this Mac.",other:"Estimated time: about %d minutes, judged from earlier runs on this Mac."))}
   else{parts.append("No time estimate yet: there are no earlier \(mode=="translate" ? "translations":"recordings") on this Mac to judge from.")}
   parts.append("You can cancel at any time; finished work is kept.")
   return parts.joined(separator:" ")
@@ -30,6 +30,8 @@ public struct LessonStoredStatus:Equatable,Sendable {
 /// A part of the course in Settings' lesson picker, with its lessons' indices.
 public struct LessonGroup:Equatable,Sendable {public let title:String,lessons:[Int]}
 @MainActor public final class LessonLanguageController:ObservableObject {
+    /// The problem count a running job appends to its progress, as its own counted phrase.
+    nonisolated static func problemsSoFar(_ count:Int)->String {count==0 ? "":" · "+Plural.count(count,one:"%d problem so far",other:"%d problems so far")}
  public let library:CourseLibrary,store:LessonPackStore,usage:UsageLedger
  @Published public var language="en" {didSet{if oldValue != language{selectionChanged()}}}
  @Published public var voice="cedar" {didSet{if oldValue != voice{selectionChanged()}}}
@@ -92,7 +94,7 @@ public struct LessonGroup:Equatable,Sendable {public let title:String,lessons:[I
  }
  private func selectionChanged(invalidatePreview:Bool=true){refreshStatuses(force:!invalidatePreview);if invalidatePreview{previewURL=nil;inspection="";storedStatus="Checking stored lesson data…";onSelectionChange()};selectionTask?.cancel();selectionGeneration=UUID();let generation=selectionGeneration;guard !busy,library.lessons.indices.contains(selectedLesson) else{return};let source=LessonTranslation.source(library:library,index:selectedLesson),locale=language,voice=self.voice,store=self.store;selectionTask=Task{[weak self] in
    // Damaged text and damaged recordings are reported apart, each with the narrowest action that repairs it.
-   let result=await Task.detached{()->(String,String) in let translation:LessonTranslation?;do{translation=try store.translation(source:source,locale:locale)}catch{return ("","This lesson's stored translation is damaged or out of date. Choose Discard translated text, then Translate it again.")};guard let translation else{return ("","No translated text or recordings for this selection.")};let text=([translation.title]+translation.teaches+translation.beats.map{$0.stepTitle+"\n"+$0.say}).joined(separator:"\n\n");do{if let pack=try store.completePack(source:source,locale:locale,voice:voice){return (text,"Complete offline lesson: \(pack.clips.count) verified recordings.")};let count=(try store.partialPack(source:source,locale:locale,voice:voice))?.clips.count ?? 0;return (text,"Translated text stored; \(count) of \(source.beats.count) recordings stored. Incomplete lessons use English.")}catch{return (text,"Translated text stored, but this voice's stored recordings are damaged or out of date. Choose Remove stored lesson, then Record / Resume; the translated text is kept.")}}.value
+   let result=await Task.detached{()->(String,String) in let translation:LessonTranslation?;do{translation=try store.translation(source:source,locale:locale)}catch{return ("","This lesson's stored translation is damaged or out of date. Choose Discard Translated Text, then Translate it again.")};guard let translation else{return ("","No translated text or recordings for this selection.")};let text=([translation.title]+translation.teaches+translation.beats.map{$0.stepTitle+"\n"+$0.say}).joined(separator:"\n\n");do{if let pack=try store.completePack(source:source,locale:locale,voice:voice){return (text,"Complete offline lesson: \(pack.clips.count) verified recordings.")};let count=(try store.partialPack(source:source,locale:locale,voice:voice))?.clips.count ?? 0;return (text,"Translated text stored; \(count) of \(source.beats.count) recordings stored. Incomplete lessons use English.")}catch{return (text,"Translated text stored, but this voice's stored recordings are damaged or out of date. Choose Remove Stored Lesson, then Record / Resume; the translated text is kept.")}}.value
    guard let self,!Task.isCancelled,self.selectionGeneration==generation,!self.busy else{return};self.inspection=result.0;self.storedStatus=result.1
  }}
  /// Discard is available whenever there is stored text to remove, including a damaged file that cannot be shown.
@@ -103,7 +105,7 @@ public struct LessonGroup:Equatable,Sendable {public let title:String,lessons:[I
   guard !busy else{return};let store=store,library=library,id=UUID(),pause=cleanupPause;generation=id;busy=true;purging=true;status="Removing outdated translations…"
   task=Task{[weak self] in
    if pause > .zero{try? await Task.sleep(for:pause)}
-   let result:String;do{let removed=try await Task.detached{try store.purgeOutdated(library:library)}.value;result=removed.files==0 ? "No outdated translations or recordings to remove.":"Removed \(removed.files) outdated file\(removed.files==1 ? "":"s") (\(ByteCountFormatter.string(fromByteCount:removed.bytes,countStyle:.file)))."}catch{result=userFacingMessage(error,fallback:"Outdated translations could not be removed.")}
+   let result:String;do{let removed=try await Task.detached{try store.purgeOutdated(library:library)}.value;result=removed.files==0 ? "No outdated translations or recordings to remove.":Plural.count(removed.files,one:"Removed %1$d outdated file (%2$@).",other:"Removed %1$d outdated files (%2$@).",ByteCountFormatter.string(fromByteCount:removed.bytes,countStyle:.file))}catch{result=userFacingMessage(error,fallback:"Outdated translations could not be removed.")}
    guard let self,self.generation==id else{return};self.busy=false;self.purging=false;self.task=nil;self.status=result;self.selectionChanged(invalidatePreview:false)
   }
  }
@@ -181,7 +183,7 @@ public struct LessonGroup:Equatable,Sendable {public let title:String,lessons:[I
    do {for (ordinal,index,retry) in passes {
     try Task.checkCancellation();let source=LessonTranslation.source(library:self.library,index:index),place="Lesson \(index+1) “\(source.title)”"
     if retry,failed.contains(source.lessonID){continue}
-    self.status="Lesson \(ordinal+1) of \(ordered.count): \(mode == "translate" ? "translating":"recording")"+(problems.isEmpty ? "":" · \(problems.count) problem\(problems.count==1 ? "":"s") so far")
+    self.status=(mode == "translate" ? "Lesson \(ordinal+1) of \(ordered.count): translating":"Lesson \(ordinal+1) of \(ordered.count): recording")+Self.problemsSoFar(problems.count)
     do {
      var text=try await Task.detached{try self.store.translation(source:source,locale:locale)}.value
      if mode=="translate",text==nil {
@@ -201,7 +203,7 @@ public struct LessonGroup:Equatable,Sendable {public let title:String,lessons:[I
       for beat in beats {
        try Task.checkCancellation();guard !self.voiceConflict() else{throw LessonJobStopped(message:"Recording stopped because the voice coach is active. Completed clips are kept.")}
        let clipNumber=(all.firstIndex{$0.id==beat.id} ?? 0)+1
-       self.status="Lesson \(ordinal+1) of \(ordered.count), clip \(clipNumber) of \(all.count)"+(problems.isEmpty ? "":" · \(problems.count) problem\(problems.count==1 ? "":"s") so far")
+       self.status="Lesson \(ordinal+1) of \(ordered.count), clip \(clipNumber) of \(all.count)"+Self.problemsSoFar(problems.count)
        do {
         if let pack=try await (Task.detached{try self.store.partialPack(source:source,locale:locale,voice:chosenVoice)}).value,let url=try await (Task.detached{try self.store.clipURL(pack:pack,beatID:beat.id)}).value {if mode=="preview",shown(voice:true){self.previewURL=url};continue}
         let operation=self.usage.begin(activity:.lessonRecording,provider:"realtime",sessionID:UUID().uuidString,model:"gpt-realtime",locale:locale,voice:chosenVoice,lessonID:source.lessonID)
@@ -219,13 +221,13 @@ public struct LessonGroup:Equatable,Sendable {public let title:String,lessons:[I
    }
    if self.generation==id{self.failedLastRun=failed}
    let moved = !shown(voice:true)
-   self.status=(problems.isEmpty ? (mode=="preview" && !moved ? "Preview ready. Choose Play preview to listen.":"Completed. Matching translated text and verified clips are reused when resuming."):"Finished with \(problems.count) problem\(problems.count==1 ? "":"s"); everything else is done and kept. Resume retries them last.")+(moved ? " The language or voice changed while it ran; its results are kept for the earlier choice.":"")
+   self.status=(problems.isEmpty ? (mode=="preview" && !moved ? "Preview ready. Choose Play Preview to listen.":"Completed. Matching translated text and verified clips are reused when resuming."):Plural.count(problems.count,one:"Finished with %d problem; everything else is done and kept. Resume retries it last.",other:"Finished with %d problems; everything else is done and kept. Resume retries them last."))+(moved ? " The language or voice changed while it ran; its results are kept for the earlier choice.":"")
    // A job that ends early keeps this run's failures and last run's unreached ones, so Resume still tries them last.
    }catch let stop as LessonJobStopped{if self.generation==id{self.failedLastRun=failed.union(retryLast)};self.status=stop.message+(problems.isEmpty ? "":" Problems are listed below.")}
-   catch {if self.generation==id{self.failedLastRun=failed.union(retryLast)};self.status=Task.isCancelled ? "Cancelled. Completed text and clips are preserved.":userFacingMessage(error,fallback:"The job could not finish. Completed work is preserved.")}
+   catch {if self.generation==id{self.failedLastRun=failed.union(retryLast)};self.status=Task.isCancelled ? "Canceled. Completed text and clips are preserved.":userFacingMessage(error,fallback:"The job could not finish. Completed work is preserved.")}
   }
  }
- public func cancel(){guard canCancel else{return};task?.cancel();status="Cancelling…"}
+ public func cancel(){guard canCancel else{return};task?.cancel();status="Canceling…"}
  /// Called after Play preview starts: a preview that could not play says so instead of staying silent.
  public func reportPreviewPlayback(failure:String?){if let failure{status=failure}}
  public func remove(){guard !busy,library.lessons.indices.contains(selectedLesson) else{return};beforeRemove();previewURL=nil;let indices=allLessons ? Array(library.lessons.indices):[selectedLesson];do{for i in indices{try store.remove(source:LessonTranslation.source(library:library,index:i),locale:language,voice:voice)};status="Recordings removed. Translated text and lesson progress are preserved.";refreshStatuses(force:true);onPacksChanged()}catch{status="The recordings could not be removed."}}

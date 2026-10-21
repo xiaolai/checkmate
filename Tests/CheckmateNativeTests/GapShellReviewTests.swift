@@ -103,7 +103,7 @@ final class GapShellReviewTestsGeometry:XCTestCase {
     private var directory:URL!
     override func setUp(){directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);setenv("CHECKMATE_DATA_DIR",directory.path,1)}
     override func tearDown(){unsetenv("CHECKMATE_DATA_DIR");try? FileManager.default.removeItem(at:directory)}
-    private func game(_ pgn:String)throws -> GameDocument {try PGNImporter.parse(Data(pgn.utf8),provenance:pgn)[0]}
+    private func game(_ pgn:String)throws -> GameDocument {try PGNImporter.parse(Data(pgn.utf8))[0]}
     /// A record file from a newer version blocks saves of exactly that record and nothing else.
     private func block(_ model:NativeModel,_ id:UUID)throws {try FileManager.default.createDirectory(at:model.reviewStore.directory,withIntermediateDirectories:true);try Data(#"{"schemaVersion":2}"#.utf8).write(to:model.reviewStore.documentURL(id))}
     private static let newerVersion="The review could not be saved: This review requires a newer Checkmate version; its file is preserved. Export the original PGN before quitting."

@@ -32,7 +32,7 @@ import CheckmateCore
         for _ in 0..<500 where model.review.document==nil{try await Task.sleep(for:.milliseconds(10))}
         let document=try XCTUnwrap(model.review.document);game.refresh()
         XCTAssertEqual(document.startingFEN,start);XCTAssertEqual(document.mainline.map{document.nodes[$0].uci},["b1b7","h8g8","b7b8"]);XCTAssertEqual(document.result,"0-1")
-        XCTAssertEqual(document.nodes[document.mainline[0]].fullmove,37);XCTAssertEqual(document.provenance,"Training game")
+        XCTAssertEqual(document.nodes[document.mainline[0]].fullmove,37);XCTAssertEqual(document.provenance,.trainingGame)
         XCTAssertEqual(model.session.activity.review?.returnTo,.training(entry:"finish-the-game"));XCTAssertTrue(model.reviewDraft,"a draft, like a current-game review")
         XCTAssertEqual(try practiceBytes(model),practice,"the practice game is untouched");XCTAssertEqual(model.session.rules.pgn,practicePGN)
         XCTAssertTrue(model.returnToGame());game.refresh()
@@ -69,7 +69,7 @@ import CheckmateCore
         for _ in 0..<500 where model.review.document==nil{try await Task.sleep(for:.milliseconds(10))}
         let document=try XCTUnwrap(model.review.document)
         XCTAssertEqual(document.startingFEN,start,"the training game, not the practice game")
-        XCTAssertEqual(document.provenance,"Training game")
+        XCTAssertEqual(document.provenance,.trainingGame)
         XCTAssertEqual(model.session.rules.pgn,practicePGN,"the practice game is untouched")
         XCTAssertEqual(model.session.rules.fen,practiceFEN)
     }

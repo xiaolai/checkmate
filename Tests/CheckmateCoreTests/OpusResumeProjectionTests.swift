@@ -35,7 +35,7 @@ import CheckmateCore
     /// Practice after 1.e4 with the opponent's reply in flight, then a saved review whose restore really fails.
     private func failedEntry()async throws -> (GameSession,HeldEngine,ReviewController) {
         let engine=HeldEngine(),session=try GameSession(engine:engine),review=ReviewController();session.reviewController=review
-        try session.playWhite(from:"e2",to:"e4");await settle();XCTAssertEqual(session.busyReason,"opponent")
+        try session.playWhite(from:"e2",to:"e4");await settle();XCTAssertEqual(session.busyReason,.opponent)
         assertPaused(session.publicState(),nil,"before the failed entry the reply is merely running")
         let document=try PGNImporter.parse(Data("[Event \"Saved\"]\n1. d4 d5 *".utf8))[0]
         review.open(document,practice:session)

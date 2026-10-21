@@ -252,7 +252,7 @@ final class HeaderButton:NSButton {
     func show(_ section:LibrarySection,open:Bool,enabled:Bool,toggle:@escaping ()->Void){
         self.toggle=toggle;self.open=open;isEnabled=enabled
         let configuration=NSImage.SymbolConfiguration(pointSize:9,weight:.semibold)
-        image=NSImage(systemSymbolName:open ? "chevron.down":"chevron.right",accessibilityDescription:nil)?.withSymbolConfiguration(configuration);contentTintColor = .secondaryLabelColor
+        image=(open ? AppSymbol.expanded:.collapsed).nsImage()?.withSymbolConfiguration(configuration);contentTintColor = .secondaryLabelColor
         attributedTitle=NSAttributedString(string:" "+section.title,attributes:[.font:NSFont.systemFont(ofSize:NSFont.smallSystemFontSize,weight:.semibold),.foregroundColor:NSColor.secondaryLabelColor])
         setAccessibilityLabel(section.title);setAccessibilityIdentifier("library-section-"+section.id)
         setAccessibilityHelp(open ? "Hides this event's games.":"Shows this event's games.")
@@ -305,7 +305,7 @@ final class BrokenCell:NSTableCellView {
     private let message=label(.systemFont(ofSize:NSFont.smallSystemFontSize),NativeColors.error)
     init(){
         super.init(frame:.zero)
-        let icon=NSImageView(image:NSImage(systemSymbolName:"exclamationmark.triangle",accessibilityDescription:nil) ?? NSImage());icon.contentTintColor=NativeColors.error;icon.translatesAutoresizingMaskIntoConstraints=false
+        let icon=NSImageView(image:AppSymbol.warning.nsImage() ?? NSImage());icon.contentTintColor=NativeColors.error;icon.translatesAutoresizingMaskIntoConstraints=false
         addSubview(icon);addSubview(message)
         NSLayoutConstraint.activate([icon.leadingAnchor.constraint(equalTo:leadingAnchor,constant:4),icon.centerYAnchor.constraint(equalTo:centerYAnchor),message.leadingAnchor.constraint(equalTo:icon.trailingAnchor,constant:6),message.trailingAnchor.constraint(lessThanOrEqualTo:trailingAnchor,constant:-6),message.centerYAnchor.constraint(equalTo:centerYAnchor)])
     }

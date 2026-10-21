@@ -27,7 +27,7 @@ import CheckmateCore
         model.training?.games.engine=ScriptedDefender();model.startTraining("finish-the-game",variant:"kqk")
         XCTAssertNotNil(model.voice.training);XCTAssertTrue(model.voice.trainingVoiceAvailable)
         let shown=bar(model,trainingVoice:true)
-        XCTAssertEqual(shown.items.filter{$0.action == .voiceConnect}.map(\.symbol),["mic"],"the practice microphone, the same meaning")
+        XCTAssertEqual(shown.items.filter{$0.action == .voiceConnect}.map(\.symbol),[.microphone],"the practice microphone, the same meaning")
         XCTAssertTrue(shown.items.contains{$0.action == .trainingHint},"the game's own tools stay")
         model.trainingLibrary();XCTAssertFalse(bar(model,trainingVoice:true).items.contains{$0.action == .voiceConnect},"no coach in the library")
     }

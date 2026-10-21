@@ -333,8 +333,8 @@ try:
     assert host.shows("network-voice-disconnect"), "stopping the turn ended the voice session"
     step("guided voice stopped speaking")
     host.click("network-voice-disconnect")
-    wait(lambda: host.shows("network-voice-connect") and voice_status(host) is None, f"Disconnect Coach did not end the session: {voice_status(host)!r}")
-    assert host.absent("network-voice-stop", within="network-status"), "Stop Speaking stayed after Disconnect Coach"
+    wait(lambda: host.shows("network-voice-connect") and voice_status(host) is None, f"Disconnect Voice Coach did not end the session: {voice_status(host)!r}")
+    assert host.absent("network-voice-stop", within="network-status"), "Stop Speaking stayed after Disconnect Voice Coach"
     step("guided voice disconnected")
     results["passed"] = True
 except Exception as error:

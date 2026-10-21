@@ -58,7 +58,7 @@ def exercise(lesson_title,lesson_id):
  drawers(True,True)
  open_lesson(lesson_title);wait(title(lesson_title),f'{lesson_title} did not open')
  if 'AXButton: Pause' in listing():pointer('click','Pause')
- wait(lambda:'lesson-go-to-attempt' in listing() or 'Go to your turn' in listing() or 'Resume your attempt' in listing(),f'{lesson_title} offers no way to its exercise')
+ wait(lambda:'lesson-go-to-attempt' in listing() or 'Go to Your Turn' in listing() or 'Resume Your Attempt' in listing(),f'{lesson_title} offers no way to its exercise')
  pointer('click','lesson-go-to-attempt')
  wait(title(lesson_title+' · '),f'{lesson_title}: the exercise step did not open')
  fen=practice[lesson_id]['fen'].split()[0]
@@ -166,7 +166,7 @@ try:
  moves=attempt('fork')['moves'];stop();launch();drawers(True,True)
  open_lesson('The Fork');wait(title('The Fork · Play on · Your turn'),'The Fork: the exercise did not reopen where it was after relaunch')
  last=moves[-1][2:4];wait(lambda:label(last).startswith(f'{last}, Black'),'The Fork: the restored board does not show the last move')
- pointer('click','Previous transcript');wait(lambda:'Resume your attempt' in listing(),'The Fork: the saved attempt is not offered from the explanation')
+ pointer('click','Previous transcript');wait(lambda:'Resume Your Attempt' in listing(),'The Fork: the saved attempt is not offered from the explanation')
  pointer('click','lesson-go-to-attempt');wait(title('The Fork · Play on · Your turn'),'The Fork: Resume your attempt did not reopen it')
  assert attempt('fork')['moves']==moves,'The Fork: the relaunched attempt changed'
  results['relaunchRestoresAttempt']=True

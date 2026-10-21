@@ -29,7 +29,7 @@ struct LessonAttemptPanel:View {
             Text(headline).font(.headline).accessibilityIdentifier("lesson-attempt-status")
             if let practice {Text(practice.goal).foregroundStyle(.secondary)}
             ForEach(Array(zip(practice?.checkpoints ?? [],attempt.judgement?.done ?? []).enumerated()),id:\.offset){_,item in
-                Label(item.0.label,systemImage:item.1 ? "checkmark.circle.fill":"circle")
+                Label(item.0.label,systemImage:(item.1 ? AppSymbol.done:.markerOff).rawValue)
                     .foregroundStyle(item.1 ? Color.accentColor:Color.secondary)
                     .accessibilityLabel(item.0.label+(item.1 ? ", done":", not done yet"))
             }
@@ -38,7 +38,7 @@ struct LessonAttemptPanel:View {
             ForEach(Array(attempt.hints.enumerated()),id:\.offset){index,hint in Text("Hint \(index+1): \(hint)").foregroundStyle(.secondary)}
             HStack {
                 if attempt.waitingToResume {Button("Resume"){attempt.resume()}.accessibilityIdentifier("lesson-attempt-resume")}
-                if attempt.phase == .achieved,attempt.judgement?.ending==nil {Button("Play on"){attempt.playOn()}.accessibilityIdentifier("lesson-attempt-play-on")}
+                if attempt.phase == .achieved,attempt.judgement?.ending==nil {Button("Play On"){attempt.playOn()}.accessibilityIdentifier("lesson-attempt-play-on")}
                 if attempt.thinking {ProgressView().controlSize(.small).help("The computer is thinking")}
             }
             // Off track the refutation stays on the board until the learner takes the move back: one prominent way back.
@@ -46,7 +46,7 @@ struct LessonAttemptPanel:View {
                 if attempt.phase == .offTrack {Button("Take Back"){attempt.undo()}.buttonStyle(.borderedProminent).accessibilityIdentifier("lesson-attempt-undo")}
                 else {
                     Button(hintLabel){attempt.hint()}.disabled(!attempt.learnerToMove).accessibilityIdentifier("lesson-attempt-hint")
-                    Button("Undo turn"){attempt.undo()}.disabled(!attempt.hasMoves).accessibilityIdentifier("lesson-attempt-undo")
+                    Button("Undo Turn"){attempt.undo()}.disabled(!attempt.hasMoves).accessibilityIdentifier("lesson-attempt-undo")
                 }
                 Button("Restart"){restart()}.disabled(!attempt.hasMoves).accessibilityIdentifier("lesson-attempt-restart")
             }

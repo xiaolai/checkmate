@@ -95,7 +95,7 @@ extension TrainingController {
             try TrainingValidationService.validate(scenario,definition:state.definition,runtimeFactory:runtimeFactory)
             let prepared=PreparedTrainingExercise(definition:state.definition,scenario:scenario,freshness:.repeat,legality:try TrainingLegality(fen:state.moments[index].fen,runtimeFactory:runtimeFactory),resumed:nil,retry:true)
             guidedReview=state;begin(prepared)
-        }catch{var shown=state;shown.feedback="This moment could not be prepared: "+userFacing(error);exercise=shown;publish()}
+        }catch{var shown=state;shown.feedback="This moment could not be prepared: \(userFacing(error))";exercise=shown;publish()}
     }
     /// Back from a moment's retry to the finished guided game it came from. An unfinished retry stays saved for Continue.
     public func returnToGuidedGame(){

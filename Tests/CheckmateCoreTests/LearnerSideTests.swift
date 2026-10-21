@@ -79,7 +79,7 @@ import CheckmateCore
     }
 }
 
-/// Take Back after "Practise here" stops at the practised position instead of rewinding into the reviewed game.
+/// Take Back after "Practice Here" stops at the practised position instead of rewinding into the reviewed game.
 @MainActor final class ForkTakeBackTests:XCTestCase {
     func testTakeBackStopsAtTheForkedPosition()throws {
         let s=try GameSession(engine:nil),fork=try ChessRules();for uci in ["e2e4","e7e5"]{try fork.move(uci:uci)};try s.installPracticeFork(fork,side:"w")

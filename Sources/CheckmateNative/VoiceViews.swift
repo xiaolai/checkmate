@@ -80,7 +80,7 @@ struct VoiceSettingsContent:View {
         let settings=session.state.settings,needs=Self.needs(voice.capability)
         if !needs.isEmpty {
             Section("What You Need"){
-                ForEach(needs,id:\.self){Label($0,systemImage:"circle")}
+                ForEach(needs,id:\.self){Label($0,symbol:.markerOff)}
                 if voice.capability?.codexInstalled==false{Button(VoiceAction.getCodex.title){model.voiceHelp.perform(.getCodex){}}.accessibilityIdentifier("voice-settings-get-codex")}
                 Text("Checkmate checks again whenever you come back to it.").font(.caption).foregroundStyle(.secondary)
             }

@@ -487,6 +487,7 @@ import SaidGuard
         if let next=queued{queued=nil;request(next.0,user:next.1);return};trainingAnswer=false;syncMic();status=turnMessage ?? readyStatus;turnMessage=nil;if renewalDue{renew();return};applyEffortWhenIdle();pruneToolItems();guard !networkSession,miniReviewSession==nil,!trainingSession else{return};session.holdVoice(false);if session.reviewController?.active != true,session.rules.turn==session.humanSide,session.state.settings.coachingMode=="guided"{session.holdVoice(true)}
     }
     /// Transcript context names what was displayed: the review position during review, otherwise the practice move.
+    private var historySource:VoiceHistory.Source {networkSession ? .network:trainingSession ? .training:miniReviewSession != nil ? .miniReview:session.reviewController?.active == true ? .review:.practice}
     private var historyContext:String {
         if networkSession{return network?.game.rules.history.last ?? "Starting position"}
         if trainingSession{return "Training game"}
@@ -495,7 +496,7 @@ import SaidGuard
         return session.rules.history.last ?? "Starting position"
     }
     /// An entry keeps its place when its text arrives later (a learner's transcription follows the coach's reply).
-    private func addHistory(_ id:String,_ role:String,_ text:String){let entry=VoiceHistory(id:id,role:role,text:String(text.prefix(4000)),context:history.first{$0.id==id}?.context ?? historyContext);if let index=history.firstIndex(where:{$0.id==id}){history[index]=entry}else{history.append(entry)};if history.count>30{history.removeFirst(history.count-30)}}
+    private func addHistory(_ id:String,_ role:String,_ text:String){let earlier=history.first{$0.id==id},entry=VoiceHistory(id:id,role:role,text:String(text.prefix(4000)),context:earlier?.context ?? historyContext,source:earlier?.source ?? historySource);if let index=history.firstIndex(where:{$0.id==id}){history[index]=entry}else{history.append(entry)};if history.count>30{history.removeFirst(history.count-30)}}
     private func learnerTranscript(_ event:[String:Any],_ text:String?){let id=event["item_id"] as? String ?? UUID().uuidString;if committedLearner.contains(id),!history.contains(where:{$0.id==id}){return};if let text,text.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty{history.removeAll{$0.id==id && $0.role=="learner"};return};addHistory(id,"learner",text ?? "Transcription unavailable")}
     private func accountUsage(_ event:[String:Any]) {
         let type=event["type"] as? String ?? "",response=event["response"] as? [String:Any] ?? [:]

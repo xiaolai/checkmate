@@ -173,32 +173,32 @@ try:
         pointer("click", "Translate")
         wait(lambda: "French lesson:" in listing(), "Fixture translation did not populate text inspection")
         wait(lambda: "Completed. Matching" in listing(), "Fixture translation did not finish")
-        pointer("click", "Generate preview")
+        pointer("click", "Generate Preview")
         wait(lambda: "Preview ready." in listing(), "Fixture preview generation did not finish")
         pointer("click", "Record / Resume")
         wait(lambda: re.search(r"Lesson 1 of 1, clip [0-9]+ of 18", listing()) is not None, "Fixture recording progress is missing")
         # Control for the cleanup check below: a running lesson job's Cancel accepts clicks.
         assert pointer("enabled", "lesson-job-cancel") == "true", "Cancel was disabled during a cancellable recording"
         pointer("click", "lesson-job-cancel")
-        wait(lambda: "Cancelled. Completed text and clips" in listing(), "Fixture recording cancellation failed")
+        wait(lambda: "Canceled. Completed text and clips" in listing(), "Fixture recording cancellation failed")
         subprocess.run(["screencapture", "-x", str(evidence / "lesson-settings.png")], check=True)
         wait(lambda: "Incomplete lessons use English." in listing(), "Cancelled partial recording did not report English fallback")
         pointer("click", "Record / Resume")
         wait(lambda: "Complete offline lesson: 18 verified recordings." in listing(), "Fixture resumed recording did not complete", timeout=30)
         # Destructive confirmations: Cancel (and Return, the default) close them without acting.
-        pointer("click", "Remove clip")
+        pointer("click", "Remove Clip")
         wait(lambda: "Remove clip 1?" in listing(), "Clip removal confirmation did not open")
         dialog("Remove clip 1?", "Cancel")
         wait(lambda: "Remove clip 1?" not in listing(), "Cancel did not close the clip removal confirmation")
         time.sleep(0.5)
         assert "Clip 1 removed." not in listing() and "Complete offline lesson: 18 verified recordings." in listing(), "Cancel removed the clip"
-        pointer("click", "Remove clip")
+        pointer("click", "Remove Clip")
         wait(lambda: "Remove clip 1?" in listing(), "Clip removal confirmation did not reopen")
         pointer("return")
         wait(lambda: "Remove clip 1?" not in listing(), "Return did not close the clip removal confirmation")
         time.sleep(0.5)
         assert "Clip 1 removed." not in listing() and "Complete offline lesson: 18 verified recordings." in listing(), "Return (the default button) removed the clip"
-        pointer("click", "Remove clip")
+        pointer("click", "Remove Clip")
         wait(lambda: "Remove clip 1?" in listing(), "Clip removal confirmation did not open")
         dialog("Remove clip 1?", "Remove")
         wait(lambda: "Clip 1 removed." in listing(), "Confirmed clip removal failed")
@@ -211,8 +211,8 @@ try:
         assert "This lesson is playing in English because" not in listing(), "Complete recording unexpectedly fell back to English"
         subprocess.run(["screencapture", "-x", str(evidence / "offline-lesson.png")], check=True)
         pointer("menu", "Checkmate", "Settings…")
-        wait(lambda: "Remove stored lesson" in listing(), "Lessons settings did not reopen")
-        pointer("click", "Remove stored lesson")
+        wait(lambda: "Remove Stored Lesson" in listing(), "Lessons settings did not reopen")
+        pointer("click", "Remove Stored Lesson")
         wait(lambda: "Remove stored lesson language?" in listing(), "Recording removal confirmation did not open")
         dialog("Remove stored lesson language?", "Remove")
         wait(lambda: "Recordings removed." in listing(), "Confirmed recording removal failed")
@@ -224,24 +224,24 @@ try:
         pointer("menu", "Checkmate", "Settings…")
         wait(lambda: "Recording voice" in listing(), "Lessons settings did not reopen after fallback")
         # Discarding translated text: Cancel keeps it; Discard removes it and says so.
-        pointer("click", "Discard translated text…")
+        pointer("click", "Discard Translated Text…")
         wait(lambda: "Discard translated text?" in listing(), "Discard confirmation did not open")
         dialog("Discard translated text?", "Cancel")
         wait(lambda: "Discard translated text?" not in listing(), "Cancel did not close the discard confirmation")
         time.sleep(0.5)
         assert "Translation and recordings discarded." not in listing() and "French lesson:" in listing(), "Cancel discarded the translated text"
-        pointer("click", "Discard translated text…")
+        pointer("click", "Discard Translated Text…")
         wait(lambda: "Discard translated text?" in listing(), "Discard confirmation did not reopen")
         dialog("Discard translated text?", "Discard")
         wait(lambda: "Translation and recordings discarded." in listing(), "Confirmed discard did not report its result")
         # Outdated-translation cleanup: Cancel does nothing; once confirmed it runs to completion and cannot be cancelled.
-        pointer("click", "Remove outdated translations…")
+        pointer("click", "Remove Outdated Translations…")
         wait(lambda: "Remove outdated translations?" in listing(), "Cleanup confirmation did not open")
         dialog("Remove outdated translations?", "Cancel")
         wait(lambda: "Remove outdated translations?" not in listing(), "Cancel did not close the cleanup confirmation")
         time.sleep(0.5)
         assert "Removing outdated translations" not in listing() and "outdated translations or recordings to remove" not in listing(), "Cancel started the cleanup"
-        pointer("click", "Remove outdated translations…")
+        pointer("click", "Remove Outdated Translations…")
         wait(lambda: "Remove outdated translations?" in listing(), "Cleanup confirmation did not reopen")
         dialog("Remove outdated translations?", "Remove")
         wait(lambda: "Removing outdated translations" in listing(), "Confirmed cleanup did not start")
@@ -256,12 +256,12 @@ try:
         wait(lambda: re.search(r"[1-9][0-9,]* tokens", listing()) is not None, "The usage range did not show the fixture's recorded tokens")
     else:
         wait(lambda: "No recorded Checkmate activity in this time range." in listing(), "An empty usage range did not say so")
-    pointer("click", "Clear history…")
+    pointer("click", "Clear History…")
     wait(lambda: "Clear usage history?" in listing(), "Clear history confirmation did not open")
     pointer("click", "Cancel")
     wait(lambda: "Clear usage history?" not in listing(), "Clear history cancellation failed")
     if fixture:
-        pointer("click", "Refresh account status")
+        pointer("click", "Refresh Account Status")
         wait(lambda: "Automation fixture account status" in listing(), "Explicit fixture account refresh failed")
     pointer("click", "Export JSON…")
     # The closed menu bar always lists File ▸ Save Review, so wait for the panel's own Save button.
@@ -386,7 +386,7 @@ try:
         wait(lambda: "AXButton: Save Review" in listing() and "11, White, Qxh7+" in listing(), "Clicking a library row did not open a draft review")
 
     def back_to_game(where):
-        pointer("click", "Return to game")
+        pointer("click", "Return to Game")
         wait(lambda: "practice-heading" in listing(), "Return to game did not leave " + where)
 
     open_library_game()

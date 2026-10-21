@@ -322,7 +322,7 @@ try:
     time.sleep(SAVE_SETTLE)
     assert not active().get("recordedHelp") and not active()["actions"], "Connecting the coach recorded help"
     pointer("click", "training-voice-disconnect")
-    wait(lambda: "training-voice-connect" in listing() and "training-voice-disconnect" not in listing(), "Disconnect Coach did not end the session")
+    wait(lambda: "training-voice-connect" in listing() and "training-voice-disconnect" not in listing(), "Disconnect Voice Coach did not end the session")
     time.sleep(SAVE_SETTLE)
     assert not active().get("recordedHelp"), "The coach's session recorded help"
     training_voice = True
@@ -358,7 +358,7 @@ try:
     practice = saved().get("practice")
     pointer("click", "training-review-game")
     wait(lambda: "review-document-actions" in listing() and guided_opponent in listing(), f"Review this game did not open the guided game in Review naming {guided_opponent}")
-    pointer("click", "Return to game")
+    pointer("click", "Return to Game")
     wait(lambda: "Game ended · not counted" in listing() and "training-review-game" in listing(), "Return to game did not lead back to the finished guided game")
     time.sleep(SAVE_SETTLE)
     assert saved().get("practice") == practice, "Reviewing a training game changed the practice game"
@@ -401,7 +401,7 @@ try:
     position_opponent = f"Opponent ({TITLES[level]})"
     pointer("click", "training-review-game")
     wait(lambda: "review-document-actions" in listing() and position_opponent in listing(), f"Review this game did not open the pawn race in Review naming {position_opponent}")
-    pointer("click", "Return to game")
+    pointer("click", "Return to Game")
     wait(lambda: "training-review-game" in listing(), "Return to game did not lead back to the finished pawn race")
     position_game_review = True
 
@@ -409,8 +409,8 @@ try:
     bookmark = (saved().get("course") or {}).get("lessonID")
     open_library()
     pointer("click", "training-lesson-simple-tactics-fork")
-    wait(lambda: "Back to training" in listing() and "training-entry-save-your-piece" not in listing(), "The linked lesson did not open")
-    pointer("click", "Back to training")
+    wait(lambda: "Back to Training" in listing() and "training-entry-save-your-piece" not in listing(), "The linked lesson did not open")
+    pointer("click", "Back to Training")
     wait(lambda: "training-entry-save-your-piece" in listing(), "Back to training did not return to the library")
     time.sleep(SAVE_SETTLE)
     assert (saved().get("course") or {}).get("lessonID") == bookmark, "Reading a linked lesson moved the course bookmark"

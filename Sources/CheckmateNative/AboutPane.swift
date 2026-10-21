@@ -41,11 +41,11 @@ struct AboutPane:View {
             Text("The Codex companion accepts connections only from this Mac. A Codex task you connect can read the current game, its position and moves, and your saved reviews, including the names, events and comments in imported games.")
         }
         Section {
-            HStack(spacing:4){Text("Copyright © 2026");link("xiaolai",URL(string:"https://lixiaolai.com")!)}
+            HStack(spacing:Metrics.tightGap){Text("Copyright © 2026");link("xiaolai",URL(string:"https://lixiaolai.com")!)}
             Text(Self.license)
-            HStack(spacing:16){link("License",NativeResources.url("Checkmate-COPYING.txt"));link("Third-Party Notices",NativeResources.url("THIRD_PARTY_NOTICES.txt"));link("Source Code",Self.project.appendingPathComponent("releases/tag/v\(facts.version)"))}
+            HStack(spacing:Metrics.padding){link("License",NativeResources.url("Checkmate-COPYING.txt"));link("Third-Party Notices",NativeResources.url("THIRD_PARTY_NOTICES.txt"));link("Source Code",Self.project.appendingPathComponent("releases/tag/v\(facts.version)"))}
         } header:{Text("License")}
         Section {ForEach(Self.acknowledgements,id:\.0){LabeledContent($0.0,value:$0.1)}} header:{Text("Acknowledgements")} footer:{Text(Self.narration)}
-        Section {HStack(spacing:16){link("Checkmate on GitHub",Self.project);link("Changelog",Self.project.appendingPathComponent("blob/v\(facts.version)/CHANGELOG.md"));link("Report a Problem",Self.reportProblem)}}
+        Section {HStack(spacing:Metrics.padding){link("Checkmate on GitHub",Self.project);link("Changelog",Self.project.appendingPathComponent("blob/v\(facts.version)/CHANGELOG.md"));link("Report a Problem",Self.reportProblem)}}
     }
 }

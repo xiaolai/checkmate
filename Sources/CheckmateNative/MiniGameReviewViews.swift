@@ -7,7 +7,7 @@ enum MiniGameReviewWording {
     static let running="Checking the game for forced wins…"
     static let incomplete="The review ran out of time before it had checked every position."
     static let noFacts="No forced win was proved within \(MiniGameProofBudget.plies) single moves of any position in this game."
-    static func summary(_ review:MiniGameReview)->String {review.facts.isEmpty ? noFacts:"\(review.facts.count) proved \(review.facts.count==1 ? "fact":"facts") about this game."}
+    static func summary(_ review:MiniGameReview)->String {review.facts.isEmpty ? noFacts:Plural.count(review.facts.count,one:"%d proved fact about this game.",other:"%d proved facts about this game.")}
 }
 /// The details drawer's part: the review's progress, and the way back to its sheet once dismissed.
 struct MiniGameReviewSection:View {

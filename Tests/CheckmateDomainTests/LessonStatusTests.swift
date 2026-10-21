@@ -22,7 +22,7 @@ final class LessonStatusTests:XCTestCase {
         var done=CourseProgress();done.completed=["intro"];done.practised=["intro"];done.unaided=["intro"]
         let introPuzzles=Dictionary(uniqueKeysWithValues:library.puzzles.filter{$0.topic==intro.title}.map{($0.id,solved(firstTime:true))})
         XCTAssertEqual(LessonStatus.of(intro,in:library,course:done,puzzles:introPuzzles),.explored)
-        XCTAssertEqual(LessonStatus.notStarted.title,nil);XCTAssertEqual(LessonStatus.explored.title,"Explored");XCTAssertEqual(LessonStatus.practised.title,"Practised");XCTAssertEqual(LessonStatus.mastered.title,"Mastered")
+        XCTAssertEqual(LessonStatus.notStarted.title,nil);XCTAssertEqual(LessonStatus.explored.title,"Explored");XCTAssertEqual(LessonStatus.practised.title,"Practiced");XCTAssertEqual(LessonStatus.mastered.title,"Mastered")
     }
     func testAPuzzleRecordsItsFirstAnswerAndALaterSolveApart(){
         var first=PuzzleProgress();first.record(correct:true);XCTAssertTrue(first.solved);XCTAssertTrue(first.solvedFirstTime);XCTAssertNil(first.solvedLater)

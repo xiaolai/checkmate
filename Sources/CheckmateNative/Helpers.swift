@@ -14,19 +14,23 @@ final class VisibleHostingView<Content:View>:NSHostingView<Content> {
         return super.accessibilityChildren()
     }
 }
+/// The launch-recovery alert's buttons: the choice is the case, so a reworded title never changes what it does (D-12).
+enum LaunchRecoveryChoice:CaseIterable {case startFresh,restoreBackup,export,quit
+    var title:String{switch self{case .startFresh:return "Start Fresh";case .restoreBackup:return "Restore Backup";case .export:return "Export Saved File…";case .quit:return "Quit"}}
+}
 struct Metrics {
     static let promotionIconSize:CGFloat=24
-    static let playbackLineHeight:CGFloat=2,turnIndicatorSize:CGFloat=12,turnIndicatorOutline:CGFloat=1
+    /// The lesson and review progress line: the system accent at a height that reads as progress (D-26).
+    static let playbackLineHeight:CGFloat=4,turnIndicatorSize:CGFloat=12,turnIndicatorOutline:CGFloat=1
     static let core:CGFloat=780,minimum:CGFloat=600,minimumFitted:CGFloat=320,left:CGFloat=216,right:CGFloat=320,header:CGFloat=52
     static let practiceIndent:CGFloat=16
     static let lessonInspectionMinimum:CGFloat=120,lessonInspectionMaximum:CGFloat=220
     static let mascotSize:CGFloat=72,settingsDetailMinimum:CGFloat=480,settingsFormMinimumHeight:CGFloat=380
+    /// The spacing scale, smallest first: views name a step instead of repeating its number (D-25).
+    static let tightGap:CGFloat=4,cornerRadius:CGFloat=8
     static let button:CGFloat=32,padding:CGFloat=16,smallGap:CGFloat=8,sectionGap:CGFloat=20,boardMargin:CGFloat=20,coordinateSize:CGFloat=11
-    static let animation=0.7,frameInterval=1.0/60,settingsWidth:CGFloat=780,settingsHeight:CGFloat=560,settingsSidebar:CGFloat=190
-}
-func symbolButton(_ symbol:String,_ label:String,_ target:AnyObject,_ action:Selector)->NSButton {
-    let b=NSButton(image:NSImage(systemSymbolName:symbol,accessibilityDescription:label)!,target:target,action:action)
-    b.bezelStyle = .toolbar;b.imagePosition = .imageOnly;b.toolTip=label;b.setAccessibilityLabel(label);return b
+    /// Drawers open and close at their own pace, apart from the learner's piece speed (D-27); Reduce Motion makes it 0.
+    static let drawerAnimation=0.3,frameInterval=1.0/60,settingsWidth:CGFloat=780,settingsHeight:CGFloat=560,settingsSidebar:CGFloat=190
 }
 /// A wrapping label in a system text style, optionally at another weight.
 func textLabel(_ text:String,_ style:NSFont.TextStyle = .body,_ weight:NSFont.Weight = .regular)->NSTextField {let l=NSTextField(labelWithString:text),base=NSFont.preferredFont(forTextStyle:style);l.font=weight == .regular ? base:NSFont(descriptor:base.fontDescriptor.addingAttributes([.traits:[NSFontDescriptor.TraitKey.weight:weight.rawValue]]),size:0) ?? base;l.lineBreakMode = .byWordWrapping;return l}

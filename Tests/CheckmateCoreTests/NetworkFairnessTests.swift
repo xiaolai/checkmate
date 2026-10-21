@@ -146,7 +146,7 @@ import CheckmateCore
         // While participating: no search at all.
         let refused=try lesson();refused.hint();refused.hint();refused.hint();try await Task.sleep(for:.milliseconds(30))
         XCTAssertEqual(engine.calls,1,"only the search started before joining");XCTAssertNil(refused.hintArrow)
-        XCTAssertEqual(refused.notice,FairnessPolicy.destinationUnavailable+".")
+        XCTAssertEqual(refused.notice,FairnessPolicy.destinationUnavailable)
     }
     /// D8 where the search starts: joining between the hint's call and its task's first run reaches no engine.
     func testALessonsEngineHintAskedJustBeforeJoiningReachesNoEngine()async throws {
@@ -227,7 +227,7 @@ import CheckmateCore
         s.fairness.participation.begin(.player);engine.holding=false;engine.releaseAll()
         do{_ = try await review.value;XCTFail("cached or fresh evidence was delivered")}catch{XCTAssertEqual(code(error),"NETWORK_GAME")}
         try await Task.sleep(for:.milliseconds(30))
-        XCTAssertNotEqual(s.coaching.status,"ready");XCTAssertNil(s.coaching.recommendation);XCTAssertTrue(s.arrows.isEmpty)
+        XCTAssertNotEqual(s.coaching.status,.ready);XCTAssertNil(s.coaching.recommendation);XCTAssertTrue(s.arrows.isEmpty)
         // A cached result is withheld too: compute it after leaving, then ask again while participating.
         s.fairness.participation.end();_ = try await analyzer.analyze(document:document,node:1,revision:0)
         s.fairness.participation.begin(.spectator);let calls=engine.calls

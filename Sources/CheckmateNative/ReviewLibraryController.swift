@@ -13,7 +13,7 @@ enum LibraryListItem {
 @MainActor final class ReviewLibraryController:ObservableObject {
     /// A free download page of World Championship PGN files; downloaded files can be imported as a collection.
     static let moreGamesURL=URL(string:"https://www.pgnmentor.com/files.html#world")!
-    static let collectionProvenance="Collection game"
+    static let collectionProvenance=ReviewProvenance.collectionGame
     enum Bundled:Equatable {case loading,loaded(GameLibrary),failed(String)}
     @Published private(set) var bundled:Bundled = .loading
     @Published private(set) var catalog=LibraryCatalog(library:nil,collections:[]){didSet{refilter()}}
@@ -218,7 +218,7 @@ enum LibraryListItem {
                 collectionsGeneration+=1
                 if reveal{revealing=index.sha256;collapsed.remove("collection:"+index.sha256)}
                 if !collections.contains(where:{$0.sha256==index.sha256}){collections.append(index)};broken.removeAll{$0.id==index.sha256};rebuild()
-                if index.unreadable>0{model?.storageError="\(index.unreadable) game\(index.unreadable==1 ? "":"s") in \(PGNImporter.bounded(index.name,scalars:80)) could not be read and \(index.unreadable==1 ? "was":"were") skipped."}
+                if index.unreadable>0{model?.storageError=Plural.count(index.unreadable,one:"%1$d game in %2$@ could not be read and was skipped.",other:"%1$d games in %2$@ could not be read and were skipped.",PGNImporter.bounded(index.name,scalars:80))}
             }catch{
                 guard importToken===token else{return};importing=nil;importToken=nil
                 if case CheckmateError.cancelled=error{return};if Task.isCancelled{return}
@@ -230,7 +230,7 @@ enum LibraryListItem {
     func requestRemove(_ collection:CollectionIndex){requestRemove(collection.sha256,name:collection.name,games:collection.records.count)}
     /// Every removal is confirmed, a broken collection's included: its file may still be recoverable.
     func requestRemove(_ sha:String,name:String,games:Int?){
-        let alert=NSAlert.destructive("Remove “\(PGNImporter.bounded(name,scalars:80))”?",games.map{"Its \($0) game\($0==1 ? "":"s") leave My games. Reviews you saved from them are kept."} ?? "Its file is deleted from My games. Reviews you saved from it are kept.",action:"Remove")
+        let alert=NSAlert.destructive("Remove “\(PGNImporter.bounded(name,scalars:80))”?",games.map{Plural.count($0,one:"Its %d game leaves My games. Reviews you saved from it are kept.",other:"Its %d games leave My games. Reviews you saved from them are kept.")} ?? "Its file is deleted from My games. Reviews you saved from it are kept.",action:"Remove")
         if let window=NSApp.mainWindow{alert.beginSheetModal(for:window){[weak self] response in if response == .alertFirstButtonReturn{self?.remove(sha)}}}
         else if alert.runModal() == .alertFirstButtonReturn{remove(sha)}
     }
