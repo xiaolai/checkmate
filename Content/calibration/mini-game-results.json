@@ -25,8 +25,8 @@
     {
       "changedByDeadline" : 0,
       "changedRate" : 0,
-      "cutRate" : 0.013477088948787063,
-      "deadlineCuts" : 5,
+      "cutRate" : 0.0215633423180593,
+      "deadlineCuts" : 8,
       "decisions" : 371,
       "game" : "pawn-duel",
       "games" : 40,
@@ -91,8 +91,8 @@
     {
       "changedByDeadline" : 0,
       "changedRate" : 0,
-      "cutRate" : 0.2851153039832285,
-      "deadlineCuts" : 136,
+      "cutRate" : 0.2809224318658281,
+      "deadlineCuts" : 134,
       "decisions" : 477,
       "game" : "rooks-and-pawns",
       "games" : 40,
@@ -155,11 +155,11 @@
       "milliseconds" : 650
     },
     {
-      "changedByDeadline" : 1,
-      "changedRate" : 0.0017857142857142857,
-      "cutRate" : 0.3375,
-      "deadlineCuts" : 189,
-      "decisions" : 560,
+      "changedByDeadline" : 3,
+      "changedRate" : 0.005338078291814947,
+      "cutRate" : 0.33274021352313166,
+      "deadlineCuts" : 187,
+      "decisions" : 562,
       "game" : "bishops-and-pawns",
       "games" : 40,
       "level" : "challenging",
@@ -1530,15 +1530,15 @@
     }
   ],
   "identity" : {
-    "binarySHA256" : "0fefffb099899ee46bb3da8967f821ed8bbb40f897a20b477a90facbca2ca681",
+    "binarySHA256" : "9bda72542d3c7c0204c4bb4e656668f0afe954a62dbc3c606a8b743081c77ddb",
     "cores" : 12,
     "cpu" : "Apple M6",
-    "date" : "2026-10-20T04:07:11Z",
+    "date" : "2026-10-21T06:32:05Z",
     "os" : "Version 27.0.1 (Build 26A434)",
     "sourceSHA256" : {
       "Content\/calibration\/mini-game-manifest.json" : "ec47b2da020482efbd3b11ad078a97f547433e6c998bc1b656e8c5cc60ad474c",
       "Sources\/CheckmateDomain\/ChessNotation.swift" : "eb3ac1a569cda5896981f054093d313b99b614c47af7d112edf5ac07eb1c75f6",
-      "Sources\/CheckmateDomain\/Course.swift" : "cc4b3a0f97ae5b19789fee662ebb855fc6535b89115ed36d21e3de28ebdc43e4",
+      "Sources\/CheckmateDomain\/Course.swift" : "5dbb9b164f731483f00c5ceb67b406678a937248268038528d72bc12debcf705",
       "Sources\/CheckmateDomain\/MiniGameCalibration.swift" : "6b90c929d3acc70a6563f40583d882a5fdfa00d47c865c4a5a6b43025594f240",
       "Sources\/CheckmateDomain\/MiniGames.swift" : "2db094bc21aadbfd8a4028a1c1df1cbc124b4e72730dc933ee804b9b71e4baac",
       "Tools\/MiniGameCalibration\/main.swift" : "e0ed49f4c3feebe7e9ea43890bd375664600e34d7caf99e3a77f1e84d0eb9957"
@@ -1654,8 +1654,8 @@
   "requiredGamesPerPairing" : 386,
   "smoke" : false,
   "timing" : {
-    "deadlineSeconds" : 172.1910240650177,
-    "deterministicSeconds" : 2221.398465037346,
+    "deadlineSeconds" : 172.452751994133,
+    "deterministicSeconds" : 2246.2796889543533,
     "gameThreads" : 12,
     "loadThreads" : 12
   },

@@ -65,7 +65,7 @@ import CheckmateCore
         }
         return recorder.title
     }
-    private final class PressRecorder:NSObject {var title:String?;@objc func press(_ sender:NSButton){title=title ?? sender.title}}
+    @MainActor private final class PressRecorder:NSObject {var title:String?;@objc func press(_ sender:NSButton){title=title ?? sender.title}}
     /// Every confirmation of something destructive is built by `NSAlert.destructive` (or `saveChanges`), so none can leave Return on it.
     func testNoDestructiveAlertIsHandBuilt()throws {
         let sources=URL(fileURLWithPath:#filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("Sources")

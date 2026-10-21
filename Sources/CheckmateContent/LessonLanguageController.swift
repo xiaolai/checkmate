@@ -2,6 +2,23 @@ import CheckmateDomain
 import CheckmateSupport
 import Foundation
 import Combine
+/// What Translate or Record / Resume would do for every lesson, shown for confirmation before anything is requested.
+/// `seconds` is estimated from earlier completed runs on this Mac (nil before the first); `untranslated` counts the
+/// lessons a recording job skips because they have no translated text.
+public struct LessonJobPlan:Equatable,Sendable {
+ public let mode:String,language:String,voice:String,lessons:Int,clips:Int,untranslated:Int,seconds:Double?
+ private static func count(_ n:Int,_ noun:String)->String {"\(n) \(noun)\(n==1 ? "":"s")"}
+ public var title:String {mode=="translate" ? "Translate \(Self.count(lessons,"lesson")) into \(language)?":"Record \(Self.count(clips,"clip")) for \(Self.count(lessons,"lesson"))?"}
+ public var action:String {mode=="translate" ? "Translate":"Record"}
+ public var message:String {
+  var parts=[mode=="translate" ? "Each lesson is one translation request on your signed-in account.":"Each clip is one recording request on your signed-in account, in the \(voice.capitalized) voice."]
+  if mode != "translate",untranslated>0{parts.append("\(Self.count(untranslated,"lesson")) \(untranslated==1 ? "has":"have") no translated text yet and \(untranslated==1 ? "is":"are") skipped; translate \(untranslated==1 ? "it":"them") first.")}
+  if let seconds{let minutes=Int((seconds/60).rounded(.up));parts.append(seconds<60 ? "Estimated time: less than a minute, judged from earlier runs on this Mac.":"Estimated time: about \(Self.count(minutes,"minute")), judged from earlier runs on this Mac.")}
+  else{parts.append("No time estimate yet: there are no earlier \(mode=="translate" ? "translations":"recordings") on this Mac to judge from.")}
+  parts.append("You can cancel at any time; finished work is kept.")
+  return parts.joined(separator:" ")
+ }
+}
 @MainActor public final class LessonLanguageController:ObservableObject {
  public let library:CourseLibrary,store:LessonPackStore,usage:UsageLedger
  @Published public var language="en" {didSet{if oldValue != language{selectionChanged()}}}
@@ -64,10 +81,45 @@ import Combine
  public func translate(){start(mode:"translate")}
  public func record(){start(mode:"record")}
  public func preview(){start(mode:"preview")}
+ /// Why a job cannot start now, or nil.
+ private func startProblem(mode:String)->String? {
+  if let problem=store.unavailableReason{return problem}
+  guard !busy,!planning,LessonLanguages.normalizedSelection(language)==language,language != "en",library.lessons.indices.contains(selectedLesson),["cedar","marin"].contains(voice) else{return "Choose a supported language and lesson first."}
+  if mode != "translate",voiceConflict(){return "Disconnect the voice coach before generating lesson recordings."}
+  return nil
+ }
+ /// While Translate or Record for every lesson checks the sign-in and counts the work.
+ @Published public private(set) var planning=false
+ /// Before Translate or Record for every lesson: confirms the sign-in, then counts what is still to do, so the learner
+ /// can confirm a long job before anything is requested. Nil, with the reason in `status`, when there is nothing to
+ /// confirm: the sign-in failed, the selection changed meanwhile, or every lesson is already done.
+ public func planAll(mode:String) async -> LessonJobPlan? {
+  guard mode=="translate" || mode=="record" else{return nil}
+  if let problem=startProblem(mode:mode){status=problem;return nil}
+  let locale=language,chosenVoice=voice,store=store,library=library;planning=true;defer{planning=false};status="Checking your sign-in…"
+  do{_=try await translator.accountStatus()}catch{status="Nothing was started: your sign-in could not be confirmed. "+userFacingMessage(error,fallback:"Sign in, then try again.");return nil}
+  let counts=await Task.detached{()->(lessons:Int,clips:Int,untranslated:Int) in var lessons=0,clips=0,untranslated=0
+   for index in library.lessons.indices {let source=LessonTranslation.source(library:library,index:index)
+    // Damaged text or recordings count as missing: this is a count for the confirmation, and the job itself replaces
+    // or reports each damaged file.
+    let text:LessonTranslation?;do{text=try store.translation(source:source,locale:locale)}catch{text=nil}
+    if mode=="translate"{if text==nil{lessons+=1};continue}
+    guard text != nil else{untranslated+=1;continue}
+    let stored:Int;do{stored=try store.partialPack(source:source,locale:locale,voice:chosenVoice)?.clips.count ?? 0}catch{stored=0}
+    let missing=source.beats.count-stored;if missing>0{lessons+=1;clips+=missing}}
+   return (lessons,clips,untranslated)}.value
+  guard language==locale,voice==chosenVoice,allLessons else{status="The selection changed while it was checked. Choose \(mode=="translate" ? "Translate":"Record / Resume") again.";return nil}
+  let name=LessonLanguages.name(locale)
+  if counts.lessons==0{status=mode=="translate" ? "Every lesson already has translated text in \(name).":"Every translated lesson already has all its recordings."+(counts.untranslated>0 ? " \(counts.untranslated) lessons have no translated text yet; translate them first.":"");return nil}
+  let activity:UsageActivity=mode=="translate" ? .translation:.lessonRecording,each=usage.records.filter{$0.activity==activity && $0.status == .completed}.map{$0.updatedAt.timeIntervalSince($0.startedAt)}.sorted()
+  let typical=each.isEmpty ? nil:each[each.count/2]
+  status="Waiting for you to confirm."
+  return LessonJobPlan(mode:mode,language:name,voice:chosenVoice,lessons:counts.lessons,clips:counts.clips,untranslated:counts.untranslated,seconds:typical.map{$0*Double(mode=="translate" ? counts.lessons:counts.clips)})
+ }
+ /// The learner said no to a planned job: nothing was requested.
+ public func declinePlan(){guard !busy else{return};status="Nothing was started."}
  private func start(mode:String) {
-  if let problem=store.unavailableReason{status=problem;return}
-  guard !busy,LessonLanguages.normalizedSelection(language)==language,language != "en",library.lessons.indices.contains(selectedLesson),["cedar","marin"].contains(voice) else{status="Choose a supported language and lesson first.";return}
-  if mode != "translate",voiceConflict(){status="Disconnect the voice coach before generating lesson recordings.";return}
+  if let problem=startProblem(mode:mode){status=problem;return}
   let locale=language,chosenVoice=voice,indices=allLessons && mode != "preview" ? Array(library.lessons.indices):[selectedLesson],id=UUID();generation=id;busy=true;recording=mode != "translate";previewURL=nil;problems=[]
   // Each lesson and clip either completes or becomes a named problem; the job continues with the rest, retries last
   // run's failures last (never re-billing the same failure first), and stops after three failures in a row.

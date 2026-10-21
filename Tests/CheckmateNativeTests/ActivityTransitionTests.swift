@@ -169,6 +169,12 @@ import CheckmateCore
         model.session.closePresentation();model.session.cancelWork()
     }
 
+    /// Check Yourself, from a finished lesson, opens that lesson's first puzzle as the puzzle activity.
+    func testCheckYourselfOpensTheLessonsFirstPuzzle()throws {
+        let model=try NativeModel();defer{model.shutdown()}
+        let fork=try XCTUnwrap(model.learning.library.lessons.firstIndex{$0.id=="fork"});model.lesson(fork);model.learning.pause()
+        model.checkYourself(fork);XCTAssertEqual(model.session.activity,.at(.puzzle(id:"course:fork:1")));XCTAssertEqual(model.learning.topic,"The Fork")
+    }
     /// Codex objection 1: the displayed puzzle is part of the activity; leaving it for a review and returning shows it again.
     func testAReviewOverAPuzzleReturnsToThatPuzzle()throws {
         let model=try NativeModel();defer{model.shutdown()}

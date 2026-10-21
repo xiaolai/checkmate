@@ -1,7 +1,7 @@
 """Silent test-host real-pointer checks for lesson exercises: the invitation step's own board takes the moves.
 
 Covers, with real pointer events: castling by click and by drag with both drawers closed; an impossible castling
-explained in Castling Rules; a tactic's off-track move, Undo turn, the authored line, success and Play on; leaving the
+explained in Castling Rules; a tactic's off-track move, Take Back, the authored line, success and Play on; leaving the
 exercise and coming back; promotion through the native menu; a relaunch restoring the attempt; and the practice game
 staying exactly as it was throughout.
 """
@@ -123,13 +123,13 @@ try:
  pointer('shortcut','35','c');wait(lambda:'AXButton: Play' in listing(),'⌘P did not pause the instruction')
  results['lessonMenuShortcuts']=True
 
- # The Fork: an off-track move, Undo turn, then the authored line to success and Play on.
+ # The Fork: an off-track move, Take Back, then the authored line to success and Play on.
  exercise('The Fork','fork')
  teaching=practice['fork']['teaching']
  off=next(m for m in ['a2a3','h2h3','b2b3','g2g3'] if m not in teaching[0]['accepted'])
  play(off);wait(title('The Fork · Try again'),'The Fork: an off-track move was not called out')
- pointer('click','Undo turn');wait(title('The Fork · Your turn'),'The Fork: Undo turn did not return to the learner')
- wait(lambda:attempt('fork').get('moves')==[],'The Fork: Undo turn left moves behind in the saved attempt')
+ pointer('click','Take Back');wait(title('The Fork · Your turn'),'The Fork: Take Back did not return to the learner')
+ wait(lambda:attempt('fork').get('moves')==[],'The Fork: Take Back left moves behind in the saved attempt')
  node=0;played=[]
  while True:
   move=teaching[node]['accepted'][0];play(move);played.append(move)

@@ -362,7 +362,7 @@ def king_route_exists(board, origin, target):
 
 def validate_puzzle(puzzle):
     where = puzzle.get('id', '?')
-    assert set(puzzle) == {'id', 'title', 'topic', 'level', 'exercise', 'board', 'highlights', 'context', 'explanation'}, f'{where}: puzzle fields'
+    assert set(puzzle) == {'id', 'title', 'topic', 'lesson', 'level', 'exercise', 'board', 'highlights', 'context', 'explanation'}, f'{where}: puzzle fields'
     assert puzzle['level'] in LEVELS, f'{where}: level'
     for field in ('title', 'topic', 'explanation'):
         assert isinstance(puzzle[field], str) and puzzle[field].strip(), f'{where}: {field}'
@@ -628,7 +628,7 @@ def validate_practice_exercise(lesson, frames):
 def validate_lesson(lesson):
     where = lesson.get('id', '?')
     assert LESSON_ID.match(where), f'{where}: lesson ids are lowercase words joined by hyphens'
-    assert set(lesson) <= {'id', 'title', 'teaches', 'mascot', 'practiceFor', 'practice', 'beats'}, f'{where}: lesson fields'
+    assert set(lesson) <= {'id', 'title', 'section', 'teaches', 'mascot', 'practiceFor', 'practice', 'beats'}, f'{where}: lesson fields'
     assert isinstance(lesson['title'], str) and lesson['title'].strip(), f'{where}: title'
     assert lesson['teaches'] and all(isinstance(t, str) and t.strip() for t in lesson['teaches']), f'{where}: takeaways'
     assert lesson.get('mascot') is None or lesson['mascot'] in rules.PIECES, f'{where}: mascot'
@@ -667,6 +667,31 @@ def validate_practice(lessons):
         assert isinstance(target, str), f"practiceFor must name a lesson: {lesson['id']}"
         assert target != lesson['id'], f"A lesson cannot practise itself: {lesson['id']}"
         assert target == parent, f"{lesson['id']} must practise the nearest main lesson before it ({parent}), not {target}"
+
+
+def validate_sections(lessons):
+    """Every lesson names its course section; a section's lessons are adjacent, and practice is in its lesson's section."""
+    seen, sections = [], {}
+    for lesson in lessons:
+        section = lesson.get('section')
+        assert isinstance(section, str) and section.strip(), f"{lesson['id']}: section"
+        if 'practiceFor' in lesson:
+            assert section == sections.get(lesson['practiceFor']), f"{lesson['id']}: practice is in its lesson's section"
+        if not seen or seen[-1] != section:
+            assert section not in seen, f"{lesson['id']}: section {section!r} is split"
+            seen.append(section)
+        sections[lesson['id']] = section
+
+
+def validate_links(lessons, puzzles):
+    """Every puzzle names the lesson it checks by stable id and shows that lesson's title as its topic.
+    A course puzzle (course:<lesson>:<n>) checks its own lesson."""
+    titles = {lesson['id']: lesson['title'] for lesson in lessons}
+    for puzzle in puzzles:
+        where, lesson = puzzle['id'], puzzle.get('lesson')
+        assert lesson in titles, f'{where}: lesson {lesson!r} is not a lesson'
+        assert puzzle['topic'] == titles[lesson], f"{where}: topic {puzzle['topic']!r} is not the title of {lesson}"
+        assert not where.startswith('course:') or where.split(':')[1] == lesson, f'{where}: a course puzzle checks its own lesson'
 
 
 # Narration is recorded audio: it must not describe controls, whose names and places change without re-recording.
@@ -741,6 +766,9 @@ def validate(content, draft=False):
     assert len(set(puzzle_ids)) == len(puzzle_ids), 'Puzzle ids are unique'
     for puzzle in puzzles:
         validate_puzzle(puzzle)
+    if not draft:
+        validate_sections(lessons)
+        validate_links(lessons, puzzles)
     # Nothing of the original course returns: no wording, name or board position.
     # Puzzle explanations are also recorded, from their spoken form.
     spoken = [speech_text(p['explanation']) for p in puzzles]

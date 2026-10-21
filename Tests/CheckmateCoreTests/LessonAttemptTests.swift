@@ -151,7 +151,7 @@ final class LessonAttemptTests:XCTestCase {
         c.open(lessonID:"test",practice:p);c.hint();XCTAssertEqual(c.record?.hints,1)
         c.click("e1");c.click("c1");XCTAssertEqual(c.phase,.offTrack)
         c.hint();XCTAssertEqual(c.record?.hints,1);XCTAssertEqual(s.state.lessonAttempts?["test"]?.hints,1,"nor saved");XCTAssertNil(c.hintArrow)
-        XCTAssertEqual(c.notice,"Undo your last move first, then ask again.")
+        XCTAssertEqual(c.notice,"Take back your move first, then ask again.")
         c.undo();c.hint();XCTAssertEqual(c.hints,["Tuck the king away.","Look at the king and the h1 rook."],"the word ladder goes on")
     }
     /// Success with no hint in that attempt is recorded apart from success with help; both are practised.
@@ -163,6 +163,23 @@ final class LessonAttemptTests:XCTestCase {
         c.close();c.open(lessonID:"alone",practice:p);c.click("e1");c.click("g1");c.undo();c.click("e1");c.click("g1")
         XCTAssertEqual(s.state.course.practised,["helped","alone"]);XCTAssertEqual(s.state.course.unaided,["helped","alone"],"recorded once")
         var bad=s.state;bad.course.unaided=(0..<201).map{"lesson-\($0)"};XCTAssertThrowsError(try StateStore.validate(bad))
+    }
+    /// Each exercise keeps whether its first outcome was a success with no hint, and the fewest hints a success needed.
+    @MainActor func testAnExerciseRecordsItsFirstTryAndTheFewestHints()throws {
+        let (s,c)=try controller(),p=try castling()
+        c.open(lessonID:"first",practice:p);c.click("e1");c.click("g1")
+        XCTAssertEqual(s.state.course.exercises?["first"],ExerciseProgress(firstTry:true,hints:0))
+        c.open(lessonID:"wrong",practice:p);c.click("e1");c.click("c1");XCTAssertEqual(c.phase,.offTrack)
+        XCTAssertEqual(s.state.course.exercises?["wrong"],ExerciseProgress(firstTry:false,hints:nil),"going off track decides the first try")
+        c.undo();c.hint();c.hint();c.click("e1");c.click("g1");XCTAssertEqual(s.state.course.exercises?["wrong"],ExerciseProgress(firstTry:false,hints:2))
+        c.restart();c.hint();c.click("e1");c.click("g1");XCTAssertEqual(s.state.course.exercises?["wrong"]?.hints,1,"the fewest hints is kept")
+        c.open(lessonID:"helped",practice:p);c.hint();c.click("e1");c.click("g1");XCTAssertEqual(s.state.course.exercises?["helped"],ExerciseProgress(firstTry:false,hints:1),"a success with a hint is not first try")
+        c.restart();c.click("e1");c.click("g1");XCTAssertEqual(s.state.course.exercises?["helped"],ExerciseProgress(firstTry:false,hints:0))
+        var bad=s.state;bad.course.exercises=["x":ExerciseProgress(firstTry:true,hints:4)];XCTAssertThrowsError(try StateStore.validate(bad))
+        bad.course.exercises=Dictionary(uniqueKeysWithValues:(0..<201).map{("lesson-\($0)",ExerciseProgress(firstTry:true,hints:0))});XCTAssertThrowsError(try StateStore.validate(bad))
+        bad.course.exercises=["":ExerciseProgress(firstTry:true,hints:0)];XCTAssertThrowsError(try StateStore.validate(bad))
+        var puzzle=PuzzleProgress();puzzle.hints=PuzzleProgress.maximumHints+1;bad=s.state;bad.puzzles["extra-1"]=puzzle;XCTAssertThrowsError(try StateStore.validate(bad))
+        puzzle.hints=PuzzleProgress.maximumHints;bad.puzzles["extra-1"]=puzzle;XCTAssertNoThrow(try StateStore.validate(bad))
     }
     /// Restart asks first only once more than the first exchange (two moves) would be lost.
     @MainActor func testRestartNeedsConfirmationOnlyAfterTheFirstExchange()async throws {

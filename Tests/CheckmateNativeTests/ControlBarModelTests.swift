@@ -56,6 +56,26 @@ import CheckmateCore
         model.learning.click("e1");model.learning.click("g1")
         XCTAssertEqual(bar(model).item(.attemptUndo)?.enabled,true);XCTAssertEqual(bar(model).item(.attemptRestart)?.enabled,true)
     }
+    /// Off track, the way back is one prominent Take Back: the authored refutation stays on the board until the learner
+    /// takes the move back, and Hint, which can only repeat the advice, is not offered.
+    func testOffTrackOffersOneProminentTakeBack()throws {
+        let model=try NativeModel();defer{model.shutdown()}
+        let castling=try index(model,"castling");model.lesson(castling);model.learning.pause();model.learning.goToAttempt()
+        XCTAssertEqual(bar(model).item(.attemptUndo)?.label,"Undo turn");XCTAssertEqual(bar(model).item(.attemptUndo)?.prominent,false)
+        model.learning.click("e1");model.learning.click("f1");XCTAssertEqual(model.learning.attempt.phase,.offTrack)
+        let shown=bar(model);XCTAssertEqual(shown.trailing.map(\.action),[.attemptUndo,.attemptRestart])
+        XCTAssertEqual(shown.item(.attemptUndo)?.label,"Take Back");XCTAssertEqual(shown.item(.attemptUndo)?.prominent,true);XCTAssertEqual(shown.item(.attemptUndo)?.enabled,true)
+        model.learning.attempt.undo();XCTAssertEqual(model.learning.attempt.phase,.yourTurn);XCTAssertEqual(bar(model).trailing.map(\.action),[.attemptHint,.attemptUndo,.attemptRestart])
+    }
+    /// An unsolved puzzle offers its hint ladder and Skip; a solved one offers only the prominent way on.
+    func testAPuzzleOffersHintAndSkipUntilSolved()throws {
+        let model=try NativeModel();defer{model.shutdown()}
+        model.puzzles();model.learning.openPuzzle(id:"extra-1")
+        XCTAssertEqual(bar(model).trailing.map(\.action),[.puzzleHint,.skipPuzzle]);XCTAssertEqual(bar(model).item(.puzzleHint)?.label,"Hint");XCTAssertEqual(bar(model).item(.puzzleHint)?.enabled,true)
+        model.learning.hint();XCTAssertEqual(bar(model).item(.puzzleHint)?.label,"Another Hint")
+        model.learning.hint();XCTAssertEqual(bar(model).item(.puzzleHint)?.enabled,false,"after the ladder only Reveal is left")
+        model.learning.reveal();XCTAssertEqual(bar(model).trailing.map(\.action),[.nextPuzzle]);XCTAssertEqual(bar(model).item(.nextPuzzle)?.prominent,true)
+    }
     /// Practice puts the turn in the centre, New game at the leading edge and the game's help at the trailing edge,
     /// with the voice coach as its own group; a held game is resumed by a named button, never a play symbol.
     func testPracticeStatusSitsInTheCentreWithNamedRecovery()throws {

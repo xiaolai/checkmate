@@ -37,13 +37,13 @@ struct LessonSettingsPane:View {
             Picker("Lesson",selection:$controller.selectedLesson){ForEach(Array(library.lessons.enumerated()),id:\.element.id){index,lesson in Text(lesson.title).tag(index)}}.disabled(controller.busy || controller.allLessons)
             Picker("Recording voice",selection:Binding(get:{controller.voice},set:{select(voice:$0)})){Text("Cedar").tag("cedar");Text("Marin").tag("marin")}.disabled(controller.busy)
             HStack {
-                Button("Translate"){controller.translate()}.disabled(controller.busy || controller.language=="en").accessibilityIdentifier("lesson-translate")
+                Button("Translate"){if controller.allLessons{confirmAll("translate")}else{controller.translate()}}.disabled(controller.busy || controller.planning || controller.language=="en").accessibilityIdentifier("lesson-translate")
                 Button("Generate preview"){controller.preview()}.disabled(controller.busy || audioConflict || controller.language=="en")
                 Button("Play preview"){if let url=controller.previewURL{controller.playPreview?(url)}}.disabled(controller.busy || audioConflict || controller.previewURL==nil || !narrationAudible)
             }
             if controller.previewURL != nil,!narrationAudible{Text("Turn on Narration and raise Narration volume under Lesson playback to hear the preview.").font(.caption).foregroundStyle(.secondary)}
             HStack {
-                Button("Record / Resume"){controller.record()}.disabled(controller.busy || audioConflict || controller.language=="en")
+                Button("Record / Resume"){if controller.allLessons{confirmAll("record")}else{controller.record()}}.disabled(controller.busy || controller.planning || audioConflict || controller.language=="en")
                 Button("Cancel"){controller.cancel()}.disabled(!controller.canCancel).accessibilityIdentifier("lesson-job-cancel")
                 Button("Remove stored lesson",role:.destructive){confirmRemove()}.disabled(controller.busy || controller.language=="en")
             }
@@ -66,6 +66,14 @@ struct LessonSettingsPane:View {
             Section("Translated text") {ScrollView{Text(controller.inspection).textSelection(.enabled).frame(maxWidth:.infinity,alignment:.leading)}.frame(minHeight:Metrics.lessonInspectionMinimum,maxHeight:Metrics.lessonInspectionMaximum)}
         }
     }
+    /// Every lesson is a long job billed to the learner's account: the sign-in is checked and the work counted first,
+    /// and nothing is requested until the learner confirms the counts.
+    private func confirmAll(_ mode:String){Task{@MainActor in
+        guard let plan=await controller.planAll(mode:mode) else{return}
+        let alert=NSAlert();alert.messageText=plan.title;alert.informativeText=plan.message;alert.addButton(withTitle:plan.action);alert.addButton(withTitle:"Cancel")
+        guard alert.runModal() == .alertFirstButtonReturn else{controller.declinePlan();return}
+        if mode=="translate"{controller.translate()}else{controller.record()}
+    }}
     private func confirmPurge(){
         confirm("Remove outdated translations?","This removes translated text and recordings made for earlier versions of these lessons, which this version can no longer use. Current translations, recordings and your progress are kept.",action:"Remove"){controller.purgeOutdated()}
     }

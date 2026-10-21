@@ -141,7 +141,7 @@ public struct LessonAttemptProjection:Codable,Equatable {
     /// Off track it only explains: nothing is shown, so the hint count stays as it was.
     public func hint(){
         guard active,var record,learnerToMove || phase == .offTrack else{return}
-        if phase == .offTrack{notice="Undo your last move first, then ask again.";onChange();return}
+        if phase == .offTrack{notice="Take back your move first, then ask again.";onChange();return}
         let words=min(2,practice?.hints?.count ?? 0)
         if !hasMoves,record.hints<words{record.hints+=1;self.record=record;save();onChange();return}
         record.hints=3;self.record=record;save()
@@ -210,11 +210,19 @@ public struct LessonAttemptProjection:Codable,Equatable {
         guard let practice,let record else{judgement=nil;return false}
         do{judgement=try LessonAttemptJudge.judge(practice,moves:record.moves,playOn:record.playOn,rules:rules);return true}catch{judgement=nil;return false}
     }
-    /// Success is practised; success in an attempt with no hint shown is also unaided (`LessonStatus`).
+    /// Success is practised; success in an attempt with no hint shown is also unaided (`LessonStatus`). The exercise's
+    /// first outcome (success, going off track or a lost position) decides its first try; every success keeps the
+    /// fewest hints it needed.
     private func recordAchievement(was:Bool){
-        guard !was,judgement?.achieved==true,let lessonID else{return}
+        guard let lessonID,let record,let phase else{return}
+        let achieved = !was && judgement?.achieved==true,before=session.state.course.exercises?[lessonID] ?? ExerciseProgress()
+        var progress=before
+        if progress.firstTry==nil,achieved || phase == .offTrack || phase == .failed{progress.firstTry=achieved && record.hints==0}
+        if achieved{progress.hints=min(progress.hints ?? record.hints,record.hints)}
+        if progress != before{session.state.course.exercises=(session.state.course.exercises ?? [:]).merging([lessonID:progress]){_,new in new}}
+        guard achieved else{return}
         var practised=session.state.course.practised ?? [];if !practised.contains(lessonID){practised.append(lessonID);session.state.course.practised=practised}
-        guard record?.hints==0 else{return}
+        guard record.hints==0 else{return}
         var unaided=session.state.course.unaided ?? [];if !unaided.contains(lessonID){unaided.append(lessonID);session.state.course.unaided=unaided}
     }
     private func save(){
