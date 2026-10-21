@@ -38,6 +38,8 @@ import CheckmateCore
             if automation,CommandLine.arguments.contains("--opponent-fixture"){try model.companion.enable(role:"opponent");try model.session.playWhite(from:"e2",to:"e4")}
             if automation,let i=CommandLine.arguments.firstIndex(of:"--review-batch-scenario"),i+1<CommandLine.arguments.count{runReviewBatchScenario(directory:CommandLine.arguments[i+1])}
             if automation,let i=CommandLine.arguments.firstIndex(of:"--review-scenario"),i+1<CommandLine.arguments.count{runReviewScenario(directory:CommandLine.arguments[i+1])}
+            // A Rook Sweep one capture from its end, for a pointer gate to finish and review with real clicks (L-25).
+            if automation,CommandLine.arguments.contains("--mini-review-fixture"){seedAlmostWonRookSweep(model:model);window.refresh()}
             if automation,let i=CommandLine.arguments.firstIndex(of:"--pawn-duel-scenario"),i+1<CommandLine.arguments.count{runPawnDuelScenario(directory:CommandLine.arguments[i+1])}
             if automation,let i=CommandLine.arguments.firstIndex(of:"--snapshot"),i+1<CommandLine.arguments.count{DispatchQueue.main.asyncAfter(deadline:.now()+1){window.snapshot(CommandLine.arguments[i+1])}}
             if automation,let i=CommandLine.arguments.firstIndex(of:"--fullscreen-scenario"),i+1<CommandLine.arguments.count{runFullscreen(directory:CommandLine.arguments[i+1])}
@@ -476,6 +478,13 @@ import CheckmateCore
             try JSONSerialization.data(withJSONObject:result,options:[.prettyPrinted,.sortedKeys]).write(to:URL(fileURLWithPath:directory+"/review-ui-results.json"));NSApp.terminate(nil)
         }catch{try? JSONSerialization.data(withJSONObject:["passed":false,"error":String(describing:error)]).write(to:URL(fileURLWithPath:directory+"/review-ui-results.json"));NSApp.terminate(nil)}
     }}
+    /// Opens Rook Sweep at a position where a1–a7 takes the last pawn and wins, with its review's one fact.
+    func seedAlmostWonRookSweep(model:NativeModel){
+        var almost=MiniGameState(kind:.rookSweep);almost.snapshot.board=["a1":"wr","h2":"wp","e5":"br","a7":"bp"]
+        if model.session.state.miniGames==nil{model.session.state.miniGames=[:]};model.session.state.miniGames?[MiniGameKind.rookSweep.rawValue]=almost
+        if let lesson=model.learning.library.lessons.firstIndex(where:{$0.id==MiniGameKind.rookSweep.lessonID}){model.lesson(lesson)}
+        model.learning.startMini(.rookSweep)
+    }
     func runPawnDuelScenario(directory:String){
         guard let game=game,let model=model else{return}
         Task {
@@ -536,10 +545,7 @@ import CheckmateCore
             }
             final class Requests {var scripts:[String]=[],other=0}
             var reading:[String:Any]=["offered":false]
-            var almost=MiniGameState(kind:.rookSweep);almost.snapshot.board=["a1":"wr","h2":"wp","e5":"br","a7":"bp"]
-            model.session.state.miniGames?[MiniGameKind.rookSweep.rawValue]=almost
-            if let lesson=model.learning.library.lessons.firstIndex(where:{$0.id==MiniGameKind.rookSweep.lessonID}){model.lesson(lesson)}
-            model.learning.startMini(.rookSweep);game.refresh();try? await Task.sleep(for:.milliseconds(100))
+            seedAlmostWonRookSweep(model:model);game.refresh();try? await Task.sleep(for:.milliseconds(100))
             await click("a1");await click("a7")
             for _ in 0..<150 where !game.miniReviewSheetShown{try? await Task.sleep(for:.milliseconds(40))}
             let sheetShown=game.miniReviewSheetShown,facts=model.learning.miniReview.review?.facts.map(\.text) ?? []

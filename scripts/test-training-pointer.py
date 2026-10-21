@@ -3,7 +3,7 @@
 Every action is a posted mouse event (accessibility presses bypass hit-testing): the library entries, square
 selection with Submit and None, a clicked and a dragged move, Hint, Try again, Back to training, and Pawn Duel
 opened from the library with its level picker (the levels calibration offers, shown as Gentle, Steady and Strong) and
-"Start a New Game at" the chosen level, then its side picker set to Black and a clicked move as Black. The app runs with its own automation identifier and data directory, training enabled.
+"Start a New Game at" the chosen level, then its side picker set to Black and a clicked move as Black, then a finished mini-game's review: a fact's own Show on Board and Show Final Position. The app runs with its own automation identifier and data directory, training enabled.
 """
 import atexit
 import json
@@ -324,8 +324,37 @@ try:
     wait(lambda: label(step).startswith(step + ", " + ("White" if drill["piece"][0] == "w" else "Black")), "Continue did not resume the saved board")
     resumed_after_quit = True
 
+    # A finished mini-game's review (L-25): Rook Sweep one capture from its end, won with clicks; the fact's own Show on
+    # Board (each fact has its own, so the click names one) shows the position before the move, and Show Final Position
+    # in the drawer returns to the finished game.
+    pointer("menu", "Checkmate", "Quit Checkmate")
+    deadline = time.monotonic() + 15
+    while process.poll() is None and time.monotonic() < deadline:
+        time.sleep(0.2)
+    assert process.poll() is not None, "Quit did not end the app before the mini-game review"
+    process = subprocess.Popen(command + ["--mini-review-fixture"], env=environment, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    wait(lambda: "Chessboard" in listing(), "Board did not appear for the mini-game review")
+    wait(lambda: label("a1").startswith("a1, White, rook") and label("a7").startswith("a7, Black, pawn"), "The almost-won Rook Sweep did not open")
+    pointer("click-square", "a1")
+    pointer("click-square", "a7")
+    wait(lambda: "mini-review-show-on-board-1" in listing(), "Winning Rook Sweep did not open its review with Show on Board", 30)
+    assert "mini-review-show-on-board-2" not in listing(), "The one-fact review offered a second Show on Board"
+    pointer("click", "mini-review-show-on-board-1")
+    wait(lambda: "mini-review-show-on-board-1" not in listing(), "Show on Board did not close the review sheet")
+    wait(lambda: label("a1").startswith("a1, White, rook") and label("a7").startswith("a7, Black, pawn"), "Show on Board did not show the position the fact is about")
+    deadline = time.monotonic() + 3
+    while "mini-show-final" not in listing() and time.monotonic() < deadline:
+        time.sleep(0.2)
+    if "mini-show-final" not in listing():
+        pointer("click", "Details")
+    wait(lambda: "mini-show-final" in listing() and "mini-shown-fact" in listing(), "The drawer did not offer Show Final Position beside the shown fact")
+    pointer("click", "mini-show-final")
+    wait(lambda: label("a7").startswith("a7, White, rook") and "mini-show-final" not in listing(), "Show Final Position did not return to the finished game")
+    mini_review_shown = True
+
     result = {"passed": True, "pilotEntries": pilot, "drillDragAndClick": drill_dragged, "selectionSubmit": selection_submitted,
-              "hintRecordedHelp": hint_recorded, "legacyFromLibrary": legacy_from_library, "levelPicker": level_picker, "sidePickerPlayedBlack": side_picker, "suggestionPractised": suggestion_practised, "resumedAfterQuit": resumed_after_quit}
+              "hintRecordedHelp": hint_recorded, "legacyFromLibrary": legacy_from_library, "levelPicker": level_picker, "sidePickerPlayedBlack": side_picker, "suggestionPractised": suggestion_practised, "resumedAfterQuit": resumed_after_quit,
+              "miniReviewShowOnBoardAndFinal": mini_review_shown}
     (evidence / "training-pointer-results.json").write_text(json.dumps(result, indent=2))
     print(json.dumps(result))
 except Exception:

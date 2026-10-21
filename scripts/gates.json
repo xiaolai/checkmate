@@ -300,11 +300,14 @@
     "levelPicker",
     "sidePickerPlayedBlack",
     "resumedAfterQuit",
-    "suggestionPractised"
+    "suggestionPractised",
+    "miniReviewShowOnBoardAndFinal"
    ],
    "inputs": [
     "scripts/test-training-pointer.py",
     "Sources/CheckmateDomain/MiniGame*.swift",
+    "Sources/CheckmateNative/MiniGameReviewViews.swift",
+    "Sources/CheckmateApplication/MiniGameReviewer.swift",
     "Tools/pointer-helper.swift",
     "Tools/ax-helper.swift",
     "Sources/CheckmateNative/Training*.swift",
@@ -318,7 +321,8 @@
     "Sources/CheckmateApplication/Training*.swift",
     "Sources/CheckmateApplication/LearningPlayer.swift",
     "Sources/CheckmateApplication/WorkspaceTransitionCoordinator.swift",
-    "Sources/CheckmateCore/Resources/training/*"
+    "Sources/CheckmateCore/Resources/training/*",
+    "Sources/CheckmateNative/App.swift"
    ]
   },
   {
