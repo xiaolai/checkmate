@@ -46,6 +46,14 @@ final class LibraryOrganisationTests:XCTestCase {
         let other=ReviewStore(directory:folder);try other.save(try game("1. c4 *"),cursor:1,branches:[])
         XCTAssertEqual(try store.libraryBytes(),try scanned(folder))
     }
+    /// A file edited in place leaves the folder's own date alone; its own size and date still show the total is stale.
+    func testAFileEditedInPlaceIsMeasuredBeforeTheNextSave()throws {
+        let store=ReviewStore(directory:folder),first=try game("1. e4 *"),second=try game("1. d4 *")
+        try store.save(first,cursor:1,branches:[]);XCTAssertEqual(store.measurements,1)
+        let handle=try FileHandle(forWritingTo:store.documentURL(first.id));try handle.truncate(atOffset:UInt64(ReviewPolicy.maximumLibraryBytes));try handle.close()
+        XCTAssertThrowsError(try store.save(second,cursor:1,branches:[]),"a stale total would let this save pass the quota")
+        XCTAssertEqual(store.measurements,2);XCTAssertEqual(try store.libraryBytes(),try scanned(folder))
+    }
 
     // MARK: R-11
 

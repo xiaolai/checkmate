@@ -49,15 +49,21 @@ public final class ReviewStore {
     static let trashRetention:TimeInterval=30*24*3600
     private var trashChecked=false
     /// Bytes of every file in the library outside the Trash, kept up to date by the store's own writes so a save never
-    /// walks the folder (R-28). It holds only while the folder (and its Quarantine) still has the modification dates
-    /// the store last saw: a file added or removed by anything else changes them, and the next save measures again.
-    private var usedBytes:Int?,usedStamp:[Double]?
+    /// walks the folder (R-28). It holds only while every file in the folder and its Quarantine still has the size and
+    /// modification date the store last saw: a file added, removed or edited in place by anything else changes them, and
+    /// the next save measures again.
+    private var usedBytes:Int?,usedStamp:[String:String]?
     /// How many times the library has been measured by a full walk; tests read it.
     private(set) var measurements=0
     /// Each Trash folder's size, by its modification date, so a save does not reread every deleted review.
     private var trashSizes:[String:(stamp:Double,bytes:Int)]=[:]
     private func modified(_ url:URL)throws -> Double {FileManager.default.fileExists(atPath:url.path) ? ((try FileManager.default.attributesOfItem(atPath:url.path)[.modificationDate] as? Date)?.timeIntervalSinceReferenceDate ?? 0):-1}
-    private func folderStamp()throws -> [Double] {[try modified(directory),try modified(directory.appendingPathComponent("Quarantine"))]}
+    /// Each entry's size and modification date, by name, in the folder (the Trash is sized on its own) and its Quarantine.
+    private func folderStamp()throws -> [String:String] {
+        let files=FileManager.default,keys:Set<URLResourceKey>=[.fileSizeKey,.contentModificationDateKey]
+        return try [directory,directory.appendingPathComponent("Quarantine")].reduce(into:[:]){stamps,folder in guard files.fileExists(atPath:folder.path) else{return}
+            for file in try files.contentsOfDirectory(at:folder,includingPropertiesForKeys:Array(keys)) where !(folder==directory && file.lastPathComponent==trashURL.lastPathComponent){let values=try file.resourceValues(forKeys:keys);stamps[file.lastPathComponent+(folder==directory ? "":"@"+folder.lastPathComponent)]="\(values.fileSize ?? -1):\(values.contentModificationDate?.timeIntervalSinceReferenceDate ?? 0)"}}
+    }
     private func size(_ url:URL)throws -> Int {FileManager.default.fileExists(atPath:url.path) ? ((try FileManager.default.attributesOfItem(atPath:url.path)[.size] as? Int) ?? 0):0}
     /// The library's size outside the Trash: the running total, or a full walk when it is unknown or stale.
     func libraryBytes()throws -> Int {
