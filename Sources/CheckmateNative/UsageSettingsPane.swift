@@ -67,7 +67,7 @@ struct UsageSettingsPane:View {
                     if let locale=record.locale{LabeledContent("Language",value:locale)}
                     if let voice=record.voice{LabeledContent("Voice",value:voice.capitalized)}
                     if let outcome=record.narration{LabeledContent("Narration",value:outcome == .verified ? String(localized:"Heard as written",bundle:.checkmate):outcome == .unverified ? String(localized:"Shown as text instead",bundle:.checkmate):String(localized:"Stopped",bundle:.checkmate))}
-                    if let duration=record.durationSeconds{LabeledContent("Duration",value:String(format:"%.1f seconds",duration))}
+                    if let duration=record.durationSeconds{LabeledContent("Duration",value:Duration.seconds(duration).formatted(.units(allowed:[.seconds],width:.wide,fractionalPart:.show(length:1))))}
                     Text(record.startedAt.formatted(date:.abbreviated,time:.standard)).font(.caption)
                 } label:{Text("\(title(record.activity)) · \(record.status.rawValue.capitalized)")}
             }
