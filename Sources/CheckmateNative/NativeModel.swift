@@ -14,6 +14,8 @@ import RealtimeConnection
     /// The voice coach's door into a standard-rule training game (mini-game plan WI-021); nil unless its flag is on.
     let trainingVoice:TrainingVoiceAdapter?
     let reviewStore:ReviewStore,reviewAnalyzer:ReviewAnalyzer
+    /// Retry mode over the review (R-18).
+    let reviewRetry:ReviewRetry
     /// The network-game fairness check every engine and voice component shares (LAN-play plan D8), and the network game.
     let fairness:FairnessPolicy,network:NetworkGameController
     /// The network game's own hints, under its agreed terms (assistance plan A8).
@@ -83,7 +85,7 @@ import RealtimeConnection
         // One fairness check for every component that can reach the engine or the voice coach (LAN-play plan D8).
         let engine=NativeEngine(),fairness=FairnessPolicy();self.fairness=fairness;reviewAnalyzer=ReviewAnalyzer(engine:engine,cacheDirectory:store.directory.appendingPathComponent("ReviewAnalysis"),fairness:fairness);reviewStore=ReviewStore(directory:store.directory.appendingPathComponent("Reviews"))
         reviewSaves=ReviewSaveCoordinator(store:reviewStore)
-        session=try GameSession(engine:engine,state:state,fairness:fairness);review.fairness=fairness;review.analyzer=reviewAnalyzer;network=try NetworkGameController(services:Self.networkServices(directory:store.directory),participation:fairness.participation,playerName:Self.defaultPlayerName);session.network=network;networkAssistant=NetworkAssistant(game:network,fairness:fairness,engine:engine);learning=try LearningPlayer(session:session);audio=NativeAudio(scores:learning.library.sounds);learning.audio=audio
+        session=try GameSession(engine:engine,state:state,fairness:fairness);review.fairness=fairness;review.analyzer=reviewAnalyzer;reviewRetry=ReviewRetry(review:review,analyzer:reviewAnalyzer);network=try NetworkGameController(services:Self.networkServices(directory:store.directory),participation:fairness.participation,playerName:Self.defaultPlayerName);session.network=network;networkAssistant=NetworkAssistant(game:network,fairness:fairness,engine:engine);learning=try LearningPlayer(session:session);audio=NativeAudio(scores:learning.library.sounds);learning.audio=audio
         training=TrainingRolloutPolicy.enabled ? TrainingController(session:session,learning:learning):nil;training?.games.engine=engine;training?.games.fairness=fairness
         if TrainingRolloutPolicy.trainingVoiceEnabled,let training{trainingVoice=TrainingVoiceAdapter(session:session,controller:training)}else{trainingVoice=nil}
         companion=try CompanionBroker(session:session,directory:store.directory.appendingPathComponent("companion"));voice=try VoiceCoach(session:session)

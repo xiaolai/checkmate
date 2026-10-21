@@ -115,6 +115,7 @@ final class BoardTitleView:NSView {
         model.review.objectWillChange.sink{[weak self] _ in DispatchQueue.main.async{self?.refresh()}}.store(in:&observations)
         // The evaluation bar and best-move arrow follow the whole-game analysis as it fills in (R-17).
         model.reviewAnalyzer.objectWillChange.sink{[weak self] _ in DispatchQueue.main.async{self?.refresh()}}.store(in:&observations)
+        model.reviewRetry.objectWillChange.sink{[weak self] _ in DispatchQueue.main.async{self?.refresh()}}.store(in:&observations)
         history.choose={[weak self] index in self?.showPracticeMove(index)};history.objectWillChange.sink{[weak self] _ in DispatchQueue.main.async{self?.refresh()}}.store(in:&observations)
         model.onImport={[weak self] in guard let self=self else{return};self.desiredLeft=self.model.session.state.window.left;self.desiredRight=self.model.session.state.window.right;self.animateDrawers()};board.onLayout={[weak self] in self?.titleView.needsLayout=true;self?.titleView.syncCenter()};board.activate={[weak self] square in self?.select(square)};board.canDrag={[weak self] square in self?.dragMoves(square) ?? false};model.movePlacedDirectly={[weak self] move in self?.board.isDropped(move) ?? false};board.inspectRelationship={[weak self] mode in self?.toggleRelationship(mode)};board.dismissRelationships={[weak self] in guard let self=self else{return false};let dismissed=self.relationships.dismiss();if dismissed{self.refresh()};return dismissed};board.clearSelection={[weak self] in guard let self=self else{return};if self.model.review.active{self.model.review.clearSelection();self.refresh()}else if self.model.session.mode == .network{self.model.network.clearSelection();self.refresh()}else if self.model.session.mode == .practice{self.model.session.clearSelection()}else if let training=self.model.training,self.trainingExercise != nil{training.clearSelection();self.refresh()}else{self.model.learning.clearSelection()}};titleView.board=board;titleView.tabs.target=self;titleView.tabs.action=#selector(selectTab)
     }
@@ -269,6 +270,7 @@ final class BoardTitleView:NSView {
 
     @objc func selectTab(){model.session.selectPresentation(titleView.tabs.selectedSegment==1)}
     func select(_ sq:String){
+        if model.review.active,model.reviewRetry.hidesAnswer{retry(sq);return}
         if model.review.active{if let from=model.review.selected,model.review.displayRules?.moves(from).contains(where:{$0.to==sq && $0.promotion != nil})==true{let shown=reviewPromotionKey;showPromotionMenu(at:sq,action:#selector(promoteReview(_:))){[sq,$0,from,shown]};return};do{try model.review.selectSquare(sq)}catch{showError(error)};refresh();return}
 
         let s=model.session
@@ -350,7 +352,12 @@ final class BoardTitleView:NSView {
     /// The review position a promotion menu was opened over; the menu's run loop lets an agent move the review meanwhile.
     private var reviewPromotionKey:String {model.review.identity+":\(model.review.branchPly)"}
     /// A choice applies only to the position and piece the menu was opened for; one changed meanwhile is ignored.
-    @objc func promoteReview(_ item:NSMenuItem){guard let values=item.representedObject as? [String],values.count==4,model.review.active,model.review.selected==values[2],reviewPromotionKey==values[3] else{refresh();return};do{try model.review.selectSquare(values[0],promotion:values[1])}catch{showError(error)};refresh()}
+    /// A square for retry mode (R-18); a promotion asks for its piece first.
+    private func retry(_ sq:String,promotion:String?=nil){
+        if promotion==nil,let from=model.review.selected,model.review.displayRules?.moves(from).contains(where:{$0.to==sq && $0.promotion != nil})==true{let shown=reviewPromotionKey;showPromotionMenu(at:sq,action:#selector(promoteReview(_:))){[sq,$0,from,shown]};return}
+        let retry=model.reviewRetry;Task{@MainActor [weak self] in do{try await retry.choose(sq,promotion:promotion ?? "q")}catch{self?.showError(error)};self?.refresh()};refresh()
+    }
+    @objc func promoteReview(_ item:NSMenuItem){guard let values=item.representedObject as? [String],values.count==4,model.review.active,model.review.selected==values[2],reviewPromotionKey==values[3] else{refresh();return};if model.reviewRetry.hidesAnswer{retry(values[0],promotion:values[1]);return};do{try model.review.selectSquare(values[0],promotion:values[1])}catch{showError(error)};refresh()}
     /// A practice promotion chosen from the menu, bound to the exact game position the menu was opened over.
     struct PracticePromotion {let from:String,to:String,piece:String,game:(generation:Int,position:Int,history:[String])}
     /// The menu's run loop lets an agent replace the game meanwhile; an identical position in another game is not this one.
@@ -447,8 +454,9 @@ playbackLineView?.isHidden=model.reviewWorkspace
         if let move=imagined ?? review.document?.nodes[review.branch?.root ?? review.nodeID].uci {let from=String(move.prefix(2)),to=String(move.dropFirst(2).prefix(2));p.highlights=[Highlight(sq:from,kind:"last"),Highlight(sq:to,kind:"last")];if imagined != nil{p.arrows=[[from,to]]}}
         if let rules=review.displayRules,rules.check,let king=rules.board.first(where:{$0.value==rules.turn+"k"})?.key{p.highlights.append(Highlight(sq:king,kind:"check"))}
         p.highlights += review.highlights+model.session.voiceFocus.map{Highlight(sq:$0,kind:"focus")};p.arrows += review.arrows
-        // The engine's choice, only when the learner asked for it; `bestMove` is nil whenever engine help is withheld.
-        if model.session.state.settings.reviewBestMoveArrow,let best=review.bestMove{p.arrows.append([String(best.prefix(2)),String(best.dropFirst(2).prefix(2))])}
+        // The engine's choice, only when the learner asked for it and is not still looking for it in retry mode;
+        // `bestMove` is nil whenever engine help is withheld.
+        if model.session.state.settings.reviewBestMoveArrow,!model.reviewRetry.hidesAnswer,let best=review.bestMove{p.arrows.append([String(best.prefix(2)),String(best.dropFirst(2).prefix(2))])}
         return p
     }
     /// Practice, a lesson, a puzzle or a mini-game, with a demonstration on top.

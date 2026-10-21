@@ -15,6 +15,7 @@
   {"file": "Sources/CheckmateApplication/LessonAttemptController.swift", "function": "scheduleReply", "calls": 1, "kind": "guarded"},
   {"file": "Sources/CheckmateApplication/ReviewAnalyzer.swift", "function": "analyzeBranch", "calls": 2, "kind": "guarded"},
   {"file": "Sources/CheckmateApplication/ReviewAnalyzer.swift", "function": "compute", "calls": 3, "kind": "guarded"},
+  {"file": "Sources/CheckmateApplication/ReviewAnalyzer.swift", "function": "judgeAttempt", "calls": 2, "kind": "guarded"},
   {"file": "Sources/CheckmateApplication/TrainingEndgameController.swift", "function": "gameHint", "calls": 1, "kind": "guarded"},
   {"file": "Sources/CheckmateApplication/TrainingOpponent.swift", "function": "choose", "calls": 1, "kind": "guarded",
    "reason": "A training game's opponent (mini-game plan D4): TrainingEndgameController.requestReply checks engineHelpAllowed before asking and again in its task; choose checks requireEngineHelp before its search or the beginner opponent's, which checks again before each further search."},

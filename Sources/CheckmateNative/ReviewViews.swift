@@ -37,6 +37,7 @@ struct ReviewDetailContent:View {
             ReviewHeader(review:review,model:model,document:d)
             MaterialRow(balance:MaterialBalance(board:review.board),blackAtBottom:model.reviewLearnerSide(d)=="b")
             ReviewAnalysisSection(review:review,model:model,analyzer:analyzer,document:d)
+            ReviewRetrySection(retry:model.reviewRetry,analyzer:analyzer,model:model,document:d)
             ReviewMoveSection(review:review,model:model,analyzer:analyzer,document:d)
             ReviewPositionPanel(review:review,model:model,analyzer:analyzer,document:d)
             if !review.authoredBranches.isEmpty{DisclosureGroup("My imagined lines (\(review.authoredBranches.count) of \(ReviewPolicy.maximumBranches))"){VStack(alignment:.leading,spacing:Metrics.tightGap){ForEach(review.authoredBranches,id:\.id){branch in HStack{

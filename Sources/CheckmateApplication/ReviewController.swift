@@ -223,6 +223,9 @@ public struct ReviewBranch:Codable,Equatable {public let id:UUID,root:Int;public
     }
     public func clearBranch(){pause();rememberBranch();branch=nil;branchPly=0;selected=nil;revision+=1}
     public func seekBranch(_ ply:Int){guard let branch=branch else{return};pause();branchPly=max(0,min(branch.moves.count,ply));selected=nil;revision+=1}
+    /// The move the chosen piece would make to `square` in the shown position, nil when it cannot go there; retry mode
+    /// (R-18) judges a move without playing it.
+    public func destination(_ square:String,promotion:String="q")->String? {guard let from=selected,let rules=displayRules else{return nil};return rules.moves(from).first{$0.to==square && ($0.promotion==nil || $0.promotion==promotion)}?.uci}
     /// A legal move on the original game opens an imagined line with it; the imported record is never changed.
     public func selectSquare(_ square:String,promotion:String="q")throws {guard let rules=displayRules else{return};if let from=selected,rules.moves(from).contains(where:{$0.to==square}){guard let candidate=rules.moves(from).first(where:{$0.to==square && ($0.promotion==nil || $0.promotion==promotion)}) else{throw CheckmateError.invalid(String(localized:"Choose a valid promotion.",bundle:.checkmate))};if branch==nil{try beginBranch()};try playBranch(candidate.uci);return};selected=rules.piece(square)==nil ? nil:square}
     public func clearSelection(){selected=nil}

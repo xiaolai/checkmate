@@ -155,6 +155,22 @@ public struct ReviewMoment:Codable,Identifiable {public let id:Int,expectationLo
         if evidence.nodeID==document.mainline.first{evaluations[0]=evidence.root.lines.first?.score}
     }
     public static func expectationLoss(root:AnalysisLine?,played:AnalysisLine?,mover:String)->Double? {guard let root=root,let played=played,root.score.bound==nil,played.score.bound==nil,let best=root.wdl,let actual=played.wdl,best.count==3,actual.count==3 else{return nil};func expected(_ wdl:[Int])->Double {Double(wdl[mover=="w" ? 0:2])+Double(wdl[1])/2};return max(0,(expected(best)-expected(actual))/1000)}
+    /// A retried move (R-18) against the engine's best in the position before `node`: what it gives up for the side to
+    /// move, nil when the engine gave no win/draw/loss figures to compare, and the engine's choice.
+    public struct Judgement:Equatable,Sendable {public let loss:Double?,best:String?}
+    /// Judges `uci` in the position before `node`: one search of that position, and one more of the move itself when it
+    /// is not among the engine's leading lines. Engine help, so refused during a network game (D8).
+    public func judgeAttempt(document:GameDocument,node:Int,uci:String)async throws -> Judgement {
+        try fairness.requireEngineHelp();selectedCount+=1;batchSearch?.cancel();defer{selectedCount-=1}
+        let mover=document.nodes[node].side,history=try document.history(to:document.nodes[node].parent ?? node),engine=engine,start=document.startingFEN,resources=resources
+        let analysis=try await trackedAnalysis{[fairness] in try fairness.requireEngineHelp();return try await engine.analyzeHistory(startFEN:start,moves:history,profile:.skill(20),budget:ReviewPolicy.quickBudget,multiPv:3,searchMoves:[],resources:resources)}
+        try Task.checkCancellation();try fairness.requireEngineHelp()
+        let best=analysis.lines.first
+        if let line=analysis.lines.first(where:{$0.pv.first==uci}){return Judgement(loss:Self.expectationLoss(root:best,played:line,mover:mover),best:best?.pv.first)}
+        let tried=try await trackedAnalysis{[fairness] in try fairness.requireEngineHelp();return try await engine.analyzeHistory(startFEN:start,moves:history,profile:.skill(20),budget:ReviewPolicy.quickBudget,multiPv:1,searchMoves:[uci],resources:resources)}
+        try Task.checkCancellation();try fairness.requireEngineHelp()
+        return Judgement(loss:Self.expectationLoss(root:best,played:tried.lines.first,mover:mover),best:best?.pv.first)
+    }
     /// `node`'s evidence at `budget`, or at the full quick budget: a position the learner chooses is never searched at the
     /// shorter budget a long game's whole-game analysis uses, and a deeper look at it is judged against the full one.
     public func analyze(document:GameDocument,node:Int,revision:Int,budget:Int?=nil)async throws -> ReviewEvidence {

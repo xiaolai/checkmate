@@ -228,6 +228,7 @@
     "%@ has no move." : {},
     "%@ has no seat to join." : {},
     "%@ has stopped." : {},
+    "%@ is a good move here." : {},
     "%@ is already over." : {},
     "%@ is away. Their seat is held for 2 minutes." : {},
     "%@ is in check and must answer it." : {},
@@ -235,8 +236,10 @@
     "%@ is joining…" : {},
     "%@ is not a castling attempt" : {},
     "%@ is not a mixed-practice evaluator" : {},
+    "%@ is not better. Try once more." : {},
     "%@ is not graded as a rule error" : {},
     "%@ is reviewed only once a game is finished, so this one has no review." : {},
+    "%@ is the move played in the game. Try another." : {},
     "%@ is to move in the displayed position." : {},
     "%@ is watching." : {
       "comment" : "One person watches the network game"
@@ -1706,6 +1709,7 @@
     "Analyze This Idea" : {},
     "Analyze When Opened" : {},
     "Analyze Whole Game" : {},
+    "Analyze the game first." : {},
     "Analyzed %lld of %lld moves" : {
       "localizations" : {
         "en" : {
@@ -1881,6 +1885,7 @@
     "Black piece" : {
       "comment" : "A piece by side, opening a label, when its kind is unknown"
     },
+    "Black played %@ here. Find a better move." : {},
     "Black played %@." : {},
     "Black queen" : {
       "comment" : "A piece by side and kind, opening a label, as in: Black queen on d8"
@@ -2032,6 +2037,7 @@
     "Checking the game for forced wins…" : {},
     "Checking this lesson’s offline recordings…" : {},
     "Checking your Codex sign-in…" : {},
+    "Checking your move…" : {},
     "Checking your sign-in…" : {},
     "Checking…" : {},
     "Checkmate" : {},
@@ -2443,6 +2449,8 @@
     "File exceeds the 16 MiB limit." : {},
     "File to review" : {},
     "Final position" : {},
+    "Find a better move in each position where a player went wrong." : {},
+    "Find a better move in each position where you went wrong." : {},
     "Find the letter along the bottom edge first, then the number along the side." : {},
     "Finding a hint" : {},
     "Finding a hint…" : {},
@@ -3152,6 +3160,7 @@
     "Next Exercise" : {},
     "Next Lesson:" : {},
     "Next Move" : {},
+    "Next Position" : {},
     "Next Puzzle" : {},
     "Next Step" : {},
     "Next Variation" : {},
@@ -3385,6 +3394,16 @@
       "comment" : "Noun: the arrangement of pieces on the board"
     },
     "Position %lld" : {},
+    "Position %lld of %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Position %1$lld of %2$lld"
+          }
+        }
+      }
+    },
     "Practice" : {},
     "Practice Again" : {},
     "Practice Here" : {},
@@ -3660,7 +3679,10 @@
     "Resume Analysis" : {},
     "Resume Game" : {},
     "Resume Your Attempt" : {},
+    "Retry Mistakes" : {},
     "Retry Stockfish" : {},
+    "Retry mode could not start." : {},
+    "Retry your mistakes" : {},
     "Return to Game" : {},
     "Return to Original" : {},
     "Reveal Answer" : {},
@@ -3748,6 +3770,7 @@
     "Search exercises" : {},
     "Search languages" : {},
     "Search the game library" : {},
+    "See Summary" : {},
     "Select All" : {},
     "Select a language, then translate a lesson." : {},
     "Select a piece, then a destination to test your idea." : {},
@@ -3945,6 +3968,7 @@
     "Stop Hosting" : {},
     "Stop Preview" : {},
     "Stop Reading" : {},
+    "Stop Retrying" : {},
     "Stop Speaking" : {},
     "Stop Watching" : {},
     "Stop a mate threat" : {},
@@ -4076,6 +4100,7 @@
     "The defender played %@." : {},
     "The defender's reply could not be checked, so the game is paused. Nothing is counted." : {},
     "The deleted review could not be put back." : {},
+    "The engine has no move to show here." : {},
     "The engine prefers %@ by approximately %@ pawns in this short search." : {
       "localizations" : {
         "en" : {
@@ -4087,6 +4112,7 @@
       }
     },
     "The engine prefers another move by approximately %@ pawns in this short search." : {},
+    "The engine's choice here is %@." : {},
     "The engine's leading option is %@. It is a provisional suggestion from a short search." : {},
     "The engine's leading option is %@. It remained the leading option in the deeper search." : {},
     "The exchange could not be resolved." : {},
@@ -4160,6 +4186,7 @@
     "The moves of this attempt are cleared. Anything you have already achieved in it stays achieved." : {},
     "The network game you were watching ended when Checkmate closed." : {},
     "The network game's rules failed: %@." : {},
+    "The next position could not be shown." : {},
     "The operation was canceled." : {},
     "The opponent played %@." : {},
     "The opponent's king is in check." : {},
@@ -4397,6 +4424,7 @@
     "This game could not be read; its collection may have been removed." : {},
     "This game has grown too long to save, so it is paused. Nothing is counted; start again or go back." : {},
     "This game has more than 2,000 moves, counting each side's moves separately, which is more than Checkmate can review." : {},
+    "This game has no mistakes to retry." : {},
     "This game starts from a set-up position." : {},
     "This game starts from a set-up position; moves before it are unknown, so earlier repetitions are not counted." : {},
     "This game's collection file is damaged." : {},
@@ -4418,6 +4446,7 @@
     "This moment could not be prepared: %@" : {},
     "This month" : {},
     "This move can’t be played now. Wait for your turn." : {},
+    "This move could not be judged. Try another." : {},
     "This one was about %@." : {},
     "This piece’s relationships could not be calculated." : {},
     "This position has no moves to analyze as a game; Why? analyzes the position itself." : {},
@@ -4717,6 +4746,7 @@
     "White piece" : {
       "comment" : "A piece by side, opening a label, when its kind is unknown"
     },
+    "White played %@ here. Find a better move." : {},
     "White played %@." : {},
     "White queen" : {
       "comment" : "A piece by side and kind, opening a label, as in: White queen on d1"
@@ -4817,6 +4847,39 @@
     "You cannot castle while your king is in check." : {},
     "You come out ahead" : {},
     "You come out behind" : {},
+    "You found a better move in %lld of %lld positions." : {
+      "comment" : "Retry mode's summary: positions solved, of the positions retried",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You found a better move in %1$lld of %2$#@positions@."
+          },
+          "substitutions" : {
+            "positions" : {
+              "argNum" : 2,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg position"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%arg positions"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "You have %@ there." : {},
     "You have %@." : {},
     "You have %lld seconds left" : {
@@ -4854,6 +4917,7 @@
     "You play White. Choose a piece to explore." : {},
     "You play White. Select a piece, then its destination. The computer plays Black." : {},
     "You play White. Start by making room for your pieces." : {},
+    "You played %@ here. Find a better move." : {},
     "You played %@." : {},
     "You reached %@ in %lld moves." : {
       "comment" : "The first value is a board square, such as e4",
