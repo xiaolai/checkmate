@@ -58,7 +58,16 @@ import CheckmateCore
         func composed(_ code:String)->[String] {lint.analyse(code).composed.map(\.text)}
         XCTAssertEqual(composed(#"let a=String(localized:"Move the \(PieceName.color(c)) \(PieceName.of(p)) to \(s).",bundle:.checkmate);let b=String(localized:"\(PieceName.side(c)) \(name) on \(s)",bundle:.checkmate)"#),["Move the \u{1} \u{1} to \u{1}.","\u{1} \u{1} on \u{1}"])
         XCTAssertEqual(composed(#"let a=String(localized:"Select every \(side) piece here.",bundle:.checkmate);let b=String(localized:"Follow each \(side) piece's lines.",bundle:.checkmate);Text("\(side)’s king is in check")"#),["Select every \u{1} piece here.","Follow each \u{1} piece's lines.","\u{1}’s king is in check"])
-        XCTAssertEqual(composed(#"let a=String(localized:"\(PieceName.side(c)) moved the \(PieceName.of(p)).",bundle:.checkmate);let b=String(localized:"It is \(side(turn))'s move.",bundle:.checkmate);let c=String(localized:"Move \(PieceName.the(c,p)) to \(s).",bundle:.checkmate);let d="\(side) \(piece)""#),[])
+        XCTAssertEqual(composed(#"let a=String(localized:"\(PieceName.side(c)) moved \(PieceName.phrase(p,.object)).",bundle:.checkmate);let b=String(localized:"It is \(side(turn))'s move.",bundle:.checkmate);let c=String(localized:"Move \(PieceName.the(c,p)) to \(s).",bundle:.checkmate)"#),[])
+        // Nor can an article or a possessive agree with a piece name it does not know: the article is part of the phrase.
+        XCTAssertEqual(composed(#"let a=String(localized:"\(PieceName.side(c)) moved the \(PieceName.of(p)).",bundle:.checkmate);let b=String(localized:"A \(name) cannot move.",bundle:.checkmate);Text("Try moving your \(piece) on \(s).");let d=String(localized:"You have no \(name).",bundle:.checkmate)"#),["\u{1} moved the \u{1}.","A \u{1} cannot move.","Try moving your \u{1} on \u{1}.","You have no \u{1}."])
+        XCTAssertEqual(composed(#"let a=String(localized:"\(count) \(pieces) can move to \(to).",bundle:.checkmate);let b=String(localized:"Duplicate header \(name).",bundle:.checkmate)"#),[])
+        // Plain code joins a color and a piece name as surely as a key does, once the joined text is shown.
+        XCTAssertEqual(composed(#"parts += [PieceName.side(String(p.prefix(1))),PieceName.of(String(p.suffix(1)))]"#),["PieceName.side(String(p.prefix(1))),PieceName.of(String(p.suffix(1)))"])
+        XCTAssertEqual(composed(#"let t=PieceName.side(c)+" "+PieceName.of(k);let u=side+" "+piece"#),[#"PieceName.side(c)+" "+PieceName.of(k)"#,#"side+" "+piece"#])
+        XCTAssertEqual(composed(#"label.stringValue="\(side) \(piece)""#),["\u{1} \u{1}"])
+        XCTAssertEqual(composed(#"NativeLog.ui.info("\(side) \(piece)");let a=[PieceName.side(c),String(n)];let b=PieceName.named(c,p);let c=side+piece.count"#),[])
+        XCTAssertEqual(composed("let u=side+\" \"+piece // not localized: a planted exception\n// let v=PieceName.side(c)+PieceName.of(p)"),[])
     }
 
     func testShownTextGoesThroughTheCatalog()throws {
@@ -75,7 +84,7 @@ import CheckmateCore
         XCTAssertEqual(bypassing,[],"shown text: use String(localized:…,bundle:.checkmate), or mark developer text with // not localized: <reason>")
         XCTAssertEqual(misplaced,[],"developer text (a precondition, log or tag) is not shown: keep it out of the String Catalog")
         XCTAssertEqual(fragments,[],"a piece of a sentence cannot be reordered: localize the whole sentence, with interpolations for what varies")
-        XCTAssertEqual(composed,[],"a color beside a piece name cannot agree with it: name the piece with PieceName.the, .named or .listed")
+        XCTAssertEqual(composed,[],"a color or article beside a piece name cannot agree with it: name the piece with PieceName.phrase, .the, .bracketed, .named or .listed")
     }
 
     /// Every key the code uses is a whole text, never a piece joined to others (stale keys are no longer in the code).
@@ -154,11 +163,19 @@ private struct LocalizationLint {
     /// A key starting or ending with a space, or starting with a joining mark: a piece of a sentence, which a translator
     /// cannot reorder.
     static func isFragment(_ key:String)->Bool {guard let first=key.first,let last=key.last else{return false};return first.isWhitespace || ",;.·".contains(first) || last.isWhitespace}
-    /// A color or side beside a piece name ("the \(color) \(piece)", "\(side) piece", "\(side)'s knight"): the color cannot
-    /// agree with the piece's gender, nor the article with both. An interpolation counts as a color or a piece by its source.
+    /// A color or side beside a piece name ("the \(color) \(piece)", "\(side) piece", "\(side)'s knight"), or an article or
+    /// possessive before one ("the \(piece)", "a \(name)", "your \(piece)"): neither the color nor the article can agree
+    /// with the piece's gender. An interpolation counts as a color or a piece by its source.
     private let colorSource=try! NSRegularExpression(pattern:#"^(?:side|theirs|ours|color|colour)$|\bPieceName\.(?:side|color)\(|\bcolorName\(|(?:^|[^.\w])side\("#)
     private let pieceSource=try! NSRegularExpression(pattern:#"^(?:piece|pieces|name)$|\bPieceName\.(?:of|plural)\("#)
-    private let composition=try! NSRegularExpression(pattern:#"\x{02}(?:['’]s)?\s+(?:\x{03}|(?:pawn|knight|bishop|rook|queen|king|piece)s?\b)"#)
+    private let composition=try! NSRegularExpression(pattern:#"\x{02}(?:['’]s)?\s+(?:\x{03}|(?:pawn|knight|bishop|rook|queen|king|piece)s?\b)|(?:^|[^\w])(?:[Tt]he|[Aa]n?|[Yy]our|[Nn]o|[Mm]y|[Tt]heir|[Hh]is|[Hh]er|[Ii]ts)\s+\x{03}"#)
+    /// Plain code that joins a color to a piece name, in a list or with `+`: `[PieceName.side(c),PieceName.of(p)]`,
+    /// `side+" "+piece`. Calls nest up to three deep.
+    private let joined:NSRegularExpression={
+        let call=#"\((?:[^()]|\((?:[^()]|\([^()]*\))*\))*\)"#,glue=#"\s*\+\s*(?:"[^"\\]*"\s*\+\s*)?"#
+        let color=#"(?:\bPieceName\.(?:side|color)|\bcolorName|(?<![.\w])side)"#+call,piece=#"\bPieceName\.(?:of|plural)"#+call
+        return try! NSRegularExpression(pattern:color+#"(?:\s*,\s*|"#+glue+")"+piece+#"|(?<![.\w])(?:side|color|colour)"#+glue+#"(?:"#+piece+#"|\b(?:piece|pieces)\b(?![.\w(]))"#)
+    }()
     func isComposed(_ literal:Literal)->Bool {
         var sources=literal.interpolations.makeIterator()
         let shape=String(literal.text.map{c->Character in guard c=="\u{1}",let source=sources.next()?.trimmingCharacters(in:.whitespaces) else{return c};return first(colorSource,source) != nil ? "\u{2}":first(pieceSource,source) != nil ? "\u{3}":c})
@@ -272,11 +289,16 @@ private struct LocalizationLint {
             guard !skipped.contains(line) else{continue}
             let isKey=literal.stack.last.map{$0.callee=="String" && $0.label=="localized" || kind($0) == .swiftUI && literal.prefix.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty} ?? false
             if isKey,Self.isFragment(literal.text){fragments.append((line,literal.text))}
-            if isKey,isComposed(literal){composed.append((line,literal.text))}
+            // A key is translated whole; any other literal that is not developer text may still be shown as it is.
+            if isKey || kind(literal.stack.last) != .developer,isComposed(literal){composed.append((line,literal.text))}
             guard isProse(literal.text) else{continue}
             if !isAccountedFor(s,literal){hits.append((line,literal.text));continue}
             guard let frame=literal.stack.last,frame.callee=="String",kind(frame) == .localized,literal.stack.count>1,kind(literal.stack[literal.stack.count-2]) == .developer,let end=frame.frame.end,s[frame.frame.start..<end].filter({$0=="\""}).count==2 else{continue}
             misplaced.append(line)
+        }
+        for (index,line) in lines.enumerated() where !skipped.contains(index+1) {
+            let code=line.range(of:"//").map{String(line[..<$0.lowerBound])} ?? line
+            for match in joined.matches(in:code,range:NSRange(code.startIndex...,in:code)) {composed.append((index+1,String(code[Range(match.range,in:code)!])))}
         }
         return (literals.count,hits,misplaced,fragments,composed)
     }
