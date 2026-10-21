@@ -335,7 +335,7 @@ public struct PreparedTrainingExercise {
     /// Replaces the selected squares, as an agent relaying the learner's choice does. Never grades.
     public func replaceSelection(_ squares:[String]){guard interactive,var state=exercise,!state.finished,state.task == .select else{return};state.selection=Array(Set(squares.filter(ChessNotation.validSquare))).sorted();exercise=state;publish()}
     /// Closing the promotion chooser without a piece is a selection correction: nothing is counted.
-    public func cancelPromotion(){guard interactive,var state=exercise,!state.finished,state.pendingPromotion != nil else{return};state.pendingPromotion=nil;state.feedback="Promotion cancelled. Nothing was counted.";exercise=state;publish()}
+    public func cancelPromotion(){guard interactive,var state=exercise,!state.finished,state.pendingPromotion != nil else{return};state.pendingPromotion=nil;state.feedback="Promotion canceled. Nothing was counted.";exercise=state;publish()}
     public func clearSelection(){guard interactive,var state=exercise,!state.finished else{return};state.selection=[];state.picked=nil;exercise=state;publish()}
     /// Grades the selected squares (or none) as the learner's whole answer.
     public func submit(none:Bool=false){
@@ -372,7 +372,7 @@ public struct PreparedTrainingExercise {
             guard let next=drill.apply(current,to:to) else{state.feedback="The \(TrainingGenerator.pieceNames[String(drill.piece.last!)] ?? "piece") cannot move from \(from) to \(to) here.";exercise=state;publish();return}
             state.drillState=next;state.board=drill.board(next);state.lastMove=(from,to);state.snapshot.actions.append(.move(from:from,to:to,promotion:nil))
             let budget=state.scenario.budget ?? .max,used=state.movesUsed,remaining=drill.distance(from:next)
-            if next.square==drill.target{state.feedback="You reached \(drill.target) in \(used) move\(used==1 ? "":"s"). "+state.scenario.explanation;finish(state,.correct)}
+            if next.square==drill.target{state.feedback=Plural.count(used,one:"You reached %2$@ in %1$d move.",other:"You reached %2$@ in %1$d moves.",drill.target)+" "+state.scenario.explanation;finish(state,.correct)}
             else if remaining.map({used+$0>budget}) ?? true{state.feedback=remaining==nil ? "The piece can no longer reach \(drill.target) from here.":"\(drill.target) can no longer be reached within \(budget) moves. "+state.scenario.explanation;finish(state,.incorrect)}
             else{state.feedback="";save(state)}
         case .mateInOne,.escapeCheck:
@@ -403,8 +403,8 @@ public struct PreparedTrainingExercise {
         guard level>=2 else{return}
         do {
             switch state.definition.objective {
-            case .reachTarget:if let drill=state.scenario.drill,let current=state.drillState,let distance=drill.distance(from:current){state.hintText="The shortest route from here takes \(distance) more move\(distance==1 ? "":"s")."}
-            case .findAttackers,.findDefenders,.kingSafeSquares:let count=try correctSquares(state).count;state.hintText=count==0 ? "Think carefully: is there any at all?":"There \(count==1 ? "is":"are") \(count) to find."
+            case .reachTarget:if let drill=state.scenario.drill,let current=state.drillState,let distance=drill.distance(from:current){state.hintText=Plural.count(distance,one:"The shortest route from here takes %d more move.",other:"The shortest route from here takes %d more moves.")}
+            case .findAttackers,.findDefenders,.kingSafeSquares:let count=try correctSquares(state).count;state.hintText=count==0 ? "Think carefully: is there any at all?":Plural.count(count,one:"There is %d to find.",other:"There are %d to find.")
             case .mateInOne:if let from=try state.legality?.matingMoves().sorted().first.map({String($0.prefix(2))}){state.hintSquares=[from];state.hintText="The highlighted piece can give checkmate."}
             case .escapeCheck:if let legality=state.legality{let board=try legality.board(),turn=try legality.turn();if let king=board.first(where:{$0.value==turn+"k"})?.key{state.hintSquares=TrainingGeometry.attackers(of:king,color:turn=="w" ? "b":"w",board:board).sorted();state.hintText="The highlighted piece is giving check: move away, block the line, or capture it."}}
             case .classifyStatus:if let legality=state.legality{state.hintText=try legality.status() == .check || legality.status() == .checkmate ? "The king to move is attacked right now.":"The king to move is not attacked right now."}

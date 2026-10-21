@@ -68,12 +68,16 @@ final class BoardOverlayTests:XCTestCase {
             func linear(_ x:CGFloat)->Double {let v=Double(x);return v<=0.04045 ? v/12.92:pow((v+0.055)/1.055,2.4)}
             return 0.2126*linear(c.redComponent)+0.7152*linear(c.greenComponent)+0.0722*linear(c.blueComponent)
         }
-        for theme in ["wood","green","blue","neutral"] {
-            let p=BoardPalette.theme(theme)
+        func contrast(_ x:NSColor,_ y:NSColor)->Double {let a=luminance(x),b=luminance(y);return (max(a,b)+0.05)/(min(a,b)+0.05)}
+        for theme in ["wood","green","blue","neutral"] {for dark in [false,true] {
+            let p=BoardPalette.theme(theme,dark:dark)
             for mark in [p.ink,p.protection,p.danger] {for square in [p.lightSquare,p.darkSquare] {
-                let a=luminance(mark),b=luminance(square)
-                XCTAssertGreaterThanOrEqual((max(a,b)+0.05)/(min(a,b)+0.05),3,"\(theme) mark contrast")
+                XCTAssertGreaterThanOrEqual(contrast(mark,square),3,"\(theme) mark contrast, dark \(dark)")
             }}
+            XCTAssertGreaterThanOrEqual(contrast(p.lightSquare,p.darkSquare),1.5,"\(theme) squares stay apart, dark \(dark)")
+        }
+            // The dark-mode variant dims the bright squares so the board does not glare in a dark window (D-36).
+            XCTAssertLessThan(luminance(BoardPalette.theme(theme,dark:true).lightSquare),luminance(BoardPalette.theme(theme).lightSquare)*0.8,theme)
         }
         XCTAssertEqual(BoardPalette.theme("unknown").ink,BoardPalette.theme("wood").ink)
     }

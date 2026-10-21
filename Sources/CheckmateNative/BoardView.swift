@@ -10,7 +10,7 @@ final class SquareAccessibility:NSAccessibilityElement,NSAccessibilityElementPro
     override func accessibilityColumnIndexRange()->NSRange {NSRange(location:board?.gridColumn(square) ?? 0,length:1)}
     override func accessibilityLabel()->String? {label(pressure:false)}
     /// `pressure` states the attack and defence counts even on a square the board does not mark as covered (the Attacked Pieces rotor).
-    func label(pressure:Bool)->String {guard let board=board else{return square};var parts=[square];if let p=board.position[square]{parts += [p.first=="w" ? "White":"Black",BoardView.names[String(p.suffix(1)),default:"piece"]]};if board.selected==square{parts.append("selected")};if board.destinations.contains(square){parts.append(!board.destinationsPlayable ? "possible destination, not playable now":board.captures(on:square) ? "capture destination":"move destination")};if pressure || board.attacked.contains(square){parts.append(board.pressure(on:square))};for h in board.highlights where h.sq==square{parts.append(h.kind=="check" ? "in check":h.kind=="no" ? "unavailable lesson destination":h.kind=="last" ? "part of the last move":h.kind=="target" ? "target square":h.kind=="answer" ? "in your answer":h.kind=="hint" ? "shown by a hint":"highlighted by the coach")};for a in board.arrows where a.count==2{if a[0]==square{parts.append("suggested move to "+a[1])};if a[1]==square{parts.append("suggested move from "+a[0])}};for g in board.guards where g.count==2{if g[0]==square{parts.append("guards "+g[1])};if g[1]==square{parts.append("guarded by "+g[0])}};for connection in board.relationshipConnectors {let description=connection.limited ? "restricted or conditional":"";if connection.source==square{parts.append("\(board.relationshipMode == .protected ? "protects":"attacks") \(connection.target) \(description)")};if connection.target==square{parts.append("\(board.relationshipMode == .protected ? "protected by":"attacked by") \(connection.source) \(description)")}};return parts.joined(separator:", ")}
+    func label(pressure:Bool)->String {guard let board=board else{return square};var parts=[square];if let p=board.position[square]{parts += [p.first=="w" ? "White":"Black",BoardView.names[String(p.suffix(1)),default:"piece"]]};if board.selected==square{parts.append("selected")};if board.destinations.contains(square){parts.append(!board.destinationsPlayable ? "possible destination, not playable now":board.captures(on:square) ? "capture destination":"move destination")};if pressure || board.attacked.contains(square){parts.append(board.pressure(on:square))};for h in board.highlights where h.sq==square{parts.append(h.kind=="check" ? "in check":h.kind=="no" ? "unavailable lesson destination":h.kind=="last" ? "part of the last move":h.kind=="target" ? "target square":h.kind=="answer" ? "in your answer":h.kind=="hint" ? "shown by a hint":"highlighted by the coach")};for a in board.arrows where a.count==2{if a[0]==square{parts.append("suggested move to \(a[1])")};if a[1]==square{parts.append("suggested move from \(a[0])")}};for g in board.guards where g.count==2{if g[0]==square{parts.append("guards \(g[1])")};if g[1]==square{parts.append("guarded by \(g[0])")}};for connection in board.relationshipConnectors {let description=connection.limited ? "restricted or conditional":"";if connection.source==square{parts.append("\(board.relationshipMode == .protected ? "protects":"attacks") \(connection.target) \(description)")};if connection.target==square{parts.append("\(board.relationshipMode == .protected ? "protected by":"attacked by") \(connection.source) \(description)")}};return parts.joined(separator:", ")}
     override func accessibilityFrame()->NSRect {guard let b=board,let w=b.window else{return .zero};return w.convertToScreen(b.convert(b.squareRect(square),to:nil))}
     override func isAccessibilityFocused()->Bool {board?.focus==square && board?.window?.firstResponder === board}
     override func setAccessibilityFocused(_ value:Bool){if value{board?.focus=square;board?.window?.makeFirstResponder(board);board?.keyboardFocusVisible=true;board?.needsDisplay=true;NSAccessibility.post(element:self,notification:.focusedUIElementChanged)}}
@@ -223,6 +223,8 @@ final class BoardView:NSView,NSAccessibilityCustomRotorItemSearchDelegate {
     override func becomeFirstResponder()->Bool {let result=super.becomeFirstResponder();if NSApp.currentEvent?.type == .keyDown{keyboardFocusVisible=true};needsDisplay=true;return result}
     override func resignFirstResponder()->Bool {let result=super.resignFirstResponder();needsDisplay=true;return result}
     override func viewDidChangeEffectiveAppearance(){super.viewDidChangeEffectiveAppearance();needsDisplay=true}
+    /// The theme in the window's appearance: a dark window gets the dimmed variant.
+    var palette:BoardPalette {BoardPalette.theme(theme,dark:effectiveAppearance.bestMatch(from:[.aqua,.darkAqua]) == .darkAqua)}
     @objc private func windowActivityChanged(_ notification:Notification){guard notification.object as? NSWindow === window else{return};updateBreathing(closing:notification.name == NSWindow.willCloseNotification)}
     @objc private func displayOptionsChanged(){if shouldReduceMotion{cancelAnimation()};updateBreathing()}
     func updateBreathing(closing:Bool=false){
@@ -235,7 +237,7 @@ final class BoardView:NSView,NSAccessibilityCustomRotorItemSearchDelegate {
     private func halo(_ rect:NSRect,color:NSColor?=nil){
         let side=rect.width,pulse=breathing ? BoardOverlay.breath(at:ProcessInfo.processInfo.systemUptime-breathStart):0.5
         let inset=side*(BoardOverlay.haloInset-BoardOverlay.haloExpansion*pulse),path=NSBezierPath(ovalIn:rect.insetBy(dx:inset,dy:inset))
-        let color=color ?? (BoardPalette.theme(theme).ink)
+        let color=color ?? palette.ink
         color.withAlphaComponent(BoardOverlay.haloFillLow+(BoardOverlay.haloFillHigh-BoardOverlay.haloFillLow)*pulse).setFill();path.fill()
         color.withAlphaComponent(shouldIncreaseContrast ? 1:BoardOverlay.haloStrokeLow+(BoardOverlay.haloStrokeHigh-BoardOverlay.haloStrokeLow)*pulse).setStroke()
         path.lineWidth=side*BoardOverlay.haloWidth;path.stroke()
@@ -288,8 +290,7 @@ final class BoardView:NSView,NSAccessibilityCustomRotorItemSearchDelegate {
     }
     /// Layers draw bottom to top: squares and their marks, guard lines and relationships, arrows, pieces, then coordinates.
     override func draw(_ dirty:NSRect){let s=boardRect.width/8;guard s>0 else{return}
-        let palette=BoardPalette.theme(theme)
-        drawSquares(palette,side:s);drawRelationships(palette,side:s);drawArrows(palette,side:s);drawPieces(side:s);drawLabels(palette,side:s)
+        let palette=self.palette;drawSquares(palette,side:s);drawRelationships(palette,side:s);drawArrows(palette,side:s);drawPieces(side:s);drawLabels(palette,side:s)
     }
     private func drawSquares(_ palette:BoardPalette,side s:CGFloat){
         for sq in ChessRules.squares {let rect=squareRect(sq),parity=(Int(sq.utf8.first!-97)+Int(sq.suffix(1))!-1)%2; (parity==0 ? palette.darkSquare:palette.lightSquare).setFill();rect.fill()

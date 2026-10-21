@@ -7,17 +7,20 @@ struct ReviewWorkspaceContent:View {
     var body:some View {VStack(spacing:Metrics.sectionGap){
         VStack(spacing:Metrics.smallGap){
             HStack(spacing:Metrics.smallGap){
-                Image(systemName:"doc.text.magnifyingglass").font(.largeTitle).foregroundStyle(.secondary).accessibilityHidden(true)
+                AppSymbol.review.image.font(.largeTitle).foregroundStyle(.secondary).accessibilityHidden(true)
                 VStack(alignment:.leading,spacing:2){Text("Game review").sectionHeading(.title.bold());Text("Choose a game or position to explore.").foregroundStyle(.secondary)}
             }
-            ViewThatFits(in:.horizontal){HStack(spacing:Metrics.smallGap){actions};VStack(spacing:Metrics.smallGap){actions}}
-            Text((model.session.rules.history.isEmpty ? "Play a move to review your current game. ":"")+"You can also drop a PGN file on the window.").font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.center)
+            HStack(spacing:Metrics.smallGap){
+                Button("Open PGN…"){model.openPGN()}.buttonStyle(.borderedProminent)
+                Menu("More Ways to Review"){secondaryActions}.fixedSize().accessibilityIdentifier("review-start-more")
+            }
+            Text(model.session.rules.history.isEmpty ? "Play a move to review your current game. You can also drop a PGN file on the window.":"You can also drop a PGN file on the window.").font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.center)
         }.fixedSize(horizontal:false,vertical:true)
         GameLibraryBrowser(model:model,library:model.library).frame(maxHeight:.infinity)
-        Button("Return to game"){model.returnToGame()}.buttonStyle(.borderless)
+        Button("Return to Game"){model.returnToGame()}.buttonStyle(.borderless)
     }.padding(Metrics.padding).frame(maxWidth:680).frame(maxWidth:.infinity,maxHeight:.infinity)}
-    @ViewBuilder private var actions:some View {
-        Button("Open PGN…"){model.openPGN()}.buttonStyle(.borderedProminent)
+    /// One primary way to start (Open PGN…) and the rest behind one menu, so the start never stacks four buttons (D-32).
+    @ViewBuilder private var secondaryActions:some View {
         Button("Paste PGN or FEN"){model.pasteReview()}
         Button("Review Current Game"){model.reviewCurrent()}.disabled(model.session.rules.history.isEmpty)
         if !model.session.state.practice.previousGame.isEmpty{Button("Review Previous Game"){model.reviewCurrent(previous:true)}}
@@ -35,12 +38,12 @@ struct ReviewDetailContent:View {
             ReviewAnalysisSection(review:review,model:model,analyzer:analyzer,document:d)
             ReviewMoveSection(review:review,model:model,analyzer:analyzer,document:d)
             ReviewPositionPanel(review:review,model:model,analyzer:analyzer,document:d)
-            if !review.authoredBranches.isEmpty{DisclosureGroup("My imagined lines (\(review.authoredBranches.count) of \(ReviewPolicy.maximumBranches))"){VStack(alignment:.leading,spacing:4){ForEach(review.authoredBranches,id:\.id){branch in HStack{
+            if !review.authoredBranches.isEmpty{DisclosureGroup("My imagined lines (\(review.authoredBranches.count) of \(ReviewPolicy.maximumBranches))"){VStack(alignment:.leading,spacing:Metrics.tightGap){ForEach(review.authoredBranches,id:\.id){branch in HStack{
                 Button(ReviewFormat.ideaLabel(d,branch)){do{try review.openSavedBranch(branch.id)}catch{model.storageError=userFacingMessage(error,fallback:"This imagined line could not be opened.")}}.buttonStyle(.link)
-                Spacer();Button("Delete",role:.destructive){do{try review.deleteBranch(branch.id);model.saveReview()}catch{model.storageError=userFacingMessage(error,fallback:"This imagined line could not be deleted.")}}.controlSize(.small).accessibilityLabel("Delete idea: \(ReviewFormat.ideaLabel(d,branch))")}}}.padding(.top,4)}}
+                Spacer();Button("Delete",role:.destructive){do{try review.deleteBranch(branch.id);model.saveReview()}catch{model.storageError=userFacingMessage(error,fallback:"This imagined line could not be deleted.")}}.controlSize(.small).accessibilityLabel("Delete idea: \(ReviewFormat.ideaLabel(d,branch))")}}}.padding(.top,Metrics.tightGap)}}
             ReviewVoiceSection(voice:voice,connect:{[weak model] in model?.connectVoiceFromSettings()})
             // The review control bar has no way back to the game, and the workspace hides it.
-            Button("Return to game"){model.returnToGame()}.buttonStyle(.borderless)
+            Button("Return to Game"){model.returnToGame()}.buttonStyle(.borderless)
         }
     }.sheet(isPresented:$model.practiceForkRequested){ReviewPracticeSheet(model:model)}
     // A confirmation belongs to the review on screen; one left raised when the review closed must not reappear later.
@@ -86,7 +89,7 @@ struct OpponentSettingsContent:View {
             }
         }
         if displayedPreset=="custom",displayedMode=="elo"{Text("An engine estimate, not a tournament rating.").font(.caption).foregroundStyle(.secondary)}
-        if displayedPreset=="first_steps" || (displayedPreset=="custom" && displayedMode=="beginner"){Text("First steps gives more opportunities to practise. You can always use hints or take back a move.").font(.caption).foregroundStyle(.secondary)}
+        if displayedPreset=="first_steps" || (displayedPreset=="custom" && displayedMode=="beginner"){Text("First steps gives more opportunities to practice. You can always use hints or take back a move.").font(.caption).foregroundStyle(.secondary)}
     }}
 }
 struct EngineEloControl:View {
@@ -106,15 +109,15 @@ struct ReviewPracticeSheet:View {
     // Starts at the learner's current opponent rather than silently switching to custom settings.
     init(model:NativeModel){self.model=model;let current=model.session.state.settings.opponentPreset;_preset=State(initialValue:current=="first_steps" && !ReviewRolloutPolicy.beginnerOpponentEnabled ? "custom":current);_target=State(initialValue:model.review.practiceForkTarget)}
     private func stillShown()->Bool {
-        guard target != nil,model.review.practiceForkTarget==target else{model.practiceForkRequested=false;model.storageError="The review changed while this was open, so nothing was started or saved. Choose Practise here again.";return false};return true
+        guard target != nil,model.review.practiceForkTarget==target else{model.practiceForkRequested=false;model.storageError="The review changed while this was open, so nothing was started or saved. Choose Practice Here again.";return false};return true
     }
     var body:some View {VStack(alignment:.leading,spacing:Metrics.sectionGap){
-        Text("Practise from this position").sectionHeading()
+        Text("Practice from this position").sectionHeading()
         Text("Your current practice is backed up and becomes Previous game, replacing that shortcut’s older game. The imported record stays unchanged.")
         Picker("Play as",selection:$side){Text("White").tag("w");Text("Black").tag("b")}
         Picker("Opponent",selection:$preset){if ReviewRolloutPolicy.beginnerOpponentEnabled{Text("First steps").tag("first_steps")};Text("Gentle").tag("gentle");Text("Club").tag("club");Text("Keep custom settings").tag("custom")}
-        Button("Save this position for later"){guard stillShown() else{return};model.saveCurrentReview();model.practiceForkRequested=false}
-        HStack{Spacer();Button("Cancel"){model.practiceForkRequested=false}.keyboardShortcut(.cancelAction);Button("Start practice"){guard stillShown() else{return};model.confirmPracticeFork(side:side,preset:preset)}.keyboardShortcut(.defaultAction)}
+        Button("Save This Position for Later"){guard stillShown() else{return};model.saveCurrentReview();model.practiceForkRequested=false}
+        HStack{Spacer();Button("Cancel"){model.practiceForkRequested=false}.keyboardShortcut(.cancelAction);Button("Start Practice"){guard stillShown() else{return};model.confirmPracticeFork(side:side,preset:preset)}.keyboardShortcut(.defaultAction)}
     }.padding(Metrics.padding).frame(minWidth:Metrics.right)}
 }
 

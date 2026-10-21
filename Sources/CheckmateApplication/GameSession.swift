@@ -25,8 +25,14 @@ public struct BoardFacts:Codable {
     public struct Material:Codable {public var white:Int,black:Int,whiteAdvantage:Int}
     public var turn:String,check:Bool,checkmate:Bool,draw:Bool,material:Material,threats:[Threat],threatSemantics="Geometric attacks; pinned attackers may not have a legal capture."
 }
-public struct Preview:Codable {public var id:String,basePosition:Int,status:String,candidate:MoveFacts?,evaluation:CandidateEvaluation?,displayFen:String,ply:Int,line:String,error:String?}
-public struct Coaching:Codable {public var status="idle",summary="",recommendation:MoveFacts?,analysis:EngineAnalysis?}
+/// What practice is busy with; the raw value is the public state's `busyReason`, never shown text (D-12).
+public enum BusyReason:String,Codable,Sendable {case opponent,analysis}
+/// A hint's progress; the raw value is the public state's `coaching.status`.
+public enum CoachingStatus:String,Codable,Sendable {case idle,thinking,ready,error}
+/// A test move's progress; the raw value is the public state's `preview.status`.
+public enum PreviewStatus:String,Codable,Sendable {case choosing,analyzing,ready,error}
+public struct Preview:Codable {public var id:String,basePosition:Int,status:PreviewStatus,candidate:MoveFacts?,evaluation:CandidateEvaluation?,displayFen:String,ply:Int,line:String,error:String?}
+public struct Coaching:Codable {public var status:CoachingStatus = .idle,summary="",recommendation:MoveFacts?,analysis:EngineAnalysis?}
 public struct LessonProjection:Codable {
     public var mode:String,pieces:Position?,title:String,lessonId:String,step:Int,prompt:String?,choices:[String]?,playing:Bool,narrationActive:Bool,moving:Bool,turn:String?,winner:String?,rules:[String]?
     public var drawReason:String?=nil
@@ -45,7 +51,7 @@ public struct LessonProjection:Codable {
     @Published public private(set) var activity:Activity = .at(.practice)
     public var mode:NativeMode {activity.place.mode}
     @Published public private(set) var busy=false
-@Published public private(set) var busyReason:String?
+@Published public private(set) var busyReason:BusyReason?
 @Published public private(set) var message="You play White. Choose a piece to explore."
 @Published public private(set) var error:String?
     /// Advances whenever the practice game is replaced (new, restored, forked or imported), so a question asked about one game is never applied to another.
@@ -167,7 +173,7 @@ public struct LessonProjection:Codable {
     public func signalEvent(){cursor+=1;emit(semantic:false)}
     /// Advances whenever pending work is cancelled (a settings, position or presentation change): a result computed across a change is stale.
     public var workGeneration:Int {generation}
-    public func cancelWork(){if coaching.status=="thinking"{coaching.status="idle";signalEvent()};generation+=1;work?.cancel();work=nil;busy=false;busyReason=nil}
+    public func cancelWork(){if coaching.status == .thinking{coaching.status = .idle;signalEvent()};generation+=1;work?.cancel();work=nil;busy=false;busyReason=nil}
     private func changedPosition(){cancelWork();explicitResumeRequired=false;position+=1;hintStep=0;liveSelection=nil;clearPresentation();clearAnnotations();selected=nil;inspection=nil;error=nil;coaching=Coaching();coaching.summary=turnSummary();emit(save:true)}
     /// `legalNow` is true only when a click on a dot plays: the learner's own piece, on the learner's turn, on the
     /// live board. The opponent's moves, moves while Stockfish thinks and imagined boards show as possibilities.
@@ -199,13 +205,13 @@ public struct LessonProjection:Codable {
     }
     public func clearSelection(){selected=nil;inspection=nil;emit(semantic:false)}
     public func playWhite(from:String,to:String,promotion:String="q") throws {
-        guard !reviewSuspended,mode == .practice,rules.turn==humanSide,busyReason != "opponent",!finished,(presentationHidden || preview==nil && demonstration==nil) else{throw CheckmateError.invalid("ROLE_FORBIDDEN")}
+        guard !reviewSuspended,mode == .practice,rules.turn==humanSide,busyReason != .opponent,!finished,(presentationHidden || preview==nil && demonstration==nil) else{throw CheckmateError.invalid("ROLE_FORBIDDEN")}
         let move=try rules.move(from,to,promotion);changedPosition();if let ending=rules.ending{message=endingText(ending.reason)};onMove?(move);reply()
     }
     public func commitBlack(_ uci:String) throws -> MoveRecord {try fairness.requireEngineHelp();guard !reviewSuspended,!explicitResumeRequired,rules.turn==opponentSide else{throw CheckmateError.stale};let kept=selected;let m=try rules.move(uci:uci);changedPosition();if let kept,rules.piece(kept)?.color==humanSide{selected=kept;inspection=learnerInspection(kept,on:rules,live:true)};onMove?(m);message=gameOverMessage ?? turnSummary();return m}
     public func reply(){guard fairness.engineHelpAllowed,!shuttingDown,!reviewSuspended,!explicitResumeRequired,mode == .practice,rules.turn==opponentSide,!finished,!busy,!voiceHold,!pausedOpponent,!suspended,(presentationHidden || (preview==nil && demonstration==nil)),(!companionEnabled || companionRole != "opponent"),let engine=engine else{return}
-        let fen=rules.fen,epoch=generation;busy=true;busyReason="opponent";emit(semantic:false)
-        work=Task {[weak self] in guard let self=self else{return};do{let result=try await self.chooseOpponentMove(engine:engine);try Task.checkCancellation();guard self.generation==epoch,self.rules.fen==fen,self.fairness.engineHelpAllowed else{return};guard let move=result.bestMove else{throw CheckmateError.unavailable("ENGINE_UNAVAILABLE")};self.busy=false;self.busyReason=nil;self.recordOpponentChoice(result);_ = try self.commitBlack(move)}catch{if self.generation==epoch {self.busy=false;self.busyReason=nil;self.error="Stockfish could not respond"+Self.engineReason(error)+". Retry, undo, or start a new game.";self.emit(semantic:false)}}}
+        let fen=rules.fen,epoch=generation;busy=true;busyReason = .opponent;emit(semantic:false)
+        work=Task {[weak self] in guard let self=self else{return};do{let result=try await self.chooseOpponentMove(engine:engine);try Task.checkCancellation();guard self.generation==epoch,self.rules.fen==fen,self.fairness.engineHelpAllowed else{return};guard let move=result.bestMove else{throw CheckmateError.unavailable("ENGINE_UNAVAILABLE")};self.busy=false;self.busyReason=nil;self.recordOpponentChoice(result);_ = try self.commitBlack(move)}catch{if self.generation==epoch {self.busy=false;self.busyReason=nil;self.error=Self.engineReason(error).map{"Stockfish could not respond (\($0)). Retry, undo, or start a new game."} ?? "Stockfish could not respond. Retry, undo, or start a new game.";self.emit(semantic:false)}}}
     }
     /// The opponent's move for the current position at the learner's configured strength (beginner, Elo or skill).
     /// Stockfish's own reply and a companion opponent's `play_move` both choose through here.
@@ -223,11 +229,12 @@ public struct LessonProjection:Codable {
     public func recordOpponentChoice(_ result:EngineAnalysis){
         if OpponentProfile.settings(state.settings).mode=="beginner"{state.practice.beginnerSevereStreak=BeginnerOpponent.nextSevereStreak(result,mover:rules.turn,current:state.practice.beginnerSevereStreak)}else{state.practice.beginnerSevereStreak=0}
     }
-    /// The engine failure's cause, logged and shown in brief ("Engine stopped responding."), never a raw error dump.
-    static func engineReason(_ error:Error)->String {
+    /// The engine failure's cause, logged and shown in brief ("engine stopped responding"), never a raw error dump; nil
+    /// when there is nothing readable. Each caller words its whole sentence with and without it (D-13).
+    static func engineReason(_ error:Error)->String? {
         NativeLog.engine.error("Engine request failed: \(String(describing:error),privacy:.public)")
         let reason=userFacingMessage(error,fallback:"").trimmingCharacters(in:CharacterSet(charactersIn:". "))
-        return reason.isEmpty || reason.allSatisfy({$0.isUppercase || $0=="_"}) ? "":" ("+reason.prefix(1).lowercased()+reason.dropFirst()+")"
+        return reason.isEmpty || reason.allSatisfy({$0.isUppercase || $0=="_"}) ? nil:reason.prefix(1).lowercased()+reason.dropFirst()
     }
     /// A learner's action that could not be done, said where the drawer shows practice errors; the game is unchanged.
     public func report(_ message:String){error=message;emit(semantic:false)}
@@ -248,13 +255,13 @@ public struct LessonProjection:Codable {
     public func resign(){guard canResign else{return};cancelWork();state.practice.ending=PracticeEnding(result:humanSide=="w" ? "0-1":"1-0",reason:"You resigned. Stockfish wins.");message=gameOverMessage ?? message;emit(save:true)}
     /// Claims a draw by threefold repetition or the 50-move rule when one is available.
     public func claimDraw(){guard let reason=claimableDraw else{return};cancelWork();state.practice.ending=PracticeEnding(result:"1/2-1/2",reason:"Draw claimed by \(reason).");message=gameOverMessage ?? message;emit(save:true)}
-    public func undo(){guard canTakeBack else{return};cancelWork();state.practice.beginnerSevereStreak=0;do{try rules.undo();if rules.turn==opponentSide,rules.records.count>state.practice.startPly{try rules.undo()}}catch{let reason=Self.engineReason(error);changedPosition();self.error="The move could not be taken back"+reason+".";emit(semantic:false);return};state.practice.ending=nil;changedPosition();message="Move taken back.";onUndo?();reply()}
+    public func undo(){guard canTakeBack else{return};cancelWork();state.practice.beginnerSevereStreak=0;do{try rules.undo();if rules.turn==opponentSide,rules.records.count>state.practice.startPly{try rules.undo()}}catch{let reason=Self.engineReason(error);changedPosition();self.error=reason.map{"The move could not be taken back (\($0))."} ?? "The move could not be taken back.";emit(semantic:false);return};state.practice.ending=nil;changedPosition();message="Move taken back.";onUndo?();reply()}
     private static let standardStart="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
     private var holdsGame:Bool {!rules.history.isEmpty || rules.fen != Self.standardStart}
     /// The game being replaced becomes the previous game with everything Restore Previous Game needs to resume it.
     private func keepAsPrevious(){guard holdsGame else{return};state.practice.previousGame=rules.pgn;state.practice.previousSide=humanSide;state.practice.previousEnding=state.practice.ending;state.practice.previousStartPly=state.practice.startPly;state.practice.previousHints=state.practice.hints}
     /// Starts a new game with the learner on `side` (by default the side they play now). As Black, Stockfish opens.
-    public func newGame(side:String?=nil){guard !reviewSuspended,mode == .practice else{return};let side=["w","b"].contains(side ?? "") ? side!:humanSide;keepAsPrevious();do{try rules.reset()}catch{self.error="A new game could not be started"+Self.engineReason(error)+".";return};gameGeneration+=1;state.practice.ending=nil;state.practice.startPly=0;state.practice.hints=0;state.settings.practiceSide=side;resetOpponent();error=nil;changedPosition();message=side=="w" ? "You play White. Start by making room for your pieces.":"You play Black. Stockfish moves first.";reply()}
+    public func newGame(side:String?=nil){guard !reviewSuspended,mode == .practice else{return};let side=["w","b"].contains(side ?? "") ? side!:humanSide;keepAsPrevious();do{try rules.reset()}catch{self.error=(Self.engineReason(error).map{"A new game could not be started (\($0))."} ?? "A new game could not be started.");return};gameGeneration+=1;state.practice.ending=nil;state.practice.startPly=0;state.practice.hints=0;state.settings.practiceSide=side;resetOpponent();error=nil;changedPosition();message=side=="w" ? "You play White. Start by making room for your pieces.":"You play Black. Stockfish moves first.";reply()}
     /// Swaps the current and previous games, each with the side the learner played, so neither is lost.
     public func restorePrevious() throws {
         guard !reviewSuspended,mode == .practice,!state.practice.previousGame.isEmpty else{return}
@@ -291,7 +298,7 @@ public struct LessonProjection:Codable {
     public func openMiniGameReviewVoice(_ scope:MiniGameReviewVoiceScope) throws -> String {try fairness.requireEngineHelp();guard !companionEnabled else{throw CheckmateError.invalid("SESSION_IN_USE")};guard finishedMiniGameReview()?.scope==scope else{throw CheckmateError.invalid("UNSUPPORTED_MODE")};voiceLease=UUID().uuidString;return voiceLease!}
     public func closeVoice(){voiceLease=nil;voiceHold=false;voiceFocus=[];emit(semantic:false);reply()}
     /// A hold also stops a reply already being searched, so none commits while the coach speaks; release restarts it.
-    public func holdVoice(_ value:Bool){if value,busyReason=="opponent"{cancelWork()};voiceHold=value;emit(semantic:false);if !value{reply()}}
+    public func holdVoice(_ value:Bool){if value,busyReason == .opponent{cancelWork()};voiceHold=value;emit(semantic:false);if !value{reply()}}
     public func setVoiceFocus(_ sq:[String],identity:String){guard identity==displayIdentity else{return};voiceFocus=sq.filter(ChessRules.validSquare);emit(semantic:false)}
     public func clearAnnotations(){overlayTask?.cancel();overlayTask=nil;highlights=[];arrows=[];voiceFocus=[];overlayRevision+=1}
     /// How long the marks shown now last, in milliseconds; nil while they stay until the position changes (a hint).
@@ -306,7 +313,7 @@ public struct LessonProjection:Codable {
     private func stashLiveSelection(){if displayView=="game",let square=selected{liveSelection=square}}
     private func restoreLiveSelection(){guard let square=liveSelection else{return};liveSelection=nil;guard mode == .practice,rules.piece(square) != nil else{return};selected=square;inspection=learnerInspection(square,on:rules,live:true)}
     /// Showing a presentation again also holds Stockfish's reply, as the pane promises; hiding it lets the reply run.
-    public func selectPresentation(_ show:Bool){if show,busyReason=="opponent"{cancelWork()};if presentationHidden==show{if show{stashLiveSelection()};selected=nil;inspection=nil};presentationHidden = !show;if !show{restoreLiveSelection()};if !show{pauseDemo()};clearAnnotations();emit(semantic:false);if !show{reply()}}
+    public func selectPresentation(_ show:Bool){if show,busyReason == .opponent{cancelWork()};if presentationHidden==show{if show{stashLiveSelection()};selected=nil;inspection=nil};presentationHidden = !show;if !show{restoreLiveSelection()};if !show{pauseDemo()};clearAnnotations();emit(semantic:false);if !show{reply()}}
     public func demonstrate(title:String,introduction:String,lines:[DemoLineInput],autoplay:Bool=false) throws {
         guard mode == .practice,preview==nil,demonstration==nil else{throw CheckmateError.invalid("PRESENTATION_ACTIVE")}
         guard !title.isEmpty,title.count<=80,lines.count>0,lines.count<=3,lines.allSatisfy({!$0.label.isEmpty && $0.label.count<=60 && !$0.moves.isEmpty && $0.moves.count<=12}) else{throw CheckmateError.invalid("INVALID_ARGUMENT")}
@@ -318,16 +325,16 @@ public struct LessonProjection:Codable {
     /// Pausing or starting playback is a change agents waiting for one (wait_for_change) see at once.
     public func pauseDemo(){demoTask?.cancel();if demonstration != nil {let wasPlaying=demonstration!.playing;demonstration!.playing=false;if wasPlaying{signalEvent()}else{emit(semantic:false)}}}
     public func playDemo(){guard demonstration != nil,!presentationHidden else{return};if demonstration!.ply==demonstration!.lines[demonstration!.line].frames.count-1{demonstration!.ply=0;presentationFrameChanged()};demonstration!.playing=true;signalEvent();demoTask?.cancel();demoTask=Task{while !Task.isCancelled,self.demonstration?.playing==true {try? await Task.sleep(nanoseconds:1_500_000_000);guard !Task.isCancelled,var d=self.demonstration else{return};d.ply=min(d.ply+1,d.lines[d.line].frames.count-1);d.playing=d.ply<d.lines[d.line].frames.count-1;self.demonstration=d;self.presentationFrameChanged();self.cursor+=1;self.emit(semantic:false)}}}
-    public func beginPreview() throws {guard mode == .practice,rules.turn==humanSide,!finished,demonstration==nil else{throw CheckmateError.invalid("ROLE_FORBIDDEN")};cancelWork();clearAnnotations();stashLiveSelection();selected=nil;inspection=nil;preview=Preview(id:UUID().uuidString,basePosition:position,status:"choosing",candidate:nil,evaluation:nil,displayFen:rules.fen,ply:0,line:"candidate",error:nil);presentationHidden=false;emit()}
+    public func beginPreview() throws {guard mode == .practice,rules.turn==humanSide,!finished,demonstration==nil else{throw CheckmateError.invalid("ROLE_FORBIDDEN")};cancelWork();clearAnnotations();stashLiveSelection();selected=nil;inspection=nil;preview=Preview(id:UUID().uuidString,basePosition:position,status:.choosing,candidate:nil,evaluation:nil,displayFen:rules.fen,ply:0,line:"candidate",error:nil);presentationHidden=false;emit()}
     public func testMove(from:String,to:String,promotion:String="q") async throws {
         try fairness.requireEngineHelp()
         guard preview != nil,preview!.basePosition==position else{throw CheckmateError.stale}
         let facts=try moveFacts(rules,uci:from+to+(promotion=="q" && !rules.moves(from).contains(where:{$0.to==to && $0.promotion != nil}) ? "":promotion)),epoch=position
-        let staged=UUID().uuidString;preview=Preview(id:staged,basePosition:position,status:"analyzing",candidate:facts,evaluation:nil,displayFen:facts.fen,ply:1,line:"candidate",error:nil);presentationFrameChanged();emit()
-        do{let evaluation=try await evaluateCandidate(from:from,to:to,promotion:promotion);guard epoch==position,preview?.id==staged,!Task.isCancelled else{return};preview!.evaluation=evaluation;preview!.status="ready";signalEvent()}catch{guard epoch==position,preview?.id==staged else{return}
+        let staged=UUID().uuidString;preview=Preview(id:staged,basePosition:position,status:.analyzing,candidate:facts,evaluation:nil,displayFen:facts.fen,ply:1,line:"candidate",error:nil);presentationFrameChanged();emit()
+        do{let evaluation=try await evaluateCandidate(from:from,to:to,promotion:promotion);guard epoch==position,preview?.id==staged,!Task.isCancelled else{return};preview!.evaluation=evaluation;preview!.status = .ready;signalEvent()}catch{guard epoch==position,preview?.id==staged else{return}
             // Cancelled work (hiding the app, another action) is not a failed analysis: return to choosing a move.
-            if error is CancellationError || Task.isCancelled || { if case CheckmateError.cancelled = error {return true};return false }() {preview!.status="choosing";preview!.candidate=nil;preview!.displayFen=rules.fen;preview!.ply=0;presentationFrameChanged();signalEvent();return}
-            preview!.status="error";preview!.error="Analysis is unavailable. This legal test move has not been played.";signalEvent()}
+            if error is CancellationError || Task.isCancelled || { if case CheckmateError.cancelled = error {return true};return false }() {preview!.status = .choosing;preview!.candidate=nil;preview!.displayFen=rules.fen;preview!.ply=0;presentationFrameChanged();signalEvent();return}
+            preview!.status = .error;preview!.error="Analysis is unavailable. This legal test move has not been played.";signalEvent()}
     }
     public func previewAt(ply:Int,line:String) throws {guard var p=preview,let e=p.evaluation else{throw CheckmateError.invalid("PREVIEW_NOT_READY")};let frames=line=="candidate" ? e.candidateFrames:e.recommendedFrames;guard frames.indices.contains(ply),["candidate","recommended"].contains(line) else{throw CheckmateError.invalid("INVALID_ARGUMENT")};p.displayFen=frames[ply].fen;p.ply=ply;p.line=line;preview=p;presentationFrameChanged();cursor+=1;emit(semantic:false)}
     public func playCandidate() throws {guard let candidate=preview?.candidate else{return};closePresentation();try playWhite(from:candidate.from,to:candidate.to,promotion:candidate.promotion ?? "q")}
@@ -342,7 +349,7 @@ public struct LessonProjection:Codable {
     /// counts once in the game's `hints`, and stays on the board until the learner moves.
     public func hint(){guard fairness.engineHelpAllowed,!busy,mode == .practice,rules.turn==humanSide,!finished,hintStep<2 else{return}
         if hintStep==1,let facts=coaching.recommendation{hintStep=2;state.practice.hints+=1;message=facts.description;signalEvent();annotate(arrows:[[facts.from,facts.to]],highlights:[Highlight(sq:facts.from,kind:"focus")],ttl:nil);emit(semantic:false,save:true);return}
-        cancelWork();let epoch=generation;busy=true;busyReason="analysis";coaching.status="thinking";emit(semantic:false);work=Task{do{let a=try await self.analyze();try Task.checkCancellation();guard self.generation==epoch,self.fairness.engineHelpAllowed else{return};self.busy=false;self.busyReason=nil;guard let uci=a.lines.first?.pv.first ?? a.bestMove else{throw CheckmateError.unavailable("No hint returned")};let facts=try self.moveFacts(self.rules,uci:uci);self.coaching.status="ready";self.coaching.recommendation=facts;self.coaching.analysis=a;self.hintStep=1;self.state.practice.hints+=1;self.message=Self.pieceHint(facts);self.signalEvent();self.annotate(arrows:[],highlights:[Highlight(sq:facts.from,kind:"focus")],ttl:nil);self.emit(semantic:false,save:true)}catch{guard self.generation==epoch,!Task.isCancelled else{return};self.busy=false;self.busyReason=nil;self.coaching.status="error";self.error="A hint is unavailable"+Self.engineReason(error)+". Please try again.";self.signalEvent()}}}
+        cancelWork();let epoch=generation;busy=true;busyReason = .analysis;coaching.status = .thinking;emit(semantic:false);work=Task{do{let a=try await self.analyze();try Task.checkCancellation();guard self.generation==epoch,self.fairness.engineHelpAllowed else{return};self.busy=false;self.busyReason=nil;guard let uci=a.lines.first?.pv.first ?? a.bestMove else{throw CheckmateError.unavailable("No hint returned")};let facts=try self.moveFacts(self.rules,uci:uci);self.coaching.status = .ready;self.coaching.recommendation=facts;self.coaching.analysis=a;self.hintStep=1;self.state.practice.hints+=1;self.message=Self.pieceHint(facts);self.signalEvent();self.annotate(arrows:[],highlights:[Highlight(sq:facts.from,kind:"focus")],ttl:nil);self.emit(semantic:false,save:true)}catch{guard self.generation==epoch,!Task.isCancelled else{return};self.busy=false;self.busyReason=nil;self.coaching.status = .error;self.error=(Self.engineReason(error).map{"A hint is unavailable (\($0)). Please try again."} ?? "A hint is unavailable. Please try again.");self.signalEvent()}}}
     /// The first hint step names the piece, never where it goes.
     static func pieceHint(_ facts:MoveFacts)->String {let names=["p":"pawn","n":"knight","b":"bishop","r":"rook","q":"queen","k":"king"];return "Try moving your \(names[facts.piece] ?? "piece") on \(facts.from). Ask for another hint to see the move."}
     public func boardFacts(_ r:ChessRules)->BoardFacts {
@@ -398,7 +405,7 @@ public struct LessonProjection:Codable {
         if mode == .training{let projection:Any=training.map{jsonObject($0)} ?? NSNull();return stateHeader.merging(["mode":"training","trainingProtocol":TrainingProjection.protocolVersion,"capabilities":trainingToolsAvailable ? TrainingTools.capabilities(for:training):[String](),"display":["activeView":"training","fen":NSNull(),"identity":displayIdentity],"learnerSide":humanSide,"training":projection,"state":projection,"controller":controller(["paused":true])]){$1}}
         let temporary = !presentationHidden && (preview != nil || demonstration != nil),ownsOpponent=companionEnabled && companionRole=="opponent"
         let capabilities:[String]=mode == .practice ? (["get_legal_moves","analyze_position","show_annotation","preview_move","get_turn_brief","inspect_piece"]+(preview==nil && demonstration==nil ? ["demonstrate_line"]:[])+(demonstration != nil ? ["control_demonstration"]:[])+(preview?.evaluation != nil ? ["show_preview"]:[])+(ownsOpponent && demonstration==nil ? ["play_move"]:[])):(lesson?.pieces != nil ? ["show_annotation"]:[])
-        let practice:[String:Any]=["fen":rules.fen,"turn":rules.turn,"history":Array(rules.history.suffix(160)),"totalPlies":rules.history.count,"historyTruncated":rules.history.count>160,"check":rules.check,"checkmate":rules.checkmate,"draw":rules.draw,"gameOver":finished,"ending":(state.practice.ending?.reason ?? rules.ending?.reason) as Any? ?? NSNull(),"claimableDraw":claimableDraw as Any? ?? NSNull(),"difficulty":OpponentProfile.settings(state.settings).mode=="skill" ? OpponentProfile.settings(state.settings).value:state.settings.skill,"opponentProfile":jsonObject(OpponentProfile.settings(state.settings)),"busy":busy,"busyReason":busyReason as Any? ?? NSNull(),"engineAvailable":engine != nil]
+        let practice:[String:Any]=["fen":rules.fen,"turn":rules.turn,"history":Array(rules.history.suffix(160)),"totalPlies":rules.history.count,"historyTruncated":rules.history.count>160,"check":rules.check,"checkmate":rules.checkmate,"draw":rules.draw,"gameOver":finished,"ending":(state.practice.ending?.reason ?? rules.ending?.reason) as Any? ?? NSNull(),"claimableDraw":claimableDraw as Any? ?? NSNull(),"difficulty":OpponentProfile.settings(state.settings).mode=="skill" ? OpponentProfile.settings(state.settings).value:state.settings.skill,"opponentProfile":jsonObject(OpponentProfile.settings(state.settings)),"busy":busy,"busyReason":busyReason?.rawValue as Any? ?? NSNull(),"engineAvailable":engine != nil]
         return stateHeader.merging(["display":["activeView":displayView,"fen":displayFen as Any? ?? NSNull(),"identity":displayIdentity],"presentationHidden":presentationHidden,"learnerSide":humanSide,"turnEventId":mode == .practice && rules.records.last?.color==opponentSide ? positionId as Any:NSNull(),"coachingMode":state.settings.coachingMode,"coaching":nullableProjection(coaching,keys:["recommendation","analysis"]),"preview":preview.map{nullableProjection($0,keys:["candidate","evaluation","error"])} ?? NSNull(),"demonstration":demonstration.map{jsonObject($0)} ?? NSNull(),"overlayRevision":overlayRevision,"mode":mode == .practice ? "practice":lesson?.mode ?? "lesson","capabilities":capabilities,"controller":controller(["paused":explicitResumeRequired || pausedOpponent || voiceHold || temporary,"pauseReason":explicitResumeRequired ? "review_restore_failed" as Any:voiceHold ? "coach_speaking" as Any:temporary ? "temporary_view" as Any:pausedOpponent ? "companion_disconnected" as Any:NSNull(),"side":ownsOpponent ? opponentSide as Any:NSNull()]),"state":mode == .practice ? practice:projectedLesson()]){$1}
     }
 }

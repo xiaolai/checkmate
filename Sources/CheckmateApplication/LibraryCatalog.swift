@@ -47,7 +47,7 @@ public struct LibraryCatalog:Sendable,Equatable {
     }
     public static func facts(_ game:LibraryGame)->String {
         let moves=(game.plies+1)/2,ending=ending(game)
-        return ([ending,"\(moves) move\(moves==1 ? "":"s")",game.opening?.name].compactMap{$0}).joined(separator:" · ")
+        return ([ending,Plural.count(moves,one:"%d move",other:"%d moves"),game.opening?.name].compactMap{$0}).joined(separator:" · ")
     }
     static func bundledRow(_ game:LibraryGame,event:LibraryEvent?)->LibraryRow {
         // Under its event's section a championship game shows the players and game only; the full title is its label.

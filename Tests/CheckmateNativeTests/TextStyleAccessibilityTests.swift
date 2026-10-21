@@ -15,7 +15,7 @@ final class TextStyleAccessibilityTests:XCTestCase {
         // One place adds the heading trait, so every heading reads the same way.
         for (name,text) in files where name != "Helpers.swift" {XCTAssertFalse(text.contains(".accessibilityAddTraits(.isHeader)"),"\(name) adds the heading trait itself; use sectionHeading()")}
         XCTAssertTrue(files["Helpers.swift"]?.contains("func sectionHeading(") == true)
-        let headings=["Suggested practice","Game library","PGN game records","FEN positions","Training","Quick puzzles","Try a move","Moves","Voice coach","Voice Coach","Games on your network","Host a Game","Moments to review","Evaluation","Game review","Practise from this position","Checkmate","Game paused","You Reached the End of This Set"]
+        let headings=["Suggested practice","Game library","PGN game records","FEN positions","Training","Quick puzzles","Try a move","Moves","Voice coach","Voice Coach","Games on your network","Host a Game","Moments to review","Evaluation","Game review","Practice from this position","Checkmate","Game paused","You Reached the End of This Set"]
         let all=files.values.joined(separator:"\n")
         for heading in headings {
             XCTAssertTrue(all.contains("Text(\"\(heading)\").sectionHeading("),"\(heading) is a heading")

@@ -248,7 +248,7 @@ final class BoardTitleView:NSView {
         width.isActive = true
         if !fullscreen,let native=window as? BoardWindow{native.drawerViewport=available;native.drawerOrigins=min(window.frame.minX,target.minX)...max(window.frame.minX,target.minX)}
         NSAnimationContext.runAnimationGroup{context in
-            context.allowsImplicitAnimation=true;context.duration=NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? 0:Metrics.animation;context.timingFunction=CAMediaTimingFunction(name:.easeInEaseOut)
+            context.allowsImplicitAnimation=true;context.duration=NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? 0:Metrics.drawerAnimation;context.timingFunction=CAMediaTimingFunction(name:.easeInEaseOut)
             width.constant=targetCore
             if changeLeft{sidebarItem.animator().isCollapsed = !desiredLeft}
             if changeRight{inspectorItem.animator().isCollapsed = !desiredRight}
@@ -307,7 +307,7 @@ final class BoardTitleView:NSView {
     @discardableResult private func showPromotionMenu(at sq:String,action:Selector,payload:(String)->Any)->Bool {
         let menu=NSMenu()
         // Each piece answers to its letter alone (B-13); Queen opens under the pointer, highlighted.
-        for (title,piece) in [("Queen","q"),("Rook","r"),("Bishop","b"),("Knight","n")]{let item=NSMenuItem(title:title,action:action,keyEquivalent:piece);item.keyEquivalentModifierMask=[];item.target=self;item.image=promotionImage(piece);item.toolTip="Promote to a "+title.lowercased();item.representedObject=payload(piece);menu.addItem(item)}
+        for (title,piece,tip) in [("Queen","q","Promote to a queen"),("Rook","r","Promote to a rook"),("Bishop","b","Promote to a bishop"),("Knight","n","Promote to a knight")]{let item=NSMenuItem(title:title,action:action,keyEquivalent:piece);item.keyEquivalentModifierMask=[];item.target=self;item.image=promotionImage(piece);item.toolTip=tip;item.representedObject=payload(piece);menu.addItem(item)}
         return presentPromotionMenu(menu,board.squareRect(sq).origin,board)
     }
     /// A training promotion, bound to the attempt, its saved revision and the move the menu was opened for: a choice
@@ -352,14 +352,14 @@ final class BoardTitleView:NSView {
     /// What VoiceOver hears for a move that just landed; nil outside practice or during review.
     func announcement(for move:MoveRecord)->String? {
         let s=model.session;guard s.mode == .practice,!model.review.active else{return nil}
-        var text=(move.color==s.humanSide ? "You played ":"\(move.color=="w" ? "White":"Black") played ")+move.san+"."
+        var text=move.color==s.humanSide ? "You played \(move.san).":move.color=="w" ? "White played \(move.san).":"Black played \(move.san)."
         if s.rules.checkmate{text+=move.color==s.humanSide ? " Checkmate. You win.":" Checkmate."}else if s.rules.check{text+=move.color==s.humanSide ? " Check.":" Your king is in check."}else if s.rules.draw{text+=" The game is drawn."}
         return text
     }
     /// What VoiceOver hears when a lesson exercise move lands: the move, check or mate, and the exercise's outcome.
     func attemptAnnouncement(for move:MoveRecord)->String {
         let attempt=model.learning.attempt!,rules=attempt.rules
-        var text=(move.color=="w" ? "You played ":"The computer played ")+move.san+"."
+        var text=move.color=="w" ? "You played \(move.san).":"The computer played \(move.san)."
         if rules.checkmate{text+=" Checkmate."}else if rules.check{text+=move.color=="w" ? " Check.":" Your king is in check."}else if rules.draw{text+=" The game is drawn."}
         switch attempt.phase {case .achieved?:text+=" Well done! "+(attempt.judgement?.feedback ?? "");case .offTrack?,.failed?:text+=" "+(attempt.judgement?.feedback ?? "");default:break}
         return text
@@ -410,7 +410,7 @@ playbackLineView?.isHidden=model.reviewWorkspace
         board.isHidden=library || titlecard || trainingLibrary;puzzles.isHidden = !library;welcome.isHidden = !titlecard;trainingLibraryView.isHidden = !trainingLibrary
         if titlecard {welcome.rootView=WelcomeContent(title:l.localizedStepTitle(index:l.lessonIndex,step:l.step))}
         setTitle(s.mode == .network ? model.network.boardTitle:s.mode == .practice ? "Practice · \(s.humanSide=="b" ? "Black":"White") vs Stockfish":s.mode == .puzzles ? "Quick puzzles":l.mini ? l.miniKind.title:s.mode == .training ? trainingExercise?.definition.title ?? "Training":l.localizedTitle(index:l.lessonIndex)+(l.attemptStatus.map{" · "+$0} ?? ""))
-        let temporary=s.preview != nil || s.demonstration != nil;titleView.label.isHidden=temporary;titleView.tabs.isHidden = !temporary;titleView.tabs.setLabel(s.demonstration != nil ? "Demonstration":"Try a move",forSegment:1);titleView.tabs.selectedSegment=s.presentationHidden ? 0:1;titleView.needsLayout=true
+        let temporary=s.preview != nil || s.demonstration != nil;titleView.label.isHidden=temporary;titleView.tabs.isHidden = !temporary;titleView.tabs.setLabel(s.demonstration != nil ? "Demonstration":"Try a Move",forSegment:1);titleView.tabs.selectedSegment=s.presentationHidden ? 0:1;titleView.needsLayout=true
     }
     /// Everything the board shows for one activity. Each builder sets every field, so nothing from the previous
     /// activity survives a switch; `applyBoard` is the one place the board receives it.
@@ -473,7 +473,7 @@ playbackLineView?.isHidden=model.reviewWorkspace
             // The title follows the control: Pause while playing, and the lesson's name where the arrow crosses into it.
             switch shown?.action {
             case .previousLesson?,.nextLesson?:item.title=shown!.label.replacingOccurrences(of:"Previous lesson:",with:"Previous Lesson:").replacingOccurrences(of:"Next lesson:",with:"Next Lesson:")
-            case .playPause?,.reviewPlayPause?,.demoPlayPause?:item.title=shown!.symbol=="pause.fill" ? "Pause":"Play"
+            case .playPause?,.reviewPlayPause?,.demoPlayPause?:item.title=shown!.symbol == .pause ? "Pause":"Play"
             case .attemptHint?,.trainingHint?,.hint?:item.title=shown!.label
             default:item.title=fallback
             }

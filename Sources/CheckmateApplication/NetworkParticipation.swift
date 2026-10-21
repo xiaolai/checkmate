@@ -53,5 +53,5 @@ import Foundation
     public static let refusal="NETWORK_GAME"
     public static let practicePaused="Paused during your network game"
     public static let analysisHidden="Analysis is hidden during your network game"
-    public static let destinationUnavailable="Finish your network game first"
+    public static let destinationUnavailable="Finish your network game first."
 }

@@ -146,7 +146,7 @@ public struct LessonAttemptProjection:Codable,Equatable {
         if !hasMoves,record.hints<words{record.hints+=1;self.record=record;save();onChange();return}
         record.hints=3;self.record=record;save()
         if let node=judgement?.node,let move=practice?.teaching?[node].accepted.first{hintArrow=[String(move.prefix(2)),String(move.dropFirst(2).prefix(2))];onChange();return}
-        guard session.fairness.engineHelpAllowed else{notice=FairnessPolicy.destinationUnavailable+".";onChange();return}
+        guard session.fairness.engineHelpAllowed else{notice=FairnessPolicy.destinationUnavailable;onChange();return}
         guard let engine=session.engine,let practice else{notice="A move cannot be shown right now.";onChange();return}
         let token=generation,moves=record.moves
         work=Task{[weak self,fairness=session.fairness] in

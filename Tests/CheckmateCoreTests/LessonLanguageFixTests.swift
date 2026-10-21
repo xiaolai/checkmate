@@ -82,7 +82,7 @@ private actor FixRecorder:LessonRecordingProvider {
   let manifest=try XCTUnwrap(try manifests().first);try Data("damaged".utf8).write(to:manifest)
   c.selectedLesson=1;c.selectedLesson=0;for _ in 0..<300 where c.storedStatus=="Checking stored lesson data…"{try await Task.sleep(for:.milliseconds(10))}
   XCTAssertFalse(c.inspection.isEmpty,"The intact translated text is still shown")
-  XCTAssertFalse(c.storedStatus.contains("Discard translated text"),c.storedStatus);XCTAssertTrue(c.storedStatus.contains("Remove stored lesson"),c.storedStatus)
+  XCTAssertFalse(c.storedStatus.contains("Discard Translated Text"),c.storedStatus);XCTAssertTrue(c.storedStatus.contains("Remove Stored Lesson"),c.storedStatus)
  }
 
  /// #15: a clip that failed before the job was cancelled is retried after the clips still to record on Resume.
@@ -91,7 +91,7 @@ private actor FixRecorder:LessonRecordingProvider {
   let text=try XCTUnwrap(try setup.store.translation(source:LessonTranslation.source(library:setup.library,index:0),locale:"fr"));XCTAssertGreaterThan(text.beats.count,2)
   let recorder=FixRecorder(failing:[text.beats[0].speak],holding:text.beats[1].speak),c=try controller(recorder)
   c.record();for _ in 0..<300 {if await recorder.scripts.count>=2{break};try await Task.sleep(for:.milliseconds(10))}
-  c.cancel();try await wait(c);XCTAssertTrue(c.status.hasPrefix("Cancelled"),c.status)
+  c.cancel();try await wait(c);XCTAssertTrue(c.status.hasPrefix("Canceled"),c.status)
   let before=await recorder.scripts.count;XCTAssertEqual(before,2);await recorder.settle()
   c.record();try await wait(c)
   let resumed=Array(await recorder.scripts.dropFirst(before));XCTAssertEqual(resumed.count,text.beats.count)

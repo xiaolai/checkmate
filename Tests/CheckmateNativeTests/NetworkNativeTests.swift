@@ -24,7 +24,7 @@ import CheckmateCore
         let model=try NativeModel();defer{model.shutdown()}
         model.playOnNetwork();XCTAssertEqual(model.session.activity,.at(.network))
         model.fairness.participation.begin(.player)
-        model.lesson(0);XCTAssertEqual(model.session.activity,.at(.network),"a lesson is refused");XCTAssertEqual(model.storageError,FairnessPolicy.destinationUnavailable+".")
+        model.lesson(0);XCTAssertEqual(model.session.activity,.at(.network),"a lesson is refused");XCTAssertEqual(model.storageError,FairnessPolicy.destinationUnavailable)
         model.storageError=nil;model.puzzles();XCTAssertEqual(model.session.activity,.at(.network),"puzzles are refused")
         if model.training != nil{model.trainingLibrary();XCTAssertEqual(model.session.activity,.at(.network),"training is refused")}
         // Practice stays viewable, with Stockfish paused and hints off; the network place is one click back.

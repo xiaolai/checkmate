@@ -3,7 +3,7 @@
 Every action is a posted mouse event (accessibility presses bypass hit-testing): the library entries, square
 selection with Submit and None, a clicked and a dragged move, Hint, Try again, Back to training, and Pawn Duel
 opened from the library with its level picker (the levels calibration offers, shown as Gentle, Steady and Strong) and
-"Start a new game at" the chosen level. The app runs with its own automation identifier and data directory, training enabled.
+"Start a New Game at" the chosen level. The app runs with its own automation identifier and data directory, training enabled.
 """
 import atexit
 import json
@@ -267,14 +267,14 @@ try:
     assert offered == ["beginner", "standard", "challenging"], f"Pawn Duel's calibrated levels changed to {offered}: update this gate"
     pointer("select-popup", "mini-difficulty", "Gentle")
     wait(lambda: "mini-new-level" in listing(), "Choosing a level during a game did not offer a new game at it")
-    assert "Start a new game at Gentle" in listing() and "This game continues at Steady." in listing(), "The offer does not name the levels as shown"
+    assert "Start a New Game at Gentle" in listing() and "This game continues at Steady." in listing(), "The offer does not name the levels as shown"
     wait(lambda: (saved().get("settings") or {}).get("miniOpponentProfiles", {}).get("pawn-duel") == "beginner", "The per-game level was not saved")
     assert (duel().get("level") or {}).get("profile") == "standard" and len(duel().get("history", [])) == 2, "The game in progress changed level"
     pointer("click", "mini-new-level")
-    wait(lambda: (duel().get("level") or {}).get("profile") == "beginner" and not duel().get("history"), "Start a new game at Gentle did not start one at it")
+    wait(lambda: (duel().get("level") or {}).get("profile") == "beginner" and not duel().get("history"), "Start a New Game at Gentle did not start one at it")
     wait(lambda: "mini-new-level" not in listing(), "The new game still offered another one")
     level_picker = True
-    pointer("click", "Back to training")
+    pointer("click", "Back to Training")
     wait(lambda: "training-entry-pawn-duel" in listing(), "Back to training did not return to the library")
     legacy_from_library = True
 

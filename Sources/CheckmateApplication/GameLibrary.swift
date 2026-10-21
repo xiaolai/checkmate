@@ -20,7 +20,7 @@ public struct LibraryGame:Codable,Equatable,Sendable,Identifiable {
 /// content, so any defect throws: it is reported, never shown as a shorter list. Opening a game reads exactly its byte
 /// range and checks the record's hash.
 public struct GameLibrary:Sendable,Equatable {
-    public static let provenance="Library game"
+    public static let provenance=ReviewProvenance.libraryGame
     public static let categories=["world-championship","classic"],kinds:Set<String>=["game","traditional","illustrative"],endings:Set<String>=["checkmate","resignation","time","draw","unknown"],results:Set<String>=["1-0","0-1","1/2-1/2"]
     static let maximumText=200,maximumGames=5000
     public let events:[LibraryEvent],games:[LibraryGame]

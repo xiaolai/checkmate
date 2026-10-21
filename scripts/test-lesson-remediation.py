@@ -54,8 +54,8 @@ try:
  (evidence/'practice-invitation-ax.txt').write_text(listing())
  # The lesson's exercise is its own invitation step: the button goes there and the practice game stays as it was.
  game=saved()['practice']['pgn'];previous=saved()['practice'].get('previousGame','')
- click_lesson('The Fork');wait(lambda:'Go to your turn' in listing(),'The Fork offers no way to its exercise')
- pointer('click','Go to your turn');wait(lambda:'Current activity | The Fork · Your turn' in listing(),'Go to your turn did not open the exercise step')
+ click_lesson('The Fork');wait(lambda:'Go to Your Turn' in listing(),'The Fork offers no way to its exercise')
+ pointer('click','Go to Your Turn');wait(lambda:'Current activity | The Fork · Your turn' in listing(),'Go to your turn did not open the exercise step')
  wait(lambda:pointer('label','g5').startswith('g5, White, knight'),'The exercise board is not the practice position')
  assert saved()['practice']['pgn']==game and saved()['practice'].get('previousGame','')==previous,'Going to the exercise touched the practice game'
  results['lessonExerciseLeavesPracticeGame']=True
@@ -123,18 +123,18 @@ try:
  results['lessonGuardStages']=True
  # Back to the top of the sidebar, where the next checks find their lessons.
  pointer('scroll-sidebar','400');time.sleep(.5)
- # Practice activities sit indented under their piece lesson. For each of the five: the lesson's Practise button, a real
+ # Practice activities sit indented under their piece lesson. For each of the five: the lesson's Practice button, a real
  # click on the activity row's text and one on its indent each open it, and VoiceOver hears which lesson it practises.
  # The sidebar's width is fixed (Metrics.left), so row geometry is the same at minimum width and in fullscreen.
  # The title above the board names the lesson shown.
  def opened(title):return lambda:'Current activity | '+title in listing()
  activities=[('The Pawn','Pawn Duel'),('The Rook','Rook Practice'),('The Bishop','Bishop Practice'),('The Queen','Queen Practice'),('The Knight','Knight Practice')]
  for parent,activity in activities:
-  click_lesson(parent);wait(lambda:'Practise: '+activity in listing(),f'{parent} does not offer {activity}')
-  pointer('click','Practise: '+activity);wait(opened(activity),f'Practise did not open {activity}')
-  click_lesson(parent);wait(lambda:'Practise: '+activity in listing(),f'The {parent} row did not open its lesson')
+  click_lesson(parent);wait(lambda:'Practice: '+activity in listing(),f'{parent} does not offer {activity}')
+  pointer('click','Practice: '+activity);wait(opened(activity),f'Practice did not open {activity}')
+  click_lesson(parent);wait(lambda:'Practice: '+activity in listing(),f'The {parent} row did not open its lesson')
   pointer('click',activity);wait(opened(activity),f'A click on the {activity} row text did not open it')
-  click_lesson(parent);wait(lambda:'Practise: '+activity in listing(),f'The {parent} row did not open its lesson')
+  click_lesson(parent);wait(lambda:'Practice: '+activity in listing(),f'The {parent} row did not open its lesson')
   pointer('click-left',lesson_row(activity),'30');wait(opened(activity),f'A click on the indent of the {activity} row did not open it')
   hint=pointer('help',activity);assert hint=='Practice activity for '+parent,f'{activity} row hint: {hint!r}'
  # On a lesson's last transcript the toolbar arrow goes to the next main lesson, skipping practice; earlier it only
@@ -192,9 +192,9 @@ try:
  pointer('scroll-sidebar','400');time.sleep(.5)
  results['lessonBoundaryArrows']=True
  click_lesson('The Pawn')
- wait(lambda:'Go to your turn' in listing() or 'Resume your attempt' in listing() or 'lesson-attempt-status' in listing(),"The Pawn lost its own exercise")
+ wait(lambda:'Go to Your Turn' in listing() or 'Resume Your Attempt' in listing() or 'lesson-attempt-status' in listing(),"The Pawn lost its own exercise")
  for _ in range(3):
-  click_lesson('The Rook');wait(lambda:'Practise: Rook Practice' in listing(),'The Rook row did not open its lesson')
+  click_lesson('The Rook');wait(lambda:'Practice: Rook Practice' in listing(),'The Rook row did not open its lesson')
   click_lesson('Rook Practice');wait(opened('Rook Practice'),'Rook Practice did not reopen')
  subprocess.run(['/usr/sbin/screencapture','-x',str(evidence/'practice-sub-items.png')],check=True)
  stop();value=saved();value['course']['completed']=sorted(set(value['course']['completed'])|{'pawn'});(state/'state-v1.json').write_text(json.dumps(value));launch()
@@ -203,7 +203,7 @@ try:
  click_lesson('The Pawn')
  if 'AXPopUpButton: Transcript' not in listing():pointer('click','Details')
  wait(lambda:'Continue to The Rook' in listing(),'Continue after The Pawn does not name The Rook')
- pointer('click','Continue to The Rook');wait(lambda:'Practise: Rook Practice' in listing(),'Continue did not open The Rook')
+ pointer('click','Continue to The Rook');wait(lambda:'Practice: Rook Practice' in listing(),'Continue did not open The Rook')
  results['practiceSubItems']=True
  results['silent']=True
  # Reached only when every check above passed.

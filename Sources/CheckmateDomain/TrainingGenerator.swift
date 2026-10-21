@@ -51,7 +51,7 @@ public enum TrainingGenerator {
             let budget=distance+limits.slack,shortest=tier>=3
             let prompt=shortest ? "Move the \(colorName(color).lowercased()) \(name) from \(start) to \(target) in the fewest moves: \(budget).":"Move the \(colorName(color).lowercased()) \(name) from \(start) to \(target) in at most \(budget) moves."
             let id="gen-reach-target-\(piece)-t\(tier)-\(own)-\(seedText(seed))"
-            return TrainingScenario(id:id,entry:"reach-target",variant:name,tier:tier,cluster:cluster("reach",[own+piece,start,target]+pieces.sorted{$0.key<$1.key}.map{$0.key+$0.value}),learner:own,prompt:prompt,explanation:"A shortest route takes \(distance) move\(distance==1 ? "":"s").",hints:[movementHint(piece)],drill:drill,budget:budget,shortest:shortest,expected:TrainingExpected(distance:distance),generation:TrainingGeneration(generator:"reach-target",version:version,seed:seedText(seed),candidates:candidate))
+            return TrainingScenario(id:id,entry:"reach-target",variant:name,tier:tier,cluster:cluster("reach",[own+piece,start,target]+pieces.sorted{$0.key<$1.key}.map{$0.key+$0.value}),learner:own,prompt:prompt,explanation:Plural.count(distance,one:"A shortest route takes %d move.",other:"A shortest route takes %d moves."),hints:[movementHint(piece)],drill:drill,budget:budget,shortest:shortest,expected:TrainingExpected(distance:distance),generation:TrainingGeneration(generator:"reach-target",version:version,seed:seedText(seed),candidates:candidate))
         }
         return nil
     }
@@ -59,7 +59,7 @@ public enum TrainingGenerator {
         switch piece {
         case "p":return "A pawn moves straight forward one square, or two from its starting square, and captures only one square diagonally forward."
         case "n":return "A knight jumps in an L: two squares one way and one square sideways. It hops over pieces."
-        case "b":return "A bishop slides diagonally and stays on squares of one colour. It cannot pass through pieces."
+        case "b":return "A bishop slides diagonally and stays on squares of one color. It cannot pass through pieces."
         case "r":return "A rook slides along ranks and files. It cannot pass through pieces."
         case "q":return "A queen slides like a rook or a bishop. It cannot pass through pieces."
         default:return "A king steps one square in any direction, and never onto a square an enemy piece attacks."
@@ -119,7 +119,8 @@ public enum TrainingGenerator {
             let occupant=board[target].map{" (the \(colorName($0.first!).lowercased()) \(pieceNames[String($0.last!)] ?? "piece"))"} ?? ""
             let prompt=defenders ? "Select every \(side) piece that protects the piece on \(target)\(occupant). Choose None if nothing protects it.":"Select every \(side) piece that attacks \(target)\(occupant). Choose None if no \(side) piece attacks it."
             let hint=defenders ? "Which other \(side) pieces attack \(target)? Follow their lines and jumps; a line stops at the first piece in the way. A pinned piece or a king still counts as protecting here.":"Follow each \(side) piece's lines and jumps. A line stops at the first piece in the way; a pinned piece still attacks."
-            let explanation=answer.isEmpty ? "No \(side) piece \(defenders ? "protects":"attacks") \(target).":"\(answer.sorted().joined(separator:", ")) \(answer.count==1 ? (defenders ? "protects":"attacks"):(defenders ? "protect":"attack")) \(target)."
+            let pieces=answer.sorted().joined(separator:", ")
+            let explanation=answer.isEmpty ? (defenders ? "No \(side) piece protects \(target).":"No \(side) piece attacks \(target)."):defenders ? (answer.count==1 ? "\(pieces) protects \(target).":"\(pieces) protect \(target)."):(answer.count==1 ? "\(pieces) attacks \(target).":"\(pieces) attack \(target).")
             return TrainingScenario(id:"gen-\(entry)-t\(tier)-\(own)-\(seedText(seed))",entry:entry,variant:defenders ? "defenders":"attackers",tier:tier,cluster:cluster(defenders ? "defend":"attack",[own,target]+board.sorted{$0.key<$1.key}.map{$0.key+$0.value}),learner:own,prompt:prompt,explanation:explanation,hints:[hint],diagram:board,target:target,expected:TrainingExpected(squares:answer.sorted()),generation:TrainingGeneration(generator:entry,version:version,seed:seedText(seed),candidates:candidate))
         }
         return nil

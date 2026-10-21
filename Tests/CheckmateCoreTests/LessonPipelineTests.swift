@@ -52,7 +52,7 @@ extension LessonPipelineTests {
   let dir=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);defer{try? FileManager.default.removeItem(at:dir)}
   let translator=FakeTranslator(),recorder=SlowRecorder(),library=try CourseLibrary(),usage=UsageLedger(directory:dir.appendingPathComponent("Usage")),controller=try LessonLanguageController(library:library,directory:dir,usage:usage,translator:translator,recorder:recorder)
   controller.language="fr";controller.allLessons=true;controller.translate();try await wait(controller);let translations=await translator.calls;XCTAssertEqual(translations,library.lessons.count)
-  controller.allLessons=false;controller.record();for _ in 0..<100 {if await recorder.calls>0{break};try await Task.sleep(for:.milliseconds(10))};controller.cancel();try await wait(controller);XCTAssertTrue(controller.status.contains("Cancelled"));XCTAssertNil(try controller.store.completePack(source:LessonTranslation.source(library:library,index:0),locale:"fr",voice:"cedar"));XCTAssertEqual(usage.records.last?.status,.cancelled)
+  controller.allLessons=false;controller.record();for _ in 0..<100 {if await recorder.calls>0{break};try await Task.sleep(for:.milliseconds(10))};controller.cancel();try await wait(controller);XCTAssertTrue(controller.status.contains("Canceled"));XCTAssertNil(try controller.store.completePack(source:LessonTranslation.source(library:library,index:0),locale:"fr",voice:"cedar"));XCTAssertEqual(usage.records.last?.status,.cancelled)
  }
 
 }

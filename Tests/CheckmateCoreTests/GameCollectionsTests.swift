@@ -58,10 +58,10 @@ final class GameCollectionsTests:XCTestCase {
         XCTAssertTrue(texts[0].hasPrefix("[Event \"First\"]") && texts[0].hasSuffix("4. Qxf7# 1-0"))
         XCTAssertTrue(texts[2].contains("(1... Nf6 2. c4)") && texts[2].hasSuffix("1/2-1/2"))
         // A record is validated only when opened: valid, invalid, valid.
-        XCTAssertEqual(try PGNImporter.parseReport(Data(texts[0].utf8),provenance:"Collection game").documents.count,1)
-        XCTAssertThrowsError(try PGNImporter.parseReport(Data(texts[1].utf8),provenance:"Collection game"))
-        XCTAssertEqual(try PGNImporter.parseReport(Data(texts[2].utf8),provenance:"Collection game").documents.first?.header("Event"),"Escaped \"quoted\" event")
-        XCTAssertEqual(try PGNImporter.parseReport(Data(texts[3].utf8),provenance:"Collection game").documents.count,1)
+        XCTAssertEqual(try PGNImporter.parseReport(Data(texts[0].utf8),provenance:.collectionGame).documents.count,1)
+        XCTAssertThrowsError(try PGNImporter.parseReport(Data(texts[1].utf8),provenance:.collectionGame))
+        XCTAssertEqual(try PGNImporter.parseReport(Data(texts[2].utf8),provenance:.collectionGame).documents.first?.header("Event"),"Escaped \"quoted\" event")
+        XCTAssertEqual(try PGNImporter.parseReport(Data(texts[3].utf8),provenance:.collectionGame).documents.count,1)
     }
     func testByteRangesHoldInLatin1AndWithAByteOrderMark() throws {
         let latin=try XCTUnwrap("[White \"Réti\"]\n[Result \"*\"]\n\n1. Nf3 *\n\n[White \"Zeta\"]\n[Result \"*\"]\n\n1. e4 *\n".data(using:.isoLatin1))
@@ -134,7 +134,7 @@ final class GameCollectionsTests:XCTestCase {
         XCTAssertEqual(try reviews.list().count,0)
         let index=try store.importCollection(Data(fixture.utf8),name:"fixture.pgn")
         XCTAssertEqual(try reviews.list().count,0)
-        let document=try XCTUnwrap(PGNImporter.parseReport(try store.data(index.records[0],in:index),provenance:"Collection game").documents.first)
+        let document=try XCTUnwrap(PGNImporter.parseReport(try store.data(index.records[0],in:index),provenance:.collectionGame).documents.first)
         try reviews.save(document,cursor:0,branches:[])
         XCTAssertEqual(try reviews.list().map(\.id),[document.id])
         // The saved review holds its own bytes: removing the collection leaves it fully readable.

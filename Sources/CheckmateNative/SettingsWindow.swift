@@ -2,9 +2,15 @@ import AppKit
 import Combine
 import SwiftUI
 import CheckmateCore
-enum SettingsCategory:String,CaseIterable,Identifiable {case board="Chessboard",sound="Sound",lessons="Lessons",practice="Practice",voice="Voice Coach",connections="Connections",usage="Usage",about="About";var id:String{rawValue};var symbol:String{switch self{case .board:return "checkerboard.rectangle";case .sound:return "speaker.wave.2";case .lessons:return "book";case .practice:return "flag.checkered";case .voice:return "waveform";case .connections:return "link";case .usage:return "chart.bar";case .about:return "info.circle"}}}
+/// A settings pane; the raw value is the saved identifier and `title` is only what the sidebar shows (D-12).
+enum SettingsCategory:String,CaseIterable,Identifiable {case board,sound,lessons,practice,voice,connections,usage,about;var id:String{rawValue}
+    var title:String{switch self{case .board:return "Chessboard";case .sound:return "Sound";case .lessons:return "Lessons";case .practice:return "Practice";case .voice:return "Voice Coach";case .connections:return "Connections";case .usage:return "Usage";case .about:return "About"}}
+    /// Saves before stable identifiers stored the shown title; those titles stay fixed here even if a title changes.
+    init(stored:String){self=Self(rawValue:stored) ?? Self.legacy[stored] ?? .board}
+    static let legacy:[String:SettingsCategory]=["Chessboard":.board,"Sound":.sound,"Lessons":.lessons,"Practice":.practice,"Voice Coach":.voice,"Connections":.connections,"Usage":.usage,"About":.about]
+var symbol:AppSymbol{switch self{case .board:return .board;case .sound:return .sound;case .lessons:return .lesson;case .practice:return .practice;case .voice:return .voice;case .connections:return .connections;case .usage:return .usage;case .about:return .about}}}
 private final class SettingsSelection:ObservableObject {@Published var category:SettingsCategory? = .board}
-private struct SettingsSidebar:View {@ObservedObject var selection:SettingsSelection;var body:some View{List(SettingsCategory.allCases,selection:$selection.category){c in Label(c.rawValue,systemImage:c.symbol).tag(c)}.listStyle(.sidebar).scrollContentBackground(.hidden)}}
+private struct SettingsSidebar:View {@ObservedObject var selection:SettingsSelection;var body:some View{List(SettingsCategory.allCases,selection:$selection.category){c in Label(c.title,symbol:c.symbol).tag(c)}.listStyle(.sidebar).scrollContentBackground(.hidden)}}
 private struct SettingsForm:View {
     @ObservedObject var selection:SettingsSelection
     @ObservedObject var session:GameSession
@@ -100,23 +106,23 @@ private struct SettingsForm:View {
             Section("Guidance"){Picker("Practice guidance",selection:binding(\.coachingMode)){Text("Guided game").tag("guided");Text("On request").tag("on_request");Text("Quiet").tag("quiet")}}
             Section{Toggle("Analyze When Opened",isOn:binding(\.reviewAutoAnalyze)).accessibilityIdentifier("review-auto-analyze")} header:{Text("Game review")} footer:{Text("Opening a game for review analyzes it with Stockfish. Moves already analyzed are not searched again, and nothing is analyzed during a network game.").foregroundStyle(.secondary)}
         }
-    }.formStyle(.grouped).frame(minWidth:Metrics.settingsDetailMinimum,minHeight:Metrics.settingsFormMinimumHeight).onReceive(model.$codexSetup){codexSetup=$0}.onChange(of:selection.category){_,category in session.state.window.settingsCategory=category?.rawValue ?? "Chessboard";session.emit(semantic:false,save:true)}}
+    }.formStyle(.grouped).frame(minWidth:Metrics.settingsDetailMinimum,minHeight:Metrics.settingsFormMinimumHeight).onReceive(model.$codexSetup){codexSetup=$0}.onChange(of:selection.category){_,category in session.state.window.settingsCategory=(category ?? .board).rawValue;session.emit(semantic:false,save:true)}}
 }
 @MainActor final class SettingsWindow:NSWindowController,NSToolbarDelegate {
     /// Escape closes Settings, as ⌘W (File ▸ Close) does.
     override func cancelOperation(_ sender:Any?){window?.performClose(sender)}
     private let selection=SettingsSelection(),titleID=NSToolbarItem.Identifier("settings.title"),titleLabel=textLabel("Settings",.title3,.semibold)
     private var titleFollowsPane:AnyCancellable?
-    init(model:NativeModel){selection.category=SettingsCategory.allCases.first{$0.rawValue==model.session.state.window.settingsCategory} ?? .board;let w=NSWindow(contentRect:NSRect(x:0,y:0,width:Metrics.settingsWidth,height:Metrics.settingsHeight),styleMask:[.titled,.closable,.fullSizeContentView],backing:.buffered,defer:false);super.init(window:w)
+    init(model:NativeModel){selection.category=SettingsCategory(stored:model.session.state.window.settingsCategory);let w=NSWindow(contentRect:NSRect(x:0,y:0,width:Metrics.settingsWidth,height:Metrics.settingsHeight),styleMask:[.titled,.closable,.fullSizeContentView],backing:.buffered,defer:false);super.init(window:w)
         // Titled by its pane (V-23); the identifier stays "Settings" so automation and the Window menu can find it.
         w.title="Settings";w.identifier=NSUserInterfaceItemIdentifier("Settings");w.titleVisibility = .hidden;w.isReleasedWhenClosed=false;w.autorecalculatesKeyViewLoop=true
         let split=NSSplitViewController(),side=NSSplitViewItem(sidebarWithViewController:NSHostingController(rootView:SettingsSidebar(selection:selection))),detail=NSSplitViewItem(viewController:NSHostingController(rootView:SettingsForm(selection:selection,session:model.session,voice:model.voice,companion:model.companion,model:model,voiceAudio:model.voice.audio,preview:model.voicePreview,about:AboutFacts(model:model),lessonLanguages:model.lessonLanguages,usage:model.usage,library:model.learning.library)))
         side.canCollapse=false;side.minimumThickness=Metrics.settingsSidebar;side.maximumThickness=Metrics.settingsSidebar;side.allowsFullHeightLayout=true;side.titlebarSeparatorStyle = .none;detail.titlebarSeparatorStyle = .automatic;split.addSplitViewItem(side);split.addSplitViewItem(detail);w.contentViewController=split
         let toolbar=NSToolbar(identifier:"Settings.Toolbar");toolbar.delegate=self;toolbar.displayMode = .iconOnly;toolbar.centeredItemIdentifiers=[titleID];w.toolbar=toolbar;w.toolbarStyle = .unified;w.setContentSize(NSSize(width:Metrics.settingsWidth,height:Metrics.settingsHeight));w.center()
         // The titlebar is opaque with a separator over the scrolling form, so a scrolled section no longer slides under the title.
-        titleFollowsPane=selection.$category.sink{[weak self] category in let title=category?.rawValue ?? "Settings";self?.window?.title=title;self?.titleLabel.stringValue=title}
+        titleFollowsPane=selection.$category.sink{[weak self] category in let title=category?.title ?? "Settings";self?.window?.title=title;self?.titleLabel.stringValue=title}
     }
-    func selectCategory(_ value:String){selection.category=SettingsCategory.allCases.first{$0.rawValue==value} ?? .board}
+    func selectCategory(_ value:SettingsCategory){selection.category=value}
     /// Opens Settings on one pane, as a failure's button does (V-27).
     func show(category:SettingsCategory){selection.category=category;showWindow(nil);window?.makeKeyAndOrderFront(nil)}
     var shownCategory:SettingsCategory? {selection.category}

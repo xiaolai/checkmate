@@ -6,7 +6,6 @@ enum NativeColors {
     static var secondaryText:NSColor { .secondaryLabelColor }
     static var error:NSColor { .systemRed }
     static var success:NSColor { .systemGreen }
-    static var playbackAccents:[NSColor] { [.systemTeal,.systemGreen,.systemOrange,.systemPurple] }
 }
 
 // The board is a themed surface, so its marks need contrast against both squares,
@@ -18,7 +17,13 @@ struct BoardPalette {
     /// contrast against each theme's squares (B-15).
     static let check=rgb(1.0,0.15,0.10),checkRing=rgb(0.30,0.02,0.02),lastMove=rgb(1.0,0.84,0.18)
     private static func rgb(_ r:CGFloat,_ g:CGFloat,_ b:CGFloat)->NSColor {NSColor(srgbRed:r,green:g,blue:b,alpha:1)}
-    static func theme(_ name:String)->BoardPalette {
+    /// `dark` dims the bright squares for a dark window; marks keep their contrast on both squares (D-36).
+    static func theme(_ name:String,dark:Bool=false)->BoardPalette {
+        let p=light(name);guard dark else{return p}
+        let dim=p.lightSquare.usingColorSpace(.sRGB)!
+        return BoardPalette(lightSquare:rgb(dim.redComponent*0.85,dim.greenComponent*0.85,dim.blueComponent*0.85),darkSquare:p.darkSquare,ink:p.ink,protection:p.protection,danger:p.danger)
+    }
+    private static func light(_ name:String)->BoardPalette {
         switch name {
         case "green":return BoardPalette(lightSquare:rgb(0.933,0.933,0.824),darkSquare:rgb(0.463,0.588,0.337),ink:rgb(0.14,0.23,0.12),protection:rgb(0.08,0.23,0.17),danger:rgb(0.35,0.10,0.09))
         case "blue":return BoardPalette(lightSquare:rgb(0.871,0.89,0.902),darkSquare:rgb(0.471,0.561,0.616),ink:rgb(0.15,0.22,0.27),protection:rgb(0.08,0.23,0.21),danger:rgb(0.35,0.10,0.15))

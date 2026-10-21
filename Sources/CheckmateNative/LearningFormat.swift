@@ -5,7 +5,7 @@ struct PuzzleRowFormat:Equatable {
     /// Solved alone, or solved but not first time (with hints or on a later try), which is marked apart from mastery.
     enum Mark:Equatable {
         case solved,notFirstTry
-        var symbol:String {self == .solved ? "checkmark.circle.fill":"checkmark.circle"}
+        var symbol:AppSymbol {self == .solved ? .done:.solvedLater}
     }
     /// `markHelp`: the mark's tooltip, the puzzle's standing; nil without a mark.
     let title:String,detail:String,review:Bool,mark:Mark?,markHelp:String?,accessibilityValue:String

@@ -91,8 +91,9 @@ try:
     act("select", "Review game")
     wait(lambda: "Choose a game or position to explore." in act("list"))
     listing = act("list")
-    for title in ("Open PGN…", "Paste PGN or FEN", "Review Current Game"):
-        assert "AXButton: " + title in listing, title
+    # One primary way to start; the others sit behind one menu, checked when it opens below.
+    assert "AXButton: Open PGN…" in listing, "Open PGN…"
+    assert "More Ways to Review" in listing, "More Ways to Review"
     assert not review_files(), "Navigation created a saved review"
     act("select", "Practice a game")
     wait(lambda: "practice-heading" in act("list"))
@@ -100,6 +101,9 @@ try:
     act("press", "e4, move destination")
     act("select", "Review game")
     wait(lambda: "Choose a game or position to explore." in act("list"))
+    act("press", "review-start-more")
+    wait(lambda: "Review Current Game" in act("list"))
+    assert "Paste PGN or FEN" in act("list"), "Paste PGN or FEN"
     act("press", "Review Current Game")
     wait(lambda: "AXButton: Save Review" in act("list"))
     assert not review_files(), "Opening a draft saved it without user intent"
@@ -113,6 +117,8 @@ try:
     act("press", "Choose Another Game…")
     wait(lambda: "Choose a game or position to explore." in act("list"))
     assert len(review_files()) == 1
+    act("press", "review-start-more")
+    wait(lambda: "Review Current Game" in act("list"))
     act("press", "Review Current Game")
     wait(lambda: "AXButton: Save Review" in act("list"))
     assert len(review_files()) == 1
@@ -127,7 +133,7 @@ try:
     wait(lambda: "review-delete-cancel" in act("list"))
     act("press", "review-delete-cancel")
     assert review_files().keys() == before.keys()
-    assert "Return to game" in act("list")
+    assert "Return to Game" in act("list")
     wait(lambda: "review-delete-cancel" not in act("list"))
     act("press", "review-document-actions")
     act("press", "Delete Saved Review…")

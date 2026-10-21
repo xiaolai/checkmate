@@ -11,7 +11,7 @@ import CheckmateCore
 final class GameDocumentTests:XCTestCase {
     func testUnknownPGNMetadataUsesReadableTitles()throws {
         let data=Data("[Event \"?\"]\n[White \"?\"]\n[Black \"?\"]\n1. e4 *".utf8)
-        XCTAssertEqual(try PGNImporter.parse(data,provenance:"Current game")[0].title,"Current game")
+        XCTAssertEqual(try PGNImporter.parse(data,provenance:.currentGame)[0].title,"Current game")
         XCTAssertEqual(try PGNImporter.parse(data)[0].title,"Imported game")
         XCTAssertEqual(try PGNImporter.parse(Data("[Event \" \" ]\n[White \"Alice\"]\n[Black \"Bob\"]\n1. d4 *".utf8))[0].title,"Alice – Bob")
     }

@@ -45,7 +45,7 @@ import RealtimeConnection
     private let reviewSaves:ReviewSaveCoordinator
     private static func reviewSaveFailure(_ error:Error)->String {
         let reason=userFacingMessage(error,fallback:"")
-        return "The review could not be saved"+(reason.isEmpty ? "":": "+reason.trimmingCharacters(in:CharacterSet(charactersIn:".")))+". Export the original PGN before quitting."
+        return reason.isEmpty ? "The review could not be saved. Export the original PGN before quitting.":"The review could not be saved: \(reason.trimmingCharacters(in:CharacterSet(charactersIn:"."))). Export the original PGN before quitting."
     }
     private var reviewSaveTask:Task<Void,Never>?
     private static let progressSaveFailure="Your progress could not be saved. Export it before quitting."
@@ -72,10 +72,10 @@ import RealtimeConnection
     func dismissStorageError(){storageError=nil}
     /// True only while the session holds a practice reply after a failed saved-review restore. The session owns the
     /// gate (every reply entry point respects it); the banner, practice pane and bottom transport offer the explicit
-    /// "Return to game"/"Resume game" action. A new game, restore, import, fork or lesson clears it with the position.
+    /// "Return to Game"/"Resume Game" action. A new game, restore, import, fork or lesson clears it with the position.
     var restoreResumePending:Bool {session.explicitResumeRequired}
     static let failedRestoreMessage="The saved review could not be restored; its file is preserved."
-    static let failedRestorePausedMessage=failedRestoreMessage+" Your game is paused. Choose Return to game to continue."
+    static let failedRestorePausedMessage=failedRestoreMessage+" Your game is paused. Choose Return to Game to continue."
     func resumeAfterFailedRestore(){storageError=nil;practice()}
     init() throws {
         if !NativePolicy.silent {Task.detached{CodexSubscriptionClient.cleanAbandonedPrivateHomes()}}
@@ -166,7 +166,7 @@ import RealtimeConnection
     /// The saved-review library loads off the main thread; a library changed meanwhile wins.
     private func loadSavedReviews(){
         let reviewStore=reviewStore;Task{do{let (entries,moved)=try await Task.detached{let entries=try reviewStore.list();return (entries,reviewStore.takeQuarantinedCount())}.value
-            if moved>0{storageError="\(moved) saved review\(moved==1 ? "":"s") could not be read and \(moved==1 ? "was":"were") moved to the Quarantine folder inside Reviews. Nothing was deleted."}
+            if moved>0{storageError=Plural.count(moved,one:"%d saved review could not be read and was moved to the Quarantine folder inside Reviews. Nothing was deleted.",other:"%d saved reviews could not be read and were moved to the Quarantine folder inside Reviews. Nothing was deleted.")}
             guard reviewLibraryGeneration==0 else{return};reviews=entries}catch{storageError="Saved reviews could not be loaded. Your current practice is unchanged."}}
     }
     /// Views observe this model: forward training, activity, resume-gate and settings changes.
@@ -397,7 +397,7 @@ import RealtimeConnection
     }
     private func askLearnerAboutDraft(_ ideas:Int)->DraftDisposal {
         if NativePolicy.silent{return .discard}
-        let alert=NSAlert.saveChanges("Save this review before leaving?","It holds \(ideas) imagined line\(ideas==1 ? "":"s") of yours that will be lost if you don’t save.")
+        let alert=NSAlert.saveChanges("Save this review before leaving?",Plural.count(ideas,one:"It holds %d imagined line of yours that will be lost if you don’t save.",other:"It holds %d imagined lines of yours that will be lost if you don’t save."))
         switch alert.runModal(){case .alertFirstButtonReturn:return .save;case .alertThirdButtonReturn:return .discard;default:return .cancel}
     }
     /// Saves the open draft; on failure it stays a draft (Save stays available) and is not retried in the background.
@@ -523,7 +523,7 @@ import RealtimeConnection
         let place=session.activity.place,reviewing=session.activity.review != nil,token=reviewOpenGeneration
         let sameReview:Bool={if case .review(let document,_,_)=next{return review.document?.id==document.id};return false}()
         // 1. The learner's say. During a network game lessons, puzzles and training stay closed (LAN-play plan D8).
-        if next.needsEngineHelp,!fairness.engineHelpAllowed{storageError=FairnessPolicy.destinationUnavailable+".";return false}
+        if next.needsEngineHelp,!fairness.engineHelpAllowed{storageError=FairnessPolicy.destinationUnavailable;return false}
         if case .practiceFork=next,!practiceForkStillCurrent(){return false}
         guard sameReview || resolveDraftBeforeLeaving() else{return false}
         // A "Don't save" answered this request only: withdrawn, or overtaken by another navigation made while the question
@@ -532,7 +532,7 @@ import RealtimeConnection
         // The draft question is modal and main-actor work (an agent's review call) runs during it: check the position again.
         if case .practiceFork=next,!practiceForkStillCurrent(){draftDiscardApproved=nil;return false}
         // A network game may also have begun while the question was up.
-        if next.needsEngineHelp,!fairness.engineHelpAllowed{draftDiscardApproved=nil;storageError=FairnessPolicy.destinationUnavailable+".";return false}
+        if next.needsEngineHelp,!fairness.engineHelpAllowed{draftDiscardApproved=nil;storageError=FairnessPolicy.destinationUnavailable;return false}
         // 2. Staging.
         let coordinator=WorkspaceTransitionCoordinator(session:session,learning:learning,review:review);coordinator.training=training
         let staged:PreparedWorkspaceTransition
@@ -745,7 +745,7 @@ import RealtimeConnection
             guard training?.canReview(exercise)==true else{return}
             reviewTraining();return
         }
-        reviewOpenGeneration+=1;cancelReviewImport();let provenance=previous ? "Previous game":"Current game",fallback="This game could not be opened for review. Your practice is unchanged."
+        reviewOpenGeneration+=1;cancelReviewImport();let provenance:ReviewProvenance=previous ? .previousGame:.currentGame,fallback="This game could not be opened for review. Your practice is unchanged."
         let data:Data;do{data=previous ? try ReviewRecordSource.data(previousGame:session.state.practice.previousGame,result:session.state.practice.previousEnding?.result):try ReviewRecordSource.data(session.rules,result:session.state.practice.ending?.result)}catch{storageError=userFacingMessage(error,fallback:fallback);return}
         let side=previous ? session.state.practice.previousSide:session.humanSide
         parseForReview(data,provenance:provenance,fallback:fallback){documents,_ in self.reviewSides[documents[0].id]=side;self.openReview(documents[0],draft:true)}
@@ -757,7 +757,7 @@ import RealtimeConnection
         guard let training else{return}
         let data:Data;do{data=try training.reviewRecord()}catch{storageError=userFacingMessage(error,fallback:fallback);return}
         let side=shownTrainingExercise?.scenario.learner
-        parseForReview(data,provenance:"Training game",fallback:fallback){documents,_ in self.reviewSides[documents[0].id]=side;self.openReview(documents[0],draft:true)}
+        parseForReview(data,provenance:.trainingGame,fallback:fallback){documents,_ in self.reviewSides[documents[0].id]=side;self.openReview(documents[0],draft:true)}
     }
     /// The review workspace's game library (bundled games and imported collections), in the data directory's own
     /// `Library/` folder, apart from `Reviews/`.
@@ -765,7 +765,7 @@ import RealtimeConnection
     /// A library or collection game opens as a draft review through the same cancellable parse as any imported record.
     /// The record must read as exactly one game with nothing skipped, and pass `verify` (a bundled game must replay to
     /// its manifest entry), or nothing opens.
-    func openLibraryRecord(_ data:Data,provenance:String,fallback:String,verify:@escaping (GameDocument)throws->Void={_ in}){
+    func openLibraryRecord(_ data:Data,provenance:ReviewProvenance,fallback:String,verify:@escaping (GameDocument)throws->Void={_ in}){
         parseForReview(data,provenance:provenance,delay:NativePolicy.silent ? min(2000,max(0,automationReviewImportDelayMs)):0,fallback:fallback){documents,skipped in
             guard documents.count==1,skipped.isEmpty else{throw CheckmateError.invalid("This library record does not hold exactly one readable game.")}
             try verify(documents[0]);self.openReview(documents[0],draft:true)
@@ -775,7 +775,7 @@ import RealtimeConnection
     func importReviewData(_ data:Data,learnerSide:String?=nil){
         parseForReview(data,delay:NativePolicy.silent ? min(2000,max(0,automationReviewImportDelayMs)):0,fallback:"This record could not be imported. Your current game and reviews are unchanged."){documents,skipped in
             // Unreadable games in a collection are skipped, and the learner is told which.
-            if let first=skipped.first{self.storageError="\(skipped.count) game\(skipped.count==1 ? "":"s") in this file could not be read and \(skipped.count==1 ? "was":"were") skipped. "+(first.errorDescription ?? "")}
+            if let first=skipped.first{self.storageError=Plural.count(skipped.count,one:"%d game in this file could not be read and was skipped.",other:"%d games in this file could not be read and were skipped.")+" "+(first.errorDescription ?? "")}
             if documents.count==1{self.reviewSides[documents[0].id]=learnerSide;self.openReview(documents[0],draft:true);return}
             // Many games (R-9) join the library as a collection, searchable and sortable there, with the first selected.
             self.showReviewWorkspace();self.library.load();self.library.importCollection(data)
@@ -784,7 +784,7 @@ import RealtimeConnection
     /// One cancellable parse for every review made from text (the current game, a file, a paste or a drop): it replaces
     /// any older open or import, runs detached under the import overlay and its Cancel, and presents only while no
     /// other activity was chosen. A record with no readable game fails with `fallback` or its own reason.
-    private func parseForReview(_ data:Data,provenance:String="Imported",delay:Int=0,fallback:String,present:@escaping (_ documents:[GameDocument],_ skipped:[ReviewImportError])throws->Void){
+    private func parseForReview(_ data:Data,provenance:ReviewProvenance = .imported,delay:Int=0,fallback:String,present:@escaping (_ documents:[GameDocument],_ skipped:[ReviewImportError])throws->Void){
         reviewOpenGeneration+=1;cancelReviewImport();let generation=reviewOpenGeneration,token=ReviewImportCancellation();reviewImportCancellation=token;importingReview=true
         reviewImportTask=Task{do{
             if delay>0{try await Task.sleep(for:.milliseconds(delay))}
@@ -835,7 +835,7 @@ import RealtimeConnection
     private var practiceForkIdentity:String?
     func practiceFromReview(){practiceForkIdentity=review.identity+":\(review.branchPly)";practiceForkRequested=true}
     private func practiceForkStillCurrent()->Bool {
-        guard practiceForkRequested,review.active,practiceForkIdentity==review.identity+":\(review.branchPly)" else{practiceForkRequested=false;practiceForkIdentity=nil;storageError="The review changed while you were choosing. Choose Practise here again.";return false};return true}
+        guard practiceForkRequested,review.active,practiceForkIdentity==review.identity+":\(review.branchPly)" else{practiceForkRequested=false;practiceForkIdentity=nil;storageError="The review changed while you were choosing. Choose Practice Here again.";return false};return true}
     /// Forks exactly the displayed position: an imagined line replays from its own root (for "Compare best line", the
     /// parent), with history-aware automatic terminal rules.
     func confirmPracticeFork(side:String,preset:String){navigate(.practiceFork(side:side,preset:preset))}

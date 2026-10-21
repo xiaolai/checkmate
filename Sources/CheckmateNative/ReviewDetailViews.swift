@@ -46,7 +46,7 @@ enum ReviewFormat {
     }
     /// The header's first line: the players, or what the record is when they are unknown.
     static func players(_ d:GameDocument)->String {
-        if d.provenance=="Current game" || d.provenance=="Previous game"{return d.provenance}
+        if let own=d.provenance.ownGameTitle{return own}
         let white=known(d.header("White")),black=known(d.header("Black"))
         if white != nil || black != nil{return "\(white ?? "White") – \(black ?? "Black")"}
         return d.historyAvailable ? "Imported game":"Imported position"
@@ -168,18 +168,18 @@ struct ReviewHeader:View {
             }
             Spacer(minLength:0)
             Text(ReviewFormat.result(document.result)).font(.caption.weight(.semibold)).monospacedDigit().padding(.horizontal,6).padding(.vertical,2)
-                .background(Capsule().fill(.quaternary)).accessibilityLabel("Result: "+ReviewFormat.result(document.result))
+                .background(Capsule().fill(.quaternary)).accessibilityLabel("Result: \(ReviewFormat.result(document.result))")
         }
         HStack(spacing:Metrics.smallGap){
             if model.reviewDraft{Button("Save Review"){model.saveCurrentReview()}.buttonStyle(.borderedProminent)}
             // Availability follows the displayed position, including an imagined line from the parent.
-            Button("Practise here"){review.pause();model.practiceFromReview()}.disabled(!review.practiceForkAvailable)
+            Button("Practice Here"){review.pause();model.practiceFromReview()}.disabled(!review.practiceForkAvailable)
             Spacer(minLength:0)
             Menu{
                 Button("Choose Another Game…"){model.showReviewWorkspace()}
                 Button("Export PGN…"){model.exportReview()}
                 if !model.reviewDraft{Divider();Button("Delete Saved Review…",role:.destructive){model.requestDeleteReview(document.id)}.disabled(model.deletingReviewID != nil)}
-            } label:{Image(systemName:"ellipsis.circle")}.menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+            } label:{AppSymbol.moreActions.image}.menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
                 .help("Review actions").accessibilityLabel("Review actions").accessibilityIdentifier("review-document-actions")
         }.controlSize(.small)
     }}
@@ -262,9 +262,9 @@ struct EvaluationGraph:View,AXChartDescriptorRepresentable {
             .onContinuousHover{phase in switch phase{case .active(let location):hovered=index(location.x,proxy,geometry);case .ended:hovered=nil}}
             .gesture(DragGesture(minimumDistance:0).onChanged{drag in if let i=index(drag.location.x,proxy,geometry){choose(i)}})}}
         .overlay(alignment:.topLeading){if let hovered{Text(verbatim:ReviewFormat.readout(document,index:hovered,score:score(hovered),grade:grade(hovered))).font(.caption2).monospacedDigit()
-            .padding(.horizontal,4).padding(.vertical,1).background(.regularMaterial,in:RoundedRectangle(cornerRadius:3)).padding(3).allowsHitTesting(false).accessibilityHidden(true)}}
+            .padding(.horizontal,Metrics.tightGap).padding(.vertical,1).background(.regularMaterial,in:RoundedRectangle(cornerRadius:3)).padding(3).allowsHitTesting(false).accessibilityHidden(true)}}
         .frame(height:64).padding(.vertical,2).background(ReviewCard(radius:6))
-        .help("Evaluation from White's side: light above the line favours White, dark below favours Black. Click or drag to choose a position.")
+        .help("Evaluation from White's side: light above the line favors White, dark below favors Black. Click or drag to choose a position.")
         // A chart element reports no AXValue, so the selected position, its move, score and grade are part of its label.
         .accessibilityElement(children:.ignore).accessibilityLabel(ReviewFormat.graphLabel(document,index:selected,last:last,score:selected.flatMap(score),grade:selected.flatMap(grade))).accessibilityIdentifier("review-evaluation-graph")
         .accessibilityAdjustableAction{direction in switch direction{case .increment:choose((selected ?? -1)+1);case .decrement:choose((selected ?? 1)-1);default:break}}
@@ -305,13 +305,13 @@ struct ReviewMoveSection:View {
         if !rows.isEmpty {VStack(alignment:.leading,spacing:Metrics.smallGap){
             Text("Moves").sectionHeading()
             if !key.isEmpty {
-                ViewThatFits(in:.horizontal){ForEach([5,4,3,2,1],id:\.self){count in HStack(spacing:4){ForEach(ReviewFormat.keyMoments(ranked,in:document,limit:count,engine:!moments.isEmpty),id:\.self){id in
-                    Button(ReviewFormat.moveText(document.nodes[id])){select(id)}.buttonStyle(.bordered).controlSize(.small).accessibilityLabel("Key moment, "+ReviewFormat.moveLabel(document.nodes[id])).help(reasons[id] ?? "A check, capture, promotion or the final move")}}}}
+                ViewThatFits(in:.horizontal){ForEach([5,4,3,2,1],id:\.self){count in HStack(spacing:Metrics.tightGap){ForEach(ReviewFormat.keyMoments(ranked,in:document,limit:count,engine:!moments.isEmpty),id:\.self){id in
+                    Button(ReviewFormat.moveText(document.nodes[id])){select(id)}.buttonStyle(.bordered).controlSize(.small).accessibilityLabel("Key moment, \(ReviewFormat.moveLabel(document.nodes[id]))").help(reasons[id] ?? "A check, capture, promotion or the final move")}}}}
                 Text(anyGrade ? "?! inaccuracy · ? mistake · ?? blunder; estimates may change.":moments.isEmpty ? "Checks, captures, promotions and the final move.":"Moments to start with; estimates may change.").font(.caption).foregroundStyle(.secondary).lineLimit(1)
             }
             ScrollViewReader{proxy in
                 ScrollView{LazyVStack(spacing:0){ForEach(Array(rows.enumerated()),id:\.offset){index,row in
-                    HStack(spacing:4){
+                    HStack(spacing:Metrics.tightGap){
                         Text("\(row.number).").monospacedDigit().foregroundStyle(.secondary).frame(width:34,alignment:.trailing)
                         cell(row.white,graded:graded,empty:row.white==nil && index==0 ? "…":"");cell(row.black,graded:graded,empty:"")
                     }.frame(height:Self.rowHeight).id(index)
@@ -371,13 +371,13 @@ struct ReviewPositionPanel:View {
                     HStack(spacing:Metrics.smallGap){actions}
                     VStack(alignment:.leading,spacing:Metrics.smallGap){HStack(spacing:Metrics.smallGap){why;deeper};idea}
                 }.controlSize(.small)
-                if let pv=review.evidence?.root.lines.first?.pv,!pv.isEmpty{Button("Compare best line · before this move"){attempt("The best line could not be shown."){try review.previewLine(pv,fromNode:document.nodes[review.nodeID].parent);review.seekBranch(0)}}.buttonStyle(.link).controlSize(.small)}
+                if let pv=review.evidence?.root.lines.first?.pv,!pv.isEmpty{Button("Compare Best Line · Before This Move"){attempt("The best line could not be shown."){try review.previewLine(pv,fromNode:document.nodes[review.nodeID].parent);review.seekBranch(0)}}.buttonStyle(.link).controlSize(.small)}
             }
             if review.analysisStatus=="pending"{ProgressView("Analyzing offline…").controlSize(.small)}
             if let error=review.error{Text(error).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)}
             if model.fairness.engineHelpAllowed,let evidence=review.evidence{EngineEvidenceList(evidence:evidence)}
-            DisclosureGroup("Verified board facts"){VStack(alignment:.leading,spacing:4){ForEach(explanation?.facts ?? []){fact in Text(verbatim:fact.text).textSelection(.enabled).fixedSize(horizontal:false,vertical:true)}}.padding(.top,4)}
-            if !document.nodes[review.nodeID].children.isEmpty{DisclosureGroup("Recorded continuations"){VStack(alignment:.leading,spacing:4){ForEach(document.nodes[review.nodeID].children,id:\.self){id in Button(document.nodes[id].san ?? "Position"){attempt("That move could not be shown."){try review.select(id)}}.buttonStyle(.link)}}.padding(.top,4)}}
+            DisclosureGroup("Verified board facts"){VStack(alignment:.leading,spacing:Metrics.tightGap){ForEach(explanation?.facts ?? []){fact in Text(verbatim:fact.text).textSelection(.enabled).fixedSize(horizontal:false,vertical:true)}}.padding(.top,Metrics.tightGap)}
+            if !document.nodes[review.nodeID].children.isEmpty{DisclosureGroup("Recorded continuations"){VStack(alignment:.leading,spacing:Metrics.tightGap){ForEach(document.nodes[review.nodeID].children,id:\.self){id in Button(document.nodes[id].san ?? "Position"){attempt("That move could not be shown."){try review.select(id)}}.buttonStyle(.link)}}.padding(.top,Metrics.tightGap)}}
         }
     }
     @ViewBuilder private var actions:some View {why;deeper;idea}
@@ -389,7 +389,7 @@ struct ReviewPositionPanel:View {
 /// The engine's lines as score and moves, one line each; engine details are in the caption's help.
 struct EngineEvidenceList:View {
     let evidence:ReviewEvidence
-    var body:some View {VStack(alignment:.leading,spacing:4){
+    var body:some View {VStack(alignment:.leading,spacing:Metrics.tightGap){
         Text(ReviewFormat.evidenceCaption(provisional:evidence.provisional,depth:evidence.root.lines.first?.depth)).font(.caption).foregroundStyle(.secondary).help("\(evidence.engineVersion) · \(evidence.budgetMs) ms · full strength")
         ForEach(Array(evidence.root.lines.enumerated()),id:\.offset){_,line in let moves=line.san.joined(separator:" ")
             HStack(alignment:.firstTextBaseline,spacing:6){Text(ReviewFormat.score(line.score)).monospacedDigit().fontWeight(.medium).frame(width:46,alignment:.trailing);Text(verbatim:moves).lineLimit(1).truncationMode(.tail)}.font(.callout).help(moves)
@@ -404,7 +404,7 @@ struct ImaginedLineCallout:View {
     @ObservedObject var model:NativeModel
     let branch:ReviewBranch,document:GameDocument
     var body:some View {VStack(alignment:.leading,spacing:Metrics.smallGap){
-        Label("Imagined line",systemImage:"lightbulb").sectionHeading()
+        Label("Imagined line",symbol:.imaginedLine).sectionHeading()
         Text(branch.id==review.previewBranchID ? "A preview line: it is not kept unless you play a move in it.":"Either side can make legal moves here. The imported game is preserved.").font(.callout).fixedSize(horizontal:false,vertical:true)
         IdeaMoves(review:review,branch:branch,document:document)
         HStack(spacing:Metrics.smallGap){
@@ -413,7 +413,7 @@ struct ImaginedLineCallout:View {
             else{Text(FairnessPolicy.analysisHidden).foregroundStyle(.secondary)}
             if review.canUndoIdeaChange{Button("Undo Change"){do{try review.undoIdeaChange();model.saveReview()}catch{model.storageError=userFacingMessage(error,fallback:"The change could not be undone.")}}}
         }.controlSize(.small)
-    }.padding(10).frame(maxWidth:.infinity,alignment:.leading).background(RoundedRectangle(cornerRadius:8).fill(Color.accentColor.opacity(0.08))).overlay(RoundedRectangle(cornerRadius:8).strokeBorder(Color.accentColor.opacity(0.3)))}
+    }.padding(10).frame(maxWidth:.infinity,alignment:.leading).background(RoundedRectangle(cornerRadius:Metrics.cornerRadius).fill(Color.accentColor.opacity(0.08))).overlay(RoundedRectangle(cornerRadius:Metrics.cornerRadius).strokeBorder(Color.accentColor.opacity(0.3)))}
 }
 
 /// The optional voice coach in review: status, its actions and the transcript, newest first.
@@ -429,8 +429,8 @@ struct ReviewVoiceSection:View {
             Text("Voice coach").sectionHeading()
             if active{Text(voice.status).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)}
             Text(voice.connected ? "Connected. Only selected verified facts are shared.":"Optional. Only selected verified facts are shared.").font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
-            HStack(spacing:Metrics.smallGap){if voice.connected{Button("Narrate Facts"){voice.narrateReview()};Button("Disconnect"){voice.disconnect()}}else if ReviewRolloutPolicy.reviewVoiceEnabled{Button("Connect Voice"){connect()}}}.controlSize(.small)
-            if !voice.history.isEmpty{DisclosureGroup("Transcript",isExpanded:$transcriptShown){VStack(alignment:.leading,spacing:6){ForEach(Array(voice.history.reversed())){entry in VStack(alignment:.leading,spacing:1){Text(entry.role=="learner" ? "You":"Coach").font(.caption).foregroundStyle(.secondary);Text(entry.text).textSelection(.enabled).fixedSize(horizontal:false,vertical:true)}}}.padding(.top,4)}}
+            VoiceCoachControls(voice:voice,idPrefix:"review-voice",actions:[.init(id:"narrate",title:"Narrate Facts"){voice.narrateReview()}],connect:ReviewRolloutPolicy.reviewVoiceEnabled ? {connect()}:nil).controlSize(.small)
+            if !voice.history.isEmpty{DisclosureGroup("Transcript",isExpanded:$transcriptShown){VStack(alignment:.leading,spacing:6){ForEach(Array(voice.history.reversed())){entry in VStack(alignment:.leading,spacing:1){Text(entry.role=="learner" ? "You":"Coach").font(.caption).foregroundStyle(.secondary);Text(entry.text).textSelection(.enabled).fixedSize(horizontal:false,vertical:true)}}}.padding(.top,Metrics.tightGap)}}
         }}
     }
 }

@@ -55,7 +55,7 @@ final class CleanupSessionTests:XCTestCase {
 
     @MainActor func testTestMoveAndPreviewStepsClearTheFrame() async throws {
         let s=try GameSession(engine:InstantCandidateEngine());try s.beginPreview();try markFrame(s,square:"e2")
-        try await s.testMove(from:"e2",to:"e4");XCTAssertEqual(s.preview?.status,"ready");assertFrameCleared(s)
+        try await s.testMove(from:"e2",to:"e4");XCTAssertEqual(s.preview?.status,.ready);assertFrameCleared(s)
         let frames=try XCTUnwrap(s.preview?.evaluation?.candidateFrames);XCTAssertGreaterThan(frames.count,1)
         try markFrame(s,square:"e4");try s.previewAt(ply:0,line:"candidate");assertFrameCleared(s)
         try markFrame(s,square:"d2");try s.previewAt(ply:0,line:"recommended");assertFrameCleared(s)
@@ -65,10 +65,10 @@ final class CleanupSessionTests:XCTestCase {
     @MainActor func testCancelledTestMoveClearsTheFrame() async throws {
         let s=try GameSession(engine:StalledCandidateEngine());try s.beginPreview()
         let analysis=Task{try await s.testMove(from:"e2",to:"e4")}
-        for _ in 0..<100 where s.preview?.status != "analyzing" {try await Task.sleep(nanoseconds:5_000_000)}
-        XCTAssertEqual(s.preview?.status,"analyzing");try markFrame(s,square:"e4")
+        for _ in 0..<100 where s.preview?.status != .analyzing {try await Task.sleep(nanoseconds:5_000_000)}
+        XCTAssertEqual(s.preview?.status,.analyzing);try markFrame(s,square:"e4")
         analysis.cancel();_ = try? await analysis.value
-        XCTAssertEqual(s.preview?.status,"choosing");XCTAssertEqual(s.preview?.displayFen,s.rules.fen);assertFrameCleared(s)
+        XCTAssertEqual(s.preview?.status,.choosing);XCTAssertEqual(s.preview?.displayFen,s.rules.fen);assertFrameCleared(s)
     }
 }
 @MainActor private final class InstantCandidateEngine:TestEngineService {func analyze(fen:String,skill:Int,budget:Int,multiPv:Int) async throws->EngineAnalysis {let r=try ChessRules(fen:fen);return EngineAnalysis(bestMove:r.moves().first?.uci)}}

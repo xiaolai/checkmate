@@ -52,7 +52,7 @@ final class InteractionRegressionTests:XCTestCase {
 
     @MainActor func testRetryRepeatsTheFailedHintOnTheLearnersTurn() async throws {
         let engine=CountingEngine(),s=try GameSession(engine:engine)
-        s.retryEngine();XCTAssertEqual(s.busyReason,"analysis","Retry on the learner's turn retries the hint");await settle()
+        s.retryEngine();XCTAssertEqual(s.busyReason,.analysis,"Retry on the learner's turn retries the hint");await settle()
         XCTAssertEqual(engine.requests,1)
     }
 
@@ -126,7 +126,7 @@ final class InteractionRegressionTests:XCTestCase {
     }
 
     @MainActor func testNextPuzzleContinuesWhenTheSolvedPuzzleLeavesTheFilter()throws {
-        let p=try LearningPlayer(session:try GameSession(engine:nil));p.filter="Unsolved"
+        let p=try LearningPlayer(session:try GameSession(engine:nil));p.filter = .unsolved
         let first=try XCTUnwrap(p.filteredPuzzles.first{$0.exercise.kind=="choice"});p.openPuzzle(id:first.id);p.choose(first.exercise.answer!)
         XCTAssertTrue(p.passed);XCTAssertFalse(p.filteredPuzzles.contains{$0.id==first.id})
         p.next();XCTAssertNotNil(p.activePuzzle);XCTAssertNotEqual(p.activePuzzle?.id,first.id,"Next puzzle did nothing")

@@ -53,14 +53,14 @@ import CheckmateCore
         guard stateProblem else{alert.messageText="Checkmate could not start.";alert.informativeText=userFacingMessage(error,fallback:"A part of the app could not be opened. Reinstall Checkmate if this continues.")+" Your saved progress was not changed.";alert.addButton(withTitle:"Quit");_ = presentRecovery(alert);quit();return}
         alert.messageText="Checkmate could not open your saved progress."
         alert.informativeText=userFacingMessage(error,fallback:"The saved file is damaged or comes from a newer version of Checkmate.")+" Whatever you choose, that file is kept."
-        let hasBackup=FileManager.default.fileExists(atPath:store.backupURL.path),choices=["Start Fresh"]+(hasBackup ? ["Restore Backup"]:[])+["Export Saved File…","Quit"]
-        for title in choices{alert.addButton(withTitle:title)}
+        let hasBackup=FileManager.default.fileExists(atPath:store.backupURL.path),choices:[LaunchRecoveryChoice]=[.startFresh]+(hasBackup ? [.restoreBackup]:[])+[.export,.quit]
+        for choice in choices{alert.addButton(withTitle:choice.title)}
         let index=presentRecovery(alert).rawValue-NSApplication.ModalResponse.alertFirstButtonReturn.rawValue,original=error
-        do{switch choices.indices.contains(index) ? choices[index]:"Quit" {
-            case "Start Fresh":try store.setAsideUnreadableState();applicationDidFinishLaunching(notification);return
-            case "Restore Backup":try store.restoreBackup();applicationDidFinishLaunching(notification);return
-            case "Export Saved File…":let panel=NSSavePanel();panel.nameFieldStringValue="checkmate-saved-state.json";if panel.runModal() == .OK,let url=panel.url{try store.export(to:url)};recoverFromLaunchFailure(error,notification);return
-            default:quit();return
+        do{switch choices.indices.contains(index) ? choices[index]:.quit {
+            case .startFresh:try store.setAsideUnreadableState();applicationDidFinishLaunching(notification);return
+            case .restoreBackup:try store.restoreBackup();applicationDidFinishLaunching(notification);return
+            case .export:let panel=NSSavePanel();panel.nameFieldStringValue="checkmate-saved-state.json";if panel.runModal() == .OK,let url=panel.url{try store.export(to:url)};recoverFromLaunchFailure(error,notification);return
+            case .quit:quit();return
         }}catch{let failure=NSAlert();failure.messageText="That did not work";failure.informativeText=userFacingMessage(error,fallback:"Your saved file is unchanged.")+" Choose another option.";failure.runModal();recoverFromLaunchFailure(original,notification)}
     }
     func runReviewBatchScenario(directory:String){guard let model=model else{return};Task{do{
@@ -156,7 +156,7 @@ import CheckmateCore
             if !model.library.catalog.collections.isEmpty{failures.append("The imported collections could not be removed")}
             model.library.scope = .all
             let chooserRecord=model.review.document!
-            model.returnToGame();let resumedOnExplicitReturn=model.session.busyReason=="opponent";model.session.cancelWork();game.window?.makeKeyAndOrderFront(nil);NSApp.activate(ignoringOtherApps:true)
+            model.returnToGame();let resumedOnExplicitReturn=model.session.busyReason == .opponent;model.session.cancelWork();game.window?.makeKeyAndOrderFront(nil);NSApp.activate(ignoringOtherApps:true)
             if !resumedOnExplicitReturn{failures.append("Explicit Return to game did not resume the suspended opponent reply")}
             // Returning queued a save of the record; an unsaved in-memory review reopens as it was left (its newer state wins
             // over any file), so the injected restore below is exercised only once that save has landed.
@@ -185,19 +185,19 @@ import CheckmateCore
             if model.session.busy || !model.restoreResumePending{failures.append("Restoring opponent settings resumed the held reply")}
             game.refresh();try? await game.capture(directory+"/restore-failure-paused.png")
             // Dismiss alone never resumes.
-            let restoreAX=await ax("restore-failure-paused",[["kind":"text","value":failureMessage],["kind":"enabled","title":"Return to game","expected":true],["kind":"press","title":"Dismiss"]])
+            let restoreAX=await ax("restore-failure-paused",[["kind":"text","value":failureMessage],["kind":"enabled","title":"Return to Game","expected":true],["kind":"press","title":"Dismiss"]])
             try await Task.sleep(for:.milliseconds(700))
             let quietAfterDismiss = !model.session.busy && model.session.rules.history.count==failHistory && model.storageError==nil && game.errorBanner?.isHidden==true
             // The practice pane heading reflects the pause ("Game paused" replaces the game-state heading) and keeps its own Return to game.
             let leftWasOpen=game.desiredLeft,rightWasOpen=game.desiredRight;game.showDetails();game.refresh();try await Task.sleep(for:.milliseconds(900));try? await game.capture(directory+"/restore-failure-details.png")
-            let detailsAX=await ax("restore-failure-details",[["kind":"text","value":"Game paused"],["kind":"text","value":"Your game is paused because a saved review could not be restored."],["kind":"enabled","title":"Return to game","expected":true]])
+            let detailsAX=await ax("restore-failure-details",[["kind":"text","value":"Game paused"],["kind":"text","value":"Your game is paused because a saved review could not be restored."],["kind":"enabled","title":"Return to Game","expected":true]])
             // Both drawers closed: recovery needs no drawer; the bottom transport's Resume game is pressed out of process.
             if game.desiredLeft{game.toggleLeft()};if game.desiredRight{game.toggleRight()};try await Task.sleep(for:.milliseconds(900));game.refresh();try? await game.capture(directory+"/restore-failure-drawers-closed.png")
             let drawersClosed = !game.desiredLeft && !game.desiredRight
             let quietBeforeResume = !model.session.busy && model.session.rules.history.count==failHistory
-            let resumeAX=await ax("restore-failure-resume-closed-drawers",[["kind":"enabled","title":"Resume game","expected":true],["kind":"press","title":"Resume game"]])
+            let resumeAX=await ax("restore-failure-resume-closed-drawers",[["kind":"enabled","title":"Resume Game","expected":true],["kind":"press","title":"Resume Game"]])
             var resumedByExplicitAction=false
-            for _ in 0..<50 {if model.session.busyReason=="opponent" || model.session.rules.history.count>failHistory{resumedByExplicitAction=true;break};try? await Task.sleep(for:.milliseconds(20))}
+            for _ in 0..<50 {if model.session.busyReason == .opponent || model.session.rules.history.count>failHistory{resumedByExplicitAction=true;break};try? await Task.sleep(for:.milliseconds(20))}
             let resumeCleared = !model.restoreResumePending
             model.session.cancelWork();if model.session.rules.history.count != failHistory{try model.session.rules.restore(failPGN);model.session.emit(save:true)}
             // A deliberate replacement (New game) clears the obsolete hold and its paused sentence.
@@ -209,7 +209,7 @@ import CheckmateCore
             model.dismissStorageError();try model.session.restorePrevious();model.session.cancelWork();model.session.state=savedState;model.session.emit(save:true)
             if model.session.state.practice.pgn != failPGN{failures.append("Scenario could not restore the practice game after the replacement check")}
             if leftWasOpen{game.toggleLeft()};if rightWasOpen{game.toggleRight()};try? await Task.sleep(for:.milliseconds(900))
-            let failedRestorePassed=blackToMove && quietAtFailure && stillQuiet && callbacksHeld && quietAfterDismiss && failureMessage.contains("Return to game") && axPassed(restoreAX,0) && axPassed(restoreAX,1) && axPassed(restoreAX,2) && (0..<3).allSatisfy{axPassed(detailsAX,$0)} && drawersClosed && quietBeforeResume && axPassed(resumeAX,0) && axPassed(resumeAX,1) && resumedByExplicitAction && resumeCleared && replacementCleared && model.storageError==nil && game.errorBanner?.isHidden==true && model.session.mode == .practice && model.session.state.practice.pgn==failPGN
+            let failedRestorePassed=blackToMove && quietAtFailure && stillQuiet && callbacksHeld && quietAfterDismiss && failureMessage.contains("Return to Game") && axPassed(restoreAX,0) && axPassed(restoreAX,1) && axPassed(restoreAX,2) && (0..<3).allSatisfy{axPassed(detailsAX,$0)} && drawersClosed && quietBeforeResume && axPassed(resumeAX,0) && axPassed(resumeAX,1) && resumedByExplicitAction && resumeCleared && replacementCleared && model.storageError==nil && game.errorBanner?.isHidden==true && model.session.mode == .practice && model.session.state.practice.pgn==failPGN
             if !failedRestorePassed{failures.append("Failed saved-review restore started the opponent or lacked a rendered explicit resume (blackToMove=\(blackToMove) quiet=\(quietAtFailure) stillQuiet=\(stillQuiet) callbacksHeld=\(callbacksHeld) afterDismiss=\(quietAfterDismiss) drawersClosed=\(drawersClosed) resumed=\(resumedByExplicitAction) cleared=\(resumeCleared) replacement=\(replacementCleared) message=\(failureMessage))")}
             let docs=try PGNImporter.parse(Data("[Event \"Automation record\"]\n1. d4 d5 (1... Nf6) 2. c4 e6 *".utf8));model.openReview(docs[0]);try await Task.sleep(for:.milliseconds(850));game.refresh();let originalHash=model.review.document!.contentHash,boardWidth=game.board.boardRect.width
             let noReplyDuringReview = !model.session.busy && model.session.rules.history.count==1
@@ -302,31 +302,31 @@ import CheckmateCore
             game.window?.toggleFullScreen(nil);try await Task.sleep(for:.seconds(2));let entered=game.window!.styleMask.contains(.fullScreen);if !entered{failures.append("Review fullscreen failed")};try? await game.capture(directory+"/fullscreen-review.png");game.window?.toggleFullScreen(nil);try await Task.sleep(for:.seconds(2))
             model.session.cancelWork();model.returnToGame();model.session.cancelWork();if model.session.rules.fen != practice{failures.append("Return to game changed practice position")}
             let preservedPractice=model.session.rules.fen==practice;try model.session.installPracticeFork(model.session.rules.copy(),side:"b");model.session.cancelWork();game.refresh();let blackPracticeTitle=game.titleView.label.stringValue;if !blackPracticeTitle.contains("Black vs"){failures.append("Black practice fork title states wrong human side")}
-            // "Compare best line · before this move" then the real confirmation sheet: the fork is the displayed
+            // "Compare Best Line · Before This Move" then the real confirmation sheet: the fork is the displayed
             // parent-rooted imagined position, at ply 0 and ply 1; checkmate positions keep Practise here disabled.
             let mateDocument=try PGNImporter.parse(Data("[Event \"Fork from parent\"]\n1. f3 e5 2. g4 Qh4# 0-1".utf8))[0],mateNode=mateDocument.mainline.last!,bestLine=["b8c6","b1c3","d8h4"]
             game.showDetails()
             @MainActor func compareFromParent(_ ply:Int)async throws {model.openReview(mateDocument);try model.review.select(mateNode);try model.review.previewLine(bestLine,fromNode:model.review.document!.nodes[model.review.nodeID].parent);model.review.seekBranch(0);if ply>0{model.review.seekBranch(ply)};game.refresh();try await Task.sleep(for:.milliseconds(900))}
             model.openReview(mateDocument);try model.review.select(mateNode);try await Task.sleep(for:.milliseconds(900))
-            let mateDisabledAX=await ax("practise-disabled-at-mate",[["kind":"enabled","title":"Practise here","expected":false]])
+            let mateDisabledAX=await ax("practise-disabled-at-mate",[["kind":"enabled","title":"Practice Here","expected":false]])
             try await compareFromParent(0);let parentFEN=model.review.displayFEN
-            let parentEnabledAX=await ax("practise-enabled-parent-ply0",[["kind":"enabled","title":"Practise here","expected":true],["kind":"press","title":"Practise here"]])
+            let parentEnabledAX=await ax("practise-enabled-parent-ply0",[["kind":"enabled","title":"Practice Here","expected":true],["kind":"press","title":"Practice Here"]])
             try await Task.sleep(for:.milliseconds(900));try? await game.capture(directory+"/practice-fork-sheet.png")
-            let sheetPly0AX=await ax("confirm-fork-ply0",[["kind":"press","title":"Start practice"]]);try await Task.sleep(for:.milliseconds(600))
+            let sheetPly0AX=await ax("confirm-fork-ply0",[["kind":"press","title":"Start Practice"]]);try await Task.sleep(for:.milliseconds(600))
             let ply0Records=model.session.rules.records
             let forkPly0Verified=axPassed(mateDisabledAX,0) && axPassed(parentEnabledAX,0) && axPassed(parentEnabledAX,1) && axPassed(sheetPly0AX,0) && !model.review.active && !model.practiceForkRequested && ply0Records.count>=3 && ply0Records.prefix(3).map(\.san)==["f3","e5","g4"] && ply0Records[2].after==parentFEN && model.storageError==nil
             if !forkPly0Verified{failures.append("Confirmation-sheet fork at imagined parent ply 0 used the wrong position")}
             model.session.cancelWork()
             try await compareFromParent(1);let plyOneFEN=model.review.displayFEN
-            let plyOneAX=await ax("confirm-fork-ply1",[["kind":"press","title":"Practise here"]]);try await Task.sleep(for:.milliseconds(900))
-            let sheetPly1AX=await ax("confirm-fork-ply1-sheet",[["kind":"press","title":"Start practice"]]);try await Task.sleep(for:.milliseconds(600))
+            let plyOneAX=await ax("confirm-fork-ply1",[["kind":"press","title":"Practice Here"]]);try await Task.sleep(for:.milliseconds(900))
+            let sheetPly1AX=await ax("confirm-fork-ply1-sheet",[["kind":"press","title":"Start Practice"]]);try await Task.sleep(for:.milliseconds(600))
             let ply1Records=model.session.rules.records
             let forkPly1Verified=axPassed(plyOneAX,0) && axPassed(sheetPly1AX,0) && !model.review.active && ply1Records.count>=4 && ply1Records.prefix(4).map(\.san)==["f3","e5","g4","Nc6"] && ply1Records[3].after==plyOneFEN && model.storageError==nil
             if !forkPly1Verified{failures.append("Confirmation-sheet fork at imagined parent ply 1 used the wrong position")}
             model.session.cancelWork()
-            try await compareFromParent(3);let terminalAX=await ax("practise-disabled-imagined-mate",[["kind":"enabled","title":"Practise here","expected":false]])
+            try await compareFromParent(3);let terminalAX=await ax("practise-disabled-imagined-mate",[["kind":"enabled","title":"Practice Here","expected":false]])
             let terminalLineVerified=axPassed(terminalAX,0) && model.review.displayRules?.checkmate==true
-            if !terminalLineVerified{failures.append("Imagined checkmate left Practise here enabled")}
+            if !terminalLineVerified{failures.append("Imagined checkmate left Practice Here enabled")}
             model.returnToGame();model.session.cancelWork()
             // The review pane in light and dark: the workspace and its game library (all, a search, the World
             // Championships grouped by event, My games, a narrow window), then a fixed short library game's overview,
@@ -740,9 +740,9 @@ import CheckmateCore
             try? await game.capture(directory+"/lesson-continued.png")
             model.puzzles();try? await Task.sleep(nanoseconds:200_000_000);try? await game.capture(directory+"/puzzles.png");model.learning.openPuzzle(id:"extra-1");model.learning.click("f3");model.learning.click("h4");if !model.learning.passed{failures.append("Puzzle capture failed")}
             model.practice();try? model.session.demonstrate(title:"Central pawns",introduction:"Imagine making room for your pieces.",lines:[DemoLineInput(label:"Opening",moves:[DemoStepInput(uci:"e2e4"),DemoStepInput(uci:"e7e5")])]);try? model.session.seekDemo(line:0,ply:2);try? await Task.sleep(nanoseconds:200_000_000);try? await game.capture(directory+"/demonstration.png");model.session.closePresentation();game.showSettings();try? await Task.sleep(nanoseconds:200_000_000);try? await GameWindow.captureWindow(game.settings?.window,path:directory+"/settings-board.png")
-            game.settings?.selectCategory("Voice Coach");try? await Task.sleep(nanoseconds:200_000_000);try? await GameWindow.captureWindow(game.settings?.window,path:directory+"/settings-voice.png")
-            game.settings?.selectCategory("Connections");try? await Task.sleep(nanoseconds:200_000_000);try? await GameWindow.captureWindow(game.settings?.window,path:directory+"/settings-connections.png")
-            game.settings?.selectCategory("About");try? await Task.sleep(nanoseconds:200_000_000);try? await GameWindow.captureWindow(game.settings?.window,path:directory+"/settings-about.png")
+            game.settings?.selectCategory(.voice);try? await Task.sleep(nanoseconds:200_000_000);try? await GameWindow.captureWindow(game.settings?.window,path:directory+"/settings-voice.png")
+            game.settings?.selectCategory(.connections);try? await Task.sleep(nanoseconds:200_000_000);try? await GameWindow.captureWindow(game.settings?.window,path:directory+"/settings-connections.png")
+            game.settings?.selectCategory(.about);try? await Task.sleep(nanoseconds:200_000_000);try? await GameWindow.captureWindow(game.settings?.window,path:directory+"/settings-about.png")
             game.settings?.close();game.window?.makeKeyAndOrderFront(nil)
             let shortcut=NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:.command,timestamp:0,windowNumber:game.window!.windowNumber,context:nil,characters:",",charactersIgnoringModifiers:",",isARepeat:false,keyCode:43)!
             if NSApp.mainMenu?.performKeyEquivalent(with:shortcut) != true || game.settings?.window?.isVisible != true {failures.append("Command-comma menu routing failed")}

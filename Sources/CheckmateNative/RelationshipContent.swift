@@ -15,7 +15,7 @@ struct RelationshipContent:View {
                 if report.relations.isEmpty{Text(report.emptyMessage)}
                 ForEach(report.relations,id:\.square){relation in
                     VStack(alignment:.leading,spacing:Metrics.smallGap){
-                        Label(relation.label,systemImage:relation.limited ? "exclamationmark.circle":"link").font(.headline)
+                        Label(relation.label,systemImage:(relation.limited ? AppSymbol.limited:.protection).rawValue).font(.headline)
                         Text(relation.explanation(mode:report.mode,legalContext:report.legalContext,king:report.piece=="k")).font(.callout)
                     }.padding(.vertical,Metrics.smallGap)
                 }

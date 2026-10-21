@@ -31,7 +31,7 @@ extension GameWindow {
             if shownHistoryPly != nil{return .waiting(Self.earlierPositionRefusal)}
             if s.finished{return .waiting("The game is over. Start a new game to play again.")}
             guard s.presentationHidden || s.preview==nil && s.demonstration==nil else{return .waiting("Go back to the game to play a move.")}
-            guard s.rules.turn==s.humanSide,s.busyReason != "opponent" else{return .waiting(Self.notYourMove)}
+            guard s.rules.turn==s.humanSide,s.busyReason != .opponent else{return .waiting(Self.notYourMove)}
             return .ready(TypedMoveTarget(moves:s.rules.moves(),board:s.rules.board,turn:s.rules.turn,inCheck:s.rules.check,asTyped:false){choice in
                 do{try s.playWhite(from:choice.from,to:choice.to,promotion:choice.promotion ?? "q");return nil}catch{return Self.failureMessage(error)}})
         }

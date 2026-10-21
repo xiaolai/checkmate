@@ -79,11 +79,11 @@ public enum CompanionProblem:CaseIterable,Equatable,Sendable {
             throw error
         }
     }
-    public func disable(){NativeLog.companion.debug("Disabling broker and cancelling pending requests");generation=UUID();enabled=false;heartbeat?.invalidate();heartbeat=nil;listener?.stateUpdateHandler=nil;listener?.newConnectionHandler=nil;listener?.cancel();listener=nil;release();for c in connections.values{c.cancel()};connections.removeAll();unadmitted.removeAll();try? FileManager.default.removeItem(at:directory.appendingPathComponent("connection.json"));authorizationNonce="";port=0;session.setConnection(enabled:false,role:session.companionRole);state = .off}
+    public func disable(){NativeLog.companion.debug("Disabling broker and canceling pending requests");generation=UUID();enabled=false;heartbeat?.invalidate();heartbeat=nil;listener?.stateUpdateHandler=nil;listener?.newConnectionHandler=nil;listener?.cancel();listener=nil;release();for c in connections.values{c.cancel()};connections.removeAll();unadmitted.removeAll();try? FileManager.default.removeItem(at:directory.appendingPathComponent("connection.json"));authorizationNonce="";port=0;session.setConnection(enabled:false,role:session.companionRole);state = .off}
     /// Ends the current lease (the client left, timed out or was disconnected). The app's suspension while hidden is
     /// kept: a lease expiring because heartbeats are refused while hidden must not resume play.
     public func release(){for deadline in deadlines.values{deadline.cancel()};deadlines.removeAll();for task in pending.values{task.cancel()};pending.removeAll();requestOwners.removeAll();tools.reset();owner=nil;lease=nil;connected=false;if session.companionEnabled || session.companionLease != nil || reservesSession{session.setConnection(enabled:enabled && reservesSession,role:configuredRole,suspended:session.suspended)};updateWaitingStatus()}
-    /// The learner's "Disconnect companion": the current client loses the session for good, rather than reclaiming
+    /// The learner's "Disconnect Companion": the current client loses the session for good, rather than reclaiming
     /// it on its next request. Another Codex task can still connect.
     public func disconnectCurrentClient(){if let owner{revokedClients.insert(owner)};release()}
     public func suspend(_ value:Bool){guard enabled else{return};session.setConnection(enabled:enabled && (reservesSession || connected),role:configuredRole,lease:lease,suspended:value);if value{state = .paused}else if connected{state = .connected}else{updateWaitingStatus()}}

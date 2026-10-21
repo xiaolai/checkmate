@@ -17,7 +17,7 @@ struct TrainingPanel:View {
             answerControls(exercise)
             if exercise.task == .game {gameControls(exercise);if model.voice.training != nil{TrainingVoiceCoach(voice:model.voice,connect:{[weak model] in model?.connectVoiceWithConsent{model?.voice.connectTraining()}})}}
             // A moment retried from a finished guided game leads back to that game's review.
-            if training.guidedReview != nil,scenario.check == .moment{Button("Back to your game"){training.returnToGuidedGame()}.accessibilityIdentifier("training-back-to-game")}
+            if training.guidedReview != nil,scenario.check == .moment{Button("Back to Your Game"){training.returnToGuidedGame()}.accessibilityIdentifier("training-back-to-game")}
             // A finished attempt refuses a promotion, so its chooser is not offered.
             if let pending=exercise.pendingPromotion,!exercise.finished {
                 HStack{
@@ -25,25 +25,25 @@ struct TrainingPanel:View {
                     Button("Cancel"){training.cancelPromotion()}.accessibilityIdentifier("training-promotion-cancel")
                 }
             }
-            if let hint=exercise.hintText{Label(hint,systemImage:"lightbulb").fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("training-hint")}
+            if let hint=exercise.hintText{Label(hint,symbol:.hint).fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("training-hint")}
             if !exercise.feedback.isEmpty{Text(exercise.feedback).fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("training-feedback")}
             if exercise.finished {result(exercise)}
             HStack {
                 if exercise.finished {
-                    if Self.canRetry(exercise){Button("Try again"){training.retry()}.accessibilityIdentifier("training-retry")}
-                    Button("Next exercise"){training.next()}.accessibilityIdentifier("training-next")
+                    if Self.canRetry(exercise){Button("Try Again"){training.retry()}.accessibilityIdentifier("training-retry")}
+                    Button("Next Exercise"){training.next()}.accessibilityIdentifier("training-next")
                 } else {
                     Button(Self.hintTitle(exercise)){training.hint()}.disabled(Self.hintDisabled(exercise,thinking:training.games.thinking)).accessibilityIdentifier("training-hint-button")
-                    if exercise.task != .game{Button("Reveal answer"){training.reveal()}.accessibilityIdentifier("training-reveal")}
+                    if exercise.task != .game{Button("Reveal Answer"){training.reveal()}.accessibilityIdentifier("training-reveal")}
                 }
             }
-            Button("Back to training"){model.trainingLibrary()}.accessibilityIdentifier("training-back")
+            Button("Back to Training"){model.trainingLibrary()}.accessibilityIdentifier("training-back")
         }
     }
     /// Selecting squares or choosing an answer.
     @ViewBuilder private func answerControls(_ exercise:TrainingController.Exercise)->some View {
         if exercise.task == .select {
-            Text(exercise.selection.isEmpty ? "Click squares to select them, then submit.":"Selected: "+exercise.selection.sorted().joined(separator:", "))
+            Text(exercise.selection.isEmpty ? "Click squares to select them, then submit.":"Selected: \(Plural.list(exercise.selection.sorted()))")
             HStack {
                 Button("Submit"){training.submit()}.disabled(exercise.selection.isEmpty || exercise.finished).keyboardShortcut(.defaultAction).accessibilityIdentifier("training-submit")
                 Button("None"){training.submit(none:true)}.disabled(exercise.finished).accessibilityIdentifier("training-none")
@@ -64,33 +64,33 @@ struct TrainingPanel:View {
         }
         if training.gameNewLevelOffered(exercise) {
             if let level=exercise.snapshot.boundOpponent?.level{Text("This game continues at \(level.title).").foregroundStyle(.secondary)}
-            Button("Start a new game at this level"){training.startGameAtChosenLevel()}.accessibilityIdentifier("training-new-level")
+            Button("Start a New Game at This Level"){training.startGameAtChosenLevel()}.accessibilityIdentifier("training-new-level")
         }
         Text(TrainingEndgameController.note(for:scenario.check,opponent:exercise.snapshot.boundOpponent)).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("training-opponent-note")
-        if let habit=exercise.habit,!exercise.finished{Label(habit,systemImage:"magnifyingglass").fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("training-habit")}
+        if let habit=exercise.habit,!exercise.finished{Label(habit,symbol:.habit).fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("training-habit")}
         // A finished game cannot be kept going, so the reminder belongs only to one still in play.
         if exercise.reminder,!exercise.finished {
             Text("You and the defender have played \(exercise.line.count) moves between you, and the game is saved. Take a break, or keep going.").fixedSize(horizontal:false,vertical:true)
-            HStack{Button("Keep going"){training.dismissReminder()}.accessibilityIdentifier("training-keep-going");Button("Take a break"){model.trainingLibrary()}}
+            HStack{Button("Keep Going"){training.dismissReminder()}.accessibilityIdentifier("training-keep-going");Button("Take a Break"){model.trainingLibrary()}}
         }
         // Only a pause waiting on the defender can be retried; one at the saved-action limit cannot.
-        if training.canRetryDefender(exercise){Button("Try the defender again"){training.retryDefender()}.accessibilityIdentifier("training-defender-retry")}
+        if training.canRetryDefender(exercise){Button("Try the Defender Again"){training.retryDefender()}.accessibilityIdentifier("training-defender-retry")}
         if !exercise.finished {
             HStack {
                 // A saved attempt refuses actions past its limit, take back included.
-                Button("Take back"){training.undo()}.disabled(!training.canUndo(exercise)).accessibilityIdentifier("training-undo")
-                if let reason=exercise.claimable{Button("Claim a draw (\(reason))"){training.claimDraw()}.disabled(training.games.thinking).accessibilityIdentifier("training-claim")}
-                if scenario.check == .guidedGame{Button("End game"){training.endGuidedGame()}.accessibilityIdentifier("training-end-game")}
+                Button("Take Back"){training.undo()}.disabled(!training.canUndo(exercise)).accessibilityIdentifier("training-undo")
+                if let reason=exercise.claimable{Button("Claim a Draw (\(reason))"){training.claimDraw()}.disabled(training.games.thinking).accessibilityIdentifier("training-claim")}
+                if scenario.check == .guidedGame{Button("End Game"){training.endGuidedGame()}.accessibilityIdentifier("training-end-game")}
             }
         }
         // A finished game opens in Review from its own start and moves, never the practice game; Return to game leads back here.
-        if training.canReview(exercise){Button("Review this game"){model.reviewTraining()}.accessibilityIdentifier("training-review-game")}
+        if training.canReview(exercise){Button("Review This Game"){model.reviewTraining()}.accessibilityIdentifier("training-review-game")}
         // After the game: up to two exact moments to try again.
         if exercise.finished,!exercise.moments.isEmpty {
             Text("Moments to review").sectionHeading()
             ForEach(Array(exercise.moments.enumerated()),id:\.offset){index,moment in
                 Text(moment.label).fixedSize(horizontal:false,vertical:true)
-                Button("Try this moment again"){training.retryMoment(index)}.accessibilityIdentifier("training-moment-\(index)")
+                Button("Try This Moment Again"){training.retryMoment(index)}.accessibilityIdentifier("training-moment-\(index)")
             }
         }
     }
@@ -98,7 +98,7 @@ struct TrainingPanel:View {
     @ViewBuilder private func result(_ exercise:TrainingController.Exercise)->some View {
         Text(Self.resultLabel(exercise)).font(.headline).accessibilityIdentifier("training-result")
         if let opponent=Self.opponentLine(exercise.snapshot){Text(opponent).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("training-opponent-level")}
-        if let skill=exercise.scenario.primarySkill{Text("This one was about "+TrainingLabels.skill(skill)+".").font(.caption).foregroundStyle(.secondary).accessibilityIdentifier("training-topic")}
+        if let skill=exercise.scenario.primarySkill{Text("This one was about \(TrainingLabels.skill(skill)).").font(.caption).foregroundStyle(.secondary).accessibilityIdentifier("training-topic")}
         TrainingLessonLinks(model:model,entry:exercise.definition)
     }
     /// A played game's status, a heading like practice's (`DetailContent.practiceHeading`): no closing period.
@@ -113,7 +113,7 @@ struct TrainingPanel:View {
     static func hintDisabled(_ exercise:TrainingController.Exercise,thinking:Bool)->Bool {exercise.task == .game && (exercise.hintLevel>=3 || thinking)}
     /// The opponent a finished game names, the one its review names (`boundOpponent`): marked mixed when an older build
     /// continued the game, and none when the saved one belongs to another attempt or cannot be played as frozen.
-    static func opponentLine(_ snapshot:TrainingSessionSnapshot)->String? {snapshot.boundOpponent.map{"Opponent: "+$0.label}}
+    static func opponentLine(_ snapshot:TrainingSessionSnapshot)->String? {snapshot.boundOpponent.map{"Opponent: \($0.label)"}}
     /// What a finished attempt shows. Help outside the app cannot be seen, so a clean result says "no recorded help".
     static func resultLabel(_ exercise:TrainingController.Exercise)->String {
         switch exercise.status {
@@ -139,14 +139,9 @@ struct TrainingVoiceCoach:View {
         if voice.trainingSession || voice.trainingVoiceAvailable || !voice.history.isEmpty && voice.connection != .disconnected {
             Divider();Text("Voice coach").sectionHeading()
             if voice.connection != .disconnected {Text(voice.status).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("training-voice-status")}
-            if voice.connected,voice.trainingSession {
-                HStack {
-                    Button("Stop Speaking"){voice.stopTurn()}.disabled(!voice.canStopTurn).accessibilityIdentifier("training-voice-stop")
-                    Button("Disconnect Coach"){voice.disconnect()}.accessibilityIdentifier("training-voice-disconnect")
-                }
-            } else if voice.connecting {Button("Cancel Voice Coach"){voice.disconnect()}.accessibilityIdentifier("training-voice-cancel")}
-            else if voice.trainingVoiceAvailable {Button("Connect Voice Coach"){connect()}.accessibilityIdentifier("training-voice-connect");Text(Self.helpCaption).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)}
-            if voice.trainingSession || voice.history.last?.context=="Training game" {ForEach(Array(voice.history.suffix(3).reversed())){entry in Text((entry.role=="learner" ? "You: ":"Coach: ")+entry.text).font(.caption).fixedSize(horizontal:false,vertical:true)}}
+            VoiceCoachControls(voice:voice,idPrefix:"training-voice",owned:voice.trainingSession,connect:voice.trainingVoiceAvailable ? {connect()}:nil)
+            if voice.trainingVoiceAvailable && !voice.connected && !voice.connecting {Text(Self.helpCaption).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)}
+            if voice.trainingSession || voice.history.last?.source == .training {ForEach(Array(voice.history.suffix(3).reversed())){entry in Text((entry.role=="learner" ? "You: ":"Coach: ")+entry.text).font(.caption).fixedSize(horizontal:false,vertical:true)}}
         }
     }
 }

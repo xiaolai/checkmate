@@ -170,7 +170,7 @@ import CheckmateCore
         for (name,args) in [("analyze_position",analysis()),("preview_move",preview()),("analyze_position",analysis())]{await refused(name,args);engine.gated=true}
         XCTAssertEqual(engine.calls,1,"Refused requests never reach the engine");engine.releaseAll();_ = try await first.value
         engine.gated=false;_ = try await tools.call("analyze_position",args:analysis(),lease:"fixture");XCTAssertEqual(engine.calls,2,"The gate reopens after a request finishes")
-        engine.gated=true;try s.playWhite(from:"e2",to:"e4");await until{engine.waiting.count==1};XCTAssertEqual(s.busyReason,"opponent")
+        engine.gated=true;try s.playWhite(from:"e2",to:"e4");await until{engine.waiting.count==1};XCTAssertEqual(s.busyReason,.opponent)
         await refused("analyze_position",analysis())
         engine.releaseAll();await until{s.rules.history.count==2}
         XCTAssertEqual(s.rules.history.count,2,"The opponent's reply completes");XCTAssertNil(s.error);XCTAssertEqual(engine.peak,1,"No two engine searches ever overlapped")

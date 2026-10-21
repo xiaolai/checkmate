@@ -10,8 +10,16 @@ public struct ReviewPositionStatus:Codable,Equatable {
     public let check:Bool,checkmate:Bool,stalemate:Bool,insufficientMaterial:Bool,claimableThreefold:Bool,claimableFiftyMove:Bool,automaticFivefold:Bool,automaticSeventyFiveMove:Bool
     public var terminal:Bool {checkmate || stalemate || insufficientMaterial || automaticFivefold || automaticSeventyFiveMove}
 }
+/// Where a reviewed game came from. The raw value is saved; `GameDocument.title` and the review header supply the words (D-12).
+public enum ReviewProvenance:String,Codable,Sendable,CaseIterable {case currentGame="current-game",previousGame="previous-game",trainingGame="training-game",libraryGame="library-game",collectionGame="collection-game",imported
+    /// Reviews saved before stable identifiers stored the shown words; anything else was an import.
+    public init(from decoder:Decoder)throws {let value=try decoder.singleValueContainer().decode(String.self);self=Self(rawValue:value) ?? Self.legacy[value] ?? .imported}
+    static let legacy:[String:ReviewProvenance]=["Current game":.currentGame,"Previous game":.previousGame,"Training game":.trainingGame,"Library game":.libraryGame,"Collection game":.collectionGame,"Imported":.imported]
+    /// The practice game's own name, shown when its record has no players.
+    public var ownGameTitle:String? {switch self{case .currentGame:return "Current game";case .previousGame:return "Previous game";default:return nil}}
+}
 public struct GameDocument:Codable,Equatable,Identifiable {
-    public let schemaVersion:Int,id:UUID,contentHash:String,importedAt:Date,provenance:String,original:Data,headers:[PGNHeader],startingFEN:String,result:String,termination:String?,historyAvailable:Bool,nodes:[GameNode]
+    public let schemaVersion:Int,id:UUID,contentHash:String,importedAt:Date,provenance:ReviewProvenance,original:Data,headers:[PGNHeader],startingFEN:String,result:String,termination:String?,historyAvailable:Bool,nodes:[GameNode]
     /// The players, "White – Black", with " · Round N" when the round is known; with no player known, the event; then
     /// what the record is. Saved review lists store it, so a change here is a new `ReviewStore` title rule.
     public var title:String {
@@ -19,7 +27,7 @@ public struct GameDocument:Codable,Equatable,Identifiable {
         let title:String
         if known("White") != nil || known("Black") != nil{title="\(known("White") ?? "White") – \(known("Black") ?? "Black")"+(known("Round").flatMap{$0=="-" ? nil:" · Round \($0)"} ?? "")}
         else if let event=known("Event"){title=event}
-        else if provenance=="Current game" || provenance=="Previous game"{title=provenance}
+        else if let own=provenance.ownGameTitle{title=own}
         else{title=historyAvailable ? "Imported game":"Imported position"}
         return String(String.UnicodeScalarView(title.unicodeScalars.prefix(ReviewPolicy.maximumTitleScalars)))
     }

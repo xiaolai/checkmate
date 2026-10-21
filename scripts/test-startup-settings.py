@@ -84,7 +84,7 @@ try:
     assert not saved()["settings"].get("voiceConsent")
     assert saved()["settings"]["companionAutoStart"]
 
-    category("Voice Coach")
+    category("voice")
     listing = act("list")
     assert "Connect voice coach on launch" in listing and "Not checked" in listing
     act("press", "Connect voice coach on launch")
@@ -92,7 +92,7 @@ try:
     assert saved()["settings"]["companionAutoStart"]
     quit_app()
 
-    category("Connections")
+    category("connections")
     assert "Accept Codex connections at launch" in act("list")
     act("press", "Accept Codex connections at launch")
     wait(lambda: not saved()["settings"]["companionAutoStart"])

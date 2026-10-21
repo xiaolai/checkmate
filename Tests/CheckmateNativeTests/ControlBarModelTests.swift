@@ -40,10 +40,10 @@ import CheckmateCore
         let model=try NativeModel();defer{model.shutdown()}
         let rook=try index(model,"rook");model.lesson(rook);model.learning.pause()
         var shown=bar(model)
-        let previous=try XCTUnwrap(shown.item(.previousLesson));XCTAssertEqual(previous.symbol,"chevron.backward.2");XCTAssertEqual(previous.label,"Previous lesson: The Pawn")
+        let previous=try XCTUnwrap(shown.item(.previousLesson));XCTAssertEqual(previous.symbol,.previousLesson);XCTAssertEqual(previous.label,"Previous lesson: The Pawn")
         XCTAssertEqual(shown.status,.text("Step 1 of \(model.learning.current.beats.count) · back: The Pawn"))
         model.learning.seek(step:model.learning.current.beats.count-1);shown=bar(model)
-        let next=try XCTUnwrap(shown.item(.nextLesson));XCTAssertEqual(next.symbol,"chevron.forward.2");XCTAssertEqual(next.label,"Next lesson: The Bishop")
+        let next=try XCTUnwrap(shown.item(.nextLesson));XCTAssertEqual(next.symbol,.nextLesson);XCTAssertEqual(next.label,"Next lesson: The Bishop")
         XCTAssertEqual(shown.status,.text("Step \(model.learning.current.beats.count) of \(model.learning.current.beats.count) · next: The Bishop"))
         model.lesson(0);model.learning.pause();XCTAssertEqual(bar(model).item(.previousStep)?.enabled,false,"the first lesson has nothing before it")
     }
@@ -61,7 +61,7 @@ import CheckmateCore
     func testOffTrackOffersOneProminentTakeBack()throws {
         let model=try NativeModel();defer{model.shutdown()}
         let castling=try index(model,"castling");model.lesson(castling);model.learning.pause();model.learning.goToAttempt()
-        XCTAssertEqual(bar(model).item(.attemptUndo)?.label,"Undo turn");XCTAssertEqual(bar(model).item(.attemptUndo)?.prominent,false)
+        XCTAssertEqual(bar(model).item(.attemptUndo)?.label,"Undo Turn");XCTAssertEqual(bar(model).item(.attemptUndo)?.prominent,false)
         model.learning.click("e1");model.learning.click("f1");XCTAssertEqual(model.learning.attempt.phase,.offTrack)
         let shown=bar(model);XCTAssertEqual(shown.trailing.map(\.action),[.attemptUndo,.attemptRestart])
         XCTAssertEqual(shown.item(.attemptUndo)?.label,"Take Back");XCTAssertEqual(shown.item(.attemptUndo)?.prominent,true);XCTAssertEqual(shown.item(.attemptUndo)?.enabled,true)
@@ -83,7 +83,7 @@ import CheckmateCore
         model.practice();model.session.cancelWork()
         let shown=bar(model)
         XCTAssertTrue(shown.statusInCentre);XCTAssertEqual(shown.status,.turn(side:"w",label:"White to move"))
-        XCTAssertEqual(shown.leading.map(\.action),[.newGame,.more],"More sits on the shorter side, so the bar keeps one row");XCTAssertEqual(shown.leading.first?.label,"New game…");XCTAssertNil(shown.leading.first?.symbol)
+        XCTAssertEqual(shown.leading.map(\.action),[.newGame,.more],"More sits on the shorter side, so the bar keeps one row");XCTAssertEqual(shown.leading.first?.label,"New Game…");XCTAssertNil(shown.leading.first?.symbol)
         XCTAssertEqual(shown.trailing.map(\.action),[.takeBack,.hint,.tryMove]);XCTAssertNil(shown.item(.tryMove)?.symbol,"Try a move is said in words")
         XCTAssertEqual(shown.trailingGroups.map{$0.map(\.action)},[[.voiceConnect]])
         let on=bar(model,voice:.on(microphone:true,canStop:true))
@@ -104,13 +104,13 @@ import CheckmateCore
         XCTAssertTrue(try XCTUnwrap(bar(model).item(.more)).menu.allSatisfy(\.enabled))
         let take=try XCTUnwrap(bar(model).item(.takeBack))
         XCTAssertEqual(ControlBarView.tooltip(take),"Take back move (⌘Z)");XCTAssertEqual(ControlBarView.tooltip(try XCTUnwrap(bar(model).item(.hint))),"Hint (⇧⌘H)")
-        XCTAssertEqual(ControlBarView.tooltip(try XCTUnwrap(bar(model).item(.newGame))),"New game… (⌘N)");XCTAssertEqual(ControlBarView.tooltip(try XCTUnwrap(bar(model).item(.tryMove))),"Try a move","no shortcut, no suffix")
+        XCTAssertEqual(ControlBarView.tooltip(try XCTUnwrap(bar(model).item(.newGame))),"New Game… (⌘N)");XCTAssertEqual(ControlBarView.tooltip(try XCTUnwrap(bar(model).item(.tryMove))),"Try a Move","no shortcut, no suffix")
         XCTAssertEqual(ControlBarView.tooltip(more.menu[0]),"Flip Board (⇧⌘F)")
         model.session.resign();XCTAssertEqual(bar(model).item(.more)?.menu.first{$0.action == .resign}?.enabled,false,"nothing left to resign")
     }
     /// B-5: the bar's Hint follows the step-by-step hint: the second request shows the move, and then there is no more.
     func testTheHintButtonFollowsTheHintStep(){
-        XCTAssertEqual(ControlBarModel.practiceHint(step:0,available:true),ControlBarItem(action:.hint,symbol:"lightbulb",label:"Hint",enabled:true))
+        XCTAssertEqual(ControlBarModel.practiceHint(step:0,available:true),ControlBarItem(action:.hint,symbol:.hint,label:"Hint",enabled:true))
         XCTAssertEqual(ControlBarModel.practiceHint(step:1,available:true).label,"Show Move");XCTAssertTrue(ControlBarModel.practiceHint(step:1,available:true).enabled)
         XCTAssertFalse(ControlBarModel.practiceHint(step:2,available:true).enabled,"the move is on the board");XCTAssertFalse(ControlBarModel.practiceHint(step:0,available:false).enabled)
     }
@@ -162,7 +162,7 @@ import CheckmateCore
         XCTAssertTrue(ControlBarView.fitsOneRow(lesson,leading:0,centre:170,trailing:0,width:568),"the status shortens instead")
         XCTAssertTrue(ControlBarView.fitsOneRow(lesson,leading:0,centre:170,trailing:0,width:400),"101 pt is room enough for the status's 72 pt minimum")
         XCTAssertFalse(ControlBarView.fitsOneRow(lesson,leading:0,centre:170,trailing:0,width:300),"51 pt is not")
-        var resume=lesson;resume.leading=[ControlBarItem(action:.resumeAttempt,label:"Resume your attempt",prominent:true)]
+        var resume=lesson;resume.leading=[ControlBarItem(action:.resumeAttempt,label:"Resume Your Attempt",prominent:true)]
         XCTAssertTrue(ControlBarView.fitsOneRow(resume,leading:150,centre:170,trailing:110,width:748),"Resume does not add a row")
         let practice=ControlBarModel(status:.turn(side:"w",label:"White to move"),statusInCentre:true)
         XCTAssertTrue(ControlBarView.fitsOneRow(practice,leading:95,centre:120,trailing:230,width:728))
@@ -198,7 +198,7 @@ import CheckmateCore
         var seen:[String:Set<String>]=[:]
         for item in states.flatMap(\.items) where item.symbol != nil {
             let kind=try XCTUnwrap(meaning[item.action],"\(item.action) has an icon but no declared meaning")
-            let symbol=item.symbol!.replacingOccurrences(of:".fill",with:"").replacingOccurrences(of:"pause",with:"play").replacingOccurrences(of:"mic.slash",with:"mic")
+            let symbol=item.symbol!.rawValue.replacingOccurrences(of:".fill",with:"").replacingOccurrences(of:"pause",with:"play").replacingOccurrences(of:"mic.slash",with:"mic")
             seen[symbol,default:[]].insert(kind)
         }
         for (symbol,kinds) in seen{XCTAssertEqual(kinds.count,1,"\(symbol) means \(kinds.sorted())")}

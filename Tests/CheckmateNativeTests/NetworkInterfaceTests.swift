@@ -194,7 +194,7 @@ import CheckmateCore
         XCTAssertEqual(NetworkTimeControl.allCases.map(NetworkHostSheet.label),["Untimed","3 + 2","5 + 3","10 + 5","15 + 10","30 + 0"])
         let form=NetworkHostForm();XCTAssertEqual(form.timeControl,.untimed,"untimed by default");XCTAssertEqual(form.side,.white);XCTAssertTrue(form.allowSpectators)
         XCTAssertEqual(NetworkDetail.clock(180_000),"3:00");XCTAssertEqual(NetworkDetail.clock(65_001),"1:06","rounded up");XCTAssertEqual(NetworkDetail.clock(0),"0:00.0","tenths under ten seconds (B-2)");XCTAssertEqual(NetworkDetail.clock(-5),"0:00.0")
-        XCTAssertEqual(NetworkDetail.spokenClock(65_000),"1 minute 5 seconds");XCTAssertEqual(NetworkDetail.spokenClock(120_000),"2 minutes");XCTAssertEqual(NetworkDetail.spokenClock(1_000),"1 second");XCTAssertEqual(NetworkDetail.spokenClock(0),"0 seconds")
+        XCTAssertEqual(NetworkDetail.spokenClock(65_000),"1 minute, 5 seconds");XCTAssertEqual(NetworkDetail.spokenClock(120_000),"2 minutes");XCTAssertEqual(NetworkDetail.spokenClock(1_000),"1 second");XCTAssertEqual(NetworkDetail.spokenClock(0),"0 seconds")
         let code=try XCTUnwrap(NetworkCode(typed:"K7QD2M9X"));XCTAssertEqual(code.grouped,"K7QD-2M9X");XCTAssertEqual(NetworkDetail.spelled(code),"K 7 Q D, 2 M 9 X")
         XCTAssertEqual(NetworkGameController.gameName(host:"Ana"),"Ana's game")
     }

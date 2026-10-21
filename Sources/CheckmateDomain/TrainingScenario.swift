@@ -182,7 +182,7 @@ public struct TrainingScenario:Codable,Equatable,Identifiable {
         let squares=[target].compactMap{$0}+(diagram.map{Array($0.keys)} ?? [])+(expected?.squares ?? [])
         guard squares.allSatisfy(ChessNotation.validSquare),diagram?.values.allSatisfy(Self.validPiece) ?? true,((expected?.moves ?? [])+(expected?.wrong ?? [])+(prelude ?? [])).allSatisfy(ChessNotation.validUCI) else{try fail("invalid square, piece or move")}
         try validateRuleMode(definition.ruleMode)
-        guard (focus ?? []).allSatisfy(ChessNotation.validSquare),(stated ?? []).allSatisfy(ChessNotation.validUCI),askColor.map({["w","b"].contains($0)}) ?? true else{try fail("invalid focus square, stated move or asked colour")}
+        guard (focus ?? []).allSatisfy(ChessNotation.validSquare),(stated ?? []).allSatisfy(ChessNotation.validUCI),askColor.map({["w","b"].contains($0)}) ?? true else{try fail("invalid focus square, stated move or asked color")}
         guard definition.increment == .beginner else {
             guard check==nil,goal==nil,plies==nil,nodes==nil,stated==nil,askColor==nil,skills==nil,primarySkill==nil,source==nil,bridge==nil,workflow==nil,keep==nil else{try fail("Increment B fields on an Increment A scenario")}
             return
@@ -233,7 +233,7 @@ public struct TrainingScenario:Codable,Equatable,Identifiable {
         if check.task == .choose{guard let choices,choices.count>=2,Set(choices).count==choices.count else{try fail("a choice needs at least two distinct options")}}
         else{guard choices==nil else{try fail("only choice questions have options")}}
         guard (check == .exchange)==(stated != nil) else{try fail("an exchange question states its line, and only it does")}
-        guard [.forks,.pins].contains(check)==(askColor != nil) else{try fail("a recognition question names the asked colour, and only it does")}
+        guard [.forks,.pins].contains(check)==(askColor != nil) else{try fail("a recognition question names the asked color, and only it does")}
     }
     /// Move objectives (and diagnosis) ship a small teaching graph whose links stay inside it; nothing else has one.
     private func validateTeachingGraph(_ check:TrainingCheck)throws {

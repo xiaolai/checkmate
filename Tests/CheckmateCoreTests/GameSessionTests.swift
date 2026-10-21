@@ -24,7 +24,7 @@ final class GameSessionTests:XCTestCase {
     }
 }
 extension GameSessionTests {
-    @MainActor func testUndoCancelsHintWithoutDisplayingStaleError() async throws {let s=try GameSession(engine:SlowHintEngine());for uci in ["e2e4","e7e5"]{try s.rules.move(uci:uci)};s.hint();XCTAssertTrue(s.busy);XCTAssertTrue(s.canTakeBack);s.undo();XCTAssertEqual(s.rules.history,[]);try await Task.sleep(nanoseconds:80_000_000);XCTAssertNil(s.error);XCTAssertEqual(s.coaching.status,"idle");XCTAssertFalse(s.busy)}
+    @MainActor func testUndoCancelsHintWithoutDisplayingStaleError() async throws {let s=try GameSession(engine:SlowHintEngine());for uci in ["e2e4","e7e5"]{try s.rules.move(uci:uci)};s.hint();XCTAssertTrue(s.busy);XCTAssertTrue(s.canTakeBack);s.undo();XCTAssertEqual(s.rules.history,[]);try await Task.sleep(nanoseconds:80_000_000);XCTAssertNil(s.error);XCTAssertEqual(s.coaching.status,.idle);XCTAssertFalse(s.busy)}
 }
 @MainActor private final class SlowHintEngine:TestEngineService{func analyze(fen:String,skill:Int,budget:Int,multiPv:Int) async throws->EngineAnalysis{try? await Task.sleep(nanoseconds:50_000_000);return EngineAnalysis(bestMove:"e2e4")}}
 extension GameSessionTests {
@@ -47,7 +47,7 @@ extension GameSessionTests {
 @MainActor private final class DelayedCandidateEngine:TestEngineService {var count=0;func analyze(fen:String,skill:Int,budget:Int,multiPv:Int) async throws->EngineAnalysis {count+=1;let delay:UInt64=count==1 ? 80_000_000:2_000_000;try await Task.sleep(nanoseconds:delay);let r=try ChessRules(fen:fen);return EngineAnalysis(bestMove:r.moves().first?.uci)}}
 extension GameSessionTests {
     @MainActor func testOpponentReconnectClearsDisconnectPause()throws {let s=try GameSession(engine:nil);s.setConnection(enabled:true,role:"opponent",lease:"first");s.setConnection(enabled:true,role:"opponent");XCTAssertTrue(s.pausedOpponent);s.setConnection(enabled:true,role:"opponent",lease:"second");XCTAssertFalse(s.pausedOpponent)}
-    @MainActor func testCancellingGuidedHintClearsThinkingStatus()throws {let s=try GameSession(engine:SlowHintEngine());s.hint();XCTAssertEqual(s.coaching.status,"thinking");try s.beginPreview();XCTAssertEqual(s.coaching.status,"idle")}
+    @MainActor func testCancellingGuidedHintClearsThinkingStatus()throws {let s=try GameSession(engine:SlowHintEngine());s.hint();XCTAssertEqual(s.coaching.status,.thinking);try s.beginPreview();XCTAssertEqual(s.coaching.status,.idle)}
 }
 extension GameSessionTests {
     /// A demonstration or preview frame is read on every window refresh; building a chess runtime there made a new

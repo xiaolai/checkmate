@@ -124,7 +124,7 @@ extension TrainingController {
     func requestReply(){
         guard showing,let state=exercise,state.task == .game,!state.finished,state.paused==nil,let position=state.current,let mover=try? position.turn(),mover != state.scenario.learner else{return}
         guard let engine=games.engine else{pauseGame("The practice defender is not available. Try again in a moment.");return}
-        guard games.fairness.engineHelpAllowed else{pauseGame(FairnessPolicy.destinationUnavailable+".");return}
+        guard games.fairness.engineHelpAllowed else{pauseGame(FairnessPolicy.destinationUnavailable);return}
         let attempt=state.snapshot.id,revision=state.snapshot.revision,start=state.scenario.fen ?? "",moves=(state.scenario.prelude ?? [])+state.line,opponent=state.snapshot.opponent
         let strategy=opponent.map{OpponentStrategy($0,check:state.scenario.check)} ?? .legacy(state.scenario.check)
         let seed=(opponent.flatMap{UInt64($0.seed,radix:16)} ?? 1) &+ UInt64(moves.count+1),streak=opponent?.severeStreak ?? 0,beginner=opponent?.strategy == .beginner,factory=runtimeFactory

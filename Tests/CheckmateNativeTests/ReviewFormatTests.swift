@@ -27,7 +27,7 @@ import CheckmateCore
         XCTAssertNil(ReviewFormat.details(unknown));XCTAssertEqual(ReviewFormat.players(unknown),"Imported game")
         let one=try game("[White \"*Bold* _x_\"]\n[Date \"1851.06.21\"]\n\n1. e4 *")
         XCTAssertEqual(ReviewFormat.players(one),"*Bold* _x_ – Black");XCTAssertEqual(ReviewFormat.details(one),"1851.06.21")
-        XCTAssertEqual(ReviewFormat.players(try PGNImporter.parse(Data("1. e4 *".utf8),provenance:"Current game")[0]),"Current game")
+        XCTAssertEqual(ReviewFormat.players(try PGNImporter.parse(Data("1. e4 *".utf8),provenance:.currentGame)[0]),"Current game")
         XCTAssertEqual(ReviewFormat.players(try game("8/8/8/4k3/8/8/8/4K3 w - - 0 1")),"Imported position")
         XCTAssertEqual(["1-0","0-1","1/2-1/2","*"].map(ReviewFormat.result),["1–0","0–1","½–½","Unfinished"])
         // Assistance plan A11: a network game's agreed assistance is a line of its own; a record without the tag has none.

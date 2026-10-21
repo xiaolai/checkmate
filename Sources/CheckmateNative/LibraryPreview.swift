@@ -13,7 +13,7 @@ struct LibraryPreview:Equatable {
     }
     static func unreadable(_ row:LibraryRow,_ message:String)->LibraryPreview {LibraryPreview(id:row.id,title:row.title,details:[],result:row.result,moves:0,fen:nil,problem:message)}
     /// "1–0 · 23 moves", or the result alone for a position with no moves.
-    var summary:String {moves==0 ? ReviewFormat.result(result):"\(ReviewFormat.result(result)) · \(moves) \(moves==1 ? "move":"moves")"}
+    var summary:String {moves==0 ? ReviewFormat.result(result):Plural.count(moves,one:"%2$@ · %1$d move",other:"%2$@ · %1$d moves",ReviewFormat.result(result))}
 }
 /// The review workspace's inspector: the selected game's preview, or what can be opened when nothing is selected.
 struct WorkspaceInspector:View {
