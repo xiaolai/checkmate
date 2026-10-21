@@ -145,6 +145,33 @@ final class LessonAttemptTests:XCTestCase {
         c.hint();XCTAssertEqual(c.hintArrow,["e1","g1"]);XCTAssertEqual(c.record?.hints,3);XCTAssertTrue(c.frame.arrows.contains(["e1","g1"]))
         c.click("e1");c.click("g1");XCTAssertNil(c.hintArrow,"a played move clears the shown hint")
     }
+    /// Off track, Hint only explains: the hint count and its word ladder stay where they were.
+    @MainActor func testAHintOffTrackChangesNothingButExplains()throws {
+        let (s,c)=try controller(),p=try castling()
+        c.open(lessonID:"test",practice:p);c.hint();XCTAssertEqual(c.record?.hints,1)
+        c.click("e1");c.click("c1");XCTAssertEqual(c.phase,.offTrack)
+        c.hint();XCTAssertEqual(c.record?.hints,1);XCTAssertEqual(s.state.lessonAttempts?["test"]?.hints,1,"nor saved");XCTAssertNil(c.hintArrow)
+        XCTAssertEqual(c.notice,"Undo your last move first, then ask again.")
+        c.undo();c.hint();XCTAssertEqual(c.hints,["Tuck the king away.","Look at the king and the h1 rook."],"the word ladder goes on")
+    }
+    /// Success with no hint in that attempt is recorded apart from success with help; both are practised.
+    @MainActor func testAnUnaidedSuccessIsRecordedApartFromAHelpedOne()throws {
+        let (s,c)=try controller(),p=try castling()
+        c.open(lessonID:"helped",practice:p);c.hint();c.click("e1");c.click("g1");XCTAssertEqual(c.phase,.achieved)
+        XCTAssertEqual(s.state.course.practised,["helped"]);XCTAssertNil(s.state.course.unaided)
+        c.restart();c.click("e1");c.click("g1");XCTAssertEqual(s.state.course.unaided,["helped"],"a fresh attempt without hints counts")
+        c.close();c.open(lessonID:"alone",practice:p);c.click("e1");c.click("g1");c.undo();c.click("e1");c.click("g1")
+        XCTAssertEqual(s.state.course.practised,["helped","alone"]);XCTAssertEqual(s.state.course.unaided,["helped","alone"],"recorded once")
+        var bad=s.state;bad.course.unaided=(0..<201).map{"lesson-\($0)"};XCTAssertThrowsError(try StateStore.validate(bad))
+    }
+    /// Restart asks first only once more than the first exchange (two moves) would be lost.
+    @MainActor func testRestartNeedsConfirmationOnlyAfterTheFirstExchange()async throws {
+        let (_,c)=try controller(),p=try line()
+        c.open(lessonID:"line",practice:p);XCTAssertFalse(c.restartNeedsConfirmation)
+        c.click("e2");c.click("e4");try await settle(c);XCTAssertEqual(c.record?.moves.count,2);XCTAssertFalse(c.restartNeedsConfirmation)
+        c.click("e4");c.click("e5");XCTAssertEqual(c.record?.moves.count,3);XCTAssertTrue(c.restartNeedsConfirmation)
+        c.restart();XCTAssertFalse(c.restartNeedsConfirmation)
+    }
     func testSavedAttemptsRoundTripAndAreBounded()throws {
         var state=ApplicationState();state.lessonAttempts=["castling":LessonAttemptRecord(definition:"abc",id:"id",moves:["e1g1"],playOn:true,hints:2)];state.course.practised=["castling"]
         let decoded=try JSONDecoder().decode(ApplicationState.self,from:JSONEncoder().encode(state))
@@ -293,6 +320,20 @@ final class LessonExerciseContentTests:XCTestCase {
         p.play();p.advance(by:p.duration+1)
         XCTAssertEqual(p.lessonIndex,index);XCTAssertEqual(p.step,step,"auto-advance did not leave the exercise");XCTAssertFalse(p.playing)
         XCTAssertTrue(p.attempt.active);XCTAssertEqual(p.attempt.identity,identity);XCTAssertEqual(s.lesson?.attempt?.phase,"yourTurn")
+    }
+    /// "Chase the queen" passes once White attacks or takes the queen, so every such exercise must start with one.
+    func testEveryAttackQueenCheckpointStartsWithABlackQueen()throws {
+        let library=try CourseLibrary(),chases=library.lessons.filter{$0.practice?.checkpoints?.contains{$0.kind == .attackQueen}==true}
+        XCTAssertFalse(chases.isEmpty,"fixture: the course has a queen-chasing exercise")
+        for lesson in chases {XCTAssertTrue(try ChessRules(fen:XCTUnwrap(lesson.practice).fen).board.values.contains("bq"),lesson.id)}
+    }
+    /// Continue past a skipped exercise claims only that the lesson was explored; doing the exercise claims practice.
+    @MainActor func testContinuingPastASkippedExerciseIsExploredNotPractised()throws {
+        let s=try GameSession(engine:nil),p=try LearningPlayer(session:s);defer{p.shutdown()}
+        let index=try XCTUnwrap(p.library.lessons.firstIndex{$0.id=="castling"});XCTAssertEqual(p.status(index:index),.notStarted)
+        p.openLesson(index:index,resume:false);p.seek(step:try XCTUnwrap(p.invitationStep));p.complete()
+        XCTAssertEqual(p.status(index:index),.explored)
+        p.click("e1");p.click("g1");XCTAssertEqual(p.attempt.phase,.achieved);XCTAssertEqual(p.status(index:index),.practised,"its puzzles are not solved yet")
     }
     @MainActor func testRestartIsANewPositionForAgentsAndEscapeClearsTheExerciseSelection()throws {
         let s=try GameSession(engine:nil),p=try LearningPlayer(session:s);defer{p.shutdown()}

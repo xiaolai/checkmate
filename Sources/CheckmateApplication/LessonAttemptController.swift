@@ -131,17 +131,20 @@ public struct LessonAttemptProjection:Codable,Equatable {
         _ = rejudge();if judgement?.achieved != true{self.record?.playOn=false;_ = rejudge()}
         save();onChange()
     }
+    /// Restarting would throw away more than the first exchange (two moves), so the native layer asks first.
+    public var restartNeedsConfirmation:Bool {(record?.moves.count ?? 0)>2}
     /// A fresh attempt from the practice position; what was achieved before stays achieved.
     public func restart(){guard let practice else{return};cancelReply();onReset();record=LessonAttemptRecord(definition:practice.definitionID);selected=nil;hintArrow=nil;notice=nil;waitingToResume=false;_ = rejudge();save();onChange()}
     /// After success: the game goes on against the beginner opponent.
     public func playOn(){guard phase == .achieved,judgement?.ending==nil,var record else{return};record.playOn=true;self.record=record;_ = rejudge();save();onChange();scheduleReply()}
     /// The next hint stage: two in words, then a move shown as an arrow (from the opening, or the engine's choice).
+    /// Off track it only explains: nothing is shown, so the hint count stays as it was.
     public func hint(){
         guard active,var record,learnerToMove || phase == .offTrack else{return}
+        if phase == .offTrack{notice="Undo your last move first, then ask again.";onChange();return}
         let words=min(2,practice?.hints?.count ?? 0)
         if !hasMoves,record.hints<words{record.hints+=1;self.record=record;save();onChange();return}
         record.hints=3;self.record=record;save()
-        if phase == .offTrack{notice="Undo your last move first, then ask again.";onChange();return}
         if let node=judgement?.node,let move=practice?.teaching?[node].accepted.first{hintArrow=[String(move.prefix(2)),String(move.dropFirst(2).prefix(2))];onChange();return}
         guard session.fairness.engineHelpAllowed else{notice=FairnessPolicy.destinationUnavailable+".";onChange();return}
         guard let engine=session.engine,let practice else{notice="A move cannot be shown right now.";onChange();return}
@@ -207,9 +210,12 @@ public struct LessonAttemptProjection:Codable,Equatable {
         guard let practice,let record else{judgement=nil;return false}
         do{judgement=try LessonAttemptJudge.judge(practice,moves:record.moves,playOn:record.playOn,rules:rules);return true}catch{judgement=nil;return false}
     }
+    /// Success is practised; success in an attempt with no hint shown is also unaided (`LessonStatus`).
     private func recordAchievement(was:Bool){
         guard !was,judgement?.achieved==true,let lessonID else{return}
         var practised=session.state.course.practised ?? [];if !practised.contains(lessonID){practised.append(lessonID);session.state.course.practised=practised}
+        guard record?.hints==0 else{return}
+        var unaided=session.state.course.unaided ?? [];if !unaided.contains(lessonID){unaided.append(lessonID);session.state.course.unaided=unaided}
     }
     private func save(){
         guard let lessonID,let record else{return}

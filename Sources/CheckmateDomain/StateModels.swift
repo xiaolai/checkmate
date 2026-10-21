@@ -80,18 +80,32 @@ public struct PracticeState:Codable {
 }
 /// `edition` is the course edition the progress refers to; progress saved without one is edition 1 and is carried
 /// forward by `ProgressMigration` as it loads.
-/// `completed` lists lessons explored to their end; `practised`, lessons whose own exercise was done at least once.
-public struct CourseProgress:Codable {public var lessonID="intro",step=0,segmentID:String?,positions:[String:String]?,completed:[String]=[],answered:[String]=[],edition:Int?=ProgressMigration.courseEdition,practised:[String]?;public init(){}}
+/// `completed` lists lessons explored to their end; `practised`, lessons whose own exercise was done at least once;
+/// `unaided`, those whose exercise was done at least once in an attempt with no hint shown (absent in older saves).
+public struct CourseProgress:Codable {public var lessonID="intro",step=0,segmentID:String?,positions:[String:String]?,completed:[String]=[],answered:[String]=[],edition:Int?=ProgressMigration.courseEdition,practised:[String]?,unaided:[String]?;public init(){}}
 /// One puzzle's progress. `attempts` counts the learner's answers, one per answer.
 public struct PuzzleProgress:Codable,Equatable {
     /// The most attempts a loaded or imported record may hold (`StateStore.validate` refuses more): the bound every
     /// persisted progress counter shares.
     public static let maximumAttempts=TrainingState.maximumCount
+    /// `solved`: answered correctly with no mistake and no reveal in one visit.
     public var solved=false,review=false,attempts=0;public init(){}
+    /// Whether the record's very first answer was correct and not revealed; nil in records saved before it was kept.
+    public var firstTry:Bool?
+    /// Answered correctly after a mistake in the same visit: worked out, but not first time, so `solved` stays false.
+    public var solvedLater:Bool?
+    /// Solved with the first answer ever given. An older record without `firstTry` claims it only when its one answer
+    /// was correct; with more answers the first is unknown, so it is not claimed.
+    public var solvedFirstTime:Bool {firstTry ?? (solved && attempts==1)}
     /// Records one answer. The count saturates at `maximumAttempts`: a record loaded at the bound stays at the bound
     /// rather than leaving the range `StateStore.validate` accepts, which would refuse every later save. A count above
     /// the bound (never loaded, only constructed) is pulled back to it, and the arithmetic cannot overflow.
-    public mutating func record(correct:Bool,revealed:Bool=false){solved = solved || correct && !revealed;review = !correct || revealed;attempts=attempts<Self.maximumAttempts ? attempts+1:Self.maximumAttempts}
+    /// `afterMistake`: an earlier answer in this visit was wrong, so a correct one is a later solve.
+    public mutating func record(correct:Bool,revealed:Bool=false,afterMistake:Bool=false){
+        if attempts==0{firstTry=correct && !revealed && !afterMistake}
+        if correct && afterMistake && !revealed{solvedLater=true}
+        solved = solved || correct && !revealed && !afterMistake;review = !correct || revealed || afterMistake;attempts=attempts<Self.maximumAttempts ? attempts+1:Self.maximumAttempts
+    }
 }
 public struct WindowState:Codable {public var left=false,right=false,settingsCategory="board";public var frame:[Double]?;public init(){}}
 public struct ApplicationState:Codable {
@@ -119,7 +133,7 @@ public struct ApplicationState:Codable {
     static let preservedObjects:Set<String>=["practice","course","settings","window","miniGames","training","lessonAttempts"]
     /// Every key this build can write, from a state with each optional field present.
     private static let writable:[String:JSONValue]={
-        var probe=ApplicationState();probe.miniGames=[:];probe.lessonAttempts=[:];probe.course.practised=[];probe.puzzleFilters=[:];probe.training=TrainingState();probe.window.frame=[0,0,1,1];probe.course.segmentID="";probe.course.positions=[:];probe.settings.positionGameLevels=[:]
+        var probe=ApplicationState();probe.miniGames=[:];probe.lessonAttempts=[:];probe.course.practised=[];probe.course.unaided=[];probe.puzzleFilters=[:];probe.training=TrainingState();probe.window.frame=[0,0,1,1];probe.course.segmentID="";probe.course.positions=[:];probe.settings.positionGameLevels=[:]
         probe.practice.ending=PracticeEnding(result:"1-0",reason:"");probe.practice.previousEnding=probe.practice.ending
         return (try? jsonObject(probe)) ?? [:]
     }()

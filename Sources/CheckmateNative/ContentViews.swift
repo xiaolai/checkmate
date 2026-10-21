@@ -47,8 +47,9 @@ struct SidebarContent:View {
             Section("Saved reviews"){ForEach(model.reviews){record in Label(record.title=="?" ? "Untitled game":record.title,systemImage:"doc.text").tag("review:"+record.id.uuidString)
                 .contextMenu{Button("Delete Saved Review…",role:.destructive){model.requestDeleteReview(record.id)}.disabled(model.deletingReviewID != nil)}}}
         }
-        // A practice activity sits indented under its lesson, off the main path but one click away.
-        Section("Learn & explore") {ForEach(Array(learning.library.lessons.enumerated()),id:\.element.id){i,l in Label {Text(learning.localizedTitle(index:i))} icon:{Image(systemName:session.state.course.completed.contains(l.id) ? "checkmark.circle.fill":l.isPractice ? "gamecontroller":"book")}.padding(.leading,l.isPractice ? Metrics.practiceIndent:0).accessibilityHint(participating ? FairnessPolicy.destinationUnavailable:practiceHint(l)).tag("lesson:\(i)").selectionDisabled(participating)}}
+        // A practice activity sits indented under its lesson, off the main path but one click away. The icon is the
+        // row's kind; how far the learner has taken it (explored, practised, mastered) is a trailing badge VoiceOver reads.
+        Section("Learn & explore") {ForEach(Array(learning.library.lessons.enumerated()),id:\.element.id){i,l in let status=learning.status(index:i);Label {Text(learning.localizedTitle(index:i))} icon:{Image(systemName:l.isPractice ? "gamecontroller":"book")}.badge(status.title.map{Text($0)}).accessibilityValue(status.title ?? "Not started").padding(.leading,l.isPractice ? Metrics.practiceIndent:0).accessibilityHint(participating ? FairnessPolicy.destinationUnavailable:practiceHint(l)).tag("lesson:\(i)").selectionDisabled(participating)}}
     }.listStyle(.sidebar).scrollContentBackground(.hidden).overlay(alignment:.bottom){if model.importingReview{VStack{ProgressView("Loading review…");Button("Cancel import"){model.cancelReviewImport()}}.padding().background(.regularMaterial)}}}
 }
 struct DetailContent:View {
@@ -141,7 +142,7 @@ struct DetailContent:View {
                     Text(practice.goal).foregroundStyle(.secondary)
                 }
             }
-            if learning.attemptStep {LessonAttemptPanel(learning:learning,continueLesson:{model.continueLesson()});Divider()}
+            if learning.attemptStep {LessonAttemptPanel(learning:learning,continueLesson:{model.continueLesson()},restart:{model.requestRestartAttempt()});Divider()}
             Picker("Transcript",selection:Binding(get:{learning.step},set:{learning.seek(step:$0)})){ForEach(learning.current.beats.indices,id:\.self){i in Text("\(i+1). \(learning.localizedStepTitle(index:learning.lessonIndex,step:i))").tag(i)}}
                 .labelsHidden()
             if let fallback=learning.fallbackMessage{Text(fallback).font(.caption).foregroundStyle(.secondary)}
@@ -201,6 +202,8 @@ struct TransportContent:View {
     var openTrainingLibrary:()->Void={}
     /// Opens the next main lesson and plays it, as the lesson panel's Continue does.
     var continueLesson:()->Void={}
+    /// Restarts the lesson exercise, confirmed first as the drawer's Restart is (`NativeModel.requestRestartAttempt`).
+    var restartAttempt:()->Void
     /// Opens the previous main lesson at its last transcript, the reverse of Continue.
     var previousLessonEnd:()->Void={}
     /// Leaves an imagined review branch for the imported game, saving the review as the drawer's button does.
@@ -231,7 +234,7 @@ struct TransportContent:View {
         case .resumeAttempt:learning.attempt.resume()
         case .attemptHint:learning.attempt.hint();showDetails()
         case .attemptUndo:learning.attempt.undo()
-        case .attemptRestart:learning.attempt.restart()
+        case .attemptRestart:restartAttempt()
         case .newGame,.miniNewGame:newGame()
         case .takeBack:session.undo()
         case .hint:session.hint()
