@@ -824,8 +824,10 @@ import RealtimeConnection
     }
     /// The title an export is named after: the saved review's own name, else its game's title.
     func reviewExportTitle(_ d:GameDocument)->String {reviews.first{$0.id==d.id}?.name ?? d.title}
+    /// A review exports unless it is shown over the network place, where no game leaves the app (as `ShownRecord`).
+    var mayExportReview:Bool {review.active && session.mode != .network}
     func exportReview(){
-        guard let d=review.document,let build=reviewPGN() else{return};let branches=review.branchesForSaving,title=reviewExportTitle(d)
+        guard mayExportReview,let d=review.document,let build=reviewPGN() else{return};let branches=review.branchesForSaving,title=reviewExportTitle(d)
         let panel=NSSavePanel();panel.nameFieldStringValue=Self.exportName(title,document:d,ideas:false)
         let choice=NSPopUpButton(frame:NSRect(x:0,y:0,width:260,height:28));choice.addItems(withTitles:[String(localized:"Original record",bundle:.checkmate),String(localized:"Original and my imagined lines",bundle:.checkmate)]);choice.setAccessibilityLabel(String(localized:"Export contents",bundle:.checkmate))
         // A FEN-only original exports as FEN; adding ideas always produces PGN records.

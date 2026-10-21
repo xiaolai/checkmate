@@ -177,7 +177,7 @@ struct ReviewHeader:View {
             Spacer(minLength:0)
             Menu{
                 Button("Choose Another Game…"){model.showReviewWorkspace()}
-                Button("Export PGN…"){model.exportReview()}
+                Button("Export PGN…"){model.exportReview()}.disabled(!model.mayExportReview)
                 if !model.reviewDraft{Divider();Button("Delete Saved Review…",role:.destructive){model.requestDeleteReview(document.id)}.disabled(model.deletingReviewID != nil)}
             } label:{AppSymbol.moreActions.image}.menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
                 .help("Review actions").accessibilityLabel("Review actions").accessibilityIdentifier("review-document-actions")

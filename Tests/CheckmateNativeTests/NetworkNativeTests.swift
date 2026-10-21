@@ -36,4 +36,14 @@ import CheckmateCore
         // Once the game ends, everything opens again.
         model.fairness.participation.end();model.lesson(0);XCTAssertEqual(model.session.mode,.lesson)
     }
+    /// A review shown over the network place exports nothing, as Copy PGN and practice's Export already give nothing
+    /// there: no game leaves the app while a game against another person may be on.
+    func testAReviewShownOverTheNetworkPlaceCannotBeExported()throws {
+        let model=try NativeModel(),app=AppDelegate();app.model=model;defer{model.shutdown()}
+        let document=try PGNImporter.parse(Data("1. e4 e5 *".utf8))[0]
+        model.openReview(document);XCTAssertTrue(model.review.active);XCTAssertTrue(model.mayExportReview,"a review over practice exports");XCTAssertTrue(app.canExport)
+        XCTAssertTrue(model.returnToGame());model.playOnNetwork();XCTAssertEqual(model.session.activity,.at(.network))
+        model.openReview(document);XCTAssertTrue(model.review.active,"the review opens over the network place");XCTAssertEqual(model.session.mode,.network)
+        XCTAssertNil(model.shownRecord);XCTAssertFalse(model.mayExportReview);XCTAssertFalse(app.canExport,"File ▸ Export… is off over the network place")
+    }
 }

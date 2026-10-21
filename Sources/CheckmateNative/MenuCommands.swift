@@ -63,10 +63,12 @@ extension AppDelegate:NSMenuDelegate {
     @objc func exportShown(){
         guard let model else{return};if model.review.active{model.exportReview();return}
         guard let pgn=model.shownRecord?.pgn else{return}
-        let panel=NSSavePanel();panel.nameFieldStringValue="game.pgn";panel.allowedContentTypes=[ReviewFileTypes.pgn]
+        let panel=NSSavePanel();panel.nameFieldStringValue=Self.practiceExportName;panel.allowedContentTypes=[ReviewFileTypes.pgn]
         panel.begin{[weak model] response in guard response == .OK,let url=panel.url else{return};do{try Data(pgn.utf8).write(to:url,options:.atomic)}catch{model?.storageError=String(localized:"The game could not be exported. Choose another location.",bundle:.checkmate)}}
     }
-    var canExport:Bool {model?.review.active==true || model?.shownRecord?.pgn != nil}
+    var canExport:Bool {model?.mayExportReview==true || model?.shownRecord?.pgn != nil}
+    /// A practice game exports under the name reviewing it would: its record has no players, so its own name.
+    static var practiceExportName:String {PGNExporter.fileName(ReviewProvenance.currentGame.ownGameTitle ?? "",pgn:true)}
     /// The system's Share menu for the shown game (or position), and a disabled Share when there is nothing to share.
     func shareMenuItem()->NSMenuItem {
         let item:NSMenuItem
