@@ -36,13 +36,13 @@ public struct VoiceInputDevice:Identifiable {public let id:String,name:String}
     }
     public func startCapture(device:String) async throws {
         guard !NativePolicy.silent else{return};if capture?.isRunning==true,captureDevice==device{return};stopCapture();let epoch=captureGeneration
-        let allowed=await AVCaptureDevice.requestAccess(for:.audio);guard epoch==captureGeneration else{throw CancellationError()};guard allowed else{throw CheckmateError.unavailable("Allow Checkmate in System Settings → Privacy & Security → Microphone.")}
+        let allowed=await AVCaptureDevice.requestAccess(for:.audio);guard epoch==captureGeneration else{throw CancellationError()};guard allowed else{throw VoiceFailure.microphoneDenied}
         do{try startCapture(device:device,epoch:epoch,voiceProcessing:true);return}catch{NativeLog.voice.notice("Echo cancellation is unavailable; the coach takes turns with the microphone");stopCapture()}
         try startCapture(device:device,epoch:captureGeneration,voiceProcessing:false)
     }
     private func startCapture(device:String,epoch:UUID,voiceProcessing:Bool) throws {
         let engine=AVAudioEngine(),input=engine.inputNode
-        if !device.isEmpty {var address=AudioObjectPropertyAddress(mSelector:kAudioHardwarePropertyTranslateUIDToDevice,mScope:kAudioObjectPropertyScopeGlobal,mElement:kAudioObjectPropertyElementMain);var uid=device as CFString,varID=AudioDeviceID(0),size=UInt32(MemoryLayout<AudioDeviceID>.size);let result=withUnsafePointer(to:&uid){AudioObjectGetPropertyData(AudioObjectID(kAudioObjectSystemObject),&address,UInt32(MemoryLayout<CFString>.size),$0,&size,&varID)};guard result==noErr,varID != 0,let unit=input.audioUnit,AudioUnitSetProperty(unit,kAudioOutputUnitProperty_CurrentDevice,kAudioUnitScope_Global,0,&varID,size)==noErr else{throw CheckmateError.unavailable("The selected microphone is unavailable. Choose another input device.")}}
+        if !device.isEmpty {var address=AudioObjectPropertyAddress(mSelector:kAudioHardwarePropertyTranslateUIDToDevice,mScope:kAudioObjectPropertyScopeGlobal,mElement:kAudioObjectPropertyElementMain);var uid=device as CFString,varID=AudioDeviceID(0),size=UInt32(MemoryLayout<AudioDeviceID>.size);let result=withUnsafePointer(to:&uid){AudioObjectGetPropertyData(AudioObjectID(kAudioObjectSystemObject),&address,UInt32(MemoryLayout<CFString>.size),$0,&size,&varID)};guard result==noErr,varID != 0,let unit=input.audioUnit,AudioUnitSetProperty(unit,kAudioOutputUnitProperty_CurrentDevice,kAudioUnitScope_Global,0,&varID,size)==noErr else{throw VoiceFailure.microphoneUnavailable}}
         if voiceProcessing {
             // Enabled while stopped, before the formats are read: voice processing changes the input format. Other audio
             // (a lesson preview, music) is ducked as little as the system allows.
@@ -52,7 +52,7 @@ public struct VoiceInputDevice:Identifiable {public let id:String,name:String}
             let interrupted=queued>0;stopOutput();if interrupted{onOutputChanged?(true)}
             let p=AVAudioPlayerNode();engine.attach(p);engine.connect(p,to:engine.mainMixerNode,format:Self.playbackFormat);p.volume=volume;player=p
         }
-        let format=input.outputFormat(forBus:0);guard format.sampleRate>0,format.channelCount>0,let target=AVAudioFormat(commonFormat:.pcmFormatFloat32,sampleRate:24000,channels:1,interleaved:false),let conversion=AVAudioConverter(from:format,to:target) else{throw CheckmateError.unavailable("This microphone audio format is unavailable.")};converter=conversion
+        let format=input.outputFormat(forBus:0);guard format.sampleRate>0,format.channelCount>0,let target=AVAudioFormat(commonFormat:.pcmFormatFloat32,sampleRate:24000,channels:1,interleaved:false),let conversion=AVAudioConverter(from:format,to:target) else{throw VoiceFailure.microphoneFormat};converter=conversion
         input.installTap(onBus:0,bufferSize:2048,format:format){[weak self] buffer,_ in
             let capacity=AVAudioFrameCount(ceil(Double(buffer.frameLength)*24000/format.sampleRate)+16);guard let converted=AVAudioPCMBuffer(pcmFormat:target,frameCapacity:capacity) else{return};var supplied=false,error:NSError?;conversion.convert(to:converted,error:&error){_,status in if supplied{status.pointee = .noDataNow;return nil};supplied=true;status.pointee = .haveData;return buffer};guard error==nil,let samples=converted.floatChannelData?[0] else{return};let data=PCM.encode(Array(UnsafeBufferPointer(start:samples,count:Int(converted.frameLength))));Task{@MainActor in guard let self=self,self.listening,self.captureGeneration==epoch else{return};let samples=PCM.decode(data);self.level=min(1,sqrt(samples.reduce(0){$0+Double($1*$1)}/Double(max(1,samples.count)))*4);self.onInput?(data)}
         };capture=engine;captureDevice=device;try engine.start();if voiceProcessing{player?.play();echoCancelled=true}

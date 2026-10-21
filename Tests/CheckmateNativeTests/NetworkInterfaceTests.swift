@@ -51,7 +51,7 @@ import CheckmateCore
         XCTAssertEqual(visible(),["Offer Draw","Claim Draw","Resign…","Flip Board","Leave Game…"]);XCTAssertTrue(lesson.isHidden)
         XCTAssertEqual(menu.items.compactMap{$0.identifier?.rawValue}.filter{$0.hasPrefix("network-")},["network-menu-offer-draw","network-menu-flip-board","network-menu-leave-game"])
         GameWindow.syncMenus(menu,lesson:lesson,network:false)
-        XCTAssertEqual(visible(),["New Game…","Take Back Move","Restore Previous Game","Claim Draw","Resign…","—","Protected by","Attacked by","Dismiss Piece Inspection"]);XCTAssertFalse(lesson.isHidden)
+        XCTAssertEqual(visible(),["New Game…","Take Back Move","Restore Previous Game","Claim Draw","Resign…","—","Protected by","Attacked by","Dismiss Piece Inspection","—","Connect Voice Coach","Stop Speaking"]);XCTAssertFalse(lesson.isHidden)
         GameWindow.syncMenus(menu,lesson:lesson,network:true);GameWindow.syncMenus(menu,lesson:lesson,network:true)
         XCTAssertEqual(visible(),["Offer Draw","Claim Draw","Resign…","Flip Board","Leave Game…"],"repeated syncs change nothing")
         // Assistance plan A1: at board insight the network game's menu also shows the piece inspector.

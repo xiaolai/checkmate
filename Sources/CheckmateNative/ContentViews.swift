@@ -111,7 +111,7 @@ struct DetailContent:View {
             Text("Moves").font(.headline);Text(session.rules.history.isEmpty ? "Your story starts with one move.":session.moveListText).textSelection(.enabled)
         }
         }
-        if voice.connected || voice.connecting || !voice.history.isEmpty || voice.connection != .disconnected {Divider();Text("Voice coach").font(.headline);Text(voice.status).foregroundStyle(.secondary);if voice.connected{HStack{Button("Recheck"){voice.recheck()};Button("Stop speaking"){voice.stopTurn()}}};ForEach(Array(voice.history.reversed())){entry in VStack(alignment:.leading){Text(entry.role=="learner" ? "You":"Coach").font(.caption).foregroundStyle(.secondary);Text(entry.text).textSelection(.enabled)}}}
+        VoiceCoachCard(voice:voice,model:model)
         if let error=session.error {Text(error).foregroundStyle(Color(nsColor:NativeColors.error));Button("Retry Stockfish"){session.retryEngine()}}
     }
     @ViewBuilder private var miniDetail:some View {

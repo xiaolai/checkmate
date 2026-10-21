@@ -79,7 +79,7 @@ def category(name):
 try:
     launch()
     quit_app()
-    # Voice is opt-in for a new install; MCP's startup preference stays on (it still needs Set up Codex).
+    # Voice is opt-in for a new install; MCP's startup preference stays on (it still needs Set Up Codex).
     assert not saved()["settings"]["voiceAutoConnect"]
     assert not saved()["settings"].get("voiceConsent")
     assert saved()["settings"]["companionAutoStart"]
@@ -93,16 +93,16 @@ try:
     quit_app()
 
     category("Connections")
-    assert "Start chess MCP on launch" in act("list")
-    act("press", "Start chess MCP on launch")
+    assert "Accept Codex connections at launch" in act("list")
+    act("press", "Accept Codex connections at launch")
     wait(lambda: not saved()["settings"]["companionAutoStart"])
     assert saved()["settings"]["voiceAutoConnect"]
     # The manual switch works independently of the startup preference.
-    act("press", "Allow chess MCP connections")
+    act("press", "Allow Codex connections")
     wait(discovery.exists)
     assert discovery.stat().st_mode & 0o777 == 0o600
     assert not saved()["settings"]["companionAutoStart"]
-    act("press", "Allow chess MCP connections")
+    act("press", "Allow Codex connections")
     wait(lambda: not discovery.exists())
     # Saves land 250 ms after a change: let any the switch made arrive before checking it left the preference alone.
     time.sleep(0.6)

@@ -413,12 +413,13 @@ private final class CodexChannel: @unchecked Sendable {
     func rpc(_ method: String, _ params: [String: Any]) async throws -> [String: Any] {
         guard let client = lock.withLock({ closed ? nil : client }) else { throw CancellationError() }
         guard try JSONSerialization.data(withJSONObject: params).count <= CodexTranslationLimits.responseBytes else { throw CheckmateError.invalid("The translation request is too large.") }
-        let unavailable = CheckmateError.unavailable("Codex could not complete \(method). Update Codex if this method is unavailable.")
+        let unavailable = CheckmateError.unavailable("Codex could not translate this lesson. Update Codex, then try again.")
         let result: Any
         do { result = try await Self.blocking { try client.call(method, params: params) } }
         catch {
             if attemptedTool { throw CheckmateError.unavailable("Translation stopped because Codex attempted a tool operation.") }
             if lock.withLock({ closed }) || Task.isCancelled { throw CancellationError() }
+            NativeLog.voice.error("Codex refused \(method, privacy: .public): \(String(describing: error), privacy: .public)")
             throw unavailable
         }
         guard let object = result as? [String: Any] else { throw unavailable }

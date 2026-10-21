@@ -15,7 +15,7 @@ import CheckmateCore
 /// hygiene and the watchdog (VC-4, VC-14), the opponent's wait event (VC2-5), the companion engine gate (VC2-4), the
 /// SESSION_IN_USE explanations (VC2-2) and companion skill upgrades (VC-13, IR-13).
 @MainActor final class GapVoiceMCPTests:XCTestCase {
-    private let denied="Allow Checkmate in System Settings → Privacy & Security → Microphone."
+    private let denied=VoiceFailure.microphoneDenied.cause
     private func count(_ events:[[String:Any]],_ type:String)->Int {events.filter{$0["type"] as? String==type}.count}
     private func code(_ error:Error)->String? {(CompanionBroker.failure(error)["error"] as? [String:Any])?["code"] as? String}
     private func until(_ condition:()->Bool)async {for _ in 0..<2000 where !condition(){await Task.yield()}}
@@ -34,8 +34,8 @@ import CheckmateCore
     // VC-11 and VC2-7: an input route change restarts the microphone; a permission problem keeps its own message
     // and never ends the session.
     func testInputRouteChangeKeepsTheSessionAndShowsTheSpecificMicrophoneProblem()async throws {
-        let (_,v,_)=try connected();var starts=0;let message=denied
-        v.automationCaptureStart={_ in starts+=1;throw CheckmateError.unavailable(message)}
+        let (_,v,_)=try connected();var starts=0
+        v.automationCaptureStart={_ in starts+=1;throw VoiceFailure.microphoneDenied}
         v.audio.onInputChanged?();await until{v.microphoneProblem != nil}
         XCTAssertEqual(starts,1,"A route change restarts capture");XCTAssertTrue(v.connected,"A microphone problem never ends the session")
         XCTAssertEqual(v.microphoneProblem,denied);XCTAssertEqual(v.status,"Ready — microphone unavailable. "+denied,"The specific fix is shown, not a generic message")
@@ -46,7 +46,7 @@ import CheckmateCore
     }
     /// VC-11: a completed turn keeps the specific microphone fix on screen, not a generic "unavailable".
     func testTheSpecificMicrophoneProblemSurvivesACompletedTurn()async throws {
-        let (_,v,_)=try connected();let message=denied;v.automationCaptureStart={_ in throw CheckmateError.unavailable(message)}
+        let (_,v,_)=try connected();v.automationCaptureStart={_ in throw VoiceFailure.microphoneDenied}
         v.audio.onInputChanged?();await until{v.microphoneProblem != nil};XCTAssertEqual(v.status,"Ready — microphone unavailable. "+denied)
         v.receive(["type":"input_audio_buffer.committed"]);v.receive(["type":"response.done","response":["status":"completed"]])
         XCTAssertEqual(v.microphoneProblem,denied);XCTAssertEqual(v.status,"Ready — microphone unavailable. "+denied,"The fix stays visible after the coach answers");v.disconnect()
@@ -57,7 +57,7 @@ import CheckmateCore
         XCTAssertEqual(starts,0);XCTAssertEqual(v.status,"Ready — microphone off");XCTAssertTrue(v.connected);v.disconnect()
     }
     func testChangingTheInputDeviceToADeniedMicrophoneKeepsTheSessionWithTheSpecificMessage()async throws {
-        let (s,v,_)=try connected();let message=denied;v.automationCaptureStart={_ in throw CheckmateError.unavailable(message)}
+        let (s,v,_)=try connected();v.automationCaptureStart={_ in throw VoiceFailure.microphoneDenied}
         s.state.settings.voiceInputDevice="usb";v.settingsChanged();await until{v.microphoneProblem != nil}
         XCTAssertTrue(v.connected);XCTAssertEqual(v.status,"Ready — microphone unavailable. "+denied);v.disconnect()
     }

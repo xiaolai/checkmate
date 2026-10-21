@@ -132,6 +132,8 @@ final class BoardTitleView:NSView {
         model.trainingVoice?.$marks.removeDuplicates().dropFirst().receive(on:RunLoop.main).sink{[weak self] _ in self?.refresh()}.store(in:&observations)
         // VoiceOver hears the network game's moves, offers, result and clocks (LAN-play plan D10).
         model.network.announce={[weak self] text in self?.announce(text)}
+        // Voice failures and the coach's answers reach VoiceOver (V-21); a failure's button opens its Settings pane (V-27).
+        model.voiceHelp.announce={[weak self] text in self?.announce(text)};model.voiceHelp.showSettings={[weak self] category in self?.openSettings(category:category)}
         // D11: the permission help appears only on the two denial signals, and goes once access comes back.
         model.network.$permissionHelp.removeDuplicates().receive(on:RunLoop.main).sink{[weak self] shown in self?.syncPermissionHelp(shown)}.store(in:&observations)
         // The network place's lobby and game chrome live in the details drawer: open it on arrival, as a lesson or review does.
@@ -430,6 +432,7 @@ playbackLineView?.isHidden=model.reviewWorkspace
         // The network game's own items act on its controller (LAN-play plan D9); in network mode nothing else in the
         // Game or Lesson menu shows (`syncMenus`).
         if let action=item.action,let enabled=Self.networkItemEnabled(action,network:model.session.mode == .network,game:model.network){return enabled}
+        if let enabled=Self.voiceMenuItemEnabled(item,model:model,offered:!model.reviewWorkspace && bar.item(.voiceConnect)?.enabled==true){return enabled}
         if let action=item.action,[#selector(lessonPlayPause),#selector(lessonPrevious),#selector(lessonNext),#selector(lessonFromStart),#selector(barHint)].contains(action) {
             let shown=barItem(for:action)
             let fallback=[#selector(lessonPlayPause):"Play",#selector(lessonPrevious):"Previous Step",#selector(lessonNext):"Next Step",#selector(lessonFromStart):"Play Step from Start",#selector(barHint):"Hint"][action] ?? item.title
@@ -547,7 +550,8 @@ playbackLineView?.isHidden=model.reviewWorkspace
     func stillShowing(_ shown:(generation:Int,position:Int,history:[String]),exactly:Bool=false)->Bool {
         let now=practiceGame;return !model.review.active && !model.reviewWorkspace && model.session.mode == .practice && now.generation==shown.generation && (exactly ? now.position==shown.position && now.history==shown.history:now.history.starts(with:shown.history))}
     @objc func showSettings(){if settings==nil{settings=SettingsWindow(model:model)};settings?.showWindow(nil);settings?.window?.makeKeyAndOrderFront(nil)}
-    @objc func showAbout(){showSettings();settings?.selectCategory("About")}
+    @objc func showAbout(){openSettings(category:.about)}
+    func openSettings(category:SettingsCategory){if settings==nil{settings=SettingsWindow(model:model)};settings?.show(category:category)}
     /// Edit ▸ Undo (⌘Z) reaches here when no text field claims it: it takes back the move, as Game ▸ Take Back does. In a
     /// review it undoes the window's last undoable action instead (a saved review's deletion).
     @objc func undo(_ sender:Any?){switch model.undoAction{case .restoreReview:model.undoDeletion();case .nothing:return;case .game:undo()}}

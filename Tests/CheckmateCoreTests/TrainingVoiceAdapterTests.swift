@@ -191,7 +191,7 @@ import CheckmateCore
     /// A connection whose authorization fails records nothing: the attempt is byte-identical, the coach is not
     /// connected, and the failure is what the learner reads. The gateway is never asked; the seam throws in its place.
     func testAFailedAuthorizationRecordsNothing()async throws {
-        let f=try fixture(),record=try encoded(f.session.state.training),failure=CheckmateError.unavailable("Live voice is temporarily unavailable. Try again shortly.")
+        let f=try fixture(),record=try encoded(f.session.state.training),failure=VoiceFailure.serviceDown
         XCTAssertTrue(f.voice.trainingVoiceAvailable,"premise: the coach may connect to this game")
         f.voice.automationAuthorizationFailure=failure;f.voice.connectTraining()
         XCTAssertTrue(f.voice.connecting,"the connection reached authorization")

@@ -66,8 +66,8 @@ While the learner plays or watches a game against another person on the local ne
 
 Every error has a `code` and a `message`; read the message, then:
 
-- `APP_NOT_READY`, `DISABLED`, `NOT_AUTHORIZED`: Checkmate is closed or MCP connections are off. The learner opens Checkmate and turns on **Allow chess MCP connections** in Settings → Connections.
-- `INCOMPATIBLE_SCHEMA`: this MCP server and the running app are different versions. The learner chooses **Set up Codex** in the running app; then start a new task.
+- `APP_NOT_READY`, `DISABLED`, `NOT_AUTHORIZED`: Checkmate is closed or MCP connections are off. The learner opens Checkmate and turns on **Allow Codex connections** in Settings → Connections.
+- `INCOMPATIBLE_SCHEMA`: this MCP server and the running app are different versions. The learner chooses **Set Up Codex** in the running app; then start a new task.
 - `SESSION_IN_USE`: not a settings problem. The message says whether the voice coach is connected (the learner disconnects voice in Checkmate) or another Codex task holds the session. Calls are refused, not queued.
 - `DISCONNECTED_BY_USER`: the learner disconnected you; stop and do not reconnect from this task. `DISCONNECTED`: this MCP connection closed; a new task is needed.
 - `APP_SUSPENDED`: Checkmate is hidden; ask the learner to show it. `NOT_CONNECTED`: your lease lapsed; the next call reconnects, so read `get_session` and continue.

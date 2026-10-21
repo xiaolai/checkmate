@@ -15,6 +15,8 @@ public enum VoiceUnavailability:Equatable,Sendable {
     case reviewNotReadable
     /// The learner has not yet agreed to what voice sends to OpenAI (V-1); a Connect press asks first.
     case consentNeeded
+    /// Neither the Codex app nor its ChatGPT sign-in is on this Mac (V-5): voice could only fail, so it is explained.
+    case codexMissing
     case lessonRecording,previewPlaying,narrationPlaying
     public var message:String {
         switch self {
@@ -24,6 +26,7 @@ public enum VoiceUnavailability:Equatable,Sendable {
         case .networkGame:return "Voice coaching is off during your network game."
         case .reviewNotReadable:return "This review can no longer be read aloud."
         case .consentNeeded:return "Connect the voice coach and agree to what it sends to OpenAI first."
+        case .codexMissing:return "The voice coach needs the Codex app, signed in with your ChatGPT account. Settings › Voice Coach shows what you need."
         case .lessonRecording:return "Finish or cancel lesson recording before connecting the voice coach."
         case .previewPlaying:return "Wait for the voice preview to finish before connecting the voice coach."
         case .narrationPlaying:return "Stop lesson or preview playback before connecting the voice coach."

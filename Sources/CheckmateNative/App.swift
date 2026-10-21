@@ -600,6 +600,10 @@ import CheckmateCore
         gameMenu.addItem(.separator())
         for (name,action,key) in [("Protected by",#selector(GameWindow.showProtection),"p"),("Attacked by",#selector(GameWindow.showAttacks),"a")] {let item=NSMenuItem(title:name,action:action,keyEquivalent:key);item.keyEquivalentModifierMask=[.command,.shift];item.target=target;gameMenu.addItem(item)}
         let dismiss=NSMenuItem(title:"Dismiss Piece Inspection",action:#selector(GameWindow.dismissInspection),keyEquivalent:"");dismiss.target=target;gameMenu.addItem(dismiss)
+        // V-20: the voice coach from the menu bar; the title follows the connection (`GameWindow.voiceMenuItemEnabled`).
+        gameMenu.addItem(.separator())
+        let connect=NSMenuItem(title:"Connect Voice Coach",action:#selector(GameWindow.toggleVoiceCoach),keyEquivalent:"");connect.target=target;gameMenu.addItem(connect)
+        let stop=NSMenuItem(title:"Stop Speaking",action:#selector(GameWindow.stopSpeaking),keyEquivalent:".");stop.keyEquivalentModifierMask=[.command];stop.target=target;gameMenu.addItem(stop)
         return gameMenu
     }
     func validateMenuItem(_ item:NSMenuItem)->Bool {

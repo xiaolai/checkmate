@@ -60,6 +60,7 @@ final class CodexTranslationTests: XCTestCase {
                 method = request['method']; params = request.get('params',{}); ident = request.get('id')
                 if method == 'initialized': continue
                 if scenario == 'timeout': time.sleep(10); continue
+                if scenario == 'rpcRefused' and method == 'thread/start': emit({'id':ident,'error':{'code':-32601,'message':'Method not found'}}); continue
                 result = {}
                 if method == 'account/read': result = {'account':{'type':'apiKey' if scenario=='apiKey' else 'chatgpt','planType':'plus','email':'DO-NOT-EXPORT@example.invalid'}}
                 if method == 'config/read':
@@ -265,6 +266,13 @@ final class CodexTranslationTests: XCTestCase {
             catch { XCTAssertTrue(String(describing: error).contains(scenario != "inheritedMCP" ? "private translation isolation" : "inherited an MCP")) }
             try await fixture.assertCleaned()
         }
+    }
+    /// V-7: a refused request reads as plain words; the method Codex refused goes to the log only.
+    func testARefusedRequestSaysWhatToDoWithoutTheMethodName() async throws {
+        let fixture = try Fixture("rpcRefused")
+        do { _ = try await fixture.client.translate(source: LessonTranslation.source(library: try CourseLibrary(), index: 0), locale: "fr", onUsage: { _, _, _ in }); XCTFail("A refused request succeeded") }
+        catch { let message = userFacingMessage(error, fallback: ""); XCTAssertEqual(message, "Codex could not translate this lesson. Update Codex, then try again."); XCTAssertFalse(message.contains("/")) }
+        try await fixture.assertCleaned()
     }
     func testFatalErrorsStopWithoutWaitingForTurnDeadline() async throws {
         for scenario in ["fatal", "unscopedFatal"] {

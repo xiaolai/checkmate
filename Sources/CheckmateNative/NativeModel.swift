@@ -100,6 +100,7 @@ import RealtimeConnection
         // A review Undo offers to put back that the Trash let go (to make room) can no longer come back: Undo stops offering it.
         reviewStore.onPurge={[weak self] id in Task{@MainActor in if self?.undoableDeletion?.id==id{self?.undoableDeletion=nil};do{try await self?.reviewAnalyzer.forgetAnalysis(documentID:id)}catch{NativeLog.storage.error("A purged review's analysis could not be removed: \(String(describing:error),privacy:.public)")}}}
         wireLessonLanguages();wireAgentTools();wirePersistence();wireSounds();loadSavedReviews();observeSession()
+        voiceHelp.attach(self)
         // Views that hide engine output during a network game redraw when it begins or ends; a practice coach that
         // waited out the game (D8) reconnects once it ends, if Practice is on screen then.
         fairness.participation.observe{[weak self] role in self?.objectWillChange.send();if role==nil{DispatchQueue.main.async{self?.resumeVoiceIfIntended()}}}
@@ -246,6 +247,8 @@ import RealtimeConnection
             connect()
         }
     }
+    /// The typed question, failure actions, capability check and announcements around the coach (V-3, V-5, V-6, V-21).
+    let voiceHelp=VoiceHelp()
     var reconnectVoice:()->Void={}
     private var claimsWhenVoiceLeft=0
     private func rememberVoice(){if !voice.networkSession,voice.miniReviewSession==nil,!voice.trainingSession,voice.connected || voice.connecting{voiceResumeIntent=true;claimsWhenVoiceLeft=session.companionClaims}}

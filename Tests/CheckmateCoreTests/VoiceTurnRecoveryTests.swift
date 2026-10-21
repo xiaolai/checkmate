@@ -73,7 +73,7 @@ import CheckmateCore
         // The timed-out response was being generated, so it is cancelled; the provider never acknowledges it.
         XCTAssertTrue(events().contains{$0["type"] as? String=="response.cancel"})
         try await until("the unacknowledged cancellation to end the session"){!v.connected}
-        XCTAssertEqual(v.status,"Voice response timed out. Reconnect to continue.")
+        XCTAssertEqual(v.status,VoiceFailure.timedOut.cause);XCTAssertEqual(v.failure,.timedOut)
     }
     func testSlowAnswerAcknowledgedKeepsTheSession()async throws {
         let (_,v,_)=try connected();defer{v.disconnect()};v.timeoutScale=0.001
@@ -149,7 +149,7 @@ import CheckmateCore
         var settings=s.state.settings;settings.coachReasoningEffort="xhigh";s.updateSettings(settings);v.settingsChanged()
         let update=try XCTUnwrap(events().last);XCTAssertEqual(update["type"] as? String,"session.update");let id=try XCTUnwrap(update["event_id"] as? String)
         v.receive(["type":"error","error":["type":"invalid_request_error","code":"unsupported_value","event_id":id]])
-        XCTAssertTrue(v.connected);XCTAssertEqual(s.state.settings.coachReasoningEffort,"minimal");XCTAssertEqual(v.activeEffort,"minimal");XCTAssertTrue(v.status.contains("does not support Extra high"))
+        XCTAssertTrue(v.connected);XCTAssertEqual(s.state.settings.coachReasoningEffort,"minimal");XCTAssertEqual(v.activeEffort,"minimal");XCTAssertTrue(v.status.contains("cannot think at the Extra high level"),v.status)
     }
     /// A change made during a turn waits until the turn is over.
     func testEffortChangeWaitsForTheTurn()throws {

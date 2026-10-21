@@ -149,8 +149,13 @@ try:
     pointer("click", "Sound")
     wait(lambda: "Piece and move sounds" in listing(), "The Sound settings row did not respond to a click")
     pointer("click", "Voice Coach")
-    wait(lambda: "Reasoning effort" in listing(), "Voice Coach reasoning settings did not appear")
-    for title, effort in [("Low", "low"), ("Medium", "medium"), ("High", "high"), ("Extra high", "xhigh"), ("Minimal", "minimal")]:
+    wait(lambda: "Thinking" in listing(), "Voice Coach thinking settings did not appear")
+    for title, effort in [("Balanced", "low"), ("Thorough", "high"), ("Quick", "minimal")]:
+        pointer("select-popup", "coach-thinking", title)
+        wait(lambda: json.loads((state / "state-v1.json").read_text())["settings"]["coachReasoningEffort"] == effort, "Thinking level did not persist: " + effort)
+    pointer("click", "coach-advanced")
+    wait(lambda: "Reasoning effort" in listing(), "Advanced did not show the reasoning effort")
+    for title, effort in [("Balanced", "low"), ("Medium", "medium"), ("Thorough", "high"), ("Extra high", "xhigh"), ("Quick", "minimal")]:
         pointer("select-popup", "coach-reasoning-effort", title)
         wait(lambda: json.loads((state / "state-v1.json").read_text())["settings"]["coachReasoningEffort"] == effort, "Reasoning effort did not persist: " + effort)
     subprocess.run(["screencapture", "-x", str(evidence / "voice-reasoning-settings.png")], check=True)
@@ -243,7 +248,7 @@ try:
     wait(lambda: pointer("value", "usage-time-range") == "All retained", "The usage range did not respond to a click")
     # The activity rows always render; only their values show whether the range holds recorded operations.
     if fixture:
-        wait(lambda: re.search(r"[1-9][0-9]* reported total tokens", listing()) is not None, "The usage range did not show the fixture's recorded tokens")
+        wait(lambda: re.search(r"[1-9][0-9,]* tokens", listing()) is not None, "The usage range did not show the fixture's recorded tokens")
     else:
         wait(lambda: "No recorded Checkmate activity in this time range." in listing(), "An empty usage range did not say so")
     pointer("click", "Clear history…")

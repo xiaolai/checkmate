@@ -14,15 +14,15 @@ final class VoiceAuthorizationTests:XCTestCase {
         let failing=CodexAuthState.allCases.filter{$0 != .ready}
         let messages=failing.map{userFacingMessage(VoiceGateway.signInFailure($0),fallback:"")}
         XCTAssertFalse(messages.contains(""))
-        XCTAssertEqual(userFacingMessage(VoiceGateway.signInFailure(.apiKey),fallback:""),userFacingMessage(VoiceGateway.apiKeySignIn,fallback:""))
-        XCTAssertEqual(userFacingMessage(VoiceGateway.signInFailure(.expired),fallback:""),userFacingMessage(VoiceGateway.signInExpired,fallback:""))
+        XCTAssertEqual(VoiceGateway.signInFailure(.apiKey),.apiKeySignIn);XCTAssertEqual(VoiceGateway.signInFailure(.expired),.signInExpired)
+        XCTAssertEqual(VoiceGateway.signInFailure(.codexError).action,.tryAgain,"a Codex that did not answer is tried again, not signed in again")
         XCTAssertTrue(userFacingMessage(VoiceGateway.signInFailure(.codexTooOld),fallback:"").contains(minimumCodexVersion))
         XCTAssertTrue(userFacingMessage(VoiceGateway.signInFailure(.appServerAuthUnavailable),fallback:"").contains("keychain"))
         // Distinct fixes get distinct words: only not-signed-in and no-sign-in-file share "sign in first".
         XCTAssertEqual(Set(messages).count,failing.count-1,"\(messages)")
         // A sign-in failure reaching authorization is reported as that state, never as the service.
-        XCTAssertEqual(userFacingMessage(VoiceGateway.authorizationFailure(CodexAuthError(.expired)),fallback:""),userFacingMessage(VoiceGateway.signInExpired,fallback:""))
-        XCTAssertEqual(userFacingMessage(VoiceGateway.authorizationFailure(CodexAuthError(.noCodex)),fallback:""),userFacingMessage(VoiceGateway.noCodex,fallback:""))
+        XCTAssertEqual(VoiceGateway.authorizationFailure(CodexAuthError(.expired)) as? VoiceFailure,.signInExpired)
+        XCTAssertEqual(VoiceGateway.authorizationFailure(CodexAuthError(.noCodex)) as? VoiceFailure,.noCodex)
     }
     /// The sign-in file is where sayso's CodexAuth reads it: CODEX_HOME when set (through links), else ~/.codex.
     func testCredentialFileFollowsCodexHome()throws {
@@ -52,24 +52,24 @@ final class VoiceAuthorizationTests:XCTestCase {
         let messages=[401,403,429,503,418].map{userFacingMessage(refused($0),fallback:"")}
         XCTAssertEqual(Set(messages).count,5,"each cause has its own message: \(messages)");XCTAssertFalse(messages.contains(""))
         XCTAssertTrue(messages[0].contains("not accepted"),"a 401 is not claimed to be an expiry")
-        XCTAssertEqual(userFacingMessage(VoiceGateway.authorizationFailure(RealtimeError(.network)),fallback:""),userFacingMessage(VoiceGateway.unreachable,fallback:""))
+        XCTAssertEqual(VoiceGateway.authorizationFailure(RealtimeError(.network)) as? VoiceFailure,.offline)
         XCTAssertTrue(VoiceGateway.authorizationFailure(RealtimeError(.cancelled)) is CancellationError)
-        XCTAssertTrue(VoiceGateway.authorizationFailure(RealtimeError(.routeDenied,status:401,code:"missing_scope")) is CheckmateError,"a missing scope is an account refusal, not a model")
+        XCTAssertEqual(VoiceGateway.authorizationFailure(RealtimeError(.routeDenied,status:401,code:"missing_scope")) as? VoiceFailure,.accessRefused,"a missing scope is an account refusal, not a model")
     }
     /// An expired sign-in stops model selection with its own reason instead of "no supported model".
     @MainActor func testAccountFailureIsNotAnIncompatibleModel()async {
         let selection=VoiceModelSelection();var probed:[String]=[]
-        do {_ = try await selection.resolve(effort:"minimal"){model in probed.append(model);throw VoiceGateway.signInExpired};XCTFail("resolved")}
-        catch {XCTAssertEqual(userFacingMessage(error,fallback:""),userFacingMessage(VoiceGateway.signInExpired,fallback:""))}
+        do {_ = try await selection.resolve(effort:"minimal"){model in probed.append(model);throw VoiceFailure.signInExpired};XCTFail("resolved")}
+        catch {XCTAssertEqual(error as? VoiceFailure,.signInExpired)}
         XCTAssertEqual(probed,[VoiceModelSelection.candidates[0]],"the account problem is not retried on every model")
     }
-    /// When no model accepts a chosen effort above Minimal, the message names the effort to lower.
+    /// When no model accepts a chosen effort above Minimal, the failure sends the learner to the thinking level.
     @MainActor func testNoModelForAnEffortNamesIt()async {
         let selection=VoiceModelSelection()
         do {_ = try await selection.resolve(effort:"xhigh"){_ in false};XCTFail("resolved")}
-        catch {XCTAssertTrue(userFacingMessage(error,fallback:"").contains("supports Extra high reasoning"))}
+        catch {XCTAssertEqual(error as? VoiceFailure,.thinkingUnsupported);XCTAssertEqual((error as? VoiceFailure)?.action,.openVoiceSettings)}
         do {_ = try await selection.resolve(effort:"minimal"){_ in false};XCTFail("resolved")}
-        catch {XCTAssertEqual(userFacingMessage(error,fallback:""),"No supported voice model is available for this account.")}
+        catch {XCTAssertEqual(error as? VoiceFailure,.noModel)}
     }
     /// The probe reports only an unsupported model as incompatible; an authorization failure (here, automation
     /// refusing live voice before any request) is thrown with its reason.

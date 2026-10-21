@@ -3,6 +3,7 @@ import CheckmateCore
 @testable import CheckmateDomain
 @testable import CheckmateSupport
 @testable import CheckmateApplication
+@testable import CheckmateContent
 @testable import CheckmateMacPlatform
 
 /// V-11: where the voice coach's connection stands is a typed state; the status line is derived from it and nothing
@@ -20,7 +21,7 @@ import CheckmateCore
         XCTAssertFalse(VoiceConnectionState.ready.inProgress);XCTAssertNil(VoiceConnectionState.ready.problem)
         XCTAssertEqual(VoiceConnectionState.failed("Voice connection ended.").problem,"Voice connection ended.")
         XCTAssertEqual(VoiceConnectionState.unavailable(.companionConnected).problem,VoiceUnavailability.companionConnected.message)
-        let reasons:[VoiceUnavailability]=[.companionConnected,.practiceOnly,.trainingGameOnly,.networkGame,.reviewNotReadable,.lessonRecording,.previewPlaying,.narrationPlaying]
+        let reasons:[VoiceUnavailability]=[.codexMissing,.consentNeeded,.companionConnected,.practiceOnly,.trainingGameOnly,.networkGame,.reviewNotReadable,.lessonRecording,.previewPlaying,.narrationPlaying]
         for reason in reasons {XCTAssertFalse(reason.message.contains("MCP"),"\(reason) is said in plain words: \(reason.message)");XCTAssertFalse(reason.message.isEmpty)}
         XCTAssertEqual(VoiceUnavailability.companionConnected.message,"Voice is unavailable while Codex is connected to Checkmate.")
         XCTAssertEqual(VoiceCoach.networkGameStatus,VoiceUnavailability.networkGame.message)
@@ -38,10 +39,10 @@ import CheckmateCore
     }
 
     func testAFailedAuthorizationEndsAsFailedWithItsReason()async throws {
-        let (_,voice)=try coach();voice.automationAuthorizationFailure=CheckmateError.unavailable("Fixture sign-in refused.");defer{voice.disconnect()}
+        let (_,voice)=try coach();voice.automationAuthorizationFailure=VoiceFailure.accessRefused;defer{voice.disconnect()}
         voice.connect();XCTAssertEqual(voice.connection,.authorizing);XCTAssertTrue(voice.connecting)
         try await waitFor("the failure arrives"){voice.connection != .authorizing}
-        XCTAssertEqual(voice.connection,.failed("Fixture sign-in refused."));XCTAssertEqual(voice.status,"Fixture sign-in refused.")
+        XCTAssertEqual(voice.connection,.failed(VoiceFailure.accessRefused.cause));XCTAssertEqual(voice.status,VoiceFailure.accessRefused.cause);XCTAssertEqual(voice.failure,.accessRefused)
         XCTAssertFalse(voice.connecting);XCTAssertFalse(voice.connected)
     }
 

@@ -4,11 +4,16 @@ import Foundation
 import RealtimeConnection
 
 /// Known stable models with the coach's reasoning and tool contract. No guessed IDs.
+/// The chosen model is kept for `cacheLifetime` in `storage` (V-22), so a launch connects without probing again; any
+/// failure forgets it and the next connect probes afresh.
 @MainActor public final class VoiceModelSelection {
     public static let candidates = ["gpt-realtime-2.1", "gpt-realtime-2"]
     public static let cacheLifetime: TimeInterval = 24 * 60 * 60
-    private var cached: (model: String, effort: String, date: Date)?
-    public init() {}
+    private struct Choice: Codable { let model: String; let effort: String; let date: Date }
+    private var cached: Choice?
+    /// Where the choice is saved between launches; nil keeps it in memory only.
+    public var storage: URL? { didSet { cached = storage.flatMap(Self.load) } }
+    public init(storage: URL? = nil) { self.storage = storage; cached = storage.flatMap(Self.load) }
     public func resolve(effort: String, refresh: Bool = false, now: Date = Date(),
                         probe: (String) async throws -> Bool) async throws -> String {
         if !refresh, let cached, cached.effort == effort,
@@ -18,18 +23,34 @@ import RealtimeConnection
             try Task.checkCancellation()
             let compatible = try await probe(model)
             try Task.checkCancellation()
-            if compatible { cached = (model, effort, now); return model }
+            if compatible { save(Choice(model: model, effort: effort, date: now)); return model }
         }
-        cached = nil
+        invalidate()
         throw Self.noModel(effort: effort)
     }
-    public func invalidate() { cached = nil }
-    /// No candidate accepted the effort: above Minimal, the effort is the likelier cause, so it is named.
-    nonisolated public static func noModel(effort: String) -> CheckmateError {
-        guard effort != "minimal" else { return .unavailable("No supported voice model is available for this account.") }
-        let name = effort == "xhigh" ? "Extra high" : effort.capitalized
-        return .unavailable("No voice model available to this account supports \(name) reasoning. Choose a lower reasoning effort in Settings → Voice Coach.")
+    public func invalidate() {
+        cached = nil
+        guard let storage, FileManager.default.fileExists(atPath: storage.path) else { return }
+        do { try FileManager.default.removeItem(at: storage) } catch { NativeLog.voice.error("Could not forget the voice model: \(error.localizedDescription, privacy: .public)") }
     }
+    private func save(_ choice: Choice) {
+        cached = choice
+        guard let storage else { return }
+        do { try JSONEncoder().encode(choice).write(to: storage, options: .atomic) } catch { NativeLog.voice.error("Could not keep the voice model: \(error.localizedDescription, privacy: .public)") }
+    }
+    /// A saved choice is trusted only if it decodes and names a known model; anything else is removed and probed again.
+    private static func load(_ storage: URL) -> Choice? {
+        guard FileManager.default.fileExists(atPath: storage.path) else { return nil }
+        do {
+            let choice = try JSONDecoder().decode(Choice.self, from: Data(contentsOf: storage))
+            if candidates.contains(choice.model) { return choice }
+            NativeLog.voice.error("Ignoring a saved voice model that is no longer offered: \(choice.model, privacy: .public)")
+        } catch { NativeLog.voice.error("Ignoring a damaged saved voice model: \(error.localizedDescription, privacy: .public)") }
+        do { try FileManager.default.removeItem(at: storage) } catch { NativeLog.voice.error("Could not remove the saved voice model: \(error.localizedDescription, privacy: .public)") }
+        return nil
+    }
+    /// No candidate accepted the effort: above Minimal, the effort is the likelier cause, so it is named.
+    nonisolated public static func noModel(effort: String) -> VoiceFailure { effort == "minimal" ? .noModel : .thinkingUnsupported }
 }
 
 extension VoiceGateway {

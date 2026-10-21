@@ -133,6 +133,8 @@ struct TrainingVoiceCoach:View {
     @ObservedObject var voice:VoiceCoach
     /// Connect Voice Coach, which asks for consent first.
     let connect:()->Void
+    /// V-25: the coach's help counts as help, said before the learner connects.
+    static let helpCaption="Asking the coach for help marks this game as solved with help."
     var body:some View {
         if voice.trainingSession || voice.trainingVoiceAvailable || !voice.history.isEmpty && voice.connection != .disconnected {
             Divider();Text("Voice coach").font(.headline)
@@ -143,7 +145,7 @@ struct TrainingVoiceCoach:View {
                     Button("Disconnect Coach"){voice.disconnect()}.accessibilityIdentifier("training-voice-disconnect")
                 }
             } else if voice.connecting {Button("Cancel Voice Coach"){voice.disconnect()}.accessibilityIdentifier("training-voice-cancel")}
-            else if voice.trainingVoiceAvailable {Button("Connect Voice Coach"){connect()}.accessibilityIdentifier("training-voice-connect")}
+            else if voice.trainingVoiceAvailable {Button("Connect Voice Coach"){connect()}.accessibilityIdentifier("training-voice-connect");Text(Self.helpCaption).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)}
             if voice.trainingSession || voice.history.last?.context=="Training game" {ForEach(Array(voice.history.suffix(3).reversed())){entry in Text((entry.role=="learner" ? "You: ":"Coach: ")+entry.text).font(.caption).fixedSize(horizontal:false,vertical:true)}}
         }
     }

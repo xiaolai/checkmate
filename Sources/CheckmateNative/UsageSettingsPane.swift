@@ -10,7 +10,7 @@ struct UsageSettingsPane:View {
     @State private var error:String?
     private var records:[UsageRecord]{ledger.records(in:range).sorted{$0.startedAt>$1.startedAt}}
     private func title(_ activity:UsageActivity)->String {switch activity{case .translation:return "Lesson translation";case .lessonRecording:return "Lesson recording";case .voiceCoach:return "Voice coach";case .inputTranscription:return "Input transcription"}}
-    private func count(_ value:Int64?)->String{value.map{String($0)} ?? "Unknown"}
+    private func count(_ value:Int64?)->String{value.map(UsageFormat.number) ?? "Unknown"}
     var body:some View {
         Section("Checkmate activity") {
             Picker("Time range",selection:$range){Text("Today").tag(UsageTimeRange.today);Text("This month").tag(UsageTimeRange.thisMonth);Text("All retained").tag(UsageTimeRange.all)}.accessibilityIdentifier("usage-time-range")
@@ -19,13 +19,18 @@ struct UsageSettingsPane:View {
             ForEach(UsageActivity.allCases,id:\.self){activity in
                 let group=records.filter{$0.activity==activity}
                 let known=group.compactMap{$0.tokens?.total}
+                let durations=group.compactMap(\.durationSeconds)
+                // V-16: one plain line per activity; the counts behind it are under Breakdown.
                 VStack(alignment:.leading) {
-                    LabeledContent(title(activity),value:group.isEmpty ? "No recorded activity":known.isEmpty ? "Total tokens unknown":"\(known.reduce(0,+)) reported total tokens · \(group.count-known.count) unknown")
+                    LabeledContent(title(activity),value:UsageFormat.summary(tokens:known.isEmpty ? nil:known.reduce(0,+),seconds:durations.isEmpty ? nil:durations.reduce(0,+),uses:group.count))
                     if !group.isEmpty {
-                        let durations=group.compactMap(\.durationSeconds)
-                        Text("\(group.count) operations · \(Set(group.map(\.sessionID)).count) sessions · "+(durations.isEmpty ? "Duration unknown":"\(String(format:"%.1f",durations.reduce(0,+)/60)) reported minutes · \(group.count-durations.count) durations unknown")).font(.caption).foregroundStyle(.secondary)
-                        let narrated=group.compactMap(\.narration)
-                        if !narrated.isEmpty{Text("Narrated segments: \(narrated.filter{$0 == .verified}.count) heard as written · \(narrated.filter{$0 == .unverified}.count) shown as text instead · \(narrated.filter{$0 == .interrupted}.count) stopped").font(.caption).foregroundStyle(.secondary).accessibilityIdentifier("usage-narration-outcomes")}
+                        DisclosureGroup("Breakdown") {
+                            Text("\(group.count) operations · \(Set(group.map(\.sessionID)).count) sessions").font(.caption).foregroundStyle(.secondary)
+                            Text(known.isEmpty ? "Tokens not reported":"\(UsageFormat.tokens(known.reduce(0,+))) reported · \(group.count-known.count) not reported").font(.caption).foregroundStyle(.secondary)
+                            Text(durations.isEmpty ? "Time not reported":"\(UsageFormat.minutes(durations.reduce(0,+))) reported · \(group.count-durations.count) not reported").font(.caption).foregroundStyle(.secondary)
+                            let narrated=group.compactMap(\.narration)
+                            if !narrated.isEmpty{Text("Narrated segments: \(narrated.filter{$0 == .verified}.count) heard as written · \(narrated.filter{$0 == .unverified}.count) shown as text instead · \(narrated.filter{$0 == .interrupted}.count) stopped").font(.caption).foregroundStyle(.secondary).accessibilityIdentifier("usage-narration-outcomes")}
+                        }
                     }
                 }
             }
@@ -56,8 +61,8 @@ struct UsageSettingsPane:View {
                     LabeledContent("Input audio tokens",value:count(record.tokens?.inputAudio))
                     LabeledContent("Output text tokens",value:count(record.tokens?.outputText))
                     LabeledContent("Output audio tokens",value:count(record.tokens?.outputAudio))
-                    if let credits=record.estimatedCredits{LabeledContent("Provider credit estimate",value:String(format:"%.6f",credits))}
-                    if let usd=record.estimatedUSD{LabeledContent("Provider USD estimate",value:String(format:"%.6f",usd))}
+                    if let credits=record.estimatedCredits{LabeledContent("Provider credit estimate",value:UsageFormat.credits(credits))}
+                    if let usd=record.estimatedUSD{LabeledContent("Provider USD estimate",value:UsageFormat.dollars(usd))}
                     if record.estimatedCredits != nil || record.estimatedUSD != nil{Text("Provider estimates are not actual charges.").font(.caption).foregroundStyle(.secondary)}
                     if let locale=record.locale{LabeledContent("Language",value:locale)}
                     if let voice=record.voice{LabeledContent("Voice",value:voice.capitalized)}

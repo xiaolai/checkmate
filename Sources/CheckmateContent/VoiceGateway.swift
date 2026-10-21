@@ -23,7 +23,7 @@ public final class VoiceGateway:Sendable {
     /// private home is signed in from the token). It is where sayso's CodexAuth reads it: in `CODEX_HOME` when that is
     /// set, followed through links, else in ~/.codex.
     public static var credentialURL:URL{credentialURL(environment:ProcessInfo.processInfo.environment,home:FileManager.default.homeDirectoryForCurrentUser)}
-    static func credentialURL(environment:[String:String],home:URL)->URL{
+    public static func credentialURL(environment:[String:String],home:URL)->URL{
         guard let codexHome=environment["CODEX_HOME"],!codexHome.isEmpty else{return home.appendingPathComponent(".codex/auth.json")}
         return URL(fileURLWithPath:codexHome,isDirectory:true).resolvingSymlinksInPath().appendingPathComponent("auth.json")
     }
@@ -39,48 +39,20 @@ public final class VoiceGateway:Sendable {
     static let credentials=Result{try Credentials(CodexAuthConfiguration(margin:signInMargin,timeout:codexTimeout,clientName:"checkmate",guardAccess:{_ in if NativePolicy.silent{throw CheckmateError.unavailable("Live voice is disabled during automation.")}},log:{NativeLog.voice.debug("\($0)")}))}
     private let client:HTTPClient
     public init(){let configuration=URLSessionConfiguration.ephemeral;configuration.timeoutIntervalForResource=Self.mintResourceTimeout;client=HTTPClient(configuration:configuration)}
-    public static let signedOut=CheckmateError.unavailable("Sign in to Codex on this Mac with your ChatGPT account before connecting.")
-    public static let apiKeySignIn=CheckmateError.unavailable("Voice uses your ChatGPT subscription. Codex on this Mac is signed in with an API key; sign in to Codex with ChatGPT, then connect again.")
-    public static let noCodex=CheckmateError.unavailable("Install Codex on this Mac and sign in with your ChatGPT account before connecting.")
-    /// A Codex that keeps its sign-in in the keychain must be asked for it; this one cannot be.
-    public static let keychainSignIn=CheckmateError.unavailable("Codex keeps its sign-in in the keychain, and this version of Codex cannot share it. Update Codex, then connect again.")
-    public static let signInExpired=CheckmateError.unavailable("Your Codex sign-in has expired and could not be renewed. Open Codex and sign in again, then connect.")
-    public static let codexTooOld=CheckmateError.unavailable("Codex on this Mac is too old for voice. Update Codex to \(minimumCodexVersion) or later, then connect again.")
-    public static let unreachable=CheckmateError.unavailable("Could not reach live voice. Check your internet connection.")
-    /// What a sign-in state means for the learner. Every state that is not ready names its own fix.
-    public static func signInFailure(_ state:CodexAuthState)->CheckmateError {
-        switch state {
-        case .ready,.notSignedIn,.noSignInFile:return signedOut
-        case .apiKey:return apiKeySignIn
-        case .unsupportedAuth:return .unavailable("Voice uses your ChatGPT subscription. Codex on this Mac is signed in another way; sign in to Codex with ChatGPT, then connect again.")
-        case .noCodex:return noCodex
-        case .codexTooOld:return codexTooOld
-        case .expired:return signInExpired
-        case .appServerAuthUnavailable:return keychainSignIn
-        case .providerWithoutOpenAIAuth:return .unavailable("Codex on this Mac is set to a model provider that does not use a ChatGPT sign-in, so voice cannot use it.")
-        case .codexError:return .unavailable("Codex on this Mac could not provide its sign-in. Check that Codex opens, then connect again.")
-        }
-    }
+    /// What a sign-in state means for the learner (V-6): one cause and its action. Every state that is not ready has its own.
+    public static func signInFailure(_ state:CodexAuthState)->VoiceFailure {VoiceFailure.signIn(state)}
     /// A model the account cannot open a session for; the next candidate model is tried.
     public struct ModelUnsupported:Error {public let status:Int}
     /// What a failed mint means for the learner. 400, 404 and 422 name the model as the problem, so selection moves on;
     /// every other failure is about the sign-in, the account or the service and stops it.
     public static func authorizationFailure(_ error:Error)->Error {
         if error is CancellationError || Task.isCancelled {return CancellationError()}
-        if error is CheckmateError || error is ModelUnsupported {return error}
-        if let failure=error as? CodexAuthError {NativeLog.voice.error("Voice sign-in unavailable: \(failure.state.rawValue, privacy: .public)");return signInFailure(failure.state)}
-        guard let failure=error as? RealtimeError else{return CheckmateError.unavailable("The account could not authorize live voice. Check account access and connectivity.")}
-        if failure.errorClass == .cancelled {return CancellationError()}
-        if [400,404,422].contains(failure.status) {return ModelUnsupported(status:failure.status)}
-        NativeLog.voice.error("Voice authorization failed: \(failure.errorClass.rawValue, privacy: .public), HTTP \(failure.status, privacy: .public)")
-        switch failure.errorClass {
-        case .authExpired:return CheckmateError.unavailable("Your Codex sign-in was not accepted. Open Codex and sign in again, then connect.")
-        case .routeDenied:return CheckmateError.unavailable("This account was refused access to live voice.")
-        case .rateLimited:return CheckmateError.unavailable("Live voice is rate-limited for this account right now. Try again later.")
-        case .server:return CheckmateError.unavailable("Live voice is temporarily unavailable. Try again shortly.")
-        case .network:return unreachable
-        default:return CheckmateError.unavailable("The account could not authorize live voice. Check account access and connectivity.")
+        if error is CheckmateError || error is ModelUnsupported || error is VoiceFailure {return error}
+        if let failure=error as? RealtimeError {
+            if failure.errorClass == .cancelled {return CancellationError()}
+            if [400,404,422].contains(failure.status) {return ModelUnsupported(status:failure.status)}
         }
+        return VoiceFailure.from(error,fallback:.requestRefused)
     }
     /// A realtime secret for a session of `model`, minted with Codex's sign-in (renewed once if the provider refuses it).
     public func authorize(model:String="gpt-realtime") async throws->ClientSecret {
