@@ -36,3 +36,39 @@ final class MaterialBalanceTests:XCTestCase {
         XCTAssertEqual(MaterialRow.summary(try XCTUnwrap(MaterialBalance(fen:start)),side:"b"),"Black captured nothing")
     }
 }
+
+/// The material row runs top to bottom in the order the board shows the sides, after Flip Board too.
+@MainActor final class MaterialOrientationTests:XCTestCase {
+    private var directory:URL!
+    override func setUp(){directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);setenv("CHECKMATE_DATA_DIR",directory.path,1)}
+    override func tearDown(){unsetenv("CHECKMATE_DATA_DIR");try? FileManager.default.removeItem(at:directory)}
+
+    func testTheRowFollowsFlipBoardInPracticeAndReview()async throws {
+        let model=try NativeModel(),game=GameWindow(model:model);defer{game.window?.delegate=nil;model.shutdown()}
+        let orientation=model.boardOrientation
+        model.practice();model.session.newGame(side:"b");model.session.cancelWork();game.refresh()
+        XCTAssertTrue(game.board.blackAtBottom,"fixture: the learner plays Black");XCTAssertTrue(orientation.blackAtBottom,"practice opens from the learner's side")
+        game.flipBoard();XCTAssertFalse(game.board.blackAtBottom,"fixture: the board turned")
+        XCTAssertFalse(orientation.blackAtBottom,"the practice row follows Flip Board")
+        XCTAssertEqual(MaterialRow.sides(blackAtBottom:orientation.blackAtBottom),["b","w"],"Black, now at the top of the board, is the top row")
+        model.reviewCurrent();for _ in 0..<300 where !model.review.active{try await Task.sleep(for:.milliseconds(10))}
+        game.refresh();XCTAssertTrue(game.board.blackAtBottom,"fixture: a review of the learner's game opens from Black")
+        XCTAssertTrue(orientation.blackAtBottom,"the review row opens from the learner's side")
+        game.flipBoard();XCTAssertFalse(game.board.blackAtBottom,"fixture: the board turned")
+        XCTAssertFalse(orientation.blackAtBottom,"the review row follows Flip Board")
+    }
+
+    /// The class of the defect: a row beside the board that orders by side takes the order from the board drawn
+    /// (practice and review) or from the network game's own flip, never from the learner's side.
+    func testEveryMaterialRowTakesItsOrderFromTheBoard()throws {
+        let sources=URL(fileURLWithPath:#filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("Sources/CheckmateNative")
+        let call=try NSRegularExpression(pattern:#"MaterialRow\(balance:.*?blackAtBottom:([\w.]+)"#)
+        var found:[String]=[]
+        for url in try FileManager.default.contentsOfDirectory(at:sources,includingPropertiesForKeys:nil) where url.pathExtension=="swift" {
+            let text=try String(contentsOf:url,encoding:.utf8)
+            for match in call.matches(in:text,range:NSRange(text.startIndex...,in:text)) {found.append(url.lastPathComponent+" "+(Range(match.range(at:1),in:text).map{String(text[$0])} ?? ""))}
+        }
+        XCTAssertEqual(found.count,3,"the scan sees practice, review and the network game: \(found)")
+        for row in found {XCTAssertTrue(row.hasSuffix(" orientation.blackAtBottom") || row=="NetworkViews.swift game.blackAtBottom","\(row): order the row by the board shown")}
+    }
+}

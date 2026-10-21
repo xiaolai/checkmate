@@ -9,6 +9,8 @@ import RealtimeConnection
     let voicePreview=VoicePreview()
     let usage:UsageLedger,lessonLanguages:LessonLanguageController
     let review=ReviewController()
+    /// Which way up the window last drew the board, for the views beside it that order things by side.
+    let boardOrientation=BoardOrientation()
     /// The training library and its exercises; nil while training is not enabled for this build (plan: rollout flag).
     let training:TrainingController?
     /// The voice coach's door into a standard-rule training game (mini-game plan WI-021); nil unless its flag is on.

@@ -22,13 +22,20 @@ struct MaterialBalance:Equatable {
     var isEmpty:Bool {captured(by:"w").isEmpty && captured(by:"b").isEmpty && lead(for:"w")==0 && lead(for:"b")==0}
 }
 
+/// Which way up the window last drew the board, after Flip Board. The views beside the board that order things by side
+/// read it here rather than guessing from the learner's side, which a flip overrides.
+@MainActor final class BoardOrientation:ObservableObject {
+    @Published private(set) var blackAtBottom=false
+    func show(blackAtBottom:Bool){if self.blackAtBottom != blackAtBottom{self.blackAtBottom=blackAtBottom}}
+}
+
 /// Each side's captured pieces, drawn small, with "+N" beside the side ahead. Practice, review and the network game
 /// show it under the board's heading; it is counted from the board shown, so a review step or an earlier practice
 /// position shows that position's material.
 struct MaterialRow:View {
     let balance:MaterialBalance
-    /// The side whose pieces sit at the bottom of the board; its captures go on the lower row.
-    var blackAtBottom=false
+    /// Whether the board shown has Black at the bottom, after Flip Board; the bottom side's captures go on the lower row.
+    let blackAtBottom:Bool
     static let pieceSide:CGFloat=18
     /// The rows in board order, top to bottom: the side at the top of the board first.
     static func sides(blackAtBottom:Bool)->[String] {blackAtBottom ? ["w","b"]:["b","w"]}
@@ -74,9 +81,10 @@ struct MaterialRow:View {
 struct PracticeMaterial:View {
     @ObservedObject var session:GameSession
     @ObservedObject var history:PracticeHistory
+    @ObservedObject var orientation:BoardOrientation
     var body:some View {
         let game=PracticeHistory.Game(generation:session.gameGeneration,position:session.position,history:session.rules.history)
         let earlier=session.displayView=="game" ? history.ply(in:game).flatMap{TrainingMaterial.board(fen:session.rules.records[$0].before)}:nil
-        MaterialRow(balance:MaterialBalance(board:earlier ?? session.displayBoard),blackAtBottom:session.humanSide=="b")
+        MaterialRow(balance:MaterialBalance(board:earlier ?? session.displayBoard),blackAtBottom:orientation.blackAtBottom)
     }
 }

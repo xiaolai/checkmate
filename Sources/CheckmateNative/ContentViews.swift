@@ -151,7 +151,7 @@ struct DetailContent:View {
             }.padding(10).frame(maxWidth:.infinity,alignment:.leading).background(ReviewCard(radius:Metrics.cornerRadius))}
             else {Text(Self.practiceHeading(session)).sectionHeading(.title2.bold()).accessibilityIdentifier("practice-heading");Text(session.message)}
             if session.pausedOpponent {Text("The companion opponent disconnected.");Button("Continue with Stockfish"){model.companion.disable();session.continueWithStockfish()}}
-            PracticeMaterial(session:session,history:history)
+            PracticeMaterial(session:session,history:history,orientation:model.boardOrientation)
             OpponentSettingsContent(session:session)
             PracticeMoveList(session:session,history:history)
         }

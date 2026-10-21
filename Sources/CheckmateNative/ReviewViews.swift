@@ -31,11 +31,12 @@ struct ReviewDetailContent:View {
     @ObservedObject var model:NativeModel
     @ObservedObject var analyzer:ReviewAnalyzer
     @ObservedObject var voice:VoiceCoach
-    init(review:ReviewController,model:NativeModel){self.review=review;self.model=model;analyzer=model.reviewAnalyzer;voice=model.voice}
+    @ObservedObject var orientation:BoardOrientation
+    init(review:ReviewController,model:NativeModel){self.review=review;self.model=model;analyzer=model.reviewAnalyzer;voice=model.voice;orientation=model.boardOrientation}
     var body:some View {VStack(alignment:.leading,spacing:Metrics.sectionGap){
         if let d=review.document {
             ReviewHeader(review:review,model:model,document:d)
-            MaterialRow(balance:MaterialBalance(board:review.board),blackAtBottom:model.reviewLearnerSide(d)=="b")
+            MaterialRow(balance:MaterialBalance(board:review.board),blackAtBottom:orientation.blackAtBottom)
             ReviewAnalysisSection(review:review,model:model,analyzer:analyzer,document:d)
             ReviewRetrySection(retry:model.reviewRetry,analyzer:analyzer,model:model,document:d)
             ReviewMoveSection(review:review,model:model,analyzer:analyzer,document:d)

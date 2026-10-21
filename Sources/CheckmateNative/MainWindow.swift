@@ -405,6 +405,7 @@ final class BoardTitleView:NSView {
         // the network game keeps its own flip. A mini-game played from Black against the computer puts Black nearest.
         let natural=model.review.active ? model.review.document.flatMap(model.reviewLearnerSide)=="b":s.mode == .practice && s.humanSide=="b" || trainingExercise?.scenario.learner=="b" || s.mode == .network && model.network.blackAtBottom || l.mini && l.miniGame?.computer==true && l.miniLearnerSide=="b"
         board.blackAtBottom = !model.reviewWorkspace && natural != (s.mode != .network && flipped==boardSubject)
+        model.boardOrientation.show(blackAtBottom:board.blackAtBottom)
         board.reviewNavigation=model.review.active
         board.evaluation=model.review.active && !model.reviewWorkspace ? model.review.evaluationShare:nil
         // The same score in words: nil with the bar, and nil while engine help is withheld (shownScore is then nil).
