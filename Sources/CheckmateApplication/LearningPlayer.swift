@@ -219,6 +219,10 @@ import Combine
     /// On a puzzle: the next one in the filtered set. Past the last one the set ends with its summary in the library
     /// rather than starting over.
     public func next(){guard !mini else{return};if let id=activePuzzle?.id {
+            if let queue=mixQueue,let index=queue.firstIndex(of:id) {
+                if index+1<queue.count{openPuzzle(id:queue[index+1]);return}
+                mixQueue=nil;showPuzzleLibrary();setSummary=PuzzleSetSummary(queue.compactMap{id in library.puzzles.first{$0.id==id}},progress:session.state.puzzles);mixFinished=true;return
+            }
             let order=library.puzzles.map(\.id),current=order.firstIndex(of:id) ?? -1
             if let following=filteredPuzzles.first(where:{(order.firstIndex(of:$0.id) ?? -1)>current}){openPuzzle(id:following.id);return}
             showPuzzleLibrary();setSummary=PuzzleSetSummary(puzzleSet,progress:session.state.puzzles);return
@@ -228,15 +232,23 @@ import Combine
     /// Moves on without answering: nothing is recorded, so the puzzle stays not tried and is not marked for review.
     public func skip(){guard activePuzzle != nil,!passed else{return};next()}
     /// After a set's summary: the puzzles to review, from the first.
-    public func reviewMistakes(){filter = .review;setSummary=nil;if let first=filteredPuzzles.first{openPuzzle(id:first.id)}}
+    public func reviewMistakes(){mixQueue=nil;filter = .review;setSummary=nil;if let first=filteredPuzzles.first{openPuzzle(id:first.id)}}
     /// The puzzles due for review now, whatever the library's other filters say (L-11).
     public var dueCount:Int {let clock=now();return library.puzzles.filter{session.state.puzzles[$0.id]?.isDue(at:clock)==true}.count}
     /// The due puzzles, from the first; the other filters are cleared so none of them is hidden.
-    public func reviewDue(){topic=nil;level=nil;query="";filter = .due;setSummary=nil;if let first=filteredPuzzles.first{openPuzzle(id:first.id)}}
+    public func reviewDue(){mixQueue=nil;topic=nil;level=nil;query="";filter = .due;setSummary=nil;if let first=filteredPuzzles.first{openPuzzle(id:first.id)}}
+    /// Today's Mix as it would start now (L-29); composed from the saved records, never saved itself.
+    public var todayMix:[String] {TodayMix.compose(library.puzzles,progress:session.state.puzzles,explored:Set(session.state.course.completed),at:now())}
+    /// The mix being played, in order: `next` follows it rather than the library's filters. Opening any puzzle outside
+    /// it ends the mix.
+    private var mixQueue:[String]?
+    /// The set summary on show is the end of a mix.
+    @Published public private(set) var mixFinished=false
+    public func startTodayMix(){let mix=todayMix;guard let first=mix.first else{return};mixQueue=mix;openPuzzle(id:first)}
     /// The lesson's own puzzles (linked by its id), for its Check Yourself button; nil when it has none.
     public func checkYourselfTitle(index:Int)->String? {guard library.lessons.indices.contains(index) else{return nil};let count=library.puzzles(for:library.lessons[index].id).count;return count==0 ? nil:String(localized:"Check Yourself: \(count) Puzzles",bundle:.checkmate,comment:"A lesson’s quiz title, shown in the sidebar")}
     /// Opens the lesson's first puzzle, with the library showing just that lesson's puzzles.
-    public func checkYourself(index:Int){guard library.lessons.indices.contains(index),let first=library.puzzles(for:library.lessons[index].id).first else{return};topic=first.topic;level=nil;filter = .all;query="";openPuzzle(id:first.id)}
+    public func checkYourself(index:Int){guard library.lessons.indices.contains(index),let first=library.puzzles(for:library.lessons[index].id).first else{return};mixQueue=nil;topic=first.topic;level=nil;filter = .all;query="";openPuzzle(id:first.id)}
     public func complete(continuePlayback:Bool=false){
         // Narration ending over the exercise stops only the narration: a reply the computer is choosing still comes.
         if attemptStep{pauseNarration()}else{pause()}
@@ -254,7 +266,7 @@ import Combine
             play()
         }
     }
-    public func openPuzzle(id:String) {guard let puzzle=library.puzzles.first(where:{$0.id==id}) else{return};pause();go(.puzzle(id:puzzle.id));picked=[];feedback="";passed=false;mistake=false;puzzleHints=0;hintTexts=[];setSummary=nil;frame=CourseFrame(board:puzzle.board,hl:puzzle.highlights);publish()}
+    public func openPuzzle(id:String) {guard let puzzle=library.puzzles.first(where:{$0.id==id}) else{return};if mixQueue?.contains(id) != true{mixQueue=nil};pause();go(.puzzle(id:puzzle.id));picked=[];feedback="";passed=false;mistake=false;puzzleHints=0;hintTexts=[];setSummary=nil;mixFinished=false;frame=CourseFrame(board:puzzle.board,hl:puzzle.highlights);publish()}
     /// Whether the puzzle shown has another rung on its hint ladder; after the last one only Reveal is left.
     public var canHint:Bool {activePuzzle.map{!passed && puzzleHints<$0.hints.count} ?? false}
     /// The next rung: its words, and a hint highlight on the piece it points at (a path puzzle's king where it stands now).

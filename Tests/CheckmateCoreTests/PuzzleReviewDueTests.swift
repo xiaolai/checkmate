@@ -25,6 +25,20 @@ final class PuzzleReviewDueTests:XCTestCase {
     }
     /// The saved state without its save time, whose keys are sorted so equal states compare equal.
     @MainActor private func snapshot(_ s:GameSession)throws -> Data {var state=s.state;state.savedAt=Date(timeIntervalSince1970:0);let e=JSONEncoder();e.outputFormatting = .sortedKeys;return try e.encode(state)}
+    /// Today's Mix (L-29) plays its puzzles in order, ends with its summary, and saves nothing of its own.
+    @MainActor func testTodaysMixPlaysItsSetAndSavesNothingOfItsOwn()throws {
+        let s=try GameSession(engine:nil),p=try LearningPlayer(session:s);defer{p.shutdown()}
+        var clock=day(1);p.now={clock};p.calendar=calendar
+        p.openPuzzle(id:"course:intro:1");p.choose("Black");clock=day(3)
+        let filters=s.state.puzzleFilters,expected=TodayMix.compose(p.library.puzzles,progress:s.state.puzzles,explored:Set(s.state.course.completed),at:clock)
+        XCTAssertEqual(p.todayMix,expected);XCTAssertEqual(expected.first,"course:intro:1");XCTAssertEqual(expected.count,TodayMix.size)
+        let saved=try snapshot(s);p.startTodayMix();XCTAssertEqual(p.activePuzzle?.id,"course:intro:1")
+        for id in expected.dropFirst() {p.skip();XCTAssertEqual(p.activePuzzle?.id,id,"the mix goes in its own order")}
+        p.skip();XCTAssertNil(p.activePuzzle,"after its last puzzle the mix ends in the library");XCTAssertEqual(p.setSummary?.total,TodayMix.size);XCTAssertTrue(p.mixFinished)
+        XCTAssertEqual(s.state.puzzleFilters,filters,"the mix changes no filter")
+        XCTAssertEqual(try snapshot(s),saved,"skipping through the mix saves nothing: no daily record, no streak")
+        p.openPuzzle(id:"course:intro:2");XCTAssertFalse(p.mixFinished)
+    }
     func testABoxOutsideTheLadderIsRefused()throws {
         var state=ApplicationState(),p=PuzzleProgress();p.record(correct:true);p.box=PuzzleProgress.maximumBox+1;state.puzzles["extra-1"]=p
         XCTAssertThrowsError(try StateStore.validate(state))

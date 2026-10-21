@@ -21,8 +21,8 @@ final class TextStyleAccessibilityTests:XCTestCase {
             XCTAssertTrue(all.contains("Text(\"\(heading)\").sectionHeading("),"\(heading) is a heading")
             XCTAssertFalse(all.contains("Text(\"\(heading)\").font("),"\(heading) is styled without the heading trait")
         }
-        // Headings whose text is computed: the practice result and its summary card, the course-complete card, and Help.
-        for heading in ["Self.practiceHeading(session)","CourseCompleteCard.title","section.title"] {
+        // Headings whose text is computed: the practice result and its summary card, the course-complete card, Help, and the end of Today's Mix.
+        for heading in ["Self.practiceHeading(session)","CourseCompleteCard.title","section.title","TodayMix.finished"] {
             XCTAssertTrue(all.contains("Text(\(heading)).sectionHeading("),"\(heading) is a heading")
             XCTAssertFalse(all.contains("Text(\(heading)).font("),"\(heading) is styled without the heading trait")
         }

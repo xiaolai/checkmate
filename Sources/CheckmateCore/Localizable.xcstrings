@@ -1565,6 +1565,7 @@
     "A bishop slides diagonally and stays on squares of one color. It cannot pass through pieces." : {},
     "A board pattern held back for fresh practice." : {},
     "A check, capture, promotion or the final move" : {},
+    "A few puzzles to look at again and a few new ones. Play it whenever you like." : {},
     "A finished attempt cannot be resumed." : {},
     "A game you review is saved here when you return to your game." : {},
     "A hint is unavailable (%@). Please try again." : {},
@@ -4029,6 +4030,9 @@
     "That position is already over. Choose a different move." : {},
     "That square holds your own piece." : {},
     "That square is not a safe neighboring square. Try another step." : {},
+    "That was today’s mix. Well played!" : {
+      "comment" : "Heading at the end of Today’s Mix"
+    },
     "The %@ listener failed: %@." : {
       "localizations" : {
         "en" : {
@@ -4490,6 +4494,9 @@
     "To castle, move the king two squares towards the rook; the rook then jumps over the king." : {},
     "To review" : {},
     "Today" : {},
+    "Today’s Mix" : {
+      "comment" : "Button: an optional short set of puzzles"
+    },
     "Tokens not reported" : {},
     "Too many game records." : {},
     "Too many imagined lines." : {},
