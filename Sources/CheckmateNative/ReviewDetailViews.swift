@@ -18,6 +18,23 @@ enum ReviewFormat {
     /// The accessibility label of a move, e.g. "2, Black, dxc4"; acceptance gates find moves by it.
     static func moveLabel(_ n:GameNode)->String {"\(n.fullmove), \(n.side=="w" ? "White":"Black"), \(n.san ?? "")"}
     static func moveText(_ n:GameNode)->String {"\(n.fullmove)\(n.side=="w" ? ".":"…") \(n.san ?? "")"}
+    /// An imagined line's name, e.g. "After 18…Nf5: 19.Qh5 Kh8 …": the move it branches after, then its first `plies`
+    /// moves. The list stops at a move that cannot be played, so a damaged idea is still named.
+    static func ideaLabel(_ d:GameDocument,_ branch:ReviewBranch,plies:Int=3)->String {
+        let root=d.nodes.indices.contains(branch.root) ? d.nodes[branch.root]:nil
+        let head=root.flatMap{node in node.san.map{"After \(node.fullmove)\(node.side=="w" ? ".":"…")\($0)"}} ?? "From the start"
+        // A root the record does not hold has no position to play the line from: the idea is named by its root alone.
+        var moves:[String]=[];let rules:ChessRules;do{rules=try d.snapshotRules(at:branch.root)}catch{return branch.moves.isEmpty ? head:"\(head): …"}
+        for (index,uci) in branch.moves.prefix(plies).enumerated() {
+            let move:MoveRecord;do{move=try rules.move(uci:uci)}catch{break}
+            let number=Int(move.before.split(separator:" ").last ?? "") ?? 1
+            moves.append(move.color=="w" ? "\(number).\(move.san)":index==0 ? "\(number)…\(move.san)":move.san)
+        }
+        if moves.count<branch.moves.count{moves.append("…")}
+        return moves.isEmpty ? head:"\(head): \(moves.joined(separator:" "))"
+    }
+    /// A cancelled whole-game analysis: how far it got before the deeper check of its leading moment.
+    static func partialAnalysis(completed:Int,total:Int)->String {completed<total ? "Analyzed \(completed) of \(total) moves":"Analyzed all \(total) moves; the deeper check is unfinished"}
     /// A header value worth showing: not empty, not "?" and not an all-unknown date.
     static func known(_ value:String?)->String? {
         guard let value=value?.trimmingCharacters(in:.whitespacesAndNewlines),!value.isEmpty,value.contains(where:{$0 != "?" && $0 != "."}) else{return nil};return value
@@ -159,6 +176,12 @@ struct ReviewAnalysisSection:View {
                 EvaluationGraph(review:review,model:model,document:document,samples:ReviewFormat.series(document,evaluations:analyzer.evaluations,outcome:ReviewFormat.cachedOutcome(document)))
                 if analyzer.failed>0{Text("\(analyzer.failed) of \(analyzer.total) moves could not be analyzed.").font(.caption).foregroundStyle(.secondary)}
                 Button("Analyze Again"){analyzer.startBatch(document)}.buttonStyle(.borderless).controlSize(.small)
+            }
+            // A cancelled run keeps what it finished; Resume searches only the positions still missing.
+            else if mine,analyzer.batchStatus=="partial"{
+                if !analyzer.evaluations.isEmpty{EvaluationGraph(review:review,model:model,document:document,samples:ReviewFormat.series(document,evaluations:analyzer.evaluations,outcome:ReviewFormat.cachedOutcome(document)))}
+                Text(ReviewFormat.partialAnalysis(completed:analyzer.completed,total:analyzer.total)).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
+                Button("Resume Analysis"){analyzer.startBatch(document)}.controlSize(.small).accessibilityIdentifier("review-resume-analysis")
             }
             else{
                 if mine,analyzer.batchStatus=="failed"{Text("Offline analysis is unavailable for this game. The record remains navigable; try again later.").font(.caption).foregroundStyle(Color(nsColor:NativeColors.error)).fixedSize(horizontal:false,vertical:true)}

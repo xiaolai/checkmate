@@ -12,13 +12,16 @@ public struct ReviewPositionStatus:Codable,Equatable {
 }
 public struct GameDocument:Codable,Equatable,Identifiable {
     public let schemaVersion:Int,id:UUID,contentHash:String,importedAt:Date,provenance:String,original:Data,headers:[PGNHeader],startingFEN:String,result:String,termination:String?,historyAvailable:Bool,nodes:[GameNode]
+    /// The players, "White – Black", with " · Round N" when the round is known; with no player known, the event; then
+    /// what the record is. Saved review lists store it, so a change here is a new `ReviewStore` title rule.
     public var title:String {
         func known(_ name:String)->String? {guard let value=header(name)?.trimmingCharacters(in:.whitespacesAndNewlines),!value.isEmpty,value != "?" else{return nil};return value}
-        let fallback:String
-        if provenance=="Current game" || provenance=="Previous game"{fallback=provenance}
-        else if known("White") != nil || known("Black") != nil{fallback="\(known("White") ?? "White") – \(known("Black") ?? "Black")"}
-        else{fallback=historyAvailable ? "Imported game":"Imported position"}
-        return String(String.UnicodeScalarView((known("Event") ?? fallback).unicodeScalars.prefix(ReviewPolicy.maximumTitleScalars)))
+        let title:String
+        if known("White") != nil || known("Black") != nil{title="\(known("White") ?? "White") – \(known("Black") ?? "Black")"+(known("Round").flatMap{$0=="-" ? nil:" · Round \($0)"} ?? "")}
+        else if let event=known("Event"){title=event}
+        else if provenance=="Current game" || provenance=="Previous game"{title=provenance}
+        else{title=historyAvailable ? "Imported game":"Imported position"}
+        return String(String.UnicodeScalarView(title.unicodeScalars.prefix(ReviewPolicy.maximumTitleScalars)))
     }
     public func header(_ name:String)->String? {headers.first{$0.name==name}?.value}
     public var mainline:[Int] {var result:[Int]=[],node=0;while let next=nodes[node].children.first{result.append(next);node=next};return result}

@@ -207,6 +207,57 @@ final class ReviewStoreTests:XCTestCase {
         wait(for:[rejected],timeout:2)
         XCTAssertThrowsError(try writer.flush(document,cursor:2,branches:[]))
         XCTAssertTrue(try ReviewStore(directory:directory).list().isEmpty)
+        // Undo of the deletion brings the record back and lets its saves through again.
+        XCTAssertEqual(try writer.restore(document.id).map(\.id),[document.id])
+        XCTAssertEqual(try writer.flush(document,cursor:2,branches:[]).map(\.id),[document.id])
     }
-
+    /// R-10: an index written under an older title rule is rebuilt once, so saved reviews show the current titles.
+    func testIndexFromAnOlderTitleRuleIsRebuilt()throws {
+        let directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);defer{try? FileManager.default.removeItem(at:directory)}
+        let document=try PGNImporter.parse(Data("[Event \"London\"]\n[Round \"2\"]\n[White \"Alice\"]\n[Black \"Bob\"]\n\n1. e4 *".utf8))[0]
+        try ReviewStore(directory:directory).save(document,cursor:0,branches:[])
+        let file=directory.appendingPathComponent("index.json")
+        var index=try XCTUnwrap(JSONSerialization.jsonObject(with:Data(contentsOf:file)) as? [String:Any]);XCTAssertNotNil(index["titleRule"])
+        var entries=try XCTUnwrap(index["entries"] as? [[String:Any]]);entries[0]["title"]="London";index["entries"]=entries;index["titleRule"]=nil
+        try JSONSerialization.data(withJSONObject:index).write(to:file)
+        XCTAssertEqual(try ReviewStore(directory:directory).list().map(\.title),["Alice – Bob · Round 2"])
+        XCTAssertNotNil(try XCTUnwrap(JSONSerialization.jsonObject(with:Data(contentsOf:file)) as? [String:Any])["titleRule"],"the rebuilt index records its rule")
+    }
+    private func trash(_ directory:URL,_ id:UUID)->URL {directory.appendingPathComponent("Trash").appendingPathComponent(id.uuidString)}
+    /// R-12: a deleted review goes to the library's Trash and can be put back with its position and ideas.
+    func testDeletedReviewMovesToTrashAndRestores()throws {
+        let directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);defer{try? FileManager.default.removeItem(at:directory)}
+        let store=ReviewStore(directory:directory),first=try PGNImporter.parse(Data("1. e4 e5 *".utf8))[0],second=try PGNImporter.parse(Data("1. d4 *".utf8))[0]
+        var branch=ReviewBranch(root:first.mainline[1]);branch.moves=["g1f3"]
+        try store.save(first,cursor:2,branches:[branch]);try store.save(second,cursor:1,branches:[])
+        try store.delete(first.id)
+        XCTAssertFalse(FileManager.default.fileExists(atPath:store.documentURL(first.id).path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath:trash(directory,first.id).appendingPathComponent(first.id.uuidString+".json").path))
+        XCTAssertEqual(try store.list().map(\.id),[second.id])
+        let reopened=ReviewStore(directory:directory)
+        try reopened.restore(first.id)
+        XCTAssertEqual(Set(try reopened.list().map(\.id)),[first.id,second.id]);XCTAssertEqual(Set(try ReviewStore(directory:directory).list().map(\.id)),[first.id,second.id])
+        let saved=try reopened.load(first.id);XCTAssertEqual(saved.cursor,2);XCTAssertEqual(saved.branches,[branch])
+        XCTAssertFalse(FileManager.default.fileExists(atPath:trash(directory,first.id).path),"a restored review leaves the Trash")
+        XCTAssertThrowsError(try reopened.restore(first.id),"a review not in the Trash cannot be restored")
+        // Deleted again, it replaces its earlier copy in the Trash.
+        try reopened.delete(first.id);try reopened.delete(second.id);XCTAssertTrue(try reopened.list().isEmpty)
+        try reopened.restore(first.id);XCTAssertEqual(try reopened.list().map(\.id),[first.id])
+    }
+    /// R-12: the Trash keeps a deleted review for 30 days, and gives way first when the library needs room.
+    func testTrashIsPurgedAfterThirtyDaysAndWhenTheLibraryIsFull()throws {
+        let directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);defer{try? FileManager.default.removeItem(at:directory)}
+        let store=ReviewStore(directory:directory),old=try PGNImporter.parse(Data("1. e4 *".utf8))[0],recent=try PGNImporter.parse(Data("1. d4 *".utf8))[0]
+        try store.save(old,cursor:1,branches:[]);try store.save(recent,cursor:1,branches:[]);try store.delete(old.id);try store.delete(recent.id)
+        try FileManager.default.setAttributes([.creationDate:Date().addingTimeInterval(-31*24*3600)],ofItemAtPath:trash(directory,old.id).path)
+        let reopened=ReviewStore(directory:directory);XCTAssertTrue(try reopened.list().isEmpty)
+        XCTAssertFalse(FileManager.default.fileExists(atPath:trash(directory,old.id).path),"a review deleted 31 days ago is gone")
+        XCTAssertTrue(FileManager.default.fileExists(atPath:trash(directory,recent.id).path))
+        // A full library empties the Trash, oldest first, before refusing a save.
+        let large=trash(directory,recent.id).appendingPathComponent("padding");FileManager.default.createFile(atPath:large.path,contents:Data())
+        let handle=try FileHandle(forWritingTo:large);try handle.truncate(atOffset:UInt64(ReviewPolicy.maximumLibraryBytes));try handle.close()
+        let next=try PGNImporter.parse(Data("1. c4 *".utf8))[0]
+        try reopened.save(next,cursor:1,branches:[]);XCTAssertEqual(try reopened.list().map(\.id),[next.id])
+        XCTAssertFalse(FileManager.default.fileExists(atPath:trash(directory,recent.id).path))
+    }
 }

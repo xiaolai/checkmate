@@ -18,8 +18,25 @@ public final class ReviewStore {
     private var hashes:[UUID:String]=[:]
     private var quarantinedSinceTaken=0
     private struct Cursor:Codable {let schemaVersion:Int,cursor:Int,updatedAt:Date}
-    /// `hashes` is absent from indexes written before it existed; readers that predate it ignore it.
-    private struct Index:Codable {let schemaVersion:Int,entries:[ReviewIndexEntry],stamps:[String:String],hashes:[String:String]?}
+    /// `hashes` is absent from indexes written before it existed; readers that predate it ignore it. `titleRule` names
+    /// the `GameDocument.title` rule its titles were made by: an index from another rule (or none) is rebuilt once.
+    private struct Index:Codable {let schemaVersion:Int,entries:[ReviewIndexEntry],stamps:[String:String],hashes:[String:String]?,titleRule:Int?}
+    /// 1: the players, then the event.
+    private static let titleRule=1
+    /// A deleted review waits in `Trash/<id>/` this long, so its deletion can be undone, unless the library needs room.
+    static let trashRetention:TimeInterval=30*24*3600
+    private var trashChecked=false
+    private var trashURL:URL {directory.appendingPathComponent("Trash")}
+    private func trashURL(_ id:UUID)->URL {trashURL.appendingPathComponent(id.uuidString)}
+    /// The Trash's folders, oldest deletion first, with their sizes.
+    private func trashed()throws -> [(url:URL,deleted:Date,bytes:Int)] {
+        let files=FileManager.default;guard files.fileExists(atPath:trashURL.path) else{return []}
+        return try files.contentsOfDirectory(at:trashURL,includingPropertiesForKeys:[.creationDateKey]).map{folder in
+            var bytes=0;let enumerator=files.enumerator(at:folder,includingPropertiesForKeys:[.isRegularFileKey,.fileSizeKey])
+            while let file=enumerator?.nextObject() as? URL {let values=try file.resourceValues(forKeys:[.isRegularFileKey,.fileSizeKey]);if values.isRegularFile==true{bytes+=values.fileSize ?? 0}}
+            return (folder,try folder.resourceValues(forKeys:[.creationDateKey]).creationDate ?? .distantPast,bytes)
+        }.sorted{$0.deleted<$1.deleted}
+    }
     private func futureSchema(_ url:URL)->Bool {
         let values=try? url.resourceValues(forKeys:[.fileSizeKey,.contentModificationDateKey]);if (values?.fileSize ?? 0)>ReviewPolicy.maximumSavedBytes{return true};let identity="\(values?.fileSize ?? -1):\(values?.contentModificationDate?.timeIntervalSince1970 ?? 0)"
         if let cached=schemaCache[url.path],cached.stamp==identity{return cached.future}
@@ -61,7 +78,11 @@ public final class ReviewStore {
         guard data.count<=ReviewPolicy.maximumSavedBytes else{throw CheckmateError.invalid("Saved review exceeds storage limit.")}
         let enumerator=FileManager.default.enumerator(at:directory,includingPropertiesForKeys:[.isRegularFileKey,.fileSizeKey])
         var total=0
-        while let file=enumerator?.nextObject() as? URL {if file==documentURL(document.id){continue};let values=try file.resourceValues(forKeys:[.isRegularFileKey,.fileSizeKey]);if values.isRegularFile==true{total+=values.fileSize ?? 0}}
+        while let file=enumerator?.nextObject() as? URL {if file==documentURL(document.id){continue};if enumerator?.level==1,file.lastPathComponent==trashURL.lastPathComponent{enumerator?.skipDescendants();continue};let values=try file.resourceValues(forKeys:[.isRegularFileKey,.fileSizeKey]);if values.isRegularFile==true{total+=values.fileSize ?? 0}}
+        // The Trash counts toward the library, but gives way, oldest deletion first, before a save is refused.
+        var trash=try trashed()
+        while total+trash.reduce(0,{$0+$1.bytes})+data.count>ReviewPolicy.maximumLibraryBytes,let oldest=trash.first {try FileManager.default.removeItem(at:oldest.url);trash.removeFirst();NativeLog.storage.info("Removed a deleted review to make room in the library")}
+        total+=trash.reduce(0){$0+$1.bytes}
         guard total+data.count<=ReviewPolicy.maximumLibraryBytes else{throw CheckmateError.invalid("Review library storage limit reached; export or delete older reviews.")}
         let url=documentURL(document.id);try atomicWriter(data,url);try FileManager.default.setAttributes([.posixPermissions:0o600],ofItemAtPath:url.path)
         guard try Data(contentsOf:url)==data else{throw CheckmateError.unavailable("Review read-back failed.")}
@@ -107,13 +128,19 @@ public final class ReviewStore {
     }
     public func list()throws -> [ReviewIndexEntry] {
         lock.lock();defer{lock.unlock()};try prepare()
+        // Once per store: reviews deleted more than `trashRetention` ago leave the Trash. A folder that cannot be removed
+        // is logged and tried again next launch; it never keeps the library from opening.
+        if !trashChecked{trashChecked=true;let cutoff=Date().addingTimeInterval(-Self.trashRetention)
+            do{for folder in try trashed() where folder.deleted<cutoff{try FileManager.default.removeItem(at:folder.url);NativeLog.storage.info("Removed a review deleted over 30 days ago")}}
+            catch{NativeLog.storage.error("The review Trash could not be emptied: \(String(describing:error),privacy:.public)")}
+        }
         let documentIDs=Set(try FileManager.default.contentsOfDirectory(at:directory,includingPropertiesForKeys:nil).filter{$0.pathExtension=="json"}.compactMap{UUID(uuidString:$0.deletingPathExtension().lastPathComponent)})
         preserved=preserved.filter{documentIDs.contains($0.key) && $0.value==stamp($0.key)}
         let readableIDs=documentIDs.subtracting(preserved.keys)
         if let index=index,Set(index.map(\.id))==readableIDs,index.allSatisfy({stamps[$0.id]==stamp($0.id)}){return index}
         if index==nil {
             let file=directory.appendingPathComponent("index.json")
-            if let size=(try? file.resourceValues(forKeys:[.fileSizeKey]))?.fileSize,size<=ReviewPolicy.maximumIndexBytes,let data=try? Data(contentsOf:file),let saved=try? JSONDecoder().decode(Index.self,from:data),saved.schemaVersion==1,saved.entries.count<=ReviewPolicy.maximumSavedRecords,Set(saved.entries.map(\.id)).count==saved.entries.count,Set(saved.entries.map(\.id))==readableIDs,saved.entries.allSatisfy({saved.stamps[$0.id.uuidString]==stamp($0.id)}){index=saved.entries;stamps=Dictionary(uniqueKeysWithValues:saved.entries.map{($0.id,stamp($0.id))});for entry in saved.entries{if let hash=saved.hashes?[entry.id.uuidString]{hashes[entry.id]=hash}};return saved.entries}
+            if let size=(try? file.resourceValues(forKeys:[.fileSizeKey]))?.fileSize,size<=ReviewPolicy.maximumIndexBytes,let data=try? Data(contentsOf:file),let saved=try? JSONDecoder().decode(Index.self,from:data),saved.schemaVersion==1,saved.titleRule==Self.titleRule,saved.entries.count<=ReviewPolicy.maximumSavedRecords,Set(saved.entries.map(\.id)).count==saved.entries.count,Set(saved.entries.map(\.id))==readableIDs,saved.entries.allSatisfy({saved.stamps[$0.id.uuidString]==stamp($0.id)}){index=saved.entries;stamps=Dictionary(uniqueKeysWithValues:saved.entries.map{($0.id,stamp($0.id))});for entry in saved.entries{if let hash=saved.hashes?[entry.id.uuidString]{hashes[entry.id]=hash}};return saved.entries}
         }
         // Directory scan is also recovery for an interrupted index write. It occurs once per store.
         var entries:[ReviewIndexEntry]=[]
@@ -128,7 +155,7 @@ public final class ReviewStore {
         index=entries.sorted{$0.updatedAt>$1.updatedAt};try writeIndex();return index!
     }
     private func quarantine(_ url:URL,id:UUID)throws {let quarantine=directory.appendingPathComponent("Quarantine");try FileManager.default.createDirectory(at:quarantine,withIntermediateDirectories:true);try FileManager.default.moveItem(at:url,to:quarantine.appendingPathComponent(UUID().uuidString+"-"+url.lastPathComponent));validated[id]=nil;persisted[id]=nil;hashes[id]=nil;quarantinedSinceTaken+=1}
-    private func writeIndex()throws {guard !futureSchema(directory.appendingPathComponent("index.json")) else{return};let entries=index ?? [];let data=try JSONEncoder().encode(Index(schemaVersion:1,entries:entries,stamps:Dictionary(uniqueKeysWithValues:entries.map{($0.id.uuidString,stamp($0.id))}),hashes:Dictionary(uniqueKeysWithValues:entries.compactMap{entry in hashes[entry.id].map{(entry.id.uuidString,$0)}})));try atomicWriter(data,directory.appendingPathComponent("index.json"))}
+    private func writeIndex()throws {guard !futureSchema(directory.appendingPathComponent("index.json")) else{return};let entries=index ?? [];let data=try JSONEncoder().encode(Index(schemaVersion:1,entries:entries,stamps:Dictionary(uniqueKeysWithValues:entries.map{($0.id.uuidString,stamp($0.id))}),hashes:Dictionary(uniqueKeysWithValues:entries.compactMap{entry in hashes[entry.id].map{(entry.id.uuidString,$0)}}),titleRule:Self.titleRule));try atomicWriter(data,directory.appendingPathComponent("index.json"))}
     /// The saved record whose original text has this hash, so the same game opened again (for example by an agent)
     /// reuses its record instead of filling the library with copies. Records indexed before hashes were kept are
     /// found once they have been loaded or saved again.
@@ -139,22 +166,43 @@ public final class ReviewStore {
     public func delete(_ id:UUID)throws {
         lock.lock();defer{lock.unlock()};_ = try list()
         guard !futureSchema(documentURL(id)) else{throw CheckmateError.unavailable("This review requires a newer Checkmate version; its file is preserved.")}
-        let files=FileManager.default,previousIndex=index
-        let sources=[documentURL(id),cursorURL(id)]
+        // The record and its cursor move to `Trash/<id>/`, replacing an earlier deletion of the same record; the folder's
+        // creation date is the deletion date.
+        let files=FileManager.default,previousIndex=index,folder=trashURL(id),sources=[documentURL(id),cursorURL(id)].filter{files.fileExists(atPath:$0.path)}
+        if !sources.isEmpty{if files.fileExists(atPath:folder.path){try files.removeItem(at:folder)};try files.createDirectory(at:folder,withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])}
         var moved:[(URL,URL)]=[]
         do {
-            for source in sources where files.fileExists(atPath:source.path) {
-                let backup=directory.appendingPathComponent(".delete-"+UUID().uuidString)
-                try files.moveItem(at:source,to:backup);moved.append((source,backup))
+            for source in sources {
+                let target=folder.appendingPathComponent(source.lastPathComponent)
+                try files.moveItem(at:source,to:target);moved.append((source,target))
             }
             index?.removeAll{$0.id==id};try writeIndex()
         } catch {
             index=previousIndex
-            for (source,backup) in moved.reversed(){try files.moveItem(at:backup,to:source)}
+            for (source,target) in moved.reversed(){try files.moveItem(at:target,to:source)}
+            if !sources.isEmpty{try files.removeItem(at:folder)}
             throw error
         }
         validated[id]=nil;persisted[id]=nil;branchCache[id]=nil;stamps[id]=nil;hashes[id]=nil
-        for (_,backup) in moved{try? files.removeItem(at:backup)}
+    }
+    /// Puts a deleted review back from the Trash (Undo of its deletion), as it was when deleted.
+    public func restore(_ id:UUID)throws {
+        lock.lock();defer{lock.unlock()};var entries=try list()
+        let files=FileManager.default,folder=trashURL(id),document=folder.appendingPathComponent(documentURL(id).lastPathComponent)
+        guard files.fileExists(atPath:document.path) else{throw CheckmateError.invalid("This review is no longer in the Trash.")}
+        guard !files.fileExists(atPath:documentURL(id).path),!entries.contains(where:{$0.id==id}) else{throw CheckmateError.invalid("This review is already in the library.")}
+        guard entries.count<ReviewPolicy.maximumSavedRecords else{throw CheckmateError.invalid("Review library record limit reached.")}
+        var moved:[(URL,URL)]=[]
+        do {
+            for target in [documentURL(id),cursorURL(id)] {let source=folder.appendingPathComponent(target.lastPathComponent);if files.fileExists(atPath:source.path){try files.moveItem(at:source,to:target);moved.append((source,target))}}
+            let saved=try load(id)
+            entries.append(ReviewIndexEntry(id:id,title:saved.document.title,result:saved.document.result,updatedAt:saved.updatedAt));index=entries.sorted{$0.updatedAt>$1.updatedAt};try writeIndex()
+        } catch {
+            index=entries.filter{$0.id != id};validated[id]=nil;persisted[id]=nil;branchCache[id]=nil;stamps[id]=nil;hashes[id]=nil
+            for (source,target) in moved.reversed(){try files.moveItem(at:target,to:source)}
+            throw error
+        }
+        try files.removeItem(at:folder)
     }
 }
 
@@ -187,6 +235,11 @@ public final class ReviewSaveCoordinator {
         lock.lock();deleted.insert(id);latest[id]=nil;lock.unlock()
         do{return try queue.sync{try store.delete(id);return try store.list()}}
         catch{lock.lock();deleted.remove(id);lock.unlock();throw error}
+    }
+    /// Undo of `delete`: the record comes back from the Trash and its saves are accepted again.
+    public func restore(_ id:UUID)throws->[ReviewIndexEntry]{
+        let entries=try queue.sync{try store.restore(id);return try store.list()}
+        lock.lock();deleted.remove(id);lock.unlock();return entries
     }
 
 }

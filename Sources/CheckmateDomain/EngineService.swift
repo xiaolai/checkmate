@@ -2,6 +2,9 @@ import Foundation
 /// History, strength and constrained searches belong to the engine contract, not a concrete implementation.
 @MainActor public protocol EngineService:AnyObject {
     var binaryIdentity:String {get}
+    /// The identity `binaryIdentity` holds once prepared, read without starting the engine: stored review evidence is
+    /// keyed by it, so a review shows its stored analysis with no engine running.
+    func identity()async throws -> String
     var capabilities:EngineCapabilities {get}
     func prepare()async throws
     func analyze(fen:String,skill:Int,budget:Int,multiPv:Int)async throws -> EngineAnalysis
@@ -13,6 +16,8 @@ import Foundation
     func analyzeHistory(startFEN:String,moves:[String],profile:OpponentProfile,limit:EngineSearchLimit,multiPv:Int,searchMoves:[String])async throws -> EngineAnalysis
 }
 public extension EngineService {
+    /// An engine that cannot tell its identity before preparing reports it as it stands.
+    func identity()async throws -> String {binaryIdentity}
     func analyzeHistory(startFEN:String,moves:[String],profile:OpponentProfile,budget:Int,multiPv:Int)async throws -> EngineAnalysis {
         try await analyzeHistory(startFEN:startFEN,moves:moves,profile:profile,budget:budget,multiPv:multiPv,searchMoves:[])
     }

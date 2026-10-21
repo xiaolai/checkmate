@@ -506,6 +506,8 @@ import RealtimeConnection
         do {
             try coordinator.enter(prepared:staged,from:place,wasReviewing:reviewing,beforeReviewRestore:{self.draftDiscardApproved=nil},afterReviewRestore:{self.restoringReview=false;self.saveReview();self.onReview?()})
             if case .importProgress=next{onImport?()}
+            // The analysis cleared on the way in (PL-1) comes back from storage, with no search.
+            if case .review=next,let document=review.document{reviewAnalyzer.restore(document)}
         } catch {
             switch next {
             case .practiceFork:storageError=userFacingMessage(error,fallback:"Practice could not start from this position. The review was closed; your game is unchanged.");return false
@@ -565,14 +567,15 @@ import RealtimeConnection
     func requestDeleteReview(_ id:UUID){
         guard deletingReviewID==nil,let record=reviews.first(where:{$0.id==id}) else{return}
         let alert=NSAlert();alert.messageText="Delete “\(record.title)”?"
-        alert.informativeText="This removes the saved review and its imagined lines. Your current game and the original imported file are kept."
+        alert.informativeText="This removes the saved review and its imagined lines; Edit ▸ Undo puts them back. Your current game and the original imported file are kept."
         let delete=alert.addButton(withTitle:"Delete");delete.keyEquivalent=""
         let cancel=alert.addButton(withTitle:"Cancel");cancel.keyEquivalent="\r"
         alert.window.defaultButtonCell=cancel.cell as? NSButtonCell
-        if let window=NSApp.mainWindow{alert.beginSheetModal(for:window){[weak self] response in if response == .alertFirstButtonReturn{self?.deleteReview(id)}}}
-        else if alert.runModal() == .alertFirstButtonReturn{deleteReview(id)}
+        if let window=NSApp.mainWindow{alert.beginSheetModal(for:window){[weak self] response in if response == .alertFirstButtonReturn{self?.deleteReview(id,undo:window.undoManager)}}}
+        else if alert.runModal() == .alertFirstButtonReturn{deleteReview(id,undo:NSApp.mainWindow?.undoManager)}
     }
-    func deleteReview(_ id:UUID){
+    /// Deletes a saved review into the library's Trash; with `undo`, Edit ▸ Undo puts it back.
+    func deleteReview(_ id:UUID,undo:UndoManager?=nil){
         guard deletingReviewID==nil else{return}
         // A saved review still loading is abandoned with its "Loading review…" overlay, never left showing it.
         deletingReviewID=id;reviewLibraryGeneration+=1;reviewOpenGeneration+=1;cancelReviewImport()
@@ -584,6 +587,7 @@ import RealtimeConnection
                 pendingReviewSnapshots[id]=nil;reconcileReviewSaveWarning()
                 if review.document?.id==id{_ = try? transition(.returnToGame)}
                 reviews=entries;deletingReviewID=nil
+                undo?.registerUndo(withTarget:self){$0.restoreDeletedReview(id)};undo?.setActionName("Delete Review")
                 if review.active{saveReview()}
                 // The deleted review's engine analysis goes with it; a failure only leaves files for LRU eviction.
                 try? await reviewAnalyzer.forgetAnalysis(documentID:id)
@@ -592,6 +596,15 @@ import RealtimeConnection
                 storageError="The review could not be deleted. Its saved record is preserved; try again."
                 if review.active{saveReview()}
             }
+        }
+    }
+    /// Undo of `deleteReview`: the record comes back from the Trash into the library list. Its engine analysis was
+    /// forgotten with it and is searched again on request.
+    func restoreDeletedReview(_ id:UUID){
+        let writer=reviewSaves;reviewLibraryGeneration+=1
+        Task {
+            do{reviews=try await Task.detached{try writer.restore(id)}.value}
+            catch{storageError=userFacingMessage(error,fallback:"The deleted review could not be put back.")}
         }
     }
     /// The training game the board shows, if any (not the training library): File ▸ Review Current Game reviews this

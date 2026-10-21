@@ -82,7 +82,8 @@ import CheckmateCore
         // Nf3, the final move, is the one moment deepened.
         let series=ReviewFormat.series(d,evaluations:analyzer.evaluations,outcome:ReviewFormat.finalOutcome(d)).map{$0.map{($0*100).rounded()/100}}
         XCTAssertEqual(series,[0.5,0.1,0.2,0.35])
-        analyzer.cancelBatch();XCTAssertTrue(analyzer.evaluations.isEmpty,"Cancelling clears the published scores")
+        analyzer.cancelBatch();XCTAssertEqual(analyzer.batchStatus,"ready","Cancelling a finished analysis changes nothing");XCTAssertFalse(analyzer.evaluations.isEmpty)
+        analyzer.reset();XCTAssertTrue(analyzer.evaluations.isEmpty,"Leaving clears the published scores")
     }
     /// A recorded draw ends the graph level even when the board is not finished; a resignation leaves the engine's value;
     /// a checkmate on the board decides over a contradicting Result tag.
@@ -93,6 +94,21 @@ import CheckmateCore
         let d=try game("1. e4 e5 1/2-1/2")
         XCTAssertEqual(ReviewFormat.series(d,evaluations:[d.mainline[1]:AnalysisScore(kind:"cp",value:90)],outcome:ReviewFormat.finalOutcome(d)),[nil,nil,0])
         XCTAssertNil(ReviewFormat.finalOutcome(try game("[SetUp \"1\"]\n[FEN \"4k3/8/8/8/8/8/8/4K3 w - - 0 1\"]\n\n*")),"No moves, no outcome")
+    }
+    /// R-19: an idea is named by the move it branches after and its first moves, as the move list writes them.
+    func testIdeaLabelNamesItsRootMoveAndFirstMoves() throws {
+        let d=try game("1. e4 e5 2. Nf3 Nc6 *")
+        func idea(_ root:Int,_ moves:[String])->ReviewBranch {var branch=ReviewBranch(root:root);branch.moves=moves;return branch}
+        XCTAssertEqual(ReviewFormat.ideaLabel(d,idea(d.mainline[1],["f1c4","g8f6","d2d3","f8c5"])),"After 1…e5: 2.Bc4 Nf6 3.d3 …")
+        XCTAssertEqual(ReviewFormat.ideaLabel(d,idea(d.mainline[0],["c7c5","g1f3"])),"After 1.e4: 1…c5 2.Nf3","A line starting with Black's move numbers it")
+        XCTAssertEqual(ReviewFormat.ideaLabel(d,idea(0,["d2d4"])),"From the start: 1.d4")
+        XCTAssertEqual(ReviewFormat.ideaLabel(d,idea(d.mainline[3],[])),"After 2…Nc6")
+        XCTAssertEqual(ReviewFormat.ideaLabel(d,idea(d.mainline[3],["f1b5","a1a8"])),"After 2…Nc6: 3.Bb5 …","A move that cannot be played ends the list")
+    }
+    /// R-3: a cancelled analysis says how far it got.
+    func testPartialAnalysisSaysHowFarItGot() {
+        XCTAssertEqual(ReviewFormat.partialAnalysis(completed:12,total:40),"Analyzed 12 of 40 moves")
+        XCTAssertEqual(ReviewFormat.partialAnalysis(completed:40,total:40),"Analyzed all 40 moves; the deeper check is unfinished")
     }
     /// Only moments the engine rates as costly get a dot; a capture or check that costs little does not.
     func testOnlyCostlyMomentsAreMarked() {

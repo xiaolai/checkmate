@@ -83,7 +83,7 @@ final class GameCollectionsTests:XCTestCase {
         let first=try store.importCollection(data,name:"a.pgn"),second=try store.importCollection(data,name:"b.pgn")
         XCTAssertEqual(first,second)
         // `.lock` is the folder's own lock file, never a collection.
-        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath:library.path).sorted(),[".lock",first.sha256+".index.json",first.sha256+".pgn"])
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath:library.path).sorted(),[".lock",first.sha256+".index.json",first.sha256+".name",first.sha256+".pgn"])
         XCTAssertEqual(try store.load().collections.map(\.sha256),[first.sha256])
         try store.remove(first.sha256)
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath:library.path),[".lock"])
@@ -287,5 +287,29 @@ final class GameCollectionsTests:XCTestCase {
         let found=try GameCollectionStore(directory:library,quotaBytes:data.count+10).load()
         XCTAssertEqual(found.collections.count,0);XCTAssertEqual(found.broken.map(\.id),[sha])
         XCTAssertFalse(FileManager.default.fileExists(atPath:library.appendingPathComponent(sha+".index.json").path))
+    }
+    /// R-22: a rebuilt index keeps the name the collection was imported with; without it, the most common Event names
+    /// the collection, and a damaged collection is shown under its name too.
+    func testARebuiltIndexKeepsTheCollectionsName() throws {
+        let store=GameCollectionStore(directory:library),data=Data("[Event \"Wch\"]\n\n1. e4 *\n\n[Event \"Blitz\"]\n\n1. c4 *\n\n[Event \"Wch\"]\n\n1. d4 *\n\n[Event \"?\"]\n\n1. f4 *\n\n[Event \"?\"]\n\n1. g3 *\n".utf8)
+        let index=try store.importCollection(data,name:"Kasparov games.pgn"),sha=index.sha256
+        let indexURL=library.appendingPathComponent(sha+".index.json"),nameURL=library.appendingPathComponent(sha+".name")
+        try FileManager.default.removeItem(at:indexURL)
+        XCTAssertEqual(try store.load().collections.map(\.name),["Kasparov games.pgn"])
+        XCTAssertEqual(try JSONDecoder().decode(CollectionIndex.self,from:Data(contentsOf:indexURL)).name,"Kasparov games.pgn","the rebuilt index holds the name")
+        // A collection from an older build has an index but no stored name: loading stores it.
+        try FileManager.default.removeItem(at:nameURL);XCTAssertEqual(try store.load().collections.map(\.name),["Kasparov games.pgn"])
+        XCTAssertEqual(try String(contentsOf:nameURL,encoding:.utf8),"Kasparov games.pgn")
+        // With neither, the most common known Event names it.
+        try FileManager.default.removeItem(at:nameURL);try FileManager.default.removeItem(at:indexURL)
+        XCTAssertEqual(try store.load().collections.map(\.name),["Wch"])
+        let plain=try store.importCollection(Data("1. e4 *\n".utf8),name:"plain.pgn")
+        try FileManager.default.removeItem(at:library.appendingPathComponent(plain.sha256+".name"));try FileManager.default.removeItem(at:library.appendingPathComponent(plain.sha256+".index.json"))
+        XCTAssertEqual(Set(try store.load().collections.map(\.name)),["Wch","Collection"],"no Event: the generic name")
+        try Data("changed".utf8).write(to:library.appendingPathComponent(plain.sha256+".pgn"));try "Plain games".write(to:library.appendingPathComponent(plain.sha256+".name"),atomically:true,encoding:.utf8)
+        XCTAssertEqual(try store.load().broken.map(\.name),["Plain games"])
+        // Removing a collection removes its name; a name left without its collection is cleared away.
+        try store.remove(sha);XCTAssertFalse(FileManager.default.fileExists(atPath:nameURL.path))
+        try "Orphan".write(to:nameURL,atomically:true,encoding:.utf8);_ = try store.load();XCTAssertFalse(FileManager.default.fileExists(atPath:nameURL.path))
     }
 }
