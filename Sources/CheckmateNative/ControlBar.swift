@@ -382,19 +382,34 @@ struct BarButtonStyle:ViewModifier {
         if #available(macOS 26,*) {content.buttonStyle(BarGlassButton(prominent:prominent))}
         else if prominent {content.buttonStyle(.borderedProminent)} else {content.buttonStyle(.bordered)}
     }
+    /// Whether a prominent button's words are black rather than white on a tint of this colour (linear sRGB): white
+    /// stays, as the system draws it, until its contrast with the tint falls under 3:1 (WCAG's least for large text
+    /// and controls), as on a yellow, orange or green accent.
+    static func darkLabel(onLinearRed red:Double,green:Double,blue:Double)->Bool {
+        let luminance=0.2126*red+0.7152*green+0.0722*blue
+        return 1.05/(luminance+0.05)<3
+    }
 }
 /// A glass capsule with the bordered button's footprint: 8 points either side of the label, 28 high. The system glass
 /// button is 12 points wider, which wraps the practice bar into a second row at 600 points and shrinks the board.
 /// Dimming goes on the label: the glass draws in its own layer, which an opacity outside it does not reach. A disabled
-/// button keeps a plain capsule around a faded label, as a disabled bordered button keeps its bezel, and loses the tint.
+/// button keeps a plain capsule, as a disabled bordered button keeps its bezel, and loses the tint; its words take the
+/// system's disabled control text colour, the one the Details pane's disabled buttons use, so the two read alike.
 @available(macOS 26,*) private struct BarGlassButton:ButtonStyle {
     let prominent:Bool
     @Environment(\.isEnabled) private var enabled
+    @Environment(\.self) private var environment
     func makeBody(configuration:Configuration)->some View {
         configuration.label.padding(.horizontal,8).frame(minHeight:28)
-            .foregroundStyle(prominent&&enabled ? AnyShapeStyle(.white):AnyShapeStyle(.primary)).opacity(enabled ? (configuration.isPressed ? 0.8:1):0.45)
+            .foregroundStyle(foreground).opacity(enabled && configuration.isPressed ? 0.8:1)
             .glassEffect(!enabled ? .regular:prominent ? .regular.tint(.accentColor).interactive():.regular.interactive(),in:.capsule)
             .contentShape(.capsule)
+    }
+    private var foreground:AnyShapeStyle {
+        guard enabled else{return AnyShapeStyle(Color(nsColor:.disabledControlTextColor))}
+        guard prominent else{return AnyShapeStyle(.primary)}
+        let tint=Color.accentColor.resolve(in:environment)
+        return AnyShapeStyle(BarButtonStyle.darkLabel(onLinearRed:Double(tint.linearRed),green:Double(tint.linearGreen),blue:Double(tint.linearBlue)) ? Color.black:Color.white)
     }
 }
 /// One group of bar buttons shares a glass container on macOS 26 and later, so neighbouring glass blends as one

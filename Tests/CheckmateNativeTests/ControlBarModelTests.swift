@@ -218,6 +218,14 @@ import CheckmateCore
             XCTAssertEqual(text.width,size(word).width+16,"text, prominent \(prominent)");XCTAssertEqual(text.height,28,"text, prominent \(prominent)")
         }
     }
+    /// A prominent button's words stay white on the accent tint unless white falls under 3:1 against it, as on a
+    /// yellow, orange or green accent; then they turn black.
+    func testProminentWordsStayLegibleOnTheAccent(){
+        func dark(_ red:Double,_ green:Double,_ blue:Double)->Bool {BarButtonStyle.darkLabel(onLinearRed:red,green:green,blue:blue)}
+        XCTAssertFalse(dark(0,0.195,1),"the blue accent keeps white words");XCTAssertFalse(dark(0.235,0.03,0.42),"purple");XCTAssertFalse(dark(0.84,0.11,0.11),"red")
+        XCTAssertTrue(dark(1,0.565,0),"yellow");XCTAssertTrue(dark(0.93,0.223,0.011),"orange");XCTAssertTrue(dark(0.122,0.491,0.058),"green")
+        XCTAssertFalse(dark(0.28,0.28,0.28),"white against this grey is 3.2:1");XCTAssertTrue(dark(0.32,0.32,0.32),"and 2.8:1 a little lighter")
+    }
     /// The board-area title stays centred on the board and uses the room it has: twice its distance to the nearer
     /// edge of the title area and never wider than the board, with no fixed 300-point cap. Out of room it ends in an
     /// ellipsis: wrapped by words into its one-line frame, "Practice · White vs Stockfish" lost its last word unmarked.
