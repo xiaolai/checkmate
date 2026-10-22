@@ -17,7 +17,12 @@ enum ReviewFormat {
     }
     /// One line of the move list (R-8): a row of the main line, a recorded variation (`depth` 1 replaces a main-line
     /// move, 2 a move of a variation, and so on) or a kept idea, each under the row of the move it replaces.
-    enum Entry:Equatable {case row(MoveRow),line([Int],depth:Int),idea(ReviewBranch)}
+    enum Entry:Equatable,Identifiable {case row(MoveRow),line([Int],depth:Int),idea(ReviewBranch)
+        /// What the line shows, so its identity survives lines added above it: a row by its first move, a variation by
+        /// its first move (each move starts at most one), an idea by its own ID.
+        enum ID:Hashable {case row(Int),line(Int),idea(UUID)}
+        var id:ID {switch self{case .row(let row):return .row(row.white ?? row.black ?? -1);case .line(let ids,_):return .line(ids.first ?? -1);case .idea(let branch):return .idea(branch.id)}}
+    }
     @MainActor static func entries(_ d:GameDocument,ideas:[ReviewBranch])->[Entry] {
         // A variation runs along the record's first choices; the alternatives inside it, then the ideas played from its
         // positions, follow it. An idea from the end of a line follows that line too.
@@ -371,14 +376,16 @@ struct ReviewMoveSection:View {
             }
             let entries=ReviewFormat.entries(document,ideas:review.authoredBranches)
             ScrollViewReader{proxy in
-                ScrollView{LazyVStack(spacing:0){ForEach(Array(entries.enumerated()),id:\.offset){index,entry in
+                // Each line is identified by what it shows (`Entry.id`), never by its position: a sideline or an idea
+                // added above a row must not leave that row drawn twice.
+                ScrollView{LazyVStack(spacing:0){ForEach(Array(entries.enumerated()),id:\.element.id){index,entry in
                     switch entry {
                     case .row(let row):HStack(spacing:Metrics.tightGap){
                         Text("\(row.number).").monospacedDigit().foregroundStyle(.secondary).frame(width:34,alignment:.trailing)
                         cell(row.white,graded:graded,empty:row.white==nil && index==0 ? "…":"");cell(row.black,graded:graded,empty:"")
-                    }.frame(height:Self.rowHeight).id(index)
-                    case .line(let ids,let depth):variation(ids,depth:depth).id(index)
-                    case .idea(let branch):idea(branch).id(index)
+                    }.frame(height:Self.rowHeight).id(entry.id)
+                    case .line(let ids,let depth):variation(ids,depth:depth).id(entry.id)
+                    case .idea(let branch):idea(branch).id(entry.id)
                     }
                 }}.padding(.vertical,2)}
                 .frame(height:CGFloat(min(entries.count,Self.visibleRows))*Self.rowHeight+4)
@@ -390,8 +397,8 @@ struct ReviewMoveSection:View {
         .accessibilityRotor(String(localized:"Key Moments",bundle:.checkmate)){ForEach(key,id:\.self){id in AccessibilityRotorEntry(Text(verbatim:ReviewFormat.moveLabel(document.nodes[id])),id:id,in:rotor)}}}
     }
     private func scroll(_ proxy:ScrollViewProxy,_ entries:[ReviewFormat.Entry]){
-        let shown=entries.firstIndex{entry in switch entry{case .row(let row):return row.white==review.nodeID || row.black==review.nodeID;case .line(let ids,_):return ids.contains(review.nodeID);case .idea(let branch):return branch.id==review.branch?.id}}
-        guard let shown else{return};proxy.scrollTo(shown,anchor:.center)
+        let shown=entries.first{entry in switch entry{case .row(let row):return row.white==review.nodeID || row.black==review.nodeID;case .line(let ids,_):return ids.contains(review.nodeID);case .idea(let branch):return branch.id==review.branch?.id}}
+        guard let shown else{return};proxy.scrollTo(shown.id,anchor:.center)
     }
     /// A recorded variation, inline and indented by its depth; each move shows its position, and ↑/↓ reach it too.
     private func variation(_ ids:[Int],depth:Int)->some View {
