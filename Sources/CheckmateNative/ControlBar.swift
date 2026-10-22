@@ -50,6 +50,9 @@ struct ControlBarModel:Equatable {
     var status:ControlBarStatus?=nil
     var statusInCentre=false
     var leading:[ControlBarItem]=[]
+    /// Further leading groups, each drawn as its own group: a recovery (Resume) apart from the tools beside it, so its
+    /// tinted glass never runs into theirs.
+    var leadingGroups:[[ControlBarItem]]=[]
     var centre:[ControlBarItem]=[]
     var trailing:[ControlBarItem]=[]
     /// Further trailing groups, each drawn as its own group (voice beside the game's tools).
@@ -57,7 +60,9 @@ struct ControlBarModel:Equatable {
     /// The network game's two clocks show beside the status (B-2).
     var clocks=false
 
-    var items:[ControlBarItem] {leading+centre+trailing+trailingGroups.flatMap{$0}}
+    var items:[ControlBarItem] {leading+leadingGroups.flatMap{$0}+centre+trailing+trailingGroups.flatMap{$0}}
+    /// Whether any control leads the bar, in any group.
+    var hasLeadingControls:Bool {!leading.isEmpty || leadingGroups.contains{!$0.isEmpty}}
     func item(_ action:ControlBarAction)->ControlBarItem? {items.first{$0.action==action}}
 }
 
@@ -104,7 +109,7 @@ extension ControlBarModel {
         if learning.attemptStep,let status=learning.attemptStatus {
             let attempt:LessonAttemptController=learning.attempt
             bar.status = attempt.thinking ? .working(status):.turn(side:attempt.rules.turn,label:status)
-            if attempt.waitingToResume{bar.leading.append(ControlBarItem(action:.resumeAttempt,label:String(localized:"Resume Your Attempt",bundle:.checkmate),prominent:true))}
+            if attempt.waitingToResume{bar.leadingGroups.append([ControlBarItem(action:.resumeAttempt,label:String(localized:"Resume Your Attempt",bundle:.checkmate),prominent:true)])}
             let hint=attempt.canShowMove ? String(localized:"Show me a move",bundle:.checkmate):(attempt.record?.hints ?? 0)==0 ? String(localized:"Hint",bundle:.checkmate,comment:"Noun: ask for a hint"):String(localized:"Another hint",bundle:.checkmate)
             // Off track the refutation stays on the board until the learner takes the move back; Hint could only repeat the advice.
             if attempt.phase == .offTrack {bar.trailing=[ControlBarItem(action:.attemptUndo,label:String(localized:"Take Back",bundle:.checkmate),prominent:true),ControlBarItem(action:.attemptRestart,symbol:.startOver,label:String(localized:"Restart",bundle:.checkmate))]}
@@ -148,8 +153,9 @@ extension ControlBarModel {
         bar.status = !fair ? .text(FairnessPolicy.practicePaused):session.busyReason == .opponent ? .working(String(localized:"Stockfish is thinking",bundle:.checkmate)):session.busy ? .working(String(localized:"Finding a hint",bundle:.checkmate)):.turn(side:session.rules.turn,label:session.rules.status)
         // More (Flip Board, Resign) sits beside New game: the bar is centered, so the longer side sets when it wraps.
         bar.leading=[ControlBarItem(action:.newGame,label:String(localized:"New Game…",bundle:.checkmate)),ControlBarItem(action:.more,symbol:.moreActions,label:String(localized:"More",bundle:.checkmate),menu:[ControlBarItem(action:.flipBoard,label:String(localized:"Flip Board",bundle:.checkmate)),ControlBarItem(action:.resign,label:String(localized:"Resign…",bundle:.checkmate),enabled:session.canResign)])]
-        if session.explicitResumeRequired{bar.leading.append(ControlBarItem(action:.resumeGame,label:String(localized:"Resume Game",bundle:.checkmate),prominent:true))}
-        else if session.pausedOpponent{bar.leading.append(ControlBarItem(action:.continueWithStockfish,label:String(localized:"Continue with Stockfish",bundle:.checkmate),prominent:true))}
+        // The way back into a held game is a group of its own: beside More its tint ran into More's capsule.
+        if session.explicitResumeRequired{bar.leadingGroups=[[ControlBarItem(action:.resumeGame,label:String(localized:"Resume Game",bundle:.checkmate),prominent:true)]]}
+        else if session.pausedOpponent{bar.leadingGroups=[[ControlBarItem(action:.continueWithStockfish,label:String(localized:"Continue with Stockfish",bundle:.checkmate),prominent:true)]]}
         let yourMove=session.rules.turn==session.humanSide && !session.finished
         bar.trailing=[
             ControlBarItem(action:.takeBack,symbol:.undo,label:String(localized:"Take back move",bundle:.checkmate),enabled:session.canTakeBack),
@@ -260,14 +266,14 @@ struct ControlBarView:View {
     /// keeps a minimum of room only when nothing else leads, and otherwise takes what is left or hides, so neither a
     /// long status nor a recovery button (Resume, Back) changes the bar's height and resizes the board.
     static func fitsOneRow(_ model:ControlBarModel,leading:CGFloat,centre:CGFloat,trailing:CGFloat,width:CGFloat)->Bool {
-        let reserve=(!model.statusInCentre && model.status != nil && model.leading.isEmpty) ? statusMinimum:0
+        let reserve=(!model.statusInCentre && model.status != nil && !model.hasLeadingControls) ? statusMinimum:0
         return max(leading+reserve,trailing)*2+centre+groupGap*2<=width
     }
     /// The rows the bar needs: one when the sides fit beside the centre; two when the sides fit beside each other
     /// above it; three (leading, trailing, centre) when even they do not.
     static func rows(_ model:ControlBarModel,leading:CGFloat,centre:CGFloat,trailing:CGFloat,width:CGFloat)->Int {
         if fitsOneRow(model,leading:leading,centre:centre,trailing:trailing,width:width){return 1}
-        let reserve=(!model.statusInCentre && model.status != nil && model.leading.isEmpty) ? statusMinimum:0
+        let reserve=(!model.statusInCentre && model.status != nil && !model.hasLeadingControls) ? statusMinimum:0
         // The upper row is leading, a spacer and trailing, with a gap on each side of the spacer.
         return leading+reserve+trailing+groupGap*2<=width ? 2:3
     }
@@ -309,11 +315,17 @@ struct ControlBarView:View {
     static let space="control-bar"
     private func place(_ key:String)->some View {GeometryReader{Color.clear.preference(key:BarFrames.self,value:[key:$0.frame(in:.named(Self.space))])}}
     private func measure(_ index:Int)->some View {GeometryReader{Color.clear.preference(key:BarWidths.self,value:[index:$0.size.width])}}
-    /// Leading actions at their full size, then the status within `room`, shortened when it does not fit.
+    /// Leading actions at their full size, a group gap between groups, then the status within `room`, shortened when
+    /// it does not fit. Their measured width is every leading group's together.
     private func leading(room:CGFloat)->some View {
         HStack(spacing:Self.groupGap) {
-            if !model.leading.isEmpty{HStack(spacing:Self.itemGap){ForEach(model.leading){button($0)}}.modifier(BarGlassGroup()).fixedSize().background(measure(0))}
-            let statusRoom=room-(model.leading.isEmpty ? 0:Self.groupGap)
+            if model.hasLeadingControls {
+                HStack(spacing:Self.groupGap) {
+                    if !model.leading.isEmpty{HStack(spacing:Self.itemGap){ForEach(model.leading){button($0)}}.modifier(BarGlassGroup())}
+                    ForEach(Array(model.leadingGroups.enumerated()),id:\.offset){_,group in HStack(spacing:Self.itemGap){ForEach(group){button($0)}}.modifier(BarGlassGroup())}
+                }.fixedSize().background(measure(0))
+            }
+            let statusRoom=room-(model.hasLeadingControls ? Self.groupGap:0)
             if !model.statusInCentre,let status=model.status,statusRoom>=Self.statusMinimum{StatusPill(status:status).frame(maxWidth:statusRoom,alignment:.leading).background(place("status"))}
         }
     }

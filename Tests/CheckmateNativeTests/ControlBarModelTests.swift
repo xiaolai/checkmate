@@ -110,6 +110,16 @@ import CheckmateCore
         XCTAssertEqual(ControlBarView.tooltip(more.menu[0]),"Flip Board (⇧⌘F)")
         model.session.resign();XCTAssertEqual(bar(model).item(.more)?.menu.first{$0.action == .resign}?.enabled,false,"nothing left to resign")
     }
+    /// A held game's Resume is a group of its own, apart from New Game and More: in one glass group its tint ran into
+    /// More's capsule and the two read as one control.
+    func testResumeGameIsItsOwnGroup()throws {
+        let model=try NativeModel();defer{model.shutdown()}
+        model.practice();model.session.cancelWork();XCTAssertTrue(bar(model).leadingGroups.isEmpty)
+        try model.session.playWhite(from:"e2",to:"e4");model.session.cancelWork();XCTAssertTrue(model.session.requireExplicitResume(),"fixture: the reply is held")
+        let shown=bar(model)
+        XCTAssertEqual(shown.leading.map(\.action),[.newGame,.more]);XCTAssertEqual(shown.leadingGroups.map{$0.map(\.action)},[[.resumeGame]])
+        XCTAssertEqual(shown.item(.resumeGame)?.prominent,true,"still reachable through the model's items")
+    }
     /// B-5: the bar's Hint follows the step-by-step hint: the second request shows the move, and then there is no more.
     func testTheHintButtonFollowsTheHintStep(){
         XCTAssertEqual(ControlBarModel.practiceHint(step:0,available:true),ControlBarItem(action:.hint,symbol:.hint,label:"Hint",enabled:true))
@@ -166,6 +176,8 @@ import CheckmateCore
         XCTAssertFalse(ControlBarView.fitsOneRow(lesson,leading:0,centre:170,trailing:0,width:300),"51 pt is not")
         var resume=lesson;resume.leading=[ControlBarItem(action:.resumeAttempt,label:"Resume Your Attempt",prominent:true)]
         XCTAssertTrue(ControlBarView.fitsOneRow(resume,leading:150,centre:170,trailing:110,width:748),"Resume does not add a row")
+        var grouped=lesson;grouped.leadingGroups=resume.leading.map{[$0]}
+        XCTAssertTrue(ControlBarView.fitsOneRow(grouped,leading:150,centre:170,trailing:110,width:600),"a leading group leads as much as a leading control: the status keeps no minimum")
         let practice=ControlBarModel(status:.turn(side:"w",label:"White to move"),statusInCentre:true)
         XCTAssertTrue(ControlBarView.fitsOneRow(practice,leading:95,centre:120,trailing:230,width:728))
         XCTAssertFalse(ControlBarView.fitsOneRow(practice,leading:95,centre:120,trailing:230,width:560),"wide sides take two rows")
