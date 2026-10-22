@@ -136,7 +136,7 @@ struct DetailContent:View {
         if !model.fairness.engineHelpAllowed{Text(FairnessPolicy.practicePaused).foregroundStyle(.secondary).accessibilityIdentifier("practice-network-paused")}
         if relationships.report==nil {
         if !session.presentationHidden,let d=session.demonstration {
-            Text(d.title).sectionHeading(.title2.bold());Text("Imagined moves").foregroundStyle(.secondary)
+            Text(d.title).sectionHeading(.title2.bold());Text("Imagined line").foregroundStyle(.secondary)
             Picker("Line",selection:Binding(get:{d.line},set:{line in Self.attempt(session){try session.seekDemo(line:line,ply:0)}})){ForEach(d.lines.indices,id:\.self){i in Text(d.lines[i].label).tag(i)}}
             Text(d.lines[d.line].frames[d.ply].explanation)
             if session.rules.turn==session.opponentSide{Text("Stockfish waits while this demonstration is shown. Choose Game above or close it to continue.").font(.caption).foregroundStyle(.secondary)}

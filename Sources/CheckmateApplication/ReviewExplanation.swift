@@ -92,6 +92,6 @@ public struct ReviewExplanation:Codable,Equatable {
     public static func imagined(rules:ChessRules)->ReviewExplanation {
         let text=rules.checkmate ? String(localized:"This imagined position is checkmate.",bundle:.checkmate):rules.check ? String(localized:"\(PieceName.side(rules.turn)) is in check in this imagined position.",bundle:.checkmate):String(localized:"This is a separate imagined position, with \(PieceName.side(rules.turn)) to move. The original record is unchanged.",bundle:.checkmate)
         let fact=ReviewFact(id:reviewHash(Data((rules.fen+text).utf8)),kind:"imagined",text:text,squares:[])
-        return ReviewExplanation(title:String(localized:"Imagined continuation",bundle:.checkmate),summary:text,facts:[fact],takeaways:[],historyNote:nil)
+        return ReviewExplanation(title:String(localized:"Imagined line",bundle:.checkmate),summary:text,facts:[fact],takeaways:[],historyNote:nil)
     }
 }
