@@ -90,7 +90,7 @@ struct SidebarContent:View {
         // the games themselves. How far the learner has taken it is a trailing badge VoiceOver reads.
         Section {
             if let next=learning.continueIndex {Button{model.lesson(next)}label:{Label("Continue Learning",symbol:.continueLearning)}.disabled(participating).help(participating ? FairnessPolicy.destinationUnavailable:String(localized:"Open \(learning.localizedTitle(index:next))",bundle:.checkmate)).accessibilityIdentifier("sidebar-continue-learning")}
-            ForEach(Array(learning.library.lessons.enumerated()),id:\.element.id){i,l in let status=learning.status(index:i),here=i==learning.continueIndex;Label {HStack(spacing:Metrics.smallGap){Text(learning.localizedTitle(index:i));if here{AppSymbol.continueHere.image.foregroundStyle(.tint).help("Continue here").accessibilityHidden(true)}}} icon:{AppSymbol.lesson.image}.badge(status.title.map{Text($0)}).accessibilityValue(Self.lessonValue(status:status.title ?? String(localized:"Not started",bundle:.checkmate),here:here,closedReason:closedReason)).padding(.leading,l.isPractice ? Metrics.practiceIndent:0).accessibilityHint(participating ? FairnessPolicy.destinationUnavailable:practiceHint(l)).accessibilityIdentifier("sidebar-lesson-"+l.id).tag("lesson:\(i)").closedRow(participating)}
+            ForEach(Array(learning.library.lessons.enumerated()),id:\.element.id){i,l in let status=learning.status(index:i),here=i==learning.continueIndex;Label {HStack(spacing:Metrics.smallGap){Text(learning.localizedTitle(index:i));if here{AppSymbol.continueHere.image.foregroundStyle(participating ? AnyShapeStyle(ClosedRowStyle.color):AnyShapeStyle(.tint)).help("Continue here").accessibilityHidden(true)}}} icon:{AppSymbol.lesson.image}.badge(status.title.map{Text($0)}).accessibilityValue(Self.lessonValue(status:status.title ?? String(localized:"Not started",bundle:.checkmate),here:here,closedReason:closedReason)).padding(.leading,l.isPractice ? Metrics.practiceIndent:0).accessibilityHint(participating ? FairnessPolicy.destinationUnavailable:practiceHint(l)).accessibilityIdentifier("sidebar-lesson-"+l.id).tag("lesson:\(i)").closedRow(participating)}
         } header:{HStack{Text("Learn & explore");Spacer();Text(learning.courseProgress.text).monospacedDigit().accessibilityLabel("\(learning.courseProgress.explored) of \(learning.courseProgress.total) lessons explored")}.accessibilityElement(children:.combine).accessibilityIdentifier("sidebar-course-progress")}
     }.listStyle(.sidebar).scrollContentBackground(.hidden).overlay(alignment:.bottom){if model.importingReview{VStack{ProgressView("Loading review…");Button("Cancel Import"){model.cancelReviewImport()}}.padding().background(.regularMaterial)}}}
 }
@@ -277,13 +277,14 @@ struct StorageErrorBanner:View {
 }
 extension View {
     /// A sidebar row closed during a network game: it cannot be selected, and its title and icon take the disabled text
-    /// colour, since a disabled row in a sidebar list otherwise keeps its full-strength title.
+    /// colour, since a disabled row in a sidebar list otherwise keeps its full-strength title and tinted icon.
     /// An open row keeps the sidebar's own colours, its tinted icon included.
     func closedRow(_ closed:Bool)->some View {selectionDisabled(closed).disabled(closed).modifier(ClosedRowStyle(closed:closed))}
 }
-private struct ClosedRowStyle:ViewModifier {
+struct ClosedRowStyle:ViewModifier {
+    static let color=Color(nsColor:.disabledControlTextColor)
     let closed:Bool
-    @ViewBuilder func body(content:Content)->some View {if closed{content.foregroundStyle(Color(nsColor:.disabledControlTextColor))}else{content}}
+    @ViewBuilder func body(content:Content)->some View {if closed{content.foregroundStyle(Self.color).listItemTint(Self.color)}else{content}}
 }
 /// Short lines as a left-aligned bulleted list, each line wrapping under its own text.
 struct BulletedLines:View {
