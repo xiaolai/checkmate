@@ -1,3 +1,38 @@
+# Checkmate 0.9.1
+
+This release polishes what 0.9.0 added. An idea tried on the board is called an
+imagined line everywhere, from its buttons to its error messages, and its moves
+are numbered by full move ("1… e5"). A paused game has one Resume Game button,
+in its own group, and the same name in the banner and in Details. A finished
+network game offers Review This Game instead of Offer Draw and Resign, on the
+bar and in Details alike.
+
+Captured pieces are counted from the game's own start, so a mini-game or a game
+from a set position no longer shows pieces that were never on the board. Long
+board titles are no longer cut off, the voice coach's buttons stack when there
+is no room for a row, and the move-mark legend wraps. Disabled glass buttons
+use the system's disabled colour, and a prominent button keeps a readable label
+on a light accent colour.
+
+Lists read as lists: what a lesson covers and a review's takeaways are bulleted,
+and mini-game settings line up in a grid. Lessons show a book in the sidebar and
+mini-games a controller. During a network game the rows that cannot be opened
+look disabled, and the reason is given once. Library results show as 1–0 or
+½–½ and VoiceOver reads them as words. Voice settings show one control per
+setting under Answers, About counts the lessons, practice lessons and
+mini-games the sidebar shows, and Remove Codex Setup appears only when there is
+a setup to remove. When progress cannot be saved, the banner offers Export
+Progress….
+
+Automated acceptance covered every gate on the test Mac, including the Intel
+build under Rosetta, the LAN pair and the real pointer gates. A live check, with
+no microphone or speaker, ran the coach's English, Chinese and Spanish turns, a
+network game's hints, a mini-game review reading and a training game's coach
+turn, with every narrated segment verified. No gate clicks Export Progress… or
+Remove Codex Setup, and a prominent button's label on a light accent colour has
+not been seen on screen; unit tests cover them. No person has yet listened to
+the coach in review.
+
 # Checkmate 0.9.0
 
 Review now teaches more. Moves are graded (?! inaccuracy, ? mistake, ??
