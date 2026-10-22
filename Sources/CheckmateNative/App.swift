@@ -284,7 +284,7 @@ import CheckmateCore
             let ideaMovesAX=await ax("idea-moves",[["kind":"text","value":"Imagined move 1, e4"],["kind":"text","value":"Imagined move 2, e5"]]);let ideaMovesListed=axPassed(ideaMovesAX,0) && axPassed(ideaMovesAX,1);if !ideaMovesListed{failures.append("The open idea does not list its moves")}
             model.review.clearBranch();if model.review.nodeID != 0 || model.review.document!.contentHash != originalHash{failures.append("Branch changed original cursor/hash")}
             if model.session.rules.fen != practice || model.session.state.practice.pgn != pgn{failures.append("Review modified suspended practice")}
-            try model.review.select(docs[0].mainline.last!);model.saveReview();try? await game.capture(directory+"/last-position.png")
+            try model.review.select(docs[0].mainline.last!);model.saveReview();game.refresh();try? await Task.sleep(for:.milliseconds(200));try? await game.capture(directory+"/last-position.png")
             model.saveReview(immediate:true);let savedCursor=model.review.nodeID,savedIdeas=model.review.branchesForSaving
             model.returnToGame();model.session.cancelWork();model.openSavedReview(docs[0].id);try await Task.sleep(for:.milliseconds(500))
             let savedRestorePassed=model.review.nodeID==savedCursor && model.review.branchesForSaving==savedIdeas
