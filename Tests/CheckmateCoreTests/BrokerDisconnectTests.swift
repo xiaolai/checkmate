@@ -24,7 +24,10 @@ import CheckmateCore
         r.httpBody=try JSONSerialization.data(withJSONObject:["id":UUID().uuidString,"method":method,"args":args]);let (data,_)=try await URLSession.shared.data(for:r);return try JSONSerialization.jsonObject(with:data) as! [String:Any]
     }
     private func waitRequest(_ s:GameSession)->[String:Any]{["sessionId":s.sessionId,"cursor":s.cursor,"timeoutMs":20000]}
-    private func until(_ predicate:()->Bool)async throws {for _ in 0..<100{if predicate(){return};try await Task.sleep(nanoseconds:10_000_000)};XCTFail("Broker lifecycle condition timed out")}
+    /// Waits for a socket event the broker sees on its own queue. The tests claim the event happens, not how fast: a
+    /// dropped connection took over a second to notice on a loaded test host, so the limit is the loopback tests' 10 s,
+    /// and a condition that holds still returns at once.
+    private func until(_ predicate:()->Bool)async throws {for _ in 0..<1000{if predicate(){return};try await Task.sleep(nanoseconds:10_000_000)};XCTFail("Broker lifecycle condition timed out")}
     func testDroppedTCPWaitCancelsAndReconnectCanWait()async throws {
         let (s,b,d,client)=try await fixture();defer{b.disable();try? FileManager.default.removeItem(at:b.directory)}
         let url=URL(string:d["url"] as! String)!,c=NWConnection(host:"127.0.0.1",port:NWEndpoint.Port(rawValue:UInt16(url.port!))!,using:.tcp)
