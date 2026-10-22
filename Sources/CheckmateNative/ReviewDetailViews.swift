@@ -488,7 +488,7 @@ struct ReviewPositionPanel:View {
     @ViewBuilder private var actions:some View {why;deeper;idea}
     private var why:some View {Button("Why?"){review.analyze(using:model.reviewAnalyzer)}}
     private var deeper:some View {Button("Look Deeper"){review.analyze(using:model.reviewAnalyzer,budget:ReviewPolicy.deepBudget)}}
-    private var idea:some View {Button("Test My Idea"){attempt(String(localized:"An imagined line could not start here.",bundle:.checkmate)){try review.beginBranch()}}}
+    private var idea:some View {Button("Start an Imagined Line"){attempt(String(localized:"An imagined line could not start here.",bundle:.checkmate)){try review.beginBranch()}}}
 }
 
 /// The engine's lines as score and moves, one line each; engine details are in the caption's help.
@@ -514,7 +514,7 @@ struct ImaginedLineCallout:View {
         IdeaMoves(review:review,branch:branch,document:document)
         HStack(spacing:Metrics.smallGap){
             // No engine output during a network game (D8): say so rather than offer a button that does nothing.
-            if model.fairness.engineHelpAllowed{Button("Analyze This Idea"){review.analyze(using:model.reviewAnalyzer)};Button("Look Deeper"){review.analyze(using:model.reviewAnalyzer,budget:ReviewPolicy.deepBudget)}}
+            if model.fairness.engineHelpAllowed{Button("Analyze This Line"){review.analyze(using:model.reviewAnalyzer)};Button("Look Deeper"){review.analyze(using:model.reviewAnalyzer,budget:ReviewPolicy.deepBudget)}}
             else{Text(FairnessPolicy.analysisHidden).foregroundStyle(.secondary)}
             if review.canUndoIdeaChange{Button("Undo Change"){do{try review.undoIdeaChange();model.saveReview()}catch{model.storageError=userFacingMessage(error,fallback:String(localized:"The change could not be undone.",bundle:.checkmate))}}}
         }.controlSize(.small)

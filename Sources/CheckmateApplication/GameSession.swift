@@ -184,7 +184,7 @@ public struct LessonProjection:Codable {
         guard let i=try? board.inspect(sq) else{return nil}
         let playable=live && i.legalNow && i.color==humanSide && !finished
         guard playable != i.legalNow else{return i}
-        let note = !live ? String(localized:"This board shows imagined moves. Dots show where this piece could go there.",bundle:.checkmate):i.color != humanSide ? String(localized:"Dots show the opponent’s possible moves. You play \(PieceName.side(humanSide)).",bundle:.checkmate):i.note
+        let note = !live ? String(localized:"This board shows an imagined line. Dots show where this piece could go there.",bundle:.checkmate):i.color != humanSide ? String(localized:"Dots show the opponent’s possible moves. You play \(PieceName.side(humanSide)).",bundle:.checkmate):i.note
         return PieceInspection(square:i.square,piece:i.piece,color:i.color,attacks:i.attacks,destinations:i.destinations,legalNow:false,note:note)
     }
     public func select(_ sq:String) throws {

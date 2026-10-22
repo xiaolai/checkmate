@@ -435,8 +435,8 @@ try:
     assert json.loads((state / "state-v1.json").read_text())["practice"] == practice, "Using the graph changed the practice game"
     back_to_game("an original review")
     open_library_game()
-    pointer("click", "Test My Idea")
-    wait(lambda: "Imagined line" in listing(), "Test My Idea did not open an imagined line")
+    pointer("click", "Start an Imagined Line")
+    wait(lambda: "Imagined line" in listing(), "Start an Imagined Line did not open an imagined line")
     back_to_game("an imagined line")
     pointer("click", "Review game")
     wait(lambda: "Choose a game or position to explore." in listing(), "The review workspace did not open")

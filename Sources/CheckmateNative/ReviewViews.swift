@@ -43,7 +43,7 @@ struct ReviewDetailContent:View {
             ReviewPositionPanel(review:review,model:model,analyzer:analyzer,document:d)
             if !review.authoredBranches.isEmpty{DisclosureGroup(ReviewFormat.ideaListTitle(count:review.authoredBranches.count)){VStack(alignment:.leading,spacing:Metrics.tightGap){ForEach(review.authoredBranches,id:\.id){branch in HStack{
                 Button(ReviewFormat.ideaLabel(d,branch)){do{try review.openSavedBranch(branch.id)}catch{model.storageError=userFacingMessage(error,fallback:String(localized:"This imagined line could not be opened.",bundle:.checkmate))}}.buttonStyle(.link)
-                Spacer();Button("Delete",role:.destructive){do{try review.deleteBranch(branch.id);model.saveReview()}catch{model.storageError=userFacingMessage(error,fallback:String(localized:"This imagined line could not be deleted.",bundle:.checkmate))}}.controlSize(.small).accessibilityLabel("Delete idea: \(ReviewFormat.ideaLabel(d,branch))")}}}.padding(.top,Metrics.tightGap)}}
+                Spacer();Button("Delete",role:.destructive){do{try review.deleteBranch(branch.id);model.saveReview()}catch{model.storageError=userFacingMessage(error,fallback:String(localized:"This imagined line could not be deleted.",bundle:.checkmate))}}.controlSize(.small).accessibilityLabel("Delete imagined line: \(ReviewFormat.ideaLabel(d,branch))")}}}.padding(.top,Metrics.tightGap)}}
             ReviewVoiceSection(voice:voice,connect:{[weak model] in model?.connectVoiceFromSettings()})
             // The review control bar has no way back to the game, and the workspace hides it.
             Button("Return to Game"){model.returnToGame()}.buttonStyle(.bordered)
