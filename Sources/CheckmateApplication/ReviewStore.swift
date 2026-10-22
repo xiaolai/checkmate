@@ -166,8 +166,8 @@ public final class ReviewStore {
         validated[document.id]=current;return current
     }
     private func validateBranches(_ branches:[ReviewBranch],document:GameDocument)throws {
-        guard branches.count<=ReviewPolicy.maximumBranches,Set(branches.map(\.id)).count==branches.count else{throw CheckmateError.invalid(String(localized:"Invalid saved branches.",bundle:.checkmate))}
-        for branch in branches{let rules=try document.snapshotRules(at:branch.root);guard branch.moves.count<=ReviewPolicy.maximumBranchPlies else{throw CheckmateError.invalid(String(localized:"Branch too long.",bundle:.checkmate))};for move in branch.moves{try rules.move(uci:move)}}
+        guard branches.count<=ReviewPolicy.maximumBranches,Set(branches.map(\.id)).count==branches.count else{throw CheckmateError.invalid(String(localized:"The saved imagined lines could not be read.",bundle:.checkmate))}
+        for branch in branches{let rules=try document.snapshotRules(at:branch.root);guard branch.moves.count<=ReviewPolicy.maximumBranchPlies else{throw CheckmateError.invalid(String(localized:"A saved imagined line is too long.",bundle:.checkmate))};for move in branch.moves{try rules.move(uci:move)}}
     }
     public func save(_ document:GameDocument,cursor:Int,branches:[ReviewBranch],learnerSide:String?=nil)throws {
         lock.lock();defer{lock.unlock()};try write(document,cursor:cursor,branches:branches,learnerSide:learnerSide,name:nil,date:nil)
@@ -222,13 +222,13 @@ public final class ReviewStore {
         if let side=saved.learnerSide,!["w","b"].contains(side){saved.learnerSide=nil}
         saved.name=ReviewIndexEntry.cleanName(saved.name)
         guard saved.schemaVersion<=1 else{throw CheckmateError.unavailable(String(localized:"This review requires a newer Checkmate version; its file is preserved.",bundle:.checkmate))}
-        guard saved.schemaVersion==1,saved.document.id==id,saved.document.nodes.indices.contains(saved.cursor) else{throw CheckmateError.invalid(String(localized:"Invalid review version or cursor.",bundle:.checkmate))}
+        guard saved.schemaVersion==1,saved.document.id==id,saved.document.nodes.indices.contains(saved.cursor) else{throw CheckmateError.invalid(String(localized:"This saved review could not be read.",bundle:.checkmate))}
         // A re-read tree must still hold the cursor and every idea at the same positions, found by their recorded moves
         // (node numbers can differ between readers); otherwise the file stays preserved, untouched.
         let stored=saved.document,document=try readable(stored),rederived=document != stored
         if rederived{
-            guard let cursor=Self.node(saved.cursor,of:stored,in:document) else{throw CheckmateError.invalid(String(localized:"Invalid review version or cursor.",bundle:.checkmate))}
-            let branches=try saved.branches.map{branch->ReviewBranch in guard let root=Self.node(branch.root,of:stored,in:document) else{throw CheckmateError.invalid(String(localized:"Invalid saved branches.",bundle:.checkmate))};return branch.rooted(at:root)}
+            guard let cursor=Self.node(saved.cursor,of:stored,in:document) else{throw CheckmateError.invalid(String(localized:"This saved review could not be read.",bundle:.checkmate))}
+            let branches=try saved.branches.map{branch->ReviewBranch in guard let root=Self.node(branch.root,of:stored,in:document) else{throw CheckmateError.invalid(String(localized:"The saved imagined lines could not be read.",bundle:.checkmate))};return branch.rooted(at:root)}
             saved=SavedReview(schemaVersion:1,document:document,cursor:cursor,branches:branches,updatedAt:saved.updatedAt,learnerSide:saved.learnerSide,name:saved.name)
         }
         // A re-read record is not yet on disk in its new numbering: the next save rewrites it whole, never only its cursor.
