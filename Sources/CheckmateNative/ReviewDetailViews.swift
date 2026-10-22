@@ -459,7 +459,7 @@ struct ReviewPositionPanel:View {
             Text(verbatim:explanation?.title ?? document.title).sectionHeading().fixedSize(horizontal:false,vertical:true)
             if let summary=explanation?.summary,!summary.isEmpty{Text(verbatim:summary).fixedSize(horizontal:false,vertical:true)}
             if let note=explanation?.historyNote{Text(verbatim:note).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)}
-            if review.nodeID==0{BulletedLines(lines:ReviewFormat.takeaways(explanation))}
+            if review.nodeID==0,!ReviewFormat.takeaways(explanation).isEmpty{BulletedLines(lines:ReviewFormat.takeaways(explanation))}
             if review.branch==nil {
                 // The engine's grade of the move played (R-1), then the record's own comments on it (R-7).
                 if model.fairness.engineHelpAllowed,analyzer.batchDocument==document.id,let grade=analyzer.grade(review.nodeID),let loss=analyzer.losses[review.nodeID]{
