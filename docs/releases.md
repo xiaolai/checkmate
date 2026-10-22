@@ -8,7 +8,9 @@ Development and release builds use
 separate application identifiers and data directories.
 
 Build and artifact verification run on the build host. The coordinating Mac signs the copied
-artifacts and submits them through its existing `chase-notary` keychain profile.
+artifacts and submits them through its `chase-notary` keychain profile. The login keychain does not always keep
+that profile; `bash scripts/notary-profile.sh` makes it again from the Apple ID, app-specific password and team in
+the untracked `.env`, prints names but never values, and checks it with Apple before a release needs it.
 Neither signing nor notarization executes application code; credentials are never copied. Following XiaolaiDict's release process, the app is signed with
 hardened runtime and a secure timestamp, notarized and stapled before the DMG is
 created. The DMG is signed, notarized and stapled separately. Verification mounts

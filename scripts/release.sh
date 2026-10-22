@@ -25,7 +25,8 @@ identity=${CHECKMATE_SIGN_ID:-Developer ID Application: HANDO K.K. (Y53RSUA3SM)}
 readonly TRIES=5
 fail() { echo "error: $*" >&2; exit 1; }
 note() { echo "$*"; }
-xcrun notarytool history --keychain-profile "$CHECKMATE_NOTARY_PROFILE" --output-format json >/dev/null
+xcrun notarytool history --keychain-profile "$CHECKMATE_NOTARY_PROFILE" --output-format json >/dev/null \
+    || { echo "error: the notary profile $CHECKMATE_NOTARY_PROFILE does not work; run scripts/notary-profile.sh" >&2; exit 1; }
 security find-identity -v -p codesigning | grep -qF -- "$identity" || fail "signing identity is not in this keychain: $identity"
 mkdir -p build/release
 notarize() {  # $1: the file to submit — a .zip of the app, or the .dmg

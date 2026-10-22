@@ -744,6 +744,7 @@
   "scripts/sign-release.sh": "release",
   "Release.entitlements": "release signing; finish-release.sh verify checks the signed app",
   "scripts/finish-release.sh": "release",
+  "scripts/notary-profile.sh": "release (before release.sh, when the notary profile is missing)",
   "scripts/publish-release.sh": "release",
   "scripts/release-hygiene.sh": "release (after publishing; dry run by default)",
   "Tools/audio-probe.swift": "manual live-audio probe",
