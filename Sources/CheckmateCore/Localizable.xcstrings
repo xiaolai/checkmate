@@ -1875,6 +1875,7 @@
     "Another Hint" : {},
     "Another hint" : {},
     "Answer shown" : {},
+    "Answers" : {},
     "Answers fastest." : {},
     "Any defense" : {},
     "Anyone who wants to watch needs the watch code." : {},
@@ -2860,7 +2861,6 @@
     "I know how the pieces move" : {},
     "I know the rules and want to learn openings and tactics" : {},
     "Illegal or ambiguous SAN: %@." : {},
-    "Imagined continuation" : {},
     "Imagined line" : {},
     "Imagined line, %@" : {
       "comment" : "A kept imagined line in the move list, read aloud, then its name"
@@ -2876,7 +2876,6 @@
         }
       }
     },
-    "Imagined moves" : {},
     "Import" : {},
     "Import Collection…" : {},
     "Import Progress…" : {},
@@ -3324,6 +3323,7 @@
     "Mute microphone" : {},
     "My games" : {},
     "My imagined lines (%lld of %lld)" : {
+      "comment" : "The kept imagined lines' heading near the limit: how many, of how many can be kept",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3332,6 +3332,9 @@
           }
         }
       }
+    },
+    "My imagined lines (%lld)" : {
+      "comment" : "The kept imagined lines' heading: how many there are"
     },
     "Name" : {},
     "Narrate Facts" : {},
@@ -3477,6 +3480,7 @@
       "comment" : "State of a toggle"
     },
     "On request" : {},
+    "Once Codex is set up, turns on Allow Codex connections each time Checkmate opens. Allow Codex connections changes only this session." : {},
     "One good move: %@." : {},
     "One of your pieces is in danger" : {},
     "One shortest route from here: %@." : {},
@@ -3611,7 +3615,6 @@
     "Practice" : {},
     "Practice Again" : {},
     "Practice Here" : {},
-    "Practice activities" : {},
     "Practice activity for %@" : {},
     "Practice could not start from this position. The review is unchanged." : {},
     "Practice could not start from this position. The review was closed; your game is unchanged." : {},
@@ -3619,6 +3622,7 @@
     "Practice from this position" : {},
     "Practice game" : {},
     "Practice guidance" : {},
+    "Practice lessons" : {},
     "Practice position (history unavailable)" : {},
     "Practice · White vs Stockfish" : {},
     "Practiced" : {},
@@ -5209,7 +5213,7 @@
     "Your companion skill differs from this version’s and is kept as it is. To use this version’s, remove ~/.codex/skills/%@, then choose Set Up Codex." : {},
     "Your current game will be available under Restore Previous Game, replacing the game kept there now." : {},
     "Your current game will be available under Restore Previous Game." : {},
-    "Your current practice is backed up and becomes Previous game, replacing that shortcut’s older game. The imported record stays unchanged." : {},
+    "Your current practice game is kept as your previous game, so you can still review it. Only one previous game is kept, so the one kept before is replaced. The game you are reviewing stays unchanged." : {},
     "Your customized companion skill was kept." : {},
     "Your data" : {},
     "Your draw offer is open." : {},
@@ -5218,7 +5222,7 @@
     "Your first move" : {},
     "Your game had to stop." : {},
     "Your game is paused because a saved review could not be restored." : {},
-    "Your game is paused. Choose Return to Game to continue." : {},
+    "Your game is paused. Choose Resume Game to continue." : {},
     "Your game stopped when this Mac went to sleep." : {},
     "Your idea" : {},
     "Your idea · move %lld of %lld" : {
