@@ -1,3 +1,62 @@
+# Checkmate 0.9.0
+
+Review now teaches more. Moves are graded (?! inaccuracy, ? mistake, ??
+blunder) and a game is analyzed when it opens, which can be turned off in
+Settings; network games are never analyzed. An evaluation bar sits beside the
+review board, a Show Best Move Arrow setting (off by default) draws the
+engine's choice, and the graph marks key moments, which VoiceOver can reach
+with a rotor. Retry mode steps through one side's mistakes and blunders and
+lets the learner find a better move before the engine's is shown. A review
+explains moves with tactics found in the real position, names the game's
+opening and says where it leaves theory. The arrow keys follow the Lichess
+model, including imagined lines, with the same commands in a new Go menu, and
+recorded variations show inline under the move they replace.
+
+The game library is organised: a file of many games opens as a collection
+instead of a long chooser, collections and saved reviews can be renamed,
+searched and sorted, and the sidebar lists the most recent reviews and the
+mini-games. Export writes imagined lines as variations, with the engine's
+evaluations only when engine help is allowed.
+
+Puzzles have a hint ladder (the piece, then words, then Reveal), and a hinted
+solve counts as solved with help. A wrong answer says why it fails. Missed
+puzzles come back sooner than solved ones on a Leitner schedule, through
+Review Due, and an optional Today's Mix offers a short set. Lessons record
+first-try success, link to their puzzles, and three lessons gain practice
+mates. A first-time learner is welcomed in three steps that place them in the
+course.
+
+On the board, a right-drag draws an arrow and a right-click a circle, coloured
+by modifier keys as on Lichess; a left click clears them. Practice, review and
+network games show captured pieces and the material lead. The pieces are drawn
+from Cburnett's vector set. Mini-games let the learner play Black where
+calibration shows the levels mean the same from both sides, keep results per
+level, and suggest a level change after three wins or losses in a row.
+
+Checkmate follows the Mac's conventions more closely: the standard menu order
+with a Help menu, Services and Open Recent, File > Close, Sidebar and Details
+named the same everywhere, PGN and FEN document types, and update checks that
+are off unless turned on. Game > Type a Move (Command-L) plays a move typed in
+SAN or as squares. VoiceOver reads the board as a grid with rotors for pieces
+and attacked squares, text follows the reader's text size, and on macOS 26 the
+control bar uses Liquid Glass buttons. Shown text goes through a String
+Catalog; this release still ships English only.
+
+The voice coach now connects only after the learner agrees once, in a sheet
+that says what is sent to OpenAI and when the microphone is used; a new
+install no longer connects at launch. Voice failures name their reason.
+Rule draws, PGN termination values and Black move numbers are written one way,
+a typed or puzzle en passant capture is read correctly, and lesson progress
+claims only what the learner did.
+
+Automated acceptance covered every gate on the test Mac, including the Intel
+build under Rosetta, the LAN pair and the real pointer gates. A live check, with
+no microphone or speaker, ran the coach's English, Chinese and Spanish turns, a
+network game's hints, a mini-game review reading and a training game's coach
+turn, with every narrated segment verified. No person has yet listened to the
+coach in review, used the new features with VoiceOver, or played the mini-game
+listening test.
+
 # Checkmate 0.8.3
 
 Knight Capture is now a race either player can win. Every opposing piece except
