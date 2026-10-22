@@ -361,7 +361,7 @@ struct TransportContent:View {
         case .offerDraw:network.offerDraw()
         case .acceptDraw:network.answerDraw(accept:true)
         case .declineDraw:network.answerDraw(accept:false)
-        case .resign,.flipBoard:gameCommand(action)
+        case .resign,.flipBoard,.reviewNetworkGame:gameCommand(action)
         case .more:break
         }
     }

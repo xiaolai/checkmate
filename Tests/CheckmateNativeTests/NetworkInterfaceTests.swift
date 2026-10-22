@@ -116,7 +116,8 @@ import CheckmateCore
         XCTAssertEqual(bar(model).trailing.map(\.action),[.offerDraw,.resign,.flipBoard])
         ben.offerDraw();lan.scheduler.run();transport.perform(.acceptDraw);lan.scheduler.run()
         XCTAssertEqual(game.outcome?.result,.draw);XCTAssertEqual(game.outcome?.termination,.agreement)
-        shown=bar(model);XCTAssertEqual(shown.item(.resign)?.enabled,false);XCTAssertEqual(shown.item(.offerDraw)?.enabled,false);XCTAssertEqual(shown.item(.flipBoard)?.enabled,true)
+        // The game is over: its actions leave the bar as they leave the Details pane, and with no move there is nothing to review.
+        shown=bar(model);XCTAssertFalse(game.offersGameActions);XCTAssertEqual(shown.trailing.map(\.action),[.flipBoard]);XCTAssertEqual(shown.item(.flipBoard)?.enabled,true)
         guard case .text?=shown.status else{return XCTFail("a finished game says how it ended")}
     }
     /// An untimed game has no clocks to show; the lobby has no bar.
@@ -124,6 +125,14 @@ import CheckmateCore
         let model=try NativeModel();defer{model.shutdown()};model.playOnNetwork()
         XCTAssertEqual(bar(model),ControlBarModel(),"nothing to act on in the lobby")
         let lan=LAN();_=try hostedGame(model,lan);XCTAssertFalse(bar(model).clocks)
+    }
+    /// A host still waiting for a guest has no game to offer a draw in or resign: the bar and the Details pane agree.
+    func testAWaitingHostIsOfferedNoGameActions()throws {
+        let model=try NativeModel();defer{model.shutdown()}
+        let lan=LAN();model.network.services=lan.services(crashFile:NetworkCrashFile(dataDirectory:directory));model.network.playerName="Ana"
+        XCTAssertTrue(model.network.host());lan.scheduler.run();model.playOnNetwork()
+        XCTAssertEqual(model.network.hostPhase,.waiting,"fixture: nobody has joined");XCTAssertFalse(model.network.offersGameActions)
+        XCTAssertNil(bar(model).item(.offerDraw));XCTAssertNil(bar(model).item(.resign));XCTAssertNil(bar(model).item(.reviewNetworkGame))
     }
 
     /// B-23: a typed move in a network game goes out like a clicked one, only on the learner's turn.
@@ -166,16 +175,20 @@ import CheckmateCore
         XCTAssertNil(game.part,"the confirmed Leave still left the finished game")
     }
 
-    /// D9: Resign asks, then resigns; Review this game opens the record as a draft review through the import path.
+    /// D9: Resign asks, then resigns; Review this game opens the record as a draft review through the import path. The
+    /// bar offers it too, in place of the game's actions, and its button takes the same path.
     func testResignThenReviewThisGame()async throws {
-        let model=try NativeModel();defer{model.shutdown()}
+        let model=try NativeModel(),window=GameWindow(model:model);defer{window.window?.delegate=nil;model.shutdown()}
         let lan=LAN(),ben=try hostedGame(model,lan),game=model.network;model.playOnNetwork()
         game.play(from:"e2",to:"e4");lan.scheduler.run();ben.play(from:"e7",to:"e5");lan.scheduler.run()
         XCTAssertFalse(game.canReview,"not while the game runs");model.reviewNetworkGame();XCTAssertFalse(model.importingReview)
+        XCTAssertTrue(game.offersGameActions);XCTAssertNil(bar(model).item(.reviewNetworkGame))
         var asked=0;model.confirmResigningNetworkGame={asked+=1;return true}
         model.resignNetworkGame();lan.scheduler.run()
         XCTAssertEqual(asked,1);XCTAssertEqual(game.outcome,NetworkOutcome(result:.blackWins,termination:.resignation));XCTAssertTrue(game.canReview)
-        model.reviewNetworkGame()
+        let shown=bar(model);XCTAssertFalse(game.offersGameActions)
+        XCTAssertEqual(shown.trailing.map(\.action),[.reviewNetworkGame,.flipBoard]);XCTAssertEqual(shown.item(.reviewNetworkGame)?.label,"Review This Game");XCTAssertEqual(shown.item(.reviewNetworkGame)?.prominent,true)
+        window.controls.rootView.perform(.reviewNetworkGame)
         for _ in 0..<300 where !model.review.active{try await Task.sleep(for:.milliseconds(10))}
         let document=try XCTUnwrap(model.review.document)
         XCTAssertEqual(document.header("Event"),"Checkmate network game");XCTAssertEqual(document.header("White"),"Ana");XCTAssertEqual(document.header("Black"),"Ben")

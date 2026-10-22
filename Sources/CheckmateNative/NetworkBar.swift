@@ -3,7 +3,8 @@ import CheckmateCore
 
 extension ControlBarModel {
     /// The network game's bar (B-1): whose turn it is and both clocks in the centre, then Accept or Decline an open
-    /// draw offer, Offer Draw, Resign and Flip Board, so the game needs no drawer open. The lobby has no bar.
+    /// draw offer, Offer Draw, Resign and Flip Board, so the game needs no drawer open; once it ended, Review This Game
+    /// in their place. The lobby has no bar.
     @MainActor static func networkBar(_ game:NetworkGameController)->ControlBarModel {
         guard game.part != nil,let text=game.statusText else{return ControlBarModel()}
         var bar=ControlBarModel(statusInCentre:true)
@@ -11,10 +12,18 @@ extension ControlBarModel {
         bar.status = running ? .turn(side:game.rules.turn,label:text):.text(text)
         bar.clocks=game.timeControl != .untimed
         if game.canAnswerDraw{bar.trailing+=[ControlBarItem(action:.acceptDraw,label:String(localized:"Accept Draw",bundle:.checkmate),prominent:true),ControlBarItem(action:.declineDraw,label:String(localized:"Decline",bundle:.checkmate))]}
-        if game.learnerSide != nil{bar.trailing+=[ControlBarItem(action:.offerDraw,label:String(localized:"Offer Draw",bundle:.checkmate),enabled:game.canOfferDraw),ControlBarItem(action:.resign,label:String(localized:"Resign…",bundle:.checkmate),enabled:game.canResign)]}
+        if game.offersGameActions{bar.trailing+=[ControlBarItem(action:.offerDraw,label:String(localized:"Offer Draw",bundle:.checkmate),enabled:game.canOfferDraw),ControlBarItem(action:.resign,label:String(localized:"Resign…",bundle:.checkmate),enabled:game.canResign)]}
+        if game.canReview{bar.trailing.append(ControlBarItem(action:.reviewNetworkGame,label:String(localized:"Review This Game",bundle:.checkmate),prominent:true))}
         bar.trailing.append(ControlBarItem(action:.flipBoard,symbol:.flipBoard,label:String(localized:"Flip Board",bundle:.checkmate),enabled:game.seat != nil))
         return bar
     }
+}
+
+extension NetworkGameController {
+    /// Offer Draw, Claim Draw and Resign are offered: to a seated player, while the game is on, its session open and,
+    /// for a host, its guest arrived. The bar and the Details pane both ask this, so neither shows them once the other
+    /// has let them go.
+    var offersGameActions:Bool {learnerSide != nil && outcome==nil && sessionOpen && hostPhase != .waiting}
 }
 
 /// Both network clocks in the bar, in the board's order, ticking in tenths under ten seconds and red under twenty

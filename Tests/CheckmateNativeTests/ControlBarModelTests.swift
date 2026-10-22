@@ -230,6 +230,14 @@ import CheckmateCore
             XCTAssertEqual(text.width,size(word).width+16,"text, prominent \(prominent)");XCTAssertEqual(text.height,28,"text, prominent \(prominent)")
         }
     }
+    /// An ended network game's bar (Review This Game, Flip Board) is no wider than the running game's (Offer Draw,
+    /// Resign, Flip Board), so it takes no more rows at any width than the game did.
+    func testTheEndedNetworkBarIsNoWiderThanTheRunningOne(){
+        func width(_ labels:[String])->CGFloat {
+            NSHostingView(rootView:HStack(spacing:ControlBarView.itemGap){ForEach(labels,id:\.self){Button($0){}.modifier(BarButtonStyle()).controlSize(.large)};Button{}label:{Image(systemName:"arrow.up.arrow.down").frame(width:20,height:20)}.modifier(BarButtonStyle()).controlSize(.large)}.fixedSize()).fittingSize.width
+        }
+        XCTAssertLessThanOrEqual(width(["Review This Game"]),width(["Offer Draw","Resign…"]))
+    }
     /// A prominent button's words stay white on the accent tint unless white falls under 3:1 against it, as on a
     /// yellow, orange or green accent; then they turn black.
     func testProminentWordsStayLegibleOnTheAccent(){

@@ -92,7 +92,7 @@ struct NetworkDetail:View {
                 }
             }else{Text("\(game.players.name(offer.by)) offered a draw.").foregroundStyle(.secondary).accessibilityIdentifier("network-offer-received")}
         }
-        if game.learnerSide != nil,game.outcome==nil,game.sessionOpen,game.hostPhase != .waiting {
+        if game.offersGameActions {
             HStack {
                 Button("Offer Draw"){game.offerDraw()}.disabled(!game.canOfferDraw).accessibilityIdentifier("network-offer-draw")
                 Button("Claim Draw"){game.claimDraw()}.disabled(!game.canClaimDraw).accessibilityIdentifier("network-claim-draw")

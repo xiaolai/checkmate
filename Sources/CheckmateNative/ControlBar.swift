@@ -13,7 +13,7 @@ enum ControlBarAction:Hashable {
     case reviewFirst,reviewPrevious,reviewPlayPause,reviewNext,reviewLast,returnToOriginal
     case puzzleLibrary,nextPuzzle,puzzleHint,skipPuzzle
     case trainingHint,trainingTakeBack,trainingTryAgain,trainingNextExercise,trainingLibrary,backToTraining
-    case offerDraw,acceptDraw,declineDraw,resign,flipBoard,more
+    case offerDraw,acceptDraw,declineDraw,resign,flipBoard,reviewNetworkGame,more
 }
 
 /// One control: an icon button when `symbol` is set, otherwise a text button. `label` is what VoiceOver says and the
