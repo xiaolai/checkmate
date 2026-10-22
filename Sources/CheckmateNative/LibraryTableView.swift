@@ -188,7 +188,8 @@ private func label(_ font:NSFont,_ color:NSColor = .labelColor)->NSTextField {
 final class GameRowCell:NSTableCellView {
     static let identifier=NSUserInterfaceItemIdentifier("library-game")
     private let title=label(styledFont(.body,.semibold)),details=label(styledFont(.subheadline),.secondaryLabelColor),facts=label(styledFont(.footnote),.secondaryLabelColor)
-    private let badge=ResultBadge()
+    /// The result as the review header writes it: "½–½", never the record's "1/2-1/2".
+    let badge=ResultBadge()
     private var action:()->Void={}
     private var rowLabel=""
     /// The game this cell shows and opens.
@@ -204,7 +205,7 @@ final class GameRowCell:NSTableCellView {
     required init?(coder:NSCoder){nil}
     func show(_ row:LibraryRow,open:@escaping ()->Void){
         title.stringValue=row.title;details.stringValue=row.details;details.isHidden=row.details.isEmpty;facts.stringValue=row.facts ?? "";facts.isHidden=row.facts==nil
-        badge.text=row.result;action=open;boundRow=row;rowLabel=row.accessibilityLabel;setAccessibilityIdentifier("library-row-"+row.id)
+        badge.text=ReviewFormat.result(row.result);action=open;boundRow=row;rowLabel=row.accessibilityLabel;setAccessibilityIdentifier("library-row-"+row.id)
     }
     override func isAccessibilityElement()->Bool {true}
     override func accessibilityRole()->NSAccessibility.Role? {.button}
