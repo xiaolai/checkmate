@@ -124,6 +124,9 @@ import SaidGuard
         print("Live voice acceptance: \(report["passed"] as? Bool==true ? "PASS":"FAIL"); microphone and speaker were not used.")
         if report["passed"] as? Bool != true{exit(1)}
     }
+    /// The person running this check has agreed to what it sends to OpenAI, as a learner agrees in the consent sheet;
+    /// without that agreement the production coach refuses to connect. Every coach session here starts from it.
+    @MainActor static func agreed(_ session:GameSession)->GameSession {session.state.settings.voiceConsent=true;return session}
     /// Runs `body` with a usage ledger in a temporary directory, then waits for the ledger's last write before removing
     /// the directory, so a write still queued cannot recreate it afterwards. `body` disconnects what it started.
     @MainActor static func withTemporaryLedger(_ body:@MainActor (UsageLedger)async throws -> [String:Any])async throws -> [String:Any] {
@@ -139,7 +142,7 @@ import SaidGuard
     /// while no audio played, which is not a narration.
     @MainActor static func verifiedWithAudio(_ ledger:UsageLedger)->Bool {let verified=ledger.records.filter{$0.activity == .voiceCoach && $0.narration == .verified};return !verified.isEmpty && verified.allSatisfy{($0.durationSeconds ?? 0)>0}}
     @MainActor static func voicePreview(model:String)async throws -> [String:Any] {try await withTemporaryLedger{ledger in
-        let preview=VoicePreview();preview.usageLedger=ledger;preview.audio.headless=true
+        let preview=VoicePreview();preview.consented={true};preview.usageLedger=ledger;preview.audio.headless=true
         // A preview past its deadline is stopped before the ledger is flushed and its directory removed, so it cannot
         // go on working and write there afterwards.
         defer{preview.cancel()}
@@ -152,7 +155,7 @@ import SaidGuard
     /// A coach connected in an open review, as in the app (no microphone or speaker), narrates the selected move's
     /// verified facts: every segment is narrated and verified, none unverified.
     @MainActor static func reviewNarration()async throws -> [String:Any] {try await withTemporaryLedger{ledger in
-        let session=try GameSession(engine:nil);session.state.settings.coachingMode="quiet";session.state.settings.voiceMicrophone=false;session.state.settings.voiceLanguage="en"
+        let session=agreed(try GameSession(engine:nil));session.state.settings.coachingMode="quiet";session.state.settings.voiceMicrophone=false;session.state.settings.voiceLanguage="en"
         let review=ReviewController();session.reviewController=review
         let coach=try VoiceCoach(session:session);coach.usageLedger=ledger;coach.audio.headless=true;coach.attachReview(review)
         defer{coach.disconnect()}
@@ -175,7 +178,7 @@ import SaidGuard
     }}
     /// A coach connected as in the app, without microphone or speaker, answers one typed question.
     @MainActor static func coachTurn(language:String,question:String)async throws -> [String:Any] {try await withTemporaryLedger{ledger in
-        let session=try GameSession(engine:nil);session.state.settings.coachingMode="quiet";session.state.settings.voiceMicrophone=false;session.state.settings.voiceLanguage=language
+        let session=agreed(try GameSession(engine:nil));session.state.settings.coachingMode="quiet";session.state.settings.voiceMicrophone=false;session.state.settings.voiceLanguage=language
         let coach=try VoiceCoach(session:session);coach.usageLedger=ledger;coach.audio.headless=true
         defer{coach.disconnect()}
         @MainActor func wait(_ seconds:Double,_ condition:@MainActor ()->Bool)async -> Bool {let end=Date().addingTimeInterval(seconds);while Date()<end{if condition(){return true};try? await Task.sleep(for:.milliseconds(100))};return condition()}
@@ -203,7 +206,7 @@ import SaidGuard
         ben.setShown(true);scheduler.run()
         guard let entry=ben.games.first,let code=ana.playCode,ben.join(entry,code:code.grouped,accepting:terms) else{return ["passed":false,"failure":"the game could not be joined"]};scheduler.run()
         guard fairness.networkAssistance == .hints,ana.yourTurn else{return ["passed":false,"failure":"the game did not start at hints"]}
-        let session=try GameSession(engine:nil,fairness:fairness);session.state.settings.voiceMicrophone=false;session.state.settings.voiceLanguage="en"
+        let session=agreed(try GameSession(engine:nil,fairness:fairness));session.state.settings.voiceMicrophone=false;session.state.settings.voiceLanguage="en"
         // Practice stands elsewhere (1. d4, Black to move), so advice drawn from it could not pass for the network game's.
         try session.playWhite(from:"d2",to:"d4");guard session.rules.fen != ana.rules.fen else{return ["passed":false,"failure":"the practice and network boards match"]}
         let coach=try VoiceCoach(session:session),assistant=NetworkAssistant(game:ana,fairness:fairness,engine:NativeEngine())
@@ -252,7 +255,7 @@ import SaidGuard
     /// on a sheet with no proved sign-in, so the check authorizes once; only the proved facts' exact text is sent, one
     /// script per fact, with no tools and no microphone. The reading stays connected until the sheet closes.
     @MainActor static func miniGameReviewReading()async throws -> [String:Any] {try await withTemporaryLedger{ledger in
-        let session=try GameSession(engine:nil),player=try LearningPlayer(session:session),coach=try VoiceCoach(session:session)
+        let session=agreed(try GameSession(engine:nil)),player=try LearningPlayer(session:session),coach=try VoiceCoach(session:session)
         session.state.settings.pieceDuration=0;session.state.settings.voiceMicrophone=false;session.state.settings.voiceLanguage="en"
         var game=MiniGameState(kind:.rookSweep);game.snapshot.board=["a1":"wr","h2":"wp","e5":"br","a7":"bp"]
         session.state.miniGames=[MiniGameKind.rookSweep.rawValue:game]
@@ -281,7 +284,7 @@ import SaidGuard
     /// the source: the training board is present and the practice board is absent.
     @MainActor static func trainingCoachTurn()async throws -> [String:Any] {try await withTemporaryLedger{ledger in
         for (name,value) in [("CHECKMATE_TRAINING_ENABLED","1"),("CHECKMATE_TRAINING_B","1"),("CHECKMATE_POSITION_GAMES","1"),("CHECKMATE_TRAINING_VOICE","1")] {setenv(name,value,1)}
-        let session=try GameSession(engine:nil),player=try LearningPlayer(session:session)
+        let session=agreed(try GameSession(engine:nil)),player=try LearningPlayer(session:session)
         let training=TrainingController(session:session,learning:player),adapter=TrainingVoiceAdapter(session:session,controller:training)
         let engine=NativeEngine();try await engine.prepare();training.games.engine=engine
         var trace:[String]=[];adapter.trace={trace.append($0)}
