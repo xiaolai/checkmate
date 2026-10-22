@@ -36,16 +36,23 @@ final class DrawerSplitViewController:NSSplitViewController {
         (item as? NSMenuItem)?.title=GameWindow.drawerTitle(sidebar:sidebar,open:drawerOpen(sidebar));return true
     }
 }
+/// The board-area title in the toolbar, centred on the board wherever the toolbar places it. The toolbar item is at
+/// least 300 points wide and may grow into the free toolbar space, so a long title is not held to a fixed width.
 final class BoardTitleView:NSView {
     weak var board:NSView?
     let label=textLabel(String(localized:"Practice · White vs Stockfish",bundle:.checkmate),.title3,.semibold),tabs=NSSegmentedControl(labels:[String(localized:"Game",bundle:.checkmate),String(localized:"Demonstration",bundle:.checkmate)],trackingMode:.selectOne,target:nil,action:nil)
-    override init(frame:NSRect){super.init(frame:frame);addSubview(label);addSubview(tabs);label.alignment = .center;tabs.isHidden=true}
+    override init(frame:NSRect){
+        super.init(frame:frame);addSubview(label);addSubview(tabs);label.alignment = .center;label.lineBreakMode = .byTruncatingTail;tabs.isHidden=true
+        let minimum=widthAnchor.constraint(greaterThanOrEqualToConstant:300),maximum=widthAnchor.constraint(lessThanOrEqualToConstant:10_000);NSLayoutConstraint.activate([minimum,maximum])
+    }
     required init?(coder:NSCoder){fatalError()}
     override var mouseDownCanMoveWindow:Bool {true}
-    override var intrinsicContentSize:NSSize {NSSize(width:300,height:28)}
+    override var intrinsicContentSize:NSSize {NSSize(width:NSView.noIntrinsicMetric,height:28)}
     override func layout(){super.layout();syncCenter()}
-    func syncCenter(){guard let board=board,let boardWindow=board.window,let ownWindow=window else{return};let screen=boardWindow.convertToScreen(NSRect(origin:board.convert(NSPoint(x:board.bounds.midX,y:0),to:nil),size:.zero)).origin;let center=convert(ownWindow.convertFromScreen(NSRect(origin:screen,size:.zero)).origin,from:nil).x;let reach=2*max(0,min(center,bounds.width-center)),labelWidth=min(300,reach,max(120,board.bounds.width-Metrics.padding*2)),tabWidth=min(280,labelWidth);label.frame=NSRect(x:center-labelWidth/2,y:4,width:labelWidth,height:20);tabs.frame=NSRect(x:center-tabWidth/2,y:0,width:tabWidth,height:28)}
-
+    func syncCenter(){guard let board=board,let boardWindow=board.window,let ownWindow=window else{return};let screen=boardWindow.convertToScreen(NSRect(origin:board.convert(NSPoint(x:board.bounds.midX,y:0),to:nil),size:.zero)).origin;let center=convert(ownWindow.convertFromScreen(NSRect(origin:screen,size:.zero)).origin,from:nil).x;let labelWidth=Self.room(centre:center,span:bounds.width,board:board.bounds.width),tabWidth=min(280,labelWidth);label.frame=NSRect(x:center-labelWidth/2,y:4,width:labelWidth,height:20);tabs.frame=NSRect(x:center-tabWidth/2,y:0,width:tabWidth,height:28)}
+    /// The title's width when centred at `centre` in a title area `span` wide: twice the distance to the nearer edge,
+    /// so it stays centred on the board and inside the area, and never wider than the board (120 points at least).
+    static func room(centre:CGFloat,span:CGFloat,board:CGFloat)->CGFloat {min(2*max(0,min(centre,span-centre)),max(120,board-Metrics.padding*2))}
 }
 @MainActor final class GameWindow:NSWindowController,NSWindowDelegate,NSToolbarDelegate,NSMenuItemValidation {
     let relationships=RelationshipController(),history=PracticeHistory()

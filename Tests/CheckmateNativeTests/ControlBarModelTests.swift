@@ -218,4 +218,15 @@ import CheckmateCore
             XCTAssertEqual(text.width,size(word).width+16,"text, prominent \(prominent)");XCTAssertEqual(text.height,28,"text, prominent \(prominent)")
         }
     }
+    /// The board-area title stays centred on the board and uses the room it has: twice its distance to the nearer
+    /// edge of the title area and never wider than the board, with no fixed 300-point cap. Out of room it ends in an
+    /// ellipsis: wrapped by words into its one-line frame, "Practice · White vs Stockfish" lost its last word unmarked.
+    func testTheTitleUsesTheRoomCentredOnTheBoard(){
+        func room(_ centre:CGFloat,_ span:CGFloat,board:CGFloat=800)->CGFloat {BoardTitleView.room(centre:centre,span:span,board:board)}
+        XCTAssertEqual(room(327,654),654,"centred in a wide title area, the whole area")
+        XCTAssertEqual(room(265,654),530,"off centre, twice the distance to the nearer edge");XCTAssertEqual(room(500,654),308)
+        XCTAssertEqual(room(400,900,board:400),400-Metrics.padding*2,"never wider than the board");XCTAssertEqual(room(450,900,board:100),120,"a small board still has a readable title")
+        XCTAssertEqual(room(-5,300),0,"outside the area there is no room");XCTAssertEqual(room(310,300),0)
+        XCTAssertEqual(BoardTitleView(frame:.zero).label.lineBreakMode,.byTruncatingTail)
+    }
 }
