@@ -116,7 +116,7 @@ struct ReviewPracticeSheet:View {
     }
     var body:some View {VStack(alignment:.leading,spacing:Metrics.sectionGap){
         Text("Practice from this position").sectionHeading()
-        Text("Your current practice is backed up and becomes Previous game, replacing that shortcut’s older game. The imported record stays unchanged.")
+        Text("Your current practice game is kept as your previous game, so you can still review it. Only one previous game is kept, so the one kept before is replaced. The game you are reviewing stays unchanged.")
         Picker("Play as",selection:$side){Text("White").tag("w");Text("Black").tag("b")}
         Picker("Opponent",selection:$preset){if ReviewRolloutPolicy.beginnerOpponentEnabled{Text("First steps").tag("first_steps")};Text("Gentle").tag("gentle");Text("Club").tag("club");Text("Keep custom settings").tag("custom")}
         Button("Save This Position for Later"){guard stillShown() else{return};model.saveCurrentReview();model.practiceForkRequested=false}
