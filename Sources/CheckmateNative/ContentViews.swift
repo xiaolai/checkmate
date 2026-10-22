@@ -275,7 +275,6 @@ struct StorageErrorBanner:View {
         }
     }
 }
-/// Short lines as a left-aligned bulleted list, each line wrapping under its own text.
 extension View {
     /// A sidebar row closed during a network game: it cannot be selected, and its title and icon take the disabled text
     /// colour, since a disabled row in a sidebar list otherwise keeps its full-strength title.
@@ -286,6 +285,7 @@ private struct ClosedRowStyle:ViewModifier {
     let closed:Bool
     @ViewBuilder func body(content:Content)->some View {if closed{content.foregroundStyle(Color(nsColor:.disabledControlTextColor))}else{content}}
 }
+/// Short lines as a left-aligned bulleted list, each line wrapping under its own text.
 struct BulletedLines:View {
     let lines:[String]
     var body:some View {VStack(alignment:.leading,spacing:Metrics.tightGap){
