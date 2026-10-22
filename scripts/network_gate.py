@@ -304,9 +304,11 @@ class Instance:
 
     def capture(self, name):
         """A screenshot kept as evidence. A capture or copy that fails fails the gate, never leaves an older picture in
-        its place; the pair's copy is taken under a name of its own and removed afterwards."""
+        its place; the pair's copy is taken under a name of its own and removed afterwards. Instances on one Mac share its
+        screen, so the instance is brought to the front first: without it a picture shows whichever window was on top."""
         target = self.evidence / f"{name}-{self.name}.png"
         target.unlink(missing_ok=True)
+        self.activate()
         if self.mode == "pair":
             remote = f"{self.data}/shot-{uuid.uuid4().hex}.png"
             try:
