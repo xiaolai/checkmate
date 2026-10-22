@@ -75,6 +75,19 @@ import CheckmateDomain
         try review.select(d6);try review.selectSquare("b1");try review.selectSquare("c3");try review.select(main[3]);try review.selectSquare("f1");try review.selectSquare("b5");try review.select(0)
         let ideas=review.authoredBranches,inLine=try XCTUnwrap(ideas.first{$0.root==d6}),atEnd=try XCTUnwrap(ideas.first{$0.root==main[3]})
         XCTAssertEqual(ReviewFormat.entries(document,ideas:ideas),[.row(.init(number:1,white:main[0],black:main[1])),.line([c5,nf3,d6],depth:1),.line([c3],depth:2),.idea(inLine),.idea(idea),.row(.init(number:2,white:main[2],black:main[3])),.idea(atEnd)],"ideas from inside a variation and after the last move are inline too")
+        let ids=ReviewFormat.entries(document,ideas:ideas).map(\.id);XCTAssertEqual(Set(ids).count,ids.count,"each line of the list has its own identity: \(ids)")
+    }
+    /// The move list names each line by what it shows, not by where it sits, so a line added above a row (a sideline,
+    /// an idea) cannot leave that row drawn twice. The release showed "2. c4 e6" twice after a sideline "1… Nf6".
+    func testEachMoveListLineKeepsItsIdentityAsLinesAreAdded()throws {
+        let document=try PGNImporter.parse(Data("1. d4 d5 (1... Nf6) 2. c4 e6 *".utf8))[0],main=document.mainline,nf6=document.nodes[main[0]].children[1]
+        let plain=ReviewFormat.entries(document,ideas:[])
+        XCTAssertEqual(plain,[.row(.init(number:1,white:main[0],black:main[1])),.line([nf6],depth:1),.row(.init(number:2,white:main[2],black:main[3]))],"one row per full move: 2. c4 e6 once")
+        var idea=ReviewBranch(root:main[3]);idea.moves=["g1f3"];var early=ReviewBranch(root:main[0]);early.moves=["c7c5"]
+        let withIdeas=ReviewFormat.entries(document,ideas:[idea,early])
+        XCTAssertEqual(withIdeas.filter{if case .row=$0{return true};return false}.count,2,"ideas add no rows")
+        XCTAssertEqual(Set(withIdeas.map(\.id)).count,withIdeas.count)
+        for entry in plain {XCTAssertEqual(withIdeas.filter{$0.id==entry.id},[entry],"\(entry) keeps its identity when ideas are added")}
     }
     func testTheEvaluationBarSitsRightOfTheBoardWithWhiteOnItsOwnSide() {
         let board=NSRect(x:20,y:20,width:400,height:400),plain=BoardView.evaluationBar(board:board,share:0.75,blackAtBottom:false)

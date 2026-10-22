@@ -29,6 +29,14 @@ import CheckmateCore
         let old=[header("a"),row("1"),row("2"),row("3"),row("4")],new=[header("a"),row("0"),row("1"),row("2","Renamed"),row("3"),row("4")]
         XCTAssertEqual(LibraryTableUpdate.plan(old:old,new:new),.patch(removed:IndexSet(),inserted:IndexSet([1]),changed:IndexSet([3])))
     }
+    /// A row's result badge writes the result as the review header does, not as the record stores it.
+    func testTheResultBadgeReadsLikeTheReviewHeader() {
+        let cell=GameRowCell()
+        for (stored,shown) in [("1/2-1/2","½–½"),("1-0","1–0"),("0-1","0–1"),("*","Unfinished")] {
+            cell.show(LibraryRow(id:"r",source:.collection(sha256:"s",record:CollectionRecord(offset:0,length:1,sha256:"h",tags:[:])),title:"Game",details:"",result:stored,facts:nil,accessibilityLabel:"Game",searchKey:""),open:{})
+            XCTAssertEqual(cell.badge.text,shown,stored);XCTAssertEqual(cell.badge.text,ReviewFormat.result(stored))
+        }
+    }
 
     /// A real table through its coordinator: after an update that renames one collection, drops another and adds a
     /// third, the rows are in order, show the new text, keep their group-row flags and the selection, and a refreshed

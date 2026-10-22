@@ -18,7 +18,7 @@ struct NetworkDetail:View {
     var body:some View {
         VStack(alignment:.leading,spacing:Metrics.smallGap){
             Text(game.title).sectionHeading(.title2.bold()).accessibilityIdentifier("network-title")
-            if game.part==nil{lobby}else{MaterialRow(balance:MaterialBalance(board:game.board),blackAtBottom:game.blackAtBottom);session}
+            if game.part==nil{lobby}else{MaterialRow(balance:MaterialBalance(board:game.board,start:MaterialBalance.start(of:game.rules)),blackAtBottom:game.blackAtBottom);session}
             if let notice=game.notice{Text(notice).foregroundStyle(.secondary).accessibilityIdentifier("network-notice")}
         }
         .sheet(isPresented:$hosting){NetworkHostSheet(game:game,close:{hosting=false})}

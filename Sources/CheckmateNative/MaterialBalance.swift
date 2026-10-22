@@ -1,20 +1,29 @@
 import SwiftUI
 import CheckmateCore
 
-/// The captured pieces and the material lead of a board (B-10), read from its placement alone: no engine, no history.
-/// A side's captures are the other side's pieces missing from a full set; a piece beyond its full-set count is a
-/// promoted pawn, so it stands in for that pawn rather than counting as a capture.
+/// The captured pieces and the material lead of a board (B-10), read from its placement and the game's start: no
+/// engine. A side's captures are the other side's pieces missing from the start, so a mini-game or a set-up position
+/// shows only what was taken in it; a piece beyond its count at the start is a promoted pawn, so it stands in for that
+/// pawn rather than counting as a capture.
 struct MaterialBalance:Equatable {
     /// Most valuable first, as the row shows them.
     static let order:[Character]=["q","r","b","n","p"]
-    private static let fullSet:[Character:Int]=["q":1,"r":2,"b":2,"n":2,"p":8]
-    private let counts:[String:[Character:Int]]
-    init(board:Position){var counts:[String:[Character:Int]]=["w":[:],"b":[:]];for piece in board.values where piece.count==2{counts[String(piece.prefix(1)),default:[:]][piece.last!,default:0]+=1};self.counts=counts}
-    init?(fen:String){guard let board=TrainingMaterial.board(fen:fen) else{return nil};self.init(board:board)}
+    private let counts:[String:[Character:Int]],initial:[String:[Character:Int]]
+    /// `start` is the position the game began from: the standard one, a mini-game's own or a set-up position.
+    init(board:Position,start:Position){counts=Self.count(board);initial=Self.count(start)}
+    init?(fen:String,start:String){guard let board=TrainingMaterial.board(fen:fen),let first=TrainingMaterial.board(fen:start) else{return nil};self.init(board:board,start:first)}
+    private static func count(_ board:Position)->[String:[Character:Int]] {var counts:[String:[Character:Int]]=["w":[:],"b":[:]];for piece in board.values where piece.count==2{counts[String(piece.prefix(1)),default:[:]][piece.last!,default:0]+=1};return counts}
+    /// The position a game shown by `rules` began from: a mini-game's own start, or the position before the first move
+    /// (a set-up position included); with no move yet, the board itself.
+    static func start(of rules:any NetworkBoardModel)->Position {
+        if let ruleset=rules.ruleset{return NetworkMiniGame(ruleset).board}
+        return rules.records.first.flatMap{TrainingMaterial.board(fen:$0.before)} ?? rules.board
+    }
     /// The other side's pieces that `side` ("w" or "b") has captured, most valuable first.
     func captured(by side:String)->[Character] {
-        let lost=counts[side=="w" ? "b":"w"] ?? [:],promoted=Self.order.dropLast().reduce(0){$0+max(0,(lost[$1] ?? 0)-Self.fullSet[$1]!)}
-        return Self.order.flatMap{kind->[Character] in let present=(lost[kind] ?? 0)+(kind=="p" ? promoted:0);return Array(repeating:kind,count:max(0,Self.fullSet[kind]!-present))}
+        let other=side=="w" ? "b":"w",lost=counts[other] ?? [:],had=initial[other] ?? [:]
+        let promoted=Self.order.dropLast().reduce(0){$0+max(0,(lost[$1] ?? 0)-(had[$1] ?? 0))}
+        return Self.order.flatMap{kind->[Character] in let present=(lost[kind] ?? 0)+(kind=="p" ? promoted:0);return Array(repeating:kind,count:max(0,(had[kind] ?? 0)-present))}
     }
     private func material(_ side:String)->Int {(counts[side] ?? [:]).reduce(0){$0+TrainingMaterial.value(String($1.key))*$1.value}}
     /// How far `side` is ahead in material (queen 9, rook 5, bishop and knight 3, pawn 1); 0 when it is not ahead.
@@ -85,6 +94,6 @@ struct PracticeMaterial:View {
     var body:some View {
         let game=PracticeHistory.Game(generation:session.gameGeneration,position:session.position,history:session.rules.history)
         let earlier=session.displayView=="game" ? history.ply(in:game).flatMap{TrainingMaterial.board(fen:session.rules.records[$0].before)}:nil
-        MaterialRow(balance:MaterialBalance(board:earlier ?? session.displayBoard),blackAtBottom:orientation.blackAtBottom)
+        MaterialRow(balance:MaterialBalance(board:earlier ?? session.displayBoard,start:MaterialBalance.start(of:session.rules)),blackAtBottom:orientation.blackAtBottom)
     }
 }
