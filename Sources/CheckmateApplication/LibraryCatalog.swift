@@ -43,8 +43,12 @@ public struct LibraryCatalog:Sendable,Equatable {
     public static func ending(_ game:LibraryGame)->String {
         switch game.ending {
         case "checkmate":String(localized:"Checkmate",bundle:.checkmate);case "draw":String(localized:"Draw",bundle:.checkmate,comment:"A game result: neither side wins");case "resignation":String(localized:"Resignation",bundle:.checkmate);case "time":String(localized:"Won on time",bundle:.checkmate)
-        default:game.result=="1-0" ? String(localized:"White won",bundle:.checkmate):game.result=="0-1" ? String(localized:"Black won",bundle:.checkmate):String(localized:"Result unknown",bundle:.checkmate)
+        default:game.result=="1-0" || game.result=="0-1" ? spokenResult(game.result):String(localized:"Result unknown",bundle:.checkmate)
         }
+    }
+    /// A row's result in words for VoiceOver, which reads the badge's "½–½" or a raw "1/2-1/2" as numbers.
+    public static func spokenResult(_ result:String)->String {
+        switch result{case "1-0":String(localized:"White won",bundle:.checkmate);case "0-1":String(localized:"Black won",bundle:.checkmate);case "1/2-1/2":String(localized:"Draw",bundle:.checkmate,comment:"A game result: neither side wins");default:String(localized:"Unfinished",bundle:.checkmate)}
     }
     public static func facts(_ game:LibraryGame)->String {
         let moves=(game.plies+1)/2,ending=ending(game)
@@ -55,7 +59,7 @@ public struct LibraryCatalog:Sendable,Equatable {
         let championship=game.category != "classic"
         let title=championship ? "\(game.white) – \(game.black), \(game.roundLabel ?? game.round)":game.title
         let details=championship ? "":([game.white=="?" ? nil:"\(game.white) – \(game.black)",game.year.map(String.init),game.kind=="traditional" ? String(localized:"traditional finish",bundle:.checkmate,comment:"A library game's kind"):game.kind=="illustrative" ? String(localized:"illustrative",bundle:.checkmate,comment:"A library game's kind"):nil].compactMap{$0}).joined(separator:" · ")
-        let label=championship ? "\(game.title), \(game.result)":([game.white=="?" ? game.title:"\(game.white) – \(game.black)",game.white=="?" ? nil:game.title,game.year.map(String.init),game.result].compactMap{$0}).joined(separator:", ")
+        let label=championship ? "\(game.title), \(spokenResult(game.result))":([game.white=="?" ? game.title:"\(game.white) – \(game.black)",game.white=="?" ? nil:game.title,game.year.map(String.init),spokenResult(game.result)].compactMap{$0}).joined(separator:", ")
         // The event's whole year span is searchable: a match that ran into the next year is found by either year.
         let years=(event?.years ?? []).map(String.init)+[game.year.map(String.init) ?? ""]
         let key=folded(([game.white,game.black,event?.name ?? "",game.roundLabel ?? "",game.round,game.opening?.name ?? "",game.opening?.eco ?? "",game.title,game.site]+years).joined(separator:" "))
@@ -68,7 +72,7 @@ public struct LibraryCatalog:Sendable,Equatable {
         let round=known("Round").map{String(localized:"Round \($0)",bundle:.checkmate,comment:"A tournament round and its number")},result=known("Result") ?? "*"
         let details=[known("Event"),year,round].compactMap{$0}.joined(separator:" · ")
         let key=folded([white,black,known("Event") ?? "",year ?? "",known("Round") ?? "",known("Opening") ?? "",known("ECO") ?? "",known("Site") ?? ""].joined(separator:" "))
-        let label=["\(white) – \(black)",known("Event"),year,result].compactMap{$0}.joined(separator:", ")
+        let label=["\(white) – \(black)",known("Event"),year,spokenResult(result)].compactMap{$0}.joined(separator:", ")
         return LibraryRow(id:"collection:\(collection.sha256):\(index)",source:.collection(sha256:collection.sha256,record:record),title:"\(white) – \(black)",details:details.isEmpty ? collection.name:details,result:result,facts:known("Opening"),accessibilityLabel:label,searchKey:key,
                           sortPlayers:known("White") == nil && known("Black") == nil ? "":folded(white+" "+black),sortDate:known("Date") ?? "",sortEvent:folded(known("Event") ?? ""))
     }
@@ -80,7 +84,7 @@ public struct LibraryCatalog:Sendable,Equatable {
         let details=[entry.name==nil ? nil:players,entry.event,year].compactMap{$0}.joined(separator:" · ")
         let saved=String(localized:"Saved \(entry.updatedAt.formatted(date:.abbreviated,time:.shortened))",bundle:.checkmate,comment:"When a review was last saved")
         let key=folded([entry.title,entry.white ?? "",entry.black ?? "",entry.event ?? "",entry.date ?? ""].joined(separator:" "))
-        return LibraryRow(id:"saved:"+entry.id.uuidString,source:.saved(entry.id),title:entry.title,details:details,result:entry.result,facts:saved,accessibilityLabel:[entry.title,details.isEmpty ? nil:details,entry.result,saved].compactMap{$0}.joined(separator:", "),searchKey:key,
+        return LibraryRow(id:"saved:"+entry.id.uuidString,source:.saved(entry.id),title:entry.title,details:details,result:entry.result,facts:saved,accessibilityLabel:[entry.title,details.isEmpty ? nil:details,spokenResult(entry.result),saved].compactMap{$0}.joined(separator:", "),searchKey:key,
                           sortPlayers:players.map(folded) ?? "",sortDate:entry.date ?? "",sortEvent:folded(entry.event ?? ""))
     }
     /// `saved` is the saved reviews' index, most recent first.

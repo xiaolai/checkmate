@@ -177,7 +177,8 @@ final class GameCollectionsTests:XCTestCase {
         let row=try XCTUnwrap(catalog.sections(scope:.all,query:"zukertort steinitz game 1").first?.rows.first)
         // Under its event a row shows the players and game, then only the facts; the full title is its label.
         XCTAssertEqual(row.title,"Zukertort – Steinitz, Game 1");XCTAssertEqual(row.details,"")
-        XCTAssertEqual(row.accessibilityLabel,"Zukertort – Steinitz, World Championship 1886, Game 1, 0-1")
+        XCTAssertEqual(row.accessibilityLabel,"Zukertort – Steinitz, World Championship 1886, Game 1, Black won")
+        XCTAssertEqual(["1-0","0-1","1/2-1/2","*"].map(LibraryCatalog.spokenResult),["White won","Black won","Draw","Unfinished"])
         // No source records how this game ended, so only who won is said.
         XCTAssertEqual(row.facts,"Black won · 46 moves · Slav Defense")
         XCTAssertEqual(catalog.sections(scope:.all,query:"ding gukesh game 3").first?.rows.first?.facts.map{$0.hasPrefix("Won on time")},true)
