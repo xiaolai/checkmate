@@ -13,14 +13,19 @@ struct VoiceCoachControls:View {
     var actions:[Action]=[]
     /// Nil when this surface does not start a session itself.
     var connect:(()->Void)?=nil
+    /// One row when every title fits whole; otherwise one button per line, so no title is ever truncated.
     var body:some View {
-        HStack(spacing:Metrics.smallGap) {
-            if voice.connected,owned {
-                ForEach(actions){action in Button(action.title,action:action.run).accessibilityIdentifier("\(idPrefix)-\(action.id)")}
-                Button(Self.stopTitle){voice.stopTurn()}.disabled(!voice.canStopTurn).accessibilityIdentifier("\(idPrefix)-stop")
-                Button(Self.disconnectTitle){voice.disconnect()}.accessibilityIdentifier("\(idPrefix)-disconnect")
-            } else if voice.connecting {Button(Self.cancelTitle){voice.disconnect()}.accessibilityIdentifier("\(idPrefix)-cancel")}
-            else if let connect {Button(Self.connectTitle,action:connect).accessibilityIdentifier("\(idPrefix)-connect")}
+        ViewThatFits(in:.horizontal) {
+            HStack(spacing:Metrics.smallGap){buttons}
+            VStack(alignment:.leading,spacing:Metrics.smallGap){buttons}
         }
+    }
+    @ViewBuilder private var buttons:some View {
+        if voice.connected,owned {
+            ForEach(actions){action in Button(action.title,action:action.run).accessibilityIdentifier("\(idPrefix)-\(action.id)")}
+            Button(Self.stopTitle){voice.stopTurn()}.disabled(!voice.canStopTurn).accessibilityIdentifier("\(idPrefix)-stop")
+            Button(Self.disconnectTitle){voice.disconnect()}.accessibilityIdentifier("\(idPrefix)-disconnect")
+        } else if voice.connecting {Button(Self.cancelTitle){voice.disconnect()}.accessibilityIdentifier("\(idPrefix)-cancel")}
+        else if let connect {Button(Self.connectTitle,action:connect).accessibilityIdentifier("\(idPrefix)-connect")}
     }
 }

@@ -294,11 +294,13 @@ try:
     if fixture:
         assert any(record["activity"] == "translation" for record in exported_usage["records"]), "Fixture usage export lost translation activity"
     subprocess.run(["screencapture", "-x", str(evidence / "usage-settings.png")], check=True)
-    # Codex setup explains itself instead of touching Codex in automation.
+    # Codex setup explains itself instead of touching Codex in automation. Automation never reads Codex's
+    # configuration, so there is no setup to remove and Remove Codex Setup is not offered.
     pointer("click", "Connections")
-    wait(lambda: "Remove Codex Setup…" in listing(), "The Connections settings row did not respond to a click")
-    pointer("click", "Remove Codex Setup…")
-    wait(lambda: "Codex setup is disabled during automation." in listing(), "Remove Codex Setup did not explain itself")
+    wait(lambda: "Set Up Codex" in listing(), "The Connections settings row did not respond to a click")
+    assert "Remove Codex Setup…" not in listing(), "Remove Codex Setup was offered with nothing set up"
+    pointer("click", "Set Up Codex")
+    wait(lambda: "Codex setup is disabled during automation." in listing(), "Set Up Codex did not explain itself")
     pointer("click", "About")
     wait(lambda: "Copyright © 2026" in listing(), "The About settings row did not respond to a click")
     pointer("close-window", "Settings")

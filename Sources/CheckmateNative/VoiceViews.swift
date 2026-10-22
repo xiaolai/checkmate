@@ -99,17 +99,19 @@ struct VoiceSettingsContent:View {
             Toggle(VoiceConsent.autoConnectLabel,isOn:binding(\.voiceAutoConnect))
             Text("Voice is off until you connect it and agree to what is sent to OpenAI. After that, if this is on, Checkmate checks once at launch whether your Codex sign-in can use voice, and connects only when your account allows it.").foregroundStyle(.secondary)
         }
-        Section("Thinking"){
-            Picker("Thinking",selection:binding(\.coachReasoningEffort)){
-                ForEach(CoachThinking.allCases,id:\.self){Text($0.title).tag($0.rawValue)}
-                if Self.thinking(effort:settings.coachReasoningEffort)==nil{Text("Custom: \(CoachThinking.name(effort:settings.coachReasoningEffort))").tag(settings.coachReasoningEffort)}
-            }.accessibilityIdentifier("coach-thinking")
-            Text(Self.thinking(effort:settings.coachReasoningEffort)?.detail ?? String(localized:"Chosen under Advanced.",bundle:.checkmate)).font(.caption).foregroundStyle(.secondary)
+        // One control for the one setting: the three named levels, or under Advanced every reasoning effort in their place.
+        Section("Answers"){
             Toggle("Show Advanced Settings",isOn:$advanced).accessibilityIdentifier("coach-advanced")
             if advanced {
                 Text(voice.selectedModel.isEmpty ? String(localized:"Coach: chosen automatically, the newest one your account can use",bundle:.checkmate):String(localized:"Coach: chosen automatically · \(voice.selectedModel)",bundle:.checkmate)).foregroundStyle(.secondary)
                 Picker("Reasoning effort",selection:binding(\.coachReasoningEffort)){ForEach(AppSettings.reasoningEfforts,id:\.self){Text(CoachThinking.name(effort:$0)).tag($0)}}.accessibilityIdentifier("coach-reasoning-effort")
                 Text("Longer thinking may take longer to answer and uses more of your account. Changes apply to the next answer.").font(.caption).foregroundStyle(.secondary)
+            } else {
+                Picker("Thinking",selection:binding(\.coachReasoningEffort)){
+                    ForEach(CoachThinking.allCases,id:\.self){Text($0.title).tag($0.rawValue)}
+                    if Self.thinking(effort:settings.coachReasoningEffort)==nil{Text("Custom: \(CoachThinking.name(effort:settings.coachReasoningEffort))").tag(settings.coachReasoningEffort)}
+                }.accessibilityIdentifier("coach-thinking")
+                Text(Self.thinking(effort:settings.coachReasoningEffort)?.detail ?? String(localized:"Chosen under Advanced.",bundle:.checkmate)).font(.caption).foregroundStyle(.secondary)
             }
         }
         Section("Speech"){
