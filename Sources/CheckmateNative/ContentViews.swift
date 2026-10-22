@@ -48,21 +48,24 @@ struct SidebarContent:View {
     }
     /// During a network game lessons, puzzles and training are closed (LAN-play plan D8): their rows say why.
     private var participating:Bool {!model.fairness.engineHelpAllowed}
-    /// Why a closed destination is closed, shown under its title and read as its value, not only on hover (D-33).
+    /// Why the closed destinations are closed: shown once in the sidebar, and read as each closed row's value, not only
+    /// on hover (D-33).
     private var closedReason:String? {participating ? FairnessPolicy.destinationUnavailable:nil}
     /// A lesson row's VoiceOver value: its status, whether learning continues here, and why it is closed.
     static func lessonValue(status:String,here:Bool,closedReason:String?)->String {
         let value=here ? String(localized:"\(status), continue here",bundle:.checkmate,comment:"A lesson's status, then that the learner continues from it"):status
         return closedReason.map{String(localized:"\(value). \($0)",bundle:.checkmate,comment:"A lesson's status, then why it is closed")} ?? value
     }
+    /// A closed row is drawn disabled and cannot be selected; its value says why.
     private func destination(_ title:String,symbol:AppSymbol,tag:String)->some View {
-        Label{VStack(alignment:.leading,spacing:1){Text(title);if let closedReason{Text(closedReason).font(.caption).foregroundStyle(.secondary)}}}icon:{symbol.image}
-            .tag(tag).selectionDisabled(closedReason != nil).accessibilityValue(closedReason ?? "")
+        Label(title,symbol:symbol).tag(tag).selectionDisabled(participating).disabled(participating).accessibilityValue(closedReason ?? "")
     }
     var body:some View {List(selection:Binding<String?>(get:{selected},set:navigate)){
         Section {
             Label("Practice a game",symbol:.practice).tag("practice")
             if NetworkPolicy.availableHere{Label{VStack(alignment:.leading,spacing:1){Text("Play on Network");if let badge=SidebarSelection.networkBadge(session.activity,network){Text(badge).font(.caption).foregroundStyle(.secondary).accessibilityIdentifier("network-sidebar-badge")}}}icon:{AppSymbol.network.image}.tag("network")}
+            // Said once, beside the game that closes them, for every disabled row below.
+            if let closedReason{Text(closedReason).font(.caption).foregroundStyle(.secondary).accessibilityIdentifier("sidebar-closed-reason")}
             destination(String(localized:"Quick puzzles",bundle:.checkmate),symbol:.puzzles,tag:"puzzles")
             if model.training != nil{destination(String(localized:"Training",bundle:.checkmate),symbol:.training,tag:"training")}
             Label("Review game",symbol:.review).tag("review")
@@ -78,17 +81,16 @@ struct SidebarContent:View {
             }
         }
         // The mini-games, otherwise reached only inside their lessons (L-33). Each opens from its lesson, as there.
-        // Closed during a network game, they say why under the heading and as each row's value, not only on hover (D-33).
+        // Closed during a network game, they are disabled and say why as each row's value, not only on hover (D-33).
         Section("Mini-games"){
-            if let closedReason{Text(closedReason).font(.caption).foregroundStyle(.secondary).accessibilityIdentifier("sidebar-mini-closed")}
-            ForEach(SidebarSelection.miniGames(learning.library),id:\.kind){entry in Label(entry.kind.title,symbol:.miniGame).accessibilityIdentifier("sidebar-mini-"+entry.kind.rawValue).tag("mini:"+entry.kind.rawValue).selectionDisabled(participating).accessibilityValue(closedReason ?? "").help(closedReason ?? "")}
+            ForEach(SidebarSelection.miniGames(learning.library),id:\.kind){entry in Label(entry.kind.title,symbol:.miniGame).accessibilityIdentifier("sidebar-mini-"+entry.kind.rawValue).tag("mini:"+entry.kind.rawValue).selectionDisabled(participating).disabled(participating).accessibilityValue(closedReason ?? "").help(closedReason ?? "")}
         }
-        // A practice activity sits indented under its lesson, off the main path but one click away. The icon is the
-        // row's kind; how far the learner has taken it (explored, practiced, mastered) is a trailing badge VoiceOver reads.
+        // A practice lesson sits indented under its piece lesson, off the main path but one click away. It is a lesson
+        // (it teaches its mini-games' rules, then offers them), so it has the lesson icon: the game controller marks only
+        // the games themselves. How far the learner has taken it is a trailing badge VoiceOver reads.
         Section {
-            if let closedReason{Text(closedReason).font(.caption).foregroundStyle(.secondary).accessibilityIdentifier("sidebar-learn-closed")}
             if let next=learning.continueIndex {Button{model.lesson(next)}label:{Label("Continue Learning",symbol:.continueLearning)}.disabled(participating).help(participating ? FairnessPolicy.destinationUnavailable:String(localized:"Open \(learning.localizedTitle(index:next))",bundle:.checkmate)).accessibilityIdentifier("sidebar-continue-learning")}
-            ForEach(Array(learning.library.lessons.enumerated()),id:\.element.id){i,l in let status=learning.status(index:i),here=i==learning.continueIndex;Label {HStack(spacing:Metrics.smallGap){Text(learning.localizedTitle(index:i));if here{AppSymbol.continueHere.image.foregroundStyle(.tint).help("Continue here").accessibilityHidden(true)}}} icon:{(l.isPractice ? AppSymbol.gameActivity:.lesson).image}.badge(status.title.map{Text($0)}).accessibilityValue(Self.lessonValue(status:status.title ?? String(localized:"Not started",bundle:.checkmate),here:here,closedReason:closedReason)).padding(.leading,l.isPractice ? Metrics.practiceIndent:0).accessibilityHint(participating ? FairnessPolicy.destinationUnavailable:practiceHint(l)).accessibilityIdentifier("sidebar-lesson-"+l.id).tag("lesson:\(i)").selectionDisabled(participating)}
+            ForEach(Array(learning.library.lessons.enumerated()),id:\.element.id){i,l in let status=learning.status(index:i),here=i==learning.continueIndex;Label {HStack(spacing:Metrics.smallGap){Text(learning.localizedTitle(index:i));if here{AppSymbol.continueHere.image.foregroundStyle(.tint).help("Continue here").accessibilityHidden(true)}}} icon:{AppSymbol.lesson.image}.badge(status.title.map{Text($0)}).accessibilityValue(Self.lessonValue(status:status.title ?? String(localized:"Not started",bundle:.checkmate),here:here,closedReason:closedReason)).padding(.leading,l.isPractice ? Metrics.practiceIndent:0).accessibilityHint(participating ? FairnessPolicy.destinationUnavailable:practiceHint(l)).accessibilityIdentifier("sidebar-lesson-"+l.id).tag("lesson:\(i)").selectionDisabled(participating).disabled(participating)}
         } header:{HStack{Text("Learn & explore");Spacer();Text(learning.courseProgress.text).monospacedDigit().accessibilityLabel("\(learning.courseProgress.explored) of \(learning.courseProgress.total) lessons explored")}.accessibilityElement(children:.combine).accessibilityIdentifier("sidebar-course-progress")}
     }.listStyle(.sidebar).scrollContentBackground(.hidden).overlay(alignment:.bottom){if model.importingReview{VStack{ProgressView("Loading review…");Button("Cancel Import"){model.cancelReviewImport()}}.padding().background(.regularMaterial)}}}
 }
@@ -109,12 +111,15 @@ struct DetailContent:View {
     }
     /// A finished game's summary line: its result and how many moves were played, e.g. "1–0 · 23 moves".
     static func practiceSummary(result:String,plies:Int)->String {let moves=(plies+1)/2;return String(localized:"\(ReviewFormat.result(result)) · \(moves) moves",bundle:.checkmate,comment:"A game summary: its result, then how many moves it lasted")}
+    /// Whether the relationship panel needs a separator after it: only when something follows that has none of its own.
+    /// A shown report replaces the mode's content, and practice's voice card that then follows opens with its own divider.
+    static func separatesRelationships(reportShown:Bool,network:Bool)->Bool {!reportShown || network}
     /// Runs a learner's practice action; one that cannot be done is said in the drawer, never dropped.
     @MainActor static func attempt(_ session:GameSession,_ action:() throws -> Void){do{try action()}catch{session.report(GameWindow.failureMessage(error))}}
     @State private var lessonGoalsShown=false
     var body:some View {ScrollView {VStack(alignment:.leading,spacing:Metrics.sectionGap) {
         if model.reviewWorkspace {WorkspaceInspector(library:model.library,theme:session.state.settings.boardTheme)} else if model.review.active{ReviewDetailContent(review:model.review,model:model)}else {
-        if let label=relationships.selectedLabel{RelationshipContent(relationships:relationships,label:label,inspect:inspect);Divider()}
+        if let label=relationships.selectedLabel{RelationshipContent(relationships:relationships,label:label,inspect:inspect);if Self.separatesRelationships(reportShown:relationships.report != nil,network:session.mode == .network){Divider()}}
         if session.mode == .network {NetworkDetail(model:model,game:model.network,assistant:model.networkAssistant,voice:voice)}
         else if session.mode == .practice {practiceDetail}
         else if relationships.report==nil {
@@ -162,19 +167,22 @@ struct DetailContent:View {
     @ViewBuilder private var miniDetail:some View {
         Text(learning.miniStatus).font(.title2.bold())
         if !learning.miniKind.solo {
-            Picker("Opponent",selection:Binding(get:{learning.miniGame?.computer ?? true},set:{learning.setMiniComputer($0)})){Text("Computer").tag(true);Text("Two players on this device").tag(false)}
-            // Per game, and only the levels this game offers. The game in progress keeps the level its run started with,
-            // labelled while it differs (also when that level is no longer offered).
-            if MiniGameOffering.offersChoice(learning.miniKind) {
-                Picker("Difficulty",selection:Binding(get:{learning.miniPreferredLevel},set:{learning.setMiniLevel($0)})){ForEach(MiniGameOffering.levels(for:learning.miniKind),id:\.self){Text(MiniGameOffering.title($0)).tag($0)}}.accessibilityIdentifier("mini-difficulty")
+            // Labels in one column and popups in the next, as practice's opponent settings are.
+            Grid(alignment:.leading,horizontalSpacing:Metrics.smallGap,verticalSpacing:Metrics.smallGap){
+                GridRow {Text("Opponent");Picker("Opponent",selection:Binding(get:{learning.miniGame?.computer ?? true},set:{learning.setMiniComputer($0)})){Text("Computer").tag(true);Text("Two players on this device").tag(false)}.labelsHidden().frame(maxWidth:.infinity)}
+                // Per game, and only the levels this game offers. The game in progress keeps the level its run started
+                // with, labelled below while it differs (also when that level is no longer offered).
+                if MiniGameOffering.offersChoice(learning.miniKind) {
+                    GridRow {Text("Difficulty");Picker("Difficulty",selection:Binding(get:{learning.miniPreferredLevel},set:{learning.setMiniLevel($0)})){ForEach(MiniGameOffering.levels(for:learning.miniKind),id:\.self){Text(MiniGameOffering.title($0)).tag($0)}}.labelsHidden().frame(maxWidth:.infinity).accessibilityIdentifier("mini-difficulty")}
+                }
+                // Only in games equal from both sides (L-23); like the level, the game in progress keeps its side.
+                if learning.miniSideOffered {
+                    GridRow {Text("Side");Picker("Side",selection:Binding(get:{learning.miniPreferredSide},set:{learning.setMiniSide($0)})){Text("White").tag("w");Text("Black").tag("b")}.labelsHidden().frame(maxWidth:.infinity).accessibilityIdentifier("mini-side")}
+                }
             }
             if learning.miniNewLevelOffered,let level=learning.miniLevel {
                 Text(learning.miniLevelWithdrawn ? String(localized:"This game continues at \(MiniGameOffering.title(level)), a level this game no longer offers.",bundle:.checkmate):String(localized:"This game continues at \(MiniGameOffering.title(level)).",bundle:.checkmate)).foregroundStyle(.secondary).accessibilityIdentifier("mini-level-continues")
                 Button("Start a New Game at \(MiniGameOffering.title(learning.miniPreferredLevel))"){learning.restartMini()}.accessibilityIdentifier("mini-new-level")
-            }
-            // Only in games equal from both sides (L-23); like the level, the game in progress keeps its side.
-            if learning.miniSideOffered {
-                Picker("Side",selection:Binding(get:{learning.miniPreferredSide},set:{learning.setMiniSide($0)})){Text("White").tag("w");Text("Black").tag("b")}.accessibilityIdentifier("mini-side")
             }
             if learning.miniNewSideOffered {
                 Text(learning.miniLearnerSide=="b" ? String(localized:"This game continues with you as Black.",bundle:.checkmate):String(localized:"This game continues with you as White.",bundle:.checkmate)).foregroundStyle(.secondary).accessibilityIdentifier("mini-side-continues")
@@ -203,7 +211,7 @@ struct DetailContent:View {
                         .controlSize(.large).accessibilityIdentifier("lesson-play-"+kind.rawValue)
                 }
                 ForEach(learning.library.practice(for:learning.lessonIndex),id:\.self){index in
-                    Button {model.openPractice(index)} label:{Label("Practice: \(learning.localizedTitle(index:index))",symbol:.gameActivity)}
+                    Button {model.openPractice(index)} label:{Label("Practice: \(learning.localizedTitle(index:index))",symbol:.lesson)}
                         .controlSize(.large).accessibilityIdentifier("lesson-open-practice-"+learning.library.lessons[index].id)
                 }
                 // The exercise is played on the lesson's own invitation step; elsewhere in the lesson this leads there.
@@ -232,7 +240,7 @@ struct DetailContent:View {
         if !learning.feedback.isEmpty{Text(learning.feedback).foregroundStyle(.secondary)}
         if session.mode == .lesson {
             // The title toggles too; by default only the chevron does.
-            DisclosureGroup(isExpanded:$lessonGoalsShown){ForEach(learning.teaches,id:\.self){Text($0)}} label:{Text("In this lesson").contentShape(Rectangle()).onTapGesture{lessonGoalsShown.toggle()}}
+            DisclosureGroup(isExpanded:$lessonGoalsShown){BulletedLines(lines:learning.teaches)} label:{Text("In this lesson").contentShape(Rectangle()).onTapGesture{lessonGoalsShown.toggle()}}
             if session.state.course.completed.contains(learning.current.id),let title=learning.checkYourselfTitle(index:learning.lessonIndex) {Button(title){model.checkYourself(learning.lessonIndex)}.disabled(!model.fairness.engineHelpAllowed).accessibilityIdentifier("lesson-check-yourself")}
             // On an exercise step the attempt panel carries the one Continue button.
             if !learning.attemptStep,session.state.course.completed.contains(learning.current.id),let next=learning.library.nextMainLesson(after:learning.lessonIndex) {Button("Continue to \(learning.localizedTitle(index:next))"){model.continueLesson()}}
@@ -250,6 +258,8 @@ struct DetailContent:View {
 /// are visible whichever drawers are open. Dismiss clears the message.
 struct StorageErrorBanner:View {
     @ObservedObject var model:NativeModel
+    /// A failed progress save asks the learner to export, so the banner offers File ▸ Export Progress… itself.
+    static func offersProgressExport(_ message:String?)->Bool {message==NativeModel.progressSaveFailure}
     var body:some View {
         if let message=model.storageError {
             HStack(alignment:.top,spacing:Metrics.smallGap){
@@ -257,12 +267,20 @@ struct StorageErrorBanner:View {
                 Text(message).textSelection(.enabled).fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("storage-error-message")
                 Spacer(minLength:0)
                 if model.restoreResumePending {Button("Return to Game"){model.resumeAfterFailedRestore()}}
+                if Self.offersProgressExport(message) {Button("Export Progress…"){model.exportState()}.accessibilityIdentifier("storage-error-export")}
                 Button("Dismiss"){model.dismissStorageError()}
             }
             .padding(Metrics.padding).background(.regularMaterial,in:RoundedRectangle(cornerRadius:Metrics.cornerRadius)).padding(Metrics.padding)
             .accessibilityElement(children:.contain).accessibilityLabel("Problem").accessibilityIdentifier("storage-error-banner")
         }
     }
+}
+/// Short lines as a left-aligned bulleted list, each line wrapping under its own text.
+struct BulletedLines:View {
+    let lines:[String]
+    var body:some View {VStack(alignment:.leading,spacing:Metrics.tightGap){
+        ForEach(Array(lines.enumerated()),id:\.offset){_,line in HStack(alignment:.firstTextBaseline,spacing:6){Text("•").foregroundStyle(.secondary).accessibilityHidden(true);Text(verbatim:line).fixedSize(horizontal:false,vertical:true)}}
+    }.frame(maxWidth:.infinity,alignment:.leading)}
 }
 struct TurnIndicator:View {
     let side:String,label:String
