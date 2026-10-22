@@ -58,7 +58,7 @@ struct SidebarContent:View {
     }
     /// A closed row is drawn disabled and cannot be selected; its value says why.
     private func destination(_ title:String,symbol:AppSymbol,tag:String)->some View {
-        Label(title,symbol:symbol).tag(tag).selectionDisabled(participating).disabled(participating).accessibilityValue(closedReason ?? "")
+        Label(title,symbol:symbol).tag(tag).closedRow(participating).accessibilityValue(closedReason ?? "")
     }
     var body:some View {List(selection:Binding<String?>(get:{selected},set:navigate)){
         Section {
@@ -83,14 +83,14 @@ struct SidebarContent:View {
         // The mini-games, otherwise reached only inside their lessons (L-33). Each opens from its lesson, as there.
         // Closed during a network game, they are disabled and say why as each row's value, not only on hover (D-33).
         Section("Mini-games"){
-            ForEach(SidebarSelection.miniGames(learning.library),id:\.kind){entry in Label(entry.kind.title,symbol:.miniGame).accessibilityIdentifier("sidebar-mini-"+entry.kind.rawValue).tag("mini:"+entry.kind.rawValue).selectionDisabled(participating).disabled(participating).accessibilityValue(closedReason ?? "").help(closedReason ?? "")}
+            ForEach(SidebarSelection.miniGames(learning.library),id:\.kind){entry in Label(entry.kind.title,symbol:.miniGame).accessibilityIdentifier("sidebar-mini-"+entry.kind.rawValue).tag("mini:"+entry.kind.rawValue).closedRow(participating).accessibilityValue(closedReason ?? "").help(closedReason ?? "")}
         }
         // A practice lesson sits indented under its piece lesson, off the main path but one click away. It is a lesson
         // (it teaches its mini-games' rules, then offers them), so it has the lesson icon: the game controller marks only
         // the games themselves. How far the learner has taken it is a trailing badge VoiceOver reads.
         Section {
             if let next=learning.continueIndex {Button{model.lesson(next)}label:{Label("Continue Learning",symbol:.continueLearning)}.disabled(participating).help(participating ? FairnessPolicy.destinationUnavailable:String(localized:"Open \(learning.localizedTitle(index:next))",bundle:.checkmate)).accessibilityIdentifier("sidebar-continue-learning")}
-            ForEach(Array(learning.library.lessons.enumerated()),id:\.element.id){i,l in let status=learning.status(index:i),here=i==learning.continueIndex;Label {HStack(spacing:Metrics.smallGap){Text(learning.localizedTitle(index:i));if here{AppSymbol.continueHere.image.foregroundStyle(.tint).help("Continue here").accessibilityHidden(true)}}} icon:{AppSymbol.lesson.image}.badge(status.title.map{Text($0)}).accessibilityValue(Self.lessonValue(status:status.title ?? String(localized:"Not started",bundle:.checkmate),here:here,closedReason:closedReason)).padding(.leading,l.isPractice ? Metrics.practiceIndent:0).accessibilityHint(participating ? FairnessPolicy.destinationUnavailable:practiceHint(l)).accessibilityIdentifier("sidebar-lesson-"+l.id).tag("lesson:\(i)").selectionDisabled(participating).disabled(participating)}
+            ForEach(Array(learning.library.lessons.enumerated()),id:\.element.id){i,l in let status=learning.status(index:i),here=i==learning.continueIndex;Label {HStack(spacing:Metrics.smallGap){Text(learning.localizedTitle(index:i));if here{AppSymbol.continueHere.image.foregroundStyle(.tint).help("Continue here").accessibilityHidden(true)}}} icon:{AppSymbol.lesson.image}.badge(status.title.map{Text($0)}).accessibilityValue(Self.lessonValue(status:status.title ?? String(localized:"Not started",bundle:.checkmate),here:here,closedReason:closedReason)).padding(.leading,l.isPractice ? Metrics.practiceIndent:0).accessibilityHint(participating ? FairnessPolicy.destinationUnavailable:practiceHint(l)).accessibilityIdentifier("sidebar-lesson-"+l.id).tag("lesson:\(i)").closedRow(participating)}
         } header:{HStack{Text("Learn & explore");Spacer();Text(learning.courseProgress.text).monospacedDigit().accessibilityLabel("\(learning.courseProgress.explored) of \(learning.courseProgress.total) lessons explored")}.accessibilityElement(children:.combine).accessibilityIdentifier("sidebar-course-progress")}
     }.listStyle(.sidebar).scrollContentBackground(.hidden).overlay(alignment:.bottom){if model.importingReview{VStack{ProgressView("Loading review…");Button("Cancel Import"){model.cancelReviewImport()}}.padding().background(.regularMaterial)}}}
 }
@@ -276,6 +276,16 @@ struct StorageErrorBanner:View {
     }
 }
 /// Short lines as a left-aligned bulleted list, each line wrapping under its own text.
+extension View {
+    /// A sidebar row closed during a network game: it cannot be selected, and its title and icon take the disabled text
+    /// colour, since a disabled row in a sidebar list otherwise keeps its full-strength title.
+    /// An open row keeps the sidebar's own colours, its tinted icon included.
+    func closedRow(_ closed:Bool)->some View {selectionDisabled(closed).disabled(closed).modifier(ClosedRowStyle(closed:closed))}
+}
+private struct ClosedRowStyle:ViewModifier {
+    let closed:Bool
+    @ViewBuilder func body(content:Content)->some View {if closed{content.foregroundStyle(Color(nsColor:.disabledControlTextColor))}else{content}}
+}
 struct BulletedLines:View {
     let lines:[String]
     var body:some View {VStack(alignment:.leading,spacing:Metrics.tightGap){
