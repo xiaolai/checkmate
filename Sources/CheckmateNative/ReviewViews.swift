@@ -17,7 +17,7 @@ struct ReviewWorkspaceContent:View {
             Text(model.session.rules.history.isEmpty ? String(localized:"Play a move to review your current game. You can also drop a PGN file on the window.",bundle:.checkmate):String(localized:"You can also drop a PGN file on the window.",bundle:.checkmate)).font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.center)
         }.fixedSize(horizontal:false,vertical:true)
         GameLibraryBrowser(model:model,library:model.library).frame(maxHeight:.infinity)
-        Button("Return to Game"){model.returnToGame()}.buttonStyle(.borderless)
+        Button("Return to Game"){model.returnToGame()}.buttonStyle(.bordered)
     }.padding(Metrics.padding).frame(maxWidth:680).frame(maxWidth:.infinity,maxHeight:.infinity)}
     /// One primary way to start (Open PGN…) and the rest behind one menu, so the start never stacks four buttons (D-32).
     @ViewBuilder private var secondaryActions:some View {
@@ -46,7 +46,7 @@ struct ReviewDetailContent:View {
                 Spacer();Button("Delete",role:.destructive){do{try review.deleteBranch(branch.id);model.saveReview()}catch{model.storageError=userFacingMessage(error,fallback:String(localized:"This imagined line could not be deleted.",bundle:.checkmate))}}.controlSize(.small).accessibilityLabel("Delete idea: \(ReviewFormat.ideaLabel(d,branch))")}}}.padding(.top,Metrics.tightGap)}}
             ReviewVoiceSection(voice:voice,connect:{[weak model] in model?.connectVoiceFromSettings()})
             // The review control bar has no way back to the game, and the workspace hides it.
-            Button("Return to Game"){model.returnToGame()}.buttonStyle(.borderless)
+            Button("Return to Game"){model.returnToGame()}.buttonStyle(.bordered)
         }
     }.sheet(isPresented:$model.practiceForkRequested){ReviewPracticeSheet(model:model)}
     // A confirmation belongs to the review on screen; one left raised when the review closed must not reappear later.
