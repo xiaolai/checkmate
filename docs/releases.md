@@ -24,7 +24,7 @@ It drives the production voice coach against the live provider with no microphon
 at two efforts, a typed coach turn in English, Chinese and Spanish whose narration must be verified, a network game's
 hint, a mini-game review reading, a training game's coach turn, and a Settings voice preview. It costs a little provider usage, so it is never a gate. The report records the tree's source hashes,
 and `prepare-release.sh` refuses to package without a passing report for the same tree.
-Copy the evidence directory and the report to the build host, which never runs tests itself.
+When the build host is a different Mac from the test host, copy the evidence directory and the report to it.
 Then run from this checkout, naming that evidence directory and report on the build host:
 
 ```sh
@@ -67,8 +67,9 @@ network file, against a SHA-256 compiled into the app, and it uses the binary's 
 cached review analysis. The checkout's engine remains unmodified.
 
 Release notes must distinguish automated verification from human acceptance.
-Standard game review and its voice coach are available. Experimental quality labels and the beginner opponent remain
-opt-in until human review and novice play have been completed. The review voice coach is on by default from 0.7.7; how
+Standard game review and its voice coach are available. Review grades moves by default from 0.9.0, although no person
+has yet reviewed the grades; the beginner opponent remains opt-in until novice play has been completed. From 0.9.0 voice
+connects only after the learner agrees once; once connected, the review voice coach is on by default, as from 0.7.7. How
 it sounds in review has not yet been checked by a person listening.
 Do not mark those criteria passed merely because the release has been packaged.
 
