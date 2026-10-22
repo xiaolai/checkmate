@@ -17,7 +17,12 @@ enum ReviewFormat {
     }
     /// One line of the move list (R-8): a row of the main line, a recorded variation (`depth` 1 replaces a main-line
     /// move, 2 a move of a variation, and so on) or a kept idea, each under the row of the move it replaces.
-    enum Entry:Equatable {case row(MoveRow),line([Int],depth:Int),idea(ReviewBranch)}
+    enum Entry:Equatable,Identifiable {case row(MoveRow),line([Int],depth:Int),idea(ReviewBranch)
+        /// What the line shows, so its identity survives lines added above it: a row by its first move, a variation by
+        /// its first move (each move starts at most one), an idea by its own ID.
+        enum ID:Hashable {case row(Int),line(Int),idea(UUID)}
+        var id:ID {switch self{case .row(let row):return .row(row.white ?? row.black ?? -1);case .line(let ids,_):return .line(ids.first ?? -1);case .idea(let branch):return .idea(branch.id)}}
+    }
     @MainActor static func entries(_ d:GameDocument,ideas:[ReviewBranch])->[Entry] {
         // A variation runs along the record's first choices; the alternatives inside it, then the ideas played from its
         // positions, follow it. An idea from the end of a line follows that line too.
@@ -52,6 +57,18 @@ enum ReviewFormat {
         }
         if moves.count<branch.moves.count{moves.append("…")}
         return moves.isEmpty ? head:"\(head): \(moves.joined(separator:" "))"
+    }
+    /// An open imagined line's moves as the move list writes them, each numbered by its full move: "1… c5", "2. Nf3".
+    /// The list stops at a move that cannot be played.
+    static func ideaMoves(_ d:GameDocument,_ branch:ReviewBranch)->[String] {
+        guard let rules=try? d.snapshotRules(at:branch.root) else{return []};var moves:[String]=[]
+        for uci in branch.moves {guard let move=try? rules.move(uci:uci) else{break};moves.append("\(Int(move.before.split(separator:" ").last ?? "") ?? 1)\(move.color=="w" ? ".":"…") \(move.san)")}
+        return moves
+    }
+    /// The kept ideas' heading: "My imagined lines (3)". The limit is named only once it is near, "(95 of 100)", so a
+    /// learner is told before the oldest idea gives way rather than shown an internal number from the first idea.
+    static func ideaListTitle(count:Int)->String {
+        count>=ReviewPolicy.maximumBranches-10 ? String(localized:"My imagined lines (\(count) of \(ReviewPolicy.maximumBranches))",bundle:.checkmate,comment:"The kept imagined lines' heading near the limit: how many, of how many can be kept"):String(localized:"My imagined lines (\(count))",bundle:.checkmate,comment:"The kept imagined lines' heading: how many there are")
     }
     /// The header's opening (R-20): "D37 · Queen's Gambit Declined: Three Knights Variation", or nil before any named
     /// position, and the main-line move that leaves the book, nil while the game is still in it. Nil for a record the
@@ -367,18 +384,20 @@ struct ReviewMoveSection:View {
             if !key.isEmpty {
                 ViewThatFits(in:.horizontal){ForEach([5,4,3,2,1],id:\.self){count in HStack(spacing:Metrics.tightGap){ForEach(ReviewFormat.keyMoments(ranked,in:document,limit:count,engine:!moments.isEmpty),id:\.self){id in
                     Button(ReviewFormat.moveText(document.nodes[id])){select(id)}.buttonStyle(.bordered).controlSize(.small).accessibilityLabel("Key moment, \(ReviewFormat.moveLabel(document.nodes[id]))").help(reasons[id] ?? String(localized:"A check, capture, promotion or the final move",bundle:.checkmate))}}}}
-                Text(anyGrade ? String(localized:"?! inaccuracy · ? mistake · ?? blunder; estimates may change.",bundle:.checkmate,comment:"The move grades' glyphs and what they mean"):moments.isEmpty ? String(localized:"Checks, captures, promotions and the final move.",bundle:.checkmate):String(localized:"Moments to start with; estimates may change.",bundle:.checkmate)).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                Text(anyGrade ? String(localized:"?! inaccuracy · ? mistake · ?? blunder; estimates may change.",bundle:.checkmate,comment:"The move grades' glyphs and what they mean"):moments.isEmpty ? String(localized:"Checks, captures, promotions and the final move.",bundle:.checkmate):String(localized:"Moments to start with; estimates may change.",bundle:.checkmate)).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
             }
             let entries=ReviewFormat.entries(document,ideas:review.authoredBranches)
             ScrollViewReader{proxy in
-                ScrollView{LazyVStack(spacing:0){ForEach(Array(entries.enumerated()),id:\.offset){index,entry in
+                // Each line is identified by what it shows (`Entry.id`), never by its position: a sideline or an idea
+                // added above a row must not leave that row drawn twice.
+                ScrollView{LazyVStack(spacing:0){ForEach(Array(entries.enumerated()),id:\.element.id){index,entry in
                     switch entry {
                     case .row(let row):HStack(spacing:Metrics.tightGap){
                         Text("\(row.number).").monospacedDigit().foregroundStyle(.secondary).frame(width:34,alignment:.trailing)
                         cell(row.white,graded:graded,empty:row.white==nil && index==0 ? "…":"");cell(row.black,graded:graded,empty:"")
-                    }.frame(height:Self.rowHeight).id(index)
-                    case .line(let ids,let depth):variation(ids,depth:depth).id(index)
-                    case .idea(let branch):idea(branch).id(index)
+                    }.frame(height:Self.rowHeight).id(entry.id)
+                    case .line(let ids,let depth):variation(ids,depth:depth).id(entry.id)
+                    case .idea(let branch):idea(branch).id(entry.id)
                     }
                 }}.padding(.vertical,2)}
                 .frame(height:CGFloat(min(entries.count,Self.visibleRows))*Self.rowHeight+4)
@@ -390,8 +409,8 @@ struct ReviewMoveSection:View {
         .accessibilityRotor(String(localized:"Key Moments",bundle:.checkmate)){ForEach(key,id:\.self){id in AccessibilityRotorEntry(Text(verbatim:ReviewFormat.moveLabel(document.nodes[id])),id:id,in:rotor)}}}
     }
     private func scroll(_ proxy:ScrollViewProxy,_ entries:[ReviewFormat.Entry]){
-        let shown=entries.firstIndex{entry in switch entry{case .row(let row):return row.white==review.nodeID || row.black==review.nodeID;case .line(let ids,_):return ids.contains(review.nodeID);case .idea(let branch):return branch.id==review.branch?.id}}
-        guard let shown else{return};proxy.scrollTo(shown,anchor:.center)
+        let shown=entries.first{entry in switch entry{case .row(let row):return row.white==review.nodeID || row.black==review.nodeID;case .line(let ids,_):return ids.contains(review.nodeID);case .idea(let branch):return branch.id==review.branch?.id}}
+        guard let shown else{return};proxy.scrollTo(shown.id,anchor:.center)
     }
     /// A recorded variation, inline and indented by its depth; each move shows its position, and ↑/↓ reach it too.
     private func variation(_ ids:[Int],depth:Int)->some View {
@@ -440,7 +459,7 @@ struct ReviewPositionPanel:View {
             Text(verbatim:explanation?.title ?? document.title).sectionHeading().fixedSize(horizontal:false,vertical:true)
             if let summary=explanation?.summary,!summary.isEmpty{Text(verbatim:summary).fixedSize(horizontal:false,vertical:true)}
             if let note=explanation?.historyNote{Text(verbatim:note).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)}
-            if review.nodeID==0{ForEach(ReviewFormat.takeaways(explanation),id:\.self){item in HStack(alignment:.firstTextBaseline,spacing:6){Text("•").foregroundStyle(.secondary);Text(verbatim:item).fixedSize(horizontal:false,vertical:true)}}}
+            if review.nodeID==0{BulletedLines(lines:ReviewFormat.takeaways(explanation))}
             if review.branch==nil {
                 // The engine's grade of the move played (R-1), then the record's own comments on it (R-7).
                 if model.fairness.engineHelpAllowed,analyzer.batchDocument==document.id,let grade=analyzer.grade(review.nodeID),let loss=analyzer.losses[review.nodeID]{
