@@ -46,12 +46,15 @@ private struct SettingsForm:View {
         }
     }
     /// Whether the installed companion skill matches this version; read only, never written at launch.
-    private var skillNote:String? {
+    private var skillState:CompanionInstallation.SkillState? {
         guard let bundled=try? Data(contentsOf:NativeResources.url("companion-skill.md")) else{return nil}
-        switch CompanionInstallation.skillState(bundled:bundled) {
-        case .outdated:return String(localized:"The installed companion skill is from an older Checkmate. Choose Set Up Codex to update it.",bundle:.checkmate)
-        case .customized:return String(localized:"Your companion skill differs from this version’s and is kept as it is. To use this version’s, remove ~/.codex/skills/\(CompanionInstallation.skillName()), then choose Set Up Codex.",bundle:.checkmate)
-        case .notInstalled,.current:return nil
+        return CompanionInstallation.skillState(bundled:bundled)
+    }
+    private func skillNote(_ state:CompanionInstallation.SkillState?)->String? {
+        switch state {
+        case .outdated?:return String(localized:"The installed companion skill is from an older Checkmate. Choose Set Up Codex to update it.",bundle:.checkmate)
+        case .customized?:return String(localized:"Your companion skill differs from this version’s and is kept as it is. To use this version’s, remove ~/.codex/skills/\(CompanionInstallation.skillName()), then choose Set Up Codex.",bundle:.checkmate)
+        case .notInstalled?,.current?,nil:return nil
         }
     }
     private func setUpCodex() {
@@ -89,7 +92,9 @@ private struct SettingsForm:View {
             AboutPane(facts:about)
             Section{Toggle("Check for Updates Automatically",isOn:binding(\.checkForUpdates))} header:{Text("Updates")} footer:{Text("When this is on, Checkmate asks GitHub for the latest release each time it opens. Checkmate ▸ Check for Updates… asks at any time.").foregroundStyle(.secondary)}
         case .connections:
-            Section("Codex companion"){Button(companionSetupRunning ? String(localized:"Working…",bundle:.checkmate) : String(localized:"Set Up Codex",bundle:.checkmate)){setUpCodex()}.disabled(companionSetupRunning);Button("Remove Codex Setup…"){removeCodexSetup()}.disabled(companionSetupRunning);if !companionSetupStatus.isEmpty{Text(companionSetupStatus).foregroundStyle(.secondary);if let details=companionSetupDetails{DisclosureGroup("Details"){Text(details).font(.caption).textSelection(.enabled).fixedSize(horizontal:false,vertical:true)}}}else if let note=skillNote{Text(note).foregroundStyle(.secondary)};codexSetupNote;Text(companion.status);Toggle("Accept Codex connections at launch",isOn:binding(\.companionAutoStart));Toggle("Allow Codex connections",isOn:Binding(get:{companion.enabled},set:{on in if on{do{try companion.enable(role:session.state.settings.companionRole,standby:true)}catch{companion.disable()}}else{companion.disable()}}));Picker("Companion role",selection:binding(\.companionRole)){Text("Coach").tag("coach");Text("Opponent (Black)").tag("opponent")}.disabled(companion.enabled);if companion.connected{Button("Disconnect Companion"){companion.disconnectCurrentClient()}};if let error=companion.error{Text(error).foregroundStyle(.secondary)}}
+            // The switch for now comes first, then the preference for the next launch.
+            let skill=skillState
+            Section("Codex companion"){Button(companionSetupRunning ? String(localized:"Working…",bundle:.checkmate) : String(localized:"Set Up Codex",bundle:.checkmate)){setUpCodex()}.disabled(companionSetupRunning);if SettingsWindow.offersRemoval(setup:codexSetup,skill:skill){Button("Remove Codex Setup…"){removeCodexSetup()}.disabled(companionSetupRunning)};if !companionSetupStatus.isEmpty{Text(companionSetupStatus).foregroundStyle(.secondary);if let details=companionSetupDetails{DisclosureGroup("Details"){Text(details).font(.caption).textSelection(.enabled).fixedSize(horizontal:false,vertical:true)}}}else if let note=skillNote(skill){Text(note).foregroundStyle(.secondary)};codexSetupNote;Text(companion.status);Toggle("Allow Codex connections",isOn:Binding(get:{companion.enabled},set:{on in if on{do{try companion.enable(role:session.state.settings.companionRole,standby:true)}catch{companion.disable()}}else{companion.disable()}}));Toggle("Accept Codex connections at launch",isOn:binding(\.companionAutoStart));Picker("Companion role",selection:binding(\.companionRole)){Text("Coach").tag("coach");Text("Opponent (Black)").tag("opponent")}.disabled(companion.enabled);if companion.connected{Button("Disconnect Companion"){companion.disconnectCurrentClient()}};if let error=companion.error{Text(error).foregroundStyle(.secondary)}}
             Section {Text("The Codex companion is a Codex task on this Mac that can see your board, coach you, or play against you, using Checkmate’s chess tools. Set Up Codex adds Checkmate to Codex once; after that, Checkmate waits on this Mac for a Codex task to connect. While the voice coach is connected, Codex is asked to wait; disconnect voice to use the companion.").foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)}
         case .voice:
             VoiceSettingsContent(session:session,voice:voice,voiceAudio:voiceAudio,preview:preview,model:model)
@@ -128,6 +133,11 @@ private struct SettingsForm:View {
     var shownCategory:SettingsCategory? {selection.category}
     /// What to do after Set Up Codex, from whether connections are already allowed (V-14).
     nonisolated static func setupReady(connectionsAllowed:Bool,skill:String)->String {connectionsAllowed ? String(localized:"Ready. Start a new Codex task using $\(skill).",bundle:.checkmate):String(localized:"Ready. Turn on Allow Codex connections below, then start a new Codex task using $\(skill).",bundle:.checkmate)}
+    /// Remove Codex Setup is offered only when there is something to remove: Codex's registration of Checkmate (any
+    /// kind) or a companion skill. Nothing is known before Codex's configuration is read, or during automation.
+    nonisolated static func offersRemoval(setup:CompanionInstallation.SetupCheck?,skill:CompanionInstallation.SkillState?)->Bool {
+        setup?.registered==true || (skill.map{$0 != .notInstalled} ?? false)
+    }
     required init?(coder:NSCoder){fatalError()}
     func toolbarDefaultItemIdentifiers(_ t:NSToolbar)->[NSToolbarItem.Identifier]{[.flexibleSpace,titleID,.flexibleSpace]}
     func toolbarAllowedItemIdentifiers(_ t:NSToolbar)->[NSToolbarItem.Identifier]{toolbarDefaultItemIdentifiers(t)}
