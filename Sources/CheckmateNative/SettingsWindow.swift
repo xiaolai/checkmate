@@ -45,9 +45,10 @@ private struct SettingsForm:View {
             companionSetupRunning=false;model.refreshCodexSetup()
         }
     }
-    /// Whether the installed companion skill matches this version; read only, never written at launch.
+    /// Whether the installed companion skill matches this version; read only, never written at launch. Automation reads
+    /// no Codex state, the skill included, so what it shows does not depend on the Mac it runs on.
     private var skillState:CompanionInstallation.SkillState? {
-        guard let bundled=try? Data(contentsOf:NativeResources.url("companion-skill.md")) else{return nil}
+        guard !NativePolicy.silent,let bundled=try? Data(contentsOf:NativeResources.url("companion-skill.md")) else{return nil}
         return CompanionInstallation.skillState(bundled:bundled)
     }
     private func skillNote(_ state:CompanionInstallation.SkillState?)->String? {

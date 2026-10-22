@@ -294,8 +294,8 @@ try:
     if fixture:
         assert any(record["activity"] == "translation" for record in exported_usage["records"]), "Fixture usage export lost translation activity"
     subprocess.run(["screencapture", "-x", str(evidence / "usage-settings.png")], check=True)
-    # Codex setup explains itself instead of touching Codex in automation. Automation never reads Codex's
-    # configuration, so there is no setup to remove and Remove Codex Setup is not offered.
+    # Codex setup explains itself instead of touching Codex in automation. Automation reads neither Codex's
+    # configuration nor its skills folder, so there is no setup to remove and Remove Codex Setup is not offered.
     pointer("click", "Connections")
     wait(lambda: "Set Up Codex" in listing(), "The Connections settings row did not respond to a click")
     assert "Remove Codex Setup…" not in listing(), "Remove Codex Setup was offered with nothing set up"
