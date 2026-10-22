@@ -109,6 +109,23 @@ import CheckmateCore
         XCTAssertEqual(ReviewFormat.ideaLabel(d,idea(d.mainline[3],[])),"After 2…Nc6")
         XCTAssertEqual(ReviewFormat.ideaLabel(d,idea(d.mainline[3],["f1b5","a1a8"])),"After 2…Nc6: 3.Bb5 …","A move that cannot be played ends the list")
     }
+    /// An open imagined line's moves are numbered by full moves, as the main move list writes them: "1… e5", not "2. e5".
+    func testIdeaMovesAreNumberedByFullMoves() throws {
+        let d=try game("1. e4 e5 2. Nf3 Nc6 *")
+        func idea(_ root:Int,_ moves:[String])->ReviewBranch {var branch=ReviewBranch(root:root);branch.moves=moves;return branch}
+        XCTAssertEqual(ReviewFormat.ideaMoves(d,idea(d.mainline[0],["c7c5","g1f3","d7d6"])),["1… c5","2. Nf3","2… d6"])
+        XCTAssertEqual(ReviewFormat.ideaMoves(d,idea(0,["d2d4"])),["1. d4"])
+        XCTAssertEqual(ReviewFormat.ideaMoves(d,idea(d.mainline[3],["f1b5","a1a8","g1f3"])),["3. Bb5"],"a move that cannot be played ends the list")
+        let black=try game("[FEN \"4k3/4p3/8/8/8/8/4P3/4K3 b - - 0 17\"]\n[SetUp \"1\"]\n\n17... Kd7 *")
+        XCTAssertEqual(ReviewFormat.ideaMoves(black,idea(0,["e8f7","e1d2"])),["17… Kf7","18. Kd2"],"a set-up position keeps its own move numbers")
+    }
+    /// The kept ideas' heading shows the count, and the limit only once it is near.
+    func testIdeaListTitleNamesTheLimitOnlyNearIt() {
+        XCTAssertEqual(ReviewFormat.ideaListTitle(count:1),"My imagined lines (1)")
+        XCTAssertEqual(ReviewFormat.ideaListTitle(count:89),"My imagined lines (89)")
+        XCTAssertEqual(ReviewFormat.ideaListTitle(count:90),"My imagined lines (90 of \(ReviewPolicy.maximumBranches))")
+        XCTAssertEqual(ReviewFormat.ideaListTitle(count:ReviewPolicy.maximumBranches),"My imagined lines (100 of 100)")
+    }
     /// R-3: a cancelled analysis says how far it got.
     func testPartialAnalysisSaysHowFarItGot() {
         XCTAssertEqual(ReviewFormat.partialAnalysis(completed:12,total:40),"Analyzed 12 of 40 moves")

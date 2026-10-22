@@ -41,7 +41,7 @@ struct ReviewDetailContent:View {
             ReviewRetrySection(retry:model.reviewRetry,analyzer:analyzer,model:model,document:d)
             ReviewMoveSection(review:review,model:model,analyzer:analyzer,document:d)
             ReviewPositionPanel(review:review,model:model,analyzer:analyzer,document:d)
-            if !review.authoredBranches.isEmpty{DisclosureGroup("My imagined lines (\(review.authoredBranches.count) of \(ReviewPolicy.maximumBranches))"){VStack(alignment:.leading,spacing:Metrics.tightGap){ForEach(review.authoredBranches,id:\.id){branch in HStack{
+            if !review.authoredBranches.isEmpty{DisclosureGroup(ReviewFormat.ideaListTitle(count:review.authoredBranches.count)){VStack(alignment:.leading,spacing:Metrics.tightGap){ForEach(review.authoredBranches,id:\.id){branch in HStack{
                 Button(ReviewFormat.ideaLabel(d,branch)){do{try review.openSavedBranch(branch.id)}catch{model.storageError=userFacingMessage(error,fallback:String(localized:"This imagined line could not be opened.",bundle:.checkmate))}}.buttonStyle(.link)
                 Spacer();Button("Delete",role:.destructive){do{try review.deleteBranch(branch.id);model.saveReview()}catch{model.storageError=userFacingMessage(error,fallback:String(localized:"This imagined line could not be deleted.",bundle:.checkmate))}}.controlSize(.small).accessibilityLabel("Delete idea: \(ReviewFormat.ideaLabel(d,branch))")}}}.padding(.top,Metrics.tightGap)}}
             ReviewVoiceSection(voice:voice,connect:{[weak model] in model?.connectVoiceFromSettings()})
@@ -124,17 +124,18 @@ struct ReviewPracticeSheet:View {
     }.padding(Metrics.padding).frame(minWidth:Metrics.right)}
 }
 
-/// The open imagined line's moves; each one shows its position.
+/// The open imagined line's moves, numbered by full moves like the main move list; each one shows its position.
 struct IdeaMoves:View {
     @ObservedObject var review:ReviewController
     let branch:ReviewBranch,document:GameDocument
-    private var sans:[String] {guard let rules=try? document.snapshotRules(at:branch.root) else{return []};var result:[String]=[];for uci in branch.moves{guard let move=try? rules.move(uci:uci) else{break};result.append(move.san)};return result}
     var body:some View {
-        let moves=sans
+        let moves=ReviewFormat.ideaMoves(document,branch)
         if !moves.isEmpty {
             Text("Moves in this line").font(.subheadline.weight(.semibold))
-            ForEach(Array(moves.enumerated()),id:\.offset){index,san in
-                Button("\(index+1). \(san)"){review.seekBranch(index+1)}.buttonStyle(.plain).foregroundStyle(index+1==review.branchPly ? .primary:.secondary)
+            ForEach(Array(moves.enumerated()),id:\.offset){index,move in
+                // The spoken label keeps the move's place in the line; the SAN is the text after the move number.
+                let san=move.split(separator:" ",maxSplits:1).last.map(String.init) ?? move
+                Button(move){review.seekBranch(index+1)}.buttonStyle(.plain).foregroundStyle(index+1==review.branchPly ? .primary:.secondary)
                     .accessibilityLabel("Imagined move \(index+1), \(san)")
             }
         }

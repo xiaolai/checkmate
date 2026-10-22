@@ -58,6 +58,18 @@ enum ReviewFormat {
         if moves.count<branch.moves.count{moves.append("…")}
         return moves.isEmpty ? head:"\(head): \(moves.joined(separator:" "))"
     }
+    /// An open imagined line's moves as the move list writes them, each numbered by its full move: "1… c5", "2. Nf3".
+    /// The list stops at a move that cannot be played.
+    static func ideaMoves(_ d:GameDocument,_ branch:ReviewBranch)->[String] {
+        guard let rules=try? d.snapshotRules(at:branch.root) else{return []};var moves:[String]=[]
+        for uci in branch.moves {guard let move=try? rules.move(uci:uci) else{break};moves.append("\(Int(move.before.split(separator:" ").last ?? "") ?? 1)\(move.color=="w" ? ".":"…") \(move.san)")}
+        return moves
+    }
+    /// The kept ideas' heading: "My imagined lines (3)". The limit is named only once it is near, "(95 of 100)", so a
+    /// learner is told before the oldest idea gives way rather than shown an internal number from the first idea.
+    static func ideaListTitle(count:Int)->String {
+        count>=ReviewPolicy.maximumBranches-10 ? String(localized:"My imagined lines (\(count) of \(ReviewPolicy.maximumBranches))",bundle:.checkmate,comment:"The kept imagined lines' heading near the limit: how many, of how many can be kept"):String(localized:"My imagined lines (\(count))",bundle:.checkmate,comment:"The kept imagined lines' heading: how many there are")
+    }
     /// The header's opening (R-20): "D37 · Queen's Gambit Declined: Three Knights Variation", or nil before any named
     /// position, and the main-line move that leaves the book, nil while the game is still in it. Nil for a record the
     /// book has no position of. Kept per record content; a book that cannot be read is logged and names nothing.
