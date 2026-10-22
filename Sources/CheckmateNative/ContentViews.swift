@@ -147,7 +147,7 @@ struct DetailContent:View {
             if let e=p.evaluation {Text(e.comparison);Picker("Continuation",selection:Binding(get:{p.line},set:{line in Self.attempt(session){try session.previewAt(ply:0,line:line)}})){Text("Your move").tag("candidate");Text("Engine suggestion").tag("recommended")};Text((p.line=="candidate" ? e.candidateFrames:e.recommendedFrames).dropFirst().map(\.san).joined(separator:" · "));Button("Play My Move"){Self.attempt(session){try session.playCandidate()}}}
             if p.status == .analyzing{ProgressView("Comparing moves…")};if let error=p.error{Text(error).foregroundStyle(.secondary)}
         } else {
-            if session.explicitResumeRequired {Text("Game paused").sectionHeading(.title2.bold());Text(session.message);Text("Your game is paused because a saved review could not be restored.");Button("Return to Game"){model.resumeAfterFailedRestore()}}
+            if session.explicitResumeRequired {Text("Game paused").sectionHeading(.title2.bold());Text(session.message);Text("Your game is paused because a saved review could not be restored.");Button("Resume Game"){model.resumeAfterFailedRestore()}}
             // A finished game sums itself up and offers its review (B-7), without taking Return from the board or the coach.
             else if session.finished,let result=session.state.practice.ending?.result ?? session.rules.ending?.result {VStack(alignment:.leading,spacing:Metrics.smallGap){
                 Text(Self.practiceHeading(session)).sectionHeading(.title2.bold()).accessibilityIdentifier("practice-heading");Text(session.message)
@@ -266,7 +266,7 @@ struct StorageErrorBanner:View {
                 AppSymbol.warning.image.foregroundStyle(Color(nsColor:NativeColors.error)).accessibilityHidden(true)
                 Text(message).textSelection(.enabled).fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("storage-error-message")
                 Spacer(minLength:0)
-                if model.restoreResumePending {Button("Return to Game"){model.resumeAfterFailedRestore()}}
+                if model.restoreResumePending {Button("Resume Game"){model.resumeAfterFailedRestore()}}
                 if Self.offersProgressExport(message) {Button("Export Progress…"){model.exportState()}.accessibilityIdentifier("storage-error-export")}
                 Button("Dismiss"){model.dismissStorageError()}
             }

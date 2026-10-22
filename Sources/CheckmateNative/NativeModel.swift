@@ -76,10 +76,10 @@ import RealtimeConnection
     func dismissStorageError(){storageError=nil}
     /// True only while the session holds a practice reply after a failed saved-review restore. The session owns the
     /// gate (every reply entry point respects it); the banner, practice pane and bottom transport offer the explicit
-    /// "Return to Game"/"Resume Game" action. A new game, restore, import, fork or lesson clears it with the position.
+    /// "Resume Game" action. A new game, restore, import, fork or lesson clears it with the position.
     var restoreResumePending:Bool {session.explicitResumeRequired}
     static let failedRestoreMessage=String(localized:"The saved review could not be restored; its file is preserved.",bundle:.checkmate)
-    static let failedRestorePausedMessage=Sentences.join(failedRestoreMessage,String(localized:"Your game is paused. Choose Return to Game to continue.",bundle:.checkmate))
+    static let failedRestorePausedMessage=Sentences.join(failedRestoreMessage,String(localized:"Your game is paused. Choose Resume Game to continue.",bundle:.checkmate))
     func resumeAfterFailedRestore(){storageError=nil;practice()}
     init() throws {
         if !NativePolicy.silent {Task.detached{CodexSubscriptionClient.cleanAbandonedPrivateHomes()}}

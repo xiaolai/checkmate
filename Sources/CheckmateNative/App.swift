@@ -194,12 +194,12 @@ import CheckmateCore
             if model.session.busy || !model.restoreResumePending{failures.append("Restoring opponent settings resumed the held reply")}
             game.refresh();try? await game.capture(directory+"/restore-failure-paused.png")
             // Dismiss alone never resumes.
-            let restoreAX=await ax("restore-failure-paused",[["kind":"text","value":failureMessage],["kind":"enabled","title":"Return to Game","expected":true],["kind":"press","title":"Dismiss"]])
+            let restoreAX=await ax("restore-failure-paused",[["kind":"text","value":failureMessage],["kind":"enabled","title":"Resume Game","expected":true],["kind":"press","title":"Dismiss"]])
             try await Task.sleep(for:.milliseconds(700))
             let quietAfterDismiss = !model.session.busy && model.session.rules.history.count==failHistory && model.storageError==nil && game.errorBanner?.isHidden==true
             // The practice pane heading reflects the pause ("Game paused" replaces the game-state heading) and keeps its own Return to game.
             let leftWasOpen=game.desiredLeft,rightWasOpen=game.desiredRight;game.showDetails();game.refresh();try await Task.sleep(for:.milliseconds(900));try? await game.capture(directory+"/restore-failure-details.png")
-            let detailsAX=await ax("restore-failure-details",[["kind":"text","value":"Game paused"],["kind":"text","value":"Your game is paused because a saved review could not be restored."],["kind":"enabled","title":"Return to Game","expected":true]])
+            let detailsAX=await ax("restore-failure-details",[["kind":"text","value":"Game paused"],["kind":"text","value":"Your game is paused because a saved review could not be restored."],["kind":"enabled","title":"Resume Game","expected":true]])
             // Both drawers closed: recovery needs no drawer; the bottom transport's Resume game is pressed out of process.
             if game.desiredLeft{game.toggleLeft()};if game.desiredRight{game.toggleRight()};try await Task.sleep(for:.milliseconds(900));game.refresh();try? await game.capture(directory+"/restore-failure-drawers-closed.png")
             let drawersClosed = !game.desiredLeft && !game.desiredRight
@@ -218,7 +218,7 @@ import CheckmateCore
             model.dismissStorageError();try model.session.restorePrevious();model.session.cancelWork();model.session.state=savedState;model.session.emit(save:true)
             if model.session.state.practice.pgn != failPGN{failures.append("Scenario could not restore the practice game after the replacement check")}
             if leftWasOpen{game.toggleLeft()};if rightWasOpen{game.toggleRight()};try? await Task.sleep(for:.milliseconds(900))
-            let failedRestorePassed=blackToMove && quietAtFailure && stillQuiet && callbacksHeld && quietAfterDismiss && failureMessage.contains("Return to Game") && axPassed(restoreAX,0) && axPassed(restoreAX,1) && axPassed(restoreAX,2) && (0..<3).allSatisfy{axPassed(detailsAX,$0)} && drawersClosed && quietBeforeResume && axPassed(resumeAX,0) && axPassed(resumeAX,1) && resumedByExplicitAction && resumeCleared && replacementCleared && model.storageError==nil && game.errorBanner?.isHidden==true && model.session.mode == .practice && model.session.state.practice.pgn==failPGN
+            let failedRestorePassed=blackToMove && quietAtFailure && stillQuiet && callbacksHeld && quietAfterDismiss && failureMessage.contains("Resume Game") && axPassed(restoreAX,0) && axPassed(restoreAX,1) && axPassed(restoreAX,2) && (0..<3).allSatisfy{axPassed(detailsAX,$0)} && drawersClosed && quietBeforeResume && axPassed(resumeAX,0) && axPassed(resumeAX,1) && resumedByExplicitAction && resumeCleared && replacementCleared && model.storageError==nil && game.errorBanner?.isHidden==true && model.session.mode == .practice && model.session.state.practice.pgn==failPGN
             if !failedRestorePassed{failures.append("Failed saved-review restore started the opponent or lacked a rendered explicit resume (blackToMove=\(blackToMove) quiet=\(quietAtFailure) stillQuiet=\(stillQuiet) callbacksHeld=\(callbacksHeld) afterDismiss=\(quietAfterDismiss) drawersClosed=\(drawersClosed) resumed=\(resumedByExplicitAction) cleared=\(resumeCleared) replacement=\(replacementCleared) message=\(failureMessage))")}
             let docs=try PGNImporter.parse(Data("[Event \"Automation record\"]\n1. d4 d5 (1... Nf6) 2. c4 e6 *".utf8));model.openReview(docs[0]);try await Task.sleep(for:.milliseconds(850));game.refresh();let originalHash=model.review.document!.contentHash,boardWidth=game.board.boardRect.width
             let noReplyDuringReview = !model.session.busy && model.session.rules.history.count==1
