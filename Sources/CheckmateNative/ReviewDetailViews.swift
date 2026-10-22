@@ -372,7 +372,7 @@ struct ReviewMoveSection:View {
             if !key.isEmpty {
                 ViewThatFits(in:.horizontal){ForEach([5,4,3,2,1],id:\.self){count in HStack(spacing:Metrics.tightGap){ForEach(ReviewFormat.keyMoments(ranked,in:document,limit:count,engine:!moments.isEmpty),id:\.self){id in
                     Button(ReviewFormat.moveText(document.nodes[id])){select(id)}.buttonStyle(.bordered).controlSize(.small).accessibilityLabel("Key moment, \(ReviewFormat.moveLabel(document.nodes[id]))").help(reasons[id] ?? String(localized:"A check, capture, promotion or the final move",bundle:.checkmate))}}}}
-                Text(anyGrade ? String(localized:"?! inaccuracy · ? mistake · ?? blunder; estimates may change.",bundle:.checkmate,comment:"The move grades' glyphs and what they mean"):moments.isEmpty ? String(localized:"Checks, captures, promotions and the final move.",bundle:.checkmate):String(localized:"Moments to start with; estimates may change.",bundle:.checkmate)).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                Text(anyGrade ? String(localized:"?! inaccuracy · ? mistake · ?? blunder; estimates may change.",bundle:.checkmate,comment:"The move grades' glyphs and what they mean"):moments.isEmpty ? String(localized:"Checks, captures, promotions and the final move.",bundle:.checkmate):String(localized:"Moments to start with; estimates may change.",bundle:.checkmate)).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
             }
             let entries=ReviewFormat.entries(document,ideas:review.authoredBranches)
             ScrollViewReader{proxy in
