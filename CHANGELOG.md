@@ -1,3 +1,17 @@
+# Checkmate 0.9.2
+
+This release has no change a player can see. Checkmate now uses sayso 0.5.1, within the dependency range
+already declared. Nothing Checkmate links against it — CodexAuth, RealtimeConnection, SaidGuard, PCM16 — changed
+between 0.4.0 and 0.5.1: checked against sayso's own source history, not inferred from its changelog.
+
+Packaging gained CHECKMATE_SKIP_VERIFICATION_REASON, for a release proven not to touch runtime behaviour: it
+prints its reason instead of running silently, and prepare-release.sh still refuses a build that mutates tracked
+sources without it. This release uses it, for the reason above; automated acceptance and the live voice check
+did not run for this tree.
+
+The notary keychain profile is now remade from the untracked env file by scripts/notary-profile.sh when the
+login keychain loses it, checked with Apple before the build host builds.
+
 # Checkmate 0.9.1
 
 This release polishes what 0.9.0 added. An idea tried on the board is called an
