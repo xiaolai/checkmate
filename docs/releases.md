@@ -1,8 +1,8 @@
 # Checkmate releases
 
 `Version.env` owns the native version and monotonically increasing build number.
-Version 0.9.1 is build 30.
-Version 0.9.1 targets macOS 14+ with universal Apple Silicon and Intel binaries.
+Version 0.9.2 is build 31.
+Version 0.9.2 targets macOS 14+ with universal Apple Silicon and Intel binaries.
 Build tooling runs on the build host with Xcode 27; this is separate from the runtime target.
 Development and release builds use
 separate application identifiers and data directories.
@@ -26,6 +26,9 @@ It drives the production voice coach against the live provider with no microphon
 at two efforts, a typed coach turn in English, Chinese and Spanish whose narration must be verified, a network game's
 hint, a mini-game review reading, a training game's coach turn, and a Settings voice preview. It costs a little provider usage, so it is never a gate. The report records the tree's source hashes,
 and `prepare-release.sh` refuses to package without a passing report for the same tree.
+`CHECKMATE_SKIP_VERIFICATION_REASON`, set on both `release.sh` and `prepare-release.sh`, packages without either
+report: its reason is printed, never silent, and `prepare-release.sh` still refuses a build that mutates tracked
+sources. Reserve it for a tree that provably cannot change runtime behaviour.
 When the build host is a different Mac from the test host, copy the evidence directory and the report to it.
 Then run from this checkout, naming that evidence directory and report on the build host:
 

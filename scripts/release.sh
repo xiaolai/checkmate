@@ -8,18 +8,32 @@ cd "$(dirname "$0")/.."
 source Version.env
 host=${CHECKMATE_RELEASE_HOST:?Set CHECKMATE_RELEASE_HOST to the build-machine SSH alias}
 root=${CHECKMATE_RELEASE_ROOT:?Set CHECKMATE_RELEASE_ROOT to the remote repository root}
-evidence=${CHECKMATE_ACCEPTANCE_EVIDENCE:?Set CHECKMATE_ACCEPTANCE_EVIDENCE to the remote passing acceptance evidence directory}
-live=${CHECKMATE_LIVE_VOICE_REPORT:?Set CHECKMATE_LIVE_VOICE_REPORT to the remote passing scripts/live-voice.sh report}
-[[ "$host" =~ ^[a-zA-Z0-9._-]+$ && "$root" =~ ^/[a-zA-Z0-9/._-]+$ && "$evidence" =~ ^/[a-zA-Z0-9/._-]+$ ]] || exit 1
+# CHECKMATE_SKIP_VERIFICATION_REASON names why this tag needs neither acceptance nor live-voice evidence; the reason
+# is printed, never silent, and prepare-release.sh still refuses a build that mutates tracked sources.
+skip_reason=${CHECKMATE_SKIP_VERIFICATION_REASON:-}
+if [[ -n "$skip_reason" ]]; then
+    # Goes into a single-quoted remote command below; a quote, backtick or $ in the reason must not reach the shell.
+    safe_reason='^[A-Za-z0-9 .,:;/_()-]+$'
+    [[ "$skip_reason" =~ $safe_reason ]] || { echo "error: CHECKMATE_SKIP_VERIFICATION_REASON has characters a remote shell could misread; use plain words, digits and .,:;/_()- only" >&2; exit 1; }
+    echo "WARNING: releasing $CHECKMATE_VERSION without accepted acceptance or live-voice evidence: $skip_reason" >&2
+    evidence="" live=""
+    [[ "$host" =~ ^[a-zA-Z0-9._-]+$ && "$root" =~ ^/[a-zA-Z0-9/._-]+$ ]] || exit 1
+else
+    evidence=${CHECKMATE_ACCEPTANCE_EVIDENCE:?Set CHECKMATE_ACCEPTANCE_EVIDENCE to the remote passing acceptance evidence directory}
+    live=${CHECKMATE_LIVE_VOICE_REPORT:?Set CHECKMATE_LIVE_VOICE_REPORT to the remote passing scripts/live-voice.sh report}
+    [[ "$host" =~ ^[a-zA-Z0-9._-]+$ && "$root" =~ ^/[a-zA-Z0-9/._-]+$ && "$evidence" =~ ^/[a-zA-Z0-9/._-]+$ ]] || exit 1
+fi
 # A release is the tag v<version> exactly: a clean tree at that tag, accepted unchanged on the build host.
 [[ -z "$(git status --porcelain)" ]] || { echo "error: the working tree has uncommitted changes" >&2; exit 1; }
 commit=$(git rev-parse HEAD)
 [[ "$commit" == "$(git rev-parse "v$CHECKMATE_VERSION^{commit}" 2>/dev/null)" ]] || { echo "error: HEAD is not tag v$CHECKMATE_VERSION" >&2; exit 1; }
+if [[ -z "$skip_reason" ]]; then
 ssh "$host" "cat '$evidence/acceptance.json'" | python3 -c '
 import json,subprocess,sys
 accepted=json.load(sys.stdin)["sourceHashes"];local=json.loads(subprocess.check_output([sys.executable,"scripts/source-hashes.py","."],text=True))
 changed=sorted(k for k in accepted.keys()|local.keys() if accepted.get(k)!=local.get(k))
 assert not changed,f"The accepted tree differs from tag sources: {changed[:20]}"'
+fi
 CHECKMATE_NOTARY_PROFILE=${CHECKMATE_NOTARY_PROFILE:-chase-notary}
 identity=${CHECKMATE_SIGN_ID:-Developer ID Application: HANDO K.K. (Y53RSUA3SM)}
 readonly TRIES=5
@@ -62,7 +76,7 @@ notarize() {  # $1: the file to submit — a .zip of the app, or the .dmg
     note "notarised $(basename "$file")"
 }
 
-ssh "$host" "cd '$root' && CHECKMATE_SOURCE_COMMIT='$commit' CHECKMATE_ACCEPTANCE_EVIDENCE='$evidence' CHECKMATE_LIVE_VOICE_REPORT='$live' bash scripts/prepare-release.sh"
+ssh "$host" "cd '$root' && CHECKMATE_SOURCE_COMMIT='$commit' CHECKMATE_ACCEPTANCE_EVIDENCE='$evidence' CHECKMATE_LIVE_VOICE_REPORT='$live' CHECKMATE_SKIP_VERIFICATION_REASON='$skip_reason' bash scripts/prepare-release.sh"
 scp "$host:$root/build/release/Checkmate-$CHECKMATE_VERSION.zip" build/release/
 # Extract into a clean generated bundle; ditto merges with existing files.
 rm -rf build/release/Checkmate.app
