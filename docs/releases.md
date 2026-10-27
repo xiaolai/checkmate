@@ -25,10 +25,11 @@ On the test host, where Codex is signed in, also run `bash scripts/live-voice.sh
 It drives the production voice coach against the live provider with no microphone or speaker: scripted narration
 at two efforts, a typed coach turn in English, Chinese and Spanish whose narration must be verified, a network game's
 hint, a mini-game review reading, a training game's coach turn, and a Settings voice preview. It costs a little provider usage, so it is never a gate. The report records the tree's source hashes,
-and `prepare-release.sh` refuses to package without a passing report for the same tree.
-`CHECKMATE_SKIP_VERIFICATION_REASON`, set on both `release.sh` and `prepare-release.sh`, packages without either
-report: its reason is printed, never silent, and `prepare-release.sh` still refuses a build that mutates tracked
-sources. Reserve it for a tree that provably cannot change runtime behaviour.
+and `prepare-release.sh` checks a report it is given against the tree.
+Both are optional. When `CHECKMATE_ACCEPTANCE_EVIDENCE` or `CHECKMATE_LIVE_VOICE_REPORT` is not set, `release.sh` and
+`prepare-release.sh` print a warning naming what was not checked (never silent), `CHECKMATE_SKIP_VERIFICATION_REASON`
+adds why when set, and `prepare-release.sh` still refuses a build that mutates tracked sources. The release notes
+must then say which checks did not run.
 When the build host is a different Mac from the test host, copy the evidence directory and the report to it.
 Then run from this checkout, naming that evidence directory and report on the build host:
 

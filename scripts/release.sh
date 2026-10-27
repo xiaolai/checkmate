@@ -8,26 +8,23 @@ cd "$(dirname "$0")/.."
 source Version.env
 host=${CHECKMATE_RELEASE_HOST:?Set CHECKMATE_RELEASE_HOST to the build-machine SSH alias}
 root=${CHECKMATE_RELEASE_ROOT:?Set CHECKMATE_RELEASE_ROOT to the remote repository root}
-# CHECKMATE_SKIP_VERIFICATION_REASON names why this tag needs neither acceptance nor live-voice evidence; the reason
-# is printed, never silent, and prepare-release.sh still refuses a build that mutates tracked sources.
-skip_reason=${CHECKMATE_SKIP_VERIFICATION_REASON:-}
-if [[ -n "$skip_reason" ]]; then
-    # Goes into a single-quoted remote command below; a quote, backtick or $ in the reason must not reach the shell.
-    safe_reason='^[A-Za-z0-9 .,:;/_()-]+$'
-    [[ "$skip_reason" =~ $safe_reason ]] || { echo "error: CHECKMATE_SKIP_VERIFICATION_REASON has characters a remote shell could misread; use plain words, digits and .,:;/_()- only" >&2; exit 1; }
-    echo "WARNING: releasing $CHECKMATE_VERSION without accepted acceptance or live-voice evidence: $skip_reason" >&2
-    evidence="" live=""
-    [[ "$host" =~ ^[a-zA-Z0-9._-]+$ && "$root" =~ ^/[a-zA-Z0-9/._-]+$ ]] || exit 1
-else
-    evidence=${CHECKMATE_ACCEPTANCE_EVIDENCE:?Set CHECKMATE_ACCEPTANCE_EVIDENCE to the remote passing acceptance evidence directory}
-    live=${CHECKMATE_LIVE_VOICE_REPORT:?Set CHECKMATE_LIVE_VOICE_REPORT to the remote passing scripts/live-voice.sh report}
-    [[ "$host" =~ ^[a-zA-Z0-9._-]+$ && "$root" =~ ^/[a-zA-Z0-9/._-]+$ && "$evidence" =~ ^/[a-zA-Z0-9/._-]+$ ]] || exit 1
-fi
+# Acceptance evidence and the live-voice report are optional: each is checked when named and warned about when not,
+# so a release without them is never silent. CHECKMATE_SKIP_VERIFICATION_REASON, also optional, says why in the warning;
+# prepare-release.sh refuses a build that mutates tracked sources either way.
+evidence=${CHECKMATE_ACCEPTANCE_EVIDENCE:-} live=${CHECKMATE_LIVE_VOICE_REPORT:-} skip_reason=${CHECKMATE_SKIP_VERIFICATION_REASON:-}
+# These go into a single-quoted remote command below; a quote, backtick or $ in them must not reach the shell.
+safe_reason='^[A-Za-z0-9 .,:;/_()-]+$'
+[[ -z "$skip_reason" || "$skip_reason" =~ $safe_reason ]] || { echo "error: CHECKMATE_SKIP_VERIFICATION_REASON has characters a remote shell could misread; use plain words, digits and .,:;/_()- only" >&2; exit 1; }
+[[ "$host" =~ ^[a-zA-Z0-9._-]+$ && "$root" =~ ^/[a-zA-Z0-9/._-]+$ ]] || exit 1
+[[ -z "$evidence" || "$evidence" =~ ^/[a-zA-Z0-9/._-]+$ ]] || exit 1
+[[ -z "$live" || "$live" =~ ^/[a-zA-Z0-9/._-]+$ ]] || exit 1
+[[ -n "$evidence" ]] || echo "WARNING: releasing $CHECKMATE_VERSION without accepted acceptance evidence${skip_reason:+: $skip_reason}" >&2
+[[ -n "$live" ]] || echo "WARNING: releasing $CHECKMATE_VERSION without a live-voice report${skip_reason:+: $skip_reason}" >&2
 # A release is the tag v<version> exactly: a clean tree at that tag, accepted unchanged on the build host.
 [[ -z "$(git status --porcelain)" ]] || { echo "error: the working tree has uncommitted changes" >&2; exit 1; }
 commit=$(git rev-parse HEAD)
 [[ "$commit" == "$(git rev-parse "v$CHECKMATE_VERSION^{commit}" 2>/dev/null)" ]] || { echo "error: HEAD is not tag v$CHECKMATE_VERSION" >&2; exit 1; }
-if [[ -z "$skip_reason" ]]; then
+if [[ -n "$evidence" ]]; then
 ssh "$host" "cat '$evidence/acceptance.json'" | python3 scripts/source-hashes.py --compare /dev/stdin --key sourceHashes . \
     || { echo "error: The accepted tree differs from tag sources" >&2; exit 1; }
 fi

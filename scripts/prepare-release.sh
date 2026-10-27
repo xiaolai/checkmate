@@ -4,23 +4,23 @@ set -euo pipefail
 unset PYTHONOPTIMIZE
 cd "$(dirname "$0")/.."
 source Version.env
-# Package only a tree that passed acceptance unchanged (scripts/acceptance.sh writes acceptance.json last), unless
-# CHECKMATE_SKIP_VERIFICATION_REASON names why this tree needs neither: that reason is printed, never silent.
-skip_reason=${CHECKMATE_SKIP_VERIFICATION_REASON:-}
-if [[ -n "$skip_reason" ]]; then
-    safe_reason='^[A-Za-z0-9 .,:;/_()-]+$'
-    [[ "$skip_reason" =~ $safe_reason ]] || { echo "error: CHECKMATE_SKIP_VERIFICATION_REASON has characters a remote shell could misread; use plain words, digits and .,:;/_()- only" >&2; exit 1; }
-    echo "WARNING: packaging without accepted acceptance or live-voice evidence: $skip_reason" >&2
-    accepted_tree() { :; }
-    live_voice_tree() { :; }
-else
-    evidence=${CHECKMATE_ACCEPTANCE_EVIDENCE:?Set CHECKMATE_ACCEPTANCE_EVIDENCE to the passing acceptance evidence directory for this tree}
+# Acceptance evidence (scripts/acceptance.sh writes acceptance.json last, only when every gate passed on an unchanged
+# tree) and the live-voice report are each checked when named and warned about when not; the warning is never silent.
+# CHECKMATE_SKIP_VERIFICATION_REASON, optional, says why in it.
+evidence=${CHECKMATE_ACCEPTANCE_EVIDENCE:-} live=${CHECKMATE_LIVE_VOICE_REPORT:-} skip_reason=${CHECKMATE_SKIP_VERIFICATION_REASON:-}
+safe_reason='^[A-Za-z0-9 .,:;/_()-]+$'
+[[ -z "$skip_reason" || "$skip_reason" =~ $safe_reason ]] || { echo "error: CHECKMATE_SKIP_VERIFICATION_REASON has characters a remote shell could misread; use plain words, digits and .,:;/_()- only" >&2; exit 1; }
+if [[ -n "$evidence" ]]; then
     accepted_tree() {
     python3 scripts/source-hashes.py --compare "$evidence/acceptance.json" --key sourceHashes . \
         || { echo "error: The tree differs from the accepted acceptance run" >&2; return 1; }
     }
+else
+    echo "WARNING: packaging without accepted acceptance evidence${skip_reason:+: $skip_reason}" >&2
+    accepted_tree() { :; }
+fi
+if [[ -n "$live" ]]; then
     # The voice coach was exercised against the live provider for this same tree (scripts/live-voice.sh on the test host).
-    live=${CHECKMATE_LIVE_VOICE_REPORT:?Set CHECKMATE_LIVE_VOICE_REPORT to the passing scripts/live-voice.sh report for this tree}
     live_voice_tree() {
     # Called inside an && list, where set -e is off: each step must stop the function itself.
     python3 - "$live" <<'PY' || return 1
@@ -34,6 +34,9 @@ PY
     python3 scripts/source-hashes.py --compare "$live" --key sourceHashes . \
         || { echo "error: The tree differs from the live voice run" >&2; return 1; }
     }
+else
+    echo "WARNING: packaging without a live-voice report${skip_reason:+: $skip_reason}" >&2
+    live_voice_tree() { :; }
 fi
 # The release is built from a private snapshot (0700, this process only), checked against the accepted run before the
 # build and again after it: an edit to the working tree while it builds can neither reach nor slip past the binary.
@@ -43,11 +46,11 @@ rsync -a --exclude=/.git --exclude='/.build*' --exclude=/build --exclude=/eviden
 # With no evidence file to anchor against, skipped verification still must not let the build mutate tracked sources.
 baseline=$(mktemp)
 trap 'rm -rf "$snapshot" "$baseline"' EXIT
-[[ -z "$skip_reason" ]] || (cd "$snapshot" && python3 scripts/source-hashes.py .) > "$baseline"
+[[ -n "$evidence" ]] || (cd "$snapshot" && python3 scripts/source-hashes.py .) > "$baseline"
 (cd "$snapshot" && accepted_tree && live_voice_tree)
 (cd "$snapshot" && CHECKMATE_CONFIGURATION=release CHECKMATE_APP_NAME=Checkmate CHECKMATE_BUNDLE_ID=ai.xiaolai.checkmate bash build.sh)
 (cd "$snapshot" && accepted_tree)
-if [[ -n "$skip_reason" ]]; then
+if [[ -z "$evidence" ]]; then
     diff -q "$baseline" <(cd "$snapshot" && python3 scripts/source-hashes.py .) >/dev/null \
         || { echo "error: build.sh modified tracked sources" >&2; exit 1; }
 fi
