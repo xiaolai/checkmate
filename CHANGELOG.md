@@ -1,3 +1,25 @@
+# Checkmate 0.9.3
+
+This release tidies the code behind 0.9.2, with a few changes a player can notice. Mini-game review finds its
+proofs about four times faster, so the facts after a finished mini-game arrive sooner. The app hashes the engine's
+network file once per launch instead of once per engine, and decodes the bundled course once, so review, training
+and a network game start with less work. The opponent-strength picker uses the same names everywhere: "First Steps"
+and "Keep Custom Settings". A saved game's PGN tags no longer carry control characters.
+
+Nothing else is meant to differ. The pass shares one helper where modules had each written their own (hashing, JSON
+reading, private file writes, the rules engine's JavaScript calls, the training geometry tables), reuses rules
+instances instead of creating them, and gives the tests and the acceptance tooling the same treatment: one app-driver
+module behind the pointer gates, one scenario script behind four gates, one tree-hash comparison behind the runner
+and the release scripts.
+
+Automated verification: the full acceptance suite (24 gates, including every pointer and UI gate and the two-Mac
+network gate) passed on the test host for these sources before the version bump, in targeted runs during the work
+rather than one certified run, and the mini-game calibration was regenerated with an unchanged outcomes digest. The
+live voice check did not run for this release, which was packaged without acceptance evidence or a live-voice report
+(the release scripts now treat both as optional and warn when either is absent); the voice coach's changes (one speech-segment decoder, a single base64 decode, deferred setting changes) are
+verified by unit tests only. No person has reviewed the changes in play; the human-acceptance criteria noted for
+0.9.0 (review grades, the beginner opponent, how the voice coach sounds in review) are unchanged and still open.
+
 # Checkmate 0.9.2
 
 This release has no change a player can see. Checkmate now uses sayso 0.5.1, within the dependency range
