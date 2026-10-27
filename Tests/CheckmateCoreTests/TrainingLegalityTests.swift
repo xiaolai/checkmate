@@ -99,7 +99,7 @@ final class FailingChessRuntime:ChessScriptRuntime {
             let legality=try TrainingLegality(fen:try XCTUnwrap(scenario.fen))
             for move in scenario.expected?.moves ?? [] {
                 guard case .legal(let outcome)=try legality.grade(from:String(move.prefix(2)),to:String(move.dropFirst(2).prefix(2)),promotion:move.count==5 ? String(move.suffix(1)):nil) else{XCTFail("\(scenario.id): \(move) is not accepted");continue}
-                let after=try TrainingLegality(fen:outcome.after).board(),king=try XCTUnwrap(after.first{$0.value==scenario.learner+"k"}?.key)
+                let after=try TrainingLegality(fen:outcome.after).board(),king=try XCTUnwrap(TrainingGeometry.square(of:scenario.learner+"k",on:after))
                 XCTAssertTrue(TrainingGeometry.attackers(of:king,color:scenario.learner=="w" ? "b":"w",board:after).isEmpty,"\(scenario.id): \(move) leaves the king attacked")
             }
             for move in scenario.expected?.wrong ?? [] {
@@ -109,7 +109,7 @@ final class FailingChessRuntime:ChessScriptRuntime {
         for scenario in provider.scenarios(for:"king-safe-squares") {
             let legality=try TrainingLegality(fen:try XCTUnwrap(scenario.fen))
             XCTAssertEqual(try legality.kingDestinations(),Set(scenario.expected?.squares ?? []),scenario.id)
-            let board=try legality.board(),king=try XCTUnwrap(board.first{$0.value==scenario.learner+"k"}?.key)
+            let board=try legality.board(),king=try XCTUnwrap(TrainingGeometry.square(of:scenario.learner+"k",on:board))
             for square in TrainingGeometry.attacks(from:king,board:board) where board[square]?.first.map(String.init) != scenario.learner {
                 let accepted=(scenario.expected?.squares ?? []).contains(square)
                 if case .legal=try legality.grade(from:king,to:square,promotion:nil){XCTAssertTrue(accepted,"\(scenario.id): \(square) is legal but not in the answer")}else{XCTAssertFalse(accepted,"\(scenario.id): \(square) is in the answer but illegal")}

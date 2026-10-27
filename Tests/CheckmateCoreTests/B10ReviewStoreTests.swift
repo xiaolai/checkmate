@@ -12,7 +12,6 @@ import CheckmateCore
 /// B10 review findings RV2-6, RV2-8 and RV2-9: saved reviews survive a changed reader, the same game reopens its
 /// record, and imported comment text reaches an agent bounded and labeled as data.
 final class B10ReviewStoreTests:XCTestCase {
-    private func directory()->URL {FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)}
     /// Edits the stored record's JSON in place, standing in for a file written by an older importer or chess.js.
     private func rewrite(_ url:URL,_ edit:(inout [String:Any],inout [[String:Any]])throws->Void)throws -> Data {
         var object=try XCTUnwrap(JSONSerialization.jsonObject(with:Data(contentsOf:url)) as? [String:Any])
@@ -21,7 +20,7 @@ final class B10ReviewStoreTests:XCTestCase {
         let data=try JSONSerialization.data(withJSONObject:object);try data.write(to:url,options:.atomic);return data
     }
     func testATreeFromAnOlderReaderIsReadAgainKeepingCursorAndIdeas()throws {
-        let root=directory();defer{try? FileManager.default.removeItem(at:root)}
+        let root=try scratchDirectory()
         let store=ReviewStore(directory:root),document=try PGNImporter.parse(Data("1. e4 e5 2. Nf3 *".utf8))[0];var idea=ReviewBranch(root:1);idea.moves=["c7c5"]
         try store.save(document,cursor:2,branches:[idea])
         let url=store.documentURL(document.id),stale=try rewrite(url){_,nodes in nodes[1]["commentsAfter"]=["written by an older reader"]}
@@ -31,7 +30,7 @@ final class B10ReviewStoreTests:XCTestCase {
         XCTAssertEqual(try Data(contentsOf:url),stale,"Reading never rewrites the stored file")
     }
     func testIdeasThatNoLongerFitKeepTheFileAndAreReportedOnce()throws {
-        let root=directory();defer{try? FileManager.default.removeItem(at:root)}
+        let root=try scratchDirectory()
         let store=ReviewStore(directory:root),document=try PGNImporter.parse(Data("1. e4 *".utf8))[0],other=try PGNImporter.parse(Data("1. d4 *".utf8))[0]
         try store.save(document,cursor:1,branches:[])
         // The stored tree claims 1. d4 and holds an idea legal only there: Bf4 needs the d-pawn moved.
@@ -45,7 +44,7 @@ final class B10ReviewStoreTests:XCTestCase {
         XCTAssertEqual(try quarantined.map{try Data(contentsOf:$0)},[stale],"Moved aside byte for byte, never deleted")
     }
     func testASavedRecordIsFoundByItsTextAcrossRestarts()throws {
-        let root=directory();defer{try? FileManager.default.removeItem(at:root)}
+        let root=try scratchDirectory()
         let store=ReviewStore(directory:root),first=try PGNImporter.parse(Data("1. e4 *".utf8))[0],second=try PGNImporter.parse(Data("1. d4 *".utf8))[0]
         try store.save(first,cursor:0,branches:[]);try store.save(second,cursor:0,branches:[])
         let reopened=ReviewStore(directory:root)
@@ -56,13 +55,12 @@ final class B10ReviewStoreTests:XCTestCase {
 }
 
 @MainActor final class B10ReviewAgentTests:XCTestCase {
-    private func directory()->URL {FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)}
     private func tools(_ root:URL)throws -> (ReviewTools,ReviewController,GameSession,ReviewStore) {
         let session=try GameSession(engine:nil),review=ReviewController(),store=ReviewStore(directory:root);session.reviewController=review
         return (ReviewTools(review:review,session:session,store:store,analyzer:ReviewAnalyzer(engine:NativeEngine(executable:URL(fileURLWithPath:"/missing-engine")))),review,session,store)
     }
     func testTheSameGameOpenedAgainReopensItsRecordWithItsIdeas()async throws {
-        let root=directory();defer{try? FileManager.default.removeItem(at:root)}
+        let root=try scratchDirectory()
         let (adapter,review,session,store)=try tools(root),text="[Event \"Agent\"]\n1. e4 e5 *"
         let opened=try await adapter.call("open_review",args:["source":"paste","text":text]) as? [String:Any],id=try XCTUnwrap(opened?["documentId"] as? String)
         var idea=ReviewBranch(root:1);idea.moves=["c7c5"];try store.save(try XCTUnwrap(review.document),cursor:1,branches:[idea])
@@ -78,7 +76,7 @@ final class B10ReviewStoreTests:XCTestCase {
         XCTAssertEqual(afterRestart?["documentId"] as? String,id);XCTAssertEqual(try store.list().count,1,"One record, however often the agent opens it")
     }
     func testImportedCommentsReachTheAgentCappedAndLabeled()async throws {
-        let root=directory();defer{try? FileManager.default.removeItem(at:root)}
+        let root=try scratchDirectory()
         let (adapter,review,_,_)=try tools(root),long=String(repeating:"a",count:ReviewTools.maximumCommentScalars+500)
         _ = try await adapter.call("open_review",args:["source":"paste","text":"[Termination \"\(String(repeating:"t",count:1000))\"]\n{\(long)} 1. e4 {short} e5 *"])
         let document=try XCTUnwrap(review.document)

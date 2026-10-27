@@ -1,8 +1,10 @@
 /// Exact board geometry for recognition and movement exercises: no turn, check or legality rules.
 /// A ray stops at the first occupied square, which it still reaches; a pinned piece still attacks (plan rule 2).
 public enum TrainingGeometry {
-    static let straight=[(1,0),(-1,0),(0,1),(0,-1)],diagonal=[(1,1),(1,-1),(-1,1),(-1,-1)]
-    static let jumps=[(1,2),(2,1),(-1,2),(-2,1),(1,-2),(2,-1),(-1,-2),(-2,-1)]
+    public static let straight=[(1,0),(-1,0),(0,1),(0,-1)],diagonal=[(1,1),(1,-1),(-1,1),(-1,-1)]
+    public static let jumps=[(1,2),(2,1),(-1,2),(-2,1),(1,-2),(2,-1),(-1,-2),(-2,-1)]
+    /// The square `piece` stands on, such as a side's king; nil when it is not on the board.
+    public static func square(of piece:String,on board:Position)->String? {board.first{$0.value==piece}?.key}
     public static func coordinates(_ square:String)->(file:Int,rank:Int)? {guard ChessNotation.validSquare(square) else{return nil};return (Int(square.utf8.first!)-97,Int(square.utf8.last!)-49)}
     public static func square(_ file:Int,_ rank:Int)->String? {guard (0..<8).contains(file),(0..<8).contains(rank) else{return nil};return String(UnicodeScalar(UInt8(97+file)))+String(rank+1)}
     /// Squares the piece on `from` attacks (or defends) on `board`. Pawns attack diagonally forward only.

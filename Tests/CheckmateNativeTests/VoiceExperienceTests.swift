@@ -13,11 +13,9 @@ import CheckmateCore
 /// (V-6, V-27), Game menu items (V-20), VoiceOver announcements (V-21), plain usage numbers (V-16) and thinking levels
 /// (V-28). Silent: a voice double answers, and links are recorded instead of opened.
 @MainActor final class VoiceExperienceTests:XCTestCase {
-    private var directory:URL!
-    override func setUp(){directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);setenv("CHECKMATE_DATA_DIR",directory.path,1)}
-    override func tearDown(){unsetenv("CHECKMATE_DATA_DIR");try? FileManager.default.removeItem(at:directory)}
+    override func setUpWithError()throws{try isolateDataDirectory()}
     private func model()throws->NativeModel {let model=try NativeModel();model.askVoiceConsent={_,reply in reply(.connect(autoConnect:false))};return model}
-    private func waitFor(_ what:String,_ condition:()->Bool)async throws {for _ in 0..<300 {if condition(){return};try await Task.sleep(for:.milliseconds(10))};XCTFail(what)}
+    private func waitFor(_ what:String,_ condition:()->Bool)async throws {try await poll(what,tries:300,every:.milliseconds(10),condition)}
 
     /// Every action a failure offers goes to one place: System Settings, the Codex page, a Settings pane, or a retry.
     func testEveryActionOpensItsPlace()throws {

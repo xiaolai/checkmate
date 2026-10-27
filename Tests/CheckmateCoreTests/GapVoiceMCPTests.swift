@@ -1,6 +1,5 @@
 import CheckmateTestSupport
 import XCTest
-import CryptoKit
 import CheckmateCore
 @testable import CheckmateDomain
 @testable import CheckmateSupport
@@ -17,8 +16,7 @@ import CheckmateCore
 @MainActor final class GapVoiceMCPTests:XCTestCase {
     private let denied=VoiceFailure.microphoneDenied.cause
     private func count(_ events:[[String:Any]],_ type:String)->Int {events.filter{$0["type"] as? String==type}.count}
-    private func code(_ error:Error)->String? {(CompanionBroker.failure(error)["error"] as? [String:Any])?["code"] as? String}
-    private func until(_ condition:()->Bool)async {for _ in 0..<2000 where !condition(){await Task.yield()}}
+    private func until(_ condition:()->Bool)async {await pollQuietly(tries:2000,every:.zero,condition)}
     /// A silently connected coach (quiet mode, so nothing is requested until the learner speaks).
     private func connected(microphone:Bool=true,mode:String="quiet",lease:Bool=true)throws -> (GameSession,VoiceCoach,() -> [[String:Any]]) {
         let s=try GameSession(engine:nil);s.state.settings.coachingMode=mode;s.state.settings.voiceMicrophone=microphone
@@ -99,7 +97,7 @@ import CheckmateCore
     func testDisconnectForgetsTheLearnersSpokenTurn()async throws {
         let (s,v,_)=try connected();s.state.settings.voiceAssistMoves=true;v.receive(["type":"input_audio_buffer.committed"])
         v.disconnect();_ = try s.openVoice();v.receive(["type":"session.updated"])
-        do{_ = try await v.execute("play_requested_move",args:["positionId":s.positionId,"from":"e2","to":"e4"],id:"stale");XCTFail("A spoken request from the old session played a move")}catch{XCTAssertEqual(code(error),"ROLE_FORBIDDEN")}
+        do{_ = try await v.execute("play_requested_move",args:["positionId":s.positionId,"from":"e2","to":"e4"],id:"stale");XCTFail("A spoken request from the old session played a move")}catch{XCTAssertEqual(protocolCode(error),"ROLE_FORBIDDEN")}
         XCTAssertTrue(s.rules.history.isEmpty)
         v.receive(["type":"input_audio_buffer.committed"])
         _ = try await v.execute("play_requested_move",args:["positionId":s.positionId,"from":"e2","to":"e4"],id:"fresh")
@@ -143,17 +141,8 @@ import CheckmateCore
     }
 
     // VC2-4: one companion engine request at a time, and never while Stockfish chooses the opponent's move.
-    @MainActor final class CountingEngine:TestEngineService {
-        var active=0,peak=0,calls=0,gated=false,waiting:[CheckedContinuation<Void,Never>]=[]
-        func analyze(fen:String,skill:Int,budget:Int,multiPv:Int)async throws -> EngineAnalysis {
-            calls+=1;active+=1;peak=max(peak,active);defer{active-=1}
-            if gated{await withCheckedContinuation{waiting.append($0)}}
-            let move=try ChessRules(fen:fen).moves().first!;return EngineAnalysis(bestMove:move.uci,lines:[AnalysisLine(depth:1,multiPv:1,score:AnalysisScore(kind:"cp",value:0),pv:[move.uci],san:[])])
-        }
-        func releaseAll(){let all=waiting;waiting=[];all.forEach{$0.resume()}}
-    }
     func testCompanionAnalysesNeverOverlapOnTheEngineAndTheOpponentStillReplies()async throws {
-        let engine=CountingEngine(),s=try GameSession(engine:engine),tools=try CompanionTools(session:s)
+        let engine=GatedCountingEngine(),s=try GameSession(engine:engine),tools=try CompanionTools(session:s)
         var settings=s.state.settings;settings.coachingMode="on_request";s.updateSettings(settings);s.setConnection(enabled:true,role:"coach",lease:"fixture")
         func analysis()->[String:Any] {["sessionId":s.sessionId,"revision":s.revision]}
         func preview()->[String:Any] {["sessionId":s.sessionId,"revision":s.revision,"from":"e2","to":"e4"]}
@@ -162,7 +151,7 @@ import CheckmateCore
         /// Runs a call that must be refused; a call that reaches the gated engine instead fails and is released, never hangs.
         func refused(_ name:String,_ args:[String:Any])async {
             var outcome:String?;let reached=engine.calls
-            let call=Task{do{_ = try await tools.call(name,args:args,lease:"fixture");outcome="returned"}catch{outcome=code(error) ?? "\(error)"}}
+            let call=Task{do{_ = try await tools.call(name,args:args,lease:"fixture");outcome="returned"}catch{outcome=protocolCode(error) ?? "\(error)"}}
             await until{outcome != nil || engine.calls>reached}
             if engine.calls>reached{XCTFail("\(name) reached the engine while another search was running");engine.gated=false;engine.releaseAll()}
             await call.value;XCTAssertEqual(outcome,"BUSY",name)
@@ -200,11 +189,10 @@ import CheckmateCore
     private func home()throws -> URL {let root=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true);addTeardownBlock{try? FileManager.default.removeItem(at:root)};return root}
     private let tool=URL(fileURLWithPath:"/usr/bin/true")
     private func folder(_ root:URL)->URL {CompanionInstallation.skillFolder(home:root)}
-    private func hex(_ data:Data)->String {SHA256.hash(data:data).map{String(format:"%02x",$0)}.joined()}
     func testTheMarkerRecordsTheHashOfTheSkillCheckmateWrote()throws {
         let root=try home(),v1=Data("v1 skill".utf8),v2=Data("v2 skill".utf8),marker=folder(root).appendingPathComponent(".checkmate-installed.sha256")
-        try CompanionInstallation.register(executable:tool,codex:tool,skill:v1,home:root);XCTAssertEqual(try String(contentsOf:marker,encoding:.utf8),hex(v1))
-        try CompanionInstallation.register(executable:tool,codex:tool,skill:v2,home:root);XCTAssertEqual(try String(contentsOf:marker,encoding:.utf8),hex(v2),"An update records the new hash, so the next upgrade is recognised too")
+        try CompanionInstallation.register(executable:tool,codex:tool,skill:v1,home:root);XCTAssertEqual(try String(contentsOf:marker,encoding:.utf8),reviewHash(v1))
+        try CompanionInstallation.register(executable:tool,codex:tool,skill:v2,home:root);XCTAssertEqual(try String(contentsOf:marker,encoding:.utf8),reviewHash(v2),"An update records the new hash, so the next upgrade is recognised too")
     }
     func testACurrentSkillIsLeftUntouched()throws {
         let root=try home(),skill=Data("v1 skill".utf8),file=folder(root).appendingPathComponent("SKILL.md")
@@ -217,11 +205,11 @@ import CheckmateCore
         let root=try home(),file=folder(root).appendingPathComponent("SKILL.md"),marker=folder(root).appendingPathComponent(".checkmate-installed.sha256")
         try FileManager.default.createDirectory(at:folder(root),withIntermediateDirectories:true);try Data("old skill".utf8).write(to:file)
         XCTAssertEqual(CompanionInstallation.skillState(bundled:Data("new skill".utf8),home:root),.customized,"Without a record, the copy may hold the learner's edits")
-        try Data(hex(Data("something else".utf8)).utf8).write(to:marker)
+        try Data(reviewHash(Data("something else".utf8)).utf8).write(to:marker)
         XCTAssertEqual(try CompanionInstallation.register(executable:tool,codex:tool,skill:Data("new skill".utf8),home:root),.customized)
         XCTAssertEqual(try String(contentsOf:file,encoding:.utf8),"old skill","A copy that differs from what Checkmate wrote is never overwritten")
         XCTAssertEqual(try CompanionInstallation.unregister(codex:tool,home:root,bundledSkill:Data("new skill".utf8)),.kept);XCTAssertTrue(FileManager.default.fileExists(atPath:file.path))
-        try Data((hex(Data("old skill".utf8))+"\n").utf8).write(to:marker)
+        try Data((reviewHash(Data("old skill".utf8))+"\n").utf8).write(to:marker)
         XCTAssertEqual(CompanionInstallation.skillState(bundled:Data("new skill".utf8),home:root),.outdated,"A matching record, even with a trailing newline, marks Checkmate's own older copy")
         XCTAssertEqual(try CompanionInstallation.unregister(codex:tool,home:root,bundledSkill:Data("new skill".utf8)),.removed,"Checkmate's own outdated copy is removed with the setup");XCTAssertFalse(FileManager.default.fileExists(atPath:folder(root).path))
     }

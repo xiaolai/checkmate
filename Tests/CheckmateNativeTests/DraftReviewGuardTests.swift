@@ -5,9 +5,7 @@ import CheckmateCore
 /// A draft review holding the learner's imagined lines is never closed without an answer: Save keeps it,
 /// Don't Save discards it after asking once, Cancel keeps the learner where they are.
 @MainActor final class DraftReviewGuardTests:XCTestCase {
-    private var directory:URL!
-    override func setUp(){directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);setenv("CHECKMATE_DATA_DIR",directory.path,1)}
-    override func tearDown(){unsetenv("CHECKMATE_DATA_DIR");try? FileManager.default.removeItem(at:directory)}
+    override func setUpWithError()throws{try isolateDataDirectory()}
     private func draftWithIdea(_ model:NativeModel)throws -> GameDocument {
         let document=try PGNImporter.parse(Data("1. e4 e5 *".utf8))[0]
         model.openReview(document,draft:true);try model.review.select(1);try model.review.beginBranch();try model.review.playBranch("c7c5")
@@ -65,9 +63,7 @@ import CheckmateCore
 /// Already in practice, Resume game after a failed saved-review restore must still release the held reply:
 /// practice() keeps the position and presentation there, so it releases the hold explicitly.
 @MainActor final class FailedRestoreResumeTests:XCTestCase {
-    private var directory:URL!
-    override func setUp(){directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);setenv("CHECKMATE_DATA_DIR",directory.path,1)}
-    override func tearDown(){unsetenv("CHECKMATE_DATA_DIR");try? FileManager.default.removeItem(at:directory)}
+    override func setUpWithError()throws{try isolateDataDirectory()}
     func testResumeReleasesTheHeldReplyWithoutResettingThePosition()throws {
         let model=try NativeModel();defer{model.shutdown()}
         model.session.newGame(side:"w");try model.session.rules.restore("1. e4 *")
@@ -95,9 +91,7 @@ import CheckmateCore
 /// Leaving a review saves it once: the state that closing re-queues is the one just written, so nothing stays pending
 /// (a stranded snapshot outranked the review's file when it was reopened and was never written by itself).
 @MainActor final class FlushedReviewTests:XCTestCase {
-    private var directory:URL!
-    override func setUp(){directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);setenv("CHECKMATE_DATA_DIR",directory.path,1)}
-    override func tearDown(){unsetenv("CHECKMATE_DATA_DIR");try? FileManager.default.removeItem(at:directory)}
+    override func setUpWithError()throws{try isolateDataDirectory()}
     func testLeavingAReviewLeavesNothingPending()throws {
         let model=try NativeModel();defer{model.shutdown()}
         for leave in [{model.returnToGame()},{model.lesson(0);model.practice();return true}] as [()->Bool] {

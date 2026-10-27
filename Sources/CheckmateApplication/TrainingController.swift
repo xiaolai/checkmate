@@ -129,27 +129,28 @@ public struct PreparedTrainingExercise {
     /// Stages one named curated scenario, such as an existing game's normal-chess bridge.
     public func prepare(scenario id:String)throws -> PreparedTrainingExercise {
         guard let provider,let scenario=provider.scenario(id),let definition=provider.catalog.entry(scenario.entry) else{throw CheckmateError.unavailable(contentError ?? String(localized:"This exercise is not available.",bundle:.checkmate))}
-        guard TrainingTools.offered(definition) else{throw CheckmateError.unavailable(String(localized:"This training entry is not offered yet.",bundle:.checkmate))}
-        guard session.state.trainingWritable else{throw CheckmateError.unavailable(String(localized:"Training progress is read-only until its saved record is recovered.",bundle:.checkmate))}
-        try TrainingValidationService.validate(scenario,definition:definition,runtimeFactory:runtimeFactory)
-        let seen=Set(training.summaries[definition.id]?.clusters ?? [])
-        return PreparedTrainingExercise(definition:definition,scenario:scenario,freshness:seen.contains(scenario.cluster) ? .repeat:.new,legality:try legality(for:scenario),resumed:nil)
+        let rules=try admit(scenario,definition:definition,requireWritable:true),seen=Set(training.summaries[definition.id]?.clusters ?? [])
+        return PreparedTrainingExercise(definition:definition,scenario:scenario,freshness:seen.contains(scenario.cluster) ? .repeat:.new,legality:rules,resumed:nil)
     }
     /// Stages the saved unfinished exercise: its concrete scenario is revalidated and its actions replayed first.
     public func prepareResume()throws -> PreparedTrainingExercise {
         guard let snapshot=resumable,let provider,let definition=provider.catalog.entry(snapshot.entry) else{throw CheckmateError.unavailable(String(localized:"There is no saved exercise to continue.",bundle:.checkmate))}
-        guard TrainingTools.offered(definition) else{throw CheckmateError.unavailable(String(localized:"This training entry is not offered yet.",bundle:.checkmate))}
-        try TrainingValidationService.validate(snapshot.scenario,definition:definition,runtimeFactory:runtimeFactory)
-        let rules=try legality(for:snapshot.scenario)
+        let rules=try admit(snapshot.scenario,definition:definition,requireWritable:false)
         let exercise=try replay(snapshot,definition:definition,legality:rules)
         return PreparedTrainingExercise(definition:definition,scenario:snapshot.scenario,freshness:TrainingFreshness(rawValue:snapshot.freshness) ?? .new,legality:rules,resumed:PreparedTrainingExercise.Resumption(source:snapshot,exercise:exercise))
     }
     /// Stages a queued board for another try: practice, never new first-try evidence.
     public func prepareRetry(id:String)throws -> PreparedTrainingExercise {
         guard session.state.trainingWritable,let item=training.retryQueue.first(where:{$0.id==id}),let provider,let definition=provider.catalog.entry(item.entry) else{throw CheckmateError.unavailable(String(localized:"This suggestion is no longer available.",bundle:.checkmate))}
+        return PreparedTrainingExercise(definition:definition,scenario:item.scenario,freshness:.repeat,legality:try admit(item.scenario,definition:definition,requireWritable:false),resumed:nil,retry:true)
+    }
+    /// A named, resumed or retried exercise's admission, in order: its entry is offered, training records are writable
+    /// (unless the caller already required it), its scenario validates. Returns its legality.
+    private func admit(_ scenario:TrainingScenario,definition:TrainingEntryDefinition,requireWritable:Bool)throws -> TrainingLegality? {
         guard TrainingTools.offered(definition) else{throw CheckmateError.unavailable(String(localized:"This training entry is not offered yet.",bundle:.checkmate))}
-        try TrainingValidationService.validate(item.scenario,definition:definition,runtimeFactory:runtimeFactory)
-        return PreparedTrainingExercise(definition:definition,scenario:item.scenario,freshness:.repeat,legality:try legality(for:item.scenario),resumed:nil,retry:true)
+        guard !requireWritable || session.state.trainingWritable else{throw CheckmateError.unavailable(String(localized:"Training progress is read-only until its saved record is recovered.",bundle:.checkmate))}
+        try TrainingValidationService.validate(scenario,definition:definition,runtimeFactory:runtimeFactory)
+        return try legality(for:scenario)
     }
     /// Retry suggestions, due ones first, each explaining why and when.
     public var suggestions:[TrainingRecommendation.Suggestion] {TrainingRecommendation.suggestions(in:training,now:now(),calendar:calendar)}
@@ -226,8 +227,8 @@ public struct PreparedTrainingExercise {
         var path=state.scenario.drill.map{[$0.initial]} ?? []
         for action in snapshot.actions {
             switch action {
-            case .move(let from,let to,let promotion) where state.task == .game:try replayGameMove(&state,uci:from+to+(promotion ?? ""))
-            case .reply(let move) where state.task == .game:try replayGameReply(&state,move)
+            case .move(let from,let to,let promotion) where state.task == .game:try replayGamePly(&state,uci:from+to+(promotion ?? ""),learner:true)
+            case .reply(let move) where state.task == .game:try replayGamePly(&state,uci:move,learner:false)
             case .undo where state.task == .game:try replayGameUndo(&state)
             case .move(let from,let to,let promotion) where state.scenario.check != nil:try replayMove(&state,uci:from+to+(promotion ?? ""))
             case .move,.undo:
@@ -409,7 +410,7 @@ public struct PreparedTrainingExercise {
             case .reachTarget:if let drill=state.scenario.drill,let current=state.drillState,let distance=drill.distance(from:current){state.hintText=String(localized:"The shortest route from here takes \(distance) more moves.",bundle:.checkmate)}
             case .findAttackers,.findDefenders,.kingSafeSquares:let count=try correctSquares(state).count;state.hintText=count==0 ? String(localized:"Think carefully: is there any at all?",bundle:.checkmate):String(localized:"There are \(count) to find.",bundle:.checkmate,comment:"A hint: how many squares the learner still has to find")
             case .mateInOne:if let from=try state.legality?.matingMoves().sorted().first.map({String($0.prefix(2))}){state.hintSquares=[from];state.hintText=String(localized:"The highlighted piece can give checkmate.",bundle:.checkmate)}
-            case .escapeCheck:if let legality=state.legality{let board=try legality.board(),turn=try legality.turn();if let king=board.first(where:{$0.value==turn+"k"})?.key{state.hintSquares=TrainingGeometry.attackers(of:king,color:turn=="w" ? "b":"w",board:board).sorted();state.hintText=String(localized:"The highlighted piece is giving check: move away, block the line, or capture it.",bundle:.checkmate)}}
+            case .escapeCheck:if let legality=state.legality{let board=try legality.board(),turn=try legality.turn();if let king=TrainingGeometry.square(of:turn+"k",on:board){state.hintSquares=TrainingGeometry.attackers(of:king,color:turn=="w" ? "b":"w",board:board).sorted();state.hintText=String(localized:"The highlighted piece is giving check: move away, block the line, or capture it.",bundle:.checkmate)}}
             case .classifyStatus:if let legality=state.legality{state.hintText=try legality.status() == .check || legality.status() == .checkmate ? String(localized:"The king to move is attacked right now.",bundle:.checkmate):String(localized:"The king to move is not attacked right now.",bundle:.checkmate)}
             default:state.hintText=state.scenario.hints.dropFirst().first ?? state.hintText;state.hintSquares=state.node==0 ? state.scenario.focus ?? []:[]
             }
@@ -500,21 +501,22 @@ public struct PreparedTrainingExercise {
     /// the learner is told. Returns whether it was saved.
     @discardableResult func save(_ candidate:Exercise)->Bool {
         let writable=session.state.trainingWritable
-        guard let snapshot=Self.nextSaved(candidate.snapshot,in:training,writable:writable) else{refuse(String(localized:"This attempt has grown too long to save, so that was not recorded. Finish it, or start again.",bundle:.checkmate));return false}
-        var state=candidate;state.snapshot=snapshot
+        guard let saved=Self.nextSaved(candidate.snapshot,in:training,writable:writable) else{refuse(String(localized:"This attempt has grown too long to save, so that was not recorded. Finish it, or start again.",bundle:.checkmate));return false}
+        var state=candidate;state.snapshot=saved.snapshot
         // A newer version's attempt keeps the active slot: this one is shown and finished, but not saved for Continue.
-        if writable,training.newerActive==nil{var record=training;record.active=state.snapshot;TrainingStore.prune(&record);session.state.training=record}
+        if training.newerActive==nil,let record=saved.record{session.state.training=record}
         exercise=state;publish();session.emit(semantic:false,save:true);return true
     }
     /// `snapshot` as the next save writes it (its revision advanced), or nil when no save may write it: more actions
     /// than are kept, a revision past the bound the loader accepts, or, where training is writable, an attempt that no
     /// longer fits `record`'s storage budget. The one rule `save` applies and `stage` checks ahead of `begin(staged:)`,
-    /// so a staged exercise's first save is never refused.
+    /// so a staged exercise's first save is never refused. Where writable, `record` comes back pruned with it as `fits` left it.
     /// Every save stamps the frozen opponent's witness with the revision it writes (mini-game plan D4).
-    static func nextSaved(_ snapshot:TrainingSessionSnapshot,in record:TrainingState,writable:Bool)->TrainingSessionSnapshot? {
+    static func nextSaved(_ snapshot:TrainingSessionSnapshot,in record:TrainingState,writable:Bool)->(snapshot:TrainingSessionSnapshot,record:TrainingState?)? {
         var next=snapshot;next.revision+=1;next.opponent?.witness=next.revision
-        guard next.actions.count<=maximumSavedActions,next.revision<=TrainingState.maximumCount,!writable || TrainingStore.fits(next,in:record) else{return nil}
-        return next
+        guard next.actions.count<=maximumSavedActions,next.revision<=TrainingState.maximumCount else{return nil}
+        guard writable else{return (next,nil)};guard let pruned=TrainingStore.fits(next,in:record) else{return nil}
+        return (next,pruned)
     }
     /// Says why something could not be done, on the exercise shown or else in the library. Nothing else changes.
     func refuse(_ message:String){notice=message;if showing,var shown=exercise{shown.feedback=message;exercise=shown};publish()}

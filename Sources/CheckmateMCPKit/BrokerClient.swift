@@ -1,6 +1,5 @@
 import Foundation
 import Darwin
-import CoreFoundation
 import CheckmateCore
 
 /// Only the app-owned, private loopback endpoint is accepted. Never follow redirects.
@@ -29,7 +28,7 @@ public struct Discovery: Sendable {
         let count = Darwin.read(descriptor, &bytes, bytes.count)
         guard count > 0, count <= 4096,
               let object = try JSONSerialization.jsonObject(with: Data(bytes.prefix(count))) as? [String: Any] else { throw ProtocolFailure("APP_NOT_READY") }
-        guard let version = object["schemaVersion"] as? NSNumber, CFGetTypeID(version) != CFBooleanGetTypeID(), version.doubleValue == 1 else { throw ProtocolFailure("INCOMPATIBLE_SCHEMA") }
+        guard jsonNumber(object["schemaVersion"])?.doubleValue == 1 else { throw ProtocolFailure("INCOMPATIBLE_SCHEMA") }
         guard let nonce = object["token"] as? String, nonce.utf8.count == 64, nonce.range(of: "^[a-f0-9]{64}$", options: .regularExpression) != nil,
               let address = object["url"] as? String,
               address.range(of: "^http://127\\.0\\.0\\.1:[0-9]+$", options: .regularExpression) != nil,

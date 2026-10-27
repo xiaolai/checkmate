@@ -26,7 +26,7 @@ import CheckmateCore
 
     func attach(_ model:NativeModel){
         self.model=model;let voice=model.voice,directory=model.store.directory
-        openURL={url in if NativePolicy.silent{Self.record(url,in:directory)}else{NSWorkspace.shared.open(url)}}
+        openURL={url in AboutPane.open(url,dataDirectory:directory)}
         voice.keepModelChoice(at:directory.appendingPathComponent("voice-model.json"))
         // The capability is read from the file system only, at launch and whenever the app comes back, so installing
         // Codex or signing in while Checkmate runs is noticed. Automation keeps it unchecked unless a test sets it.
@@ -84,12 +84,5 @@ import CheckmateCore
         if history.isEmpty{announced=[];return}
         for entry in history where entry.role=="coach" && !announced.contains(entry.id){announced.insert(entry.id);announce(entry.text)}
         for entry in history where entry.role != "coach"{announced.insert(entry.id)}
-    }
-    private static func record(_ url:URL,in directory:URL){
-        let log=directory.appendingPathComponent("opened-urls.txt"),line=Data((url.absoluteString+"\n").utf8)
-        do {
-            if FileManager.default.fileExists(atPath:log.path){let handle=try FileHandle(forWritingTo:log);try handle.seekToEnd();try handle.write(contentsOf:line);try handle.close()}
-            else{try line.write(to:log)}
-        } catch {NativeLog.voice.error("Could not record an opened link: \(error.localizedDescription, privacy: .public)")}
     }
 }

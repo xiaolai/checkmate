@@ -134,8 +134,8 @@ struct NetworkDetail:View {
         if voice.networkVoiceAvailable,game.outcome==nil {
             // Connecting, and why a connection ended or was refused, show as well as a live session's state.
             if voice.connection != .disconnected {Text(voice.status).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("network-voice-status")}
-            VoiceCoachControls(voice:voice,idPrefix:"network-voice",owned:voice.networkSession){model.connectNetworkVoice()}
-            ForEach(Array(model.networkVoiceHistory.suffix(3).reversed())){entry in Text(entry.role=="learner" ? String(localized:"You: \(entry.text)",bundle:.checkmate,comment:"A line of the voice conversation the learner said"):String(localized:"Coach: \(entry.text)",bundle:.checkmate,comment:"A line of the voice conversation the coach said")).font(.caption).fixedSize(horizontal:false,vertical:true)}
+            VoiceCoachControls(voice:voice,idPrefix:"network-voice",owned:voice.networkSession){model.connectVoice()}
+            ForEach(Array(model.networkVoiceHistory.suffix(3).reversed())){VoiceTranscriptRow(entry:$0)}
         }
     }
     private var leaveTitle:String {

@@ -16,7 +16,7 @@ import CheckmateCore
         let black=try game("[FEN \"4k3/4p3/8/8/8/8/4P3/4K3 b - - 0 17\"]\n[SetUp \"1\"]\n\n17... Kd7 18. Kd2 Kc6 19. Kc2 *")
         XCTAssertEqual(sans(black,ReviewFormat.rows(black,line:black.mainline)),["17:-/Kd7","18:Kd2/Kc6","19:Kc2/-"])
         XCTAssertEqual(ReviewFormat.moveLabel(black.nodes[black.mainline[0]]),"17, Black, Kd7")
-        XCTAssertEqual(ReviewFormat.moveText(black.nodes[black.mainline[0]]),"17… Kd7")
+        XCTAssertEqual(black.nodes[black.mainline[0]].moveText,"17… Kd7")
         // The leaves-theory line is one sentence, the move a link inside it rather than a button beside a fragment.
         let leaves=ReviewFormat.leavesTheory(black.nodes[black.mainline[0]])
         XCTAssertEqual(String(leaves.characters),"Leaves opening theory at 17… Kd7")

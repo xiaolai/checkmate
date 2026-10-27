@@ -43,7 +43,7 @@ public struct NetworkPublicGame:Codable,Equatable {
         // each advance it (D2), so the moves played are the revision less one once ended.
         guard (0...NetworkLimits.maximumRevision).contains(revision),outcome==nil || revision>=1 else{throw DecodingError.dataCorrupted(.init(codingPath:decoder.codingPath,debugDescription:"Invalid public game revision."))}
         let plies=revision-(outcome==nil ? 0:1)
-        guard zip(assistedPlies,assistedPlies.dropFirst()).allSatisfy({$0<$1}),assistedPlies.allSatisfy({$0>=1 && $0<=plies}),[whiteName,blackName].allSatisfy({$0.map{NetworkText.valid($0)} ?? true}),clocks?.valid ?? true,(clocks==nil)==(timeControl == .untimed),startFEN.map({NetworkStart.wellFormed($0) && $0 != NetworkStart.standard}) ?? true,ruleset.map(Self.rulesetShaped) ?? true,startFEN==nil || ruleset==nil else{throw DecodingError.dataCorrupted(.init(codingPath:decoder.codingPath,debugDescription:"Invalid public game."))}
+        guard zip(assistedPlies,assistedPlies.dropFirst()).allSatisfy({$0<$1}),assistedPlies.allSatisfy({$0>=1 && $0<=plies}),[whiteName,blackName].allSatisfy({$0.map{NetworkText.valid($0)} ?? true}),clocks?.valid ?? true,(clocks==nil)==(timeControl == .untimed),startFEN.map({NetworkStart.wellFormed($0) && $0 != NetworkStart.standard}) ?? true,ruleset.map(NetworkCapabilities.valid) ?? true,startFEN==nil || ruleset==nil else{throw DecodingError.dataCorrupted(.init(codingPath:decoder.codingPath,debugDescription:"Invalid public game."))}
     }
     /// The 1.0 shape when nothing is assisted: the 1.1 keys are written only when they say something (A4).
     public func encode(to encoder:Encoder)throws {
@@ -56,9 +56,8 @@ public struct NetworkPublicGame:Codable,Equatable {
         if !assistedPlies.isEmpty {try c.encode(assistedPlies,forKey:.assistedPlies)}
         try c.encodeIfPresent(startFEN,forKey:.startFEN);try c.encodeIfPresent(ruleset,forKey:.ruleset)
     }
-    /// A descriptor's shape on the wire: 1 to 32 printable ASCII bytes. Which descriptors are supported is not a decoding
-    /// question: a receiver refuses an unsupported one as `badSnapshot`, before any replay.
-    static func rulesetShaped(_ text:String)->Bool {(1...32).contains(text.utf8.count) && text.utf8.allSatisfy{(0x21...0x7E).contains($0)}}
+    // A ruleset descriptor has a capability token's shape on the wire. Which descriptors are supported is not a decoding
+    // question: a receiver refuses an unsupported one as `badSnapshot`, before any replay.
     public func name(_ side:NetworkSide)->String? {side == .white ? whiteName:blackName}
     /// The start the record replays from: the declared one, a ruleset's own (named by its descriptor: the kind fixes
     /// it), or the standard start. Receivers pin it, so pinning the start pins the ruleset too.

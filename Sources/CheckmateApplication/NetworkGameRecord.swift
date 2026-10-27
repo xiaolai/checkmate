@@ -1,5 +1,6 @@
 import CheckmateAssets
 import CheckmateDomain
+import CheckmateSupport
 import Foundation
 /// What a finished or interrupted network game leaves behind (LAN-play plan D9): the record handed to Review, and the
 /// crash file that lets the next launch say the game ended when Checkmate closed.
@@ -13,9 +14,7 @@ public enum NetworkGameRecord {
     /// joins a comment's closing brace). A declared start (mini-games plan D7) is written as SetUp/FEN, and the moves
     /// are numbered from it.
     public static func reviewPGN(_ game:NetworkPublicGame,moves:[String],on date:Date,calendar:Calendar=Calendar(identifier:.gregorian))->String {
-        let day=calendar.dateComponents([.year,.month,.day],from:date)
-        let stamp=String(format:"%04d.%02d.%02d",day.year ?? 0,day.month ?? 0,day.day ?? 0)
-        let headers=game.recordHeaders(date:stamp).map{"[\($0.name) \"\(escaped($0.value))\"]"}.joined(separator:"\n")
+        let headers=game.recordHeaders(date:PGNExporter.dateTag(date,calendar:calendar)).map{PGNExporter.tagLine($0.name,$0.value)}.joined(separator:"\n")
         return headers+"\n\n"+movetext(moves,result:game.outcome?.result.rawValue ?? "*",assisted:Set(game.assistedPlies),start:game.start)
     }
     /// The comment after each assisted move (A11). Self-reported by the mover, as the game's wording says.
@@ -33,7 +32,6 @@ public enum NetworkGameRecord {
         }
         return (tokens+[result]).joined(separator:" ")
     }
-    private static func escaped(_ value:String)->String {value.replacingOccurrences(of:"\\",with:"\\\\").replacingOccurrences(of:"\"",with:"\\\"")}
 }
 
 /// `NetworkGames/current.json` in the data directory (D9): the last public record of the game in progress, and the
@@ -67,10 +65,9 @@ public struct NetworkCrashFile {
     /// Writes the entry to its own game's file and removes the other, so one game in progress is ever kept.
     public func save(_ entry:Entry)throws {
         let (target,other)=entry.game.ruleset==nil ? (url,rulesetURL):(rulesetURL,url)
-        try FileManager.default.createDirectory(at:target.deletingLastPathComponent(),withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])
+        try createPrivateDirectory(target.deletingLastPathComponent())
         let encoder=JSONEncoder();encoder.outputFormatting=[.sortedKeys]
-        try encoder.encode(entry).write(to:target,options:[.atomic])
-        try FileManager.default.setAttributes([.posixPermissions:0o600],ofItemAtPath:target.path)
+        try writePrivately(encoder.encode(entry),to:target)
         try? FileManager.default.removeItem(at:other)
     }
     /// The entry a previous run left, if any: the chess file's, else the mini-game file's. An unreadable file is

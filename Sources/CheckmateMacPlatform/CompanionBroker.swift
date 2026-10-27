@@ -62,7 +62,7 @@ public enum CompanionProblem:CaseIterable,Equatable,Sendable {
     private var unadmitted:[UUID]=[]
     public init(session:GameSession,directory:URL,leaseTimeout:TimeInterval=35,heartbeatInterval:TimeInterval=1,requestTimeout:TimeInterval=25,now:@escaping ()->SuspendingClock.Instant={SuspendingClock().now}) throws {self.requestTimeout=requestTimeout;self.leaseTimeout=leaseTimeout;self.heartbeatInterval=heartbeatInterval;self.now=now;touched=now();self.session=session;self.directory=directory;tools=try CompanionTools(session:session)
         // A connection file left by a crash names a port this process does not own; never let a client find it.
-        try? FileManager.default.removeItem(at:directory.appendingPathComponent("connection.json"));observation=session.objectWillChange.sink{[weak self] _ in DispatchQueue.main.async{self?.updateWaitingStatus()}}}
+        try? FileManager.default.removeItem(at:directory.appendingPathComponent("connection.json"));observation=session.onChangeDeferred{[weak self] in self?.updateWaitingStatus()}}
     public var activeRequestCount:Int{pending.count}
     public var activeConnectionCount:Int{connections.count}
     public func enable(role:String,standby:Bool=false) throws {
@@ -90,15 +90,15 @@ public enum CompanionProblem:CaseIterable,Equatable,Sendable {
     public func suspend(_ value:Bool){guard enabled else{return};session.setConnection(enabled:enabled && (reservesSession || connected),role:configuredRole,lease:lease,suspended:value);if value{state = .paused}else if connected{state = .connected}else{updateWaitingStatus()}}
     private func updateWaitingStatus(){
         guard enabled,!connected,port>0 else{return}
-        state=session.suspended ? .paused:session.voiceLease==nil ? .waiting:.waitingForVoice
+        let waiting:CompanionState=session.suspended ? .paused:session.voiceLease==nil ? .waiting:.waitingForVoice;if state != waiting{state=waiting}
     }
     /// Stops the companion for `problem`, keeping the error's own words for the log only.
     private func stop(_ problem:CompanionProblem,_ error:Error){NativeLog.companion.error("Companion stopped (\(String(describing:problem), privacy: .public)): \(String(describing:error), privacy: .public)");disable();self.problem=problem}
     private func writeDiscovery() throws {
         let fm=FileManager.default
         if fm.fileExists(atPath:directory.path){let attrs=try fm.attributesOfItem(atPath:directory.path);guard attrs[.type] as? FileAttributeType == .typeDirectory else{throw ProtocolFailure("NOT_AUTHORIZED")}}
-        try fm.createDirectory(at:directory,withIntermediateDirectories:true,attributes:[.posixPermissions:0o700]);try fm.setAttributes([.posixPermissions:0o700],ofItemAtPath:directory.path)
-        let data=try JSONSerialization.data(withJSONObject:["schemaVersion":1,"url":"http://127.0.0.1:\(port)","token":authorizationNonce]);let url=directory.appendingPathComponent("connection.json");try data.write(to:url,options:.atomic);try fm.setAttributes([.posixPermissions:0o600],ofItemAtPath:url.path)
+        try createPrivateDirectory(directory);try fm.setAttributes([.posixPermissions:0o700],ofItemAtPath:directory.path)
+        let data=try JSONSerialization.data(withJSONObject:["schemaVersion":1,"url":"http://127.0.0.1:\(port)","token":authorizationNonce]);try writePrivately(data,to:directory.appendingPathComponent("connection.json"))
     }
     private func accept(_ c:NWConnection){guard enabled else{c.cancel();return};if connections.count>=16{guard !unadmitted.isEmpty else{c.cancel();return};connections.removeValue(forKey:unadmitted.removeFirst())?.cancel()};let id=UUID(),key=ObjectIdentifier(c);connections[id]=c;unadmitted.append(id);let timeout=DispatchWorkItem{[weak c] in c?.cancel()};DispatchQueue.main.asyncAfter(deadline:.now()+5,execute:timeout)
         c.stateUpdateHandler={[weak self] state in switch state{case .cancelled,.failed:Task{@MainActor in guard let self=self else{return};self.connections[id]=nil;self.unadmitted.removeAll{$0==id};self.cancelConnectionRequest(key)};default:break}}
@@ -132,13 +132,12 @@ public enum CompanionProblem:CaseIterable,Equatable,Sendable {
         case "/disconnect":release();respond(c,["ok":true])
         case "/rpc":guard let id=a["id"] as? String,UUID(uuidString:id) != nil,let method=a["method"] as? String,tools.schemas.names.contains(method),let args=a["args"] as? [String:Any],Set(a.keys)==Set(["id","method","args"]) else{throw ProtocolFailure("INVALID_ARGUMENT")};guard pending.count<8,pending[id]==nil else{throw ProtocolFailure("BUSY")}
             let key=ObjectIdentifier(c);requestOwners[id]=key
-            let task=Task{[weak self] in guard let self=self else{return};defer{if self.requestOwners[id]==key{self.pending[id]=nil;self.requestOwners[id]=nil;self.deadlines.removeValue(forKey:id)?.cancel()};self.connectionRequests.removeValue(forKey:key)};do{let result=try await self.tools.call(method,args:args,lease:lease);try Task.checkCancellation();self.respond(c,result)}catch{self.respond(c,Self.failure(error))}};pending[id]=task
+            let task=Task{[weak self] in guard let self=self else{return};defer{if self.requestOwners[id]==key{self.pending[id]=nil;self.requestOwners[id]=nil;self.deadlines.removeValue(forKey:id)?.cancel()};self.connectionRequests.removeValue(forKey:key)};do{let result=try await self.tools.call(method,args:args,lease:lease);try Task.checkCancellation();self.respond(c,result)}catch{self.respond(c,ProtocolErrors.failure(error))}};pending[id]=task
             connectionRequests[key]=id;observeDisconnect(c)
             deadlines[id]=Task{[weak self] in try? await Task.sleep(nanoseconds:UInt64((self?.requestTimeout ?? 25)*1_000_000_000));if !Task.isCancelled{self?.pending[id]?.cancel()}}
         default:throw ProtocolFailure("INVALID_ARGUMENT")
         }
-    }catch{respond(c,Self.failure(error),status:400)}}
-    public static func failure(_ error:Error)->[String:Any] {ProtocolErrors.failure(error)}
+    }catch{respond(c,ProtocolErrors.failure(error),status:400)}}
     private func respond(_ c:NWConnection,_ result:Any,status:Int=200){let data=(try? JSONSerialization.data(withJSONObject:result,options:[.fragmentsAllowed,.sortedKeys])) ?? Data("{}".utf8);var reply=Data("HTTP/1.1 \(status) \(status==200 ? "OK":"Error")\r\nContent-Type: application/json\r\nContent-Length: \(data.count)\r\nConnection: close\r\n\r\n".utf8);reply.append(data);c.send(content:reply,completion:.contentProcessed{_ in c.cancel()})} // not localized: HTTP status reason phrase
 }
 /// How an MCP client keeps its lease (`BrokerClient`). A missed heartbeat, such as one that outlasts a main-thread

@@ -53,12 +53,12 @@ final class FakeRules:NetworkChessRules {
     func networkStartFEN()throws -> String {start ?? NetworkStart.standard}
 }
 /// FNV-1a: deterministic and collision-free enough for tests. Production injects SHA-256.
-let testHashing=NetworkHashing{data in var hash:UInt64=0xcbf29ce484222325;for byte in data {hash^=UInt64(byte);hash=hash&*0x100000001b3};return String(hash,radix:16)}
+let testHashing=NetworkHashing{String(fnv1a64($0),radix:16)}
 /// SplitMix64 bytes: every identifier differs, and every run makes the same ones.
 final class TestRandom {
-    private var state:UInt64
-    init(seed:UInt64){state=seed}
-    func byte()->UInt8 {state&+=0x9E3779B97F4A7C15;var z=state;z=(z^(z>>30))&*0xBF58476D1CE4E5B9;z=(z^(z>>27))&*0x94D049BB133111EB;return UInt8(truncatingIfNeeded:z^(z>>31))}
+    private var random:TrainingRandom
+    init(seed:UInt64){random=TrainingRandom(seed:seed)}
+    func byte()->UInt8 {UInt8(truncatingIfNeeded:random.next())}
     var source:NetworkRandom {NetworkRandom{count in (0..<count).map{_ in self.byte()}}}
 }
 func instant(_ seconds:Double)->NetworkInstant {NetworkInstant(.milliseconds(Int((seconds*1000).rounded())))}

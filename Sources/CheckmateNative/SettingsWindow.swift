@@ -23,13 +23,12 @@ private struct SettingsForm:View {
     /// The consent sheet, the voice connection and the Codex registration check live on the model.
     let model:NativeModel
     @State private var codexSetup:CompanionInstallation.SetupCheck?
-    @ObservedObject var voiceAudio:VoiceAudio
+    let voiceAudio:VoiceAudio
     @ObservedObject var preview:VoicePreview
     let about:AboutFacts
     let lessonLanguages:LessonLanguageController
     let usage:UsageLedger
     let library:CourseLibrary
-    func binding<T>(_ key:WritableKeyPath<AppSettings,T>)->Binding<T> {Binding(get:{session.state.settings[keyPath:key]},set:{var s=session.state.settings;s[keyPath:key]=$0;session.updateSettings(s)})}
     private func removeCodexSetup() {
         guard !NativePolicy.silent else {companionSetupStatus=String(localized:"Codex setup is disabled during automation.",bundle:.checkmate);return}
         guard let codex=CompanionInstallation.installedCodex() else {companionSetupStatus=String(localized:"Codex is not installed, so there is no Checkmate setup in it to remove.",bundle:.checkmate);return}
@@ -42,15 +41,18 @@ private struct SettingsForm:View {
                 let removal=try await Task.detached {try CompanionInstallation.unregister(codex:codex,bundledSkill:skill)}.value
                 switch removal {case .removed:companionSetupStatus=String(localized:"Removed from Codex, with Checkmate’s companion skill.",bundle:.checkmate);case .absent:companionSetupStatus=String(localized:"Removed from Codex. No companion skill was installed.",bundle:.checkmate);case .kept:companionSetupStatus=String(localized:"Removed from Codex. Your edited companion skill was kept.",bundle:.checkmate)}
             } catch {companionSetupStatus=userFacingMessage(error,fallback:String(localized:"Codex setup could not be removed.",bundle:.checkmate));companionSetupDetails=(error as? CompanionInstallation.CodexCommandFailure)?.details}
-            companionSetupRunning=false;model.refreshCodexSetup()
+            companionSetupRunning=false;model.refreshCodexSetup();skill=Self.skillState()
         }
     }
     /// Whether the installed companion skill matches this version; read only, never written at launch. Automation reads
     /// no Codex state, the skill included, so what it shows does not depend on the Mac it runs on.
-    private var skillState:CompanionInstallation.SkillState? {
-        guard !NativePolicy.silent,let bundled=try? Data(contentsOf:NativeResources.url("companion-skill.md")) else{return nil}
+    /// Computed when the pane appears and after Set Up or Remove, not on every render: it reads and hashes files.
+    private static func skillState()->CompanionInstallation.SkillState? {
+        guard !NativePolicy.silent,let bundled=bundledSkill else{return nil}
         return CompanionInstallation.skillState(bundled:bundled)
     }
+    private static let bundledSkill=try? Data(contentsOf:NativeResources.url("companion-skill.md"))
+    @State private var skill:CompanionInstallation.SkillState?
     private func skillNote(_ state:CompanionInstallation.SkillState?)->String? {
         switch state {
         case .outdated?:return String(localized:"The installed companion skill is from an older Checkmate. Choose Set Up Codex to update it.",bundle:.checkmate)
@@ -70,7 +72,7 @@ private struct SettingsForm:View {
                 let state=try await Task.detached {try CompanionInstallation.register(executable:executable,codex:codex,skill:skill)}.value
                 companionSetupStatus=Sentences.join(SettingsWindow.setupReady(connectionsAllowed:companion.enabled,skill:CompanionInstallation.skillName()),state == .customized ? String(localized:"Your customized companion skill was kept.",bundle:.checkmate):"")
             } catch {companionSetupStatus=userFacingMessage(error,fallback:String(localized:"Codex setup failed. Check that Codex is installed and try again.",bundle:.checkmate));companionSetupDetails=(error as? CompanionInstallation.CodexCommandFailure)?.details}
-            companionSetupRunning=false;model.refreshCodexSetup()
+            companionSetupRunning=false;model.refreshCodexSetup();skill=Self.skillState()
         }
     }
     /// A registration Codex keeps for another copy of Checkmate (moved, renamed or deleted) is offered a repair,
@@ -91,26 +93,25 @@ private struct SettingsForm:View {
             UsageSettingsPane(ledger:usage,controller:lessonLanguages)
         case .about:
             AboutPane(facts:about)
-            Section{Toggle("Check for Updates Automatically",isOn:binding(\.checkForUpdates))} header:{Text("Updates")} footer:{Text("When this is on, Checkmate asks GitHub for the latest release each time it opens. Checkmate ▸ Check for Updates… asks at any time.").foregroundStyle(.secondary)}
+            Section{Toggle("Check for Updates Automatically",isOn:session.binding(\.checkForUpdates))} header:{Text("Updates")} footer:{Text("When this is on, Checkmate asks GitHub for the latest release each time it opens. Checkmate ▸ Check for Updates… asks at any time.").foregroundStyle(.secondary)}
         case .connections:
             // The switch for now comes first, then the preference for the next launch.
-            let skill=skillState
-            Section("Codex companion"){Button(companionSetupRunning ? String(localized:"Working…",bundle:.checkmate) : String(localized:"Set Up Codex",bundle:.checkmate)){setUpCodex()}.disabled(companionSetupRunning);if SettingsWindow.offersRemoval(setup:codexSetup,skill:skill){Button("Remove Codex Setup…"){removeCodexSetup()}.disabled(companionSetupRunning)};if !companionSetupStatus.isEmpty{Text(companionSetupStatus).foregroundStyle(.secondary);if let details=companionSetupDetails{DisclosureGroup("Details"){Text(details).font(.caption).textSelection(.enabled).fixedSize(horizontal:false,vertical:true)}}}else if let note=skillNote(skill){Text(note).foregroundStyle(.secondary)};codexSetupNote;Text(companion.status);Toggle("Allow Codex connections",isOn:Binding(get:{companion.enabled},set:{on in if on{do{try companion.enable(role:session.state.settings.companionRole,standby:true)}catch{companion.disable()}}else{companion.disable()}}));Toggle("Accept Codex connections at launch",isOn:binding(\.companionAutoStart));Text("Once Codex is set up, turns on Allow Codex connections each time Checkmate opens. Allow Codex connections changes only this session.").font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true);Picker("Companion role",selection:binding(\.companionRole)){Text("Coach").tag("coach");Text("Opponent (Black)").tag("opponent")}.disabled(companion.enabled);if companion.connected{Button("Disconnect Companion"){companion.disconnectCurrentClient()}};if let error=companion.error{Text(error).foregroundStyle(.secondary)}}
+            Section("Codex companion"){Button(companionSetupRunning ? String(localized:"Working…",bundle:.checkmate) : String(localized:"Set Up Codex",bundle:.checkmate)){setUpCodex()}.disabled(companionSetupRunning);if SettingsWindow.offersRemoval(setup:codexSetup,skill:skill){Button("Remove Codex Setup…"){removeCodexSetup()}.disabled(companionSetupRunning)};if !companionSetupStatus.isEmpty{Text(companionSetupStatus).foregroundStyle(.secondary);if let details=companionSetupDetails{DisclosureGroup("Details"){Text(details).font(.caption).textSelection(.enabled).fixedSize(horizontal:false,vertical:true)}}}else if let note=skillNote(skill){Text(note).foregroundStyle(.secondary)};codexSetupNote;Text(companion.status);Toggle("Allow Codex connections",isOn:Binding(get:{companion.enabled},set:{on in if on{do{try companion.enable(role:session.state.settings.companionRole,standby:true)}catch{companion.disable()}}else{companion.disable()}}));Toggle("Accept Codex connections at launch",isOn:session.binding(\.companionAutoStart));Text("Once Codex is set up, turns on Allow Codex connections each time Checkmate opens. Allow Codex connections changes only this session.").font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true);Picker("Companion role",selection:session.binding(\.companionRole)){Text("Coach").tag("coach");Text("Opponent (Black)").tag("opponent")}.disabled(companion.enabled);if companion.connected{Button("Disconnect Companion"){companion.disconnectCurrentClient()}};if let error=companion.error{Text(error).foregroundStyle(.secondary)}}.onAppear{skill=Self.skillState()}
             Section {Text("The Codex companion is a Codex task on this Mac that can see your board, coach you, or play against you, using Checkmate’s chess tools. Set Up Codex adds Checkmate to Codex once; after that, Checkmate waits on this Mac for a Codex task to connect. While the voice coach is connected, Codex is asked to wait; disconnect voice to use the companion.").foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)}
         case .voice:
             VoiceSettingsContent(session:session,voice:voice,voiceAudio:voiceAudio,preview:preview,model:model)
         case .board:
-            Section("Appearance"){Picker("Board theme",selection:binding(\.boardTheme)){ForEach(["wood","green","blue","neutral"],id:\.self){Text(AppSettings.themes[$0]!).tag($0)}}}
-            Section("Animation"){Picker("Piece movement",selection:binding(\.pieceDuration)){Text("Off").tag(0);Text("Fast").tag(300);Text("Medium").tag(500);Text("Slow").tag(700)}}
+            Section("Appearance"){Picker("Board theme",selection:session.binding(\.boardTheme)){ForEach(["wood","green","blue","neutral"],id:\.self){Text(AppSettings.themes[$0]!).tag($0)}}}
+            Section("Animation"){Picker("Piece movement",selection:session.binding(\.pieceDuration)){Text("Off").tag(0);Text("Fast").tag(300);Text("Medium").tag(500);Text("Slow").tag(700)}}
         case .sound:
-            Section("Move sounds"){Toggle("Piece and move sounds",isOn:binding(\.moveSounds));Slider(value:binding(\.effectsVolume),in:0...1){Text("Effects volume")}.disabled(!session.state.settings.moveSounds)}
+            Section("Move sounds"){Toggle("Piece and move sounds",isOn:session.binding(\.moveSounds));Slider(value:session.binding(\.effectsVolume),in:0...1){Text("Effects volume")}.disabled(!session.state.settings.moveSounds)}
         case .lessons:
             LessonSettingsPane(controller:lessonLanguages,session:session,coach:voice,library:library)
-            Section {Toggle("Narration",isOn:binding(\.narration));Slider(value:binding(\.volume),in:0...1){Text("Narration volume")}.disabled(!session.state.settings.narration);Toggle("Continue automatically",isOn:binding(\.autoAdvance));Toggle("Pause for practice",isOn:binding(\.pauseForPractice))} header:{Text("Lesson playback")} footer:{Text("Bundled English narration uses OpenAI Cedar. Generated lesson recordings use your selected voice and are AI-generated. Continue automatically plays the next transcript and starts the next lesson when this one ends, skipping practice activities. Pause for practice stops at the end of a lesson that has a game or practice activity so you can try it before continuing.")}
+            Section {Toggle("Narration",isOn:session.binding(\.narration));Slider(value:session.binding(\.volume),in:0...1){Text("Narration volume")}.disabled(!session.state.settings.narration);Toggle("Continue automatically",isOn:session.binding(\.autoAdvance));Toggle("Pause for practice",isOn:session.binding(\.pauseForPractice))} header:{Text("Lesson playback")} footer:{Text("Bundled English narration uses OpenAI Cedar. Generated lesson recordings use your selected voice and are AI-generated. Continue automatically plays the next transcript and starts the next lesson when this one ends, skipping practice activities. Pause for practice stops at the end of a lesson that has a game or practice activity so you can try it before continuing.")}
         case .practice:
             Section("Opponent"){OpponentSettingsContent(session:session)}
-            Section("Guidance"){Picker("Practice guidance",selection:binding(\.coachingMode)){Text("Guided game").tag("guided");Text("On request").tag("on_request");Text("Quiet").tag("quiet")}}
-            Section{Toggle("Analyze When Opened",isOn:binding(\.reviewAutoAnalyze)).accessibilityIdentifier("review-auto-analyze");Toggle("Show Best Move Arrow",isOn:binding(\.reviewBestMoveArrow)).accessibilityIdentifier("review-best-move-arrow")} header:{Text("Game review")} footer:{Text("Opening a game for review analyzes it with Stockfish. Moves already analyzed are not searched again. The bar beside the board shows the evaluation, and the arrow shows the engine's choice. Neither is shown during a network game, and nothing is analyzed then.").foregroundStyle(.secondary)}
+            Section("Guidance"){Picker("Practice guidance",selection:session.binding(\.coachingMode)){Text("Guided game").tag("guided");Text("On request").tag("on_request");Text("Quiet").tag("quiet")}}
+            Section{Toggle("Analyze When Opened",isOn:session.binding(\.reviewAutoAnalyze)).accessibilityIdentifier("review-auto-analyze");Toggle("Show Best Move Arrow",isOn:session.binding(\.reviewBestMoveArrow)).accessibilityIdentifier("review-best-move-arrow")} header:{Text("Game review")} footer:{Text("Opening a game for review analyzes it with Stockfish. Moves already analyzed are not searched again. The bar beside the board shows the evaluation, and the arrow shows the engine's choice. Neither is shown during a network game, and nothing is analyzed then.").foregroundStyle(.secondary)}
         }
     }.formStyle(.grouped).frame(minWidth:Metrics.settingsDetailMinimum,minHeight:Metrics.settingsFormMinimumHeight).onReceive(model.$codexSetup){codexSetup=$0}.onChange(of:selection.category){_,category in session.state.window.settingsCategory=(category ?? .board).rawValue;session.emit(semantic:false,save:true)}}
 }

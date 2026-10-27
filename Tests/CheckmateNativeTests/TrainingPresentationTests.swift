@@ -11,19 +11,11 @@ import CheckmateCore
 /// WI-004: what an exercise shows. The board carries the learner's own selection and the marked target only; marking
 /// tasks are click-only; moves can be clicked or dragged through the board's own mouse handling.
 @MainActor final class TrainingPresentationTests:XCTestCase {
-    private var directory:URL!
-    override func setUp(){directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);setenv("CHECKMATE_DATA_DIR",directory.path,1);setenv("CHECKMATE_TRAINING_ENABLED","1",1)}
-    override func tearDown(){unsetenv("CHECKMATE_DATA_DIR");unsetenv("CHECKMATE_TRAINING_ENABLED");try? FileManager.default.removeItem(at:directory)}
+    override func setUpWithError()throws{try isolateDataDirectory(["CHECKMATE_TRAINING_ENABLED":"1"])}
     private func window(seed:UInt64=11)throws -> (NativeModel,GameWindow) {
         let model=try NativeModel(),game=GameWindow(model:model);var next=seed;model.training?.seed={next+=1;return next};return (model,game)
     }
-    private func mouse(_ type:NSEvent.EventType,_ point:NSPoint)->NSEvent {NSEvent.mouseEvent(with:type,location:point,modifierFlags:[],timestamp:0,windowNumber:0,context:nil,eventNumber:0,clickCount:1,pressure:1)!}
-    /// A press, a drag and a release through the board's own handlers, in its coordinates.
-    private func drag(_ board:BoardView,from:String,to:String){
-        let a=board.squareRect(from),b=board.squareRect(to)
-        board.mouseDown(with:mouse(.leftMouseDown,NSPoint(x:a.midX,y:a.midY)));board.mouseDragged(with:mouse(.leftMouseDragged,NSPoint(x:b.midX,y:b.midY)));board.mouseUp(with:mouse(.leftMouseUp,NSPoint(x:b.midX,y:b.midY)))
-    }
-    private func click(_ board:BoardView,_ square:String){let a=board.squareRect(square),p=NSPoint(x:a.midX,y:a.midY);board.mouseDown(with:mouse(.leftMouseDown,p));board.mouseUp(with:mouse(.leftMouseUp,p))}
+    private func click(_ board:BoardView,_ square:String){let a=board.squareRect(square),p=NSPoint(x:a.midX,y:a.midY);board.mouseDown(with:mouseEvent(.leftMouseDown,p));board.mouseUp(with:mouseEvent(.leftMouseUp,p))}
     func testRecognitionShowsNoAnswerAndIsClickOnly()throws {
         let (model,game)=try window();defer{game.window?.delegate=nil;model.shutdown()}
         game.board.frame=NSRect(x:0,y:0,width:640,height:640)
@@ -50,7 +42,7 @@ import CheckmateCore
         XCTAssertTrue(game.board.canDrag?(drill.start) ?? false)
         let moves=drill.moves(drill.initial).map(\.to).filter{$0 != drill.target}
         let first=try XCTUnwrap(moves.first)
-        drag(game.board,from:drill.start,to:first);game.refresh()
+        game.board.drag(from:drill.start,to:first);game.refresh()
         XCTAssertEqual(model.training?.exercise?.movesUsed,1,"a drag plays the move");XCTAssertEqual(game.board.position[first],drill.piece)
         let state=try XCTUnwrap(model.training?.exercise?.drillState),second=try XCTUnwrap(drill.moves(state).first?.to)
         click(game.board,first);click(game.board,second);game.refresh()
@@ -64,7 +56,7 @@ import CheckmateCore
         let from=String(answer.prefix(2)),to=String(answer.dropFirst(2).prefix(2))
         XCTAssertEqual(game.board.blackAtBottom,scenario.learner=="b")
         XCTAssertFalse(game.board.canDrag?(scenario.learner=="w" ? (game.board.position.first{$0.value.first=="b"}?.key ?? "a1"):(game.board.position.first{$0.value.first=="w"}?.key ?? "a1")) ?? true,"only the learner's pieces drag")
-        drag(game.board,from:from,to:to);game.refresh()
+        game.board.drag(from:from,to:to);game.refresh()
         if answer.count==5 {model.training?.attempt(from:from,to:to,promotion:String(answer.last!))}
         let exercise=try XCTUnwrap(model.training?.exercise)
         XCTAssertEqual(exercise.status,.correct);XCTAssertEqual(TrainingPanel.resultLabel(exercise),"Solved · first try · no recorded help")

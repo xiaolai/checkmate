@@ -58,7 +58,7 @@ enum Release026 {
     }
     private func relaunched(_ state:ApplicationState)throws -> ApplicationState {try JSONDecoder().decode(ApplicationState.self,from:JSONEncoder().encode(state))}
     private func play(_ controller:TrainingController,_ uci:String)async {await PositionGameTests.play(controller,uci)}
-    private func settle(_ condition:()->Bool,_ message:String)async throws {for _ in 0..<500 where !condition(){try await Task.sleep(nanoseconds:2_000_000)};XCTAssertTrue(condition(),message)}
+    private func settle(_ condition:()->Bool,_ message:String)async throws {try await poll(message,tries:500,every:.milliseconds(2),condition)}
     /// Scores for the beginner opponent: the root names one leading move, each constrained search its own candidate.
     private static func scored(_ request:ScriptedDefender.Request,_ rules:ChessRules)->EngineAnalysis {
         let legal=rules.moves().map(\.uci).sorted()
@@ -216,7 +216,7 @@ enum Release026 {
         let defender=ScriptedDefender();defender.analysis=Self.scored
         let (session,player,controller)=try fixture(defender,level:.gentle);defer{player.shutdown()}
         controller.begin(try controller.prepare(entry:"finish-the-game",variant:"krk"));await play(controller,"h1h2")
-        let line=try XCTUnwrap(controller.exercise?.line),rules=try ChessRules(fen:open);for move in line{try rules.move(uci:move)}
+        let line=try XCTUnwrap(controller.exercise?.line),rules=try ChessRules.reached(open,line)
         let learner=try XCTUnwrap(rules.moves().first{$0.piece=="r"});try rules.move(uci:learner.uci);let reply=try XCTUnwrap(rules.moves().map(\.uci).sorted().first)
         let downgraded=try Release026.session(session.state,.continueRun([.move(from:learner.from,to:learner.to,promotion:nil),.reply(reply)]))
         XCTAssertEqual(downgraded.training?.active?.opponent?.attempt,downgraded.training?.active?.id,"premise: the configuration was written back by path")

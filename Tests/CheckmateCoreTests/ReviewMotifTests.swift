@@ -38,7 +38,7 @@ final class ReviewMotifTests:XCTestCase {
         let found=try motifs("7k/6q1/8/8/3N4/8/1B6/4K3 w - - 0 1","d4b5")
         XCTAssertEqual(found.map(\.kind),[.discovered]);XCTAssertEqual(found.first?.squares,["b2","d4","g7"])
     }
-    func testAQuietOpeningMoveHasNoPattern()throws {XCTAssertEqual(try motifs(ReviewExplanation.standardStart,"e2e4"),[])}
+    func testAQuietOpeningMoveHasNoPattern()throws {XCTAssertEqual(try motifs(NetworkStart.standard,"e2e4"),[])}
 
     func testAMotifIsAVerifiedFactOfTheMove()throws {
         let document=try PGNImporter.parse(Data("[SetUp \"1\"]\n[FEN \"r3k3/8/8/1N6/8/8/8/4K3 w - - 0 1\"]\n\n1. Nc7+ *".utf8))[0]

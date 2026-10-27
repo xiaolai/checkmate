@@ -9,12 +9,7 @@ import CheckmateCore
 
 /// The bottom control bar, state by state: what shows, where, and what each control is for.
 @MainActor final class ControlBarModelTests:XCTestCase {
-    private var directory:URL!
-    override func setUp(){directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);setenv("CHECKMATE_DATA_DIR",directory.path,1)}
-    override func tearDown(){unsetenv("CHECKMATE_DATA_DIR");try? FileManager.default.removeItem(at:directory)}
-    private func bar(_ model:NativeModel,voice:ControlBarVoice = .off(unavailable:nil))->ControlBarModel {
-        ControlBarModel.make(session:model.session,learning:model.learning,review:model.review,training:model.training,network:model.network,voice:voice)
-    }
+    override func setUpWithError()throws{try isolateDataDirectory()}
     private func index(_ model:NativeModel,_ id:String)throws -> Int {try XCTUnwrap(model.learning.library.lessons.firstIndex{$0.id==id})}
 
     /// Every step of a lesson, its exercise step included, has the same four playback slots in the same order, so
@@ -24,7 +19,7 @@ import CheckmateCore
         let castling=try index(model,"castling");model.lesson(castling);model.learning.pause()
         let slot:(ControlBarAction)->Int={switch $0{case .stepFromStart:return 0;case .previousStep,.previousLesson:return 1;case .playPause:return 2;default:return 3}}
         for step in 0..<model.learning.current.beats.count {
-            model.learning.seek(step:step);let shown=bar(model)
+            model.learning.seek(step:step);let shown=model.testBar()
             XCTAssertEqual(shown.centre.map{slot($0.action)},[0,1,2,3],"step \(step)");XCTAssertFalse(shown.statusInCentre)
             XCTAssertTrue(shown.centre.allSatisfy{$0.symbol != nil},"playback slots are icons")
             if model.learning.attemptStep {
@@ -41,82 +36,82 @@ import CheckmateCore
     func testLessonBoundariesNameTheLessonTheArrowGoesTo()throws {
         let model=try NativeModel();defer{model.shutdown()}
         let rook=try index(model,"rook");model.lesson(rook);model.learning.pause()
-        var shown=bar(model)
+        var shown=model.testBar()
         let previous=try XCTUnwrap(shown.item(.previousLesson));XCTAssertEqual(previous.symbol,.previousLesson);XCTAssertEqual(previous.label,"Previous lesson: The Pawn")
         XCTAssertEqual(shown.status,.text("Step 1 of \(model.learning.current.beats.count) · back: The Pawn"))
-        model.learning.seek(step:model.learning.current.beats.count-1);shown=bar(model)
+        model.learning.seek(step:model.learning.current.beats.count-1);shown=model.testBar()
         let next=try XCTUnwrap(shown.item(.nextLesson));XCTAssertEqual(next.symbol,.nextLesson);XCTAssertEqual(next.label,"Next lesson: The Bishop")
         XCTAssertEqual(shown.status,.text("Step \(model.learning.current.beats.count) of \(model.learning.current.beats.count) · next: The Bishop"))
-        model.lesson(0);model.learning.pause();XCTAssertEqual(bar(model).item(.previousStep)?.enabled,false,"the first lesson has nothing before it")
+        model.lesson(0);model.learning.pause();XCTAssertEqual(model.testBar().item(.previousStep)?.enabled,false,"the first lesson has nothing before it")
     }
     /// An exercise whose computer turn waits after the learner left offers Resume at the leading edge.
     func testAWaitingExerciseOffersResume()throws {
         let model=try NativeModel();defer{model.shutdown()}
         let castling=try index(model,"castling");model.lesson(castling);model.learning.pause();model.learning.goToAttempt()
-        XCTAssertNil(bar(model).item(.resumeAttempt))
-        XCTAssertEqual(bar(model).item(.attemptUndo)?.enabled,false);XCTAssertEqual(bar(model).item(.attemptHint)?.label,"Hint")
+        XCTAssertNil(model.testBar().item(.resumeAttempt))
+        XCTAssertEqual(model.testBar().item(.attemptUndo)?.enabled,false);XCTAssertEqual(model.testBar().item(.attemptHint)?.label,"Hint")
         model.learning.click("e1");model.learning.click("g1")
-        XCTAssertEqual(bar(model).item(.attemptUndo)?.enabled,true);XCTAssertEqual(bar(model).item(.attemptRestart)?.enabled,true)
+        XCTAssertEqual(model.testBar().item(.attemptUndo)?.enabled,true);XCTAssertEqual(model.testBar().item(.attemptRestart)?.enabled,true)
     }
     /// Off track, the way back is one prominent Take Back: the authored refutation stays on the board until the learner
     /// takes the move back, and Hint, which can only repeat the advice, is not offered.
     func testOffTrackOffersOneProminentTakeBack()throws {
         let model=try NativeModel();defer{model.shutdown()}
         let castling=try index(model,"castling");model.lesson(castling);model.learning.pause();model.learning.goToAttempt()
-        XCTAssertEqual(bar(model).item(.attemptUndo)?.label,"Undo Turn");XCTAssertEqual(bar(model).item(.attemptUndo)?.prominent,false)
+        XCTAssertEqual(model.testBar().item(.attemptUndo)?.label,"Undo Turn");XCTAssertEqual(model.testBar().item(.attemptUndo)?.prominent,false)
         model.learning.click("e1");model.learning.click("f1");XCTAssertEqual(model.learning.attempt.phase,.offTrack)
-        let shown=bar(model);XCTAssertEqual(shown.trailing.map(\.action),[.attemptUndo,.attemptRestart])
+        let shown=model.testBar();XCTAssertEqual(shown.trailing.map(\.action),[.attemptUndo,.attemptRestart])
         XCTAssertEqual(shown.item(.attemptUndo)?.label,"Take Back");XCTAssertEqual(shown.item(.attemptUndo)?.prominent,true);XCTAssertEqual(shown.item(.attemptUndo)?.enabled,true)
-        model.learning.attempt.undo();XCTAssertEqual(model.learning.attempt.phase,.yourTurn);XCTAssertEqual(bar(model).trailing.map(\.action),[.attemptHint,.attemptUndo,.attemptRestart])
+        model.learning.attempt.undo();XCTAssertEqual(model.learning.attempt.phase,.yourTurn);XCTAssertEqual(model.testBar().trailing.map(\.action),[.attemptHint,.attemptUndo,.attemptRestart])
     }
     /// An unsolved puzzle offers its hint ladder and Skip; a solved one offers only the prominent way on.
     func testAPuzzleOffersHintAndSkipUntilSolved()throws {
         let model=try NativeModel();defer{model.shutdown()}
         model.puzzles();model.learning.openPuzzle(id:"extra-1")
-        XCTAssertEqual(bar(model).trailing.map(\.action),[.puzzleHint,.skipPuzzle]);XCTAssertEqual(bar(model).item(.puzzleHint)?.label,"Hint");XCTAssertEqual(bar(model).item(.puzzleHint)?.enabled,true)
-        model.learning.hint();XCTAssertEqual(bar(model).item(.puzzleHint)?.label,"Another Hint")
-        model.learning.hint();XCTAssertEqual(bar(model).item(.puzzleHint)?.enabled,false,"after the ladder only Reveal is left")
-        model.learning.reveal();XCTAssertEqual(bar(model).trailing.map(\.action),[.nextPuzzle]);XCTAssertEqual(bar(model).item(.nextPuzzle)?.prominent,true)
+        XCTAssertEqual(model.testBar().trailing.map(\.action),[.puzzleHint,.skipPuzzle]);XCTAssertEqual(model.testBar().item(.puzzleHint)?.label,"Hint");XCTAssertEqual(model.testBar().item(.puzzleHint)?.enabled,true)
+        model.learning.hint();XCTAssertEqual(model.testBar().item(.puzzleHint)?.label,"Another Hint")
+        model.learning.hint();XCTAssertEqual(model.testBar().item(.puzzleHint)?.enabled,false,"after the ladder only Reveal is left")
+        model.learning.reveal();XCTAssertEqual(model.testBar().trailing.map(\.action),[.nextPuzzle]);XCTAssertEqual(model.testBar().item(.nextPuzzle)?.prominent,true)
     }
     /// Practice puts the turn in the centre, New game at the leading edge and the game's help at the trailing edge,
     /// with the voice coach as its own group; a held game is resumed by a named button, never a play symbol.
     func testPracticeStatusSitsInTheCentreWithNamedRecovery()throws {
         let model=try NativeModel();defer{model.shutdown()}
         model.practice();model.session.cancelWork()
-        let shown=bar(model)
+        let shown=model.testBar()
         XCTAssertTrue(shown.statusInCentre);XCTAssertEqual(shown.status,.turn(side:"w",label:"White to move"))
         XCTAssertEqual(shown.leading.map(\.action),[.newGame,.more],"More sits on the shorter side, so the bar keeps one row");XCTAssertEqual(shown.leading.first?.label,"New Game…");XCTAssertNil(shown.leading.first?.symbol)
         XCTAssertEqual(shown.trailing.map(\.action),[.takeBack,.hint,.tryMove]);XCTAssertNil(shown.item(.tryMove)?.symbol,"Try a move is said in words")
         XCTAssertEqual(shown.trailingGroups.map{$0.map(\.action)},[[.voiceConnect]])
-        let on=bar(model,voice:.on(microphone:true,canStop:true))
+        let on=model.testBar(voice:.on(microphone:true,canStop:true))
         XCTAssertEqual(on.trailingGroups.first?.map(\.action),[.voiceStop,.voiceMicrophone],"Stop stays one click away");XCTAssertEqual(on.item(.voiceMicrophone)?.menu.map(\.action),[.voiceDisconnect])
-        XCTAssertEqual(bar(model,voice:.connecting("Asking for the microphone…")).status,.working("Connecting voice coach"),"the long progress goes to Cancel's tooltip")
-        XCTAssertEqual(bar(model,voice:.connecting("Asking for the microphone…")).item(.voiceCancel)?.detail,"Asking for the microphone…")
-        XCTAssertEqual(bar(model,voice:.off(unavailable:.companionConnected)).item(.voiceConnect)?.enabled,false)
-        XCTAssertEqual(bar(model).item(.voiceConnect)?.label,"Connect voice coach")
+        XCTAssertEqual(model.testBar(voice:.connecting("Asking for the microphone…")).status,.working("Connecting voice coach"),"the long progress goes to Cancel's tooltip")
+        XCTAssertEqual(model.testBar(voice:.connecting("Asking for the microphone…")).item(.voiceCancel)?.detail,"Asking for the microphone…")
+        XCTAssertEqual(model.testBar(voice:.off(unavailable:.companionConnected)).item(.voiceConnect)?.enabled,false)
+        XCTAssertEqual(model.testBar().item(.voiceConnect)?.label,"Connect voice coach")
     }
     /// B-17: Flip Board and Resign are one click from the practice bar, in its More menu; Resign only while the game
     /// is on. Every control's tooltip names its shortcut.
     func testPracticeBarReachesFlipAndResignAndNamesShortcuts()throws {
         let model=try NativeModel();defer{model.shutdown()}
         model.practice();model.session.cancelWork()
-        let more=try XCTUnwrap(bar(model).item(.more));XCTAssertEqual(more.label,"More");XCTAssertNotNil(more.symbol)
+        let more=try XCTUnwrap(model.testBar().item(.more));XCTAssertEqual(more.label,"More");XCTAssertNotNil(more.symbol)
         XCTAssertEqual(more.menu.map(\.action),[.flipBoard,.resign]);XCTAssertEqual(more.menu.map(\.label),["Flip Board","Resign…"]);XCTAssertEqual(more.menu.map(\.enabled),[true,false],"no move played: nothing to resign yet")
         try model.session.playWhite(from:"e2",to:"e4");model.session.cancelWork()
-        XCTAssertTrue(try XCTUnwrap(bar(model).item(.more)).menu.allSatisfy(\.enabled))
-        let take=try XCTUnwrap(bar(model).item(.takeBack))
-        XCTAssertEqual(ControlBarView.tooltip(take),"Take back move (⌘Z)");XCTAssertEqual(ControlBarView.tooltip(try XCTUnwrap(bar(model).item(.hint))),"Hint (⇧⌘H)")
-        XCTAssertEqual(ControlBarView.tooltip(try XCTUnwrap(bar(model).item(.newGame))),"New Game… (⌘N)");XCTAssertEqual(ControlBarView.tooltip(try XCTUnwrap(bar(model).item(.tryMove))),"Try a Move","no shortcut, no suffix")
+        XCTAssertTrue(try XCTUnwrap(model.testBar().item(.more)).menu.allSatisfy(\.enabled))
+        let take=try XCTUnwrap(model.testBar().item(.takeBack))
+        XCTAssertEqual(ControlBarView.tooltip(take),"Take back move (⌘Z)");XCTAssertEqual(ControlBarView.tooltip(try XCTUnwrap(model.testBar().item(.hint))),"Hint (⇧⌘H)")
+        XCTAssertEqual(ControlBarView.tooltip(try XCTUnwrap(model.testBar().item(.newGame))),"New Game… (⌘N)");XCTAssertEqual(ControlBarView.tooltip(try XCTUnwrap(model.testBar().item(.tryMove))),"Try a Move","no shortcut, no suffix")
         XCTAssertEqual(ControlBarView.tooltip(more.menu[0]),"Flip Board (⇧⌘F)")
-        model.session.resign();XCTAssertEqual(bar(model).item(.more)?.menu.first{$0.action == .resign}?.enabled,false,"nothing left to resign")
+        model.session.resign();XCTAssertEqual(model.testBar().item(.more)?.menu.first{$0.action == .resign}?.enabled,false,"nothing left to resign")
     }
     /// A held game's Resume is a group of its own, apart from New Game and More: in one glass group its tint ran into
     /// More's capsule and the two read as one control.
     func testResumeGameIsItsOwnGroup()throws {
         let model=try NativeModel();defer{model.shutdown()}
-        model.practice();model.session.cancelWork();XCTAssertTrue(bar(model).leadingGroups.isEmpty)
+        model.practice();model.session.cancelWork();XCTAssertTrue(model.testBar().leadingGroups.isEmpty)
         try model.session.playWhite(from:"e2",to:"e4");model.session.cancelWork();XCTAssertTrue(model.session.requireExplicitResume(),"fixture: the reply is held")
-        let shown=bar(model)
+        let shown=model.testBar()
         XCTAssertEqual(shown.leading.map(\.action),[.newGame,.more]);XCTAssertEqual(shown.leadingGroups.map{$0.map(\.action)},[[.resumeGame]])
         XCTAssertEqual(shown.item(.resumeGame)?.prominent,true,"still reachable through the model's items")
     }
@@ -131,10 +126,10 @@ import CheckmateCore
     func testUnavailableVoiceSaysWhy()throws {
         let model=try NativeModel();defer{model.shutdown()}
         for reason:VoiceUnavailability in [.companionConnected,.practiceOnly,.trainingGameOnly,.networkGame] {
-            let item=try XCTUnwrap(bar(model,voice:.off(unavailable:reason)).item(.voiceConnect))
+            let item=try XCTUnwrap(model.testBar(voice:.off(unavailable:reason)).item(.voiceConnect))
             XCTAssertFalse(item.enabled);XCTAssertEqual(item.label,reason.message);XCTAssertFalse(item.label.contains("MCP"))
         }
-        XCTAssertEqual(bar(model,voice:.off(unavailable:.companionConnected)).item(.voiceConnect)?.label,"Voice is unavailable while Codex is connected to Checkmate.")
+        XCTAssertEqual(model.testBar(voice:.off(unavailable:.companionConnected)).item(.voiceConnect)?.label,"Voice is unavailable while Codex is connected to Checkmate.")
         model.session.setConnection(enabled:true,role:"coach",lease:"companion")
         XCTAssertEqual(model.voice.practiceVoiceUnavailability,.companionConnected,"the bar's reason comes from the coach")
     }
@@ -143,16 +138,16 @@ import CheckmateCore
         let model=try NativeModel();defer{model.shutdown()}
         model.practice();model.session.cancelWork()
         try model.session.demonstrate(title:"Line",introduction:"Imagine",lines:[DemoLineInput(label:"Main",moves:[DemoStepInput(uci:"e2e4")])])
-        let shown=bar(model,voice:.on(microphone:true,canStop:true))
+        let shown=model.testBar(voice:.on(microphone:true,canStop:true))
         XCTAssertEqual(shown.centre.map(\.action),[.demoPrevious,.demoPlayPause,.demoNext]);XCTAssertEqual(shown.item(.returnToGame)?.prominent,true)
         XCTAssertEqual(shown.trailingGroups.first?.map(\.action),[.voiceStop,.voiceMicrophone])
-        XCTAssertNotNil(bar(model,voice:.connecting("…")).item(.voiceCancel))
+        XCTAssertNotNil(model.testBar(voice:.connecting("…")).item(.voiceCancel))
     }
     /// A mini-game says where Back goes, in words.
     func testMiniGameBackNamesItsOrigin()throws {
         let model=try NativeModel();defer{model.shutdown()}
         let pawn=try index(model,"pawn");model.lesson(pawn);model.learning.startPawnDuel(computer:false)
-        let shown=bar(model)
+        let shown=model.testBar()
         XCTAssertEqual(shown.leading.first?.label,"Back to The Pawn");XCTAssertNil(shown.leading.first?.symbol)
         XCTAssertEqual(shown.trailing.map(\.action),[.miniUndo,.miniNewGame]);XCTAssertTrue(shown.statusInCentre)
     }
@@ -160,10 +155,10 @@ import CheckmateCore
     func testReviewShowsReturnToOriginalOnlyInABranch()throws {
         let model=try NativeModel();defer{model.shutdown()}
         model.openReview(try PGNImporter.parse(Data("1. e4 e5 2. Nf3 *".utf8))[0])
-        var shown=bar(model)
+        var shown=model.testBar()
         XCTAssertEqual(shown.centre.map(\.action),[.reviewFirst,.reviewPrevious,.reviewPlayPause,.reviewNext,.reviewLast]);XCTAssertNil(shown.item(.returnToOriginal))
         XCTAssertEqual(shown.status,.text("Original game"))
-        try model.review.select(1);try model.review.beginBranch();shown=bar(model)
+        try model.review.select(1);try model.review.beginBranch();shown=model.testBar()
         XCTAssertEqual(shown.status,.text("Imagined line"));XCTAssertEqual(shown.item(.returnToOriginal)?.prominent,true)
     }
 
@@ -205,10 +200,10 @@ import CheckmateCore
         let model=try NativeModel();defer{model.shutdown()}
         var states:[ControlBarModel]=[]
         let castling=try index(model,"castling");model.lesson(castling);model.learning.pause()
-        for step in 0..<model.learning.current.beats.count{model.learning.seek(step:step);states.append(bar(model))}
-        model.practice();states+=[bar(model),bar(model,voice:.on(microphone:false,canStop:false))]
-        let pawn=try index(model,"pawn");model.lesson(pawn);model.learning.startPawnDuel(computer:false);states.append(bar(model))
-        model.openReview(try PGNImporter.parse(Data("1. e4 e5 *".utf8))[0]);states.append(bar(model))
+        for step in 0..<model.learning.current.beats.count{model.learning.seek(step:step);states.append(model.testBar())}
+        model.practice();states+=[model.testBar(),model.testBar(voice:.on(microphone:false,canStop:false))]
+        let pawn=try index(model,"pawn");model.lesson(pawn);model.learning.startPawnDuel(computer:false);states.append(model.testBar())
+        model.openReview(try PGNImporter.parse(Data("1. e4 e5 *".utf8))[0]);states.append(model.testBar())
         var seen:[String:Set<String>]=[:]
         for item in states.flatMap(\.items) where item.symbol != nil {
             let kind=try XCTUnwrap(meaning[item.action],"\(item.action) has an icon but no declared meaning")

@@ -33,7 +33,6 @@ public struct GameLibrary:Sendable,Equatable {
         guard manifest.schemaVersion==1,!manifest.games.isEmpty,manifest.games.count<=maximumGames,Set(manifest.games.map(\.id)).count==manifest.games.count,Set(manifest.events.map(\.id)).count==manifest.events.count else{throw CheckmateError.invalid(String(localized:"The game library manifest is invalid.",bundle:.checkmate))}
         func bounded(_ text:String,empty:Bool=false)->Bool {(empty || !text.isEmpty) && text.count<=maximumText && !text.contains(where:{$0.isNewline})}
         func identifier(_ text:String)->Bool {(1...64).contains(text.count) && text.allSatisfy{$0.isASCII && ($0.isLowercase || $0.isNumber || $0=="-")}}
-        func hex(_ text:String)->Bool {text.count==64 && text.allSatisfy{"0123456789abcdef".contains($0)}}
         for event in manifest.events {
             guard identifier(event.id),bounded(event.name),!event.years.isEmpty,event.years.allSatisfy({(1800...2200).contains($0)}),["match","tournament"].contains(event.format),!event.players.isEmpty,event.players.allSatisfy({bounded($0)}) else{throw CheckmateError.invalid(String(localized:"The game library event \(event.id.prefix(64)) is invalid.",bundle:.checkmate))}
         }
@@ -45,7 +44,7 @@ public struct GameLibrary:Sendable,Equatable {
             let textValid=[game.white,game.black,game.site,game.date,game.round,game.title,game.finalSAN].allSatisfy({bounded($0)}) && (game.roundLabel.map{bounded($0)} ?? true) && (game.opening.map{bounded($0.eco) && bounded($0.name)} ?? true)
             guard identifier(game.id),categories.contains(game.category),game.file==game.category+".pgn",kinds.contains(game.kind),endings.contains(game.ending),results.contains(game.result),
                   eventValid,textValid,game.year.map({(1000...2200).contains($0)}) ?? true,
-                  (1...ReviewPolicy.maximumMainlinePlies).contains(game.plies),hex(game.uciSHA256),hex(game.sha256),game.offset>=0,game.length>0 else{throw CheckmateError.invalid(String(localized:"The library game \(game.id.prefix(64)) has an invalid manifest entry.",bundle:.checkmate))}
+                  (1...ReviewPolicy.maximumMainlinePlies).contains(game.plies),isReviewDigest(game.uciSHA256),isReviewDigest(game.sha256),game.offset>=0,game.length>0 else{throw CheckmateError.invalid(String(localized:"The library game \(game.id.prefix(64)) has an invalid manifest entry.",bundle:.checkmate))}
             if sizes[game.file]==nil {
                 let path=directory.appendingPathComponent(game.file).path
                 guard let size=(try? FileManager.default.attributesOfItem(atPath:path))?[.size] as? Int else{throw CheckmateError.invalid(String(localized:"The game library file \(game.file) is missing.",bundle:.checkmate))};sizes[game.file]=size

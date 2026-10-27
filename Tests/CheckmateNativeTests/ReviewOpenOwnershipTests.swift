@@ -15,7 +15,7 @@ import CheckmateCore
 /// A re-read saved review attaches its cursor and ideas only to the positions they were made at.
 final class ReviewStoreStartPositionTests:XCTestCase {
     func testTheSameMovesFromAnotherStartPositionAreRefusedNotReattached()throws {
-        let root=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);defer{try? FileManager.default.removeItem(at:root)}
+        let root=try scratchDirectory()
         try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)
         let text=try PGNImporter.parse(Data("1. e4 *".utf8))[0]
         // The stored tree was read from another start (Black without the b8 knight); 1. e4 …d5 is legal from both.
@@ -48,9 +48,8 @@ final class ReviewStoreStartPositionTests:XCTestCase {
 /// The app decides once what an agent's open restores, and a refused open restores nothing.
 @MainActor final class ReviewAgentOpenTests:XCTestCase {
     private var directory:URL!
-    override func setUp(){directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);setenv("CHECKMATE_DATA_DIR",directory.path,1)}
-    override func tearDown(){unsetenv("CHECKMATE_DATA_DIR");try? FileManager.default.removeItem(at:directory)}
-    private func settle(_ what:String,_ condition:()->Bool)async throws {for _ in 0..<500{if condition(){return};try await Task.sleep(for:.milliseconds(10))};XCTFail("timed out waiting for \(what)")}
+    override func setUpWithError()throws{directory=try isolateDataDirectory()}
+    private func settle(_ what:String,_ condition:()->Bool)async throws {try await poll(what,tries:500,every:.milliseconds(10),condition)}
     private func tools(_ model:NativeModel)throws -> ReviewTools {try XCTUnwrap(model.companion.tools.reviewTools)}
     /// A saved review holding …c5, whose later idea …d5 failed to save and is only in memory.
     private func reviewWithUnsavedIdea(_ model:NativeModel)throws -> GameDocument {
@@ -173,10 +172,8 @@ final class ReviewStoreStartPositionTests:XCTestCase {
 /// deletion (a lesson's, a mini-game's, the training defender's) keeps it, and the learner's next move or take back
 /// drops it. A Trash purge of the review drops it too, since it can no longer come back.
 @MainActor final class ReviewUndoAfterReplyTests:XCTestCase {
-    private var directory:URL!
-    override func setUp(){directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);setenv("CHECKMATE_DATA_DIR",directory.path,1);setenv("CHECKMATE_TRAINING_ENABLED","1",1);setenv("CHECKMATE_TRAINING_B","1",1)}
-    override func tearDown(){unsetenv("CHECKMATE_DATA_DIR");unsetenv("CHECKMATE_TRAINING_ENABLED");unsetenv("CHECKMATE_TRAINING_B");try? FileManager.default.removeItem(at:directory)}
-    private func settle(_ what:String,_ condition:()->Bool)async throws {for _ in 0..<500{if condition(){return};try await Task.sleep(for:.milliseconds(10))};XCTFail("timed out waiting for \(what)")}
+    override func setUpWithError()throws{try isolateDataDirectory(["CHECKMATE_TRAINING_ENABLED":"1","CHECKMATE_TRAINING_B":"1"])}
+    private func settle(_ what:String,_ condition:()->Bool)async throws {try await poll(what,tries:500,every:.milliseconds(10),condition)}
     /// A model with one saved review in the library, back in Practice.
     private func modelWithReview()async throws -> (NativeModel,GameDocument) {
         let model=try NativeModel(),document=try PGNImporter.parse(Data("1. e4 e5 *".utf8))[0]
@@ -187,7 +184,7 @@ final class ReviewStoreStartPositionTests:XCTestCase {
     /// The learner's move in a lesson exercise, then the deletion while its authored reply is pending.
     func testALessonReplyKeepsTheRestore()async throws {
         let (model,document)=try await modelWithReview();defer{model.shutdown()}
-        let fen="4k3/8/8/8/8/8/4P3/4K3 w - - 0 1",print={(moves:[String])throws -> String in let rules=try ChessRules(fen:fen);for move in moves{try rules.move(uci:move)};return LessonAttemptJudge.fingerprint(rules.fen)}
+        let fen="4k3/8/8/8/8/8/4P3/4K3 w - - 0 1",print={(moves:[String])throws -> String in let rules=try ChessRules.reached(fen,moves);return LessonAttemptJudge.fingerprint(rules.fen)}
         let practice=LessonPractice(fen:fen,goal:"Push.",beat:"test:0",teaching:[LessonTeachingNode(fingerprint:try print([]),accepted:["e2e4"],replies:["e2e4":"e8e7"],next:["e2e4":1]),LessonTeachingNode(fingerprint:try print(["e2e4","e8e7"]),accepted:["e4e5"])],checkpoints:[.init(kind:.graph,label:"Push twice")],opponent:.beginner,hints:["a","b"],offTrack:"Off track.",success:"Pushed.")
         let attempt:LessonAttemptController=model.learning.attempt;attempt.replyDelay={.milliseconds(1500)}
         attempt.open(lessonID:"undo-line",practice:practice);attempt.click("e2");attempt.click("e4")
@@ -246,8 +243,7 @@ final class ReviewStoreStartPositionTests:XCTestCase {
 /// A file read started later is never discarded because an earlier file's parse finished during it.
 @MainActor final class ReviewFileReadOrderTests:XCTestCase {
     private var dir:URL!
-    override func setUp(){dir=FileManager.default.temporaryDirectory.appendingPathComponent("read-order-"+UUID().uuidString);try? FileManager.default.createDirectory(at:dir,withIntermediateDirectories:true);setenv("CHECKMATE_DATA_DIR",dir.path,1)}
-    override func tearDown(){unsetenv("CHECKMATE_DATA_DIR");try? FileManager.default.removeItem(at:dir)}
+    override func setUpWithError()throws{dir=try isolateDataDirectory(prefix:"read-order-")}
     private func pgn(_ name:String,_ event:String)throws->URL {let url=dir.appendingPathComponent(name);try Data("[Event \"\(event)\"]\n1. e4 *".utf8).write(to:url);return url}
     func testAnEarlierFilesParseDoesNotDiscardALaterRead()async throws {
         let model=try NativeModel(),app=AppDelegate();app.model=model;defer{model.shutdown()}

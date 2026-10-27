@@ -21,7 +21,7 @@ import CheckmateTestSupport
     private var folder:URL!
     override func setUpWithError() throws {folder=FileManager.default.temporaryDirectory.appendingPathComponent("review-analysis-\(UUID().uuidString)")}
     override func tearDownWithError() throws {try? FileManager.default.removeItem(at:folder)}
-    private func settle(_ what:String,_ condition:()->Bool)async throws {for _ in 0..<2000 where !condition(){try await Task.sleep(for:.milliseconds(5))};XCTAssertTrue(condition(),what)}
+    private func settle(_ what:String,_ condition:()->Bool)async throws {try await poll(what,tries:2000,every:.milliseconds(5),condition)}
     private let game="1. e4 d5 2. exd5 Qxd5 3. Nc3 *"
 
     /// R-2: leaving a review frees the engine (PL-1); entering it again, here or after a relaunch, shows the stored

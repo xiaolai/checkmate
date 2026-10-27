@@ -11,11 +11,6 @@ import CheckmateCore
 import SaidGuard
 
 
-/// Translates every lesson unchanged except for a marked title.
-private actor FixTranslator:LessonTranslationProvider {
- func translate(source:LessonTranslation,locale:String,onUsage:@escaping @Sendable(String,String,UsageTokens?)->Void)async throws->TranslationResult {var text=source;text.title="Titre: "+source.title;return TranslationResult(text:text,model:"fake",turnID:UUID().uuidString,tokens:UsageTokens(total:3))}
- func accountStatus()async throws->String {"Fake account"}
-}
 /// Records clips in call order; scripts in `failing` fail, and the `holding` script waits until the job is cancelled.
 private actor FixRecorder:LessonRecordingProvider {
  var failing:Set<String>,holding:String?,scripts:[String]=[];init(failing:Set<String>=[],holding:String?=nil){self.failing=failing;self.holding=holding}
@@ -33,8 +28,8 @@ private actor FixRecorder:LessonRecordingProvider {
  private var dir:URL!
  override func setUp(){dir=FileManager.default.temporaryDirectory.appendingPathComponent("lesson-language-fix-"+UUID().uuidString)}
  override func tearDown(){try? FileManager.default.removeItem(at:dir)}
- private func wait(_ controller:LessonLanguageController)async throws {for _ in 0..<1500{if !controller.busy{return};try await Task.sleep(for:.milliseconds(10))};XCTFail("Job did not finish")}
- private func controller(_ recorder:any LessonRecordingProvider)throws -> LessonLanguageController {let c=try LessonLanguageController(library:try CourseLibrary(),directory:dir,usage:UsageLedger(directory:dir.appendingPathComponent("Usage")),translator:FixTranslator(),recorder:recorder);c.language="fr";return c}
+ private func wait(_ controller:LessonLanguageController)async throws {try await poll("the job to finish",tries:1500,every:.milliseconds(10)){!controller.busy}}
+ private func controller(_ recorder:any LessonRecordingProvider)throws -> LessonLanguageController {let c=try LessonLanguageController(library:try CourseLibrary(),directory:dir,usage:UsageLedger(directory:dir.appendingPathComponent("Usage")),translator:OrderedLessonTranslator(),recorder:recorder);c.language="fr";return c}
  /// The stored files whose content decodes as a lesson pack manifest.
  private func manifests()throws -> [URL] {let packs=dir.appendingPathComponent("LessonLanguages");return try FileManager.default.contentsOfDirectory(at:packs,includingPropertiesForKeys:nil).filter{(try? JSONDecoder().decode(LessonPack.self,from:Data(contentsOf:$0))) != nil}}
  private func audioCount()throws -> Int {try FileManager.default.contentsOfDirectory(at:dir.appendingPathComponent("LessonLanguages"),includingPropertiesForKeys:nil).filter{(try? FileHandle(forReadingFrom:$0).read(upToCount:4))==Data("RIFF".utf8)}.count}

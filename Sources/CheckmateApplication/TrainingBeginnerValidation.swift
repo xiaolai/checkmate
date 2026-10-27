@@ -127,7 +127,7 @@ extension TrainingValidationService {
     private static func validateExchange(_ c:BeginnerContext)throws {
         let scenario=c.scenario
         guard scenario.choices==TrainingExchangeResult.choices,let stated=scenario.stated,!stated.isEmpty,let choice=c.expected.choice,TrainingExchangeResult.choices.contains(choice) else{try c.fail(String(localized:"an exchange question states its line and offers the three results",bundle:.checkmate))}
-        _ = try TrainingLegality(fen:c.fen,prelude:(scenario.prelude ?? [])+stated,runtimeFactory:c.runtimeFactory)
+        _ = try TrainingLegality(fen:c.fen,prelude:scenario.history(after:stated),runtimeFactory:c.runtimeFactory)
         guard c.captures.contains(stated[0]) else{try c.fail(String(localized:"the stated line starts with the learner's capture",bundle:.checkmate))}
         try c.requireNoAction(false)
         if let validator=c.validator{guard TrainingExchangeResult(rawValue:try validator.exchangeSign(scenario))?.label==choice else{try c.fail(String(localized:"the exchange result differs from the oracle",bundle:.checkmate))}}
@@ -205,7 +205,9 @@ extension TrainingValidationService {
         var found=Set<TrainingConcern>()
         if !(try legality.matingMoves()).isEmpty{found.insert(.mate)}
         if try validator.threat(scenario,create:false).opponentThreat{found.insert(.mateThreat)}
-        if !(try validator.classify(scenario.with(goal:TrainingGoal(kind:.gain,threshold:1)),plies:3)).accepted.isEmpty{found.insert(.winMaterial)}
+        // Whether material can be won at all: the same scenario judged against a gain goal.
+        var gain=scenario;gain.goal=TrainingGoal(kind:.gain,threshold:1)
+        if !(try validator.classify(gain,plies:3)).accepted.isEmpty{found.insert(.winMaterial)}
         guard let danger=try validator.danger(scenario) else{return nil}
         if danger{found.insert(.danger)}
         return found.isEmpty ? [.none]:found
@@ -220,11 +222,5 @@ extension TrainingValidationService {
             guard let piece=homes[from] else{return false}
             return try TrainingLegality(fen:fen,prelude:Array(prelude[..<index]),runtimeFactory:runtimeFactory).board()[from]==piece
         }
-    }
-}
-extension TrainingScenario {
-    /// The same scenario judged against another goal (a diagnosis asks whether material can be won at all).
-    func with(goal:TrainingGoal)->TrainingScenario {
-        TrainingScenario(id:id,entry:entry,variant:variant,tier:tier,cluster:cluster,learner:learner,prompt:prompt,explanation:explanation,hints:hints,fen:fen,prelude:prelude,diagram:diagram,target:target,drill:drill,budget:budget,shortest:shortest,choices:choices,expected:expected,noAction:noAction,reserve:reserve,review:review,generation:generation,check:check,goal:goal,plies:plies,nodes:nodes,stated:stated,askColor:askColor,focus:focus,skills:skills,primarySkill:primarySkill,source:source,bridge:bridge,workflow:workflow)
     }
 }

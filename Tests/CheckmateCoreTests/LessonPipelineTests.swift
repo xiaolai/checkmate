@@ -19,9 +19,9 @@ private actor FakeRecorder:LessonRecordingProvider {
  func record(script:String,locale:String,voice:String,onUsage:@escaping @Sendable(String,UsageTokens?)->Void)async throws->LessonRecordingResult {calls+=1;onUsage(UUID().uuidString,UsageTokens(total:7));return LessonRecordingResult(pcm:plausibleLessonPCM(script),transcript:script,responseID:UUID().uuidString,tokens:UsageTokens(total:7),model:"gpt-realtime")}
 }
 @MainActor final class LessonPipelineTests:XCTestCase {
- func wait(_ controller:LessonLanguageController)async throws {for _ in 0..<1000{if !controller.busy{return};try await Task.sleep(for:.milliseconds(10))};XCTFail("Job did not finish")}
+ func wait(_ controller:LessonLanguageController)async throws {try await poll("the job to finish",tries:1000,every:.milliseconds(10)){!controller.busy}}
  func testPipelineResumeAndVoiceInvalidatesOnlyAudio()async throws {
-  let dir=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);defer{try? FileManager.default.removeItem(at:dir)}
+  let dir=try scratchDirectory()
   let translator=FakeTranslator(),recorder=FakeRecorder(),library=try CourseLibrary(),usage=UsageLedger(directory:dir.appendingPathComponent("Usage")),controller=try LessonLanguageController(library:library,directory:dir,usage:usage,translator:translator,recorder:recorder)
   controller.language="fr";controller.translate();try await wait(controller);XCTAssertFalse(controller.inspection.isEmpty)
   controller.preview();try await wait(controller);XCTAssertNotNil(controller.previewURL)
@@ -49,7 +49,7 @@ private actor SlowRecorder:LessonRecordingProvider {
 }
 extension LessonPipelineTests {
  func testCancelAndAllCourseTranslation()async throws {
-  let dir=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);defer{try? FileManager.default.removeItem(at:dir)}
+  let dir=try scratchDirectory()
   let translator=FakeTranslator(),recorder=SlowRecorder(),library=try CourseLibrary(),usage=UsageLedger(directory:dir.appendingPathComponent("Usage")),controller=try LessonLanguageController(library:library,directory:dir,usage:usage,translator:translator,recorder:recorder)
   controller.language="fr";controller.allLessons=true;controller.translate();try await wait(controller);let translations=await translator.calls;XCTAssertEqual(translations,library.lessons.count)
   controller.allLessons=false;controller.record();for _ in 0..<100 {if await recorder.calls>0{break};try await Task.sleep(for:.milliseconds(10))};controller.cancel();try await wait(controller);XCTAssertTrue(controller.status.contains("Canceled"));XCTAssertNil(try controller.store.completePack(source:LessonTranslation.source(library:library,index:0),locale:"fr",voice:"cedar"));XCTAssertEqual(usage.records.last?.status,.cancelled)
@@ -64,10 +64,10 @@ private actor CompletingTranslator:LessonTranslationProvider {
 }
 extension LessonPipelineTests {
  func testCancelAfterProviderCompletionKeepsPaidTranslation()async throws {
-  let dir=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);defer{try? FileManager.default.removeItem(at:dir)};let translator=CompletingTranslator(),library=try CourseLibrary(),ledger=UsageLedger(directory:dir.appendingPathComponent("Usage")),controller=try LessonLanguageController(library:library,directory:dir,usage:ledger,translator:translator,recorder:FakeRecorder());controller.language="fr";controller.translate();for _ in 0..<100{if await translator.calls>0{break};try await Task.sleep(for:.milliseconds(10))};controller.cancel();await translator.finish();try await wait(controller);XCTAssertNotNil(try controller.store.translation(source:LessonTranslation.source(library:library,index:0),locale:"fr"));XCTAssertEqual(ledger.records.last?.tokens?.total,9);controller.translate();try await wait(controller);let calls=await translator.calls;XCTAssertEqual(calls,1)
+  let dir=try scratchDirectory();let translator=CompletingTranslator(),library=try CourseLibrary(),ledger=UsageLedger(directory:dir.appendingPathComponent("Usage")),controller=try LessonLanguageController(library:library,directory:dir,usage:ledger,translator:translator,recorder:FakeRecorder());controller.language="fr";controller.translate();for _ in 0..<100{if await translator.calls>0{break};try await Task.sleep(for:.milliseconds(10))};controller.cancel();await translator.finish();try await wait(controller);XCTAssertNotNil(try controller.store.translation(source:LessonTranslation.source(library:library,index:0),locale:"fr"));XCTAssertEqual(ledger.records.last?.tokens?.total,9);controller.translate();try await wait(controller);let calls=await translator.calls;XCTAssertEqual(calls,1)
  }
  func testUnchangedPackRefreshKeepsCurrentPlayback()async throws {
-  let dir=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);defer{try? FileManager.default.removeItem(at:dir)};let library=try CourseLibrary(),source=LessonTranslation.source(library:library,index:0),store=try LessonPackStore(directory:dir);try store.saveTranslation(source,source:source,locale:"fr");for beat in source.beats{_ = try store.saveClip(pcm:plausibleLessonPCM(beat.speak,seconds:1),transcript:beat.speak,beatID:beat.id,source:source,locale:"fr",voice:"cedar",model:"gpt-realtime")};let session=try GameSession(engine:nil),player=try LearningPlayer(session:session);session.state.settings.lessonLanguage="fr";player.packs=store;for _ in 0..<100{if !player.localizationLoading{break};try await Task.sleep(for:.milliseconds(10))};player.openLesson(index:0);player.play();player.advance(by:0.25);player.reloadLocalizedPacks();XCTAssertTrue(player.playing);for _ in 0..<20{try await Task.sleep(for:.milliseconds(10))};XCTAssertTrue(player.playing);XCTAssertGreaterThanOrEqual(player.seconds,0.25);player.shutdown()
+  let dir=try scratchDirectory();let library=try CourseLibrary(),source=LessonTranslation.source(library:library,index:0),store=try LessonPackStore(directory:dir);try store.saveTranslation(source,source:source,locale:"fr");for beat in source.beats{_ = try store.saveClip(pcm:plausibleLessonPCM(beat.speak,seconds:1),transcript:beat.speak,beatID:beat.id,source:source,locale:"fr",voice:"cedar",model:"gpt-realtime")};let session=try GameSession(engine:nil),player=try LearningPlayer(session:session);session.state.settings.lessonLanguage="fr";player.packs=store;for _ in 0..<100{if !player.localizationLoading{break};try await Task.sleep(for:.milliseconds(10))};player.openLesson(index:0);player.play();player.advance(by:0.25);player.reloadLocalizedPacks();XCTAssertTrue(player.playing);for _ in 0..<20{try await Task.sleep(for:.milliseconds(10))};XCTAssertTrue(player.playing);XCTAssertGreaterThanOrEqual(player.seconds,0.25);player.shutdown()
  }
 }
 
@@ -84,7 +84,7 @@ private actor FailingTranslator:LessonTranslationProvider {
 extension LessonPipelineTests {
  /// One bad clip is named, the rest of the lesson is still recorded, and Resume retries the bad clip last.
  func testAFailingClipIsNamedTheJobContinuesAndResumeRetriesItLast()async throws {
-  let dir=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);defer{try? FileManager.default.removeItem(at:dir)}
+  let dir=try scratchDirectory()
   let library=try CourseLibrary(),source=LessonTranslation.source(library:library,index:0)
   let translator=FakeTranslator(),usage=UsageLedger(directory:dir.appendingPathComponent("Usage"))
   let setup=try LessonLanguageController(library:library,directory:dir,usage:usage,translator:translator,recorder:FakeRecorder());setup.language="fr";setup.translate();try await wait(setup)
@@ -98,7 +98,7 @@ extension LessonPipelineTests {
  }
  /// A cause that fails everything (here, every translation) stops after three in a row instead of paying for forty.
  func testThreeFailuresInARowStopTheJob()async throws {
-  let dir=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);defer{try? FileManager.default.removeItem(at:dir)}
+  let dir=try scratchDirectory()
   let translator=FailingTranslator(),library=try CourseLibrary()
   let controller=try LessonLanguageController(library:library,directory:dir,usage:UsageLedger(directory:dir.appendingPathComponent("Usage")),translator:translator,recorder:FakeRecorder())
   controller.language="fr";controller.allLessons=true;controller.translate();try await wait(controller)
@@ -108,7 +108,7 @@ extension LessonPipelineTests {
 extension LessonPipelineTests {
  /// A damaged stored translation can be discarded for that one lesson, without discarding the whole language.
  func testADamagedTranslationCanBeDiscardedForOneLesson()async throws {
-  let dir=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);defer{try? FileManager.default.removeItem(at:dir)}
+  let dir=try scratchDirectory()
   let library=try CourseLibrary(),source=LessonTranslation.source(library:library,index:0)
   let controller=try LessonLanguageController(library:library,directory:dir,usage:UsageLedger(directory:dir.appendingPathComponent("Usage")),translator:FakeTranslator(),recorder:FakeRecorder())
   controller.language="fr";controller.translate();try await wait(controller)
@@ -123,7 +123,7 @@ extension LessonPipelineTests {
 extension LessonPipelineTests {
  /// Text made for an earlier version of a lesson can be removed; the current translation is kept.
  func testPurgeRemovesOnlyOutdatedTranslations()throws {
-  let dir=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);defer{try? FileManager.default.removeItem(at:dir)}
+  let dir=try scratchDirectory()
   let library=try CourseLibrary(),current=LessonTranslation.source(library:library,index:0),store=try LessonPackStore(directory:dir)
   var older=current;older.title=current.title+" (earlier wording)";XCTAssertNotEqual(older.fingerprint,current.fingerprint)
   var text=current;text.title="Titre";try store.saveTranslation(text,source:current,locale:"fr")

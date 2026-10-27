@@ -2,6 +2,7 @@ import XCTest
 @testable import CheckmateApplication
 @testable import CheckmateDomain
 import CheckmateRules
+import CheckmateTestSupport
 
 /// LAN-play plan D9–D11 in words: what VoiceOver announces for moves and clocks, how a result reads from each seat,
 /// and the plain wording for every way a connection stops. Pure functions: the text, never the speech.
@@ -9,9 +10,8 @@ final class NetworkWordingTests:XCTestCase {
     private let ben=NetworkWording.Players(white:"Ben",black:"Ana",learner:.black)
     /// Plays `moves` from `fen` and returns the last one as the rules recorded it.
     private func record(_ moves:[String],from fen:String?=nil)throws -> MoveRecord {
-        let rules=try ChessRules(fen:fen);var last:MoveRecord?
-        for move in moves{last=try rules.move(uci:move)}
-        return try XCTUnwrap(last)
+        let rules=try ChessRules.reached(fen,Array(moves.dropLast()))
+        return try rules.move(uci:XCTUnwrap(moves.last))
     }
     func testMovesReadAsSentences()throws {
         XCTAssertEqual(NetworkWording.move(try record(["g1f3"]),players:ben),"Ben played knight to f3","D10's own example")

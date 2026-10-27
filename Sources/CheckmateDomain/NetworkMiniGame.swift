@@ -20,8 +20,7 @@ public final class NetworkMiniGame:NetworkChessRules,NetworkBoardModel {
     /// the last capture or pawn move: a capture removes a piece and pawns only move forward, so no earlier position can
     /// recur, and the 80-ply rule counts these same positions. The last move is no input of any ruling.
     public func networkFEN()throws -> String {
-        let pawns=state.board.filter{$0.value.hasSuffix("p")}
-        let since=state.history.reversed().prefix{$0.board.count==state.board.count && $0.board.filter{$0.value.hasSuffix("p")}==pawns}.reversed()
+        let since=state.history.reversed().prefix{MiniGameRules.sameMaterialAndPawns($0.board,state.board)}.reversed()
         // The referee keeps 256 positions and draws after 80 without progress, so the stretch is never cut short.
         guard since.count<MiniGameState.maximumHistory else{throw NetworkRulesError.unexpected(String(localized:"The mini-game's history was cut short.",bundle:.checkmate))}
         func position(_ s:MiniGameSnapshot)->String {Self.squares(s.board)+";"+s.turn+";"+(s.pendingFinish ?? "-")}

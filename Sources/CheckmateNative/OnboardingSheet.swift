@@ -23,9 +23,9 @@ import CheckmateCore
     /// quit: a force quit or crash after Skip must not bring it back.
     private func remember(){do{try model.store.save(model.session.state)}catch{NativeLog.storage.error("Saving after the welcome failed");model.storageError=NativeModel.progressSaveFailure}}
     /// The Settings pane's way in: the consent question first, then the connection.
-    func setUpVoice(){model.connectVoiceFromSettings()}
+    func setUpVoice(){model.connectVoice()}
     var lessonTitle:String {Onboarding.lessonIndex(placement,in:model.learning.library).map{model.learning.library.lessons[$0].title} ?? ""}
-    var voiceLanguage:Binding<String> {Binding(get:{[model] in model.session.state.settings.voiceLanguage},set:{[model] in var settings=model.session.state.settings;settings.voiceLanguage=$0;model.session.updateSettings(settings)})}
+    var voiceLanguage:Binding<String> {model.session.binding(\.voiceLanguage)}
 }
 struct OnboardingSheet:View {
     @ObservedObject var flow:OnboardingFlow

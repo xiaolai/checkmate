@@ -41,7 +41,7 @@ public struct AudioPolicy {public let automation:Bool;public init(automation:Boo
         func piece(_ type:String,_ time:Double){for t in scores[type] ?? [] {tones.append(Tone(at:time+t.at,duration:t.duration,from:t.from,to:t.to,gain:t.gain,wave:t.wave))}}
         if undo{tones=[Tone(at:0,duration:0.065,from:300,to:210,gain:0.055,wave:"sine")]}else if let m=move {
             if m.captured != nil {tones.append(Tone(at:0,duration:0.045,from:1050,to:170,gain:0.055,wave:"triangle"));at=0.035}
-            if m.flags.contains("k") || m.flags.contains("q"){piece("k",at);piece("r",at+0.11)}else if m.promotion != nil{piece("p",at);tones.append(Tone(at:at+0.09,duration:0.12,from:550,to:550,gain:0.05,wave:"sine"));tones.append(Tone(at:at+0.2,duration:0.16,from:740,to:740,gain:0.045,wave:"sine"))}else{piece(m.piece,at)}
+            if m.isCastle{piece("k",at);piece("r",at+0.11)}else if m.promotion != nil{piece("p",at);tones.append(Tone(at:at+0.09,duration:0.12,from:550,to:550,gain:0.05,wave:"sine"));tones.append(Tone(at:at+0.2,duration:0.16,from:740,to:740,gain:0.045,wave:"sine"))}else{piece(m.piece,at)}
             let end=(tones.map{$0.at+$0.duration}.max() ?? 0)+0.035
             if m.san.contains("#"){for (i,f) in [520.0,650,780].enumerated(){tones.append(Tone(at:end+Double(i)*0.11,duration:i==2 ? 0.22:0.12,from:f,to:f,gain:0.04,wave:"sine"))}}else if m.san.contains("+"){tones.append(Tone(at:end,duration:0.12,from:740,to:740,gain:0.035,wave:"sine"))}
         }

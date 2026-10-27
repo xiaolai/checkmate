@@ -1,4 +1,3 @@
-import CryptoKit
 import XCTest
 import CheckmateCore
 @testable import CheckmateDomain
@@ -117,7 +116,7 @@ extension LessonRemediationTests {
     func testCourseEditionFingerprintsArePinned()throws {
         let library=try CourseLibrary()
         let all=library.lessons.indices.map{library.lessons[$0].id+"="+LessonTranslation.source(library:library,index:$0).fingerprint}.joined(separator:" ")
-        XCTAssertEqual(SHA256.hash(data:Data(all.utf8)).map{String(format:"%02x",$0)}.joined(),"1abcb1c2835091708e0bf76d77f58fdf9a22458c0ee6960ae5625f6cacb119f5")
+        XCTAssertEqual(reviewHash(Data(all.utf8)),"1abcb1c2835091708e0bf76d77f58fdf9a22458c0ee6960ae5625f6cacb119f5")
     }
     /// Guards and stages are lesson mechanics: a translation pack is rebuilt when they change, including a new stage
     /// order or partition with the same overlays, but a lesson without them keeps its fingerprint (and its recordings).

@@ -4,11 +4,12 @@ import CheckmateCore
 @testable import CheckmateSupport
 @testable import CheckmateRules
 @testable import CheckmateApplication
+import CheckmateTestSupport
 
 /// The bundled game library: a strictly validated manifest whose every record replays to exactly what it states, and
 /// the coverage the roster asks for.
 final class GameLibraryTests:XCTestCase {
-    private static let repository=URL(fileURLWithPath:#filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+    private static let repository=Repository.root
     /// The coverage gate (plan WI-9): every roster event has a bundled game, at least 150 in all, under 2 MB.
     func testCoverageGate() throws {
         let library=try GameLibrary.load()
@@ -23,7 +24,7 @@ final class GameLibraryTests:XCTestCase {
     }
     /// A manifest that cannot be decoded says so in a sentence; the decoder's own description is never shown.
     func testAnUnreadableManifestSaysSoPlainly() throws {
-        let directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);defer{try? FileManager.default.removeItem(at:directory)}
+        let directory=try scratchDirectory()
         try FileManager.default.createDirectory(at:directory,withIntermediateDirectories:true)
         try Data("{\"schemaVersion\":\"one\"}".utf8).write(to:directory.appendingPathComponent("manifest.json"))
         XCTAssertThrowsError(try GameLibrary.load(from:directory)){XCTAssertEqual(userFacingMessage($0,fallback:""),"The game library manifest could not be read.")}

@@ -58,7 +58,9 @@ public struct CourseLibrary:Decodable {
     public let retiredExerciseIDs:[String]?
     public var lessonTiming:CourseTiming {timing ?? .standard}
     enum CodingKeys:String,CodingKey {case schemaVersion,lessons,voices,exercises,puzzles,stepTitles,sounds,timing,retiredExerciseIDs;case referenceFrames="frames"}
-    public init() throws {self=try JSONDecoder().decode(Self.self,from:Data(contentsOf:NativeResources.url("course.json")))}
+    /// The bundled course, decoded once per process: it is 1.7 MB of JSON and never changes while the app runs.
+    private static let bundled=Result{try JSONDecoder().decode(Self.self,from:Data(contentsOf:NativeResources.url("course.json")))}
+    public init() throws {self=try Self.bundled.get()}
     /// Older saves used the original transcript index. Stable recording IDs let
     /// them resume at the same explanation, or after a retired question.
     public func resumeStep(in lesson:CourseLesson,progress:CourseProgress)->Int {

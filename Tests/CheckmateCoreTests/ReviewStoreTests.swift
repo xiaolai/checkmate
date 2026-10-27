@@ -10,7 +10,7 @@ import CheckmateCore
 
 final class ReviewStoreTests:XCTestCase {
     func testSaveRecoveryAndCorruptQuarantine()throws {
-        let directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);defer{try? FileManager.default.removeItem(at:directory)}
+        let directory=try scratchDirectory()
         let store=ReviewStore(directory:directory),d=try PGNImporter.parse(Data("1. e4 *".utf8))[0]
         try store.save(d,cursor:1,branches:[]);XCTAssertEqual(try store.load(d.id).document,d)
         // Overwritten in place, which leaves the folder's date alone, so the record is checked when a store loads the
@@ -19,7 +19,7 @@ final class ReviewStoreTests:XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath:directory.appendingPathComponent("Quarantine").path))
     }
     func testRecoveryIndexAndExport()throws {
-        let directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);defer{try? FileManager.default.removeItem(at:directory)}
+        let directory=try scratchDirectory()
         let store=ReviewStore(directory:directory),d=try PGNImporter.parse(Data("1. d4 (1. e4) d5 *".utf8))[0]
         try store.save(d,cursor:0,branches:[]);try FileManager.default.removeItem(at:directory.appendingPathComponent("index.json"));XCTAssertEqual(try store.list().count,1)
         XCTAssertEqual(try PGNImporter.parse(store.export(d.id))[0].nodes,d.nodes)
@@ -50,7 +50,7 @@ final class ReviewStoreTests:XCTestCase {
         }
     }
     func testNewRecordSurvivesIndexDiskFullAndRestart()throws {
-        let directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);defer{try? FileManager.default.removeItem(at:directory)}
+        let directory=try scratchDirectory()
         let old=try PGNImporter.parse(Data("1. e4 *".utf8))[0],new=try PGNImporter.parse(Data("1. d4 *".utf8))[0]
         try ReviewStore(directory:directory).save(old,cursor:0,branches:[])
         let failing=ReviewStore(directory:directory,atomicWriter:{data,url in
@@ -63,7 +63,7 @@ final class ReviewStoreTests:XCTestCase {
         XCTAssertEqual(try recovered.export(new.id),new.original)
     }
     func testOldSchemaDowngradePreservesBytesAndLegacyCursor()throws {
-        let directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);defer{try? FileManager.default.removeItem(at:directory)}
+        let directory=try scratchDirectory()
         let store=ReviewStore(directory:directory),d=try PGNImporter.parse(Data("[Event \"Preserve study\"]\n1. d4 (1. e4 {idea}) d5 *".utf8))[0]
         try store.save(d,cursor:2,branches:[])
         // Schema1 record without the newer sidecars remains readable and exactly exportable.
@@ -110,7 +110,7 @@ final class ReviewStoreTests:XCTestCase {
         }
     }
     func testChangedDocumentSameIdentityPersistsInsteadOfCursorOnly()throws {
-        let directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);defer{try? FileManager.default.removeItem(at:directory)}
+        let directory=try scratchDirectory()
         let store=ReviewStore(directory:directory),old=try PGNImporter.parse(Data("1. e4 *".utf8))[0],replacement=try PGNImporter.parse(Data("1. d4 *".utf8))[0]
         var object=try XCTUnwrap(JSONSerialization.jsonObject(with:JSONEncoder().encode(replacement)) as? [String:Any]);object["id"]=old.id.uuidString
         let changed=try JSONDecoder().decode(GameDocument.self,from:JSONSerialization.data(withJSONObject:object))
@@ -118,7 +118,7 @@ final class ReviewStoreTests:XCTestCase {
         XCTAssertEqual(try ReviewStore(directory:directory).export(old.id),replacement.original)
     }
     func testFutureRecordDoesNotBlockCurrentLibraryAndCannotBeOverwritten()throws {
-        let directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);defer{try? FileManager.default.removeItem(at:directory)}
+        let directory=try scratchDirectory()
         let store=ReviewStore(directory:directory),future=try PGNImporter.parse(Data("1. e4 *".utf8))[0],current=try PGNImporter.parse(Data("1. d4 *".utf8))[0]
         try store.save(future,cursor:0,branches:[])
         let bytes=try JSONSerialization.data(withJSONObject:["schemaVersion":2,"payload":"future"]);try bytes.write(to:store.documentURL(future.id),options:.atomic)
@@ -127,7 +127,7 @@ final class ReviewStoreTests:XCTestCase {
         try store.delete(current.id);XCTAssertTrue(try store.list().isEmpty);XCTAssertEqual(try Data(contentsOf:store.documentURL(future.id)),bytes)
     }
     func testFutureMetadataPreservedWhileCurrentDocumentRemainsWritable()throws {
-        let directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);defer{try? FileManager.default.removeItem(at:directory)}
+        let directory=try scratchDirectory()
         let d=try PGNImporter.parse(Data("1. e4 e5 *".utf8))[0],store=ReviewStore(directory:directory)
         try store.save(d,cursor:0,branches:[])
         let future=try JSONSerialization.data(withJSONObject:["schemaVersion":2,"future":"metadata"]),cursor=directory.appendingPathComponent(d.id.uuidString+".cursor.json"),index=directory.appendingPathComponent("index.json")
@@ -138,7 +138,7 @@ final class ReviewStoreTests:XCTestCase {
         XCTAssertEqual(try Data(contentsOf:index),future)
     }
     func testQuarantineFilesCountTowardLibraryQuota()throws {
-        let directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);defer{try? FileManager.default.removeItem(at:directory)}
+        let directory=try scratchDirectory()
         let quarantine=directory.appendingPathComponent("Quarantine");try FileManager.default.createDirectory(at:quarantine,withIntermediateDirectories:true)
         let large=quarantine.appendingPathComponent("retained-corrupt.json");FileManager.default.createFile(atPath:large.path,contents:Data())
         let handle=try FileHandle(forWritingTo:large);try handle.truncate(atOffset:UInt64(ReviewPolicy.maximumLibraryBytes));try handle.close()
@@ -147,7 +147,7 @@ final class ReviewStoreTests:XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath:store.documentURL(d.id).path))
     }
     func testSerialWriterFlushKeepsLatestAfterBlockedOlderSave()throws {
-        let directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);defer{try? FileManager.default.removeItem(at:directory)}
+        let directory=try scratchDirectory()
         let d=try PGNImporter.parse(Data("1. e4 e5 *".utf8))[0],entered=DispatchSemaphore(value:0),release=DispatchSemaphore(value:0)
         var blocked=false
         let store=ReviewStore(directory:directory,atomicWriter:{data,url in
@@ -163,15 +163,14 @@ final class ReviewStoreTests:XCTestCase {
         XCTAssertEqual(try ReviewStore(directory:directory).load(d.id).cursor,2)
     }
     @MainActor func testSynchronousFlushPerformsWritesOffMainThread()throws {
-        let directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);defer{try? FileManager.default.removeItem(at:directory)}
+        let directory=try scratchDirectory()
         let d=try PGNImporter.parse(Data("1. e4 *".utf8))[0]
         let store=ReviewStore(directory:directory,atomicWriter:{data,url in XCTAssertFalse(Thread.isMainThread);try data.write(to:url,options:.atomic)})
         _ = try ReviewSaveCoordinator(store:store).flush(d,cursor:1,branches:[])
         XCTAssertEqual(try ReviewStore(directory:directory).load(d.id).cursor,1)
     }
     func testDeleteRemovesRecordAndCursorButKeepsOtherReviews()throws {
-        let directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        defer{try? FileManager.default.removeItem(at:directory)}
+        let directory=try scratchDirectory()
         let store=ReviewStore(directory:directory),first=try PGNImporter.parse(Data("1. e4 *".utf8))[0],second=try PGNImporter.parse(Data("1. d4 *".utf8))[0]
         try store.save(first,cursor:1,branches:[]);try store.save(second,cursor:1,branches:[])
         try store.delete(first.id)
@@ -180,8 +179,7 @@ final class ReviewStoreTests:XCTestCase {
         XCTAssertEqual(try ReviewStore(directory:directory).list().map(\.id),[second.id])
     }
     func testDeleteRollsBackWhenIndexWriteFails()throws {
-        let directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        defer{try? FileManager.default.removeItem(at:directory)}
+        let directory=try scratchDirectory()
         var fail=false
         let store=ReviewStore(directory:directory,atomicWriter:{data,url in
             if fail && url.lastPathComponent=="index.json"{throw CocoaError(.fileWriteNoPermission)}
@@ -195,8 +193,7 @@ final class ReviewStoreTests:XCTestCase {
         XCTAssertEqual(try store.list().map(\.id),[document.id])
     }
     func testCoordinatorDeletionCannotBeRecreatedByLateAutosave()throws {
-        let directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        defer{try? FileManager.default.removeItem(at:directory)}
+        let directory=try scratchDirectory()
         let store=ReviewStore(directory:directory),writer=ReviewSaveCoordinator(store:store)
         let document=try PGNImporter.parse(Data("1. e4 e5 *".utf8))[0]
         _ = try writer.flush(document,cursor:0,branches:[])
@@ -215,7 +212,7 @@ final class ReviewStoreTests:XCTestCase {
     }
     /// R-10: an index written under an older title rule is rebuilt once, so saved reviews show the current titles.
     func testIndexFromAnOlderTitleRuleIsRebuilt()throws {
-        let directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);defer{try? FileManager.default.removeItem(at:directory)}
+        let directory=try scratchDirectory()
         let document=try PGNImporter.parse(Data("[Event \"London\"]\n[Round \"2\"]\n[White \"Alice\"]\n[Black \"Bob\"]\n\n1. e4 *".utf8))[0]
         try ReviewStore(directory:directory).save(document,cursor:0,branches:[])
         let file=directory.appendingPathComponent("index.json")
@@ -228,7 +225,7 @@ final class ReviewStoreTests:XCTestCase {
     private func trash(_ directory:URL,_ id:UUID)->URL {directory.appendingPathComponent("Trash").appendingPathComponent(id.uuidString)}
     /// R-12: a deleted review goes to the library's Trash and can be put back with its position and ideas.
     func testDeletedReviewMovesToTrashAndRestores()throws {
-        let directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);defer{try? FileManager.default.removeItem(at:directory)}
+        let directory=try scratchDirectory()
         let store=ReviewStore(directory:directory),first=try PGNImporter.parse(Data("1. e4 e5 *".utf8))[0],second=try PGNImporter.parse(Data("1. d4 *".utf8))[0]
         var branch=ReviewBranch(root:first.mainline[1]);branch.moves=["g1f3"]
         try store.save(first,cursor:2,branches:[branch]);try store.save(second,cursor:1,branches:[])
@@ -248,7 +245,7 @@ final class ReviewStoreTests:XCTestCase {
     }
     /// R-12: the Trash keeps a deleted review for 30 days, and gives way first when the library needs room.
     func testTrashIsPurgedAfterThirtyDaysAndWhenTheLibraryIsFull()throws {
-        let directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);defer{try? FileManager.default.removeItem(at:directory)}
+        let directory=try scratchDirectory()
         let store=ReviewStore(directory:directory),old=try PGNImporter.parse(Data("1. e4 *".utf8))[0],recent=try PGNImporter.parse(Data("1. d4 *".utf8))[0]
         try store.save(old,cursor:1,branches:[]);try store.save(recent,cursor:1,branches:[]);try store.delete(old.id);try store.delete(recent.id)
         try FileManager.default.setAttributes([.creationDate:Date().addingTimeInterval(-31*24*3600)],ofItemAtPath:trash(directory,old.id).path)

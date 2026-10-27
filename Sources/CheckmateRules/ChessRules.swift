@@ -5,30 +5,44 @@ public final class ChessRules {
     private let runtime:any ChessScriptRuntime
     private let runtimeFactory:() throws -> any ChessScriptRuntime
     public convenience init(fen:String?=nil) throws {try self.init(fen:fen,runtimeFactory:{try JavaScriptCoreChessRuntime()})}
+    /// An injected runtime when there is one, else the bundled JavaScriptCore one.
+    public convenience init(fen:String?=nil,runtimeFactory:(() throws -> any ChessScriptRuntime)?) throws {if let runtimeFactory {try self.init(fen:fen,runtimeFactory:runtimeFactory)} else{try self.init(fen:fen)}}
     public init(fen:String?=nil,runtimeFactory:@escaping () throws -> any ChessScriptRuntime) throws {
         self.runtimeFactory=runtimeFactory;runtime=try runtimeFactory()
         if let fen=fen {try load(fen)}
     }
     private func literal(_ object:Any) throws -> String {String(decoding:try JSONSerialization.data(withJSONObject:object,options:[.fragmentsAllowed,.sortedKeys]),as:UTF8.self)}
+    static var invalidOperation:CheckmateError {.invalid(String(localized:"Invalid chess operation.",bundle:.checkmate))}
+    /// `expression` as JSON in an envelope that says whether it threw. An undefined result is written as null, so the
+    /// envelope always carries its `value` key.
+    private static func wrapped(_ expression:String)->String {"(()=>{try{const v=\(expression);return JSON.stringify({ok:true,value:v===undefined?null:v})}catch(e){return JSON.stringify({ok:false})}})()"}
+    private struct Envelope<T:Decodable>:Decodable {
+        let value:T
+        private enum Key:CodingKey {case ok,value}
+        init(from decoder:Decoder)throws {let container=try decoder.container(keyedBy:Key.self);guard try container.decode(Bool.self,forKey:.ok) else{throw ChessRules.invalidOperation};value=try container.decode(T.self,forKey:.value)}
+    }
     private func raw(_ expression:String) throws -> Any {
-        let value=try runtime.evaluate("(()=>{try{return JSON.stringify({ok:true,value:\(expression)})}catch(e){return JSON.stringify({ok:false})}})()");guard let data=value.data(using:.utf8),let result=try JSONSerialization.jsonObject(with:data) as? [String:Any],result["ok"] as? Bool == true else {throw CheckmateError.invalid(String(localized:"Invalid chess operation.",bundle:.checkmate))}
+        let value=try runtime.evaluate(Self.wrapped(expression));guard let data=value.data(using:.utf8),let result=try JSONSerialization.jsonObject(with:data) as? [String:Any],result["ok"] as? Bool == true else {throw Self.invalidOperation}
         return result["value"] ?? NSNull()
     }
-    private func decoded<T:Decodable>(_ expression:String,_ type:T.Type) throws -> T {let value=try raw(expression);return try JSONDecoder().decode(type,from:JSONSerialization.data(withJSONObject:value,options:.fragmentsAllowed))}
-    private func flag(_ expression:String)throws -> Bool {guard let value=try raw(expression) as? Bool else{throw CheckmateError.invalid(String(localized:"Invalid chess operation.",bundle:.checkmate))};return value}
-    private func text(_ expression:String)throws -> String {guard let value=try raw(expression) as? String else{throw CheckmateError.invalid(String(localized:"Invalid chess operation.",bundle:.checkmate))};return value}
+    /// Decoded straight from the envelope: one parse, not a parse, a re-serialisation and a second parse.
+    private func decoded<T:Decodable>(_ expression:String,_ type:T.Type) throws -> T {try JSONDecoder().decode(Envelope<T>.self,from:Data(try runtime.evaluate(Self.wrapped(expression)).utf8)).value}
+    private func flag(_ expression:String)throws -> Bool {guard let value=try raw(expression) as? Bool else{throw Self.invalidOperation};return value}
+    private func text(_ expression:String)throws -> String {guard let value=try raw(expression) as? String else{throw Self.invalidOperation};return value}
     // Convenience reads: each falls back to an empty or false value on a runtime failure. The throwing queries below
     // are the one implementation; anything that grades or copies a game uses those.
     public var fen:String {(try? currentFEN()) ?? ""}
     public var pgn:String {(try? text("game.pgn()")) ?? ""}
     public var turn:String {(try? currentTurn()) ?? "w"}
     public var history:[String] {(try? decoded("game.history()",[String].self)) ?? []}
-    public var records:[MoveRecord] {(try? decoded("game.history({verbose:true})",[MoveRecord].self)) ?? []}
+    public var records:[MoveRecord] {(try? moveHistory()) ?? []}
+    /// The last move played, or nil before any: the whole history is not decoded for it.
+    public var lastRecord:MoveRecord? {try? lastMoveRecord()}
     /// The square a pawn may capture on en passant, whether or not the capture is legal: the square a double step
     /// (chess.js flag "b") just passed, or the set-up position's own square before any move. `fen` names it only when
     /// the capture is legal, so it cannot explain a capture refused for exposing the king.
     public var enPassantTarget:String? {
-        guard let last=records.last else{return (try? setUpFEN()).flatMap{$0}.flatMap{TypedMove.enPassant(fen:$0)}}
+        guard let last=lastRecord else{return (try? setUpFEN()).flatMap{$0}.flatMap{TypedMove.enPassant(fen:$0)}}
         guard last.flags.contains("b"),let file=last.from.first,let from=last.from.last?.wholeNumberValue,let to=last.to.last?.wholeNumberValue else{return nil}
         return "\(file)\((from+to)/2)"
     }
@@ -67,7 +81,7 @@ public final class ChessRules {
     public func load(_ fen:String) throws {_ = try raw("game.load(\(literal(fen)))")}
     /// The FEN header chess.js keeps for a game set up from a position (`load`, or a record's SetUp/FEN), or nil for
     /// a game from the initial position.
-    public func setUpFEN()throws -> String? {let value=try raw("game.getHeaders().FEN ?? null");if value is NSNull{return nil};guard let fen=value as? String else{throw CheckmateError.invalid(String(localized:"Invalid chess operation.",bundle:.checkmate))};return fen}
+    public func setUpFEN()throws -> String? {let value=try raw("game.getHeaders().FEN ?? null");if value is NSNull{return nil};guard let fen=value as? String else{throw Self.invalidOperation};return fen}
     /// The record loads into a fresh game that replaces this one only once it has loaded: a failure leaves this game as it was.
     public func restore(_ pgn:String) throws {_ = try raw("(()=>{const g=new exports.Chess();g.loadPgn(\(literal(pgn)));game=g;return true})()")}
     /// A runtime failure throws: the caller must not record a new game or a take-back that did not happen.
@@ -80,8 +94,10 @@ public final class ChessRules {
     /// A runtime failure throws rather than reading as a missing piece, an empty attack map or an empty square.
     public func inspect(_ sq:String) throws -> PieceInspection {
         guard Self.validSquare(sq),let p=try pieceAt(sq) else{throw CheckmateError.invalid("NO_PIECE")}
-        let attacks=try Self.squares.filter{try attackersOf($0,color:p.color).contains(sq)},legal=try p.color==currentTurn()
-        var destinations=try legal ? Array(Set(legalMoves(from:sq).map(\.to))).sorted() : attacks.filter {let target=try pieceAt($0);return p.type == "p" ? target != nil && target!.color != p.color && target!.type != "k" : target == nil || (target!.color != p.color && target!.type != "k")}
+        // The squares this piece attacks and what stands on them, in one evaluation rather than one per square.
+        let attacked=try decoded("\(literal(Self.squares)).filter(s=>game.attackers(s,\(literal(p.color))).includes(\(literal(sq)))).map(s=>({square:s,piece:game.get(s)??null}))",[Occupant].self)
+        let attacks=attacked.map(\.square),legal=try p.color==currentTurn()
+        var destinations=try legal ? Array(Set(legalMoves(from:sq).map(\.to))).sorted() : attacked.filter {let target=$0.piece;return p.type == "p" ? target != nil && target!.color != p.color && target!.type != "k" : target == nil || (target!.color != p.color && target!.type != "k")}.map(\.square)
         if !legal,p.type=="p",let rank=Int(sq.suffix(1)) {
             let d=p.color=="w" ? 1 : -1,one=String(sq.prefix(1))+String(rank+d),two=String(sq.prefix(1))+String(rank+d*2)
             if (1...8).contains(rank+d),try pieceAt(one)==nil {destinations.append(one);if rank==(d==1 ? 2:7),try pieceAt(two)==nil{destinations.append(two)}}
@@ -94,20 +110,23 @@ public final class ChessRules {
         do{return try String(contentsOf:NativeResources.url("relationships.js"),encoding:.utf8)}
         catch{throw CheckmateError.unavailable(String(localized:"Chess relationships resource is missing or unreadable: \(error.localizedDescription)",bundle:.checkmate))}
     }
+    /// Whether this runtime holds the evaluator's functions yet: they are defined once, not parsed again on every call.
+    private var relationshipsDefined=false
     /// Evaluates a displayed position without mutating the live game or its history.
     /// An authored partial diagram intentionally supplies geometry only.
     public func relationships(_ square:String,mode:RelationshipMode,diagram:Position?=nil) throws -> RelationshipInspection {
         guard Self.validSquare(square) else{throw CheckmateError.invalid("INVALID_SQUARE")}
         let input:[String:Any]=["square":square,"mode":mode.rawValue,"diagram":diagram as Any? ?? NSNull()]
-        let script=try Self.relationshipsScript.get()
-        return try decoded("(()=>{\n\(script)\nreturn relationships(\(try literal(input)),game)})()",RelationshipInspection.self)
+        if !relationshipsDefined{_ = try runtime.evaluate(try Self.relationshipsScript.get());relationshipsDefined=true}
+        return try decoded("relationships(\(try literal(input)),game)",RelationshipInspection.self)
     }
     // Throwing queries (plan rule 4). The convenience properties above fall back to empty or false values; training must
     // never grade on those, so a runtime failure here is an error, not "no legal moves" or "not in check".
     public func currentFEN()throws -> String {try text("game.fen()")}
     /// The moves played since the start of the record, as `records` but throwing on a runtime failure.
     public func moveHistory()throws -> [MoveRecord] {try decoded("game.history({verbose:true})",[MoveRecord].self)}
-    public func currentTurn()throws -> String {let value=try text("game.turn()");guard ["w","b"].contains(value) else{throw CheckmateError.invalid(String(localized:"Invalid chess operation.",bundle:.checkmate))};return value}
+    public func lastMoveRecord()throws -> MoveRecord? {try decoded("game.history({verbose:true}).at(-1) ?? null",MoveRecord?.self)}
+    public func currentTurn()throws -> String {let value=try text("game.turn()");guard ["w","b"].contains(value) else{throw Self.invalidOperation};return value}
     public func isCheck()throws -> Bool {try flag("game.isCheck()")}
     public func isCheckmate()throws -> Bool {try flag("game.isCheckmate()")}
     public func isStalemate()throws -> Bool {try flag("game.isStalemate()")}
@@ -133,7 +152,7 @@ public final class ChessRules {
     /// the capture is legal, so a pawn pinned to its king cannot make two positions differ. chess.js's own repetition
     /// count hashes the square whenever an enemy pawn stands beside it, pinned or not, so it is not used.
     private func positionRepetitions()throws -> Int {
-        guard let count=Int(try text("(()=>{const h=game.history({verbose:true}),key=fen=>fen.split(' ').slice(0,4).join(' '),current=key(game.fen()),positions=[h.length?h[0].before:game.fen(),...h.map(m=>m.after)];return String(positions.filter(fen=>key(fen)===current).length)})()")) else{throw CheckmateError.invalid(String(localized:"Invalid chess operation.",bundle:.checkmate))}
+        guard let count=Int(try text("(()=>{const h=game.history({verbose:true}),key=fen=>fen.split(' ').slice(0,4).join(' '),current=key(game.fen()),positions=[h.length?h[0].before:game.fen(),...h.map(m=>m.after)];return String(positions.filter(fen=>key(fen)===current).length)})()")) else{throw Self.invalidOperation}
         return count
     }
     /// Automatic draws other than stalemate: insufficient material, the 75-move rule or fivefold repetition.
@@ -152,6 +171,7 @@ public final class ChessRules {
     private func fiftyMoveRuleReached()throws -> Bool {(Int(try currentFEN().split(separator:" ").dropFirst(4).first ?? "0") ?? 0)>=100}
     /// The piece on a square, or nil when it is empty; a runtime failure throws rather than reading as an empty square.
     private func pieceAt(_ square:String)throws -> ChessPiece? {try decoded("game.get(\(literal(square)))",ChessPiece?.self)}
+    private struct Occupant:Decodable {let square:String,piece:ChessPiece?}
     public func legalMoves(from square:String?=nil)throws -> [MoveRecord] {
         guard square.map(Self.validSquare) ?? true else{throw CheckmateError.invalid("INVALID_SQUARE")}
         let args:[String:Any]=square.map{["verbose":true,"square":$0]} ?? ["verbose":true]

@@ -223,7 +223,7 @@ import CheckmateCore
     /// Each recorded sequence, replayed through today's `ending` evaluator and re-expressed as `checkmate` keeping the
     /// mating piece, ends at the same ply with the same outcome; today's message is unchanged too.
     func testEveryRecordedFinishTheGameSequenceEndsTheSameReexpressedAsCheckmateWithKeep()async throws {
-        let url=URL(fileURLWithPath:#filePath).deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("Fixtures/PositionGames/finish-the-game-sequences.json")
+        let url=Repository.tests.appendingPathComponent("Fixtures/PositionGames/finish-the-game-sequences.json")
         let records=try JSONDecoder().decode(Recording.self,from:Data(contentsOf:url)).records
         let kinds=Set(records.map{$0.outcome=="correct" ? "mate":$0.claim != nil ? "claim":$0.message.hasPrefix("Stalemate") ? "stalemate":$0.message.contains("captured your") ? "piece":"other"})
         XCTAssertEqual(kinds,["mate","claim","stalemate","piece"],"the fixture covers every ending today's evaluator gives");XCTAssertGreaterThanOrEqual(records.count,30)

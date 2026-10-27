@@ -17,7 +17,7 @@ import CheckmateCore
         return (s,v,{events})
     }
     private func requests(_ events:[[String:Any]])->[String] {events.filter{$0["type"] as? String=="response.create"}.compactMap{($0["response"] as? [String:Any])?["instructions"] as? String}}
-    private func until(_ what:String,_ condition:()->Bool)async throws {for _ in 0..<200{if condition(){return};try await Task.sleep(nanoseconds:10_000_000)};XCTFail("timed out waiting for \(what)")}
+    private func until(_ what:String,_ condition:()->Bool)async throws {try await poll(what,tries:200,every:.milliseconds(10),condition)}
 
     /// A coach that keeps calling tools without speaking is stopped after the cap: the session stays, the turn ends
     /// with a reason, and no further request is made.
@@ -190,7 +190,7 @@ import CheckmateCore
     /// Each narrated segment records whether it was heard as written, replaced by text, or stopped: once, and
     /// separately from the provider's completion status.
     func testNarrationOutcomesAreRecorded()async throws {
-        let directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);defer{try? FileManager.default.removeItem(at:directory)}
+        let directory=try scratchDirectory()
         let (s,v,_)=try connected();defer{v.disconnect()};let ledger=UsageLedger(directory:directory);v.usageLedger=ledger
         func narrate(_ text:String)async throws {_ = try await v.execute("speak_explanation",args:["positionId":s.positionId,"displayIdentity":s.displayIdentity,"segments":[["text":text,"squares":["e2"],"kind":"observation"]]],id:UUID().uuidString);v.receive(["type":"response.done","response":["status":"completed"]])}
         try await narrate("Your pawn is on e2.");v.receive(["type":"response.output_audio_transcript.done","transcript":"Your pawn is on e2."]);v.receive(["type":"response.done","response":["status":"completed"]])

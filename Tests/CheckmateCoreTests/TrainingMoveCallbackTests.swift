@@ -10,8 +10,7 @@ import CheckmateCore
 /// once, with the position it was played from, so the window can animate, sound and announce it. A move that is not
 /// committed (a slip, a pending promotion) reaches it never.
 @MainActor final class TrainingMoveCallbackTests:XCTestCase {
-    override func setUp(){setenv("CHECKMATE_TRAINING_ENABLED","1",1);setenv("CHECKMATE_TRAINING_B","1",1)}
-    override func tearDown(){unsetenv("CHECKMATE_TRAINING_ENABLED");unsetenv("CHECKMATE_TRAINING_B")}
+    override func setUp(){setEnvironment(["CHECKMATE_TRAINING_ENABLED":"1","CHECKMATE_TRAINING_B":"1"])}
     func testAGameReportsTheLearnersMoveAndTheDefendersReply()async throws {
         let start="4k3/8/8/8/8/8/8/3QK3 w - - 0 1"
         let (_,player,controller)=try TrainingEndgameTests.fixture([TrainingEndgameTests.ending(start)],defender:ScriptedDefender(choose:ScriptedDefender.capturing("q")));defer{player.shutdown()}

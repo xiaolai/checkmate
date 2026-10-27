@@ -29,7 +29,7 @@ public enum TrainingPassantReason:String,CaseIterable {
 }
 @MainActor public enum TrainingSpecialRules {
     /// Every legal castling move for the side to move.
-    public static func castlingMoves(_ legality:TrainingLegality)throws -> Set<String> {Set(try legality.outcomes().filter{$0.flags.contains("k") || $0.flags.contains("q")}.map(\.uci))}
+    public static func castlingMoves(_ legality:TrainingLegality)throws -> Set<String> {Set(try legality.outcomes().filter{$0.isCastle}.map(\.uci))}
     public static func promotions(_ legality:TrainingLegality)throws -> Set<String> {Set(try legality.outcomes().filter{$0.promotion != nil}.map(\.uci))}
     public static func enPassantMoves(_ legality:TrainingLegality)throws -> Set<String> {Set(try legality.outcomes().filter{$0.flags.contains("e")}.map(\.uci))}
     /// The reasons for castling towards `destination` (the king's castled square) for the side to move.

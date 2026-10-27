@@ -4,7 +4,6 @@ import CheckmateSupport
 import CodexAuth
 import Foundation
 import Darwin
-import CryptoKit
 
 /// Registration is an explicit Settings action, never part of application startup.
 public enum CompanionInstallation {
@@ -32,13 +31,12 @@ public enum CompanionInstallation {
         guard !isRelease(bundleIdentifier), text.hasPrefix(released) else { return bundled }
         return Data(("---\nname: " + skillName(bundleIdentifier: bundleIdentifier) + "\n" + text.dropFirst(released.count)).utf8) // not localized: skill file front matter
     }
-    private static func hash(_ data: Data) -> String { SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined() }
     public static func skillState(bundled: Data, bundleIdentifier: String? = Bundle.main.bundleIdentifier, home: URL = FileManager.default.homeDirectoryForCurrentUser) -> SkillState {
         let bundled = installedText(bundled, bundleIdentifier: bundleIdentifier)
         guard let installed = try? Data(contentsOf: skillFile(home: home, bundleIdentifier: bundleIdentifier)) else { return .notInstalled }
         if installed == bundled { return .current }
         // Without a matching record of what Checkmate wrote, the copy may hold the learner's edits.
-        guard let recorded = try? String(contentsOf: markerFile(home: home, bundleIdentifier: bundleIdentifier), encoding: .utf8), recorded.trimmingCharacters(in: .whitespacesAndNewlines) == hash(installed) else { return .customized }
+        guard let recorded = try? String(contentsOf: markerFile(home: home, bundleIdentifier: bundleIdentifier), encoding: .utf8), recorded.trimmingCharacters(in: .whitespacesAndNewlines) == reviewHash(installed) else { return .customized }
         return .outdated
     }
     @discardableResult public static func register(executable: URL, codex: URL, skill: Data, bundleIdentifier: String? = Bundle.main.bundleIdentifier, home: URL = FileManager.default.homeDirectoryForCurrentUser, environment: [String: String] = ProcessInfo.processInfo.environment) throws -> SkillState {
@@ -53,11 +51,11 @@ public enum CompanionInstallation {
         let text = installedText(skill, bundleIdentifier: bundleIdentifier)
         // Install or update Checkmate's own copy; a customized skill is kept. Registration remains usable either way.
         if state == .notInstalled || state == .outdated {
-            try FileManager.default.createDirectory(at: skillFile.deletingLastPathComponent(), withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+            try createPrivateDirectory(skillFile.deletingLastPathComponent())
             try text.write(to: skillFile, options: .atomic)
         }
         // A current copy is exactly Checkmate's text too: record it, or a missing or stale marker makes the next update see it as customized.
-        if state != .customized { try Data(hash(text).utf8).write(to: markerFile(home: home, bundleIdentifier: bundleIdentifier), options: .atomic) }
+        if state != .customized { try Data(reviewHash(text).utf8).write(to: markerFile(home: home, bundleIdentifier: bundleIdentifier), options: .atomic) }
         try runCodex(codex, arguments(executable: executable, bundleIdentifier: bundleIdentifier), environment: environment,
                      timedOut: String(localized:"Codex setup timed out. Try again after restarting Codex.",bundle:.checkmate), failed: String(localized:"Codex setup failed. Check that Codex is installed and try again.",bundle:.checkmate))
         return skillState(bundled: skill, bundleIdentifier: bundleIdentifier, home: home)
@@ -144,9 +142,13 @@ public enum CompanionInstallation {
     public enum Registration: Equatable { case absent, registered(command: String), unreadable }
     /// Codex's configuration is a small file; anything bigger is not read.
     public static let configurationLimit = 1_048_576
+    /// Codex's home, as Codex and sayso's CodexAuth find it: `CODEX_HOME` when set, followed through links, else ~/.codex.
+    static func codexHome(environment: [String: String], home: URL) -> URL {
+        guard let codexHome = environment["CODEX_HOME"], !codexHome.isEmpty else { return home.appendingPathComponent(".codex", isDirectory: true) }
+        return URL(fileURLWithPath: codexHome, isDirectory: true).resolvingSymlinksInPath()
+    }
     static func configurationURL(home: URL, environment: [String: String]) -> URL {
-        guard let codexHome = environment["CODEX_HOME"], !codexHome.isEmpty else { return home.appendingPathComponent(".codex/config.toml") }
-        return URL(fileURLWithPath: codexHome, isDirectory: true).resolvingSymlinksInPath().appendingPathComponent("config.toml")
+        codexHome(environment: environment, home: home).appendingPathComponent("config.toml")
     }
     public static func registration(bundleIdentifier: String? = Bundle.main.bundleIdentifier, home: URL = FileManager.default.homeDirectoryForCurrentUser, environment: [String: String] = ProcessInfo.processInfo.environment) -> Registration {
         let url = configurationURL(home: home, environment: environment)

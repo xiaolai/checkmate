@@ -22,7 +22,7 @@ private actor PlanRecorder:LessonRecordingProvider {
  override func setUp(){directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)}
  override func tearDown(){try? FileManager.default.removeItem(at:directory)}
  private func controller(_ translator:PlanTranslator,_ recorder:PlanRecorder=PlanRecorder())throws -> LessonLanguageController {let c=try LessonLanguageController(library:CourseLibrary(),directory:directory,usage:UsageLedger(directory:directory.appendingPathComponent("Usage")),translator:translator,recorder:recorder);c.language="fr";c.allLessons=true;return c}
- private func wait(_ c:LessonLanguageController)async throws {for _ in 0..<1000{if !c.busy{return};try await Task.sleep(for:.milliseconds(10))};XCTFail("Job did not finish")}
+ private func wait(_ c:LessonLanguageController)async throws {try await poll("the job to finish",tries:1000,every:.milliseconds(10)){!c.busy}}
 
  /// Signed out: nothing is planned or requested, and the status says why.
  func testSignedOutStartsNothing()async throws {

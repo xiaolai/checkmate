@@ -1,6 +1,5 @@
 import CheckmateAssets
 import Foundation
-import CoreFoundation
 public struct AppSettings:Codable,Equatable {
     public var coachReasoningEffort="minimal"
     public var coachVoice="cedar",voiceLanguage="en",voiceAutoConnect=false,voiceMicrophone=true,voiceInputDevice="",voiceAssistMoves=false,voiceVolume=1.0
@@ -40,9 +39,9 @@ public struct AppSettings:Codable,Equatable {
     public init() {}
     public init(raw:[String:Any]) {
         func choice(_ k:String,_ allowed:[String],_ fallback:String)->String {let v=raw[k] as? String ?? fallback;return allowed.contains(v) ? v:fallback}
-        func flag(_ k:String,_ fallback:Bool)->Bool {guard let n=raw[k] as? NSNumber,CFGetTypeID(n)==CFBooleanGetTypeID() else{return fallback};return n.boolValue}
-        func integer(_ k:String,_ fallback:Int)->Int{guard let value=raw[k] as? NSNumber,CFGetTypeID(value) != CFBooleanGetTypeID() else{return fallback};let n=value.doubleValue;guard n.isFinite,floor(n)==n,abs(n)<=1_000_000 else{return fallback};return Int(n)}
-        func level(_ k:String,_ fallback:Double)->Double {guard let v=raw[k] as? NSNumber,CFGetTypeID(v) != CFBooleanGetTypeID(),v.doubleValue.isFinite else{return fallback};return max(0,min(1,v.doubleValue))}
+        func flag(_ k:String,_ fallback:Bool)->Bool {jsonBool(raw[k]) ?? fallback}
+        func integer(_ k:String,_ fallback:Int)->Int{guard let n=jsonNumber(raw[k])?.doubleValue,floor(n)==n,abs(n)<=1_000_000 else{return fallback};return Int(n)}
+        func level(_ k:String,_ fallback:Double)->Double {guard let v=jsonNumber(raw[k])?.doubleValue else{return fallback};return max(0,min(1,v))}
         // A fresh value's defaults are the fallbacks, so a missing or invalid key reads exactly as a new setting.
         let d=AppSettings()
         coachReasoningEffort=choice("coachReasoningEffort",Self.reasoningEfforts,d.coachReasoningEffort)

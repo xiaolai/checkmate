@@ -11,11 +11,10 @@ import CheckmateCore
 
 /// B10 low findings for the usage ledger (ST-7, ST-8, ST2-2) and the progress import report (ST-3).
 @MainActor final class B10VoiceUsageTests:XCTestCase {
-    private func directory()->URL {FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)}
 
     // ST2-2
     func testAnUnreadableHistoryStillTracksThisSessionWithoutTouchingTheFile()async throws {
-        let root=directory();defer{try? FileManager.default.removeItem(at:root)};try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)
+        let root=try scratchDirectory(create:true)
         let file=root.appendingPathComponent("usage-v1.json"),original=Data("unreadable".utf8);try original.write(to:file)
         let ledger=UsageLedger(directory:root);XCTAssertTrue(ledger.unavailable);XCTAssertNotNil(ledger.storageError)
         let id=ledger.begin(activity:.lessonRecording,provider:"realtime",sessionID:"session");ledger.record(operationID:id,providerID:"response",tokens:UsageTokens(total:7),status:.completed)
@@ -27,8 +26,8 @@ import CheckmateCore
     }
 
     // ST-8
-    func testAnOlderCumulativeSnapshotNeverReplacesANewerOne() {
-        let root=directory();defer{try? FileManager.default.removeItem(at:root)}
+    func testAnOlderCumulativeSnapshotNeverReplacesANewerOne()throws {
+        let root=try scratchDirectory()
         let ledger=UsageLedger(directory:root),id=ledger.begin(activity:.translation,provider:"codex",sessionID:"a")
         ledger.record(operationID:id,providerID:"turn",tokens:UsageTokens(input:20,output:8,total:28),status:.completed,cumulative:true)
         ledger.record(operationID:id,providerID:"turn",tokens:UsageTokens(input:10,output:5,total:15),status:.running,cumulative:true)
@@ -43,7 +42,7 @@ import CheckmateCore
 
     // ST-7
     func testASuccessfulFlushClearsAStaleSaveError()async throws {
-        let parent=directory();defer{try? FileManager.default.removeItem(at:parent)};try FileManager.default.createDirectory(at:parent,withIntermediateDirectories:true)
+        let parent=try scratchDirectory(create:true)
         let root=parent.appendingPathComponent("ledger");try Data("not a directory".utf8).write(to:root)
         let ledger=UsageLedger(directory:root);_=ledger.begin(activity:.translation,provider:"codex",sessionID:"a")
         for _ in 0..<200{if ledger.storageError != nil{break};try await Task.sleep(nanoseconds:10_000_000)}

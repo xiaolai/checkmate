@@ -11,17 +11,19 @@ public final class JavaScriptCoreChessRuntime:ChessScriptRuntime {
     /// on every refresh must not add to it.
     public static var instancesCreated:Int {lock.lock();defer{lock.unlock()};return created}
     private let context:JSContext
+    /// chess.js, read from the bundled resources once: every runtime evaluates the same text.
+    private static let source=Result<String,Error>{try String(contentsOf:NativeResources.url("chess.js"),encoding:.utf8)}
     public init()throws {
         Self.lock.lock();Self.created+=1;Self.lock.unlock()
         guard let context=JSContext() else{throw CheckmateError.unavailable(String(localized:"Chess rules could not initialize.",bundle:.checkmate))};self.context=context
         context.evaluateScript("var exports={};")
-        context.evaluateScript(try String(contentsOf:NativeResources.url("chess.js"),encoding:.utf8))
+        context.evaluateScript(try Self.source.get())
         guard context.exception==nil else{throw CheckmateError.unavailable(String(localized:"Chess rules resource is invalid.",bundle:.checkmate))}
         context.evaluateScript("var game=new exports.Chess();")
     }
     public func evaluate(_ script:String)throws -> String {
         context.exception=nil
-        guard let value=context.evaluateScript(script)?.toString(),context.exception==nil else{throw CheckmateError.invalid(String(localized:"Invalid chess operation.",bundle:.checkmate))}
+        guard let value=context.evaluateScript(script)?.toString(),context.exception==nil else{throw ChessRules.invalidOperation}
         return value
     }
 }

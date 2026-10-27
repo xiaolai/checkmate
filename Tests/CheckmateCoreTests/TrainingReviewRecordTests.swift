@@ -10,8 +10,7 @@ import CheckmateCore
 /// moves, never from the practice game, and the review leads back to the training entry.
 @MainActor final class TrainingReviewRecordTests:XCTestCase {
     // Increment B is gated behind its preview flags; these tests exercise it as development does.
-    override func setUp(){setenv("CHECKMATE_TRAINING_ENABLED","1",1);setenv("CHECKMATE_TRAINING_B","1",1)}
-    override func tearDown(){unsetenv("CHECKMATE_TRAINING_ENABLED");unsetenv("CHECKMATE_TRAINING_B")}
+    override func setUp(){setEnvironment(["CHECKMATE_TRAINING_ENABLED":"1","CHECKMATE_TRAINING_B":"1"])}
     /// Black to move at move 37: Qb7 leaves the king only g8, and Qb8 is then mate.
     static let blackAt37="7K/8/6k1/8/8/8/8/1q6 b - - 0 37"
     private func play(_ controller:TrainingController,_ uci:String)async {controller.attempt(from:String(uci.prefix(2)),to:String(uci.dropFirst(2).prefix(2)),promotion:nil);await TrainingEndgameTests.settle(controller)}
@@ -73,7 +72,7 @@ import CheckmateCore
         XCTAssertEqual(try XCTUnwrap(PGNImporter.parse(Data(try TrainingReviewRecord.pgn(snapshot,title:"x").utf8)).first).header("White"),"Practice defender")
     }
     func testAClaimedDrawIsADrawAndOtherActionsAreRefused()throws {
-        XCTAssertEqual(TrainingReviewRecord.movetext(["e4","e5","Nf3"],from:"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",result:"*"),"1. e4 e5 2. Nf3 *")
+        XCTAssertEqual(TrainingReviewRecord.movetext(["e4","e5","Nf3"],from:NetworkStart.standard,result:"*"),"1. e4 e5 2. Nf3 *")
         XCTAssertEqual(TrainingReviewRecord.movetext(["Qb7","Kg8"],from:Self.blackAt37,result:"*"),"37... Qb7 38. Kg8 *")
         let claimed=TrainingSessionSnapshot(id:"claimed",entry:"finish-the-game",scenario:TrainingEndgameTests.ending("7k/8/8/8/8/8/R7/4K3 w - - 0 1",variant:"krk"),freshness:"new",startedAt:Date(timeIntervalSince1970:0),actions:[.move(from:"a2",to:"b2",promotion:nil),.reply("h8g8"),.move(from:"b2",to:"a2",promotion:nil),.reply("g8h8"),.move(from:"a2",to:"b2",promotion:nil),.reply("h8g8"),.move(from:"b2",to:"a2",promotion:nil),.reply("g8h8"),.claim("threefold repetition")])
         let document=try XCTUnwrap(PGNImporter.parse(Data(try TrainingReviewRecord.pgn(claimed,title:"Finish the Game").utf8)).first)

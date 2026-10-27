@@ -31,7 +31,7 @@ let package = Package(
         .executableTarget(name: "CheckmatePositionGameCalibration", dependencies: ["CheckmateDomain", "CheckmateRules", "CheckmateEngine", "CheckmateApplication"], path: "Tools/PositionGameCalibration"),
         .testTarget(name: "CheckmateCoreTests", dependencies: ["CheckmateTestSupport", "CheckmateCore", "CheckmateDomain", "CheckmateSupport", "CheckmateRules", "CheckmateEngine", "CheckmateContent", "CheckmateApplication", "CheckmateMacPlatform", .product(name: "CodexAuth", package: "sayso"), .product(name: "RealtimeConnection", package: "sayso"), .product(name: "SaidGuard", package: "sayso"), .product(name: "PCM16", package: "sayso")]),
         .testTarget(name: "CheckmateNativeTests", dependencies: ["CheckmateTestSupport", "CheckmateCore", "CheckmateNative", "CheckmateDomain", "CheckmateSupport", "CheckmateRules", "CheckmateEngine", "CheckmateContent", "CheckmateApplication", "CheckmateMacPlatform", .product(name: "SaidGuard", package: "sayso")]),
-        .target(name: "CheckmateTestSupport", dependencies: ["CheckmateDomain", "CheckmateRules", "CheckmateEngine"], path: "Tests/CheckmateTestSupport"),
+        .target(name: "CheckmateTestSupport", dependencies: ["CheckmateDomain", "CheckmateRules", "CheckmateEngine", "CheckmateSupport", "CheckmateContent"], path: "Tests/CheckmateTestSupport"),
         .testTarget(name: "CheckmateDomainTests", dependencies: ["CheckmateDomain"])
     ],
     swiftLanguageModes: [.v5]

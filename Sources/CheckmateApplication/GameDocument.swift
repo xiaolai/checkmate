@@ -32,7 +32,7 @@ public struct GameDocument:Codable,Equatable,Identifiable {
         else if let event=known("Event"){title=event}
         else if let own=provenance.ownGameTitle{title=own}
         else{title=historyAvailable ? String(localized:"Imported game",bundle:.checkmate):String(localized:"Imported position",bundle:.checkmate)}
-        return String(String.UnicodeScalarView(title.unicodeScalars.prefix(ReviewPolicy.maximumTitleScalars)))
+        return PGNImporter.bounded(title,scalars:ReviewPolicy.maximumTitleScalars)
     }
     public func header(_ name:String)->String? {headers.first{$0.name==name}?.value}
     public var mainline:[Int] {var result:[Int]=[],node=0;while let next=nodes[node].children.first{result.append(next);node=next};return result}
@@ -50,9 +50,8 @@ public struct GameDocument:Codable,Equatable,Identifiable {
         if let snapshot=snapshot,snapshot.fen==nodes[id].afterFEN{rules=snapshot}else{rules=try snapshotRules(at:id)}
         // chess.js emits an en-passant square only when a legal capture exists;
         // normalize external custom FENs the same way before comparing repetitions.
-        func key(_ fen:String)->String {fen.split(separator:" ").prefix(4).joined(separator:" ")}
-        let target=key(rules.fen);var repetitions=0,cursor:Int?=id
-        while let current=cursor {if key(nodes[current].afterFEN)==target{repetitions+=1};cursor=nodes[current].parent}
+        let target=TrainingLegality.fingerprint(rules.fen);var repetitions=0,cursor:Int?=id
+        while let current=cursor {if TrainingLegality.fingerprint(nodes[current].afterFEN)==target{repetitions+=1};cursor=nodes[current].parent}
         let clock=Int(rules.fen.split(separator:" ")[4]) ?? 0
         return ReviewPositionStatus(check:rules.check,checkmate:rules.checkmate,stalemate:rules.stalemate,insufficientMaterial:rules.insufficientMaterial,claimableThreefold:repetitions>=3,claimableFiftyMove:clock>=100,automaticFivefold:repetitions>=5,automaticSeventyFiveMove:clock>=150 && !rules.checkmate)
     }

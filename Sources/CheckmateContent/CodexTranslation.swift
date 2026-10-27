@@ -3,7 +3,6 @@ import CheckmateDomain
 import CheckmateSupport
 import Foundation
 import Darwin
-import CoreFoundation
 import CodexAuth
 import RealtimeConnection
 
@@ -203,9 +202,8 @@ public final class CodexSubscriptionClient: LessonTranslationProvider, @unchecke
         return label.isEmpty ? String(localized:"Codex",bundle:.checkmate) : label
     }
     private static func number(_ value: Any?) -> Double? {
-        guard let n = value as? NSNumber, CFGetTypeID(n) != CFBooleanGetTypeID() else { return nil }
-        let d = n.doubleValue
-        return d.isFinite && d >= 0 && d <= CodexTranslationLimits.maximumCounter ? d : nil
+        guard let d = jsonNumber(value)?.doubleValue else { return nil }
+        return d >= 0 && d <= CodexTranslationLimits.maximumCounter ? d : nil
     }
     public func accountStatus() async throws -> String {
         let channel = try await channel(); defer { channel.close() }
@@ -284,11 +282,11 @@ private final class CodexChannel: @unchecked Sendable {
         work = scratch.appendingPathComponent("work")
         home = scratch.appendingPathComponent("codex")
         privateAuth = home.appendingPathComponent("auth.json")
-        try FileManager.default.createDirectory(at: scratch, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+        try createPrivateDirectory(scratch)
         do {
             try Data(String(getpid()).utf8).write(to: scratch.appendingPathComponent("owner.pid"), options: .atomic)
-            try FileManager.default.createDirectory(at: home, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
-            try FileManager.default.createDirectory(at: work, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+            try createPrivateDirectory(home)
+            try createPrivateDirectory(work)
             // The private home's own sign-in, from the token alone (sayso's AUTH-08): no refresh token, so this Codex can
             // never rotate the learner's sign-in; 0600, written new, and never a copy of Codex's sign-in file.
             try writePrivateSignIn(token, codexHome: home.path)

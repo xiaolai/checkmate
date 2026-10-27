@@ -51,9 +51,10 @@ extension TrainingController {
     // MARK: Position
     /// The rules at the current game position, rebuilt from the start with the whole history (repetition included).
     func gamePosition(_ state:Exercise)throws -> TrainingLegality {
-        try TrainingLegality(fen:state.scenario.fen ?? "",prelude:(state.scenario.prelude ?? [])+state.line,runtimeFactory:runtimeFactory)
+        try TrainingLegality(fen:state.scenario.fen ?? "",prelude:state.scenario.history(after:state.line),runtimeFactory:runtimeFactory)
     }
-    private var matingPiece:(Exercise)->String {{state in state.scenario.learner+(state.scenario.variant=="krk" ? "r":"q")}}
+    /// The piece an ending is won with: the rook in KRK, else the queen.
+    private static func matingPiece(_ scenario:TrainingScenario)->String {scenario.variant=="krk" ? "r":"q"}
     /// The ending, by the plan's precedence: checkmate, stalemate, loss of the mating piece, another automatic draw.
     /// Claimed draws, pauses and leaving are handled where they happen.
     func gameEnding(_ state:Exercise,_ position:TrainingLegality)throws -> (outcome:TrainingOutcome,message:String)? {
@@ -67,7 +68,7 @@ extension TrainingController {
             return (.incorrect,String(localized:"Stalemate: the defender has no legal move and is not in check, so the game is a draw. Leave the king a square while you close in.",bundle:.checkmate))
         default:break
         }
-        if state.scenario.check == .ending,try !position.board().values.contains(matingPiece(state)){return (.incorrect,String(localized:"The defender captured \(PieceName.phrase(state.scenario.variant=="krk" ? "r":"q",.yoursObject)). Keep it protected, or out of the king's reach.",bundle:.checkmate))}
+        if state.scenario.check == .ending,try !position.board().values.contains(learner+Self.matingPiece(state.scenario)){return (.incorrect,String(localized:"The defender captured \(PieceName.phrase(Self.matingPiece(state.scenario),.yoursObject)). Keep it protected, or out of the king's reach.",bundle:.checkmate))}
         if let reason=try position.automaticDraw(){return (.incorrect,String(localized:"The game is drawn: \(reason).",bundle:.checkmate))}
         return nil
     }
@@ -126,7 +127,7 @@ extension TrainingController {
         guard showing,let state=exercise,state.task == .game,!state.finished,state.paused==nil,let position=state.current,let mover=try? position.turn(),mover != state.scenario.learner else{return}
         guard let engine=games.engine else{pauseGame(String(localized:"The practice defender is not available. Try again in a moment.",bundle:.checkmate));return}
         guard games.fairness.engineHelpAllowed else{pauseGame(FairnessPolicy.destinationUnavailable);return}
-        let attempt=state.snapshot.id,revision=state.snapshot.revision,start=state.scenario.fen ?? "",moves=(state.scenario.prelude ?? [])+state.line,opponent=state.snapshot.opponent
+        let attempt=state.snapshot.id,revision=state.snapshot.revision,start=state.scenario.fen ?? "",moves=state.scenario.history(after:state.line),opponent=state.snapshot.opponent
         let strategy=opponent.map{OpponentStrategy($0,check:state.scenario.check)} ?? .legacy(state.scenario.check)
         let seed=(opponent.flatMap{UInt64($0.seed,radix:16)} ?? 1) &+ UInt64(moves.count+1),streak=opponent?.severeStreak ?? 0,beginner=opponent?.strategy == .beginner,factory=runtimeFactory
         games.cancel();games.thinking=true;objectWillChange.send();publish()
@@ -224,7 +225,7 @@ extension TrainingController {
         guard save(state) else{return false}
         guard state.hintLevel==3,let saved=exercise else{return true}
         guard let engine=games.engine,games.fairness.engineHelpAllowed else{stepBackHint();return true}
-        let attempt=saved.snapshot.id,revision=saved.snapshot.revision,start=state.scenario.fen ?? "",moves=(state.scenario.prelude ?? [])+state.line,ticket=games.generation
+        let attempt=saved.snapshot.id,revision=saved.snapshot.revision,start=state.scenario.fen ?? "",moves=state.scenario.history(after:state.line),ticket=games.generation
         games.hintWork?.cancel()
         games.hintWork=Task{[weak self,fairness=games.fairness] in
             // D8, again where the search starts: participation may have begun before this task first ran.
@@ -243,7 +244,7 @@ extension TrainingController {
         state.hintText=state.hintLevel==1 ? state.scenario.hints.first:state.scenario.hints.dropFirst().first ?? state.scenario.hints.first
         guard state.hintLevel>=2 else{state.hintSquares=[];return}
         switch state.scenario.check {
-        case .ending?:state.hintSquares=state.board.filter{$0.value==matingPiece(state) || ($0.value.last=="k" && $0.value.first != Character(learner))}.map(\.key).sorted()
+        case .ending?:state.hintSquares=state.board.filter{$0.value==learner+Self.matingPiece(state.scenario) || ($0.value.last=="k" && $0.value.first != Character(learner))}.map(\.key).sorted()
         // A position game shows the pieces it must keep and the king to mate, or the pawn (or new piece) to look after.
         case .positionGame?:
             if case .pawn(let square)?=state.pawns.last{state.hintSquares=[square]}else if case .promoted(let square)?=state.pawns.last{state.hintSquares=[square]}
@@ -260,13 +261,10 @@ extension TrainingController {
         shown.hintLevel=2;shown.feedback=String(localized:"No move could be suggested just now. Ask for a hint again to retry.",bundle:.checkmate);exercise=shown;publish()
     }
     // MARK: Resume
-    func replayGameMove(_ state:inout Exercise,uci:String)throws {
-        guard let position=state.current,try position.turn()==state.scenario.learner,let outcome=try position.outcomes().first(where:{$0.uci==uci}) else{throw CheckmateError.invalid(String(localized:"A saved move no longer applies.",bundle:.checkmate))}
-        try addGamePly(&state,outcome,before:position,learner:true,played:false)
-    }
-    func replayGameReply(_ state:inout Exercise,_ move:String)throws {
-        guard let position=state.current,try position.turn() != state.scenario.learner,let outcome=try position.outcomes().first(where:{$0.uci==move}) else{throw CheckmateError.invalid(String(localized:"A saved reply no longer applies.",bundle:.checkmate))}
-        try addGamePly(&state,outcome,before:position,learner:false,played:false)
+    /// A saved learner move or opponent reply, played again only on its own side's turn.
+    func replayGamePly(_ state:inout Exercise,uci:String,learner:Bool)throws {
+        guard let position=state.current,try (position.turn()==state.scenario.learner)==learner,let outcome=try position.outcomes().first(where:{$0.uci==uci}) else{throw CheckmateError.invalid(learner ? String(localized:"A saved move no longer applies.",bundle:.checkmate):String(localized:"A saved reply no longer applies.",bundle:.checkmate))}
+        try addGamePly(&state,outcome,before:position,learner:learner,played:false)
     }
     func replayGameUndo(_ state:inout Exercise)throws {try takeBackGamePly(&state)}
 }

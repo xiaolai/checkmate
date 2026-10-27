@@ -10,8 +10,6 @@ import CheckmateCore
 
 /// Audit regressions for headerless import recovery, the companion's published side, and saved-archive limits.
 @MainActor final class AuditPlayFindingsTests:XCTestCase {
-    private func report(_ text:String)throws -> (documents:[GameDocument],skipped:[ReviewImportError]) {try PGNImporter.parseReport(Data(text.utf8))}
-    private func moves(_ documents:[GameDocument])->[[String]] {documents.map{document in document.mainline.compactMap{document.nodes[$0].san}}}
     // #4: skipping an unreadable game stops at its result, so a following headerless game still imports.
     func testRecoveryResumesAfterAResultMarker()throws {
         let plain=try report("1. e4 BAD * 1. d4 d5 *");XCTAssertEqual(moves(plain.documents),[["d4","d5"]]);XCTAssertEqual(plain.skipped.count,1)
@@ -28,15 +26,17 @@ import CheckmateCore
         let white=try GameSession(engine:nil);white.setConnection(enabled:true,role:"opponent",lease:"fixture")
         XCTAssertEqual((white.publicState()["controller"] as? [String:Any])?["side"] as? String,"b")
     }
-    // #16: the previous game meets the same start-position rule as the current one.
-    func testPreviousGameFromAnIllegalPositionIsRejected()throws {
-        var state=ApplicationState();state.practice.previousGame="[SetUp \"1\"]\n[FEN \"4k3/8/8/8/8/8/8/4K3 w KQ - 0 1\"]\n\n*"
-        XCTAssertThrowsError(try StateStore.validate(state),"Castling rights without rooks are not a legal start")
-        state.practice.previousGame="[SetUp \"1\"]\n[FEN \"4k3/8/8/8/8/8/8/R3K3 w Q - 0 1\"]\n\n*";XCTAssertNoThrow(try StateStore.validate(state))
+    // PL2-4 and #16: a saved practice game, and the previous game under the same rule, must start from a legal position.
+    func testSavedAndPreviousGamesFromAnIllegalPositionAreRejected()throws {
+        for field:WritableKeyPath<ApplicationState,String> in [\.practice.pgn,\.practice.previousGame]{
+            var state=ApplicationState();state[keyPath:field]="[SetUp \"1\"]\n[FEN \"4k3/8/8/8/8/8/8/4K3 w KQ - 0 1\"]\n\n*"
+            XCTAssertThrowsError(try StateStore.validate(state),"Castling rights without rooks are not a legal start")
+            state[keyPath:field]="[SetUp \"1\"]\n[FEN \"4k3/8/8/8/8/8/8/R3K3 w Q - 0 1\"]\n\n*";XCTAssertNoThrow(try StateStore.validate(state))
+        }
     }
     // #17: an export the importer would refuse is never reported as written.
     func testOversizedExportFails()throws {
-        let root=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);defer{try? FileManager.default.removeItem(at:root)}
+        let root=try scratchDirectory()
         let store=StateStore(directory:root),destination=root.appendingPathComponent("export.json");try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)
         var state=ApplicationState();state.importedArchives=(0..<70_000).map{String(format:"%064d",$0)}
         XCTAssertThrowsError(try store.exportState(state,to:destination));XCTAssertFalse(FileManager.default.fileExists(atPath:destination.path))

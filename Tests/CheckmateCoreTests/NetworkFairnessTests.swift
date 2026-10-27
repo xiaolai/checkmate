@@ -26,7 +26,7 @@ import CheckmateCore
         func analyzeHistory(startFEN:String,moves:[String],profile:OpponentProfile,budget:Int,multiPv:Int,searchMoves:[String])async throws -> EngineAnalysis {
             record();if holding{await withCheckedContinuation{waiting.append($0)}}
             if Task.isCancelled {cancelled+=1}
-            let rules=try ChessRules(fen:startFEN);for move in moves{try rules.move(uci:move)}
+            let rules=try ChessRules.reached(startFEN,moves)
             let legal=searchMoves.isEmpty ? rules.moves().map(\.uci).sorted():searchMoves
             return EngineAnalysis(bestMove:legal.first,lines:legal.prefix(max(1,multiPv)).enumerated().map{AnalysisLine(depth:12,multiPv:$0.offset+1,score:AnalysisScore(kind:"cp",value:-$0.offset*5),pv:[$0.element],san:[])})
         }
@@ -52,14 +52,13 @@ import CheckmateCore
         func releaseAll(){let all=waiting;waiting=[];all.forEach{$0.resume()}}
     }
     override func tearDown(){unsetenv("CHECKMATE_BEGINNER_OPPONENT_ENABLED")}
-    private func code(_ error:Error)->String? {(ProtocolErrors.failure(error)["error"] as? [String:Any])?["code"] as? String}
-    private func settle(_ done:@escaping ()->Bool,_ message:String)async throws {for _ in 0..<400 where !done(){try await Task.sleep(for:.milliseconds(5))};XCTAssertTrue(done(),message)}
+    private func settle(_ done:()->Bool,_ message:String)async throws {try await poll(message,tries:400,every:.milliseconds(5),done)}
     private func session(side:String="w",preset:String="custom")throws -> (GameSession,CountingEngine) {
         var state=ApplicationState();state.settings.practiceSide=side;state.settings.opponentPreset=preset
         let engine=CountingEngine(),session=try GameSession(engine:engine,state:state);engine.participation=session.fairness.participation;return (session,engine)
     }
     private func practiceBytes(_ session:GameSession)throws -> Data {let encoder=JSONEncoder();encoder.outputFormatting = .sortedKeys;return try encoder.encode(session.state.practice)}
-    private func refused(_ work:() async throws -> Void,_ what:String)async {do{try await work();XCTFail("\(what) ran during a network game")}catch{XCTAssertEqual(code(error),"NETWORK_GAME",what)}}
+    private func refused(_ work:() async throws -> Void,_ what:String)async {do{try await work();XCTFail("\(what) ran during a network game")}catch{XCTAssertEqual(protocolCode(error),"NETWORK_GAME",what)}}
 
     // MARK: D9 — practice protection
 
@@ -202,7 +201,7 @@ import CheckmateCore
         let call=Task{try await tools.call("play_move",args:["sessionId":s.sessionId,"revision":s.revision,"requestId":"one"],lease:"fixture")}
         try await settle({engine.held==1},"the root search is held")
         s.fairness.participation.begin(.player);engine.holding=false;engine.releaseAll()
-        do{_ = try await call.value;XCTFail("play_move delivered a move")}catch{XCTAssertEqual(code(error),"NETWORK_GAME")}
+        do{_ = try await call.value;XCTFail("play_move delivered a move")}catch{XCTAssertEqual(protocolCode(error),"NETWORK_GAME")}
         XCTAssertEqual(engine.calls,1,"no exploration search after joining");XCTAssertEqual(engine.callsWhileParticipating,0)
         XCTAssertEqual(try practiceBytes(s),before);XCTAssertTrue(s.rules.history.isEmpty)
     }
@@ -225,13 +224,13 @@ import CheckmateCore
         let review=Task{try await analyzer.analyze(document:document,node:1,revision:0)}
         try await settle({engine.held==2},"the review search is held")
         s.fairness.participation.begin(.player);engine.holding=false;engine.releaseAll()
-        do{_ = try await review.value;XCTFail("cached or fresh evidence was delivered")}catch{XCTAssertEqual(code(error),"NETWORK_GAME")}
+        do{_ = try await review.value;XCTFail("cached or fresh evidence was delivered")}catch{XCTAssertEqual(protocolCode(error),"NETWORK_GAME")}
         try await Task.sleep(for:.milliseconds(30))
         XCTAssertNotEqual(s.coaching.status,.ready);XCTAssertNil(s.coaching.recommendation);XCTAssertTrue(s.arrows.isEmpty)
         // A cached result is withheld too: compute it after leaving, then ask again while participating.
         s.fairness.participation.end();_ = try await analyzer.analyze(document:document,node:1,revision:0)
         s.fairness.participation.begin(.spectator);let calls=engine.calls
-        do{_ = try await analyzer.analyze(document:document,node:1,revision:0);XCTFail("cached evidence was handed out")}catch{XCTAssertEqual(code(error),"NETWORK_GAME")}
+        do{_ = try await analyzer.analyze(document:document,node:1,revision:0);XCTFail("cached evidence was handed out")}catch{XCTAssertEqual(protocolCode(error),"NETWORK_GAME")}
         XCTAssertEqual(engine.calls,calls)
     }
 
@@ -309,7 +308,7 @@ import CheckmateCore
         try await settle({waiting.count==2},"both searches passed their calls' checks and wait in their own tasks")
         XCTAssertEqual(engine.calls,0,"the searches' own work has not started yet");s.fairness.participation.begin(.player)
         for continuation in waiting {continuation.resume()}
-        for (name,task) in searches {do{_ = try await task.value;XCTFail("\(name) delivered during a network game")}catch{XCTAssertEqual(code(error),"NETWORK_GAME",name)}}
+        for (name,task) in searches {do{_ = try await task.value;XCTFail("\(name) delivered during a network game")}catch{XCTAssertEqual(protocolCode(error),"NETWORK_GAME",name)}}
         XCTAssertEqual(engine.calls,0,"nothing reached the engine");XCTAssertEqual(engine.callsWhileParticipating,0)
         s.fairness.participation.end()
     }
@@ -322,7 +321,7 @@ import CheckmateCore
         let branch=Task{try await analyzer.analyzeBranch(document:document,root:1,moves:["e7e5"],revision:0)}
         try await settle({engine.held==2},"the branch search is held")
         s.fairness.participation.begin(.player);engine.holding=false;engine.releaseAll()
-        for task in [position,branch] {do{_ = try await task.value;XCTFail("a search delivered during a network game")}catch{XCTAssertEqual(code(error),"NETWORK_GAME","the readable reason, not a bare cancellation")}}
+        for task in [position,branch] {do{_ = try await task.value;XCTFail("a search delivered during a network game")}catch{XCTAssertEqual(protocolCode(error),"NETWORK_GAME","the readable reason, not a bare cancellation")}}
         XCTAssertEqual(engine.cancelled,2,"both searches were cancelled on joining")
     }
 

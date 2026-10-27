@@ -80,7 +80,7 @@ final class MiniGameTests:XCTestCase {
     func testKnightCornersAvoidsPawnsAndAttacksAndCompletesOrderedCorners()throws {
         var game=MiniGameState(kind:.knightCorners)
         for target in MiniGameRules.corners {
-            let start=try XCTUnwrap(game.board.first{$0.value=="wn"}?.key)
+            let start=try XCTUnwrap(TrainingGeometry.square(of:"wn",on:game.board))
             var queue=[start],visited:Set<String>=[start],parent:[String:String]=[:],index=0
             while index<queue.count,!visited.contains(target) {
                 let square=queue[index];index+=1
@@ -90,7 +90,7 @@ final class MiniGameTests:XCTestCase {
             XCTAssertTrue(visited.contains(target))
             var route=[target],cursor=target
             while cursor != start {cursor=try XCTUnwrap(parent[cursor]);route.append(cursor)}
-            for to in route.reversed().dropFirst() {let from=try XCTUnwrap(game.board.first{$0.value=="wn"}?.key);XCTAssertTrue(game.play(MiniGameMove(from:from,to:to)))}
+            for to in route.reversed().dropFirst() {let from=try XCTUnwrap(TrainingGeometry.square(of:"wn",on:game.board));XCTAssertTrue(game.play(MiniGameMove(from:from,to:to)))}
         }
         XCTAssertEqual(game.winner,"w")
     }

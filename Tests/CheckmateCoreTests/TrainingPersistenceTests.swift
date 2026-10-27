@@ -68,8 +68,8 @@ import CheckmateCore
     }
     func testAnAttemptTooLargeToSaveIsRefusedBeforeItStarts()throws {
         let huge=TrainingScenario(id:"huge",entry:"reach-target",variant:"rook",tier:1,cluster:"c",learner:"w",prompt:String(repeating:"x",count:TrainingState.maximumBytes),explanation:"",hints:[],drill:Self.scenario.drill,budget:2)
-        XCTAssertFalse(TrainingStore.fits(TrainingSessionSnapshot(id:"s",entry:"reach-target",scenario:huge,freshness:"new",startedAt:Date()),in:TrainingState()))
-        XCTAssertTrue(TrainingStore.fits(TrainingSessionSnapshot(id:"s",entry:"reach-target",scenario:Self.scenario,freshness:"new",startedAt:Date()),in:TrainingState()))
+        XCTAssertNil(TrainingStore.fits(TrainingSessionSnapshot(id:"s",entry:"reach-target",scenario:huge,freshness:"new",startedAt:Date()),in:TrainingState()))
+        XCTAssertNotNil(TrainingStore.fits(TrainingSessionSnapshot(id:"s",entry:"reach-target",scenario:Self.scenario,freshness:"new",startedAt:Date()),in:TrainingState()))
     }
     func testASaveErrorLeavesTheLastGoodFileInPlace()throws {
         let store=StateStore(directory:directory);var state=ApplicationState();state.training=TrainingState();try store.save(state)

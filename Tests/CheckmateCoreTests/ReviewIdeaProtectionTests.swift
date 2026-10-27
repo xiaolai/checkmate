@@ -64,7 +64,7 @@ import CheckmateCore
 /// A save of one review must never replace another review's queued save.
 final class ReviewSaveCoordinatorTests:XCTestCase {
     func testQueuedSavesOfDifferentReviewsAreAllWritten()throws {
-        let root=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);defer{try? FileManager.default.removeItem(at:root)}
+        let root=try scratchDirectory()
         let store=ReviewStore(directory:root),coordinator=ReviewSaveCoordinator(store:store)
         let documents=try ["1. e4 *","1. d4 *","1. c4 *"].map{try PGNImporter.parse(Data($0.utf8))[0]}
         let done=expectation(description:"queued saves");done.expectedFulfillmentCount=2

@@ -10,8 +10,7 @@ import CheckmateCore
 /// rule errors that never move a piece; cancelling the promotion chooser is a selection correction.
 @MainActor final class TrainingSpecialMoveTests:XCTestCase {
     // Increment B is gated behind its preview flags; these tests exercise it as development does.
-    override func setUp(){setenv("CHECKMATE_TRAINING_ENABLED","1",1);setenv("CHECKMATE_TRAINING_B","1",1)}
-    override func tearDown(){unsetenv("CHECKMATE_TRAINING_ENABLED");unsetenv("CHECKMATE_TRAINING_B")}
+    override func setUp(){setEnvironment(["CHECKMATE_TRAINING_ENABLED":"1","CHECKMATE_TRAINING_B":"1"])}
     private let review=TrainingReview(author:"test",reviewer:nil,validatorVersion:TrainingValidationService.validatorVersion)
     private func reasons(_ fen:String,_ prelude:[String]=[],to destination:String)throws -> Set<TrainingCastleReason> {try TrainingSpecialRules.castleReasons(TrainingLegality(fen:fen,prelude:prelude),destination:destination)}
     private func passant(_ fen:String,_ prelude:[String],_ target:String)throws -> Set<TrainingPassantReason> {try TrainingSpecialRules.passantReasons(TrainingLegality(fen:fen,prelude:prelude),target:target,prelude:prelude)}
@@ -36,16 +35,12 @@ import CheckmateCore
         let legality=try TrainingLegality(fen:fen,prelude:prelude ?? [])
         return TrainingScenario(id:"castle-test",entry:"special-moves",variant:"castle-legal",tier:1,cluster:"c",learner:try legality.turn(),prompt:"Castle.",explanation:"Castling.",hints:["Rules."],fen:fen,prelude:prelude,expected:TrainingExpected(wrong:wrong),review:review,check:.castle,nodes:[TrainingTeachingNode(fingerprint:try legality.fingerprint(),accepted:try TrainingSpecialRules.castlingMoves(legality).sorted(),replies:[:])])
     }
-    private func controller(_ scenarios:[TrainingScenario])throws -> (GameSession,LearningPlayer,TrainingController) {
-        let session=try GameSession(engine:nil),player=try LearningPlayer(session:session)
-        return (session,player,TrainingController(session:session,learning:player,provider:try TrainingScenarioProvider(catalog:try TrainingCatalog.bundled(),scenarios:scenarios)))
-    }
     func testCastlingIsGradedAsARuleNotByLegalMoveFiltering()throws {
         let definition=try XCTUnwrap(TrainingCatalog.bundled().entry("special-moves"))
         let scenario=try castle("4k3/8/8/8/8/8/PPPPPPPP/RN2K2R w KQ - 0 1",wrong:["e1h1","e1c1"])
         XCTAssertNoThrow(try TrainingValidationService.validate(scenario,definition:definition))
         XCTAssertEqual(scenario.nodes?.first?.accepted,["e1g1"],"queenside is blocked by the knight")
-        let (session,player,training)=try controller([scenario]);defer{player.shutdown()}
+        let (session,player,training)=try TrainingEndgameTests.fixture([scenario]);defer{player.shutdown()}
         // King onto its own rook is not castling: a rule error, and nothing moves.
         training.begin(try training.prepare(entry:"special-moves"))
         training.click("e1");training.click("h1")
@@ -67,7 +62,7 @@ import CheckmateCore
         XCTAssertEqual(promotions,["e7d8q","e7d8r","e7d8b","e7d8n","e7e8q","e7e8r","e7e8b","e7e8n"],"pushing and capturing, every piece")
         let scenario=TrainingScenario(id:"promote-test",entry:"special-moves",variant:"promotion",tier:1,cluster:"p",learner:"w",prompt:"Promote.",explanation:"Promotion.",hints:["Rules."],fen:fen,review:review,check:.promotion,nodes:[TrainingTeachingNode(fingerprint:try legality.fingerprint(),accepted:promotions.sorted(),replies:[:])])
         XCTAssertNoThrow(try TrainingValidationService.validate(scenario,definition:try XCTUnwrap(TrainingCatalog.bundled().entry("special-moves"))))
-        let (_,player,training)=try controller([scenario]);defer{player.shutdown()}
+        let (_,player,training)=try TrainingEndgameTests.fixture([scenario]);defer{player.shutdown()}
         training.begin(try training.prepare(entry:"special-moves"))
         training.attempt(from:"e7",to:"e8",promotion:nil)
         XCTAssertNotNil(training.exercise?.pendingPromotion);XCTAssertTrue(training.exercise?.snapshot.actions.isEmpty ?? false)
@@ -104,7 +99,7 @@ import CheckmateCore
         XCTAssertNoThrow(try TrainingValidationService.validate(question(["d7d5","e1d1","e8d8"],.expired),definition:definition))
         XCTAssertThrowsError(try TrainingValidationService.validate(question(["d7d5","e1d1","e8d8"],.notDouble),definition:definition))
         XCTAssertThrowsError(try TrainingValidationService.validate(question(["d7d5","e1d1","e8d8"],.expired,noAction:false),definition:definition),"declining is the right action")
-        let (_,player,training)=try controller([question(["d7d5","e1d1","e8d8"],.expired)]);defer{player.shutdown()}
+        let (_,player,training)=try TrainingEndgameTests.fixture([question(["d7d5","e1d1","e8d8"],.expired)]);defer{player.shutdown()}
         training.begin(try training.prepare(entry:"special-moves"))
         XCTAssertEqual(training.exercise?.task,.choose)
         training.choose(TrainingPassantReason.allowed.label);XCTAssertEqual(training.exercise?.status,.incorrect)

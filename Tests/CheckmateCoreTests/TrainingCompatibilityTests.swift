@@ -12,7 +12,7 @@ import CheckmateCore
 /// not types or required fields; `TrainingCompatibilityTests` ties it to this release's decoder.
 struct FrozenTrainingDecoder {
     enum Verdict:String {case readable,newer,damaged}
-    static let directory=URL(fileURLWithPath:#filePath).deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("Fixtures/TrainingCompatibility")
+    static let directory=Repository.tests.appendingPathComponent("Fixtures/TrainingCompatibility")
     private let records:[String:[String:Any]],shapes:[String:Any]
     init()throws {
         let model=try XCTUnwrap(JSONSerialization.jsonObject(with:Data(contentsOf:Self.directory.appendingPathComponent("release-decoder.json"))) as? [String:Any])
@@ -90,7 +90,7 @@ struct FrozenTrainingDecoder {
         return (scenario,setting(try json(scenario),["check"],to:.string(laterValue)))
     }
     private func drill(_ provider:TrainingScenarioProvider,seed:UInt64)throws -> TrainingScenario {
-        guard case .scenario(let scenario,_)=provider.next(for:try XCTUnwrap(provider.catalog.entry("reach-target")),seen:[],seed:seed) else{throw XCTSkip("no drill")}
+        guard case .scenario(let scenario,_)=provider.next(for:try XCTUnwrap(provider.catalog.entry("reach-target")),seen:[],seed:seed) else{return try XCTUnwrap(nil as TrainingScenario?,"no drill")}
         return scenario
     }
     private func retryItem(_ id:String,_ scenario:TrainingScenario)->TrainingRetryItem {TrainingRetryItem(id:id,entry:scenario.entry,scenario:scenario,reason:"Not solved last time.",addedAt:day.addingTimeInterval(-3*86_400),notBefore:"2027-01-13",afterAttempt:0)}
@@ -318,7 +318,7 @@ struct FrozenTrainingDecoder {
         var training=try XCTUnwrap(state(training:.object(record)).training)
         training.active=TrainingSessionSnapshot(id:"mine",entry:"reach-target",scenario:TrainingPersistenceTests.scenario,freshness:"new",startedAt:day)
         XCTAssertThrowsError(try training.validate());XCTAssertThrowsError(try JSONEncoder().encode(training),"never written over the newer attempt")
-        XCTAssertTrue(TrainingStore.fits(TrainingSessionSnapshot(id:"s",entry:"reach-target",scenario:TrainingPersistenceTests.scenario,freshness:"new",startedAt:day),in:{var t=training;t.active=nil;return t}()))
+        XCTAssertNotNil(TrainingStore.fits(TrainingSessionSnapshot(id:"s",entry:"reach-target",scenario:TrainingPersistenceTests.scenario,freshness:"new",startedAt:day),in:{var t=training;t.active=nil;return t}()))
     }
     func testTheAgentListSaysWhatIsKeptForANewerVersion()async throws {
         let (known,newerScenario)=try Self.material()

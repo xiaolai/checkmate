@@ -483,7 +483,7 @@ import OSLog
         if reloaded {
             resetInput();changed()
             // A12: a move its mover made with a hint shown says so, as the hint count beside the names does.
-            if rules.history.count>plies,let last=rules.records.last{let mover:NetworkSide=last.color=="b" ? .black:.white;announce(NetworkWording.move(last,players:players)+(game.assistedPlies.last==rules.history.count ? ". "+NetworkWording.usedHint(mover,players:players):""))}
+            let count=rules.history.count;if count>plies,let last=rules.lastRecord{let mover:NetworkSide=last.color=="b" ? .black:.white;announce(NetworkWording.move(last,players:players)+(game.assistedPlies.last==count ? ". "+NetworkWording.usedHint(mover,players:players):""))}
         }
         // A12: joining or watching a game with assistance announces its terms once, as the line under the names shows them.
         if first,part != .host,let terms=NetworkWording.terms(game.assistance,players:players){announce(terms)}
@@ -614,10 +614,7 @@ import OSLog
     /// Threefold repetition or fifty moves, on the learner's move; the host checks again on its own rules (D5).
     public var canClaimDraw:Bool {yourTurn && rules.drawClaimable}
     /// The host may resign while the guest is away; a guest while connected.
-    public var canResign:Bool {
-        guard runner != nil,!leaving,outcome==nil else{return false}
-        switch part {case .host?:return hostPhase == .running || hostPhase == .disconnected;case .guest?:return link == .live && seated;default:return false}
-    }
+    public var canResign:Bool {leavingResigns && (part != .guest || link == .live)}
     /// Leaving now counts as a resignation (D9): ask first.
     public var leavingResigns:Bool {
         guard runner != nil,!leaving,outcome==nil else{return false}

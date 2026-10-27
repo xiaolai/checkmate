@@ -11,9 +11,7 @@ import CheckmateCore
 /// D2: voice the learner had connected comes back when Practice is shown again; voice that was off stays off.
 /// The live connection is replaced by a counter: no network, no audio.
 @MainActor final class VoiceReconnectTests:XCTestCase {
-    private var directory:URL!
-    override func setUp(){directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);setenv("CHECKMATE_DATA_DIR",directory.path,1)}
-    override func tearDown(){unsetenv("CHECKMATE_DATA_DIR");try? FileManager.default.removeItem(at:directory)}
+    override func setUpWithError()throws{try isolateDataDirectory()}
     private func model()throws -> (NativeModel,() -> Int) {
         let model=try NativeModel();var reconnects=0;model.reconnectVoice={reconnects+=1};return (model,{reconnects})
     }

@@ -15,11 +15,10 @@ public enum CompanionServer {
     }
     public static func make(client: BrokerClient) async throws -> Server {
         let schemas = try ToolSchemas()
-        let definitions = try JSONSerialization.jsonObject(with: Data(contentsOf: NativeResources.url("tool-schemas.json"))) as! [String: [String: Any]]
         let metadata = try JSONSerialization.jsonObject(with: Data(contentsOf: NativeResources.url("mcp-tools.json"))) as! [String: [String: Any]]
         let tools = try schemas.names.map { name -> Tool in
             guard let info = metadata[name], let description = info["description"] as? String else { throw ProtocolFailure("INCOMPATIBLE_SCHEMA") }
-            let schema = try JSONDecoder().decode(Value.self, from: JSONSerialization.data(withJSONObject: definitions[name]!))
+            let schema = try JSONDecoder().decode(Value.self, from: JSONSerialization.data(withJSONObject: schemas.schema(name)!))
             return Tool(name: name, description: description, inputSchema: schema,
                         annotations: .init(readOnlyHint: info["readOnly"] as? Bool, destructiveHint: false, openWorldHint: false))
         }

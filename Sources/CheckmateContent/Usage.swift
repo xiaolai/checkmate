@@ -1,5 +1,6 @@
 import CheckmateAssets
 import CheckmateDomain
+import CheckmateSupport
 import Foundation
 import Combine
 
@@ -39,11 +40,9 @@ public struct UsageTokens: Codable, Equatable, Sendable {
         return result.known ? result : nil
     }
     private static func counter(_ value: Any?) -> Int64? {
-        guard let number=value as? NSNumber, CFGetTypeID(number) != CFBooleanGetTypeID() else{return nil}
-        let d=number.doubleValue; guard d.isFinite,d >= 0,d <= Double(UsageLimits.maximumCounter),d.rounded()==d else{return nil};return Int64(d)
+        guard let d=jsonNumber(value)?.doubleValue,d >= 0,d <= Double(UsageLimits.maximumCounter),d.rounded()==d else{return nil};return Int64(d)
     }
 }
-import CoreFoundation
 public struct UsageRecord: Codable, Identifiable, Equatable, Sendable {
     public var id: String
     public var activity: UsageActivity
@@ -130,8 +129,10 @@ public struct UsageTotals: Equatable {
         let start:Date?;switch range{case .all:start=nil;case .today:start=calendar.startOfDay(for:now);case .thisMonth:start=calendar.dateInterval(of:.month,for:now)?.start}
         return records.filter { (start == nil || $0.startedAt>=start!) && $0.startedAt<=now }
     }
-    public func totals(in range:UsageTimeRange = .all,now:Date=Date())->UsageTotals {
-        var sum=UsageTotals();for r in records(in:range,now:now){if r.status == .incomplete || r.status == .running{sum.incompleteRecords+=1};guard let t=r.tokens,t.known else{sum.unknownRecords+=1;continue};sum.knownRecords+=1;sum.input += t.input ?? 0;sum.output += t.output ?? 0;sum.total += t.total ?? 0};return sum
+    public func totals(in range:UsageTimeRange = .all,now:Date=Date())->UsageTotals {Self.totals(of:records(in:range,now:now))}
+    /// The totals of records a caller already holds, such as one range's.
+    public static func totals(of records:[UsageRecord])->UsageTotals {
+        var sum=UsageTotals();for r in records{if r.status == .incomplete || r.status == .running{sum.incompleteRecords+=1};guard let t=r.tokens,t.known else{sum.unknownRecords+=1;continue};sum.knownRecords+=1;sum.input += t.input ?? 0;sum.output += t.output ?? 0;sum.total += t.total ?? 0};return sum
     }
     /// Refuses while the history file is unreadable: an export of the empty in-memory history would look like a copy.
     public func exportJSON() throws -> Data {guard !unavailable else{throw CheckmateError.unavailable(String(localized:"Usage history is unavailable, so there is nothing reliable to export. Its original file is kept unchanged.",bundle:.checkmate))};let encoder=JSONEncoder();encoder.outputFormatting=[.prettyPrinted,.sortedKeys];encoder.dateEncodingStrategy = .iso8601;return try encoder.encode(File(records:records))}
@@ -194,11 +195,10 @@ public struct UsageTotals: Equatable {
         try checkStoragePath(directory)
         let rootValues=try? directory.resourceValues(forKeys:[.isSymbolicLinkKey])
         guard rootValues?.isSymbolicLink != true else{throw CocoaError(.fileWriteNoPermission)}
-        try FileManager.default.createDirectory(at:directory,withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])
+        try createPrivateDirectory(directory)
         let url=directory.appendingPathComponent("usage-v1.json")
         if FileManager.default.fileExists(atPath:url.path),try url.resourceValues(forKeys:[.isSymbolicLinkKey]).isSymbolicLink == true{throw CocoaError(.fileWriteNoPermission)}
-        try data.write(to:url,options:.atomic)
-        try FileManager.default.setAttributes([.posixPermissions:0o600],ofItemAtPath:url.path)
+        try writePrivately(data,to:url)
     }
     private func persist(immediate:Bool=false) {
         let cutoff=Date().addingTimeInterval(-Double(UsageLimits.retentionDays)*86400);records.removeAll{$0.updatedAt<cutoff};if records.count>UsageLimits.maximumRecords{records.removeFirst(records.count-UsageLimits.maximumRecords)}

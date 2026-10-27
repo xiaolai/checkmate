@@ -11,8 +11,7 @@ import CheckmateCore
 /// pending reply is asked for again on resume, never replayed.
 @MainActor final class TrainingOpponentLifecycleTests:XCTestCase {
     // Increment B is gated behind its preview flags; these tests exercise it as development does.
-    override func setUp(){setenv("CHECKMATE_TRAINING_ENABLED","1",1);setenv("CHECKMATE_TRAINING_B","1",1)}
-    override func tearDown(){unsetenv("CHECKMATE_TRAINING_ENABLED");unsetenv("CHECKMATE_TRAINING_B")}
+    override func setUp(){setEnvironment(["CHECKMATE_TRAINING_ENABLED":"1","CHECKMATE_TRAINING_B":"1"])}
     private let start="8/8/8/8/K7/3Q4/8/k7 w - - 0 1"
     private func fixture(_ defender:ScriptedDefender)throws -> (GameSession,LearningPlayer,TrainingController) {try TrainingEndgameTests.fixture([TrainingEndgameTests.ending(start)],defender:defender)}
     func testRequestsCarryTheWholeHistoryAndAnExplicitProfile()async throws {

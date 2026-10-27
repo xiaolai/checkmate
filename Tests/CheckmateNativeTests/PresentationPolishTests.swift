@@ -7,9 +7,7 @@ import CheckmateCore
 /// Small presentation decisions behind the sidebar, the inspector, the storage banner and Settings: each says a thing
 /// once, offers only what can act, and counts what the learner can see.
 @MainActor final class PresentationPolishTests:XCTestCase {
-    private var directory:URL!
-    override func setUp(){directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);setenv("CHECKMATE_DATA_DIR",directory.path,1)}
-    override func tearDown(){unsetenv("CHECKMATE_DATA_DIR");try? FileManager.default.removeItem(at:directory)}
+    override func setUpWithError()throws{try isolateDataDirectory()}
 
     /// About counts what the sidebar lists: the main lessons its progress counts, the practice lessons under them,
     /// and every row of its Mini-games section.

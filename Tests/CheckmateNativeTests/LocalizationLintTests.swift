@@ -1,11 +1,12 @@
 import XCTest
 import CheckmateCore
+import CheckmateTestSupport
 
 /// Shown text goes through the String Catalog (D-11): a literal that reads as English prose must reach the screen through
 /// `String(localized:…,bundle:.checkmate)` or a SwiftUI text initializer, and developer text (preconditions, logs, PGN tags,
 /// model prompts, wire values) must not be put into the catalog. A deliberate exception carries `// not localized: <reason>`.
 @MainActor final class LocalizationLintTests:XCTestCase {
-    private static let root=URL(fileURLWithPath:#filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent(),sources=root.appendingPathComponent("Sources")
+    private static let root=Repository.root,sources=root.appendingPathComponent("Sources")
     /// The sources the published calibration results were played from: a change to one invalidates its results, so their
     /// text waits for the next calibration on the test host.
     private func calibrated()throws->Set<String> {

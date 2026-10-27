@@ -11,10 +11,8 @@ public enum TrainingStore {
     static func gregorian(_ calendar:Calendar)->Calendar {var fixed=Calendar(identifier:.gregorian);fixed.timeZone=calendar.timeZone;return fixed}
     /// A fingerprint of a concrete position, so a retry of the same board is recognised after its attempt is pruned.
     public static func positionKey(_ scenario:TrainingScenario)->String {
-        var hash:UInt64=0xcbf29ce484222325
         let text=[scenario.entry,scenario.fen ?? "",(scenario.prelude ?? []).joined(separator:","),scenario.target ?? "",scenario.learner,scenario.drill.map{$0.piece+$0.start+$0.target} ?? "",(scenario.diagram ?? scenario.drill?.pieces ?? [:]).sorted{$0.key<$1.key}.map{$0.key+$0.value}.joined()].joined(separator:"|")
-        for byte in text.utf8{hash=(hash ^ UInt64(byte)) &* 0x100000001b3}
-        return String(hash,radix:16)
+        return String(fnv1a64(text.utf8),radix:16)
     }
     /// Whether this exact position was attempted before. A queued retry counts too: its board stays queued after the
     /// bounded fingerprint list has dropped it.
@@ -93,7 +91,7 @@ public enum TrainingStore {
             training.summaries[entry]=summary
         }
         // Over the byte budget, finished attempt records go first (oldest), then completion events.
-        if !withinBudget(training){dropOldest(\.attempts,from:&training)}
+        guard !withinBudget(training) else{return};dropOldest(\.attempts,from:&training)
         if !withinBudget(training){dropOldest(\.events,from:&training)}
     }
     /// Removes the fewest oldest records that bring the state within budget (all of them if none suffices). The
@@ -106,12 +104,12 @@ public enum TrainingStore {
         }
         training[keyPath:records].removeFirst(low)
     }
-    /// Whether `snapshot` can be saved as the active attempt within the training budget, after pruning disposable
-    /// records. Never makes room by touching the real practice game. While a newer version's attempt holds the slot,
-    /// `snapshot` is never saved (`TrainingController.save`), so only the record as it stands must fit.
-    public static func fits(_ snapshot:TrainingSessionSnapshot,in training:TrainingState)->Bool {
+    /// The pruned record with `snapshot` as the active attempt, or nil when it does not fit the training budget even
+    /// after pruning disposable records. Never makes room by touching the real practice game. While a newer version's
+    /// attempt holds the slot, `snapshot` is never saved (`TrainingController.save`), so only the record as it stands must fit.
+    public static func fits(_ snapshot:TrainingSessionSnapshot,in training:TrainingState)->TrainingState? {
         var trial=training;if trial.newerActive==nil{trial.active=snapshot};prune(&trial)
-        return withinBudget(trial)
+        return withinBudget(trial) ? trial:nil
     }
     /// Whether the record encodes within its byte budget; a record that cannot be encoded does not fit.
     static func withinBudget(_ training:TrainingState)->Bool {((try? JSONEncoder().encode(training).count) ?? Int.max)<=TrainingState.maximumBytes}

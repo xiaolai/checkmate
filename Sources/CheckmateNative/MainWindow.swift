@@ -79,6 +79,8 @@ final class BoardTitleView:NSView {
     private var fullscreenWidth:NSLayoutConstraint?
     var desiredLeft=false,desiredRight=false,animating=false,fixedBoardWidth:NSLayoutConstraint?,settings:SettingsWindow?
     private var observations:Set<AnyCancellable>=[]
+    /// Several publishers change in one tick; they share one queued `refresh()`, cleared when it runs.
+    private var refreshScheduled=false
     /// Shows a promotion menu at a point of a view and returns whether an item was chosen; tests answer it without a
     /// modal menu loop.
     var presentPromotionMenu:(NSMenu,NSPoint,NSView)->Bool={menu,point,view in menu.popUp(positioning:menu.items.first,at:point,in:view)}
@@ -119,12 +121,12 @@ final class BoardTitleView:NSView {
         // plays the original game; in an imagined line it chooses the focused square, as Return does.
         board.reviewKey={[weak self] key in guard let self=self,self.model.review.active else{return false};guard let command=ReviewGo(key:key,imagined:self.model.review.branch != nil) else{return false};self.go(command);return true}
         board.dropReview={[weak self] data in self?.model.importReviewData(data)};board.dropRejected={[weak self] reason in self?.model.storageError=reason}
-        model.review.objectWillChange.sink{[weak self] _ in DispatchQueue.main.async{self?.refresh()}}.store(in:&observations)
+        model.review.objectWillChange.sink{[weak self] _ in self?.scheduleRefresh()}.store(in:&observations)
         // The evaluation bar and best-move arrow follow the whole-game analysis as it fills in (R-17).
-        model.reviewAnalyzer.objectWillChange.sink{[weak self] _ in DispatchQueue.main.async{self?.refresh()}}.store(in:&observations)
-        model.reviewRetry.objectWillChange.sink{[weak self] _ in DispatchQueue.main.async{self?.refresh()}}.store(in:&observations)
-        history.choose={[weak self] index in self?.showPracticeMove(index)};history.objectWillChange.sink{[weak self] _ in DispatchQueue.main.async{self?.refresh()}}.store(in:&observations)
-        model.onImport={[weak self] in guard let self=self else{return};self.desiredLeft=self.model.session.state.window.left;self.desiredRight=self.model.session.state.window.right;self.animateDrawers()};board.onLayout={[weak self] in self?.titleView.needsLayout=true;self?.titleView.syncCenter()};board.activate={[weak self] square in self?.select(square)};board.canDrag={[weak self] square in self?.dragMoves(square) ?? false};model.movePlacedDirectly={[weak self] move in self?.board.isDropped(move) ?? false};board.inspectRelationship={[weak self] mode in self?.toggleRelationship(mode)};board.dismissRelationships={[weak self] in guard let self=self else{return false};let dismissed=self.relationships.dismiss();if dismissed{self.refresh()};return dismissed};board.clearSelection={[weak self] in guard let self=self else{return};if self.model.review.active{self.model.review.clearSelection();self.refresh()}else if self.model.session.mode == .network{self.model.network.clearSelection();self.refresh()}else if self.model.session.mode == .practice{self.model.session.clearSelection()}else if let training=self.model.training,self.trainingExercise != nil{training.clearSelection();self.refresh()}else{self.model.learning.clearSelection()}};titleView.board=board;titleView.tabs.target=self;titleView.tabs.action=#selector(selectTab)
+        model.reviewAnalyzer.objectWillChange.sink{[weak self] _ in self?.scheduleRefresh()}.store(in:&observations)
+        model.reviewRetry.objectWillChange.sink{[weak self] _ in self?.scheduleRefresh()}.store(in:&observations)
+        history.choose={[weak self] index in self?.showPracticeMove(index)};history.objectWillChange.sink{[weak self] _ in self?.scheduleRefresh()}.store(in:&observations)
+        model.onImport={[weak self] in guard let self=self else{return};self.desiredLeft=self.model.session.state.window.left;self.desiredRight=self.model.session.state.window.right;self.animateDrawers()};board.onLayout={[weak self] in self?.titleView.needsLayout=true;self?.titleView.syncCenter()};board.activate={[weak self] square in self?.select(square)};board.canDrag={[weak self] square in self?.dragMoves(square) ?? false};model.movePlacedDirectly={[weak self] move in self?.board.isDropped(move) ?? false};board.inspectRelationship={[weak self] mode in self?.toggleRelationship(mode)};board.dismissRelationships={[weak self] in guard let self=self else{return false};let dismissed=self.relationships.dismiss();if dismissed{self.refresh()};return dismissed};board.clearSelection={[weak self] in guard let self=self else{return};if self.model.review.active{self.model.review.clearSelection();self.refresh()}else if self.model.session.mode == .network{self.model.network.clearSelection();self.refresh()}else if self.model.session.mode == .practice{self.model.session.clearSelection()}else if let training=self.model.training,self.model.shownTrainingExercise != nil{training.clearSelection();self.refresh()}else{self.model.learning.clearSelection()}};titleView.board=board;titleView.tabs.target=self;titleView.tabs.action=#selector(selectTab)
     }
     /// The board area: transport, welcome card, puzzle and training libraries, error banner and playback line.
     private func buildBoardArea(){
@@ -141,7 +143,7 @@ final class BoardTitleView:NSView {
         let banner=VisibleHostingView(rootView:StorageErrorBanner(model:model));errorBanner=banner;banner.isHidden=model.storageError==nil
         main.view.addSubview(banner);banner.translatesAutoresizingMaskIntoConstraints=false
         NSLayoutConstraint.activate([banner.leadingAnchor.constraint(equalTo:main.view.safeAreaLayoutGuide.leadingAnchor),banner.trailingAnchor.constraint(equalTo:main.view.safeAreaLayoutGuide.trailingAnchor),banner.topAnchor.constraint(equalTo:main.view.safeAreaLayoutGuide.topAnchor)])
-        model.$storageError.removeDuplicates().receive(on:RunLoop.main).sink{[weak self] message in guard let self=self else{return};self.errorBanner?.isHidden=message==nil;if let message=message{NSAccessibility.post(element:self.errorBanner as Any,notification:.announcementRequested,userInfo:[.announcement:message,.priority:NSAccessibilityPriorityLevel.high.rawValue])}}.store(in:&observations)
+        model.$storageError.removeDuplicates().receive(on:RunLoop.main).sink{[weak self] message in guard let self=self else{return};self.errorBanner?.isHidden=message==nil;if let message=message{self.announce(message,on:self.errorBanner)}}.store(in:&observations)
         let playbackLine=VisibleHostingView(rootView:LessonProgressContent(review:model.review,session:model.session,learning:model.learning))
         playbackLineView=playbackLine
         main.view.addSubview(playbackLine);playbackLine.translatesAutoresizingMaskIntoConstraints=false
@@ -153,11 +155,11 @@ final class BoardTitleView:NSView {
     }
     /// Model changes refresh the window; moves animate and are announced.
     private func observeModel(){
-        model.objectWillChange.sink{[weak self] _ in DispatchQueue.main.async{self?.refresh()}}.store(in:&observations)
-        model.network.objectWillChange.sink{[weak self] _ in DispatchQueue.main.async{self?.refresh()}}.store(in:&observations)
+        model.objectWillChange.sink{[weak self] _ in self?.scheduleRefresh()}.store(in:&observations)
+        model.network.objectWillChange.sink{[weak self] _ in self?.scheduleRefresh()}.store(in:&observations)
         // The agreed hint's arrow follows the assistant (assistance plan A6). The inspector follows the agreed level
         // through the model, which redraws on every participation change.
-        model.networkAssistant.objectWillChange.sink{[weak self] _ in DispatchQueue.main.async{self?.refresh()}}.store(in:&observations)
+        model.networkAssistant.objectWillChange.sink{[weak self] _ in self?.scheduleRefresh()}.store(in:&observations)
         // The squares the network game's coach is speaking about (A10) light up as it speaks, and go when it stops.
         model.voice.$networkFocus.removeDuplicates().dropFirst().receive(on:RunLoop.main).sink{[weak self] _ in self?.refresh()}.store(in:&observations)
         // The training coach's spoken squares and highlights (mini-game plan WI-021) light up on the training board.
@@ -171,7 +173,7 @@ final class BoardTitleView:NSView {
         model.network.$permissionHelp.removeDuplicates().receive(on:RunLoop.main).sink{[weak self] shown in self?.syncPermissionHelp(shown)}.store(in:&observations)
         // The network place's lobby and game chrome live in the details drawer: open it on arrival, as a lesson or review does.
         model.session.$activity.removeDuplicates().filter{$0 == .at(.network)}.receive(on:RunLoop.main).sink{[weak self] _ in self?.showDetails()}.store(in:&observations)
-        model.session.objectWillChange.sink{[weak self] _ in DispatchQueue.main.async{self?.refresh()}}.store(in:&observations);model.learning.objectWillChange.sink{[weak self] _ in DispatchQueue.main.async{self?.refresh()}}.store(in:&observations)
+        model.session.objectWillChange.sink{[weak self] _ in self?.scheduleRefresh()}.store(in:&observations);model.learning.objectWillChange.sink{[weak self] _ in self?.scheduleRefresh()}.store(in:&observations)
         // A review read aloud keeps to its sheet: the drawer stays as it is.
         model.voice.$connection.map{$0 == .ready}.removeDuplicates().filter{$0}.receive(on:RunLoop.main).sink{[weak self] _ in guard let self,self.model.voice.miniReviewSession==nil else{return};self.showDetails()}.store(in:&observations)
         // These messages are shown only in the details drawer, which starts closed; open it when one appears.
@@ -186,13 +188,13 @@ final class BoardTitleView:NSView {
         let attemptSound=model.learning.onAttemptMove;model.learning.onAttemptMove={[weak self] move in attemptSound?(move);guard let self else{return};self.board.animate(move,landing:self.model.learning.attempt.board,duration:Double(self.model.session.state.settings.pieceDuration)/1000);self.announce(self.attemptAnnouncement(for:move))}
         let trainingSound=model.training?.onMove;model.training?.onMove={[weak self] move in trainingSound?(move);guard let self else{return};self.board.animate(move,duration:Double(self.model.session.state.settings.pieceDuration)/1000);self.announce(self.trainingAnnouncement(for:move))}
         // A training exercise's feedback and hints are shown in the details drawer, as a puzzle's are: open it when one appears.
-        if let training=model.training{training.$exercise.map{$0?.feedback ?? ""}.removeDuplicates().merge(with:training.$exercise.map{$0?.hintText ?? ""}.removeDuplicates()).filter{!$0.isEmpty}.receive(on:RunLoop.main).sink{[weak self] _ in guard let self,self.trainingExercise != nil else{return};self.showDetails()}.store(in:&observations)}
+        if let training=model.training{training.$exercise.map{$0?.feedback ?? ""}.removeDuplicates().merge(with:training.$exercise.map{$0?.hintText ?? ""}.removeDuplicates()).filter{!$0.isEmpty}.receive(on:RunLoop.main).sink{[weak self] _ in guard let self,self.model.shownTrainingExercise != nil else{return};self.showDetails()}.store(in:&observations)}
         let attemptReset=model.learning.onAttemptReset;model.learning.onAttemptReset={[weak self] in attemptReset?();self?.board.cancelAnimation()}
         board.refusedDrop={[weak self] from,to in guard let self,self.model.learning.attemptStep,!self.model.review.active else{return};self.model.learning.attempt.refused(from:from,to:to)}
         let miniReset=model.learning.onMiniReset;model.learning.onMiniReset={[weak self] in miniReset?();self?.board.cancelAnimation()}
-        model.learning.miniReview.objectWillChange.sink{[weak self] _ in DispatchQueue.main.async{self?.syncMiniReviewSheet()}}.store(in:&observations)
+        model.learning.miniReview.onChangeDeferred{[weak self] in self?.syncMiniReviewSheet()}.store(in:&observations)
         // A network mini-game's review (protocol 1.3) uses the same sheet, opened from the network pane.
-        model.network.miniReview.objectWillChange.sink{[weak self] _ in DispatchQueue.main.async{self?.syncMiniReviewSheet()}}.store(in:&observations)
+        model.network.miniReview.onChangeDeferred{[weak self] in self?.syncMiniReviewSheet()}.store(in:&observations)
     }
     /// The finished mini-game's review sheet follows its reviewer: shown when a result arrives, gone when it is
     /// dismissed or the review ends (restart, undo, leaving the game).
@@ -280,7 +282,7 @@ final class BoardTitleView:NSView {
     @objc func selectTab(){model.session.selectPresentation(titleView.tabs.selectedSegment==1)}
     func select(_ sq:String){
         if model.review.active,model.reviewRetry.hidesAnswer{retry(sq);return}
-        if model.review.active{if let from=model.review.selected,model.review.displayRules?.moves(from).contains(where:{$0.to==sq && $0.promotion != nil})==true{let shown=reviewPromotionKey;showPromotionMenu(at:sq,action:#selector(promoteReview(_:))){[sq,$0,from,shown]};return};do{try model.review.selectSquare(sq)}catch{showError(error)};refresh();return}
+        if model.review.active{if let from=model.review.selected,model.review.displayRules?.moves(from).contains(where:{$0.to==sq && $0.promotion != nil})==true{let shown=reviewPromotionKey;showPromotionMenu(at:sq,action:#selector(promoteReview(_:))){ReviewPromotion(from:from,to:sq,piece:$0,shown:shown)};return};do{try model.review.selectSquare(sq)}catch{showError(error)};refresh();return}
 
         let s=model.session
         // The network game takes its own input (LAN-play plan D9): no practice or lesson handling, and the piece
@@ -301,7 +303,7 @@ final class BoardTitleView:NSView {
         if s.mode == .practice {
         if let from=s.selected,s.inspection?.legalNow==true,s.destinations.contains(sq),(s.presentationHidden || s.preview==nil && s.demonstration==nil) {let promotion=s.rules.moves(from).contains{$0.to==sq && $0.promotion != nil};if promotion {let shown=practiceGame;showPromotionMenu(at:sq,action:#selector(promote(_:))){PracticePromotion(from:from,to:sq,piece:$0,game:shown)};return}}
         do{try s.select(sq)}catch{showError(error)}
-    }else if let training=model.training,trainingExercise != nil{training.click(sq);askTrainingPromotion(training,reaching:sq)}
+    }else if let training=model.training,model.shownTrainingExercise != nil{training.click(sq);askTrainingPromotion(training,reaching:sq)}
     else if model.learning.attemptStep,let from=model.learning.attempt.selected,model.learning.attempt.destinations.contains(sq),model.learning.attempt.needsPromotion(from:from,to:sq) {let shown=model.learning.attempt.identity;showPromotionMenu(at:sq,action:#selector(promoteAttempt(_:))){AttemptPromotion(from:from,to:sq,piece:$0,identity:shown)};return}
     else{model.learning.click(sq)};refresh()}
     /// A lesson exercise's promotion, bound to the attempt and move it was offered for: a choice made after the attempt
@@ -312,7 +314,6 @@ final class BoardTitleView:NSView {
     struct NetworkPromotion {let from:String,to:String,piece:String,revision:Int}
     @objc func promoteNetwork(_ item:NSMenuItem){guard let choice=item.representedObject as? NetworkPromotion,model.session.mode == .network,!model.review.active,model.network.revision==choice.revision else{refresh();return};model.network.play(from:choice.from,to:choice.to,promotion:choice.piece);refresh()}
     /// The exercise shown on the board, if a training exercise (not the library or a library mini-game) is open.
-    var trainingExercise:TrainingController.Exercise? {guard case .training=model.session.activity.place else{return nil};return model.training?.exercise}
     /// Dragging applies where selecting a piece and then a square plays a move; marking and route exercises stay
     /// click-only, and in practice only the learner's own pieces drag.
     func dragMoves(_ square:String)->Bool {
@@ -322,7 +323,7 @@ final class BoardTitleView:NSView {
         if s.mode == .network{return model.network.canDrag(square)}
         if s.mode == .practice{return shownHistoryPly==nil && board.position[square]?.first.map(String.init)==s.humanSide}
         // Selecting squares is click-only; a piece the learner moves may be dragged.
-        if let exercise=trainingExercise{return !exercise.finished && (exercise.task == .move || exercise.task == .game && model.training?.games.thinking == false) && board.position[square]?.first.map(String.init)==exercise.scenario.learner}
+        if let exercise=model.shownTrainingExercise{return !exercise.finished && (exercise.task == .move || exercise.task == .game && model.training?.games.thinking == false) && board.position[square]?.first.map(String.init)==exercise.scenario.learner}
         if l.attemptStep{return l.attempt.learnerToMove && board.position[square]?.first=="w"}
         return l.mini || l.activePuzzle != nil && l.exercise?.kind=="move"
     }
@@ -338,14 +339,14 @@ final class BoardTitleView:NSView {
     struct TrainingPromotion {let from:String,to:String,piece:String,attempt:String,revision:Int}
     /// Whether `pending` is still the shown exercise's open promotion, for the attempt and revision it was offered on.
     private func trainingPromotionOpen(from:String,to:String,attempt:String,revision:Int)->Bool {
-        guard let exercise=trainingExercise,!exercise.finished,let pending=exercise.pendingPromotion else{return false}
+        guard let exercise=model.shownTrainingExercise,!exercise.finished,let pending=exercise.pendingPromotion else{return false}
         return pending.from==from && pending.to==to && exercise.snapshot.id==attempt && exercise.snapshot.revision==revision
     }
     /// A move to the last rank asks for its piece through the board's menu, as practice does; closing the menu without
     /// a choice cancels the promotion, which counts nothing. Only the click that reached the promotion square asks; one
     /// left open by an agent keeps the drawer's chooser.
     private func askTrainingPromotion(_ training:TrainingController,reaching sq:String){
-        guard let exercise=trainingExercise,!exercise.finished,let pending=exercise.pendingPromotion,pending.to==sq else{return}
+        guard let exercise=model.shownTrainingExercise,!exercise.finished,let pending=exercise.pendingPromotion,pending.to==sq else{return}
         let attempt=exercise.snapshot.id,revision=exercise.snapshot.revision
         let chosen=showPromotionMenu(at:pending.to,action:#selector(promoteTraining(_:))){TrainingPromotion(from:pending.from,to:pending.to,piece:$0,attempt:attempt,revision:revision)}
         if !chosen,trainingPromotionOpen(from:pending.from,to:pending.to,attempt:attempt,revision:revision){training.cancelPromotion()}
@@ -363,15 +364,17 @@ final class BoardTitleView:NSView {
     /// A choice applies only to the position and piece the menu was opened for; one changed meanwhile is ignored.
     /// A square for retry mode (R-18); a promotion asks for its piece first.
     private func retry(_ sq:String,promotion:String?=nil){
-        if promotion==nil,let from=model.review.selected,model.review.displayRules?.moves(from).contains(where:{$0.to==sq && $0.promotion != nil})==true{let shown=reviewPromotionKey;showPromotionMenu(at:sq,action:#selector(promoteReview(_:))){[sq,$0,from,shown]};return}
+        if promotion==nil,let from=model.review.selected,model.review.displayRules?.moves(from).contains(where:{$0.to==sq && $0.promotion != nil})==true{let shown=reviewPromotionKey;showPromotionMenu(at:sq,action:#selector(promoteReview(_:))){ReviewPromotion(from:from,to:sq,piece:$0,shown:shown)};return}
         let retry=model.reviewRetry;Task{@MainActor [weak self] in do{try await retry.choose(sq,promotion:promotion ?? "q")}catch{self?.showError(error)};self?.refresh()};refresh()
     }
-    @objc func promoteReview(_ item:NSMenuItem){guard let values=item.representedObject as? [String],values.count==4,model.review.active,model.review.selected==values[2],reviewPromotionKey==values[3] else{refresh();return};if model.reviewRetry.hidesAnswer{retry(values[0],promotion:values[1]);return};do{try model.review.selectSquare(values[0],promotion:values[1])}catch{showError(error)};refresh()}
+    /// A review promotion, bound to the piece selected and the review position (`reviewPromotionKey`) it was offered over.
+    struct ReviewPromotion {let from:String,to:String,piece:String,shown:String}
+    @objc func promoteReview(_ item:NSMenuItem){guard let choice=item.representedObject as? ReviewPromotion,model.review.active,model.review.selected==choice.from,reviewPromotionKey==choice.shown else{refresh();return};if model.reviewRetry.hidesAnswer{retry(choice.to,promotion:choice.piece);return};do{try model.review.selectSquare(choice.to,promotion:choice.piece)}catch{showError(error)};refresh()}
     /// A practice promotion chosen from the menu, bound to the exact game position the menu was opened over.
     struct PracticePromotion {let from:String,to:String,piece:String,game:(generation:Int,position:Int,history:[String])}
     /// The menu's run loop lets an agent replace the game meanwhile; an identical position in another game is not this one.
     @objc func promote(_ item:NSMenuItem){guard let choice=item.representedObject as? PracticePromotion,stillShowing(choice.game,exactly:true) else{refresh();return};do{try model.session.playWhite(from:choice.from,to:choice.to,promotion:choice.piece)}catch{showError(error)};refresh()}
-    func toggleRelationship(_ mode:RelationshipMode){guard !model.review.active,!model.reviewWorkspace,model.session.mode != .network || model.network.inspectable,trainingExercise==nil,let selected=board.selected,board.position[selected] != nil else{return};relationships.toggle(mode,selected:selected);refresh();if relationships.mode != nil{showDetails()}}
+    func toggleRelationship(_ mode:RelationshipMode){guard !model.review.active,!model.reviewWorkspace,model.session.mode != .network || model.network.inspectable,model.shownTrainingExercise==nil,let selected=board.selected,board.position[selected] != nil else{return};relationships.toggle(mode,selected:selected);refresh();if relationships.mode != nil{showDetails()}}
     @objc func showProtection(){toggleRelationship(.protected)}
     @objc func showAttacks(){toggleRelationship(.attacked)}
     @objc func dismissInspection(){relationships.dismiss();refresh()}
@@ -396,7 +399,7 @@ final class BoardTitleView:NSView {
     /// What VoiceOver hears when a training move lands: who played it, and check or mate from its notation. The
     /// exercise's result is in its feedback, which the drawer and the bar show.
     func trainingAnnouncement(for move:MoveRecord)->String {
-        let learner=move.color==trainingExercise?.scenario.learner
+        let learner=move.color==model.shownTrainingExercise?.scenario.learner
         let played=learner ? String(localized:"You played \(move.san).",bundle:.checkmate):String(localized:"The opponent played \(move.san).",bundle:.checkmate)
         let after=move.san.hasSuffix("#") ? String(localized:"Checkmate.",bundle:.checkmate):move.san.hasSuffix("+") ? (learner ? String(localized:"Check.",bundle:.checkmate):String(localized:"Your king is in check.",bundle:.checkmate)):""
         return Sentences.join(played,after)
@@ -405,12 +408,13 @@ final class BoardTitleView:NSView {
     private func setControlRows(_ rows:Int){let height=Metrics.header+CGFloat(max(0,rows-1))*(ControlBarView.rowHeight+Metrics.smallGap);if controlsHeight.constant != height{controlsHeight.constant=height}}
     /// An arrow that crossed into another lesson says where the learner now is.
     private func announceLesson(){announce(String(localized:"Now in \(model.learning.localizedTitle(index:model.learning.lessonIndex)).",bundle:.checkmate))}
-    private func announce(_ text:String){NSAccessibility.post(element:board,notification:.announcementRequested,userInfo:[.announcement:text,.priority:NSAccessibilityPriorityLevel.high.rawValue])}
-    func refresh(){syncDrawerToggles();syncMenus();let s=model.session,l=model.learning
+    func announce(_ text:String,on element:Any?=nil){NSAccessibility.post(element:element ?? board as Any,notification:.announcementRequested,userInfo:[.announcement:text,.priority:NSAccessibilityPriorityLevel.high.rawValue])}
+    private func scheduleRefresh(){if refreshScheduled{return};refreshScheduled=true;DispatchQueue.main.async{[weak self] in self?.refresh()}}
+    func refresh(){refreshScheduled=false;syncDrawerToggles();syncMenus();let s=model.session,l=model.learning
         // The learner's own side sits nearest them in practice, training and a review of their own game; lessons and
         // other reviews keep White at the bottom. Flip Board turns what is shown over until something else is (B-6);
         // the network game keeps its own flip. A mini-game played from Black against the computer puts Black nearest.
-        let natural=model.review.active ? model.review.document.flatMap(model.reviewLearnerSide)=="b":s.mode == .practice && s.humanSide=="b" || trainingExercise?.scenario.learner=="b" || s.mode == .network && model.network.blackAtBottom || l.mini && l.miniGame?.computer==true && l.miniLearnerSide=="b"
+        let natural=model.review.active ? model.review.document.flatMap(model.reviewLearnerSide)=="b":s.mode == .practice && s.humanSide=="b" || model.shownTrainingExercise?.scenario.learner=="b" || s.mode == .network && model.network.blackAtBottom || l.mini && l.miniGame?.computer==true && l.miniLearnerSide=="b"
         board.blackAtBottom = !model.reviewWorkspace && natural != (s.mode != .network && flipped==boardSubject)
         model.boardOrientation.show(blackAtBottom:board.blackAtBottom)
         board.reviewNavigation=model.review.active
@@ -423,16 +427,16 @@ playbackLineView?.isHidden=model.reviewWorkspace
         if model.reviewWorkspace{board.isHidden=true;welcome.isHidden=true;puzzles.isHidden=true;setTitle(String(localized:"Game review",bundle:.checkmate));titleView.label.isHidden=false;titleView.tabs.isHidden=true;return}
         board.theme=s.state.settings.boardTheme
         if model.review.active{let review=model.review;applyBoard(reviewPresentation(review));board.relationshipMode=nil;board.relationshipConnectors=[]
-            if announcedReviewIdentity != review.identity{announcedReviewIdentity=review.identity;let node=review.document?.nodes[review.nodeID];let announcement=review.branch==nil ? (node?.san).map{String(localized:"Review, \(node?.fullmove ?? 1), \(PieceName.side(node?.side=="b" ? "b":"w")), \($0)",bundle:.checkmate,comment:"Announced when a review opens: move number, side, move")} ?? String(localized:"Review, \(node?.fullmove ?? 1), \(PieceName.side(node?.side=="b" ? "b":"w")), starting position",bundle:.checkmate,comment:"Announced when a review opens at the start: move number, side"):String(localized:"Imagined line, move \(review.branchPly)",bundle:.checkmate);NSAccessibility.post(element:board,notification:.announcementRequested,userInfo:[.announcement:announcement,.priority:NSAccessibilityPriorityLevel.high.rawValue])}
+            if announcedReviewIdentity != review.identity{announcedReviewIdentity=review.identity;let node=review.document?.nodes[review.nodeID];let announcement=review.branch==nil ? (node?.san).map{String(localized:"Review, \(node?.fullmove ?? 1), \(PieceName.side(node?.side=="b" ? "b":"w")), \($0)",bundle:.checkmate,comment:"Announced when a review opens: move number, side, move")} ?? String(localized:"Review, \(node?.fullmove ?? 1), \(PieceName.side(node?.side=="b" ? "b":"w")), starting position",bundle:.checkmate,comment:"Announced when a review opens at the start: move number, side"):String(localized:"Imagined line, move \(review.branchPly)",bundle:.checkmate);announce(announcement)}
             board.isHidden=false;puzzles.isHidden=true;welcome.isHidden=true;setTitle(String(localized:"Review",bundle:.checkmate),subtitle:review.branch==nil ? String(localized:"Original game",bundle:.checkmate):String(localized:"Imagined line",bundle:.checkmate));titleView.label.isHidden=false;titleView.tabs.isHidden=true;board.needsDisplay=true;return}
 
         // An exercise's own presentation replaces the activity's before relationships read the selection; it offers no inspection.
-        var shown=s.mode == .network ? networkPresentation():trainingExercise.map(trainingPresentation) ?? activityPresentation()
-        if trainingExercise != nil{relationships.dismiss()}
+        var shown=s.mode == .network ? networkPresentation():model.shownTrainingExercise.map(trainingPresentation) ?? activityPresentation()
+        if model.shownTrainingExercise != nil{relationships.dismiss()}
         // The network board offers inspection only at board insight or more (assistance plan A1), from its own position.
         let network=s.mode == .network,inspectable=network && model.network.inspectable
         if network && !inspectable{relationships.dismiss()}
-        relationships.update(board:shown.position,fen:network ? model.network.fen:s.mode == .practice ? s.displayFen:l.attemptStep ? l.attempt.rules.fen:nil,selected:trainingExercise==nil && (!network || inspectable) ? shown.selected:nil,identity:network ? model.network.identity:s.displayIdentity)
+        relationships.update(board:shown.position,fen:network ? model.network.fen:s.mode == .practice ? s.displayFen:l.attemptStep ? l.attempt.rules.fen:nil,selected:model.shownTrainingExercise==nil && (!network || inspectable) ? shown.selected:nil,identity:network ? model.network.identity:s.displayIdentity)
         if let report=relationships.report{shown.selected=report.square;shown.destinations=[];shown.attacked=[];shown.arrows=[];shown.guards=[];shown.highlights.removeAll{$0.kind != "check" && $0.kind != "no"}}
         applyBoard(shown)
         board.relationshipMode=relationships.report?.mode
@@ -447,7 +451,7 @@ playbackLineView?.isHidden=model.reviewWorkspace
         else if s.mode == .practice{setTitle(String(localized:"Practice",bundle:.checkmate),subtitle:s.humanSide=="b" ? String(localized:"Black vs Stockfish",bundle:.checkmate):String(localized:"White vs Stockfish",bundle:.checkmate))}
         else if s.mode == .puzzles{setTitle(String(localized:"Quick puzzles",bundle:.checkmate))}
         else if l.mini{setTitle(l.miniKind.title)}
-        else if s.mode == .training{setTitle(trainingExercise?.definition.title ?? String(localized:"Training",bundle:.checkmate))}
+        else if s.mode == .training{setTitle(model.shownTrainingExercise?.definition.title ?? String(localized:"Training",bundle:.checkmate))}
         else {setTitle(l.localizedTitle(index:l.lessonIndex),subtitle:l.attemptStatus ?? "")}
         let temporary=s.preview != nil || s.demonstration != nil;titleView.label.isHidden=temporary;titleView.tabs.isHidden = !temporary;titleView.tabs.setLabel(s.demonstration != nil ? String(localized:"Demonstration",bundle:.checkmate):String(localized:"Try a Move",bundle:.checkmate),forSegment:1);titleView.tabs.selectedSegment=s.presentationHidden ? 0:1;titleView.needsLayout=true
     }
@@ -456,15 +460,21 @@ playbackLineView?.isHidden=model.reviewWorkspace
     /// `source` names what the board shows (a review, its preview, a lesson, a demonstration, which practice game or
     /// mini-game run…), independent of the position: an animation belongs to one source, so switching to another with the
     /// same pieces (a new game from the start position included) still ends it.
-    private struct BoardPresentation {var source:String,position:Position,selected:String?,destinations:[String],playable:Bool,dropsAnywhere:Bool,attacked:[String],highlights:[Highlight],arrows:[[String]],guards:[[String]],counts:[String],motion:PieceMotion?}
+    private struct BoardPresentation {var source:String,position:Position,selected:String?=nil,destinations:[String]=[],playable:Bool=true,dropsAnywhere:Bool=false,attacked:[String]=[],highlights:[Highlight]=[],arrows:[[String]]=[],guards:[[String]]=[],counts:[String]=[],motion:PieceMotion?=nil}
+    /// The last move's two squares, then the king in check, if any.
+    private static func moveHighlights(last move:(from:String,to:String)?,check rules:(any NetworkBoardModel)?=nil)->[Highlight] {
+        let king=rules.flatMap{$0.check ? TrainingGeometry.square(of:$0.turn+"k",on:$0.board):nil}
+        return (move.map{[Highlight(sq:$0.from,kind:"last"),Highlight(sq:$0.to,kind:"last")]} ?? [])+(king.map{[Highlight(sq:$0,kind:"check")]} ?? [])
+    }
     private func applyBoard(_ p:BoardPresentation){board.displaySource=p.source;board.position=p.position;board.selected=p.selected;board.destinations=p.destinations;board.destinationsPlayable=p.playable;board.dropsAnywhere=p.dropsAnywhere;board.attacked=p.attacked;board.highlights=p.highlights;board.arrows=p.arrows;board.guards=p.guards;board.counts=p.counts;board.explicitMotion=p.motion}
     /// A review: the last move (and an imagined line's arrow), check, then the review's and the voice coach's marks.
     private func reviewPresentation(_ review:ReviewController)->BoardPresentation {
-        var p=BoardPresentation(source:review.branch==nil ? "review":"review_preview",position:review.board,selected:review.selected,destinations:review.destinations,playable:true,dropsAnywhere:false,attacked:[],highlights:[],arrows:[],guards:[],counts:[],motion:nil)
+        var p=BoardPresentation(source:review.branch==nil ? "review":"review_preview",position:review.board,selected:review.selected,destinations:review.destinations)
         // An imagined line starts from its own root, which a preview can place away from the selected move.
         let imagined=review.branch.flatMap{branch in review.branchPly>0 ? branch.moves[review.branchPly-1]:nil}
-        if let move=imagined ?? review.document?.nodes[review.branch?.root ?? review.nodeID].uci {let from=String(move.prefix(2)),to=String(move.dropFirst(2).prefix(2));p.highlights=[Highlight(sq:from,kind:"last"),Highlight(sq:to,kind:"last")];if imagined != nil{p.arrows=[[from,to]]}}
-        if let rules=review.displayRules,rules.check,let king=rules.board.first(where:{$0.value==rules.turn+"k"})?.key{p.highlights.append(Highlight(sq:king,kind:"check"))}
+        let last=(imagined ?? review.document?.nodes[review.branch?.root ?? review.nodeID].uci).map{(from:String($0.prefix(2)),to:String($0.dropFirst(2).prefix(2)))}
+        if let last,imagined != nil{p.arrows=[[last.from,last.to]]}
+        p.highlights=Self.moveHighlights(last:last,check:review.displayRules)
         p.highlights += review.highlights+model.session.voiceFocus.map{Highlight(sq:$0,kind:"focus")};p.arrows += review.arrows
         // The engine's choice, only when the learner asked for it and is not still looking for it in retry mode;
         // `bestMove` is nil whenever engine help is withheld.
@@ -473,22 +483,20 @@ playbackLineView?.isHidden=model.reviewWorkspace
     }
     /// Practice, a lesson, a puzzle or a mini-game, with a demonstration on top.
     private func activityPresentation()->BoardPresentation {let s=model.session,l=model.learning,practice=s.mode == .practice
-        var p=BoardPresentation(source:"\(s.displayView):\(s.gameGeneration):\(l.miniGame.map{"\($0.kind.rawValue)/\($0.opponentSeed ?? "")"} ?? ""):\(l.attemptStep ? l.attempt.record?.id ?? "":"")",position:s.displayBoard,selected:practice ? s.selected:l.picked.first,destinations:practice ? s.destinations:l.destinations,playable:!practice || s.inspection?.legalNow != false,dropsAnywhere:!practice && !l.mini && l.activePuzzle != nil && l.exercise?.kind=="move",attacked:practice ? s.inspection?.attacks ?? []:[],highlights:s.highlights+s.voiceFocus.map{Highlight(sq:$0,kind:"focus")},arrows:s.arrows,guards:[],counts:[],motion:nil)
+        var p=BoardPresentation(source:"\(s.displayView):\(s.gameGeneration):\(l.miniGame.map{"\($0.kind.rawValue)/\($0.opponentSeed ?? "")"} ?? ""):\(l.attemptStep ? l.attempt.record?.id ?? "":"")",position:s.displayBoard,selected:practice ? s.selected:l.picked.first,destinations:practice ? s.destinations:l.destinations,playable:!practice || s.inspection?.legalNow != false,dropsAnywhere:!practice && !l.mini && l.activePuzzle != nil && l.exercise?.kind=="move",attacked:practice ? s.inspection?.attacks ?? []:[],highlights:s.highlights+s.voiceFocus.map{Highlight(sq:$0,kind:"focus")},arrows:s.arrows)
         // The last move is drawn first so the coach's highlights stay visible on top of it, as in review.
-        if practice,s.displayView=="game" {if let last=s.rules.records.last{p.highlights.insert(contentsOf:[Highlight(sq:last.from,kind:"last"),Highlight(sq:last.to,kind:"last")],at:0)};if s.rules.check,let king=s.rules.board.first(where:{$0.value==s.rules.turn+"k"})?.key{p.highlights.append(Highlight(sq:king,kind:"check"))}}
+        if practice,s.displayView=="game" {p.highlights=Self.moveHighlights(last:s.rules.lastRecord.map{(from:$0.from,to:$0.to)})+p.highlights+Self.moveHighlights(last:nil,check:s.rules)}
         if !practice {p.highlights+=l.frame.hl+l.picked.map{Highlight(sq:$0,kind:"focus")};p.arrows=l.frame.arrows+p.arrows;p.guards=l.frame.guards;p.counts=l.frame.counts ?? [];p.motion=l.frame.motion.map{motion in var landed=motion;if board.shouldReduceMotion{landed.t=1};return landed}}
         if !s.presentationHidden,let d=s.demonstration {let frame=d.lines[d.line].frames[d.ply];p.arrows=frame.arrows+p.arrows;p.highlights+=frame.highlights}
         // An earlier position of the game (B-9): its pieces and the move that led there, and nothing to play or inspect.
         if practice,let ply=shownHistoryPly{let records=s.rules.records;guard let earlier=TrainingMaterial.board(fen:records[ply].before) else{preconditionFailure("A recorded position has an unreadable FEN: \(records[ply].before)")}
-            p=BoardPresentation(source:"history:\(s.gameGeneration):\(ply)",position:earlier,selected:nil,destinations:[],playable:false,dropsAnywhere:false,attacked:[],highlights:ply>0 ? [Highlight(sq:records[ply-1].from,kind:"last"),Highlight(sq:records[ply-1].to,kind:"last")]:[],arrows:[],guards:[],counts:[],motion:nil)}
+            p=BoardPresentation(source:"history:\(s.gameGeneration):\(ply)",position:earlier,playable:false,highlights:Self.moveHighlights(last:ply>0 ? (from:records[ply-1].from,to:records[ply-1].to):nil))}
         return p
     }
     /// The network game: its own board, selection and legal dots; a pending move shows its lifted piece and target.
     private func networkPresentation()->BoardPresentation {
         let game=model.network,rules=game.rules
-        var p=BoardPresentation(source:"network:\(game.identity)",position:game.board,selected:game.pending?.from ?? game.selected,destinations:game.destinations,playable:true,dropsAnywhere:false,attacked:[],highlights:[],arrows:[],guards:[],counts:[],motion:nil)
-        if let last=rules.records.last{p.highlights=[Highlight(sq:last.from,kind:"last"),Highlight(sq:last.to,kind:"last")]}
-        if rules.check,let king=rules.board.first(where:{$0.value==rules.turn+"k"})?.key{p.highlights.append(Highlight(sq:king,kind:"check"))}
+        var p=BoardPresentation(source:"network:\(game.identity)",position:game.board,selected:game.pending?.from ?? game.selected,destinations:game.destinations,highlights:Self.moveHighlights(last:rules.lastRecord.map{(from:$0.from,to:$0.to)},check:rules))
         if let pending=game.pending{p.highlights.append(Highlight(sq:pending.to,kind:"target"))}
         // The agreed hint (assistance plan A6), on the learner's own board only: an arrow from the piece to its square.
         if let hint=model.networkAssistant.hint{p.arrows=[[hint.from,hint.to]];p.highlights.append(Highlight(sq:hint.from,kind:"focus"))}
@@ -501,7 +509,7 @@ playbackLineView?.isHidden=model.reviewWorkspace
         // The training coach's highlights, only while they belong to the board shown.
         let coach=model.trainingVoice?.shownMarks ?? TrainingVoiceAdapter.Marks()
         let target=[exercise.scenario.target ?? exercise.scenario.drill?.target ?? exercise.scenario.goal?.target].compactMap{$0}.map{Highlight(sq:$0,kind:"target")}
-        return BoardPresentation(source:"training",position:model.session.displayBoard,selected:exercise.picked,destinations:[],playable:true,dropsAnywhere:exercise.task == .move || exercise.task == .game,attacked:[],highlights:(exercise.lastMove.map{[Highlight(sq:$0.from,kind:"last"),Highlight(sq:$0.to,kind:"last")]} ?? [])+target+exercise.selection.map{Highlight(sq:$0,kind:"answer")}+exercise.hintSquares.map{Highlight(sq:$0,kind:"hint")}+coach.squares.map{Highlight(sq:$0,kind:"focus")}+model.voice.trainingFocus.map{Highlight(sq:$0,kind:"focus")},arrows:coach.arrows,guards:[],counts:[],motion:nil)
+        return BoardPresentation(source:"training",position:model.session.displayBoard,selected:exercise.picked,dropsAnywhere:exercise.task == .move || exercise.task == .game,highlights:Self.moveHighlights(last:exercise.lastMove)+target+exercise.selection.map{Highlight(sq:$0,kind:"answer")}+exercise.hintSquares.map{Highlight(sq:$0,kind:"hint")}+coach.squares.map{Highlight(sq:$0,kind:"focus")}+model.voice.trainingFocus.map{Highlight(sq:$0,kind:"focus")},arrows:coach.arrows)
     }
     func validateMenuItem(_ item:NSMenuItem)->Bool {
         if item.action == #selector(typeMove){return typedMoveAvailable}
@@ -530,10 +538,10 @@ playbackLineView?.isHidden=model.reviewWorkspace
         if item.action == NSSelectorFromString("undo:"){switch model.undoAction{case .restoreReview:item.title=String(localized:"Undo Delete Review",bundle:.checkmate);return true;case .nothing:item.title=String(localized:"Undo",bundle:.checkmate);return false;case .game:item.title=String(localized:"Undo",bundle:.checkmate)}}
         if item.action == #selector(undo as () -> Void) || item.action == NSSelectorFromString("undo:"),!model.review.active,!model.reviewWorkspace {
             if model.learning.attemptStep{if item.action == #selector(undo as () -> Void){item.title=String(localized:"Undo Turn",bundle:.checkmate)};return model.learning.attempt.hasMoves}
-            if let exercise=trainingExercise{return model.training.map{ControlBarModel.canTakeBack($0,exercise)} ?? false}
+            if let exercise=model.shownTrainingExercise{return model.training.map{ControlBarModel.canTakeBack($0,exercise)} ?? false}
             if item.action == #selector(undo as () -> Void){item.title=model.learning.mini ? String(localized:"Undo Turn",bundle:.checkmate):String(localized:"Take Back Move",bundle:.checkmate)}
         }
-        if [#selector(showProtection),#selector(showAttacks),#selector(dismissInspection)].contains(item.action){if item.action == #selector(dismissInspection){return relationships.mode != nil};item.state=(item.action == #selector(showProtection) && relationships.mode == .protected || item.action == #selector(showAttacks) && relationships.mode == .attacked) ? .on:.off;return !model.review.active && trainingExercise==nil && (model.session.mode != .network || model.network.inspectable) && board.selected.flatMap{board.position[$0]} != nil && !board.isHidden};guard [#selector(newGame),#selector(undo as () -> Void),NSSelectorFromString("undo:"),#selector(restorePrevious),#selector(claimDraw),#selector(resign)].contains(item.action) else{return true};guard !model.review.active,!model.reviewWorkspace else{return false};if model.learning.mini,![#selector(restorePrevious),#selector(claimDraw),#selector(resign)].contains(item.action){return item.action == #selector(newGame) || model.learning.miniGame?.history.isEmpty == false};guard model.session.mode == .practice else{return false};if item.action == #selector(undo as () -> Void) || item.action == NSSelectorFromString("undo:"){return model.session.canTakeBack};if item.action == #selector(claimDraw){return model.session.claimableDraw != nil};if item.action == #selector(resign){return !model.session.finished && !model.session.rules.history.isEmpty};if item.action == #selector(restorePrevious){return !model.session.state.practice.previousGame.isEmpty};return true}
+        if [#selector(showProtection),#selector(showAttacks),#selector(dismissInspection)].contains(item.action){if item.action == #selector(dismissInspection){return relationships.mode != nil};item.state=(item.action == #selector(showProtection) && relationships.mode == .protected || item.action == #selector(showAttacks) && relationships.mode == .attacked) ? .on:.off;return !model.review.active && model.shownTrainingExercise==nil && (model.session.mode != .network || model.network.inspectable) && board.selected.flatMap{board.position[$0]} != nil && !board.isHidden};guard [#selector(newGame),#selector(undo as () -> Void),NSSelectorFromString("undo:"),#selector(restorePrevious),#selector(claimDraw),#selector(resign)].contains(item.action) else{return true};guard !model.review.active,!model.reviewWorkspace else{return false};if model.learning.mini,![#selector(restorePrevious),#selector(claimDraw),#selector(resign)].contains(item.action){return item.action == #selector(newGame) || model.learning.miniGame?.history.isEmpty == false};guard model.session.mode == .practice else{return false};if item.action == #selector(undo as () -> Void) || item.action == NSSelectorFromString("undo:"){return model.session.canTakeBack};if item.action == #selector(claimDraw){return model.session.claimableDraw != nil};if item.action == #selector(resign){return !model.session.finished && !model.session.rules.history.isEmpty};if item.action == #selector(restorePrevious){return !model.session.state.practice.previousGame.isEmpty};return true}
     @objc func newGame(){
         guard !model.review.active,!model.reviewWorkspace else{return}
         if model.learning.mini {
@@ -601,7 +609,7 @@ playbackLineView?.isHidden=model.reviewWorkspace
     /// What the board shows, for Flip Board: a flip lasts while the same review, game, exercise or lesson is shown.
     private var boardSubject:String {
         if model.review.active{return "review:"+(model.review.document?.id.uuidString ?? "")}
-        if let exercise=trainingExercise{return "training:"+exercise.snapshot.id}
+        if let exercise=model.shownTrainingExercise{return "training:"+exercise.snapshot.id}
         let s=model.session
         switch s.mode {case .practice:return "practice:\(s.gameGeneration)";case .lesson:return "lesson:\(model.learning.lessonIndex):\(model.learning.mini)";default:return "\(s.mode)"}
     }
@@ -657,7 +665,7 @@ playbackLineView?.isHidden=model.reviewWorkspace
         guard !model.review.active,!model.reviewWorkspace else{return};board.cancelAnimation()
         if model.learning.mini{model.learning.undoMini()}
         else if model.learning.attemptStep{model.learning.attempt.undo()}
-        else if let exercise=trainingExercise{if let training=model.training,ControlBarModel.canTakeBack(training,exercise){training.undo()}}
+        else if let exercise=model.shownTrainingExercise{if let training=model.training,ControlBarModel.canTakeBack(training,exercise){training.undo()}}
         else{model.session.undo()}
     }
     // MARK: Lesson menu: each item performs the bar's own control, so the two never disagree.

@@ -2,7 +2,6 @@ import CheckmateAssets
 import CheckmateDomain
 import CheckmateSupport
 import Foundation
-import CryptoKit
 
 public struct TranslatedBeat:Codable,Equatable,Sendable {public var id:String,stepTitle:String,say:String,speak:String}
 public struct LessonTranslation:Codable,Equatable,Sendable {
@@ -18,10 +17,9 @@ public struct LessonTranslation:Codable,Equatable,Sendable {
    if let guards=beat.guards,!guards.isEmpty{fields["guards"]=guards};if let stages=beat.stages{fields["stages"]=stages.map{["hl":$0.hl.map{["sq":$0.sq,"kind":$0.kind]},"arrows":$0.arrows,"guards":$0.guards]}};if let cues=beat.stageCues{fields["stageCues"]=cues};return fields}
   let timingEncoder=JSONEncoder();timingEncoder.outputFormatting = .sortedKeys
   let timing=(try? timingEncoder.encode(library.lessonTiming)).map{String(decoding:$0,as:UTF8.self)} ?? ""
-  result.mechanicsHash=hash((try? JSONSerialization.data(withJSONObject:["beats":mechanics,"timing":timing],options:.sortedKeys)) ?? Data());return result
+  result.mechanicsHash=reviewHash((try? JSONSerialization.data(withJSONObject:["beats":mechanics,"timing":timing],options:.sortedKeys)) ?? Data());return result
  }
- public var fingerprint:String {let encoder=JSONEncoder();encoder.outputFormatting = .sortedKeys;var data=(try? encoder.encode(self)) ?? Data();data.append(Data((mechanicsHash ?? "").utf8));return Self.hash(data)}
- public static func hash(_ data:Data)->String {SHA256.hash(data:data).map{String(format:"%02x",$0)}.joined()}
+ public var fingerprint:String {let encoder=JSONEncoder();encoder.outputFormatting = .sortedKeys;var data=(try? encoder.encode(self)) ?? Data();data.append(Data((mechanicsHash ?? "").utf8));return reviewHash(data)}
  public func validate(against source:Self)throws {
   guard lessonID==source.lessonID,beats.map(\.id)==source.beats.map(\.id),Set(beats.map(\.id)).count==beats.count,teaches.count==source.teaches.count else{throw CheckmateError.invalid(String(localized:"The translated lesson has missing or mismatched records.",bundle:.checkmate))}
   func check(_ output:String,_ input:String)throws {
@@ -53,8 +51,8 @@ public final class LessonPackStore:@unchecked Sendable {
  private let lock=NSRecursiveLock()
  private init(unavailableDirectory:URL,reason:String){directory=unavailableDirectory.appendingPathComponent("LessonLanguages");unavailableReason=reason}
  public static func unavailable(directory:URL,reason:String)->LessonPackStore {LessonPackStore(unavailableDirectory:directory,reason:reason)}
- public init(directory:URL)throws {unavailableReason=nil;if (try? directory.resourceValues(forKeys:[.isSymbolicLinkKey]))?.isSymbolicLink==true{throw CheckmateError.invalid(String(localized:"The language pack directory is unsafe.",bundle:.checkmate))};self.directory=directory.resolvingSymlinksInPath().appendingPathComponent("LessonLanguages");var ancestor=self.directory;while ancestor.path != "/" {if FileManager.default.fileExists(atPath:ancestor.path),!["/var","/tmp"].contains(ancestor.path),(try ancestor.resourceValues(forKeys:[.isSymbolicLinkKey])).isSymbolicLink==true{throw CheckmateError.invalid(String(localized:"The language pack directory is unsafe.",bundle:.checkmate))};ancestor=ancestor.deletingLastPathComponent()};try FileManager.default.createDirectory(at:self.directory,withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])}
- private func url(_ key:String)->URL {directory.appendingPathComponent(LessonTranslation.hash(Data(key.utf8)))}
+ public init(directory:URL)throws {unavailableReason=nil;if (try? directory.resourceValues(forKeys:[.isSymbolicLinkKey]))?.isSymbolicLink==true{throw CheckmateError.invalid(String(localized:"The language pack directory is unsafe.",bundle:.checkmate))};self.directory=directory.resolvingSymlinksInPath().appendingPathComponent("LessonLanguages");var ancestor=self.directory;while ancestor.path != "/" {if FileManager.default.fileExists(atPath:ancestor.path),!["/var","/tmp"].contains(ancestor.path),(try ancestor.resourceValues(forKeys:[.isSymbolicLinkKey])).isSymbolicLink==true{throw CheckmateError.invalid(String(localized:"The language pack directory is unsafe.",bundle:.checkmate))};ancestor=ancestor.deletingLastPathComponent()};try createPrivateDirectory(self.directory)}
+ private func url(_ key:String)->URL {directory.appendingPathComponent(reviewHash(Data(key.utf8)))}
  private func validateRoot()throws {if let unavailableReason{throw CheckmateError.unavailable(unavailableReason)};var ancestor=directory;while ancestor.path != "/" {if !["/var","/tmp"].contains(ancestor.path),(try? ancestor.resourceValues(forKeys:[.isSymbolicLinkKey]))?.isSymbolicLink==true{throw CheckmateError.invalid(String(localized:"The language pack directory is unsafe.",bundle:.checkmate))};ancestor=ancestor.deletingLastPathComponent()}}
  /// The size of a regular, non-link file directly inside the store, within `limit`; anything else is invalid.
  private func checkedSize(_ file:URL,limit:Int)throws->Int {
@@ -69,7 +67,7 @@ public final class LessonPackStore:@unchecked Sendable {
  /// How many recordings were read and hashed in full (observable, so a rescan's cost is testable).
  private(set) var audioVerifications=0
  private func stamp(_ file:URL)->String? {guard let attributes=try? FileManager.default.attributesOfItem(atPath:file.path),let inode=attributes[.systemFileNumber] as? NSNumber,let size=attributes[.size] as? NSNumber,let modified=attributes[.modificationDate] as? Date else{return nil};return "\(inode)|\(size)|\(modified.timeIntervalSince1970)"}
- private func write(_ data:Data,to file:URL)throws {try validateRoot();if FileManager.default.fileExists(atPath:file.path){_ = try safeRead(file,limit:32_000_000)};try data.write(to:file,options:.atomic);try FileManager.default.setAttributes([.posixPermissions:0o600],ofItemAtPath:file.path)}
+ private func write(_ data:Data,to file:URL)throws {try validateRoot();if FileManager.default.fileExists(atPath:file.path){_ = try safeRead(file,limit:32_000_000)};try writePrivately(data,to:file)}
  /// Whether a translated-text file exists for this lesson, valid or not, so an invalid one can still be discarded.
  public func hasStoredText(source:LessonTranslation,locale:String)->Bool {FileManager.default.fileExists(atPath:url("text|\(source.fingerprint)|\(locale)").path)}
  public func translation(source:LessonTranslation,locale:String)throws->LessonTranslation? {
@@ -84,13 +82,13 @@ public final class LessonPackStore:@unchecked Sendable {
   lock.lock();defer{lock.unlock()};let file=manifestURL(source:source,locale:locale,voice:voice);guard FileManager.default.fileExists(atPath:file.path) else{return nil};let pack=try JSONDecoder().decode(LessonPack.self,from:safeRead(file,limit:2_000_000));guard pack.version==1,pack.sourceFingerprint==source.fingerprint,pack.locale==locale,pack.voice==voice,["cedar","marin"].contains(voice) else{throw CheckmateError.invalid(String(localized:"The stored lesson pack is outdated.",bundle:.checkmate))};try pack.translation.validate(against:source);guard pack.clips.allSatisfy({source.beats.map(\.id).contains($0.beatID)}),Set(pack.clips.map(\.beatID)).count==pack.clips.count else{throw CheckmateError.invalid(String(localized:"Duplicate stored recordings.",bundle:.checkmate))};return pack
  }
  public func clipURL(pack:LessonPack,beatID:String)throws->URL? {
-  guard let clip=pack.clips.first(where:{$0.beatID==beatID}),let beat=pack.translation.beats.first(where:{$0.id==beatID}),clip.generation==1,LessonRecording.acceptedModel(clip.model),clip.voice==pack.voice,clip.scriptHash==LessonTranslation.hash(Data(beat.speak.utf8)),clip.seconds.isFinite,clip.seconds>0,clip.seconds<=600 else{return nil}
+  guard let clip=pack.clips.first(where:{$0.beatID==beatID}),let beat=pack.translation.beats.first(where:{$0.id==beatID}),clip.generation==1,LessonRecording.acceptedModel(clip.model),clip.voice==pack.voice,clip.scriptHash==reviewHash(Data(beat.speak.utf8)),clip.seconds.isFinite,clip.seconds>0,clip.seconds<=600 else{return nil}
   lock.lock();defer{lock.unlock()}
   let file=url("audio|\(pack.sourceFingerprint)|\(pack.locale)|\(pack.voice)|\(beatID)|1");guard FileManager.default.fileExists(atPath:file.path) else{return nil}
   let before=stamp(file),size=try checkedSize(file,limit:28_800_044);guard abs(Double(size-44)/48000-clip.seconds)<0.001 else{return nil}
   if let before,verifiedAudio[file.path]==VerifiedAudio(stamp:before,hash:clip.audioHash){return file}
   let data=try Data(contentsOf:file);audioVerifications+=1
-  guard data.count>44,LessonRecording.validWAV(data),LessonTranslation.hash(data)==clip.audioHash,abs(Double(data.count-44)/48000-clip.seconds)<0.001 else{return nil}
+  guard data.count>44,LessonRecording.validWAV(data),reviewHash(data)==clip.audioHash,abs(Double(data.count-44)/48000-clip.seconds)<0.001 else{return nil}
   if let before,stamp(file)==before{verifiedAudio[file.path]=VerifiedAudio(stamp:before,hash:clip.audioHash)};return file
  }
  /// Removes one clip's recording and its manifest entry; the lesson's other clips and its text are kept. Returns
@@ -113,7 +111,7 @@ public final class LessonPackStore:@unchecked Sendable {
  public func saveClip(pcm:Data,transcript:String,beatID:String,source:LessonTranslation,locale:String,voice:String,model:String)throws->LessonPack {
   lock.lock();defer{lock.unlock()};guard LessonRecording.acceptedModel(model),["cedar","marin"].contains(voice) else{throw CheckmateError.invalid(String(localized:"The recording model or voice is not supported by this generation profile.",bundle:.checkmate))};guard let translation=try translation(source:source,locale:locale),let beat=translation.beats.first(where:{$0.id==beatID}) else{throw CheckmateError.invalid(String(localized:"Translate the lesson before recording.",bundle:.checkmate))};let seconds=try LessonRecording.validate(pcm:pcm,transcript:transcript,script:beat.speak,language:locale),wav=try LessonRecording.wav(pcm)
   var pack=try partialPack(source:source,locale:locale,voice:voice) ?? LessonPack(sourceFingerprint:source.fingerprint,locale:locale,voice:voice,translation:translation,clips:[])
-  try write(wav,to:url("audio|\(source.fingerprint)|\(locale)|\(voice)|\(beatID)|1"));pack.clips.removeAll{$0.beatID==beatID};pack.clips.append(LessonClip(beatID:beatID,scriptHash:LessonTranslation.hash(Data(beat.speak.utf8)),audioHash:LessonTranslation.hash(wav),seconds:seconds,model:model,voice:voice,generation:1));try write(JSONEncoder().encode(pack),to:manifestURL(source:source,locale:locale,voice:voice));return pack
+  try write(wav,to:url("audio|\(source.fingerprint)|\(locale)|\(voice)|\(beatID)|1"));pack.clips.removeAll{$0.beatID==beatID};pack.clips.append(LessonClip(beatID:beatID,scriptHash:reviewHash(Data(beat.speak.utf8)),audioHash:reviewHash(wav),seconds:seconds,model:model,voice:voice,generation:1));try write(JSONEncoder().encode(pack),to:manifestURL(source:source,locale:locale,voice:voice));return pack
  }
  /// Removes translated text, manifests and recordings made for earlier versions of the lessons (their source
  /// fingerprint is no longer any lesson's), then their orphaned audio. Current work and unreadable files are kept, and

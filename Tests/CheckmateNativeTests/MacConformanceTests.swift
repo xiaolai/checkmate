@@ -7,8 +7,7 @@ import CheckmateCore
 /// The menu bar, the window and documents follow the Mac's own conventions (wave 3, Mac conformance).
 @MainActor final class MacConformanceTests:XCTestCase {
     private var directory:URL!
-    override func setUp(){directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);setenv("CHECKMATE_DATA_DIR",directory.path,1)}
-    override func tearDown(){unsetenv("CHECKMATE_DATA_DIR");try? FileManager.default.removeItem(at:directory)}
+    override func setUpWithError()throws{directory=try isolateDataDirectory()}
     /// A model, its window and an app delegate with the menus installed; `body` runs before everything is put back.
     private func withMenus(_ body:(NativeModel,GameWindow,AppDelegate) throws -> Void) throws {
         let model=try NativeModel(),game=GameWindow(model:model),app=AppDelegate(),before=(NSApp.mainMenu,NSApp.helpMenu,NSApp.servicesMenu)

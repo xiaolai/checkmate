@@ -55,26 +55,20 @@ public struct ReviewMoment:Codable,Identifiable {public let id:Int,expectationLo
         fairness.participation.observe{[weak self] role in if role != nil{self?.reset();self?.cancelSelected()}}}
     /// Single-position and branch searches running now. Joining a network game cancels them, so the engine stops
     /// rather than finishing work whose result would only be withheld (D8).
-    private var selectedSearches:[UUID:Task<ReviewEvidence,Error>]=[:]
-    private func cancelSelected(){for task in selectedSearches.values {task.cancel()};for task in selectedAnalyses.values {task.cancel()};selectedSearches=[:];selectedAnalyses=[:]}
-    private var selectedAnalyses:[UUID:Task<EngineAnalysis,Error>]=[:]
+    private var selectedSearches:[UUID:()->Void]=[:]
+    private func cancelSelected(){for cancel in selectedSearches.values {cancel()};selectedSearches=[:]}
     /// The work runs in its own task, a scheduling hop after the caller's fairness check: work that reaches the engine
     /// checks again itself, so a game joined in between stops it (D8).
     /// Runs first in each search's own task, before its work: tests hold searches there to begin a network game in
     /// the hop between the call's check and the task's.
     var searchTaskStarted:(()async->Void)?
-    private func trackedAnalysis(_ work:@escaping ()async throws -> EngineAnalysis)async throws -> EngineAnalysis {
-        let started=searchTaskStarted,id=UUID(),task=Task{await started?();return try await work()};selectedAnalyses[id]=task;defer{selectedAnalyses[id]=nil}
+    private func tracked<T:Sendable>(_ work:@escaping ()async throws -> T)async throws -> T {
+        let started=searchTaskStarted,id=UUID(),task=Task{await started?();return try await work()};selectedSearches[id]={task.cancel()};defer{selectedSearches[id]=nil}
         // Cancelled by joining: the caller hears the readable reason, not a bare cancellation.
         do{return try await withTaskCancellationHandler(operation:{try await task.value},onCancel:{task.cancel()})}
         catch{try fairness.requireEngineHelp();throw error}
     }
-    private func tracked(_ work:@escaping ()async throws -> ReviewEvidence)async throws -> ReviewEvidence {
-        let started=searchTaskStarted,id=UUID(),task=Task{await started?();return try await work()};selectedSearches[id]=task;defer{selectedSearches[id]=nil}
-        // Cancelled by joining: the caller hears the readable reason, not a bare cancellation.
-        do{return try await withTaskCancellationHandler(operation:{try await task.value},onCancel:{task.cancel()})}
-        catch{try fairness.requireEngineHelp();throw error}
-    }
+    /// A full-strength search of `moves` from `start`, refused by fairness before it starts and once it returns (D8).
     /// Stops the running analysis. What it finished stays shown: the run is "partial", and starting it again (Resume)
     /// searches only the positions not yet stored. A finished, failed or idle analysis keeps its status.
     public func cancelBatch(){generation+=1;batchTask?.cancel();batchSearch?.cancel();batchTask=nil;batchSearch=nil;if ["pending","deepening"].contains(batchStatus){batchStatus="partial"}}
@@ -163,11 +157,11 @@ public struct ReviewMoment:Codable,Identifiable {public let id:Int,expectationLo
     public func judgeAttempt(document:GameDocument,node:Int,uci:String)async throws -> Judgement {
         try fairness.requireEngineHelp();selectedCount+=1;batchSearch?.cancel();defer{selectedCount-=1}
         let mover=document.nodes[node].side,history=try document.history(to:document.nodes[node].parent ?? node),engine=engine,start=document.startingFEN,resources=resources
-        let analysis=try await trackedAnalysis{[fairness] in try fairness.requireEngineHelp();return try await engine.analyzeHistory(startFEN:start,moves:history,profile:.skill(20),budget:ReviewPolicy.quickBudget,multiPv:3,searchMoves:[],resources:resources)}
+        let analysis=try await tracked{[fairness] in try fairness.requireEngineHelp();return try await engine.analyzeHistory(startFEN:start,moves:history,profile:.skill(20),budget:ReviewPolicy.quickBudget,multiPv:3,searchMoves:[],resources:resources)}
         try Task.checkCancellation();try fairness.requireEngineHelp()
         let best=analysis.lines.first
         if let line=analysis.lines.first(where:{$0.pv.first==uci}){return Judgement(loss:Self.expectationLoss(root:best,played:line,mover:mover),best:best?.pv.first)}
-        let tried=try await trackedAnalysis{[fairness] in try fairness.requireEngineHelp();return try await engine.analyzeHistory(startFEN:start,moves:history,profile:.skill(20),budget:ReviewPolicy.quickBudget,multiPv:1,searchMoves:[uci],resources:resources)}
+        let tried=try await tracked{[fairness] in try fairness.requireEngineHelp();return try await engine.analyzeHistory(startFEN:start,moves:history,profile:.skill(20),budget:ReviewPolicy.quickBudget,multiPv:1,searchMoves:[uci],resources:resources)}
         try Task.checkCancellation();try fairness.requireEngineHelp()
         return Judgement(loss:Self.expectationLoss(root:best,played:tried.lines.first,mover:mover),best:best?.pv.first)
     }
@@ -205,11 +199,12 @@ public struct ReviewMoment:Codable,Identifiable {public let id:Int,expectationLo
         let history=try document.history(to:root)+moves,rules=try document.rules(at:root)
         for move in moves{try rules.move(uci:move)}
         let engine=engine,start=document.startingFEN,resources=resources,deep=budget>=ReviewPolicy.deepBudget,searched=deep ? ReviewPolicy.deepBudget:ReviewPolicy.quickBudget
-        let analysis=rules.over ? EngineAnalysis():try await trackedAnalysis{[fairness] in try fairness.requireEngineHelp();return try await engine.analyzeHistory(startFEN:start,moves:history,profile:.skill(20),budget:searched,multiPv:3,searchMoves:[],resources:resources)}
+        let analysis=rules.over ? EngineAnalysis():try await tracked{[fairness] in try fairness.requireEngineHelp();return try await engine.analyzeHistory(startFEN:start,moves:history,profile:.skill(20),budget:searched,multiPv:3,searchMoves:[],resources:resources)}
+        // A finished line is not searched, but is still withheld once cancelled or joined.
         try Task.checkCancellation();try fairness.requireEngineHelp()
         let evidence=ReviewEvidence(schemaVersion:1,documentID:document.id,documentHash:document.contentHash,nodeID:root,historyHash:reviewHash(Data((document.startingFEN+"|"+history.joined(separator:" ")).utf8)),revision:revision,engineVersion:engine.capabilities.name+" "+engine.binaryIdentity,options:Self.options(resources),budgetMs:searched,createdAt:Date(),root:analysis,played:nil,quality:"provisional",provisional:true)
         guard deep,!rules.over else{return evidence}
-        let quick=try await trackedAnalysis{[fairness] in try fairness.requireEngineHelp();return try await engine.analyzeHistory(startFEN:start,moves:history,profile:.skill(20),budget:ReviewPolicy.quickBudget,multiPv:3,searchMoves:[],resources:resources)}
+        let quick=try await tracked{[fairness] in try fairness.requireEngineHelp();return try await engine.analyzeHistory(startFEN:start,moves:history,profile:.skill(20),budget:ReviewPolicy.quickBudget,multiPv:3,searchMoves:[],resources:resources)}
         try Task.checkCancellation();try fairness.requireEngineHelp()
         let stable=Self.supported(analysis.lines.first,quick.lines.first) && analysis.lines.first?.pv.first==quick.lines.first?.pv.first
         return copy(evidence,document:document,node:root,revision:revision,quality:stable ? "unrated":"provisional",provisional:!stable)

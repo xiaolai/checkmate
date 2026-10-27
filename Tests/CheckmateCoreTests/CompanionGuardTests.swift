@@ -14,25 +14,16 @@ import CheckmateCore
 /// Audit fix: a companion opponent's move shares the one-request engine gate, `opponent_turn` never wakes on a finished
 /// game, and registering an already-current skill records its hash so a later update still recognises Checkmate's copy.
 @MainActor final class CompanionGuardTests:XCTestCase {
-    @MainActor final class GatedEngine:TestEngineService {
-        var calls=0,active=0,peak=0,waiting:[CheckedContinuation<Void,Never>]=[]
-        func analyze(fen:String,skill:Int,budget:Int,multiPv:Int)async throws -> EngineAnalysis {
-            calls+=1;active+=1;peak=max(peak,active);defer{active-=1};await withCheckedContinuation{waiting.append($0)}
-            let move=try ChessRules(fen:fen).moves().first!;return EngineAnalysis(bestMove:move.uci,lines:[AnalysisLine(depth:1,multiPv:1,score:AnalysisScore(kind:"cp",value:0),pv:[move.uci],san:[])])
-        }
-        func releaseAll(){let all=waiting;waiting=[];all.forEach{$0.resume()}}
-    }
-    private func code(_ error:Error)->String? {(CompanionBroker.failure(error)["error"] as? [String:Any])?["code"] as? String}
-    private func until(_ condition:()->Bool)async {for _ in 0..<2000 where !condition(){await Task.yield()}}
+    private func until(_ condition:()->Bool)async {await pollQuietly(tries:2000,every:.zero,condition)}
     func testACompanionOpponentMoveHoldsTheEngineGate()async throws {
-        let engine=GatedEngine(),s=try GameSession(engine:engine),tools=try CompanionTools(session:s)
+        let engine=GatedCountingEngine(gated:true),s=try GameSession(engine:engine),tools=try CompanionTools(session:s)
         var settings=s.state.settings;settings.coachingMode="on_request";s.updateSettings(settings);s.setConnection(enabled:true,role:"opponent",lease:"fixture");try s.playWhite(from:"e2",to:"e4")
         func args(_ id:String)->[String:Any] {["sessionId":s.sessionId,"revision":s.revision,"requestId":id]}
         let first=Task{try await tools.call("play_move",args:args("one"),lease:"fixture")}
         await until{engine.waiting.count==1};XCTAssertEqual(engine.waiting.count,1)
         for (name,a) in [("play_move",args("two")),("analyze_position",["sessionId":s.sessionId,"revision":s.revision] as [String:Any])] {
             var outcome:String?;let reached=engine.calls
-            let call=Task{do{_ = try await tools.call(name,args:a,lease:"fixture");outcome="returned"}catch{outcome=self.code(error) ?? "\(error)"}}
+            let call=Task{do{_ = try await tools.call(name,args:a,lease:"fixture");outcome="returned"}catch{outcome=protocolCode(error) ?? "\(error)"}}
             await until{outcome != nil || engine.calls>reached}
             if engine.calls>reached{XCTFail("\(name) reached the engine while the opponent's move was being chosen");engine.releaseAll()}
             await call.value;XCTAssertEqual(outcome,"BUSY",name)

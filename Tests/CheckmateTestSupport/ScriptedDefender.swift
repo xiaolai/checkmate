@@ -40,7 +40,7 @@ import CheckmateRules
         requests.append(request)
         if holding{await withCheckedContinuation{waiting.append($0)}}
         if let failure{throw failure}
-        let rules=try ChessRules(fen:request.startFEN);for move in request.moves{try rules.move(uci:move)}
+        let rules=try ChessRules.reached(request.startFEN,request.moves)
         if let analysis{return try analysis(request,rules)}
         return EngineAnalysis(bestMove:try choose(rules))
     }

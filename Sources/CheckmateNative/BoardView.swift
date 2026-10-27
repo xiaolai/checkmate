@@ -80,8 +80,7 @@ enum ReviewDrop {
     @Sendable static func bounded(_ url:URL)throws -> Data {
         let descriptor=Darwin.open(url.path,O_RDONLY|O_NONBLOCK|O_CLOEXEC);guard descriptor>=0 else{throw Rejection(reason:unreadable)}
         let handle=FileHandle(fileDescriptor:descriptor,closeOnDealloc:true);var status=stat();guard fstat(descriptor,&status)==0,status.st_mode & S_IFMT == S_IFREG else{throw Rejection(reason:String(localized:"Drop a PGN or FEN file.",bundle:.checkmate))}
-        var data=Data();while data.count<=ReviewPolicy.maximumBytes,let chunk=try handle.read(upToCount:ReviewPolicy.maximumBytes+1-data.count),!chunk.isEmpty{data.append(chunk)}
-        guard data.count<=ReviewPolicy.maximumBytes else{throw Rejection(reason:tooLarge)};return data
+        guard let data=try readBounded(handle,limit:ReviewPolicy.maximumBytes) else{throw Rejection(reason:tooLarge)};return data
     }
 }
 final class BoardView:NSView,NSAccessibilityCustomRotorItemSearchDelegate {
@@ -299,7 +298,7 @@ final class BoardView:NSView,NSAccessibilityCustomRotorItemSearchDelegate {
     /// that does not belong to the board now shown, is not animated at all.
     func animate(_ m:MoveRecord,landing:Position?=nil,duration:Double){cancelAnimation();guard duration>0,!shouldReduceMotion,!isDropped(m),let landing=landing ?? TrainingMaterial.board(fen:m.after) else{return}
         var drawn=[(piece:m.color+m.piece,from:m.from,to:m.to)],taken:[String:String]=[:]
-        if m.flags.contains("k")||m.flags.contains("q"){let rank=String(m.from.suffix(1));drawn.append((m.color+"r",(m.flags.contains("k") ? "h":"a")+rank,(m.flags.contains("k") ? "f":"d")+rank))}
+        if m.isCastle{let rank=String(m.from.suffix(1));drawn.append((m.color+"r",(m.flags.contains("k") ? "h":"a")+rank,(m.flags.contains("k") ? "f":"d")+rank))}
         if let p=m.captured{taken[m.flags.contains("e") ? String(m.to.prefix(1))+String(m.from.suffix(1)):m.to]=(m.color=="w" ? "b":"w")+p}
         var before=landing;for move in drawn{before[move.to]=nil};for move in drawn{before[move.from]=move.piece};for (square,piece) in taken{before[square]=piece}
         guard let transition=MoveTransition.starting(before:before,landing:landing,over:position) else{return}
@@ -315,20 +314,21 @@ final class BoardView:NSView,NSAccessibilityCustomRotorItemSearchDelegate {
     private func drawSquares(_ palette:BoardPalette,side s:CGFloat){
         for sq in ChessRules.squares {let rect=squareRect(sq),parity=(Int(sq.utf8.first!-97)+Int(sq.suffix(1))!-1)%2; (parity==0 ? palette.darkSquare:palette.lightSquare).setFill();rect.fill()
             if sq==selected{let danger=highlights.contains{$0.sq==sq && ($0.kind=="check" || $0.kind=="no")};halo(rect,color:danger ? palette.danger:nil)}
-            if let h=highlights.last(where:{$0.sq==sq}),sq != selected,h.kind=="check" {
+            if let h=sq==selected ? nil:highlights.last(where:{$0.sq==sq}) {switch h.kind {
+            case "check":
                 // Check (B-15): a saturated glow over the king's square, ringed in a dark red that stands out from it.
                 let glow=NSGradient(colors:[BoardPalette.check.withAlphaComponent(BoardOverlay.checkGlow),BoardPalette.check.withAlphaComponent(BoardOverlay.checkGlow*0.6)]);glow?.draw(in:rect,relativeCenterPosition:.zero)
                 let ring=NSBezierPath(ovalIn:rect.insetBy(dx:s*BoardOverlay.annotationInset,dy:s*BoardOverlay.annotationInset));BoardPalette.checkRing.setStroke();ring.lineWidth=s*BoardOverlay.haloWidth*1.5;ring.stroke()
-            } else if let h=highlights.last(where:{$0.sq==sq}),sq != selected,h.kind=="last" {
+            case "last":
                 // The last move (B-15): a hue tint over both squares; Increase Contrast outlines it too so it stays findable.
                 BoardPalette.lastMove.withAlphaComponent(BoardOverlay.lastMoveTint).setFill();rect.fill()
                 if shouldIncreaseContrast{palette.ink.setStroke();let outline=NSBezierPath(rect:rect.insetBy(dx:s*BoardOverlay.haloWidth,dy:s*BoardOverlay.haloWidth));outline.lineWidth=s*BoardOverlay.haloWidth;outline.stroke()}
-            } else if let h=highlights.last(where:{$0.sq==sq}),sq != selected {
+            default:
                 let color=h.kind=="no" ? palette.danger:palette.ink
                 let path=NSBezierPath(ovalIn:rect.insetBy(dx:s*BoardOverlay.annotationInset,dy:s*BoardOverlay.annotationInset))
                 color.withAlphaComponent(BoardOverlay.annotationFill).setFill();path.fill()
                 color.withAlphaComponent(shouldIncreaseContrast ? 1:BoardOverlay.haloStrokeHigh).setStroke();path.lineWidth=s*BoardOverlay.haloWidth;path.stroke()
-            }
+            }}
             if attacked.contains(sq){palette.ink.withAlphaComponent(BoardOverlay.coverageOpacity).setStroke();let p=NSBezierPath(ovalIn:rect.insetBy(dx:s*0.36,dy:s*0.36));p.lineWidth=max(1,s*0.025);p.stroke()}
             // Playable moves are solid; possibilities that a click cannot play are hollow or dashed.
             if destinations.contains(sq),position[sq]==nil{if destinationsPlayable{palette.ink.withAlphaComponent(BoardOverlay.destinationOpacity).setFill();NSBezierPath(ovalIn:rect.insetBy(dx:s*0.44,dy:s*0.44)).fill()}else{palette.ink.withAlphaComponent(BoardOverlay.destinationOpacity).setStroke();let dot=NSBezierPath(ovalIn:rect.insetBy(dx:s*0.42,dy:s*0.42));dot.lineWidth=max(1,s*0.02);dot.stroke()}}

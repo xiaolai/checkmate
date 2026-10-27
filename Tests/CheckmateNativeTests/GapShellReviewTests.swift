@@ -41,9 +41,7 @@ final class GapShellReviewTestsGeometry:XCTestCase {
 
 /// The live GameWindow delegate methods, driven on an unshown window: no app launch, no screen output.
 @MainActor final class GapShellReviewTestsWindow:XCTestCase {
-    private var directory:URL!
-    override func setUp(){directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);setenv("CHECKMATE_DATA_DIR",directory.path,1)}
-    override func tearDown(){unsetenv("CHECKMATE_DATA_DIR");try? FileManager.default.removeItem(at:directory)}
+    override func setUpWithError()throws{try isolateDataDirectory()}
     /// `inLiveResize` is read-only on NSWindow; a subclass reports a live drag so `windowWillResize` applies its rule.
     private final class LiveWindow:NSWindow {override var inLiveResize:Bool {true}}
     private func live(_ size:NSSize)->LiveWindow {LiveWindow(contentRect:NSRect(origin:.zero,size:size),styleMask:[.titled,.resizable],backing:.buffered,defer:true)}
@@ -100,9 +98,7 @@ final class GapShellReviewTestsGeometry:XCTestCase {
 
 /// TX-1/RV-8: review saves are tracked per record; a failure stays pending and visible until that record saves.
 @MainActor final class GapShellReviewTests:XCTestCase {
-    private var directory:URL!
-    override func setUp(){directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);setenv("CHECKMATE_DATA_DIR",directory.path,1)}
-    override func tearDown(){unsetenv("CHECKMATE_DATA_DIR");try? FileManager.default.removeItem(at:directory)}
+    override func setUpWithError()throws{try isolateDataDirectory()}
     private func game(_ pgn:String)throws -> GameDocument {try PGNImporter.parse(Data(pgn.utf8))[0]}
     /// A record file from a newer version blocks saves of exactly that record and nothing else.
     private func block(_ model:NativeModel,_ id:UUID)throws {try FileManager.default.createDirectory(at:model.reviewStore.directory,withIntermediateDirectories:true);try Data(#"{"schemaVersion":2}"#.utf8).write(to:model.reviewStore.documentURL(id))}
@@ -152,9 +148,7 @@ final class GapShellReviewTestsGeometry:XCTestCase {
 
 /// SH2-1: VoiceOver hears who moved, and check, mate or a draw, from the learner's side of the board.
 @MainActor final class GapShellReviewTestsAnnouncements:XCTestCase {
-    private var directory:URL!
-    override func setUp(){directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);setenv("CHECKMATE_DATA_DIR",directory.path,1)}
-    override func tearDown(){unsetenv("CHECKMATE_DATA_DIR");try? FileManager.default.removeItem(at:directory)}
+    override func setUpWithError()throws{try isolateDataDirectory()}
     func testMovesCheckAndMateAreAnnouncedFromTheLearnersSide()throws {
         let model=try NativeModel();let game=GameWindow(model:model);defer{game.window?.delegate=nil;model.shutdown()}
         model.session.newGame(side:"w");let rules=model.session.rules

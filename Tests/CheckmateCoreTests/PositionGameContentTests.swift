@@ -13,7 +13,7 @@ import CheckmateCore
 /// a checkmate game's goal is reachable, shown by a legal line to a position in which the bundled engine at a fixed node
 /// count reports a forced mate for the learner, searched again here; and the entries are offered only behind their flags.
 @MainActor final class PositionGameContentTests:XCTestCase {
-    private static let root=URL(fileURLWithPath:#filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+    private static let root=Repository.root
     private static let entries=["pawn-race":["kpk"],"pawn-war":["pawns"],"cut-down-chess":["knights","bishops","rooks","queens","minor-pieces","major-pieces"],"two-bishop-mate":["kbbk"]]
     private static let flags=["CHECKMATE_TRAINING_ENABLED","CHECKMATE_TRAINING_B","CHECKMATE_POSITION_GAMES"]
     override func tearDown(){Self.flags.forEach{unsetenv($0)}}
@@ -35,7 +35,7 @@ import CheckmateCore
         XCTAssertEqual(counted,["pawn-race/kpk":9,"pawn-war/pawns":1,"cut-down-chess/knights":1,"cut-down-chess/bishops":1,"cut-down-chess/rooks":1,"cut-down-chess/queens":1,
                                 "cut-down-chess/minor-pieces":1,"cut-down-chess/major-pieces":1,"two-bishop-mate/kbbk":6])
         let races=try games().filter{$0.1.entry=="pawn-race"}.map(\.1)
-        XCTAssertGreaterThanOrEqual(Set(try races.map{try XCTUnwrap(TrainingLegality(fen:$0.fen!).board().first{$0.value=="wp"}?.key.prefix(1))}).count,6,"pawn races on several files")
+        XCTAssertGreaterThanOrEqual(Set(try races.map{try XCTUnwrap(TrainingGeometry.square(of:"wp",on:TrainingLegality(fen:$0.fen!).board())?.prefix(1))}).count,6,"pawn races on several files")
         XCTAssertEqual(Set(races.map(\.tier)),[1,2,3])
     }
     func testEveryStartIsLegalNotOverTheLearnersMoveAndUnreviewed()throws {

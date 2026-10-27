@@ -2,6 +2,15 @@ import SwiftUI
 import Charts
 import CheckmateCore
 /// Pure formatting for the review pane, kept apart from the views so each rule is unit-tested.
+/// A small cache keyed by a record's content hash; at 32 entries it starts again empty.
+struct HashCache<Value> {
+    private var entries:[String:Value]=[:]
+    mutating func value(for key:String,_ make:()->Value)->Value {if let known=entries[key]{return known};let value=make();if entries.count>=32{entries.removeAll()};entries[key]=value;return value}
+}
+extension NativeModel {
+    /// Selects a review node and saves, showing a failure in the error banner.
+    func selectReviewNode(_ id:Int,in review:ReviewController){do{try review.select(id);saveReview()}catch{storageError=GameWindow.failureMessage(error)}}
+}
 enum ReviewFormat {
     /// One row of the move table: White's and Black's move of a full move, as node IDs. A record starting with Black
     /// to move has no White move in its first row.
@@ -37,19 +46,18 @@ enum ReviewFormat {
         return rows(d,line:main).flatMap{row->[Entry] in [.row(row)]+[row.white,row.black].compactMap{$0}.flatMap{id in lines(replacing:id,depth:1)+ideas.filter{$0.root==d.nodes[id].parent}.map{.idea($0)}}}+end
     }
     /// A variation's move: numbered at the line's start and on White's moves, as in "1… c5 2. Nf3 d6".
-    static func variationMoveText(_ n:GameNode,first:Bool)->String {first || n.side=="w" ? moveText(n):n.san ?? ""}
+    static func variationMoveText(_ n:GameNode,first:Bool)->String {first || n.side=="w" ? n.moveText:n.san ?? ""}
     /// The accessibility label of a move, e.g. "2, Black, dxc4"; acceptance gates find moves by it.
     static func moveLabel(_ n:GameNode)->String {"\(n.fullmove), \(PieceName.side(n.side)), \(n.san ?? "")"}
-    static func moveText(_ n:GameNode)->String {n.moveText}
     /// "Leaves opening theory at 12… Nf5" as one localized sentence, the move a link the header opens by selecting it.
-    static func leavesTheory(_ n:GameNode)->AttributedString {var move=AttributedString(moveText(n));move.link=URL(string:"checkmate-review:leaves-theory");return AttributedString(localized:"Leaves opening theory at \(move)",bundle:.checkmate,comment:"The move where the reviewed game leaves the opening book, shown as a link and read aloud")}
+    static func leavesTheory(_ n:GameNode)->AttributedString {var move=AttributedString(n.moveText);move.link=URL(string:"checkmate-review:leaves-theory");return AttributedString(localized:"Leaves opening theory at \(move)",bundle:.checkmate,comment:"The move where the reviewed game leaves the opening book, shown as a link and read aloud")}
     /// An imagined line's name, e.g. "After 18…Nf5: 19.Qh5 Kh8 …": the move it branches after, then its first `plies`
     /// moves. The list stops at a move that cannot be played, so a damaged idea is still named.
-    static func ideaLabel(_ d:GameDocument,_ branch:ReviewBranch,plies:Int=3)->String {
+    @MainActor static func ideaLabel(_ d:GameDocument,_ branch:ReviewBranch,plies:Int=3)->String {
         let root=d.nodes.indices.contains(branch.root) ? d.nodes[branch.root]:nil
         let head=root.flatMap{node in node.san.map{String(localized:"After \(node.fullmove)\(node.side=="w" ? ".":"…")\($0)",bundle:.checkmate)}} ?? String(localized:"From the start",bundle:.checkmate)
         // A root the record does not hold has no position to play the line from: the idea is named by its root alone.
-        var moves:[String]=[];let rules:ChessRules;do{rules=try d.snapshotRules(at:branch.root)}catch{return branch.moves.isEmpty ? head:"\(head): …"}
+        var moves:[String]=[];guard let rules=replay(d,from:branch.root) else{return branch.moves.isEmpty ? head:"\(head): …"}
         for (index,uci) in branch.moves.prefix(plies).enumerated() {
             let move:MoveRecord;do{move=try rules.move(uci:uci)}catch{break}
             let number=Int(move.before.split(separator:" ").last ?? "") ?? 1
@@ -60,10 +68,17 @@ enum ReviewFormat {
     }
     /// An open imagined line's moves as the move list writes them, each numbered by its full move: "1… c5", "2. Nf3".
     /// The list stops at a move that cannot be played.
-    static func ideaMoves(_ d:GameDocument,_ branch:ReviewBranch)->[String] {
-        guard let rules=try? d.snapshotRules(at:branch.root) else{return []};var moves:[String]=[]
+    @MainActor static func ideaMoves(_ d:GameDocument,_ branch:ReviewBranch)->[String] {
+        guard let rules=replay(d,from:branch.root) else{return []};var moves:[String]=[]
         for uci in branch.moves {guard let move=try? rules.move(uci:uci) else{break};moves.append("\(Int(move.before.split(separator:" ").last ?? "") ?? 1)\(move.color=="w" ? ".":"…") \(move.san)")}
         return moves
+    }
+    /// One rules engine the imagined lines replay on, loaded with each line's root position: a fresh one per name
+    /// built a JavaScriptCore VM every time. Nil for a root the record does not hold or a position that cannot load.
+    @MainActor private static var scratch:ChessRules?
+    @MainActor private static func replay(_ d:GameDocument,from root:Int)->ChessRules? {
+        guard d.nodes.indices.contains(root),let rules=scratch ?? (try? ChessRules()) else{return nil};scratch=rules
+        do{try rules.load(d.nodes[root].afterFEN)}catch{return nil};return rules
     }
     /// The kept ideas' heading: "My imagined lines (3)". The limit is named only once it is near, "(95 of 100)", so a
     /// learner is told before the oldest idea gives way rather than shown an internal number from the first idea.
@@ -74,12 +89,13 @@ enum ReviewFormat {
     /// position, and the main-line move that leaves the book, nil while the game is still in it. Nil for a record the
     /// book has no position of. Kept per record content; a book that cannot be read is logged and names nothing.
     struct OpeningHeader:Equatable {let title:String?,leaves:Int?}
-    @MainActor private static var openings:[String:OpeningHeader?] = [:]
+    @MainActor private static var openings=HashCache<OpeningHeader?>()
     @MainActor static func openingHeader(_ d:GameDocument)->OpeningHeader? {
-        if let known=openings[d.contentHash]{return known}
-        var value:OpeningHeader?
-        do{value=try OpeningBook.bundled().classify(d).map{OpeningHeader(title:$0.opening.map{"\($0.eco) · \($0.name)"},leaves:$0.leavesTheory)}}catch{NativeLog.storage.error("The opening book could not be read: \(String(describing:error),privacy:.public)")}
-        if openings.count>=32{openings.removeAll()};openings[d.contentHash] = .some(value);return value
+        openings.value(for:d.contentHash){
+            var value:OpeningHeader?
+            do{value=try OpeningBook.bundled().classify(d).map{OpeningHeader(title:$0.opening.map{"\($0.eco) · \($0.name)"},leaves:$0.leavesTheory)}}catch{NativeLog.storage.error("The opening book could not be read: \(String(describing:error),privacy:.public)")}
+            return value
+        }
     }
     /// A cancelled whole-game analysis: how far it got before the deeper check of its leading moment.
     static func partialAnalysis(completed:Int,total:Int)->String {completed<total ? String(localized:"Analyzed \(completed) of \(total) moves",bundle:.checkmate):String(localized:"Analyzed all \(total) moves; the deeper check is unfinished",bundle:.checkmate)}
@@ -133,12 +149,9 @@ enum ReviewFormat {
         if let status=try? d.status(at:last),status.terminal{return status.checkmate ? (d.nodes[last].side=="w" ? evaluationLimit:-evaluationLimit):0}
         return d.result=="1/2-1/2" ? 0:nil
     }
-    @MainActor private static var outcomes:[String:Double?] = [:]
+    @MainActor private static var outcomes=HashCache<Double?>()
     /// `finalOutcome`, kept per record content so redrawing the graph (a drag, a new selection) does not rebuild the board.
-    @MainActor static func cachedOutcome(_ d:GameDocument)->Double? {
-        if let known=outcomes[d.contentHash]{return known};let value=finalOutcome(d)
-        if outcomes.count>=32{outcomes.removeAll()};outcomes[d.contentHash] = .some(value);return value
-    }
+    @MainActor static func cachedOutcome(_ d:GameDocument)->Double? {outcomes.value(for:d.contentHash){finalOutcome(d)}}
     /// The evaluation graph's samples in pawns from White's side, clamped to ±5: index 0 is the start, index i the
     /// position after the mainline's i-th move. A missing score is a gap (nil), never 0. `outcome` (see
     /// `finalOutcome`) replaces the final sample when the record says how the game ended.
@@ -151,10 +164,9 @@ enum ReviewFormat {
     /// A record's mainline and each node's place in it. Walking the mainline visits every node, so the pane builds it
     /// once per record content rather than on every redraw, drag or selection.
     struct Line {let ids:[Int],position:[Int:Int]}
-    @MainActor private static var lines:[String:Line] = [:]
+    @MainActor private static var lines=HashCache<Line>()
     @MainActor static func line(_ d:GameDocument)->Line {
-        if let known=lines[d.contentHash]{return known};let ids=d.mainline,value=Line(ids:ids,position:Dictionary(ids.enumerated().map{($1,$0)},uniquingKeysWith:{a,_ in a}))
-        if lines.count>=32{lines.removeAll()};lines[d.contentHash] = value;return value
+        lines.value(for:d.contentHash){let ids=d.mainline;return Line(ids:ids,position:Dictionary(ids.enumerated().map{($1,$0)},uniquingKeysWith:{a,_ in a}))}
     }
     /// The mainline index of a node (0 for the start), or nil off the mainline.
     @MainActor static func mainlineIndex(_ d:GameDocument,node:Int?)->Int? {guard let node else{return nil};if node==0{return 0};return line(d).position[node].map{$0+1}}
@@ -178,7 +190,7 @@ enum ReviewFormat {
     /// Why a move is graded, from the side that played it: "Mistake (?): this move gave up about 15% of White's chances."
     static func gradeLine(_ grade:MoveGrade,loss:Double,side:String)->String {String(localized:"\(grade.name) (\(grade.glyph)): this move gave up about \(Int((loss*100).rounded()))% of \(PieceName.side(side))'s chances.",bundle:.checkmate)}
     /// The position at a graph index: "Start" or its move, e.g. "2. Nf3".
-    @MainActor private static func position(_ d:GameDocument,index:Int)->String {index<=0 ? String(localized:"Start",bundle:.checkmate,comment:"Noun: the starting position of a game"):moveText(d.nodes[node(d,index:index)])}
+    @MainActor private static func position(_ d:GameDocument,index:Int)->String {index<=0 ? String(localized:"Start",bundle:.checkmate,comment:"Noun: the starting position of a game"):d.nodes[node(d,index:index)].moveText}
     /// The graph's hover readout: "2. Nf3?! +0.8"; a position without a score says so.
     @MainActor static func readout(_ d:GameDocument,index:Int,score:AnalysisScore?,grade:MoveGrade?)->String {
         let head=position(d,index:index)+(index>0 ? grade?.glyph ?? "":"");return score.map{"\(head) \(self.score($0))"} ?? String(localized:"\(head), no score",bundle:.checkmate,comment:"The graph's hover readout of a position without a score")
@@ -233,7 +245,7 @@ struct ReviewHeader:View {
                 if model.fairness.engineHelpAllowed,let opening=ReviewFormat.openingHeader(document) {
                     if let title=opening.title{Text(verbatim:title).font(.subheadline).lineLimit(1).truncationMode(.tail).help(title).accessibilityIdentifier("review-opening")}
                     // One sentence with the move as a link inside it, so a translator can put the move where the language needs it.
-                    if let leaves=opening.leaves{Text(ReviewFormat.leavesTheory(document.nodes[leaves])).font(.subheadline).foregroundStyle(.secondary).environment(\.openURL,OpenURLAction{_ in do{try review.select(leaves);model.saveReview()}catch{model.storageError=GameWindow.failureMessage(error)};return .handled}).accessibilityLabel(String(localized:"Leaves opening theory at \(ReviewFormat.moveLabel(document.nodes[leaves]))",bundle:.checkmate,comment:"The move where the reviewed game leaves the opening book, shown as a link and read aloud")).accessibilityAddTraits(.isLink).accessibilityIdentifier("review-leaves-theory")}
+                    if let leaves=opening.leaves{Text(ReviewFormat.leavesTheory(document.nodes[leaves])).font(.subheadline).foregroundStyle(.secondary).environment(\.openURL,OpenURLAction{_ in model.selectReviewNode(leaves,in:review);return .handled}).accessibilityLabel(String(localized:"Leaves opening theory at \(ReviewFormat.moveLabel(document.nodes[leaves]))",bundle:.checkmate,comment:"The move where the reviewed game leaves the opening book, shown as a link and read aloud")).accessibilityAddTraits(.isLink).accessibilityIdentifier("review-leaves-theory")}
                 }
                 if let assistance=ReviewFormat.assistance(document){Text(verbatim:assistance).font(.subheadline).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true).accessibilityIdentifier("review-assistance")}
             }
@@ -309,7 +321,7 @@ struct EvaluationGraph:View,AXChartDescriptorRepresentable {
     private var points:[Sample] {var result:[Sample]=[],run=0;for (i,value) in samples.enumerated(){if let value{result.append(Sample(id:i,value:value,run:run))}else{run+=1}};return result}
     private var last:Int {max(1,samples.count-1)}
     private var selected:Int? {review.branch==nil ? ReviewFormat.mainlineIndex(document,node:review.nodeID):nil}
-    private func choose(_ index:Int){let node=ReviewFormat.node(document,index:max(0,min(last,index)));guard review.branch != nil || review.nodeID != node else{return};do{try review.select(node);model.saveReview()}catch{model.storageError=GameWindow.failureMessage(error)}}
+    private func choose(_ index:Int){let node=ReviewFormat.node(document,index:max(0,min(last,index)));guard review.branch != nil || review.nodeID != node else{return};model.selectReviewNode(node,in:review)}
     /// The mainline index under a horizontal position in the chart, nil before the plot is laid out.
     private func index(_ x:CGFloat,_ proxy:ChartProxy,_ geometry:GeometryProxy)->Int? {guard let anchor=proxy.plotFrame else{return nil};let plot=geometry[anchor];guard plot.width>0 else{return nil};return max(0,min(last,Int(((x-plot.minX)/plot.width*CGFloat(last)).rounded())))}
     private func score(_ index:Int)->AnalysisScore? {analyzer.evaluations[ReviewFormat.node(document,index:index)]}
@@ -349,7 +361,7 @@ struct EvaluationGraph:View,AXChartDescriptorRepresentable {
     }
     func makeChartDescriptor()->AXChartDescriptor {
         // Positions are named by their move, and each point reads as move, score and grade.
-        let moves=(0...last).map{$0==0 ? String(localized:"Start",bundle:.checkmate,comment:"Noun: the starting position of a game"):ReviewFormat.moveText(document.nodes[ReviewFormat.node(document,index:$0)])}
+        let moves=(0...last).map{$0==0 ? String(localized:"Start",bundle:.checkmate,comment:"Noun: the starting position of a game"):document.nodes[ReviewFormat.node(document,index:$0)].moveText}
         let x=AXNumericDataAxisDescriptor(title:String(localized:"Move",bundle:.checkmate,comment:"Noun: one move in a chess game"),range:0...Double(last),gridlinePositions:[]){let i=Int($0);return moves.indices.contains(i) ? moves[i]:String(localized:"Position \(i)",bundle:.checkmate)}
         let y=AXNumericDataAxisDescriptor(title:String(localized:"Pawns from White's side",bundle:.checkmate),range:-ReviewFormat.evaluationLimit...ReviewFormat.evaluationLimit,gridlinePositions:[0]){String(format:"%+.1f",$0)}
         // One series per run of known scores, as drawn: a position without a score is a gap, not part of a line.
@@ -374,7 +386,7 @@ struct ReviewMoveSection:View {
     private static let rowHeight:CGFloat=22,visibleRows=12
     @Namespace private var rotor
     private var moments:[ReviewMoment] {analyzer.fairness.engineHelpAllowed && analyzer.batchDocument==document.id ? analyzer.moments.filter{document.nodes.indices.contains($0.id)}:[]}
-    private func select(_ id:Int){do{try review.select(id);model.saveReview()}catch{model.storageError=GameWindow.failureMessage(error)}}
+    private func select(_ id:Int){model.selectReviewNode(id,in:review)}
     var body:some View {
         let moments=self.moments,reasons=Dictionary(moments.map{($0.id,$0.reason)},uniquingKeysWith:{a,_ in a}),rows=ReviewFormat.rows(document,line:ReviewFormat.line(document).ids)
         let graded=analyzer.fairness.engineHelpAllowed && analyzer.batchDocument==document.id,anyGrade=graded && ReviewFormat.line(document).ids.contains{analyzer.grade($0) != nil}
@@ -383,7 +395,7 @@ struct ReviewMoveSection:View {
             Text("Moves").sectionHeading()
             if !key.isEmpty {
                 ViewThatFits(in:.horizontal){ForEach([5,4,3,2,1],id:\.self){count in HStack(spacing:Metrics.tightGap){ForEach(ReviewFormat.keyMoments(ranked,in:document,limit:count,engine:!moments.isEmpty),id:\.self){id in
-                    Button(ReviewFormat.moveText(document.nodes[id])){select(id)}.buttonStyle(.bordered).controlSize(.small).accessibilityLabel("Key moment, \(ReviewFormat.moveLabel(document.nodes[id]))").help(reasons[id] ?? String(localized:"A check, capture, promotion or the final move",bundle:.checkmate))}}}}
+                    Button(document.nodes[id].moveText){select(id)}.buttonStyle(.bordered).controlSize(.small).accessibilityLabel("Key moment, \(ReviewFormat.moveLabel(document.nodes[id]))").help(reasons[id] ?? String(localized:"A check, capture, promotion or the final move",bundle:.checkmate))}}}}
                 Text(anyGrade ? String(localized:"?! inaccuracy · ? mistake · ?? blunder; estimates may change.",bundle:.checkmate,comment:"The move grades' glyphs and what they mean"):moments.isEmpty ? String(localized:"Checks, captures, promotions and the final move.",bundle:.checkmate):String(localized:"Moments to start with; estimates may change.",bundle:.checkmate)).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
             }
             let entries=ReviewFormat.entries(document,ideas:review.authoredBranches)
@@ -424,11 +436,11 @@ struct ReviewMoveSection:View {
     }
     /// A kept idea, inline under the move it replaces; choosing it opens it at its first move.
     private func idea(_ branch:ReviewBranch)->some View {
-        let open=review.branch?.id==branch.id
-        return Button(ReviewFormat.ideaLabel(document,branch)){do{try review.openSavedBranch(branch.id);review.seekBranch(1)}catch{model.storageError=userFacingMessage(error,fallback:String(localized:"This imagined line could not be opened.",bundle:.checkmate))}}
+        let open=review.branch?.id==branch.id,label=ReviewFormat.ideaLabel(document,branch)
+        return Button(label){do{try review.openSavedBranch(branch.id);review.seekBranch(1)}catch{model.storageError=userFacingMessage(error,fallback:String(localized:"This imagined line could not be opened.",bundle:.checkmate))}}
             .buttonStyle(.plain).font(.callout).italic().foregroundStyle(open ? Color.primary:Color.secondary).lineLimit(1).truncationMode(.tail)
             .padding(.leading,38).frame(maxWidth:.infinity,minHeight:Self.rowHeight,maxHeight:Self.rowHeight,alignment:.leading)
-            .accessibilityLabel(String(localized:"Imagined line, \(ReviewFormat.ideaLabel(document,branch))",bundle:.checkmate,comment:"A kept imagined line in the move list, read aloud, then its name")).accessibilityAddTraits(open ? .isSelected:[])
+            .accessibilityLabel(String(localized:"Imagined line, \(label)",bundle:.checkmate,comment:"A kept imagined line in the move list, read aloud, then its name")).accessibilityAddTraits(open ? .isSelected:[])
     }
     /// A move: its SAN, the record's own annotation glyphs, then the engine's grade in its colour.
     @ViewBuilder private func cell(_ id:Int?,graded:Bool,empty:String)->some View {

@@ -200,7 +200,7 @@ import Combine
     public var duration:Double {library.playbackDuration(lesson:lessonIndex,step:step,narrationSeconds:narrationSeconds,pieceDuration:Double(session.state.settings.pieceDuration)/1000,useCues:localizedPacks[lessonIndex]==nil)}
     public var winner:String? {mini ? miniGame?.winner:nil}
     public var destinations:[String] {if attemptStep{return attempt.destinations};return mini && !miniThinking ? picked.first.map{miniGame?.destinations(from:$0) ?? []} ?? []:[]}
-    public var filteredPuzzles:[Puzzle] {let clock=now();return library.puzzles.filter {p in (topic==nil || topic==p.topic)&&(level==nil || level==p.level)&&filter.admits(session.state.puzzles[p.id],at:clock)&&(query.isEmpty || (p.title+" "+p.exercise.prompt).localizedCaseInsensitiveContains(query))}}
+    public var filteredPuzzles:[Puzzle] {let clock=now();return library.puzzles.filter {p in matchesFilters(p)&&filter.admits(session.state.puzzles[p.id],at:clock)}}
     /// `fromTraining`: a training lesson link; reading it keeps the course bookmark (see `seek`), so it reopens at its
     /// own reading position, and the course lesson at its bookmark.
     public func openLesson(index:Int,resume:Bool=true,fromTraining:Bool=false) {guard library.lessons.indices.contains(index) else{return};pause();go(.lesson(index:index,fromTraining:fromTraining));let lesson=current,bookmark=lesson.id==session.state.course.lessonID ? library.resumeStep(in:lesson,progress:session.state.course):nil,reading=session.state.course.positions?[lesson.id].flatMap{id in lesson.beats.firstIndex{$0.id==id}};step=(fromTraining ? reading ?? bookmark:bookmark ?? reading) ?? 0;seek(step:resume ? step:0);onLessonOpened?()}
@@ -230,7 +230,9 @@ import Combine
             showPuzzleLibrary();setSummary=PuzzleSetSummary(puzzleSet,progress:session.state.puzzles);return
         };if step<current.beats.count-1{seek(step:step+1)}else{complete()}}
     /// The set a summary describes: the chosen topic, level and search, whatever their status now.
-    private var puzzleSet:[Puzzle] {library.puzzles.filter{p in (topic==nil || topic==p.topic)&&(level==nil || level==p.level)&&(query.isEmpty || (p.title+" "+p.exercise.prompt).localizedCaseInsensitiveContains(query))}}
+    private var puzzleSet:[Puzzle] {library.puzzles.filter(matchesFilters)}
+    /// The chosen topic, level and search (over the title and prompt); the status filter is applied separately.
+    private func matchesFilters(_ p:Puzzle)->Bool {(topic==nil || topic==p.topic)&&(level==nil || level==p.level)&&(query.isEmpty || (p.title+" "+p.exercise.prompt).localizedCaseInsensitiveContains(query))}
     /// Moves on without answering: nothing is recorded, so the puzzle stays not tried and is not marked for review.
     public func skip(){guard activePuzzle != nil,!passed else{return};next()}
     /// After a set's summary: the puzzles to review, from the first.

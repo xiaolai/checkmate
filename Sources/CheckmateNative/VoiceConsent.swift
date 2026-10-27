@@ -21,6 +21,6 @@ enum VoiceConsentAnswer:Equatable {case cancel,connect(autoConnect:Bool)}
         alert.showsSuppressionButton=true
         if let box=alert.suppressionButton{box.title=autoConnectLabel;box.state=autoConnect ? .on:.off;box.setAccessibilityIdentifier("voice-consent-auto")}
         let answer:(NSApplication.ModalResponse)->Void={response in reply(response == .alertFirstButtonReturn ? .connect(autoConnect:alert.suppressionButton?.state == .on):.cancel)}
-        if let window=NSApp.keyWindow ?? NSApp.mainWindow{alert.beginSheetModal(for:window,completionHandler:answer)}else{answer(alert.runModal())}
+        alert.present(on:NSApp.keyWindow ?? NSApp.mainWindow,then:answer)
     }
 }

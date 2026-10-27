@@ -154,7 +154,8 @@ public struct TrainingScenario:Codable,Equatable,Identifiable {
     public let reserve:Bool?
     public let review:TrainingReview?,generation:TrainingGeneration?
     // Increment B. `check` names the exact evaluator; `goal`, `plies` and `nodes` define a bounded move objective.
-    public let check:TrainingCheck?,goal:TrainingGoal?,plies:Int?,nodes:[TrainingTeachingNode]?
+    /// `goal` alone is mutable: a diagnosis judges the same scenario against another goal.
+    public let check:TrainingCheck?;public var goal:TrainingGoal?;public let plies:Int?,nodes:[TrainingTeachingNode]?
     /// An exchange line to judge, from the presented position (learner first).
     public let stated:[String]?
     /// The colour a recognition question asks about (the forking or the pinned side).
@@ -174,6 +175,8 @@ public struct TrainingScenario:Codable,Equatable,Identifiable {
         self.fen=fen;self.prelude=prelude;self.diagram=diagram;self.target=target;self.drill=drill;self.budget=budget;self.shortest=shortest;self.choices=choices;self.expected=expected;self.noAction=noAction;self.reserve=reserve;self.review=review;self.generation=generation
         self.check=check;self.goal=goal;self.plies=plies;self.nodes=nodes;self.stated=stated;self.askColor=askColor;self.focus=focus;self.skills=skills;self.primarySkill=primarySkill;self.source=source;self.bridge=bridge;self.workflow=workflow;self.keep=keep
     }
+    /// The moves played from `fen`: the context moves, then `line` played after them.
+    public func history(after line:[String])->[String] {(prelude ?? [])+line}
     /// Structural checks every scenario passes before any evaluator sees it. Legality is checked in Rules/Application.
     public func validateStructure(for definition:TrainingEntryDefinition)throws {
         guard id.count<=96,id.range(of:"\\A[a-z0-9]+([:-][a-z0-9]+)*\\z",options:.regularExpression) != nil else{try fail(String(localized:"invalid identifier",bundle:.checkmate,comment:"Why a training scenario is invalid"))}

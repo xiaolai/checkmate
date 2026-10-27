@@ -124,11 +124,11 @@ import SaidGuard
     private func startInput(_ device:String)async throws {if NativePolicy.silent,let start=automationCaptureStart{try await start(device)}else{try await audio.startCapture(device:device)}}
     private var observation:AnyCancellable?,reviewObservation:AnyCancellable?
     public func attachReview(_ review:ReviewController){reviewObservation=review.objectWillChange.sink{[weak self] _ in DispatchQueue.main.async{guard let self=self else{return};if self.session.reviewController?.active==true,self.display != self.session.displayIdentity,!self.gate.ready{self.stopTurn()}}}}
-    public func narrateReview(){guard miniReviewSession==nil,session.fairness.engineHelpAllowed,ReviewRolloutPolicy.reviewVoiceEnabled,connected,let review=session.reviewController,review.active,review.branch==nil,let explanation=review.explanation else{return};stopTurn(release:false);display=review.identity;segments=(try? JSONDecoder().decode([SpeechSegment].self,from:JSONSerialization.data(withJSONObject:ReviewVoiceScript.segments(explanation)))) ?? [];settled()}
+    public func narrateReview(){guard miniReviewSession==nil,session.fairness.engineHelpAllowed,ReviewRolloutPolicy.reviewVoiceEnabled,connected,let review=session.reviewController,review.active,review.branch==nil,let explanation=review.explanation else{return};stopTurn(release:false);display=review.identity;segments=(try? SpeechSegment.decode(ReviewVoiceScript.segments(explanation))) ?? [];settled()}
     private var appliedSettings=AppSettings()
     /// The learner's network game and its hints (assistance plan A10), set by the app. A session opened while the
     /// learner plays it at `hints` or `guided` coaches that game only, with its own tools.
-    public var network:(game:NetworkGameController,assistant:NetworkAssistant)? {didSet{networkObservation=network?.game.objectWillChange.sink{[weak self] in DispatchQueue.main.async{self?.networkChanged()}}}}
+    public var network:(game:NetworkGameController,assistant:NetworkAssistant)? {didSet{networkObservation=network?.game.onChangeDeferred{[weak self] in self?.networkChanged()}}}
     private var networkObservation:AnyCancellable?
     /// Whether the open session was opened for the network game (A10). Fixed for the session: a practice session never
     /// continues into a network game, and a network session ends with the game, the learner's leaving or their level.
@@ -140,7 +140,7 @@ import SaidGuard
     public private(set) var miniReviewSession:MiniGameReviewVoiceScope?
     private var miniReviewObservation:AnyCancellable?
     /// The reviewer whose sheet a reading belongs to: any change to it re-checks the reading's scope.
-    public func attachMiniReview(_ reviewer:MiniGameReviewer){miniReviewObservation=reviewer.objectWillChange.sink{[weak self] _ in DispatchQueue.main.async{self?.miniReviewChanged()}}}
+    public func attachMiniReview(_ reviewer:MiniGameReviewer){miniReviewObservation=reviewer.onChangeDeferred{[weak self] in self?.miniReviewChanged()}}
     /// This launch proved a voice sign-in (an availability check or a connection authorized). Reading a review aloud
     /// is offered only then: without one the review stays text only. UI automation's double stands in for it.
     @Published public private(set) var signInProved=false
@@ -186,7 +186,7 @@ import SaidGuard
         display=currentDisplay;segments=decoded;settled()
     }
     private func readMiniReview(){
-        guard let current=session.finishedMiniGameReview(),let decoded=try? JSONDecoder().decode([SpeechSegment].self,from:JSONSerialization.data(withJSONObject:MiniGameReviewVoiceScript.segments(current.review))) else{disconnect();return}
+        guard let current=session.finishedMiniGameReview(),let decoded=try? SpeechSegment.decode(MiniGameReviewVoiceScript.segments(current.review)) else{disconnect();return}
         do{try narrateMiniReview(decoded)}catch{NativeLog.voice.error("A mini-game review could not be read aloud");disconnect()}
     }
     /// The reading's scope changed or voice may no longer speak: the session ends, mid-segment too.
@@ -208,7 +208,7 @@ import SaidGuard
     /// A standard-rule training game's coaching door (mini-game plan WI-021), set by the app only with its flag on. A
     /// session opened for the training game shown uses only its tools, bound to that game's attempt, and says nothing
     /// about the board before the attempt records the help (`TrainingVoiceAdapter.disclose`).
-    public var training:TrainingVoiceAdapter? {didSet{trainingObservation=training?.controller.objectWillChange.sink{[weak self] _ in DispatchQueue.main.async{self?.changed()}}}}
+    public var training:TrainingVoiceAdapter? {didSet{trainingObservation=training?.controller.onChangeDeferred{[weak self] in self?.changed()}}}
     private var trainingObservation:AnyCancellable?
     /// Whether the open session was opened for the training game shown (WI-021). Fixed for the session: another
     /// attempt, place or task, a finished game, a companion or a network game ends it.
@@ -245,7 +245,7 @@ import SaidGuard
         audio.onInput={[weak self] data in self?.send(["type":"input_audio_buffer.append","audio":data.base64EncodedString()])}
         audio.onPlaybackStart={[weak self] in guard let self=self else{return};self.gate.playbackStarted();self.status=self.miniReviewSession != nil ? Self.miniReviewSpeaking:self.audio.echoCancelled ? String(localized:"Speaking — speak to interrupt",bundle:.checkmate):String(localized:"Speaking — microphone paused",bundle:.checkmate);self.syncMic();if let segment=self.segment{self.session.setVoiceFocus(segment.squares,identity:self.display);if self.networkSession{self.networkFocus=segment.squares;self.network?.game.hintShown()};if self.trainingSession{self.trainingFocus=segment.squares}}}
         audio.onPlaybackEnd={[weak self] in guard let self=self else{return};self.gate.playbackEnded();self.session.setVoiceFocus([],identity:self.display);self.clearNetworkFocus();self.settled()}
-        observation=session.objectWillChange.sink{[weak self] in DispatchQueue.main.async{self?.changed()}}
+        observation=session.onChangeDeferred{[weak self] in self?.changed()}
     }
     /// V-1: nothing reaches OpenAI before the learner has agreed to what voice sends. Every function that authorizes,
     /// probes a model or opens a socket checks this first, so a new way in that skips the question still connects
@@ -498,12 +498,13 @@ import SaidGuard
     /// An entry keeps its place when its text arrives later (a learner's transcription follows the coach's reply).
     private func addHistory(_ id:String,_ role:String,_ text:String){let earlier=history.first{$0.id==id},entry=VoiceHistory(id:id,role:role,text:String(text.prefix(4000)),context:earlier?.context ?? historyContext,source:earlier?.source ?? historySource);if let index=history.firstIndex(where:{$0.id==id}){history[index]=entry}else{history.append(entry)};if history.count>30{history.removeFirst(history.count-30)}}
     private func learnerTranscript(_ event:[String:Any],_ text:String?){let id=event["item_id"] as? String ?? UUID().uuidString;if committedLearner.contains(id),!history.contains(where:{$0.id==id}){return};if let text,text.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty{history.removeAll{$0.id==id && $0.role=="learner"};return};addHistory(id,"learner",text ?? String(localized:"Transcription unavailable",bundle:.checkmate))}
-    private func accountUsage(_ event:[String:Any]) {
+    /// `pcm` is the event's decoded audio delta, decoded once by `receive(_:)` for this count and for playback.
+    private func accountUsage(_ event:[String:Any],pcm:Data?) {
         let type=event["type"] as? String ?? "",response=event["response"] as? [String:Any] ?? [:]
         let id=event["response_id"] as? String ?? response["id"] as? String ?? ""
         if type == "session.created" || type == "session.updated",let model=(event["session"] as? [String:Any])?["model"] as? String {usageModel=String(model.prefix(256))}
         if type == "response.created",!id.isEmpty,let turnID=(response["metadata"] as? [String:String])?["checkmate_turn"],let operation=pendingUsage.removeValue(forKey:turnID){usageOperations[id]=operation}
-        if type == "response.output_audio.delta",usageOperations[id] != nil,let encoded=event["delta"] as? String,let pcm=Data(base64Encoded:encoded),pcm.count%2 == 0 {
+        if type == "response.output_audio.delta",usageOperations[id] != nil,let pcm,pcm.count%2 == 0 {
             let previous=usagePCMBytes[id] ?? 0
             let next=previous+Int64(pcm.count)
             if next<=UsageLimits.maximumPCMBytes{usagePCMBytes[id]=next}
@@ -520,7 +521,8 @@ import SaidGuard
         }
     }
     public func receive(_ event:[String:Any]){
-        accountUsage(event)
+        let pcm=event["type"] as? String=="response.output_audio.delta" ? (event["delta"] as? String).flatMap{Data(base64Encoded:$0)}:nil
+        accountUsage(event,pcm:pcm)
         let type=event["type"] as? String ?? "",response=event["response"] as? [String:Any] ?? [:],id=event["response_id"] as? String ?? response["id"] as? String ?? "";if awaitingCancellation,type=="response.done",cancelling.isEmpty || id==cancelling{awaitingCancellation=false;cancelling="";settled();return};if ignored.contains(id){return}
         switch type {
         // A network game's guided comment is not a greeting: a renewed session still owes the learner's move its one
@@ -531,7 +533,7 @@ import SaidGuard
         case "input_audio_buffer.committed":guard miniReviewSession==nil else{return};if let item=event["item_id"] as? String,!item.isEmpty{committedLearner.insert(item);addHistory(item,"learner","…")};if session.fairness.voiceAllowed(network:networkSession){if ownMove{request(queued?.1==true ? Self.learnerTurns:Self.learnerTurn,user:true)}else{status=Self.networkOwnMove}}
         case "conversation.item.input_audio_transcription.completed":learnerTranscript(event,event["transcript"] as? String ?? "")
         case "conversation.item.input_audio_transcription.failed":learnerTranscript(event,nil)
-        case "response.output_audio.delta":if let text=event["delta"] as? String,let data=Data(base64Encoded:text){responseAudioBytes+=Int64(data.count);do{try audio.append(data)}catch{fail(.audioOutput)};if !gate.ready{armTimeout(max(Self.thinkingTimeout(effort:confirmedEffort),Double(responseAudioBytes)/48000+10))}}
+        case "response.output_audio.delta":if let data=pcm{responseAudioBytes+=Int64(data.count);do{try audio.append(data)}catch{fail(.audioOutput)};if !gate.ready{armTimeout(max(Self.thinkingTimeout(effort:confirmedEffort),Double(responseAudioBytes)/48000+10))}}
         case "response.output_audio_transcript.done":
             let transcript=event["transcript"] as? String ?? ""
             if generatingAudio,let segment=segment{scriptTranscript=transcript;guard saidMatches(transcript,segment.text,language:session.state.settings.voiceLanguage) else{unverifiedNarration(id,segment,responseDone:false);return};narration(.verified)}
@@ -564,7 +566,7 @@ import SaidGuard
             guard finished.withinBounds else{NativeLog.voice.notice("Refused a finished tool call past its padding allowances: \(finished.bytes, privacy: .public) bytes");endTurn(Self.turnFailure);return}
         }
         let generation=epoch,position=speakingPosition,turnNumber=turn
-        continuation=true;calls[id]=Task{defer{if generation==self.epoch,self.turn==turnNumber{self.calls[id]=nil;if self.gate.ready{self.settled()}}};do{guard !Task.isCancelled,generation==epoch,turn==turnNumber else{return};guard let args=parsed else{throw ProtocolFailure("INVALID_ARGUMENT")};let result=try await execute(name,args:args,id:id);try Task.checkCancellation();guard generation==epoch,turn==turnNumber else{return};if trainingSession{guard training?.inScope==true else{throw TrainingVoiceAdapter.Stop.outOfScope};guard training?.accepts(speakingPosition)==true else{throw TrainingVoiceAdapter.Stop.regenerate}}else{guard (speakingPosition==position && currentPosition==position) || name=="play_requested_move" else{throw ProtocolFailure("STALE_STATE")}};let json=String(decoding:try JSONSerialization.data(withJSONObject:result,options:[.fragmentsAllowed]),as:UTF8.self);send(["type":"conversation.item.create","item":["type":"function_call_output","call_id":id,"output":json]])}catch let stop as TrainingVoiceAdapter.Stop{if generation==epoch,turn==turnNumber{trainingStopped(stop)}}catch{if generation==epoch,turn==turnNumber{let json=String(decoding:(try? JSONSerialization.data(withJSONObject:CompanionBroker.failure(error))) ?? Data(),as:UTF8.self);send(["type":"conversation.item.create","item":["type":"function_call_output","call_id":id,"output":json]])}}}
+        continuation=true;calls[id]=Task{defer{if generation==self.epoch,self.turn==turnNumber{self.calls[id]=nil;if self.gate.ready{self.settled()}}};do{guard !Task.isCancelled,generation==epoch,turn==turnNumber else{return};guard let args=parsed else{throw ProtocolFailure("INVALID_ARGUMENT")};let result=try await execute(name,args:args,id:id);try Task.checkCancellation();guard generation==epoch,turn==turnNumber else{return};if trainingSession{guard training?.inScope==true else{throw TrainingVoiceAdapter.Stop.outOfScope};guard training?.accepts(speakingPosition)==true else{throw TrainingVoiceAdapter.Stop.regenerate}}else{guard (speakingPosition==position && currentPosition==position) || name=="play_requested_move" else{throw ProtocolFailure("STALE_STATE")}};let json=String(decoding:try JSONSerialization.data(withJSONObject:result,options:[.fragmentsAllowed]),as:UTF8.self);send(["type":"conversation.item.create","item":["type":"function_call_output","call_id":id,"output":json]])}catch let stop as TrainingVoiceAdapter.Stop{if generation==epoch,turn==turnNumber{trainingStopped(stop)}}catch{if generation==epoch,turn==turnNumber{let json=String(decoding:(try? JSONSerialization.data(withJSONObject:ProtocolErrors.failure(error))) ?? Data(),as:UTF8.self);send(["type":"conversation.item.create","item":["type":"function_call_output","call_id":id,"output":json]])}}}
         syncMic()
     }
     public func execute(_ name:String,args:[String:Any],id:String) async throws->Any {
@@ -580,7 +582,7 @@ import SaidGuard
         if networkSession{return try await executeNetwork(name,args:a)}
         try session.fairness.requireEngineHelp()
         if name=="get_board"{return try context()}
-        if name=="speak_explanation"{guard a["displayIdentity"] as? String==session.displayIdentity else{throw ProtocolFailure("STALE_STATE")};let decoded=try JSONDecoder().decode([SpeechSegment].self,from:JSONSerialization.data(withJSONObject:a["segments"]!));if let review=session.reviewController,review.active {guard ReviewRolloutPolicy.reviewVoiceEnabled else{throw ProtocolFailure("FEATURE_DISABLED")};guard let explanation=review.explanation,review.branch==nil else{throw ProtocolFailure("UNGROUNDED_REVIEW_SPEECH")};try ReviewVoiceScript.validate(decoded,explanation:explanation)};if commentaryTurn,decoded.count>1{throw ProtocolFailure("PROACTIVE_LIMIT","Commentary nobody asked for speaks one segment. Call speak_explanation again with exactly one segment.")};guard segments.isEmpty else{throw ProtocolFailure("SPEECH_QUEUED",Self.speechQueuedMessage)};segments=decoded;display=session.displayIdentity;return ["queued":segments.count]}
+        if name=="speak_explanation"{guard a["displayIdentity"] as? String==session.displayIdentity else{throw ProtocolFailure("STALE_STATE")};let decoded=try SpeechSegment.decode(a["segments"]!);if let review=session.reviewController,review.active {guard ReviewRolloutPolicy.reviewVoiceEnabled else{throw ProtocolFailure("FEATURE_DISABLED")};guard let explanation=review.explanation,review.branch==nil else{throw ProtocolFailure("UNGROUNDED_REVIEW_SPEECH")};try ReviewVoiceScript.validate(decoded,explanation:explanation)};if commentaryTurn,decoded.count>1{throw ProtocolFailure("PROACTIVE_LIMIT","Commentary nobody asked for speaks one segment. Call speak_explanation again with exactly one segment.")};guard segments.isEmpty else{throw ProtocolFailure("SPEECH_QUEUED",Self.speechQueuedMessage)};segments=decoded;display=session.displayIdentity;return ["queued":segments.count]}
         if name=="play_requested_move"{guard !session.reviewSuspended,userTurn,session.state.settings.voiceAssistMoves else{throw ProtocolFailure("ROLE_FORBIDDEN")};applying=true;defer{applying=false};try session.playWhite(from:a["from"] as! String,to:a["to"] as! String,promotion:a["promotion"] as? String ?? "q");position=session.positionId;speakingPosition=position;userTurn=false;return session.publicState()}
         var observed=a;observed["sessionId"]=session.sessionId;observed["revision"]=session.revision;observed.removeValue(forKey:"positionId")
         var tool=name
@@ -651,7 +653,7 @@ import SaidGuard
         case "speak_explanation":
             guard game.yourTurn else{throw ProtocolFailure("NOT_YOUR_MOVE")}
             guard a["displayIdentity"] as? String==currentDisplay else{throw ProtocolFailure("STALE_STATE")}
-            let decoded=try JSONDecoder().decode([SpeechSegment].self,from:JSONSerialization.data(withJSONObject:a["segments"]!))
+            let decoded=try SpeechSegment.decode(a["segments"]!)
             if commentaryTurn,decoded.count>1{throw ProtocolFailure("PROACTIVE_LIMIT","Commentary nobody asked for speaks one segment. Call speak_explanation again with exactly one segment.")}
             // A7: the move counts as assisted once this advice reaches the learner (its playback, or its text when the
             // narration cannot be verified), not when it is merely queued: a turn stopped first gave no advice.
@@ -682,7 +684,7 @@ import SaidGuard
         try session.fairness.requireEngineHelp()
         let ticket=try adapter.disclose([speakingPosition]+[a["positionId"],a["displayIdentity"]].compactMap{$0 as? String})
         position=ticket.key;speakingPosition=ticket.key
-        if name=="speak_explanation"{let decoded=try JSONDecoder().decode([SpeechSegment].self,from:JSONSerialization.data(withJSONObject:a["segments"]!));guard segments.isEmpty else{throw ProtocolFailure("SPEECH_QUEUED",Self.speechQueuedMessage)};segments=decoded;display=currentDisplay;return ["queued":segments.count]}
+        if name=="speak_explanation"{let decoded=try SpeechSegment.decode(a["segments"]!);guard segments.isEmpty else{throw ProtocolFailure("SPEECH_QUEUED",Self.speechQueuedMessage)};segments=decoded;display=currentDisplay;return ["queued":segments.count]}
         return try await adapter.call(name,args:a,key:ticket.key)
     }
     /// The training game changed. Another attempt, place or task, a finished game, a companion or a network game
@@ -710,8 +712,7 @@ import SaidGuard
     /// Speaks one neutral line, which needs no help record because it says nothing about the board.
     private func speakNeutral(_ line:TrainingVoiceAdapter.NeutralLine){
         trainingAnswer=false
-        guard let decoded=try? JSONDecoder().decode([SpeechSegment].self,from:JSONSerialization.data(withJSONObject:[["text":line.text,"squares":[String](),"kind":"observation"]])) else{status=line.text;return}
-        segments=decoded;display=Self.neutralDisplay;if !awaitingCancellation{settled()}
+        segments=[SpeechSegment(text:line.text,squares:[],kind:"observation")];display=Self.neutralDisplay;if !awaitingCancellation{settled()}
     }
     /// Ends a training session that may no longer coach, saying so.
     private func stopTraining(){let line=TrainingVoiceAdapter.NeutralLine.stopped.text;addHistory(UUID().uuidString,"coach",line);disconnect();enter(.failed(line))}

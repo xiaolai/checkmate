@@ -56,7 +56,7 @@ extension ChessRules:NetworkChessRules {
         guard try networkFEN()==canonical,try setUpFEN() ?? NetworkStart.standard==canonical,NetworkStart.consistent(canonical) else{try refuse()}
         // chess.js does not check that the side not to move is out of check: a position where it is cannot arise.
         let mover=try currentTurn(),waiting=mover=="w" ? "b":"w"
-        guard let king=try currentBoard().first(where:{$0.value==waiting+"k"})?.key,try attackersOf(king,color:mover).isEmpty else{try refuse()}
+        guard let king=try TrainingGeometry.square(of:waiting+"k",on:currentBoard()),try attackersOf(king,color:mover).isEmpty else{try refuse()}
     }
     public func networkStartFEN()throws -> String {try setUpFEN() ?? NetworkStart.standard}
 }

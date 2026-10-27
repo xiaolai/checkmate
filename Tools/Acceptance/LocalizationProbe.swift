@@ -22,7 +22,7 @@ extension AcceptanceProbe {
         do {
             try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
             if FileManager.default.fileExists(atPath: dataDirectory.path) { try FileManager.default.removeItem(at: dataDirectory) }
-            let initialAuthHash = LessonTranslation.hash(try Data(contentsOf: VoiceGateway.credentialURL))
+            let initialAuthHash = reviewHash(try Data(contentsOf: VoiceGateway.credentialURL))
             let library = try CourseLibrary(), source = LessonTranslation.source(library: library, index: 0)
             let usage = UsageLedger(directory: dataDirectory.appendingPathComponent("Usage"))
             let operation = usage.begin(activity: .translation, provider: "codex", sessionID: UUID().uuidString, locale: "zh-Hans", lessonID: source.lessonID)
@@ -43,7 +43,7 @@ extension AcceptanceProbe {
             let packs = try LessonPackStore(directory: dataDirectory)
             try packs.saveTranslation(translated.text, source: source, locale: "zh-Hans")
             report["translationValidated"] = true
-            report["globalAuthUnchanged"] = initialAuthHash == LessonTranslation.hash(try Data(contentsOf: VoiceGateway.credentialURL))
+            report["globalAuthUnchanged"] = initialAuthHash == reviewHash(try Data(contentsOf: VoiceGateway.credentialURL))
             report["translatedBeats"] = translated.text.beats.count
             report["translationModel"] = translated.model
             report["translationTokens"] = translated.tokens?.total as Any? ?? NSNull()

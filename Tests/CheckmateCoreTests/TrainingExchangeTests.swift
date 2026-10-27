@@ -10,8 +10,7 @@ import CheckmateCore
 /// is a no-action case; every published answer is re-derived.
 @MainActor final class TrainingExchangeTests:XCTestCase {
     // Increment B is gated behind its preview flags; these tests exercise it as development does.
-    override func setUp(){setenv("CHECKMATE_TRAINING_ENABLED","1",1);setenv("CHECKMATE_TRAINING_B","1",1)}
-    override func tearDown(){unsetenv("CHECKMATE_TRAINING_ENABLED");unsetenv("CHECKMATE_TRAINING_B")}
+    override func setUp(){setEnvironment(["CHECKMATE_TRAINING_ENABLED":"1","CHECKMATE_TRAINING_B":"1"])}
     private let review=TrainingReview(author:"test",reviewer:nil,validatorVersion:TrainingValidationService.validatorVersion)
     private func exchange(_ fen:String,_ stated:[String],choice:String?=nil)->TrainingScenario {
         TrainingScenario(id:"exchange-test",entry:"capture-wisely",variant:"compare-exchange",tier:1,cluster:"x",learner:String(fen.split(separator:" ")[1]),prompt:"Ahead, even or behind?",explanation:"Count.",hints:["Count."],fen:fen,choices:TrainingExchangeResult.choices,expected:TrainingExpected(choice:choice),review:review,check:.exchange,stated:stated)
@@ -70,8 +69,7 @@ import CheckmateCore
         XCTAssertNoThrow(try TrainingValidationService.validate(wrong,definition:try definition),"the sign needs the search, which runs offline")
         XCTAssertThrowsError(try TrainingValidationService.validate(wrong,definition:try definition,deep:true)){XCTAssertTrue("\($0)".contains("exchange result differs"))}
         XCTAssertThrowsError(try TrainingValidationService.validate(exchange("4k3/2p5/3n4/8/4N3/8/8/4K3 w - - 0 1",["e1d1"],choice:TrainingExchangeResult.even.label),definition:try definition)){XCTAssertTrue("\($0)".contains("starts with the learner's capture"))}
-        let session=try GameSession(engine:nil),player=try LearningPlayer(session:session);defer{player.shutdown()}
-        let controller=TrainingController(session:session,learning:player,provider:try TrainingScenarioProvider(catalog:try TrainingCatalog.bundled(),scenarios:[good]))
+        let (session,player,controller)=try TrainingEndgameTests.fixture([good]);defer{player.shutdown()}
         controller.begin(try controller.prepare(entry:"capture-wisely"))
         XCTAssertEqual(controller.exercise?.task,.choose);XCTAssertEqual(session.training?.choices ?? [],TrainingExchangeResult.choices)
         controller.attempt(from:"e4",to:"d6",promotion:nil);XCTAssertTrue(controller.exercise?.snapshot.actions.isEmpty ?? false,"a choice question takes no moves")
@@ -89,8 +87,7 @@ import CheckmateCore
         XCTAssertNoThrow(try TrainingValidationService.validate(scenario,definition:try definition,deep:true))
         let unmarked=TrainingScenario(id:"declined",entry:"capture-wisely",variant:"poisoned-capture",tier:1,cluster:"d",learner:"w",prompt:"p",explanation:"e",hints:["h"],fen:fen,expected:TrainingExpected(wrong:["d1e2"]),review:review,check:.material,goal:goal,plies:3,nodes:scenario.nodes)
         XCTAssertThrowsError(try TrainingValidationService.validate(unmarked,definition:try definition)){XCTAssertTrue("\($0)".contains("tempting capture"),"the named temptation must be a failing capture")}
-        let session=try GameSession(engine:nil),player=try LearningPlayer(session:session);defer{player.shutdown()}
-        let controller=TrainingController(session:session,learning:player,provider:try TrainingScenarioProvider(catalog:try TrainingCatalog.bundled(),scenarios:[scenario]))
+        let (_,player,controller)=try TrainingEndgameTests.fixture([scenario]);defer{player.shutdown()}
         controller.begin(try controller.prepare(entry:"capture-wisely"))
         controller.attempt(from:"d1",to:"d5",promotion:nil)
         XCTAssertEqual(controller.exercise?.status,.incorrect);XCTAssertEqual(controller.exercise?.board["d5"],"bp","the recapture is shown")

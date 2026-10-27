@@ -9,18 +9,15 @@ private actor StatusTranslator:LessonTranslationProvider {
  func translate(source:LessonTranslation,locale:String,onUsage:@escaping @Sendable(String,String,UsageTokens?)->Void)async throws->TranslationResult {translations+=1;var text=source;text.title="Titre: "+source.title;return TranslationResult(text:text,model:"fixture",turnID:UUID().uuidString,tokens:UsageTokens(total:3))}
  func accountStatus()async throws->String {checks+=1;return "Fixture account"}
 }
-private actor StatusRecorder:LessonRecordingProvider {
- func record(script:String,locale:String,voice:String,onUsage:@escaping @Sendable(String,UsageTokens?)->Void)async throws->LessonRecordingResult {LessonRecordingResult(pcm:plausibleLessonPCM(script),transcript:script,responseID:UUID().uuidString,tokens:nil,model:"gpt-realtime")}
-}
 /// L-27: Settings lists every lesson with what is stored for the chosen language and voice (translated, recorded,
 /// stale), and each row's Translate and Record go through the same sign-in check and confirmation as every lesson.
 @MainActor final class LessonLibraryStatusTests:XCTestCase {
  private var directory:URL!
  override func setUp(){directory=FileManager.default.temporaryDirectory.appendingPathComponent("lesson-status-"+UUID().uuidString)}
  override func tearDown(){try? FileManager.default.removeItem(at:directory)}
- private func controller(_ translator:StatusTranslator)throws -> LessonLanguageController {let c=try LessonLanguageController(library:CourseLibrary(),directory:directory,usage:UsageLedger(directory:directory.appendingPathComponent("Usage")),translator:translator,recorder:StatusRecorder());c.language="fr";return c}
- private func wait(_ c:LessonLanguageController)async throws {for _ in 0..<1000{if !c.busy{return};try await Task.sleep(for:.milliseconds(10))};XCTFail("Job did not finish")}
- private func settle(_ what:String,_ condition:()->Bool)async throws {for _ in 0..<500{if condition(){return};try await Task.sleep(for:.milliseconds(10))};XCTFail(what)}
+ private func controller(_ translator:StatusTranslator)throws -> LessonLanguageController {let c=try LessonLanguageController(library:CourseLibrary(),directory:directory,usage:UsageLedger(directory:directory.appendingPathComponent("Usage")),translator:translator,recorder:OrderedLessonRecorder());c.language="fr";return c}
+ private func wait(_ c:LessonLanguageController)async throws {try await poll("the job to finish",tries:1000,every:.milliseconds(10)){!c.busy}}
+ private func settle(_ what:String,_ condition:()->Bool)async throws {try await poll(what,tries:500,every:.milliseconds(10),condition)}
 
  /// Text and recordings are counted per lesson; a stored file this version cannot use is stale, not missing.
  func testStatusCountsTextRecordingsAndStaleFiles()throws {

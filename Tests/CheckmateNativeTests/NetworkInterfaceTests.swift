@@ -13,9 +13,8 @@ import CheckmateCore
 /// app's network game runs here over the in-memory transport, against a second controller playing Ben.
 @MainActor final class NetworkInterfaceTests:XCTestCase {
     private var directory:URL!
-    override func setUp(){directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);setenv("CHECKMATE_DATA_DIR",directory.path,1)}
-    override func tearDown(){unsetenv("CHECKMATE_DATA_DIR");unsetenv(NativeModel.networkLoopbackVariable);try? FileManager.default.removeItem(at:directory)}
-    private func bar(_ model:NativeModel)->ControlBarModel {ControlBarModel.make(session:model.session,learning:model.learning,review:model.review,training:model.training,network:model.network,voice:.off(unavailable:nil))}
+    override func setUpWithError()throws{directory=try isolateDataDirectory()}
+    override func tearDown(){unsetenv(NativeModel.networkLoopbackVariable)}
 
     /// One manual scheduler and memory transport; a host's records reach every discovery made here.
     private final class LAN {
@@ -92,11 +91,11 @@ import CheckmateCore
         let lan=LAN(),ben=try hostedGame(model,lan),game=model.network
         model.playOnNetwork();XCTAssertEqual(model.session.activity,.at(.network))
         XCTAssertNil(SidebarSelection.networkBadge(model.session.activity,game),"no badge on the network place itself")
-        XCTAssertEqual(bar(model).trailing.map(\.action),[.offerDraw,.resign,.flipBoard]);XCTAssertEqual(model.fairness.participation.role,.player)
+        XCTAssertEqual(model.testBar().trailing.map(\.action),[.offerDraw,.resign,.flipBoard]);XCTAssertEqual(model.fairness.participation.role,.player)
         model.practice();XCTAssertEqual(SidebarSelection.networkBadge(model.session.activity,game),NetworkGameController.yourMoveBadge)
         game.play(from:"e2",to:"e4");lan.scheduler.run();XCTAssertNil(SidebarSelection.networkBadge(model.session.activity,game),"Ben's move")
         ben.play(from:"e7",to:"e5");lan.scheduler.run();XCTAssertEqual(SidebarSelection.networkBadge(model.session.activity,game),NetworkGameController.yourMoveBadge,"the game went on while away")
-        model.playOnNetwork();XCTAssertEqual(game.board["e5"],"bp");XCTAssertEqual(bar(model).trailing.map(\.action),[.offerDraw,.resign,.flipBoard])
+        model.playOnNetwork();XCTAssertEqual(game.board["e5"],"bp");XCTAssertEqual(model.testBar().trailing.map(\.action),[.offerDraw,.resign,.flipBoard])
     }
 
     /// B-1: the bar shows whose turn it is, Offer Draw, Resign and Flip Board, and answers a draw offer inline, so the
@@ -105,26 +104,26 @@ import CheckmateCore
         let model=try NativeModel();defer{model.shutdown()}
         model.network.form.timeControl = .fivePlusThree
         let lan=LAN(),ben=try hostedGame(model,lan),game=model.network;model.playOnNetwork()
-        var shown=bar(model)
+        var shown=model.testBar()
         XCTAssertEqual(shown.trailing.map(\.label),["Offer Draw","Resign…","Flip Board"]);XCTAssertTrue(shown.trailing.allSatisfy(\.enabled))
         XCTAssertTrue(shown.clocks,"a timed game shows both clocks");XCTAssertTrue(shown.statusInCentre)
         guard case .turn(let side,let label)?=shown.status else{return XCTFail("the turn shows")};XCTAssertEqual(side,"w");XCTAssertEqual(label,game.statusText)
-        ben.offerDraw();lan.scheduler.run();shown=bar(model)
+        ben.offerDraw();lan.scheduler.run();shown=model.testBar()
         XCTAssertEqual(shown.trailing.map(\.label),["Accept Draw","Decline","Offer Draw","Resign…","Flip Board"]);XCTAssertEqual(shown.item(.offerDraw)?.enabled,false,"an offer is open")
         let transport=TransportContent(session:model.session,learning:model.learning,voice:model.voice,review:model.review,network:model.network,newGame:{},showDetails:{},restartAttempt:{},connectVoice:{})
         transport.perform(.declineDraw);lan.scheduler.run();XCTAssertNil(game.openOffer);XCTAssertNil(game.outcome)
-        XCTAssertEqual(bar(model).trailing.map(\.action),[.offerDraw,.resign,.flipBoard])
+        XCTAssertEqual(model.testBar().trailing.map(\.action),[.offerDraw,.resign,.flipBoard])
         ben.offerDraw();lan.scheduler.run();transport.perform(.acceptDraw);lan.scheduler.run()
         XCTAssertEqual(game.outcome?.result,.draw);XCTAssertEqual(game.outcome?.termination,.agreement)
         // The game is over: its actions leave the bar as they leave the Details pane, and with no move there is nothing to review.
-        shown=bar(model);XCTAssertFalse(game.offersGameActions);XCTAssertEqual(shown.trailing.map(\.action),[.flipBoard]);XCTAssertEqual(shown.item(.flipBoard)?.enabled,true)
+        shown=model.testBar();XCTAssertFalse(game.offersGameActions);XCTAssertEqual(shown.trailing.map(\.action),[.flipBoard]);XCTAssertEqual(shown.item(.flipBoard)?.enabled,true)
         guard case .text?=shown.status else{return XCTFail("a finished game says how it ended")}
     }
     /// An untimed game has no clocks to show; the lobby has no bar.
     func testAnUntimedGameShowsNoClocksAndTheLobbyNoBar()throws {
         let model=try NativeModel();defer{model.shutdown()};model.playOnNetwork()
-        XCTAssertEqual(bar(model),ControlBarModel(),"nothing to act on in the lobby")
-        let lan=LAN();_=try hostedGame(model,lan);XCTAssertFalse(bar(model).clocks)
+        XCTAssertEqual(model.testBar(),ControlBarModel(),"nothing to act on in the lobby")
+        let lan=LAN();_=try hostedGame(model,lan);XCTAssertFalse(model.testBar().clocks)
     }
     /// A host still waiting for a guest has no game to offer a draw in or resign: the bar and the Details pane agree.
     func testAWaitingHostIsOfferedNoGameActions()throws {
@@ -132,7 +131,7 @@ import CheckmateCore
         let lan=LAN();model.network.services=lan.services(crashFile:NetworkCrashFile(dataDirectory:directory));model.network.playerName="Ana"
         XCTAssertTrue(model.network.host());lan.scheduler.run();model.playOnNetwork()
         XCTAssertEqual(model.network.hostPhase,.waiting,"fixture: nobody has joined");XCTAssertFalse(model.network.offersGameActions)
-        XCTAssertNil(bar(model).item(.offerDraw));XCTAssertNil(bar(model).item(.resign));XCTAssertNil(bar(model).item(.reviewNetworkGame))
+        XCTAssertNil(model.testBar().item(.offerDraw));XCTAssertNil(model.testBar().item(.resign));XCTAssertNil(model.testBar().item(.reviewNetworkGame))
     }
 
     /// B-23: a typed move in a network game goes out like a clicked one, only on the learner's turn.
@@ -182,11 +181,11 @@ import CheckmateCore
         let lan=LAN(),ben=try hostedGame(model,lan),game=model.network;model.playOnNetwork()
         game.play(from:"e2",to:"e4");lan.scheduler.run();ben.play(from:"e7",to:"e5");lan.scheduler.run()
         XCTAssertFalse(game.canReview,"not while the game runs");model.reviewNetworkGame();XCTAssertFalse(model.importingReview)
-        XCTAssertTrue(game.offersGameActions);XCTAssertNil(bar(model).item(.reviewNetworkGame))
+        XCTAssertTrue(game.offersGameActions);XCTAssertNil(model.testBar().item(.reviewNetworkGame))
         var asked=0;model.confirmResigningNetworkGame={asked+=1;return true}
         model.resignNetworkGame();lan.scheduler.run()
         XCTAssertEqual(asked,1);XCTAssertEqual(game.outcome,NetworkOutcome(result:.blackWins,termination:.resignation));XCTAssertTrue(game.canReview)
-        let shown=bar(model);XCTAssertFalse(game.offersGameActions)
+        let shown=model.testBar();XCTAssertFalse(game.offersGameActions)
         XCTAssertEqual(shown.trailing.map(\.action),[.reviewNetworkGame,.flipBoard]);XCTAssertEqual(shown.item(.reviewNetworkGame)?.label,"Review This Game");XCTAssertEqual(shown.item(.reviewNetworkGame)?.prominent,true)
         window.controls.rootView.perform(.reviewNetworkGame)
         for _ in 0..<300 where !model.review.active{try await Task.sleep(for:.milliseconds(10))}
@@ -333,7 +332,7 @@ import CheckmateCore
         XCTAssertEqual(model.networkVoiceHistory.map(\.id),["network-1"],"Practice's words stay on Practice")
         // Reconnecting through the page keeps what this game's coach already said.
         let requested=model.voice.connectRequests.count;model.session.state.settings.voiceConsent=true
-        model.voice.disconnect();model.connectNetworkVoice()
+        model.voice.disconnect();model.connectVoice()
         XCTAssertEqual(model.voice.connectRequests.count,requested+1,"the page's button asks the coach to connect, once")
         try model.voice.automationOpen();model.voice.receive(["type":"session.updated"])
         XCTAssertEqual(model.networkVoiceHistory.map(\.id),["network-1"],"a reconnection in the same game hides nothing")

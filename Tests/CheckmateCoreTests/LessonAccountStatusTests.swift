@@ -39,8 +39,7 @@ private struct FailingAccountProvider:LessonTranslationProvider {
         }
     }
     func testMetadataChangeMarksTimestampedSnapshotStaleWithoutRefreshing()async throws {
-        let directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        defer{try? FileManager.default.removeItem(at:directory)}
+        let directory=try scratchDirectory()
         let stamp=AccountStampFixture(),ledger=UsageLedger(directory:directory.appendingPathComponent("Usage"))
         let controller=try LessonLanguageController(library:CourseLibrary(),directory:directory,usage:ledger,translator:AccountStatusProvider(),accountAuthMetadata:{stamp.read()})
         defer{controller.shutdown()}

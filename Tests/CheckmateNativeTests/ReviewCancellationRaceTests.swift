@@ -38,7 +38,7 @@ private final class ReadLog:@unchecked Sendable {
     /// The broker's timeout, cancel and disconnect all cancel the request's task; the detached parse ignores that,
     /// so the open must check it before saving or opening anything.
     func testACancelledOpenNeitherOpensAReviewNorLeavesARecord()async throws {
-        let root=try temporaryDirectory();defer{try? FileManager.default.removeItem(at:root)}
+        let root=try scratchDirectory("race-",create:true)
         let session=try GameSession(engine:nil),review=ReviewController(),store=ReviewStore(directory:root);session.reviewController=review
         try session.rules.restore("1. e4 e5 *")
         let adapter=ReviewTools(review:review,session:session,store:store,analyzer:ReviewAnalyzer(engine:NativeEngine()))
@@ -57,7 +57,7 @@ private func signalled(_ semaphore:DispatchSemaphore,within seconds:Double=20)as
 
 @MainActor final class ForgottenAnalysisWriteTests:XCTestCase {
     func testForgettingWaitsForACacheWriteAlreadyRunning()async throws {
-        let root=try temporaryDirectory(),(path,directory)=try fakeEngine();defer{try? FileManager.default.removeItem(at:root);try? FileManager.default.removeItem(at:directory)}
+        let root=try scratchDirectory("race-",create:true),(path,directory)=try fakeEngine();defer{try? FileManager.default.removeItem(at:directory)}
         let analyzer=ReviewAnalyzer(engine:NativeEngine(executable:path),cacheDirectory:root),writing=DispatchSemaphore(value:0),proceed=DispatchSemaphore(value:0)
         // The write holds until the forget has started, so it is in flight when the forget runs, by order, not by delay.
         analyzer.writeCache={cache,evidence,key in writing.signal();proceed.wait();try cache.save(evidence,key:key)}
@@ -72,9 +72,7 @@ private func signalled(_ semaphore:DispatchSemaphore,within seconds:Double=20)as
 }
 
 @MainActor final class ReviewModalRaceTests:XCTestCase {
-    private var directory:URL!
-    override func setUp(){directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);setenv("CHECKMATE_DATA_DIR",directory.path,1)}
-    override func tearDown(){unsetenv("CHECKMATE_DATA_DIR");try? FileManager.default.removeItem(at:directory)}
+    override func setUpWithError()throws{try isolateDataDirectory()}
     /// Main-actor work (an agent's select_review_position) runs during the modal draft question.
     func testAForkRefusesAPositionMovedDuringTheDraftQuestion()throws {
         let model=try NativeModel();defer{model.shutdown()}
@@ -124,9 +122,7 @@ private func signalled(_ semaphore:DispatchSemaphore,within seconds:Double=20)as
 
 /// #9: the broker's own disconnect, not a direct cancel, while the draft question is up during an agent's open_review.
 @MainActor final class BrokerDisconnectDuringDraftTests:XCTestCase {
-    private var directory:URL!
-    override func setUp(){directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);setenv("CHECKMATE_DATA_DIR",directory.path,1)}
-    override func tearDown(){unsetenv("CHECKMATE_DATA_DIR");try? FileManager.default.removeItem(at:directory)}
+    override func setUpWithError()throws{try isolateDataDirectory()}
     private func post(_ d:[String:Any],client:String,method:String,args:[String:Any]=[:])async throws -> [String:Any] {
         var r=URLRequest(url:URL(string:(d["url"] as! String)+"/rpc")!);r.httpMethod="POST";r.setValue("Bearer "+(d["token"] as! String),forHTTPHeaderField:"Authorization");r.setValue(client,forHTTPHeaderField:"X-Checkmate-Client")
         r.httpBody=try JSONSerialization.data(withJSONObject:["id":UUID().uuidString,"method":method,"args":args]);let (data,_)=try await URLSession.shared.data(for:r);return try JSONSerialization.jsonObject(with:data) as! [String:Any]

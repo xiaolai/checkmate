@@ -7,6 +7,7 @@ import CheckmateCore
 @testable import CheckmateContent
 @testable import CheckmateApplication
 @testable import CheckmateMacPlatform
+import CheckmateTestSupport
 
 
 /// B10 review findings RV2-4, RV2-6, RV2-7 and RV2-2a: import limits that cost little, games that read back from their
@@ -68,7 +69,7 @@ final class B10ReviewImportTests:XCTestCase {
     }
     /// `validate()` no longer re-parses what the importer built, so the corpus's read-back guarantee is checked here.
     func testEveryCorpusGameReadsBackFromItsOwnText()throws {
-        let root=ProcessInfo.processInfo.environment["CHECKMATE_REVIEW_CORPUS"].map{URL(fileURLWithPath:$0)} ?? URL(fileURLWithPath:#filePath).deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("Fixtures/GameReview");var checked=0
+        let root=ProcessInfo.processInfo.environment["CHECKMATE_REVIEW_CORPUS"].map{URL(fileURLWithPath:$0)} ?? Repository.tests.appendingPathComponent("Fixtures/GameReview");var checked=0
         for file in ["manifest.json","manifest-expanded.json","manifest-novice.json"] {
             let manifest=try XCTUnwrap(JSONSerialization.jsonObject(with:Data(contentsOf:root.appendingPathComponent(file))) as? [String:Any])
             for entry in try XCTUnwrap(manifest["entries"] as? [[String:Any]]) where entry["expectedImport"] as? String != "reject" {
@@ -94,7 +95,7 @@ final class B10ReviewImportTests:XCTestCase {
         nodes[1]=GameNode(id:n.id,parent:n.parent,children:n.children,uci:n.uci,san:n.san,beforeFEN:n.beforeFEN,afterFEN:n.afterFEN,ply:n.ply,fullmove:n.fullmove,side:n.side,commentsBefore:[],commentsAfter:["forged"],nags:n.nags)
         let forged=GameDocument(schemaVersion:1,id:document.id,contentHash:document.contentHash,importedAt:document.importedAt,provenance:document.provenance,original:document.original,headers:document.headers,startingFEN:document.startingFEN,result:document.result,termination:document.termination,historyAvailable:document.historyAvailable,nodes:nodes)
         XCTAssertFalse(ImportedDocuments.shared.built(forged));XCTAssertThrowsError(try forged.validate())
-        let root=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);defer{try? FileManager.default.removeItem(at:root)}
+        let root=try scratchDirectory()
         XCTAssertThrowsError(try ReviewStore(directory:root).save(forged,cursor:0,branches:[]),"A tree that is not its text's reading is never saved")
     }
 }

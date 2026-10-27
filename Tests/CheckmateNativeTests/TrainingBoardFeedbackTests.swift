@@ -11,9 +11,7 @@ import CheckmateCore
 /// A training exercise's board behaves as practice's: its moves animate and are announced, its feedback and hints open
 /// the details drawer that shows them, and the bar carries the latest feedback line.
 @MainActor final class TrainingBoardFeedbackTests:XCTestCase {
-    private var directory:URL!
-    override func setUp(){directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);setenv("CHECKMATE_DATA_DIR",directory.path,1);setenv("CHECKMATE_TRAINING_ENABLED","1",1);setenv("CHECKMATE_TRAINING_B","1",1)}
-    override func tearDown(){unsetenv("CHECKMATE_DATA_DIR");unsetenv("CHECKMATE_TRAINING_ENABLED");unsetenv("CHECKMATE_TRAINING_B");try? FileManager.default.removeItem(at:directory)}
+    override func setUpWithError()throws{try isolateDataDirectory(["CHECKMATE_TRAINING_ENABLED":"1","CHECKMATE_TRAINING_B":"1"])}
     private func open(_ model:NativeModel,_ game:GameWindow){
         var next:UInt64=11;model.training?.seed={next+=1;return next}
         game.board.frame=NSRect(x:0,y:0,width:640,height:640)
@@ -48,7 +46,7 @@ import CheckmateCore
         let model=try NativeModel(),game=GameWindow(model:model);defer{game.window?.delegate=nil;model.shutdown()}
         open(model,game);settle()
         let exercise=try XCTUnwrap(model.training?.exercise),learner=exercise.scenario.learner
-        let bar={ControlBarModel.make(session:model.session,learning:model.learning,review:model.review,training:model.training,network:model.network,voice:.off(unavailable:nil))}
+        let bar={model.testBar()}
         XCTAssertEqual(bar().status,.turn(side:learner,label:learner=="w" ? "You are White":"You are Black"),"no feedback yet: the bar says whose side the learner plays")
         game.desiredRight=false
         let theirs=try XCTUnwrap(exercise.board.first{!$0.value.hasPrefix(learner)}?.key)

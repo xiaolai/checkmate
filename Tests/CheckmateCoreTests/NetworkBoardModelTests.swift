@@ -8,7 +8,7 @@ import CheckmateCore
 /// Mini-games plan WI-022: the network place reads its game only through `NetworkBoardModel`, and chess conforms with
 /// exactly the reads it had before (a pure refactor).
 @MainActor final class NetworkBoardModelTests:XCTestCase {
-    private let start="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+    private let start=NetworkStart.standard
     func testTheControllerMakesAChessModelAtTheStandardStart()throws {
         let model=try NetworkGameController.newBoard()
         XCTAssertTrue(model is ChessRules,"chess is the only model so far")

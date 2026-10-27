@@ -22,8 +22,7 @@ import CheckmateCore
 }
 @MainActor final class ActivityTransitionTests:XCTestCase {
     private var directory:URL!
-    override func setUp(){directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);setenv("CHECKMATE_DATA_DIR",directory.path,1)}
-    override func tearDown(){unsetenv("CHECKMATE_DATA_DIR");try? FileManager.default.removeItem(at:directory)}
+    override func setUpWithError()throws{directory=try isolateDataDirectory()}
     private func document(_ pgn:String="1. e4 e5 2. Nf3 Nc6 *")throws -> GameDocument {try PGNImporter.parse(Data(pgn.utf8))[0]}
     /// A Pawn Duel game in its lesson, with the computer's reply to the learner's first move pending.
     private func miniReplyPending(_ model:NativeModel)async throws {
@@ -201,7 +200,7 @@ import CheckmateCore
         model.returnToGame();model.session.cancelWork()
     }
     // Codex refute of the B8.2 implementation (dev-docs/audits/20261011-b8-codex-refute.md, second review): each check.
-    private func settle()async{for _ in 0..<30{await Task.yield()}}
+    private func settle()async{await yields(30)}
     /// 1. A navigation made while the draft question is up (an agent's call during the modal) is not overwritten by
     /// the older request when the question returns.
     func testANavigationDuringTheDraftQuestionIsNotOverwritten()throws {

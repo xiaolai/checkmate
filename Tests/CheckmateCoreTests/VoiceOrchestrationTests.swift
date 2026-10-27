@@ -7,6 +7,7 @@ import CheckmateCore
 @testable import CheckmateContent
 @testable import CheckmateApplication
 @testable import CheckmateMacPlatform
+import CheckmateTestSupport
 
 final class VoiceOrchestrationTests:XCTestCase {
     @MainActor func testQuietAndOnRequestNeverSpeakWithoutUserInput()throws {for mode in ["quiet","on_request"]{let s=try GameSession(engine:nil);s.state.settings.coachingMode=mode;let v=try VoiceCoach(session:s);var events:[[String:Any]]=[];v.automationOutbound={events.append($0)};_ = try s.openVoice();v.receive(["type":"session.updated"]);XCTAssertFalse(events.contains{$0["type"] as? String=="response.create"});let start=Date();v.receive(["type":"input_audio_buffer.committed"]);XCTAssertLessThan(Date().timeIntervalSince(start),0.1);XCTAssertEqual(events.filter{$0["type"] as? String=="response.create"}.count,1);v.disconnect();XCTAssertFalse(s.voiceHold);XCTAssertNil(s.voiceLease)}}
@@ -39,7 +40,7 @@ final class VoiceOrchestrationTests:XCTestCase {
         v.receive(["type":"response.done","response":["status":"completed"]]);try s.playWhite(from:"e2",to:"e4");try await Task.sleep(nanoseconds:20_000_000)
         let two:[[String:Any]]=[["text":"Your pawn is on e4.","squares":["e4"],"kind":"observation"],["text":"It controls d5.","squares":["d5"],"kind":"observation"]]
         do {_ = try await v.execute("speak_explanation",args:["positionId":s.positionId,"displayIdentity":s.displayIdentity,"segments":two],id:"long");XCTFail("two segments of commentary accepted")}
-        catch {XCTAssertEqual((ProtocolErrors.failure(error)["error"] as? [String:Any])?["code"] as? String,"PROACTIVE_LIMIT")}
+        catch {XCTAssertEqual(protocolCode(error),"PROACTIVE_LIMIT")}
         v.stopTurn();v.receive(["type":"response.done","response":["status":"cancelled"]]);v.receive(["type":"input_audio_buffer.committed"])
         let queued=try await v.execute("speak_explanation",args:["positionId":s.positionId,"displayIdentity":s.displayIdentity,"segments":two],id:"answer") as? [String:Any]
         XCTAssertEqual(queued?["queued"] as? Int,2)

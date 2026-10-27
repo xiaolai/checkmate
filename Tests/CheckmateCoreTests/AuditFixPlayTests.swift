@@ -8,10 +8,11 @@ import CheckmateCore
 @testable import CheckmateApplication
 @testable import CheckmateMacPlatform
 
+func report(_ text:String)throws -> (documents:[GameDocument],skipped:[ReviewImportError]) {try PGNImporter.parseReport(Data(text.utf8))}
+func moves(_ documents:[GameDocument])->[[String]] {documents.map{document in document.mainline.compactMap{document.nodes[$0].san}}}
+
 /// Final-round audit regressions for import recovery, presentation selection, archive reports and state encoding.
 @MainActor final class AuditFixPlayTests:XCTestCase {
-    private func report(_ text:String)throws -> (documents:[GameDocument],skipped:[ReviewImportError]) {try PGNImporter.parseReport(Data(text.utf8))}
-    private func moves(_ documents:[GameDocument])->[[String]] {documents.map{document in document.mainline.compactMap{document.nodes[$0].san}}}
     // #4: a game rejected after reading its own result does not take the following headerless game with it.
     func testConflictingResultHeaderKeepsTheNextHeaderlessGame()throws {
         let conflict=try report("[Result \"1-0\"]\n\n1. e4 0-1 1. d4 d5 *");XCTAssertEqual(moves(conflict.documents),[["d4","d5"]]);XCTAssertEqual(conflict.skipped.count,1)

@@ -124,7 +124,7 @@ final class AuditExportAndQualityTests:XCTestCase {
 final class AuditReviewCacheTests:XCTestCase {
     private func evidence(_ id:UUID=UUID())->ReviewEvidence {ReviewEvidence(schemaVersion:1,documentID:id,documentHash:"document",nodeID:1,historyHash:"history",revision:1,engineVersion:"test",options:[:],budgetMs:500,createdAt:Date(),root:EngineAnalysis(),played:nil,quality:"provisional",provisional:true)}
     func testChecksumCorruptionAndDocumentCleanup()throws {
-        let directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);defer{try? FileManager.default.removeItem(at:directory)}
+        let directory=try scratchDirectory()
         let cache=ReviewAnalysisCache(directory:directory),value=evidence()
         try cache.save(value,key:"valid");XCTAssertEqual(cache.load("valid")?.documentID,value.documentID)
         try cache.delete(documentID:value.documentID);XCTAssertNil(cache.load("valid"))
@@ -132,7 +132,7 @@ final class AuditReviewCacheTests:XCTestCase {
         try Data("{broken".utf8).write(to:file);XCTAssertNil(cache.load("broken"));XCTAssertFalse(FileManager.default.fileExists(atPath:file.path))
     }
     func testEvictionHonorsBytesAndKeepsMostRecentlyReadEntry()throws {
-        let directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);defer{try? FileManager.default.removeItem(at:directory)}
+        let directory=try scratchDirectory()
         let cache=ReviewAnalysisCache(directory:directory)
         try cache.save(evidence(),key:"a");try cache.save(evidence(),key:"b");_ = cache.load("a")
         let files=try FileManager.default.contentsOfDirectory(at:directory,includingPropertiesForKeys:[.fileSizeKey]),bytes=try files.reduce(0){try $0+($1.resourceValues(forKeys:[.fileSizeKey]).fileSize ?? 0)}
@@ -143,7 +143,7 @@ final class AuditReviewCacheTests:XCTestCase {
 
 final class AuditReviewPersistenceAndImportTests:XCTestCase {
     func testCursorUpdatesDoNotRewriteImmutableRecord()throws {
-        let root=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);defer{try? FileManager.default.removeItem(at:root)}
+        let root=try scratchDirectory()
         let store=ReviewStore(directory:root),document=try PGNImporter.parse(Data("1. e4 *".utf8))[0]
         try store.save(document,cursor:0,branches:[]);let before=try Data(contentsOf:store.documentURL(document.id))
         try store.save(document,cursor:1,branches:[]);XCTAssertEqual(before,try Data(contentsOf:store.documentURL(document.id)))
@@ -175,7 +175,7 @@ final class AuditReviewPersistenceAndImportTests:XCTestCase {
 
 @MainActor final class AuditReviewSavedScopeTests:XCTestCase {
     func testSavedMCPReviewRestoresCursorAndIdeasWithoutErasingThem()async throws {
-        let root=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);defer{try? FileManager.default.removeItem(at:root)}
+        let root=try scratchDirectory()
         let store=ReviewStore(directory:root),document=try PGNImporter.parse(Data("1. e4 e5 *".utf8))[0]
         var branch=ReviewBranch(root:1);branch.moves=["c7c5","g1f3"];try store.save(document,cursor:2,branches:[branch])
         let review=ReviewController(),session=try GameSession(engine:nil),tools=ReviewTools(review:review,session:session,store:store,analyzer:ReviewAnalyzer(engine:NativeEngine()))

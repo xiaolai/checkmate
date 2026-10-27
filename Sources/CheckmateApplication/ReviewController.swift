@@ -208,10 +208,9 @@ public struct ReviewBranch:Codable,Equatable {public let id:UUID,root:Int;public
         guard let document=document,let shown=displayRules else{throw CheckmateError.invalid(String(localized:"No review is open.",bundle:.checkmate))}
         if shown.checkmate || shown.stalemate || shown.insufficientMaterial{return true}
         let fen=shown.fen;if (Int(fen.split(separator:" ").dropFirst(4).first ?? "0") ?? 0)>=150{return true}
-        func key(_ fen:String)->String {fen.split(separator:" ").prefix(4).joined(separator:" ")}
-        let current=key(fen);var repetitions=0,cursor:Int?=branch?.root ?? nodeID
-        while let id=cursor{if key(document.nodes[id].afterFEN)==current{repetitions+=1};cursor=document.nodes[id].parent}
-        if let branch=branch,branchPly>0{let rules=try document.snapshotRules(at:branch.root);for move in branch.moves.prefix(branchPly){try rules.move(uci:move);if key(rules.fen)==current{repetitions+=1}}}
+        let current=TrainingLegality.fingerprint(fen);var repetitions=0,cursor:Int?=branch?.root ?? nodeID
+        while let id=cursor{if TrainingLegality.fingerprint(document.nodes[id].afterFEN)==current{repetitions+=1};cursor=document.nodes[id].parent}
+        if let branch=branch,branchPly>0{let rules=try document.snapshotRules(at:branch.root);for move in branch.moves.prefix(branchPly){try rules.move(uci:move);if TrainingLegality.fingerprint(rules.fen)==current{repetitions+=1}}}
         return repetitions>=5
     }
     /// Shows an engine or agent line as a preview. It is not the learner's idea: it is never saved or counted

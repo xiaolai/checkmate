@@ -58,6 +58,10 @@ final class ToolbarInsetHostingController<Content:View>:NSViewController {
     }
 }
 extension NSAlert {
+    /// Shows the alert as a sheet on `window`, or app-modal when there is none, and hands back the choice.
+    func present(on window:NSWindow?,then handler:@escaping (NSApplication.ModalResponse)->Void={_ in}){
+        if let window{beginSheetModal(for:window,completionHandler:handler)}else{handler(runModal())}
+    }
     /// A confirmation of something that cannot be undone: the action is marked destructive and takes no key, and
     /// Cancel (or the word given for it) is the default (Return) button and answers Escape, so only a deliberate choice runs it. The only
     /// place besides `saveChanges` an alert button is marked destructive. Responses: first the action, second Cancel, third `alternative`, a
@@ -82,8 +86,7 @@ extension NSAlert {
     /// Asks for a new name as a sheet on the main window (or a modal alert without one); `rename` runs only on Rename.
     static func askName(_ title:String,current:String,identifier:String,rename:@escaping (String)->Void){
         let (alert,field)=naming(title,current:current,identifier:identifier)
-        if let window=NSApp.mainWindow{alert.beginSheetModal(for:window){if $0 == .alertFirstButtonReturn{rename(field.stringValue)}}}
-        else if alert.runModal() == .alertFirstButtonReturn{rename(field.stringValue)}
+        alert.present(on:NSApp.mainWindow){if $0 == .alertFirstButtonReturn{rename(field.stringValue)}}
     }
     /// A button holds one key, and Return is Cancel's, so Escape (which NSAlert gives only a button titled Cancel that
     /// has no other key) is carried by this invisible, unannounced button in the alert, which clicks Cancel.
@@ -121,7 +124,7 @@ extension GameWindow {
     }
     /// Shows `alert` as a sheet on the window, or app-modal when the window is gone, and hands back the choice.
     func present(_ alert:NSAlert,then handler:@escaping (NSApplication.ModalResponse)->Void={_ in}){
-        if let window{alert.beginSheetModal(for:window,completionHandler:handler)}else{handler(alert.runModal())}
+        alert.present(on:window,then:handler)
     }
 }
 extension NSEvent {
@@ -133,4 +136,12 @@ extension NSEvent {
         guard let (character,flags)=keys[code],let scalar=UnicodeScalar(character) else{preconditionFailure("No keyboard characters for key code \(code)")}
         return NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:modifiers.union(flags),timestamp:ProcessInfo.processInfo.systemUptime,windowNumber:windowNumber,context:nil,characters:String(Character(scalar)),charactersIgnoringModifiers:String(Character(scalar)),isARepeat:false,keyCode:code)!
     }
+    /// A left click at `point` in `window`'s coordinates for the acceptance gates: down then up through the app, 80 ms apart.
+    @MainActor static func syntheticClick(at point:NSPoint,in window:NSWindow)async {
+        for type in [NSEvent.EventType.leftMouseDown,.leftMouseUp]{if let event=NSEvent.mouseEvent(with:type,location:point,modifierFlags:[],timestamp:ProcessInfo.processInfo.systemUptime,windowNumber:window.windowNumber,context:nil,eventNumber:0,clickCount:1,pressure:type == .leftMouseDown ? 1:0){NSApp.sendEvent(event)};try? await Task.sleep(for:.milliseconds(80))}
+    }
+}
+extension GameSession {
+    /// One setting as a binding: a change edits a copy of the settings, applies `also` to it, and saves it as one update.
+    func binding<T>(_ key:WritableKeyPath<AppSettings,T>,also:((inout AppSettings)->Void)?=nil)->Binding<T> {Binding(get:{self.state.settings[keyPath:key]},set:{var settings=self.state.settings;settings[keyPath:key]=$0;also?(&settings);self.updateSettings(settings)})}
 }

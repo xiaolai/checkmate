@@ -12,7 +12,7 @@ import CheckmateTestSupport
     var searches:[(budget:Int,resources:EngineResources?)]=[],wdl:[String:[Int]]=[:]
     func analyze(fen:String,skill:Int,budget:Int,multiPv:Int)async throws -> EngineAnalysis {try lines(fen:fen,budget:budget,resources:nil)}
     func analyzeHistory(startFEN:String,moves:[String],profile:OpponentProfile,budget:Int,multiPv:Int,searchMoves:[String],resources:EngineResources)async throws -> EngineAnalysis {
-        let position=try ChessRules(fen:startFEN);for move in moves{try position.move(uci:move)};return try lines(fen:position.fen,budget:budget,resources:resources)
+        let position=try ChessRules.reached(startFEN,moves);return try lines(fen:position.fen,budget:budget,resources:resources)
     }
     private func lines(fen:String,budget:Int,resources:EngineResources?)throws -> EngineAnalysis {
         searches.append((max(EngineSearchPolicy.minimumMs,budget),resources))
@@ -25,7 +25,7 @@ import CheckmateTestSupport
     private var folder:URL!
     override func setUpWithError() throws {folder=FileManager.default.temporaryDirectory.appendingPathComponent("review-grades-\(UUID().uuidString)")}
     override func tearDownWithError() throws {try? FileManager.default.removeItem(at:folder)}
-    private func settle(_ what:String,_ condition:()->Bool)async throws {for _ in 0..<2000 where !condition(){try await Task.sleep(for:.milliseconds(5))};XCTAssertTrue(condition(),what)}
+    private func settle(_ what:String,_ condition:()->Bool)async throws {try await poll(what,tries:2000,every:.milliseconds(5),condition)}
     private let game="1. e4 d5 2. exd5 Qxd5 3. Nc3 *"
 
     /// R-1: a move's grade is the review's own expectation-loss thresholds, with the standard glyphs.
@@ -116,7 +116,7 @@ import CheckmateTestSupport
     /// from storage as ready without a search; a position the learner chooses keeps the full quick budget, and so does the
     /// baseline of a deeper look the learner asks for.
     func testALongGameFollowsItsPlan()async throws {
-        let library=URL(fileURLWithPath:#filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("Sources/CheckmateCore/Resources/game-library/world-championship.pgn")
+        let library=Repository.url("Sources/CheckmateCore/Resources/game-library/world-championship.pgn")
         // Carlsen–Nepomniachtchi, game 6 of 2021, the longest game in the library; only it is parsed, not the whole file.
         let text=try String(contentsOf:library,encoding:.utf8),game=try XCTUnwrap(text.components(separatedBy:"\n\n[Event").first{$0.contains("[Date \"2021.12.03\"]")})
         let document=try XCTUnwrap(PGNImporter.parse(Data(("[Event"+game).utf8)).first),plan=ReviewPolicy.batchPlan(plies:document.mainline.count)

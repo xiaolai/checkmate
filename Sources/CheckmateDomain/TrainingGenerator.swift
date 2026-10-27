@@ -8,8 +8,7 @@ public enum TrainingGenerator {
     static func randomSquare(_ random:inout TrainingRandom,files:ClosedRange<Int>=0...7,ranks:ClosedRange<Int>=0...7)->String {TrainingGeometry.square(random.int(files),random.int(ranks))!}
     static func cluster(_ prefix:String,_ parts:[String])->String {
         // A stable FNV-1a fingerprint of the concrete board: same board, same cluster.
-        var hash:UInt64=0xcbf29ce484222325;for byte in parts.joined(separator:"|").utf8{hash=(hash ^ UInt64(byte)) &* 0x100000001b3}
-        return prefix+"-"+String(hash,radix:16)
+        prefix+"-"+String(fnv1a64(parts.joined(separator:"|").utf8),radix:16)
     }
     static func seedText(_ seed:UInt64)->String {String(seed,radix:16)}
     // MARK: Reach the Target

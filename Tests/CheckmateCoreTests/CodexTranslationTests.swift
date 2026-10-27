@@ -10,6 +10,7 @@ import CheckmateCore
 @testable import CheckmateMacPlatform
 import CodexAuth
 import RealtimeConnection
+import CheckmateTestSupport
 
 
 /// A fake sign-in as Codex hands one out: a JWT naming a ChatGPT account, expiring in 2100.
@@ -306,7 +307,7 @@ final class CodexTranslationTests: XCTestCase {
     }
     /// Translation is lesson work: its log lines go to the course category, never to voice.
     func testTranslationLogsUnderTheCourseCategory() throws {
-        let file = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("Sources/CheckmateContent/CodexTranslation.swift")
+        let file = Repository.url("Sources/CheckmateContent/CodexTranslation.swift")
         let source = try String(contentsOf: file, encoding: .utf8)
         XCTAssertFalse(source.contains("NativeLog.voice"), "translation logs under voice")
         XCTAssertTrue(source.contains("NativeLog.course"), "translation logs nothing under course")

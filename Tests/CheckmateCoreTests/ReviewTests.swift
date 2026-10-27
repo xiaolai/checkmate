@@ -87,7 +87,7 @@ final class FENCounterTests:XCTestCase {
 
 @MainActor final class FENCounterMCPTests:XCTestCase {
     func testMCPPasteOfMalformedFENIsRejectedWithoutOpeningOrSaving()async throws {
-        let root=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);defer{try? FileManager.default.removeItem(at:root)}
+        let root=try scratchDirectory()
         let store=ReviewStore(directory:root),review=ReviewController(),session=try GameSession(engine:nil),tools=ReviewTools(review:review,session:session,store:store,analyzer:ReviewAnalyzer(engine:NativeEngine()))
         do{_ = try await tools.call("open_review",args:["source":"paste","text":"8/8/8/4k3/8/8/8/4K3 w - - 0 1."]);XCTFail("A malformed FEN must be rejected")}catch{}
         XCTAssertFalse(review.active);XCTAssertTrue(try store.list().isEmpty)

@@ -131,7 +131,7 @@ import CodexAuth
         let session=try GameSession(engine:nil);session.state.settings.voiceMicrophone=false;session.state.settings.voiceConsent=true
         return (session,try VoiceCoach(session:session))
     }
-    private func waitFor(_ what:String,_ condition:()->Bool)async throws {for _ in 0..<200 {if condition(){return};try await Task.sleep(for:.milliseconds(10))};XCTFail(what)}
+    private func waitFor(_ what:String,_ condition:()->Bool)async throws {try await poll(what,tries:200,every:.milliseconds(10),condition)}
     func testAFailedConnectionKeepsItsFailureAndAction()async throws {
         let (_,voice)=try coach();defer{voice.disconnect()}
         voice.automationAuthorizationFailure=CheckmateError.unavailable("Codex could not complete account/read.");voice.connect()
@@ -168,7 +168,7 @@ import CodexAuth
     }
     /// The check reads only the file system: where Codex is installed and whether its sign-in file exists.
     func testTheCapabilityCheckReadsTheFileSystem()throws {
-        let home=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);defer{try? FileManager.default.removeItem(at:home)}
+        let home=try scratchDirectory()
         try FileManager.default.createDirectory(at:home,withIntermediateDirectories:true)
         let empty=VoiceCapability.current(home:home,environment:["PATH":"/nonexistent"])
         // Codex may be installed system-wide on the test host, so the app's presence is compared, not assumed.

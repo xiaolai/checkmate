@@ -12,17 +12,11 @@ import CheckmateCore
 
 /// M9 resume gate: a practice reply suspended by a failed review entry resumes only on an explicit Return to game
 /// (plan rule 4), whatever other reply entry point fires meanwhile.
-@MainActor private final class PendingEngine:TestEngineService {
-    var continuations:[CheckedContinuation<EngineAnalysis,Error>]=[]
-    var skills:[Int]=[]
-    func analyze(fen:String,skill:Int,budget:Int,multiPv:Int)async throws -> EngineAnalysis {skills.append(skill);return try await withCheckedThrowingContinuation{continuations.append($0)}}
-    func finish(at index:Int,_ move:String){continuations[index].resume(returning:EngineAnalysis(bestMove:move))}
-}
 @MainActor final class OpusResumeGateTests:XCTestCase {
-    private func settle()async{for _ in 0..<30{await Task.yield()}}
+    private func settle()async{await yields(30)}
     /// Practice after 1.e4 with the opponent's reply in flight, then a saved review whose restore fails.
-    private func failedEntry()async throws -> (GameSession,PendingEngine,ReviewController) {
-        let engine=PendingEngine(),session=try GameSession(engine:engine),review=ReviewController();session.reviewController=review
+    private func failedEntry()async throws -> (GameSession,ContinuationEngine,ReviewController) {
+        let engine=ContinuationEngine(),session=try GameSession(engine:engine),review=ReviewController();session.reviewController=review
         try session.playWhite(from:"e2",to:"e4");await settle();XCTAssertEqual(engine.skills,[0]);XCTAssertEqual(session.busyReason,.opponent)
         let document=try PGNImporter.parse(Data("[Event \"Saved\"]\n1. d4 d5 *".utf8))[0]
         review.open(document,practice:session);XCTAssertFalse(session.busy)
@@ -54,7 +48,7 @@ import CheckmateCore
         XCTAssertFalse(session.explicitResumeRequired);XCTAssertEqual(engine.skills,[0,0],"Return to game from a later review resumes the reply")
     }
     func testNormalReviewReturnAndCompanionPauseAreUnchanged()async throws {
-        let engine=PendingEngine(),session=try GameSession(engine:engine),review=ReviewController();session.reviewController=review
+        let engine=ContinuationEngine(),session=try GameSession(engine:engine),review=ReviewController();session.reviewController=review
         try session.playWhite(from:"e2",to:"e4");await settle()
         review.open(try PGNImporter.parse(Data("1. c4 *".utf8))[0],practice:session);review.close(practice:session);await settle()
         XCTAssertEqual(engine.skills,[0,0]);XCTAssertFalse(session.explicitResumeRequired)
@@ -65,7 +59,7 @@ import CheckmateCore
         session.continueWithStockfish();await settle();XCTAssertEqual(engine.skills,[0,0,0],"Companion pause still resumes with Continue with Stockfish")
     }
     func testHumanToMoveFailureHoldsNothing()async throws {
-        let engine=PendingEngine(),session=try GameSession(engine:engine),review=ReviewController();session.reviewController=review
+        let engine=ContinuationEngine(),session=try GameSession(engine:engine),review=ReviewController();session.reviewController=review
         let document=try PGNImporter.parse(Data("1. d4 *".utf8))[0];review.open(document,practice:session)
         XCTAssertFalse(review.abandonFailedEntry(practice:session));XCTAssertFalse(session.explicitResumeRequired)
     }

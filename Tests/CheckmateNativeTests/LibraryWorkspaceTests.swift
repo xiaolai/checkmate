@@ -11,10 +11,8 @@ import CheckmateCore
 /// reviews are a library scope with a short sidebar list and Rename (R-11), the inspector previews the selected game
 /// (R-26), and the sidebar reaches the mini-games (L-33).
 @MainActor final class LibraryWorkspaceTests:XCTestCase {
-    private var directory:URL!
-    override func setUp(){directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);setenv("CHECKMATE_DATA_DIR",directory.path,1)}
-    override func tearDown(){unsetenv("CHECKMATE_DATA_DIR");try? FileManager.default.removeItem(at:directory)}
-    private func settle(_ what:String,_ condition:()->Bool)async throws {for _ in 0..<500{if condition(){return};try await Task.sleep(for:.milliseconds(10))};XCTFail("timed out waiting for \(what)")}
+    override func setUpWithError()throws{try isolateDataDirectory()}
+    private func settle(_ what:String,_ condition:()->Bool)async throws {try await poll(what,tries:500,every:.milliseconds(10),condition)}
     private func save(_ model:NativeModel,_ text:String)throws -> UUID {let document=try PGNImporter.parse(Data(text.utf8))[0];model.openReview(document);XCTAssertTrue(model.returnToGame());return document.id}
 
     /// R-9: no chooser of up to a thousand games. The file joins My Games as a collection named after its event, its

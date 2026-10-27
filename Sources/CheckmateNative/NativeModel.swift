@@ -83,7 +83,7 @@ import RealtimeConnection
     func resumeAfterFailedRestore(){storageError=nil;practice()}
     init() throws {
         if !NativePolicy.silent {Task.detached{CodexSubscriptionClient.cleanAbandonedPrivateHomes()}}
-        store=StateStore(directory:StateStore.defaultDirectory());let state=try store.load();store.preserveFirstLaunchBackup()
+        store=StateStore(directory:ApplicationDataPaths.defaultDirectory());let state=try store.load();store.preserveFirstLaunchBackup()
         // One fairness check for every component that can reach the engine or the voice coach (LAN-play plan D8).
         let engine=NativeEngine(),fairness=FairnessPolicy();self.fairness=fairness;reviewAnalyzer=ReviewAnalyzer(engine:engine,cacheDirectory:store.directory.appendingPathComponent("ReviewAnalysis"),fairness:fairness);reviewStore=ReviewStore(directory:store.directory.appendingPathComponent("Reviews"))
         reviewSaves=ReviewSaveCoordinator(store:reviewStore)
@@ -132,7 +132,7 @@ import RealtimeConnection
         reconnectVoice={[weak self] in self?.voice.connect(greet:false)}
         voicePreview.usageLedger=usage;voicePreview.consented={[weak self] in self?.session.state.settings.voiceConsent==true};voicePreview.onPlayingChanged={[weak self] playing in self?.voice.externalPlayback=playing}
         // Whatever else plays waits for its turn: a preview blocks connecting, and lesson playback ends a preview.
-        lessonLanguages.objectWillChange.sink{[weak self] in DispatchQueue.main.async{self?.resumeVoiceIfIntended()}}.store(in:&observations)
+        lessonLanguages.onChangeDeferred{[weak self] in self?.resumeVoiceIfIntended()}.store(in:&observations)
         learning.$playing.filter{$0}.sink{[weak self] _ in self?.voicePreview.cancel()}.store(in:&observations)
         audio.onNarrationStart={[weak self] in self?.voicePreview.cancel()}
         voicePreview.$playing.removeDuplicates().filter{!$0}.dropFirst().sink{[weak self] _ in DispatchQueue.main.async{self?.resumeVoiceIfIntended()}}.store(in:&observations)
@@ -215,12 +215,10 @@ import RealtimeConnection
         guard let game=network.record?.gameID,networkVoiceGame==game else{return []}
         return voice.history
     }
-    /// The network page's Connect Voice Coach.
-    func connectNetworkVoice(){connectVoiceWithConsent{[weak self] in self?.voice.connect()}}
+    /// Settings ▸ Voice Coach's Connect, a review's Connect Voice and the network page's Connect Voice Coach.
+    func connectVoice(){connectVoiceWithConsent{[weak self] in self?.voice.connect()}}
     /// The control bar's Connect: the training game's coach in Training, otherwise Practice's (or a review's).
     func connectPracticeVoice(){connectVoiceWithConsent{[weak self] in guard let self else{return};if session.mode == .training{voice.connectTraining()}else{voice.connect()}}}
-    /// Settings ▸ Voice Coach's Connect, and a review's Connect Voice.
-    func connectVoiceFromSettings(){connectVoiceWithConsent{[weak self] in self?.voice.connect()}}
     /// A finished mini-game review's Read Aloud (D5), with the sign-in check it may need, Check availability and Preview
     /// voice reach OpenAI too, so they ask the same question first.
     func readMiniReviewAloud(){connectVoiceWithConsent{[weak self] in self?.voice.readMiniReviewAloudAfterSignIn()}}
@@ -368,8 +366,8 @@ import RealtimeConnection
             let alert=NSAlert.destructive(String(localized:"Your latest progress could not be saved.",bundle:.checkmate),Sentences.join(userFacingMessage(error,fallback:String(localized:"The data folder may be full or read-only.",bundle:.checkmate)),String(localized:"Export it to keep it, or quit without it.",bundle:.checkmate)),action:String(localized:"Quit Anyway",bundle:.checkmate),alternative:String(localized:"Export Progress…",bundle:.checkmate))
             switch alert.runModal(){
             case .alertThirdButtonReturn:
-                let panel=NSSavePanel();panel.nameFieldStringValue="checkmate-state.json";guard panel.runModal() == .OK,let url=panel.url else{return false}
-                do{try store.exportState(session.state,to:url);return true}catch{storageError=userFacingMessage(error,fallback:String(localized:"The export could not be written. Choose another location.",bundle:.checkmate));return false}
+                let panel=Self.exportStatePanel();guard panel.runModal() == .OK,let url=panel.url else{return false}
+                do{try store.exportState(session.state,to:url);return true}catch{storageError=userFacingMessage(error,fallback:Self.exportFailure);return false}
             case .alertFirstButtonReturn:return true
             default:return false
             }
@@ -421,7 +419,7 @@ import RealtimeConnection
         // Importing replaces the game under any open review: leave the review first (asking about a draft).
         if review.active || reviewWorkspace{guard returnToGame() else{return}}
         // A review still being read could open while the panel is up: stop it now, and leave any review opened meanwhile before installing.
-        reviewOpenGeneration+=1;cancelReviewImport()
+        supersedeReviewOpen()
         let panel=NSOpenPanel();panel.allowedContentTypes=[.json];panel.allowsMultipleSelection=false
         panel.begin {response in
             guard response == .OK,let url=panel.url else{return}
@@ -558,7 +556,7 @@ import RealtimeConnection
         switch next {
         // The imported state is written here too: a write that fails leaves playback, connections and the activity alone.
         case .importProgress(_,let backup):if let state=staged.importedState{do{backup(try store.preserveBeforeImport(session.state));try store.save(state)}catch{draftDiscardApproved=nil;throw error}}
-        case .practiceFork:do{_ = try store.preserveBeforeImport(session.state)}catch{practiceForkRequested=false;draftDiscardApproved=nil;storageError=userFacingMessage(error,fallback:String(localized:"Practice could not start from this position. The review is unchanged.",bundle:.checkmate));return false}
+        case .practiceFork:do{_ = try store.preserveBeforeImport(session.state)}catch{practiceForkRequested=false;draftDiscardApproved=nil;storageError=userFacingMessage(error,fallback:Self.practiceForkFailure);return false}
         default:break
         }
         // A staged training exercise is entered only over the record it was staged from: checked before any exit effect.
@@ -588,7 +586,7 @@ import RealtimeConnection
     /// The message for a navigation whose staging failed, shown with nothing changed; nil when the failure is thrown.
     private static func stagingFailure(_ next:Navigation)->String? {
         switch next {
-        case .practiceFork:return String(localized:"Practice could not start from this position. The review is unchanged.",bundle:.checkmate)
+        case .practiceFork:return Self.practiceForkFailure
         case .trainingLibrary,.trainingExercise,.trainingScenario,.trainingResume,.trainingRetry,.trainingLegacy:return String(localized:"This exercise could not be opened. Nothing was changed.",bundle:.checkmate)
         case .trainingLesson:return String(localized:"This lesson could not be opened. Nothing was changed.",bundle:.checkmate)
         case .practice,.returnToGame,.lesson,.puzzles,.reviewWorkspace,.review,.importProgress,.network:return nil
@@ -596,7 +594,7 @@ import RealtimeConnection
     }
     /// Step 3 of `transition`: everything the current activity holds stops, in a fixed order.
     private func leave(for next:Navigation,reviewing:Bool,sameReview:Bool){
-        reviewOpenGeneration+=1;cancelReviewImport();practiceForkRequested=false;practiceForkIdentity=nil
+        supersedeReviewOpen();practiceForkRequested=false;practiceForkIdentity=nil
         // Every way out of a review, and every review shown, starts with no whole-game analysis holding the engine (PL-1).
         let entersReview:Bool={if case .review=next{return true};return false}()
         if reviewing || entersReview{reviewAnalyzer.reset()}
@@ -620,7 +618,7 @@ import RealtimeConnection
     }
     private func cancelMoveSounds(){soundTasks.values.forEach{$0.cancel()};soundTasks=[:]}
     func openSavedReview(_ id:UUID){
-        reviewOpenGeneration+=1;cancelReviewImport();let generation=reviewOpenGeneration
+        supersedeReviewOpen();let generation=reviewOpenGeneration
         guard !shuttingDown,review.document?.id != id,resolveDraftBeforeLeaving() else{return}
         // The draft question is modal: another navigation made meanwhile wins, and this load never starts.
         guard reviewOpenGeneration==generation else{draftDiscardApproved=nil;return}
@@ -636,8 +634,7 @@ import RealtimeConnection
     func requestDeleteReview(_ id:UUID){
         guard deletingReviewID==nil,let record=reviews.first(where:{$0.id==id}) else{return}
         let alert=NSAlert.destructive(String(localized:"Delete “\(record.title)”?",bundle:.checkmate),String(localized:"This removes the saved review and its imagined lines; Edit ▸ Undo puts them back. Your current game and the original imported file are kept.",bundle:.checkmate),action:String(localized:"Delete",bundle:.checkmate),identifier:"review-delete")
-        if let window=NSApp.mainWindow{alert.beginSheetModal(for:window){[weak self] response in if response == .alertFirstButtonReturn{self?.deleteReview(id)}}}
-        else if alert.runModal() == .alertFirstButtonReturn{deleteReview(id)}
+        alert.present(on:NSApp.mainWindow){[weak self] response in if response == .alertFirstButtonReturn{self?.deleteReview(id)}}
     }
     /// Restart from the drawer, the bar or the menu. Past the first exchange it asks first, with Cancel the default; a
     /// confirmation answered after the attempt was replaced (left, restarted, reloaded) does nothing.
@@ -646,7 +643,7 @@ import RealtimeConnection
         guard attempt.restartNeedsConfirmation,let shown=attempt.record?.id else{attempt.restart();return}
         let alert=NSAlert.destructive(String(localized:"Start this exercise again?",bundle:.checkmate),String(localized:"The moves of this attempt are cleared. Anything you have already achieved in it stays achieved.",bundle:.checkmate),action:String(localized:"Start Again",bundle:.checkmate))
         let answered:(NSApplication.ModalResponse)->Void={[weak self] response in guard response == .alertFirstButtonReturn,let self,self.learning.attempt.record?.id==shown else{return};self.learning.attempt.restart()}
-        if let window=NSApp.mainWindow{alert.beginSheetModal(for:window,completionHandler:answered)}else{answered(alert.runModal())}
+        alert.present(on:NSApp.mainWindow,then:answered)
     }
     /// What Edit ▸ Undo does now (R-12): the one place its title, enabling and action are decided.
     enum UndoAction:Equatable {
@@ -689,7 +686,7 @@ import RealtimeConnection
     func deleteReview(_ id:UUID){
         guard deletingReviewID==nil else{return}
         // A saved review still loading is abandoned with its "Loading review…" overlay, never left showing it.
-        deletingReviewID=id;reviewLibraryGeneration+=1;reviewOpenGeneration+=1;cancelReviewImport()
+        deletingReviewID=id;reviewLibraryGeneration+=1;supersedeReviewOpen()
         reviewSaveGeneration+=1;reviewSaveTask?.cancel()
         let writer=reviewSaves
         Task {
@@ -753,7 +750,7 @@ import RealtimeConnection
             guard training?.canReview(exercise)==true else{return}
             reviewTraining();return
         }
-        reviewOpenGeneration+=1;cancelReviewImport();let provenance:ReviewProvenance=previous ? .previousGame:.currentGame,fallback=String(localized:"This game could not be opened for review. Your practice is unchanged.",bundle:.checkmate)
+        supersedeReviewOpen();let provenance:ReviewProvenance=previous ? .previousGame:.currentGame,fallback=String(localized:"This game could not be opened for review. Your practice is unchanged.",bundle:.checkmate)
         let data:Data;do{data=previous ? try ReviewRecordSource.data(previousGame:session.state.practice.previousGame,result:session.state.practice.previousEnding?.result):try ReviewRecordSource.data(session.rules,result:session.state.practice.ending?.result)}catch{storageError=userFacingMessage(error,fallback:fallback);return}
         let side=previous ? session.state.practice.previousSide:session.humanSide
         parseForReview(data,provenance:provenance,fallback:fallback){documents,_ in self.reviewSides[documents[0].id]=side;self.openReview(documents[0],draft:true)}
@@ -761,7 +758,7 @@ import RealtimeConnection
     /// The finished training game shown, as a draft review (mini-games plan D6): read from the attempt's own start and
     /// actions, never the practice game. The review covers the training entry, so Return to game leads back to it.
     func reviewTraining(){
-        reviewOpenGeneration+=1;cancelReviewImport();let fallback=String(localized:"This game could not be opened for review. Your training is unchanged.",bundle:.checkmate)
+        supersedeReviewOpen();let fallback=String(localized:"This game could not be opened for review. Your training is unchanged.",bundle:.checkmate)
         guard let training else{return}
         let data:Data;do{data=try training.reviewRecord()}catch{storageError=userFacingMessage(error,fallback:fallback);return}
         let side=shownTrainingExercise?.scenario.learner
@@ -797,7 +794,7 @@ import RealtimeConnection
     /// other activity was chosen. A record with no readable game fails with `fallback` or its own reason. With `several`,
     /// a record of several readable games is not parsed for review but handed to `several` instead.
     private func parseForReview(_ data:Data,provenance:ReviewProvenance = .imported,delay:Int=0,fallback:String,several:(()->Void)?=nil,present:@escaping (_ documents:[GameDocument],_ skipped:[ReviewImportError])throws->Void){
-        reviewOpenGeneration+=1;cancelReviewImport();let generation=reviewOpenGeneration,token=ReviewImportCancellation();reviewImportCancellation=token;importingReview=true
+        supersedeReviewOpen();let generation=reviewOpenGeneration,token=ReviewImportCancellation();reviewImportCancellation=token;importingReview=true
         let routes=several != nil
         reviewImportTask=Task{do{
             if delay>0{try await Task.sleep(for:.milliseconds(delay))}
@@ -856,8 +853,13 @@ import RealtimeConnection
     func confirmPracticeFork(side:String,preset:String){navigate(.practiceFork(side:side,preset:preset))}
     static func exportName(_ title:String,document:GameDocument,ideas:Bool)->String {PGNExporter.fileName(title,pgn:document.historyAvailable || ideas)}
     func showBackups(){NSWorkspace.shared.activateFileViewerSelecting([store.directory])}
-    func exportState(){let panel=NSSavePanel();panel.nameFieldStringValue="checkmate-state.json";panel.begin {response in guard response == .OK,let url=panel.url else{return};do{try self.store.exportState(self.session.state,to:url)}catch{self.storageError=userFacingMessage(error,fallback:String(localized:"The export could not be written. Choose another location.",bundle:.checkmate))}}}
-    func shutdown(){network.shutdown();lessonLanguages.shutdown();connectionStartup?.cancel();voicePreview.cancel();voiceResumeIntent=false;reviewTools.reset();reviewOpenGeneration+=1;cancelReviewImport();saveReview(immediate:true);shuttingDown=true;reviewSaveTask?.cancel();review.cancel();saveTask?.cancel();cancelMoveSounds();session.prepareShutdown();voice.disconnect();usage.flushForShutdown();companion.disable();learning.shutdown();audio.stopAll();session.cancelWork();try? store.save(session.state)}
+    /// The state file's save panel and why writing it failed, shared by Export and by Quit's Export Progress….
+    private static func exportStatePanel()->NSSavePanel {let panel=NSSavePanel();panel.nameFieldStringValue="checkmate-state.json";return panel}
+    private static var exportFailure:String {String(localized:"The export could not be written. Choose another location.",bundle:.checkmate)}
+    /// Why a practice fork did not start, before anything changed.
+    private static var practiceForkFailure:String {String(localized:"Practice could not start from this position. The review is unchanged.",bundle:.checkmate)}
+    func exportState(){let panel=Self.exportStatePanel();panel.begin {response in guard response == .OK,let url=panel.url else{return};do{try self.store.exportState(self.session.state,to:url)}catch{self.storageError=userFacingMessage(error,fallback:Self.exportFailure)}}}
+    func shutdown(){network.shutdown();lessonLanguages.shutdown();connectionStartup?.cancel();voicePreview.cancel();voiceResumeIntent=false;reviewTools.reset();supersedeReviewOpen();saveReview(immediate:true);shuttingDown=true;reviewSaveTask?.cancel();review.cancel();saveTask?.cancel();cancelMoveSounds();session.prepareShutdown();voice.disconnect();usage.flushForShutdown();companion.disable();learning.shutdown();audio.stopAll();session.cancelWork();try? store.save(session.state)}
 }
 /// Keeps the Save panel's suggested extension consistent with the chosen export contents.
 @MainActor final class ExportNaming:NSObject {

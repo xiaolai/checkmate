@@ -18,8 +18,8 @@ public struct ReviewIndexEntry:Codable,Identifiable,Equatable {
     /// bounded like a title; nothing left means no name.
     public static func cleanName(_ text:String?)->String? {
         guard let text else{return nil}
-        let spaced=String(String.UnicodeScalarView(text.unicodeScalars.map{CharacterSet.controlCharacters.contains($0) ? " ":$0})).trimmingCharacters(in:.whitespacesAndNewlines)
-        return spaced.isEmpty ? nil:String(String.UnicodeScalarView(spaced.unicodeScalars.prefix(ReviewPolicy.maximumTitleScalars)))
+        let spaced=PGNImporter.spacingControls(text).trimmingCharacters(in:.whitespacesAndNewlines)
+        return spaced.isEmpty ? nil:PGNImporter.bounded(spaced,scalars:ReviewPolicy.maximumTitleScalars)
     }
 }
 /// Call from an I/O task. Cached validation/index avoid reparsing the library on cursor saves.
@@ -145,7 +145,7 @@ public final class ReviewStore {
     private func futureSchema(_ url:URL)->Bool {
         let values=try? url.resourceValues(forKeys:[.fileSizeKey,.contentModificationDateKey]);if (values?.fileSize ?? 0)>ReviewPolicy.maximumSavedBytes{return true};let identity="\(values?.fileSize ?? -1):\(values?.contentModificationDate?.timeIntervalSince1970 ?? 0)"
         if let cached=schemaCache[url.path],cached.stamp==identity{return cached.future}
-        guard let size=(try? url.resourceValues(forKeys:[.fileSizeKey]))?.fileSize,size<=ReviewPolicy.maximumSavedBytes,let data=try? Data(contentsOf:url),let object=try? JSONSerialization.jsonObject(with:data) as? [String:Any],let version=object["schemaVersion"] as? Int else{return false}
+        guard let size=(try? url.resourceValues(forKeys:[.fileSizeKey]))?.fileSize,size<=ReviewPolicy.maximumSavedBytes,let data=try? Data(contentsOf:url),let object=try? JSONSerialization.jsonObject(with:data) as? [String:Any],let version=jsonInteger(object["schemaVersion"]) else{return false}
         schemaCache[url.path]=(identity,version>1);return version>1
     }
     private func cursorURL(_ id:UUID)->URL {directory.appendingPathComponent(id.uuidString+".cursor.json")}
@@ -156,7 +156,7 @@ public final class ReviewStore {
     /// Internal fault-injection seam; production writes retain Foundation atomic replacement.
     init(directory:URL,atomicWriter:@escaping(Data,URL)throws->Void){self.directory=directory;self.atomicWriter=atomicWriter}
     public func documentURL(_ id:UUID)->URL {directory.appendingPathComponent(id.uuidString+".json")}
-    private func prepare()throws {try FileManager.default.createDirectory(at:directory,withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])}
+    private func prepare()throws {try createPrivateDirectory(directory)}
     private func validate(_ document:GameDocument)throws {if validated[document.id] != document{try document.validate();validated[document.id]=document}}
     /// The stored document, or the current importer's reading of its verified original when the stored tree differs
     /// (an importer or chess.js update), so a saved review is never refused only because the reader changed.
@@ -216,12 +216,11 @@ public final class ReviewStore {
         let data=try Data(contentsOf:url)
         // Read the envelope before decoding its version-specific payload: a newer
         // payload need not have the fields understood by this reader.
-        if let envelope=try JSONSerialization.jsonObject(with:data) as? [String:Any],let version=envelope["schemaVersion"] as? Int,version>1 {throw CheckmateError.unavailable(String(localized:"This review requires a newer Checkmate version; its file is preserved.",bundle:.checkmate))}
+        if let envelope=try JSONSerialization.jsonObject(with:data) as? [String:Any],let version=jsonInteger(envelope["schemaVersion"]),version>1 {throw CheckmateError.unavailable(String(localized:"This review requires a newer Checkmate version; its file is preserved.",bundle:.checkmate))}
         var saved=try JSONDecoder().decode(SavedReview.self,from:data)
         // A side this reader cannot hold is ignored, as if the record had none.
         if let side=saved.learnerSide,!["w","b"].contains(side){saved.learnerSide=nil}
         saved.name=ReviewIndexEntry.cleanName(saved.name)
-        guard saved.schemaVersion<=1 else{throw CheckmateError.unavailable(String(localized:"This review requires a newer Checkmate version; its file is preserved.",bundle:.checkmate))}
         guard saved.schemaVersion==1,saved.document.id==id,saved.document.nodes.indices.contains(saved.cursor) else{throw CheckmateError.invalid(String(localized:"This saved review could not be read.",bundle:.checkmate))}
         // A re-read tree must still hold the cursor and every idea at the same positions, found by their recorded moves
         // (node numbers can differ between readers); otherwise the file stays preserved, untouched.
@@ -308,7 +307,7 @@ public final class ReviewStore {
             // The Trash is made inside the tracked change: making it changes the library folder's date, which would
             // otherwise read as a change by something else and cost a full measurement.
             try tracking([documentURL(id),cursorURL(id),indexURL]){
-                if !sources.isEmpty{if files.fileExists(atPath:folder.path){try files.removeItem(at:folder)};try files.createDirectory(at:folder,withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])}
+                if !sources.isEmpty{if files.fileExists(atPath:folder.path){try files.removeItem(at:folder)};try createPrivateDirectory(folder)}
                 for source in sources {
                     let target=folder.appendingPathComponent(source.lastPathComponent)
                     try files.moveItem(at:source,to:target);moved.append((source,target))

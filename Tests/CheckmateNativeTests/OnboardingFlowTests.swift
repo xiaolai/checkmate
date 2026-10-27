@@ -9,8 +9,7 @@ import CheckmateCore
 /// The first-run welcome's three steps (L-20): voice only through the consent question, placement, then the first lesson.
 @MainActor final class OnboardingFlowTests:XCTestCase {
     private var directory:URL!
-    override func setUp(){directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);setenv("CHECKMATE_DATA_DIR",directory.path,1)}
-    override func tearDown(){unsetenv("CHECKMATE_DATA_DIR");try? FileManager.default.removeItem(at:directory)}
+    override func setUpWithError()throws{directory=try isolateDataDirectory()}
     func testTheStepsMoveBothWaysAndStartThePlacedLesson()throws {
         let model=try NativeModel();defer{model.shutdown()}
         var closed=0;let flow=OnboardingFlow(model:model){closed+=1}

@@ -10,8 +10,7 @@ import CheckmateCore
 /// off-theme ones), include cases where doing nothing special is right, and interleave topics.
 @MainActor final class TrainingMixedSessionTests:XCTestCase {
     // Increment B is gated behind its preview flags; these tests exercise it as development does.
-    override func setUp(){setenv("CHECKMATE_TRAINING_ENABLED","1",1);setenv("CHECKMATE_TRAINING_B","1",1)}
-    override func tearDown(){unsetenv("CHECKMATE_TRAINING_ENABLED");unsetenv("CHECKMATE_TRAINING_B")}
+    override func setUp(){setEnvironment(["CHECKMATE_TRAINING_ENABLED":"1","CHECKMATE_TRAINING_B":"1"])}
     private func mixed()throws -> (TrainingScenarioProvider,[TrainingScenario]) {let provider=try TrainingScenarioProvider.bundled();return (provider,provider.scenarios(for:"mixed-practice"))}
     func testTheCaseSetMeetsTheMatrix()throws {
         let (provider,cases)=try mixed()
@@ -53,14 +52,10 @@ import CheckmateCore
         XCTAssertEqual(TrainingMixedController.order(pool,seen:["c"],previous:.captureExchange).map(\.id),["d","a","b","c"],"fresh before seen")
         XCTAssertEqual(TrainingMixedController.order(pool,seen:[],previous:nil).map(\.id),["a","b","c","d"])
     }
-    private func controller(_ scenarios:[TrainingScenario])throws -> (GameSession,LearningPlayer,TrainingController) {
-        let session=try GameSession(engine:nil),player=try LearningPlayer(session:session)
-        return (session,player,TrainingController(session:session,learning:player,provider:try TrainingScenarioProvider(catalog:try TrainingCatalog.bundled(),scenarios:scenarios)))
-    }
     func testADiagnosisAsksForTheConcernThenTheMove()throws {
         let (_,cases)=try mixed()
         let item=try XCTUnwrap(cases.first{$0.check == .diagnosis && $0.expected?.choices?.contains(TrainingConcern.mateThreat.label)==true})
-        let (_,player,training)=try controller([item]);defer{player.shutdown()}
+        let (_,player,training)=try TrainingEndgameTests.fixture([item]);defer{player.shutdown()}
         training.begin(try training.prepare(entry:"mixed-practice"))
         XCTAssertEqual(training.exercise?.task,.choose);XCTAssertEqual(training.exercise?.feedback,"","no feedback before an answer")
         training.choose(TrainingConcern.mateThreat.label)
@@ -77,7 +72,7 @@ import CheckmateCore
         let legality=try TrainingLegality(fen:item.fen!,prelude:item.prelude ?? [])
         let capture=try XCTUnwrap(legality.outcomes().first{$0.captured != nil})
         let quiet=try XCTUnwrap(item.nodes?.first?.accepted.first)
-        let (_,player,training)=try controller([item]);defer{player.shutdown()}
+        let (_,player,training)=try TrainingEndgameTests.fixture([item]);defer{player.shutdown()}
         training.begin(try training.prepare(entry:"mixed-practice"))
         training.attempt(from:capture.from,to:capture.to,promotion:capture.promotion)
         XCTAssertEqual(training.exercise?.status,.incorrect,"the tempting capture loses material")

@@ -34,7 +34,7 @@ public enum CoachingStatus:String,Codable,Sendable {case idle,thinking,ready,err
 public enum PreviewStatus:String,Codable,Sendable {case choosing,analyzing,ready,error}
 public struct Preview:Codable {public var id:String,basePosition:Int,status:PreviewStatus,candidate:MoveFacts?,evaluation:CandidateEvaluation?,displayFen:String,ply:Int,line:String,error:String?}
 public struct Coaching:Codable {public var status:CoachingStatus = .idle,summary="",recommendation:MoveFacts?,analysis:EngineAnalysis?}
-public struct LessonProjection:Codable {
+public struct LessonProjection:Codable,Equatable {
     public var mode:String,pieces:Position?,title:String,lessonId:String,step:Int,prompt:String?,choices:[String]?,playing:Bool,narrationActive:Bool,moving:Bool,turn:String?,winner:String?,rules:[String]?
     public var drawReason:String?=nil
     /// The lesson's exercise on its invitation step: the board is the learner's game against the computer.
@@ -53,7 +53,7 @@ public struct LessonProjection:Codable {
     /// Where the learner is (B8.2): the one stored value; `mode` and `reviewSuspended` are read from it.
     @Published public private(set) var activity:Activity = .at(.practice)
     public var mode:NativeMode {activity.place.mode}
-    @Published public private(set) var busy=false
+    public var busy:Bool {busyReason != nil}
 @Published public private(set) var busyReason:BusyReason?
 @Published public private(set) var message=String(localized:"You play White. Choose a piece to explore.",bundle:.checkmate)
 @Published public private(set) var error:String?
@@ -176,7 +176,7 @@ public struct LessonProjection:Codable {
     public func signalEvent(){cursor+=1;emit(semantic:false)}
     /// Advances whenever pending work is cancelled (a settings, position or presentation change): a result computed across a change is stale.
     public var workGeneration:Int {generation}
-    public func cancelWork(){if coaching.status == .thinking{coaching.status = .idle;signalEvent()};generation+=1;work?.cancel();work=nil;busy=false;busyReason=nil}
+    public func cancelWork(){if coaching.status == .thinking{coaching.status = .idle;signalEvent()};generation+=1;work?.cancel();work=nil;if busyReason != nil{busyReason=nil}}
     private func changedPosition(){cancelWork();explicitResumeRequired=false;position+=1;hintStep=0;liveSelection=nil;clearPresentation();clearAnnotations();selected=nil;inspection=nil;error=nil;coaching=Coaching();coaching.summary=turnSummary();emit(save:true)}
     /// `legalNow` is true only when a click on a dot plays: the learner's own piece, on the learner's turn, on the
     /// live board. The opponent's moves, moves while Stockfish thinks and imagined boards show as possibilities.
@@ -187,12 +187,15 @@ public struct LessonProjection:Codable {
         let note = !live ? String(localized:"This board shows an imagined line. Dots show where this piece could go there.",bundle:.checkmate):i.color != humanSide ? String(localized:"Dots show the opponent’s possible moves. You play \(PieceName.side(humanSide)).",bundle:.checkmate):i.note
         return PieceInspection(square:i.square,piece:i.piece,color:i.color,attacks:i.attacks,destinations:i.destinations,legalNow:false,note:note)
     }
+    /// One runtime for inspecting a shown presentation's position, loaded afresh each time: not a new VM per click.
+    private var scratchRules:ChessRules?
+    private func scratch(_ fen:String?)throws -> ChessRules {let board=try scratchRules ?? ChessRules();scratchRules=board;if let fen{try board.load(fen)}else{try board.reset()};return board}
     public func select(_ sq:String) throws {
         guard mode == .practice else{return};guard ChessRules.validSquare(sq) else{return}
         // Clicking the selected square again clears the selection, as on the network and training boards.
         if selected==sq{clearSelection();return}
         if finished{try inspectPiece(sq);return}
-        if !presentationHidden,(demonstration != nil || preview?.candidate != nil) {let display=try ChessRules(fen:displayFen);selected=sq;inspection=learnerInspection(sq,on:display,live:false);emit(semantic:false);return}
+        if !presentationHidden,(demonstration != nil || preview?.candidate != nil) {let display=try scratch(displayFen);selected=sq;inspection=learnerInspection(sq,on:display,live:false);emit(semantic:false);return}
         if let from=selected,inspection?.legalNow==true,destinations.contains(sq) {
             if !presentationHidden,preview != nil {cancelWork();work=Task{try? await self.testMove(from:from,to:sq)}}else{try playWhite(from:from,to:sq)};return
         }
@@ -203,7 +206,7 @@ public struct LessonProjection:Codable {
     /// Selects for explanation only; never plays a move or changes a preview.
     public func inspectPiece(_ sq:String) throws {
         guard mode == .practice,ChessRules.validSquare(sq) else{return}
-        let display=try ChessRules(fen:displayFen)
+        let display=try scratch(displayFen)
         selected=sq;inspection=learnerInspection(sq,on:display,live:displayView=="game");emit(semantic:false)
     }
     public func clearSelection(){selected=nil;inspection=nil;emit(semantic:false)}
@@ -213,8 +216,8 @@ public struct LessonProjection:Codable {
     }
     public func commitBlack(_ uci:String) throws -> MoveRecord {try fairness.requireEngineHelp();guard !reviewSuspended,!explicitResumeRequired,rules.turn==opponentSide else{throw CheckmateError.stale};let kept=selected;let m=try rules.move(uci:uci);changedPosition();if let kept,rules.piece(kept)?.color==humanSide{selected=kept;inspection=learnerInspection(kept,on:rules,live:true)};onMove?(m);message=gameOverMessage ?? turnSummary();return m}
     public func reply(){guard fairness.engineHelpAllowed,!shuttingDown,!reviewSuspended,!explicitResumeRequired,mode == .practice,rules.turn==opponentSide,!finished,!busy,!voiceHold,!pausedOpponent,!suspended,(presentationHidden || (preview==nil && demonstration==nil)),(!companionEnabled || companionRole != "opponent"),let engine=engine else{return}
-        let fen=rules.fen,epoch=generation;busy=true;busyReason = .opponent;emit(semantic:false)
-        work=Task {[weak self] in guard let self=self else{return};do{let result=try await self.chooseOpponentMove(engine:engine);try Task.checkCancellation();guard self.generation==epoch,self.rules.fen==fen,self.fairness.engineHelpAllowed else{return};guard let move=result.bestMove else{throw CheckmateError.unavailable("ENGINE_UNAVAILABLE")};self.busy=false;self.busyReason=nil;self.recordOpponentChoice(result);_ = try self.commitBlack(move)}catch{if self.generation==epoch {self.busy=false;self.busyReason=nil;self.error=Self.engineReason(error).map{String(localized:"Stockfish could not respond (\($0)). Retry, undo, or start a new game.",bundle:.checkmate)} ?? String(localized:"Stockfish could not respond. Retry, undo, or start a new game.",bundle:.checkmate);self.emit(semantic:false)}}}
+        let fen=rules.fen,epoch=generation;busyReason = .opponent;emit(semantic:false)
+        work=Task {[weak self] in guard let self=self else{return};do{let result=try await self.chooseOpponentMove(engine:engine);try Task.checkCancellation();guard self.generation==epoch,self.rules.fen==fen,self.fairness.engineHelpAllowed else{return};guard let move=result.bestMove else{throw CheckmateError.unavailable("ENGINE_UNAVAILABLE")};self.busyReason=nil;self.recordOpponentChoice(result);_ = try self.commitBlack(move)}catch{if self.generation==epoch {self.busyReason=nil;self.error=Self.engineReason(error).map{String(localized:"Stockfish could not respond (\($0)). Retry, undo, or start a new game.",bundle:.checkmate)} ?? String(localized:"Stockfish could not respond. Retry, undo, or start a new game.",bundle:.checkmate);self.emit(semantic:false)}}}
     }
     /// The opponent's move for the current position at the learner's configured strength (beginner, Elo or skill).
     /// Stockfish's own reply and a companion opponent's `play_move` both choose through here.
@@ -244,7 +247,8 @@ public struct LessonProjection:Codable {
     public func retryEngine(){error=nil;if rules.turn==humanSide{hint()}else{reply()}}
     /// Whether Take Back has a learner move to undo; a lone opening move by Stockfish is not one. Every ending allows
     /// it alike (checkmate, resignation, a claimed draw): taking back after a resignation or claim takes the ending back too.
-    public var canTakeBack:Bool {mode == .practice && !reviewSuspended && rules.records.dropFirst(state.practice.startPly).contains{$0.color==humanSide}}
+    /// Plies alternate colours, so two or more since `startPly` always hold a learner move; only a lone one needs its record.
+    public var canTakeBack:Bool {guard mode == .practice,!reviewSuspended else{return false};let played=rules.history.count-state.practice.startPly;return played>1 || played==1 && rules.lastRecord?.color==humanSide}
     /// Over by the rules, by resignation or by a claimed draw.
     public var finished:Bool {rules.over || state.practice.ending != nil}
     /// A draw the side to move may claim now (it does not end the game by itself).
@@ -259,8 +263,7 @@ public struct LessonProjection:Codable {
     /// Claims a draw by threefold repetition or the 50-move rule when one is available.
     public func claimDraw(){guard let reason=claimableDraw else{return};cancelWork();state.practice.ending=PracticeEnding(result:"1/2-1/2",reason:String(localized:"Draw claimed by \(reason).",bundle:.checkmate));message=gameOverMessage ?? message;emit(save:true)}
     public func undo(){guard canTakeBack else{return};cancelWork();state.practice.beginnerSevereStreak=0;do{try rules.undo();if rules.turn==opponentSide,rules.records.count>state.practice.startPly{try rules.undo()}}catch{let reason=Self.engineReason(error);changedPosition();self.error=reason.map{String(localized:"The move could not be taken back (\($0)).",bundle:.checkmate)} ?? String(localized:"The move could not be taken back.",bundle:.checkmate);emit(semantic:false);return};state.practice.ending=nil;changedPosition();message=String(localized:"Move taken back.",bundle:.checkmate);onUndo?();reply()}
-    private static let standardStart="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
-    private var holdsGame:Bool {!rules.history.isEmpty || rules.fen != Self.standardStart}
+    private var holdsGame:Bool {!rules.history.isEmpty || rules.fen != NetworkStart.standard}
     /// The game being replaced becomes the previous game with everything Restore Previous Game needs to resume it.
     private func keepAsPrevious(){guard holdsGame else{return};state.practice.previousGame=rules.pgn;state.practice.previousSide=humanSide;state.practice.previousEnding=state.practice.ending;state.practice.previousStartPly=state.practice.startPly;state.practice.previousHints=state.practice.hints}
     /// Starts a new game with the learner on `side` (by default the side they play now). As Black, Stockfish opens.
@@ -283,7 +286,7 @@ public struct LessonProjection:Codable {
     /// Shows practice; already there, it is the explicit resume: the game is shown again and the opponent replies.
     public func resumePractice(){if activity == .at(.practice){lesson=nil;changedPosition();reply()}else{enter(.at(.practice))}}
     /// Lessons and puzzles only: a late publish from a lesson can never paint over practice or training.
-    public func setLesson(_ projection:LessonProjection){guard mode == .lesson || mode == .puzzles else{return};cancelWork();explicitResumeRequired=false;liveSelection=nil;let changed=lesson==nil || lesson?.lessonId != projection.lessonId || lesson?.step != projection.step || lesson?.pieces != projection.pieces || lesson?.mode != projection.mode || lesson?.moving != projection.moving || lesson?.turn != projection.turn || lesson?.attempt?.attemptId != projection.attempt?.attemptId;if let old=lesson,NSDictionary(dictionary:jsonObject(old) as! [String:Any]).isEqual(to:jsonObject(projection) as! [String:Any]){return};lesson=projection;if changed{position+=1;clearAnnotations();clearPresentation()};emit(semantic:true)}
+    public func setLesson(_ projection:LessonProjection){guard mode == .lesson || mode == .puzzles else{return};cancelWork();if explicitResumeRequired{explicitResumeRequired=false};liveSelection=nil;let changed=lesson==nil || lesson?.lessonId != projection.lessonId || lesson?.step != projection.step || lesson?.pieces != projection.pieces || lesson?.mode != projection.mode || lesson?.moving != projection.moving || lesson?.turn != projection.turn || lesson?.attempt?.attemptId != projection.attempt?.attemptId;guard projection != lesson else{return};lesson=projection;if changed{position+=1;clearAnnotations();clearPresentation()};emit(semantic:true)}
     /// The training activity's only writer. A changed board or task is a new position (annotations and presentations
     /// end with it); a status or selection change is not.
     /// Whether the companion's training tools are attached (training enabled); otherwise training advertises none.
@@ -352,7 +355,7 @@ public struct LessonProjection:Codable {
     /// counts once in the game's `hints`, and stays on the board until the learner moves.
     public func hint(){guard fairness.engineHelpAllowed,!busy,mode == .practice,rules.turn==humanSide,!finished,hintStep<2 else{return}
         if hintStep==1,let facts=coaching.recommendation{hintStep=2;state.practice.hints+=1;message=facts.description;signalEvent();annotate(arrows:[[facts.from,facts.to]],highlights:[Highlight(sq:facts.from,kind:"focus")],ttl:nil);emit(semantic:false,save:true);return}
-        cancelWork();let epoch=generation;busy=true;busyReason = .analysis;coaching.status = .thinking;emit(semantic:false);work=Task{do{let a=try await self.analyze();try Task.checkCancellation();guard self.generation==epoch,self.fairness.engineHelpAllowed else{return};self.busy=false;self.busyReason=nil;guard let uci=a.lines.first?.pv.first ?? a.bestMove else{throw CheckmateError.unavailable(String(localized:"No hint returned",bundle:.checkmate))};let facts=try self.moveFacts(self.rules,uci:uci);self.coaching.status = .ready;self.coaching.recommendation=facts;self.coaching.analysis=a;self.hintStep=1;self.state.practice.hints+=1;self.message=Self.pieceHint(facts);self.signalEvent();self.annotate(arrows:[],highlights:[Highlight(sq:facts.from,kind:"focus")],ttl:nil);self.emit(semantic:false,save:true)}catch{guard self.generation==epoch,!Task.isCancelled else{return};self.busy=false;self.busyReason=nil;self.coaching.status = .error;self.error=(Self.engineReason(error).map{String(localized:"A hint is unavailable (\($0)). Please try again.",bundle:.checkmate)} ?? String(localized:"A hint is unavailable. Please try again.",bundle:.checkmate));self.signalEvent()}}}
+        cancelWork();let epoch=generation;busyReason = .analysis;coaching.status = .thinking;emit(semantic:false);work=Task{do{let a=try await self.analyze();try Task.checkCancellation();guard self.generation==epoch,self.fairness.engineHelpAllowed else{return};self.busyReason=nil;guard let uci=a.lines.first?.pv.first ?? a.bestMove else{throw CheckmateError.unavailable(String(localized:"No hint returned",bundle:.checkmate))};let facts=try self.moveFacts(self.rules,uci:uci);self.coaching.status = .ready;self.coaching.recommendation=facts;self.coaching.analysis=a;self.hintStep=1;self.state.practice.hints+=1;self.message=Self.pieceHint(facts);self.signalEvent();self.annotate(arrows:[],highlights:[Highlight(sq:facts.from,kind:"focus")],ttl:nil);self.emit(semantic:false,save:true)}catch{guard self.generation==epoch,!Task.isCancelled else{return};self.busyReason=nil;self.coaching.status = .error;self.error=(Self.engineReason(error).map{String(localized:"A hint is unavailable (\($0)). Please try again.",bundle:.checkmate)} ?? String(localized:"A hint is unavailable. Please try again.",bundle:.checkmate));self.signalEvent()}}}
     /// The first hint step names the piece, never where it goes.
     static func pieceHint(_ facts:MoveFacts)->String {String(localized:"Try moving \(PieceName.phrase(facts.piece,.yoursObject)) on \(facts.from). Ask for another hint to see the move.",bundle:.checkmate)}
     public func boardFacts(_ r:ChessRules)->BoardFacts {
@@ -361,7 +364,7 @@ public struct LessonProjection:Codable {
         return BoardFacts(turn:r.turn,check:r.check,checkmate:r.checkmate,draw:r.draw,material:.init(white:white,black:black,whiteAdvantage:white-black),threats:threats.sorted{$0.to<$1.to})
     }
     public func moveFacts(_ r:ChessRules,uci:String) throws -> MoveFacts {
-        let g=try r.copy(),m=try g.move(uci:uci),ep=m.flags.contains("e"),castle=m.flags.contains("k")||m.flags.contains("q")
+        let g=try r.copy(),m=try g.move(uci:uci),ep=m.flags.contains("e"),castle=m.isCastle
         let captured=m.captured.map{MoveFacts.Capture(piece:$0,square:ep ? String(m.to.prefix(1))+String(m.from.suffix(1)):m.to)}
         let rook=castle ? MoveFacts.RookMove(from:(m.flags.contains("k") ? "h":"a")+String(m.from.suffix(1)),to:(m.flags.contains("k") ? "f":"d")+String(m.from.suffix(1))):nil
         let piece=PieceName.phrase(m.piece,.moveOpening)

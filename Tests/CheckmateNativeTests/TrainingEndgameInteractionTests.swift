@@ -11,14 +11,7 @@ import CheckmateCore
 /// WI-012: playing an ending through the board's own mouse handling. Any legal move may be dragged; while the
 /// defender thinks the board takes no input; its reply lands on the board; Take back restores the position.
 @MainActor final class TrainingEndgameInteractionTests:XCTestCase {
-    private var directory:URL!
-    override func setUp(){directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);setenv("CHECKMATE_DATA_DIR",directory.path,1);setenv("CHECKMATE_TRAINING_ENABLED","1",1);setenv("CHECKMATE_TRAINING_B","1",1)}
-    override func tearDown(){unsetenv("CHECKMATE_DATA_DIR");unsetenv("CHECKMATE_TRAINING_ENABLED");unsetenv("CHECKMATE_TRAINING_B");try? FileManager.default.removeItem(at:directory)}
-    private func mouse(_ type:NSEvent.EventType,_ point:NSPoint)->NSEvent {NSEvent.mouseEvent(with:type,location:point,modifierFlags:[],timestamp:0,windowNumber:0,context:nil,eventNumber:0,clickCount:1,pressure:1)!}
-    private func drag(_ board:BoardView,from:String,to:String){
-        let a=board.squareRect(from),b=board.squareRect(to)
-        board.mouseDown(with:mouse(.leftMouseDown,NSPoint(x:a.midX,y:a.midY)));board.mouseDragged(with:mouse(.leftMouseDragged,NSPoint(x:b.midX,y:b.midY)));board.mouseUp(with:mouse(.leftMouseUp,NSPoint(x:b.midX,y:b.midY)))
-    }
+    override func setUpWithError()throws{try isolateDataDirectory(["CHECKMATE_TRAINING_ENABLED":"1","CHECKMATE_TRAINING_B":"1"])}
     func testAnEndingIsPlayedOnTheBoardAgainstTheDefender()async throws {
         let model=try NativeModel(),game=GameWindow(model:model);defer{game.window?.delegate=nil;model.shutdown()}
         let defender=ScriptedDefender();defender.holding=true
@@ -28,7 +21,7 @@ import CheckmateCore
         let training=try XCTUnwrap(model.training),exercise=try XCTUnwrap(training.exercise),start=game.board.position
         XCTAssertEqual(exercise.task,.game);XCTAssertEqual(game.board.blackAtBottom,exercise.scenario.learner=="b")
         // Any legal queen move that does not end the game at once.
-        let queen=try XCTUnwrap(start.first{$0.value==exercise.scenario.learner+"q"}?.key)
+        let queen=try XCTUnwrap(TrainingGeometry.square(of:exercise.scenario.learner+"q",on:start))
         let legality=try XCTUnwrap(exercise.current)
         let move=try XCTUnwrap(try legality.outcomes().first{outcome in
             guard outcome.from==queen else{return false}
@@ -36,7 +29,7 @@ import CheckmateCore
             return try after.status() == .neither && !after.outcomes().isEmpty && after.board().values.contains(exercise.scenario.learner+"q") && (try after.outcomes().allSatisfy{$0.captured != "q"})
         })
         XCTAssertTrue(game.board.canDrag?(queen) ?? false)
-        drag(game.board,from:move.from,to:move.to);game.refresh()
+        game.board.drag(from:move.from,to:move.to);game.refresh()
         XCTAssertEqual(game.board.position[move.to],exercise.scenario.learner+"q");XCTAssertTrue(training.games.thinking)
         XCTAssertFalse(game.board.canDrag?(move.to) ?? true,"the board waits for the defender")
         defender.release()

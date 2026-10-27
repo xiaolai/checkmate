@@ -7,6 +7,7 @@ import CheckmateCore
 @testable import CheckmateContent
 @testable import CheckmateApplication
 @testable import CheckmateMacPlatform
+import CheckmateTestSupport
 
 @MainActor final class ReviewPerformanceTests:XCTestCase {
     func testImportNavigationAndSelectedLatency()async throws {
@@ -35,7 +36,7 @@ import CheckmateCore
 
     func testSelectedQuickP95OnActualGame()async throws {
         guard let path=ProcessInfo.processInfo.environment["CHECKMATE_REVIEW_PERFORMANCE"] else{throw XCTSkip("Explicit test-host selected quick p95 gate.")}
-        let root=URL(fileURLWithPath:#filePath).deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("Fixtures/GameReview")
+        let root=Repository.tests.appendingPathComponent("Fixtures/GameReview")
         let document=try PGNImporter.parse(Data(contentsOf:root.appendingPathComponent("games/public-07.pgn")))[0],engine=NativeEngine(),analyzer=ReviewAnalyzer(engine:engine)
         var samples:[Double]=[],rows:[[String:Any]]=[]
         for offset in [5,10,20,30,40,50,60,70,80,90] {let node=document.mainline[offset-1],start=Date();let evidence=try await analyzer.analyze(document:document,node:node,revision:offset);let milliseconds=Date().timeIntervalSince(start)*1000;samples.append(milliseconds);rows.append(["node":node,"milliseconds":milliseconds,"budgetMs":evidence.budgetMs,"historyHash":evidence.historyHash])}
@@ -50,7 +51,7 @@ import CheckmateCore
     /// each run stays within the 90-second acceptance limit and below the plan's worst case.
     func testWholeGameAnalysisFitsItsBudget()async throws {
         guard let path=ProcessInfo.processInfo.environment["CHECKMATE_REVIEW_RESOURCES"] else{throw XCTSkip("Explicit test-host measurement of the whole-game analysis budget.")}
-        let root=URL(fileURLWithPath:#filePath).deletingLastPathComponent().deletingLastPathComponent()
+        let root=Repository.tests
         let full=try PGNImporter.parse(Data(contentsOf:root.appendingPathComponent("Fixtures/GameReview/games/public-07.pgn")))[0]
         let movetext=full.mainline.prefix(100).map{id in let n=full.nodes[id];return (n.side=="w" ? "\(n.fullmove). ":"")+(n.san ?? "")}.joined(separator:" ")+" *"
         let library=try String(contentsOf:root.deletingLastPathComponent().appendingPathComponent("Sources/CheckmateCore/Resources/game-library/world-championship.pgn"),encoding:.utf8)

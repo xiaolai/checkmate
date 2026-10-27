@@ -26,28 +26,18 @@ import CheckmateRules
         addTeardownBlock{@MainActor in voice.disconnect();assistant.cancel()}
         return Coach(session:session,voice:voice,assistant:assistant,engine:engine,events:events)
     }
-    /// Ana hosts as White under `terms`, Ben joins as Black accepting them, and Cy watches.
-    private func game(_ terms:NetworkAssistance,_ lan:MemoryLAN)throws -> (ana:Mac,ben:Mac,cy:Mac) {
-        let ana=try NetworkControllerTests().hosting(lan){$0.assistance=terms}
-        let ben=try NetworkControllerTests().joining(lan,"Ben",ana,accepting:terms),cy=try NetworkControllerTests().joining(lan,"Cy",ana,watching:true)
-        return (ana,ben,cy)
-    }
     /// A session opened for the network game, as a connection does once its socket is ready.
     private func open(_ coach:Coach)throws {try coach.voice.automationOpen();coach.voice.receive(["type":"session.updated"])}
     private func position(_ mac:Mac)->String {"network:\(mac.game.gameRevision ?? -1)"}
     private func speech(_ mac:Mac,_ text:String="Your knight can develop.")->[String:Any] {["positionId":position(mac),"displayIdentity":position(mac),"segments":[["text":text,"squares":["g1"],"kind":"advice"]]]}
-    private func code(_ error:Error)->String? {(ProtocolErrors.failure(error)["error"] as? [String:Any])?["code"] as? String}
     private func refused(_ code:String,_ work:()async throws->Any,_ message:String,file:StaticString=#filePath,line:UInt=#line)async {
-        do{_ = try await work();XCTFail("\(message) ran",file:file,line:line)}catch{XCTAssertEqual(self.code(error),code,message,file:file,line:line)}
+        do{_ = try await work();XCTFail("\(message) ran",file:file,line:line)}catch{XCTAssertEqual(protocolCode(error),code,message,file:file,line:line)}
     }
     /// Runs everything already queued on the main queue, where the coach hears of network changes.
     private func drainMain()async {await withCheckedContinuation{done in DispatchQueue.main.async{done.resume()}}}
     private func outputs(_ coach:Coach)->[String:String] {
         var found:[String:String]=[:];for event in coach.events.all where (event["item"] as? [String:Any])?["type"] as? String=="function_call_output"{let item=event["item"] as! [String:Any];found[item["call_id"] as? String ?? ""]=item["output"] as? String}
         return found
-    }
-    private func settle(_ done:@escaping ()->Bool,_ message:String,file:StaticString=#filePath,line:UInt=#line)async throws {
-        for _ in 0..<400 where !done(){try await Task.sleep(for:.milliseconds(5))};XCTAssertTrue(done(),message,file:file,line:line)
     }
 
     /// A10 and D8: at `off` and `insight`, and for a spectator, the coach does not connect to the network game; a
@@ -60,7 +50,7 @@ import CheckmateRules
             XCTAssertThrowsError(try coach.voice.automationOpen(),"no session opens for \(mac.game.playerName)");XCTAssertFalse(coach.voice.networkSession)
         }
         // A practice session open before joining a game that allows the coach still ends on joining.
-        let other=MemoryLAN(),host=try NetworkControllerTests().hosting(other){$0.assistance=NetworkAssistance(both:.hints)}
+        let other=MemoryLAN(),host=try hosting(other){$0.assistance=NetworkAssistance(both:.hints)}
         let dee=try Mac(other,name:"Dee"),practice=try coach(dee)
         try open(practice);XCTAssertTrue(practice.voice.connected);XCTAssertFalse(practice.voice.networkSession);XCTAssertNotNil(practice.session.voiceLease)
         dee.game.setShown(true);other.scheduler.run()
@@ -76,8 +66,8 @@ import CheckmateRules
     func testARulesetGameHasNoCoach()throws {
         let previous=ProcessInfo.processInfo.environment["CHECKMATE_NETWORK_MINI_GAMES"];setenv("CHECKMATE_NETWORK_MINI_GAMES","1",1)
         defer{if let previous {setenv("CHECKMATE_NETWORK_MINI_GAMES",previous,1)}else{unsetenv("CHECKMATE_NETWORK_MINI_GAMES")}}
-        let lan=MemoryLAN(),ana=try NetworkControllerTests().hosting(lan){$0.miniGame = .pawnDuel;$0.side = .white;$0.assistance=NetworkAssistance(both:.hints)}
-        let ben=try NetworkControllerTests().joining(lan,"Ben",ana)
+        let lan=MemoryLAN(),ana=try hosting(lan){$0.miniGame = .pawnDuel;$0.side = .white;$0.assistance=NetworkAssistance(both:.hints)}
+        let ben=try joining(lan,"Ben",ana)
         XCTAssertNotNil(ana.game.ruleset,"premise: a ruleset game");XCTAssertEqual(ana.game.assistance,.off)
         for mac in [ana,ben] {
             let coach=try coach(mac);XCTAssertFalse(coach.voice.networkVoiceAvailable,"\(mac.game.playerName) has no coach in a mini-game")
@@ -97,7 +87,7 @@ import CheckmateRules
             await refused(FairnessPolicy.refusal,{try await coach.voice.execute(name,args:["positionId":self.position(ana)],id:name)},name)
         }
         // The network game moves on while Practice stays at the start, so a tool that read Practice would be caught.
-        NetworkControllerTests().play(ana,"e2","e4",lan);await drainMain()
+        play(ana,"e2","e4",lan);await drainMain()
         XCTAssertNotEqual(ana.game.rules.fen,coach.session.rules.fen,"fixture: the network board and Practice's differ");XCTAssertNil(coach.session.rules.piece("e4"),"fixture: e4 is empty in Practice")
         let board=try await coach.voice.execute("get_board",args:[:],id:"board") as? [String:Any],network=board?["network"] as? [String:Any]
         XCTAssertEqual((board?["state"] as? [String:Any])?["mode"] as? String,"network");XCTAssertEqual(network?["fen"] as? String,ana.game.rules.fen);XCTAssertEqual(network?["moves"] as? [String],["e4"])
@@ -109,7 +99,7 @@ import CheckmateRules
         XCTAssertEqual(inspected?["square"] as? String,"e4");XCTAssertEqual(inspected?["piece"] as? String,"p");XCTAssertEqual(inspected?["color"] as? String,"w")
         // A9: the voice coach's tools never reopen the MCP surface.
         let mcp=try CompanionTools(session:coach.session);coach.session.setConnection(enabled:true,role:"coach",lease:"fixture")
-        do{_ = try await mcp.call("play_move",args:["sessionId":coach.session.sessionId,"revision":coach.session.revision,"requestId":"one"],lease:"fixture");XCTFail("MCP answered during the game")}catch{XCTAssertEqual(code(error),FairnessPolicy.refusal)}
+        do{_ = try await mcp.call("play_move",args:["sessionId":coach.session.sessionId,"revision":coach.session.revision,"requestId":"one"],lease:"fixture");XCTFail("MCP answered during the game")}catch{XCTAssertEqual(protocolCode(error),FairnessPolicy.refusal)}
         XCTAssertEqual(coach.engine.calls,0)
     }
 
@@ -135,7 +125,7 @@ import CheckmateRules
         XCTAssertEqual(hint?["uci"] as? String,anaCoach.assistant.hint?.uci,"the coach's hint is the one on the board");XCTAssertTrue(ana.game.assistedThisTurn)
         _ = try await anaCoach.voice.execute("get_hint",args:["positionId":position(ana)],id:"h2");XCTAssertEqual(anaCoach.engine.calls,1,"one search a turn")
         let queued=try await anaCoach.voice.execute("speak_explanation",args:speech(ana),id:"s") as? [String:Any];XCTAssertEqual(queued?["queued"] as? Int,1)
-        NetworkControllerTests().play(ana,"g1","f3",lan)
+        play(ana,"g1","f3",lan)
         for mac in [ana,ben,cy]{XCTAssertEqual(mac.game.record?.assistedPlies,[1],"\(mac.game.playerName) sees the coached move")}
         // A stale position is refused; Ben's own move is now his to ask about.
         await refused("STALE_STATE",{try await anaCoach.voice.execute("inspect_piece",args:["positionId":"network:-5","square":"e2","mode":"attacked"],id:"x")},"a tool bound to an earlier move")
@@ -180,10 +170,10 @@ import CheckmateRules
         XCTAssertEqual(comments(anaCoach),1,"once a move");XCTAssertEqual(anaCoach.events.responses.count,1,"nothing else was asked")
         // Reconnecting does not earn the same move a second comment.
         anaCoach.voice.disconnect();try open(anaCoach);await drainMain();XCTAssertEqual(comments(anaCoach),1,"once a move, across a reconnection")
-        NetworkControllerTests().play(ana,"e2","e4",lan)
+        play(ana,"e2","e4",lan)
         try await settle({comments(benCoach)==1},"Ben's move gets its comment")
         // Ben plays while his comment is still being made: it stops, and its cancellation is acknowledged.
-        NetworkControllerTests().play(ben,"e7","e5",lan)
+        play(ben,"e7","e5",lan)
         try await settle({benCoach.events.all.contains{$0["type"] as? String=="response.cancel"}},"the comment for the move played stops")
         benCoach.voice.receive(["type":"response.done","response":["status":"cancelled"]])
         try await settle({comments(anaCoach)==2},"Ana's next move gets its comment");await drainMain();XCTAssertEqual(comments(anaCoach),2)
@@ -195,7 +185,7 @@ import CheckmateRules
         let comments={benCoach.events.responses.filter{(($0["response"] as? [String:Any])?["instructions"] as? String ?? "").contains(VoiceCoach.commentaryPrefix)}.count}
         try open(benCoach);XCTAssertEqual(comments(),0,"fixture: Ben waits for his move")
         // The session ends to renew; Ben's move begins while no session is ready.
-        benCoach.voice.disconnect();NetworkControllerTests().play(ana,"e2","e4",lan);await drainMain();XCTAssertEqual(comments(),0)
+        benCoach.voice.disconnect();play(ana,"e2","e4",lan);await drainMain();XCTAssertEqual(comments(),0)
         try benCoach.voice.automationOpen(greet:false);benCoach.voice.receive(["type":"session.updated"])
         XCTAssertEqual(comments(),1,"the renewed session comments on the move begun meanwhile")
         // Renewing again within the same move asks for no second comment.
@@ -206,13 +196,13 @@ import CheckmateRules
     /// A10: a practice conversation stays with practice. The network session opened after joining starts a fresh
     /// transcript, so practice advice is neither shown beside the network board nor carried into its renewals.
     func testANetworkSessionStartsAFreshTranscript()async throws {
-        let lan=MemoryLAN(),terms=NetworkAssistance(both:.hints),ana=try NetworkControllerTests().hosting(lan){$0.assistance=terms},coach=try coach(ana)
+        let lan=MemoryLAN(),terms=NetworkAssistance(both:.hints),ana=try hosting(lan){$0.assistance=terms},coach=try coach(ana)
         try open(coach);XCTAssertFalse(coach.voice.networkSession,"fixture: practice before anyone joins")
         coach.voice.ask("Is my practice knight safe?");XCTAssertFalse(coach.voice.history.isEmpty,"fixture: practice has a transcript")
         // A practice renewal carries its summary, so there is one for the network session to leave behind.
         try coach.voice.automationRenew();coach.voice.receive(["type":"session.updated"])
         XCTAssertTrue(coach.voice.carriedSummary.contains("practice knight"),"fixture: practice carries a renewal summary")
-        _ = try NetworkControllerTests().joining(lan,"Ben",ana,accepting:terms)
+        _ = try joining(lan,"Ben",ana,accepting:terms)
         XCTAssertFalse(coach.voice.connected,"joining ended the practice session")
         // Opened as a renewal would be (no greeting, which would clear the summary itself), so only the transcript's
         // scope keeps practice's summary out of the network session.
@@ -237,7 +227,7 @@ import CheckmateRules
     func testLeavingOrTheEndEndsTheSession()async throws {
         let lan=MemoryLAN(),(ana,ben,_)=try game(NetworkAssistance(both:.hints),lan),anaCoach=try coach(ana),benCoach=try coach(ben)
         try open(anaCoach);try open(benCoach);XCTAssertTrue(anaCoach.voice.connected)
-        NetworkControllerTests().play(ana,"e2","e4",lan);XCTAssertTrue(benCoach.voice.connected,"the coach follows the game through its moves")
+        play(ana,"e2","e4",lan);XCTAssertTrue(benCoach.voice.connected,"the coach follows the game through its moves")
         // Ben's coach asks for a hint; its search is still running when the game ends.
         await drainMain();benCoach.engine.holding=true
         // The call arrives as the service sends it, so its result would go back to the model through the coach's own path.

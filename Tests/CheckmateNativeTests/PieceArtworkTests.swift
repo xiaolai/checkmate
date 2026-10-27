@@ -1,12 +1,13 @@
 import XCTest
 import AppKit
-import CryptoKit
+import CheckmateSupport
 @testable import CheckmateNative
+import CheckmateTestSupport
 
 /// The board's vector pieces (B-16): Cburnett's BSD-licensed set, transcribed from the committed SVGs and drawn natively,
 /// with the old glyphs kept for any piece the set does not cover.
 final class PieceArtworkTests:XCTestCase {
-    private var root:URL {URL(fileURLWithPath:#filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()}
+    private var root:URL {Repository.root}
     private var artwork:URL {root.appendingPathComponent("Artwork/Upstream/cburnett-pieces")}
     private static let files:[String:String]=["wk":"klt","wq":"qlt","wr":"rlt","wb":"blt","wn":"nlt","wp":"plt","bk":"kdt","bq":"qdt","br":"rdt","bb":"bdt","bn":"ndt","bp":"pdt"]
 
@@ -40,7 +41,7 @@ final class PieceArtworkTests:XCTestCase {
         XCTAssertEqual(Set(PieceArtwork.shapes.keys),Set(Self.files.keys))
         for (piece,name) in Self.files {
             let file=artwork.appendingPathComponent("Chess_\(name)45.svg")
-            let digest=SHA256.hash(data:try Data(contentsOf:file)).map{String(format:"%02x",$0)}.joined()
+            let digest=reviewHash(try Data(contentsOf:file))
             XCTAssertEqual(digest,recorded[file.lastPathComponent]?["sha256"],"\(file.lastPathComponent) is the recorded upstream file")
             XCTAssertEqual(PieceArtwork.shapes[piece],try shapes(file),"\(piece) matches \(file.lastPathComponent)")
         }

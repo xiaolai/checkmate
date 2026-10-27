@@ -10,8 +10,7 @@ import CheckmateCore
 /// board's geometry; realisation answers are what the bounded search proves against every opponent reply.
 @MainActor final class TrainingTacticTests:XCTestCase {
     // Increment B is gated behind its preview flags; these tests exercise it as development does.
-    override func setUp(){setenv("CHECKMATE_TRAINING_ENABLED","1",1);setenv("CHECKMATE_TRAINING_B","1",1)}
-    override func tearDown(){unsetenv("CHECKMATE_TRAINING_ENABLED");unsetenv("CHECKMATE_TRAINING_B")}
+    override func setUp(){setEnvironment(["CHECKMATE_TRAINING_ENABLED":"1","CHECKMATE_TRAINING_B":"1"])}
     private let review=TrainingReview(author:"test",reviewer:nil,validatorVersion:TrainingValidationService.validatorVersion)
     private func definition()throws -> TrainingEntryDefinition {try XCTUnwrap(TrainingCatalog.bundled().entry("simple-tactics"))}
     private func recognize(_ check:TrainingCheck,_ fen:String,ask:String,squares:[String],noAction:Bool?=nil)->TrainingScenario {
@@ -50,12 +49,8 @@ import CheckmateCore
         XCTAssertNoThrow(try TrainingValidationService.validate(recognize(.pins,pins,ask:"w",squares:["e4"]),definition:definition))
         XCTAssertThrowsError(try TrainingValidationService.validate(recognize(.pins,pins,ask:"b",squares:["e4"]),definition:definition),"Black has nothing pinned")
     }
-    private func controller(_ scenarios:[TrainingScenario])throws -> (GameSession,LearningPlayer,TrainingController) {
-        let session=try GameSession(engine:nil),player=try LearningPlayer(session:session)
-        return (session,player,TrainingController(session:session,learning:player,provider:try TrainingScenarioProvider(catalog:try TrainingCatalog.bundled(),scenarios:scenarios)))
-    }
     func testRecognitionIsAnsweredBySelectingSquares()throws {
-        let (session,player,training)=try controller([recognize(.forks,"7k/2N5/r3q3/8/8/8/8/7K w - - 0 1",ask:"w",squares:["c7"])]);defer{player.shutdown()}
+        let (session,player,training)=try TrainingEndgameTests.fixture([recognize(.forks,"7k/2N5/r3q3/8/8/8/8/7K w - - 0 1",ask:"w",squares:["c7"])]);defer{player.shutdown()}
         training.begin(try training.prepare(entry:"simple-tactics"))
         XCTAssertEqual(training.exercise?.task,.select)
         training.click("a6");training.submit()
@@ -64,7 +59,7 @@ import CheckmateCore
         XCTAssertEqual(training.exercise?.status,.correct);XCTAssertEqual(session.state.training?.attempts.count,2)
     }
     func testRealisationPlaysTheForkAndShowsTheReply()throws {
-        let (_,player,training)=try controller([try realize(forkFEN)]);defer{player.shutdown()}
+        let (_,player,training)=try TrainingEndgameTests.fixture([try realize(forkFEN)]);defer{player.shutdown()}
         training.begin(try training.prepare(entry:"simple-tactics"))
         training.attempt(from:"b5",to:"d6",promotion:nil)
         XCTAssertEqual(training.exercise?.status,.incorrect);XCTAssertTrue(training.exercise?.feedback.hasPrefix("After Rxd6") ?? false,"the refutation is shown")

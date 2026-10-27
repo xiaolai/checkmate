@@ -83,7 +83,7 @@ final class CleanupPersistenceTests:XCTestCase {
     }
     /// A record loaded at the bound and answered again stays at the bound, so the next save is not refused (#33).
     func testAnsweringARecordLoadedAtTheBoundSavesAtTheBound()throws {
-        let dir=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);defer{try? FileManager.default.removeItem(at:dir)}
+        let dir=try scratchDirectory()
         let store=StateStore(directory:dir)
         var state=ApplicationState();var progress=PuzzleProgress();progress.attempts=PuzzleProgress.maximumAttempts;state.puzzles["fixture"]=progress
         try store.save(state)

@@ -10,34 +10,21 @@ import CheckmateCore
 @testable import CheckmateMacPlatform
 
 
-/// Translates every lesson, recording the order lessons were attempted.
-private actor AuditTranslator:LessonTranslationProvider {
- var order:[String]=[]
- func translate(source:LessonTranslation,locale:String,onUsage:@escaping @Sendable(String,String,UsageTokens?)->Void)async throws->TranslationResult {order.append(source.lessonID);var text=source;text.title="Titre: "+source.title;return TranslationResult(text:text,model:"fake",turnID:UUID().uuidString,tokens:UsageTokens(total:3))}
- func accountStatus()async throws->String {"Fake account"}
-}
-/// Records every clip except the scripts listed in `failing`, in call order.
-private actor AuditRecorder:LessonRecordingProvider {
- let failing:Set<String>;var scripts:[String]=[];init(failing:Set<String>){self.failing=failing}
- func record(script:String,locale:String,voice:String,onUsage:@escaping @Sendable(String,UsageTokens?)->Void)async throws->LessonRecordingResult {scripts.append(script);if failing.contains(script){throw CheckmateError.invalid("The recording did not match the requested script.")};return LessonRecordingResult(pcm:plausibleLessonPCM(script),transcript:script,responseID:UUID().uuidString,tokens:nil,model:"gpt-realtime")}
-}
-
 /// Audit findings #12 and #14 (lesson jobs) and #13 (cumulative usage counters).
 @MainActor final class LessonJobAuditTests:XCTestCase {
  private var dir:URL!
  override func setUp(){dir=FileManager.default.temporaryDirectory.appendingPathComponent("lesson-job-audit-"+UUID().uuidString)}
  override func tearDown(){try? FileManager.default.removeItem(at:dir)}
- private func wait(_ controller:LessonLanguageController)async throws {for _ in 0..<1500{if !controller.busy{return};try await Task.sleep(for:.milliseconds(10))};XCTFail("Job did not finish")}
- private func controller(_ library:CourseLibrary,_ translator:any LessonTranslationProvider,_ recorder:any LessonRecordingProvider)throws -> LessonLanguageController {let c=try LessonLanguageController(library:library,directory:dir,usage:UsageLedger(directory:dir.appendingPathComponent("Usage")),translator:translator,recorder:recorder);c.language="fr";return c}
+ private func wait(_ controller:LessonLanguageController)async throws {try await poll("the job to finish",tries:1500,every:.milliseconds(10)){!controller.busy}}
 
  /// #12: clips that keep failing in the first lesson are retried only after every other selected lesson's fresh clips,
  /// so three persistent failures cannot stop every Resume before later lessons are reached.
  func testPersistentClipFailuresInOneLessonDoNotBlockLaterLessons()async throws {
-  let library=try CourseLibrary(),translator=AuditTranslator()
-  let setup=try controller(library,translator,AuditRecorder(failing:[]));for index in [0,1]{setup.selectedLesson=index;setup.translate();try await wait(setup)}
+  let library=try CourseLibrary(),translator=OrderedLessonTranslator()
+  let setup=try lessonController(dir,library,translator,OrderedLessonRecorder(failing:[]));for index in [0,1]{setup.selectedLesson=index;setup.translate();try await wait(setup)}
   let first=try XCTUnwrap(try setup.store.translation(source:LessonTranslation.source(library:library,index:0),locale:"fr")),second=try XCTUnwrap(try setup.store.translation(source:LessonTranslation.source(library:library,index:1),locale:"fr"))
   XCTAssertGreaterThan(first.beats.count,3);let failing=Set(first.beats.prefix(3).map(\.speak));XCTAssertEqual(failing.count,3)
-  let recorder=AuditRecorder(failing:failing),c=try controller(library,translator,recorder)
+  let recorder=OrderedLessonRecorder(failing:failing),c=try lessonController(dir,library,translator,recorder)
   c.record();try await wait(c);XCTAssertTrue(c.status.hasPrefix("Stopped after three failures in a row"),c.status)
   let before=await recorder.scripts.count;XCTAssertEqual(before,3,"Precondition: the first lesson's first three clips failed")
   c.allLessons=true;c.record();try await wait(c)
@@ -49,7 +36,7 @@ private actor AuditRecorder:LessonRecordingProvider {
 
  /// #14: cleanup is a job of its own: busy while it runs, no translation starts meanwhile, and its result is reported.
  func testPurgingIsABusyJobThatBlocksOtherJobs()async throws {
-  let library=try CourseLibrary(),translator=AuditTranslator(),c=try controller(library,translator,AuditRecorder(failing:[]))
+  let library=try CourseLibrary(),translator=OrderedLessonTranslator(),c=try lessonController(dir,library,translator,OrderedLessonRecorder(failing:[]))
   c.purgeOutdated();XCTAssertTrue(c.busy,"Cleanup marks the controller busy")
   c.translate();try await wait(c)
   let calls=await translator.order.count;XCTAssertEqual(calls,0,"No translation starts while cleanup runs")

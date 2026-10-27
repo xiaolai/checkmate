@@ -34,12 +34,11 @@ private actor B10Recorder:LessonRecordingProvider {
  func release(){held=false;gate?.resume();gate=nil}
 }
 private func b10Translated(_ source:LessonTranslation)->LessonTranslation {var text=source;text.beats=source.beats.map{var beat=$0;beat.say="FR "+beat.say;beat.speak="FR "+beat.speak;return beat};return text}
-private func b10Directory()->URL {FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)}
 
 @MainActor final class B10LessonsPlaybackTests:XCTestCase {
  /// LE-6: Remove deletes recordings before the background rescan ends; the open lesson must drop to English at once.
  func testRemovedRecordingsFallBackToEnglishBeforeTheRescanEnds()async throws {
-  let dir=b10Directory();defer{try? FileManager.default.removeItem(at:dir)}
+  let dir=try scratchDirectory()
   let library=try CourseLibrary(),source=LessonTranslation.source(library:library,index:0),text=b10Translated(source),store=try LessonPackStore(directory:dir)
   try store.saveTranslation(text,source:source,locale:"fr")
   for beat in text.beats{_ = try store.saveClip(pcm:plausibleLessonPCM(beat.speak),transcript:beat.speak,beatID:beat.id,source:source,locale:"fr",voice:"cedar",model:"gpt-realtime")}
@@ -55,7 +54,7 @@ private func b10Directory()->URL {FileManager.default.temporaryDirectory.appendi
  }
  /// LE-6: a same-selection rescan started during a language change keeps Play gated until a scan completes.
  func testSameSelectionRescanKeepsAPendingLanguageChangeLoading()async throws {
-  let dir=b10Directory();defer{try? FileManager.default.removeItem(at:dir)}
+  let dir=try scratchDirectory()
   let store=try LessonPackStore(directory:dir),session=try GameSession(engine:nil),player=try LearningPlayer(session:session)
   session.state.settings.lessonLanguage="fr";player.packs=store;XCTAssertTrue(player.localizationLoading)
   player.reloadLocalizedPacks();XCTAssertTrue(player.localizationLoading,"A nested rescan must not end the language change's loading")
@@ -102,7 +101,7 @@ private func b10Directory()->URL {FileManager.default.temporaryDirectory.appendi
  }
  /// IR-12: when the app bundle on disk is replaced or moved while running, the narration failure asks for a relaunch.
  func testReplacedOrMovedAppAsksForARelaunch()throws {
-  let dir=b10Directory();defer{try? FileManager.default.removeItem(at:dir)}
+  let dir=try scratchDirectory()
   let app=dir.appendingPathComponent("Checkmate.app"),plist=app.appendingPathComponent("Contents/Info.plist")
   try FileManager.default.createDirectory(at:plist.deletingLastPathComponent(),withIntermediateDirectories:true)
   func install(_ version:String)throws {try Data("<plist version=\"1.0\"><dict><key>CFBundleVersion</key><string>\(version)</string></dict></plist>".utf8).write(to:plist,options:.atomic)}
@@ -149,10 +148,10 @@ private func b10Directory()->URL {FileManager.default.temporaryDirectory.appendi
 }
 
 @MainActor final class B10LessonsJobTests:XCTestCase {
- private func settle(_ controller:LessonLanguageController)async throws {for _ in 0..<1000{if !controller.busy{return};try await Task.sleep(for:.milliseconds(10))};XCTFail("Job did not finish")}
+ private func settle(_ controller:LessonLanguageController)async throws {try await poll("the job to finish",tries:1000,every:.milliseconds(10)){!controller.busy}}
  /// LE-8: Settings changing the language mid-job never shows the job's preview under the new language.
  func testLanguageChangeDuringAJobNeverShowsItsPreviewUnderTheNewLanguage()async throws {
-  let dir=b10Directory();defer{try? FileManager.default.removeItem(at:dir)}
+  let dir=try scratchDirectory()
   let library=try CourseLibrary(),source=LessonTranslation.source(library:library,index:0),recorder=B10Recorder(held:true)
   let controller=try LessonLanguageController(library:library,directory:dir,usage:UsageLedger(directory:dir.appendingPathComponent("Usage")),translator:B10Translator(),recorder:recorder)
   controller.language="fr";controller.translate();try await settle(controller)
@@ -168,7 +167,7 @@ private func b10Directory()->URL {FileManager.default.temporaryDirectory.appendi
  }
  /// LE2-8: one bad clip is removed and re-recorded alone, not the whole lesson.
  func testRemovingOneClipReRecordsOnlyThatClip()async throws {
-  let dir=b10Directory();defer{try? FileManager.default.removeItem(at:dir)}
+  let dir=try scratchDirectory()
   let library=try CourseLibrary(),source=LessonTranslation.source(library:library,index:0),recorder=B10Recorder()
   let controller=try LessonLanguageController(library:library,directory:dir,usage:UsageLedger(directory:dir.appendingPathComponent("Usage")),translator:B10Translator(),recorder:recorder)
   controller.language="fr";controller.translate();try await settle(controller);controller.record();try await settle(controller)
@@ -183,7 +182,7 @@ private func b10Directory()->URL {FileManager.default.temporaryDirectory.appendi
  }
  /// LE2-7: paid jobs run only for a canonical, recognized language, whichever path supplied it.
  func testPaidJobsRefuseUnrecognizedOrNonCanonicalLanguages()async throws {
-  let dir=b10Directory();defer{try? FileManager.default.removeItem(at:dir)}
+  let dir=try scratchDirectory()
   let translator=B10Translator(),controller=try LessonLanguageController(library:try CourseLibrary(),directory:dir,usage:UsageLedger(directory:dir.appendingPathComponent("Usage")),translator:translator,recorder:B10Recorder())
   for language in ["fr-XX","fr-999","zh-hans","qq"] {controller.language=language;controller.translate();XCTAssertFalse(controller.busy,language);XCTAssertEqual(controller.status,"Choose a supported language and lesson first.",language)}
   let calls=await translator.calls;XCTAssertEqual(calls,0)
@@ -200,7 +199,7 @@ private func b10Directory()->URL {FileManager.default.temporaryDirectory.appendi
 final class B10LessonsStoreTests:XCTestCase {
  /// LE-7: a rescan re-hashes only recordings written since they were verified; a replaced file is verified again.
  func testRescansReuseVerifiedRecordings()throws {
-  let dir=b10Directory();defer{try? FileManager.default.removeItem(at:dir)}
+  let dir=try scratchDirectory()
   let source=LessonTranslation.source(library:try CourseLibrary(),index:0),store=try LessonPackStore(directory:dir)
   try store.saveTranslation(source,source:source,locale:"fr")
   for beat in source.beats{_ = try store.saveClip(pcm:plausibleLessonPCM(beat.speak),transcript:beat.speak,beatID:beat.id,source:source,locale:"fr",voice:"cedar",model:"gpt-realtime")}
@@ -221,7 +220,7 @@ final class B10LessonsStoreTests:XCTestCase {
  }
  /// LE-10: cancelling (as quitting does) deletes the private sign-in at once, before the async cleanup can run.
  func testCancellingDeletesThePrivateSignInImmediately()async throws {
-  let dir=b10Directory();try FileManager.default.createDirectory(at:dir,withIntermediateDirectories:true);defer{try? FileManager.default.removeItem(at:dir)}
+  let dir=try scratchDirectory(create:true)
   let executable=dir.appendingPathComponent("fake-app-server")
   let script="""
   #!/usr/bin/python3

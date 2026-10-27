@@ -11,9 +11,7 @@ import CheckmateCore
 /// WI-025 (mini-games plan D6): Review this game, from a finished training game, opens a draft review of that game
 /// through the one transition function, leaves the practice game as it was, and Return to game leads back to training.
 @MainActor final class TrainingReviewNavigationTests:XCTestCase {
-    private var directory:URL!
-    override func setUp(){directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);setenv("CHECKMATE_DATA_DIR",directory.path,1);setenv("CHECKMATE_TRAINING_ENABLED","1",1);setenv("CHECKMATE_TRAINING_B","1",1)}
-    override func tearDown(){unsetenv("CHECKMATE_DATA_DIR");unsetenv("CHECKMATE_TRAINING_ENABLED");unsetenv("CHECKMATE_TRAINING_B");try? FileManager.default.removeItem(at:directory)}
+    override func setUpWithError()throws{try isolateDataDirectory(["CHECKMATE_TRAINING_ENABLED":"1","CHECKMATE_TRAINING_B":"1"])}
     private func practiceBytes(_ model:NativeModel)throws -> Data {let encoder=JSONEncoder();encoder.outputFormatting=[.sortedKeys];return try encoder.encode(model.session.state.practice)}
     func testReviewThisGameOpensTheTrainingGameAndReturnsToTheEntry()async throws {
         let model=try NativeModel(),game=GameWindow(model:model);defer{game.window?.delegate=nil;model.shutdown()}

@@ -1,10 +1,11 @@
 import XCTest
 @testable import CheckmateNative
 import CheckmateCore
+import CheckmateTestSupport
 
 /// The captured pieces and material lead (B-10), read from the board's placement against the game's own start.
 final class MaterialBalanceTests:XCTestCase {
-    private let start="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+    private let start=NetworkStart.standard
     func testTheStartingPositionHasNothingCapturedAndNoLead()throws {
         let m=try XCTUnwrap(MaterialBalance(fen:start,start:start))
         XCTAssertEqual(m.captured(by:"w"),[]);XCTAssertEqual(m.captured(by:"b"),[]);XCTAssertEqual(m.lead(for:"w"),0);XCTAssertEqual(m.lead(for:"b"),0)
@@ -63,9 +64,7 @@ final class MaterialBalanceTests:XCTestCase {
 
 /// The material row runs top to bottom in the order the board shows the sides, after Flip Board too.
 @MainActor final class MaterialOrientationTests:XCTestCase {
-    private var directory:URL!
-    override func setUp(){directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);setenv("CHECKMATE_DATA_DIR",directory.path,1)}
-    override func tearDown(){unsetenv("CHECKMATE_DATA_DIR");try? FileManager.default.removeItem(at:directory)}
+    override func setUpWithError()throws{try isolateDataDirectory()}
 
     func testTheRowFollowsFlipBoardInPracticeAndReview()async throws {
         let model=try NativeModel(),game=GameWindow(model:model);defer{game.window?.delegate=nil;model.shutdown()}
@@ -85,7 +84,7 @@ final class MaterialBalanceTests:XCTestCase {
     /// The class of the defect: a row beside the board that orders by side takes the order from the board drawn
     /// (practice and review) or from the network game's own flip, never from the learner's side.
     func testEveryMaterialRowTakesItsOrderFromTheBoard()throws {
-        let sources=URL(fileURLWithPath:#filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("Sources/CheckmateNative")
+        let sources=Repository.url("Sources/CheckmateNative")
         let call=try NSRegularExpression(pattern:#"MaterialRow\(balance:.*?blackAtBottom:([\w.]+)"#)
         var found:[String]=[]
         for url in try FileManager.default.contentsOfDirectory(at:sources,includingPropertiesForKeys:nil) where url.pathExtension=="swift" {

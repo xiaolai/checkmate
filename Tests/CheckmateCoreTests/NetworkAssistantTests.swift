@@ -17,16 +17,6 @@ import CheckmateRules
         let fairness=FairnessPolicy(participation:mac.participation),engine=CountingEngine();engine.participation=mac.participation
         return Help(fairness:fairness,engine:engine,assistant:NetworkAssistant(game:mac.game,fairness:fairness,engine:engine))
     }
-    private func settle(_ done:@escaping ()->Bool,_ message:String,file:StaticString=#filePath,line:UInt=#line)async throws {
-        for _ in 0..<400 where !done(){try await Task.sleep(for:.milliseconds(5))};XCTAssertTrue(done(),message,file:file,line:line)
-    }
-    private func code(_ error:Error)->String? {(ProtocolErrors.failure(error)["error"] as? [String:Any])?["code"] as? String}
-    /// Ana hosts as White under `terms`, Ben joins as Black accepting them, and Cy watches.
-    private func game(_ terms:NetworkAssistance,_ lan:MemoryLAN)throws -> (ana:Mac,ben:Mac,cy:Mac) {
-        let ana=try NetworkControllerTests().hosting(lan){$0.assistance=terms}
-        let ben=try NetworkControllerTests().joining(lan,"Ben",ana,accepting:terms),cy=try NetworkControllerTests().joining(lan,"Cy",ana,watching:true)
-        return (ana,ben,cy)
-    }
 
     /// A1 and A8: each player's level is their own side's, from the verified terms; a spectator's is always `off`.
     func testEachPlayerGetsTheirOwnSidesLevel()throws {
@@ -56,10 +46,10 @@ import CheckmateRules
         for _ in 0..<3 {anaHelp.assistant.ask()};try await Task.sleep(for:.milliseconds(20))
         XCTAssertEqual(anaHelp.engine.calls,1,"one search a turn");XCTAssertEqual(anaHelp.assistant.hint,hint)
         XCTAssertTrue(ana.game.rules.moves().contains{$0.uci==hint.uci});XCTAssertEqual(hint.from+hint.to,hint.uci)
-        NetworkControllerTests().play(ana,hint.from,hint.to,lan)
+        play(ana,hint.from,hint.to,lan)
         XCTAssertNil(anaHelp.assistant.hint,"the hint goes with the turn");XCTAssertFalse(ana.game.assistedThisTurn)
         for mac in [ana,ben,cy]{XCTAssertEqual(mac.game.record?.assistedPlies,[1],"\(mac.game.playerName) sees the hinted move")}
-        NetworkControllerTests().play(ben,"e7","e5",lan)
+        play(ben,"e7","e5",lan)
         for mac in [ana,ben,cy]{XCTAssertEqual(mac.game.record?.assistedPlies,[1],"Ben's own move had no hint")}
         XCTAssertEqual(benHelp.engine.calls,0)
     }
@@ -71,7 +61,7 @@ import CheckmateRules
         benHelp.assistant.ask();anaHelp.assistant.ask();cyHelp.assistant.ask();try await Task.sleep(for:.milliseconds(30))
         XCTAssertEqual(benHelp.engine.calls+anaHelp.engine.calls+cyHelp.engine.calls,0,"Ben waits for his move; Ana's level has no hints; Cy watches")
         XCTAssertFalse(anaHelp.assistant.canAsk);XCTAssertFalse(cyHelp.assistant.canAsk)
-        NetworkControllerTests().play(ana,"e2","e4",lan)
+        play(ana,"e2","e4",lan)
         XCTAssertTrue(benHelp.assistant.canAsk);benHelp.assistant.ask()
         try await settle({benHelp.assistant.hint != nil},"Ben's hint on his own move")
     }
@@ -83,7 +73,7 @@ import CheckmateRules
         do {
             let lan=MemoryLAN(),(ana,ben,_)=try game(NetworkAssistance(both:.hints),lan),anaHelp=help(ana)
             anaHelp.engine.holding=true;anaHelp.assistant.ask();try await settle({anaHelp.engine.held==1},"the search is held");let search=try XCTUnwrap(anaHelp.assistant.search)
-            NetworkControllerTests().play(ana,"d2","d4",lan);XCTAssertFalse(anaHelp.assistant.thinking,"the turn's end cancels it")
+            play(ana,"d2","d4",lan);XCTAssertFalse(anaHelp.assistant.thinking,"the turn's end cancels it")
             anaHelp.engine.releaseAll();await search.value
             XCTAssertNil(anaHelp.assistant.hint);XCTAssertNil(anaHelp.assistant.error);XCTAssertEqual(ben.game.record?.assistedPlies,[])
         }
@@ -109,8 +99,8 @@ import CheckmateRules
     /// pauses or credits it.
     func testAHintUsesTheAskersOwnClock()async throws {
         let lan=MemoryLAN(),terms=NetworkAssistance(both:.hints)
-        let ana=try NetworkControllerTests().hosting(lan){$0.timeControl = .threePlusTwo;$0.assistance=terms},ben=try NetworkControllerTests().joining(lan,"Ben",ana,accepting:terms),benHelp=help(ben)
-        NetworkControllerTests().play(ana,"e2","e4",lan);XCTAssertEqual(ana.game.currentClocks?.active,.black)
+        let ana=try hosting(lan){$0.timeControl = .threePlusTwo;$0.assistance=terms},ben=try joining(lan,"Ben",ana,accepting:terms),benHelp=help(ben)
+        play(ana,"e2","e4",lan);XCTAssertEqual(ana.game.currentClocks?.active,.black)
         benHelp.engine.holding=true;benHelp.assistant.ask();try await settle({benHelp.engine.held==1},"the search is held")
         lan.scheduler.advance(by:.seconds(5));XCTAssertEqual(ana.game.currentClocks?.black,175_000,"Black's clock runs while his hint searches");XCTAssertEqual(ana.game.currentClocks?.active,.black)
         benHelp.engine.releaseAll();try await settle({benHelp.assistant.hint != nil},"the hint is shown")
@@ -172,7 +162,7 @@ import CheckmateRules
     /// the record would otherwise miss.
     func testHelpEndsOnceTheMoveIsSent()async throws {
         let lan=MemoryLAN(),(ana,ben,_)=try game(NetworkAssistance(both:.hints),lan),benHelp=help(ben)
-        NetworkControllerTests().play(ana,"e2","e4",lan)
+        play(ana,"e2","e4",lan)
         benHelp.engine.holding=true;benHelp.assistant.ask();try await settle({benHelp.engine.held==1},"Ben's search is held");let search=try XCTUnwrap(benHelp.assistant.search)
         ben.game.play(from:"e7",to:"e5");XCTAssertNotNil(ben.game.pending,"the move waits for the host")
         XCTAssertFalse(ben.game.yourTurn);XCTAssertFalse(benHelp.assistant.canAsk)
@@ -207,12 +197,12 @@ import CheckmateRules
     /// A6: under `guided`, a new game's first turn starts its own hint, though a new game starts again at revision 0.
     func testEachNewGuidedGameStartsItsOwnHint()async throws {
         let lan=MemoryLAN(),terms=NetworkAssistance(both:.guided)
-        let ana=try NetworkControllerTests().hosting(lan){$0.assistance=terms},anaHelp=help(ana)
-        _=try NetworkControllerTests().joining(lan,"Ben",ana,accepting:terms)
+        let ana=try hosting(lan){$0.assistance=terms},anaHelp=help(ana)
+        _=try joining(lan,"Ben",ana,accepting:terms)
         try await settle({anaHelp.assistant.hint != nil},"the first game's hint");XCTAssertEqual(anaHelp.engine.limits.count,1)
         var done=false;ana.game.leave{done=true};lan.scheduler.advance(by:.seconds(6));XCTAssertTrue(done);XCTAssertNil(ana.game.part)
         ana.game.form.assistance=terms;XCTAssertTrue(ana.game.host());lan.scheduler.run()
-        _=try NetworkControllerTests().joining(lan,"Dee",ana,accepting:terms);XCTAssertEqual(ana.game.gameRevision,0)
+        _=try joining(lan,"Dee",ana,accepting:terms);XCTAssertEqual(ana.game.gameRevision,0)
         try await settle({anaHelp.assistant.hint != nil},"the second game's own hint");XCTAssertEqual(anaHelp.engine.limits.count,2)
     }
 
@@ -220,11 +210,11 @@ import CheckmateRules
     /// when the move is lost with the connection and the same turn comes back.
     func testAGuidedTurnWhoseMoveWasLostStartsItsHintAgain()async throws {
         let lan=MemoryLAN(),terms=NetworkAssistance(both:.guided)
-        let ana=try NetworkControllerTests().hosting(lan){$0.assistance=terms},ben=try Mac(lan,name:"Ben"),benHelp=help(ben)
+        let ana=try hosting(lan){$0.assistance=terms},ben=try Mac(lan,name:"Ben"),benHelp=help(ben)
         ben.game.setShown(true);lan.scheduler.run()
         XCTAssertTrue(ben.game.join(try XCTUnwrap(ben.game.games.first),code:ana.game.playCode!.grouped,accepting:terms));lan.scheduler.run()
         benHelp.engine.holding=true
-        NetworkControllerTests().play(ana,"e2","e4",lan)
+        play(ana,"e2","e4",lan)
         try await settle({benHelp.engine.held==1},"Black's automatic search is held");let search=try XCTUnwrap(benHelp.assistant.search)
         ben.game.play(from:"e7",to:"e5");XCTAssertNotNil(ben.game.pending)
         benHelp.engine.releaseAll();await search.value;XCTAssertNil(benHelp.assistant.hint,"dropped: the move was sent")
@@ -236,16 +226,16 @@ import CheckmateRules
     /// A6: under `guided`, each player's turn starts its own hint, once, marked automatic; the other side's waits.
     func testGuidedStartsAHintAtTheStartOfEachTurn()async throws {
         let lan=MemoryLAN(),terms=NetworkAssistance(both:.guided)
-        let ana=try NetworkControllerTests().hosting(lan){$0.assistance=terms},anaHelp=help(ana)
+        let ana=try hosting(lan){$0.assistance=terms},anaHelp=help(ana)
         let ben=try Mac(lan,name:"Ben"),benHelp=help(ben);ben.game.setShown(true);lan.scheduler.run()
         XCTAssertTrue(ben.game.join(try XCTUnwrap(ben.game.games.first),code:ana.game.playCode!.grouped,accepting:terms));lan.scheduler.run()
         try await settle({anaHelp.assistant.hint != nil},"White's first turn starts a hint by itself")
         XCTAssertEqual(anaHelp.assistant.hint?.automatic,true);XCTAssertEqual(benHelp.engine.calls,0,"not Ben's turn")
         anaHelp.assistant.sync();XCTAssertEqual(anaHelp.engine.calls,1,"once a turn")
-        NetworkControllerTests().play(ana,"e2","e4",lan)
+        play(ana,"e2","e4",lan)
         try await settle({benHelp.assistant.hint != nil},"Black's turn starts his")
         XCTAssertNil(anaHelp.assistant.hint);XCTAssertEqual(anaHelp.engine.calls,1)
-        NetworkControllerTests().play(ben,"e7","e5",lan)
+        play(ben,"e7","e5",lan)
         for mac in [ana,ben]{XCTAssertEqual(mac.game.record?.assistedPlies,[1,2],"both guided moves were shown a hint")}
         // White's second turn starts another, exactly one: guided is every turn, not each player's first.
         try await settle({anaHelp.assistant.hint != nil},"White's second turn starts a hint by itself")
@@ -267,23 +257,23 @@ import CheckmateRules
         let opponent=try GameSession(engine:engine,state:black,fairness:anaHelp.fairness)
         XCTAssertNotEqual(opponent.rules.turn,opponent.humanSide,"the fixture has the engine to move")
         // Busy is never set, not even for a moment before a later check refuses.
-        var wasBusy=false;let watch=opponent.$busy.sink{if $0{wasBusy=true}}
+        var wasBusy=false;let watch=opponent.$busyReason.sink{if $0 != nil{wasBusy=true}}
         opponent.reply();try await Task.sleep(for:.milliseconds(30));XCTAssertFalse(opponent.busy);XCTAssertFalse(wasBusy,"no reply was started");XCTAssertEqual(opponent.rules.history,[]);watch.cancel()
-        do{_ = try await practice.analyze();XCTFail("practice analysis ran")}catch{XCTAssertEqual(code(error),"NETWORK_GAME")}
-        do{_ = try await practice.evaluateCandidate(from:"e2",to:"e4");XCTFail("a practice preview ran")}catch{XCTAssertEqual(code(error),"NETWORK_GAME")}
+        do{_ = try await practice.analyze();XCTFail("practice analysis ran")}catch{XCTAssertEqual(protocolCode(error),"NETWORK_GAME")}
+        do{_ = try await practice.evaluateCandidate(from:"e2",to:"e4");XCTFail("a practice preview ran")}catch{XCTAssertEqual(protocolCode(error),"NETWORK_GAME")}
         // Review evidence is withheld.
         let analyzer=ReviewAnalyzer(engine:engine,fairness:anaHelp.fairness),document=try XCTUnwrap(PGNImporter.parse(Data("1. e4 e5 2. Nf3 *".utf8)).first)
-        do{_ = try await analyzer.analyze(document:document,node:1,revision:0);XCTFail("review evidence was delivered")}catch{XCTAssertEqual(code(error),"NETWORK_GAME")}
+        do{_ = try await analyzer.analyze(document:document,node:1,revision:0);XCTFail("review evidence was delivered")}catch{XCTAssertEqual(protocolCode(error),"NETWORK_GAME")}
         analyzer.startBatch(document);XCTAssertEqual(analyzer.batchStatus,"idle")
         // MCP: every tool but D15's five refuses, each called with arguments its schema accepts.
         let tools=try CompanionTools(session:practice),schemas=try ToolSchemas();practice.setConnection(enabled:true,role:"coach",lease:"fixture")
         let open:Set<String>=["get_session","wait_for_change","list_review_games","open_review","get_review"]
         XCTAssertEqual(Set(schemas.names).intersection(open),open);XCTAssertGreaterThan(schemas.names.count,open.count)
-        let url=URL(fileURLWithPath:#filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("Sources/CheckmateCore/Resources/tool-schemas.json")
+        let url=Repository.url("Sources/CheckmateCore/Resources/tool-schemas.json")
         let all=try XCTUnwrap(JSONSerialization.jsonObject(with:Data(contentsOf:url)) as? [String:[String:Any]])
         for name in schemas.names where !open.contains(name) {
             let args=try XCTUnwrap(Self.sample(try XCTUnwrap(all[name])) as? [String:Any]);XCTAssertNoThrow(try schemas.parse(name,args:args),"the sample fits \(name)'s schema")
-            do{_ = try await tools.call(name,args:args,lease:"fixture");XCTFail("\(name) answered")}catch{XCTAssertEqual(code(error),"NETWORK_GAME",name)}
+            do{_ = try await tools.call(name,args:args,lease:"fixture");XCTFail("\(name) answered")}catch{XCTAssertEqual(protocolCode(error),"NETWORK_GAME",name)}
         }
         XCTAssertEqual(engine.calls,0,"practice, Review and MCP asked the engine nothing")
         XCTAssertEqual(anaHelp.engine.otherCallsWhileParticipating,0);XCTAssertEqual(anaHelp.engine.nodeCallsWhileParticipating,1)

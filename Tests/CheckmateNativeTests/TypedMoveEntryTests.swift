@@ -8,9 +8,7 @@ import CheckmateCore
 /// B-23: Game ▸ Type a Move… (⌘L) plays a typed move on whatever board takes moves, through that board's own rules;
 /// a refusal is shown and spoken, and nothing changes.
 @MainActor final class TypedMoveEntryTests:XCTestCase {
-    private var directory:URL!
-    override func setUp(){directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);setenv("CHECKMATE_DATA_DIR",directory.path,1)}
-    override func tearDown(){unsetenv("CHECKMATE_DATA_DIR");try? FileManager.default.removeItem(at:directory)}
+    override func setUpWithError()throws{try isolateDataDirectory()}
 
     func testTheGameMenuOffersTypeAMoveOnCommandL(){
         let menu=AppDelegate.makeGameMenu(target:nil),item=menu.items.first{$0.action == #selector(GameWindow.typeMove)}

@@ -7,7 +7,7 @@ import CheckmateTestSupport
 
 /// A lesson's exercise is judged by replaying the learner's moves; it lives in the lesson and never in the practice game.
 final class LessonAttemptTests:XCTestCase {
-    private func fingerprint(_ fen:String,_ moves:[String]=[])throws -> String {let r=try ChessRules(fen:fen);for m in moves{try r.move(uci:m)};return LessonAttemptJudge.fingerprint(r.fen)}
+    private func fingerprint(_ fen:String,_ moves:[String]=[])throws -> String {let r=try ChessRules.reached(fen,moves);return LessonAttemptJudge.fingerprint(r.fen)}
     private let castleFEN="4k3/8/8/8/8/8/8/R3K2R w KQ - 0 1"
     private func castling()throws -> LessonPractice {
         LessonPractice(fen:castleFEN,goal:"Castle kingside.",beat:"test:0",teaching:[LessonTeachingNode(fingerprint:try fingerprint(castleFEN),accepted:["e1g1"])],checkpoints:[.init(kind:.castle,label:"Castle kingside")],opponent:.beginner,hints:["Tuck the king away.","Look at the king and the h1 rook."],offTrack:"Castle instead.",mistakes:["e1c1":"Kingside, please."],success:"You castled.")
@@ -85,7 +85,7 @@ final class LessonAttemptTests:XCTestCase {
     @MainActor private func controller(engine:EngineService?=nil)throws -> (GameSession,LessonAttemptController) {
         let s=try GameSession(engine:engine),c=try LessonAttemptController(session:s);c.replyDelay={.zero};return (s,c)
     }
-    @MainActor private func settle(_ c:LessonAttemptController)async throws {for _ in 0..<400 where c.thinking{try await Task.sleep(for:.milliseconds(5))}}
+    @MainActor private func settle(_ c:LessonAttemptController)async throws {await pollQuietly(tries:400,every:.milliseconds(5)){!c.thinking}}
     @MainActor func testClickingCastlesSavesAndRecordsTheAchievementOnce()async throws {
         let (s,c)=try controller(),p=try castling(),practiceGame=s.rules.pgn
         c.open(lessonID:"test",practice:p);XCTAssertTrue(c.learnerToMove)

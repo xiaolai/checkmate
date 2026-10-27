@@ -101,5 +101,5 @@ public enum ReviewRecordSource {
     }
 }
 public extension ReviewController {
-    func projection()->[String:Any] {guard let d=document else{return ["schemaVersion":1,"active":false]};return ["schemaVersion":1,"active":true,"documentId":d.id.uuidString,"documentHash":d.contentHash,"reviewRevision":revision,"nodeId":nodeID,"displayIdentity":identity,"fen":displayFEN as Any? ?? NSNull(),"original":branch==nil,"result":d.result,"termination":d.termination.map{String(String.UnicodeScalarView($0.unicodeScalars.prefix(ReviewPolicy.maximumTitleScalars)))} as Any? ?? NSNull(),"historyAvailable":d.historyAvailable,"totalNodes":d.nodes.count,"explanation":explanation.map{jsonObject($0)} ?? NSNull(),"analysisStatus":analysisStatus]}
+    func projection()->[String:Any] {guard let d=document else{return ["schemaVersion":1,"active":false]};return ["schemaVersion":1,"active":true,"documentId":d.id.uuidString,"documentHash":d.contentHash,"reviewRevision":revision,"nodeId":nodeID,"displayIdentity":identity,"fen":displayFEN as Any? ?? NSNull(),"original":branch==nil,"result":d.result,"termination":d.termination.map{PGNImporter.bounded($0,scalars:ReviewPolicy.maximumTitleScalars)} as Any? ?? NSNull(),"historyAvailable":d.historyAvailable,"totalNodes":d.nodes.count,"explanation":explanation.map{jsonObject($0)} ?? NSNull(),"analysisStatus":analysisStatus]}
 }

@@ -10,8 +10,6 @@ import CheckmateCore
 
 /// Audit regressions for import recovery, practice game swaps and saved-state validation.
 @MainActor final class AuditPlayRecoveryTests:XCTestCase {
-    private func report(_ text:String)throws -> (documents:[GameDocument],skipped:[ReviewImportError]) {try PGNImporter.parseReport(Data(text.utf8))}
-    private func moves(_ documents:[GameDocument])->[[String]] {documents.map{document in document.mainline.compactMap{document.nodes[$0].san}}}
     // #1: an invalid FEN header is that game's problem; the valid games around it still import.
     func testInvalidFENHeaderSkipsOnlyItsGame()throws {
         let result=try report("[Event \"a\"]\n1. e4 *\n\n[SetUp \"1\"]\n[FEN \"4k3/8/8/8/8/8/8/P3K3 w - - 0 1\"]\n1. Ke2 *\n\n[Event \"c\"]\n1. d4 *")

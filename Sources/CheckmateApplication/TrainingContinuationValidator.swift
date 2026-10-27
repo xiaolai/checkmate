@@ -91,7 +91,7 @@ import Foundation
         func certify(_ index:Int,line:[String],plies:Int)throws {
             guard visited.insert(index).inserted else{throw CheckmateError.invalid("teaching node \(index) is reached twice")} // not localized: scenario authoring check
             let node=nodes[index]
-            let legality=try TrainingLegality(fen:scenario.fen ?? "",prelude:(scenario.prelude ?? [])+line,runtimeFactory:runtimeFactory)
+            let legality=try TrainingLegality(fen:scenario.fen ?? "",prelude:scenario.history(after:line),runtimeFactory:runtimeFactory)
             guard try legality.fingerprint()==node.fingerprint else{throw CheckmateError.invalid("teaching node \(index) fingerprint differs from the position")} // not localized: scenario authoring check
             let found=try classify(scenario,line:line,plies:plies)
             guard Set(node.accepted)==found.accepted,node.accepted.count==found.accepted.count else{throw CheckmateError.invalid("node \(index) accepted moves differ from the search: \(found.accepted.sorted())")} // not localized: scenario authoring check

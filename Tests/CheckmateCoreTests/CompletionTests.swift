@@ -18,7 +18,7 @@ final class CompletionTests:XCTestCase {
         elapsed.sort();let p95=elapsed[Int(Double(elapsed.count-1)*0.95)]*1000;print("PERFORMANCE dispatch-p95-ms=\(p95) transitions=1000");XCTAssertLessThan(p95,50);s.prepareShutdown();XCTAssertNil(s.voiceLease)
     }
     @MainActor func testTwentyBrokerCyclesAndPrivateDiscovery()async throws {
-        let dir=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);defer{try? FileManager.default.removeItem(at:dir)}
+        let dir=try scratchDirectory()
         let s=try GameSession(engine:nil),b=try CompanionBroker(session:s,directory:dir)
         for _ in 0..<20 {try b.enable(role:"coach");let url=dir.appendingPathComponent("connection.json");for _ in 0..<100{if FileManager.default.fileExists(atPath:url.path){break};try await Task.sleep(nanoseconds:10_000_000)};XCTAssertTrue(FileManager.default.fileExists(atPath:url.path));let d=try JSONSerialization.jsonObject(with:Data(contentsOf:url)) as! [String:Any];let client=UUID().uuidString
             func post(_ body:Data,origin:Bool=false)async throws->[String:Any]{var r=URLRequest(url:URL(string:d["url"] as! String+"/rpc")!);r.httpMethod="POST";r.httpBody=body;r.setValue("Bearer "+(d["token"] as! String),forHTTPHeaderField:"Authorization");r.setValue(client,forHTTPHeaderField:"X-Checkmate-Client");if origin{r.setValue("http://invalid",forHTTPHeaderField:"Origin")};let (data,_)=try await URLSession.shared.data(for:r);return try JSONSerialization.jsonObject(with:data) as! [String:Any]}

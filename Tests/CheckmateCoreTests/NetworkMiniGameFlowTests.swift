@@ -26,7 +26,7 @@ import CheckmateSupport
         XCTAssertEqual(mac.game.link,.live);return mac
     }
     private func move(_ mac:Mac,_ uci:String,_ lan:MemoryLAN){mac.game.click(String(uci.prefix(2)));mac.game.click(String(uci.suffix(2)));lan.scheduler.run();XCTAssertNil(mac.game.pending,"\(uci) was applied")}
-    private func waitFor(_ condition:@escaping ()->Bool)async throws {for _ in 0..<400 {if condition(){return};try await Task.sleep(for:.milliseconds(25))}}
+    private func waitFor(_ condition:()->Bool)async throws {await pollQuietly(tries:400,every:.milliseconds(25),condition)}
 
     /// The flag off: the sheet's mini-game is ignored and hosting is chess exactly as 1.2 hosts it.
     func testWithTheFlagOffHostingIsChess()throws {
@@ -140,8 +140,8 @@ import CheckmateSupport
     /// Protocol 1.3's promise for chess from a declared start: the capture that froze `Legacy12CoreFixtures`, run again
     /// on this build, writes the same crash-file entry, review record and TXT entries, and reads 1.2's entry back.
     func testAChessGameFromADeclaredStartWritesWhat12Wrote()throws {
-        var state:UInt64=1012
-        let random=NetworkRandom{count in (0..<count).map{_ in state&+=0x9E3779B97F4A7C15;var z=state;z=(z^(z>>30))&*0xBF58476D1CE4E5B9;z=(z^(z>>27))&*0x94D049BB133111EB;return UInt8(truncatingIfNeeded:z^(z>>31))}}
+        var generator=TrainingRandom(seed:1012)
+        let random=NetworkRandom{count in (0..<count).map{_ in UInt8(truncatingIfNeeded:generator.next())}}
         func id()->NetworkID {.random(using:random)}
         // The capture made these, in this order, before its game: the same draws keep the game's identifiers.
         _ = NetworkGameID.random(using:random);_ = NetworkSecret.random(using:random);_ = NetworkSecret.random(using:random);_ = id();_ = id()

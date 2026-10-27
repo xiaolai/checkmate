@@ -15,14 +15,13 @@ public enum MiniGameKind:String,Codable,CaseIterable {
         case .knightCapture:return "Only the knights move. Take every other piece; a side whose knight is gone, or cannot move, loses."
         case .knightCorners:return "Visit a8, h8 and h1, then return to a1. Avoid the black pawns and the squares they attack."
     }}
+    /// The square's image when the board is turned through 180 degrees: a1 becomes h8.
+    public static func turned(_ square:String)->String {String(Character(UnicodeScalar(UInt8(201)-square.utf8.first!)))+String(9-Int(square.suffix(1))!)}
     /// Each side's half is the other's turned through 180 degrees with colours swapped, so neither side starts ahead.
     public var initialBoard:Position {
         func mirrored(_ white:Position)->Position {
             var board=white
-            for (square,piece) in white {
-                let file=Character(UnicodeScalar(UInt8(201)-square.utf8.first!)),rank=9-Int(square.suffix(1))!
-                board[String(file)+String(rank)]="b"+piece.suffix(1)
-            }
+            for (square,piece) in white {board[Self.turned(square)]="b"+piece.suffix(1)}
             return board
         }
         let duelPawns=Dictionary(uniqueKeysWithValues:"abcfgh".flatMap{[(String($0)+"2","wp"),(String($0)+"7","bp")]})
@@ -77,8 +76,7 @@ public struct MiniGameState:Codable,Equatable {
     /// A stable digest of the board and how many positions precede it: 64-bit FNV-1a, as 16 hex digits.
     public var witness:String {
         let move=snapshot.lastMove.map{$0.from+$0.to} ?? "-",text="mini-witness-v1|"+board.keys.sorted().map{$0+"="+board[$0]!}.joined(separator:",")+"|\(turn)|\(snapshot.pendingFinish ?? "-")|\(snapshot.cornerIndex)|\(move)|\(history.count)"
-        var hash:UInt64=0xcbf29ce484222325;for byte in text.utf8{hash=(hash ^ UInt64(byte)) &* 0x100000001b3}
-        return String(format:"%016llx",hash)
+        return String(format:"%016llx",fnv1a64(text.utf8))
     }
     /// The stored level when it belongs to this run; nil when there is none, or it names another run (an older build
     /// restarted the game and wrote the unknown field back).
@@ -129,13 +127,10 @@ public struct MiniGameState:Codable,Equatable {
             let anyReachable=bishops.contains{from,piece in board.contains{to,target in target.first != piece.first && colour(from)==colour(to)}}
             if !anyReachable{return .unreachableTargets}
         }
-        func same(_ a:MiniGameSnapshot,_ b:MiniGameSnapshot)->Bool {a.board==b.board && a.turn==b.turn && a.pendingFinish==b.pendingFinish}
-        if history.filter({same($0,snapshot)}).count>=Self.repetitionCount-1{return .repetition}
-        if history.count>=Self.noProgressPlies {
-            let recent=history.suffix(Self.noProgressPlies)
-            let pawns=board.filter{$0.value.hasSuffix("p")}
-            if recent.allSatisfy({$0.board.count==board.count && $0.board.filter{$0.value.hasSuffix("p")}==pawns}) {return .noProgress}
-        }
+        // Both rules are asked at every node of a search, so neither builds an array or a dictionary to answer.
+        var repeats=0
+        for earlier in history where earlier.board==board && earlier.turn==turn && earlier.pendingFinish==snapshot.pendingFinish {repeats+=1;if repeats>=Self.repetitionCount-1{return .repetition}}
+        if history.count>=Self.noProgressPlies,history.suffix(Self.noProgressPlies).allSatisfy({MiniGameRules.sameMaterialAndPawns($0.board,board)}) {return .noProgress}
         return nil
     }
     public var isFinished:Bool {winner != nil || drawReason != nil}
@@ -167,19 +162,21 @@ public enum MiniGameRules {
     /// the same game. `NetworkRulesetTests` freezes each kind's start and a finished trace to catch a change without it.
     public static let version=2
     public static let corners=["a8","h8","h1","a1"]
-    private static let straight=[(1,0),(-1,0),(0,1),(0,-1)],diagonal=[(1,1),(1,-1),(-1,1),(-1,-1)]
-    private static let jumps=[(1,2),(2,1),(-1,2),(-2,1),(1,-2),(2,-1),(-1,-2),(-2,-1)]
+    /// Whether two positions hold the same pieces and the same pawns on the same squares: nothing was captured and no
+    /// pawn moved between them, so neither the 80-ply rule's count nor a repetition's reach was reset. Compared in place.
+    static func sameMaterialAndPawns(_ a:Position,_ b:Position)->Bool {
+        a.count==b.count && a.allSatisfy{!$0.value.hasSuffix("p") || b[$0.key]==$0.value} && b.allSatisfy{!$0.value.hasSuffix("p") || a[$0.key]==$0.value}
+    }
     public static func moves(board:Position,kind:MiniGameKind,side:String)->[MiniGameMove] {
         var result:[MiniGameMove]=[]
         for from in board.keys.sorted() {
-            guard let piece=board[from],piece.hasPrefix(side),kind.canMove(piece),ChessNotation.validSquare(from) else{continue}
+            guard let piece=board[from],piece.hasPrefix(side),kind.canMove(piece),let (file,rank)=TrainingGeometry.coordinates(from) else{continue}
             if piece.hasSuffix("p"){result += CourseLibrary.pawnMoves(board,from:from).map{MiniGameMove(from:from,to:$0)};continue}
-            let file=Int(from.utf8.first!-97),rank=Int(from.suffix(1))!-1
-            let knight=piece.hasSuffix("n"),directions=knight ? jumps:piece.hasSuffix("b") ? diagonal:piece.hasSuffix("r") ? straight:straight+diagonal
+            let knight=piece.hasSuffix("n"),directions=knight ? TrainingGeometry.jumps:piece.hasSuffix("b") ? TrainingGeometry.diagonal:piece.hasSuffix("r") ? TrainingGeometry.straight:TrainingGeometry.straight+TrainingGeometry.diagonal
             for (dx,dy) in directions {
                 var x=file+dx,y=rank+dy
-                while (0..<8).contains(x),(0..<8).contains(y) {
-                    let to=String(UnicodeScalar(97+x)!)+String(y+1),occupant=board[to]
+                while let to=TrainingGeometry.square(x,y) {
+                    let occupant=board[to]
                     if occupant?.hasPrefix(side)==true{break}
                     let safe = !kind.solo || occupant==nil && !board.contains{entry in entry.value=="bp" && abs(Int(entry.key.utf8.first!-97)-x)==1 && Int(entry.key.suffix(1))!-2==y}
                     if safe{result.append(MiniGameMove(from:from,to:to))}
@@ -214,8 +211,9 @@ public struct MiniOpponentPolicy:Codable,Equatable {
 }
 public enum MiniGameOpponent {
     // Bounded search is independent of kings, check and standard-chess promotion.
-    public static let replyDelay:Duration = .milliseconds(400),nodeBudget=8_000,maximumDepth=4
+    public static let replyDelay:Duration = .milliseconds(400)
     private static let win=100_000,limit=1_000_000
+    private static let values:[Character:Int]=["p":100,"n":350,"b":330,"r":500,"q":900]
     /// The node budget makes a choice deterministic for a seed; the time limit only guards responsiveness on a slow or
     /// loaded machine, where it can stop the search earlier and so choose differently. Pass `timeLimited:false` to
     /// examine the search itself.
@@ -239,20 +237,20 @@ public enum MiniGameOpponent {
         func evaluate(_ s:MiniGameState)->Int {
             var score=0
             for (square,piece) in s.board {
-                let side=piece.hasPrefix("w") ? 1:-1,type=String(piece.suffix(1)),rank=Int(square.suffix(1))!
-                let value=["p":100,"n":350,"b":330,"r":500,"q":900][type,default:0]
-                score+=side*(value+(type=="p" ? (side==1 ? rank-2:7-rank)*18:0))
+                let side=piece.hasPrefix("w") ? 1:-1,type=piece.last!,rank=Int(square.suffix(1))!
+                score+=side*(Self.values[type,default:0]+(type=="p" ? (side==1 ? rank-2:7-rank)*18:0))
             }
             return score
         }
         func search(_ s:MiniGameState,_ depth:Int,_ alpha:Int,_ beta:Int)->Int {
             nodes+=1
             if let winner=s.winner{return (winner=="w" ? 1:-1)*(win+depth)}
-            if s.drawReason != nil{return 0}
+            if s.drawReasonWithoutWinner != nil{return 0}
             if depth==0 || exhausted(){return evaluate(s)}
             var a=alpha,b=beta,value=s.turn=="w" ? -limit:limit
+            // The moves were just generated for this unfinished position, so they are applied unchecked (`advance`).
             for move in ordered(s) {
-                var child=s;_ = child.play(move,remember:false)
+                var child=s;child.advance(move,remember:false)
                 let score=search(child,depth-1,a,b)
                 if s.turn=="w"{value=max(value,score);a=max(a,value)}else{value=min(value,score);b=min(b,value)}
                 if a>=b || exhausted(){break}
@@ -263,7 +261,7 @@ public enum MiniGameOpponent {
             var candidates:[MiniGameMove]=[],value=state.turn=="w" ? -limit:limit,complete=true
             for move in legal {
                 if exhausted(){complete=false;break}
-                var child=state;_ = child.play(move,remember:false)
+                var child=state;child.advance(move,remember:false)
                 let score=search(child,depth-1,-limit,limit)
                 if state.turn=="w" ? score>value:score<value{candidates=[move];value=score}else if score==value{candidates.append(move)}
                 if exhausted(){complete=false;break}
@@ -272,8 +270,11 @@ public enum MiniGameOpponent {
         }
         return Decision(move:Task.isCancelled ? nil:best,nodes:nodes,completedDepth:completedDepth,deadlineCut:deadlineCut)
     }
-    private static func ordered(_ state:MiniGameState)->[MiniGameMove] {MiniGameRules.moves(board:state.board,kind:state.kind,side:state.turn).sorted{a,b in
-        func priority(_ m:MiniGameMove)->Int {(state.board[m.to] != nil ? 10:0)+(m.to.hasSuffix(state.turn=="w" ? "8":"1") ? 5:0)}
-        return priority(a)==priority(b) ? a.from+a.to<b.from+b.to:priority(a)>priority(b)
-    }}
+    /// Captures and far-rank arrivals first, then by square name. Each move's priority is computed once, not on every
+    /// comparison; squares are two characters, so the pair orders as the joined text did.
+    private static func ordered(_ state:MiniGameState)->[MiniGameMove] {
+        let far=state.turn=="w" ? "8":"1"
+        func priority(_ m:MiniGameMove)->Int {(state.board[m.to] != nil ? 10:0)+(m.to.hasSuffix(far) ? 5:0)}
+        return MiniGameRules.moves(board:state.board,kind:state.kind,side:state.turn).map{($0,priority($0))}.sorted{$0.1==$1.1 ? ($0.0.from,$0.0.to)<($1.0.from,$1.0.to):$0.1>$1.1}.map(\.0)
+    }
 }

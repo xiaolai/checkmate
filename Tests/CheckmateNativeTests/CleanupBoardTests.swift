@@ -130,9 +130,7 @@ import CheckmateCore
 
 /// #47: a practice promotion chosen from the menu applies only to the exact game position the menu was opened over.
 @MainActor final class CleanupPracticePromotionTests:XCTestCase {
-    private var directory:URL!
-    override func setUp(){directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);setenv("CHECKMATE_DATA_DIR",directory.path,1)}
-    override func tearDown(){unsetenv("CHECKMATE_DATA_DIR");try? FileManager.default.removeItem(at:directory)}
+    override func setUpWithError()throws{try isolateDataDirectory()}
     /// White to move with a pawn on b7 that can promote on b8.
     private let line="1. e4 d5 2. exd5 c6 3. dxc6 Nf6 4. cxb7 Nbd7 *"
     private func choice(_ promotion:GameWindow.PracticePromotion)->NSMenuItem {let item=NSMenuItem(title:"Knight",action:#selector(GameWindow.promote(_:)),keyEquivalent:"");item.representedObject=promotion;return item}

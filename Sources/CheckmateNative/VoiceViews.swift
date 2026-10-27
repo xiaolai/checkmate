@@ -67,15 +67,17 @@ struct VoiceSettingsContent:View {
     }
     @ObservedObject var session:GameSession
     @ObservedObject var voice:VoiceCoach
-    @ObservedObject var voiceAudio:VoiceAudio
+    /// Not observed here: only `MicLevelView` redraws at the meter's rate.
+    let voiceAudio:VoiceAudio
     @ObservedObject var preview:VoicePreview
     let model:NativeModel
     @State private var advanced:Bool
+    /// Read when the pane appears, not on every render: Core Audio has no change hook here.
+    @State private var devices:[VoiceInputDevice]=[]
     init(session:GameSession,voice:VoiceCoach,voiceAudio:VoiceAudio,preview:VoicePreview,model:NativeModel){
         self.session=session;self.voice=voice;self.voiceAudio=voiceAudio;self.preview=preview;self.model=model
         _advanced=State(initialValue:Self.thinking(effort:session.state.settings.coachReasoningEffort)==nil)
     }
-    private func binding<T>(_ key:WritableKeyPath<AppSettings,T>)->Binding<T> {Binding(get:{session.state.settings[keyPath:key]},set:{var s=session.state.settings;s[keyPath:key]=$0;session.updateSettings(s)})}
     var body:some View {
         let settings=session.state.settings,needs=Self.needs(voice.capability)
         if !needs.isEmpty {
@@ -88,15 +90,15 @@ struct VoiceSettingsContent:View {
         Section("Connection"){
             Text(voice.status);Text(voice.availability).foregroundStyle(.secondary)
             if let failure=voice.availabilityFailure{VoiceFailureNote(failure:failure,help:model.voiceHelp){model.checkVoiceAvailability()}}
-            else if let failure=voice.failure,!voice.connected,!voice.connecting{VoiceFailureNote(failure:failure,help:model.voiceHelp){model.connectVoiceFromSettings()}}
+            else if let failure=voice.failure,!voice.connected,!voice.connecting{VoiceFailureNote(failure:failure,help:model.voiceHelp){model.connectVoice()}}
             HStack{
                 Button("Check Availability"){model.checkVoiceAvailability()}.disabled(voice.checkingAvailability || voice.connecting || voice.connected)
-                VoiceCoachControls(voice:voice,idPrefix:"voice-settings"){model.connectVoiceFromSettings()}.disabled(session.companionEnabled)
+                VoiceCoachControls(voice:voice,idPrefix:"voice-settings"){model.connectVoice()}.disabled(session.companionEnabled)
             }
             // V-9: why a control is off.
             if session.companionEnabled{Text("Connect is off while Codex is connected to Checkmate. Turn off Allow Codex connections in Connections to use voice.").font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)}
             else if voice.connected || voice.connecting{Text("Check Availability is off while the coach is connected.").font(.caption).foregroundStyle(.secondary)}
-            Toggle(VoiceConsent.autoConnectLabel,isOn:binding(\.voiceAutoConnect))
+            Toggle(VoiceConsent.autoConnectLabel,isOn:session.binding(\.voiceAutoConnect))
             Text("Voice is off until you connect it and agree to what is sent to OpenAI. After that, if this is on, Checkmate checks once at launch whether your Codex sign-in can use voice, and connects only when your account allows it.").foregroundStyle(.secondary)
         }
         // One control for the one setting: the three named levels, or under Advanced every reasoning effort in their place.
@@ -104,10 +106,10 @@ struct VoiceSettingsContent:View {
             Toggle("Show Advanced Settings",isOn:$advanced).accessibilityIdentifier("coach-advanced")
             if advanced {
                 Text(voice.selectedModel.isEmpty ? String(localized:"Coach: chosen automatically, the newest one your account can use",bundle:.checkmate):String(localized:"Coach: chosen automatically · \(voice.selectedModel)",bundle:.checkmate)).foregroundStyle(.secondary)
-                Picker("Reasoning effort",selection:binding(\.coachReasoningEffort)){ForEach(AppSettings.reasoningEfforts,id:\.self){Text(CoachThinking.name(effort:$0)).tag($0)}}.accessibilityIdentifier("coach-reasoning-effort")
+                Picker("Reasoning effort",selection:session.binding(\.coachReasoningEffort)){ForEach(AppSettings.reasoningEfforts,id:\.self){Text(CoachThinking.name(effort:$0)).tag($0)}}.accessibilityIdentifier("coach-reasoning-effort")
                 Text("Longer thinking may take longer to answer and uses more of your account. Changes apply to the next answer.").font(.caption).foregroundStyle(.secondary)
             } else {
-                Picker("Thinking",selection:binding(\.coachReasoningEffort)){
+                Picker("Thinking",selection:session.binding(\.coachReasoningEffort)){
                     ForEach(CoachThinking.allCases,id:\.self){Text($0.title).tag($0.rawValue)}
                     if Self.thinking(effort:settings.coachReasoningEffort)==nil{Text("Custom: \(CoachThinking.name(effort:settings.coachReasoningEffort))").tag(settings.coachReasoningEffort)}
                 }.accessibilityIdentifier("coach-thinking")
@@ -115,23 +117,33 @@ struct VoiceSettingsContent:View {
             }
         }
         Section("Speech"){
-            Picker("Voice",selection:binding(\.coachVoice)){ForEach(AppSettings.voices,id:\.self){Text($0.capitalized).tag($0)}}
+            Picker("Voice",selection:session.binding(\.coachVoice)){ForEach(AppSettings.voices,id:\.self){Text($0.capitalized).tag($0)}}
             if voice.connected && voice.activeVoice != settings.coachVoice{Text("Reconnect to use the selected voice.").font(.caption).foregroundStyle(.secondary)}
-            Picker("Response language",selection:binding(\.voiceLanguage)){ForEach(AppSettings.languages.keys.sorted(),id:\.self){Text(AppSettings.languages[$0]!).tag($0)}}
-            Slider(value:binding(\.voiceVolume),in:0...1){Text("Coach volume")}
+            Picker("Response language",selection:session.binding(\.voiceLanguage)){ForEach(AppSettings.languages.keys.sorted(),id:\.self){Text(AppSettings.languages[$0]!).tag($0)}}
+            Slider(value:session.binding(\.voiceVolume),in:0...1){Text("Coach volume")}
             Button(preview.playing ? String(localized:"Stop Preview",bundle:.checkmate):String(localized:"Preview Voice",bundle:.checkmate)){model.previewVoice()}.accessibilityIdentifier("coach-voice-preview")
             if !preview.status.isEmpty{Text(preview.status).font(.caption).foregroundStyle(.secondary)}
         }
         Section {
-            ProgressView(value:voiceAudio.level,total:1).accessibilityLabel("Microphone input level")
+            MicLevelView(voiceAudio:voiceAudio)
             Button("Test Microphone"){voice.testMicrophone()}.disabled(voice.connected || voice.connecting)
             if voice.connected || voice.connecting{Text("Disconnect the coach to test the microphone.").font(.caption).foregroundStyle(.secondary)}
             if let failure=voice.microphoneFailure{VoiceFailureNote(failure:failure,help:model.voiceHelp){voice.testMicrophone()}}
-            Toggle("Microphone",isOn:binding(\.voiceMicrophone))
-            Picker("Input device",selection:binding(\.voiceInputDevice)){Text("System default").tag("");ForEach(VoiceAudio.devices()){Text($0.name).tag($0.id)}}.disabled(!settings.voiceMicrophone)
-            Picker("Spoken language",selection:binding(\.voiceInputLanguage)){Text("Detect automatically").tag("auto");Text("Same as response language").tag("response")}.disabled(!settings.voiceMicrophone)
+            Toggle("Microphone",isOn:session.binding(\.voiceMicrophone))
+            Picker("Input device",selection:session.binding(\.voiceInputDevice)){Text("System default").tag("");ForEach(devices){Text($0.name).tag($0.id)}}.disabled(!settings.voiceMicrophone).onAppear{devices=VoiceAudio.devices()}
+            Picker("Spoken language",selection:session.binding(\.voiceInputLanguage)){Text("Detect automatically").tag("auto");Text("Same as response language").tag("response")}.disabled(!settings.voiceMicrophone)
             if !settings.voiceMicrophone{Text("Turn on Microphone to choose a device and a spoken language.").font(.caption).foregroundStyle(.secondary)}
-            Toggle("Allow the coach to play a move you ask for",isOn:binding(\.voiceAssistMoves))
+            Toggle("Allow the coach to play a move you ask for",isOn:session.binding(\.voiceAssistMoves))
         } header:{Text("Learner input")} footer:{Text("Where echo cancellation is available, speak to interrupt the coach; otherwise the microphone pauses while the coach speaks. Assisted moves require your spoken request.")}
     }
+}
+/// The microphone meter: the one view that redraws at the meter's rate.
+private struct MicLevelView:View {
+    @ObservedObject var voiceAudio:VoiceAudio
+    var body:some View {ProgressView(value:voiceAudio.level,total:1).accessibilityLabel("Microphone input level")}
+}
+/// One line of a short voice conversation, as the network and training panels show it: "You: …" or "Coach: …".
+struct VoiceTranscriptRow:View {
+    let entry:VoiceHistory
+    var body:some View {Text(entry.role=="learner" ? String(localized:"You: \(entry.text)",bundle:.checkmate,comment:"A line of the voice conversation the learner said"):String(localized:"Coach: \(entry.text)",bundle:.checkmate,comment:"A line of the voice conversation the coach said")).font(.caption).fixedSize(horizontal:false,vertical:true)}
 }

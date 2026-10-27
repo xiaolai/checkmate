@@ -56,7 +56,7 @@ final class ReviewStoreRenumberingTests:XCTestCase {
         return GameDocument(schemaVersion:document.schemaVersion,id:document.id,contentHash:document.contentHash,importedAt:document.importedAt,provenance:document.provenance,original:document.original,headers:document.headers,startingFEN:document.startingFEN,result:document.result,termination:document.termination,historyAvailable:document.historyAvailable,nodes:nodes)
     }
     func testCursorAndIdeasFollowTheirMovesIntoARenumberedTree()throws {
-        let root=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);defer{try? FileManager.default.removeItem(at:root)}
+        let root=try scratchDirectory()
         try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)
         let document=try PGNImporter.parse(Data("1. e4 (1. d4) *".utf8))[0]
         let e4=try XCTUnwrap(document.nodes.firstIndex{$0.uci=="e2e4"}),d4=try XCTUnwrap(document.nodes.firstIndex{$0.uci=="d2d4"})
@@ -77,7 +77,7 @@ final class ReviewStoreRenumberingTests:XCTestCase {
         XCTAssertEqual(reopened.document,document);XCTAssertEqual(reopened.cursor,e4);XCTAssertEqual(reopened.branches.map(\.root),[d4])
     }
     func testATreeThatNoLongerHoldsTheIdeaIsPreservedNotReattached()throws {
-        let root=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);defer{try? FileManager.default.removeItem(at:root)}
+        let root=try scratchDirectory()
         try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)
         let document=try PGNImporter.parse(Data("1. e4 (1. d4) *".utf8))[0]
         let e4=try XCTUnwrap(document.nodes.firstIndex{$0.uci=="e2e4"}),d4=try XCTUnwrap(document.nodes.firstIndex{$0.uci=="d2d4"})
@@ -95,10 +95,8 @@ final class ReviewStoreRenumberingTests:XCTestCase {
 
 /// Unsaved review work survives reopening and quitting, and a "Don't Save" answer covers only the exit it was given for.
 @MainActor final class NativeReviewPersistenceTests:XCTestCase {
-    private var directory:URL!
-    override func setUp(){directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);setenv("CHECKMATE_DATA_DIR",directory.path,1)}
-    override func tearDown(){unsetenv("CHECKMATE_DATA_DIR");try? FileManager.default.removeItem(at:directory)}
-    private func settle(_ what:String,_ condition:()->Bool)async throws {for _ in 0..<500{if condition(){return};try await Task.sleep(for:.milliseconds(10))};XCTFail("timed out waiting for \(what)")}
+    override func setUpWithError()throws{try isolateDataDirectory()}
+    private func settle(_ what:String,_ condition:()->Bool)async throws {try await poll(what,tries:500,every:.milliseconds(10),condition)}
     /// A sparse file makes the library look full, so saves fail while loads still succeed.
     private func fillLibrary(_ model:NativeModel)throws -> URL {
         try FileManager.default.createDirectory(at:model.reviewStore.directory,withIntermediateDirectories:true);let filler=model.reviewStore.directory.appendingPathComponent("filler.bin")

@@ -157,7 +157,7 @@ import CheckmateCore
         XCTAssertEqual(protect.variant,"protect");XCTAssertGreaterThan(protect.tier,1)
     }
     func testMeasuredSetupAndSubmissionLatency()throws {
-        let fens=["6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1","7k/6pp/8/8/8/8/8/RR4K1 w - - 0 1","6br/5Ppk/6pp/8/8/8/8/K7 w - - 0 1","4k3/8/8/8/8/2N5/3PPP2/r3K3 w - - 0 1","4k3/4r3/8/8/8/8/4N3/4K2r w - - 0 1","k7/8/8/8/8/8/3n4/4K3 w - - 0 1","r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5Q2/PPPP1PPP/RNB1K1NR w KQkq - 2 3","rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"]
+        let fens=["6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1","7k/6pp/8/8/8/8/8/RR4K1 w - - 0 1","6br/5Ppk/6pp/8/8/8/8/K7 w - - 0 1","4k3/8/8/8/8/2N5/3PPP2/r3K3 w - - 0 1","4k3/4r3/8/8/8/8/4N3/4K2r w - - 0 1","k7/8/8/8/8/8/3n4/4K3 w - - 0 1","r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5Q2/PPPP1PPP/RNB1K1NR w KQkq - 2 3",NetworkStart.standard]
         var setup:[Double]=[],submit:[Double]=[]
         for index in 0..<240 {
             let fen=fens[index%fens.count],started=Date()

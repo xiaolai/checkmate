@@ -11,7 +11,7 @@ final class OpeningBookTests:XCTestCase {
 
     func testTheBundledBookLoadsEveryNamedLine()throws {
         let book=try OpeningBook.bundled()
-        XCTAssertTrue(book.contains(fen:ReviewExplanation.standardStart),"the starting position is in the book")
+        XCTAssertTrue(book.contains(fen:NetworkStart.standard),"the starting position is in the book")
         XCTAssertEqual(book.name(fen:"rnbqkb1r/1p2pppp/p2p1n2/8/3NP3/2N5/PPP2PPP/R1BQKB1R w KQkq - 0 6"),OpeningName(eco:"B90",name:"Sicilian Defense: Najdorf Variation"))
     }
     func testATransposedMoveOrderFindsTheSameOpening()throws {

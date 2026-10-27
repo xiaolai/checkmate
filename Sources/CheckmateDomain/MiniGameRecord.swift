@@ -13,8 +13,7 @@ public enum MiniGameSides {
     /// Whether each side's half of the start is the other's turned through 180 degrees with colours swapped.
     public static func symmetricStart(_ kind:MiniGameKind)->Bool {
         let board=kind.initialBoard
-        func turned(_ square:String)->String {String(Character(UnicodeScalar(UInt8(201)-square.utf8.first!)))+String(9-Int(square.suffix(1))!)}
-        return !kind.solo && board.allSatisfy{square,piece in board[turned(square)]==(piece.hasPrefix("w") ? "b":"w")+piece.suffix(1)}
+        return !kind.solo && board.allSatisfy{square,piece in board[MiniGameKind.turned(square)]==(piece.hasPrefix("w") ? "b":"w")+piece.suffix(1)}
     }
     /// The games the published results allow: a symmetric start, and every pairing of every offered level within
     /// `tolerance` between its two sides.

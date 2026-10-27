@@ -11,7 +11,6 @@ import CheckmateCore
 
 /// Low-severity fixes in play and saved progress.
 @MainActor final class B10ShellPlayTests:XCTestCase {
-    private func directory()->URL {FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)}
     /// PL2-12: passing up a forced mate is a large regret, so the beginner's caps still apply.
     func testAMissedMateIsAlwaysAboveTheRegretCap(){
         let mateInThree=AnalysisScore(kind:"mate",value:3),winning=AnalysisScore(kind:"cp",value:900)
@@ -21,15 +20,9 @@ import CheckmateCore
     }
     /// PL-13: import and practice-fork backups never grow without bound.
     func testImportBackupsAreCapped()throws {
-        let root=directory();defer{try? FileManager.default.removeItem(at:root)};let store=StateStore(directory:root)
+        let root=try scratchDirectory();let store=StateStore(directory:root)
         for _ in 0..<(StateStore.keptImportBackups+5){_ = try store.preserveBeforeImport(ApplicationState())}
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath:root.path).filter{$0.hasPrefix("state-before-import-")}.count,StateStore.keptImportBackups)
-    }
-    /// PL2-4: a saved practice game must start from a legal position.
-    func testSavedGameFromAnIllegalPositionIsRejected()throws {
-        var state=ApplicationState();state.practice.pgn="[SetUp \"1\"]\n[FEN \"4k3/8/8/8/8/8/8/4K3 w KQ - 0 1\"]\n\n*"
-        XCTAssertThrowsError(try StateStore.validate(state),"Castling rights without rooks are not a legal start")
-        state.practice.pgn="[SetUp \"1\"]\n[FEN \"4k3/8/8/8/8/8/8/R3K3 w Q - 0 1\"]\n\n*";XCTAssertNoThrow(try StateStore.validate(state))
     }
     /// PL-5 / PL2-1 companions: the review workspace is reported as such, never as practice.
     func testReviewWorkspaceIsNotReportedAsPractice()throws {

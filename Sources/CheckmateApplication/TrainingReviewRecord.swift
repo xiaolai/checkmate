@@ -13,7 +13,7 @@ import Foundation
         let scenario=snapshot.scenario
         guard [.ending,.guidedGame,.positionGame].contains(scenario.check),let start=scenario.fen else{throw CheckmateError.invalid(String(localized:"Only a training game can be reviewed.",bundle:.checkmate))}
         let prelude=scenario.prelude ?? [],line=try committed(snapshot.actions,learnerMovesFirst:TrainingLegality(fen:start,prelude:prelude,runtimeFactory:runtimeFactory).turn()==scenario.learner)
-        let rules=try runtimeFactory.map{try ChessRules(fen:start,runtimeFactory:$0)} ?? ChessRules(fen:start)
+        let rules=try ChessRules(fen:start,runtimeFactory:runtimeFactory)
         let sans=try (prelude+line).map{try rules.move(uci:$0).san}
         let result:String
         if try rules.isCheckmate(){result=try rules.currentTurn()=="w" ? "0-1":"1-0"}
@@ -21,12 +21,11 @@ import Foundation
         else if try rules.automaticDrawReason() != nil{result="1/2-1/2"}
         else if case .claim=snapshot.actions.last{result="1/2-1/2"}
         else{result="*"}
-        let day=calendar.dateComponents([.year,.month,.day],from:snapshot.startedAt)
         // The level the attempt froze, as the panel names it; an attempt with none keeps the names it had before levels.
         let opponent=snapshot.boundOpponent.map{String(localized:"Opponent (\($0.label))",bundle:.checkmate)} ?? (scenario.check == .guidedGame ? String(localized:"Gentle opponent",bundle:.checkmate):String(localized:"Practice defender",bundle:.checkmate))
         let you=String(localized:"You",bundle:.checkmate,comment:"The learner’s player name in a training game’s record")
-        let headers=[("Event",title),("Date",String(format:"%04d.%02d.%02d",day.year ?? 0,day.month ?? 0,day.day ?? 0)),("White",scenario.learner=="w" ? you:opponent),("Black",scenario.learner=="w" ? opponent:you),("Result",result),("SetUp","1"),("FEN",start)] // not localized: PGN tag names
-        return headers.map{"[\($0.0) \"\(escaped($0.1))\"]"}.joined(separator:"\n")+"\n\n"+movetext(sans,from:start,result:result)
+        let headers=[("Event",title),("Date",PGNExporter.dateTag(snapshot.startedAt,calendar:calendar)),("White",scenario.learner=="w" ? you:opponent),("Black",scenario.learner=="w" ? opponent:you),("Result",result),("SetUp","1"),("FEN",start)] // not localized: PGN tag names
+        return headers.map{PGNExporter.tagLine($0.0,$0.1)}.joined(separator:"\n")+"\n\n"+movetext(sans,from:start,result:result)
     }
     /// The plies the actions commit, in order: a move or reply adds one; Take back removes the learner's last move and
     /// everything after it. Hints and a draw claim add nothing. Any other action, or a take-back with nothing to take,
@@ -54,7 +53,6 @@ import Foundation
         }
         return (tokens+[result]).joined(separator:" ")
     }
-    private static func escaped(_ value:String)->String {value.replacingOccurrences(of:"\\",with:"\\\\").replacingOccurrences(of:"\"",with:"\\\"")}
 }
 extension TrainingController {
     /// Whether the shown exercise is a finished game that can be reviewed: an ending, guided game or position game that is over,

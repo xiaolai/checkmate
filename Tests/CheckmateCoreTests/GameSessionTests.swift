@@ -63,7 +63,7 @@ extension GameSessionTests {
     }
     /// The display reads pieces from a FEN without chess.js; both must agree on every kind of position a frame can show.
     func testFENPiecesMatchTheRulesBoard() throws {
-        for fen in ["rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        for fen in [NetworkStart.standard,
                     "r3k2r/pppq1ppp/2npbn2/4p3/2B1P3/2NP1N2/PPPQ1PPP/R3K2R w KQkq - 4 9",
                     "rnbqkbnr/ppp1p1pp/8/3pPp2/8/8/PPPP1PPP/RNBQKBNR w KQkq f6 0 3",
                     "1Q2k3/8/8/8/8/8/5p2/K5n1 b - - 0 60",

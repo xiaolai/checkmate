@@ -57,8 +57,8 @@ import CheckmateSupport
     /// The capture that froze `Legacy11CoreFixtures`, run again on this build: the same seeded identifiers, the same
     /// hosted standard-start games on the real rules, and the same crash-file entries, review records and TXT entries.
     func testAStandardStartGameWritesWhat11Wrote()throws {
-        var state:UInt64=1011
-        let random=NetworkRandom{count in (0..<count).map{_ in state&+=0x9E3779B97F4A7C15;var z=state;z=(z^(z>>30))&*0xBF58476D1CE4E5B9;z=(z^(z>>27))&*0x94D049BB133111EB;return UInt8(truncatingIfNeeded:z^(z>>31))}}
+        var generator=TrainingRandom(seed:1011)
+        let random=NetworkRandom{count in (0..<count).map{_ in UInt8(truncatingIfNeeded:generator.next())}}
         func id()->NetworkID {.random(using:random)}
         // The capture made these, in this order, before its games: the same draws keep the games' identifiers.
         _ = NetworkGameID.random(using:random);_ = NetworkSecret.random(using:random);_ = NetworkSecret.random(using:random)

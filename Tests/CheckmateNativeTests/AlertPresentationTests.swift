@@ -68,7 +68,7 @@ import CheckmateCore
     @MainActor private final class PressRecorder:NSObject {var title:String?;@objc func press(_ sender:NSButton){title=title ?? sender.title}}
     /// Every confirmation of something destructive is built by `NSAlert.destructive` (or `saveChanges`), so none can leave Return on it.
     func testNoDestructiveAlertIsHandBuilt()throws {
-        let sources=URL(fileURLWithPath:#filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("Sources")
+        let sources=Repository.url("Sources")
         let files=try XCTUnwrap(FileManager.default.enumerator(at:sources,includingPropertiesForKeys:nil)).compactMap{$0 as? URL}.filter{$0.pathExtension=="swift"}
         var builders=0
         for file in files where try String(contentsOf:file,encoding:.utf8).contains("hasDestructiveAction") {

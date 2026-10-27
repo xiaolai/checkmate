@@ -24,10 +24,7 @@ public final class VoiceGateway:Sendable {
     /// private home is signed in from the token). It is where sayso's CodexAuth reads it: in `CODEX_HOME` when that is
     /// set, followed through links, else in ~/.codex.
     public static var credentialURL:URL{credentialURL(environment:ProcessInfo.processInfo.environment,home:FileManager.default.homeDirectoryForCurrentUser)}
-    public static func credentialURL(environment:[String:String],home:URL)->URL{
-        guard let codexHome=environment["CODEX_HOME"],!codexHome.isEmpty else{return home.appendingPathComponent(".codex/auth.json")}
-        return URL(fileURLWithPath:codexHome,isDirectory:true).resolvingSymlinksInPath().appendingPathComponent("auth.json")
-    }
+    public static func credentialURL(environment:[String:String],home:URL)->URL{CompanionInstallation.codexHome(environment:environment,home:home).appendingPathComponent("auth.json")}
     /// The mint request's limit and the whole exchange's, in seconds.
     public static let mintTimeout:TimeInterval=20,mintResourceTimeout:TimeInterval=25
     /// The asked lifetime of a realtime secret, the provider's default: a secret only opens a socket.

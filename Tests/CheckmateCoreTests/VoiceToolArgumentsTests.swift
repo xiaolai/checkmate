@@ -26,7 +26,7 @@ import CheckmateCore
     private func outputs(_ events:[[String:Any]])->[String] {events.filter{($0["item"] as? [String:Any])?["type"] as? String=="function_call_output"}.compactMap{($0["item"] as? [String:Any])?["output"] as? String}}
     private func cancels(_ events:[[String:Any]])->Int {events.filter{$0["type"] as? String=="response.cancel"}.count}
     /// Waits for `condition`; throws when it never holds, so nothing after it reads results that are not there.
-    private func until(_ what:String,_ condition:()->Bool)async throws {for _ in 0..<200{if condition(){return};try await Task.sleep(nanoseconds:10_000_000)};throw CheckmateError.unavailable("timed out waiting for \(what)")}
+    private func until(_ what:String,_ condition:()->Bool)async throws {try await poll(what,tries:200,every:.milliseconds(10),condition)}
     private var definitions:[[String:Any]] {get throws {try JSONSerialization.jsonObject(with:Data(contentsOf:NativeResources.url("voice-tools.json"))) as! [[String:Any]]}}
 
     /// Every tool the coach is offered, practice and network, has a finite bound below the whole-call cap, so a

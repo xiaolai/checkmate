@@ -7,9 +7,7 @@ import CheckmateCore
 /// Saved state and logic use stable identifiers, never the words shown; older saves that stored those words still load (D-12),
 /// and sentences are whole format strings with plural-aware counts (D-13).
 @MainActor final class StableIdentifierTests:XCTestCase {
-    private var directory:URL!
-    override func setUp(){directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);setenv("CHECKMATE_DATA_DIR",directory.path,1)}
-    override func tearDown(){unsetenv("CHECKMATE_DATA_DIR");try? FileManager.default.removeItem(at:directory)}
+    override func setUpWithError()throws{try isolateDataDirectory()}
     func testReviewProvenanceDecodesIdentifiersAndOlderWords()throws {
         func decode(_ value:String)throws->ReviewProvenance {try JSONDecoder().decode(ReviewProvenance.self,from:JSONEncoder().encode(value))}
         for provenance in ReviewProvenance.allCases {XCTAssertEqual(try decode(provenance.rawValue),provenance)}

@@ -27,6 +27,8 @@ public protocol NetworkBoardModel:AnyObject {
     var history:[String] {get}
     /// The moves since the start with their squares; the last is the last move marked on the board.
     var records:[MoveRecord] {get}
+    /// The last move, or nil before any: a board that can answer without the whole record does.
+    var lastRecord:MoveRecord? {get}
     /// The side to move may claim a draw now (threefold repetition or fifty moves in chess).
     var drawClaimable:Bool {get}
     func piece(_ square:String)->ChessPiece?
@@ -54,6 +56,7 @@ public protocol NetworkBoardModel:AnyObject {
 public extension NetworkBoardModel {
     /// The mini-game ruleset the game is played by (protocol 1.3); nil for chess.
     var ruleset:NetworkRuleset? {nil}
+    var lastRecord:MoveRecord? {records.last}
     /// Every legal move of the side to move.
     func moves()->[MoveRecord] {moves(nil)}
 }

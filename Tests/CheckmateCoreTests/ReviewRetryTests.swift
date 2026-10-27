@@ -12,7 +12,7 @@ import CheckmateTestSupport
     init(poor:Set<String>){self.poor=poor}
     func analyze(fen:String,skill:Int,budget:Int,multiPv:Int)async throws -> EngineAnalysis {try lines(fen:fen,only:[],multiPv:multiPv)}
     func analyzeHistory(startFEN:String,moves:[String],profile:OpponentProfile,budget:Int,multiPv:Int,searchMoves:[String])async throws -> EngineAnalysis {
-        let position=try ChessRules(fen:startFEN);for move in moves{try position.move(uci:move)};return try lines(fen:position.fen,only:searchMoves,multiPv:multiPv)
+        let position=try ChessRules.reached(startFEN,moves);return try lines(fen:position.fen,only:searchMoves,multiPv:multiPv)
     }
     private func lines(fen:String,only:[String],multiPv:Int)throws -> EngineAnalysis {
         searches+=1;let rules=try ChessRules(fen:fen),white=rules.turn=="w",legal=rules.moves().filter{only.isEmpty || only.contains($0.uci)}
@@ -26,7 +26,7 @@ import CheckmateTestSupport
 /// two tries, and is closed during a network game.
 @MainActor final class ReviewRetryTests:XCTestCase {
     private let pgn="1. f3 e5 2. g4 Qh4# 0-1"
-    private func settle(_ what:String,_ condition:()->Bool)async throws {for _ in 0..<2000 where !condition(){try await Task.sleep(for:.milliseconds(5))};XCTAssertTrue(condition(),what)}
+    private func settle(_ what:String,_ condition:()->Bool)async throws {try await poll(what,tries:2000,every:.milliseconds(5),condition)}
     private func analyzed(fairness given:FairnessPolicy?=nil)async throws -> (ReviewController,ReviewAnalyzer,ReviewRetry,GameDocument,JudgeEngine) {
         let fairness=given ?? FairnessPolicy(),document=try PGNImporter.parse(Data(pgn.utf8))[0],engine=JudgeEngine(poor:["f2f3","g2g4"]),analyzer=ReviewAnalyzer(engine:engine,fairness:fairness),review=ReviewController()
         review.fairness=fairness;review.analyzer=analyzer;review.load(document);analyzer.startBatch(document);try await settle("the analysis finished"){analyzer.batchStatus=="ready"}

@@ -18,7 +18,7 @@ import CheckmateCore
         XCTAssertEqual(player.miniGame?.board,Self.almostWon().board)
         return (session,player)
     }
-    func waitFor(_ condition:@escaping ()->Bool)async throws {for _ in 0..<200 {if condition(){return};try await Task.sleep(for:.milliseconds(20))}}
+    func waitFor(_ condition:@escaping ()->Bool)async throws {await pollQuietly(tries:200,every:.milliseconds(20),condition)}
     /// Holds the review at its first clock reading until released; it still notices its own cancellation.
     final class Gate:@unchecked Sendable {private let lock=NSLock();private var open=false
         func release(){lock.lock();open=true;lock.unlock()}

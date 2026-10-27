@@ -13,15 +13,9 @@ import CheckmateCore
 /// M9 resume-gate projection: the failed-entry hold blocks `reply()`/`commitBlack()`, so `get_session` must
 /// report it as `controller.paused=true` with a readable `pauseReason` (priority over other reasons) until an
 /// explicit Return to game or a deliberate replacement. Existing reasons and controller fields are unchanged.
-@MainActor private final class HeldEngine:TestEngineService {
-    var continuations:[CheckedContinuation<EngineAnalysis,Error>]=[]
-    var skills:[Int]=[]
-    func analyze(fen:String,skill:Int,budget:Int,multiPv:Int)async throws -> EngineAnalysis {skills.append(skill);return try await withCheckedThrowingContinuation{continuations.append($0)}}
-    func finish(at index:Int,_ move:String){continuations[index].resume(returning:EngineAnalysis(bestMove:move))}
-}
 @MainActor final class OpusResumeProjectionTests:XCTestCase {
     private static let controllerKeys:Set<String>=["enabled","role","connected","paused","pauseReason","suspended","side"]
-    private func settle()async{for _ in 0..<30{await Task.yield()}}
+    private func settle()async{await yields(30)}
     private func controller(_ state:[String:Any],file:StaticString=#filePath,line:UInt=#line)->[String:Any] {
         let value=state["controller"] as? [String:Any] ?? [:]
         XCTAssertEqual(Set(value.keys),Self.controllerKeys,"Controller schema fields changed",file:file,line:line);return value
@@ -33,8 +27,8 @@ import CheckmateCore
         else{XCTAssertTrue(c["pauseReason"] is NSNull,"pauseReason must be null: \(note) got \(String(describing:c["pauseReason"]))",file:file,line:line)}
     }
     /// Practice after 1.e4 with the opponent's reply in flight, then a saved review whose restore really fails.
-    private func failedEntry()async throws -> (GameSession,HeldEngine,ReviewController) {
-        let engine=HeldEngine(),session=try GameSession(engine:engine),review=ReviewController();session.reviewController=review
+    private func failedEntry()async throws -> (GameSession,ContinuationEngine,ReviewController) {
+        let engine=ContinuationEngine(),session=try GameSession(engine:engine),review=ReviewController();session.reviewController=review
         try session.playWhite(from:"e2",to:"e4");await settle();XCTAssertEqual(session.busyReason,.opponent)
         assertPaused(session.publicState(),nil,"before the failed entry the reply is merely running")
         let document=try PGNImporter.parse(Data("[Event \"Saved\"]\n1. d4 d5 *".utf8))[0]
@@ -85,7 +79,7 @@ import CheckmateCore
     }
 
     func testExistingPauseReasonsAreUnchangedWithoutTheGate()async throws {
-        let engine=HeldEngine(),session=try GameSession(engine:engine)
+        let engine=ContinuationEngine(),session=try GameSession(engine:engine)
         assertPaused(session.publicState(),nil,"ordinary practice")
         session.holdVoice(true);assertPaused(session.publicState(),"coach_speaking","voice hold");session.holdVoice(false)
         try session.demonstrate(title:"Line",introduction:"Imagine",lines:[DemoLineInput(label:"Main",moves:[DemoStepInput(uci:"e2e4")])])
@@ -94,7 +88,7 @@ import CheckmateCore
         XCTAssertFalse(session.explicitResumeRequired);assertPaused(session.publicState(),"companion_disconnected","companion opponent disconnected")
         session.continueWithStockfish();await settle();assertPaused(session.publicState(),nil,"Continue with Stockfish");XCTAssertEqual(engine.skills,[0])
         // A human-to-move failed entry holds nothing and reports nothing.
-        let other=try GameSession(engine:HeldEngine()),review=ReviewController();other.reviewController=review
+        let other=try GameSession(engine:ContinuationEngine()),review=ReviewController();other.reviewController=review
         review.open(try PGNImporter.parse(Data("1. d4 *".utf8))[0],practice:other);XCTAssertFalse(review.abandonFailedEntry(practice:other))
         assertPaused(other.publicState(),nil,"human-to-move failure")
     }

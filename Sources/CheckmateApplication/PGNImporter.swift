@@ -184,6 +184,8 @@ public enum PGNImporter {
     public static func bounded(_ text:String,scalars limit:Int)->String {
         guard text.unicodeScalars.count>limit else{return text};var view=String.UnicodeScalarView();view.append(contentsOf:text.unicodeScalars.prefix(limit));return String(view)
     }
+    /// Every control character as a space, so untrusted text never spans lines.
+    public static func spacingControls(_ text:String)->String {String(String.UnicodeScalarView(text.unicodeScalars.map{CharacterSet.controlCharacters.contains($0) ? " ":$0}))}
     /// Counts game records from tokens alone, dividing them as `parseReport` does, so a collection over the limit is
     /// refused before any game is built rather than after building the first 1000. A lexical error ends the count;
     /// the parse then reports it against its own game.
@@ -264,7 +266,6 @@ public enum PGNExporter {
     public static func original(_ document:GameDocument)->Data {document.original}
     /// The comment that opens each imagined line in an export.
     public static let imaginedMarker="Imagined line" // not localized: a record comment read back
-    private static let standardStart="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
     /// One move of the exported tree: the game's own moves, then the imagined lines merged in.
     private struct Move {var parent:Int?,san:String?,uci:String?,before:[String],after:[String],nags:[Int],children:[Int],side:String,fullmove:Int,imagined:Bool}
     /// The game as one PGN record (R-13): its tags, moves, own variations, comments and glyphs; each imagined line as a
@@ -319,7 +320,7 @@ public enum PGNExporter {
             }
         }
         moves[0].before.forEach(comment);moves[0].after.forEach(comment);line(0,force:true);tokens.append(document.result)
-        var text=tags(document).map{"[\($0.name) \"\(escaped($0.value))\"]"}.joined(separator:"\n")+"\n\n",column=0
+        var text=tags(document).map{tagLine($0.name,$0.value)}.joined(separator:"\n")+"\n\n",column=0
         for token in tokens {
             let joined=token==")" || text.hasSuffix("(") || column==0
             if !joined && column+1+token.count>79{text+="\n";column=0}else if !joined{text+=" ";column+=1}
@@ -334,11 +335,16 @@ public enum PGNExporter {
         let roster=["Event","Site","Date","Round","White","Black"] // not localized: PGN tag names
         var result=roster.map{name in PGNHeader(name,document.header(name) ?? (name=="Date" ? "????.??.??":"?"))}+[PGNHeader("Result",document.result)]
         result+=document.headers.filter{!roster.contains($0.name) && !["Result","SetUp","FEN"].contains($0.name)} // not localized: PGN tag names
-        if document.startingFEN != standardStart{result+=[PGNHeader("SetUp","1"),PGNHeader("FEN",document.startingFEN)]}
+        if document.startingFEN != NetworkStart.standard{result+=[PGNHeader("SetUp","1"),PGNHeader("FEN",document.startingFEN)]}
         return result
     }
-    private static func escaped(_ value:String)->String {
-        String(String.UnicodeScalarView(value.unicodeScalars.map{CharacterSet.controlCharacters.contains($0) ? " ":$0})).replacingOccurrences(of:"\\",with:"\\\\").replacingOccurrences(of:"\"",with:"\\\"")
+    /// One tag pair, its value escaped: `[Name "value"]`.
+    static func tagLine(_ name:String,_ value:String)->String {"[\(name) \"\(escaped(value))\"]"}
+    /// A Date tag's value, `yyyy.MM.dd` in `calendar`.
+    static func dateTag(_ date:Date,calendar:Calendar)->String {let day=calendar.dateComponents([.year,.month,.day],from:date);return String(format:"%04d.%02d.%02d",day.year ?? 0,day.month ?? 0,day.day ?? 0)}
+    /// A tag value as written: control characters become spaces, so a value never spans lines; `\` and `"` are escaped.
+    static func escaped(_ value:String)->String {
+        PGNImporter.spacingControls(value).replacingOccurrences(of:"\\",with:"\\\\").replacingOccurrences(of:"\"",with:"\\\"")
     }
     /// The export's file name: the review's title with the characters a file name cannot hold replaced, never hidden,
     /// at most 80 characters, else "review".

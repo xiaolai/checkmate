@@ -66,7 +66,7 @@ final class NetworkGameRecordTests:XCTestCase {
     }
     /// The crash file round-trips, names the other player, is private to the user, and an unreadable one is removed.
     func testTheCrashFileHoldsThePublicRecordOnly()throws {
-        let directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);defer{try? FileManager.default.removeItem(at:directory)}
+        let directory=try scratchDirectory()
         let file=NetworkCrashFile(dataDirectory:directory);XCTAssertNil(file.pending())
         let entry=NetworkCrashFile.Entry(game:game(pgn:"1. e4",outcome:nil),part:.white)
         try file.save(entry);XCTAssertEqual(file.pending(),entry)

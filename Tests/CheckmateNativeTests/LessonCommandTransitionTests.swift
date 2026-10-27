@@ -14,9 +14,7 @@ import CheckmateCore
 /// same way every navigation does, and a draft question answered Cancel stays. The lesson exercise is not a
 /// transition at all: it is the lesson's own invitation step.
 @MainActor final class LessonCommandTransitionTests:XCTestCase {
-    private var directory:URL!
-    override func setUp(){directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);setenv("CHECKMATE_DATA_DIR",directory.path,1)}
-    override func tearDown(){unsetenv("CHECKMATE_DATA_DIR");try? FileManager.default.removeItem(at:directory)}
+    override func setUpWithError()throws{try isolateDataDirectory()}
     private func index(_ model:NativeModel,_ id:String)throws -> Int {try XCTUnwrap(model.learning.library.lessons.firstIndex{$0.id==id})}
     private func draftWithIdea(_ model:NativeModel)throws {
         model.openReview(try PGNImporter.parse(Data("1. e4 e5 *".utf8))[0],draft:true);try model.review.select(1);try model.review.beginBranch();try model.review.playBranch("c7c5")

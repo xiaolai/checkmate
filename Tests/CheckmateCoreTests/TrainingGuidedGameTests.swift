@@ -11,8 +11,7 @@ import CheckmateCore
 /// real practice game is never touched.
 @MainActor final class TrainingGuidedGameTests:XCTestCase {
     // Increment B is gated behind its preview flags; these tests exercise it as development does.
-    override func setUp(){setenv("CHECKMATE_TRAINING_ENABLED","1",1);setenv("CHECKMATE_TRAINING_B","1",1)}
-    override func tearDown(){unsetenv("CHECKMATE_TRAINING_ENABLED");unsetenv("CHECKMATE_TRAINING_B")}
+    override func setUp(){setEnvironment(["CHECKMATE_TRAINING_ENABLED":"1","CHECKMATE_TRAINING_B":"1"])}
     private func guided(_ fen:String,learner:String?=nil,id:String="guided-test")->TrainingScenario {
         TrainingScenario(id:id,entry:"guided-games",variant:"short-start",tier:1,cluster:id,learner:learner ?? String(fen.split(separator:" ")[1]),prompt:"Play.",explanation:"Habits.",hints:["Develop.","Look at checks."],fen:fen,review:TrainingReview(author:"test",reviewer:nil,validatorVersion:TrainingValidationService.validatorVersion),check:.guidedGame,workflow:"guided-game")
     }
@@ -26,7 +25,7 @@ import CheckmateCore
     }
     func testBlackWaitsForTheOpponentsFirstMoveAndTheGentleProfile()async throws {
         let defender=ScriptedDefender()
-        let start="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+        let start=NetworkStart.standard
         let (session,player,controller)=try TrainingEndgameTests.fixture([guided(start,learner:"b")],defender:defender);defer{player.shutdown()}
         let practice=session.rules.pgn
         controller.begin(try controller.prepare(entry:"guided-games"));await TrainingEndgameTests.settle(controller)
@@ -39,7 +38,7 @@ import CheckmateCore
         XCTAssertEqual(session.rules.pgn,practice,"the real practice game is untouched")
     }
     func testHabitsAreNotesNotVerdicts()async throws {
-        let (_,player,controller)=try TrainingEndgameTests.fixture([guided("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")],defender:ScriptedDefender());defer{player.shutdown()}
+        let (_,player,controller)=try TrainingEndgameTests.fixture([guided(NetworkStart.standard)],defender:ScriptedDefender());defer{player.shutdown()}
         controller.begin(try controller.prepare(entry:"guided-games"))
         await play(controller,"g1f3")
         XCTAssertNil(controller.exercise?.habit,"developing a knight draws no note");XCTAssertEqual(controller.exercise?.status,.active)
@@ -100,7 +99,7 @@ import CheckmateCore
         XCTAssertEqual(controller.exercise?.scenario.check,.guidedGame);XCTAssertEqual(controller.exercise?.status,.ended);XCTAssertEqual(controller.exercise?.moments.count,1)
     }
     func testBeginnerEntriesAreNotOfferedWithoutThePreview()throws {
-        let (_,player,controller)=try TrainingEndgameTests.fixture([guided("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")],defender:ScriptedDefender());defer{player.shutdown()}
+        let (_,player,controller)=try TrainingEndgameTests.fixture([guided(NetworkStart.standard)],defender:ScriptedDefender());defer{player.shutdown()}
         unsetenv("CHECKMATE_TRAINING_B")
         XCTAssertThrowsError(try controller.prepare(entry:"guided-games"),"Increment B stays off until its preview is enabled")
     }

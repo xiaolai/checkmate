@@ -10,8 +10,7 @@ import CheckmateCore
 /// move if the opponent did nothing; a prevented one leaves no reply that mates. Both are exact one-move queries.
 @MainActor final class TrainingMateThreatTests:XCTestCase {
     // Increment B is gated behind its preview flags; these tests exercise it as development does.
-    override func setUp(){setenv("CHECKMATE_TRAINING_ENABLED","1",1);setenv("CHECKMATE_TRAINING_B","1",1)}
-    override func tearDown(){unsetenv("CHECKMATE_TRAINING_ENABLED");unsetenv("CHECKMATE_TRAINING_B")}
+    override func setUp(){setEnvironment(["CHECKMATE_TRAINING_ENABLED":"1","CHECKMATE_TRAINING_B":"1"])}
     private let review=TrainingReview(author:"test",reviewer:nil,validatorVersion:TrainingValidationService.validatorVersion)
     private func scenario(_ fen:String,create:Bool)throws -> TrainingScenario {
         let base=TrainingScenario(id:"threat",entry:"simple-tactics",variant:create ? "mate-threat-create":"mate-threat-prevent",tier:1,cluster:"threat",learner:String(fen.split(separator:" ")[1]),prompt:"Threat.",explanation:"Explained.",hints:["Concept."],fen:fen,review:review,check:create ? .mateThreatCreate:.mateThreatPrevent)
@@ -45,8 +44,7 @@ import CheckmateCore
         XCTAssertThrowsError(try TrainingValidationService.validate(try scenario("6k1/5ppp/8/8/8/8/5PPP/6K1 w - - 0 1",create:false),definition:definition(),deep:true))
     }
     func testThePreventingMoveIsPlayedAgainstThePublishedReply()throws {
-        let session=try GameSession(engine:nil),player=try LearningPlayer(session:session);defer{player.shutdown()}
-        let training=TrainingController(session:session,learning:player,provider:try TrainingScenarioProvider(catalog:try TrainingCatalog.bundled(),scenarios:[try scenario(preventFEN,create:false)]))
+        let (_,player,training)=try TrainingEndgameTests.fixture([try scenario(preventFEN,create:false)]);defer{player.shutdown()}
         training.begin(try training.prepare(entry:"simple-tactics"))
         training.attempt(from:"g1",to:"h1",promotion:nil)
         XCTAssertEqual(training.exercise?.status,.incorrect);XCTAssertTrue(training.exercise?.feedback.hasPrefix("After Rd1#") ?? false)

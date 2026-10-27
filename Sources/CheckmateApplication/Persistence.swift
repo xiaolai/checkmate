@@ -17,12 +17,10 @@ public final class StateStore {
     }
     /// The largest state file or archive the app reads back; nothing larger is written as a save or an export.
     public static let maximumBytes=4*1024*1024
-    public static func dataDirectoryIdentifier(bundleIdentifier:String?)->String {ApplicationDataPaths.dataDirectoryIdentifier(bundleIdentifier:bundleIdentifier)}
-    public static func defaultDirectory()->URL {ApplicationDataPaths.defaultDirectory()}
     public func load() throws -> ApplicationState {
         guard FileManager.default.fileExists(atPath:url.path) else{return ApplicationState()}
         let data=try Self.read(url,tooLarge:String(localized:"Saved state is too large.",bundle:.checkmate))
-        guard let object=try JSONSerialization.jsonObject(with:data) as? [String:Any],object["schemaVersion"] as? Int == 1 else{throw CheckmateError.invalid(String(localized:"Unsupported saved-state version. Export or restore a backup.",bundle:.checkmate))}
+        guard let object=try JSONSerialization.jsonObject(with:data) as? [String:Any],jsonInteger(object["schemaVersion"])==1 else{throw CheckmateError.invalid(String(localized:"Unsupported saved-state version. Export or restore a backup.",bundle:.checkmate))}
         let value=try JSONDecoder().decode(ApplicationState.self,from:data)
         try Self.validate(value)
         return value
@@ -91,14 +89,14 @@ public final class StateStore {
         return count
     }
     public func save(_ state:ApplicationState) throws {
-        try FileManager.default.createDirectory(at:directory,withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])
+        try createPrivateDirectory(directory)
         let data=try Self.encoded(state,tooLarge:String(localized:"Saved state is too large.",bundle:.checkmate))  // load() refuses larger files
         try requireFirstLaunchBackup()
         if FileManager.default.fileExists(atPath:url.path) {try Self.copy(url,to:backupURL)}
-        try Self.write(data,to:url)
+        try writePrivately(data,to:url)
         guard try Data(contentsOf:url)==data else{throw CheckmateError.unavailable(String(localized:"Saved state read-back failed.",bundle:.checkmate))}
     }
-    public func preserveBeforeImport(_ state:ApplicationState)throws -> URL {try Self.validate(state);try FileManager.default.createDirectory(at:directory,withIntermediateDirectories:true,attributes:[.posixPermissions:0o700]);let archive=directory.appendingPathComponent("state-before-import-"+UUID().uuidString+".json");try Self.write(Self.bounded(state,tooLarge:String(localized:"The current progress is too large to keep before importing.",bundle:.checkmate)),to:archive);pruneImportBackups();return archive}
+    public func preserveBeforeImport(_ state:ApplicationState)throws -> URL {try Self.validate(state);try createPrivateDirectory(directory);let archive=directory.appendingPathComponent("state-before-import-"+UUID().uuidString+".json");try writePrivately(Self.bounded(state,tooLarge:String(localized:"The current progress is too large to keep before importing.",bundle:.checkmate)),to:archive);pruneImportBackups();return archive}
     /// Imports and practice forks each keep a backup; only the newest are kept so they never grow without bound.
     public static let keptImportBackups=20
     private func pruneImportBackups(){
@@ -130,7 +128,7 @@ public final class StateStore {
         let data=try Self.read(backupURL,tooLarge:String(localized:"Backup too large",bundle:.checkmate));let value=try JSONDecoder().decode(ApplicationState.self,from:data);try Self.validate(value)
         try requireFirstLaunchBackup()
         if FileManager.default.fileExists(atPath:url.path){try Self.copy(url,to:directory.appendingPathComponent("state-preserved-"+UUID().uuidString+".json"))}
-        try Self.write(data,to:url)
+        try writePrivately(data,to:url)
     }
     /// Copies the saved file as it is, whatever its size or content: recovery exports a file the app cannot read.
     public func export(to destination:URL) throws {try Self.copy(url,to:destination)}
@@ -147,8 +145,6 @@ public final class StateStore {
         let data=try serialized(state);_ = try JSONDecoder().decode(ApplicationState.self,from:data)
         guard data.count<=maximumBytes else{throw CheckmateError.invalid(tooLarge)};return data
     }
-    /// Writes `data` atomically, readable by the owner only.
-    private static func write(_ data:Data,to destination:URL)throws {try data.write(to:destination,options:.atomic);try FileManager.default.setAttributes([.posixPermissions:0o600],ofItemAtPath:destination.path)}
     /// Copies a state file through the file system, never loading it, then moves it into place in one step, readable by
     /// the owner only. Only a regular file is copied.
     private static func copy(_ source:URL,to destination:URL)throws {
@@ -161,7 +157,7 @@ public final class StateStore {
     /// without being loaded whole.
     private static func read(_ url:URL,tooLarge:String)throws -> Data {
         let handle=try FileHandle(forReadingFrom:url);defer{try? handle.close()}
-        var data=Data();while data.count<=maximumBytes,let chunk=try handle.read(upToCount:maximumBytes+1-data.count),!chunk.isEmpty{data.append(chunk)};guard data.count<=maximumBytes else{throw CheckmateError.invalid(tooLarge)};return data
+        guard let data=try readBounded(handle,limit:maximumBytes) else{throw CheckmateError.invalid(tooLarge)};return data
     }
     /// The state's JSON with the fields a newer build wrote (`unknownFields`) kept.
     private static func serialized(_ state:ApplicationState)throws -> Data {

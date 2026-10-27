@@ -43,16 +43,21 @@ public struct MiniGameReview:Equatable {
     /// `stop` is the owner's cancellation. Both are polled during each search.
     public static func run(_ game:MiniGameState,learner:String="w",budget:Double=MiniGameProofBudget.reviewCPUSeconds,cpuSeconds:@escaping ()->Double,stop:@escaping ()->Bool)->MiniGameReview {
         guard !game.kind.solo,let positions=positions(of:game) else{return MiniGameReview(kind:game.kind,run:game.opponentSeed,plies:game.history.count,answers:[:],facts:[],nodes:0,entries:0,complete:false,consistent:false)}
-        let complete=game.history.count<MiniGameState.maximumHistory,started=cpuSeconds()
-        let over={stop() || cpuSeconds()-started>=budget}
-        var proof=MiniGameProof(kind:game.kind),answers:[Int:MiniGameProofAnswer]=[:],finished=true
-        for ply in positions.indices.reversed() {
+        let proved=prove(kind:game.kind,count:positions.count,position:{positions[$0]},historyComplete:game.history.count<MiniGameState.maximumHistory,budget:budget,cpuSeconds:cpuSeconds,stop:stop)
+        return MiniGameReview(kind:game.kind,run:game.opponentSeed,plies:game.history.count,answers:proved.answers,facts:facts(positions,answers:proved.answers,computer:game.computer,learner:learner),nodes:proved.proof.nodes,entries:proved.proof.entryCount,complete:proved.finished,consistent:true)
+    }
+    /// Proves the positions from the last backwards until the budget or the stop ends it: the answers by ply, the proof
+    /// (for its counts) and whether every position was reached.
+    private static func prove(kind:MiniGameKind,count:Int,position:(Int)->MiniGameState,historyComplete:Bool,budget:Double,cpuSeconds:@escaping ()->Double,stop:@escaping ()->Bool)->(answers:[Int:MiniGameProofAnswer],proof:MiniGameProof,finished:Bool) {
+        let started=cpuSeconds(),over={stop() || cpuSeconds()-started>=budget}
+        var proof=MiniGameProof(kind:kind),answers:[Int:MiniGameProofAnswer]=[:],finished=true
+        for ply in (0..<count).reversed() {
             if over(){finished=false;break}
-            let answer=proof.prove(positions[ply],historyComplete:complete,stop:over)
+            let answer=proof.prove(position(ply),historyComplete:historyComplete,stop:over)
             if answer.exhausted && over(){finished=false;break}
             answers[ply]=answer
         }
-        return MiniGameReview(kind:game.kind,run:game.opponentSeed,plies:game.history.count,answers:answers,facts:facts(positions,answers:answers,computer:game.computer,learner:learner),nodes:proof.nodes,entries:proof.entryCount,complete:finished,consistent:true)
+        return (answers,proof,finished)
     }
     /// Reviews a game known by every move from its kind's start (a network game, protocol 1.3), whatever ended it:
     /// each position at its absolute ply, with the positions back to its last capture or pawn move (and the one before,
@@ -61,15 +66,8 @@ public struct MiniGameReview:Equatable {
     /// as the search reaches them, so a long game costs memory by its stretches, not its square.
     public static func run(kind:MiniGameKind,moves:[MiniGameMove],budget:Double=MiniGameProofBudget.reviewCPUSeconds,cpuSeconds:@escaping ()->Double,stop:@escaping ()->Bool)->MiniGameReview {
         guard let replay=Replay(kind:kind,moves:moves) else{return MiniGameReview(kind:kind,run:nil,plies:moves.count,answers:[:],facts:[],nodes:0,entries:0,complete:false,consistent:false)}
-        let started=cpuSeconds(),over={stop() || cpuSeconds()-started>=budget}
-        var proof=MiniGameProof(kind:kind),answers:[Int:MiniGameProofAnswer]=[:],finished=true
-        for ply in replay.snapshots.indices.reversed() {
-            if over(){finished=false;break}
-            let answer=proof.prove(replay.position(ply),historyComplete:true,stop:over)
-            if answer.exhausted && over(){finished=false;break}
-            answers[ply]=answer
-        }
-        return MiniGameReview(kind:kind,run:nil,plies:moves.count,answers:answers,facts:facts(turns:replay.snapshots.map(\.turn),played:moves,answers:answers,computer:false),nodes:proof.nodes,entries:proof.entryCount,complete:finished,consistent:true)
+        let proved=prove(kind:kind,count:replay.snapshots.count,position:replay.position,historyComplete:true,budget:budget,cpuSeconds:cpuSeconds,stop:stop)
+        return MiniGameReview(kind:kind,run:nil,plies:moves.count,answers:proved.answers,facts:facts(turns:replay.snapshots.map(\.turn),played:moves,answers:proved.answers,computer:false),nodes:proved.proof.nodes,entries:proved.proof.entryCount,complete:proved.finished,consistent:true)
     }
     /// Every position of a game from its kind's start, replayed by the referee, and each one's draw context.
     struct Replay {
@@ -86,8 +84,7 @@ public struct MiniGameReview:Equatable {
             for move in moves {guard replay.play(move) else{return nil};snapshots.append(replay.snapshot)}
             var stretch=[0]
             for ply in snapshots.indices.dropFirst() {
-                let a=snapshots[ply-1].board,b=snapshots[ply].board
-                stretch.append(a.count==b.count && a.filter{$0.value.hasSuffix("p")}==b.filter{$0.value.hasSuffix("p")} ? stretch[ply-1]:ply)
+                stretch.append(MiniGameRules.sameMaterialAndPawns(snapshots[ply-1].board,snapshots[ply].board) ? stretch[ply-1]:ply)
             }
             self.snapshots=snapshots;self.stretch=stretch;base=replay
         }

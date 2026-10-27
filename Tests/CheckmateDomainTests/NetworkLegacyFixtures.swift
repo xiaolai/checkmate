@@ -74,9 +74,6 @@ enum Legacy11Fixtures {
     /// White had hints and used one on 1. e4.
     static let assistedRecord=#"{"assistance":{"black":"off","white":"hints"},"assistedPlies":[1],"blackName":"Ben","gameID":"5QVHHR37H3BVYSNN9EN96BYBBC","hostSide":"w","pgn":"[Event \"?\"]\n[Site \"?\"]\n[Date \"????.??.??\"]\n[Round \"?\"]\n[White \"?\"]\n[Black \"?\"]\n[Result \"*\"]\n\n1. e4 e5 2. Nf3 *","revision":3,"timeControl":"untimed","whiteName":"Ana"}"#
     static let record=#"{"blackName":"Ben","gameID":"27BTBDZ9A8Z6WAJ8Z3YB46856C","hostSide":"w","pgn":"[Event \"?\"]\n[Site \"?\"]\n[Date \"????.??.??\"]\n[Round \"?\"]\n[White \"?\"]\n[Black \"?\"]\n[Result \"*\"]\n\n1. e4 e5 2. Nf3 *","revision":3,"timeControl":"untimed","whiteName":"Ana"}"#
-    /// Both records' position after 1. e4 e5 2. Nf3, and its revision-3 hash (SHA-256), as the 1.1 host computed them.
-    static let fen="rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2"
-    static let hash="88c1e1ddcf759d87542e375e9cdc89930d39ffc93f7fb66062f3fbbf2749b62b"
 }
 /// The 1.1 decode rules, frozen: `NetworkCodec`'s flat wire object and its checks as they were at 6f51c94, the last 1.1
 /// commit before 1.2. Its limits, its free-string rule and its terminations are written out, so a later change to
@@ -270,8 +267,6 @@ enum Legacy12Fixtures {
         #"{"protocol":{"major":1,"minor":2},"reason":"protocolVersion","type":"bye"}"#,
     ]
     static let record=#"{"blackName":"Ana","gameID":"41K5PPY6VDQ7TASTDE538YB37M","hostSide":"b","pgn":"[Event \"?\"]\n[Site \"?\"]\n[Date \"????.??.??\"]\n[Round \"?\"]\n[White \"?\"]\n[Black \"?\"]\n[Result \"*\"]\n[SetUp \"1\"]\n[FEN \"1Q6/5pk1/2p3p1/1p2N2p/1b5P/1b6/r3n1P1/1K6 b - - 13 40\"]\n\n40. ... Nc3+ 41. Kc1 *","revision":2,"startFEN":"1Q6/5pk1/2p3p1/1p2N2p/1b5P/1b6/r3n1P1/1K6 b - - 13 40","timeControl":"untimed","whiteName":"Ben"}"#
-    static let fen="1Q6/5pk1/2p3p1/1p2N2p/1b5P/1bn5/r5P1/2K5 b - - 15 41"
-    static let hash="1a09ee4aed8ed96d49f7e22b6acefa420cf8ded2598ae418fbec56c5a34e01dc"
     /// 1.2's terminations, written out so a later case cannot move them: an `ended` naming any other is malformed to a
     /// 1.2 decoder (its `NetworkTermination` has no such case).
     static let terminations:Set<String>=["checkmate","stalemate","resignation","time","agreement","repetition","fiftyMoves","seventyFiveMoves","fivefold","insufficientMaterial","abandoned"]

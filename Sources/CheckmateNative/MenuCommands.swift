@@ -38,7 +38,7 @@ extension AppDelegate:NSMenuDelegate {
     static let shareID=NSUserInterfaceItemIdentifier("file-share")
     /// Automatic checks run at launch only when the learner turned them on, and never in automation or tests (V-19).
     static func checksAutomatically(settings:AppSettings,silent:Bool)->Bool {settings.checkForUpdates && !silent}
-    private var dataDirectory:URL {model?.store.directory ?? StateStore.defaultDirectory()}
+    private var dataDirectory:URL {model?.store.directory ?? ApplicationDataPaths.defaultDirectory()}
     @objc func showAbout(){presentAbout([.credits:AboutPane.credits])}
     @objc func showHelp(){if help==nil{help=HelpWindow()};help?.showWindow(nil);help?.window?.makeKeyAndOrderFront(nil)}
     @objc func reportProblem(){AboutPane.open(AboutPane.reportProblem,dataDirectory:dataDirectory)}

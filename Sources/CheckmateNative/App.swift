@@ -13,9 +13,9 @@ import CheckmateCore
     /// Silent, with an explicit isolated data directory, and not the released app's identifier.
     static var isolatedAutomation:Bool {NativePolicy.silent && ProcessInfo.processInfo.environment["CHECKMATE_DATA_DIR"] != nil && Bundle.main.bundleIdentifier != "ai.xiaolai.checkmate"}
     func applicationDidFinishLaunching(_ notification:Notification){
-        if let i=CommandLine.arguments.firstIndex(of:"--package-check"),i+1<CommandLine.arguments.count {let destination=CommandLine.arguments[i+1];Task{do{let rules=try ChessRules(),course=try CourseLibrary();let analysis=try await NativeEngine().analyze(fen:rules.fen,skill:0,budget:100,multiPv:1);guard let move=analysis.bestMove else{throw CheckmateError.unavailable(String(localized:"No packaged engine move",bundle:.checkmate))};_ = try rules.move(uci:move);let result:[String:Any]=["passed":true,"resourceRoot":NativeResources.root.path,"lessons":course.lessons.count,"engineMove":move];try JSONSerialization.data(withJSONObject:result,options:.prettyPrinted).write(to:URL(fileURLWithPath:destination));NSApp.terminate(nil)}catch{NSApp.terminate(nil)}};return}
+        if let destination=argument(after:"--package-check") {Task{do{let rules=try ChessRules(),course=try CourseLibrary();let analysis=try await NativeEngine().analyze(fen:rules.fen,skill:0,budget:100,multiPv:1);guard let move=analysis.bestMove else{throw CheckmateError.unavailable(String(localized:"No packaged engine move",bundle:.checkmate))};_ = try rules.move(uci:move);let result:[String:Any]=["passed":true,"resourceRoot":NativeResources.root.path,"lessons":course.lessons.count,"engineMove":move];try JSONSerialization.data(withJSONObject:result,options:.prettyPrinted).write(to:URL(fileURLWithPath:destination));NSApp.terminate(nil)}catch{NSApp.terminate(nil)}};return}
         do {
-            let root=StateStore.defaultDirectory();try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])
+            let root=ApplicationDataPaths.defaultDirectory();try createPrivateDirectory(root)
             // A lock file that cannot be opened is a problem with the data folder, not a second copy: say so.
             let lock=lockInstance(root)
             guard lock != .unopenable else{let alert=NSAlert();alert.messageText=String(localized:"Checkmate could not open its data folder.",bundle:.checkmate);alert.informativeText=String(localized:"Check that \(root.path) is writable, then open Checkmate again.",bundle:.checkmate);alert.runModal();NSApp.terminate(nil);return}
@@ -33,18 +33,18 @@ import CheckmateCore
             if Onboarding.shows(firstRun:firstRun,silent:NativePolicy.silent,requested:automation && CommandLine.arguments.contains("--onboarding")){window.showOnboarding()}
             // A gate may run one instance dark beside light ones (network-ui) without touching the system appearance.
             if automation,CommandLine.arguments.contains("--dark-appearance"){NSApp.appearance=NSAppearance(named:.darkAqua)}
-            if automation,let i=CommandLine.arguments.firstIndex(of:"--bonjour-self-check"),i+1<CommandLine.arguments.count{NativeModel.runBonjourSelfCheck(output:URL(fileURLWithPath:CommandLine.arguments[i+1]),directory:root.appendingPathComponent("bonjour-self-check"))}
-            if automation,CommandLine.arguments.contains("--companion-test"){try model.companion.enable(role:"coach");if automation,CommandLine.arguments.contains("--preview-fixture"){try model.session.beginPreview();Task{try? await model.session.testMove(from:"e2",to:"e4")}}}
+            if automation,let output=argument(after:"--bonjour-self-check"){NativeModel.runBonjourSelfCheck(output:URL(fileURLWithPath:output),directory:root.appendingPathComponent("bonjour-self-check"))}
+            if automation,CommandLine.arguments.contains("--companion-test"){try model.companion.enable(role:"coach");if CommandLine.arguments.contains("--preview-fixture"){try model.session.beginPreview();Task{try? await model.session.testMove(from:"e2",to:"e4")}}}
             if automation,CommandLine.arguments.contains("--opponent-fixture"){try model.companion.enable(role:"opponent");try model.session.playWhite(from:"e2",to:"e4")}
-            if automation,let i=CommandLine.arguments.firstIndex(of:"--review-batch-scenario"),i+1<CommandLine.arguments.count{runReviewBatchScenario(directory:CommandLine.arguments[i+1])}
-            if automation,let i=CommandLine.arguments.firstIndex(of:"--review-scenario"),i+1<CommandLine.arguments.count{runReviewScenario(directory:CommandLine.arguments[i+1])}
+            if automation,let directory=argument(after:"--review-batch-scenario"){runReviewBatchScenario(directory:directory)}
+            if automation,let directory=argument(after:"--review-scenario"){runReviewScenario(directory:directory)}
             // A Rook Sweep one capture from its end, for a pointer gate to finish and review with real clicks (L-25).
             if automation,CommandLine.arguments.contains("--mini-review-fixture"){seedAlmostWonRookSweep(model:model);window.refresh()}
-            if automation,let i=CommandLine.arguments.firstIndex(of:"--pawn-duel-scenario"),i+1<CommandLine.arguments.count{runPawnDuelScenario(directory:CommandLine.arguments[i+1])}
-            if automation,let i=CommandLine.arguments.firstIndex(of:"--snapshot"),i+1<CommandLine.arguments.count{DispatchQueue.main.asyncAfter(deadline:.now()+1){window.snapshot(CommandLine.arguments[i+1])}}
-            if automation,let i=CommandLine.arguments.firstIndex(of:"--fullscreen-scenario"),i+1<CommandLine.arguments.count{runFullscreen(directory:CommandLine.arguments[i+1])}
-            if automation,let i=CommandLine.arguments.firstIndex(of:"--layout-scenario"),i+1<CommandLine.arguments.count{runLayoutAcceptance(directory:CommandLine.arguments[i+1])}
-            if automation,let i=CommandLine.arguments.firstIndex(of:"--ui-scenario"),i+1<CommandLine.arguments.count{runScenario(directory:CommandLine.arguments[i+1])}
+            if automation,let directory=argument(after:"--pawn-duel-scenario"){runPawnDuelScenario(directory:directory)}
+            if automation,let path=argument(after:"--snapshot"){DispatchQueue.main.asyncAfter(deadline:.now()+1){window.snapshot(path)}}
+            if automation,let directory=argument(after:"--fullscreen-scenario"){runFullscreen(directory:directory)}
+            if automation,let directory=argument(after:"--layout-scenario"){runLayoutAcceptance(directory:directory)}
+            if automation,let directory=argument(after:"--ui-scenario"){runScenario(directory:directory)}
         }catch{recoverFromLaunchFailure(error,notification)}
     }
     enum InstanceLock {case held,unopenable,taken}
@@ -54,7 +54,7 @@ import CheckmateCore
     /// A saved state that cannot be read offers Start Fresh (the file is kept aside), Restore Backup and Export; any
     /// other launch failure says so and quits, so a healthy state is never replaced by an older backup.
     private func recoverFromLaunchFailure(_ error:Error,_ notification:Notification){
-        let store=StateStore(directory:StateStore.defaultDirectory()),stateProblem:Bool={do{_ = try store.load();return false}catch{return true}}()
+        let store=StateStore(directory:ApplicationDataPaths.defaultDirectory()),stateProblem:Bool={do{_ = try store.load();return false}catch{return true}}()
         let alert=NSAlert()
         guard stateProblem else{alert.messageText=String(localized:"Checkmate could not start.",bundle:.checkmate);alert.informativeText=Sentences.join(userFacingMessage(error,fallback:String(localized:"A part of the app could not be opened. Reinstall Checkmate if this continues.",bundle:.checkmate)),String(localized:"Your saved progress was not changed.",bundle:.checkmate));alert.addButton(withTitle:String(localized:"Quit",bundle:.checkmate));_ = presentRecovery(alert);quit();return}
         alert.messageText=String(localized:"Checkmate could not open your saved progress.",bundle:.checkmate)
@@ -70,7 +70,7 @@ import CheckmateCore
         }}catch{let failure=NSAlert();failure.messageText=String(localized:"That did not work",bundle:.checkmate);failure.informativeText=Sentences.join(userFacingMessage(error,fallback:String(localized:"Your saved file is unchanged.",bundle:.checkmate)),String(localized:"Choose another option.",bundle:.checkmate));failure.runModal();recoverFromLaunchFailure(original,notification)}
     }
     func runReviewBatchScenario(directory:String){guard let model=model else{return};Task{do{
-        let root=URL(fileURLWithPath:directory);let warmBaseline=CommandLine.arguments.contains("--warm-engine-baseline");if warmBaseline{_ = try await model.reviewAnalyzer.engine.analyze(fen:try ChessRules().fen,skill:20,budget:100,multiPv:1)};try Data("ready".utf8).write(to:root.appendingPathComponent("baseline-ready"));try await Task.sleep(for:.seconds(2))
+        let root=URL(fileURLWithPath:directory);let warmBaseline=CommandLine.arguments.contains("--warm-engine-baseline");if warmBaseline{_ = try await model.reviewAnalyzer.engine.analyze(fen:NetworkStart.standard,skill:20,budget:100,multiPv:1)};try Data("ready".utf8).write(to:root.appendingPathComponent("baseline-ready"));try await Task.sleep(for:.seconds(2))
         let original=try PGNImporter.parse(Data(contentsOf:root.appendingPathComponent("input.pgn")))[0];guard original.mainline.count>=100 else{throw CheckmateError.invalid("Batch fixture requires100real plies")}
         let rules=try ChessRules(fen:original.startingFEN);for node in original.mainline.prefix(100){try rules.move(uci:original.nodes[node].uci!)}
         let document=try PGNImporter.parse(Data(rules.pgn.utf8))[0];model.openReview(document);let analyzer=model.reviewAnalyzer
@@ -235,7 +235,7 @@ import CheckmateCore
             game.board.automationReduceMotion=true;game.board.selected="e2";game.board.updateBreathing()
             if game.board.breathing{failures.append("Reduced Motion override retained breathing")}
             // An animation only runs on the board it belongs to: show the start position the move is played from.
-            game.board.position=try ChessRules().board;let move=try ChessRules().moves("e2").first!;game.board.animate(move,duration:1)
+            let start=try ChessRules();game.board.position=start.board;let move=start.moves("e2").first!;game.board.animate(move,duration:1)
             if game.board.moveAnimationActive{failures.append("Reduced Motion override retained move animation")}
             game.board.automationReduceMotion=false;game.board.animate(move,duration:1)
             if !game.board.moveAnimationActive{failures.append("Normal motion override did not start animation")};game.board.cancelAnimation()
@@ -278,7 +278,7 @@ import CheckmateCore
             model.voice.disconnect()
 
             try model.review.beginBranch();game.refresh()
-            @MainActor func click(_ square:String)async {let rect=game.board.squareRect(square),point=game.board.convert(NSPoint(x:rect.midX,y:rect.midY),to:nil);for type in [NSEvent.EventType.leftMouseDown,.leftMouseUp]{if let event=NSEvent.mouseEvent(with:type,location:point,modifierFlags:[],timestamp:ProcessInfo.processInfo.systemUptime,windowNumber:game.window!.windowNumber,context:nil,eventNumber:0,clickCount:1,pressure:type == .leftMouseDown ? 1:0){NSApp.sendEvent(event)};try? await Task.sleep(for:.milliseconds(80))}}
+            @MainActor func click(_ square:String)async {let rect=game.board.squareRect(square),point=game.board.convert(NSPoint(x:rect.midX,y:rect.midY),to:nil);await NSEvent.syntheticClick(at:point,in:game.window!)}
             await click("e2");await click("e4");let mouseBranchVerified=model.review.board["e4"]=="wp";if !mouseBranchVerified{failures.append("Actual mouse branch move failed")};try? await game.capture(directory+"/imagined-mouse.png");key(126,.option);key(126,.option);key(126,.option);key(49);key(125,.option);key(125,.option);key(49);let keyboardBranchVerified=model.review.board["e5"]=="bp" && model.review.branch?.moves.count==2;if !keyboardBranchVerified{failures.append("Actual keyboard imagined move failed")};try? await game.capture(directory+"/imagined-keyboard.png");game.showDetails();game.refresh();try? await Task.sleep(for:.milliseconds(700))
             // RV-2: the open idea lists its own moves, rendered and read from outside the app.
             let ideaMovesAX=await ax("idea-moves",[["kind":"text","value":"Imagined move 1, e4"],["kind":"text","value":"Imagined move 2, e5"]]);let ideaMovesListed=axPassed(ideaMovesAX,0) && axPassed(ideaMovesAX,1);if !ideaMovesListed{failures.append("The open idea does not list its moves")}
@@ -545,10 +545,7 @@ import CheckmateCore
                 let rect=game.board.squareRect(square),local=NSPoint(x:rect.midX,y:rect.midY)
                 let point=game.board.convert(local,to:nil),window=game.window!
                 let hit=window.contentView?.hitTest(window.contentView!.convert(point,from:nil))
-                for type in [NSEvent.EventType.leftMouseDown,.leftMouseUp] {
-                    if let event=NSEvent.mouseEvent(with:type,location:point,modifierFlags:[],timestamp:ProcessInfo.processInfo.systemUptime,windowNumber:window.windowNumber,context:nil,eventNumber:0,clickCount:1,pressure:type == .leftMouseDown ? 1:0){NSApp.sendEvent(event)}
-                    try? await Task.sleep(for:.milliseconds(80))
-                }
+                await NSEvent.syntheticClick(at:point,in:window)
                 clicks.append(["square":square,"hit":String(describing:type(of:hit)),"selected":model.learning.picked,"turn":model.learning.miniTurn])
             }
             let board=model.learning.frame.board ?? [:]
@@ -556,10 +553,7 @@ import CheckmateCore
             try? await game.capture(directory+"/pawn-duel.png")
             @MainActor func click(_ square:String)async {
                 let rect=game.board.squareRect(square),point=game.board.convert(NSPoint(x:rect.midX,y:rect.midY),to:nil)
-                for type in [NSEvent.EventType.leftMouseDown,.leftMouseUp] {
-                    if let event=NSEvent.mouseEvent(with:type,location:point,modifierFlags:[],timestamp:ProcessInfo.processInfo.systemUptime,windowNumber:game.window!.windowNumber,context:nil,eventNumber:0,clickCount:1,pressure:type == .leftMouseDown ? 1:0){NSApp.sendEvent(event)}
-                    try? await Task.sleep(for:.milliseconds(80))
-                }
+                await NSEvent.syntheticClick(at:point,in:game.window!)
             }
             game.showDetails();try? await Task.sleep(for:.milliseconds(850))
             var games:[[String:Any]]=[]
@@ -587,10 +581,7 @@ import CheckmateCore
                 return frames.filter{abs($0.midY-bottom)<4}.sorted{$0.minX<$1.minX}.map{NSPoint(x:$0.midX,y:$0.midY)}
             }
             @MainActor func press(_ point:NSPoint,in sheet:NSWindow)async {
-                for type in [NSEvent.EventType.leftMouseDown,.leftMouseUp] {
-                    if let event=NSEvent.mouseEvent(with:type,location:point,modifierFlags:[],timestamp:ProcessInfo.processInfo.systemUptime,windowNumber:sheet.windowNumber,context:nil,eventNumber:0,clickCount:1,pressure:type == .leftMouseDown ? 1:0){NSApp.sendEvent(event)}
-                    try? await Task.sleep(for:.milliseconds(80))
-                }
+                await NSEvent.syntheticClick(at:point,in:sheet)
             }
             final class Requests {var scripts:[String]=[],other=0}
             var reading:[String:Any]=["offered":false]
@@ -798,7 +789,7 @@ import CheckmateCore
             let explanation=model.learning.current.beats.firstIndex{$0.id=="intro:15"}!
             model.learning.seek(step:explanation);model.learning.play();game.showDetails();try? await Task.sleep(for:.milliseconds(850));try? await game.capture(directory+"/lesson-explanation.png")
             let kingRect=game.board.squareRect("e1"),kingPoint=game.board.convert(NSPoint(x:kingRect.midX,y:kingRect.midY),to:nil)
-            for type in [NSEvent.EventType.leftMouseDown,.leftMouseUp]{if let event=NSEvent.mouseEvent(with:type,location:kingPoint,modifierFlags:[],timestamp:ProcessInfo.processInfo.systemUptime,windowNumber:game.window!.windowNumber,context:nil,eventNumber:0,clickCount:1,pressure:type == .leftMouseDown ? 1:0){NSApp.sendEvent(event)};try? await Task.sleep(for:.milliseconds(80))}
+            await NSEvent.syntheticClick(at:kingPoint,in:game.window!)
             if !model.learning.playing || !model.learning.picked.isEmpty{failures.append("Lesson board click interrupted narration or created an answer")}
             model.learning.advance(by:model.learning.duration)
             if model.learning.key != "intro:16" || !model.learning.playing{failures.append("Lesson did not continue to the next explanation")}
@@ -847,9 +838,11 @@ import CheckmateCore
         }
     }
 }
+/// The value after `flag` on the command line; nil when the flag is absent or the last argument.
+private func argument(after flag:String)->String? {let arguments=CommandLine.arguments;guard let i=arguments.firstIndex(of:flag),i+1<arguments.count else{return nil};return arguments[i+1]}
 @main struct CheckmateApplication {
     @MainActor static func main(){
-if let i=CommandLine.arguments.firstIndex(of:"--data-dir"),i+1<CommandLine.arguments.count{setenv("CHECKMATE_DATA_DIR",CommandLine.arguments[i+1],1)}
+if let directory=argument(after:"--data-dir"){setenv("CHECKMATE_DATA_DIR",directory,1)}
 // One window, never tabs: View ▸ Show Tab Bar would make the board area non-square.
 NSWindow.allowsAutomaticWindowTabbing=false
 let app=NSApplication.shared;app.setActivationPolicy(.regular);let delegate=AppDelegate();app.delegate=delegate;app.run()

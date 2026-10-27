@@ -33,7 +33,7 @@ public enum TrainingMoveGrade:Equatable {
     /// replays the context moves, any of which may fail.
     public init(fen:String,prelude:[String]=[],runtimeFactory:(() throws -> any ChessScriptRuntime)?=nil)throws {
         _ = try PGNImporter.validateFEN(fen)
-        rules=try runtimeFactory.map{try ChessRules(fen:fen,runtimeFactory:$0)} ?? ChessRules(fen:fen)
+        rules=try ChessRules(fen:fen,runtimeFactory:runtimeFactory)
         for uci in prelude{guard ChessNotation.validUCI(uci) else{throw CheckmateError.invalid(String(localized:"Invalid context move.",bundle:.checkmate))};_ = try rules.move(uci:uci)}
         self.fen=try rules.currentFEN()
     }
@@ -44,7 +44,7 @@ public enum TrainingMoveGrade:Equatable {
     public func claimableDraw()throws -> String? {try rules.claimableDrawReason()}
     /// Board, side to move, castling and en-passant fields: what a teaching node is identified by.
     public func fingerprint()throws -> String {Self.fingerprint(try rules.currentFEN())}
-    public static func fingerprint(_ fen:String)->String {fen.split(separator:" ").prefix(4).joined(separator:" ")}
+    public nonisolated static func fingerprint(_ fen:String)->String {fen.split(separator:" ").prefix(4).joined(separator:" ")}
     public func board()throws -> Position {try rules.currentBoard()}
     public func status()throws -> TrainingStatus {
         if try rules.isCheckmate(){return .checkmate};if try rules.isStalemate(){return .stalemate};return try rules.isCheck() ? .check:.neither
@@ -54,7 +54,7 @@ public enum TrainingMoveGrade:Equatable {
     public func matingMoves()throws -> Set<String> {Set(try outcomes().filter(\.checkmate).map(\.uci))}
     /// The squares the side to move's king can legally reach (castling excluded by the scenarios that ask this).
     public func kingDestinations()throws -> Set<String> {
-        let turn=try turn();guard let king=try board().first(where:{$0.value==turn+"k"})?.key else{throw CheckmateError.invalid(String(localized:"No king to move.",bundle:.checkmate))}
+        let turn=try turn();guard let king=try TrainingGeometry.square(of:turn+"k",on:board()) else{throw CheckmateError.invalid(String(localized:"No king to move.",bundle:.checkmate))}
         return Set(try outcomes().filter{$0.from==king && !$0.flags.contains("k") && !$0.flags.contains("q")}.map(\.to))
     }
     /// The legal move for exactly this attempt, if there is one.

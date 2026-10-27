@@ -57,7 +57,7 @@ import CheckmateCore
         analyzer.startBatch(game);XCTAssertEqual(statuses.last,"pending","Once stopped, it can start again");analyzer.cancelBatch();withExtendedLifetime(watch){}
     }
     func testForgettingADeletedReviewRemovesOnlyItsAnalysis()async throws {
-        let root=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);defer{try? FileManager.default.removeItem(at:root)}
+        let root=try scratchDirectory()
         func evidence(_ id:UUID)->ReviewEvidence {ReviewEvidence(schemaVersion:1,documentID:id,documentHash:"document",nodeID:1,historyHash:"history",revision:1,engineVersion:"test",options:[:],budgetMs:500,createdAt:Date(),root:EngineAnalysis(),played:nil,quality:"provisional",provisional:true)}
         let deleted=UUID(),kept=UUID(),cache=ReviewAnalysisCache(directory:root)
         try cache.save(evidence(deleted),key:"deleted");try cache.save(evidence(kept),key:"kept")

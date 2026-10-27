@@ -10,8 +10,7 @@ import CheckmateCore
 /// normal-chess case that names the difference. Opening a bridge never changes the old game or the course.
 @MainActor final class TrainingBridgeTests:XCTestCase {
     // Increment B is gated behind its preview flags; these tests exercise it as development does.
-    override func setUp(){setenv("CHECKMATE_TRAINING_ENABLED","1",1);setenv("CHECKMATE_TRAINING_B","1",1)}
-    override func tearDown(){unsetenv("CHECKMATE_TRAINING_ENABLED");unsetenv("CHECKMATE_TRAINING_B")}
+    override func setUp(){setEnvironment(["CHECKMATE_TRAINING_ENABLED":"1","CHECKMATE_TRAINING_B":"1"])}
     func testEveryExistingGameReachesAReviewedNormalChessBridge()throws {
         let provider=try TrainingScenarioProvider.bundled()
         for kind in MiniGameKind.allCases {

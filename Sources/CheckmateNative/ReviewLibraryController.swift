@@ -58,7 +58,9 @@ enum LibraryListItem {
     private(set) var openingCollection:String?
     var automationImportDelayMs=0
     init(directory:URL){store=GameCollectionStore(directory:directory)}
-    var loaded:Bool {if case .loaded=bundled{return true};return false}
+    var loaded:Bool {loadedLibrary != nil}
+    /// The bundled library once it has loaded.
+    var loadedLibrary:GameLibrary? {if case .loaded(let library)=bundled{return library};return nil}
     func requestFind(){findRequests+=1}
     /// Bumped with every refilter, so the view reacts to new results without comparing thousands of rows.
     @Published private(set) var shownVersion=0
@@ -87,8 +89,8 @@ enum LibraryListItem {
         previewTask?.cancel();previewTask=nil
         guard let selection,let row=visibleRows.first(where:{$0.id==selection}) else{preview=nil;return}
         guard preview?.id != row.id else{return}
-        let store=store,reviews=model?.reviewStore,library:GameLibrary?={if case .loaded(let library)=bundled{return library};return nil}()
-        let collection:CollectionIndex?={if case .collection(let sha,_)=row.source{return collections.first{$0.sha256==sha}};return nil}()
+        let store=store,reviews=model?.reviewStore,library=loadedLibrary
+        let collection:CollectionIndex?={if case .collection(let sha,_)=row.source{return self.collection(sha)};return nil}()
         previewTask=Task{
             let read=await Task.detached{Result{()throws -> GameDocument in
                 let data:Data
@@ -134,7 +136,7 @@ enum LibraryListItem {
     /// The catalog (every row and folded search key) is built off the main actor; only the latest build is published.
     private func rebuild(){
         catalogGeneration+=1;let generation=catalogGeneration
-        let library:GameLibrary?={if case .loaded(let library)=bundled{return library};return nil}(),collections=collections,broken=broken
+        let library=loadedLibrary,collections=collections,broken=broken
         Task{
             let built=await Task.detached{LibraryCatalog(library:library,collections:collections,broken:broken)}.value
             guard catalogGeneration==generation else{return}
@@ -164,7 +166,7 @@ enum LibraryListItem {
         openGeneration+=1;let generation=openGeneration,activity=model.activityGeneration,store=store
         switch row.source {
         case .bundled(let game):
-            guard case .loaded(let library)=bundled else{return}
+            guard let library=loadedLibrary else{return}
             openingCollection=nil
             Task{
                 let read=await Task.detached{Result{try library.data(game)}}.value
@@ -176,7 +178,7 @@ enum LibraryListItem {
                 }
             }
         case .collection(let sha,let record):
-            guard !removing.contains(sha),let collection=collections.first(where:{$0.sha256==sha}) else{return}
+            guard !removing.contains(sha),let collection=self.collection(sha) else{return}
             openingCollection=sha
             Task{
                 // Read and hashed off the main actor; a removal or a newer open in the meantime wins.
@@ -231,8 +233,7 @@ enum LibraryListItem {
     /// Every removal is confirmed, a broken collection's included: its file may still be recoverable.
     func requestRemove(_ sha:String,name:String,games:Int?){
         let alert=NSAlert.destructive(String(localized:"Remove “\(PGNImporter.bounded(name,scalars:80))”?",bundle:.checkmate,comment:"Asks before removing a game file from My games"),games.map{String(localized:"Its \($0) games leave My games. Reviews you saved from them are kept.",bundle:.checkmate)} ?? String(localized:"Its file is deleted from My games. Reviews you saved from it are kept.",bundle:.checkmate),action:String(localized:"Remove",bundle:.checkmate,comment:"Removes a game file from My games"))
-        if let window=NSApp.mainWindow{alert.beginSheetModal(for:window){[weak self] response in if response == .alertFirstButtonReturn{self?.remove(sha)}}}
-        else if alert.runModal() == .alertFirstButtonReturn{remove(sha)}
+        alert.present(on:NSApp.mainWindow){[weak self] response in if response == .alertFirstButtonReturn{self?.remove(sha)}}
     }
     func remove(_ sha:String){
         // Marked at once: its games stop opening, and an import of it still in flight is not published.
@@ -262,5 +263,5 @@ enum LibraryListItem {
         }
     }
     func collection(_ sha:String)->CollectionIndex? {collections.first{$0.sha256==sha}}
-    func openMoreGames(){NSWorkspace.shared.open(Self.moreGamesURL)}
+    func openMoreGames(){AboutPane.open(Self.moreGamesURL,dataDirectory:model?.store.directory ?? ApplicationDataPaths.defaultDirectory())}
 }

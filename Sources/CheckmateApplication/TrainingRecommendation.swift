@@ -33,7 +33,7 @@ public enum TrainingRecommendation {
         let s=training.summaries[entry] ?? TrainingEntrySummary(),solo=MiniGameKind(rawValue:entry)?.solo==true
         // A solo game records each finished route in `legacyWins`, its only result; its loss and draw counters carry
         // no meaning, so they are never shown or added in.
-        return Progress(firstTryNoRecordedHelp:s.firstTryNoRecordedHelp,withRecordedHelp:s.assistedCompletions,practice:s.practiceCompletions,notSolved:s.incorrect,answerShown:s.revealed,clusters:s.clusters.count,days:s.days.count,gamesWon:solo ? 0:s.legacyWins,gamesLost:solo ? 0:s.legacyLosses,gamesDrawn:solo ? 0:s.legacyDraws,twoPlayerGames:s.twoPlayerFinishes,routesCompleted:solo ? s.legacyWins:0)
+        return Progress(firstTryNoRecordedHelp:s.firstTryNoRecordedHelp,withRecordedHelp:s.assistedCompletions,practice:s.practiceCompletions,notSolved:s.incorrect,answerShown:s.revealed,clusters:s.clusters.count,days:s.days.count,gamesWon:s.gamesWon(solo:solo),gamesLost:solo ? 0:s.legacyLosses,gamesDrawn:solo ? 0:s.legacyDraws,twoPlayerGames:s.twoPlayerFinishes,routesCompleted:s.routesCompleted(solo:solo))
     }
     /// Why a finished attempt is worth repeating, or nil when it went cleanly. Abandoned attempts are not suggested.
     public static func reason(for outcome:TrainingOutcome,recordedHelp:Bool)->String? {

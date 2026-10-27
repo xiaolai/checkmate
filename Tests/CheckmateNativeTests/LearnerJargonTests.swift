@@ -6,6 +6,7 @@ import CheckmateRules
 @testable import CheckmateContent
 @testable import CheckmateApplication
 @testable import CheckmateMacPlatform
+import CheckmateTestSupport
 
 /// V-7: what the learner reads names no protocol, engine or service term: no MCP, model access, ply or half-move, and no
 /// method name. Typed states and problems carry the plain words; the details go to the log.
@@ -30,7 +31,7 @@ final class LearnerJargonTests:XCTestCase {
         }
         return found
     }
-    private var root:URL {URL(fileURLWithPath:#filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()}
+    private var root:URL {Repository.root}
 
     /// The app's own text, the modules whose messages it shows, and the broker's replies to a Codex task.
     func testLearnerTextSaysNoJargon()throws {

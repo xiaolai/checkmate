@@ -10,9 +10,7 @@ import CheckmateCore
 /// A learner's command that fails says so where the learner is looking; none is dropped silently. Hint opens the drawer
 /// that shows it.
 @MainActor final class NativeActionFailureTests:XCTestCase {
-    private var directory:URL!
-    override func setUp(){directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);setenv("CHECKMATE_DATA_DIR",directory.path,1)}
-    override func tearDown(){unsetenv("CHECKMATE_DATA_DIR");try? FileManager.default.removeItem(at:directory)}
+    override func setUpWithError()throws{try isolateDataDirectory()}
     func testANavigationThatFailsSaysWhy()throws {
         let model=try NativeModel();defer{model.shutdown()}
         let place=model.session.activity.place
@@ -22,7 +20,7 @@ import CheckmateCore
     }
     /// A thrown transition is never turned into a bare `false`: every caller goes through `navigate`, which says why.
     func testNoTransitionFailureIsSwallowed()throws {
-        let sources=URL(fileURLWithPath:#filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("Sources")
+        let sources=Repository.url("Sources")
         let files=try XCTUnwrap(FileManager.default.enumerator(at:sources,includingPropertiesForKeys:nil)).compactMap{$0 as? URL}.filter{$0.pathExtension=="swift"}
         XCTAssertFalse(files.isEmpty)
         for file in files {

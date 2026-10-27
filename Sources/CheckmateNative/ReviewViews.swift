@@ -41,10 +41,10 @@ struct ReviewDetailContent:View {
             ReviewRetrySection(retry:model.reviewRetry,analyzer:analyzer,model:model,document:d)
             ReviewMoveSection(review:review,model:model,analyzer:analyzer,document:d)
             ReviewPositionPanel(review:review,model:model,analyzer:analyzer,document:d)
-            if !review.authoredBranches.isEmpty{DisclosureGroup(ReviewFormat.ideaListTitle(count:review.authoredBranches.count)){VStack(alignment:.leading,spacing:Metrics.tightGap){ForEach(review.authoredBranches,id:\.id){branch in HStack{
-                Button(ReviewFormat.ideaLabel(d,branch)){do{try review.openSavedBranch(branch.id)}catch{model.storageError=userFacingMessage(error,fallback:String(localized:"This imagined line could not be opened.",bundle:.checkmate))}}.buttonStyle(.link)
-                Spacer();Button("Delete",role:.destructive){do{try review.deleteBranch(branch.id);model.saveReview()}catch{model.storageError=userFacingMessage(error,fallback:String(localized:"This imagined line could not be deleted.",bundle:.checkmate))}}.controlSize(.small).accessibilityLabel("Delete imagined line: \(ReviewFormat.ideaLabel(d,branch))")}}}.padding(.top,Metrics.tightGap)}}
-            ReviewVoiceSection(voice:voice,connect:{[weak model] in model?.connectVoiceFromSettings()})
+            if !review.authoredBranches.isEmpty{DisclosureGroup(ReviewFormat.ideaListTitle(count:review.authoredBranches.count)){VStack(alignment:.leading,spacing:Metrics.tightGap){ForEach(review.authoredBranches,id:\.id){branch in let label=ReviewFormat.ideaLabel(d,branch);HStack{
+                Button(label){do{try review.openSavedBranch(branch.id)}catch{model.storageError=userFacingMessage(error,fallback:String(localized:"This imagined line could not be opened.",bundle:.checkmate))}}.buttonStyle(.link)
+                Spacer();Button("Delete",role:.destructive){do{try review.deleteBranch(branch.id);model.saveReview()}catch{model.storageError=userFacingMessage(error,fallback:String(localized:"This imagined line could not be deleted.",bundle:.checkmate))}}.controlSize(.small).accessibilityLabel("Delete imagined line: \(label)")}}}.padding(.top,Metrics.tightGap)}}
+            ReviewVoiceSection(voice:voice,connect:{[weak model] in model?.connectVoice()})
             // The review control bar has no way back to the game, and the workspace hides it.
             Button("Return to Game"){model.returnToGame()}.buttonStyle(.bordered)
         }
@@ -54,22 +54,18 @@ struct ReviewDetailContent:View {
 }
 struct OpponentSettingsContent:View {
     @ObservedObject var session:GameSession
-    private var displayedPreset:String {session.state.settings.opponentPreset=="first_steps" && !ReviewRolloutPolicy.beginnerOpponentEnabled ? "custom":session.state.settings.opponentPreset}
+    private var displayedPreset:String {NewGameChoices.strengths[NewGameChoices.strengthIndex(session.state.settings)].tag}
     private var displayedMode:String {
         if !ReviewRolloutPolicy.beginnerOpponentEnabled && (session.state.settings.opponentPreset=="first_steps" || session.state.settings.opponentMode=="beginner") {return "skill"}
         return session.state.settings.opponentMode
     }
     private var mode:Binding<String>{Binding(get:{displayedMode},set:{value in var settings=session.state.settings;settings.opponentMode=value;settings.opponentPreset="custom";session.updateSettings(settings)})}
-    func binding<T>(_ key:WritableKeyPath<AppSettings,T>)->Binding<T> {Binding(get:{session.state.settings[keyPath:key]},set:{var settings=session.state.settings;settings[keyPath:key]=$0;settings.opponentPreset="custom";session.updateSettings(settings)})}
     var preset:Binding<String>{Binding(get:{displayedPreset},set:{value in var settings=session.state.settings;settings.opponentPreset=value;session.updateSettings(settings)})}
     var body:some View {VStack(alignment:.leading,spacing:Metrics.smallGap){
         Grid(alignment:.leading,horizontalSpacing:Metrics.smallGap,verticalSpacing:Metrics.smallGap){
             GridRow {
                 Text("Opponent")
-                Picker("Opponent",selection:preset){
-                    if ReviewRolloutPolicy.beginnerOpponentEnabled{Text("First steps").tag("first_steps")}
-                    Text("Gentle").tag("gentle");Text("Club").tag("club");Text("Custom").tag("custom")
-                }.labelsHidden().frame(maxWidth:.infinity)
+                Picker("Opponent",selection:preset){ForEach(NewGameChoices.strengths,id:\.tag){Text($0.title).tag($0.tag)}}.labelsHidden().frame(maxWidth:.infinity)
             }
             if displayedPreset=="custom"{
                 GridRow {
@@ -82,12 +78,12 @@ struct OpponentSettingsContent:View {
                 if displayedMode=="skill"{
                     GridRow {
                         Text("Skill")
-                        Picker("Skill",selection:binding(\.skill)){ForEach(0...20,id:\.self){Text("Level \($0)").tag($0)}}
+                        Picker("Skill",selection:session.binding(\.skill,also:{$0.opponentPreset="custom"})){ForEach(0...20,id:\.self){Text("Level \($0)").tag($0)}}
                             .labelsHidden().frame(maxWidth:.infinity)
                     }
                 }
                 if displayedMode=="elo",let engine=session.engine as? NativeEngine{
-                    EngineEloControl(engine:engine,value:binding(\.opponentElo)).gridCellColumns(2)
+                    EngineEloControl(engine:engine,value:session.binding(\.opponentElo,also:{$0.opponentPreset="custom"})).gridCellColumns(2)
                 }
             }
         }
@@ -110,7 +106,7 @@ struct ReviewPracticeSheet:View {
     /// must not make Start fork, or Save keep, a different position.
     @State private var target:String?
     // Starts at the learner's current opponent rather than silently switching to custom settings.
-    init(model:NativeModel){self.model=model;let current=model.session.state.settings.opponentPreset;_preset=State(initialValue:current=="first_steps" && !ReviewRolloutPolicy.beginnerOpponentEnabled ? "custom":current);_target=State(initialValue:model.review.practiceForkTarget)}
+    init(model:NativeModel){self.model=model;_preset=State(initialValue:NewGameChoices.strengths[NewGameChoices.strengthIndex(model.session.state.settings)].tag);_target=State(initialValue:model.review.practiceForkTarget)}
     private func stillShown()->Bool {
         guard target != nil,model.review.practiceForkTarget==target else{model.practiceForkRequested=false;model.storageError=String(localized:"The review changed while this was open, so nothing was started or saved. Choose Practice Here again.",bundle:.checkmate);return false};return true
     }
@@ -118,7 +114,7 @@ struct ReviewPracticeSheet:View {
         Text("Practice from this position").sectionHeading()
         Text("Your current practice game is kept as your previous game, so you can still review it. Only one previous game is kept, so the one kept before is replaced. The game you are reviewing stays unchanged.")
         Picker("Play as",selection:$side){Text("White").tag("w");Text("Black").tag("b")}
-        Picker("Opponent",selection:$preset){if ReviewRolloutPolicy.beginnerOpponentEnabled{Text("First steps").tag("first_steps")};Text("Gentle").tag("gentle");Text("Club").tag("club");Text("Keep custom settings").tag("custom")}
+        Picker("Opponent",selection:$preset){ForEach(NewGameChoices.strengths,id:\.tag){Text($0.title).tag($0.tag)}}
         Button("Save This Position for Later"){guard stillShown() else{return};model.saveCurrentReview();model.practiceForkRequested=false}
         HStack{Spacer();Button("Cancel"){model.practiceForkRequested=false}.keyboardShortcut(.cancelAction);Button("Start Practice"){guard stillShown() else{return};model.confirmPracticeFork(side:side,preset:preset)}.keyboardShortcut(.defaultAction)}
     }.padding(Metrics.padding).frame(minWidth:Metrics.right)}

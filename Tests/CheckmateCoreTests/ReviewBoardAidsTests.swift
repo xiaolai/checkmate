@@ -15,7 +15,7 @@ import CheckmateTestSupport
 /// R-17: the review's evaluation bar and optional best-move arrow come from the analysis already made, only in a
 /// review, and never while engine help is withheld for a network game.
 @MainActor final class ReviewBoardAidsTests:XCTestCase {
-    private func settle(_ what:String,_ condition:()->Bool)async throws {for _ in 0..<2000 where !condition(){try await Task.sleep(for:.milliseconds(5))};XCTAssertTrue(condition(),what)}
+    private func settle(_ what:String,_ condition:()->Bool)async throws {try await poll(what,tries:2000,every:.milliseconds(5),condition)}
 
     func testTheBarSharesWinningChancesFromWhitesSide() {
         func share(_ kind:String,_ value:Int,_ turn:String="w")->Double {ReviewController.whiteShare(AnalysisScore(kind:kind,value:value),turn:turn)}

@@ -103,7 +103,7 @@ extension TrainingController {
     /// the rules here (a reply that is not legal, a continuation without its reply or reaching another position).
     private func continuation(_ state:Exercise,node:TrainingTeachingNode,move:String,right:Bool)throws -> (reply:MoveOutcome?,after:TrainingLegality?)? {
         guard let nodes=state.scenario.nodes,let fen=state.scenario.fen else{return nil}
-        let base=(state.scenario.prelude ?? [])+state.line,next=right ? node.next?[move]:nil
+        let base=state.scenario.history(after:state.line),next=right ? node.next?[move]:nil
         guard let answer=node.replies[move] else{if next != nil{return nil};return (nil,nil)}
         let afterMove=try TrainingLegality(fen:fen,prelude:base+[move],runtimeFactory:runtimeFactory)
         guard let reply=try afterMove.legalOutcome(from:String(answer.prefix(2)),to:String(answer.dropFirst(2).prefix(2)),promotion:answer.count==5 ? String(answer.suffix(1)):nil) else{return nil}
@@ -131,7 +131,7 @@ extension TrainingController {
     }
     func replayReply(_ state:inout Exercise,_ move:String)throws {
         guard awaitingReply(state),let nodes=state.scenario.nodes,let fen=state.scenario.fen,let last=state.line.last,state.node<nodes.count,let next=nodes[state.node].next?[last],nodes[state.node].replies[last]==move else{throw CheckmateError.invalid(String(localized:"A saved reply no longer applies.",bundle:.checkmate))}
-        let after=try TrainingLegality(fen:fen,prelude:(state.scenario.prelude ?? [])+state.line+[move],runtimeFactory:runtimeFactory)
+        let after=try TrainingLegality(fen:fen,prelude:state.scenario.history(after:state.line+[move]),runtimeFactory:runtimeFactory)
         guard try after.fingerprint()==nodes[next].fingerprint else{throw CheckmateError.invalid(String(localized:"A saved reply no longer applies.",bundle:.checkmate))}
         state.line.append(move);state.board=try after.board();state.lastMove=(String(move.prefix(2)),String(move.dropFirst(2).prefix(2)));state.node=next;state.current=after;clearHints(&state)
     }

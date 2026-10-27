@@ -6,9 +6,7 @@ import CheckmateCore
 
 /// B-7: a finished practice game sums itself up and offers its review, and Review Current Game has a shortcut of its own.
 @MainActor final class ReviewThisGameTests:XCTestCase {
-    private var directory:URL!
-    override func setUp(){directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);setenv("CHECKMATE_DATA_DIR",directory.path,1)}
-    override func tearDown(){unsetenv("CHECKMATE_DATA_DIR");try? FileManager.default.removeItem(at:directory)}
+    override func setUpWithError()throws{try isolateDataDirectory()}
     func testTheSummaryGivesTheResultAndTheMovesPlayed() {
         XCTAssertEqual(DetailContent.practiceSummary(result:"1-0",plies:45),"1–0 · 23 moves")
         XCTAssertEqual(DetailContent.practiceSummary(result:"1/2-1/2",plies:1),"½–½ · 1 move")

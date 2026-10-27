@@ -1,5 +1,6 @@
 import CheckmateAssets
 import CheckmateDomain
+import Combine
 import Foundation
 import OSLog
 /// User-visible error text: located import errors and app errors only; system errors use the
@@ -19,3 +20,7 @@ public enum NativePolicy {
 }
 
 public enum NativeLog {public static let lifecycle=Logger(subsystem:"ai.xiaolai.checkmate",category:"lifecycle");public static let engine=Logger(subsystem:"ai.xiaolai.checkmate",category:"engine");public static let course=Logger(subsystem:"ai.xiaolai.checkmate",category:"course");public static let companion=Logger(subsystem:"ai.xiaolai.checkmate",category:"companion");public static let voice=Logger(subsystem:"ai.xiaolai.checkmate",category:"voice");public static let storage=Logger(subsystem:"ai.xiaolai.checkmate",category:"storage")}
+extension ObservableObject {
+    /// Runs `body` on the next main-queue turn after each change, once the change has been applied.
+    public func onChangeDeferred(_ body:@escaping @MainActor ()->Void)->AnyCancellable {objectWillChange.sink{_ in DispatchQueue.main.async{body()}}}
+}

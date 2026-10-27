@@ -10,8 +10,7 @@ import CheckmateCore
 /// its validated teaching graph. Expected sets are hand-verified; the search must also agree with brute force.
 @MainActor final class TrainingDefenseTests:XCTestCase {
     // Increment B is gated behind its preview flags; these tests exercise it as development does.
-    override func setUp(){setenv("CHECKMATE_TRAINING_ENABLED","1",1);setenv("CHECKMATE_TRAINING_B","1",1)}
-    override func tearDown(){unsetenv("CHECKMATE_TRAINING_ENABLED");unsetenv("CHECKMATE_TRAINING_B")}
+    override func setUp(){setEnvironment(["CHECKMATE_TRAINING_ENABLED":"1","CHECKMATE_TRAINING_B":"1"])}
     private let review=TrainingReview(author:"test",reviewer:nil,validatorVersion:TrainingValidationService.validatorVersion)
     private func scenario(_ id:String,entry:String="save-your-piece",variant:String="move-away",check:TrainingCheck = .defense,fen:String,goal:TrainingGoal,plies:Int=3,nodes:[TrainingTeachingNode]?=nil,wrong:[String]?=nil)->TrainingScenario {
         TrainingScenario(id:id,entry:entry,variant:variant,tier:1,cluster:id,learner:String(fen.split(separator:" ")[1]),prompt:"Keep your piece.",explanation:"Explained.",hints:["Concept.","Pieces."],fen:fen,expected:wrong.map{TrainingExpected(wrong:$0)},review:review,check:check,goal:goal,plies:plies,nodes:nodes)

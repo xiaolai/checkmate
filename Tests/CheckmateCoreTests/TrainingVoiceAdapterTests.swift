@@ -58,10 +58,9 @@ import CheckmateCore
         return found
     }
     func object(_ text:String?)throws -> [String:Any] {try XCTUnwrap(JSONSerialization.jsonObject(with:Data(try XCTUnwrap(text).utf8)) as? [String:Any])}
-    func waitFor(_ what:String,file:StaticString=#filePath,line:UInt=#line,_ condition:@escaping ()->Bool)async throws {for _ in 0..<400 {if condition(){return};try await Task.sleep(for:.milliseconds(5))};XCTFail(what,file:file,line:line)}
+    func waitFor(_ what:String,file:StaticString=#filePath,line:UInt=#line,_ condition:()->Bool)async throws {try await poll(what,tries:400,every:.milliseconds(5),file:file,line:line,condition)}
     /// Runs what is queued on the main queue, where the coach hears of training changes.
     func drain()async {for _ in 0..<3{await withCheckedContinuation{done in DispatchQueue.main.async{done.resume()}}}}
-    func code(_ body:() async throws -> Any)async -> String? {do{_ = try await body();return nil}catch{return (ProtocolErrors.failure(error)["error"] as? [String:Any])?["code"] as? String}}
     func speech(_ key:String,_ text:String="Your queen on g1 can take squares from the king.")->[String:Any] {["positionId":key,"displayIdentity":key,"segments":[["text":text,"squares":["g1"],"kind":"advice"]]]}
     func recorded(_ f:Fixture)->Bool {f.session.state.training?.active?.recordedHelp ?? false}
     func encoded<T:Encodable>(_ value:T?)throws -> Data {let encoder=JSONEncoder();encoder.outputFormatting = .sortedKeys;return try encoder.encode(value)}
@@ -288,13 +287,13 @@ import CheckmateCore
         XCTAssertEqual(Set(((configured["tools"] as? [[String:Any]]) ?? []).compactMap{$0["name"] as? String}),VoiceCoach.trainingToolNames)
         XCTAssertFalse(VoiceCoach.trainingToolNames.contains("play_requested_move"))
         for name in ["play_requested_move","demonstrate_moves","control_demonstration","get_hint","preview_move","show_annotation","submit_training_action","request_training_hint"] {
-            let refused=await code{try await f.voice.execute(name,args:["positionId":key,"from":"g1","to":"g2"],id:name)}
+            let refused=await protocolCode{try await f.voice.execute(name,args:["positionId":key,"from":"g1","to":"g2"],id:name)}
             XCTAssertEqual(refused,"ROLE_FORBIDDEN",name)
-            let direct=await code{try await f.adapter.call(name,args:[:],key:key)};XCTAssertEqual(direct,"ROLE_FORBIDDEN",name)
+            let direct=await protocolCode{try await f.adapter.call(name,args:[:],key:key)};XCTAssertEqual(direct,"ROLE_FORBIDDEN",name)
         }
         XCTAssertFalse(f.exercise.snapshot.recordedHelp);XCTAssertFalse(recorded(f))
         // The adapter's own tools say nothing before the help record either.
-        let early=await code{try await f.adapter.call("get_board",args:[:],key:key)};XCTAssertEqual(early,"UNAVAILABLE")
+        let early=await protocolCode{try await f.adapter.call("get_board",args:[:],key:key)};XCTAssertEqual(early,"UNAVAILABLE")
         // TrainingTools keeps refusing the voice coach, and practice voice keeps refusing training.
         XCTAssertThrowsError(try f.session.openVoice())
     }
@@ -338,7 +337,7 @@ import CheckmateCore
     func analyzeHistory(startFEN:String,moves:[String],profile:OpponentProfile,budget:Int,multiPv:Int,searchMoves:[String])async throws -> EngineAnalysis {
         if budget==TrainingVoiceAdapter.budget{log.append("coach");do{try await Task.sleep(for:.seconds(30))}catch{log.append("coach-cancelled");throw error};return EngineAnalysis()}
         log.append("defender");if failDefender{throw CheckmateError.unavailable("down")}
-        let rules=try ChessRules(fen:startFEN);for move in moves{try rules.move(uci:move)}
+        let rules=try ChessRules.reached(startFEN,moves)
         return EngineAnalysis(bestMove:rules.moves().map(\.uci).sorted().first)
     }
     func analyzeHistory(startFEN:String,moves:[String],profile:OpponentProfile,limit:EngineSearchLimit,multiPv:Int)async throws -> EngineAnalysis {

@@ -6,7 +6,6 @@ import Foundation
 public struct ReviewFact:Codable,Equatable,Identifiable {public let id:String,kind:String,text:String,squares:[String]}
 public struct ReviewExplanation:Codable,Equatable {
     public let title:String,summary:String,facts:[ReviewFact],takeaways:[String],historyNote:String?
-    static let standardStart="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
     private static let centralSquares=Set(["d4","d5","e4","e5"])
     /// `losses` is the whole-game analysis of `document` (what each mainline move gave up), nil when there is none to
     /// show: the overview then names the moves that cost the most, rather than a count of moves.
@@ -20,7 +19,7 @@ public struct ReviewExplanation:Codable,Equatable {
             add("move",String(localized:"\(PieceName.side(move.color)) moved \(PieceName.phrase(move.piece,.object)) from \(move.from) to \(move.to).",bundle:.checkmate),[move.from,move.to])
             if let capture=move.captured{let square=move.flags.contains("e") ? String(move.to.prefix(1))+String(move.from.suffix(1)):move.to;add("capture",String(localized:"This captures \(PieceName.phrase(capture,.object)) on \(square).",bundle:.checkmate),[square,move.to])}
             if let promotion=move.promotion{add("promotion",String(localized:"The pawn became \(PieceName.phrase(promotion,.became)).",bundle:.checkmate),[move.to])}
-            if move.flags.contains("k") || move.flags.contains("q"){let rank=move.color=="w" ? "1":"8",rookFrom=(move.flags.contains("k") ? "h":"a")+rank,rookTo=(move.flags.contains("k") ? "f":"d")+rank;add("castle",String(localized:"The king and rook moved together when castling.",bundle:.checkmate),[move.from,move.to,rookFrom,rookTo])}
+            if move.isCastle{let rank=move.color=="w" ? "1":"8",rookFrom=(move.flags.contains("k") ? "h":"a")+rank,rookTo=(move.flags.contains("k") ? "f":"d")+rank;add("castle",String(localized:"The king and rook moved together when castling.",bundle:.checkmate),[move.from,move.to,rookFrom,rookTo])}
             for motif in ReviewMotifs.find(before:before.board,after:rules.board,from:move.from,to:move.to){add(motif.kind.rawValue,motif.text,motif.squares)}
             let controlled=ChessRules.squares.filter{rules.attackers($0,move.color).contains(move.to)}
             let enemy=controlled.filter{rules.piece($0).map{$0.color != move.color} ?? false}
@@ -77,7 +76,7 @@ public struct ReviewExplanation:Codable,Equatable {
         if let castle=document.mainline.map({document.nodes[$0]}).first(where:{$0.san?.hasPrefix("O-O")==true}){takeaways.append(String(localized:"At \(castle.moveText), both king and rook change squares. Inspect the king's safety afterward.",bundle:.checkmate))}
         }
         let overview=node==0 ? Self.overview(document:document,losses:losses,fallback:takeaways.first):""
-        return ReviewExplanation(title:node==0 ? String(localized:"Game overview",bundle:.checkmate):n.san == nil ? "\(n.fullmove)\(n.side=="w" ? ".":"…") \(String(localized:"Position",bundle:.checkmate))":n.moveText,summary:node==0 ? overview:Sentences.join(facts.prefix(3).map(\.text)),facts:facts,takeaways:Array(takeaways.prefix(3)),historyNote:!document.historyAvailable ? String(localized:"This FEN contains no earlier move history; repetition before this position is unknown.",bundle:.checkmate):document.startingFEN.split(separator:" ").prefix(4) != Self.standardStart.split(separator:" ").prefix(4) ? String(localized:"This game starts from a set-up position; moves before it are unknown, so earlier repetitions are not counted.",bundle:.checkmate):nil)
+        return ReviewExplanation(title:node==0 ? String(localized:"Game overview",bundle:.checkmate):n.san == nil ? "\(n.fullmove)\(n.side=="w" ? ".":"…") \(String(localized:"Position",bundle:.checkmate))":n.moveText,summary:node==0 ? overview:Sentences.join(facts.prefix(3).map(\.text)),facts:facts,takeaways:Array(takeaways.prefix(3)),historyNote:!document.historyAvailable ? String(localized:"This FEN contains no earlier move history; repetition before this position is unknown.",bundle:.checkmate):document.startingFEN.split(separator:" ").prefix(4) != NetworkStart.standard.split(separator:" ").prefix(4) ? String(localized:"This game starts from a set-up position; moves before it are unknown, so earlier repetitions are not counted.",bundle:.checkmate):nil)
     }
     /// The game's turning points from its analysis, costliest first: up to three moves graded a mistake or a blunder.
     static func overview(document:GameDocument,losses:[Int:Double]?,fallback:String?)->String {

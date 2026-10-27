@@ -5,6 +5,7 @@ import CheckmateCore
 @testable import CheckmateContent
 @testable import CheckmateApplication
 @testable import CheckmateMacPlatform
+import CheckmateTestSupport
 
 /// Plan D5: a finished mini-game's review, read aloud with a sign-in. Only its facts' exact text is spoken, through
 /// script responses with no tools, microphone or conversation; never during play, never without facts, and any change
@@ -22,10 +23,9 @@ import CheckmateCore
         voice.attachMiniReview(player.miniReview);voice.voiceDouble=true;voice.automationOutbound={box.events.append($0)}
         return Fixture(session:session,player:player,voice:voice,box:box)
     }
-    func waitFor(_ what:String,_ condition:@escaping ()->Bool)async throws {for _ in 0..<200 {if condition(){return};try await Task.sleep(for:.milliseconds(20))};XCTFail(what)}
+    func waitFor(_ what:String,_ condition:@escaping ()->Bool)async throws {try await poll(what,tries:200,every:.milliseconds(20),condition)}
     func finish(_ f:Fixture)async throws {f.player.click("a1");f.player.click("a7");try await waitFor("the review is ready"){f.player.miniReview.review != nil && f.player.miniReview.sheetOpen}}
     func scripts(_ f:Fixture)->[[String:Any]] {f.events.compactMap{$0["type"] as? String=="response.create" ? $0["response"] as? [String:Any]:nil}}
-    func code(_ body:() async throws -> Any) async -> String? {do{_ = try await body();return nil}catch{return (ProtocolErrors.failure(error)["error"] as? [String:Any])?["code"] as? String}}
     func segments(_ text:String,_ squares:[String])throws->[SpeechSegment] {try JSONDecoder().decode([SpeechSegment].self,from:JSONSerialization.data(withJSONObject:[["text":text,"squares":squares,"kind":"focus"]]))}
 
     func testReadAloudSpeaksOnlyTheFactsExactTextInBothOrigins()async throws {
@@ -66,15 +66,15 @@ import CheckmateCore
         try await Task.sleep(for:.milliseconds(50));f.voice.stopTurn(release:false);try await waitFor("the double acknowledges the stop"){f.voice.turnIdle}
         let squares=try XCTUnwrap(f.player.miniReview.review?.facts.first?.squares)
         for (text,cues) in [(Self.fact+" Well played!",squares),("White was winning all along.",[]),(Self.fact,["h8"])] {
-            let refused=await code{try f.voice.narrateMiniReview(try self.segments(text,cues))}
+            let refused=await protocolCode{try f.voice.narrateMiniReview(try self.segments(text,cues))}
             XCTAssertEqual(refused,"UNGROUNDED_REVIEW_SPEECH",text)
         }
-        let empty=await code{try f.voice.narrateMiniReview([])};XCTAssertEqual(empty,"UNGROUNDED_REVIEW_SPEECH")
+        let empty=await protocolCode{try f.voice.narrateMiniReview([])};XCTAssertEqual(empty,"UNGROUNDED_REVIEW_SPEECH")
         let before=scripts(f).count
         XCTAssertNoThrow(try f.voice.narrateMiniReview(try segments(Self.fact,squares)),"a proved fact's exact text is accepted")
         XCTAssertEqual(scripts(f).count,before+1)
         for name in ["speak_explanation","get_board","highlight_squares"] {
-            let refused=await code{try await f.voice.execute(name,args:["positionId":"mini-review","displayIdentity":"mini-review","segments":[["text":Self.fact,"squares":squares,"kind":"focus"]]],id:name)}
+            let refused=await protocolCode{try await f.voice.execute(name,args:["positionId":"mini-review","displayIdentity":"mini-review","segments":[["text":Self.fact,"squares":squares,"kind":"focus"]]],id:name)}
             XCTAssertEqual(refused,"ROLE_FORBIDDEN","\(name): a reading offers no tools")
         }
     }

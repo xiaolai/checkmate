@@ -11,9 +11,7 @@ import CheckmateCore
 /// WI-004: the training library and its exercises go through the one transition function. A failed start changes
 /// nothing; library-opened mini-games are routed without assuming a lesson; the rollout flag hides everything.
 @MainActor final class TrainingNavigationTests:XCTestCase {
-    private var directory:URL!
-    override func setUp(){directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);setenv("CHECKMATE_DATA_DIR",directory.path,1);setenv("CHECKMATE_TRAINING_ENABLED","1",1)}
-    override func tearDown(){unsetenv("CHECKMATE_DATA_DIR");unsetenv("CHECKMATE_TRAINING_ENABLED");try? FileManager.default.removeItem(at:directory)}
+    override func setUpWithError()throws{try isolateDataDirectory(["CHECKMATE_TRAINING_ENABLED":"1"])}
     private func quiet(_ model:NativeModel)async throws {var settings=model.session.state.settings;settings.pieceDuration=0;model.session.updateSettings(settings);try await Task.sleep(for:.milliseconds(100))}
     func testTheFlagOffHidesTrainingAndRefusesItsNavigation()throws {
         unsetenv("CHECKMATE_TRAINING_ENABLED")

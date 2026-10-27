@@ -149,7 +149,7 @@ import Combine
         let legal:[[String:Any]]=learnersMove ? try position.outcomes().map{["from":$0.from,"to":$0.to,"san":$0.san,"uci":$0.uci]}:[]
         let last:Any=exercise.lastMove.map{["from":$0.from,"to":$0.to]} ?? NSNull()
         return ["state":["mode":"training","positionId":key,"display":["identity":key],"learnerSide":scenario.learner,"turn":turn,"learnersMove":learnersMove,"defenderThinking":controller.games.thinking,"paused":exercise.paused != nil],
-                "training":["title":exercise.definition.title,"prompt":exercise.prompt,"rules":exercise.definition.rules,"startFEN":scenario.fen ?? "","moves":(scenario.prelude ?? [])+exercise.line,"fen":position.fen,"inCheck":try position.status() == .check,"lastMove":last,"claimableDraw":exercise.claimable as Any? ?? NSNull(),"opponent":TrainingEndgameController.note(for:scenario.check,opponent:exercise.snapshot.opponent)],
+                "training":["title":exercise.definition.title,"prompt":exercise.prompt,"rules":exercise.definition.rules,"startFEN":scenario.fen ?? "","moves":scenario.history(after:exercise.line),"fen":position.fen,"inCheck":try position.status() == .check,"lastMove":last,"claimableDraw":exercise.claimable as Any? ?? NSNull(),"opponent":TrainingEndgameController.note(for:scenario.check,opponent:exercise.snapshot.opponent)],
                 "legalMoves":legal,"coordinatePerspective":"White"]
     }
     private func analyze(_ exercise:Exercise,key:String)async throws -> [String:Any] {
@@ -166,7 +166,7 @@ import Combine
         case .selection(let reason),.ruleError(let reason):return ["hypothetical":true,"positionId":key,"legal":false,"reason":reason]
         case .needsPromotion:throw ProtocolFailure("INVALID_ARGUMENT","Name the promotion piece: q, r, b or n.")
         case .legal(let move):
-            let moves=(exercise.scenario.prelude ?? [])+exercise.line+[move.uci]
+            let moves=exercise.scenario.history(after:exercise.line+[move.uci])
             let after=try TrainingLegality(fen:exercise.scenario.fen ?? "",prelude:moves,runtimeFactory:controller.runtimeFactory),draw=try after.automaticDraw()
             let ends:String?=move.checkmate ? "checkmate":move.stalemate ? "stalemate":draw
             var result:[String:Any]=["hypothetical":true,"positionId":key,"legal":true,"move":["san":move.san,"uci":move.uci,"from":move.from,"to":move.to,"captured":move.captured as Any? ?? NSNull(),"check":move.check],"ends":ends as Any? ?? NSNull()]
@@ -180,7 +180,7 @@ import Combine
     private func inspect(_ exercise:Exercise,key:String,square:String)throws -> [String:Any] {
         guard let current=exercise.current else{throw ProtocolFailure("STALE_STATE")}
         guard try current.board()[square] != nil else{throw ProtocolFailure("INVALID_ARGUMENT","There is no piece on \(square).")}
-        let rules=try controller.runtimeFactory.map{try ChessRules(fen:current.fen,runtimeFactory:$0)} ?? ChessRules(fen:current.fen)
+        let rules=try ChessRules(fen:current.fen,runtimeFactory:controller.runtimeFactory)
         return ["positionId":key,"inspection":jsonObject(try rules.inspect(square))]
     }
     /// Draws the coach's marks on the training board for 15 seconds, or until the board changes.
@@ -199,7 +199,7 @@ import Combine
         guard let engine=controller.games.engine else{throw ProtocolFailure("ENGINE_UNAVAILABLE")}
         guard !controller.games.thinking else{throw Stop.wait}
         guard search==nil else{throw ProtocolFailure("BUSY","Another coaching search is still running. Wait for it, then ask again.")}
-        let fairness=controller.games.fairness,start=exercise.scenario.fen ?? "",moves=(exercise.scenario.prelude ?? [])+exercise.line+extra
+        let fairness=controller.games.fairness,start=exercise.scenario.fen ?? "",moves=exercise.scenario.history(after:exercise.line+extra)
         let task=Task{@MainActor in
             try fairness.requireEngineHelp()
             return try await engine.analyzeHistory(startFEN:start,moves:moves,profile:Self.profile,budget:Self.budget,multiPv:multiPv)

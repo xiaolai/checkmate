@@ -61,11 +61,11 @@ public struct LessonAttemptProjection:Codable,Equatable {
     /// The generation changes on leaving, returning, undo and restart, so a choice never revives on an equal history.
     public var identity:String {"\(generation):\(record?.id ?? ""):\(record?.moves.joined(separator:",") ?? "")"}
     public var frame:CourseFrame {
-        var hl:[Highlight]=[]
-        if let last=rules.records.last{hl=[Highlight(sq:last.from,kind:"last"),Highlight(sq:last.to,kind:"last")]}
-        if rules.check,let king=rules.board.first(where:{$0.value==rules.turn+"k"})?.key{hl.append(Highlight(sq:king,kind:"check"))}
+        var hl:[Highlight]=[];let board=rules.board
+        if let last=rules.lastRecord{hl=[Highlight(sq:last.from,kind:"last"),Highlight(sq:last.to,kind:"last")]}
+        if rules.check,let king=TrainingGeometry.square(of:rules.turn+"k",on:board){hl.append(Highlight(sq:king,kind:"check"))}
         if let hintArrow{hl.append(Highlight(sq:hintArrow[0],kind:"hint"))}
-        return CourseFrame(board:rules.board,hl:hl,arrows:hintArrow.map{[$0]} ?? [])
+        return CourseFrame(board:board,hl:hl,arrows:hintArrow.map{[$0]} ?? [])
     }
     public var projection:LessonAttemptProjection? {
         guard let practice,let record,let judgement else{return nil}
@@ -121,7 +121,7 @@ public struct LessonAttemptProjection:Codable,Equatable {
         guard let move=rules.moves(from).first(where:{$0.to==to && ($0.promotion==nil || $0.promotion==promotion)}) else{notice=String(localized:"That move is not legal here.",bundle:.checkmate);onChange();return}
         let wasAchieved=judgement?.achieved==true
         record.moves.append(move.uci);self.record=record;selected=nil;hintArrow=nil;notice=nil
-        guard rejudge(),let landed=rules.records.last else{self.record?.moves.removeLast();_ = rejudge();onChange();return}
+        guard rejudge(),let landed=rules.lastRecord else{self.record?.moves.removeLast();_ = rejudge();onChange();return}
         recordAchievement(was:wasAchieved);save();onLearnerMove();onMove(landed);onChange();scheduleReply()
     }
     /// Back to the learner's previous decision: their last move and any reply after it go.
@@ -200,7 +200,7 @@ public struct LessonAttemptProjection:Codable,Equatable {
         guard var record,rules.turn=="b",rules.moves().contains(where:{$0.uci==uci}) else{waitingToResume=true;notice=String(localized:"The computer's reply did not fit this position. Press Resume to try again.",bundle:.checkmate);onChange();return}
         let wasAchieved=judgement?.achieved==true
         record.moves.append(uci);self.record=record
-        guard rejudge(),let landed=rules.records.last else{self.record?.moves.removeLast();_ = rejudge();waitingToResume=true;onChange();return}
+        guard rejudge(),let landed=rules.lastRecord else{self.record?.moves.removeLast();_ = rejudge();waitingToResume=true;onChange();return}
         recordAchievement(was:wasAchieved);save();onMove(landed);onChange()
     }
     private func cancelReply(){generation+=1;work?.cancel();work=nil;thinking=false}

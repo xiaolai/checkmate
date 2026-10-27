@@ -3,8 +3,6 @@ import CheckmateDomain
 import CheckmateRules
 import CheckmateSupport
 import Foundation
-import CryptoKit
-import CoreFoundation
 
 public struct ImportReport:Codable,Equatable {
     public var recovered:[String]=[],ignored:[String]=[],adjusted:[String]=[]
@@ -18,8 +16,7 @@ public struct ImportReport:Codable,Equatable {
 public enum LegacyImporter {
     private static let keys:Set<String>=["checkmate-practice-pgn","checkmate-previous-game","checkmate-settings-v1","checkmate-companion-preferences-v1","checkmate-course-v1","checkmate-puzzles-v1","checkmate-progress","spikeFEN"]
     private static func name(_ value:String)->String {String(value.prefix(80)).filter{!$0.isNewline && !$0.isASCIIControl}}
-    private static func integer(_ value:Any?)->Int? {guard let n=value as? NSNumber,CFGetTypeID(n) != CFBooleanGetTypeID(),n.doubleValue.isFinite,floor(n.doubleValue)==n.doubleValue,abs(n.doubleValue)<Double(Int.max) else{return nil};return n.intValue}
-    private static func boolean(_ value:Any?)->Bool? {guard let n=value as? NSNumber,CFGetTypeID(n)==CFBooleanGetTypeID() else{return nil};return n.boolValue}
+    private static func boolean(_ value:Any?)->Bool? {jsonBool(value)}
     private static func settingsReport(_ raw:[String:Any],normalized:AppSettings,report:inout ImportReport)throws {
         let output=try JSONSerialization.jsonObject(with:JSONEncoder().encode(normalized)) as! [String:Any]
         for (key,value) in raw.sorted(by:{$0.key<$1.key}) {
@@ -43,10 +40,10 @@ public enum LegacyImporter {
     @discardableResult public static func apply(_ data:Data,to target:inout ApplicationState,course:CourseLibrary)throws -> ImportReport {
         guard data.count<=StateStore.maximumBytes,let root=try JSONSerialization.jsonObject(with:data) as? [String:Any] else{throw CheckmateError.invalid(String(localized:"Invalid progress archive.",bundle:.checkmate))}
         var report=ImportReport()
-        let hash=SHA256.hash(data:data).map{String(format:"%02x",$0)}.joined()
+        let hash=reviewHash(data)
         if target.importedArchives.contains(hash){report.duplicate=true;return report}
         if root["schemaVersion"] != nil {
-            guard integer(root["schemaVersion"])==1 else{throw CheckmateError.invalid(String(localized:"Unsupported archive version. Your current progress has not changed.",bundle:.checkmate))}
+            guard jsonInteger(root["schemaVersion"])==1 else{throw CheckmateError.invalid(String(localized:"Unsupported archive version. Your current progress has not changed.",bundle:.checkmate))}
             var imported=try JSONDecoder().decode(ApplicationState.self,from:data);normalizeNativeLearning(&imported,course:course,report:&report);try StateStore.validate(imported)
             // Every field the imported state carries was recovered; deriving the list from it keeps the report true as
             // fields are added (mini-games were imported but reported as skipped).
@@ -80,12 +77,12 @@ public enum LegacyImporter {
         }
         if let raw=value("checkmate-course-v1") {
             if let p=raw as? [String:Any] {
-                let index=integer(p["lesson"]).flatMap{course.lessons.indices.contains($0) ? $0:nil} ?? 0,lesson=course.lessons[index]
+                let index=jsonInteger(p["lesson"]).flatMap{course.lessons.indices.contains($0) ? $0:nil} ?? 0,lesson=course.lessons[index]
                 next.course.lessonID=lesson.id
-                if integer(p["lesson"]) != index{report.adjusted.append(String(localized:"Current lesson",bundle:.checkmate))}else{report.recovered.append(String(localized:"Current lesson",bundle:.checkmate))}
-                var oldProgress=CourseProgress();oldProgress.step=integer(p["step"]) ?? 0
+                if jsonInteger(p["lesson"]) != index{report.adjusted.append(String(localized:"Current lesson",bundle:.checkmate))}else{report.recovered.append(String(localized:"Current lesson",bundle:.checkmate))}
+                var oldProgress=CourseProgress();oldProgress.step=jsonInteger(p["step"]) ?? 0
                 next.course.step=course.resumeStep(in:lesson,progress:oldProgress);next.course.segmentID=lesson.beats[next.course.step].id
-                if integer(p["step"]) != next.course.step{report.adjusted.append(String(localized:"Lesson transcript",bundle:.checkmate))}else{report.recovered.append(String(localized:"Lesson transcript",bundle:.checkmate))}
+                if jsonInteger(p["step"]) != next.course.step{report.adjusted.append(String(localized:"Lesson transcript",bundle:.checkmate))}else{report.recovered.append(String(localized:"Lesson transcript",bundle:.checkmate))}
                 func entries(_ key:String,_ accepts:(String)->Bool)->[String] {
                     guard let values=p[key] as? [Any] else{if p[key] != nil{report.ignored.append(String(localized:"Course \(key)",bundle:.checkmate))};return []}
                     var accepted:[String]=[]
@@ -101,7 +98,7 @@ public enum LegacyImporter {
                 let known=Set(course.puzzles.map(\.id))
                 for (id,value) in puzzles.sorted(by:{$0.key<$1.key}) {
                     let label=String(localized:"Puzzle progress: \(name(id))",bundle:.checkmate)
-                    guard known.contains(id),let record=value as? [String:Any],let solved=boolean(record["solved"]),let review=boolean(record["review"]),let attempts=integer(record["attempts"]),attempts>=0 else{report.ignored.append(label);continue}
+                    guard known.contains(id),let record=value as? [String:Any],let solved=boolean(record["solved"]),let review=boolean(record["review"]),let attempts=jsonInteger(record["attempts"]),attempts>=0 else{report.ignored.append(label);continue}
                     var progress=PuzzleProgress();progress.solved=solved;progress.review=review;progress.attempts=attempts;next.puzzles[id]=progress;report.recovered.append(label)
                 }
             }else{report.ignored.append(String(localized:"Puzzle progress",bundle:.checkmate))}

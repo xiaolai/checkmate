@@ -9,9 +9,7 @@ import CheckmateCore
 /// Wave 2 board and play: Flip Board everywhere (B-6), the Game menu's Hint and shortcuts (B-17), coordinates on two
 /// edges (B-14), the check glow and last-move tint (B-15) and the New Game choices (B-18).
 @MainActor final class BoardPlayTests:XCTestCase {
-    private var directory:URL!
-    override func setUp(){directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);setenv("CHECKMATE_DATA_DIR",directory.path,1)}
-    override func tearDown(){unsetenv("CHECKMATE_DATA_DIR");try? FileManager.default.removeItem(at:directory)}
+    override func setUpWithError()throws{try isolateDataDirectory()}
 
     /// B-6: Flip Board works in every mode, and a flip lasts while the same game, lesson or review is shown.
     func testFlipBoardWorksEverywhereAndLastsForWhatIsShown()throws {
@@ -60,7 +58,7 @@ import CheckmateCore
     /// B-6: the learner's side round-trips through the store, survives a cursor-only save, and a save written before
     /// the field existed (or with a value it cannot hold) reads as no side: White at the bottom, as before.
     func testTheReviewStoreKeepsTheLearnersSideAndReadsOldSaves()throws {
-        let root=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);defer{try? FileManager.default.removeItem(at:root)}
+        let root=try scratchDirectory()
         try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)
         let document=try PGNImporter.parse(Data("1. e4 e5 *".utf8))[0],store=ReviewStore(directory:root)
         try store.save(document,cursor:0,branches:[],learnerSide:"b");XCTAssertEqual(try ReviewStore(directory:root).load(document.id).learnerSide,"b")

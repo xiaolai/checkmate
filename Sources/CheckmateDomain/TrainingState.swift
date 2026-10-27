@@ -64,6 +64,9 @@ public struct TrainingEntrySummary:Codable,Equatable {
     /// side, White or Black. Two-player: only `twoPlayerFinishes`. Solo (Knight Corners): `legacyWins` counts completed routes,
     /// the only way a solo game finishes, and its losses and draws stay zero and are never read.
     public var legacyWins=0,legacyLosses=0,legacyDraws=0,twoPlayerFinishes=0
+    /// `legacyWins` read by kind: games won unless the game is solo, routes completed only if it is.
+    public func gamesWon(solo:Bool)->Int {solo ? 0:legacyWins}
+    public func routesCompleted(solo:Bool)->Int {solo ? legacyWins:0}
     /// Distinct novelty clusters practised and local calendar days with practice (both bounded, newest kept).
     public var clusters:[String]=[],days:[String]=[]
     public init(){}

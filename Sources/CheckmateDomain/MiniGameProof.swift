@@ -51,13 +51,14 @@ public struct MiniGameProof {
         let a:UInt64,b:UInt64,c:UInt64,d:UInt64,flags:UInt8
         /// Nil for a square or piece no mini-game has.
         init?(_ snapshot:MiniGameSnapshot){
-            var words:[UInt64]=[0,0,0,0]
+            // Four words, not an array: this runs once per node, and an array literal is a heap allocation.
+            var a:UInt64=0,b:UInt64=0,c:UInt64=0,d:UInt64=0
             for (square,piece) in snapshot.board {
                 guard ChessNotation.validSquare(square),piece.count==2,let colour=piece.first,colour=="w" || colour=="b",let type=Self.types.firstIndex(of:piece.last!) else{return nil}
-                let index=Int(square.utf8.first!-97)*8+Int(square.utf8.last!-49)
-                words[index/16] |= UInt64(type+1+(colour=="b" ? 8:0))<<UInt64(4*(index%16))
+                let index=Int(square.utf8.first!-97)*8+Int(square.utf8.last!-49),bits=UInt64(type+1+(colour=="b" ? 8:0))<<UInt64(4*(index%16))
+                switch index/16 {case 0:a |= bits;case 1:b |= bits;case 2:c |= bits;default:d |= bits}
             }
-            a=words[0];b=words[1];c=words[2];d=words[3];flags=(snapshot.turn=="w" ? 0:1)+(snapshot.pendingFinish=="w" ? 2:snapshot.pendingFinish=="b" ? 4:0)
+            self.a=a;self.b=b;self.c=c;self.d=d;flags=(snapshot.turn=="w" ? 0:1)+(snapshot.pendingFinish=="w" ? 2:snapshot.pendingFinish=="b" ? 4:0)
         }
         static let types:[Character]=["p","r","b","n","q"]
     }
@@ -104,8 +105,7 @@ public struct MiniGameProof {
     /// rule can still reach, since a capture lowers the piece count for good and pawns only advance. Nil when the
     /// history was cut before that move.
     public static func drawContext(_ state:MiniGameState,historyComplete:Bool)->[MiniGameSnapshot]? {
-        let board=state.board,pawns=board.filter{$0.value.hasSuffix("p")}
-        let start=state.history.lastIndex{$0.board.count != board.count || $0.board.filter{$0.value.hasSuffix("p")} != pawns}.map{$0+1}
+        let start=state.history.lastIndex{!MiniGameRules.sameMaterialAndPawns($0.board,state.board)}.map{$0+1}
         guard start != nil || historyComplete else{return nil}
         return Array(state.history[(start ?? 0)...])
     }
@@ -126,7 +126,8 @@ public struct MiniGameProof {
     private func ordered(_ s:MiniGameState)->[MiniGameMove] {
         let far=s.turn=="w" ? "8":"1"
         func priority(_ m:MiniGameMove)->Int {(s.board[m.to] != nil ? 2:0)+(m.to.hasSuffix(far) && s.board[m.from]?.hasSuffix("p")==true ? 1:0)}
-        return MiniGameRules.moves(board:s.board,kind:s.kind,side:s.turn).sorted{priority($0)==priority($1) ? $0.from+$0.to<$1.from+$1.to:priority($0)>priority($1)}
+        // Each move's priority once, not on every comparison; squares are two characters, so the pair orders as the joined text did.
+        return MiniGameRules.moves(board:s.board,kind:s.kind,side:s.turn).map{($0,priority($0))}.sorted{$0.1==$1.1 ? ($0.0.from,$0.0.to)<($1.0.from,$1.0.to):$0.1>$1.1}.map(\.0)
     }
     private mutating func child(_ node:Node,_ move:MiniGameMove)throws->Node {
         try charge()

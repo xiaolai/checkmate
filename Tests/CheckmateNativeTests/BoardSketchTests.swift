@@ -7,10 +7,9 @@ import CheckmateCore
 /// colour as on Lichess, and a move clears them. They never reach the board's left-click and drag play.
 final class BoardSketchTests:XCTestCase {
     private func board()->BoardView {let b=BoardView(frame:NSRect(x:0,y:0,width:720,height:720));b.position=["e2":"wp","e7":"bp"];b.canDrag={$0=="e2"};return b}
-    private func mouse(_ type:NSEvent.EventType,_ point:NSPoint,_ modifiers:NSEvent.ModifierFlags=[])->NSEvent {NSEvent.mouseEvent(with:type,location:point,modifierFlags:modifiers,timestamp:0,windowNumber:0,context:nil,eventNumber:0,clickCount:1,pressure:1)!}
     private func centre(_ b:BoardView,_ sq:String)->NSPoint {let r=b.squareRect(sq);return NSPoint(x:r.midX,y:r.midY)}
     private func rightDrag(_ b:BoardView,_ from:String,_ to:String,_ modifiers:NSEvent.ModifierFlags=[]){
-        b.rightMouseDown(with:mouse(.rightMouseDown,centre(b,from),modifiers));if from != to{b.rightMouseDragged(with:mouse(.rightMouseDragged,centre(b,to),modifiers))};b.rightMouseUp(with:mouse(.rightMouseUp,centre(b,to),modifiers))
+        b.rightMouseDown(with:mouseEvent(.rightMouseDown,centre(b,from),modifiers));if from != to{b.rightMouseDragged(with:mouseEvent(.rightMouseDragged,centre(b,to),modifiers))};b.rightMouseUp(with:mouseEvent(.rightMouseUp,centre(b,to),modifiers))
     }
 
     func testARightDragDrawsAnArrowAndARightClickACircle(){
@@ -29,9 +28,9 @@ final class BoardSketchTests:XCTestCase {
         XCTAssertEqual(BoardSketch.Brush(modifiers:[.capsLock,.function]),.green,"other modifiers keep the default")
     }
     func testADragShowsItsArrowWhileHeldAndAReleaseOffTheBoardDrawsNothing(){
-        let b=board();b.rightMouseDown(with:mouse(.rightMouseDown,centre(b,"g1")));b.rightMouseDragged(with:mouse(.rightMouseDragged,centre(b,"f3")))
+        let b=board();b.rightMouseDown(with:mouseEvent(.rightMouseDown,centre(b,"g1")));b.rightMouseDragged(with:mouseEvent(.rightMouseDragged,centre(b,"f3")))
         XCTAssertEqual(b.sketchPreview,BoardSketch.Mark(from:"g1",to:"f3",brush:.green))
-        let off=NSPoint(x:b.boardRect.maxX+5,y:b.boardRect.midY);b.rightMouseDragged(with:mouse(.rightMouseDragged,off));b.rightMouseUp(with:mouse(.rightMouseUp,off))
+        let off=NSPoint(x:b.boardRect.maxX+5,y:b.boardRect.midY);b.rightMouseDragged(with:mouseEvent(.rightMouseDragged,off));b.rightMouseUp(with:mouseEvent(.rightMouseUp,off))
         XCTAssertNil(b.sketchPreview);XCTAssertEqual(b.sketch.marks,[])
     }
     func testAMoveOrAnotherBoardClearsTheMarks(){
@@ -41,17 +40,17 @@ final class BoardSketchTests:XCTestCase {
     }
     func testALeftClickAnywhereOnTheBoardClearsTheMarks(){
         let b=board();rightDrag(b,"a2","a4");rightDrag(b,"h3","h3");XCTAssertEqual(b.sketch.marks.count,2)
-        b.mouseDown(with:mouse(.leftMouseDown,centre(b,"h5")));XCTAssertEqual(b.sketch.marks,[],"the press clears them, as on Lichess")
-        b.mouseUp(with:mouse(.leftMouseUp,centre(b,"h5")))
-        rightDrag(b,"a2","a4");b.mouseDown(with:mouse(.leftMouseDown,NSPoint(x:b.boardRect.maxX+5,y:b.boardRect.midY)));XCTAssertEqual(b.sketch.marks.count,1,"a press beside the board keeps them")
+        b.mouseDown(with:mouseEvent(.leftMouseDown,centre(b,"h5")));XCTAssertEqual(b.sketch.marks,[],"the press clears them, as on Lichess")
+        b.mouseUp(with:mouseEvent(.leftMouseUp,centre(b,"h5")))
+        rightDrag(b,"a2","a4");b.mouseDown(with:mouseEvent(.leftMouseDown,NSPoint(x:b.boardRect.maxX+5,y:b.boardRect.midY)));XCTAssertEqual(b.sketch.marks.count,1,"a press beside the board keeps them")
     }
     func testRightButtonEventsNeverPlayAndLeftPlayNeverDraws(){
         let b=board();var activated:[String]=[];b.activate={sq in activated.append(sq);if sq=="e2"{b.selected="e2";b.destinations=["e3","e4"]}}
         rightDrag(b,"e2","e4");rightDrag(b,"e2","e2");XCTAssertEqual(activated,[]);XCTAssertFalse(b.dragging)
-        b.mouseDown(with:mouse(.leftMouseDown,centre(b,"e2")));b.mouseDragged(with:mouse(.leftMouseDragged,centre(b,"e4")));XCTAssertTrue(b.dragging)
+        b.mouseDown(with:mouseEvent(.leftMouseDown,centre(b,"e2")));b.mouseDragged(with:mouseEvent(.leftMouseDragged,centre(b,"e4")));XCTAssertTrue(b.dragging)
         // A right press during a left drag is ignored rather than starting a mark over the dragged piece.
-        b.rightMouseDown(with:mouse(.rightMouseDown,centre(b,"e4")));b.rightMouseUp(with:mouse(.rightMouseUp,centre(b,"e4")));XCTAssertTrue(b.dragging)
-        b.mouseUp(with:mouse(.leftMouseUp,centre(b,"e4")))
+        b.rightMouseDown(with:mouseEvent(.rightMouseDown,centre(b,"e4")));b.rightMouseUp(with:mouseEvent(.rightMouseUp,centre(b,"e4")));XCTAssertTrue(b.dragging)
+        b.mouseUp(with:mouseEvent(.leftMouseUp,centre(b,"e4")))
         XCTAssertEqual(activated,["e2","e4"])
         XCTAssertEqual(b.sketch.marks,[],"the left press cleared the earlier marks, and the right press during the drag drew none")
         XCTAssertNil(b.menu,"the board has no context menu for the right button to compete with")

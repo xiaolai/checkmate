@@ -8,16 +8,17 @@ struct UsageSettingsPane:View {
     @ObservedObject var controller:LessonLanguageController
     @State private var range=UsageTimeRange.today
     @State private var error:String?
-    private var records:[UsageRecord]{ledger.records(in:range).sorted{$0.startedAt>$1.startedAt}}
     private func title(_ activity:UsageActivity)->String {switch activity{case .translation:return String(localized:"Lesson translation",bundle:.checkmate);case .lessonRecording:return String(localized:"Lesson recording",bundle:.checkmate);case .voiceCoach:return String(localized:"Voice coach",bundle:.checkmate);case .inputTranscription:return String(localized:"Input transcription",bundle:.checkmate)}}
     private func count(_ value:Int64?)->String{value.map(UsageFormat.number) ?? String(localized:"Unknown",bundle:.checkmate)}
     var body:some View {
+        // One read of the range, newest first; each activity's group keeps that order.
+        let records=ledger.records(in:range).sorted{$0.startedAt>$1.startedAt},groups=Dictionary(grouping:records,by:\.activity)
         Section("Checkmate activity") {
             Picker("Time range",selection:$range){Text("Today").tag(UsageTimeRange.today);Text("This month").tag(UsageTimeRange.thisMonth);Text("All retained").tag(UsageTimeRange.all)}.accessibilityIdentifier("usage-time-range")
             if let first=ledger.records.map(\.startedAt).min(){Text("Usage recorded from \(first.formatted(date:.abbreviated,time:.shortened)).").font(.caption).foregroundStyle(.secondary)}
             Text("History retains up to 365 days and 10,000 operations. Missing counters are unknown. Token activity does not establish your subscription bill.").font(.caption).foregroundStyle(.secondary)
             ForEach(UsageActivity.allCases,id:\.self){activity in
-                let group=records.filter{$0.activity==activity}
+                let group=groups[activity] ?? []
                 let known=group.compactMap{$0.tokens?.total}
                 let durations=group.compactMap(\.durationSeconds)
                 // V-16: one plain line per activity; the counts behind it are under Breakdown.
@@ -34,7 +35,7 @@ struct UsageSettingsPane:View {
                     }
                 }
             }
-            let totals=ledger.totals(in:range)
+            let totals=UsageLedger.totals(of:records)
             Text("\(totals.knownRecords) operations with reported counters · \(totals.unknownRecords) unknown · \(totals.incompleteRecords) incomplete").font(.caption).foregroundStyle(.secondary)
             HStack{Button("Export JSON…"){export()}.disabled(ledger.unavailable).accessibilityIdentifier("usage-export");Button("Clear History…",role:.destructive){clear()}.disabled(controller.busy).accessibilityIdentifier("usage-clear")}
             if let problem=error ?? ledger.storageError{Text(problem).foregroundStyle(.secondary)}

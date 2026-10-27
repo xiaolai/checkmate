@@ -50,7 +50,6 @@ public final class GameCollectionStore:@unchecked Sendable {
         var best:String?;for event in order where counts[event,default:0]>best.map({counts[$0,default:0]}) ?? 0{best=event}
         return best ?? String(localized:"Collection",bundle:.checkmate)
     }
-    private static func isDigest(_ text:String)->Bool {text.count==64 && text.allSatisfy{"0123456789abcdef".contains($0)}}
     private func prepare()throws {try FileManager.default.createDirectory(at:directory,withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])}
     /// Every mutation, and the clean-up of temporary files, holds this store's lock and an advisory `flock` on
     /// `Library/.lock`, so two stores or two processes on one folder never pass the quota together or remove each
@@ -105,7 +104,7 @@ public final class GameCollectionStore:@unchecked Sendable {
             let stored=FileManager.default.fileExists(atPath:file(sha).path)
             // Only the bytes this import adds are charged: an unreadable index it replaces is subtracted.
             let replaced=[indexFile(sha),nameFile(sha)].reduce(0){$0+(((try? FileManager.default.attributesOfItem(atPath:$1.path))?[.size] as? Int) ?? 0)},label=Data(index.name.utf8)
-            guard usedBytes()-replaced+(stored ? 0:data.count)+encoded.count+label.count<=quotaBytes else{throw CheckmateError.invalid(String(localized:"The game library is full (\(quotaBytes/1024/1024) MiB). Remove a collection first.",bundle:.checkmate))}
+            try requireQuota(usedBytes()-replaced+(stored ? 0:data.count)+encoded.count+label.count)
             do{if !stored{try durableWrite(data,to:file(sha))};try durableWrite(label,to:nameFile(sha));try durableWrite(encoded,to:indexFile(sha))}catch{
                 // No half-imported collection is left behind: the file this import created goes with its failed index,
                 // including when the file itself was renamed into place but its folder could not be flushed.
@@ -114,11 +113,13 @@ public final class GameCollectionStore:@unchecked Sendable {
             return index
         }
     }
+    /// Refuses a change that would leave the library holding more than its quota, `total` bytes being what it would hold.
+    private func requireQuota(_ total:Int)throws {guard total<=quotaBytes else{throw CheckmateError.invalid(String(localized:"The game library is full (\(quotaBytes/1024/1024) MiB). Remove a collection first.",bundle:.checkmate))}}
     private func readIndex(_ sha:String)throws -> CollectionIndex {
         let index=try JSONDecoder().decode(CollectionIndex.self,from:Data(contentsOf:indexFile(sha)))
         let size=(try FileManager.default.attributesOfItem(atPath:file(sha).path)[.size] as? Int) ?? -1
         guard index.schemaVersion==CollectionIndex.schemaVersion,index.sha256==sha,index.bytes==size,index.records.count<=Self.maximumRecords,
-              index.records.allSatisfy({$0.offset>=0 && $0.length>0 && $0.offset<=size && $0.length<=size-$0.offset && Self.isDigest($0.sha256)}) else{throw CheckmateError.invalid(String(localized:"Stale collection index.",bundle:.checkmate))}
+              index.records.allSatisfy({$0.offset>=0 && $0.length>0 && $0.offset<=size && $0.length<=size-$0.offset && isReviewDigest($0.sha256)}) else{throw CheckmateError.invalid(String(localized:"Stale collection index.",bundle:.checkmate))}
         return index
     }
     /// Every collection, oldest import first. Stray temporary files are removed; an index that is missing, unreadable or
@@ -134,7 +135,7 @@ public final class GameCollectionStore:@unchecked Sendable {
         }
         var collections:[CollectionIndex]=[],broken:[BrokenCollection]=[]
         for name in names.sorted() where name.hasSuffix(".pgn") {
-            let sha=String(name.dropLast(4));guard Self.isDigest(sha) else{continue}
+            let sha=String(name.dropLast(4));guard isReviewDigest(sha) else{continue}
             let stored=storedName(sha)
             if let index=try? readIndex(sha){
                 // A collection from an older build keeps its index's name from now on; a name not written is tried again.
@@ -145,7 +146,7 @@ public final class GameCollectionStore:@unchecked Sendable {
                 let data=try Data(contentsOf:file(sha));guard reviewHash(data)==sha else{throw CheckmateError.invalid(String(localized:"This collection's file is damaged.",bundle:.checkmate))}
                 let date=(try? FileManager.default.attributesOfItem(atPath:file(sha).path)[.creationDate] as? Date) ?? Date()
                 let derived=try Self.index(data,sha:sha,name:String(localized:"Collection",bundle:.checkmate),importedAt:date,cancelled:cancelled),name=stored ?? Self.fallbackName(derived.records)
-                let index=CollectionIndex(schemaVersion:derived.schemaVersion,sha256:sha,name:name,bytes:derived.bytes,importedAt:derived.importedAt,records:derived.records,unreadable:derived.unreadable),encoded=try JSONEncoder().encode(index),label=Data(name.utf8)
+                let index=derived.named(name),encoded=try JSONEncoder().encode(index),label=Data(name.utf8)
                 // A rebuilt index counts against the quota like any other byte of the library.
                 let previous=((try? FileManager.default.attributesOfItem(atPath:indexFile(sha).path))?[.size] as? Int) ?? 0
                 guard usedBytes()-previous+encoded.count+(stored==nil ? label.count:0)<=quotaBytes else{throw CheckmateError.invalid(String(localized:"The game library is full, so this collection's index could not be rebuilt. Remove a collection.",bundle:.checkmate))}
@@ -160,18 +161,18 @@ public final class GameCollectionStore:@unchecked Sendable {
     /// Gives a collection a new name, kept in its name file (so a rebuilt index keeps it too). Spaces and control
     /// characters at the ends are dropped; an empty name is refused.
     public func rename(_ sha:String,to name:String)throws {
-        guard Self.isDigest(sha) else{throw CheckmateError.invalid(String(localized:"Unknown collection.",bundle:.checkmate))}
+        guard isReviewDigest(sha) else{throw CheckmateError.invalid(String(localized:"Unknown collection.",bundle:.checkmate))}
         guard let clean=ReviewIndexEntry.cleanName(name).map({PGNImporter.bounded($0,scalars:Self.maximumName)}) else{throw CheckmateError.invalid(String(localized:"Give the collection a name.",bundle:.checkmate))}
         try exclusive{
             guard FileManager.default.fileExists(atPath:file(sha).path) else{throw CheckmateError.invalid(String(localized:"This collection is no longer in the library.",bundle:.checkmate))}
             let label=Data(clean.utf8),previous=FileManager.default.fileExists(atPath:nameFile(sha).path) ? ((try FileManager.default.attributesOfItem(atPath:nameFile(sha).path)[.size] as? Int) ?? 0):0
-            guard usedBytes()-previous+label.count<=quotaBytes else{throw CheckmateError.invalid(String(localized:"The game library is full (\(quotaBytes/1024/1024) MiB). Remove a collection first.",bundle:.checkmate))}
+            try requireQuota(usedBytes()-previous+label.count)
             try durableWrite(label,to:nameFile(sha))
         }
     }
     /// Deletes the collection's file, index and name; an import of the same content still running is cancelled.
     public func remove(_ sha:String)throws {
-        guard Self.isDigest(sha) else{throw CheckmateError.invalid(String(localized:"Unknown collection.",bundle:.checkmate))}
+        guard isReviewDigest(sha) else{throw CheckmateError.invalid(String(localized:"Unknown collection.",bundle:.checkmate))}
         removalsLock.lock();removals[sha,default:0]+=1;removalsLock.unlock()
         try exclusive{for url in [indexFile(sha),nameFile(sha),file(sha)] where FileManager.default.fileExists(atPath:url.path){try FileManager.default.removeItem(at:url)};try syncDirectory()}
     }

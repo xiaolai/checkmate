@@ -35,7 +35,7 @@ extension GameWindow {
             return .ready(TypedMoveTarget(moves:s.rules.moves(),board:s.rules.board,turn:s.rules.turn,enPassant:s.rules.enPassantTarget,inCheck:s.rules.check,asTyped:false){choice in
                 do{try s.playWhite(from:choice.from,to:choice.to,promotion:choice.promotion ?? "q");return nil}catch{return Self.failureMessage(error)}})
         }
-        if let training=model.training,let exercise=trainingExercise {
+        if let training=model.training,let exercise=model.shownTrainingExercise {
             if exercise.finished{return .waiting(String(localized:"This exercise is finished.",bundle:.checkmate))}
             guard exercise.task == .move || exercise.task == .game else{return .waiting(String(localized:"This exercise asks you to choose squares, not to play a move.",bundle:.checkmate))}
             if exercise.task == .game,training.games.thinking{return .waiting(Self.notYourMove)}
@@ -43,7 +43,7 @@ extension GameWindow {
             // through as typed, and SAN is read from where the pieces can reach.
             let learner=exercise.scenario.learner,board=exercise.board,passant=exercise.enPassant
             return .ready(TypedMoveTarget(moves:TypedMove.reachable(board:board,turn:learner,enPassant:passant),board:board,turn:learner,enPassant:passant,inCheck:false,asTyped:true){[weak self] choice in
-                training.attempt(from:choice.from,to:choice.to,promotion:choice.promotion);if let feedback=training.exercise?.feedback,!feedback.isEmpty{self?.announceTypedMove(feedback)};return nil})
+                training.attempt(from:choice.from,to:choice.to,promotion:choice.promotion);if let feedback=training.exercise?.feedback,!feedback.isEmpty{self?.announce(feedback)};return nil})
         }
         if l.attemptStep,let attempt=l.attempt {
             guard attempt.learnerToMove else{return .waiting(attempt.phase == .offTrack || attempt.phase == .failed ? attempt.judgement?.feedback ?? Self.notYourMove:Self.notYourMove)}
@@ -61,7 +61,7 @@ extension GameWindow {
             // The puzzle grades the pair of squares as clicks would: any move of one of the learner's pieces is an answer.
             return .ready(TypedMoveTarget(moves:Self.puzzleMoves(board:board,mover:mover),board:board,turn:mover,enPassant:nil,inCheck:false,asTyped:true){[weak self] choice in
                 guard board[choice.from]?.hasPrefix(mover)==true else{return String(localized:"There's no piece of yours on \(choice.from).",bundle:.checkmate)}
-                l.clearSelection();l.click(choice.from);l.click(choice.to);if !l.feedback.isEmpty{self?.announceTypedMove(l.feedback)};return nil})
+                l.clearSelection();l.click(choice.from);l.click(choice.to);if !l.feedback.isEmpty{self?.announce(l.feedback)};return nil})
         }
         return .none
     }
@@ -83,11 +83,10 @@ extension GameWindow {
             }
         }
     }
-    func announceTypedMove(_ text:String){NSAccessibility.post(element:board,notification:.announcementRequested,userInfo:[.announcement:text,.priority:NSAccessibilityPriorityLevel.high.rawValue])}
     @objc func typeMove(){
         guard typedMoveAvailable else{return}
         let entry=TypedMoveController(),popover=NSPopover()
-        entry.submit={[weak self,weak popover] text in guard let self else{return nil};let refusal=self.submitTypedMove(text);if refusal==nil{popover?.performClose(nil)}else{self.announceTypedMove(refusal!)};return refusal}
+        entry.submit={[weak self,weak popover] text in guard let self else{return nil};let refusal=self.submitTypedMove(text);if refusal==nil{popover?.performClose(nil)}else{self.announce(refusal!)};return refusal}
         popover.behavior = .transient;popover.contentViewController=entry
         popover.show(relativeTo:board.squareRect(board.focus),of:board,preferredEdge:.maxY)
         entry.view.window?.makeFirstResponder(entry.field)

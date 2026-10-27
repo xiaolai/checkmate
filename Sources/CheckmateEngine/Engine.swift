@@ -13,8 +13,12 @@ import Combine
     @Published public private(set) var capabilities=EngineCapabilities()
     private var searching=false,waiting=0
     /// Start FEN, caller moves, replayed rules, their validated canonical UCI, and the start FEN as the rules write it.
-    private var validationCache:(String,[String],ChessRules,[String],String)?
-    public init(executable:URL?=nil){self.executable=executable ?? NativeResources.url("stockfish");worker=UCIWorker(executable:self.executable);let file=self.executable;let bundled=executable==nil;identityTask=Task.detached{
+    private struct Validation {let startFEN:String,moves:[String],rules:ChessRules,canonical:[String],start:String}
+    private var validationCache:Validation?
+    public init(executable:URL?=nil){self.executable=executable ?? NativeResources.url("stockfish");worker=UCIWorker(executable:self.executable);identityTask=executable==nil ? Self.bundledIdentity:Self.identity(of:self.executable,bundled:false)}
+    /// The bundled files are hashed once per process: the network alone is near 100 MB, and every engine shares it.
+    private static let bundledIdentity=identity(of:NativeResources.url("stockfish"),bundled:true)
+    private static func identity(of file:URL,bundled:Bool)->Task<String,Error> {Task.detached{
             let binary=try reviewFileHash(file),network=file.deletingLastPathComponent().appendingPathComponent(EngineRuntimePolicy.networkFile)
             if FileManager.default.fileExists(atPath:network.path){let hash=try reviewFileHash(network);guard !bundled || hash==EngineRuntimePolicy.networkSHA256 else{throw CheckmateError.unavailable("The bundled engine network is invalid.")};return binary+":network:"+hash}
             guard !bundled else{throw CheckmateError.unavailable("The bundled engine network is missing.")};return binary
@@ -22,7 +26,7 @@ import Combine
     /// The bundled files' hashes only: no process starts.
     public func identity()async throws -> String {if binaryIdentity.isEmpty{binaryIdentity=try await identityTask.value};return binaryIdentity}
     public func prepare()async throws {
-        if binaryIdentity.isEmpty{binaryIdentity=try await identityTask.value}
+        _ = try await identity()
         // Nothing ingested yet means not prepared; the engine's display name is never the test (D-12).
         guard capabilities == EngineCapabilities() else{return}
         // A cancelled preparation (a Review request withdrawn during a cold start) stops its own startup, so it does not
@@ -34,11 +38,11 @@ import Combine
         try await analyzeHistory(startFEN:fen,moves:[],profile:.skill(max(0,min(20,skill))),budget:max(EngineSearchPolicy.minimumMs,min(1000,budget)),multiPv:max(1,min(3,multiPv)))
     }
     public func analyzeHistory(startFEN:String,moves:[String],profile:OpponentProfile,budget:Int,multiPv:Int,searchMoves:[String]=[])async throws -> EngineAnalysis {
-        try await search(startFEN:startFEN,moves:moves,profile:profile,limit:.movetime(max(EngineSearchPolicy.minimumMs,min(3000,budget))),multiPv:multiPv,searchMoves:searchMoves)
+        try await search(startFEN:startFEN,moves:moves,profile:profile,limit:Self.bounded(.movetime(budget)),multiPv:multiPv,searchMoves:searchMoves)
     }
     /// A review search with its own threads and hash (R-5); the engine is shared, so they apply to this search only.
     public func analyzeHistory(startFEN:String,moves:[String],profile:OpponentProfile,budget:Int,multiPv:Int,searchMoves:[String],resources:EngineResources)async throws -> EngineAnalysis {
-        try await search(startFEN:startFEN,moves:moves,profile:profile,limit:.movetime(max(EngineSearchPolicy.minimumMs,min(3000,budget))),multiPv:multiPv,searchMoves:searchMoves,resources:resources)
+        try await search(startFEN:startFEN,moves:moves,profile:profile,limit:Self.bounded(.movetime(budget)),multiPv:multiPv,searchMoves:searchMoves,resources:resources)
     }
     /// A node-limited search searches exactly as far on every Mac (assistance plan A5).
     public func analyzeHistory(startFEN:String,moves:[String],profile:OpponentProfile,limit:EngineSearchLimit,multiPv:Int)async throws -> EngineAnalysis {
@@ -53,7 +57,7 @@ import Combine
         switch limit {case .movetime(let budget):return .movetime(max(EngineSearchPolicy.minimumMs,min(3000,budget)));case .nodes(let nodes):return .nodes(max(1000,min(5_000_000,nodes)))}
     }
     private func search(startFEN:String,moves:[String],profile:OpponentProfile,limit:EngineSearchLimit,multiPv:Int,searchMoves:[String],resources:EngineResources?=nil)async throws -> EngineAnalysis {
-        if binaryIdentity.isEmpty{binaryIdentity=try await identityTask.value}
+        _ = try await identity()
         guard waiting<8 else{throw CheckmateError.unavailable("BUSY")};waiting+=1;defer{waiting-=1}
         // A clock that stops while the Mac sleeps: waking must not turn a short wait into a false "BUSY".
         let clock=SuspendingClock(),deadline=clock.now.advanced(by:.seconds(4))
@@ -63,11 +67,12 @@ import Combine
         // rejects a non-canonical token such as e7e8 ("CRITICAL ERROR ... Illegal move") and exits.
         // The start FEN goes to the engine as the rules write it, too: chess.js accepts fields separated by a line
         // break, which would cut Stockfish's line-based position command short.
-        let rules:ChessRules,canonical:[String],start:String
+        let rules:ChessRules,start:String;var canonical:[String],replayed:Int
         let previous=validationCache;validationCache=nil
-        if let cached=previous,cached.0==startFEN,moves.starts(with:cached.1){rules=cached.2;start=cached.4;var validated=cached.3;for move in moves.dropFirst(cached.1.count){validated.append(try rules.move(uci:move).uci)};canonical=validated}
-        else{rules=try ChessRules(fen:startFEN);start=rules.fen;var validated:[String]=[];for move in moves{validated.append(try rules.move(uci:move).uci)};canonical=validated}
-        validationCache=(startFEN,moves,rules,canonical,start)
+        if let cached=previous,cached.startFEN==startFEN,moves.starts(with:cached.moves){rules=cached.rules;start=cached.start;canonical=cached.canonical;replayed=cached.moves.count}
+        else{rules=try ChessRules(fen:startFEN);start=rules.fen;canonical=[];replayed=0}
+        for move in moves.dropFirst(replayed){canonical.append(try rules.move(uci:move).uci)}
+        validationCache=Validation(startFEN:startFEN,moves:moves,rules:rules,canonical:canonical,start:start)
         let legal=rules.moves()
         guard searchMoves.allSatisfy({uci in legal.contains{$0.uci==uci}}) else{throw CheckmateError.invalid("Illegal searchmoves constraint.")}
         let worker=worker,fen=rules.fen,epoch=worker.reserve(),lines=max(1,min(16,multiPv,max(1,searchMoves.isEmpty ? legal.count:searchMoves.count)))
@@ -75,7 +80,9 @@ import Combine
         // Cancelling cannot take back a search that finished before the cancellation: its result is dropped here.
         try Task.checkCancellation()
         capabilities=worker.metadata()
-        result.lines=try result.lines.compactMap{line in try autoreleasepool{var line=line;let replay=try ChessRules(fen:fen);do{line.san=try line.pv.map{try replay.move(uci:$0).san};return line}catch{return nil}}}
+        // One rules runtime replays every line: each is a JavaScript virtual machine, not a cheap load.
+        let replay=try ChessRules(fen:fen)
+        result.lines=try result.lines.compactMap{line in try autoreleasepool{var line=line;try replay.load(fen);do{line.san=try line.pv.map{try replay.move(uci:$0).san};return line}catch{return nil}}}
         return result
     }
 }

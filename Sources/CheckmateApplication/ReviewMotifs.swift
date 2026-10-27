@@ -10,7 +10,6 @@ public struct ReviewMotif:Equatable {
 }
 public enum ReviewMotifs {
     private static let values:[Character:Int]=["p":1,"n":3,"b":3,"r":5,"q":9,"k":100]
-    private static let straight=[(1,0),(-1,0),(0,1),(0,-1)],diagonal=[(1,1),(1,-1),(-1,1),(-1,-1)]
     private static func kind(_ board:Position,_ square:String)->Character? {board[square].flatMap{$0.count==2 ? $0.last:nil}}
     private static func value(_ board:Position,_ square:String)->Int {kind(board,square).flatMap{values[$0]} ?? 0}
     private static func color(_ board:Position,_ square:String)->Character? {board[square]?.first}
@@ -37,7 +36,7 @@ public enum ReviewMotifs {
         // Pin and skewer: two enemy pieces on one line from the moved piece. A cheaper piece in front pins; a dearer
         // one in front (the king above all) is skewered.
         if let mover=kind(after,to),"brq".contains(mover) {
-            let directions=mover=="b" ? diagonal:mover=="r" ? straight:straight+diagonal
+            let directions=mover=="b" ? TrainingGeometry.diagonal:mover=="r" ? TrainingGeometry.straight:TrainingGeometry.straight+TrainingGeometry.diagonal
             for line in directions.map({ray(from:to,$0,after)}) where line.count==2 && line.allSatisfy({color(after,$0)==enemy}) {
                 let front=line[0],back=line[1]
                 if value(after,back)>value(after,front) {found.append(ReviewMotif(kind:.pin,text:kind(after,back)=="k" ? String(localized:"Pin: \(PieceName.phrase(letter(after,to),.subject)) on \(to) pins \(named(after,front)) to \(named(after,back)); moving it would expose the king.",bundle:.checkmate):String(localized:"Pin: \(PieceName.phrase(letter(after,to),.subject)) on \(to) pins \(named(after,front)) against \(named(after,back)) behind it.",bundle:.checkmate),squares:[to,front,back]))}
@@ -47,7 +46,7 @@ public enum ReviewMotifs {
         // Discovered attack: another of the mover's long-range pieces now reaches a piece the moved one stood in front of.
         for (square,occupant) in after where square != to && occupant.first==mover && "brq".contains(occupant.last!) {
             let before=TrainingGeometry.attacks(from:square,board:before)
-            for target in TrainingGeometry.attacks(from:square,board:after) where !before.contains(target) && color(after,target)==enemy && value(after,target)>=3 && between(square,target).contains(from) {
+            for target in TrainingGeometry.attacks(from:square,board:after) where !before.contains(target) && color(after,target)==enemy && value(after,target)>=3 && (TrainingMaterial.between(square,target) ?? []).contains(from) {
                 found.append(ReviewMotif(kind:.discovered,text:String(localized:"Discovered attack: moving away from \(from) opens the line of \(PieceName.phrase(letter(after,square),.object)) on \(square) to \(named(after,target)).",bundle:.checkmate),squares:[square,from,target]))
             }
         }
@@ -70,25 +69,18 @@ public enum ReviewMotifs {
         while hits.count<2 {file+=direction.0;rank+=direction.1;guard let next=TrainingGeometry.square(file,rank) else{break};if board[next] != nil{hits.append(next)}}
         return hits
     }
-    /// The squares strictly between two squares on one line; empty when they share no line.
-    private static func between(_ a:String,_ b:String)->[String] {
-        guard let p=TrainingGeometry.coordinates(a),let q=TrainingGeometry.coordinates(b) else{return []}
-        let dx=q.file-p.file,dy=q.rank-p.rank;guard (dx==0 || dy==0 || abs(dx)==abs(dy)),dx != 0 || dy != 0 else{return []}
-        let steps=max(abs(dx),abs(dy)),sx=dx.signum(),sy=dy.signum()
-        return (1..<steps).compactMap{TrainingGeometry.square(p.file+sx*$0,p.rank+sy*$0)}
-    }
     /// The defender's king on its home row with every square in front of it blocked by its own pieces or attacked,
     /// and an attacking rook or queen that reaches an undefended square of that row with a clear path to the king.
     private static func backRank(_ board:Position,attacker:Character)->(king:String,piece:String,entry:String)? {
         let defender=other(attacker),home=defender=="w" ? 0:7,forward=defender=="w" ? 1:-1
-        guard let king=board.first(where:{$0.value==String(defender)+"k"})?.key,let (file,rank)=TrainingGeometry.coordinates(king),rank==home else{return nil}
+        guard let king=TrainingGeometry.square(of:String(defender)+"k",on:board),let (file,rank)=TrainingGeometry.coordinates(king),rank==home else{return nil}
         let front=(-1...1).compactMap{TrainingGeometry.square(file+$0,rank+forward)}
         guard front.allSatisfy({color(board,$0)==defender || !TrainingGeometry.attackers(of:$0,color:attacker,board:board).isEmpty}) else{return nil}
         for (square,occupant) in board.sorted(by:{$0.key<$1.key}) where occupant.first==attacker && "rq".contains(occupant.last!) {
             for entry in TrainingGeometry.attacks(from:square,board:board).sorted() where TrainingGeometry.coordinates(entry)?.rank==home && entry != king && board[entry]==nil {
                 let guards=TrainingGeometry.attackers(of:entry,color:defender,board:board).filter{$0 != king}
                 let kingCovers=TrainingGeometry.attacks(from:king,board:board).contains(entry) && TrainingGeometry.attackers(of:entry,color:attacker,board:board).count<2
-                if guards.isEmpty && !kingCovers && between(entry,king).allSatisfy({board[$0]==nil}) {return (king,square,entry)}
+                if guards.isEmpty && !kingCovers && (TrainingMaterial.between(entry,king) ?? []).allSatisfy({board[$0]==nil}) {return (king,square,entry)}
             }
         }
         return nil

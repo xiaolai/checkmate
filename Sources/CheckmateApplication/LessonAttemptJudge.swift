@@ -108,7 +108,7 @@ public enum LessonAttemptJudge {
     static func satisfied(_ kind:LessonCheckpoint.Kind,record:MoveRecord,openingDone:Bool,rules:ChessRules)->Bool {
         switch kind {
         case .graph:return openingDone
-        case .castle:return record.flags.contains("k") || record.flags.contains("q")
+        case .castle:return record.isCastle
         case .enPassant:return record.flags.contains("e")
         case .promote:return record.promotion != nil
         case .pawnAdvance:return record.piece=="p" && record.captured==nil

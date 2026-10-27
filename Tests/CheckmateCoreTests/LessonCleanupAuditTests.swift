@@ -14,9 +14,6 @@ private actor CleanupTranslator:LessonTranslationProvider {
  func translate(source:LessonTranslation,locale:String,onUsage:@escaping @Sendable(String,String,UsageTokens?)->Void)async throws->TranslationResult {TranslationResult(text:source,model:"fake",turnID:UUID().uuidString,tokens:UsageTokens(total:3))}
  func accountStatus()async throws->String {"Fake account"}
 }
-private actor CleanupRecorder:LessonRecordingProvider {
- func record(script:String,locale:String,voice:String,onUsage:@escaping @Sendable(String,UsageTokens?)->Void)async throws->LessonRecordingResult {LessonRecordingResult(pcm:plausibleLessonPCM(script),transcript:script,responseID:UUID().uuidString,tokens:nil,model:"gpt-realtime")}
-}
 
 /// Audit findings #12 (manifests and checkpoints that decode but this version does not support keep their paid data)
 /// and #13 (cleanup cannot be cancelled, so Cancel neither claims to cancel it nor is offered).
@@ -63,7 +60,7 @@ private actor CleanupRecorder:LessonRecordingProvider {
 
  /// #13: cleanup runs to completion; Cancel is not offered for it and does not report a cancellation that never happens.
  func testCleanupIsNotCancellable()async throws {
-  let c=try LessonLanguageController(library:try CourseLibrary(),directory:dir,usage:UsageLedger(directory:dir.appendingPathComponent("Usage")),translator:CleanupTranslator(),recorder:CleanupRecorder());c.language="fr"
+  let c=try LessonLanguageController(library:try CourseLibrary(),directory:dir,usage:UsageLedger(directory:dir.appendingPathComponent("Usage")),translator:CleanupTranslator(),recorder:OrderedLessonRecorder());c.language="fr"
   c.purgeOutdated();XCTAssertTrue(c.busy);XCTAssertFalse(c.canCancel,"Cancel is not offered during cleanup")
   c.cancel();XCTAssertEqual(c.status,"Removing outdated translations…","Cancel does not claim to stop cleanup")
   for _ in 0..<1500 where c.busy{try await Task.sleep(for:.milliseconds(10))};XCTAssertFalse(c.busy)

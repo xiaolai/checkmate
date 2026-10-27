@@ -7,7 +7,7 @@ import XCTest
 /// Guided practice gives hints step by step: nothing is shown until asked, the first request marks the piece to move,
 /// the second shows the move itself, and the hint stays on the board until the learner moves.
 final class StepHintTests:XCTestCase {
-    @MainActor private func settle(_ done:()->Bool) async throws {for _ in 0..<200 where !done(){try await Task.sleep(nanoseconds:5_000_000)};XCTAssertTrue(done())}
+    @MainActor private func settle(_ done:()->Bool) async throws {try await poll("the condition",tries:200,every:.milliseconds(5),done)}
     @MainActor func testGuidedPracticeShowsNoHintUntilAsked() async throws {
         let engine=StepHintEngine(),s=try GameSession(engine:engine);XCTAssertEqual(s.state.settings.coachingMode,"guided","Guided stays the default")
         try s.playWhite(from:"e2",to:"e4");try await settle{s.rules.history.count==2};try await Task.sleep(nanoseconds:30_000_000)

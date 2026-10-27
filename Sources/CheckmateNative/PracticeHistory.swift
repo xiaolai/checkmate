@@ -27,9 +27,9 @@ struct PracticeMoveList:View {
         return labels
     }
     /// One row per move number: its White move and its Black move, either of which may be missing at the ends.
-    static func rows(_ records:[MoveRecord])->[(number:String,white:Int?,black:Int?)] {
+    static func rows(_ records:[MoveRecord],labels:[String])->[(number:String,white:Int?,black:Int?)] {
         var rows:[(number:String,white:Int?,black:Int?)]=[]
-        for (index,label) in labels(records).enumerated() {let number=String(label.prefix{$0 != "."});if records[index].color=="w" || rows.last?.number != number || rows.last?.black != nil{rows.append((number,nil,nil))};if records[index].color=="w"{rows[rows.count-1].white=index}else{rows[rows.count-1].black=index}}
+        for (index,label) in labels.enumerated() {let number=String(label.prefix{$0 != "."});if records[index].color=="w" || rows.last?.number != number || rows.last?.black != nil{rows.append((number,nil,nil))};if records[index].color=="w"{rows[rows.count-1].white=index}else{rows[rows.count-1].black=index}}
         return rows
     }
     var body:some View {
@@ -46,7 +46,7 @@ struct PracticeMoveList:View {
             }
             let current=(shown ?? records.count)-1
             Grid(alignment:.leading,horizontalSpacing:Metrics.smallGap,verticalSpacing:2){
-                ForEach(Array(Self.rows(records).enumerated()),id:\.offset){_,row in
+                ForEach(Array(Self.rows(records,labels:labels).enumerated()),id:\.offset){_,row in
                     GridRow{Text(row.number+".").foregroundStyle(.secondary).accessibilityHidden(true);move(row.white,records,labels,current);move(row.black,records,labels,current)}
                 }
             }
@@ -88,9 +88,9 @@ extension GameWindow {
     func announceHistory(){
         let records=model.session.rules.records,labels=PracticeMoveList.labels(records)
         let text=shownHistoryPly.map{$0==0 ? String(localized:"Starting position. Moves can't be played here.",bundle:.checkmate):String(localized:"After \(labels[$0-1]). Earlier position; moves can't be played here.",bundle:.checkmate)} ?? String(localized:"Back to the game.",bundle:.checkmate)
-        NSAccessibility.post(element:board,notification:.announcementRequested,userInfo:[.announcement:text,.priority:NSAccessibilityPriorityLevel.high.rawValue])
+        announce(text)
     }
     static let earlierPositionRefusal=String(localized:"This is an earlier position. Choose Back to Game to play.",bundle:.checkmate)
     /// A click on the board of an earlier position explains why nothing happens.
-    func refuseHistoryMove(){NSAccessibility.post(element:board,notification:.announcementRequested,userInfo:[.announcement:Self.earlierPositionRefusal,.priority:NSAccessibilityPriorityLevel.high.rawValue])}
+    func refuseHistoryMove(){announce(Self.earlierPositionRefusal)}
 }

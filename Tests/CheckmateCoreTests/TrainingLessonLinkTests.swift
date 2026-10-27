@@ -10,8 +10,7 @@ import CheckmateCore
 /// lesson's own reading position is kept), the way back leads to training, and an unfinished exercise stays saved.
 @MainActor final class TrainingLessonLinkTests:XCTestCase {
     // Increment B is gated behind its preview flags; these tests exercise it as development does.
-    override func setUp(){setenv("CHECKMATE_TRAINING_ENABLED","1",1);setenv("CHECKMATE_TRAINING_B","1",1)}
-    override func tearDown(){unsetenv("CHECKMATE_TRAINING_ENABLED");unsetenv("CHECKMATE_TRAINING_B")}
+    override func setUp(){setEnvironment(["CHECKMATE_TRAINING_ENABLED":"1","CHECKMATE_TRAINING_B":"1"])}
     private func fixture()throws -> (GameSession,LearningPlayer,TrainingController,WorkspaceTransitionCoordinator) {
         let session=try GameSession(engine:nil),player=try LearningPlayer(session:session)
         let training=TrainingController(session:session,learning:player,provider:try TrainingScenarioProvider.bundled())

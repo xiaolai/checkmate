@@ -11,9 +11,7 @@ import CheckmateCore
 /// V-1: the first Connect the learner presses asks once what voice sends and where; only a confirmed answer connects,
 /// and it is remembered. The sheet is replaced by an injected answer; nothing connects for real.
 @MainActor final class VoiceConsentTests:XCTestCase {
-    private var directory:URL!
-    override func setUp(){directory=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);setenv("CHECKMATE_DATA_DIR",directory.path,1)}
-    override func tearDown(){unsetenv("CHECKMATE_DATA_DIR");try? FileManager.default.removeItem(at:directory)}
+    override func setUpWithError()throws{try isolateDataDirectory()}
     /// A model whose consent sheet answers `answer` and counts how often it was shown.
     private func model(answer:VoiceConsentAnswer)throws->(NativeModel,()->Int) {
         let model=try NativeModel();var asked=0
@@ -52,7 +50,7 @@ import CheckmateCore
     /// page and Settings, a mini-game review's Read Aloud, Check availability and Preview voice.
     func testEveryConnectButtonAsksFirst()throws {
         let (model,asked)=try model(answer:.cancel);defer{model.shutdown()}
-        model.connectPracticeVoice();model.connectNetworkVoice();model.connectVoiceFromSettings()
+        model.connectPracticeVoice();model.connectVoice();model.connectVoice()
         model.readMiniReviewAloud();model.checkVoiceAvailability();model.previewVoice()
         XCTAssertEqual(asked(),6);XCTAssertEqual(model.voice.connectRequests,[],"nothing connects without consent")
         XCTAssertEqual(model.voice.availability,"Not checked");XCTAssertFalse(model.voicePreview.playing);XCTAssertEqual(model.voicePreview.status,"")
@@ -76,7 +74,7 @@ import CheckmateCore
     /// in a function that checks consent before it. Elsewhere only the model probe (reached through the coach) and
     /// lesson recording (its own choice, disclosed in About) may open one.
     func testEveryOpenAIDoorChecksConsentFirst()throws {
-        let root=URL(fileURLWithPath:#filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let root=Repository.root
         let contact=try NSRegularExpression(pattern:#"gateway\.[a-zA-Z]+\(|\.authorize\(|VoiceSocket\.open\(|VoiceGateway\(\)\.|(?<!func )resolveModel\(|supportsCoach\("#),guardCall=try NSRegularExpression(pattern:#"guard [^;\n]*onsent"#)
         let gated=["Sources/CheckmateMacPlatform/VoiceCoach.swift","Sources/CheckmateMacPlatform/VoicePreview.swift"]
         let allowed=["Sources/CheckmateContent/VoiceModelSelection.swift","Sources/CheckmateContent/LessonRecording.swift"]

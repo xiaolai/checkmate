@@ -262,18 +262,20 @@ struct ControlBarView:View {
     /// with an ellipsis instead, so a step with a long lesson name never changes the bar's height.
     static let statusMinimum:CGFloat=72
 
+    /// The room a leading status keeps when nothing else leads.
+    private static func statusReserve(_ model:ControlBarModel)->CGFloat {(!model.statusInCentre && model.status != nil && !model.hasLeadingControls) ? statusMinimum:0}
     /// Whether the bar fits one row in `width`, given its groups' widths. Only controls decide: a leading status
     /// keeps a minimum of room only when nothing else leads, and otherwise takes what is left or hides, so neither a
     /// long status nor a recovery button (Resume, Back) changes the bar's height and resizes the board.
     static func fitsOneRow(_ model:ControlBarModel,leading:CGFloat,centre:CGFloat,trailing:CGFloat,width:CGFloat)->Bool {
-        let reserve=(!model.statusInCentre && model.status != nil && !model.hasLeadingControls) ? statusMinimum:0
+        let reserve=statusReserve(model)
         return max(leading+reserve,trailing)*2+centre+groupGap*2<=width
     }
     /// The rows the bar needs: one when the sides fit beside the centre; two when the sides fit beside each other
     /// above it; three (leading, trailing, centre) when even they do not.
     static func rows(_ model:ControlBarModel,leading:CGFloat,centre:CGFloat,trailing:CGFloat,width:CGFloat)->Int {
         if fitsOneRow(model,leading:leading,centre:centre,trailing:trailing,width:width){return 1}
-        let reserve=(!model.statusInCentre && model.status != nil && !model.hasLeadingControls) ? statusMinimum:0
+        let reserve=statusReserve(model)
         // The upper row is leading, a spacer and trailing, with a gap on each side of the spacer.
         return leading+reserve+trailing+groupGap*2<=width ? 2:3
     }
@@ -357,10 +359,8 @@ struct ControlBarView:View {
                 Menu{entries(item)}label:{icon(symbol,primary:false)}primaryAction:{perform(item.action)}
                     .menuStyle(.button).modifier(BarButtonStyle()).controlSize(.large).fixedSize().disabled(!item.enabled).help(Self.tooltip(item)).accessibilityLabel(item.label)
             }
-        } else if item.prominent {
-            Button(item.label){perform(item.action)}.modifier(BarButtonStyle(prominent:true)).controlSize(.large).disabled(!item.enabled).help(Self.tooltip(item))
         } else {
-            Button(item.label){perform(item.action)}.modifier(BarButtonStyle()).controlSize(.large).disabled(!item.enabled).help(Self.tooltip(item))
+            Button(item.label){perform(item.action)}.modifier(BarButtonStyle(prominent:item.prominent)).controlSize(.large).disabled(!item.enabled).help(Self.tooltip(item))
         }
     }
     private func entries(_ item:ControlBarItem)->some View {ForEach(item.menu){entry in Button(entry.label){perform(entry.action)}.disabled(!entry.enabled).help(Self.tooltip(entry))}}

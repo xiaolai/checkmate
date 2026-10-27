@@ -10,19 +10,18 @@ import CheckmateCore
 /// follow the plan's precedence; claimable draws need a claim and automatic ones do not.
 @MainActor final class TrainingEndgameTests:XCTestCase {
     // Increment B is gated behind its preview flags; these tests exercise it as development does.
-    override func setUp(){setenv("CHECKMATE_TRAINING_ENABLED","1",1);setenv("CHECKMATE_TRAINING_B","1",1)}
-    override func tearDown(){unsetenv("CHECKMATE_TRAINING_ENABLED");unsetenv("CHECKMATE_TRAINING_B")}
+    override func setUp(){setEnvironment(["CHECKMATE_TRAINING_ENABLED":"1","CHECKMATE_TRAINING_B":"1"])}
     static func ending(_ fen:String,variant:String="kqk",id:String="ending-test")->TrainingScenario {
         TrainingScenario(id:id,entry:"finish-the-game",variant:variant,tier:1,cluster:id,learner:String(fen.split(separator:" ")[1]),prompt:"Checkmate.",explanation:"Mate it.",hints:["Shrink the box.","Bring the king."],fen:fen,review:TrainingReview(author:"test",reviewer:nil,validatorVersion:TrainingValidationService.validatorVersion),check:.ending)
     }
-    static func fixture(_ scenarios:[TrainingScenario],defender:ScriptedDefender)throws -> (GameSession,LearningPlayer,TrainingController) {
+    static func fixture(_ scenarios:[TrainingScenario],defender:ScriptedDefender?=nil)throws -> (GameSession,LearningPlayer,TrainingController) {
         let session=try GameSession(engine:nil),player=try LearningPlayer(session:session)
         let controller=TrainingController(session:session,learning:player,provider:try TrainingScenarioProvider(catalog:try TrainingCatalog.bundled(),scenarios:scenarios))
-        controller.games.engine=defender
+        if let defender{controller.games.engine=defender}
         return (session,player,controller)
     }
     /// Lets the defender's pending reply arrive.
-    static func settle(_ controller:TrainingController)async {for _ in 0..<500 where controller.games.thinking{try? await Task.sleep(nanoseconds:2_000_000)}}
+    static func settle(_ controller:TrainingController)async {await pollQuietly(tries:500,every:.milliseconds(2)){!controller.games.thinking}}
     private func play(_ controller:TrainingController,_ uci:String)async {controller.attempt(from:String(uci.prefix(2)),to:String(uci.dropFirst(2).prefix(2)),promotion:nil);await Self.settle(controller)}
     func testStartsAreValidatedAsTheEndingTheyClaim()throws {
         let definition=try XCTUnwrap(TrainingCatalog.bundled().entry("finish-the-game"))

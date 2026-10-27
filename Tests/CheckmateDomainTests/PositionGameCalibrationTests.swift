@@ -46,7 +46,7 @@ final class PositionGameCalibrationTests:XCTestCase {
         refuses({$0.entries[0].starts[0].learner="b"},"only a guided game names the learner per start")
         refuses({$0.entries[guided].starts[0].learner="b"},"opposite each start's learner")
         refuses({$0.entries[guided].sides=["w"]},"opposite each start's learner")
-        refuses({$0.entries[guided].starts.append(PositionGameCalibration.Start(scenario:"gg-extra",fen:"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",learner:"w"))},"both learner colours equally")
+        refuses({$0.entries[guided].starts.append(PositionGameCalibration.Start(scenario:"gg-extra",fen:NetworkStart.standard,learner:"w"))},"both learner colours equally")
         refuses({$0.entries[guided].scoring = .goal},"ordinary chess is scored as chess")
         refuses({$0.entries.append($0.entries[0])},"appears once");refuses({$0.entries=[]},"names its entries")
         refuses({$0.entries[0].sides=["w"]},"only the opponent's");refuses({$0.entries[0].references=["random","greedy","level-below"]},"no head-to-head")

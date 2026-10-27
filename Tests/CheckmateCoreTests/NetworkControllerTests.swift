@@ -45,6 +45,37 @@ final class MemoryLAN {
         participation.observe{[weak self] role in self?.roles.append(role)}
     }
 }
+@MainActor func hosting(_ lan:MemoryLAN,_ name:String="Ana",file:StaticString=#filePath,line:UInt=#line,_ settings:(inout NetworkHostForm)->Void={_ in})throws -> Mac {
+    let mac=try Mac(lan,name:name);settings(&mac.game.form)
+    XCTAssertTrue(mac.game.host(),"the game is hosted",file:file,line:line);lan.scheduler.run()
+    return mac
+}
+/// A Mac that opens the network place, picks the only game found and types the host's code.
+@MainActor func joining(_ lan:MemoryLAN,_ name:String,_ host:Mac,watching:Bool=false,accepting:NetworkAssistance?=nil,file:StaticString=#filePath,line:UInt=#line)throws -> Mac {
+    let mac=try Mac(lan,name:name);mac.game.setShown(true);lan.scheduler.run()
+    let entry=try XCTUnwrap(mac.game.games.first,"the hosted game is found",file:file,line:line)
+    let code=try XCTUnwrap(watching ? host.game.watchCode:host.game.playCode,file:file,line:line)
+    XCTAssertTrue(mac.game.join(entry,code:code.grouped.lowercased(),watching:watching,accepting:accepting),file:file,line:line);lan.scheduler.run()
+    XCTAssertEqual(mac.game.link,.live,"\(name) is in the game",file:file,line:line)
+    return mac
+}
+/// A move made on the board with two clicks: pending until the game answers, then on every board.
+@MainActor func play(_ mac:Mac,_ from:String,_ to:String,_ lan:MemoryLAN,file:StaticString=#filePath,line:UInt=#line){
+    let piece=mac.game.board[from]
+    mac.game.click(from);mac.game.click(to)
+    XCTAssertEqual(mac.game.pending?.uci,from+to,"the move is pending",file:file,line:line);XCTAssertEqual(mac.game.notice,NetworkGameController.sendingNotice,file:file,line:line)
+    XCTAssertEqual(mac.game.board[from],piece,"the board waits for the game's answer",file:file,line:line)
+    lan.scheduler.run()
+    XCTAssertNil(mac.game.pending,"the answer cleared the pending move",file:file,line:line);XCTAssertNil(mac.game.notice,file:file,line:line)
+    XCTAssertEqual(mac.game.board[to],piece,file:file,line:line)
+}
+/// Ana hosts as White under `terms`, Ben joins as Black accepting them, and Cy watches.
+@MainActor func game(_ terms:NetworkAssistance,_ lan:MemoryLAN)throws -> (ana:Mac,ben:Mac,cy:Mac) {
+    let ana=try hosting(lan){$0.assistance=terms}
+    let ben=try joining(lan,"Ben",ana,accepting:terms),cy=try joining(lan,"Cy",ana,watching:true)
+    return (ana,ben,cy)
+}
+@MainActor func settle(_ done:()->Bool,_ message:String,file:StaticString=#filePath,line:UInt=#line)async throws {try await poll(message,tries:400,every:.milliseconds(5),file:file,line:line,done)}
 /// A discovery a test drives by hand: D11's denial signal, a failure, found games.
 private final class ScriptedDiscovery:NetworkDiscovery {
     private let scheduler:any NetworkScheduler
@@ -64,30 +95,6 @@ private final class ScriptedDiscovery:NetworkDiscovery {
 /// joining and watching from the lobby, the shown game on every Mac, pending moves, participation and the crash file,
 /// leaving, the hold, draws, clocks and what VoiceOver hears, and the review record.
 @MainActor final class NetworkControllerTests:XCTestCase {
-    func hosting(_ lan:MemoryLAN,_ name:String="Ana",file:StaticString=#filePath,line:UInt=#line,_ settings:(inout NetworkHostForm)->Void={_ in})throws -> Mac {
-        let mac=try Mac(lan,name:name);settings(&mac.game.form)
-        XCTAssertTrue(mac.game.host(),"the game is hosted",file:file,line:line);lan.scheduler.run()
-        return mac
-    }
-    /// A Mac that opens the network place, picks the only game found and types the host's code.
-    func joining(_ lan:MemoryLAN,_ name:String,_ host:Mac,watching:Bool=false,accepting:NetworkAssistance?=nil,file:StaticString=#filePath,line:UInt=#line)throws -> Mac {
-        let mac=try Mac(lan,name:name);mac.game.setShown(true);lan.scheduler.run()
-        let entry=try XCTUnwrap(mac.game.games.first,"the hosted game is found",file:file,line:line)
-        let code=try XCTUnwrap(watching ? host.game.watchCode:host.game.playCode,file:file,line:line)
-        XCTAssertTrue(mac.game.join(entry,code:code.grouped.lowercased(),watching:watching,accepting:accepting),file:file,line:line);lan.scheduler.run()
-        XCTAssertEqual(mac.game.link,.live,"\(name) is in the game",file:file,line:line)
-        return mac
-    }
-    /// A move made on the board with two clicks: pending until the game answers, then on every board.
-    func play(_ mac:Mac,_ from:String,_ to:String,_ lan:MemoryLAN,file:StaticString=#filePath,line:UInt=#line){
-        let piece=mac.game.board[from]
-        mac.game.click(from);mac.game.click(to)
-        XCTAssertEqual(mac.game.pending?.uci,from+to,"the move is pending",file:file,line:line);XCTAssertEqual(mac.game.notice,NetworkGameController.sendingNotice,file:file,line:line)
-        XCTAssertEqual(mac.game.board[from],piece,"the board waits for the game's answer",file:file,line:line)
-        lan.scheduler.run()
-        XCTAssertNil(mac.game.pending,"the answer cleared the pending move",file:file,line:line);XCTAssertNil(mac.game.notice,file:file,line:line)
-        XCTAssertEqual(mac.game.board[to],piece,file:file,line:line)
-    }
 
     /// Host, guest and spectator play Fool's Mate through: the seats and names, a spectator's click, pending moves,
     /// what each Mac hears, participation and the crash file while it runs and after the result, then the review

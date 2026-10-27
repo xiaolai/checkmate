@@ -2,10 +2,11 @@ import XCTest
 import AppKit
 @testable import CheckmateNative
 import CheckmateCore
+import CheckmateTestSupport
 
 /// Structure and strings: one symbol table, title-case commands, no display text used as logic, and the shared metrics.
 @MainActor final class StructureStringsTests:XCTestCase {
-    private static let sources=URL(fileURLWithPath:#filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("Sources")
+    private static let sources=Repository.url("Sources")
     /// Every Swift source line, with its file's path relative to `Sources`.
     private func sourceLines()throws->[(file:String,line:Int,text:String)] {
         let files=try XCTUnwrap(FileManager.default.enumerator(at:Self.sources,includingPropertiesForKeys:nil)).compactMap{$0 as? URL}.filter{$0.pathExtension=="swift"}

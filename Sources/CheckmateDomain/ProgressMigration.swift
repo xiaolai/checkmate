@@ -10,9 +10,7 @@ public enum ProgressMigration {
     /// The table key of an identifier: 64-bit FNV-1a of "checkmate-id-v1|" + identifier, as 16 hex digits. A stable
     /// lookup key, not a secret; plain Swift keeps the domain free of platform frameworks.
     public static func digest(_ id:String)->String {
-        var hash:UInt64=0xcbf29ce484222325
-        for byte in ("checkmate-id-v1|"+id).utf8 {hash=(hash ^ UInt64(byte)) &* 0x100000001b3}
-        let hex=String(hash,radix:16);return String(repeating:"0",count:16-hex.count)+hex
+        let hex=String(fnv1a64(("checkmate-id-v1|"+id).utf8),radix:16);return String(repeating:"0",count:16-hex.count)+hex
     }
     /// Edition 1 lesson identifiers that changed, by digest. Two edition 1 lessons became "castling".
     public static let lessons:[String:String]=[

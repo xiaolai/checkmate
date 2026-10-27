@@ -12,26 +12,11 @@ import CheckmateCore
 @testable import CheckmateNative
 import SaidGuard
 
-/// Translates every lesson except those listed in `failing`, recording the order lessons were attempted.
-private actor GapOrderTranslator:LessonTranslationProvider {
- var failing:Set<String>,order:[String]=[];init(failing:Set<String>=[]){self.failing=failing}
- func fail(_ ids:Set<String>){failing=ids}
- func translate(source:LessonTranslation,locale:String,onUsage:@escaping @Sendable(String,String,UsageTokens?)->Void)async throws->TranslationResult {order.append(source.lessonID);if failing.contains(source.lessonID){throw CheckmateError.invalid("The translation did not keep the chess notation.")};var text=source;text.title="Titre: "+source.title;return TranslationResult(text:text,model:"fake",turnID:UUID().uuidString,tokens:UsageTokens(total:3))}
- func accountStatus()async throws->String {"Fake account"}
-}
-/// Records every clip except the scripts listed in `failing` (or every clip when `failAll`), in call order.
-private actor GapOrderRecorder:LessonRecordingProvider {
- var failing:Set<String>,failAll:Bool,scripts:[String]=[];init(failing:Set<String>=[],failAll:Bool=false){self.failing=failing;self.failAll=failAll}
- func fail(_ value:Set<String>){failing=value}
- func record(script:String,locale:String,voice:String,onUsage:@escaping @Sendable(String,UsageTokens?)->Void)async throws->LessonRecordingResult {scripts.append(script);if failAll || failing.contains(script){throw CheckmateError.invalid("The recording did not match the requested script.")};return LessonRecordingResult(pcm:plausibleLessonPCM(script),transcript:script,responseID:UUID().uuidString,tokens:nil,model:"gpt-realtime")}
-}
-
 @MainActor final class GapRecoveryJobTests:XCTestCase {
  private var dir:URL!
  override func setUp(){dir=FileManager.default.temporaryDirectory.appendingPathComponent("gap-recovery-"+UUID().uuidString)}
  override func tearDown(){unsetenv("CHECKMATE_DATA_DIR");unsetenv("CHECKMATE_LESSON_FIXTURE");try? FileManager.default.removeItem(at:dir)}
- private func wait(_ controller:LessonLanguageController)async throws {for _ in 0..<1500{if !controller.busy{return};try await Task.sleep(for:.milliseconds(10))};XCTFail("Job did not finish")}
- private func controller(_ library:CourseLibrary,_ translator:any LessonTranslationProvider,_ recorder:any LessonRecordingProvider=GapOrderRecorder())throws -> LessonLanguageController {let c=try LessonLanguageController(library:library,directory:dir,usage:UsageLedger(directory:dir.appendingPathComponent("Usage")),translator:translator,recorder:recorder);c.language="fr";return c}
+ private func wait(_ controller:LessonLanguageController)async throws {try await poll("the job to finish",tries:1500,every:.milliseconds(10)){!controller.busy}}
 
  // MARK: Persistence (PL2-2, PL-2/SH-8)
 
@@ -101,14 +86,14 @@ private actor GapOrderRecorder:LessonRecordingProvider {
  /// LE2-1: a lesson that fails to translate is named by number and title, with the cause.
  func testTranslationProblemNamesTheLesson()async throws {
   let library=try CourseLibrary(),source=LessonTranslation.source(library:library,index:1)
-  let c=try controller(library,GapOrderTranslator(failing:[source.lessonID]));c.selectedLesson=1;c.translate();try await wait(c)
+  let c=try lessonController(dir,library,OrderedLessonTranslator(failing:[source.lessonID]));c.selectedLesson=1;c.translate();try await wait(c)
   XCTAssertEqual(c.problems,["Lesson 2 “\(source.title)”: The translation did not keep the chess notation."])
   XCTAssertTrue(c.status.hasPrefix("Finished with 1 problem;"),c.status)
  }
  /// LE-4: a lesson that failed last run is attempted after every other lesson on Resume, not first.
  func testLessonThatFailedLastRunIsRetriedLast()async throws {
   let library=try CourseLibrary();XCTAssertGreaterThan(library.lessons.count,3)
-  let failed=library.lessons[1].id,translator=GapOrderTranslator(failing:[failed]),c=try controller(library,translator)
+  let failed=library.lessons[1].id,translator=OrderedLessonTranslator(failing:[failed]),c=try lessonController(dir,library,translator)
   c.selectedLesson=1;c.translate();try await wait(c);XCTAssertEqual(c.problems.count,1)
   await translator.fail([]);c.allLessons=true;c.translate();try await wait(c)
   let order=Array(await translator.order.dropFirst());XCTAssertEqual(order.count,library.lessons.count)
@@ -116,10 +101,10 @@ private actor GapOrderRecorder:LessonRecordingProvider {
  }
  /// LE-4: within a lesson, a clip that failed last run is recorded after clips that still need recording.
  func testClipThatFailedLastRunIsRecordedLast()async throws {
-  let library=try CourseLibrary(),translator=GapOrderTranslator()
-  let setup=try controller(library,translator);setup.translate();try await wait(setup)
+  let library=try CourseLibrary(),translator=OrderedLessonTranslator()
+  let setup=try lessonController(dir,library,translator);setup.translate();try await wait(setup)
   let text=try XCTUnwrap(try setup.store.translation(source:LessonTranslation.source(library:library,index:0),locale:"fr"));XCTAssertGreaterThan(text.beats.count,2)
-  let recorder=GapOrderRecorder(failing:[text.beats[0].speak]),c=try controller(library,translator,recorder)
+  let recorder=OrderedLessonRecorder(failing:[text.beats[0].speak]),c=try lessonController(dir,library,translator,recorder)
   c.record();try await wait(c);XCTAssertEqual(c.problems.count,1);XCTAssertTrue(c.problems[0].contains("clip 1"),c.problems[0])
   let first=await recorder.scripts.count;await recorder.fail([]);c.removeClip(step:2)
   c.record();try await wait(c)
@@ -127,10 +112,10 @@ private actor GapOrderRecorder:LessonRecordingProvider {
  }
  /// LE-1: three clip failures in a row stop a recording job: no fourth clip is billed, and each failure names its clip.
  func testThreeClipFailuresInARowStopRecording()async throws {
-  let library=try CourseLibrary(),translator=GapOrderTranslator()
-  let setup=try controller(library,translator);setup.translate();try await wait(setup)
+  let library=try CourseLibrary(),translator=OrderedLessonTranslator()
+  let setup=try lessonController(dir,library,translator);setup.translate();try await wait(setup)
   let source=LessonTranslation.source(library:library,index:0);XCTAssertGreaterThan(source.beats.count,3)
-  let recorder=GapOrderRecorder(failAll:true),usage=UsageLedger(directory:dir.appendingPathComponent("Usage")),c=try LessonLanguageController(library:library,directory:dir,usage:usage,translator:translator,recorder:recorder);c.language="fr"
+  let recorder=OrderedLessonRecorder(failAll:true),usage=UsageLedger(directory:dir.appendingPathComponent("Usage")),c=try LessonLanguageController(library:library,directory:dir,usage:usage,translator:translator,recorder:recorder);c.language="fr"
   c.record();try await wait(c)
   let calls=await recorder.scripts.count;XCTAssertEqual(calls,3,"No fourth clip is billed")
   XCTAssertEqual(usage.records.filter{$0.activity == .lessonRecording}.count,3)
@@ -140,7 +125,7 @@ private actor GapOrderRecorder:LessonRecordingProvider {
  /// LE-1: failures that are not consecutive never stop the job; a success in between resets the count.
  func testNonConsecutiveFailuresDoNotStopTheJob()async throws {
   let library=try CourseLibrary();XCTAssertGreaterThan(library.lessons.count,5)
-  let ids=Set([0,1,3,4].map{library.lessons[$0].id}),translator=GapOrderTranslator(failing:ids),c=try controller(library,translator)
+  let ids=Set([0,1,3,4].map{library.lessons[$0].id}),translator=OrderedLessonTranslator(failing:ids),c=try lessonController(dir,library,translator)
   c.allLessons=true;c.translate();try await wait(c)
   let calls=await translator.order.count;XCTAssertEqual(calls,library.lessons.count,"Every lesson was attempted");XCTAssertEqual(c.problems.count,4)
   XCTAssertTrue(c.status.hasPrefix("Finished with 4 problems"),c.status)

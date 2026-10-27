@@ -57,7 +57,7 @@ import CheckmateRules
             }
         case .kingSafeSquares:
             let answer=try validateKingSquares(legality,expected:expected,fail:fail),board=try legality.board()
-            guard let king=board.first(where:{$0.value==scenario.learner+"k"})?.key else{try fail(String(localized:"no king",bundle:.checkmate,comment:"Why a training scenario is invalid"))}
+            guard let king=TrainingGeometry.square(of:scenario.learner+"k",on:board) else{try fail(String(localized:"no king",bundle:.checkmate,comment:"Why a training scenario is invalid"))}
             let neighbours=TrainingGeometry.attacks(from:king,board:board).filter{board[$0]?.first.map(String.init) != scenario.learner}
             guard !neighbours.subtracting(answer).isEmpty else{try fail(String(localized:"include at least one plausible but unsafe square",bundle:.checkmate))}
         default:

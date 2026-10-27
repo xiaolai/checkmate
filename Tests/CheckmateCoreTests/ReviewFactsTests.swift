@@ -7,10 +7,11 @@ import CheckmateCore
 @testable import CheckmateContent
 @testable import CheckmateApplication
 @testable import CheckmateMacPlatform
+import CheckmateTestSupport
 
 final class ReviewFactsTests:XCTestCase {
     func testIndependentMoveFactsAcrossTwentyHeldOutRecords()throws {
-        let root=URL(fileURLWithPath:#filePath).deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("Fixtures/GameReview")
+        let root=Repository.tests.appendingPathComponent("Fixtures/GameReview")
         var checked=0
         for name in ["manifest-expanded.json","manifest-novice.json"] {
             let manifest=try JSONSerialization.jsonObject(with:Data(contentsOf:root.appendingPathComponent(name))) as! [String:Any]
@@ -18,10 +19,10 @@ final class ReviewFactsTests:XCTestCase {
                 let document=try PGNImporter.parse(Data(contentsOf:root.appendingPathComponent(entry["path"] as! String)))[0]
                 for node in document.mainline.prefix(20) {
                     let record=document.nodes[node],uci=try XCTUnwrap(record.uci),parent=try XCTUnwrap(record.parent)
-                    let before=try document.snapshotRules(at:parent),piece=try XCTUnwrap(before.piece(String(uci.prefix(2)))),explanation=try ReviewExplanation.make(document:document,node:node)
+                    let piece=try XCTUnwrap(TrainingMaterial.board(fen:document.nodes[parent].afterFEN)?[String(uci.prefix(2))]),explanation=try ReviewExplanation.make(document:document,node:node)
                     let move=try XCTUnwrap(explanation.facts.first{$0.kind=="move"})
                     XCTAssertEqual(move.squares,[String(uci.prefix(2)),String(uci.dropFirst(2).prefix(2))])
-                    XCTAssertTrue(move.text.hasPrefix(piece.color=="w" ? "White moved":"Black moved"))
+                    XCTAssertTrue(move.text.hasPrefix(piece.hasPrefix("w") ? "White moved":"Black moved"))
                     XCTAssertFalse(explanation.facts.contains{$0.kind=="recommendation" || $0.kind=="alternative"},"No engine evidence must not invent advice")
                     XCTAssertEqual(Set(explanation.facts.map(\.id)).count,explanation.facts.count)
                     XCTAssertTrue(explanation.facts.flatMap(\.squares).allSatisfy(ChessRules.validSquare))

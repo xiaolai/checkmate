@@ -11,12 +11,6 @@ import CheckmateCore
 
 
 /// Regressions for the 2026-10-09 post-acceptance audit (Opus remediation).
-@MainActor private final class RecordingPendingEngine:TestEngineService {
-    var continuations:[CheckedContinuation<EngineAnalysis,Error>]=[]
-    var skills:[Int]=[]
-    func analyze(fen:String,skill:Int,budget:Int,multiPv:Int)async throws -> EngineAnalysis {skills.append(skill);return try await withCheckedThrowingContinuation{continuations.append($0)}}
-    func finish(at index:Int,_ move:String){continuations[index].resume(returning:EngineAnalysis(bestMove:move))}
-}
 private func temporaryDirectory()throws -> URL {let url=FileManager.default.temporaryDirectory.appendingPathComponent("opus-"+UUID().uuidString);try FileManager.default.createDirectory(at:url,withIntermediateDirectories:true);return url}
 /// Scripted UCI executable: records position commands; optionally exits on go (failure) or delays.
 private func fakeEngine(failOnGo:Bool=false,delay:Double=0)throws -> (URL,URL) {
@@ -66,27 +60,27 @@ final class OpusImportMessageTests:XCTestCase {
 @MainActor final class OpusReviewOwnershipTests:XCTestCase {
     private func tools(_ root:URL)throws -> (ReviewTools,ReviewController,GameSession,ReviewStore) {let session=try GameSession(engine:nil),review=ReviewController(),store=ReviewStore(directory:root);session.reviewController=review;return (ReviewTools(review:review,session:session,store:store,analyzer:ReviewAnalyzer(engine:NativeEngine())),review,session,store)}
     func testMCPOpenReviewRejectsActivityChangeDuringParseWithoutOrphan()async throws {
-        let root=try temporaryDirectory();defer{try? FileManager.default.removeItem(at:root)}
+        let root=try scratchDirectory("opus-",create:true)
         let (adapter,review,_,store)=try tools(root);var reads=0,opened=0
         adapter.activityGeneration={reads+=1;return reads==1 ? 7:8};adapter.onOpen={_,_ in opened+=1;return true}
         do{_ = try await adapter.call("open_review",args:["source":"paste","text":"[Event \"Agent\"]\n1. e4 *"]);XCTFail("Stale agent open accepted")}catch let failure as ProtocolFailure{XCTAssertEqual(failure.code,"STALE_REVIEW")}
         XCTAssertEqual(opened,0);XCTAssertFalse(review.active);XCTAssertEqual(try store.list().count,0,"Rejected open left a library entry")
     }
     func testMCPOpenReviewRejectsActivityChangeDuringSaveAndRemovesStagedEntry()async throws {
-        let root=try temporaryDirectory();defer{try? FileManager.default.removeItem(at:root)}
+        let root=try scratchDirectory("opus-",create:true)
         let (adapter,review,_,store)=try tools(root);var reads=0,opened=0
         adapter.activityGeneration={reads+=1;return reads<=2 ? 7:8};adapter.onOpen={_,_ in opened+=1;return true}
         do{_ = try await adapter.call("open_review",args:["source":"current"]);XCTFail("Stale agent open accepted")}catch let failure as ProtocolFailure{XCTAssertEqual(failure.code,"STALE_REVIEW")}
         XCTAssertEqual(opened,0);XCTAssertFalse(review.active);XCTAssertEqual(try store.list().count,0)
     }
     func testMCPOpenReviewStillOpensWhenActivityUnchanged()async throws {
-        let root=try temporaryDirectory();defer{try? FileManager.default.removeItem(at:root)}
+        let root=try scratchDirectory("opus-",create:true)
         let (adapter,review,_,store)=try tools(root);adapter.activityGeneration={3}
         _ = try await adapter.call("open_review",args:["source":"paste","text":"[Event \"Agent\"]\n1. e4 *"])
         XCTAssertTrue(review.active);XCTAssertEqual(try store.list().count,1)
     }
     func testReviewJobsAreCancelledWhenTheReviewCloses()async throws {
-        let root=try temporaryDirectory(),(path,directory)=try fakeEngine(delay:5);defer{try? FileManager.default.removeItem(at:root);try? FileManager.default.removeItem(at:directory)}
+        let root=try scratchDirectory("opus-",create:true),(path,directory)=try fakeEngine(delay:5);defer{try? FileManager.default.removeItem(at:directory)}
         let session=try GameSession(engine:nil),review=ReviewController();session.reviewController=review
         let adapter=ReviewTools(review:review,session:session,store:ReviewStore(directory:root),analyzer:ReviewAnalyzer(engine:NativeEngine(executable:path)))
         _ = try await adapter.call("open_review",args:["source":"paste","text":"1. e4 e5 *"]);try review.select(1)
@@ -123,7 +117,7 @@ final class OpusImportMessageTests:XCTestCase {
         XCTAssertTrue(try review.practiceForkRules().checkmate);XCTAssertFalse(review.practiceForkAvailable,"Imagined mate cannot start practice")
     }
     func testMCPPracticeAvailabilityUsesDisplayedImaginedPosition()async throws {
-        let root=try temporaryDirectory();defer{try? FileManager.default.removeItem(at:root)}
+        let root=try scratchDirectory("opus-",create:true)
         let session=try GameSession(engine:nil),review=ReviewController();session.reviewController=review
         let adapter=ReviewTools(review:review,session:session,store:ReviewStore(directory:root),analyzer:ReviewAnalyzer(engine:NativeEngine()));var requested=0;adapter.onPractice={requested+=1}
         _ = try await adapter.call("open_review",args:["source":"paste","text":"1. f3 e5 2. g4 Qh4# 0-1"]);let d=review.document!;try review.select(d.mainline.last!)
@@ -139,7 +133,7 @@ final class OpusImportMessageTests:XCTestCase {
 
 @MainActor final class OpusOpponentSettingsTests:XCTestCase {
     func testPresetOnlyChangeCancelsPendingReplyAndRestartsWithNewProfile()async throws {
-        let engine=RecordingPendingEngine(),session=try GameSession(engine:engine)
+        let engine=ContinuationEngine(),session=try GameSession(engine:engine)
         try session.playWhite(from:"e2",to:"e4");for _ in 0..<20{await Task.yield()}
         XCTAssertEqual(engine.skills,[0])
         var settings=session.state.settings;settings.opponentPreset="club";session.updateSettings(settings);for _ in 0..<20{await Task.yield()}
@@ -150,7 +144,7 @@ final class OpusImportMessageTests:XCTestCase {
         XCTAssertEqual(session.rules.history,["e4","c5"])
     }
     func testPresetChangeWithSameEffectiveProfileDoesNotRestart()async throws {
-        let engine=RecordingPendingEngine(),session=try GameSession(engine:engine)
+        let engine=ContinuationEngine(),session=try GameSession(engine:engine)
         try session.playWhite(from:"e2",to:"e4");for _ in 0..<20{await Task.yield()}
         var settings=session.state.settings;settings.opponentPreset="gentle";session.updateSettings(settings);for _ in 0..<20{await Task.yield()}
         XCTAssertEqual(engine.skills,[0],"Custom skill 0 and Gentle are the same profile")
@@ -201,7 +195,7 @@ final class OpusImportMessageTests:XCTestCase {
         XCTAssertEqual(analyzer.completed,2);XCTAssertEqual(analyzer.failed,2);XCTAssertEqual(analyzer.batchStatus,"failed")
     }
     func testFirstLaunchBackupIsWrittenOnceAndNeverOverwritten()throws {
-        let root=try temporaryDirectory();defer{try? FileManager.default.removeItem(at:root)}
+        let root=try scratchDirectory("opus-",create:true)
         let store=StateStore(directory:root);store.preserveFirstLaunchBackup();XCTAssertFalse(FileManager.default.fileExists(atPath:store.firstLaunchBackupURL.path))
         var old=ApplicationState();old.settings.skill=17;try store.save(old);let original=try Data(contentsOf:store.url)
         let upgraded=StateStore(directory:root);upgraded.preserveFirstLaunchBackup()
