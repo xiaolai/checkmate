@@ -28,11 +28,8 @@ fi
 commit=$(git rev-parse HEAD)
 [[ "$commit" == "$(git rev-parse "v$CHECKMATE_VERSION^{commit}" 2>/dev/null)" ]] || { echo "error: HEAD is not tag v$CHECKMATE_VERSION" >&2; exit 1; }
 if [[ -z "$skip_reason" ]]; then
-ssh "$host" "cat '$evidence/acceptance.json'" | python3 -c '
-import json,subprocess,sys
-accepted=json.load(sys.stdin)["sourceHashes"];local=json.loads(subprocess.check_output([sys.executable,"scripts/source-hashes.py","."],text=True))
-changed=sorted(k for k in accepted.keys()|local.keys() if accepted.get(k)!=local.get(k))
-assert not changed,f"The accepted tree differs from tag sources: {changed[:20]}"'
+ssh "$host" "cat '$evidence/acceptance.json'" | python3 scripts/source-hashes.py --compare /dev/stdin --key sourceHashes . \
+    || { echo "error: The accepted tree differs from tag sources" >&2; exit 1; }
 fi
 CHECKMATE_NOTARY_PROFILE=${CHECKMATE_NOTARY_PROFILE:-chase-notary}
 identity=${CHECKMATE_SIGN_ID:-Developer ID Application: HANDO K.K. (Y53RSUA3SM)}
@@ -40,7 +37,7 @@ readonly TRIES=5
 fail() { echo "error: $*" >&2; exit 1; }
 note() { echo "$*"; }
 xcrun notarytool history --keychain-profile "$CHECKMATE_NOTARY_PROFILE" --output-format json >/dev/null \
-    || { echo "error: the notary profile $CHECKMATE_NOTARY_PROFILE does not work; run scripts/notary-profile.sh" >&2; exit 1; }
+    || fail "the notary profile $CHECKMATE_NOTARY_PROFILE does not work; run scripts/notary-profile.sh"
 security find-identity -v -p codesigning | grep -qF -- "$identity" || fail "signing identity is not in this keychain: $identity"
 mkdir -p build/release
 notarize() {  # $1: the file to submit — a .zip of the app, or the .dmg
@@ -88,7 +85,7 @@ ssh "$host" "cd '$root' && rm -rf build/release/Checkmate.app && ditto -x -k bui
 notarize "build/release/Checkmate-$CHECKMATE_VERSION.zip"
 ssh "$host" "cd '$root' && bash scripts/finish-release.sh image"
 scp "$host:$root/build/release/Checkmate-$CHECKMATE_VERSION.dmg" build/release/
-codesign --force --timestamp --sign "${CHECKMATE_SIGN_ID:-Developer ID Application: HANDO K.K. (Y53RSUA3SM)}" "build/release/Checkmate-$CHECKMATE_VERSION.dmg"
+codesign --force --timestamp --sign "$identity" "build/release/Checkmate-$CHECKMATE_VERSION.dmg"
 notarize "build/release/Checkmate-$CHECKMATE_VERSION.dmg"
 scp "build/release/Checkmate-$CHECKMATE_VERSION.dmg" "$host:$root/build/release/"
 rm -f "build/release/Checkmate-$CHECKMATE_VERSION.dmg.verified"

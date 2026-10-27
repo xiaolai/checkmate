@@ -23,6 +23,7 @@ import datetime
 import fcntl
 import fnmatch
 import hashlib
+import importlib
 import json
 import os
 import pathlib
@@ -36,6 +37,7 @@ import time
 
 import test_host
 
+changed_paths = importlib.import_module('source-hashes').changed
 
 
 def evidence_path(value: str) -> pathlib.Path:
@@ -268,7 +270,7 @@ def stale_reason(name: str, hashes: dict, ledger: dict):
     if entry.get('definition') != definition(name):
         return 'the gate definition or its result checks changed'
     current, passed = inputs(GATES[name], hashes), entry['inputs']
-    changed = sorted(path for path in current.keys() | passed.keys() if current.get(path) != passed.get(path))
+    changed = changed_paths(passed, current)
     if not changed:
         return None
     return f"{len(changed)} input(s) changed: {', '.join(changed[:4])}{' …' if len(changed) > 4 else ''}"
@@ -304,26 +306,12 @@ def built_uuids(root: pathlib.Path = ROOT) -> set:
     return uuids
 
 
-def crashes(reports: set, uuids: set) -> list:
-    """(capture time, report) for each crash report of an executable with one of these UUIDs."""
+def _reports(reports: set, uuids: set) -> list:
+    """(report, body) for each report whose header names one of these executables, read once; the body is None while
+    it does not parse. A report whose header does not parse is not a crash report this check understands; anything
+    ReportCrash writes for a crash has a header that parses."""
     found = []
     for report in sorted(reports):
-        header, _, body = report.read_text(errors='replace').partition('\n')
-        try:
-            meta, detail = json.loads(header), json.loads(body)
-        except json.JSONDecodeError:
-            continue  # Not a crash report this check understands; anything ReportCrash writes for a crash parses.
-        if meta.get('app_name') in CRASHABLE and str(meta.get('slice_uuid', '')).lower() in uuids:
-            captured = datetime.datetime.strptime(detail['captureTime'], '%Y-%m-%d %H:%M:%S.%f %z').timestamp()
-            found.append((captured, report))
-    return found
-
-
-def unfinished(reports: set, uuids: set) -> set:
-    """Reports whose header names one of these executables but whose body does not parse yet: ReportCrash writes the
-    header first, so such a report is a crash still being written, to be read again rather than set aside."""
-    pending = set()
-    for report in reports:
         header, _, body = report.read_text(errors='replace').partition('\n')
         try:
             meta = json.loads(header)
@@ -332,10 +320,22 @@ def unfinished(reports: set, uuids: set) -> set:
         if not isinstance(meta, dict) or meta.get('app_name') not in CRASHABLE or str(meta.get('slice_uuid', '')).lower() not in uuids:
             continue
         try:
-            json.loads(body)
+            found.append((report, json.loads(body)))
         except json.JSONDecodeError:
-            pending.add(report)
-    return pending
+            found.append((report, None))
+    return found
+
+
+def crashes(parsed: list) -> list:
+    """(capture time, report) for each crash report among _reports() whose body parses."""
+    return [(datetime.datetime.strptime(detail['captureTime'], '%Y-%m-%d %H:%M:%S.%f %z').timestamp(), report)
+            for report, detail in parsed if detail is not None]
+
+
+def unfinished(parsed: list) -> set:
+    """Reports among _reports() whose body does not parse yet: ReportCrash writes the header first, so such a report is
+    a crash still being written, to be read again rather than set aside."""
+    return {report for report, detail in parsed if detail is None}
 
 
 def run_gate_process(command: str, environment: dict) -> int:
@@ -395,7 +395,8 @@ def late_crashes(windows: list, seen: set, uuids: set, since: float) -> bool:
     time.sleep(max(0.0, windows[-1][2] + CRASH_SETTLE_SECONDS - time.time()))
     remaining, known = crash_reports() - seen, uuids | built_uuids()
     # A matching report still unreadable after the settle is a crash all the same, dated by when it was written.
-    late = attribute(windows, crashes(remaining, known) + [(report.stat().st_mtime, report) for report in sorted(unfinished(remaining, known))], since)
+    parsed = _reports(remaining, known)
+    late = attribute(windows, crashes(parsed) + [(report.stat().st_mtime, report) for report in sorted(unfinished(parsed))], since)
     if late:
         update_ledger({name: None for name in late})
         for name, reports in late.items():
@@ -438,7 +439,7 @@ def run(names: list, full: bool = False) -> int:
         try:
             with open(evidence / 'build.log', 'w') as log:
                 subprocess.run(['bash', 'build.sh'], cwd=ROOT, check=True, stdout=log, stderr=subprocess.STDOUT,
-                               env={**environment, 'CHECKMATE_BUNDLE_ID': 'ai.xiaolai.checkmate.native-automation', 'CHECKMATE_APP_NAME': 'CheckmateAutomation'})
+                               env={**environment, 'CHECKMATE_BUNDLE_ID': AUTOMATION_BUNDLE, 'CHECKMATE_APP_NAME': 'CheckmateAutomation'})
         except BaseException as failure:
             # Every selected gate was to be verified on this build, so none keeps an earlier pass once it fails.
             update_ledger({name: None for name in names})
@@ -471,14 +472,15 @@ def run(names: list, full: bool = False) -> int:
             try:
                 uuids |= built_uuids()
                 fresh = crash_reports() - seen_reports
+                parsed = _reports(fresh, uuids)
                 # A matching report ReportCrash is still writing stays unseen, so a later look reads it whole.
-                blamed, seen_reports = attribute(windows, crashes(fresh, uuids), run_began), seen_reports | (fresh - unfinished(fresh, uuids))
+                blamed, seen_reports = attribute(windows, crashes(parsed), run_began), seen_reports | (fresh - unfinished(parsed))
                 assert returncode == 0, f'exit {returncode}'
                 assert not blamed, 'an app crashed: ' + '; '.join(f"during {source}: {', '.join(reports)}" for source, reports in blamed.items())
                 assert not leftovers, f'left temporary files: {leftovers[:10]}'
                 check_gate(evidence, gate)
                 after = inputs(gate, tree())
-                assert after == before, f"inputs changed since the run started: {sorted(k for k in after.keys() | before.keys() if after.get(k) != before.get(k))[:10]}"
+                assert after == before, f"inputs changed since the run started: {changed_paths(before, after)[:10]}"
                 assert definition(name) == definitions[name], 'the gate definition or its result checks changed since the run started'
             except Exception as failure:  # noqa: BLE001 - any failed check fails the gate, never escapes with its pass kept
                 update_ledger({name: None, **{source: None for source in blamed}})
@@ -581,9 +583,10 @@ def main() -> int:
             return UNVERIFIED
         return run(names)
     else:
-        names = [name for name in ORDER if stale_reason(name, hashes, ledger) is not None]
+        reasons = {name: stale_reason(name, hashes, ledger) for name in ORDER}
+        names = [name for name in ORDER if reasons[name] is not None]
         for name in names:
-            print(f'{name}: {stale_reason(name, hashes, ledger)}')
+            print(f'{name}: {reasons[name]}')
         if not names:
             print('Every gate already passed on the current inputs; nothing to run.')
             return 0

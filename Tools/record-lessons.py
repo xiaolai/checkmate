@@ -18,12 +18,14 @@ import tempfile
 import time
 import urllib.error
 import urllib.request
+import uuid
 import wave
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 ENDPOINT = 'https://api.openai.com/v1/audio/speech'
+TRANSCRIPTIONS = 'https://api.openai.com/v1/audio/transcriptions'
 MAX_INPUT_CHARACTERS = 4096
 KEY_LINE = re.compile(r'^\s*(?:export\s+)?OPENAI_API_KEY=(?:"([^"\n]*)"|\'([^\'\n]*)\'|(\S*))')
 
@@ -123,6 +125,19 @@ def atomic_write(path, data):
 class NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         raise ValueError('Refusing an API redirect')
+
+
+def transcribe(audio, filename, fields, key):
+    """The parsed JSON of one transcription of the WAV bytes `audio`, sent as `filename` after the form `fields`
+    ((name, value) pairs, in order). A failure raises; the callers report it without logging any response body."""
+    boundary = 'checkmate-' + uuid.uuid4().hex
+    parts = [f'--{boundary}\r\nContent-Disposition: form-data; name="{name}"\r\n\r\n{value}\r\n'.encode() for name, value in fields]
+    parts.append(f'--{boundary}\r\nContent-Disposition: form-data; name="file"; filename="{filename}"\r\nContent-Type: audio/wav\r\n\r\n'.encode() + audio + b'\r\n')
+    parts.append(f'--{boundary}--\r\n'.encode())
+    request = urllib.request.Request(TRANSCRIPTIONS, data=b''.join(parts),
+                                     headers={'Authorization': 'Bearer ' + key, 'Content-Type': 'multipart/form-data; boundary=' + boundary})
+    with urllib.request.build_opener(NoRedirect).open(request, timeout=180) as response:
+        return json.load(response)
 
 
 def generate(body, profile, key):

@@ -193,7 +193,7 @@ with tempfile.TemporaryDirectory() as reports:
     report('CheckmateNative-other.ips', 'CheckmateNative', '00000000-0000-0000-0000-000000000000', '2026-10-16 20:44:03.0000 +0800')
     report('Finder-ours.ips', 'Finder', '1dba8679-7997-3af0-99bc-741872b92f67', '2026-10-16 20:44:03.0000 +0800')
     (reports / 'Partial.ips').write_text('not a report')
-    found = gates.crashes(gates.crash_reports(reports), {'1dba8679-7997-3af0-99bc-741872b92f67'})
+    found = gates.crashes(gates._reports(gates.crash_reports(reports), {'1dba8679-7997-3af0-99bc-741872b92f67'}))
     assert [r.name for _, r in found] == ['CheckmateNative-ours.ips'], found
     crashed = found[0][0]
     windows = [('intel', crashed - 400, crashed + 2), ('relocated', crashed + 20, crashed + 22)]
@@ -407,8 +407,8 @@ with tempfile.TemporaryDirectory() as reports:
     (reports / 'Other-writing.ips').write_text(json.dumps({'app_name': 'CheckmateNative', 'slice_uuid': '0'}) + '\n{"capt')
     (reports / 'Junk.ips').write_text('not a report')
     every_report = gates.crash_reports(reports)
-    assert gates.crashes(every_report, {ours}) == []
-    assert gates.unfinished(every_report, {ours}) == {reports / 'CheckmateNative-writing.ips'}, gates.unfinished(every_report, {ours})
+    assert gates.crashes(gates._reports(every_report, {ours})) == []
+    assert gates.unfinished(gates._reports(every_report, {ours})) == {reports / 'CheckmateNative-writing.ips'}, gates.unfinished(gates._reports(every_report, {ours}))
     saved = (gates.crash_reports, gates.built_uuids, gates.update_ledger, gates.time.sleep)
     cleared = []
     try:

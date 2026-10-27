@@ -31,6 +31,7 @@ with tempfile.TemporaryDirectory() as folder:
     fixture = pathlib.Path(folder)
     (fixture / 'scripts').mkdir()
     shutil.copy(root / 'scripts/fresh-sources.py', fixture / 'scripts/fresh-sources.py')
+    shutil.copy(root / 'scripts/source-hashes.py', fixture / 'scripts/source-hashes.py')  # the tree hasher it loads
     files = {'Package.swift': 'let a = 1\n', 'Package.resolved': '{}\n', 'Version.env': 'V=1\n', 'Sources/A/a.swift': 'let x = 1\n',
              'Sources/A/b.swift': 'let y = 1\n', 'Tests/ATests/t.swift': 'let t = 1\n', 'Tools/Acceptance/main.swift': 'let m = 1\n',
              'scripts/other.sh': 'true\n'}

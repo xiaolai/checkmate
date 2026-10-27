@@ -14,28 +14,20 @@ import subprocess
 import tempfile
 import time
 
+import app_driver
 import test_host
 test_host.require("native pointer acceptance")
 root = pathlib.Path(__file__).resolve().parents[1]
 evidence = pathlib.Path(os.environ["CHECKMATE_EVIDENCE_DIR"])
 evidence.mkdir(parents=True, exist_ok=True)
 state = None
-helpers = {}
-for name in ("pointer-helper", "ax-helper", "board-click-helper"):
-    helpers[name] = evidence / name
-    subprocess.run(["xcrun", "swiftc", str(root / "Tools" / (name + ".swift")), "-o", str(helpers[name])], check=True)
+helpers = app_driver.compile_helpers(evidence)
 command = [str(root / "build/CheckmateAutomation.app/Contents/MacOS/CheckmateNative"), "--automation"]
-environment = {key: value for key, value in os.environ.items() if key != "CHECKMATE_AUTOMATION"}
+environment = app_driver.without_automation()
 process = None
 results = {}
-
-
-def run(helper, *arguments):
-    return subprocess.check_output([str(helpers[helper]), str(process.pid), *arguments], text=True).strip()
-
-
-def pointer(*arguments):
-    return run("pointer-helper", *arguments)
+app = app_driver.App(helpers, lambda: process)
+run, pointer, label, wait = app.run, app.pointer, app.label, app_driver.wait
 
 
 def board(*arguments):
@@ -44,19 +36,6 @@ def board(*arguments):
 
 def listing():
     return run("ax-helper", "list")
-
-
-def wait(predicate, message, timeout=15):
-    deadline = time.monotonic() + timeout
-    while time.monotonic() < deadline:
-        if predicate():
-            return
-        time.sleep(0.2)
-    raise AssertionError(message)
-
-
-def label(square):
-    return pointer("label", square)
 
 
 def frame(*arguments):
@@ -128,7 +107,7 @@ def launch(existing=None, touch_board=True):
     With `touch_board` false, activation posts no input event at all, so nothing on the board is clicked."""
     global process, state
     state = existing or pathlib.Path(tempfile.mkdtemp(prefix="checkmate-board-clicks-state-"))
-    process = subprocess.Popen(command + ["--data-dir", str(state)], env=environment, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    process = app_driver.launch(command + ["--data-dir", str(state)], environment)
     wait(lambda: "Chessboard" in listing(), "Board did not appear")
     time.sleep(1)  # Allow initial AppKit window and drawer restoration to finish.
     # A process launched from a shell may start inactive, and an inactive window's toolbar takes a first click
@@ -147,12 +126,7 @@ def launch(existing=None, touch_board=True):
     else:
         raise AssertionError("Checkmate did not become active")
     # Open each drawer explicitly and wait for it, so a toggle never lands mid-animation or closes a restored drawer.
-    if "AXStaticText: The Pawn" not in listing():
-        pointer("click", "Sidebar")
-    wait(lambda: "AXStaticText: The Pawn" in listing(), "Lesson sidebar did not open")
-    if "practice-heading" not in listing():
-        pointer("click", "Details")
-    wait(lambda: "practice-heading" in listing(), "Game details did not open")
+    app.open_drawers(wait, "Lesson sidebar did not open", "Game details did not open")
 
 
 def drift_across_edge():
@@ -305,13 +279,7 @@ for scenario in scenarios:
                 results[scenario.__name__] += f" (diagnostics failed: {diagnostic})"
     finally:
         os.chmod(state, stat.S_IRWXU)
-        if process is not None and process.poll() is None:
-            process.terminate()
-            try:
-                process.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                process.kill()
-                process.wait(timeout=5)
+        app_driver.stop(process, kill=True)
         # Each scenario's state goes once its app has stopped (run-gates fails a gate that leaves temporary files).
         shutil.rmtree(state, ignore_errors=True)
 results["passed"] = not failures

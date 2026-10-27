@@ -15,6 +15,7 @@ import tempfile
 import time
 from collections import deque
 
+import app_driver
 import test_host
 test_host.require("native pointer acceptance")
 root = pathlib.Path(__file__).resolve().parents[1]
@@ -22,40 +23,17 @@ evidence = pathlib.Path(os.environ["CHECKMATE_EVIDENCE_DIR"])
 evidence.mkdir(parents=True, exist_ok=True)
 state = pathlib.Path(tempfile.mkdtemp(prefix="checkmate-training-pointer-state-"))
 atexit.register(shutil.rmtree, state, ignore_errors=True)
-helper = evidence / "training-pointer-helper"
-lister = evidence / "training-pointer-ax-helper"
-subprocess.run(["xcrun", "swiftc", str(root / "Tools/pointer-helper.swift"), "-o", str(helper)], check=True)
-subprocess.run(["xcrun", "swiftc", str(root / "Tools/ax-helper.swift"), "-o", str(lister)], check=True)
+helpers = app_driver.compile_helpers(evidence, {"pointer-helper": "training-pointer-helper", "ax-helper": "training-pointer-ax-helper"})
 command = [str(root / "build/CheckmateAutomation.app/Contents/MacOS/CheckmateNative"), "--automation", "--data-dir", str(state)]
-environment = {key: value for key, value in os.environ.items() if key != "CHECKMATE_AUTOMATION"}
+environment = app_driver.without_automation()
 environment["CHECKMATE_TRAINING_ENABLED"] = "1"
 process = None
-
-
-def pointer(action, *arguments):
-    return subprocess.check_output([str(helper), str(process.pid), action, *arguments], text=True).strip()
-
-
-def listing():
-    return subprocess.check_output([str(lister), str(process.pid), "list"], text=True)
-
-
-def wait(predicate, message, timeout=15):
-    deadline = time.monotonic() + timeout
-    while time.monotonic() < deadline:
-        if predicate():
-            return
-        time.sleep(0.2)
-    raise AssertionError(message)
-
-
-def label(square):
-    return pointer("label", square)
+app = app_driver.App(helpers, lambda: process)
+pointer, listing, label, wait = app.pointer, app.listing, app.label, app_driver.wait
 
 
 def saved():
-    path = state / "state-v1.json"
-    return json.loads(path.read_text()) if path.exists() else {}
+    return app_driver.saved(state, missing_is_empty=True)
 
 
 def active():
@@ -67,12 +45,7 @@ def summary(entry):
 
 
 # The movement-drill and attack geometry, mirrored from TrainingGeometry for an independent solution.
-def coords(square):
-    return ord(square[0]) - 97, int(square[1]) - 1
-
-
-def name(file, rank):
-    return chr(97 + file) + str(rank + 1) if 0 <= file < 8 and 0 <= rank < 8 else None
+coords, name = app_driver.coords, app_driver.name
 
 
 STRAIGHT = [(1, 0), (-1, 0), (0, 1), (0, -1)]
@@ -163,7 +136,7 @@ def open_entry(title, identifier):
 
 
 try:
-    process = subprocess.Popen(command, env=environment, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    process = app_driver.launch(command, environment)
     wait(lambda: "Chessboard" in listing(), "Board did not appear")
     time.sleep(1)
     if "AXStaticText: The Pawn" not in listing():
@@ -312,7 +285,7 @@ try:
     while process.poll() is None and time.monotonic() < deadline:
         time.sleep(0.2)
     assert process.poll() is not None, "Quit did not end the app during an exercise"
-    process = subprocess.Popen(command, env=environment, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    process = app_driver.launch(command, environment)
     wait(lambda: "Chessboard" in listing(), "Board did not appear after relaunch")
     time.sleep(1)
     if "AXStaticText: The Pawn" not in listing():
@@ -332,7 +305,7 @@ try:
     while process.poll() is None and time.monotonic() < deadline:
         time.sleep(0.2)
     assert process.poll() is not None, "Quit did not end the app before the mini-game review"
-    process = subprocess.Popen(command + ["--mini-review-fixture"], env=environment, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    process = app_driver.launch(command + ["--mini-review-fixture"], environment)
     wait(lambda: "Chessboard" in listing(), "Board did not appear for the mini-game review")
     wait(lambda: label("a1").startswith("a1, White, rook") and label("a7").startswith("a7, Black, pawn"), "The almost-won Rook Sweep did not open")
     pointer("click-square", "a1")
@@ -363,6 +336,4 @@ except Exception:
         subprocess.run(["screencapture", "-x", str(evidence / "training-pointer-failure.png")], check=False)
     raise
 finally:
-    if process is not None and process.poll() is None:
-        process.terminate()
-        process.wait(timeout=5)
+    app_driver.stop(process)

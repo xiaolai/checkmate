@@ -16,28 +16,23 @@ if [[ -n "$skip_reason" ]]; then
 else
     evidence=${CHECKMATE_ACCEPTANCE_EVIDENCE:?Set CHECKMATE_ACCEPTANCE_EVIDENCE to the passing acceptance evidence directory for this tree}
     accepted_tree() {
-    python3 - "$evidence/acceptance.json" <<'PY'
-import json,subprocess,sys
-accepted=json.load(open(sys.argv[1]))['sourceHashes']
-current=json.loads(subprocess.check_output([sys.executable,'scripts/source-hashes.py','.'],text=True))
-changed=sorted(k for k in accepted.keys()|current.keys() if accepted.get(k)!=current.get(k))
-assert not changed,f'The tree differs from the accepted acceptance run: {changed[:20]}'
-PY
+    python3 scripts/source-hashes.py --compare "$evidence/acceptance.json" --key sourceHashes . \
+        || { echo "error: The tree differs from the accepted acceptance run" >&2; return 1; }
     }
     # The voice coach was exercised against the live provider for this same tree (scripts/live-voice.sh on the test host).
     live=${CHECKMATE_LIVE_VOICE_REPORT:?Set CHECKMATE_LIVE_VOICE_REPORT to the passing scripts/live-voice.sh report for this tree}
     live_voice_tree() {
-    python3 - "$live" <<'PY'
-import json,subprocess,sys
+    # Called inside an && list, where set -e is off: each step must stop the function itself.
+    python3 - "$live" <<'PY' || return 1
+import json,sys
 report=json.load(open(sys.argv[1]))
 assert report.get('passed') is True,'The live voice report did not pass'
 turns={turn.get('language'):turn for turn in report.get('coachTurns',[])}
 assert all(turns.get(language,{}).get('passed') is True for language in ('en','zh','es')),'The live coach turn is missing or failed in a language'
 assert report.get('preview',{}).get('passed') is True,'The live voice preview is missing or failed'
-current=json.loads(subprocess.check_output([sys.executable,'scripts/source-hashes.py','.'],text=True))
-changed=sorted(k for k in report.get('sourceHashes',{}).keys()|current.keys() if report.get('sourceHashes',{}).get(k)!=current.get(k))
-assert not changed,f'The tree differs from the live voice run: {changed[:20]}'
 PY
+    python3 scripts/source-hashes.py --compare "$live" --key sourceHashes . \
+        || { echo "error: The tree differs from the live voice run" >&2; return 1; }
     }
 fi
 # The release is built from a private snapshot (0700, this process only), checked against the accepted run before the

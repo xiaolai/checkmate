@@ -8,19 +8,16 @@ if [[ -n "${CHECKMATE_EXECUTION_ARCH:-}" ]]; then
  case "$CHECKMATE_EXECUTION_ARCH" in arm64|x86_64) ;; *) echo 'Invalid execution architecture' >&2;exit 1;; esac
  checkmate_launcher=(/usr/bin/arch "-$CHECKMATE_EXECUTION_ARCH")
 fi
-checkmate_data=$(mktemp -d "${TMPDIR:-/tmp}/checkmate-integration-state.XXXXXX");checkmate_states=("$checkmate_data")
-CHECKMATE_AUTOMATION=1 ${checkmate_launcher[@]+"${checkmate_launcher[@]}"} build/CheckmateAutomation.app/Contents/MacOS/CheckmateNative --automation --data-dir "$checkmate_data" --companion-test > "$checkmate_evidence/broker-app.log" 2>&1 &
-checkmate_pid=$!
-# Every phase's state is removed once its app has stopped.
-trap 'kill "$checkmate_pid" 2>/dev/null || true;wait "$checkmate_pid" 2>/dev/null || true;rm -rf "${checkmate_states[@]}"' EXIT
-for ((i=0;i<30;i++)); do [[ -f "$checkmate_data/companion/connection.json" ]] && break; sleep 1; done
-python3 scripts/test-integration.py build/CheckmateAutomation.app/Contents/MacOS/CheckmateMCP "$checkmate_data/companion/connection.json" > "$checkmate_evidence/broker-coach.json"
-kill "$checkmate_pid";wait "$checkmate_pid" || true
-for phase in preview opponent; do
+checkmate_states=()
+for phase in coach preview opponent; do
  checkmate_data=$(mktemp -d "${TMPDIR:-/tmp}/checkmate-integration-state.XXXXXX");checkmate_states+=("$checkmate_data")
- flags=(--companion-test --preview-fixture);if [[ "$phase" == opponent ]];then flags=(--opponent-fixture);fi
- CHECKMATE_AUTOMATION=1 ${checkmate_launcher[@]+"${checkmate_launcher[@]}"} build/CheckmateAutomation.app/Contents/MacOS/CheckmateNative --automation --data-dir "$checkmate_data" "${flags[@]}" > "$checkmate_evidence/broker-$phase.log" 2>&1 &
+ # test-integration.py reads a missing phase as coach, so naming it is the same run; the coach's log keeps its name.
+ log="broker-$phase.log";flags=(--companion-test --preview-fixture)
+ if [[ "$phase" == coach ]];then log=broker-app.log;flags=(--companion-test);elif [[ "$phase" == opponent ]];then flags=(--opponent-fixture);fi
+ CHECKMATE_AUTOMATION=1 ${checkmate_launcher[@]+"${checkmate_launcher[@]}"} build/CheckmateAutomation.app/Contents/MacOS/CheckmateNative --automation --data-dir "$checkmate_data" "${flags[@]}" > "$checkmate_evidence/$log" 2>&1 &
  checkmate_pid=$!
+ # Every phase's state is removed once its app has stopped.
+ if [[ "$phase" == coach ]];then trap 'kill "$checkmate_pid" 2>/dev/null || true;wait "$checkmate_pid" 2>/dev/null || true;rm -rf "${checkmate_states[@]}"' EXIT;fi
  for ((i=0;i<30;i++));do [[ -f "$checkmate_data/companion/connection.json" ]] && break;sleep 1;done
  python3 scripts/test-integration.py build/CheckmateAutomation.app/Contents/MacOS/CheckmateMCP "$checkmate_data/companion/connection.json" "$phase" > "$checkmate_evidence/broker-$phase.json"
  kill "$checkmate_pid";wait "$checkmate_pid" || true

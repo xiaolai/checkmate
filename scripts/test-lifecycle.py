@@ -1,8 +1,9 @@
 import atexit,json,os,pathlib,shutil,subprocess,sys,tempfile,time
-root=pathlib.Path.cwd();evidence=pathlib.Path(os.environ['CHECKMATE_EVIDENCE_DIR']);state=pathlib.Path(tempfile.mkdtemp(prefix='checkmate-lifecycle-'));app=root/'build/CheckmateAutomation.app/Contents/MacOS/CheckmateNative';ax=evidence/'ax-helper'
+import app_driver
+root=pathlib.Path.cwd();evidence=pathlib.Path(os.environ['CHECKMATE_EVIDENCE_DIR']);state=pathlib.Path(tempfile.mkdtemp(prefix='checkmate-lifecycle-'));app=root/'build/CheckmateAutomation.app/Contents/MacOS/CheckmateNative'
 # Removed at exit, after the finally below has stopped the app (run-gates fails a gate that leaves temporary files).
 atexit.register(shutil.rmtree,state,ignore_errors=True)
-subprocess.run(['xcrun','swiftc','Tools/ax-helper.swift','-o',str(ax)],check=True)
+ax=app_driver.compile_helpers(evidence,{'ax-helper':'ax-helper'})['ax-helper']
 # A just-built executable's first run waits for the system to assess it; run the helper once here, so the timed launch
 # below measures the app and not that wait.
 subprocess.run([str(ax),str(os.getpid()),'windows'],check=True,stdout=subprocess.DEVNULL)
@@ -11,22 +12,17 @@ env=dict(os.environ,CHECKMATE_AUTOMATION='1');args=[str(app),'--automation','--d
 def act(action,target=''):
  try:return subprocess.check_output([str(ax),str(process.pid),action,target],text=True)
  except subprocess.CalledProcessError as error:print(error.output,flush=True);raise
-def wait(predicate,timeout=10):
- end=time.monotonic()+timeout
- while time.monotonic()<end:
-  if predicate():return
-  time.sleep(.05)
- raise AssertionError('Lifecycle condition timed out')
+def wait(predicate,timeout=10):app_driver.wait(predicate,'Lifecycle condition timed out',timeout,.05)
 try:
- start=time.monotonic();process=subprocess.Popen(args,env=env,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL);wait(lambda:'Chessboard' in act('list'));warm=time.monotonic()-start;assert warm<2,warm
+ start=time.monotonic();process=app_driver.launch(args,env);wait(lambda:'Chessboard' in act('list'));warm=time.monotonic()-start;assert warm<2,warm
  act('fullscreen');time.sleep(2);act('press','Sidebar');time.sleep(.9);act('fullscreen');time.sleep(2);act('press','Sidebar');time.sleep(.9)
  act('drag');moved_x=float(act('position-x'));act('press','Sidebar');time.sleep(.9);act('press','Sidebar');time.sleep(.9);assert abs(float(act('position-x'))-moved_x)<=1,(moved_x,act('position-x'))
  # Saves land 250 ms after a change; wait for this one rather than racing it.
  wait(lambda:abs(json.loads((state/'state-v1.json').read_text())['window']['frame'][0]-moved_x)<=1)
- duplicate=subprocess.Popen(args,env=env,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL);duplicate.wait(timeout=5);assert process.poll() is None;assert act('windows').splitlines()[0]=='1'
+ duplicate=app_driver.launch(args,env);duplicate.wait(timeout=5);assert process.poll() is None;assert act('windows').splitlines()[0]=='1'
  act('press','Settings…');wait(lambda:'Settings' in act('windows'));act('press','Settings…');assert act('windows').splitlines()[0]=='2';act('close-settings')
  act('press','e2, White, pawn');act('press','e4, move destination');time.sleep(1.2)
- act('quit');process.wait(timeout=5);saved=json.loads((state/'state-v1.json').read_text());assert saved['practice']['pgn'];pgn=saved['practice']['pgn'];process=subprocess.Popen(args,env=env,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL);wait(lambda:'e4, White, pawn' in act('list'));assert json.loads((state/'state-v1.json').read_text())['practice']['pgn']==pgn
+ act('quit');process.wait(timeout=5);saved=json.loads((state/'state-v1.json').read_text());assert saved['practice']['pgn'];pgn=saved['practice']['pgn'];process=app_driver.launch(args,env);wait(lambda:'e4, White, pawn' in act('list'));assert json.loads((state/'state-v1.json').read_text())['practice']['pgn']==pgn
  result={'passed':True,'warmInteractiveSeconds':warm,'singleInstance':True,'settingsSingleton':True,'titlebarDrag':True,'dragAfterFullscreenPersists':True,'gameRestart':True};(evidence/'lifecycle-results.json').write_text(json.dumps(result,indent=2));print(json.dumps(result))
 finally:
- if process and process.poll() is None:process.terminate();process.wait(timeout=5)
+ app_driver.stop(process)

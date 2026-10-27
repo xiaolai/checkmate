@@ -6,18 +6,15 @@ exercise and coming back; promotion through the native menu; a relaunch restorin
 staying exactly as it was throughout.
 """
 import json,os,pathlib,shutil,subprocess,tempfile,time
-import sidebar_lessons,test_host;test_host.require('lesson exercise pointer acceptance')
+import app_driver,sidebar_lessons,test_host;test_host.require('lesson exercise pointer acceptance')
 root=pathlib.Path(__file__).resolve().parents[1];evidence=pathlib.Path(os.environ['CHECKMATE_EVIDENCE_DIR']);evidence.mkdir(parents=True,exist_ok=True)
-helpers={}
-for name in ['pointer-helper','ax-helper']:
- helpers[name]=evidence/name;subprocess.run(['xcrun','swiftc',str(root/'Tools'/f'{name}.swift'),'-o',str(helpers[name])],check=True)
+helpers=app_driver.compile_helpers(evidence,{'pointer-helper':'pointer-helper','ax-helper':'ax-helper'})
 state=pathlib.Path(tempfile.mkdtemp(prefix='checkmate-lesson-exercise-'));process=None
 command=[str(root/'build/CheckmateAutomation.app/Contents/MacOS/CheckmateNative'),'--automation','--data-dir',str(state)]
-env={k:v for k,v in os.environ.items() if k!='CHECKMATE_AUTOMATION'}
+env=app_driver.without_automation()
 course=json.loads((root/'Sources/CheckmateCore/Resources/course.json').read_text())
 practice={l['id']:l['practice'] for l in course['lessons'] if l.get('practice')}
-def pointer(*args):return subprocess.check_output([str(helpers['pointer-helper']),str(process.pid),*args],text=True).strip()
-def listing():return subprocess.check_output([str(helpers['ax-helper']),str(process.pid),'list'],text=True)
+app=app_driver.App(helpers,lambda:process);pointer,listing,label=app.pointer,app.listing,app.label
 def wait(test,message,timeout=25):
  end=time.monotonic()+timeout
  while time.monotonic()<end:
@@ -26,17 +23,16 @@ def wait(test,message,timeout=25):
   except subprocess.CalledProcessError:pass
   time.sleep(.2)
  raise AssertionError(message)
-def saved():return json.loads((state/'state-v1.json').read_text())
-def label(square):return pointer('label',square)
+def saved():return app_driver.saved(state)
 def holds(square,piece):return lambda:label(square).startswith(f'{square}, {piece}')
 def title(text):return lambda:'Current activity | '+text in listing()
 def stop():
  global process
- if process:process.terminate();process.wait(timeout=10);process=None
+ app_driver.stop(process,10);process=None
  time.sleep(.4)
 def launch():
  global process
- process=subprocess.Popen(command,env=env,stdout=subprocess.DEVNULL,stderr=(evidence/'lesson-exercise-trace.log').open('ab'))
+ process=app_driver.launch(command,env,stderr=(evidence/'lesson-exercise-trace.log').open('ab'))
  wait(lambda:'Chessboard' in listing(),'Board did not appear');time.sleep(1)
 def drawers(sidebar,details):
  """Opens or closes each drawer with its own toolbar button and waits for it."""

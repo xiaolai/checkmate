@@ -11,7 +11,7 @@ After the command succeeds it records the hashes it checked. A scratch folder th
 trusted, so every input is touched once; a missing scratch folder starts from nothing and needs no touch.
 The command's exit status is this helper's exit status.
 """
-import hashlib
+import importlib.util
 import json
 import os
 import pathlib
@@ -19,6 +19,10 @@ import subprocess
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
+# Loaded by path, not by name: the helper also runs with python3 -I, which keeps its own folder off sys.path.
+_spec = importlib.util.spec_from_file_location('source_hashes', pathlib.Path(__file__).resolve().with_name('source-hashes.py'))
+source_hashes = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(source_hashes)
 MANIFEST = 'checkmate-source-hashes.json'
 # What Package.swift compiles or bundles: its targets live under Sources, Tests and Tools, and it reads Version.env.
 FILES = ['Package.swift', 'Package.resolved', 'Version.env']
@@ -26,10 +30,7 @@ FOLDERS = ['Sources', 'Tests', 'Tools']
 
 
 def build_inputs() -> dict:
-    paths = [ROOT / name for name in FILES if (ROOT / name).is_file()]
-    for folder in FOLDERS:
-        paths += [p for p in (ROOT / folder).rglob('*') if p.is_file() and '__pycache__' not in p.parts and p.name != '.DS_Store']
-    return {str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(paths)}
+    return source_hashes.hash_tree(ROOT, [name for name in FILES if (ROOT / name).is_file()], FOLDERS)
 
 
 def main() -> int:

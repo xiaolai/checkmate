@@ -18,8 +18,6 @@ import io
 import json
 import re
 import sys
-import urllib.request
-import uuid
 import wave
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -112,16 +110,9 @@ def tail_wav(path, seconds=TAIL_SECONDS):
 
 
 def transcribe(audio, key, recorder):
-    boundary = 'checkmate-' + uuid.uuid4().hex
-    parts = [f'--{boundary}\r\nContent-Disposition: form-data; name="{n}"\r\n\r\n{v}\r\n'.encode()
-             for n, v in [('model', 'whisper-1'), ('language', 'en'), ('response_format', 'json'), ('temperature', '0')]]
-    parts.append(f'--{boundary}\r\nContent-Disposition: form-data; name="file"; filename="clip.wav"\r\nContent-Type: audio/wav\r\n\r\n'.encode() + audio + b'\r\n')
-    parts.append(f'--{boundary}--\r\n'.encode())
-    request = urllib.request.Request('https://api.openai.com/v1/audio/transcriptions', data=b''.join(parts),
-                                     headers={'Authorization': 'Bearer ' + key, 'Content-Type': 'multipart/form-data; boundary=' + boundary})
+    fields = [('model', 'whisper-1'), ('language', 'en'), ('response_format', 'json'), ('temperature', '0')]
     try:
-        with urllib.request.build_opener(recorder.NoRedirect).open(request, timeout=180) as response:
-            return json.load(response)['text']
+        return recorder.transcribe(audio, 'clip.wav', fields, key)['text']
     except Exception:
         raise ValueError('Transcription request failed; no response body logged') from None
 

@@ -163,7 +163,6 @@ import SaidGuard
         review.open(document,practice:session);try review.select(document.mainline.last!)
         guard let explanation=review.explanation else{return ["passed":false,"failure":"no verified explanation"]}
         let expected=ReviewVoiceScript.segments(explanation).count
-        @MainActor func wait(_ seconds:Double,_ condition:@MainActor ()->Bool)async -> Bool {let end=Date().addingTimeInterval(seconds);while Date()<end{if condition(){return true};try? await Task.sleep(for:.milliseconds(100))};return condition()}
         let started=Date();coach.connect()
         guard await wait(40,{coach.connected}) else{return ["passed":false,"failure":"not connected in review: \(coach.status)"]}
         coach.narrateReview()
@@ -181,7 +180,6 @@ import SaidGuard
         let session=agreed(try GameSession(engine:nil));session.state.settings.coachingMode="quiet";session.state.settings.voiceMicrophone=false;session.state.settings.voiceLanguage=language
         let coach=try VoiceCoach(session:session);coach.usageLedger=ledger;coach.audio.headless=true
         defer{coach.disconnect()}
-        @MainActor func wait(_ seconds:Double,_ condition:@MainActor ()->Bool)async -> Bool {let end=Date().addingTimeInterval(seconds);while Date()<end{if condition(){return true};try? await Task.sleep(for:.milliseconds(100))};return condition()}
         let started=Date();coach.connect()
         guard await wait(40,{coach.connected}) else{return ["language":language,"passed":false,"failure":"not connected: \(coach.status)"]}
         coach.ask(question)
@@ -212,7 +210,6 @@ import SaidGuard
         let coach=try VoiceCoach(session:session),assistant=NetworkAssistant(game:ana,fairness:fairness,engine:NativeEngine())
         coach.usageLedger=ledger;coach.audio.headless=true;coach.network=(ana,assistant)
         defer{coach.disconnect();ana.leave();scheduler.run()}
-        @MainActor func wait(_ seconds:Double,_ condition:@MainActor ()->Bool)async -> Bool {let end=Date().addingTimeInterval(seconds);while Date()<end{if condition(){return true};try? await Task.sleep(for:.milliseconds(100))};return condition()}
         // What reached the model, as sent: each response's instructions (with the board data a turn carries) and each tool
         // result. The network game's position must be in them, and Practice's in none of them.
         var instructions:[String]=[],results:[String]=[]
@@ -221,7 +218,6 @@ import SaidGuard
             if let item=event["item"] as? [String:Any],item["type"] as? String=="function_call_output",let output=item["output"] as? String{results.append(output)}
         }
         // A FEN as written in JSON, where a serializer may escape its slashes.
-        func mentions(_ text:String,_ fen:String)->Bool {text.contains(fen) || text.contains(fen.replacingOccurrences(of:"/",with:"\\/"))}
         let networkFEN=ana.rules.fen,practiceFEN=session.rules.fen
         let started=Date();coach.connect()
         guard await wait(40,{coach.connected}) else{return ["passed":false,"failure":"not connected: \(coach.status)"]}
@@ -263,7 +259,6 @@ import SaidGuard
         player.openLesson(index:lesson);player.startMini(.rookSweep)
         coach.usageLedger=ledger;coach.audio.headless=true;coach.attachMiniReview(player.miniReview)
         defer{coach.disconnect();player.shutdown()}
-        @MainActor func wait(_ seconds:Double,_ condition:@MainActor ()->Bool)async -> Bool {let end=Date().addingTimeInterval(seconds);while Date()<end{if condition(){return true};try? await Task.sleep(for:.milliseconds(100))};return condition()}
         player.click("a1");player.click("a7")
         guard await wait(30,{player.miniReview.review != nil && player.miniReview.sheetOpen}),let review=player.miniReview.review else{return ["passed":false,"failure":"the review did not open"]}
         let expected=MiniGameReviewVoiceScript.segments(review).compactMap{$0["text"] as? String}
@@ -297,7 +292,6 @@ import SaidGuard
         guard let startedExercise=training.exercise,startedExercise.task == .game,!startedExercise.finished else{return ["passed":false,"failure":"the training game did not start"]}
         let trainingFEN=startedExercise.snapshot.scenario.fen ?? "",practiceFEN=session.rules.fen
         guard !trainingFEN.isEmpty,trainingFEN != practiceFEN else{return ["passed":false,"failure":"the practice and training boards match"]}
-        @MainActor func wait(_ seconds:Double,_ condition:@MainActor ()->Bool)async -> Bool {let end=Date().addingTimeInterval(seconds);while Date()<end{if condition(){return true};try? await Task.sleep(for:.milliseconds(100))};return condition()}
         var instructions:[String]=[],results:[String]=[]
         coach.requestObserver={event in
             if let text=(event["response"] as? [String:Any])?["instructions"] as? String{instructions.append(text)}
@@ -309,7 +303,6 @@ import SaidGuard
         let answered=await wait(180,{coach.turnIdle && responsesFinished(ledger) && coach.history.contains{$0.role=="coach"}})
         let recorded=training.exercise?.snapshot.recordedHelp==true
         // A FEN as written in JSON, where a serializer may escape its slashes.
-        func mentions(_ text:String,_ fen:String)->Bool {text.contains(fen) || text.contains(fen.replacingOccurrences(of:"/",with:"\\/"))}
         let boardSent=(instructions+results).contains(where:{mentions($0,trainingFEN)})
         let practiceAbsent = !(instructions+results).contains(where:{mentions($0,practiceFEN)})
         let counts=ledger.narrationCounts(),completed=responsesCompleted(ledger),failures:Set<String>=[VoiceCoach.turnFailure,VoiceCoach.turnTimeout,VoiceCoach.turnUnfinished]
@@ -320,6 +313,8 @@ import SaidGuard
     /// malformed manifest fails to decode, which reports the fixture as failed instead of trapping.
     struct DowngradeManifest:Codable {let reviewID:UUID,originalHash:String,practicePGN:String,skill:Int,elo:Int,answered:[String],branchRoot:Int,branchMoves:[String],exportedMoves:[[String]]}
     /// Every line of a document, start to end, as UCI moves: the export holds the imagined line as a variation.
+    @MainActor private static func wait(_ seconds:Double,_ condition:@MainActor ()->Bool)async -> Bool {let end=Date().addingTimeInterval(seconds);while Date()<end{if condition(){return true};try? await Task.sleep(for:.milliseconds(100))};return condition()}
+    private static func mentions(_ text:String,_ fen:String)->Bool {text.contains(fen) || text.contains(fen.replacingOccurrences(of:"/",with:"\\/"))}
     static func lines(_ document:GameDocument)throws -> [[String]] {try document.nodes.filter{$0.children.isEmpty}.map{try document.history(to:$0.id)}}
     @MainActor static func downgradeFixture(_ root:URL,prepare:Bool)throws {
         let store=StateStore(directory:root.appendingPathComponent("Data")),reviews=ReviewStore(directory:store.directory.appendingPathComponent("Reviews"))

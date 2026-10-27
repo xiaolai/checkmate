@@ -20,6 +20,7 @@ import subprocess
 import tempfile
 import time
 
+import app_driver
 import test_host
 test_host.require("native pointer acceptance")
 root = pathlib.Path(__file__).resolve().parents[1]
@@ -27,13 +28,10 @@ evidence = pathlib.Path(os.environ["CHECKMATE_EVIDENCE_DIR"])
 evidence.mkdir(parents=True, exist_ok=True)
 state = pathlib.Path(tempfile.mkdtemp(prefix="checkmate-training-b-pointer-state-"))
 atexit.register(shutil.rmtree, state, ignore_errors=True)
-helper = evidence / "training-b-pointer-helper"
-lister = evidence / "training-b-pointer-ax-helper"
-subprocess.run(["xcrun", "swiftc", str(root / "Tools/pointer-helper.swift"), "-o", str(helper)], check=True)
-subprocess.run(["xcrun", "swiftc", str(root / "Tools/ax-helper.swift"), "-o", str(lister)], check=True)
+helpers = app_driver.compile_helpers(evidence, {"pointer-helper": "training-b-pointer-helper", "ax-helper": "training-b-pointer-ax-helper"})
 # The silent voice double stands in for the realtime service: nothing leaves the Mac, no audio plays, no microphone opens.
 command = [str(root / "build/CheckmateAutomation.app/Contents/MacOS/CheckmateNative"), "--automation", "--data-dir", str(state), "--voice-double"]
-environment = {key: value for key, value in os.environ.items() if key != "CHECKMATE_AUTOMATION"}
+environment = app_driver.without_automation()
 environment["CHECKMATE_TRAINING_ENABLED"] = "1"
 environment["CHECKMATE_TRAINING_B"] = "1"
 # Position games and opponent levels (mini-game plan WI-017), default off for users.
@@ -41,20 +39,14 @@ environment["CHECKMATE_POSITION_GAMES"] = "1"
 # The voice coach in a standard-rule training game (mini-game plan WI-021), default off for users.
 environment["CHECKMATE_TRAINING_VOICE"] = "1"
 process = None
+app = app_driver.App(helpers, lambda: process)
+pointer, listing, label, wait = app.pointer, app.listing, app.label, app_driver.wait
 PIECES = {"n": "knight", "b": "bishop", "r": "rook", "q": "queen"}
 COLOURS = {"w": "White", "b": "Black"}
 # The position games (mini-game plan WI-020) and the levels calibration lets each offer, from its published results.
 POSITION_ENTRIES = ("pawn-race", "pawn-war", "cut-down-chess", "two-bishop-mate")
 OFFERED = {f"{v['entry']}/{v['variant']}": v["offered"] for v in json.loads((root / "Content/calibration/position-game-results.json").read_text())["verdicts"]}
 TITLES = {"gentle": "Gentle", "steady": "Steady", "strong": "Strong"}
-
-
-def pointer(action, *arguments):
-    return subprocess.check_output([str(helper), str(process.pid), action, *arguments], text=True).strip()
-
-
-def listing():
-    return subprocess.check_output([str(lister), str(process.pid), "list"], text=True)
 
 
 def training_status():
@@ -71,22 +63,8 @@ def training_status():
 SAVE_SETTLE = 0.6
 
 
-def wait(predicate, message, timeout=15):
-    deadline = time.monotonic() + timeout
-    while time.monotonic() < deadline:
-        if predicate():
-            return
-        time.sleep(0.2)
-    raise AssertionError(message)
-
-
-def label(square):
-    return pointer("label", square)
-
-
 def saved():
-    path = state / "state-v1.json"
-    return json.loads(path.read_text()) if path.exists() else {}
+    return app_driver.saved(state, missing_is_empty=True)
 
 
 def active():
@@ -110,12 +88,7 @@ def show_details():
 
 
 # Lone-king geometry, enough to pick a quiet legal queen or rook move independently of the app.
-def coords(square):
-    return ord(square[0]) - 97, int(square[1]) - 1
-
-
-def name(file, rank):
-    return chr(97 + file) + str(rank + 1) if 0 <= file < 8 and 0 <= rank < 8 else None
+coords, name = app_driver.coords, app_driver.name
 
 
 def board_of(fen):
@@ -185,7 +158,7 @@ def quiet_move(fen, learner):
 
 
 try:
-    process = subprocess.Popen(command, env=environment, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    process = app_driver.launch(command, environment)
     wait(lambda: "Chessboard" in listing(), "Board did not appear")
     time.sleep(1)
     if "AXStaticText: The Pawn" not in listing():
@@ -428,6 +401,4 @@ except Exception:
         subprocess.run(["screencapture", "-x", str(evidence / "training-b-pointer-failure.png")], check=False)
     raise
 finally:
-    if process is not None and process.poll() is None:
-        process.terminate()
-        process.wait(timeout=5)
+    app_driver.stop(process)

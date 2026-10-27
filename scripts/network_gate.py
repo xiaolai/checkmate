@@ -17,8 +17,9 @@ import tempfile
 import time
 import uuid
 
+from app_driver import compile_helpers, without_automation  # noqa: F401 - compile_helpers is re-exported to the network drivers
+
 root = pathlib.Path(__file__).resolve().parents[1]
-HELPERS = ("pointer-helper", "ax-helper", "board-click-helper")
 INSTALLED = pathlib.Path.home() / "Applications" / "CheckmateAutomation.app"
 LSREGISTER = "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
 AUTOMATION_BUNDLE = "ai.xiaolai.checkmate.native-automation"
@@ -43,14 +44,6 @@ def wait_for(produce, message, timeout=15):
             return value
         time.sleep(0.25)
     raise AssertionError(message + (f" (last observation failed: {unreadable})" if unreadable else ""))
-
-
-def compile_helpers(evidence):
-    helpers = {}
-    for name in HELPERS:
-        helpers[name] = evidence / name
-        subprocess.run(["xcrun", "swiftc", str(root / "Tools" / (name + ".swift")), "-o", str(helpers[name])], check=True)
-    return helpers
 
 
 def pair():
@@ -153,7 +146,7 @@ class Instance:
         environment["CHECKMATE_NETWORK_FAULT_FILE"] = self.fault
         app_arguments = ["--automation", "--data-dir", self.data, *arguments]
         if mode == "direct":
-            env = {key: value for key, value in os.environ.items() if key != "CHECKMATE_AUTOMATION"}
+            env = without_automation()
             env.update(environment)
             log = None
             try:

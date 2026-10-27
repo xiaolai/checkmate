@@ -8,6 +8,7 @@ import subprocess
 import tempfile
 import time
 
+import app_driver
 import test_host
 test_host.require("native Settings acceptance")
 
@@ -19,8 +20,7 @@ state = pathlib.Path(tempfile.mkdtemp(prefix="checkmate-startup-settings-"))
 atexit.register(shutil.rmtree, state, ignore_errors=True)
 state_file = state / "state-v1.json"
 discovery = state / "companion/connection.json"
-helper = evidence / "startup-ax-helper"
-subprocess.run(["xcrun", "swiftc", str(root / "Tools/ax-helper.swift"), "-o", str(helper)], check=True)
+helper = app_driver.compile_helpers(evidence, {"ax-helper": "startup-ax-helper"})["ax-helper"]
 environment = dict(os.environ, CHECKMATE_AUTOMATION="1")
 launcher = []
 architecture = os.environ.get("CHECKMATE_EXECUTION_ARCH")
@@ -43,12 +43,7 @@ def act(action, target=""):
 
 
 def wait(predicate):
-    end = time.monotonic() + 10
-    while time.monotonic() < end:
-        if predicate():
-            return
-        time.sleep(0.05)
-    raise AssertionError("Startup Settings condition timed out")
+    app_driver.wait(predicate, "Startup Settings condition timed out", timeout=10, interval=0.05)
 
 
 def saved():
@@ -57,7 +52,7 @@ def saved():
 
 def launch():
     global process
-    process = subprocess.Popen(command, env=environment, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    process = app_driver.launch(command, environment)
     wait(lambda: "Chessboard" in act("list"))
     assert not discovery.exists(), "Automation automatically started MCP"
 
@@ -120,6 +115,4 @@ try:
     (evidence / "startup-settings-results.json").write_text(json.dumps(result, indent=2))
     print(json.dumps(result))
 finally:
-    if process and process.poll() is None:
-        process.terminate()
-        process.wait(timeout=5)
+    app_driver.stop(process)

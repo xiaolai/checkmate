@@ -6,9 +6,9 @@ import pathlib
 import shutil
 import subprocess
 import tempfile
-import time
 import uuid
 
+import app_driver
 import test_host
 test_host.require("native sidebar acceptance")
 root = pathlib.Path(__file__).resolve().parents[1]
@@ -17,16 +17,12 @@ evidence.mkdir(parents=True, exist_ok=True)
 state = pathlib.Path(tempfile.mkdtemp(prefix="checkmate-sidebar-state-"))
 # Removed at exit, after the finally below has stopped the app (run-gates fails a gate that leaves temporary files).
 atexit.register(shutil.rmtree, state, ignore_errors=True)
-helper = evidence / "sidebar-ax-helper"
-subprocess.run(["xcrun", "swiftc", str(root / "Tools/ax-helper.swift"), "-o", str(helper)], check=True)
-pointer_helper = evidence / "sidebar-pointer-helper"
-subprocess.run(["xcrun", "swiftc", str(root / "Tools/pointer-helper.swift"), "-o", str(pointer_helper)], check=True)
+helpers = app_driver.compile_helpers(evidence, {"ax-helper": "sidebar-ax-helper", "pointer-helper": "sidebar-pointer-helper"})
+helper, pointer_helper = helpers["ax-helper"], helpers["pointer-helper"]
 command = [str(root / "build/CheckmateAutomation.app/Contents/MacOS/CheckmateNative"),
            "--automation", "--data-dir", str(state)]
 # Silence comes from --automation, not the environment flag that used to unlock review.
-environment = dict(os.environ)
-for flag in ("CHECKMATE_AUTOMATION", "CHECKMATE_REVIEW_ENABLED", "CHECKMATE_REVIEW_DISABLED"):
-    environment.pop(flag, None)
+environment = app_driver.without_automation("CHECKMATE_REVIEW_ENABLED", "CHECKMATE_REVIEW_DISABLED")
 process = None
 
 
@@ -40,18 +36,13 @@ def key(action, *arguments):
 
 
 def wait(predicate):
-    deadline = time.monotonic() + 10
-    while time.monotonic() < deadline:
-        if predicate():
-            return
-        time.sleep(0.1)
-    raise AssertionError("Sidebar acceptance condition timed out")
+    app_driver.wait(predicate, "Sidebar acceptance condition timed out", timeout=10, interval=0.1)
 
 
 def launch(snapshot=None):
     global process
     args = command + (["--snapshot", str(snapshot)] if snapshot else [])
-    process = subprocess.Popen(args, env=environment, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    process = app_driver.launch(args, environment)
     wait(lambda: "Chessboard" in act("list"))
 
 
@@ -188,6 +179,4 @@ except Exception:
         (evidence / "sidebar-failure-ax.txt").write_text(act("list"))
     raise
 finally:
-    if process is not None and process.poll() is None:
-        process.terminate()
-        process.wait(timeout=5)
+    app_driver.stop(process)

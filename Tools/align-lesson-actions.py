@@ -14,8 +14,6 @@ import json
 import re
 import sys
 import threading
-import urllib.request
-import uuid
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
@@ -55,14 +53,8 @@ def align(words,phrases,seconds):
     return fractions
 
 def transcribe(file,script,key):
-    boundary='checkmate-'+uuid.uuid4().hex;parts=[]
-    def field(name,value):parts.append(f'--{boundary}\r\nContent-Disposition: form-data; name="{name}"\r\n\r\n{value}\r\n'.encode())
-    for name,value in [('model','whisper-1'),('language','en'),('response_format','verbose_json'),('timestamp_granularities[]','word'),('prompt',script)]:field(name,value)
-    parts.append(f'--{boundary}\r\nContent-Disposition: form-data; name="file"; filename="lesson.wav"\r\nContent-Type: audio/wav\r\n\r\n'.encode()+file.read_bytes()+b'\r\n')
-    parts.append(f'--{boundary}--\r\n'.encode())
-    request=urllib.request.Request('https://api.openai.com/v1/audio/transcriptions',data=b''.join(parts),headers={'Authorization':'Bearer '+key,'Content-Type':'multipart/form-data; boundary='+boundary})
-    try:
-        with urllib.request.build_opener(recorder.NoRedirect).open(request,timeout=180) as response:return json.load(response)
+    fields=[('model','whisper-1'),('language','en'),('response_format','verbose_json'),('timestamp_granularities[]','word'),('prompt',script)];audio=file.read_bytes()
+    try:return recorder.transcribe(audio,'lesson.wav',fields,key)
     except Exception:raise ValueError('Word-timestamp request failed; no response body logged') from None
 
 def main():

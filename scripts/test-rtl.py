@@ -14,31 +14,23 @@ import subprocess
 import tempfile
 import time
 
+import app_driver
 import test_host
 test_host.require("native right-to-left acceptance")
 root = pathlib.Path(__file__).resolve().parents[1]
 evidence = pathlib.Path(os.environ["CHECKMATE_EVIDENCE_DIR"])
 evidence.mkdir(parents=True, exist_ok=True)
-helpers = {}
-for name in ("pointer-helper", "ax-helper", "board-click-helper"):
-    helpers[name] = evidence / name
-    subprocess.run(["xcrun", "swiftc", str(root / "Tools" / (name + ".swift")), "-o", str(helpers[name])], check=True)
+helpers = app_driver.compile_helpers(evidence)
 # Xcode's Right-to-Left Pseudolanguage: AppleTextDirection mirrors the layout, NSForceRightToLeftWritingDirection the
 # text. Arabic alone does nothing while the app has no Arabic localization.
 right_to_left = ["-AppleLanguages", "(ar)", "-AppleTextDirection", "YES", "-NSForceRightToLeftWritingDirection", "YES"]
 command = [str(root / "build/CheckmateAutomation.app/Contents/MacOS/CheckmateNative"), "--automation"]
-environment = {key: value for key, value in os.environ.items() if key != "CHECKMATE_AUTOMATION"}
+environment = app_driver.without_automation()
 state = pathlib.Path(tempfile.mkdtemp(prefix="checkmate-rtl-state-"))
 process = None
 results = {"complete": False, "details": {}}
-
-
-def run(helper, *arguments):
-    return subprocess.check_output([str(helpers[helper]), str(process.pid), *arguments], text=True).strip()
-
-
-def pointer(*arguments):
-    return run("pointer-helper", *arguments)
+app = app_driver.App(helpers, lambda: process)
+run, pointer, wait = app.run, app.pointer, app_driver.wait
 
 
 def listing():
@@ -49,15 +41,6 @@ def frame(kind, name):
     """An element's screen frame (x, y from the top left, width, height), from its square name or accessible name."""
     x, y, w, h = (int(v) for v in run("board-click-helper", kind, name).split())
     return {"x": x, "y": y, "w": w, "h": h, "midX": x + w / 2, "maxX": x + w}
-
-
-def wait(predicate, message, timeout=15):
-    deadline = time.monotonic() + timeout
-    while time.monotonic() < deadline:
-        if predicate():
-            return
-        time.sleep(0.2)
-    raise AssertionError(message)
 
 
 def title_text():
@@ -76,7 +59,7 @@ def check(name, condition, detail):
 
 def scenario():
     global process
-    process = subprocess.Popen(command + ["--data-dir", str(state)] + right_to_left, env=environment, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    process = app_driver.launch(command + ["--data-dir", str(state)] + right_to_left, environment)
     wait(lambda: "Chessboard" in listing(), "Board did not appear")
     time.sleep(1)  # Allow initial AppKit window and drawer restoration to finish.
     for _ in range(3):
@@ -93,12 +76,7 @@ def scenario():
     check("toolbarMirrored", sidebar_toggle["midX"] > details_toggle["midX"], {"sidebarToggle": sidebar_toggle, "detailsToggle": details_toggle})
     closed = frame("frame", "Chessboard")
     # Open each drawer explicitly and wait for it, so a measurement never lands mid-animation.
-    if "AXStaticText: The Pawn" not in listing():
-        pointer("click", "Sidebar")
-    wait(lambda: "AXStaticText: The Pawn" in listing(), "Lesson sidebar did not open")
-    if "practice-heading" not in listing():
-        pointer("click", "Details")
-    wait(lambda: "practice-heading" in listing(), "Game details did not open")
+    app.open_drawers(wait, "Lesson sidebar did not open", "Game details did not open")
     time.sleep(1)  # The drawer animation settles before the window is measured.
     board, window = frame("frame", "Chessboard"), frame("frame", "main")
     sidebar, details = frame("frame", "The Pawn"), frame("frame", "practice-heading")
@@ -137,13 +115,7 @@ except Exception as error:
         except Exception as diagnostic:
             results["failure"] += f" (diagnostics failed: {diagnostic})"
 finally:
-    if process is not None and process.poll() is None:
-        process.terminate()
-        try:
-            process.wait(timeout=5)
-        except subprocess.TimeoutExpired:
-            process.kill()
-            process.wait(timeout=5)
+    app_driver.stop(process, kill=True)
     shutil.rmtree(state, ignore_errors=True)
 results["passed"] = failure is None and all(value for value in results.values() if isinstance(value, bool))
 (evidence / "rtl-results.json").write_text(json.dumps(results, indent=2))

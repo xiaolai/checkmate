@@ -1,39 +1,28 @@
 """Silent test-host real-pointer checks for lesson activity handoffs, the way to a lesson exercise, and promotion."""
 import json,os,pathlib,re,shutil,subprocess,tempfile,time
-import test_host;test_host.require('lesson pointer acceptance')
+import app_driver,test_host;test_host.require('lesson pointer acceptance')
 root=pathlib.Path(__file__).resolve().parents[1];evidence=pathlib.Path(os.environ['CHECKMATE_EVIDENCE_DIR']);evidence.mkdir(parents=True,exist_ok=True)
-helpers={}
-for name in ['pointer-helper','ax-helper']:
- helpers[name]=evidence/name;subprocess.run(['xcrun','swiftc',str(root/'Tools'/f'{name}.swift'),'-o',str(helpers[name])],check=True)
+helpers=app_driver.compile_helpers(evidence,{'pointer-helper':'pointer-helper','ax-helper':'ax-helper'})
 state=pathlib.Path(tempfile.mkdtemp(prefix='checkmate-lessons-pointer-'));process=None
 command=[str(root/'build/CheckmateAutomation.app/Contents/MacOS/CheckmateNative'),'--automation','--data-dir',str(state)]
-env={k:v for k,v in os.environ.items() if k!='CHECKMATE_AUTOMATION'}
-def pointer(*args):return subprocess.check_output([str(helpers['pointer-helper']),str(process.pid),*args],text=True).strip()
+env=app_driver.without_automation()
+app=app_driver.App(helpers,lambda:process);pointer,listing=app.pointer,app.listing
 import sidebar_lessons;course=sidebar_lessons.COURSE;lesson_row=sidebar_lessons.row
 def click_lesson(title):sidebar_lessons.click(pointer,title)
-def listing():return subprocess.check_output([str(helpers['ax-helper']),str(process.pid),'list'],text=True)
-def wait(test,message,timeout=20):
- end=time.monotonic()+timeout
- while time.monotonic()<end:
-  if test():return
-  time.sleep(.2)
- raise AssertionError(message)
-def saved():return json.loads((state/'state-v1.json').read_text())
+def wait(test,message,timeout=20):app_driver.wait(test,message,timeout)
+def saved():return app_driver.saved(state)
 def stop():
  global process
- if process:process.terminate();process.wait(timeout=10);process=None
+ app_driver.stop(process,10);process=None
  time.sleep(.4)
 def launch():
  global process
- process=subprocess.Popen(command,env=env,stdout=subprocess.DEVNULL,stderr=(evidence/"lesson-pointer-trace.log").open("ab"))
+ process=app_driver.launch(command,env,stderr=(evidence/"lesson-pointer-trace.log").open("ab"))
  wait(lambda:'Chessboard' in listing(),'Board did not appear');time.sleep(1)
 results={}
 try:
  launch()
- if 'AXStaticText: The Pawn' not in listing():pointer('click','Sidebar')
- wait(lambda:'AXStaticText: The Pawn' in listing(),'Sidebar did not open')
- if 'practice-heading' not in listing():pointer('click','Details')
- wait(lambda:'practice-heading' in listing(),'Details did not open')
+ app.open_drawers(wait,'Sidebar did not open','Details did not open')
  pointer('click-square','e2');pointer('click-square','e4')
  wait(lambda:'1. e4 ' in saved()['practice']['pgn'] and saved()['practice']['fen'].split()[1]=='w','Computer did not reply')
  click_lesson('Pawn Duel');wait(lambda:'Play Pawn Duel' in listing(),'Visible game invitation missing')

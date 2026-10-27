@@ -1,4 +1,5 @@
 """No tracked file carries wording, names or board positions of the course this app once adapted."""
+import functools
 import hashlib
 import importlib.util
 import json
@@ -128,21 +129,29 @@ def library_games():
         yield game, headers, re.sub(r'^\[.*\]$', '', text, flags=re.M)
 
 
+@functools.lru_cache(maxsize=1)
+def library_scan():
+    """Each bundled game read and replayed once per run: (its id, its text hits, (ply, digest) of each checked board)."""
+    scanned = []
+    for game, headers, movetext in library_games():
+        texts = [f"{game['id']}: {hit} in {value[:60]!r}" for value in strings(game) if (hit := provenance.text_hit(value))]
+        texts += [f"{game['id']}: {hit} in header {name}" for name, value in headers if (hit := provenance.text_hit(value))]
+        boards, _ = replay(movetext)
+        # Only the full starting position may match (Content/README.md); every later board is checked.
+        checked = tuple((ply, provenance.digest(provenance.board_key(board))) for ply, board in enumerate(boards) if provenance.board_key(board) != provenance.board_key(START))
+        scanned.append((game['id'], tuple(texts), checked))
+    return tuple(scanned)
+
+
 def library_hits(boards_blocked, allowed=None):
     """Prohibited text or boards in the bundled games: manifest text, tags, title and every replayed position.
 
     A board passes when it is a named opening line's position (`bundled_board_hit`); `allowed` overrides that set."""
     allowed = provenance.opening_positions() if allowed is None else allowed
     hits = []
-    for game, headers, movetext in library_games():
-        hits += [f"{game['id']}: {hit} in {value[:60]!r}" for value in strings(game) if (hit := provenance.text_hit(value))]
-        hits += [f"{game['id']}: {hit} in header {name}" for name, value in headers if (hit := provenance.text_hit(value))]
-        boards, _ = replay(movetext)
-        # Only the full starting position may match (Content/README.md); every later board is checked.
-        for ply, board in enumerate(boards):
-            key = provenance.digest(provenance.board_key(board))
-            if provenance.board_key(board) != provenance.board_key(START) and key in boards_blocked and key not in allowed:
-                hits.append(f"{game['id']}: original board after ply {ply}")
+    for game_id, texts, checked in library_scan():
+        hits += texts
+        hits += [f"{game_id}: original board after ply {ply}" for ply, key in checked if key in boards_blocked and key not in allowed]
     return hits
 
 

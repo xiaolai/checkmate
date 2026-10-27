@@ -12,6 +12,7 @@ no comments, NAGs, variations or other source text.
   --check            offline: the bundle matches the selection and replays exactly as its manifest says
 """
 import argparse
+import functools
 import hashlib
 import importlib.util
 import json
@@ -158,11 +159,18 @@ def ending(game, result, mated, side_to_move):
     return 'unknown'
 
 
-def opening(boards):
-    """The deepest named-line position the game reaches (by placement key); ties: the longer line, then the name."""
+@functools.lru_cache(maxsize=1)
+def opening_endpoints():
+    """{placement key of a named line's last position: [(its plies, name, eco), ...]}, built once per run (read only)."""
     endpoints = {}
     for eco, name, line in provenance.opening_lines():
         endpoints.setdefault(provenance.board_key(line[-1]), []).append((len(line) - 1, name, eco))
+    return endpoints
+
+
+def opening(boards):
+    """The deepest named-line position the game reaches (by placement key); ties: the longer line, then the name."""
+    endpoints = opening_endpoints()
     for board in reversed(boards[1:]):
         found = endpoints.get(provenance.board_key(board))
         if found:

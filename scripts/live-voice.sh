@@ -13,12 +13,13 @@ python3 scripts/source-hashes.py . > "$before"
 python3 scripts/fresh-sources.py .build -- swift build --product CheckmateAcceptance
 .build/debug/CheckmateAcceptance --live-voice "$report"
 python3 - "$report" "$before" <<'PY'
-import json,subprocess,sys
+import importlib,json,sys
+sys.path.insert(0,'scripts')
+differs=importlib.import_module('source-hashes').differs
 path,before=sys.argv[1],json.load(open(sys.argv[2]))
 report=json.load(open(path))
 assert report.get('passed') is True,'Live voice acceptance did not pass'
-after=json.loads(subprocess.check_output([sys.executable,'scripts/source-hashes.py','.'],text=True))
-changed=sorted(k for k in before.keys()|after.keys() if before.get(k)!=after.get(k))
+changed=differs(before,'.')
 assert not changed,f'The tree changed during the live run: {changed[:20]}'
 report['sourceHashes']=before
 with open(path,'w') as f: json.dump(report,f,indent=2,sort_keys=True,ensure_ascii=False)

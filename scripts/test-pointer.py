@@ -14,6 +14,7 @@ import subprocess
 import tempfile
 import time
 
+import app_driver
 import sidebar_lessons
 import test_host
 test_host.require("native pointer acceptance")
@@ -23,33 +24,15 @@ evidence.mkdir(parents=True, exist_ok=True)
 state = pathlib.Path(tempfile.mkdtemp(prefix="checkmate-pointer-state-"))
 # Removed at exit, after the finally below has stopped the app (run-gates fails a gate that leaves temporary files).
 atexit.register(shutil.rmtree, state, ignore_errors=True)
-helper = evidence / "pointer-helper"
-lister = evidence / "pointer-ax-helper"
-subprocess.run(["xcrun", "swiftc", str(root / "Tools/pointer-helper.swift"), "-o", str(helper)], check=True)
-subprocess.run(["xcrun", "swiftc", str(root / "Tools/ax-helper.swift"), "-o", str(lister)], check=True)
+helpers = app_driver.compile_helpers(evidence, {"pointer-helper": "pointer-helper", "ax-helper": "pointer-ax-helper"})
 command = [str(root / "build/CheckmateAutomation.app/Contents/MacOS/CheckmateNative"), "--automation", "--data-dir", str(state)]
-environment = {key: value for key, value in os.environ.items() if key != "CHECKMATE_AUTOMATION"}
+environment = app_driver.without_automation()
 # The unsaved-reviews quit alert is shown (not auto-answered) so its buttons are clicked like a person's.
 environment["CHECKMATE_QUIT_ALERT_FIXTURE"] = "1"
 app_bundle = root / "build/CheckmateAutomation.app"
 process = None
-
-
-def pointer(action, *arguments):
-    return subprocess.check_output([str(helper), str(process.pid), action, *arguments], text=True).strip()
-
-
-def listing():
-    return subprocess.check_output([str(lister), str(process.pid), "list"], text=True)
-
-
-def wait(predicate, message, timeout=15):
-    deadline = time.monotonic() + timeout
-    while time.monotonic() < deadline:
-        if predicate():
-            return
-        time.sleep(0.2)
-    raise AssertionError(message)
+app = app_driver.App(helpers, lambda: process)
+pointer, listing, label, wait = app.pointer, app.listing, app.label, app_driver.wait
 
 
 def confirm_panel(press, still_open, done, message):
@@ -90,10 +73,6 @@ def reviews():
     return records
 
 
-def label(square):
-    return pointer("label", square)
-
-
 def replied(white_move):
     """Black's reply follows the move in the drawer's move list, where each move is a button named "1. e4", "1... e5"."""
     number = white_move.split(".")[0]
@@ -104,16 +83,11 @@ def replied(white_move):
 
 
 try:
-    process = subprocess.Popen(command, env=environment, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    process = app_driver.launch(command, environment)
     wait(lambda: "Chessboard" in listing(), "Board did not appear")
     time.sleep(1)  # Allow initial AppKit window and drawer restoration to finish.
     # Explicitly open drawers, tolerating window restoration from previous automation runs.
-    if "AXStaticText: The Pawn" not in listing():
-        pointer("click", "Sidebar")
-    wait(lambda: "AXStaticText: The Pawn" in listing(), "Lesson sidebar did not open at launch")
-    if "practice-heading" not in listing():
-        pointer("click", "Details")
-    wait(lambda: "practice-heading" in listing(), "Game details did not open")
+    app.open_drawers(wait, "Lesson sidebar did not open at launch", "Game details did not open")
 
     # A trackpad press that drifts within its square is still a click.
     pointer("drift-square", "f2", "12")
@@ -374,7 +348,7 @@ try:
     # The review pane with the real pointer: a game library row from the workspace, a move-table cell, the evaluation
     # graph (both ends, between samples, a drag, a wheel turn over it) and Return to game from an original review, an
     # imagined line and the workspace.
-    process = subprocess.Popen(command, env=environment, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    process = app_driver.launch(command, environment)
     wait(lambda: "Chessboard" in listing(), "Board did not appear after relaunch")
     time.sleep(1)
     if "Review game" not in listing():
@@ -539,7 +513,7 @@ try:
         assert process.poll() is not None, "Quit did not end the app " + when
 
     def launch(folder, *flags):
-        return subprocess.Popen([command[0], "--automation", "--data-dir", str(folder), *flags], env=environment, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return app_driver.launch([command[0], "--automation", "--data-dir", str(folder), *flags], environment)
 
     # The first-run welcome (L-20) with the real pointer, each answer in a new data folder of its own: Continue, Back,
     # the voice coach's setup with its consent declined, a placement and Start Lesson; then Skip. Answering saves at
@@ -639,6 +613,4 @@ except Exception:
         subprocess.run(["screencapture", "-x", str(evidence / "pointer-failure.png")], check=False)
     raise
 finally:
-    if process is not None and process.poll() is None:
-        process.terminate()
-        process.wait(timeout=5)
+    app_driver.stop(process)
